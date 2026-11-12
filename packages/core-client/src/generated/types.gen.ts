@@ -4942,6 +4942,49 @@ export type CreateDriveFileUploadSessionRequest = {
     folder?: string;
 };
 
+export type DriveGoogleSheet = {
+    /**
+     * The copy's file id
+     */
+    resourceId: string;
+    /**
+     * The copy's Blob pathname
+     */
+    pathname: string;
+    name: string;
+    /**
+     * The sheet in Google Sheets
+     */
+    url: string;
+    /**
+     * When Sokosumi last read the sheet
+     */
+    syncedAt: Date;
+    /**
+     * Why the last refresh failed (the copy stays as it was), or null.
+     */
+    error: 'not_shared' | 'too_large' | 'failed' | null;
+};
+
+export type LinkDriveGoogleSheetRequest = {
+    /**
+     * The sheet's address. Its sharing must be 'Anyone with the link can view'.
+     */
+    url: string;
+    /**
+     * Drive file owner scope: 'me' for personal, 'org' for organization
+     */
+    scope: 'me' | 'org';
+    /**
+     * Organization ID (required when scope=org)
+     */
+    organizationId?: string;
+    /**
+     * Folder to put the copy in; the Drive root when omitted
+     */
+    folder?: string;
+};
+
 export type DriveItems = Array<DriveItem>;
 
 export type DriveItem = ({
@@ -39784,6 +39827,153 @@ export type PostDriveFilesFinalizeResponses = {
 
 export type PostDriveFilesFinalizeResponse = PostDriveFilesFinalizeResponses[keyof PostDriveFilesFinalizeResponses];
 
+export type PostDriveFilesGoogleSheetsData = {
+    body: LinkDriveGoogleSheetRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/files/google-sheets';
+};
+
+export type PostDriveFilesGoogleSheetsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - a file with that name exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - not a Google Sheets link, or not shared
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveFilesGoogleSheetsError = PostDriveFilesGoogleSheetsErrors[keyof PostDriveFilesGoogleSheetsErrors];
+
+export type PostDriveFilesGoogleSheetsResponses = {
+    /**
+     * Google Sheet linked
+     */
+    201: {
+        data: DriveGoogleSheet;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveFilesGoogleSheetsResponse = PostDriveFilesGoogleSheetsResponses[keyof PostDriveFilesGoogleSheetsResponses];
+
 export type GetDriveFilesContentData = {
     body?: never;
     headers?: {
@@ -41783,6 +41973,226 @@ export type GetDriveResourcesByIdContentResponses = {
 };
 
 export type GetDriveResourcesByIdContentResponse = GetDriveResourcesByIdContentResponses[keyof GetDriveResourcesByIdContentResponses];
+
+export type GetDriveResourcesByIdGoogleSheetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/resources/{id}/google-sheet';
+};
+
+export type GetDriveResourcesByIdGoogleSheetErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveResourcesByIdGoogleSheetError = GetDriveResourcesByIdGoogleSheetErrors[keyof GetDriveResourcesByIdGoogleSheetErrors];
+
+export type GetDriveResourcesByIdGoogleSheetResponses = {
+    /**
+     * Linked Google Sheet
+     */
+    200: {
+        data: DriveGoogleSheet;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveResourcesByIdGoogleSheetResponse = GetDriveResourcesByIdGoogleSheetResponses[keyof GetDriveResourcesByIdGoogleSheetResponses];
+
+export type PostDriveResourcesByIdGoogleSheetRefreshData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/resources/{id}/google-sheet/refresh';
+};
+
+export type PostDriveResourcesByIdGoogleSheetRefreshErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveResourcesByIdGoogleSheetRefreshError = PostDriveResourcesByIdGoogleSheetRefreshErrors[keyof PostDriveResourcesByIdGoogleSheetRefreshErrors];
+
+export type PostDriveResourcesByIdGoogleSheetRefreshResponses = {
+    /**
+     * Google Sheet refreshed
+     */
+    200: {
+        data: DriveGoogleSheet;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveResourcesByIdGoogleSheetRefreshResponse = PostDriveResourcesByIdGoogleSheetRefreshResponses[keyof PostDriveResourcesByIdGoogleSheetRefreshResponses];
 
 export type GetDriveResourcesByIdRelatedData = {
     body?: never;

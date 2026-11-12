@@ -4,8 +4,8 @@ import { Download, ExternalLink, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { DriveSpreadsheet } from "@/app/drive/components/drive-spreadsheet";
 import Markdown from "@/components/markdown";
-import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
 import { TeamFileView } from "@/components/team/team-view";
 import { Button } from "@/components/ui/button";
 import { spreadsheetKind } from "@/lib/spreadsheet-file";
@@ -231,7 +231,12 @@ export function DriveFilePreview({
       {isTeam ? (
         <TeamFileView url={source} />
       ) : sheet ? (
-        <SpreadsheetFileView url={source} kind={sheet} />
+        <DriveSpreadsheet
+          resourceId={resourceId}
+          store={store}
+          url={source}
+          kind={sheet}
+        />
       ) : rendersAsImage(type) ? (
         // Not `next/image`: the bytes come from an authorized route with a
         // per-request check, not from an optimizable public asset.
