@@ -820,6 +820,16 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
 
   // ---- review 5: ownership, Retry budget and event order ----
 
+  /**
+   * A reclaim in production comes at least the stale window after the claim
+   * it takes over; here the claim is only aged. Let the clock move, so the
+   * reclaimer's stamp is not the same millisecond as the stalled worker's.
+   */
+  async function reclaimLater() {
+    const from = Date.now();
+    while (Date.now() <= from + 1) await new Promise((r) => setImmediate(r));
+  }
+
   function gate() {
     let reached!: () => void;
     let release!: () => void;
@@ -1064,6 +1074,7 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
       await a.atHold;
       // A stalls past the stale window; worker B reclaims under the same key.
       await db.$executeRaw`UPDATE chat_room_mention SET "updatedAt" = now() - interval '1 hour' WHERE id = ${m.mention.id}::uuid`;
+      await reclaimLater();
       const started = reclaimerStarts
         ? startsRunningTurn(m.mention.id, () => mentionReply(m.mention.id))
         : [];
@@ -1262,6 +1273,7 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
       await a.atHold;
       // A stalls past the stale window; worker B reclaims and opens its reply.
       await db.$executeRaw`UPDATE chat_room_mention SET "updatedAt" = now() - interval '1 hour' WHERE id = ${m.mention.id}::uuid`;
+      await reclaimLater();
       const started = reclaimerStarts
         ? startsRunningTurn(m.mention.id, () => mentionReply(m.mention.id))
         : [];
@@ -1689,4 +1701,85 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
       ).toBe(false);
     },
   );
+
+  // ---- review 8: a duplicate dispatcher must not borrow a live claim ----
+
+  it("lets a duplicate dispatcher failing before its claim leave the live worker's setup alone", async () => {
+    const m = await pendingMention();
+    // Worker B claims and opens its reply, then waits reading the room,
+    // before any turn exists.
+    const b = gate();
+    hold.context = async () => {
+      b.reached();
+      await b.released;
+    };
+    const started = startsRunningTurn(m.mention.id, () =>
+      mentionReply(m.mention.id),
+    );
+    const workerB = publicDispatch(m.mention.id);
+    await b.atHold;
+    const claimedByB = await db.chatRoomMention.findUniqueOrThrow({
+      where: { id: m.mention.id },
+    });
+    expect(claimedByB.status).toBe("sent");
+    expect(
+      await db.sokoBotTurn.count({ where: { chatMentionId: m.mention.id } }),
+    ).toBe(0);
+
+    // Duplicate C (another poll scheduled it) loads B's sent row with B's
+    // current stamp, then fails before claiming.
+    hold.workspace = async () => {
+      throw new Error("workspace lookup failed");
+    };
+    await publicDispatch(m.mention.id);
+    const afterC = await db.chatRoomMention.findUniqueOrThrow({
+      where: { id: m.mention.id },
+      include: { responseMessage: true },
+    });
+    // C claimed nothing and wrote nothing.
+    expect(afterC.status).toBe("sent");
+    expect(afterC.updatedAt.getTime()).toBe(claimedByB.updatedAt.getTime());
+    expect(afterC.responseMessage?.metadata).toMatchObject({ streaming: true });
+    expect(
+      (afterC.responseMessage?.metadata as { mention_failed?: boolean })
+        .mention_failed,
+    ).toBeUndefined();
+
+    // B goes on, starts its turn, and its answer lands through the outbox.
+    b.release();
+    await workerB;
+    expect(started).toHaveLength(1);
+    expect(
+      await completeAndDeliver(started[0], "Three invoices are due."),
+    ).toBe(true);
+    expect(await mentionState(m.mention.id)).toMatchObject({
+      status: "responded",
+      content: "Three invoices are due.",
+    });
+  });
+
+  it("still fails a pending mention, and a stale sent one, that a dispatcher cannot run", async () => {
+    // Pending: the dispatcher claims it, then fails it under that claim.
+    const fresh = await pendingMention();
+    hold.workspace = async () => {
+      throw new Error("workspace lookup failed");
+    };
+    await publicDispatch(fresh.mention.id);
+    expect(await mentionState(fresh.mention.id)).toMatchObject({
+      status: "failed",
+      metadata: { mention_failed: true },
+    });
+
+    // Stale sent (its worker died before any turn): reclaimed, then failed.
+    const stale = await staleMention();
+    hold.workspace = async () => {
+      throw new Error("workspace lookup failed");
+    };
+    await publicDispatch(stale.mention.id);
+    expect(await mentionState(stale.mention.id)).toMatchObject({
+      status: "failed",
+      metadata: { mention_failed: true },
+    });
+    expect(startTurn).not.toHaveBeenCalled();
+  });
 });

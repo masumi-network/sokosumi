@@ -44,7 +44,7 @@ import {
   publishMentionThoughtPlaceholder,
 } from "./chat-room-mention-stream";
 import {
-  failSokoBotMention,
+  failUnclaimedSokoBotMention,
   runSokoBotMentionDispatch,
 } from "./chat-room-soko-bot-dispatch.service";
 
@@ -191,12 +191,12 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
 
     // Fail closed when the human sender row was deleted (SetNull): billing /
     // provider auth as the room creator would attribute cost to the wrong user.
-    // A Soko Bot mention another worker may have claimed since this one read
-    // it fails only through the ownership check, against the `updatedAt` read
-    // here (`failSokoBotMention`).
+    // A Soko Bot mention fails only under a claim this worker acquires first
+    // (`failUnclaimedSokoBotMention`): the row read here may already belong to
+    // another worker setting it up, and its stamp is that worker's, not ours.
     const failWithShell = (error: unknown) =>
       mention.sokoBotId
-        ? failSokoBotMention(mentionId, mention.updatedAt, error)
+        ? failUnclaimedSokoBotMention(mentionId, error)
         : failMentionWithCoworkerShell({
             mentionId,
             sourceMessageId: mention.message.id,

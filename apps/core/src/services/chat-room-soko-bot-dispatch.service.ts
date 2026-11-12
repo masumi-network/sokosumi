@@ -28,13 +28,14 @@ import {
 
 /**
  * Fails a Soko Bot mention only where `failSokoBotReplyIfOwned` allows, then
- * publishes the failed card. `stamp` is the mention's `updatedAt` this worker
- * observed before claiming, or its claim's stamp after. Every Soko Bot
- * failure goes through here, before the claim (from the caller) and after.
+ * publishes the failed card. `stamp` is the stamp of a claim this worker
+ * acquired (`claimMentionForDispatch`), never one it merely read: a read of a
+ * `sent` row can see another worker's live claim. Every Soko Bot failure goes
+ * through here (before the claim via `failUnclaimedSokoBotMention`).
  */
 export async function failSokoBotMention(
   mentionId: string,
-  stamp: Date | null,
+  stamp: Date,
   error: unknown,
 ): Promise<void> {
   const failed = await failSokoBotReplyIfOwned({ mentionId, stamp, error });
@@ -50,6 +51,21 @@ export async function failSokoBotMention(
       );
   }
   await publishChatRoomMessageRealtimeById(failed.replyId, failed.eventType);
+}
+
+/**
+ * A failure found before this worker claimed the mention (the bot is gone,
+ * the room changed, a lookup threw). The worker claims first, as a dispatch
+ * would: a `pending` mention, or a stale `sent` one whose worker died, is
+ * then failed under that claim. A mention another worker is live on stays
+ * with that worker, which settles it itself.
+ */
+export async function failUnclaimedSokoBotMention(
+  mentionId: string,
+  error: unknown,
+): Promise<void> {
+  const claim = await claimMentionForDispatch(mentionId);
+  if (claim) await failSokoBotMention(mentionId, claim.stamp, error);
 }
 
 /**

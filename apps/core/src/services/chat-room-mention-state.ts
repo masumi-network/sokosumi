@@ -340,9 +340,10 @@ export async function findSokoBotReplyOpenedBy(
  *   by its own deadline and delivery, and the completed one's answer would
  *   be lost. The mention stays `sent` for stale reclaim to settle.
  * - No turn holds it: the worker owns it only while the mention's
- *   `updatedAt` is still `stamp`, the value it observed (before claiming) or
- *   wrote (its claim, kept while opening the reply). Any other claim, stale
- *   reclaim or Retry rewrites it.
+ *   `updatedAt` is still `stamp`, the stamp of a claim it acquired (kept
+ *   while opening the reply). Never a stamp it only read: a `sent` row read
+ *   before claiming may carry another worker's live claim. Any other claim,
+ *   stale reclaim or Retry rewrites it.
  *
  * All of this runs under the mention's row lock, the lock Retry's reset and
  * every claim take, so no check-then-write gap remains.
@@ -354,7 +355,7 @@ export async function findSokoBotReplyOpenedBy(
  */
 export async function failSokoBotReplyIfOwned(params: {
   mentionId: string;
-  stamp: Date | null;
+  stamp: Date;
   error: unknown;
 }): Promise<{ replyId: string; eventType: "create" | "update" } | null> {
   const { mentionId } = params;
@@ -367,7 +368,7 @@ export async function failSokoBotReplyIfOwned(params: {
     });
     const owned = holder
       ? holder.status === "FAILED" || holder.status === "CANCELLED"
-      : params.stamp?.getTime() === locked.updatedAt.getTime();
+      : params.stamp.getTime() === locked.updatedAt.getTime();
     if (!owned) return null;
     const mention = await tx.chatRoomMention.findUniqueOrThrow({
       where: { id: mentionId },
@@ -395,8 +396,7 @@ export async function failSokoBotReplyIfOwned(params: {
         ...(holder ? { turn_id: holder.id } : {}),
         attempt_at:
           readSokoBotAttemptAt(mention.responseMessage?.metadata) ??
-          params.stamp?.getTime() ??
-          Date.now(),
+          params.stamp.getTime(),
       },
     };
     const reply = mention.responseMessage;
