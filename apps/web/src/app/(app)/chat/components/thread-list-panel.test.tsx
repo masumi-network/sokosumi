@@ -135,7 +135,9 @@ function renderPanel(
 
 describe("ThreadListPanel", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // Reset, not clear: a test that fails early leaves its unused
+    // mockReturnValueOnce queued, and clear would hand it to the next test.
+    vi.resetAllMocks();
     listThreadsActionMock.mockResolvedValue({
       ok: true,
       value: {
@@ -458,6 +460,45 @@ describe("ThreadListPanel", () => {
     );
     expect(row()).toHaveAttribute("data-unread", "false");
     expect(screen.queryByTestId("thread-list-mark-all-read")).toBeNull();
+  });
+
+  it("holds older pages while Mark all runs, so its reload is not discarded", async () => {
+    markAllUnreadThreadsReadActionMock.mockResolvedValueOnce({
+      ok: true,
+      value: { markedCount: 1 },
+    });
+    let answerReload: (value: unknown) => void = () => {};
+    listThreadsActionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        value: { threads: [threadItem()], nextCursor: "cursor-1" },
+      })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          answerReload = resolve;
+        }),
+      );
+    renderPanel();
+    const row = () => screen.getByTestId("thread-list-item");
+
+    fireEvent.click(await screen.findByTestId("thread-list-mark-all-read"));
+    // Core marked them; the reload is out.
+    await waitFor(() => expect(listThreadsActionMock).toHaveBeenCalledTimes(2));
+    fireEvent.click(
+      within(screen.getByTestId("thread-list-load-more")).getByRole("button"),
+    );
+    expect(listThreadsActionMock).toHaveBeenCalledTimes(2);
+
+    await act(async () =>
+      answerReload({
+        ok: true,
+        value: {
+          threads: [threadItem({ unreadReplyCount: 0 })],
+          nextCursor: "cursor-1",
+        },
+      }),
+    );
+    expect(row()).toHaveAttribute("data-unread", "false");
   });
 
   it("selects a row and marks all unread", async () => {

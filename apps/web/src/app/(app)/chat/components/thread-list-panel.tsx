@@ -118,7 +118,9 @@ export function ThreadListPanel({
   }, [roomId]);
 
   async function handleLoadOlder() {
-    if (!nextCursor || isLoadingOlder) {
+    // Mark all holds the boundary too, but an observer entry queued before
+    // that hold landed can still call in here.
+    if (!nextCursor || isLoadingOlder || isMarkingAllRead) {
       return;
     }
     const requestId = ++listRequestIdRef.current;
@@ -352,8 +354,16 @@ export function ThreadListPanel({
         {nextCursor ? (
           <ThreadListLoadMore
             boundaryKey={items.at(-1)?.parentMessage.id ?? ""}
+            // Held while Mark all runs: an older page that starts during the
+            // reload discards it, and the read rows would turn unread again.
+            // The row shows busy for that time, which is true: the list is
+            // being read again.
             status={
-              isLoadingOlder ? "loading" : olderFailed ? "failed" : "idle"
+              isLoadingOlder || isMarkingAllRead
+                ? "loading"
+                : olderFailed
+                  ? "failed"
+                  : "idle"
             }
             onLoad={() => {
               void handleLoadOlder();
