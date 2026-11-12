@@ -297,6 +297,19 @@ export interface SocialPostMediaRef {
   size: number;
   mimeType: string;
   kind: SocialPostMediaKind;
+  /** Required publishing adaptation; the source stays available for another network. */
+  transformation?: {
+    provider: SocialPostProvider;
+    code:
+      | "pad_4_5"
+      | "pad_1_91_1"
+      | "resize"
+      | "jpeg"
+      | "srgb"
+      | "smaller_file";
+    notice: string;
+    original: Omit<SocialPostMediaRef, "transformation">;
+  };
 }
 
 /** Whether attached media satisfies the provider's presence rule. */

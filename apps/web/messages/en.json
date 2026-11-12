@@ -2908,6 +2908,14 @@
           "timeout": "Timed out.",
           "missing": "Couldn't open this post.",
           "mediaUnavailable": "Media isn't included in imported history yet.",
+          "mediaNotice": {
+            "pad_4_5": "{provider} will pad this image to 4:5.",
+            "pad_1_91_1": "{provider} will pad this image to 1.91:1.",
+            "resize": "{provider} will resize this image.",
+            "jpeg": "{provider} will convert this image to JPEG.",
+            "srgb": "{provider} will convert this image to sRGB.",
+            "smaller_file": "{provider} will compress this image."
+          },
           "linkedin": {
             "like": "Like",
             "comment": "Comment",
