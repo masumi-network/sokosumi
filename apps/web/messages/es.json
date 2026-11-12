@@ -1106,6 +1106,27 @@
       "empty": "Esta hoja está vacía.",
       "truncated": "Se muestran las primeras {rows} filas y 50 columnas. Descarga el archivo para ver el resto."
     },
+    "CapTableView": {
+      "loading": "Cargando tabla de capitalización",
+      "failed": "No se puede mostrar este archivo de tabla de capitalización. Comprueba que sea válido.",
+      "title": "Tabla de capitalización de {company}",
+      "asOf": "A {date}",
+      "ownership": "Participación, totalmente diluida",
+      "holder": "Titular",
+      "class": "Clase",
+      "shares": "Acciones",
+      "issued": "Emitidas",
+      "fullyDiluted": "Totalmente diluida",
+      "optionPool": "Pool de opciones",
+      "vesting": "Vesting: {schedule}",
+      "granted": "{granted} concedidas, {available} disponibles",
+      "total": "Total",
+      "issuedShares": "Acciones emitidas",
+      "reservedShares": "Reservadas para el plan de acciones",
+      "unallocatedShares": "Ni emitidas ni reservadas",
+      "authorizedShares": "Acciones autorizadas",
+      "parValue": "Valor nominal"
+    },
     "TeamView": {
       "loading": "Cargando equipo",
       "failed": "No se puede mostrar este archivo de equipo. Comprueba que sea un archivo de equipo válido.",
@@ -3564,7 +3585,20 @@
           }
         },
         "Calendar": {
-          "title": "Calendario"
+          "title": "Calendario",
+          "nextIssue": "Próxima edición",
+          "nothingScheduled": "Aún no hay nada programado. Programa una edición y aparecerá aquí.",
+          "openFullCalendar": "Abrir en el calendario",
+          "emptyTitle": "Aún no hay ediciones",
+          "emptyDescription": "Escribe una edición y aparecerá aquí por fecha.",
+          "goToIssues": "Ir a ediciones",
+          "groups": {
+            "scheduled": "Programadas",
+            "unscheduled": "Sin programar",
+            "sent": "Enviadas"
+          },
+          "count": "{count, plural, one {# edición} other {# ediciones}}",
+          "newestOnly": "Se muestran las {count} ediciones más recientes. Abre el calendario para ver las anteriores."
         },
         "Issues": {
           "title": "Ediciones",
@@ -3595,6 +3629,7 @@
           "previewText": "Texto de vista previa",
           "status": "Estado",
           "sentAt": "Enviada el {date}",
+          "sentTo": "Enviada el {date} a {count, plural, one {# suscriptor} other {# suscriptores}}",
           "firstPage": "Primera página",
           "nextPage": "Página siguiente",
           "results": "{count, plural, one {# edición} other {# ediciones}}",

@@ -1957,9 +1957,9 @@ describe("TaskDetailActions", () => {
         taskId: "task-1",
         linkId: "link-related",
       });
-      expect(refreshMock).toHaveBeenCalled();
       expect(toast.success).toHaveBeenCalledWith("Related task removed");
     });
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("shows an error toast when removing a related link fails", async () => {
