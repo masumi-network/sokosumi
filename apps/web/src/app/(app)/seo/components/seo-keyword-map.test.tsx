@@ -99,11 +99,21 @@ describe("SEO keyword map", () => {
     ]);
   });
 
-  it("is not there without difficulty, as for a check from before it", () => {
-    const { container } = renderMap([
-      row({ volume: 1000 }),
+  it("says when it comes while the audit has no difficulty, and is not there without searches", () => {
+    const waiting = renderMap([row({ volume: 1000 }), row({ volume: 2000 })]);
+    expect(waiting.container).toHaveTextContent(
+      "Reach and difficulty: Shows once an audit gives keyword difficulty.",
+    );
+    expect(screen.queryByTestId("seo-keyword-map")).toBeNull();
+    waiting.unmount();
+    // One keyword with a difficulty is too few for a map, but the audit has difficulty: no note that says none.
+    const one = renderMap([
+      row({ volume: 1000, difficulty: 20 }),
       row({ volume: 2000 }),
     ]);
+    expect(one.container.textContent).toBe("");
+    one.unmount();
+    const { container } = renderMap([row({ volume: 1000 }), row({})]);
     expect(container.textContent).toBe("");
   });
 });

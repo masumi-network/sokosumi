@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   type SeoKeywordPoint,
   seoKeywordMap,
+  seoKeywordMapWaits,
   seoNearestPoint,
 } from "./seo-keyword-map-model";
 import type { SeoKeywordGroup } from "./seo-keyword-rows-model";
@@ -33,7 +34,13 @@ export function SeoKeywordMap({
   // The keyboard keeps its keyword when the mouse leaves the map.
   const [keyed, setKeyed] = useState(false);
   const map = seoKeywordMap(groups);
-  if (!map) return null;
+  if (!map)
+    return seoKeywordMapWaits(groups) ? (
+      <p className="text-muted-foreground text-sm">
+        <span className="text-foreground font-medium">{t("map.title")}:</span>{" "}
+        {t("map.waiting")}
+      </p>
+    ) : null;
   const { points, ticks } = map;
   const found = points.findIndex((point) => point.group.lead.id === activeId);
   const active = found < 0 ? null : found;
