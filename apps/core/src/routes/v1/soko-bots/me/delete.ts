@@ -39,7 +39,11 @@ const archiveByIdRoute = createRoute({
   path: "/{sokoBotId}",
   operationId: "archiveSokoBot",
   request: { params: sokoBotIdParams },
-  responses: { ...spec.responses, 404: jsonErrorResponse("Not Found") },
+  responses: {
+    ...spec.responses,
+    404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("CMO project is read-only"),
+  },
 });
 
 async function handle(c: Context<EnvVariables>, selector: SokoBotSelector) {

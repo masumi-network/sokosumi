@@ -60,9 +60,11 @@ function classifyToolError(
   const status = error.providerStatus;
   const label = socialPostProviderLabel(provider);
   const summary = summarize(
-    providerMessage
-      ? `${label} rejected the post${status ? ` (${status})` : ""}: ${providerMessage}`
-      : error.message,
+    provider === "x" && error.message.startsWith("X could not upload the image")
+      ? error.message
+      : providerMessage
+        ? `${label} rejected the post${status ? ` (${status})` : ""}: ${providerMessage}`
+        : error.message,
   );
   const isXMediaStep = provider === "x" && /media|upload/i.test(error.message);
   if (

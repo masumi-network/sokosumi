@@ -190,6 +190,30 @@ describe("ProjectDetailActions", () => {
     ).not.toBeInTheDocument();
   });
 
+  it.each([
+    [false, ["Edit", "Hide project", "Close project"]],
+    [true, ["Hide project"]],
+  ])(
+    "offers Edit and Close only off a CMO Project (readOnly %s)",
+    async (readOnly, items) => {
+      const user = userEvent.setup();
+      render(
+        <ProjectDetailActions
+          projectId="project-1"
+          projectRevision={3}
+          readOnly={readOnly}
+          labels={LABELS}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "More actions" }));
+
+      expect(
+        screen.getAllByRole("menuitem").map((item) => item.textContent),
+      ).toEqual(items);
+    },
+  );
+
   it("starts a revision-safe close from a destructive confirmation", async () => {
     const user = userEvent.setup();
     closeProjectMock.mockResolvedValue({});

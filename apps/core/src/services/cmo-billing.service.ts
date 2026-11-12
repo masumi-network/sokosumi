@@ -6,6 +6,7 @@ import {
   type Cuso,
   cmoPayer,
   findCusoForBot,
+  LIVE_CUSO_WHERE,
 } from "@/services/cmo-cuso.service";
 import {
   approvedMarketingStrategy,
@@ -22,37 +23,55 @@ export async function isCmoSubscribed(
   return true;
 }
 
-/** What a person's first Cuso starts with, so he can research and plan. */
+/** What every hire brings his organization, so he can research and plan. */
 export const CMO_STARTER_CREDITS = 10_000;
 
-/** Names the grant after the person, so they get it once. */
-function starterCreditsNote(userId: string): string {
-  return `CMO.xyz starter credits (${userId})`;
+/** Names the grant after the hire's Project, so each hire gets it once. */
+function starterCreditsNote(projectId: string): string {
+  return `CMO.xyz starter credits (project ${projectId})`;
 }
 
 /**
- * Gives the organization of a person's first Cuso its starter credits. Every
- * hire, Start over included, makes a new organization, so the grant goes
- * once per person, not once per organization.
+ * Gives a hire's Project its starter credits, wherever the hire landed
+ * (ADR 0065), once per Project, while its Cuso is live. They are Project
+ * credits that never expire and end with the Cuso (ADR 0067).
+ *
+ * Like `writeOffUnlessLiveCuso`, the liveness check is a write to Cuso's row,
+ * so it serializes with Start over's Serializable archive. Read Committed:
+ * each statement takes a new snapshot. If the archive commits first, the
+ * UPDATE rechecks its WHERE on the new row, matches nothing and nothing is
+ * granted. If the grant commits first, the archive fails on the row it then
+ * locks and retries on a snapshot that has the bucket to write off. Two
+ * grants: the second waits on the row lock, and its dedupe read then sees the
+ * first grant.
  */
 export async function grantCmoStarterCredits(input: {
-  userId: string;
+  projectId: string;
   organizationId: string;
 }): Promise<void> {
-  const referenceNote = starterCreditsNote(input.userId);
-  const granted = await prisma.creditBucket.findFirst({
-    where: { referenceType: CreditBucketReferenceType.FREE, referenceNote },
-    select: { id: true },
-  });
-  if (granted) return;
+  const referenceNote = starterCreditsNote(input.projectId);
   const { freeCreditAdminService } = await import(
     "@/services/free-credit-admin.service"
   );
-  await freeCreditAdminService.grantFreeCredits({
-    target: { targetType: "organization", targetId: input.organizationId },
-    credits: CMO_STARTER_CREDITS,
-    ttlDays: null,
-    referenceNote,
+  await prisma.$transaction(async (tx) => {
+    const { count } = await tx.sokoBot.updateMany({
+      where: { ...LIVE_CUSO_WHERE, projectId: input.projectId },
+      data: { updatedAt: new Date() },
+    });
+    if (count === 0) return;
+    const granted = await tx.creditBucket.findFirst({
+      where: { referenceType: CreditBucketReferenceType.FREE, referenceNote },
+      select: { id: true },
+    });
+    if (granted) return;
+    await freeCreditAdminService.grantFreeCredits({
+      target: { targetType: "organization", targetId: input.organizationId },
+      projectId: input.projectId,
+      credits: CMO_STARTER_CREDITS,
+      ttlDays: null,
+      referenceNote,
+      tx,
+    });
   });
 }
 

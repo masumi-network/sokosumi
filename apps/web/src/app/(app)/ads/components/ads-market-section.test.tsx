@@ -73,8 +73,8 @@ const PROFILE = {
   updatedAt: new Date(),
 };
 
-async function renderSection() {
-  render(await AdsMarketSection({ projectId: "project-1" }));
+async function renderSection(readOnly = false) {
+  render(await AdsMarketSection({ projectId: "project-1", readOnly }));
 }
 
 describe("AdsMarketSection", () => {
@@ -105,6 +105,18 @@ describe("AdsMarketSection", () => {
       "summary|running shoes, trail shoes · Germany · German|Australia|",
     );
     expect(profile).toHaveTextContent("French");
+  });
+
+  it("shows a CMO Project's profile as its summary, with no form", async () => {
+    getMarketProfileMock.mockResolvedValue({ profile: PROFILE });
+
+    await renderSection(true);
+
+    expect(screen.queryByTestId("profile")).toBeNull();
+    expect(
+      screen.getByText("running shoes, trail shoes · Germany · German"),
+    ).toBeVisible();
+    expect(screen.getByTestId("results")).toBeVisible();
   });
 
   it("uses the user's locale", async () => {

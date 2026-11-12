@@ -23,6 +23,15 @@ export interface OrganizationCreditBucketScopeContext {
   poolAccess: OrganizationCreditPoolAccess;
 }
 
+/**
+ * The Project a charge or balance read is for. Without one, Organization scope
+ * sees only buckets with no Project; with one, it also sees that Project's
+ * credits (ADR 0067). Personal scope ignores it.
+ */
+export interface CreditBucketProjectOption {
+  projectId?: string | null;
+}
+
 export type CreditBucketScopeContext =
   | PersonalCreditBucketScopeContext
   | OrganizationCreditBucketScopeContext;
@@ -101,6 +110,7 @@ export async function buildOrganizationPoolScopeSql(
   organizationId: string,
   tx: Prisma.TransactionClient,
   now: Date = new Date(),
+  { projectId }: CreditBucketProjectOption = {},
 ): Promise<Prisma.Sql> {
   const billingPlan = await resolveOrganizationBillingPlan(
     organizationId,
@@ -110,6 +120,7 @@ export async function buildOrganizationPoolScopeSql(
   return organizationPoolSql(
     organizationId,
     isConsumableEnterprisePlan(billingPlan),
+    projectId,
   );
 }
 
@@ -167,6 +178,7 @@ function buildOrganizationSharedScopeSql(
 
 export function buildCreditBucketScopeSql(
   context: CreditBucketScopeContext,
+  { projectId }: CreditBucketProjectOption = {},
 ): Prisma.Sql {
   if (context.workspace === "personal") {
     return Prisma.sql`cb."userId" = ${context.userId} AND cb."organizationId" IS NULL`;
@@ -179,17 +191,37 @@ export function buildCreditBucketScopeSql(
   return organizationPoolSql(
     context.organizationId,
     context.poolAccess === "enterprise",
+    projectId,
   );
 }
 
 function organizationPoolSql(
   organizationId: string,
   includeEnterprise: boolean,
+  projectId: string | null | undefined,
 ): Prisma.Sql {
+  const projectSql = projectId
+    ? Prisma.sql`(cb."projectId" IS NULL OR cb."projectId" = ${projectId})`
+    : Prisma.sql`cb."projectId" IS NULL`;
   return Prisma.sql`
     cb."organizationId" = ${organizationId}
+    AND ${projectSql}
     AND ${buildOrganizationSharedScopeSql(includeEnterprise)}
   `;
+}
+
+/**
+ * The spend order as a whole ORDER BY clause: soonest expiry, smallest
+ * original amount, oldest, then id. Spend order key: the charge's Project
+ * credits before the pool (ADR 0067).
+ */
+export function creditBucketSpendOrderSql(
+  projectId: string | null | undefined,
+): Prisma.Sql {
+  const order = Prisma.sql`"expiresAt" ASC NULLS LAST, amount ASC, "createdAt" ASC, id ASC`;
+  return projectId
+    ? Prisma.sql`ORDER BY ("projectId" IS NULL) ASC, ${order}`
+    : Prisma.sql`ORDER BY ${order}`;
 }
 
 export function buildEnterprisePoolScopeSql(

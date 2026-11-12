@@ -59,6 +59,7 @@ async function renderPage(
   archivedAt: Date | null,
   viewerCanManage = true,
   query: Record<string, string> = { view: "advanced" },
+  cuso = false,
 ): Promise<void> {
   listSharedMock.mockResolvedValue([
     {
@@ -68,6 +69,7 @@ async function renderPage(
       sharedRoomId: "room-1",
       projectId: "project-1",
       viewerCanManage,
+      cuso,
     },
   ]);
   chatStateMock.mockResolvedValue({ bot: { viewerCanManage } });
@@ -110,6 +112,25 @@ describe("SharedSokoBotPage", () => {
         sharedRoomId: "room-1",
       }),
     );
+  });
+
+  it("hands Cuso's console his CMO Project", async () => {
+    await renderPage(null, true, {}, true);
+    expect(consoleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ cmoProjectId: "project-1" }),
+    );
+  });
+
+  it("gives any other Project bot the plain console", async () => {
+    await renderPage(null, true, {});
+    expect(consoleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ cmoProjectId: null }),
+    );
+  });
+
+  it("offers no Reactivate for an archived Cuso", async () => {
+    await renderPage(new Date("2026-11-01T00:00:00Z"), true, {}, true);
+    expect(screen.queryByTestId("reactivate")).not.toBeInTheDocument();
   });
 
   it("lets a member who cannot manage see the console without managing", async () => {
