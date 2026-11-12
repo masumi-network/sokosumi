@@ -281,7 +281,7 @@
           "confirm": "Confirmar",
           "cancel": "Cancelar",
           "success": "Invitación cancelada correctamente",
-          "error": "No se pudo cancelar la invitación",
+          "error": "No se pudo cancelar la invitación para {email}. Sigue pendiente.",
           "Errors": {
             "unauthorizedAction": "Iniciar sesión"
           }

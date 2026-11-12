@@ -64,10 +64,17 @@ export function InvitationActionsModalContextProvider({
     router.refresh();
   }
 
-  function onError(_action: InvitationAction, error: BetterAuthClientError) {
-    const errorMessage = error.message ?? t("error");
+  // The dialog is closed by now, so the toast names the invitation.
+  function onError(
+    _action: InvitationAction,
+    error: BetterAuthClientError,
+    invitation: PendingInvitation,
+  ) {
+    const errorMessage = t("error", { email: invitation.email });
+    const description = error.message;
     if (error.status === 401) {
       toast.error(errorMessage, {
+        description,
         action: {
           label: t("Errors.unauthorizedAction"),
           onClick: () => {
@@ -76,7 +83,7 @@ export function InvitationActionsModalContextProvider({
         },
       });
     } else {
-      toast.error(errorMessage);
+      toast.error(errorMessage, { description });
     }
   }
 

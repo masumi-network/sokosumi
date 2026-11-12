@@ -12,7 +12,8 @@ const { cancelInvitation, refresh } = vi.hoisted(() => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    [key, ...Object.values(values ?? {})].join(" "),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -99,7 +100,9 @@ describe("cancelling an invitation", () => {
     await cancelFirstInvitation();
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("No permission"),
+      expect(toast.error).toHaveBeenCalledWith("error a@example.com", {
+        description: "No permission",
+      }),
     );
     expect(screen.getByText("a@example.com")).toBeInTheDocument();
     expect(refresh).not.toHaveBeenCalled();
@@ -111,7 +114,11 @@ describe("cancelling an invitation", () => {
 
     await cancelFirstInvitation();
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("error"));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("error a@example.com", {
+        description: undefined,
+      }),
+    );
     expect(screen.getByText("a@example.com")).toBeInTheDocument();
   });
 });

@@ -281,7 +281,7 @@
           "confirm": "Bestätigen",
           "cancel": "Abbrechen",
           "success": "Einladung erfolgreich abgebrochen",
-          "error": "Einladung konnte nicht abgebrochen werden",
+          "error": "Die Einladung für {email} konnte nicht abgebrochen werden. Sie ist weiterhin ausstehend.",
           "Errors": {
             "unauthorizedAction": "Anmelden"
           }
