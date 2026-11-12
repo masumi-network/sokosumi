@@ -34,6 +34,11 @@ import {
   isOtherHumanAssignee,
   resolveTaskAssigneeFields,
 } from "@/app/tasks/utils/coworker-options";
+import { getPendingTaskName } from "@/app/tasks/utils/pending-created-task";
+import {
+  isAgentAssigneeFields,
+  resolveStatusForAssigneeAndRunAt,
+} from "@/app/tasks/utils/task-form-status";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
@@ -184,24 +189,6 @@ const CREATE_STATUS_OPTIONS = [
   TaskStatus.READY,
 ] as const;
 
-function isAgentAssigneeFields(fields: {
-  assigneeId: string | null;
-  assigneeSokoBotId: string | null;
-}): boolean {
-  return fields.assigneeId !== null || fields.assigneeSokoBotId !== null;
-}
-
-/** A Run at queues the Task (agents only); otherwise agents start Ready. */
-function resolveStatusForAssigneeAndRunAt(options: {
-  isAgent: boolean;
-  hasRunAt: boolean;
-}): TaskStatus {
-  if (options.isAgent) {
-    return options.hasRunAt ? TaskStatus.QUEUED : TaskStatus.READY;
-  }
-  return TaskStatus.DRAFT;
-}
-
 function getTaskFormStatusLabel(
   value: TaskStatus,
   labels: TaskFormLabels,
@@ -288,6 +275,7 @@ export function TaskForm({
   const { data: session } = useSession();
   const canCreatePrivateTask = Boolean(session?.session.activeOrganizationId);
   const tRunAt = useTranslations("App.Tasks.RunAt");
+  const tNewTask = useTranslations("App.Tasks.NewTask");
   const formatter = useFormatter();
   const hasProjectSelection = projectOptions !== undefined;
   const shouldShowProjectSelect = hasProjectSelection && !lockProjectSelection;
@@ -718,6 +706,8 @@ export function TaskForm({
       return;
     }
     setIsSubmitting(true);
+    // Set while a create is out: its failure names the Task that is not made.
+    let createFailedMessage: string | null = null;
     try {
       const trimmedDescription = description.trim();
       const trimmedName = name.trim();
@@ -753,6 +743,13 @@ export function TaskForm({
         // it still asks for Private, and Core refuses instead of publishing.
         const sendsPrivate =
           canCreatePrivateTask && isPrivate && (!isOtherHuman || isCopy);
+        createFailedMessage = tNewTask("createError", {
+          name:
+            getPendingTaskName({
+              name: trimmedName,
+              description: trimmedDescription,
+            }) ?? labels.untitledTask,
+        });
         const result = await createTaskHandler({
           ...(draftTags.tagSuggestionReceipt
             ? { tagSuggestionReceipt: draftTags.tagSuggestionReceipt }
@@ -773,9 +770,10 @@ export function TaskForm({
           ...(runAt ? { runAt } : {}),
         });
         if (!result.ok) {
-          toast.error(labels.saveError);
+          toast.error(createFailedMessage);
           return;
         }
+        createFailedMessage = null;
         const createdTask = result.value;
         const createdHref = taskHref({
           id: createdTask.taskId,
@@ -832,7 +830,7 @@ export function TaskForm({
       router.push(`/tasks/${taskId}`);
     } catch (error) {
       console.error("Failed to save task", error);
-      toast.error(labels.saveError);
+      toast.error(createFailedMessage ?? labels.saveError);
     } finally {
       setIsSubmitting(false);
     }
@@ -873,6 +871,7 @@ export function TaskForm({
     labels.statusReady,
     labels.saveError,
     labels.untitledTask,
+    tNewTask,
     tRunAt,
   ]);
 

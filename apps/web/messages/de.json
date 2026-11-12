@@ -2127,6 +2127,7 @@
         "noStatusMatches": "Kein Status passt",
         "untitledTask": "Unbenannte Aufgabe",
         "saveError": "Die Aufgabe konnte nicht gespeichert werden",
+        "createError": "„{name}“ konnte nicht erstellt werden. Deine Eingaben sind noch im Formular.",
         "back": "Zurück",
         "uploadFile": "Datei hochladen",
         "uploadFileError": "Datei konnte nicht hochgeladen werden",

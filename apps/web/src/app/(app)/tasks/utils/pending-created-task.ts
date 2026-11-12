@@ -39,6 +39,19 @@ function resolveAssignee(
 }
 
 /**
+ * The name a pending row shows: the form's name, else the first description
+ * line. Null when both are empty.
+ */
+export function getPendingTaskName(
+  input: Pick<TaskFormCreateInput, "name" | "description">,
+): string | null {
+  const firstDescriptionLine = stripMarkdownToText(
+    input.description.trim().split("\n", 1)[0],
+  );
+  return input.name || firstDescriptionLine || null;
+}
+
+/**
  * The board row for a Task whose create request is still on the wire. The
  * server writes the name of an unnamed Task, so the first description line
  * stands in for it until the real row arrives.
@@ -48,16 +61,13 @@ export function buildPendingTask(
   { coworkerOptions, projectOptions, now = new Date() }: PendingTaskOptions,
 ): TaskWithCoworker {
   const descriptionPlain = stripMarkdownToText(input.description);
-  const firstDescriptionLine = stripMarkdownToText(
-    input.description.trim().split("\n", 1)[0],
-  );
   const project = projectOptions.find((item) => item.id === input.projectId);
   const timestamp = now.toISOString();
   return {
     id: `${PENDING_TASK_ID_PREFIX}${crypto.randomUUID()}`,
     isPending: true,
     identifier: null,
-    name: input.name || firstDescriptionLine || PENDING_TASK_NAME_FALLBACK,
+    name: getPendingTaskName(input) ?? PENDING_TASK_NAME_FALLBACK,
     status: input.status,
     priority: "NONE",
     visibility: input.visibility ?? "PUBLIC",
