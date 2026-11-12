@@ -25,8 +25,6 @@ export interface ProjectFilterOption {
   contextMd?: { url: string; updatedAt: string | Date } | null;
   /** A CMO Project, which pickers that create inside a Project leave out. */
   cmo?: boolean;
-  /** A closed Project takes no new schedules or Tasks. */
-  closed?: boolean;
 }
 
 /** App Router `searchParams` values can be `string | string[]` when a key is repeated. */

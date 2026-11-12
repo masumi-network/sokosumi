@@ -302,7 +302,6 @@ export function TaskScheduleActions({
       ) : null}
       {copy === "pick" ? (
         <TaskScheduleCopyProjectPicker
-          projectOptions={projectOptions}
           currentProjectId={schedule.projectId}
           onSelect={(projectId) => setCopy({ projectId })}
           onClose={() => setCopy(null)}

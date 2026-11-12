@@ -1,4 +1,4 @@
-import type { TaskSchedule } from "@sokosumi/core-client";
+import type { ProjectListItem, TaskSchedule } from "@sokosumi/core-client";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,6 +8,7 @@ import { TaskScheduleActions } from "./task-schedule-actions";
 const {
   changeTaskScheduleStateMock,
   deleteTaskScheduleMock,
+  loadMoreProjectsMock,
   pushMock,
   refreshMock,
   runTaskScheduleNowMock,
@@ -15,6 +16,7 @@ const {
 } = vi.hoisted(() => ({
   changeTaskScheduleStateMock: vi.fn(),
   deleteTaskScheduleMock: vi.fn(),
+  loadMoreProjectsMock: vi.fn(),
   runTaskScheduleNowMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
@@ -35,6 +37,10 @@ vi.mock("@/lib/actions/task-schedule/action", () => ({
   changeTaskScheduleState: changeTaskScheduleStateMock,
   deleteTaskSchedule: deleteTaskScheduleMock,
   runTaskScheduleNow: runTaskScheduleNowMock,
+}));
+
+vi.mock("@/app/projects/actions", () => ({
+  loadMoreProjects: loadMoreProjectsMock,
 }));
 
 vi.mock("./task-schedule-dialog", () => ({
@@ -109,6 +115,41 @@ function renderActions(state: TaskSchedule["state"]) {
       canCreatePrivate={false}
     />,
   );
+}
+
+function project(
+  id: string,
+  extra: Partial<ProjectListItem> = {},
+): ProjectListItem {
+  return {
+    id,
+    name: id,
+    logo: null,
+    cmo: false,
+    closingAt: null,
+    closedAt: null,
+    ...extra,
+  } as ProjectListItem;
+}
+
+function page(projects: ProjectListItem[], nextCursor: string | null) {
+  return { projects, nextCursor };
+}
+
+function renderCopyToProject() {
+  return render(
+    <TaskScheduleActions
+      schedule={{ ...schedule("ACTIVE"), projectId: "p_here" }}
+      coworkerOptions={[]}
+      projectOptions={[]}
+      canCreatePrivate={false}
+    />,
+  );
+}
+
+async function openProjectPicker(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "more" }));
+  await user.click(screen.getByRole("menuitem", { name: "copyToProject" }));
 }
 
 const OK = { ok: true, value: { scheduleId: SCHEDULE_ID } };
@@ -298,48 +339,117 @@ describe("TaskScheduleActions", () => {
     },
   );
 
-  it("copies to another Project chosen first, offering only open non-CMO others", async () => {
+  it("skips past pages of closing, closed, CMO and own Projects to the first destination", async () => {
+    loadMoreProjectsMock
+      .mockResolvedValueOnce(
+        page(
+          [
+            project("p_here"),
+            project("p_closing", { closingAt: new Date("2030-01-01") }),
+            project("p_closed", { closedAt: new Date("2030-01-01") }),
+            project("p_cmo", { cmo: true }),
+          ],
+          "c1",
+        ),
+      )
+      .mockResolvedValueOnce(page([project("p_there")], null));
     const user = userEvent.setup();
-    render(
-      <TaskScheduleActions
-        schedule={{ ...schedule("ACTIVE"), projectId: "p_here" }}
-        coworkerOptions={[]}
-        projectOptions={[
-          { id: "p_here", name: "Here" },
-          { id: "p_there", name: "There" },
-          { id: "p_closed", name: "Closed", closed: true },
-          { id: "p_cmo", name: "Brand", cmo: true },
-        ]}
-        canCreatePrivate={false}
-      />,
-    );
+    renderCopyToProject();
 
-    await user.click(screen.getByRole("button", { name: "more" }));
-    await user.click(screen.getByRole("menuitem", { name: "copyToProject" }));
+    await openProjectPicker(user);
 
-    const picker = screen.getByRole("dialog");
-    expect(within(picker).getAllByRole("option")).toHaveLength(1);
-    const there = within(picker).getByRole("option", { name: /There$/ });
-    expect(screen.queryByRole("dialog", { name: /^copy / })).toBeNull();
+    expect(
+      await screen.findByRole("option", { name: /p_there$/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent),
+    ).toEqual([expect.stringMatching(/p_there$/), "copyToProjectLoadMore"]);
+    expect(loadMoreProjectsMock.mock.calls.map(([call]) => call)).toEqual([
+      { cursor: null, query: undefined, state: "open" },
+      { cursor: "c1", query: undefined, state: "open" },
+    ]);
+  });
 
-    await user.click(there);
+  it("loads destinations past the first page and copies into the chosen one", async () => {
+    loadMoreProjectsMock
+      .mockResolvedValueOnce(page([project("p_first")], "c1"))
+      .mockResolvedValueOnce(page([project("p_second")], null));
+    const user = userEvent.setup();
+    renderCopyToProject();
+
+    await openProjectPicker(user);
     await user.click(
-      within(
-        screen.getByRole("dialog", { name: "copy Daily digest into p_there" }),
-      ).getByRole("button", { name: "save copy" }),
+      await screen.findByRole("option", { name: "copyToProjectLoadMore" }),
     );
-
+    await user.click(await screen.findByRole("option", { name: /p_second$/ }));
+    expect(screen.queryByRole("option")).toBeNull();
+    expect(
+      screen.getByRole("dialog", { name: "copy Daily digest into p_second" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "save copy" }));
     expect(pushMock).toHaveBeenCalledWith("/schedules/copy-id");
+  });
+
+  it("offers the viewer's Hidden Projects once the Open ones run out", async () => {
+    loadMoreProjectsMock
+      .mockResolvedValueOnce(page([project("p_here")], null))
+      .mockResolvedValueOnce(page([project("p_hidden")], null));
+    const user = userEvent.setup();
+    renderCopyToProject();
+
+    await openProjectPicker(user);
+
+    expect(
+      await screen.findByRole("option", { name: /p_hidden$/ }),
+    ).toBeInTheDocument();
+    expect(loadMoreProjectsMock).toHaveBeenLastCalledWith({
+      cursor: null,
+      query: undefined,
+      state: "hidden",
+    });
+  });
+
+  it("searches every Project by name on the server", async () => {
+    loadMoreProjectsMock.mockImplementation(
+      async ({ query }: { query?: string }) =>
+        page(query === "old" ? [project("p_old")] : [], null),
+    );
+    const user = userEvent.setup();
+    renderCopyToProject();
+
+    await openProjectPicker(user);
+    await screen.findByText("copyToProjectNone");
+    await user.type(screen.getByRole("combobox"), "old");
+
+    expect(
+      await screen.findByRole("option", { name: /p_old$/ }),
+    ).toBeInTheDocument();
+    expect(loadMoreProjectsMock).toHaveBeenCalledWith({
+      cursor: null,
+      query: "old",
+      state: "open",
+    });
+  });
+
+  it("says when loading destinations failed", async () => {
+    loadMoreProjectsMock.mockRejectedValue(new Error("down"));
+    const user = userEvent.setup();
+    renderCopyToProject();
+
+    await openProjectPicker(user);
+
+    expect(await screen.findByText("copyToProjectFailed")).toBeInTheDocument();
+    expect(screen.queryByText("copyToProjectNone")).toBeNull();
   });
 
   it("says when no other Project can take the copy, and cancelling writes nothing", async () => {
     const user = userEvent.setup();
+    loadMoreProjectsMock.mockResolvedValue(page([], null));
     renderActions("ACTIVE");
 
-    await user.click(screen.getByRole("button", { name: "more" }));
-    await user.click(screen.getByRole("menuitem", { name: "copyToProject" }));
+    await openProjectPicker(user);
 
-    expect(screen.getByText("copyToProjectNone")).toBeInTheDocument();
+    expect(await screen.findByText("copyToProjectNone")).toBeInTheDocument();
     expect(screen.queryByRole("option")).toBeNull();
     await user.keyboard("{Escape}");
 
