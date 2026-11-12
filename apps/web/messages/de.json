@@ -9041,7 +9041,9 @@
         "messageRequired": "Nachricht ist erforderlich.",
         "roomRequired": "Raum ist erforderlich.",
         "pinError": "Nachricht konnte nicht angeheftet werden.",
-        "unpinError": "Nachricht konnte nicht gelöst werden."
+        "unpinError": "Nachricht konnte nicht gelöst werden.",
+        "statePinned": "Die Nachricht ist angeheftet.",
+        "stateUnpinned": "Die Nachricht ist nicht angeheftet."
       },
       "SavedMessages": {
         "save": "Für später speichern",
@@ -9072,13 +9074,15 @@
         "openLink": "Linkvorschau öffnen: {title}",
         "imageAlt": "Vorschaubild für {title}",
         "remove": "Linkvorschau entfernen: {title}",
-        "removeError": "Die Linkvorschau konnte nicht entfernt werden. Versuche es erneut."
+        "removeError": "Die Linkvorschau konnte nicht entfernt werden. Versuche es erneut.",
+        "restored": "Die Linkvorschau ist wieder an der Nachricht."
       },
       "Message": {
         "delete": "Löschen",
         "deleteConfirm": "Diese Nachricht löschen? Andere sehen, dass sie gelöscht wurde.",
         "deleted": "Diese Nachricht wurde gelöscht",
         "deleteError": "Die Nachricht konnte nicht gelöscht werden. Versuche es erneut.",
+        "restored": "Die Nachricht ist wieder in der Unterhaltung.",
         "showMore": "Mehr anzeigen",
         "showLess": "Weniger anzeigen"
       },

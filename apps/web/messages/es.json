@@ -9041,7 +9041,9 @@
         "messageRequired": "El mensaje es obligatorio.",
         "roomRequired": "La sala es obligatoria.",
         "pinError": "No se pudo fijar el mensaje.",
-        "unpinError": "No se pudo desfijar el mensaje."
+        "unpinError": "No se pudo desfijar el mensaje.",
+        "statePinned": "El mensaje está fijado.",
+        "stateUnpinned": "El mensaje no está fijado."
       },
       "SavedMessages": {
         "save": "Guardar para después",
@@ -9072,13 +9074,15 @@
         "openLink": "Abrir vista previa del enlace: {title}",
         "imageAlt": "Imagen de vista previa de {title}",
         "remove": "Quitar vista previa del enlace: {title}",
-        "removeError": "No se pudo quitar la vista previa del enlace. Inténtalo de nuevo."
+        "removeError": "No se pudo quitar la vista previa del enlace. Inténtalo de nuevo.",
+        "restored": "La vista previa del enlace vuelve a estar en el mensaje."
       },
       "Message": {
         "delete": "Eliminar",
         "deleteConfirm": "¿Eliminar este mensaje? Los demás verán que fue eliminado.",
         "deleted": "Este mensaje fue eliminado",
         "deleteError": "No se pudo eliminar el mensaje. Inténtalo de nuevo.",
+        "restored": "El mensaje vuelve a estar en la conversación.",
         "showMore": "Mostrar más",
         "showLess": "Mostrar menos"
       },

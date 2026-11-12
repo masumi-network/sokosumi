@@ -69,6 +69,7 @@ vi.mock("../room-message-row", async () => {
     ChatMessageRow: memo(function ChatMessageRowStub({
       message,
       isPinned,
+      isSaving,
       isEditing,
       editDraft,
       onToggleReaction,
@@ -82,6 +83,7 @@ vi.mock("../room-message-row", async () => {
     }: {
       message: ChatRoomMessage;
       isPinned?: boolean;
+      isSaving?: boolean;
       isEditing?: boolean;
       editDraft?: string;
       onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
@@ -103,6 +105,7 @@ vi.mock("../room-message-row", async () => {
           data-unfurls={(message.unfurls ?? [])
             .map((unfurl) => unfurl.url)
             .join(" ")}
+          aria-busy={isSaving || undefined}
           data-editing={String(Boolean(isEditing))}
           data-edit-draft={editDraft ?? ""}
         >
@@ -235,6 +238,13 @@ async function mountRoom(initialMessages: ChatRoomMessage[] = messages) {
   await act(async () => {});
   expect(screen.getAllByTestId("chat-message-row")).toHaveLength(3);
   return snapshotRenders();
+}
+
+function savingRowIds() {
+  return screen
+    .getAllByTestId("chat-message-row")
+    .filter((row) => row.getAttribute("aria-busy") === "true")
+    .map((row) => row.getAttribute("data-message-id"));
 }
 
 function pinnedFlags() {
@@ -444,6 +454,7 @@ describe("RoomsClient transcript row render isolation", () => {
       fireEvent.click(screen.getByRole("button", { name: "Pin m2" }));
     });
     expect(pinnedFlags()).toEqual(["false", "true", "false"]);
+    expect(savingRowIds()).toEqual(["m2"]);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Pin m2" }));
@@ -455,6 +466,7 @@ describe("RoomsClient transcript row render isolation", () => {
       answer({ ok: true, value: undefined as never });
     });
     expect(pinnedFlags()).toEqual(["false", "true", "false"]);
+    expect(savingRowIds()).toEqual([]);
 
     // The answered write frees the message for the next one.
     vi.mocked(unpinRoomMessageAction).mockResolvedValueOnce({
@@ -480,7 +492,36 @@ describe("RoomsClient transcript row render isolation", () => {
     });
 
     expect(pinnedFlags()).toEqual(["false", "false", "false"]);
-    expect(toast.error).toHaveBeenCalledWith("Pin refused");
+    expect(toast.error).toHaveBeenCalledWith("Pin refused", {
+      description: "PinnedMessages.stateUnpinned",
+    });
+  });
+
+  it("marks the row as saving until a failed Pin answers, then says it is not pinned", async () => {
+    let fail: (error: Error) => void = () => {};
+    vi.mocked(pinRoomMessageAction).mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          fail = reject;
+        }),
+    );
+    await mountRoom();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Pin m2" }));
+    });
+    expect(savingRowIds()).toEqual(["m2"]);
+    expect(toast.error).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fail(new Error("down"));
+    });
+
+    expect(savingRowIds()).toEqual([]);
+    expect(pinnedFlags()).toEqual(["false", "false", "false"]);
+    expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+      "PinnedMessages.pinError",
+      { description: "PinnedMessages.stateUnpinned" },
+    );
   });
 
   it("puts the Pin back when the unpin request fails", async () => {
@@ -496,7 +537,10 @@ describe("RoomsClient transcript row render isolation", () => {
     });
 
     expect(pinnedFlags()).toEqual(["false", "true", "false"]);
-    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+      "PinnedMessages.unpinError",
+      { description: "PinnedMessages.statePinned" },
+    );
   });
 
   it("keeps the Pin when its own realtime event came before the failed answer", async () => {
@@ -525,7 +569,10 @@ describe("RoomsClient transcript row render isolation", () => {
     });
 
     expect(pinnedFlags()).toEqual(["false", "true", "false"]);
-    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+      "PinnedMessages.pinError",
+      { description: "PinnedMessages.statePinned" },
+    );
   });
 
   it("sets the Pin again when a read put the old state back during the write", async () => {
@@ -630,7 +677,9 @@ describe("RoomsClient transcript row render isolation", () => {
       await remove("b");
 
       expect(previews()).toEqual(["", "a b c", ""]);
-      expect(toast.error).toHaveBeenCalledWith("Removal refused");
+      expect(toast.error).toHaveBeenCalledWith("Removal refused", {
+        description: "Unfurl.restored",
+      });
 
       // The refused removal is closed: a later answer may hold its card.
       vi.mocked(removeRoomMessageUnfurlAction).mockResolvedValueOnce({
@@ -661,7 +710,12 @@ describe("RoomsClient transcript row render isolation", () => {
       });
 
       expect(previews()).toEqual(["", "b c", ""]);
-      expect(toast.error).toHaveBeenCalledExactlyOnceWith("Unfurl.removeError");
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+        "Unfurl.removeError",
+        {
+          description: "Unfurl.restored",
+        },
+      );
     });
 
     it("puts a refused last card back at the end", async () => {
@@ -788,7 +842,9 @@ describe("RoomsClient transcript row render isolation", () => {
         "false:body m2",
         "false:body m3",
       ]);
-      expect(toast.error).toHaveBeenCalledWith("Delete refused");
+      expect(toast.error).toHaveBeenCalledWith("Delete refused", {
+        description: "Message.restored",
+      });
     });
 
     it("puts the message back when the request fails", async () => {
@@ -806,6 +862,7 @@ describe("RoomsClient transcript row render isolation", () => {
       ]);
       expect(toast.error).toHaveBeenCalledExactlyOnceWith(
         "Message.deleteError",
+        { description: "Message.restored" },
       );
     });
 
