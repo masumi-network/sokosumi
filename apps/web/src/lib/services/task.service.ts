@@ -365,6 +365,35 @@ export const taskService = (() => {
     return result.data;
   }
 
+  /**
+   * Re-dates the reader's overdue Tasks (as of their `today`) to `to` in the
+   * active workspace. Core picks them and re-checks each under lock; what it
+   * moved comes back with the data Undo needs.
+   */
+  async function moveOverdueTasks(input: { today: string; to: string }) {
+    const result = await coreClient.moveOverdueTasks(input);
+
+    if (!result.data) {
+      throw new Error("Failed to move overdue tasks");
+    }
+
+    return result.data;
+  }
+
+  /** Puts moved Tasks back, each only while untouched since the move. */
+  async function undoMoveOverdueTasks(input: {
+    to: string;
+    tasks: { id: string; from: string; version: string }[];
+  }) {
+    const result = await coreClient.undoMoveOverdueTasks(input);
+
+    if (!result.data) {
+      throw new Error("Failed to undo moving overdue tasks");
+    }
+
+    return result.data;
+  }
+
   async function moveTaskToWorkspace(
     taskId: string,
     organizationId: string | null,
@@ -487,6 +516,8 @@ export const taskService = (() => {
     removeTaskParticipant,
     subscribeTaskParticipant,
     moveTaskToWorkspace,
+    moveOverdueTasks,
+    undoMoveOverdueTasks,
     patchTask,
     listTaskLinks,
     deleteTask,

@@ -101,7 +101,6 @@ export function RoomMembersPanel({
       toast.error(result.error.message);
       return;
     }
-    router.refresh();
   }
 
   /** Coworkers and Soko Bots go at once; the toast can put them back. */
@@ -114,7 +113,6 @@ export function RoomMembersPanel({
       toast.error(result.error.message);
       return;
     }
-    router.refresh();
     toast.success(t("RoomRoster.removeSuccess", { name: participant.name }), {
       duration: Infinity,
       closeButton: true,
@@ -147,7 +145,6 @@ export function RoomMembersPanel({
     }
     toast.success(t("RoomRoster.removeSuccess", { name: pendingRemoval.name }));
     setPendingRemoval(null);
-    router.refresh();
   }
 
   async function handleConfirmLeave() {
@@ -167,7 +164,6 @@ export function RoomMembersPanel({
     // The room is gone for this user, so land them back on the room list
     // rather than a view they can no longer read.
     router.replace("/");
-    router.refresh();
   }
 
   return (
