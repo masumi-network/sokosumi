@@ -36,11 +36,12 @@ export interface OnboardingBrandActions {
     brandBrain: NonNullable<CmoOverview["brandBrain"]>,
   ) => Promise<CmoOverview>;
   /**
-   * The founder says one section is wrong: Cuso rewrites only it, now or
-   * once his current turn ends. A refusal comes back as text.
+   * The founder says something is wrong: with a section Cuso rewrites only
+   * it; without one he rewrites every section the note changes. Now or once
+   * his current turn ends. A refusal comes back as text.
    */
   fixBrandSection: (
-    section: BrandSectionKey,
+    section: BrandSectionKey | null,
     note: string,
   ) => Promise<string | null>;
 }

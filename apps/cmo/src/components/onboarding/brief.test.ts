@@ -412,6 +412,24 @@ describe("meanwhile", () => {
   });
 });
 
+describe("meanwhile with a general fix", () => {
+  it("says a general fix waits its turn while the plan writes", () => {
+    expect(
+      meanwhile(
+        asking({
+          work: work("strategy"),
+          brandBrain: {
+            ...brain,
+            fix: { note: "Agencies too", at: "2026-11-13", fixed: false },
+          },
+        }),
+      ),
+    ).toBe(
+      "Meanwhile Cuso is writing your plan · the fix waits its turn, then joins it",
+    );
+  });
+});
+
 describe("weekOne", () => {
   it("is the plan's first week of pieces, in order", () => {
     expect(weekOne(strategy.calendar).map((entry) => entry.id)).toEqual([

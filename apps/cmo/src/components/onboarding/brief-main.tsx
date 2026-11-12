@@ -31,6 +31,7 @@ import {
   adEntries,
   adWeek,
   type BriefLocal,
+  brandFixPending,
   briefSteps,
   STAGES,
   type StageId,
@@ -762,10 +763,7 @@ export function BriefMain({
       ask?.kind === "brand-question"
         ? brain?.questions?.find((candidate) => candidate.id === ask.id)
         : undefined;
-    const profile = brain ? brandProfile(brain) : {};
-    const fixing = (Object.keys(profile) as BrandSectionKey[]).find(
-      (key) => profile[key]?.fix && !profile[key]?.fix?.fixed,
-    );
+    const fixing = brandFixPending(overview);
     body = (
       <>
         {stage === "research" ? <GroupChips overview={overview} /> : null}
@@ -775,8 +773,16 @@ export function BriefMain({
             section={question.section}
             fallback={question.statement}
           />
+        ) : stage === "brand" && fixing?.section ? (
+          <SectionResult overview={overview} section={fixing.section} fixing />
         ) : stage === "brand" && fixing ? (
-          <SectionResult overview={overview} section={fixing} fixing />
+          <Result label="Your correction · being fixed">
+            <p className="brief-line">{fixing.note}</p>
+            <p className="brief-meanwhile">
+              <span className="dot live" aria-hidden="true" />
+              {AGENT_NAME} is fixing this
+            </p>
+          </Result>
         ) : stage === "brand" ? (
           <BrandCheckResult overview={overview} />
         ) : (

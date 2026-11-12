@@ -1,6 +1,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
 import { AGENT_NAME } from "../../lib/agent";
+import { type BrandSectionKey, brandProfile } from "../../lib/brand-sections";
 import { planWeeks } from "../../lib/calendar";
 import { channelKey } from "../../lib/channels";
 import type { SkippedStep } from "../../lib/skipped-steps";
@@ -347,6 +348,26 @@ export function workingStatus(
   };
 }
 
+/**
+ * A fix Cuso has not rewritten yet: the whole Brand Brain's (a general
+ * correction) or one section's; null when none waits.
+ */
+export function brandFixPending(
+  overview: CmoOverview,
+): { section: BrandSectionKey | null; note: string } | null {
+  const brain = overview.brandBrain;
+  if (!brain) return null;
+  if (brain.fix && !brain.fix.fixed) {
+    return { section: null, note: brain.fix.note };
+  }
+  const profile = brandProfile(brain);
+  const key = (Object.keys(profile) as BrandSectionKey[]).find(
+    (candidate) => profile[candidate]?.fix && !profile[candidate]?.fix?.fixed,
+  );
+  const fix = key ? profile[key]?.fix : undefined;
+  return key && fix ? { section: key, note: fix.note } : null;
+}
+
 /** What Cuso does while the chat asks; null when he is idle. */
 export function meanwhile(overview: CmoOverview): string | null {
   const work = overview.work;
@@ -360,10 +381,7 @@ export function meanwhile(overview: CmoOverview): string | null {
   if (work.change === "patch") {
     return `Meanwhile ${AGENT_NAME} is changing your plan`;
   }
-  const profile = overview.brandBrain?.profile ?? {};
-  const fixWaits = Object.values(profile).some(
-    (section) => section?.fix && !section.fix.fixed,
-  );
+  const fixWaits = brandFixPending(overview) !== null;
   return fixWaits
     ? `Meanwhile ${AGENT_NAME} is writing your plan · the fix waits its turn, then joins it`
     : `Meanwhile ${AGENT_NAME} is writing your plan`;

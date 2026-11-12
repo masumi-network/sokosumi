@@ -2,14 +2,10 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
-import { type ReactNode, type RefObject, useState } from "react";
+import { type ReactNode, type RefObject, useRef, useState } from "react";
 
 import { AGENT_NAME } from "../../lib/agent";
-import {
-  BRAND_SECTIONS,
-  type BrandSectionKey,
-  brandProfile,
-} from "../../lib/brand-sections";
+import { BRAND_SECTIONS, type BrandSectionKey } from "../../lib/brand-sections";
 import { channelLabel, type SocialProvider } from "../../lib/calendar";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { joinNames } from "../../lib/names";
@@ -33,7 +29,11 @@ type Strategy = NonNullable<CmoOverview["strategy"]>;
 export interface ChatHandlers {
   answerBrand: (id: string, answer: Answer, note?: string) => Promise<void>;
   confirmBrand: () => Promise<string | null>;
-  fixBrand: (section: BrandSectionKey, note: string) => Promise<string | null>;
+  /** Without a section, a general correction of the Brand Brain. */
+  fixBrand: (
+    section: BrandSectionKey | null,
+    note: string,
+  ) => Promise<string | null>;
   retryResearch: () => Promise<string | null>;
   reply: (text: string) => Promise<void>;
   retryPlan: () => Promise<string | null>;
@@ -385,51 +385,29 @@ function BrandQuestion({ overview, handlers, id }: QuestionProps) {
   );
 }
 
-/** The sections a fix can go to, in the order the Brand Brain reads. */
-function fixableSections(overview: CmoOverview): BrandSectionKey[] {
-  const brain = overview.brandBrain;
-  if (!brain) return [];
-  const profile = brandProfile(brain);
-  return (Object.keys(BRAND_SECTIONS) as BrandSectionKey[]).filter(
-    (key) => profile[key],
-  );
-}
-
 /**
- * Looks like us, or a fix in words. Core fixes one section at a time, so the
- * person picks which one the fix is about.
+ * Looks like us, or a fix in words: a reply, not a form. Core takes the
+ * note as a general correction and Cuso rewrites every section it changes.
  */
 function BrandCheck({ overview, handlers }: ChatAskProps) {
   const { pending, refusal, run } = useRun();
-  const [fixing, setFixing] = useState(false);
-  const [section, setSection] = useState<BrandSectionKey | null>(null);
   const [note, setNote] = useState("");
-  const [sent, setSent] = useState<
-    { section: BrandSectionKey; note: string }[]
-  >([]);
+  const [sent, setSent] = useState<string[]>([]);
+  const noteRef = useRef<HTMLInputElement>(null);
   const name = businessDisplayName(overview);
   const last = sent.at(-1);
-  const confirm = (
-    <Choice
-      label={last ? "That's all, looks like us" : "Looks like us"}
-      primary
-      busy={pending === "confirm"}
-      disabled={pending !== null}
-      onClick={() => run("confirm", handlers.confirmBrand)}
-    />
-  );
   return (
     <>
       {last ? (
         <>
           <Bubble question={`Did I get ${name} right?`} past />
-          <Said>Fix something: {last.note}</Said>
+          <Said>Fix something: {last}</Said>
         </>
       ) : null}
       <Bubble
         question={
           last
-            ? `Got it. I'm fixing ${BRAND_SECTIONS[last.section].title} now, and your plan picks it up. Anything else?`
+            ? "Got it. I'm fixing your Brand Brain now, and your plan picks it up. Anything else?"
             : `Did I get ${name} right?`
         }
         sub={
@@ -439,59 +417,37 @@ function BrandCheck({ overview, handlers }: ChatAskProps) {
         }
       >
         <Answers>
-          {confirm}
+          <Choice
+            label={last ? "That's all, looks like us" : "Looks like us"}
+            primary
+            busy={pending === "confirm"}
+            disabled={pending !== null}
+            onClick={() => run("confirm", handlers.confirmBrand)}
+          />
           <Choice
             label={last ? "One more fix" : "Fix something"}
-            pressed={fixing}
             disabled={pending !== null}
-            onClick={() => setFixing(!fixing)}
+            onClick={() => noteRef.current?.focus()}
           />
         </Answers>
-        {fixing ? (
-          <div className="brief-fix">
-            <p className="brief-sub" id="brief-fix-which">
-              Which part?
-            </p>
-            <div
-              className="brief-sections"
-              role="group"
-              aria-labelledby="brief-fix-which"
-            >
-              {fixableSections(overview).map((key) => (
-                <Choice
-                  key={key}
-                  label={BRAND_SECTIONS[key].title}
-                  pressed={section === key}
-                  onClick={() => setSection(key)}
-                />
-              ))}
-            </div>
-            <Note
-              id="brief-fix-note"
-              label="What's true instead"
-              placeholder={
-                section
-                  ? `What's true about ${BRAND_SECTIONS[section].title.toLowerCase()}?`
-                  : "Pick a part, then say what's true"
-              }
-              value={note}
-              onChange={setNote}
-              disabled={section === null}
-              onSend={(text) =>
-                run("fix", async () => {
-                  if (!section) return null;
-                  const refused = await handlers.fixBrand(section, text);
-                  if (refused) return refused;
-                  setSent((current) => [...current, { section, note: text }]);
-                  setFixing(false);
-                  setSection(null);
-                  setNote("");
-                  return null;
-                })
-              }
-            />
-          </div>
-        ) : null}
+        <Note
+          id="brief-fix-note"
+          label="What's off"
+          placeholder="Or say what's off, e.g. “We sell to agencies too”"
+          value={note}
+          onChange={setNote}
+          inputRef={noteRef}
+          disabled={pending !== null}
+          onSend={(text) =>
+            run("fix", async () => {
+              const refused = await handlers.fixBrand(null, text);
+              if (refused) return refused;
+              setSent((current) => [...current, text]);
+              setNote("");
+              return null;
+            })
+          }
+        />
         {refusal ? (
           <Refusal text={refusal} topUpUrl={overview.subscribeUrl} />
         ) : null}

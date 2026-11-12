@@ -351,33 +351,45 @@ describe("brand check", () => {
     }
   });
 
-  it("fixes one part in words: pick the part, say what is true, then confirm", async () => {
+  it("fixes the brand in words alone: a reply, not a form", async () => {
     const fixBrandSection = vi.fn(async () => null);
-    const overview = checked({
-      brandBrain: {
-        ...brain,
-        questions: [],
-        profile: {
-          customers: {
-            answer: "Founders",
-            findings: [],
-            openQuestions: [],
-          },
-        },
-      },
-    });
+    const overview = checked();
     await render(overview, actionsFor(overview, { fixBrandSection }));
     await press("Fix something");
-    expect(text()).toContain("Which part?");
-    await press("Target customers");
-    typeInto("#brief-fix-note", "Agencies too");
+    expect(document.activeElement?.id).toBe("brief-fix-note");
+    expect(text()).not.toContain("Which part?");
+    typeInto("#brief-fix-note", "We sell to agencies too");
     await press("Send");
-    expect(fixBrandSection).toHaveBeenCalledWith("customers", "Agencies too");
+    expect(fixBrandSection).toHaveBeenCalledWith(
+      null,
+      "We sell to agencies too",
+    );
+    expect(text()).toContain("Fix something: We sell to agencies too");
     expect(text()).toContain(
-      "Got it. I'm fixing Target customers now, and your plan picks it up. Anything else?",
+      "Got it. I'm fixing your Brand Brain now, and your plan picks it up. Anything else?",
     );
     expect(button("That's all, looks like us")).toBeTruthy();
     expect(button("One more fix")).toBeTruthy();
+  });
+
+  it("shows a general fix as being fixed until Cuso has rewritten it", async () => {
+    const fixing = (fixed: boolean) =>
+      checked({
+        brandBrain: {
+          ...brain,
+          questions: [],
+          fix: { note: "We sell to agencies too", at: "2026-11-13", fixed },
+        },
+      });
+    await render(fixing(false));
+    expect(text()).toContain("Your correction · being fixed");
+    expect(text()).toContain("We sell to agencies too");
+    expect(text()).toContain("Cuso is fixing this");
+
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await render(fixing(true));
+    expect(text()).not.toContain("being fixed");
   });
 });
 

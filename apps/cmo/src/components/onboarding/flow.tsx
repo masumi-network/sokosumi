@@ -313,7 +313,7 @@ export function OnboardingFlow({
     return result.error;
   };
   const request = async () => settle(await actions.requestStrategy());
-  const fixSection = async (section: BrandSectionKey, note: string) => {
+  const fixSection = async (section: BrandSectionKey | null, note: string) => {
     const refused = await actions.fixBrandSection(section, note);
     if (!refused) void refresh();
     return refused;
