@@ -374,7 +374,7 @@ describe("starting from a template", () => {
     requestStudioWebsiteDraftOnOpen("p");
 
     const studio = mount("https://ceramics.example");
-    expect(await screen.findByText("preparing")).toBeInTheDocument();
+    expect(await screen.findByText("preparing")).not.toHaveClass("sr-only");
     expect(mocks.prepareWebsiteDraft).toHaveBeenCalledExactlyOnceWith({
       projectId: "p",
     });
@@ -400,11 +400,23 @@ describe("starting from a template", () => {
     expect(
       screen.getByRole("button", { name: "reviewImportedProducts" }),
     ).toBeInTheDocument();
+    // The review buttons already say it; the ready line is for screen readers.
+    expect(screen.getByText("ready")).toHaveClass("sr-only");
     expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
     expect(mocks.saveProducts).not.toHaveBeenCalled();
     studio.unmount();
     mount("https://ceramics.example");
     expect(mocks.prepareWebsiteDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the website status visible when only some details could be read", async () => {
+    mocks.prepareWebsiteDraft.mockResolvedValueOnce({
+      brandCopy: { summary: "A ceramics studio", lines: [] },
+      products: null,
+    });
+    mount("https://ceramics.example");
+    fireEvent.click(screen.getByRole("button", { name: "prepare" }));
+    expect(await screen.findByText("partial")).not.toHaveClass("sr-only");
   });
 
   it("prepares website copy and products together for independent review", async () => {
