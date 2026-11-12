@@ -457,37 +457,12 @@ by then.
 
 `$WEB_URL` is `pnpm portless:url web` (or `web_url=` from `verify-sokosumi doctor`). Do not hardcode `:3000`.
 
-Each coworker stores their **own** credentials (nothing shared/committed):
-
-```bash
-# one-time, per machine — password read from stdin, never echoed
-WEB_URL="$(pnpm portless:url web)"
-agent-browser auth save sokosumi \
-  --url "$WEB_URL/signin" \
-  --username you@example.com --password-stdin \
-  --username-selector '[data-testid="auth-field-email"]' \
-  --password-selector '[data-testid="auth-field-currentPassword"]'
-```
-
-Prefer `verify-sokosumi sign-in` (fixtures, then this vault). Manual recipe:
-
-```bash
-WEB_URL="$(pnpm portless:url web)"
-agent-browser open "$WEB_URL/signin"
-agent-browser auth login sokosumi \
-  --url "$WEB_URL/signin" \
-  --username-selector '[data-testid="auth-field-email"]' \
-  --password-selector '[data-testid="auth-field-currentPassword"]'
-# if still on /signin: press Enter (vault click can race react-hook-form)
-agent-browser open "$WEB_URL/agents"
-agent-browser wait --url "**/agents"
-```
+Each coworker stores their **own** credentials (nothing shared/committed).
+Prefer `verify-sokosumi sign-in` (fixtures, then the vault). The sign-in steps
+live in [verify-sokosumi](../../.cursor/skills/verify-sokosumi/SKILL.md) and
+[sign-in](../../.cursor/skills/verify-sokosumi/features/sign-in.md).
 
 Do not `wait --load networkidle` on `/chat` after login — Ably hangs that wait. Prove the session on `/agents`.
-
-Stable selectors exist for deterministic targeting if you fill fields yourself:
-`[data-testid="auth-field-email"]`, `[data-testid="auth-field-currentPassword"]`,
-`[data-testid="auth-submit"]`.
 
 Prefer session reuse so you only log in once per machine:
 

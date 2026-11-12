@@ -3647,6 +3647,28 @@ export type ChatResultOutput = {
     openHref: string;
     previewHref: string | null;
     downloadHref?: string | null;
+    /**
+     * Required provider adaptation, with the original source retained.
+     */
+    transformation?: {
+        provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
+        code: 'pad_4_5' | 'pad_1_91_1' | 'resize' | 'jpeg' | 'srgb' | 'smaller_file';
+        notice: string;
+        original: {
+            /**
+             * Drive blob pathname; must belong to the active workspace
+             */
+            pathname: string;
+            /**
+             * Public Blob URL of the Drive file
+             */
+            fileUrl: string;
+            name: string;
+            size: number;
+            mimeType: string;
+            kind: 'image' | 'gif' | 'video';
+        };
+    };
 };
 
 export type ChatResultUnavailable = {
@@ -10180,6 +10202,28 @@ export type SocialPostMediaRef = {
     size: number;
     mimeType: string;
     kind: 'image' | 'gif' | 'video';
+    /**
+     * Required provider adaptation, with the original source retained.
+     */
+    transformation?: {
+        provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
+        code: 'pad_4_5' | 'pad_1_91_1' | 'resize' | 'jpeg' | 'srgb' | 'smaller_file';
+        notice: string;
+        original: {
+            /**
+             * Drive blob pathname; must belong to the active workspace
+             */
+            pathname: string;
+            /**
+             * Public Blob URL of the Drive file
+             */
+            fileUrl: string;
+            name: string;
+            size: number;
+            mimeType: string;
+            kind: 'image' | 'gif' | 'video';
+        };
+    };
 };
 
 export type SocialPostQuotedPost = {
