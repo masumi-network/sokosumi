@@ -3,12 +3,7 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
-import {
-  type Dispatch,
-  type SetStateAction,
-  useState,
-  useTransition,
-} from "react";
+import { type Dispatch, type SetStateAction, useState } from "react";
 import { toast } from "sonner";
 import {
   deleteRoomMessageAction,
@@ -57,8 +52,8 @@ export function useRoomMessageMutations({
     draft: string;
     inThread: boolean;
   } | null>(null);
-  const [isSavingEdit, startSavingEditTransition] = useTransition();
   const [openUnfurlRemovals] = useState(() => new Set<string>());
+  const [openEditSaves] = useState(() => new Set<string>());
   const [pinWrites] = useState(
     () =>
       new Map<
@@ -196,11 +191,13 @@ export function useRoomMessageMutations({
   }
 
   function handleStartEdit(message: ChatRoomMessage, inThread: boolean) {
+    // The row shows a text Core does not have yet. A second edit on top of
+    // it could put that text back as if it were saved.
+    if (openEditSaves.has(message.id)) return;
     setEditSession({ messageId: message.id, draft: message.content, inThread });
   }
 
   function handleCancelEdit() {
-    if (isSavingEdit) return;
     setEditSession(null);
   }
 
@@ -210,8 +207,10 @@ export function useRoomMessageMutations({
 
   function handleSaveEdit(contentOverride?: string) {
     const roomId = getSelectedRoomId();
-    if (!roomId || !editSession || isSavingEdit) return;
+    if (!roomId || !editSession) return;
     const { messageId, draft } = editSession;
+    // Two saves in one tick both see the session open.
+    if (openEditSaves.has(messageId)) return;
     // Prefer live editor text (Enter can fire before React flushes onChange).
     const raw = contentOverride ?? draft;
     const content = raw.trim();
@@ -226,30 +225,46 @@ export function useRoomMessageMutations({
       return;
     }
 
-    // Keep controlled draft in sync with what we submit so a failed save still
-    // shows the text the user actually confirmed (not a stale parent draft).
-    if (contentOverride !== undefined && contentOverride !== draft) {
-      setEditSession((current) =>
-        current?.messageId === messageId
-          ? { ...current, draft: contentOverride }
-          : current,
-      );
-    }
-
-    startSavingEditTransition(async () => {
-      const result = await editRoomMessageAction(roomId, messageId, content);
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
-      }
-      if (!isStillSelectedRoom(roomId)) {
-        return;
-      }
-      mergeUpdatedMessage(result.value);
-      setEditSession((current) =>
-        current?.messageId === messageId ? null : current,
-      );
+    // The editor closes and the row shows the new text at once. A refused
+    // save puts the old text back where the row still carries this edit. The
+    // toast offers the editor again with the text the user confirmed: it does
+    // not open by itself, because it would take the focus from what the user
+    // types by then.
+    const { inThread } = editSession;
+    const editedAt = new Date();
+    let before: Pick<ChatRoomMessage, "content" | "editedAt"> | null = null;
+    patchMessage(messageId, (row) => {
+      before ??= { content: row.content, editedAt: row.editedAt };
+      return { ...row, content, editedAt };
     });
+    setEditSession(null);
+    openEditSaves.add(messageId);
+    void editRoomMessageAction(roomId, messageId, content)
+      .catch(() => null)
+      .then((result) => {
+        openEditSaves.delete(messageId);
+        if (!result?.ok) {
+          toast.error(result?.error.message ?? t("Edit.saveError"), {
+            action: {
+              label: t("Edit.action"),
+              onClick: () => {
+                if (openEditSaves.has(messageId)) return;
+                setEditSession(
+                  (current) => current ?? { messageId, draft: raw, inThread },
+                );
+              },
+            },
+          });
+          patchMessage(messageId, (row) =>
+            row.editedAt === editedAt && before ? { ...row, ...before } : row,
+          );
+          return;
+        }
+        if (!isStillSelectedRoom(roomId)) {
+          return;
+        }
+        mergeUpdatedMessage(result.value);
+      });
   }
 
   /** Changes one message in the room list, the open thread and its parent. */
@@ -388,7 +403,8 @@ export function useRoomMessageMutations({
     setPinnedListGeneration,
     editSession,
     setEditSession,
-    isSavingEdit,
+    // The editor closes when a save starts, so no editor waits on one.
+    isSavingEdit: false,
     applyPinnedMutation,
     handlePinMessage,
     handleUnpinFromPanel,

@@ -876,6 +876,162 @@ describe("RoomsClient transcript row render isolation", () => {
     });
   });
 
+  describe("save edit", () => {
+    const m2 = () => {
+      const row = screen
+        .getAllByTestId("chat-message-row")
+        .find((r) => r.getAttribute("data-message-id") === "m2");
+      return [
+        row?.firstChild?.textContent,
+        row?.getAttribute("data-editing"),
+        row?.getAttribute("data-edit-draft"),
+      ];
+    };
+    const typeAndSave = async () => {
+      for (const name of ["Edit m2", "Type m2", "Save m2"]) {
+        await act(async () => {
+          fireEvent.click(screen.getByRole("button", { name }));
+        });
+      }
+    };
+
+    it("closes the editor and shows the new text before Core answers", async () => {
+      let answer: (result: unknown) => void = () => {};
+      vi.mocked(editRoomMessageAction).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
+      );
+      await mountRoom();
+
+      await typeAndSave();
+      expect(m2()).toEqual(["typed draft", "false", ""]);
+
+      // No second edit on a text Core does not have yet.
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Edit m2" }));
+      });
+      expect(m2()).toEqual(["typed draft", "false", ""]);
+
+      await act(async () => {
+        answer({
+          ok: true,
+          value: { ...message("m2", 2), content: "typed draft, by Core" },
+        });
+      });
+      expect(m2()).toEqual(["typed draft, by Core", "false", ""]);
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Edit m2" }));
+      });
+      expect(m2()).toEqual([
+        "typed draft, by Core",
+        "true",
+        "typed draft, by Core",
+      ]);
+    });
+
+    it("puts the old text back and offers the editor again when Core refuses", async () => {
+      vi.mocked(editRoomMessageAction).mockResolvedValueOnce({
+        ok: false as const,
+        error: { message: "Edit refused" } as never,
+      });
+      await mountRoom();
+
+      await typeAndSave();
+
+      expect(m2()).toEqual(["body m2", "false", ""]);
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+        "Edit refused",
+        expect.objectContaining({
+          action: expect.objectContaining({ label: "Edit.action" }),
+        }),
+      );
+
+      // The toast's action opens the editor with the text the user confirmed.
+      await act(async () => {
+        toast.error.mock.calls[0][1].action.onClick();
+      });
+      expect(m2()).toEqual(["body m2", "true", "typed draft"]);
+    });
+
+    it("does the same when the request fails", async () => {
+      vi.mocked(editRoomMessageAction).mockRejectedValueOnce(new Error("down"));
+      await mountRoom();
+
+      await typeAndSave();
+
+      expect(m2()).toEqual(["body m2", "false", ""]);
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+        "Edit.saveError",
+        expect.objectContaining({
+          action: expect.objectContaining({ label: "Edit.action" }),
+        }),
+      );
+    });
+
+    it("does not open the editor from an old toast while a newer save is open", async () => {
+      let answer: (result: unknown) => void = () => {};
+      vi.mocked(editRoomMessageAction)
+        .mockResolvedValueOnce({
+          ok: false as const,
+          error: { message: "Edit refused" } as never,
+        })
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              answer = resolve;
+            }),
+        );
+      await mountRoom();
+      await typeAndSave();
+      await typeAndSave();
+      expect(m2()).toEqual(["typed draft", "false", ""]);
+
+      await act(async () => {
+        toast.error.mock.calls[0][1].action.onClick();
+      });
+      expect(m2()).toEqual(["typed draft", "false", ""]);
+
+      await act(async () => {
+        answer({
+          ok: true,
+          value: { ...message("m2", 2), content: "typed draft" },
+        });
+      });
+    });
+
+    it("keeps a newer realtime text when the save then fails", async () => {
+      let fail: (error: Error) => void = () => {};
+      vi.mocked(editRoomMessageAction).mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            fail = reject;
+          }),
+      );
+      await mountRoom();
+      await typeAndSave();
+      const event = chatRoomMessageEventDataSchema.parse(
+        JSON.parse(
+          JSON.stringify({
+            eventType: "update",
+            message: { ...message("m2", 2), content: "edited elsewhere" },
+          }),
+        ),
+      );
+      await act(async () => {
+        realtimeOptions().onMessage?.(event);
+      });
+
+      await act(async () => {
+        fail(new Error("down"));
+      });
+
+      expect(m2()).toEqual(["edited elsewhere", "false", ""]);
+    });
+  });
+
   it("marks messages pinned on first load without opening the pinned panel", async () => {
     await mountRoom([
       message("m1", 1),

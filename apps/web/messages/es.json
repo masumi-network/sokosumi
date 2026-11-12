@@ -9035,7 +9035,8 @@
         "composerAria": "Editar mensaje. Usa Guardar o Cancelar para terminar. Con teclado: Intro guarda, Escape cancela y Mayús+Intro añade una nueva línea.",
         "edited": "Editado",
         "editedAt": "Editado {when}",
-        "save": "Guardar"
+        "save": "Guardar",
+        "saveError": "No se pudo guardar el cambio. Inténtalo de nuevo."
       },
       "Browse": {
         "trigger": "Explorar canales",

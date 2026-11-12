@@ -9015,7 +9015,8 @@
         "composerAria": "Edit message. Use Save or Cancel to finish. On a keyboard, Enter saves, Escape cancels, and Shift+Enter adds a new line.",
         "edited": "Edited",
         "editedAt": "Edited {when}",
-        "save": "Save"
+        "save": "Save",
+        "saveError": "Could not save the edit. Try again."
       },
       "Copy": {
         "action": "Copy text",

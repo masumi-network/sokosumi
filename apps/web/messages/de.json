@@ -9035,7 +9035,8 @@
         "composerAria": "Nachricht bearbeiten. Zum Abschluss Speichern oder Abbrechen wählen. Mit Tastatur: Enter speichert, Escape bricht ab, Umschalt+Enter fügt eine neue Zeile hinzu.",
         "edited": "Bearbeitet",
         "editedAt": "Bearbeitet {when}",
-        "save": "Speichern"
+        "save": "Speichern",
+        "saveError": "Die Änderung konnte nicht gespeichert werden. Versuche es erneut."
       },
       "Browse": {
         "trigger": "Kanäle durchsuchen",
