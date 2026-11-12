@@ -2224,7 +2224,10 @@
         "Dialog": {
           "createTitle": "New schedule",
           "editTitle": "Edit schedule",
+          "copyTitle": "Copy schedule",
+          "copyName": "{name} (copy)",
           "createDescription": "Each run creates a new task from these details.",
+          "copyDescription": "Saving creates a new schedule from these details. The original stays as it is.",
           "futureOnlyNotice": "Changes apply to future runs only. Tasks already created stay as they are.",
           "name": "Name",
           "description": "Description",
@@ -2291,6 +2294,7 @@
         },
         "Actions": {
           "edit": "Edit",
+          "copy": "Copy",
           "runNow": "Run now",
           "pause": "Pause",
           "resume": "Resume",

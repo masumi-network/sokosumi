@@ -2224,7 +2224,10 @@
         "Dialog": {
           "createTitle": "Nueva programación",
           "editTitle": "Editar programación",
+          "copyTitle": "Copiar programación",
+          "copyName": "{name} (copia)",
           "createDescription": "Cada ejecución crea una tarea nueva con estos datos.",
+          "copyDescription": "Al guardar se crea una programación nueva con estos datos. La original no cambia.",
           "futureOnlyNotice": "Los cambios solo afectan a las ejecuciones futuras. Las tareas ya creadas no cambian.",
           "name": "Nombre",
           "description": "Descripción",
@@ -2291,6 +2294,7 @@
         },
         "Actions": {
           "edit": "Editar",
+          "copy": "Copiar",
           "runNow": "Ejecutar ahora",
           "pause": "Pausar",
           "resume": "Reanudar",

@@ -2224,7 +2224,10 @@
         "Dialog": {
           "createTitle": "Neuer Zeitplan",
           "editTitle": "Zeitplan bearbeiten",
+          "copyTitle": "Zeitplan kopieren",
+          "copyName": "{name} (Kopie)",
           "createDescription": "Jeder Lauf erstellt aus diesen Angaben einen neuen Task.",
+          "copyDescription": "Beim Speichern entsteht aus diesen Angaben ein neuer Zeitplan. Das Original bleibt unverändert.",
           "futureOnlyNotice": "Änderungen gelten nur für künftige Läufe. Bereits erstellte Tasks bleiben unverändert.",
           "name": "Name",
           "description": "Beschreibung",
@@ -2291,6 +2294,7 @@
         },
         "Actions": {
           "edit": "Bearbeiten",
+          "copy": "Kopieren",
           "runNow": "Jetzt ausführen",
           "pause": "Pausieren",
           "resume": "Fortsetzen",

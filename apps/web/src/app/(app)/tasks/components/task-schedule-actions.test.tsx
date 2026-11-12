@@ -1,5 +1,5 @@
 import type { TaskSchedule } from "@sokosumi/core-client";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -38,9 +38,24 @@ vi.mock("@/lib/actions/task-schedule/action", () => ({
 }));
 
 vi.mock("./task-schedule-dialog", () => ({
-  TaskScheduleDialog: ({ schedule }: { schedule: TaskSchedule }) => (
-    <div role="dialog" aria-label={`edit ${schedule.name}`} />
-  ),
+  TaskScheduleDialog: ({
+    schedule,
+    copyOf,
+    onSaved,
+  }: {
+    schedule?: TaskSchedule;
+    copyOf?: TaskSchedule;
+    onSaved?: (scheduleId: string) => void;
+  }) =>
+    copyOf ? (
+      <div role="dialog" aria-label={`copy ${copyOf.name}`}>
+        <button type="button" onClick={() => onSaved?.("copy-id")}>
+          save copy
+        </button>
+      </div>
+    ) : (
+      <div role="dialog" aria-label={`edit ${schedule?.name}`} />
+    ),
 }));
 
 const SCHEDULE_ID = "01960001-0001-7001-8001-000000000042";
@@ -249,7 +264,7 @@ describe("TaskScheduleActions", () => {
     ).toBeInTheDocument();
   });
 
-  it("leaves an Ended schedule nothing to change but deleting it", async () => {
+  it("leaves an Ended schedule nothing to change but copying or deleting it", async () => {
     const user = userEvent.setup();
     renderActions("ENDED");
 
@@ -259,8 +274,26 @@ describe("TaskScheduleActions", () => {
     await user.click(screen.getByRole("button", { name: "more" }));
     expect(
       screen.getAllByRole("menuitem").map((item) => item.textContent),
-    ).toEqual(["delete"]);
+    ).toEqual(["copy", "delete"]);
   });
+
+  it.each(["ACTIVE", "ENDED"] as const)(
+    "copies a %s schedule into a new one and opens the copy",
+    async (state) => {
+      const user = userEvent.setup();
+      renderActions(state);
+
+      await user.click(screen.getByRole("button", { name: "more" }));
+      await user.click(screen.getByRole("menuitem", { name: "copy" }));
+      await user.click(
+        within(
+          screen.getByRole("dialog", { name: "copy Daily digest" }),
+        ).getByRole("button", { name: "save copy" }),
+      );
+
+      expect(pushMock).toHaveBeenCalledWith("/schedules/copy-id");
+    },
+  );
 
   it("opens the edit dialog", async () => {
     const user = userEvent.setup();

@@ -2,6 +2,7 @@
 
 import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
 import {
+  Copy,
   Ellipsis,
   Pause,
   Pencil,
@@ -69,9 +70,9 @@ const STATE_ACTION_TOAST = {
 } as const satisfies Record<TaskScheduleStateAction, string>;
 
 /**
- * Edit, run now, pause, resume, end, and delete, for whoever Core says may
- * change the schedule (`canWrite`). An Ended schedule is final: it can only be
- * deleted.
+ * Edit, copy, run now, pause, resume, end, and delete, for whoever Core says
+ * may change the schedule (`canWrite`). An Ended schedule is final: it can only
+ * be deleted, or copied into a new schedule.
  */
 export function TaskScheduleActions({
   schedule,
@@ -86,6 +87,7 @@ export function TaskScheduleActions({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isCopyOpen, setIsCopyOpen] = useState(false);
   const [confirming, setConfirming] = useState<"end" | "delete" | null>(null);
   const isEnded = schedule.state === TaskScheduleState.ENDED;
   const canDelete = schedule.ownerId !== null || canDeleteUnowned;
@@ -153,10 +155,6 @@ export function TaskScheduleActions({
     });
   }
 
-  if (isEnded && !canDelete) {
-    return null;
-  }
-
   const isActive = schedule.state === TaskScheduleState.ACTIVE;
 
   return (
@@ -210,15 +208,21 @@ export function TaskScheduleActions({
                 <Pencil aria-hidden />
                 {tActions("edit")}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setConfirming("end")}>
-                <Square aria-hidden />
-                {tActions("end")}
-              </DropdownMenuItem>
             </>
+          )}
+          <DropdownMenuItem onSelect={() => setIsCopyOpen(true)}>
+            <Copy aria-hidden />
+            {tActions("copy")}
+          </DropdownMenuItem>
+          {isEnded ? null : (
+            <DropdownMenuItem onSelect={() => setConfirming("end")}>
+              <Square aria-hidden />
+              {tActions("end")}
+            </DropdownMenuItem>
           )}
           {canDelete ? (
             <>
-              {isEnded ? null : <DropdownMenuSeparator />}
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 variant="destructive"
                 onSelect={() => setConfirming("delete")}
@@ -282,6 +286,18 @@ export function TaskScheduleActions({
           canCreatePrivate={canCreatePrivate}
           onClose={() => setIsEditOpen(false)}
           onSaved={onChanged}
+        />
+      ) : null}
+      {isCopyOpen ? (
+        <TaskScheduleDialog
+          copyOf={schedule}
+          coworkerOptions={coworkerOptions}
+          projectOptions={projectOptions}
+          canCreatePrivate={canCreatePrivate}
+          onClose={() => setIsCopyOpen(false)}
+          onSaved={(scheduleId) =>
+            router.push(`${TASK_SCHEDULES_PATH}/${scheduleId}`)
+          }
         />
       ) : null}
     </div>

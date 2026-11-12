@@ -12,7 +12,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type { UploadUserFileDirectOptions } from "@/lib/utils/user-file-upload.client";
 
-import { TaskScheduleDialog } from "./task-schedule-dialog";
+import {
+  copiedTaskScheduleRule,
+  TaskScheduleDialog,
+} from "./task-schedule-dialog";
 
 const {
   createTaskScheduleMock,
@@ -590,6 +593,82 @@ describe("TaskScheduleDialog", () => {
     );
     expect(createTaskScheduleMock).not.toHaveBeenCalled();
     expect(onSaved).toHaveBeenCalledWith(SCHEDULE.id);
+  });
+
+  it.each([
+    ["its rule", "30 8 * * MON", expect.stringMatching(/^30 8 \* \* MON$/)],
+    // Core keeps a hashed rule, but the form cannot send one back.
+    [
+      "a hashed rule as the time the form shows",
+      "H 9 * * 1",
+      expect.stringMatching(/^\d{1,2} 9 \* \* MON$/),
+    ],
+  ])(
+    "copies a schedule with %s and leaves the original alone",
+    async (_label, expr, copiedExpr) => {
+      const user = userEvent.setup();
+      renderDialog({
+        copyOf: { ...SCHEDULE, rule: { ...SCHEDULE.rule, expr } },
+      });
+
+      expect(screen.getByText("copyTitle")).toBeInTheDocument();
+      expect(screen.getByText("copyDescription")).toBeInTheDocument();
+      expect(screen.getByLabelText("name")).toHaveValue("copyName");
+      await user.click(screen.getByRole("button", { name: "create" }));
+
+      await waitFor(() =>
+        expect(createTaskScheduleMock).toHaveBeenCalledOnce(),
+      );
+      expect(createTaskScheduleMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          description: "**Summarise** the week",
+          visibility: "PUBLIC",
+          assigneeId: "cow_1",
+          rule: expect.objectContaining({
+            expr: copiedExpr,
+            timezone: "Europe/Berlin",
+          }),
+        }),
+      );
+      expect(createTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+        "scheduleId",
+      );
+      expect(updateTaskScheduleMock).not.toHaveBeenCalled();
+      expect(onSaved).toHaveBeenCalledWith("new-schedule");
+    },
+  );
+
+  it("does not copy an assignee this person cannot pick", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      copyOf: { ...SCHEDULE, assigneeId: null, assigneeSokoBotId: "bot_other" },
+      coworkerOptions: [COWORKER],
+    });
+
+    await user.click(screen.getByRole("button", { name: "create" }));
+
+    await waitFor(() => expect(createTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(createTaskScheduleMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+      }),
+    );
+  });
+
+  it("copies a rule whose end date has passed as one that keeps repeating", () => {
+    const rule = {
+      ...SCHEDULE.rule,
+      endsMode: "ON" as const,
+      endsOn: new Date("2026-09-01T00:00:00.000Z"),
+    };
+    expect(copiedTaskScheduleRule(rule)).toMatchObject({
+      endsMode: "NEVER",
+      endsOn: null,
+    });
+    const future = { ...rule, endsOn: new Date("2027-01-01T00:00:00.000Z") };
+    expect(copiedTaskScheduleRule(future)).toBe(future);
   });
 
   it.each([
