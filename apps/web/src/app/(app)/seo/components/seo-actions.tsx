@@ -22,7 +22,7 @@ import {
   SeoState,
   seoSiteUrl,
 } from "./seo-shared";
-import { SeoStrategyActions } from "./seo-strategy";
+import { SeoStrategyActions, SeoStrategyPlaceNotes } from "./seo-strategy";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
 /**
@@ -322,7 +322,13 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   );
   // "No recommended actions" above the strategy actions would say two things at once.
   const strategyOnly = !overview.actions.length && strategyFollows;
-  if (strategyOnly) return <SeoStrategyActions model={model} />;
+  if (strategyOnly)
+    return (
+      <div className="space-y-5">
+        <SeoStrategyActions model={model} />
+        <SeoStrategyPlaceNotes model={model} />
+      </div>
+    );
   return (
     <div className="space-y-5">
       <SeoSection
@@ -408,6 +414,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
         )}
       </SeoSection>
       <SeoStrategyActions model={model} afterFixes />
+      <SeoStrategyPlaceNotes model={model} />
     </div>
   );
 }

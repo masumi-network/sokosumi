@@ -190,6 +190,8 @@ export function SeoWorkspace({
       tab !== "actions" ||
       model.data.actions.length > 0 ||
       Boolean(model.data.strategy?.actions.length) ||
+      // The notes on promotion places stand on this tab, also when the audit has no action.
+      Boolean(model.data.strategy?.placesNotes?.length) ||
       model.filters.tab === "actions",
   );
   const { canRequestAnalysis } = model.data.availableActions;

@@ -437,6 +437,29 @@ function StrategyActionBody({
 }
 
 /**
+ * Why the audit has no action or no ready text for a promotion place: a call that failed, a community whose terms
+ * ban promotion. A section of its own, so it shows also when the audit has no action.
+ */
+export function SeoStrategyPlaceNotes({ model }: { model: SeoWorkspaceModel }) {
+  const t = useTranslations("App.Seo");
+  const notes = model.data.strategy?.placesNotes ?? [];
+  if (!notes.length) return null;
+  return (
+    <SeoSection
+      title={t("strategy.places.title")}
+      description={t("strategy.places.help")}
+    >
+      <div
+        className="max-w-prose px-2 pb-2 text-sm"
+        data-testid="seo-strategy-place-notes"
+      >
+        <StrategyLines lines={notes} />
+      </div>
+    </SeoSection>
+  );
+}
+
+/**
  * The actions of the audit's keyword strategy: a listing on another site, a new page, a page with a new target,
  * a place to promote the product in.
  * None is one page edit, so none has a draft Task. The button puts a question in the chat field and sends nothing.

@@ -12143,6 +12143,10 @@
           "article": "Artículo",
           "video": "Vídeo"
         },
+        "places": {
+          "title": "Lugares de promoción",
+          "help": "Por qué la auditoría del sitio no tiene acción ni texto listo para algunos lugares. Las notas están en inglés."
+        },
         "draft": {
           "title": "Texto sugerido",
           "help": "La auditoría del sitio escribió este texto. Léelo y lee las normas del lugar antes de publicarlo.",

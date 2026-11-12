@@ -4323,6 +4323,34 @@ describe("SEO workspace integration", () => {
     );
   });
 
+  it("shows the notes on promotion places on the Actions tab, also when the audit has no action", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.actions = [];
+    const strategy = seoTestStrategy();
+    strategy.actions = [];
+    strategy.placesNotes = [
+      "the place_fit agent gave no answer for r/macapps, so it shows without a ready text",
+      "forums.macrumors.com is in 3 of 5 SERP reads, but its terms ban promotion (its terms page), so it is no place",
+    ];
+    workspace.strategy = strategy;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    await user.click(await screen.findByRole("tab", { name: "Actions" }));
+    const section = await screen.findByTestId("seo-strategy-place-notes");
+    expect(
+      within(section)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual(strategy.placesNotes);
+    expect(
+      screen.getByRole("heading", { name: "Promotion places" }),
+    ).toBeVisible();
+  });
+
   it("shows the Actions tab only once the Audit has actions", async () => {
     const workspace = seoTestWorkspace();
     workspace.actions = [];

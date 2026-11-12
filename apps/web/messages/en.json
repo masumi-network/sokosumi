@@ -12143,6 +12143,10 @@
           "article": "Article",
           "video": "Video"
         },
+        "places": {
+          "title": "Promotion places",
+          "help": "Why the audit has no action or no ready text for some places."
+        },
         "draft": {
           "title": "Suggested text",
           "help": "The site audit wrote this text. Read it and the rules of the place before you post it.",

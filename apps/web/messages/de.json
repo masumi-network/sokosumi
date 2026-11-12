@@ -12143,6 +12143,10 @@
           "article": "Artikel",
           "video": "Video"
         },
+        "places": {
+          "title": "Orte für Werbung",
+          "help": "Warum das Website-Audit für einige Orte keine Aktion oder keinen fertigen Text hat. Die Hinweise sind auf Englisch."
+        },
         "draft": {
           "title": "Textvorschlag",
           "help": "Das Website-Audit hat diesen Text geschrieben. Lies ihn und die Regeln des Ortes, bevor du ihn veröffentlichst.",
