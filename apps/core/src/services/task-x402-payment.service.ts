@@ -338,6 +338,7 @@ async function runX402ChargePhase(
       const charge = await chargeTaskCreditsOrMarkOutOfCredits({
         userId: task.ownerId,
         organizationId: task.organizationId,
+        projectId: task.projectId,
         cents,
         currentStatus: task.status,
         tx,

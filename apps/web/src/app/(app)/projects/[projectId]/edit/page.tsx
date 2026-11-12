@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { ProjectEditModal } from "@/app/projects/components/project-edit-modal";
@@ -20,6 +20,8 @@ export default async function EditProjectPage({
   if (!project) {
     return notFound();
   }
+  // CMO edits a CMO Project; the Project page says so and links there.
+  if (project.cmo) redirect(`/projects/${projectId}`);
 
   const t = await getTranslations("App.Projects");
 

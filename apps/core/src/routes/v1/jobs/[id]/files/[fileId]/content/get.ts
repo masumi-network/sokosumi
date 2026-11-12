@@ -8,6 +8,7 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import {
+  CONTENT_TAG_GENERATION,
   contentDispositionFor,
   contentSecurityPolicyFor,
   openStoredFileContentStream,
@@ -54,7 +55,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       displayName: blob.name ?? "Output",
       mimeType: blob.mimeType,
       sizeBytes: blob.size == null ? null : Number(blob.size),
-      entityTag: `${blob.id}-${blob.updatedAt.getTime()}`,
+      entityTag: `${blob.id}-${blob.updatedAt.getTime()}${CONTENT_TAG_GENERATION}`,
       download: c.req.valid("query").download === "true",
     });
     return c.body(result.stream, 200, {

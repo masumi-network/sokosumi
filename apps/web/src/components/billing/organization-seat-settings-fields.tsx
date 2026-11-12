@@ -4,6 +4,7 @@ import { Minus, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
+import { FormErrorText } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
 interface SeatCountInputProps {
@@ -33,47 +34,59 @@ export function SeatCountInput({ id, value, onChange }: SeatCountInputProps) {
     "App.Organizations.OrganizationDetail.Subscription",
   );
   const minimumSeats = resolveMinimumOrganizationSeats();
+  // Checkout and seat change buttons disable on this, so say why.
+  const isInvalid = value === null || value < minimumSeats;
+  const errorId = `${id}-error`;
 
   return (
-    <div className="flex items-center gap-2">
-      <Button
-        aria-label={t("seatsCard.decrease")}
-        disabled={value === null || value <= minimumSeats}
-        onClick={() => {
-          if (value !== null) onChange(value - 1);
-        }}
-        size="icon"
-        type="button"
-        variant="outline"
-      >
-        <Minus aria-hidden />
-      </Button>
-      <Input
-        // The +/- buttons replace the browser's spinner, which also pushes the
-        // number off-center.
-        className="text-center tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-        id={id}
-        min={minimumSeats}
-        onChange={(event) => {
-          if (event.target.value === "") {
-            onChange(null);
-            return;
-          }
-          const parsedValue = Number.parseInt(event.target.value, 10);
-          if (!Number.isNaN(parsedValue)) onChange(parsedValue);
-        }}
-        type="number"
-        value={value ?? ""}
-      />
-      <Button
-        aria-label={t("seatsCard.increase")}
-        onClick={() => onChange(value === null ? minimumSeats : value + 1)}
-        size="icon"
-        type="button"
-        variant="outline"
-      >
-        <Plus aria-hidden />
-      </Button>
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Button
+          aria-label={t("seatsCard.decrease")}
+          disabled={value === null || value <= minimumSeats}
+          onClick={() => {
+            if (value !== null) onChange(value - 1);
+          }}
+          size="icon"
+          type="button"
+          variant="outline"
+        >
+          <Minus aria-hidden />
+        </Button>
+        <Input
+          aria-describedby={isInvalid ? errorId : undefined}
+          aria-invalid={isInvalid}
+          // The +/- buttons replace the browser's spinner, which also pushes the
+          // number off-center.
+          className="text-center tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          id={id}
+          min={minimumSeats}
+          onChange={(event) => {
+            if (event.target.value === "") {
+              onChange(null);
+              return;
+            }
+            const parsedValue = Number.parseInt(event.target.value, 10);
+            if (!Number.isNaN(parsedValue)) onChange(parsedValue);
+          }}
+          type="number"
+          value={value ?? ""}
+        />
+        <Button
+          aria-label={t("seatsCard.increase")}
+          onClick={() => onChange(value === null ? minimumSeats : value + 1)}
+          size="icon"
+          type="button"
+          variant="outline"
+        >
+          <Plus aria-hidden />
+        </Button>
+      </div>
+      {isInvalid ? (
+        <FormErrorText id={errorId}>
+          {t("seatsCard.minimum", { count: minimumSeats })}
+        </FormErrorText>
+      ) : null}
     </div>
   );
 }

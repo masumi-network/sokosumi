@@ -9,7 +9,8 @@ import {
   Quote,
   Shuffle,
 } from "lucide-react";
-import { useFormatter } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -62,50 +63,92 @@ export function StudioGallery({
   cancelRequestedJobIds: string[];
   catalog: StudioCatalog;
   labels: StudioLabels;
-  onCancelJob: (jobId: string) => void;
+  /** Omitted, with the draw actions below, in a read-only studio. */
+  onCancelJob?: (jobId: string) => void;
   onOpen: (assetId: string) => void;
   /** Same brief, same settings, no reference: another draw of the dice. */
-  onReroll: (asset: StudioAsset) => void;
+  onReroll?: (asset: StudioAsset) => void;
   /** Put this image's prompt back in the composer to edit. */
-  onReusePrompt: (asset: StudioAsset) => void;
+  onReusePrompt?: (asset: StudioAsset) => void;
   onToggleSelect: (assetId: string) => void;
   /** Same brief with this image as the reference. */
-  onVariation: (asset: StudioAsset) => void;
+  onVariation?: (asset: StudioAsset) => void;
   /** Requests still held in this page, not yet accepted by Core. */
   queued: QueuedGeneration[];
   selectedIds: string[];
 }) {
   const format = useFormatter();
+  const t = useTranslations("App.Studio");
+  const [groupByProduct, setGroupByProduct] = useState(true);
+  const hasProducts = assets.some((asset) => asset.product);
 
   // Chat order: oldest at the top, newest (and anything in flight) at the
   // bottom. Grouping is one pass: a new group starts whenever the calendar day
   // changes. Local day, because "yesterday" is the reader's.
-  const groups: { day: string; date: Date; assets: StudioAsset[] }[] = [];
+  // Product groups can span days. Put the group with the newest ad nearest
+  // the composer, and use that ad's saved name after a product is renamed.
+  const groups = new Map<
+    string,
+    { title: string; projectName?: string; assets: StudioAsset[] }
+  >();
   for (const asset of [...assets].reverse()) {
     const ms = epochMs(asset.createdAt);
-    const date = new Date(ms ?? 0);
-    const day = ms === null ? "" : date.toDateString();
-    const last = groups[groups.length - 1];
-    if (last && last.day === day) last.assets.push(asset);
-    else groups.push({ day, date, assets: [asset] });
+    const date = ms === null ? null : new Date(ms);
+    const product = groupByProduct ? asset.product : undefined;
+    const key = product
+      ? `product:${asset.projectId}:${product.id}`
+      : `date:${date?.toDateString() ?? ""}`;
+    const group = groups.get(key);
+    if (group) {
+      group.assets.push(asset);
+      if (product) group.title = product.name;
+      groups.delete(key);
+      groups.set(key, group);
+      continue;
+    }
+    groups.set(key, {
+      title:
+        product?.name ??
+        (date
+          ? format.dateTime(date, {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })
+          : ""),
+      projectName: product ? asset.projectName : undefined,
+      assets: [asset],
+    });
   }
 
   return (
     // Named by the heading the studio renders above it, rather than by a
     // duplicate label nobody can see.
     <section aria-labelledby="studio-gallery-heading" className="min-w-0">
-      {groups.map((group) => (
-        <div className="mt-6 first:mt-0" key={group.day || "undated"}>
-          {group.day ? (
+      <h2 className="sr-only" id="studio-gallery-heading">
+        {t("adGallery")}
+      </h2>
+      {hasProducts ? (
+        <Button
+          aria-pressed={groupByProduct}
+          className="mb-3"
+          onClick={() => setGroupByProduct((current) => !current)}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          {t("groupByProduct")}
+        </Button>
+      ) : null}
+      {[...groups].map(([key, group]) => (
+        <div className="mt-6 first-of-type:mt-0" key={key}>
+          {group.title ? (
             <h3
-              className="text-muted-foreground mb-3 text-xs font-medium"
+              className="text-muted-foreground mb-3 text-xs font-medium break-words"
               suppressHydrationWarning
             >
-              {format.dateTime(group.date, {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-              })}
+              {group.title}
+              {group.projectName ? ` · ${group.projectName}` : null}
             </h3>
           ) : null}
           <ul className={GRID_CLASS}>
@@ -162,7 +205,7 @@ export function StudioGallery({
                         "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100",
                       )}
                     >
-                      {video ? null : (
+                      {video || !onReroll ? null : (
                         <HoverAction
                           label={labels.reroll}
                           onClick={() => onReroll(asset)}
@@ -170,7 +213,9 @@ export function StudioGallery({
                           <Dices aria-hidden className="size-3.5" />
                         </HoverAction>
                       )}
-                      {!video && supportsVariation(catalog, asset.model) ? (
+                      {onVariation &&
+                      !video &&
+                      supportsVariation(catalog, asset.model) ? (
                         <HoverAction
                           label={labels.regenerate}
                           onClick={() => onVariation(asset)}
@@ -178,12 +223,14 @@ export function StudioGallery({
                           <Shuffle aria-hidden className="size-3.5" />
                         </HoverAction>
                       ) : null}
-                      <HoverAction
-                        label={labels.reusePrompt}
-                        onClick={() => onReusePrompt(asset)}
-                      >
-                        <Quote aria-hidden className="size-3.5" />
-                      </HoverAction>
+                      {onReusePrompt ? (
+                        <HoverAction
+                          label={labels.reusePrompt}
+                          onClick={() => onReusePrompt(asset)}
+                        >
+                          <Quote aria-hidden className="size-3.5" />
+                        </HoverAction>
+                      ) : null}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <a
@@ -241,7 +288,7 @@ export function StudioGallery({
         </div>
       ))}
 
-      <ul className={cn(GRID_CLASS, groups.length > 0 && "mt-6")}>
+      <ul className={cn(GRID_CLASS, groups.size > 0 && "mt-6")}>
         {queued.map((request) => (
           <li className="mb-3 break-inside-avoid" key={request.id}>
             <PendingTile
@@ -270,15 +317,17 @@ export function StudioGallery({
                 {/* Cancelling belongs on the thing being cancelled. As a row
                     of buttons above the gallery it was a second list of the
                     running jobs, in a different order, with no picture. */}
-                <Button
-                  className="mt-2"
-                  disabled={requested}
-                  onClick={() => onCancelJob(job.id)}
-                  size="sm"
-                  variant="ghost"
-                >
-                  {requested ? labels.cancelRequested : labels.cancel}
-                </Button>
+                {onCancelJob ? (
+                  <Button
+                    className="mt-2"
+                    disabled={requested}
+                    onClick={() => onCancelJob(job.id)}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    {requested ? labels.cancelRequested : labels.cancel}
+                  </Button>
+                ) : null}
               </PendingTile>
             </li>
           );

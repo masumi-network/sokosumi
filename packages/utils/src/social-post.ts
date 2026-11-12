@@ -297,6 +297,19 @@ export interface SocialPostMediaRef {
   size: number;
   mimeType: string;
   kind: SocialPostMediaKind;
+  /** Required publishing adaptation; the source stays available for another network. */
+  transformation?: {
+    provider: SocialPostProvider;
+    code:
+      | "pad_4_5"
+      | "pad_1_91_1"
+      | "resize"
+      | "jpeg"
+      | "srgb"
+      | "smaller_file";
+    notice: string;
+    original: Omit<SocialPostMediaRef, "transformation">;
+  };
 }
 
 /** Whether attached media satisfies the provider's presence rule. */
@@ -337,7 +350,8 @@ export const SOCIAL_POST_MEDIA_RULES = {
     maxImages: 4,
     maxGifs: 1,
     maxVideos: 1,
-    maxImageBytes: 5 * 1024 * 1024,
+    // X documents 5 MB and Composio requires less than 5 MiB.
+    maxImageBytes: 5_000_000,
     maxGifBytes: 15 * 1024 * 1024,
     maxVideoBytes: 100 * 1024 * 1024,
     imageMimeTypes: ["image/jpeg", "image/png", "image/webp"],
