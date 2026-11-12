@@ -1099,6 +1099,34 @@
     "ConnectLink": {
       "error": "Die Verbindung konnte nicht gestartet werden."
     },
+    "SpreadsheetView": {
+      "loading": "Tabelle wird geladen",
+      "failed": "Diese Tabelle konnte nicht geöffnet werden.",
+      "sheet": "Blatt {number}",
+      "empty": "Dieses Blatt ist leer.",
+      "truncated": "Es werden die ersten {rows} Zeilen und 50 Spalten angezeigt. Lade die Datei herunter, um den Rest zu sehen."
+    },
+    "CapTableView": {
+      "loading": "Cap Table wird geladen",
+      "failed": "Diese Cap-Table-Datei kann nicht angezeigt werden. Prüfe, ob es eine gültige Cap-Table-Datei ist.",
+      "title": "Cap Table von {company}",
+      "asOf": "Stand {date}",
+      "ownership": "Beteiligung, voll verwässert",
+      "holder": "Inhaber",
+      "class": "Gattung",
+      "shares": "Anteile",
+      "issued": "Ausgegeben",
+      "fullyDiluted": "Voll verwässert",
+      "optionPool": "Optionspool",
+      "vesting": "Vesting: {schedule}",
+      "granted": "{granted} zugeteilt, {available} verfügbar",
+      "total": "Gesamt",
+      "issuedShares": "Ausgegebene Anteile",
+      "reservedShares": "Für Mitarbeiterbeteiligung reserviert",
+      "unallocatedShares": "Weder ausgegeben noch reserviert",
+      "authorizedShares": "Genehmigte Anteile",
+      "parValue": "Nennwert"
+    },
     "TeamView": {
       "loading": "Team wird geladen",
       "failed": "Diese Team-Datei kann nicht angezeigt werden. Prüfe, ob sie eine gültige Team-Datei ist.",
@@ -1664,7 +1692,24 @@
         "MyDay": {
           "title": "Mein Tag",
           "more": "{count, plural, one {# weitere anzeigen} other {# weitere anzeigen}}",
-          "error": "Konnte nicht mehr laden. Versuche es erneut."
+          "error": "Konnte nicht mehr laden. Versuche es erneut.",
+          "MoveOverdue": {
+            "trigger": "{count, plural, one {# Überfällige verschieben} other {# Überfällige verschieben}}",
+            "label": "{count, plural, one {# überfällige Aufgabe verschieben auf} other {# überfällige Aufgaben verschieben auf}}",
+            "targets": {
+              "today": "Heute",
+              "tomorrow": "Morgen",
+              "nextMonday": "Nächsten Montag"
+            },
+            "moved": "{count, plural, one {# Aufgabe auf {date} verschoben} other {# Aufgaben auf {date} verschoben}}",
+            "movedPartly": "{count} von {total} Aufgaben auf {date} verschoben. Die anderen haben sich geändert oder du darfst sie nicht bearbeiten.",
+            "nothingMoved": "Nichts verschoben. Diese Aufgaben haben sich geändert oder du darfst sie nicht bearbeiten.",
+            "error": "Deine überfälligen Aufgaben konnten nicht verschoben werden. Versuch es noch einmal.",
+            "undo": "Rückgängig",
+            "undone": "{count, plural, one {# Aufgabe zurückgesetzt} other {# Aufgaben zurückgesetzt}}",
+            "undonePartly": "{count} von {total} Aufgaben zurückgesetzt. Die anderen haben sich inzwischen geändert.",
+            "undoError": "Das Verschieben konnte nicht rückgängig gemacht werden. Versuch es noch einmal."
+          }
         },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
@@ -1852,6 +1897,11 @@
         "authenticate": "Authentifizieren",
         "expand": "Ausklappen",
         "collapse": "Weniger anzeigen",
+        "downloadAll": {
+          "button": "Alle herunterladen",
+          "failed": "Die Dateien konnten nicht heruntergeladen werden. Versuche es erneut oder öffne sie einzeln.",
+          "partial": "{included} von {total} Dateien heruntergeladen. Nicht enthalten: {names}{more, plural, =0 {} one { und # weitere} other { und # weitere}}. Öffne sie einzeln."
+        },
         "actorCoworker": "Coworker",
         "actorUser": "Nutzer",
         "actorSokoBot": "Assistent",
@@ -2891,6 +2941,14 @@
           "timeout": "Zeitüberschreitung.",
           "missing": "Beitrag konnte nicht geöffnet werden.",
           "mediaUnavailable": "Medien sind im importierten Verlauf noch nicht enthalten.",
+          "mediaNotice": {
+            "pad_4_5": "{provider} fügt Ränder für 4:5 hinzu.",
+            "pad_1_91_1": "{provider} fügt Ränder für 1,91:1 hinzu.",
+            "resize": "{provider} skaliert dieses Bild.",
+            "jpeg": "{provider} konvertiert dieses Bild in JPEG.",
+            "srgb": "{provider} konvertiert dieses Bild in sRGB.",
+            "smaller_file": "{provider} komprimiert dieses Bild."
+          },
           "linkedin": {
             "like": "Gefällt mir",
             "comment": "Kommentieren",
@@ -9497,6 +9555,30 @@
       "createFolderDialogTitle": "Neuen Ordner erstellen",
       "createFolderDialogDescription": "Gib einen Namen für den neuen Ordner ein",
       "createFolderDialogConfirm": "Erstellen",
+      "GoogleSheet": {
+        "button": "Google Sheet verknüpfen",
+        "dialogTitle": "Google Sheet verknüpfen",
+        "dialogDescription": "Füge den Link zum Sheet ein. Stelle in Google Sheets unter Teilen → Allgemeiner Zugriff „Jeder, der über den Link verfügt“ ein. Sokosumi speichert hier eine Kopie und aktualisiert sie stündlich.",
+        "linkLabel": "Google-Sheets-Link",
+        "link": "Verknüpfen",
+        "linking": "Wird verknüpft…",
+        "cancel": "Abbrechen",
+        "linked": "{name} verknüpft",
+        "notALink": "Das ist kein Google-Sheets-Link. Kopiere ihn aus der Adresszeile des Sheets.",
+        "notShared": "Sokosumi kann das Sheet nicht öffnen. Stelle den allgemeinen Zugriff auf „Jeder, der über den Link verfügt“ und versuche es erneut.",
+        "nameTaken": "In diesem Ordner gibt es schon eine Datei mit dem Namen dieses Sheets.",
+        "failed": "Google Sheets antwortet nicht. Versuche es in einer Minute erneut.",
+        "source": "Google Sheet",
+        "updated": "aktualisiert {when}",
+        "refresh": "Aktualisieren",
+        "refreshing": "Wird aktualisiert…",
+        "open": "In Google Sheets öffnen",
+        "error": {
+          "not_shared": "Die letzte Aktualisierung ist fehlgeschlagen: Das Sheet ist nicht mehr per Link freigegeben. Diese Kopie ist älter.",
+          "too_large": "Die letzte Aktualisierung ist fehlgeschlagen: Das Sheet ist zu groß. Diese Kopie ist älter.",
+          "failed": "Die letzte Aktualisierung ist fehlgeschlagen. Diese Kopie ist älter."
+        }
+      },
       "deleteFolderDialogTitle": "Ordner löschen",
       "deleteFolderAction": "Ordner löschen",
       "deleteFolderDialogDescription": "Möchtest du wirklich {folderName} und alle darin enthaltenen Dateien löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
