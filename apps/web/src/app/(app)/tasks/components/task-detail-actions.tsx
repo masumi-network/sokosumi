@@ -84,12 +84,9 @@ import { cn } from "@/lib/utils";
 import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 import type { TaskMutationErrorKind } from "@/lib/utils/task-mutation-error-kinds";
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
-import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
-import {
-  TaskForm,
-  type TaskFormInitialDesignMdAttachment,
-  type TaskFormLabels,
-} from "./task-form";
+import { buildNewTaskFormLabels } from "./task-detail-new-task-labels";
+import { useOptimisticTaskStatus } from "./task-detail-optimistic";
+import { TaskForm, type TaskFormInitialDesignMdAttachment } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
 import { getTaskLinkRelationIcon } from "./task-link-relation-icon";
 import {
@@ -176,7 +173,7 @@ interface TaskDetailActionsProps {
 export function TaskDetailActions({
   taskId,
   share,
-  status,
+  status: savedStatus,
   taskVisibility = "PUBLIC",
   jobsCount,
   taskLinks,
@@ -207,6 +204,8 @@ export function TaskDetailActions({
   const router = useRouter();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const isMobile = useIsMobile();
+  const [status, showStatus, isStatusChanging] =
+    useOptimisticTaskStatus(savedStatus);
   const [isStatusPending, startStatusTransition] = useTransition();
   const [isLinkPending, startLinkTransition] = useTransition();
   const [isParentRemovalPending, startParentRemovalTransition] =
@@ -373,51 +372,7 @@ export function TaskDetailActions({
     () => buildCreateRelatedOptions(tDetailActions),
     [tDetailActions],
   );
-  const createTaskLabels: TaskFormLabels = {
-    details: tNewTask("details"),
-    detailsDescription: tNewTask("detailsDescription"),
-    name: tNewTask("name"),
-    namePlaceholder: tNewTask("namePlaceholder"),
-    descriptionPlaceholder: tNewTask("descriptionPlaceholder"),
-    projectLabel: tNewTask("projectLabel"),
-    projectNone: tNewTask("projectNone"),
-    projectSearchPlaceholder: tNewTask("projectSearchPlaceholder"),
-    projectEmptyResults: tNewTask("projectEmptyResults"),
-    coworker: tNewTask("coworker"),
-    unassigned: tNewTask("unassigned"),
-    unavailableAssignee: tNewTask("unavailableAssignee"),
-    changeCoworker: tNewTask("changeCoworker"),
-    noCoworkerMatches: tNewTask("noCoworkerMatches"),
-    status: tNewTask("status"),
-    statusDescription: tNewTask("statusDescription"),
-    statusDraft: tNewTask("statusDraft"),
-    changeStatus: tNewTask("changeStatus"),
-    noStatusMatches: tNewTask("noStatusMatches"),
-    statusQueued: tNewTask("statusQueued"),
-    statusReady: tNewTask("statusReady"),
-    untitledTask: tNewTask("untitledTask"),
-    saveError: tNewTask("saveError"),
-    back: tNewTask("back"),
-    uploadFile: tNewTask("uploadFile"),
-    uploadFileError: tNewTask("uploadFileError"),
-    uploadingFile: getTaskAttachmentUploadLabelTemplate(
-      tNewTask,
-      "uploadingFile",
-    ),
-    uploadingFiles: getTaskAttachmentUploadLabelTemplate(
-      tNewTask,
-      "uploadingFiles",
-    ),
-    removeAttachment: tNewTask("removeAttachment"),
-    submit: tNewTask("createTask"),
-    createTask: tNewTask("createTask"),
-    scheduleTask: tNewTask("scheduleTask"),
-    openRunAt: tNewTask("openRunAt"),
-    cancel: tNewTask("cancel"),
-    ctrl: tNewTask("ctrl"),
-    privateLabel: tNewTask("privateLabel"),
-    privateDescription: tNewTask("privateDescription"),
-  };
+  const createTaskLabels = buildNewTaskFormLabels(tNewTask);
 
   /**
    * A rejected status write is a state, not a crash: a stale status list gets
@@ -445,6 +400,7 @@ export function TaskDetailActions({
     setPendingStatusTarget(action.target);
 
     startStatusTransition(async () => {
+      showStatus(action.target);
       try {
         const result = await setTaskStatusFromDrag({
           taskId,
@@ -474,6 +430,7 @@ export function TaskDetailActions({
     setPendingStatusTarget(TaskStatus.READY);
 
     startStatusTransition(async () => {
+      showStatus(TaskStatus.READY);
       try {
         const result = await setTaskStatusFromDrag({
           taskId,
@@ -596,8 +553,11 @@ export function TaskDetailActions({
     });
   };
 
+  // The gates above follow a status that Core has not confirmed yet, so
+  // nothing here acts on it while a status write is open, here or in the panel.
   const actionsDisabled =
     isStatusPending ||
+    isStatusChanging ||
     isLinkPending ||
     isParentRemovalPending ||
     isRemoveRelatedPending;
