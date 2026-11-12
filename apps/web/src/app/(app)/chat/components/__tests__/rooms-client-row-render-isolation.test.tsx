@@ -842,7 +842,9 @@ describe("RoomsClient transcript row render isolation", () => {
         "false:body m2",
         "false:body m3",
       ]);
-      expect(toast.error).toHaveBeenCalledWith("Delete refused");
+      expect(toast.error).toHaveBeenCalledWith("Delete refused", {
+        description: "Message.restored",
+      });
     });
 
     it("puts the message back when the request fails", async () => {
@@ -860,6 +862,7 @@ describe("RoomsClient transcript row render isolation", () => {
       ]);
       expect(toast.error).toHaveBeenCalledExactlyOnceWith(
         "Message.deleteError",
+        { description: "Message.restored" },
       );
     });
 

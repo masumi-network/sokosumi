@@ -367,7 +367,11 @@ export function useRoomMessageMutations({
       .catch(() => null)
       .then((result) => {
         if (!result?.ok) {
-          toast.error(result?.error.message ?? t("Message.deleteError"));
+          // Core's own tombstone before a lost answer keeps the row deleted;
+          // that case still gets this toast.
+          toast.error(result?.error.message ?? t("Message.deleteError"), {
+            description: t("Message.restored"),
+          });
           patchMessage(message.id, (row) =>
             row.deletedAt === tombstone.deletedAt
               ? {
