@@ -3,7 +3,6 @@
 import {
   ChartColumn,
   ChevronRight,
-  Compass,
   type LucideIcon,
   Plug,
   Plus,
@@ -12,7 +11,7 @@ import {
   Search,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
@@ -24,11 +23,10 @@ import { SEO_ROW_BUTTON_CLASS, SeoActionName, SeoSeverity } from "./seo-shared";
 import { useSeoConnectionStatus } from "./use-seo-connection";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-const STEP_ICONS: Record<
-  Exclude<SeoAgentStep, { kind: "action" }>["kind"],
-  LucideIcon
-> = {
-  strategy: Compass,
+/** A step with a sentence and its own button. An action and the strategy actions are rows that lead to a card. */
+type SeoButtonStep = Exclude<SeoAgentStep, { kind: "action" | "strategy" }>;
+
+const STEP_ICONS: Record<SeoButtonStep["kind"], LucideIcon> = {
   refresh: RefreshCw,
   connect: Plug,
   // Not the people icon: the chat uses that one for "shared in your organization".
@@ -45,7 +43,7 @@ export function SeoStepRow({
 }: {
   /** The step stands alone as a banner with this title, not as a row of the step list. */
   banner?: string;
-  step: Exclude<SeoAgentStep, { kind: "action" }>;
+  step: SeoButtonStep;
   model: SeoWorkspaceModel;
   refresh: () => void;
   refreshing: boolean;
@@ -53,8 +51,6 @@ export function SeoStepRow({
   first: boolean;
 }) {
   const t = useTranslations("App.Seo");
-  // Several steps can carry the same button name; the step's text tells them apart.
-  const bodyId = useId();
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
   const variant = first ? "primary" : "outline";
   // A connection that failed says so in the place of the step's text: nothing in the row moves.
@@ -68,96 +64,80 @@ export function SeoStepRow({
       connectStep,
     ).status.data?.status === "connected" && connectStep;
   const [body, control] =
-    step.kind === "strategy"
+    step.kind === "refresh"
       ? [
-          t("agent.steps.strategy", { count: step.count, title: step.title }),
+          t(`agent.steps.refresh.${step.reason}`),
           <Button
-            key="strategy"
+            key="refresh"
             size="sm"
-            // A link to a list, not a piece of work: it never takes the filled style.
-            variant="outline"
-            aria-describedby={bodyId}
-            onClick={() => {
-              void model.setFilters({ tab: "actions" });
-            }}
+            variant={variant}
+            loading={refreshing}
+            disabled={model.pending}
+            onClick={refresh}
           >
-            {t("strategy.actions.open")}
+            <RefreshCw />
+            {t("syncNow")}
           </Button>,
         ]
-      : step.kind === "refresh"
+      : step.kind === "connect"
         ? [
-            t(`agent.steps.refresh.${step.reason}`),
-            <Button
-              key="refresh"
-              size="sm"
-              variant={variant}
-              loading={refreshing}
-              disabled={model.pending}
-              onClick={refresh}
-            >
-              <RefreshCw />
-              {t("syncNow")}
-            </Button>,
+            t(
+              sync
+                ? `agent.steps.sync.${step.provider}`
+                : `agent.steps.connect.${step.provider}`,
+            ),
+            sync ? (
+              <Button
+                key="sync"
+                size="sm"
+                variant={variant}
+                onClick={() => model.openStatistics(step.provider)}
+              >
+                <RefreshCw />
+                {t("syncStatistics")}
+              </Button>
+            ) : step.provider === "search_console" ? (
+              <SeoGoogleConnection
+                key="connect"
+                variant={variant}
+                onConnected={model.openStatistics}
+                onError={setConnectError}
+                inRow
+              />
+            ) : (
+              <SeoConnectionButton
+                key="connect"
+                provider={step.provider}
+                variant={variant}
+                onConnected={() => model.openStatistics(step.provider)}
+                onError={setConnectError}
+              />
+            ),
           ]
-        : step.kind === "connect"
-          ? [
-              t(
-                sync
-                  ? `agent.steps.sync.${step.provider}`
-                  : `agent.steps.connect.${step.provider}`,
-              ),
-              sync ? (
-                <Button
-                  key="sync"
-                  size="sm"
-                  variant={variant}
-                  onClick={() => model.openStatistics(step.provider)}
-                >
-                  <RefreshCw />
-                  {t("syncStatistics")}
-                </Button>
-              ) : step.provider === "search_console" ? (
-                <SeoGoogleConnection
-                  key="connect"
-                  variant={variant}
-                  onConnected={model.openStatistics}
-                  onError={setConnectError}
-                  inRow
-                />
-              ) : (
-                <SeoConnectionButton
-                  key="connect"
-                  provider={step.provider}
-                  variant={variant}
-                  onConnected={() => model.openStatistics(step.provider)}
-                  onError={setConnectError}
-                />
-              ),
-            ]
-          : [
-              t(
-                step.available
-                  ? "agent.steps.competitors.available"
-                  : "agent.steps.competitors.unavailable",
-              ),
-              canEdit && (canRequestAnalysis || !step.available) ? (
-                <Button
-                  key="competitors"
-                  size="sm"
-                  variant={variant}
-                  onClick={() =>
-                    model.setDialog(step.available ? "analysis" : "competitor")
-                  }
-                >
-                  {step.available ? <Search /> : <Plus />}
-                  {t(
-                    step.available
-                      ? "agent.researchCompetitors"
-                      : "competitors.add",
-                  )}
-                </Button>
-              ) : null,
-            ];
+        : [
+            t(
+              step.available
+                ? "agent.steps.competitors.available"
+                : "agent.steps.competitors.unavailable",
+            ),
+            canEdit && (canRequestAnalysis || !step.available) ? (
+              <Button
+                key="competitors"
+                size="sm"
+                variant={variant}
+                onClick={() =>
+                  model.setDialog(step.available ? "analysis" : "competitor")
+                }
+              >
+                {step.available ? <Search /> : <Plus />}
+                {t(
+                  step.available
+                    ? "agent.researchCompetitors"
+                    : "competitors.add",
+                )}
+              </Button>
+            ) : null,
+          ];
   const Icon = banner ? ChartColumn : STEP_ICONS[step.kind];
   const Shell = banner ? "div" : "li";
   return (
@@ -195,7 +175,6 @@ export function SeoStepRow({
           {/* The text and the error share one cell, so the row keeps the height of the taller one. */}
           <div className="grid">
             <p
-              id={bodyId}
               className={cn(
                 "col-start-1 row-start-1 text-sm break-words",
                 // On a phone the banner is its title and its button: the sentence stands on the Traffic tab.
@@ -220,6 +199,37 @@ export function SeoStepRow({
         ) : null}
       </div>
     </Shell>
+  );
+}
+
+/**
+ * A row that leads to the Actions tab: the rest of the fixes, or the actions of the keyword strategy.
+ * The whole row is the button, with the arrow at its end. A sentence with a button of its own was the heaviest
+ * row of the list for its last step.
+ */
+export function SeoActionsLinkRow({
+  model,
+  children,
+}: {
+  model: SeoWorkspaceModel;
+  children: ReactNode;
+}) {
+  return (
+    <li className="content-rise">
+      <button
+        type="button"
+        className={cn(
+          SEO_ROW_BUTTON_CLASS,
+          "text-muted-foreground px-4 py-2.5 text-sm",
+        )}
+        onClick={() => {
+          void model.setFilters({ tab: "actions" });
+        }}
+      >
+        <span className="min-w-0 flex-1">{children}</span>
+        <ChevronRight className="size-4 shrink-0" />
+      </button>
+    </li>
   );
 }
 

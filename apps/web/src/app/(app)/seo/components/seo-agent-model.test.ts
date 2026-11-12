@@ -73,11 +73,7 @@ describe("SEO agent brief", () => {
       "strategy",
       "refresh",
     ]);
-    expect(steps[1]).toEqual({
-      kind: "strategy",
-      count: 2,
-      title: "Ask to be added to these lists of products",
-    });
+    expect(steps[1]).toEqual({ kind: "strategy", count: 2 });
   });
 
   it("loads missing query rows after a retry delay, not right after a sync", () => {

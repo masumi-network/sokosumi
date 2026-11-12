@@ -40,7 +40,10 @@ function useStrategyLabels() {
     },
     reach: (word: string) => {
       const key = seoStrategyKey(SEO_STRATEGY_REACHES, word);
-      return key ? t(`strategy.reach.${key}`) : word;
+      // A keyword row never says "ranks" or "open" (seoKeywordDemand), so they have no label.
+      return key && key !== "ranks" && key !== "open"
+        ? t(`strategy.reach.${key}`)
+        : word;
     },
     // A count with its noun: "12" beside "In reach" did not say 12 of what.
     reachCount: (word: string, count: number) => {
@@ -88,6 +91,13 @@ export function SeoStrategyFold({ model }: { model: SeoWorkspaceModel }) {
   if (!strategy) return null;
   const reason = seoStrategyReason(strategy);
   const counts = seoStrategyCounts(strategy.groups);
+  // A sentence about a reach that no count in view names explained a word the reader could not see.
+  const helps = counts.reaches.flatMap(({ reach }) => {
+    const key = seoStrategyKey(SEO_STRATEGY_REACHES, reach);
+    return key === "ranks" || key === "inReach" || key === "open"
+      ? [t(`strategy.reachHelp.${key}`)]
+      : [];
+  });
   return (
     <details className="px-2 text-sm">
       <SeoFoldSummary className="py-2.5">
@@ -112,7 +122,7 @@ export function SeoStrategyFold({ model }: { model: SeoWorkspaceModel }) {
           </ul>
         ) : null}
         <div className="text-muted-foreground space-y-2">
-          <p>{t("strategy.reachHelp")}</p>
+          {helps.length ? <p>{helps.join(" ")}</p> : null}
           {reason.details.length ? (
             <ul className="list-disc space-y-1 ps-4">
               {reason.details.map((line, index) => (

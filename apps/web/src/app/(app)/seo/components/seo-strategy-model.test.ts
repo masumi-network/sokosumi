@@ -156,11 +156,11 @@ describe("SEO strategy results", () => {
         trend: { direction: "rising", recent: 47 },
       },
     );
+    // A forum in the results is no row fact: the strategy line counts it.
     // A trend without its recent searches has no number to show.
-    expect(seoKeywordDemand({ ...open, trend: "rising" }, open.lead)).toEqual({
-      reach: "open",
-      trend: null,
-    });
+    expect(
+      seoKeywordDemand({ ...open, trend: "rising" }, open.lead),
+    ).toBeNull();
     expect(seoKeywordDemand(undefined, "x")).toBeNull();
   });
 

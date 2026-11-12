@@ -11041,7 +11041,7 @@
         "language": "Language code",
         "target": "Target page",
         "anyPage": "No target page",
-        "help": "Track a keyword to see its Google position after every check. Tracking is free.",
+        "help": "Best ideas first. Track one to see its Google position after every check. Tracking is free.",
         "dialogHelp": "Tracking a keyword is free. It does not start paid position checks.",
         "searchPlaceholder": "Filter queries and keywords",
         "searchConsoleAverage": "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
@@ -11082,7 +11082,7 @@
       },
       "competitors": {
         "title": "Competitors",
-        "checkedBetween": "Position checks from {from} to {to}",
+        "checkedBetween": "Position checks {from} to {to}",
         "empty": "No competitors yet",
         "emptyBody": "Run a check for suggested search competitors, or add a competitor to your list.",
         "emptyBodyOff": "A competitor you add is saved here. Its ranks and backlinks need paid search data, which is off in this workspace.",
@@ -11168,7 +11168,7 @@
         "home": "Home page"
       },
       "timeline": {
-        "title": "Timeline",
+        "title": "History",
         "runNewCheck": "Run a new check",
         "statuses": {
           "requested": "Requested",
@@ -11519,7 +11519,7 @@
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
             "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
           },
-          "strategy": "The site audit recommends {count, plural, one {# action} other {# actions}} from the keyword strategy. The first: {title}."
+          "strategy": "{count, plural, one {# action} other {# actions}} from the keyword strategy"
         },
         "prompts": {
           "first": "What should I do first?",
@@ -11616,7 +11616,7 @@
         "title": "Keyword strategy",
         "from": "From the check of",
         "verdict": {
-          "keep": "Keep these keywords: the site can reach at least half of their searches",
+          "keep": "Keep these keywords",
           "outOfReach": "Most searches of these keywords are out of reach for the site",
           "lowDemand": "These keywords have few searches",
           "notDetermined": "The audit could not give a keyword result",
@@ -11625,9 +11625,7 @@
           "noFit": "None of the niches the audit read fits the site"
         },
         "reach": {
-          "ranks": "Ranks now",
           "inReach": "In reach",
-          "open": "A forum is in the results",
           "outOfReach": "Out of reach",
           "notDetermined": "Reach not determined"
         },
@@ -11639,7 +11637,11 @@
           "notDetermined": "{count, plural, one {# keyword group has no known reach} other {# keyword groups have no known reach}}"
         },
         "falling": "{count, plural, one {# keyword group loses searches} other {# keyword groups lose searches}}",
-        "reachHelp": "Ranks now: a page of the site already ranks for the keyword or is in the featured snippet. In reach: the audit compared the referring domains of the site with the weakest top-10 page it could count, and the site is close enough. A forum in the search results is a sign that the results are open to new pages.",
+        "reachHelp": {
+          "ranks": "A keyword group ranks when a page of the site is in the results or in the featured snippet.",
+          "inReach": "A keyword group is in reach when the referring domains of the site are close to those of the weakest top-10 page the audit could count.",
+          "open": "A forum in the search results is a sign that the results are open to new pages."
+        },
         "trend": {
           "falling": "Searches fall: {recent} a month in recent months",
           "rising": "Searches rise: {recent} a month in recent months"
@@ -11658,10 +11660,9 @@
         },
         "actions": {
           "title": "Actions from the keyword strategy",
-          "help": "The site audit recommends these from the search results for your keywords.",
+          "help": "From the search results for your keywords.",
           "limit": "Limit",
           "prompt": "The site audit recommends: “{title}”. Draft a plan with the steps in order.{hasLimit, select, yes { Keep to this limit: {limit}} other {}}{count, plural, =0 {} one { The place: {targets}} other { The places: {targets}}}",
-          "open": "View these actions",
           "place": "Place"
         },
         "placeForm": {

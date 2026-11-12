@@ -6,6 +6,13 @@ import messages from "../../../../../messages/en.json";
 import { seoTestWorkspace } from "./seo-test-fixture";
 import { SeoTimeline } from "./seo-timeline";
 
+// The facts of a check row are spans of one line: the dot between them is a mark, with no space in the text.
+const facts = (line: string | RegExp) => (_: string, node: Element | null) =>
+  node?.tagName === "P" &&
+  (typeof line === "string"
+    ? node.textContent === line
+    : line.test(node.textContent ?? ""));
+
 describe("SEO timeline recovery", () => {
   it("labels unrequested analysis modules separately from recorded checks", () => {
     const workspace = seoTestWorkspace();
@@ -54,7 +61,7 @@ describe("SEO timeline recovery", () => {
         <SeoTimeline workspace={workspace} />
       </NextIntlClientProvider>,
     );
-    expect(screen.getByText("12 tests · desktop")).toBeVisible();
+    expect(screen.getByText(facts("12 tests·desktop"))).toBeVisible();
     expect(
       screen.queryByText("Some requested work could not be completed."),
     ).toBeNull();
@@ -231,6 +238,72 @@ describe("SEO timeline recovery", () => {
     expect(screen.getByText("1 issue found")).toBeVisible();
   });
 
+  it("shows what came before the last check as one closed line, and open when a row asks for attention", () => {
+    const workspace = seoTestWorkspace();
+    const check = (id: string, day: number) => ({
+      id,
+      kind: "page_check" as const,
+      source: "agent" as const,
+      observedAt: new Date(`2026-11-0${day}T10:00:00Z`),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: `${id}-task`,
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop" as const],
+      rulebookVersion: "test-rules",
+      artifactHash: id,
+      issues: 1,
+      coverage: { checked: 12, skipped: 0, failed: 0 },
+    });
+    workspace.observations = [check("newest", 3), check("older", 2)];
+    workspace.timeline = workspace.observations.map((observation) => ({
+      id: `${observation.id}-event`,
+      kind: "check" as const,
+      title: "SEO check results imported",
+      status: "completed",
+      detail: "",
+      at: observation.observedAt,
+      pageIds: observation.pageIds,
+      taskId: observation.sourceTaskId,
+      observationId: observation.id,
+    }));
+    const show = () =>
+      render(
+        <NextIntlClientProvider
+          locale="en"
+          timeZone="UTC"
+          formats={createFormats()}
+          messages={messages}
+        >
+          <SeoTimeline workspace={workspace} summarized />
+        </NextIntlClientProvider>,
+      );
+    const quiet = show();
+    const fold = screen
+      .getByRole("heading", { name: "History" })
+      .closest("details");
+    expect(fold?.open).toBe(false);
+    quiet.unmount();
+    // A sync that failed before the last check, with no good sync after it, is still news.
+    workspace.timeline.push({
+      id: "failed-sync",
+      kind: "metrics",
+      title: "Search Console sync",
+      status: "failed",
+      detail: "",
+      at: new Date("2026-11-01T10:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      taskId: null,
+      observationId: null,
+    });
+    show();
+    expect(
+      screen.getByRole("heading", { name: "History" }).closest("details"),
+    ).toBeNull();
+    expect(screen.getByText("Statistics sync failed")).toBeVisible();
+  });
+
   it("folds back-to-back clean checks of the same pages into one row", () => {
     const workspace = seoTestWorkspace();
     const check = (id: string, day: number, checked: number, issues = 0) => ({
@@ -286,7 +359,7 @@ describe("SEO timeline recovery", () => {
     expect(within(clean).getByText("No issues in 3 checks")).toBeVisible();
     // The fold says what it opens, like the one-check row's link.
     expect(within(clean).getByText("Show 3 checks")).toBeVisible();
-    expect(within(clean).getByText("24 tests · desktop")).toBeVisible();
+    expect(within(clean).getByText(facts("24 tests·desktop"))).toBeVisible();
     expect(
       within(clean).getByText("Some earlier checks ran 12 tests."),
     ).toBeVisible();
@@ -506,7 +579,7 @@ describe("SEO timeline recovery", () => {
     expect(screen.getByText("Check results")).toBeVisible();
     expect(screen.queryByText("No issues found")).toBeNull();
     // The view has one page, but this check covered two; the count stays.
-    expect(screen.getByText("10 tests · desktop · 2 pages")).toBeVisible();
+    expect(screen.getByText(facts("10 tests·desktop·2 pages"))).toBeVisible();
   });
 
   it("shows a failed check and offers a reviewed new check without hiding its source Task", () => {

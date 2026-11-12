@@ -66,7 +66,21 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
   const newest = dated.at(0);
   const day = (value: string | Date | null) =>
     value ? format.dateTime(new Date(value), { dateStyle: "medium" }) : "";
-  const firstDay = day(dated.at(-1)?.observedAt ?? null);
+  const oldest = dated.at(-1)?.observedAt ?? null;
+  const firstDay = day(oldest);
+  // The line of two days. Days of one year say the year once: with both, the line took two lines on a phone.
+  // Both days have one form: the medium date style of German is all numbers, beside a month name.
+  const span = (from: string | Date, to: string | Date) => {
+    const part = (value: string | Date, year: boolean) =>
+      format.dateTime(new Date(value), {
+        month: "short",
+        day: "numeric",
+        ...(year ? { year: "numeric" } : {}),
+      });
+    const year = (value: string | Date) =>
+      format.dateTime(new Date(value), { year: "numeric" });
+    return { from: part(from, year(from) !== year(to)), to: part(to, true) };
+  };
   // A column no row has measured only repeats "Not available"; name it once instead.
   const shown = {
     rank: all.some((row) => row.rank !== null),
@@ -111,7 +125,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
         ) : null
       }
     >
-      {newest ? (
+      {newest?.observedAt ? (
         // The date opens the results of the newest check. It stands under the title, at the place and in the
         // size of the meta line on Keywords, so the line holds its place when the switch changes the list.
         <p className="text-muted-foreground px-2 pb-1 text-sm">
@@ -124,10 +138,10 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                 {t("keywords.readOn")} <SeoDate day value={newest.observedAt} />
               </>
             ) : (
-              t("competitors.checkedBetween", {
-                from: firstDay,
-                to: day(newest.observedAt),
-              })
+              t(
+                "competitors.checkedBetween",
+                span(oldest ?? newest.observedAt, newest.observedAt),
+              )
             )}
           </SeoSource>
         </p>

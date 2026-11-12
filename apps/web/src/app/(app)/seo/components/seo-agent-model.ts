@@ -12,7 +12,7 @@ export const SEO_AGENT_ACTION_LIMIT = 3;
 type Action = ProjectSeoWorkspace["actions"][number];
 export type SeoAgentStep =
   | { kind: "action"; action: Action }
-  | { kind: "strategy"; count: number; title: string }
+  | { kind: "strategy"; count: number }
   | { kind: "refresh"; reason: "stale" | "no_queries" }
   | { kind: "connect"; provider: "ga4" | "search_console" }
   | { kind: "competitors"; available: boolean };
@@ -51,11 +51,7 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
   // so it comes after the work that has one.
   const strategyActions = workspace.strategy?.actions ?? [];
   if (strategyActions.length)
-    steps.push({
-      kind: "strategy",
-      count: strategyActions.length,
-      title: strategyActions[0].title,
-    });
+    steps.push({ kind: "strategy", count: strategyActions.length });
   if (refresh && (staleSearch || !workspace.searchQueries))
     steps.push({
       kind: "refresh",

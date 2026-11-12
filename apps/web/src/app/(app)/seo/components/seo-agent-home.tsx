@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ChevronDown, ChevronRight, Play } from "lucide-react";
+import { ArrowDown, ChevronDown, Play } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,11 @@ import {
   type SeoAgentStep,
   seoAgentBrief,
 } from "./seo-agent-model";
-import { SeoActionStepRow, SeoStepRow } from "./seo-agent-steps";
+import {
+  SeoActionStepRow,
+  SeoActionsLinkRow,
+  SeoStepRow,
+} from "./seo-agent-steps";
 import { useSeoChatIdentity } from "./seo-chat-panel";
 import { SeoGettingStarted } from "./seo-getting-started";
 import { SeoAutomation } from "./seo-monitors";
@@ -25,7 +29,6 @@ import { seoRarelyShown } from "./seo-performance-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning, seoRunLeads, seoSetup } from "./seo-setup-model";
 import {
-  SEO_ROW_BUTTON_CLASS,
   SEO_ROW_LIST_CLASS,
   SeoDate,
   SeoPeriod,
@@ -153,8 +156,7 @@ function SeoAgentPanel({
   );
   // During setup the banner waits until the first check runs: then the statistics are the next useful thing.
   const banner =
-    statisticsStep &&
-    statisticsStep.kind !== "action" &&
+    statisticsStep?.kind === "connect" &&
     (!setup || setup.check === "running") ? (
       <SeoStepRow
         banner={t("agent.statisticsMissing")}
@@ -191,6 +193,10 @@ function SeoAgentPanel({
           model={model}
         />
       )
+    ) : step.kind === "strategy" ? (
+      <SeoActionsLinkRow key="strategy" model={model}>
+        {t("agent.steps.strategy", { count: step.count })}
+      </SeoActionsLinkRow>
     ) : (
       <SeoStepRow
         key={`${step.kind}:${"provider" in step ? step.provider : ""}`}
@@ -395,26 +401,12 @@ function SeoAgentPanel({
               {shown.slice(0, split).map(stepItem)}
               {moreActions ? (
                 // The Agent tab shows the first actions only: the rest must not look absent.
-                <li>
-                  <button
-                    type="button"
-                    className={cn(
-                      SEO_ROW_BUTTON_CLASS,
-                      "text-muted-foreground px-4 py-2.5 text-sm",
-                    )}
-                    onClick={() => {
-                      void model.setFilters({ tab: "actions" });
-                    }}
-                  >
-                    <span className="min-w-0 flex-1">
-                      {t("agent.moreActions", {
-                        count: moreActions,
-                        kind: actionKind,
-                      })}
-                    </span>
-                    <ChevronRight className="size-4 shrink-0" />
-                  </button>
-                </li>
+                <SeoActionsLinkRow model={model}>
+                  {t("agent.moreActions", {
+                    count: moreActions,
+                    kind: actionKind,
+                  })}
+                </SeoActionsLinkRow>
               ) : null}
               {shown
                 .slice(split)

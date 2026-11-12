@@ -103,6 +103,8 @@ export function SeoKeywords({
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
+  const dayOf = (value: string | Date | null) =>
+    value ? format.dateTime(new Date(value), { dateStyle: "medium" }) : "";
   const locale = useLocale();
   // One row per keyword: a check reports it once per device, and again as a gap or an idea.
   const { checked, ideas } = keywordGroups(model.filteredKeywords);
@@ -310,6 +312,17 @@ export function SeoKeywords({
                 <TableBody>
                   {rows.map((group) => {
                     const { lead: row, reads, volume, sources } = group;
+                    // The result line dates the newest check. A row of an older check carries its own day,
+                    // unless it is the same day: the line already says that day.
+                    const lastRead = reads.at(0);
+                    const olderDay =
+                      lastRead?.observedAt &&
+                      lastRead.observationId !==
+                        summary.newest?.observationId &&
+                      dayOf(lastRead.observedAt) !==
+                        dayOf(summary.newest?.observedAt ?? null)
+                        ? lastRead.observedAt
+                        : null;
                     const target = model.data.pages.find(
                       (page) => page.id === row.targetPageId,
                     );
@@ -372,14 +385,10 @@ export function SeoKeywords({
                               keyword={row.keyword}
                             />
                             {/* Without the position column, a row of an older check says so here. */}
-                            {!shown.position &&
-                            reads.length > 0 &&
-                            reads[0].observedAt &&
-                            reads[0].observationId !==
-                              summary.newest?.observationId ? (
+                            {!shown.position && olderDay ? (
                               <p className="text-muted-foreground mt-1 text-xs">
                                 {t("observed")}:{" "}
-                                <SeoDate value={reads[0].observedAt} />
+                                <SeoDate day value={olderDay} />
                               </p>
                             ) : null}
                             <SeoKeywordTrendToggle
@@ -455,13 +464,10 @@ export function SeoKeywords({
                                         : t("keywords.notFound")}
                                     </p>
                                   ))}
-                                  {/* The result line dates the newest check; a row from an older one carries its own date. */}
-                                  {reads[0].observedAt &&
-                                  reads[0].observationId !==
-                                    summary.newest?.observationId ? (
+                                  {olderDay ? (
                                     <p className="text-muted-foreground text-xs">
                                       {t("observed")}:{" "}
-                                      <SeoDate value={reads[0].observedAt} />
+                                      <SeoDate day value={olderDay} />
                                     </p>
                                   ) : null}
                                 </>

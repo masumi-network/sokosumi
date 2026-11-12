@@ -11041,7 +11041,7 @@
         "language": "Código de idioma",
         "target": "Página de destino",
         "anyPage": "Sin página de destino",
-        "help": "Sigue una palabra clave para ver su posición en Google después de cada comprobación. El seguimiento es gratis.",
+        "help": "Las mejores ideas primero. Sigue una para ver su posición en Google después de cada comprobación. El seguimiento es gratis.",
         "dialogHelp": "Seguir una palabra clave es gratis. No inicia ninguna comprobación de posiciones con coste.",
         "searchPlaceholder": "Filtrar consultas y palabras clave",
         "searchConsoleAverage": "{position} de media · {count, plural, one {# impresión} other {# impresiones}}",
@@ -11168,7 +11168,7 @@
         "home": "Página de inicio"
       },
       "timeline": {
-        "title": "Cronología",
+        "title": "Historial",
         "runNewCheck": "Ejecutar una nueva comprobación",
         "statuses": {
           "requested": "Solicitada",
@@ -11519,7 +11519,7 @@
             "available": "Aún no se ha investigado ningún competidor. Una comprobación con datos de búsqueda de pago encuentra las páginas que posicionan para tus palabras clave.",
             "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."
           },
-          "strategy": "La auditoría del sitio recomienda {count, plural, one {# acción} other {# acciones}} de la estrategia de palabras clave. La primera: {title}."
+          "strategy": "{count, plural, one {# acción} other {# acciones}} de la estrategia de palabras clave"
         },
         "prompts": {
           "first": "¿Qué debo hacer primero?",
@@ -11616,7 +11616,7 @@
         "title": "Estrategia de palabras clave",
         "from": "De la comprobación del",
         "verdict": {
-          "keep": "Mantén estas palabras clave: el sitio puede alcanzar al menos la mitad de sus búsquedas",
+          "keep": "Mantén estas palabras clave",
           "outOfReach": "La mayoría de las búsquedas de estas palabras clave están fuera del alcance del sitio",
           "lowDemand": "Estas palabras clave tienen pocas búsquedas",
           "notDetermined": "La auditoría no pudo dar un resultado de palabras clave",
@@ -11625,9 +11625,7 @@
           "noFit": "Ninguno de los nichos que leyó la auditoría encaja con el sitio"
         },
         "reach": {
-          "ranks": "Ya posiciona",
           "inReach": "Al alcance",
-          "open": "Hay un foro en los resultados",
           "outOfReach": "Fuera de alcance",
           "notDetermined": "Alcance no determinado"
         },
@@ -11639,7 +11637,11 @@
           "notDetermined": "{count, plural, one {# grupo de palabras clave no tiene un alcance conocido} other {# grupos de palabras clave no tienen un alcance conocido}}"
         },
         "falling": "{count, plural, one {# grupo de palabras clave pierde búsquedas} other {# grupos de palabras clave pierden búsquedas}}",
-        "reachHelp": "Ya posiciona: una página del sitio ya posiciona para la palabra clave o está en el fragmento destacado. Al alcance: la auditoría comparó los dominios de referencia del sitio con la página más débil del top 10 que pudo contar, y el sitio está lo bastante cerca. Un foro en los resultados de búsqueda es una señal de que los resultados están abiertos a páginas nuevas.",
+        "reachHelp": {
+          "ranks": "Un grupo de palabras clave posiciona cuando una página del sitio está en los resultados o en el fragmento destacado.",
+          "inReach": "Un grupo de palabras clave está al alcance cuando los dominios de referencia del sitio están cerca de los de la página más débil del top 10 que la auditoría pudo contar.",
+          "open": "Un foro en los resultados de búsqueda es una señal de que los resultados están abiertos a páginas nuevas."
+        },
         "trend": {
           "falling": "Las búsquedas bajan: {recent} al mes en los últimos meses",
           "rising": "Las búsquedas suben: {recent} al mes en los últimos meses"
@@ -11658,10 +11660,9 @@
         },
         "actions": {
           "title": "Acciones de la estrategia de palabras clave",
-          "help": "La auditoría del sitio recomienda estas acciones a partir de los resultados de búsqueda de tus palabras clave.",
+          "help": "A partir de los resultados de búsqueda de tus palabras clave.",
           "limit": "Límite",
           "prompt": "La auditoría del sitio recomienda: «{title}». Redacta un plan con los pasos en orden.{hasLimit, select, yes { Respeta este límite: {limit}} other {}}{count, plural, =0 {} one { El lugar: {targets}} other { Los lugares: {targets}}}",
-          "open": "Ver estas acciones",
           "place": "Lugar"
         },
         "placeForm": {

@@ -581,9 +581,8 @@ describe("Keywords after a check", () => {
     workspace.strategy.groups[2].trend = "rising";
     const { unmount } = renderWorkspace(workspace);
     const verdict = screen.getByTestId("seo-strategy-verdict");
-    expect(verdict).toHaveTextContent(
-      "Keep these keywords: the site can reach at least half of their searches",
-    );
+    // The closed line is the verdict alone: its reason stands in the open part.
+    expect(verdict.textContent).toBe("Keep these keywords");
     // The line is closed and stands after the keyword rows: the result of the list leads the card.
     const fold = verdict.closest("details");
     if (!fold) throw new Error("no strategy fold");
@@ -613,6 +612,10 @@ describe("Keywords after a check", () => {
       screen.getByText(/^1 of 4 keyword groups are left out/).tagName,
     ).toBe("LI");
     expect(screen.getByText("1 keyword group loses searches")).toBeVisible();
+    // The help says what a count in view means.
+    expect(
+      screen.getByText(/A forum in the search results is a sign/),
+    ).toBeVisible();
     const cell = (keyword: string) => {
       const found = screen.getByText(keyword).closest("td");
       if (!found) throw new Error(`no cell for ${keyword}`);
@@ -627,16 +630,26 @@ describe("Keywords after a check", () => {
     expect(cell("charge timer")).not.toHaveTextContent(
       /Ranks now|Searches|trend/,
     );
-    expect(cell("battery widget")).toHaveTextContent(
-      "A forum is in the results",
-    );
-    expect(cell("battery widget")).not.toHaveTextContent("Open:");
+    // A forum in the results is no row fact: it stood on most rows. The strategy line counts it.
+    expect(cell("battery widget")).not.toHaveTextContent(/forum|Open:/i);
     expect(cell("battery health checker")).not.toHaveTextContent(
       /reach|Searches/i,
     );
     expect(cell("battery widget")).not.toHaveTextContent("Searches");
     expect(cell("no group")).not.toHaveTextContent(/reach|Searches/i);
     unmount();
+    // A help sentence stands only for a reach that a count in view names.
+    workspace.strategy = seoTestStrategy();
+    workspace.strategy.groups = workspace.strategy.groups.filter(
+      (group) => group.reach === "in reach",
+    );
+    const inReach = renderWorkspace(workspace);
+    expect(
+      screen.getByText(/A keyword group is in reach when/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/A forum in the search results/)).toBeNull();
+    expect(screen.queryByText(/A keyword group ranks when/)).toBeNull();
+    inReach.unmount();
     // A verdict word from a newer SEO bot shows as it came.
     workspace.strategy = {
       ...seoTestStrategy(),
@@ -758,7 +771,7 @@ describe("Keywords after a check", () => {
     ).toBeVisible();
     // A keyword of a check is tracked from the start: its list asks for nothing and explains no button.
     // What a click on "Track" gives stands on the Ideas list alone, where the rows carry the button.
-    expect(screen.getAllByText(/^Track a keyword to see/)).toHaveLength(1);
+    expect(screen.getAllByText(/Track one to see/)).toHaveLength(1);
     // The market shows once, in the result line, not once per row.
     expect(screen.getAllByText(/^United States · English/)).toHaveLength(1);
     expect(
@@ -774,6 +787,42 @@ describe("Keywords after a check", () => {
     expect(screen.getByText("idea 11")).toBeVisible();
     // The same button stays, so the keyboard focus stays.
     expect(screen.getByRole("button", { name: "Show less" })).toHaveFocus();
+  });
+
+  it("shows the reason of an idea only when it tells the ideas in view apart", () => {
+    const { workspace } = savedKeywordWorkspace();
+    const idea = (
+      index: number,
+      source: "gap" | "opportunity",
+    ): ProjectSeoWorkspace["keywords"][number] => ({
+      ...workspace.keywords[0],
+      id: `idea-${index}`,
+      keyword: `idea ${index}`,
+      saved: false,
+      version: 0,
+      source,
+      countryCode: "US",
+      languageCode: "en",
+      positionStatus: "unavailable",
+      device: null,
+      checkedResults: null,
+      volume: 100 - index,
+    });
+    workspace.keywords = [idea(0, "opportunity"), idea(1, "opportunity")];
+    const { unmount } = renderWorkspace(workspace);
+    expect(screen.getByText("idea 1")).toBeVisible();
+    expect(
+      screen.queryByRole("columnheader", { name: "Why it is listed" }),
+    ).toBeNull();
+    expect(screen.queryByText("Related search")).toBeNull();
+    unmount();
+    workspace.keywords[1] = idea(1, "gap");
+    renderWorkspace(workspace);
+    expect(
+      screen.getByRole("columnheader", { name: "Why it is listed" }),
+    ).toBeVisible();
+    expect(screen.getByText("From competitors")).toBeVisible();
+    expect(screen.getByText("Related search")).toBeVisible();
   });
 
   it("shows the conversion estimate and its feature in the lists that have one, with the note that it is an estimate", () => {
@@ -1228,6 +1277,10 @@ describe("Search Console queries", () => {
     expect(screen.getByText("charge timer").closest("td")).toHaveTextContent(
       "Last checked: Oct 11, 2026",
     );
+    // The day alone: the minute of an older read is no fact of the row.
+    expect(
+      screen.getByText("charge timer").closest("td"),
+    ).not.toHaveTextContent(/Last checked: Oct 11, 2026,/);
     expect(screen.getByText("battery app").closest("td")).not.toHaveTextContent(
       "Last checked",
     );
@@ -1247,7 +1300,7 @@ describe("Search Console queries", () => {
     workspace.keywords = [];
     renderWorkspace(workspace);
     expect(screen.getByRole("heading", { name: "Keywords" })).toBeVisible();
-    expect(screen.queryByText(/^Track a keyword to see/)).toBeNull();
+    expect(screen.queryByText(/Track one to see/)).toBeNull();
     cleanup();
     // It names the next position check too: it has no place where no position check can run.
     // The Ideas list follows the same rule.
@@ -1268,7 +1321,7 @@ describe("Search Console queries", () => {
     };
     renderWorkspace(workspace);
     expect(screen.getByText("battery app")).toBeVisible();
-    expect(screen.queryByText(/^Track a keyword to see/)).toBeNull();
+    expect(screen.queryByText(/Track one to see/)).toBeNull();
     cleanup();
     // A reader who cannot edit has no Track button, so no sentence about it.
     workspace.availableActions = {
@@ -1278,6 +1331,6 @@ describe("Search Console queries", () => {
     };
     renderWorkspace(workspace);
     expect(screen.getByText("battery app")).toBeVisible();
-    expect(screen.queryByText(/^Track a keyword to see/)).toBeNull();
+    expect(screen.queryByText(/Track one to see/)).toBeNull();
   });
 });

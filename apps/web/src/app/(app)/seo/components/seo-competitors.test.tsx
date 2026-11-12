@@ -526,7 +526,7 @@ describe("SEO competitor baselines", () => {
     // It opens the results of the newest check.
     expect(
       screen.getByRole("link", {
-        name: /^Position checks from Jan 3, 2026 to Feb 3, 2026 ?, View results$/,
+        name: /^Position checks Jan 3 to Feb 3, 2026 ?, View results$/,
       }),
     ).toHaveAttribute("href", "/tasks/second-check-task");
     expect(screen.queryByText(/^Last position check/)).toBeNull();
@@ -547,7 +547,8 @@ describe("SEO competitor baselines", () => {
     });
     renderWorkspace(workspace);
     expect(
-      screen.getByText("Position checks from Dec 3, 2025 to Feb 3, 2026"),
+      // Days of two years keep both years.
+      screen.getByText("Position checks Dec 3, 2025 to Feb 3, 2026"),
     ).toBeVisible();
     cleanup();
     // Two checks of one day are one day: the line stays the one date.

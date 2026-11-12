@@ -14,14 +14,18 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import {
   SeoDate,
   SeoEmpty,
   SeoFoldSummary,
+  SeoMetaLine,
   SeoSection,
   SeoState,
   seoMarketName,
@@ -56,6 +60,32 @@ const FLAGGED_STATUSES = new Set([
   "unavailable",
 ]);
 
+/**
+ * The frame of the list. Where the tiles give the last check, the list holds only what came before it:
+ * one closed line. Open under the tiles, its one row read as a second result with a second date.
+ */
+function TimelineFrame({
+  folded,
+  title,
+  children,
+}: {
+  folded: boolean;
+  title: string;
+  children: ReactNode;
+}) {
+  return folded ? (
+    <details className={cn(HOLDER_CLASS, "text-sm")}>
+      {/* The shape of the fold over it: the name, and the arrow at the end of the line. */}
+      <SeoFoldSummary className="[&>svg]:text-muted-foreground justify-between px-2 py-2">
+        <h2 className="min-w-0 text-sm font-semibold">{title}</h2>
+      </SeoFoldSummary>
+      <div className="mt-2">{children}</div>
+    </details>
+  ) : (
+    <SeoSection title={title}>{children}</SeoSection>
+  );
+}
+
 export function SeoTimeline({
   workspace,
   onRetry,
@@ -70,7 +100,7 @@ export function SeoTimeline({
   const format = useFormatter();
   const locale = useLocale();
   // A gap in a check is named only when there is one; the row already says how much ran.
-  function gapText(
+  function gapsOf(
     coverage: ProjectSeoWorkspace["observations"][number]["coverage"],
   ) {
     return [
@@ -83,9 +113,7 @@ export function SeoTimeline({
       coverage.modules?.failed
         ? t("timeline.optionalUnavailable", { count: coverage.modules.failed })
         : null,
-    ]
-      .filter(Boolean)
-      .join(" · ");
+    ].filter((gap): gap is string => gap !== null);
   }
   // A check's Task holds its results; other events link to the Task itself.
   const taskLink = (taskId: string, check = false) => (
@@ -174,7 +202,8 @@ export function SeoTimeline({
       ),
     ).size > 1;
   // The tiles and the page cards already give the last check: its day, its tests, its issues and the link to
-  // its results. Its row would say them a second time, so the list starts at the event before it.
+  // its results. Its row would say them a second time, so the list starts at the event before it,
+  // as one closed line.
   // A check that lost an optional part keeps its row: only the row says so. So does each check when the
   // checks used different markets: only the row names the market.
   const first = all.at(0);
@@ -189,10 +218,16 @@ export function SeoTimeline({
     first.observation?.id === lastRuleCheck(workspace)?.id;
   const nodes = tiled ? all.slice(1) : all;
   if (tiled && nodes.length === 0) return null;
+  // A row that asks for attention stays in view: a failed sync, a check that lost a part. A closed line would hide it.
+  const folded =
+    tiled &&
+    nodes.every(
+      ({ event }) => !FLAGGED_STATUSES.has(event.status.toLowerCase()),
+    );
   const visible = showAll ? nodes : nodes.slice(0, SEO_TIMELINE_VISIBLE);
   const onePage = workspace.scope.pageIds.length <= 1;
   return (
-    <SeoSection title={t("timeline.title")}>
+    <TimelineFrame folded={folded} title={t("timeline.title")}>
       {nodes.length === 0 ? (
         <SeoEmpty
           // No promise of a check where no check can run.
@@ -320,38 +355,59 @@ export function SeoTimeline({
                       <SeoState>{t(`timeline.statuses.${status}`)}</SeoState>
                     ) : null}
                     {observation ? (
-                      <p className="text-muted-foreground text-xs">
-                        {t(
-                          // Folded checks that all ran the same count say it is per check.
-                          earlier.length && !earlierRules.length
-                            ? "timeline.checkSummaryEach"
-                            : "timeline.checkSummary",
-                          { checked: observation.coverage.checked },
-                        )}
-                        {/* Devices tell rows with another rule count apart. */}
-                        {observation.devices.length
-                          ? ` · ${format.list(
-                              observation.devices.map((device) =>
-                                t("timeline.device", { device }),
-                              ),
-                            )}`
-                          : ""}
-                        {/* A one-page Audit needs no page count on every row. */}
-                        {onePage &&
-                        observation.pageIds.length === 1 &&
-                        viewed.has(observation.pageIds[0])
-                          ? ""
-                          : ` · ${t("pages.count", {
-                              count: observation.pageIds.length,
-                            })}`}
-                        {/* One check names its gaps next to the count they belong to. */}
-                        {!earlier.length && gapText(observation.coverage)
-                          ? ` · ${gapText(observation.coverage)}`
-                          : ""}
-                        {manyMarkets && observation.countryCode
-                          ? ` · ${seoMarketName(locale, observation.countryCode, observation.languageCode)}`
-                          : ""}
-                      </p>
+                      // The facts wrap fact by fact: on a phone a line ended with a dot.
+                      <SeoMetaLine
+                        className="text-xs"
+                        items={[
+                          [
+                            "tests",
+                            t(
+                              // Folded checks that all ran the same count say it is per check.
+                              earlier.length && !earlierRules.length
+                                ? "timeline.checkSummaryEach"
+                                : "timeline.checkSummary",
+                              { checked: observation.coverage.checked },
+                            ),
+                          ],
+                          // Devices tell rows with another rule count apart.
+                          [
+                            "devices",
+                            observation.devices.length
+                              ? format.list(
+                                  observation.devices.map((device) =>
+                                    t("timeline.device", { device }),
+                                  ),
+                                )
+                              : null,
+                          ],
+                          // A one-page Audit needs no page count on every row.
+                          [
+                            "pages",
+                            onePage &&
+                            observation.pageIds.length === 1 &&
+                            viewed.has(observation.pageIds[0])
+                              ? null
+                              : t("pages.count", {
+                                  count: observation.pageIds.length,
+                                }),
+                          ],
+                          // One check names its gaps next to the count they belong to.
+                          ...(earlier.length
+                            ? []
+                            : gapsOf(observation.coverage)
+                          ).map((gap): [string, string] => [gap, gap]),
+                          [
+                            "market",
+                            manyMarkets && observation.countryCode
+                              ? seoMarketName(
+                                  locale,
+                                  observation.countryCode,
+                                  observation.languageCode,
+                                )
+                              : null,
+                          ],
+                        ]}
+                      />
                     ) : event.kind === "page_change" ? (
                       <p className="text-sm break-words">{event.title}</p>
                     ) : null}
@@ -407,7 +463,7 @@ export function SeoTimeline({
                                                 .checked,
                                           })
                                         : null,
-                                      gapText(check.observation.coverage),
+                                      ...gapsOf(check.observation.coverage),
                                     ]
                                       .filter(Boolean)
                                       .join(" · ")
@@ -460,6 +516,6 @@ export function SeoTimeline({
           ) : null}
         </div>
       )}
-    </SeoSection>
+    </TimelineFrame>
   );
 }

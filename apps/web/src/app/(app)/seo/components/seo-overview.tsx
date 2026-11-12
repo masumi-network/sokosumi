@@ -274,7 +274,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
   const overview = seoOverviewModel(data);
   const sameDayAsTile = useSeoTileDay(data);
   const checkRunning = seoCheckRunning(data);
-  // Timeline rows carry their own check's coverage; only checks without a row are listed here.
+  // History rows carry their own check's coverage; only checks without a row are listed here.
   const onTimeline = new Set(data.timeline.map((event) => event.observationId));
   const offTimeline = data.observations.filter(
     (observation) => !onTimeline.has(observation.id),
@@ -479,18 +479,6 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
           ))}
         </SeoSection>
       ) : null}
-      <SeoTimeline
-        // With several pages each page row gives its last check: its issues, and its day and the results link
-        // when the check is not the one the tests tile dates and links.
-        // With one page only the Timeline row links the results.
-        summarized={data.pages.length > 1}
-        workspace={data}
-        onRetry={
-          data.availableActions.canRequestAnalysis && !checkRunning
-            ? () => model.setDialog("analysis")
-            : undefined
-        }
-      />
       <SeoPages model={model} />
       {overview.diagnostics.length || offTimeline.length ? (
         <details className={cn(HOLDER_CLASS, "group/details text-sm")}>
@@ -527,7 +515,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
           </summary>
           <div className={cn(HOLDER_ITEM_CLASS, "mt-2 space-y-4 p-4")}>
             {oneCheck ? (
-              // The date of the tests tile, the check's Timeline row or its page card links its results.
+              // The date of the tests tile, the check's History row or its page card links its results.
               <p className="text-muted-foreground text-xs">
                 {t.rich("overview.fromCheck", {
                   date: () => <SeoDate value={oneCheckAt} />,
@@ -639,6 +627,19 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
           </div>
         </details>
       ) : null}
+      {/* History is the last block of the tab: the issues, the pages and the page details are the result. */}
+      <SeoTimeline
+        // With several pages each page row gives its last check: its issues, and its day and the results link
+        // when the check is not the one the tests tile dates and links.
+        // With one page only the History row links the results.
+        summarized={data.pages.length > 1}
+        workspace={data}
+        onRetry={
+          data.availableActions.canRequestAnalysis && !checkRunning
+            ? () => model.setDialog("analysis")
+            : undefined
+        }
+      />
     </div>
   );
 }

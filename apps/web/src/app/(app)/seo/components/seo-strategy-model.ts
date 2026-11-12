@@ -61,6 +61,7 @@ const NEXT_KEYWORD = /; (?=")/;
 const LEFT_OUT = /\d+ of \d+ keyword groups are left out[\s\S]*$/;
 /** A position already says that the page ranks, so this reach adds nothing under a keyword. */
 const REACH_RANKS = "ranks";
+const REACH_OPEN = "open";
 
 export function seoStrategyKey<Keys extends Record<string, string>>(
   keys: Keys,
@@ -132,7 +133,12 @@ export function seoKeywordDemand(
   keyword: string,
 ) {
   if (!group) return null;
-  const reach = group.reach === REACH_RANKS ? null : group.reach;
+  // A row with a position needs no "ranks". "A forum is in the results" stood on most rows and said no meaning:
+  // the strategy line under the list counts those groups and says what a forum means, once.
+  const reach =
+    group.reach === REACH_RANKS || group.reach === REACH_OPEN
+      ? null
+      : group.reach;
   const trend =
     normalizeQuery(keyword) === normalizeQuery(group.lead) &&
     group.recent !== null &&

@@ -45,10 +45,14 @@ export function SeoKeywordIdeas({
   const visible = seoFoldCount(ideas.length);
   const rows =
     expanded || model.keywordSearch ? ideas : ideas.slice(0, visible);
+  const reasonsOf = (sources: string[]) =>
+    SEO_IDEA_SOURCES.filter((source) => sources.includes(source));
   const shown = {
     volume: ideas.some((group) => group.volume !== null),
     // Only a check that estimates conversion fills the column.
     conversion: ideas.some((group) => group.conversion !== null),
+    // One reason on every row in view tells no idea from another: "Related search" stood on ten of ten rows.
+    why: new Set(rows.map(({ sources }) => reasonsOf(sources).join())).size > 1,
   };
   const manyPages = model.data.scope.pageIds.length > 1;
   // The bars set each idea against the most searched one of the list.
@@ -86,7 +90,9 @@ export function SeoKeywordIdeas({
               {shown.conversion ? (
                 <TableHead>{t("keywords.conversion.title")}</TableHead>
               ) : null}
-              <TableHead>{t("keywords.ideas.why")}</TableHead>
+              {shown.why ? (
+                <TableHead>{t("keywords.ideas.why")}</TableHead>
+              ) : null}
               <TableHead>
                 <span className="sr-only">{t("queries.rowActions")}</span>
               </TableHead>
@@ -143,13 +149,15 @@ export function SeoKeywordIdeas({
                   />
                 ) : null}
                 {/* The reason is quieter than the keyword and its values. On a phone it follows the number or the estimate on one line. */}
-                <TableCell className="text-muted-foreground whitespace-normal">
-                  {format.list(
-                    SEO_IDEA_SOURCES.filter((source) =>
-                      sources.includes(source),
-                    ).map((source) => t(`keywords.ideas.source.${source}`)),
-                  )}
-                </TableCell>
+                {shown.why ? (
+                  <TableCell className="text-muted-foreground whitespace-normal">
+                    {format.list(
+                      reasonsOf(sources).map((source) =>
+                        t(`keywords.ideas.source.${source}`),
+                      ),
+                    )}
+                  </TableCell>
+                ) : null}
                 <TableCell>
                   {model.data.availableActions.canEdit ? (
                     <div className="flex justify-end">

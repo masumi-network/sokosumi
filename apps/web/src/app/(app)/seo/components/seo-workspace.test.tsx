@@ -1361,7 +1361,12 @@ describe("SEO workspace integration", () => {
       expect(
         screen.getByText(
           onTimeline
-            ? /^2 tests · .* · 1 test gave no result$/
+            ? // The facts are spans of one line; the dot between them is a mark, with no space in the text.
+              (_, node) =>
+                node?.tagName === "P" &&
+                /^2 tests·.*·1 test gave no result$/.test(
+                  node.textContent ?? "",
+                )
             : "Tests: 2 with a result, 1 without a result, 0 unavailable",
         ),
       ).toBeInTheDocument();
@@ -1391,7 +1396,7 @@ describe("SEO workspace integration", () => {
     ["a check with failed tests: the row says so", 2, [0], 1, 0, 1],
     ["a check that lost an optional part: the row says so", 2, [1], 0, 1, 1],
   ] as const)(
-    "shows the Health Timeline only when it adds to the tiles and page cards, %s",
+    "shows the Health History only when it adds to the tiles and page cards, %s",
     (_case, pages, issues, failed, lost, rows) => {
       const workspace = seoTestWorkspace();
       workspace.findings = [];
@@ -1444,9 +1449,12 @@ describe("SEO workspace integration", () => {
       );
       renderWorkspace(workspace, "?tab=health");
       expect(screen.getByTestId("seo-summary-tests")).toBeVisible();
-      expect(screen.queryByRole("heading", { name: "Timeline" }) !== null).toBe(
-        rows > 0,
-      );
+      const history = screen.queryByRole("heading", { name: "History" });
+      expect(history !== null).toBe(rows > 0);
+      // Where the tiles give the last check, what came before it is one closed line.
+      const fold = history?.closest("details");
+      expect(Boolean(fold)).toBe(_case.startsWith("two checks with issues"));
+      expect(fold?.open ?? false).toBe(false);
       // The date of the tests tile opens the results of the last check, with or without a Timeline.
       expect(
         within(screen.getByTestId("seo-summary-tests")).getByRole("link", {
@@ -4020,30 +4028,22 @@ describe("SEO workspace integration", () => {
     // "Keep these keywords" asks for nothing: the card does not say it.
     workspace.strategy.verdict = "keep";
     renderWorkspace(workspace);
-    expect(
-      await screen.findByText(
-        "The site audit recommends 2 actions from the keyword strategy. The first: Ask to be added to these lists of products.",
-      ),
-    ).toBeVisible();
+    // The step is one row that leads to the list: the whole row is the button.
+    const step = await screen.findByRole("button", {
+      name: "2 actions from the keyword strategy",
+    });
+    expect(step.closest("li")).not.toBeNull();
     expect(screen.queryByTestId("seo-agent-strategy")).toBeNull();
-    // The step opens a list and has no end, so it never takes the filled style.
-    expect(
-      screen.getByRole("button", { name: "View these actions" }),
-    ).not.toHaveClass("bg-primary");
     // The Audit has no page action; the strategy actions alone show the tab.
     expect(screen.getByRole("tab", { name: "Actions" })).toBeVisible();
-    await user.click(
-      screen.getByRole("button", { name: "View these actions" }),
-    );
+    await user.click(step);
     expect(
       await screen.findByRole("heading", {
         name: "Actions from the keyword strategy",
       }),
     ).toBeVisible();
     expect(
-      screen.getByText(
-        "The site audit recommends these from the search results for your keywords.",
-      ),
+      screen.getByText("From the search results for your keywords."),
     ).toBeVisible();
     // "No recommended actions" above these cards would say two things at once.
     expect(screen.queryByRole("heading", { name: "Actions" })).toBeNull();
@@ -4121,36 +4121,48 @@ describe("SEO workspace integration", () => {
     expect(asked).toEqual([]);
   });
 
-  it("does not give the strategy step the filled button, also when it is the first step", async () => {
+  it("names the fixes on the Actions tab when the strategy actions follow them", async () => {
     const workspace = seoTestWorkspace();
-    workspace.availableActions.canRequestAnalysis = false;
-    workspace.strategy = seoTestStrategy();
-    workspace.observations = [
-      {
-        id: seoTestStrategy().observationId,
-        kind: "audit_full",
-        source: "seo_coworker",
-        observedAt: new Date("2026-11-11T00:26:00Z"),
-        pageIds: workspace.scope.pageIds,
-        scopeVersion: 2,
-        sourceTaskId: null,
-        countryCode: "US",
-        languageCode: "en",
-        devices: ["mobile"],
-        rulebookVersion: "html-v1",
-        artifactHash: "checked-html",
-        issues: 0,
-        coverage: { checked: 12, skipped: 0, failed: 0 },
-      },
-    ];
+    workspace.actions.push({
+      id: "action-row",
+      observationId: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
+      pageUrl: "https://example.com/",
+      findingIds: [],
+      title: "Fix the page title",
+      why: "The title is missing",
+      effort: "low",
+      expectedEffect: "A descriptive search result",
+      edit: null,
+      taskId: null,
+      status: "recommended",
+      kind: "fix",
+      evidence: [],
+    });
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    renderWorkspace(workspace);
+    const first = renderWorkspace(workspace, "?tab=actions");
+    // Alone on the tab, the fixes need no title.
     expect(
-      await screen.findByRole("button", { name: "View these actions" }),
-    ).not.toHaveClass("bg-primary");
+      await screen.findByRole("button", { name: /Create draft task/ }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "Fixes for confirmed issues" }),
+    ).toBeNull();
+    first.unmount();
+    workspace.strategy = seoTestStrategy();
+    renderWorkspace(workspace, "?tab=actions");
+    expect(
+      await screen.findByRole("heading", {
+        name: "Fixes for confirmed issues",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", {
+        name: "Actions from the keyword strategy",
+      }),
+    ).toBeVisible();
   });
 
   it("does not repeat a type that every place of an action shares", async () => {
@@ -4295,7 +4307,7 @@ describe("SEO workspace integration", () => {
     expect(await screen.findByText("Stablecoins")).toBeVisible();
     // Paid columns can never fill, and no Analytics data exists.
     expect(screen.queryByText(/Search volume/)).toBeNull();
-    expect(screen.queryByText(/^Track a keyword to see/)).toBeNull();
+    expect(screen.queryByText(/Track one to see/)).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Traffic" })).toBeNull();
     // A competitor without numbers says why, instead of a bare URL.
     await userEvent.click(screen.getByRole("button", { name: "Competitors" }));

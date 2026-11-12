@@ -306,14 +306,15 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   );
   // Two groups on the tab: each one names itself.
   const grouped = fixes.length > 0 && opportunities.length > 0;
+  // The strategy actions are a group with a title of their own: a group over them needs one too.
+  const strategyFollows = Boolean(model.data.strategy?.actions.length);
   const searchLoaded = model.data.searchQueries !== null;
   // The recheck rule matters only once a Task exists for an action.
   const tracked = overview.actions.some(
     (action) => action.status !== "recommended",
   );
   // "No recommended actions" above the strategy actions would say two things at once.
-  const strategyOnly =
-    !overview.actions.length && Boolean(model.data.strategy?.actions.length);
+  const strategyOnly = !overview.actions.length && strategyFollows;
   if (strategyOnly) return <SeoStrategyActions model={model} />;
   return (
     <div className="space-y-5">
@@ -332,7 +333,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
               model={model}
               severity={overview.actionSeverity}
               primary={primary}
-              named={grouped}
+              named={grouped || strategyFollows}
             />
             <ActionGroup
               title={t("actions.opportunitiesTitle")}
@@ -341,7 +342,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
               model={model}
               severity={overview.actionSeverity}
               primary={primary}
-              named={grouped}
+              named={grouped || strategyFollows}
             />
           </div>
         ) : (
