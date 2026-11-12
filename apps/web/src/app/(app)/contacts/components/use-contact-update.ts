@@ -152,19 +152,22 @@ export function useListToggle() {
       () => {},
       () => {},
     );
-    try {
-      await save;
-    } catch (error) {
+    const failure = await save.then(
+      () => null,
+      (error: unknown) => error,
+    );
+    saves.open -= 1;
+    if (saves.open === 0) await refreshContacts(cache, contact.id);
+    // After the reload, so the list is back when the toast says it is.
+    if (failure !== null) {
       toast.error(
         t(on ? "panel.addToListFailed" : "panel.removeFromListFailed", {
           name: contact.name,
           list: name,
         }),
-        { description: coreErrorOf(error).message },
+        { description: coreErrorOf(failure).message },
       );
     }
-    saves.open -= 1;
-    if (saves.open === 0) await refreshContacts(cache, contact.id);
     // Drops one entry: a second click on the same list keeps its own.
     setSaving((current) => {
       const index = current.indexOf(key);

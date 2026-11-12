@@ -204,6 +204,10 @@ describe("useListToggle", () => {
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: contactKey(contact.id),
     });
+    // The toast says the list is back, so it waits for the reload.
+    expect(invalidate.mock.invocationCallOrder[0]).toBeLessThan(
+      f.toastError.mock.invocationCallOrder[0],
+    );
   });
 
   it("names the contact and list when taking it off fails", async () => {
