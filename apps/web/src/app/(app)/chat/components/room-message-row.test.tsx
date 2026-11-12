@@ -3219,7 +3219,7 @@ describe("ChatMessageRow coworker Thought", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows failed caption on the coworker shell with no elapsed clock", () => {
+  it("says a coworker couldn't reply, with no elapsed clock", () => {
     renderRow({
       message: coworkerMessage({
         content: "",
@@ -3230,15 +3230,14 @@ describe("ChatMessageRow coworker Thought", () => {
       }),
     });
 
-    expect(screen.getByTestId("coworker-thought-sparkle")).toHaveTextContent(
-      "MentionStatus.failed",
-    );
+    const card = screen.getByTestId("coworker-mention-failed");
+    expect(card).toHaveTextContent("MentionStatus.failed");
+    // No source message on the shell: nothing proves the message was kept.
+    expect(card).toHaveTextContent("MentionStatus.failedBody");
+    expect(card).not.toHaveTextContent("MentionStatus.failedSaved");
     expect(screen.queryByTestId("live-stream-elapsed")).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("coworker-thought-trace"),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByTestId("coworker-mention-failed"),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("coworker-mention-retry"),
@@ -3264,7 +3263,7 @@ describe("ChatMessageRow coworker Thought", () => {
     expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
   });
 
-  it("shows Failed to reply on a failed Soko Bot shell", () => {
+  it("says a Soko Bot couldn't reply and the message is saved", () => {
     renderRow({
       message: sokoBotMessage({
         content: "",
@@ -3277,9 +3276,10 @@ describe("ChatMessageRow coworker Thought", () => {
       }),
     });
 
-    expect(screen.getByTestId("coworker-thought-sparkle")).toHaveTextContent(
-      "MentionStatus.failed",
-    );
+    const card = screen.getByTestId("coworker-mention-failed");
+    expect(card).toHaveAttribute("role", "status");
+    expect(card).toHaveTextContent("MentionStatus.failed");
+    expect(card).toHaveTextContent("MentionStatus.failedSaved");
   });
 
   it("shows Retry on a failed mention shell for the mentioner", async () => {
@@ -3296,7 +3296,7 @@ describe("ChatMessageRow coworker Thought", () => {
 
     renderRow({ message, onRetryMention });
 
-    expect(screen.getByTestId("coworker-thought-sparkle")).toHaveTextContent(
+    expect(screen.getByTestId("coworker-mention-failed")).toHaveTextContent(
       "MentionStatus.failed",
     );
     await user.click(screen.getByTestId("coworker-mention-retry"));

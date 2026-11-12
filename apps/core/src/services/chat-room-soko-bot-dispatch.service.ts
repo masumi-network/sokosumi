@@ -40,6 +40,10 @@ const SOKO_BOT_ACCEPT_TIMEOUT_MS = 60_000;
 export const SOKO_BOT_WAIT_FOR_RUNNING_TURN_MS = 120_000;
 const RUNNING_TURN_POLL_MS = 2_000;
 
+function isActiveTurnStatus(status: string): boolean {
+  return (ACTIVE_TURN_STATUSES as readonly string[]).includes(status);
+}
+
 export async function acceptOnceIdle<T>(
   accept: () => Promise<T>,
   sokoBotId: string,
@@ -200,7 +204,31 @@ export async function runSokoBotMentionDispatch(params: {
   // the placeholder above streaming for ever while the mention was marked
   // failed somewhere the reader could not see.
   let message: string;
+  // The key this start runs under. Retry reopens a mention whose turn has
+  // already ended, and that turn holds both the mention (one turn per mention)
+  // and the key `chat:<mention>`: starting again under it handed back the
+  // ended turn, nothing started, and the reopened "Thinking…" never ended.
+  // So the newest turn under this mention's keys, once ended, lets go of the
+  // mention and the retry starts under a key of its own; a live one (a
+  // reclaimed dispatch) keeps its key. Newest by key, not by link: a retry
+  // whose start threw left no turn, and the original still holds `chat:<id>`.
+  let clientTurnId = `chat:${mentionId}`;
   try {
+    const [earlier] = await prisma.sokoBotTurn.findMany({
+      where: { sokoBotId: bot.id, clientTurnId: { startsWith: clientTurnId } },
+      orderBy: { createdAt: "desc" },
+      take: 1,
+      select: { id: true, status: true, clientTurnId: true },
+    });
+    if (earlier && isActiveTurnStatus(earlier.status)) {
+      clientTurnId = earlier.clientTurnId;
+    } else if (earlier) {
+      await prisma.sokoBotTurn.updateMany({
+        where: { id: earlier.id, chatMentionId: mentionId },
+        data: { chatMentionId: null },
+      });
+      clientTurnId = `chat:${mentionId}:retry:${earlier.id}`;
+    }
     const said = withAttachmentNote(
       roomMessagePromptText(
         mention.message.content,
@@ -237,7 +265,7 @@ export async function runSokoBotMentionDispatch(params: {
       // asked in. The room's workspace ran a different bot of the same owner
       // (their personal one) and put its Tasks there.
       workspaceId: bot.workspaceId,
-      clientTurnId: `chat:${mentionId}`,
+      clientTurnId,
       message: isOwner
         ? message
         : `${mention.message.senderUser?.name ?? "A teammate"} (${isPersonalSokoBot(bot) ? "a teammate, not your owner" : "a member of the team"}) asked:\n${message}`,
@@ -268,6 +296,14 @@ export async function runSokoBotMentionDispatch(params: {
 
   try {
     const result = await acceptOnceIdle(accept, bot.id);
+    // An ended turn handed back for this key writes nothing more to the
+    // reply, so say it failed rather than leave "Thinking…" running.
+    if (result.duplicate && !isActiveTurnStatus(result.status)) {
+      await failPlaceholder(
+        new Error(`Soko Bot turn already ended (${result.status})`),
+      );
+      return;
+    }
     if (
       result.reconciliationLeaseToken &&
       (result.status === "STARTING" || result.status === "RUNNING")

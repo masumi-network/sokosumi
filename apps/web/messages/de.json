@@ -896,7 +896,7 @@
         "IDLE": "Bereit",
         "RUNNING": "Aktiv",
         "PAUSED": "Pausiert",
-        "ERROR": "Fehler"
+        "ERROR": "Konnte nicht antworten"
       },
       "TurnStatus": {
         "QUEUED": "Wartend",
@@ -1678,7 +1678,9 @@
             "catchUp": "Bring mich auf den Stand",
             "teamWins": "Was haben wir geschafft?",
             "planTomorrow": "Morgen planen"
-          }
+          },
+          "failedReply": "{name} konnte die letzte Antwort nicht abschließen",
+          "openChat": "Chat öffnen"
         }
       },
       "SokoBot": {
@@ -5278,7 +5280,6 @@
         "SokoBot": {
           "fallbackName": "Soko Bot",
           "workingNow": "Arbeitet gerade",
-          "needsAttention": "Braucht Aufmerksamkeit",
           "activeAgo": "Aktiv {time}",
           "ready": "Bereit",
           "team": "Soko Bots deines Teams"
@@ -8802,7 +8803,9 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "failed": "Antwort fehlgeschlagen",
+        "failed": "{name} konnte nicht antworten",
+        "failedBody": "Die Antwort brach ab, bevor sie fertig war.",
+        "failedSaved": "Die Antwort brach ab, bevor sie fertig war. Deine Nachricht ist gespeichert.",
         "retry": "Erneut versuchen"
       },
       "Outbound": {

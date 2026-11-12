@@ -1,6 +1,7 @@
 import { SokoBotStatus } from "@sokosumi/core-client";
 import { useEffect, useState } from "react";
 import { z } from "zod";
+import { publishFailedSokoBotId } from "@/components/chat/personal-assistant-chrome-store";
 
 const ACTIVITY_ENDPOINT = "/api/personal-assistant/activity";
 /**
@@ -30,7 +31,9 @@ type LiveFields = Omit<
  * navigation, so without this the row never changes.
  * Asks only while the tab is visible, and a failed ask keeps what it knows.
  */
-export function useLiveSokoBot<Bot extends LiveFields>(bot: Bot): Bot {
+export function useLiveSokoBot<Bot extends LiveFields & { id: string }>(
+  bot: Bot,
+): Bot {
   const [live, setLive] = useState<Partial<LiveFields> | null>(null);
   const [prevBot, setPrevBot] = useState(bot);
 
@@ -40,6 +43,7 @@ export function useLiveSokoBot<Bot extends LiveFields>(bot: Bot): Bot {
     setLive(null);
   }
 
+  const botId = bot.id;
   useEffect(() => {
     let stopped = false;
     let asking = false;
@@ -57,6 +61,9 @@ export function useLiveSokoBot<Bot extends LiveFields>(bot: Bot): Bot {
         const body = activityResponseSchema.safeParse(await response.json());
         if (body.success && !stopped) {
           const { lastActivityAt, ...rest } = body.data.activity;
+          publishFailedSokoBotId(
+            rest.status === SokoBotStatus.ERROR ? botId : null,
+          );
           setLive(
             lastActivityAt === undefined ? rest : { ...rest, lastActivityAt },
           );
@@ -74,10 +81,11 @@ export function useLiveSokoBot<Bot extends LiveFields>(bot: Bot): Bot {
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       stopped = true;
+      publishFailedSokoBotId(null);
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, []);
+  }, [botId]);
 
   return live ? { ...bot, ...live } : bot;
 }

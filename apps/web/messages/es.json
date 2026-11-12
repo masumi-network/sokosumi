@@ -896,7 +896,7 @@
         "IDLE": "Inactivo",
         "RUNNING": "En marcha",
         "PAUSED": "Pausado",
-        "ERROR": "Error"
+        "ERROR": "No pudo responder"
       },
       "TurnStatus": {
         "QUEUED": "En cola",
@@ -1678,7 +1678,9 @@
             "catchUp": "Ponme al día",
             "teamWins": "¿Qué terminamos?",
             "planTomorrow": "Planificar mañana"
-          }
+          },
+          "failedReply": "{name} no pudo terminar su última respuesta",
+          "openChat": "Abrir el chat"
         }
       },
       "SokoBot": {
@@ -5278,7 +5280,6 @@
         "SokoBot": {
           "fallbackName": "Soko Bot",
           "workingNow": "Trabajando ahora",
-          "needsAttention": "Requiere atención",
           "activeAgo": "Activo {time}",
           "ready": "Listo",
           "team": "Los Soko Bots de tu equipo"
@@ -8802,7 +8803,9 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "failed": "No se pudo responder",
+        "failed": "{name} no pudo responder",
+        "failedBody": "La respuesta se detuvo antes de terminar.",
+        "failedSaved": "La respuesta se detuvo antes de terminar. Tu mensaje está guardado.",
         "retry": "Reintentar"
       },
       "Outbound": {

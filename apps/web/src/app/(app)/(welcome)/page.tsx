@@ -1,14 +1,16 @@
+import { SokoBotStatus } from "@sokosumi/core-client";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getNow, getTimeZone, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
 import { ChatLanding } from "@/app/chat/components/landing/chat-landing";
 import { ChatLandingMobile } from "@/app/chat/components/landing/chat-landing.mobile";
 import { resolveLandingGreetingName } from "@/app/chat/components/landing/landing-content";
+import { chatRoomHref } from "@/app/chat/utils/chat-route-base";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
+import type { NeedsYouLead } from "@/app/projects/components/needs-you-panel-list";
 import {
   NeedsYouPanel,
   panelFeed,
@@ -22,6 +24,7 @@ import { notificationService } from "@/lib/services/notification.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 
 import { loadMyDay, MyDay } from "./components/my-day";
@@ -117,15 +120,12 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   // What waits on the reader, as the quiet list under either welcome. One
   // promise of the rendered panel, so the two breakpoint compositions share
   // its reads instead of each loading the rows and their projects again.
-  const needsYou = (
+  const needsYouFeed = panelFeed(
+    notificationService.listNeedsYou(WORKSPACE_COLUMN_ROWS),
+  );
+  const needsYouPanel = (lead?: NeedsYouLead) => (
     <Suspense fallback={null}>
-      {NeedsYouPanel({
-        feed: panelFeed(
-          notificationService.listNeedsYou(WORKSPACE_COLUMN_ROWS),
-        ),
-        projects: {},
-        quiet: true,
-      })}
+      {NeedsYouPanel({ feed: needsYouFeed, projects: {}, quiet: true, lead })}
     </Suspense>
   );
 
@@ -143,6 +143,20 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
         })
         .catch(() => ({ tasks: [] })),
     ]);
+    // A failed reply waits on the reader too: the sidebar and the bot's page
+    // say so, and Home said "Nothing waits on you". Opens the bot's Direct,
+    // where the failed reply and its Try again are.
+    const tHome = await getTranslations("App.Chat.Landing.SokoBotHome");
+    const failedLead =
+      sokoBot.status === SokoBotStatus.ERROR
+        ? {
+            title: tHome("failedReply", {
+              name: sokoBot.name?.trim() || tHome("defaultName"),
+            }),
+            detail: tHome("openChat"),
+            href: roomId ? chatRoomHref(roomId) : SOKO_BOT_ROUTE,
+          }
+        : undefined;
     return (
       <>
         {landingNotice}
@@ -160,11 +174,12 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           teamTasks={toTeamDay(recent.tasks, new Date())}
           chats={chats}
           myDay={myDay}
-          needsYou={needsYou}
+          needsYou={needsYouPanel(failedLead)}
         />
       </>
     );
   }
+  const needsYou = needsYouPanel();
 
   const [coworkerRows, summary] = await Promise.all([
     coworkerService.listCoworkers("chat"),

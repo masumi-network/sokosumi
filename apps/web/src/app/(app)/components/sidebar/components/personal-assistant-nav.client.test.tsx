@@ -48,8 +48,12 @@ vi.mock("@/components/ui/sheet", () => ({
     isValidElement(children) ? cloneElement(children, props) : <>{children}</>,
 }));
 
+const { publishFailedSokoBotId } = vi.hoisted(() => ({
+  publishFailedSokoBotId: vi.fn(),
+}));
 vi.mock("@/components/chat/personal-assistant-chrome-store", () => ({
   publishPersonalAssistantChromeVisible: vi.fn(),
+  publishFailedSokoBotId,
 }));
 
 vi.mock("@/components/aurora-orb", () => ({
@@ -209,7 +213,8 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
   it.each([
     // "Paused" is the status badge's own word, so it is the badge's string.
     [SokoBotStatus.PAUSED, /PAUSED/],
-    [SokoBotStatus.ERROR, /needsAttention/],
+    // The badge's own word, so the row, the bot's page and its Direct agree.
+    [SokoBotStatus.ERROR, /ERROR/],
     [SokoBotStatus.IDLE, /ready/],
   ])("gives a %s bot its status line and no pulse", (status, line) => {
     renderNav({ bot: { ...bot, status } });
@@ -335,6 +340,15 @@ describe("PersonalAssistantNav live status", () => {
 
     await waitFor(() =>
       expect(relativeTime).toHaveBeenLastCalledWith(latest, expect.anything()),
+    );
+  });
+
+  it("tells the chat list when the bot's last reply failed", async () => {
+    vi.stubGlobal("fetch", answer({ status: SokoBotStatus.ERROR }));
+    renderNav({ bot });
+
+    await waitFor(() =>
+      expect(publishFailedSokoBotId).toHaveBeenLastCalledWith("bot-1"),
     );
   });
 });
