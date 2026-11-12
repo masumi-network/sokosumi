@@ -1217,6 +1217,7 @@ const roomForSync = {
         select: {
           name: true,
           image: true,
+          baseURL: true,
           buzzIdentity: {
             select: {
               ownerIdentity: {
@@ -1383,6 +1384,9 @@ export async function syncRoomChannel(roomId: string) {
     // it would read on for them. Back when the ban ends.
     const owner = member.coworker.buzzIdentity?.ownerIdentity;
     if (owner && !isActiveUser(owner.user)) continue;
+    // One whose owner's account is gone (its identity went with it) is not
+    // given a new one: the sweep archives it.
+    if (isBuzzAgentBaseUrl(member.coworker.baseURL) && !owner) continue;
     const identity = await ensureIdentity({ coworkerId: member.coworkerId });
     await ensureCommunityMember(community.id, relayUrl, identity);
     await ensureProfile(relayUrl, identity, {
@@ -2479,6 +2483,7 @@ async function unansweredDirectQuestion(messageId: string, eventId: string) {
       roomId: true,
       parentMessageId: true,
       createdAt: true,
+      deletedAt: true,
       clientMessageId: true,
       room: {
         select: {
@@ -2490,6 +2495,8 @@ async function unansweredDirectQuestion(messageId: string, eventId: string) {
   });
   if (
     message?.clientMessageId !== `buzz:${eventId}` ||
+    // Deleted since: nobody wants its answer any more.
+    message.deletedAt ||
     message.room.kind !== "direct" ||
     message.room.coworkerMembers.length === 0
   ) {
@@ -2560,9 +2567,12 @@ async function postToCoworkerDirect(input: {
         roomId: true,
         parentMessageId: true,
         createdAt: true,
+        deletedAt: true,
       },
     });
   let message = await stored();
+  // Deleted since it was asked: no answer to start.
+  if (message?.deletedAt) return "ignored";
   // Answered already (a worker that stopped before linking): only link.
   const answered =
     message &&
@@ -3088,9 +3098,13 @@ export async function applyInboundEvent(
             path: `/v1/chats/rooms/${message.roomId}/messages/${reactionLink.messageId}/reactions/${encodeURIComponent(reactionLink.emoji)}`,
           });
         }
-        await prisma.buzzReactionLink.deleteMany({
-          where: { id: reactionLink.id },
-        });
+        // Its copies signed with the other key are taken back with it.
+        await prisma.$transaction([
+          rememberUndone(reactionLink.duplicateEventIds),
+          prisma.buzzReactionLink.deleteMany({
+            where: { id: reactionLink.id },
+          }),
+        ]);
         result = "unreacted";
       }
       return result;

@@ -1486,6 +1486,21 @@ describe("a Direct question whose answer failed", () => {
     expect(core).not.toHaveBeenCalled();
   });
 
+  it("does not ask again for a question deleted since", async () => {
+    setUpDirect();
+    const event = nostrEvent({ content: "hi" });
+    db.buzzMessageLink.findUnique.mockResolvedValue({ messageId: "stored" });
+    db.chatRoomMessage.findUnique.mockResolvedValue({
+      ...storedQuestion(event.id),
+      parentMessageId: null,
+      deletedAt: new Date(),
+    });
+    db.chatRoomMessage.findFirst.mockResolvedValue({ senderCoworkerId: null });
+    const core = vi.fn<CoreRequest>(async () => ({ status: 200, body: null }));
+    await expect(applyInboundEvent(event, core)).resolves.toBe("echo");
+    expect(core).not.toHaveBeenCalled();
+  });
+
   it("does not ask again for a question answered after a retry", async () => {
     setUpDirect();
     const event = nostrEvent({ content: "hi" });
