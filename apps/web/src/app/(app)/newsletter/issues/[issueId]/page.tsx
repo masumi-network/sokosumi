@@ -20,6 +20,8 @@ import { loadIssueEditorSearchParams } from "../search-params";
 
 export const instant = false;
 
+export { generateNewsletterMetadata as generateMetadata } from "@/app/newsletter/newsletter-project";
+
 export default async function NewsletterIssuePage({
   params,
   searchParams,

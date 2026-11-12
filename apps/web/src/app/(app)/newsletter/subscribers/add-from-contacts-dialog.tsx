@@ -59,7 +59,9 @@ export function AddFromContactsDialog({
     search.trim(),
     getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
   );
+  // Only people with an email can subscribe, so the rest never fill the list.
   const rows = useContactRows({
+    hasChannel: "EMAIL",
     search: debouncedSearch || undefined,
     sort: "name",
     direction: "asc",
