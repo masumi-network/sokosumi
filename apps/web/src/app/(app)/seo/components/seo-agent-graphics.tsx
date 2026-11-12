@@ -1,6 +1,7 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 import { SeoDemandChart } from "./seo-demand-chart";
 import {
   latestSeoMeasurements,
@@ -31,14 +32,22 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
   const demand = seoKeywordDemand(model.data, DEMAND_ROWS);
   if (!clicks && !demand.rows.length) return null;
   return (
-    // The last picture takes the height that the tiles beside it leave.
+    // Beside the tiles the pictures are cells of the tiles' grid: the keyword picture stands beside the keyword
+    // tiles and is as tall as they are, and the daily clicks take the full width under both. Two pictures in one
+    // column were more than twice as tall as the tiles.
     <div
-      className="flex flex-col gap-2 [&>figure:last-child]:flex-1"
+      className="flex flex-col gap-2 lg:[&:not(:only-child)]:contents"
       data-testid="seo-agent-graphics"
     >
+      {demand.rows.length ? <SeoDemandChart demand={demand} /> : null}
       {clicks ? (
         // The chart is a figure with its own name.
-        <div className="bg-background rounded-lg border p-3">
+        <div
+          className={cn(
+            "bg-background rounded-lg border p-3",
+            demand.rows.length > 0 && "lg:col-span-2",
+          )}
+        >
           <SeoTrendChart
             key={clicks.id}
             label={t("metrics.clicks")}
@@ -50,7 +59,6 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
           />
         </div>
       ) : null}
-      {demand.rows.length ? <SeoDemandChart demand={demand} /> : null}
     </div>
   );
 }
