@@ -219,6 +219,35 @@ describe("applyInboundEvent", () => {
     expect(core).not.toHaveBeenCalled();
   });
 
+  it("remembers the same reaction signed with the person's other key", async () => {
+    db.buzzMessageLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId === "f".repeat(64)
+          ? { messageId: "message", message: { roomId: "room" } }
+          : null,
+    );
+    db.buzzReactionLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId
+          ? null
+          : { id: "link", eventId: "first", duplicateEventIds: [] },
+    );
+    const again = nostrEvent({
+      kind: 7,
+      tags: [
+        ["h", CHANNEL],
+        ["e", "f".repeat(64)],
+      ],
+      content: "👍",
+    });
+    await expect(applyInboundEvent(again, core)).resolves.toBe("echo");
+    expect(db.buzzReactionLink.update).toHaveBeenCalledWith({
+      where: { id: "link" },
+      data: { duplicateEventIds: { push: again.id } },
+    });
+    expect(core).not.toHaveBeenCalled();
+  });
+
   it("ignores replays of a reaction undone in Sokosumi, however often it was added again", async () => {
     const reaction = (more: string[][] = []) =>
       nostrEvent({

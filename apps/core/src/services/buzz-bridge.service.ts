@@ -5,6 +5,7 @@ import { npubEncode } from "nostr-tools/nip19";
 import type { Event } from "nostr-tools/pure";
 import { generateSecretKey, getPublicKey, verifyEvent } from "nostr-tools/pure";
 import { getEnv } from "@/config/env";
+import { failOpenChatRoomMentions } from "@/helpers/chat-room-mention-status";
 import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
 import {
   forceRevokeCoworkerWorkspaceAccessByPair,
@@ -51,6 +52,7 @@ import {
 } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 import { isActiveUser } from "@/middleware/auth-active-user";
+import { publishChannelMembershipEffects } from "@/routes/v1/chats/rooms/channel-membership";
 import { isReadOnlyChatRoom } from "@/routes/v1/chats/rooms/read-only-room";
 
 /**
@@ -897,8 +899,25 @@ export async function removeAgentsWithoutOwner() {
       ),
   );
   for (const { roomId, coworkerId } of orphaned) {
-    await prisma.chatRoomCoworkerMember.deleteMany({
-      where: { roomId, coworkerId },
+    // Its open mentions fail with it, as when someone removes a Coworker,
+    // so a queued one cannot post there after it left.
+    const mentionMessageIds = await prisma.$transaction(async (tx) => {
+      const failed = await failOpenChatRoomMentions(
+        {
+          where: { coworkerId, message: { roomId } },
+          error: "Coworker is no longer a member of this room",
+        },
+        tx,
+      );
+      await tx.chatRoomCoworkerMember.deleteMany({
+        where: { roomId, coworkerId },
+      });
+      return failed;
+    });
+    await publishChannelMembershipEffects({
+      roomId,
+      statusMessages: [],
+      mentionMessageIds,
     });
   }
   await resyncRoomsWithCoworkers([
@@ -2102,7 +2121,10 @@ async function reconcileReactions(input: {
       }),
     );
     if (pending.kind === BUZZ_KIND.deletion) {
-      await prisma.buzzReactionLink.delete({ where: { id: link.id } });
+      await prisma.$transaction([
+        rememberUndone(link.duplicateEventIds),
+        prisma.buzzReactionLink.delete({ where: { id: link.id } }),
+      ]);
     } else {
       await prisma.buzzReactionLink.update({
         where: { id: link.id },
@@ -2169,11 +2191,7 @@ async function reconcileReactions(input: {
     // event stays there, so it is remembered as undone, for good.
     if (link.signerPubkey) {
       await prisma.$transaction([
-        prisma.buzzUndoneEvent.upsert({
-          where: { eventId: link.eventId },
-          create: { eventId: link.eventId },
-          update: {},
-        }),
+        rememberUndone([link.eventId, ...link.duplicateEventIds]),
         prisma.buzzReactionLink.delete({ where: { id: link.id } }),
       ]);
       continue;
@@ -2195,8 +2213,20 @@ async function reconcileReactions(input: {
         data: { pendingEvent: fresh as unknown as object },
       }),
     );
-    await prisma.buzzReactionLink.delete({ where: { id: link.id } });
+    // Taken back on Buzz; a copy signed with their other key cannot be, so
+    // it is remembered as undone.
+    await prisma.$transaction([
+      rememberUndone(link.duplicateEventIds),
+      prisma.buzzReactionLink.delete({ where: { id: link.id } }),
+    ]);
   }
+}
+
+function rememberUndone(eventIds: string[]) {
+  return prisma.buzzUndoneEvent.createMany({
+    data: eventIds.map((eventId) => ({ eventId })),
+    skipDuplicates: true,
+  });
 }
 
 /** How long a message must be quiet before it is sent, so a streaming reply goes out once. */
@@ -3083,7 +3113,12 @@ export async function applyInboundEvent(
           },
         },
       });
-      if (existing) return "echo";
+      if (existing) {
+        // The same reaction signed with their other key: remembered, so
+        // taking it back covers this one too.
+        await rememberDuplicate(existing, event.id);
+        return "echo";
+      }
       await sendAs(core, author, {
         method: "PUT",
         path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}/reactions/${encodeURIComponent(change.emoji)}`,
@@ -3100,10 +3135,33 @@ export async function applyInboundEvent(
         });
       } catch (error) {
         if (!isPrismaUniqueViolation(error)) throw error;
+        const raced = await prisma.buzzReactionLink.findUnique({
+          where: {
+            messageId_identityId_emoji: {
+              messageId: link.messageId,
+              identityId: author.id,
+              emoji: change.emoji,
+            },
+          },
+        });
+        if (raced) await rememberDuplicate(raced, event.id);
       }
       return "reacted";
     }
   }
+}
+
+async function rememberDuplicate(
+  link: { id: string; eventId: string; duplicateEventIds: string[] },
+  eventId: string,
+) {
+  if (link.eventId === eventId || link.duplicateEventIds.includes(eventId)) {
+    return;
+  }
+  await prisma.buzzReactionLink.update({
+    where: { id: link.id },
+    data: { duplicateEventIds: { push: eventId } },
+  });
 }
 
 /**

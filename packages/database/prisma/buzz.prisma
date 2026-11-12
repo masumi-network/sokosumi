@@ -151,6 +151,9 @@ model BuzzReactionLink {
   pendingEvent Json?
   /// Set when the person's own app key signed it: Sokosumi cannot take it back.
   signerPubkey String?
+  /// The same reaction signed again with the person's other key: undone with
+  /// it, so none of them can bring it back.
+  duplicateEventIds String[] @default([])
   createdAt  DateTime     @default(now())
 
   @@unique([messageId, identityId, emoji])
