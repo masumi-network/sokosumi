@@ -454,7 +454,6 @@ export function TaskDetailActions({
           reportStatusRejection(result.error.kind);
           return;
         }
-        router.refresh();
         toast.success(tDetailActions("updateStatusSuccess"));
       } catch (error) {
         console.error("Failed to update task status", error);
@@ -487,7 +486,6 @@ export function TaskDetailActions({
         }
         setIsReopenDialogOpen(false);
         setReopenComment("");
-        router.refresh();
         toast.success(tDetailActions("updateStatusSuccess"));
       } catch (error) {
         console.error("Failed to reopen task", error);
@@ -550,7 +548,6 @@ export function TaskDetailActions({
         });
         setIsTaskPickerOpen(false);
         setSelectedTaskPickerOption(null);
-        router.refresh();
         toast.success(tDetailActions("linkTaskSuccess"));
       } catch (error) {
         console.error("Failed to create task link", error);
@@ -572,7 +569,6 @@ export function TaskDetailActions({
             linkId: link.id,
           });
         }
-        router.refresh();
         toast.success(tDetailActions("removeParentSuccess"));
       } catch (error) {
         console.error("Failed to remove parent task link", error);
@@ -590,7 +586,6 @@ export function TaskDetailActions({
           taskId,
           linkId: link.id,
         });
-        router.refresh();
         toast.success(tDetailActions("removeRelatedSuccess"));
       } catch (error) {
         console.error("Failed to remove related task link", error);
@@ -1191,7 +1186,6 @@ export function TaskDetailActions({
               setSelectedCreateRelatedOption(null);
             }}
             onCreated={() => {
-              router.refresh();
               toast.success(tDetailActions("createRelatedSuccess"));
             }}
             onSuccess={(createdTask) => {
