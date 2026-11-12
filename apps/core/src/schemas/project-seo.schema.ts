@@ -560,8 +560,8 @@ export const seoRunSchema = z
     observationId: seoIdSchema,
     kind: z.string(),
     observedAt: dateTimeSchema,
-    /** Critical, major and minor findings this run saved for the selected pages. */
-    issues: z.number().int().nonnegative(),
+    /** Critical, major and minor findings on the selected pages. Null where the run read only some of them. */
+    issues: z.union([z.number().int().nonnegative(), z.null()]),
     /** Seconds from the request to the saved result. Null where no request of this workspace started the run. */
     seconds: z.union([z.number().int().nonnegative(), z.null()]),
   })

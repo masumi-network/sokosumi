@@ -305,6 +305,37 @@ describe("stored SEO workspace projections", () => {
     ]);
   });
 
+  it("gives a run no issue count where it read only some of the selected pages", () => {
+    const input = fixture();
+    const [page] = input.pages;
+    const blog = {
+      ...page,
+      id: randomUUID(),
+      url: new URL("/blog", SEO_TEST_PAGE).href,
+    };
+    input.pages.push(blog);
+    input.scope.pages.push(blog);
+    input.scope.pageIds = [page.id, blog.id];
+    const both = observation(
+      input,
+      parsePublicSeoArtifact(legacyReport()),
+      "2026-11-02T12:00:00Z",
+    );
+    const one = {
+      ...observation(
+        input,
+        parsePublicSeoArtifact(legacyReport()),
+        "2026-11-01T12:00:00Z",
+      ),
+      pageIds: [page.id],
+    };
+    input.observations = [both, one];
+    expect(projectSeoProjection(input).runs?.map((run) => run.issues)).toEqual([
+      1,
+      null,
+    ]);
+  });
+
   it("shows the newest site audit's strategy with the keyword groups of the selected pages", () => {
     const input = fixture();
     expect(projectSeoProjection(input).strategy).toBeNull();
@@ -624,6 +655,50 @@ describe("stored SEO workspace projections", () => {
       taskId: task.id,
       observationId: latest.id,
     });
+    // The reader made a Task from the later card: the older card does not come back beside it.
+    input.tasks = [task, { ...task, id: randomUUID(), status: "RUNNING" }];
+    input.actionTasks = [
+      ...linked,
+      {
+        ...linked[0],
+        id: randomUUID(),
+        observationId: latest.id,
+        taskId: input.tasks[1].id,
+      },
+    ];
+    expect(cards()).toMatchObject({
+      status: "task_created",
+      taskId: input.tasks[1].id,
+      observationId: latest.id,
+    });
+    input.tasks = [task];
+    // Two fixes of one check for the same finding, each with a live Task: each later fix takes the Task of the
+    // fix with its title, and no fix shows twice.
+    const pair = parsePublicSeoArtifact(legacyReport());
+    const second = { ...pair.actions[0], id: "second-fix", title: "Other fix" };
+    original.payload = { ...pair, actions: [...pair.actions, second] };
+    latest.payload = { ...pair, actions: [second, ...pair.actions] };
+    const other = { ...task, id: randomUUID(), status: "RUNNING" as const };
+    input.tasks = [{ ...task, status: "RUNNING", completedAt: null }, other];
+    input.actionTasks = [
+      ...linked,
+      { ...linked[0], id: randomUUID(), actionId: second.id, taskId: other.id },
+    ];
+    const paired = projectSeoProjection(input).actions;
+    expect(
+      paired.map(({ id, observationId, taskId }) => ({
+        id,
+        observationId,
+        taskId,
+      })),
+    ).toEqual(
+      expect.arrayContaining([
+        { id: linked[0].actionId, observationId: latest.id, taskId: task.id },
+        { id: second.id, observationId: latest.id, taskId: other.id },
+      ]),
+    );
+    expect(paired).toHaveLength(once.length + 1);
+    original.payload = pair;
     input.tasks = [task];
     // A check of another Market finds other things: its proposals replace nothing.
     input.actionTasks = [];
@@ -1129,9 +1204,10 @@ describe("stored SEO workspace projections", () => {
         JSON.stringify(mutation),
       ).toBe("implemented");
     }
+    // The newest check passes before the Task ended: the issue is gone all the same, so the action is solved.
     pass.payload = parsePublicSeoArtifact(focusedReport());
     pass.observedAt = new Date("2026-11-02T11:00:00Z");
-    expect(projectSeoProjection(input).actions[0].status).toBe("implemented");
+    expect(projectSeoProjection(input).actions[0].status).toBe("verified");
   });
 
   it("does not clear an unrelated finding when a focused check skips its row", () => {

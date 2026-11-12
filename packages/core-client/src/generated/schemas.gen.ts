@@ -40660,8 +40660,15 @@ export const ProjectSeoRunSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         issues: {
-            type: 'integer',
-            minimum: 0
+            anyOf: [
+                {
+                    type: 'integer',
+                    minimum: 0
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         seconds: {
             anyOf: [

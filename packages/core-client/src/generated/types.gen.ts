@@ -10685,7 +10685,7 @@ export type ProjectSeoRun = {
     observationId: string;
     kind: string;
     observedAt: Date;
-    issues: number;
+    issues: number | null;
     seconds: number | null;
 };
 

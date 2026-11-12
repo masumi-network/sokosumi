@@ -290,7 +290,10 @@ export function projectSeoProjection(
       observationId: row.id,
       kind: row.kind,
       observedAt: row.observedAt.toISOString(),
-      issues,
+      // A count of some pages is no result of the selection: the page would show more issues for that day.
+      issues: [...selectedIds].every((id) => row.pageIds.includes(id))
+        ? issues
+        : null,
       seconds: request
         ? Math.max(
             0,
@@ -530,13 +533,11 @@ export function projectSeoProjection(
         taskId: link?.taskId ?? null,
         status: !link
           ? "recommended"
-          : taskStatus === "COMPLETED"
-            ? verifiedAction(input, data, item, link.taskId)
-              ? "verified"
-              : "implemented"
-            : // The issue is gone while its Task is still open: a later check passes, so the action is solved.
-              live && solved
-              ? "verified"
+          : // The newest check of each finding passes: the issue is gone, also while its Task is still open.
+            solved || verifiedAction(input, data, item, link.taskId)
+            ? "verified"
+            : taskStatus === "COMPLETED"
+              ? "implemented"
               : "task_created",
       };
       actions.push(action);
@@ -549,39 +550,50 @@ export function projectSeoProjection(
     // Only a later check replaces a proposal: two actions of one check can fix one finding.
     for (const identity of rowProposed) proposed.add(identity);
   }
-  // One card per issue. A later check that still finds the issue proposes its fix again. An older action with a
-  // live Task for the same findings is the same work: the later card takes its place and, with it, the Task.
-  const again = new Map<string, ProjectSeoWorkspace["actions"][number]>();
+  // One card per issue. A later check that still finds the issue proposes its fix again: the cards of the newest
+  // check stay, whatever their status, and the older cards for the same findings leave. A Task that still works
+  // on the issue moves to a later card without a Task, the one with the same title first.
+  const byWork = new Map<string, ProjectSeoWorkspace["actions"]>();
   for (const action of actions) {
-    const work = fixWork.get(action);
-    if (!work?.work || action.status !== "recommended") continue;
-    const known = again.get(work.work);
-    if (!known || fixWork.get(known)!.observedAt < work.observedAt)
-      again.set(work.work, action);
+    const work = fixWork.get(action)?.work;
+    if (work) byWork.set(work, [...(byWork.get(work) ?? []), action]);
   }
   const replaced = new Set<ProjectSeoWorkspace["actions"][number]>();
-  for (const action of actions) {
-    const work = fixWork.get(action);
-    if (
-      !work?.live ||
-      (action.status !== "task_created" && action.status !== "implemented")
-    )
-      continue;
-    const later = again.get(work.work);
-    const laterAt = later && fixWork.get(later)?.observedAt;
-    if (!later || !laterAt || laterAt <= work.observedAt || later.taskId)
-      continue;
-    const done =
-      action.status === "implemented"
-        ? input.tasks.find((task) => task.id === action.taskId)?.completedAt
-        : null;
-    // A check after the finished Task still finds the issue: the fix did not hold, and the later proposal is
-    // an open action again. Before that the Task is the work on the issue.
-    if (!done || laterAt <= done) {
-      later.taskId = action.taskId;
-      later.status = action.status;
+  for (const group of byWork.values()) {
+    const at = (action: ProjectSeoWorkspace["actions"][number]) =>
+      fixWork.get(action)!.observedAt.getTime();
+    // A card whose Task failed, was cancelled or is gone does no work on the issue: it replaces no card, and no
+    // card replaces it.
+    const working = group.filter(
+      (action) => !action.taskId || fixWork.get(action)!.live,
+    );
+    const newest = Math.max(...working.map(at));
+    const later = working.filter((action) => at(action) === newest);
+    for (const action of working) {
+      if (at(action) === newest) continue;
+      replaced.add(action);
+      if (
+        !fixWork.get(action)!.live ||
+        (action.status !== "task_created" && action.status !== "implemented")
+      )
+        continue;
+      // A Task that ended before the later check did not hold the fix: the later card is an open action again.
+      // A finished Task without an end time gives no proof either way, so the later card stays open too.
+      if (action.status === "implemented") {
+        const done = input.tasks.find(
+          (task) => task.id === action.taskId,
+        )?.completedAt;
+        if (!done || newest > done.getTime()) continue;
+      }
+      const free = later.filter(
+        (card) => !card.taskId && card.status === "recommended",
+      );
+      const card =
+        free.find((candidate) => candidate.title === action.title) ?? free[0];
+      if (!card) continue;
+      card.taskId = action.taskId;
+      card.status = action.status;
     }
-    replaced.add(action);
   }
   if (replaced.size)
     actions.splice(
