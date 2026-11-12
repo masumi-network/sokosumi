@@ -5,7 +5,14 @@ import type {
   DataRoomTreeRow,
   DataRoomView,
 } from "@sokosumi/core-client";
-import { Download, File, Folder, LogOut } from "lucide-react";
+import {
+  ChevronRight,
+  Download,
+  File,
+  Folder,
+  House,
+  LogOut,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useState } from "react";
@@ -30,7 +37,7 @@ const IMAGE_TYPES = new Set([
   "image/webp",
 ]);
 
-/** A signed-in viewer's room: the numbered index, one file open beside it. */
+/** A signed-in viewer's room: the numbered index, the Welcome page or one file beside it. */
 export function RoomViewer({
   token,
   room,
@@ -41,11 +48,27 @@ export function RoomViewer({
   const t = useTranslations("Share.Room");
   const router = useRouter();
   const base = `/share/rooms/${encodeURIComponent(token)}`;
-  const firstFile = room.rows.find((row) => row.kind === "file") ?? null;
-  const [openPath, setOpenPath] = useState<string | null>(
-    firstFile?.path ?? null,
-  );
+  /** The open file's path; null is the Welcome page. */
+  const [openPath, setOpenPath] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const open = room.rows.find((row) => row.path === openPath) ?? null;
+  const visible = room.rows.filter((row) =>
+    ancestorsOf(row.path).every((folder) => expanded.has(folder)),
+  );
+
+  function toggle(path: string) {
+    setExpanded((previous) => {
+      const next = new Set(previous);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  }
+
+  function openFile(path: string) {
+    setExpanded((previous) => new Set([...previous, ...ancestorsOf(path)]));
+    setOpenPath(path);
+  }
 
   return (
     <div className="flex w-full flex-col gap-4 p-4 md:px-8 md:py-6">
@@ -57,14 +80,6 @@ export function RoomViewer({
             {t("signedInAs", { email: room.viewer?.email ?? "" })}
           </p>
         </div>
-        {room.allowDownload && room.rows.length > 0 ? (
-          <Button asChild variant="outline" size="sm">
-            <a href={`${base}/zip`}>
-              <Download aria-hidden className="size-4" />
-              {t("downloadAll")}
-            </a>
-          </Button>
-        ) : null}
         <Button
           type="button"
           variant="ghost"
@@ -85,12 +100,34 @@ export function RoomViewer({
         <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(16rem,22rem)_1fr]">
           <nav aria-label={t("indexLabel")} className="min-w-0">
             <ul className="divide-border divide-y rounded-lg border">
-              {room.rows.map((row) => (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setOpenPath(null)}
+                  aria-current={openPath === null || undefined}
+                  className={cn(
+                    "flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left text-sm",
+                    openPath === null ? "bg-muted" : "hover:bg-quinary",
+                  )}
+                >
+                  <House
+                    aria-hidden
+                    className="text-muted-foreground size-4 shrink-0"
+                  />
+                  {t("welcome")}
+                </button>
+              </li>
+              {visible.map((row) => (
                 <RoomRow
                   key={row.path}
                   row={row}
                   active={row.path === openPath}
-                  onOpen={() => setOpenPath(row.path)}
+                  expanded={expanded.has(row.path)}
+                  onOpen={() =>
+                    row.kind === "folder"
+                      ? toggle(row.path)
+                      : setOpenPath(row.path)
+                  }
                 />
               ))}
             </ul>
@@ -105,7 +142,7 @@ export function RoomViewer({
                 watermark={room.watermark}
               />
             ) : (
-              <p className="text-muted-foreground text-sm">{t("pickFile")}</p>
+              <RoomWelcome base={base} room={room} onOpenFile={openFile} />
             )}
           </section>
         </div>
@@ -114,53 +151,115 @@ export function RoomViewer({
   );
 }
 
+/** "Legal/Formation/Bylaws.pdf" → ["Legal", "Legal/Formation"]. */
+function ancestorsOf(path: string): string[] {
+  const segments = path.split("/");
+  return segments
+    .slice(0, -1)
+    .map((_, index) => segments.slice(0, index + 1).join("/"));
+}
+
+function RoomWelcome({
+  base,
+  room,
+  onOpenFile,
+}: {
+  base: string;
+  room: DataRoomView;
+  onOpenFile: (path: string) => void;
+}) {
+  const t = useTranslations("Share.Room");
+  const files = room.rows.filter((row) => row.kind === "file");
+  const folders = room.rows.length - files.length;
+  const first = files[0];
+
+  return (
+    <article className="grid max-w-2xl gap-5 rounded-lg border p-5 md:p-6">
+      <header className="grid gap-1">
+        <h2 className="text-xl font-semibold tracking-tight">
+          {t("welcomeTitle", { title: room.title })}
+        </h2>
+        <p className="text-muted-foreground text-sm">
+          {t("contents", { files: files.length, folders })}
+        </p>
+      </header>
+      {room.welcomeNote ? (
+        <p className="text-sm leading-relaxed whitespace-pre-line">
+          {room.welcomeNote}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        {room.allowDownload ? (
+          <Button asChild>
+            <a href={`${base}/zip`}>
+              <Download aria-hidden className="size-4" />
+              {t("downloadAll")}
+            </a>
+          </Button>
+        ) : null}
+        {first ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenFile(first.path)}
+          >
+            {t("openFirst", { name: fileTitle(first.name) })}
+          </Button>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
 function RoomRow({
   row,
   active,
+  expanded,
   onOpen,
 }: {
   row: DataRoomTreeRow;
   active: boolean;
+  expanded: boolean;
   onOpen: () => void;
 }) {
-  const t = useTranslations("Share.Room");
-  const Icon = row.kind === "folder" ? Folder : File;
-  const content = (
-    <>
-      <span className="text-muted-foreground w-10 shrink-0 text-xs tabular-nums">
-        {row.number}
-      </span>
-      <Icon aria-hidden className="text-muted-foreground size-4 shrink-0" />
-      <span className="min-w-0 flex-1 truncate text-sm">
-        {fileTitle(row.name)}
-      </span>
-      {row.isNew ? (
-        <span className="bg-muted shrink-0 rounded px-1.5 text-2xs font-medium">
-          {t("new")}
-        </span>
-      ) : null}
-    </>
-  );
-  const indent = { paddingInlineStart: `${12 + row.depth * 16}px` };
-  if (row.kind === "folder")
-    return (
-      <li className="flex min-w-0 items-center gap-2 py-2 pe-3" style={indent}>
-        {content}
-      </li>
-    );
+  const folder = row.kind === "folder";
+  const Icon = folder ? Folder : File;
   return (
     <li>
       <button
         type="button"
         onClick={onOpen}
         aria-current={active || undefined}
+        aria-expanded={folder ? expanded : undefined}
         className={cn(
           "flex w-full min-w-0 items-center gap-2 py-2 pe-3 text-left",
           active ? "bg-muted" : "hover:bg-quinary",
         )}
-        style={indent}
+        style={{ paddingInlineStart: `${12 + row.depth * 16}px` }}
       >
-        {content}
+        <span className="text-muted-foreground w-10 shrink-0 text-xs tabular-nums">
+          {row.number}
+        </span>
+        {folder ? (
+          <ChevronRight
+            aria-hidden
+            className={cn(
+              "text-muted-foreground size-4 shrink-0 transition-transform",
+              expanded && "rotate-90",
+            )}
+          />
+        ) : (
+          <span aria-hidden className="size-4 shrink-0" />
+        )}
+        <Icon aria-hidden className="text-muted-foreground size-4 shrink-0" />
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate text-sm",
+            folder && "font-medium",
+          )}
+        >
+          {fileTitle(row.name)}
+        </span>
       </button>
     </li>
   );

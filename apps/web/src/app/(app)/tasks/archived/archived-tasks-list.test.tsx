@@ -78,4 +78,26 @@ describe("ArchivedTasksList", () => {
     render(<ArchivedTasksList tasks={[]} />);
     expect(screen.getByText("empty")).toBeTruthy();
   });
+
+  it("restores a second Task while the first restore is still open", async () => {
+    let finishFirst: () => void = () => {};
+    restoreMock
+      .mockImplementationOnce(
+        () => new Promise<void>((resolve) => (finishFirst = resolve)),
+      )
+      .mockResolvedValueOnce(undefined);
+    render(<ArchivedTasksList tasks={[...tasks]} />);
+    const buttons = screen.getAllByRole("button", { name: "restoreNamed" });
+
+    fireEvent.click(buttons[0]);
+    // The first row stays where it is, so the second button did not move.
+    expect(screen.getByText("Plan launch")).toBeTruthy();
+    fireEvent.click(buttons[1]);
+
+    await waitFor(() => expect(screen.queryByText("Write recap")).toBeNull());
+    expect(restoreMock).toHaveBeenCalledWith("t2");
+
+    finishFirst();
+    await waitFor(() => expect(screen.queryByText("Plan launch")).toBeNull());
+  });
 });
