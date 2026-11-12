@@ -9,10 +9,12 @@ import { Download, File, Folder, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useState } from "react";
+import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
 import { TeamFileView } from "@/components/team/team-view";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { spreadsheetKind } from "@/lib/spreadsheet-file";
 import { fileTitle, isTeamFileName } from "@/lib/team-file";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
@@ -176,6 +178,7 @@ function RoomFile({
   const t = useTranslations("Share.Room");
   const url = `${base}/files/${encodeURIComponent(row.resourceId ?? "")}`;
   const mime = row.mimeType ?? "";
+  const sheet = spreadsheetKind(mime, row.name);
 
   return (
     <div className="grid gap-4">
@@ -208,6 +211,8 @@ function RoomFile({
 
       {isTeamFileName(row.name) ? (
         <TeamFileView url={url} />
+      ) : sheet ? (
+        <SpreadsheetFileView url={url} kind={sheet} />
       ) : mime === "application/pdf" ? (
         <RoomPdf url={url} />
       ) : IMAGE_TYPES.has(mime) ? (

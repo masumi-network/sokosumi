@@ -1099,6 +1099,13 @@
     "ConnectLink": {
       "error": "Could not start the connection."
     },
+    "SpreadsheetView": {
+      "loading": "Loading spreadsheet",
+      "failed": "This spreadsheet could not be opened.",
+      "sheet": "Sheet {number}",
+      "empty": "This sheet is empty.",
+      "truncated": "Showing the first {rows} rows and 50 columns. Download the file to see the rest."
+    },
     "TeamView": {
       "loading": "Loading team",
       "failed": "This team file can't be shown. Check that it is a valid team file.",

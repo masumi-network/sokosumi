@@ -1099,6 +1099,13 @@
     "ConnectLink": {
       "error": "No se pudo iniciar la conexión."
     },
+    "SpreadsheetView": {
+      "loading": "Cargando hoja de cálculo",
+      "failed": "No se pudo abrir esta hoja de cálculo.",
+      "sheet": "Hoja {number}",
+      "empty": "Esta hoja está vacía.",
+      "truncated": "Se muestran las primeras {rows} filas y 50 columnas. Descarga el archivo para ver el resto."
+    },
     "TeamView": {
       "loading": "Cargando equipo",
       "failed": "No se puede mostrar este archivo de equipo. Comprueba que sea un archivo de equipo válido.",
