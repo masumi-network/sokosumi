@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { seoDaySpan } from "./seo-day-span";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
 import { SeoKeywordIdeas } from "./seo-keyword-ideas";
 import {
@@ -131,7 +132,6 @@ export function SeoKeywords({
     // Only a check that estimates conversion fills the column.
     conversion: checked.some((group) => group.conversion !== null),
     // Where no keyword shows a page, the result line says so once; a column of "Not found" adds nothing.
-    // A row of an older check then carries its date under its name.
     position: !(
       all.checked.length > 0 &&
       all.checked.every(
@@ -144,6 +144,20 @@ export function SeoKeywords({
     // All keywords decide, so a search does not hide the column.
     priority: new Set(model.data.keywords.map((row) => row.priority)).size > 1,
   };
+  // Without the Position column no row has a place for the day of its check, so the line under the result
+  // names the days of the oldest and of the newest check. A date under each name stood on most rows.
+  const checkDays =
+    !shown.position &&
+    summary.oldest?.observedAt &&
+    summary.newest?.observedAt &&
+    dayOf(summary.oldest.observedAt) !== dayOf(summary.newest.observedAt)
+      ? seoDaySpan(format, summary.oldest.observedAt, summary.newest.observedAt)
+      : null;
+  const strategy = model.data.strategy;
+  // The results the date of a check opens.
+  const taskOf = (observationId: string | null) =>
+    model.data.observations.find((item) => item.id === observationId)
+      ?.sourceTaskId ?? null;
   const hidden = [shown.volume ? null : t("keywords.volume")].filter(
     (label): label is string => label !== null,
   );
@@ -237,8 +251,14 @@ export function SeoKeywords({
                       workspace={model.data}
                       observationId={summary.newest.observationId}
                     >
-                      {t("keywords.readOn")}{" "}
-                      <SeoDate day value={summary.newest.observedAt} />
+                      {checkDays ? (
+                        t("competitors.checkedBetween", checkDays)
+                      ) : (
+                        <>
+                          {t("keywords.readOn")}{" "}
+                          <SeoDate day value={summary.newest.observedAt} />
+                        </>
+                      )}
                     </SeoSource>
                   ) : null,
                 ],
@@ -312,8 +332,8 @@ export function SeoKeywords({
                 <TableBody>
                   {rows.map((group) => {
                     const { lead: row, reads, volume, sources } = group;
-                    // The result line dates the newest check. A row of an older check carries its own day,
-                    // unless it is the same day: the line already says that day.
+                    // The result line dates the newest check. A row of an older check carries its own day
+                    // under its position, unless it is the same day: the line already says that day.
                     const lastRead = reads.at(0);
                     const olderDay =
                       lastRead?.observedAt &&
@@ -384,13 +404,6 @@ export function SeoKeywords({
                               group={groupOf(row)}
                               keyword={row.keyword}
                             />
-                            {/* Without the position column, a row of an older check says so here. */}
-                            {!shown.position && olderDay ? (
-                              <p className="text-muted-foreground mt-1 text-xs">
-                                {t("observed")}:{" "}
-                                <SeoDate day value={olderDay} />
-                              </p>
-                            ) : null}
                             <SeoKeywordTrendToggle
                               trend={
                                 cellSaysEmpty ? { state: "absent" } : trend
@@ -424,7 +437,9 @@ export function SeoKeywords({
                               }
                             >
                               {volume === null ? (
-                                t("none")
+                                <span className="text-muted-foreground">
+                                  {t("none")}
+                                </span>
                               ) : (
                                 <SeoBarNumber
                                   value={volume}
@@ -630,7 +645,19 @@ export function SeoKeywords({
               onToggle={() => setExpanded((open) => !open)}
             />
           ) : null}
-          <SeoStrategyFold model={model} />
+          <SeoStrategyFold
+            model={model}
+            // The date line of the list names the same check, or opens the same results: a second date line
+            // would repeat it. Another check of the same day keeps its line: it is the only link to its results.
+            dated={Boolean(
+              strategy &&
+                summary.newest &&
+                (strategy.observationId === summary.newest.observationId ||
+                  (taskOf(strategy.observationId) !== null &&
+                    taskOf(strategy.observationId) ===
+                      taskOf(summary.newest.observationId))),
+            )}
+          />
         </SeoSection>
       </div>
       <div className={seoSectionClass(bothLists || section === "ideas")}>

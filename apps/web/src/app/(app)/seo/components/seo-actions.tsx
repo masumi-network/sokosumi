@@ -400,7 +400,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
           </SeoEmpty>
         )}
       </SeoSection>
-      <SeoStrategyActions model={model} />
+      <SeoStrategyActions model={model} afterFixes />
     </div>
   );
 }

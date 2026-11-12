@@ -17,7 +17,11 @@ import enMessages from "../../../../../messages/en.json";
 import { SeoEditDialog } from "./seo-edit-dialog";
 import { SeoRankings } from "./seo-rankings";
 import { SeoSearchQueries } from "./seo-search-queries";
-import { seoTestStrategy, seoTestWorkspace } from "./seo-test-fixture";
+import {
+  seoTestObservation,
+  seoTestStrategy,
+  seoTestWorkspace,
+} from "./seo-test-fixture";
 import { useSeoWorkspace } from "./use-seo-workspace";
 
 type Messages = { [key: string]: string | Messages };
@@ -612,17 +616,22 @@ describe("Keywords after a check", () => {
       screen.getByText(/^1 of 4 keyword groups are left out/).tagName,
     ).toBe("LI");
     expect(screen.getByText("1 keyword group loses searches")).toBeVisible();
-    // The help says what a count in view means.
+    // The help says what a count in view means, in the line of that count.
     expect(
-      screen.getByText(/A forum in the search results is a sign/),
-    ).toBeVisible();
+      screen
+        .getByText("1 keyword group has a forum in the results")
+        .closest("li"),
+    ).toHaveTextContent(/A forum in the search results is a sign/);
+    expect(
+      screen.getByText("1 keyword group is in reach").closest("li"),
+    ).not.toHaveTextContent(/forum/);
     const cell = (keyword: string) => {
       const found = screen.getByText(keyword).closest("td");
       if (!found) throw new Error(`no cell for ${keyword}`);
       return found;
     };
     expect(cell("battery app")).toHaveTextContent(
-      "In reach · Searches fall: 47 a month in recent months",
+      "In reach · Searches falling to 47 a month",
     );
     expect(cell("Battery apps")).toHaveTextContent("In reach");
     expect(cell("Battery apps")).not.toHaveTextContent("Searches");
@@ -1242,7 +1251,7 @@ describe("Search Console queries", () => {
     ).toBeNull();
   });
 
-  it("shows no Position column where no keyword is found, and dates a row of an older check under its name", () => {
+  it("shows no Position column where no keyword is found, and names the days of the checks once", () => {
     const { workspace } = savedKeywordWorkspace();
     const missed = (
       patch: Partial<ProjectSeoWorkspace["keywords"][number]>,
@@ -1260,8 +1269,14 @@ describe("Search Console queries", () => {
       observedAt: new Date("2026-11-11T00:26:00Z"),
       ...patch,
     });
+    // The strategy comes from the newest check of the list.
+    workspace.strategy = seoTestStrategy();
     workspace.keywords = [
-      missed({ id: "new", keyword: "battery app" }),
+      missed({
+        id: "new",
+        keyword: "battery app",
+        observationId: workspace.strategy.observationId,
+      }),
       missed({
         id: "old",
         keyword: "charge timer",
@@ -1273,18 +1288,36 @@ describe("Search Console queries", () => {
     // The result line says once that no keyword is found: a column of "Not found" repeats it on every row.
     expect(screen.queryByRole("columnheader", { name: "Position" })).toBeNull();
     expect(screen.queryByText("Not found")).toBeNull();
-    // The result line dates the newest check only: the row of the older check carries its own date.
-    expect(screen.getByText("charge timer").closest("td")).toHaveTextContent(
-      "Last checked: Oct 11, 2026",
-    );
-    // The day alone: the minute of an older read is no fact of the row.
+    // No row has a place for the day of its check: the line names the oldest and the newest day once.
     expect(
-      screen.getByText("charge timer").closest("td"),
-    ).not.toHaveTextContent(/Last checked: Oct 11, 2026,/);
-    expect(screen.getByText("battery app").closest("td")).not.toHaveTextContent(
-      "Last checked",
-    );
+      screen.getByText("Position checks Oct 11 to Nov 11, 2026"),
+    ).toBeVisible();
+    expect(screen.queryByText(/Last checked/)).toBeNull();
+    expect(screen.queryByText(/^Last position check/)).toBeNull();
+    // The line dates the check of the strategy too: the open strategy line does not say the day again.
+    expect(screen.queryByText(/From the check of/)).toBeNull();
     unmount();
+    // A strategy of another check says its own day, also on the day of the list's check: the line is the
+    // only link to the results of that check.
+    const listCheck = workspace.strategy.observationId;
+    const otherCheck = "6d0c7a1e-7f0d-4a53-9f58-7d1f4f0f6a12";
+    workspace.strategy = { ...seoTestStrategy(), observationId: otherCheck };
+    const other = renderWorkspace(workspace);
+    expect(screen.getByText(/From the check of/)).toHaveTextContent(
+      "From the check of Nov 11, 2026",
+    );
+    other.unmount();
+    // Two checks of one Task open the same results: the list's date line is the link for both.
+    workspace.observations = [listCheck, otherCheck].map((id) => ({
+      ...seoTestObservation(workspace),
+      id,
+      sourceTaskId: "task-1",
+    }));
+    const oneTask = renderWorkspace(workspace);
+    expect(screen.queryByText(/From the check of/)).toBeNull();
+    oneTask.unmount();
+    workspace.observations = [];
+    workspace.strategy = null;
     // A read without a depth gives no depth sentence; the result line still says that no keyword is found.
     workspace.keywords = [
       missed({ id: "new", keyword: "battery app", checkedResults: null }),

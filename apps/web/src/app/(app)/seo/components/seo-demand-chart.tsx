@@ -7,9 +7,11 @@ import { seoDemandAxis, type seoKeywordDemand } from "./seo-summary-model";
 
 /** A bar keeps this share of the scale, so a small count still shows. */
 const BAR_MIN_PERCENT = 1;
-/** Label and plot share one row from this width up; under it the label stands over its bar. */
-const ROW_CLASS =
-  "sm:grid sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] sm:items-center sm:gap-x-4";
+/**
+ * Label and plot share one row from this width up; under it the label stands over its bar.
+ * Half each: with two fifths, a keyword of five words was cut on a desktop.
+ */
+const ROW_CLASS = "sm:grid sm:grid-cols-2 sm:items-center sm:gap-x-4";
 /** The plot keeps room on the right for the number after the longest bar. */
 const PLOT_CLASS = "relative mr-14";
 

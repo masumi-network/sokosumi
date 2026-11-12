@@ -165,6 +165,15 @@ export function keywordSummary(groups: SeoKeywordGroup[]) {
   const depths = missed.flatMap((row) =>
     row.checkedResults === null ? [] : [row.checkedResults],
   );
+  // A keyword shows the reads of its newest check only, so these are the dates the rows stand for.
+  const dated = read
+    .flatMap((group) => group.reads)
+    .filter((row) => row.observedAt !== null)
+    .toSorted(
+      (left, right) =>
+        new Date(left.observedAt ?? 0).getTime() -
+        new Date(right.observedAt ?? 0).getTime(),
+    );
   return {
     read: read.length,
     found: found.length,
@@ -176,16 +185,9 @@ export function keywordSummary(groups: SeoKeywordGroup[]) {
         ? { min: Math.min(...depths), max: Math.max(...depths) }
         : null,
     // The newest read dates the result once, instead of once per row.
-    newest:
-      read
-        .flatMap((group) => group.reads)
-        .filter((row) => row.observedAt !== null)
-        .toSorted(
-          (left, right) =>
-            new Date(left.observedAt ?? 0).getTime() -
-            new Date(right.observedAt ?? 0).getTime(),
-        )
-        .at(-1) ?? null,
+    newest: dated.at(-1) ?? null,
+    // With the newest, the oldest read says the days the rows come from.
+    oldest: dated.at(0) ?? null,
   };
 }
 

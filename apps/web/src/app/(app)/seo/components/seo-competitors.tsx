@@ -19,6 +19,7 @@ import {
   competitorSites,
   type SeoCompetitorSite,
 } from "./seo-competitors-model";
+import { seoDaySpan } from "./seo-day-span";
 import { SeoRowMenu } from "./seo-row-menu";
 import {
   SEO_COMPACT_ROWS_CLASS,
@@ -68,19 +69,6 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
     value ? format.dateTime(new Date(value), { dateStyle: "medium" }) : "";
   const oldest = dated.at(-1)?.observedAt ?? null;
   const firstDay = day(oldest);
-  // The line of two days. Days of one year say the year once: with both, the line took two lines on a phone.
-  // Both days have one form: the medium date style of German is all numbers, beside a month name.
-  const span = (from: string | Date, to: string | Date) => {
-    const part = (value: string | Date, year: boolean) =>
-      format.dateTime(new Date(value), {
-        month: "short",
-        day: "numeric",
-        ...(year ? { year: "numeric" } : {}),
-      });
-    const year = (value: string | Date) =>
-      format.dateTime(new Date(value), { year: "numeric" });
-    return { from: part(from, year(from) !== year(to)), to: part(to, true) };
-  };
   // A column no row has measured only repeats "Not available"; name it once instead.
   const shown = {
     rank: all.some((row) => row.rank !== null),
@@ -140,7 +128,11 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
             ) : (
               t(
                 "competitors.checkedBetween",
-                span(oldest ?? newest.observedAt, newest.observedAt),
+                seoDaySpan(
+                  format,
+                  oldest ?? newest.observedAt,
+                  newest.observedAt,
+                ),
               )
             )}
           </SeoSource>

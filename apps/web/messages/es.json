@@ -11136,7 +11136,7 @@
         "checksIncompleteBody": "No se pudieron completar algunas comprobaciones solicitadas. Revisa los detalles de las comprobaciones antes de decidir el siguiente paso.",
         "unplannedIssues": "Todavía no hay acciones recomendadas",
         "unplannedIssuesBody": "Estas comprobaciones encontraron problemas, pero no incluyeron acciones recomendadas. Revisa los hallazgos o pregunta al agente SEO cuál es el siguiente paso.",
-        "fixesTitle": "Correcciones de problemas confirmados",
+        "fixesTitle": "Correcciones de los problemas",
         "fixesHelp": "Una comprobación encontró un problema en la página. Tras corregirlo, hace falta una nueva comprobación para verificarlo.",
         "opportunitiesTitle": "Sugerencias de los datos de búsqueda",
         "opportunitiesHelp": "Los datos de Search Console apuntan a esto. No son errores y no prometen tráfico.",
@@ -11643,8 +11643,8 @@
           "open": "Un foro en los resultados de búsqueda es una señal de que los resultados están abiertos a páginas nuevas."
         },
         "trend": {
-          "falling": "Las búsquedas bajan: {recent} al mes en los últimos meses",
-          "rising": "Las búsquedas suben: {recent} al mes en los últimos meses"
+          "falling": "Las búsquedas bajan a {recent} al mes",
+          "rising": "Las búsquedas suben a {recent} al mes"
         },
         "targetType": {
           "appStore": "Tienda de apps",
@@ -11660,7 +11660,7 @@
         },
         "actions": {
           "title": "Acciones de la estrategia de palabras clave",
-          "help": "A partir de los resultados de búsqueda de tus palabras clave.",
+          "more": "{count, plural, one {Mostrar # acción más} other {Mostrar # acciones más}}",
           "limit": "Límite",
           "prompt": "La auditoría del sitio recomienda: «{title}». Redacta un plan con los pasos en orden.{hasLimit, select, yes { Respeta este límite: {limit}} other {}}{count, plural, =0 {} one { El lugar: {targets}} other { Los lugares: {targets}}}",
           "place": "Lugar"

@@ -4042,9 +4042,6 @@ describe("SEO workspace integration", () => {
         name: "Actions from the keyword strategy",
       }),
     ).toBeVisible();
-    expect(
-      screen.getByText("From the search results for your keywords."),
-    ).toBeVisible();
     // "No recommended actions" above these cards would say two things at once.
     expect(screen.queryByRole("heading", { name: "Actions" })).toBeNull();
     expect(screen.queryByText("No recommended actions")).toBeNull();
@@ -4148,14 +4145,19 @@ describe("SEO workspace integration", () => {
       await screen.findByRole("button", { name: /Create draft task/ }),
     ).toBeVisible();
     expect(
-      screen.queryByRole("heading", { name: "Fixes for confirmed issues" }),
+      screen.queryByRole("heading", { name: "Fixes for the issues" }),
     ).toBeNull();
     first.unmount();
-    workspace.strategy = seoTestStrategy();
-    renderWorkspace(workspace, "?tab=actions");
+    const strategy = seoTestStrategy();
+    strategy.actions = Array.from({ length: 5 }, (_, index) => ({
+      ...strategy.actions[0],
+      title: `Strategy action ${index + 1}`,
+    }));
+    workspace.strategy = strategy;
+    const second = renderWorkspace(workspace, "?tab=actions");
     expect(
       await screen.findByRole("heading", {
-        name: "Fixes for confirmed issues",
+        name: "Fixes for the issues",
       }),
     ).toBeVisible();
     expect(
@@ -4163,6 +4165,26 @@ describe("SEO workspace integration", () => {
         name: "Actions from the keyword strategy",
       }),
     ).toBeVisible();
+    // Under the fixes the strategy list starts with three rows; the button opens the rest.
+    const rows = () =>
+      screen
+        .queryAllByText(/^Strategy action \d$/)
+        .map((title) => title.textContent);
+    expect(rows()).toEqual([
+      "Strategy action 1",
+      "Strategy action 2",
+      "Strategy action 3",
+    ]);
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "Show 2 more actions" }));
+    expect(rows()).toHaveLength(5);
+    second.unmount();
+    // Alone on the tab the list is the page: it shows every row.
+    workspace.actions = [];
+    renderWorkspace(workspace, "?tab=actions");
+    expect(await screen.findAllByText(/^Strategy action \d$/)).toHaveLength(5);
+    expect(screen.queryByRole("button", { name: /more actions/ })).toBeNull();
   });
 
   it("does not repeat a type that every place of an action shares", async () => {

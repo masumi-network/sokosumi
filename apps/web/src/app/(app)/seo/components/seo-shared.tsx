@@ -561,7 +561,8 @@ export function SeoActionName({
     <span className="block min-w-0 sm:flex-1">
       <span
         className={cn(
-          "block text-sm break-words",
+          // Plain wrap: inside a heading the title would balance its lines and break at another word than in a row.
+          "block text-sm text-wrap break-words",
           strong ? "font-semibold" : "font-medium",
         )}
       >

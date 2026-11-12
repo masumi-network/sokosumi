@@ -11136,7 +11136,7 @@
         "checksIncompleteBody": "Einige angeforderte Prüfungen konnten nicht abgeschlossen werden. Prüfe die Prüfdetails, bevor du den nächsten Schritt wählst.",
         "unplannedIssues": "Noch keine empfohlenen Aktionen",
         "unplannedIssuesBody": "Diese Prüfungen haben Probleme gefunden, enthalten aber keine empfohlenen Aktionen. Prüfe die Befunde oder frag den SEO-Agenten nach den nächsten Schritten.",
-        "fixesTitle": "Korrekturen für bestätigte Probleme",
+        "fixesTitle": "Korrekturen für die Probleme",
         "fixesHelp": "Eine Prüfung fand ein Problem auf der Seite. Nach der Korrektur braucht es eine neue Prüfung zur Bestätigung.",
         "opportunitiesTitle": "Vorschläge aus Suchdaten",
         "opportunitiesHelp": "Search-Console-Daten weisen darauf hin. Es sind keine Fehler, und sie versprechen keinen Traffic.",
@@ -11643,8 +11643,8 @@
           "open": "Ein Forum in den Suchergebnissen ist ein Zeichen, dass die Ergebnisse für neue Seiten offen sind."
         },
         "trend": {
-          "falling": "Suchen fallen: {recent} pro Monat in den letzten Monaten",
-          "rising": "Suchen steigen: {recent} pro Monat in den letzten Monaten"
+          "falling": "Suchen fallen auf {recent} pro Monat",
+          "rising": "Suchen steigen auf {recent} pro Monat"
         },
         "targetType": {
           "appStore": "App Store",
@@ -11660,7 +11660,7 @@
         },
         "actions": {
           "title": "Aktionen aus der Keyword-Strategie",
-          "help": "Aus den Suchergebnissen für deine Keywords.",
+          "more": "{count, plural, one {# weitere Aktion anzeigen} other {# weitere Aktionen anzeigen}}",
           "limit": "Grenze",
           "prompt": "Das Website-Audit empfiehlt: „{title}“. Entwirf einen Plan mit den Schritten in Reihenfolge.{hasLimit, select, yes { Halte diese Grenze ein: {limit}} other {}}{count, plural, =0 {} one { Der Ort: {targets}} other { Die Orte: {targets}}}",
           "place": "Ort"

@@ -132,7 +132,7 @@ export function SeoKeywordIdeas({
                     }
                   >
                     {volume === null ? (
-                      t("none")
+                      <span className="text-muted-foreground">{t("none")}</span>
                     ) : (
                       <SeoBarNumber
                         value={volume}

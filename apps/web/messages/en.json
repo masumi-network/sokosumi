@@ -11136,7 +11136,7 @@
         "checksIncompleteBody": "Some requested checks could not be completed. Review Check details before deciding what to do next.",
         "unplannedIssues": "No recommended actions yet",
         "unplannedIssuesBody": "These checks found issues but did not include recommended actions. Review the findings or ask the SEO agent what to do next.",
-        "fixesTitle": "Fixes for confirmed issues",
+        "fixesTitle": "Fixes for the issues",
         "fixesHelp": "A check found an issue on the page. Fixing it needs a recheck to verify.",
         "opportunitiesTitle": "Suggestions from search data",
         "opportunitiesHelp": "Search Console data points to these. They are not errors and promise no traffic.",
@@ -11643,8 +11643,8 @@
           "open": "A forum in the search results is a sign that the results are open to new pages."
         },
         "trend": {
-          "falling": "Searches fall: {recent} a month in recent months",
-          "rising": "Searches rise: {recent} a month in recent months"
+          "falling": "Searches falling to {recent} a month",
+          "rising": "Searches rising to {recent} a month"
         },
         "targetType": {
           "appStore": "App store",
@@ -11660,7 +11660,7 @@
         },
         "actions": {
           "title": "Actions from the keyword strategy",
-          "help": "From the search results for your keywords.",
+          "more": "{count, plural, one {Show # more action} other {Show # more actions}}",
           "limit": "Limit",
           "prompt": "The site audit recommends: “{title}”. Draft a plan with the steps in order.{hasLimit, select, yes { Keep to this limit: {limit}} other {}}{count, plural, =0 {} one { The place: {targets}} other { The places: {targets}}}",
           "place": "Place"

@@ -15,7 +15,9 @@ import {
   SeoFoldSummary,
   SeoPageLink,
   SeoSection,
+  SeoShowMore,
   SeoSource,
+  seoFoldCount,
 } from "./seo-shared";
 import {
   SEO_STRATEGY_PLACE_FORMS,
@@ -30,6 +32,9 @@ import {
   seoStrategyTargetNotes,
 } from "./seo-strategy-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
+
+/** Under the fixes the list starts with this many actions: eight rows after five fix rows read as one long list. */
+const SEO_STRATEGY_ACTIONS_AFTER_FIXES = 3;
 
 function useStrategyLabels() {
   const t = useTranslations("App.Seo");
@@ -81,23 +86,24 @@ export function SeoStrategyLine({
 
 /**
  * The site audit's result for the keywords, as one closed line under the keyword list: the verdict. Open, it adds
- * the reason, how many keyword groups the site can reach and the check the result comes from.
+ * how many keyword groups the site can reach, the reason, and the check the result comes from when the list's
+ * own date line does not name it.
  * As a card over the list it stood over the result of the list and over the ideas, with the words of an analyst.
  */
-export function SeoStrategyFold({ model }: { model: SeoWorkspaceModel }) {
+export function SeoStrategyFold({
+  model,
+  dated,
+}: {
+  model: SeoWorkspaceModel;
+  /** The date line of the keyword list already names the check of the strategy, or opens the same results. */
+  dated: boolean;
+}) {
   const t = useTranslations("App.Seo");
   const labels = useStrategyLabels();
   const strategy = model.data.strategy;
   if (!strategy) return null;
   const reason = seoStrategyReason(strategy);
   const counts = seoStrategyCounts(strategy.groups);
-  // A sentence about a reach that no count in view names explained a word the reader could not see.
-  const helps = counts.reaches.flatMap(({ reach }) => {
-    const key = seoStrategyKey(SEO_STRATEGY_REACHES, reach);
-    return key === "ranks" || key === "inReach" || key === "open"
-      ? [t(`strategy.reachHelp.${key}`)]
-      : [];
-  });
   return (
     <details className="px-2 text-sm">
       <SeoFoldSummary className="py-2.5">
@@ -109,30 +115,53 @@ export function SeoStrategyFold({ model }: { model: SeoWorkspaceModel }) {
         </span>
       </SeoFoldSummary>
       <div className="max-w-prose space-y-2 pb-2">
-        <p className="break-words">{reason.lead}</p>
-        {reason.niche ? <p className="break-words">{reason.niche}</p> : null}
+        {/* The counts lead: they are the reader's own words. The sentence of the audit follows them, quieter. */}
         {counts.reaches.length ? (
-          <ul role="list" className="tabular-nums">
-            {counts.reaches.map(({ reach, count }) => (
-              <li key={reach}>{labels.reachCount(reach, count)}</li>
-            ))}
+          <ul role="list" className="space-y-1.5">
+            {counts.reaches.map(({ reach, count }) => {
+              const key = seoStrategyKey(SEO_STRATEGY_REACHES, reach);
+              return (
+                <li key={reach}>
+                  <span className="tabular-nums">
+                    {labels.reachCount(reach, count)}
+                  </span>
+                  {/* What a count means stands with its count. As one paragraph after all counts, a sentence
+                      stood far from its number. A reach that no count names gets no sentence. */}
+                  {key === "ranks" || key === "inReach" || key === "open" ? (
+                    <span className="text-muted-foreground block">
+                      {t(`strategy.reachHelp.${key}`)}
+                    </span>
+                  ) : null}
+                </li>
+              );
+            })}
             {counts.falling ? (
-              <li>{t("strategy.falling", { count: counts.falling })}</li>
+              <li className="tabular-nums">
+                {t("strategy.falling", { count: counts.falling })}
+              </li>
             ) : null}
           </ul>
         ) : null}
-        <div className="text-muted-foreground space-y-2">
-          {helps.length ? <p>{helps.join(" ")}</p> : null}
-          {reason.details.length ? (
-            <ul className="list-disc space-y-1 ps-4">
-              {reason.details.map((line, index) => (
-                <li key={`${index}:${line}`} className="break-words">
-                  {line}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <p>
+        <p
+          className={cn(
+            "break-words",
+            counts.reaches.length > 0 && "text-muted-foreground",
+          )}
+        >
+          {reason.lead}
+        </p>
+        {reason.niche ? <p className="break-words">{reason.niche}</p> : null}
+        {reason.details.length ? (
+          <ul className="text-muted-foreground list-disc space-y-1 ps-4">
+            {reason.details.map((line, index) => (
+              <li key={`${index}:${line}`} className="break-words">
+                {line}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {dated ? null : (
+          <p className="text-muted-foreground">
             {/* The date is the link to the results of the check. */}
             <SeoSource
               observationId={strategy.observationId}
@@ -141,7 +170,7 @@ export function SeoStrategyFold({ model }: { model: SeoWorkspaceModel }) {
               {t("strategy.from")} <SeoDate day value={strategy.observedAt} />
             </SeoSource>
           </p>
-        </div>
+        )}
       </div>
     </details>
   );
@@ -239,7 +268,9 @@ function StrategyActionCard({
           <span className="min-w-0 flex-1 gap-3 sm:flex sm:items-center">
             <span
               id={titleId}
-              className="block min-w-0 text-sm font-semibold break-words sm:flex-1"
+              // Plain wrap: a heading balances its lines, so the same title broke at another word here than
+              // on the Agent tab.
+              className="block min-w-0 text-sm font-semibold text-wrap break-words sm:flex-1"
             >
               {action.title}
             </span>
@@ -390,27 +421,47 @@ function StrategyActionBody({
  * a place to promote the product in.
  * None is one page edit, so none has a draft Task. The button puts a question in the chat field and sends nothing.
  */
-export function SeoStrategyActions({ model }: { model: SeoWorkspaceModel }) {
+export function SeoStrategyActions({
+  model,
+  afterFixes = false,
+}: {
+  model: SeoWorkspaceModel;
+  /** The list stands under the fixes of the tab. Alone on the tab, it is the page and shows a full list. */
+  afterFixes?: boolean;
+}) {
   const t = useTranslations("App.Seo");
+  const [expanded, setExpanded] = useState(false);
   const actions = model.data.strategy?.actions ?? [];
   if (!actions.length) return null;
+  const visible = seoFoldCount(
+    actions.length,
+    afterFixes ? SEO_STRATEGY_ACTIONS_AFTER_FIXES : undefined,
+  );
   return (
-    <SeoSection
-      title={t("strategy.actions.title")}
-      // One sentence. The button of an open row names itself; a sentence about it stood over rows that show none.
-      description={t("strategy.actions.help")}
-    >
+    // The title says where the actions come from: a sentence under it said the same.
+    <SeoSection title={t("strategy.actions.title")}>
       <ul role="list" className={SEO_ROW_LIST_CLASS}>
-        {actions.map((action, index) => (
-          <li key={`${index}:${action.title}`}>
-            <StrategyActionCard
-              action={action}
-              model={model}
-              startOpen={actions.length === 1}
-            />
-          </li>
-        ))}
+        {(expanded ? actions : actions.slice(0, visible)).map(
+          (action, index) => (
+            <li key={`${index}:${action.title}`}>
+              <StrategyActionCard
+                action={action}
+                model={model}
+                startOpen={actions.length === 1}
+              />
+            </li>
+          ),
+        )}
       </ul>
+      {actions.length > visible ? (
+        <SeoShowMore
+          more={t("strategy.actions.more", {
+            count: actions.length - visible,
+          })}
+          expanded={expanded}
+          onToggle={() => setExpanded((open) => !open)}
+        />
+      ) : null}
     </SeoSection>
   );
 }

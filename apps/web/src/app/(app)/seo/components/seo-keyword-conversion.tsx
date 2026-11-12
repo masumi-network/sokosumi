@@ -20,7 +20,10 @@ export function SeoConversionCell({
     >
       {conversion ? (
         <>
-          <p>{t(`keywords.conversion.${conversion}`)}</p>
+          {/* A low chance is no reason to look at the row: "Medium" and "High" stay bright. */}
+          <p className={cn(conversion === "low" && "text-muted-foreground")}>
+            {t(`keywords.conversion.${conversion}`)}
+          </p>
           {feature ? (
             // A phone row is a name line and one values line: the feature would add a third.
             <p className="text-muted-foreground text-xs break-words max-sm:hidden">
@@ -31,7 +34,7 @@ export function SeoConversionCell({
           ) : null}
         </>
       ) : (
-        t("none")
+        <span className="text-muted-foreground">{t("none")}</span>
       )}
     </TableCell>
   );
