@@ -3586,7 +3586,20 @@
           }
         },
         "Calendar": {
-          "title": "Calendario"
+          "title": "Calendario",
+          "nextIssue": "Próxima edición",
+          "nothingScheduled": "Aún no hay nada programado. Programa una edición y aparecerá aquí.",
+          "openFullCalendar": "Abrir en el calendario",
+          "emptyTitle": "Aún no hay ediciones",
+          "emptyDescription": "Escribe una edición y aparecerá aquí por fecha.",
+          "goToIssues": "Ir a ediciones",
+          "groups": {
+            "scheduled": "Programadas",
+            "unscheduled": "Sin programar",
+            "sent": "Enviadas"
+          },
+          "count": "{count, plural, one {# edición} other {# ediciones}}",
+          "newestOnly": "Se muestran las {count} ediciones más recientes. Abre el calendario para ver las anteriores."
         },
         "Issues": {
           "title": "Ediciones",
@@ -3617,6 +3630,7 @@
           "previewText": "Texto de vista previa",
           "status": "Estado",
           "sentAt": "Enviada el {date}",
+          "sentTo": "Enviada el {date} a {count, plural, one {# suscriptor} other {# suscriptores}}",
           "firstPage": "Primera página",
           "nextPage": "Página siguiente",
           "results": "{count, plural, one {# edición} other {# ediciones}}",

@@ -3586,7 +3586,20 @@
           }
         },
         "Calendar": {
-          "title": "Kalender"
+          "title": "Kalender",
+          "nextIssue": "Nächste Ausgabe",
+          "nothingScheduled": "Noch nichts geplant. Plane eine Ausgabe, dann erscheint sie hier.",
+          "openFullCalendar": "Im Kalender öffnen",
+          "emptyTitle": "Noch keine Ausgaben",
+          "emptyDescription": "Schreibe eine Ausgabe, dann erscheint sie hier nach Datum.",
+          "goToIssues": "Zu den Ausgaben",
+          "groups": {
+            "scheduled": "Geplant",
+            "unscheduled": "Nicht geplant",
+            "sent": "Gesendet"
+          },
+          "count": "{count, plural, one {# Ausgabe} other {# Ausgaben}}",
+          "newestOnly": "Es werden die neuesten {count} Ausgaben angezeigt. Öffne den Kalender für ältere."
         },
         "Issues": {
           "title": "Ausgaben",
@@ -3617,6 +3630,7 @@
           "previewText": "Vorschautext",
           "status": "Status",
           "sentAt": "Gesendet am {date}",
+          "sentTo": "Gesendet am {date} an {count, plural, one {# Abonnent} other {# Abonnenten}}",
           "firstPage": "Erste Seite",
           "nextPage": "Nächste Seite",
           "results": "{count, plural, one {# Ausgabe} other {# Ausgaben}}",

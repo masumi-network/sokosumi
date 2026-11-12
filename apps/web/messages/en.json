@@ -3586,7 +3586,20 @@
           }
         },
         "Calendar": {
-          "title": "Calendar"
+          "title": "Calendar",
+          "nextIssue": "Next issue",
+          "nothingScheduled": "Nothing scheduled yet. Schedule an issue and it shows here.",
+          "openFullCalendar": "Open full calendar",
+          "emptyTitle": "No issues yet",
+          "emptyDescription": "Write an issue and it shows here by date.",
+          "goToIssues": "Go to issues",
+          "groups": {
+            "scheduled": "Scheduled",
+            "unscheduled": "Not scheduled",
+            "sent": "Sent"
+          },
+          "count": "{count, plural, one {# issue} other {# issues}}",
+          "newestOnly": "Showing the newest {count} issues. Open the full calendar to see older ones."
         },
         "Issues": {
           "title": "Issues",
@@ -3617,6 +3630,7 @@
           "previewText": "Preview text",
           "status": "Status",
           "sentAt": "Sent {date}",
+          "sentTo": "Sent {date} to {count, plural, one {# subscriber} other {# subscribers}}",
           "firstPage": "First page",
           "nextPage": "Next page",
           "results": "{count, plural, one {# issue} other {# issues}}",
