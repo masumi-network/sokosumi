@@ -60,10 +60,12 @@ const source = z.object({
       )
       .optional(),
     // Core kept no note before, so a form it cannot read loses the note, not the strategy.
+    // The bot sends one entry per note; a Report from before joins them in `placesNote`.
+    placesNotes: z.array(z.unknown()).nullish().catch(undefined),
     placesNote: z.string().nullish().catch(undefined),
   }),
 });
-/** The SEO bot joins its place notes with this separator in one line. */
+/** A Report from before the list joins its place notes with this separator in one line. */
 const PLACES_NOTE_SEPARATOR = "; ";
 /**
  * A target or a place is a link in the workspace, so only a plain web address stays.
@@ -106,11 +108,14 @@ export function publicSeoStrategy(raw: unknown): {
     why,
     groups,
     actions = [],
+    placesNotes: sentNotes,
     placesNote,
   } = parsed.data.strategy;
-  // One line per note; a blank line or one longer than the payload allows is dropped, not the strategy.
-  const placesNotes = (placesNote ?? "")
-    .split(PLACES_NOTE_SEPARATOR)
+  // One line per note; an entry that is no text, blank or longer than the payload allows is dropped, not the strategy.
+  const placesNotes = (
+    sentNotes?.filter((note): note is string => typeof note === "string") ??
+    (placesNote ?? "").split(PLACES_NOTE_SEPARATOR)
+  )
     .map((line) => line.trim())
     .filter((line) => line && line.length <= SEO_STRATEGY_TEXT_MAX_LENGTH)
     .slice(0, SEO_STRATEGY_PLACES_NOTES_MAX);

@@ -411,6 +411,17 @@ describe("public SEO report trust boundary", () => {
       notes(Array.from({ length: 30 }, (_, n) => `note ${n}`).join("; "))
         ?.placesNotes,
     ).toHaveLength(20);
+    // The bot's list keeps a note whole, also one with "; " in its error text; an entry that is no text goes.
+    const listed = (placesNotes: unknown) =>
+      parsePublicSeoArtifact({
+        ...base,
+        strategy: { ...base.strategy, placesNotes, placesNote: "old; line" },
+      }).strategy?.placesNotes;
+    expect(
+      listed(["the place_fit agent failed: 429; retry later", 5, " ", "b"]),
+    ).toEqual(["the place_fit agent failed: 429; retry later", "b"]);
+    // A list in a form Core cannot read falls back to the joined line.
+    expect(listed("x")).toEqual(["old", "line"]);
   });
 
   it("imports the audit with a note when it cannot read the strategy section", () => {
