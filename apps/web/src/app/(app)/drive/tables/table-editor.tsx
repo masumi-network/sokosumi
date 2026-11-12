@@ -101,6 +101,7 @@ import { TableCell, TableUpdatedCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
 import { cellWrap, columnWidth } from "./table-layout";
 import { createTableMutations, isTableRejection } from "./table-mutations";
+import { archivePatch, hideRows } from "./table-row-archive";
 import {
   parseTableInput,
   tableError,
@@ -395,8 +396,10 @@ function TableWorkspace({
       document.removeEventListener("click", navigate, true);
     };
   }, [enrichmentRequest, hasDrafts, mutate, pending, retryAction, t, taskId]);
+  const moveInFlight = useRef(false);
+  const rowsKey = ["table-rows", table.id, definition, cursor, archivedRows];
   const rows = useQuery({
-    queryKey: ["table-rows", table.id, definition, cursor, archivedRows],
+    queryKey: rowsKey,
     queryFn: () =>
       dataTableService.query(table.id, {
         ...definition,
@@ -404,7 +407,8 @@ function TableWorkspace({
         limit: 50,
         archived: archivedRows,
       }),
-    refetchInterval: 3000,
+    // A poll during a move or archive would read the rows from before it.
+    refetchInterval: () => (moveInFlight.current ? false : 3000),
   });
   const displayedRows = [...(rows.data?.rows ?? [])];
   for (const { row } of Object.values(editingRows))
@@ -617,7 +621,6 @@ function TableWorkspace({
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
   const [dragLabel, setDragLabel] = useState<string | null>(null);
-  const moveInFlight = useRef(false);
   /**
    * One move at a time: the next one needs the versions this one returns, so
    * it waits for the refresh. A failed move refreshes, undoing its preview.
@@ -687,7 +690,7 @@ function TableWorkspace({
       "move-row",
       () =>
         cache.setQueryData<typeof rows.data>(
-          ["table-rows", table.id, definition, cursor, archivedRows],
+          rowsKey,
           (previous) =>
             previous && {
               ...previous,
@@ -980,24 +983,21 @@ function TableWorkspace({
               variant="outline"
               className={EDITOR_TOOLBAR_CONTROL}
               disabled={pending || !!table.archivedAt}
-              onClick={() =>
-                void run(async () => {
-                  await mutate(
-                    "archive-rows",
-                    {
-                      patch: (rows.data?.rows ?? [])
-                        .filter((row) => selected.includes(row.id))
-                        .map((row) => ({
-                          id: row.id,
-                          version: row.version,
-                          archived: !archivedRows,
-                        })),
-                    },
-                    (body) => dataTableService.batch(table.id, body),
-                  );
-                  setSelected([]);
-                }, "archive-rows")
-              }
+              onClick={() => {
+                const patch = archivePatch(rows.data, selected, !archivedRows);
+                if (!patch.length) return;
+                void runMove(
+                  "archive-rows",
+                  () => {
+                    hideRows(cache, rowsKey, selected);
+                    setSelected([]);
+                  },
+                  () =>
+                    mutate("archive-rows", { patch }, (body) =>
+                      dataTableService.batch(table.id, body),
+                    ),
+                );
+              }}
             >
               {archivedRows ? t("restoreRows") : t("archiveRows")}
             </Button>

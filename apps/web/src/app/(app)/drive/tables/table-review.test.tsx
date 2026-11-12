@@ -6,7 +6,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TableCell } from "@/app/drive/tables/table-cell";
 import { TableColumnDialog } from "@/app/drive/tables/table-column-dialog";
 import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
@@ -50,6 +50,9 @@ const f = vi.hoisted(() => {
     get: vi.fn(),
     view: vi.fn(),
     invalidate: vi.fn(async () => {}),
+    setQueryData: vi.fn(),
+    cancelQueries: vi.fn(),
+    rowsPoll: (): number | false => 0,
     toastError: vi.fn(),
     push: vi.fn(),
     views: [] as TableView[],
@@ -85,12 +88,22 @@ vi.mock("@tanstack/react-query", () => ({
   keepPreviousData: vi.fn(),
   useQueryClient: () => ({
     invalidateQueries: f.invalidate,
-    setQueryData: vi.fn(),
+    setQueryData: f.setQueryData,
+    cancelQueries: f.cancelQueries,
     setQueriesData: vi.fn(),
     getQueriesData: () => [],
   }),
-  useQuery: ({ queryKey }: { queryKey: string[] }) => {
-    if (queryKey[0] === "table-rows") f.rowsKey = queryKey;
+  useQuery: ({
+    queryKey,
+    refetchInterval,
+  }: {
+    queryKey: string[];
+    refetchInterval?: () => number | false;
+  }) => {
+    if (queryKey[0] === "table-rows") {
+      f.rowsKey = queryKey;
+      if (refetchInterval) f.rowsPoll = refetchInterval;
+    }
     return {
       isPending: false,
       error: null,
@@ -1279,4 +1292,57 @@ it("R11: tags render as chips, and a chip filters the grid by that tag", async (
   const chip = screen.getByRole("button", { name: "filterByTag" });
   fireEvent.doubleClick(chip.closest("td") as HTMLElement);
   expect(screen.getByRole("textbox", { name: "Tags" })).toHaveValue("lead");
+});
+
+describe("archive rows", () => {
+  function archive() {
+    render(<TableEditor id={f.column.tableId} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "selectRow" }));
+    fireEvent.click(screen.getByRole("button", { name: "archiveRows" }));
+  }
+  it("takes the rows off the page before the save answers", async () => {
+    f.batch.mockReturnValue(new Promise(() => {}));
+    archive();
+    await waitFor(() => expect(f.batch).toHaveBeenCalledOnce());
+    // A load under way would put the rows back, and so would a poll.
+    expect(f.cancelQueries).toHaveBeenCalledWith({ queryKey: f.rowsKey });
+    expect(f.rowsPoll()).toBe(false);
+    expect(f.setQueryData).toHaveBeenCalledOnce();
+    const [key, update] = f.setQueryData.mock.calls[0];
+    expect(key).toEqual(f.rowsKey);
+    const other = { ...f.row, id: "00000000-0000-4000-8000-000000000009" };
+    expect(
+      update({ rows: [f.row, other], nextCursor: "next", total: 7 }),
+    ).toEqual({ rows: [other], nextCursor: "next", total: 6 });
+    expect(update(undefined)).toBeUndefined();
+    // The selection goes with its rows.
+    expect(
+      screen.queryByRole("button", { name: "archiveRows" }),
+    ).not.toBeInTheDocument();
+  });
+  it("polls again once the save is over", async () => {
+    f.batch.mockResolvedValue({ rows: [] });
+    archive();
+    await waitFor(() => expect(f.batch).toHaveBeenCalledOnce());
+    await waitFor(() => expect(f.rowsPoll()).toBe(3000));
+  });
+  it("sends nothing when no selected row is on the page", () => {
+    const view = render(<TableEditor id={f.column.tableId} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "selectRow" }));
+    f.shown = [];
+    view.rerender(<TableEditor id={f.column.tableId} />);
+    fireEvent.click(screen.getByRole("button", { name: "archiveRows" }));
+    expect(f.setQueryData).not.toHaveBeenCalled();
+    expect(f.batch).not.toHaveBeenCalled();
+  });
+  it("reloads the page when the save is rejected", async () => {
+    f.batch.mockRejectedValue({ error: "Forbidden", message: "No" });
+    archive();
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("errors.forbidden"),
+    );
+    expect(f.invalidate).toHaveBeenCalledWith({
+      queryKey: ["table-rows", f.column.tableId],
+    });
+  });
 });
