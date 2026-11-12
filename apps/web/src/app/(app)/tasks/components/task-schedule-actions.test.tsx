@@ -157,6 +157,8 @@ const OK = { ok: true, value: { scheduleId: SCHEDULE_ID } };
 describe("TaskScheduleActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    loadMoreProjectsMock.mockReset();
+    loadMoreProjectsMock.mockResolvedValue(page([], null));
     changeTaskScheduleStateMock.mockResolvedValue(OK);
     deleteTaskScheduleMock.mockResolvedValue(OK);
     runTaskScheduleNowMock.mockResolvedValue({
@@ -363,11 +365,30 @@ describe("TaskScheduleActions", () => {
     ).toBeInTheDocument();
     expect(
       screen.getAllByRole("option").map((option) => option.textContent),
-    ).toEqual([expect.stringMatching(/p_there$/), "copyToProjectLoadMore"]);
+    ).toEqual([expect.stringMatching(/p_there$/)]);
     expect(loadMoreProjectsMock.mock.calls.map(([call]) => call)).toEqual([
       { cursor: null, query: undefined, state: "open" },
       { cursor: "c1", query: undefined, state: "open" },
+      { cursor: null, query: undefined, state: "hidden" },
     ]);
+  });
+
+  it("offers Show more only while a further page exists", async () => {
+    loadMoreProjectsMock
+      .mockResolvedValueOnce(page([project("p_there")], null))
+      .mockResolvedValueOnce(page([], null));
+    const user = userEvent.setup();
+    renderCopyToProject();
+
+    await openProjectPicker(user);
+
+    expect(
+      await screen.findByRole("option", { name: /p_there$/ }),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(loadMoreProjectsMock).toHaveBeenCalledTimes(2));
+    expect(
+      screen.queryByRole("option", { name: "copyToProjectLoadMore" }),
+    ).toBeNull();
   });
 
   it("loads destinations past the first page and copies into the chosen one", async () => {
@@ -411,8 +432,11 @@ describe("TaskScheduleActions", () => {
 
   it("searches every Project by name on the server", async () => {
     loadMoreProjectsMock.mockImplementation(
-      async ({ query }: { query?: string }) =>
-        page(query === "old" ? [project("p_old")] : [], null),
+      async ({ query, state }: { query?: string; state: string }) =>
+        page(
+          query === "old" && state === "open" ? [project("p_old")] : [],
+          null,
+        ),
     );
     const user = userEvent.setup();
     renderCopyToProject();

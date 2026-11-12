@@ -40,7 +40,8 @@ export function isCopyDestination(
 
 /**
  * Reads pages until one holds a destination or none are left, so a page of
- * only ineligible Projects never reads as "none".
+ * only ineligible Projects never reads as "none". It also reads into the next
+ * state's first page, so "Show more" only stands for a real further page.
  */
 async function loadDestinations(
   from: NonNullable<PageCursor>,
@@ -49,7 +50,7 @@ async function loadDestinations(
 ): Promise<{ projects: ProjectListItem[]; next: PageCursor }> {
   let next: PageCursor = from;
   const projects: ProjectListItem[] = [];
-  while (next && projects.length === 0) {
+  while (next && (projects.length === 0 || next.cursor === null)) {
     const page = await loadMoreProjects({
       cursor: next.cursor,
       query: query || undefined,

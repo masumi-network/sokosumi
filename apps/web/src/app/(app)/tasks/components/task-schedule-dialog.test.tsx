@@ -673,10 +673,9 @@ describe("TaskScheduleDialog", () => {
       closingAt: null,
       closedAt: null,
     } as ProjectListItem;
-    loadMoreProjectsMock.mockResolvedValue({
-      projects: [far],
-      nextCursor: null,
-    });
+    loadMoreProjectsMock
+      .mockResolvedValueOnce({ projects: [far], nextCursor: null })
+      .mockResolvedValueOnce({ projects: [], nextCursor: null });
     createTaskScheduleMock.mockResolvedValue({
       ok: true,
       value: { scheduleId: "copy-id" },
