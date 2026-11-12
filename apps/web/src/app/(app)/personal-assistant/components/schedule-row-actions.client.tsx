@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { toast } from "sonner";
@@ -37,7 +36,6 @@ export function ScheduleRowActions({
   deletable = true,
 }: ScheduleRowActionsProps) {
   const t = useTranslations("App.SokoBot.Schedules");
-  const router = useRouter();
   const botId = useSokoBotTargetId();
   const [isPending, startTransition] = useTransition();
 
@@ -51,7 +49,6 @@ export function ScheduleRowActions({
         toast.error(result.error.message ?? t("updateError"));
         return;
       }
-      router.refresh();
     });
   }
 
@@ -66,7 +63,6 @@ export function ScheduleRowActions({
         return;
       }
       toast.success(t("deleted"));
-      router.refresh();
     });
   }
 
