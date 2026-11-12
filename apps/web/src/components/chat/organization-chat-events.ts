@@ -47,8 +47,11 @@ interface OrganizationChatRoomsChangedHandlers {
   onRemoved: (roomId: string) => void;
   /** Left out, a room handed over whole changes nothing here. */
   onRoom?: (room: ChatRoom) => void;
-  /** Absent `collections` means every collection. */
-  onInvalidated?: (collections?: readonly ChatRoomCollection[]) => void;
+  /** Absent `collections` means every collection. `roomId` is the room Core named. */
+  onInvalidated?: (
+    collections?: readonly ChatRoomCollection[],
+    roomId?: string | null,
+  ) => void;
 }
 
 /** What a rooms-changed event asks of a surface holding a copy of the rooms. */
@@ -68,7 +71,7 @@ export function subscribeOrganizationChatRoomsChanged({
       onRoom?.(detail.room);
       return;
     }
-    onInvalidated?.(detail?.collections);
+    onInvalidated?.(detail?.collections, detail?.roomId);
   };
 
   window.addEventListener(
