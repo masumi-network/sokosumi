@@ -10884,7 +10884,7 @@
       },
       "toolbar": {
         "search": "Kontakte durchsuchen",
-        "searchPlaceholder": "Name, Firma, E-Mail suchen…",
+        "searchPlaceholder": "Name, Firma, E-Mail, Ort suchen…",
         "me": "Ich",
         "clearFilter": "Filter {filter} entfernen",
         "export": "CSV exportieren",
@@ -10999,6 +10999,7 @@
         "channelTaken": "Diese Person ist in deinem Team bereits ein Kontakt.",
         "openExisting": "Kontakt öffnen",
         "failed": "Der Kontakt wurde nicht gespeichert. Versuch es noch einmal.",
+        "listFailed": "Der Kontakt ist gespeichert, aber noch nicht auf der Liste. Versuch es noch einmal, um ihn hinzuzufügen.",
         "cancel": "Abbrechen",
         "submit": "Kontakt hinzufügen"
       },
@@ -11090,6 +11091,8 @@
         "addToList": "Zu einer Liste hinzufügen",
         "manualLists": "Listen",
         "noManualLists": "Noch keine Listen.",
+        "newList": "Neue Liste…",
+        "newListAddFailed": "{list} ist angelegt, aber {name} steht noch nicht darauf.",
         "empty": "Hinzufügen…",
         "location": "Ort",
         "nextStepTitle": "Nächster Schritt",
