@@ -1738,6 +1738,7 @@
         "feedbackUseful": "Nützlich",
         "feedbackNotUseful": "Nicht nützlich",
         "feedbackThanks": "Danke, notiert.",
+        "feedbackError": "Deine Bewertung konnte nicht gespeichert werden.",
         "approvals": "{count, plural, one {# Freigabe wartet} other {# Freigaben warten}}",
         "review": "Auf der Assistenten-Seite prüfen",
         "task": "Task",
@@ -9935,6 +9936,8 @@
         },
         "Settings": {
           "titleLabel": "Titel",
+          "welcomeLabel": "Willkommensnotiz",
+          "welcomeHint": "Erscheint auf der Willkommensseite, wenn jemand den Datenraum öffnet. Zeilenumbrüche bleiben erhalten.",
           "logoLabel": "Logo",
           "noLogo": "Kein Logo",
           "logoHint": "Ein Bild aus diesem Raum, neben dem Titel.",
@@ -11396,8 +11399,6 @@
       "signOut": "Abmelden",
       "empty": "In diesem Datenraum liegt noch nichts.",
       "indexLabel": "Inhalt",
-      "pickFile": "Wähle eine Datei, um sie zu öffnen.",
-      "new": "Neu",
       "download": "Herunterladen",
       "watermarkNote": "Geöffnete Seiten und Bilder tragen deine E-Mail und die Uhrzeit.",
       "downloadToOpen": "Diese Datei kann hier nicht angezeigt werden. Lade sie herunter, um sie zu öffnen.",
@@ -11409,7 +11410,11 @@
       "awaitingAnswer": "Wartet auf eine Antwort",
       "askLabel": "Frage zu diesem Dokument stellen",
       "ask": "Fragen",
-      "askFailed": "Deine Frage konnte nicht gesendet werden. Versuch es noch einmal."
+      "askFailed": "Deine Frage konnte nicht gesendet werden. Versuch es noch einmal.",
+      "welcome": "Willkommen",
+      "welcomeTitle": "Willkommen im Datenraum {title}",
+      "contents": "{files, plural, one {# Dokument} other {# Dokumente}}{folders, plural, =0 {} one { in # Ordner} other { in # Ordnern}}",
+      "openFirst": "{name} öffnen"
     }
   },
   "NotFound": {
