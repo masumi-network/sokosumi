@@ -1861,6 +1861,7 @@
       },
       "Detail": {
         "back": "Back to tasks",
+        "backToCalendar": "Back to calendar",
         "privateBadge": "Private",
         "visibility": "Visibility",
         "parentTask": "Parent:",
@@ -3812,10 +3813,10 @@
           "Image": {
             "width": "Width",
             "widths": {
-              "100": "Full width",
-              "75": "Three quarters",
+              "25": "Quarter",
               "50": "Half",
-              "25": "Quarter"
+              "75": "Three quarters",
+              "100": "Full width"
             },
             "align": "Alignment",
             "aligns": {
@@ -9933,6 +9934,8 @@
         },
         "Settings": {
           "titleLabel": "Title",
+          "welcomeLabel": "Welcome note",
+          "welcomeHint": "Shown on the Welcome page when someone opens the room. Line breaks are kept.",
           "logoLabel": "Logo",
           "noLogo": "No logo",
           "logoHint": "An image from this room, shown beside the title.",
@@ -10488,6 +10491,8 @@
         "moveRun": "Move run",
         "skipRun": "Skip run",
         "restoreRun": "Restore run",
+        "runSkipped": "Skipped the {name} run.",
+        "undo": "Undo",
         "openSchedule": "Open schedule",
         "allDay": "All day",
         "runStale": "This schedule changed somewhere else. The calendar is reloading; try again.",
@@ -10532,7 +10537,10 @@
         "showing": "Times in {zone}"
       },
       "empty": {
-        "title": "Nothing scheduled matches these filters.",
+        "title": "{view, select, month {Nothing scheduled this month} week {Nothing scheduled this week} other {Nothing coming up}}",
+        "filtered": "Nothing scheduled matches these filters.",
+        "hint": "Tasks with a start time, schedule runs and dated posts show up here.",
+        "createHint": "{view, select, agenda {Use Schedule a task to add one.} other {Use Schedule a task, or click a day to start on that date.}}",
         "socialOnly": "No social posts are scheduled in this period."
       },
       "schedules": {
@@ -10878,7 +10886,7 @@
       },
       "toolbar": {
         "search": "Search contacts",
-        "searchPlaceholder": "Search name, company, email…",
+        "searchPlaceholder": "Search name, company, email, place…",
         "me": "Me",
         "clearFilter": "Clear {filter} filter",
         "export": "Export CSV",
@@ -10993,6 +11001,7 @@
         "channelTaken": "Someone on your team already has this person in Contacts.",
         "openExisting": "Open contact",
         "failed": "The contact didn't save. Try again.",
+        "listFailed": "The contact is saved but isn't on the list yet. Try again to add them.",
         "cancel": "Cancel",
         "submit": "Add contact"
       },
@@ -11084,6 +11093,8 @@
         "addToList": "Add to a list",
         "manualLists": "Lists",
         "noManualLists": "No lists yet.",
+        "newList": "New list…",
+        "newListAddFailed": "{list} is ready, but {name} isn't on it yet.",
         "empty": "Add…",
         "location": "Location",
         "nextStepTitle": "Next step",
@@ -11382,12 +11393,10 @@
         "failed": "Could not reach the data room. Try again."
       },
       "signedInAs": "Signed in as {email}",
-      "downloadAll": "Download all",
+      "downloadAll": "Download everything",
       "signOut": "Sign out",
       "empty": "Nothing in this data room yet.",
       "indexLabel": "Contents",
-      "pickFile": "Choose a file to open it.",
-      "new": "New",
       "download": "Download",
       "watermarkNote": "Pages and images you open carry your email and the time.",
       "downloadToOpen": "This file can't be shown here. Download it to open it.",
@@ -11399,7 +11408,11 @@
       "awaitingAnswer": "Waiting for an answer",
       "askLabel": "Ask the owner about this document",
       "ask": "Ask",
-      "askFailed": "Could not send your question. Try again."
+      "askFailed": "Could not send your question. Try again.",
+      "welcome": "Welcome",
+      "welcomeTitle": "Welcome to {title}",
+      "contents": "{files, plural, one {# document} other {# documents}}{folders, plural, =0 {} one { in # folder} other { in # folders}}",
+      "openFirst": "Open {name}"
     }
   },
   "NotFound": {

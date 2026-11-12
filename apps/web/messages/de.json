@@ -1861,6 +1861,7 @@
       },
       "Detail": {
         "back": "Zurück zu Tasks",
+        "backToCalendar": "Zurück zum Kalender",
         "privateBadge": "Privat",
         "visibility": "Sichtbarkeit",
         "parentTask": "Übergeordnet:",
@@ -3812,10 +3813,10 @@
           "Image": {
             "width": "Breite",
             "widths": {
-              "100": "Volle Breite",
-              "75": "Drei Viertel",
+              "25": "Viertel",
               "50": "Halb",
-              "25": "Viertel"
+              "75": "Drei Viertel",
+              "100": "Volle Breite"
             },
             "align": "Ausrichtung",
             "aligns": {
@@ -9933,6 +9934,8 @@
         },
         "Settings": {
           "titleLabel": "Titel",
+          "welcomeLabel": "Willkommensnotiz",
+          "welcomeHint": "Erscheint auf der Willkommensseite, wenn jemand den Datenraum öffnet. Zeilenumbrüche bleiben erhalten.",
           "logoLabel": "Logo",
           "noLogo": "Kein Logo",
           "logoHint": "Ein Bild aus diesem Raum, neben dem Titel.",
@@ -10488,6 +10491,8 @@
         "moveRun": "Lauf verschieben",
         "skipRun": "Lauf überspringen",
         "restoreRun": "Lauf wiederherstellen",
+        "runSkipped": "Lauf von {name} übersprungen.",
+        "undo": "Rückgängig",
         "openSchedule": "Zeitplan öffnen",
         "allDay": "Ganztägig",
         "runStale": "Dieser Zeitplan wurde an anderer Stelle geändert. Der Kalender lädt neu; versuche es erneut.",
@@ -10532,7 +10537,10 @@
         "showing": "Zeiten in {zone}"
       },
       "empty": {
-        "title": "Nichts Geplantes entspricht diesen Filtern.",
+        "title": "{view, select, month {Diesen Monat ist nichts geplant} week {Diese Woche ist nichts geplant} other {Nichts steht an}}",
+        "filtered": "Nichts Geplantes entspricht diesen Filtern.",
+        "hint": "Tasks mit Startzeit, Läufe von Zeitplänen und datierte Beiträge erscheinen hier.",
+        "createHint": "{view, select, agenda {Mit „Task planen“ fügst du einen hinzu.} other {Mit „Task planen“ oder einem Klick auf einen Tag startest du an diesem Datum.}}",
         "socialOnly": "In diesem Zeitraum sind keine Social-Beiträge geplant."
       },
       "schedules": {
@@ -10878,7 +10886,7 @@
       },
       "toolbar": {
         "search": "Kontakte durchsuchen",
-        "searchPlaceholder": "Name, Firma, E-Mail suchen…",
+        "searchPlaceholder": "Name, Firma, E-Mail, Ort suchen…",
         "me": "Ich",
         "clearFilter": "Filter {filter} entfernen",
         "export": "CSV exportieren",
@@ -10993,6 +11001,7 @@
         "channelTaken": "Diese Person ist in deinem Team bereits ein Kontakt.",
         "openExisting": "Kontakt öffnen",
         "failed": "Der Kontakt wurde nicht gespeichert. Versuch es noch einmal.",
+        "listFailed": "Der Kontakt ist gespeichert, aber noch nicht auf der Liste. Versuch es noch einmal, um ihn hinzuzufügen.",
         "cancel": "Abbrechen",
         "submit": "Kontakt hinzufügen"
       },
@@ -11084,6 +11093,8 @@
         "addToList": "Zu einer Liste hinzufügen",
         "manualLists": "Listen",
         "noManualLists": "Noch keine Listen.",
+        "newList": "Neue Liste…",
+        "newListAddFailed": "{list} ist angelegt, aber {name} steht noch nicht darauf.",
         "empty": "Hinzufügen…",
         "location": "Ort",
         "nextStepTitle": "Nächster Schritt",
@@ -11386,8 +11397,6 @@
       "signOut": "Abmelden",
       "empty": "In diesem Datenraum liegt noch nichts.",
       "indexLabel": "Inhalt",
-      "pickFile": "Wähle eine Datei, um sie zu öffnen.",
-      "new": "Neu",
       "download": "Herunterladen",
       "watermarkNote": "Geöffnete Seiten und Bilder tragen deine E-Mail und die Uhrzeit.",
       "downloadToOpen": "Diese Datei kann hier nicht angezeigt werden. Lade sie herunter, um sie zu öffnen.",
@@ -11399,7 +11408,11 @@
       "awaitingAnswer": "Wartet auf eine Antwort",
       "askLabel": "Frage zu diesem Dokument stellen",
       "ask": "Fragen",
-      "askFailed": "Deine Frage konnte nicht gesendet werden. Versuch es noch einmal."
+      "askFailed": "Deine Frage konnte nicht gesendet werden. Versuch es noch einmal.",
+      "welcome": "Willkommen",
+      "welcomeTitle": "Willkommen im Datenraum {title}",
+      "contents": "{files, plural, one {# Dokument} other {# Dokumente}}{folders, plural, =0 {} one { in # Ordner} other { in # Ordnern}}",
+      "openFirst": "{name} öffnen"
     }
   },
   "NotFound": {

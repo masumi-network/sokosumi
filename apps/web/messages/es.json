@@ -1861,6 +1861,7 @@
       },
       "Detail": {
         "back": "Volver a Tasks",
+        "backToCalendar": "Volver al calendario",
         "privateBadge": "Privada",
         "visibility": "Visibilidad",
         "parentTask": "Padre:",
@@ -3812,10 +3813,10 @@
           "Image": {
             "width": "Ancho",
             "widths": {
-              "100": "Ancho completo",
-              "75": "Tres cuartos",
+              "25": "Un cuarto",
               "50": "Mitad",
-              "25": "Un cuarto"
+              "75": "Tres cuartos",
+              "100": "Ancho completo"
             },
             "align": "Alineación",
             "aligns": {
@@ -9933,6 +9934,8 @@
         },
         "Settings": {
           "titleLabel": "Título",
+          "welcomeLabel": "Nota de bienvenida",
+          "welcomeHint": "Se muestra en la página de bienvenida al abrir la sala. Se mantienen los saltos de línea.",
           "logoLabel": "Logo",
           "noLogo": "Sin logo",
           "logoHint": "Una imagen de esta sala, junto al título.",
@@ -10488,6 +10491,8 @@
         "moveRun": "Mover ejecución",
         "skipRun": "Omitir ejecución",
         "restoreRun": "Restaurar ejecución",
+        "runSkipped": "Se omitió la ejecución de {name}.",
+        "undo": "Deshacer",
         "openSchedule": "Abrir programación",
         "allDay": "Todo el día",
         "runStale": "Esta programación cambió en otro lugar. El calendario se está recargando; inténtalo de nuevo.",
@@ -10532,7 +10537,10 @@
         "showing": "Horas en {zone}"
       },
       "empty": {
-        "title": "Nada programado coincide con estos filtros.",
+        "title": "{view, select, month {No hay nada programado este mes} week {No hay nada programado esta semana} other {No hay nada próximo}}",
+        "filtered": "Nada programado coincide con estos filtros.",
+        "hint": "Aquí aparecen las tareas con hora de inicio, las ejecuciones de programaciones y las publicaciones con fecha.",
+        "createHint": "{view, select, agenda {Usa «Programar una tarea» para añadir una.} other {Usa «Programar una tarea» o haz clic en un día para empezar en esa fecha.}}",
         "socialOnly": "No hay publicaciones sociales programadas en este periodo."
       },
       "schedules": {
@@ -10878,7 +10886,7 @@
       },
       "toolbar": {
         "search": "Buscar contactos",
-        "searchPlaceholder": "Buscar nombre, empresa, correo…",
+        "searchPlaceholder": "Buscar nombre, empresa, correo, lugar…",
         "me": "Yo",
         "clearFilter": "Quitar el filtro {filter}",
         "export": "Exportar CSV",
@@ -10993,6 +11001,7 @@
         "channelTaken": "Alguien de tu equipo ya tiene a esta persona en Contactos.",
         "openExisting": "Abrir contacto",
         "failed": "El contacto no se guardó. Inténtalo de nuevo.",
+        "listFailed": "El contacto está guardado, pero aún no está en la lista. Inténtalo de nuevo para añadirlo.",
         "cancel": "Cancelar",
         "submit": "Añadir contacto"
       },
@@ -11084,6 +11093,8 @@
         "addToList": "Añadir a una lista",
         "manualLists": "Listas",
         "noManualLists": "Todavía no hay listas.",
+        "newList": "Nueva lista…",
+        "newListAddFailed": "{list} está creada, pero {name} aún no está en ella.",
         "empty": "Añadir…",
         "location": "Ubicación",
         "nextStepTitle": "Próximo paso",
@@ -11386,8 +11397,6 @@
       "signOut": "Cerrar sesión",
       "empty": "Todavía no hay nada en esta sala de datos.",
       "indexLabel": "Contenido",
-      "pickFile": "Elige un archivo para abrirlo.",
-      "new": "Nuevo",
       "download": "Descargar",
       "watermarkNote": "Las páginas e imágenes que abres llevan tu correo y la hora.",
       "downloadToOpen": "Este archivo no se puede mostrar aquí. Descárgalo para abrirlo.",
@@ -11399,7 +11408,11 @@
       "awaitingAnswer": "Esperando respuesta",
       "askLabel": "Pregunta sobre este documento",
       "ask": "Preguntar",
-      "askFailed": "No se pudo enviar tu pregunta. Inténtalo de nuevo."
+      "askFailed": "No se pudo enviar tu pregunta. Inténtalo de nuevo.",
+      "welcome": "Bienvenida",
+      "welcomeTitle": "Te damos la bienvenida a {title}",
+      "contents": "{files, plural, one {# documento} other {# documentos}}{folders, plural, =0 {} one { en # carpeta} other { en # carpetas}}",
+      "openFirst": "Abrir {name}"
     }
   },
   "NotFound": {
