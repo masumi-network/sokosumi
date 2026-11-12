@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { fetchSidebarRoomCollection } from "./fetch-sidebar-room-collection";
+import {
+  fetchSidebarRoom,
+  fetchSidebarRoomCollection,
+} from "./fetch-sidebar-room-collection";
 
 const fetchMock = vi.fn();
 const timestamp = "2026-09-08T10:00:00.000Z";
@@ -137,5 +140,48 @@ describe("sidebar collection GET requests", () => {
       rooms: [],
       nextCursor: null,
     });
+  });
+});
+
+describe("one-room sidebar read", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    fetchMock.mockReset();
+  });
+
+  function answer(data: unknown) {
+    return new Response(
+      JSON.stringify({
+        data,
+        meta: { timestamp, requestId: "request-1" },
+      }),
+      { headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  it("asks for the room by id and restores its dates", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockResolvedValue(
+      answer({
+        id: "room-1",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        userMembers: [],
+      }),
+    );
+
+    const room = await fetchSidebarRoom("room-1");
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/chat/rooms?roomId=room-1");
+    expect(room).toMatchObject({ updatedAt: new Date(timestamp) });
+  });
+
+  it("tells a room the reader can no longer open from a read that failed", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockResolvedValueOnce(answer(null));
+    fetchMock.mockResolvedValueOnce(new Response("{}", { status: 502 }));
+
+    await expect(fetchSidebarRoom("room-1")).resolves.toBe("gone");
+    await expect(fetchSidebarRoom("room-1")).resolves.toBeNull();
   });
 });
