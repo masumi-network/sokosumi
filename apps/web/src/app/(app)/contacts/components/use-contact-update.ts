@@ -169,10 +169,17 @@ export function useListToggle() {
     if (failed) {
       // After the reload, so the list is back when the toast says it is;
       // a reload that retries against a failing Core does not hold it long.
-      await Promise.race([
-        refresh.catch(() => {}),
-        new Promise((done) => setTimeout(done, FAILURE_TOAST_WAIT_MS)),
-      ]);
+      let cap: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          refresh.catch(() => {}),
+          new Promise((done) => {
+            cap = setTimeout(done, FAILURE_TOAST_WAIT_MS);
+          }),
+        ]);
+      } finally {
+        clearTimeout(cap);
+      }
       toast.error(
         t(on ? "panel.addToListFailed" : "panel.removeFromListFailed", {
           name: contact.name,
