@@ -102,6 +102,12 @@ export function TableCell({
   const [error, setError] = useState("");
   const [uncertain, setUncertain] = useState(false);
   const [pending, setPending] = useState(false);
+  // The value a save in flight will write. The cell reads as saved at once and
+  // its editor is out of the way; a failed save brings the editor back.
+  const [sent, setSent] = useState<{ value: Value }>();
+  // An editor that returns with a failed save must not pull focus out of the
+  // cell the user moved on to.
+  const [returned, setReturned] = useState(false);
   const cell = useRef<HTMLTableCellElement>(null);
   const version = useRef(row.version);
   const initial = useRef("");
@@ -110,7 +116,7 @@ export function TableCell({
   const open = useRef(false);
   const saving = useRef(false);
   const tapToEdit = useRef(false);
-  const value = row.values[column.id];
+  const value = sent ? sent.value : row.values[column.id];
   const text = tableValueText(value);
   const wrap = cellWrap(column);
   const editable = !disabled && column.type !== "checkbox";
@@ -126,6 +132,7 @@ export function TableCell({
     setDraft(next);
     version.current = row.version;
     open.current = true;
+    setReturned(false);
     setEditing(true);
     if (next !== text) onEditingChange?.(true);
   }
@@ -148,6 +155,11 @@ export function TableCell({
     try {
       const parsed = parseTableInput(column, next);
       setUncertain(true);
+      setSent({ value: parsed });
+      setReturned(true);
+      // The editor goes away with the save; focus still inside it (a select
+      // that saved on change, Retry) returns to the cell.
+      if (cell.current?.contains(document.activeElement)) cell.current.focus();
       await onSave(version.current, parsed);
       setUncertain(false);
       stopEditing();
@@ -157,6 +169,7 @@ export function TableCell({
     } finally {
       saving.current = false;
       setPending(false);
+      setSent(undefined);
     }
   }
   /** Saves a whole new value at once: a checkbox toggle or a paste. */
@@ -238,7 +251,7 @@ export function TableCell({
   }
 
   const editorProps = {
-    ref: focusEditor,
+    ref: returned ? undefined : focusEditor,
     "aria-label": column.name,
     "aria-invalid": !!error,
     disabled: pending || (!!error && uncertain),
@@ -424,6 +437,7 @@ export function TableCell({
       role="gridcell"
       aria-selected={active}
       aria-readonly={disabled || undefined}
+      aria-busy={sent ? true : undefined}
       aria-keyshortcuts={href ? "Alt+Enter Alt+Shift+H" : "Alt+Shift+H"}
       tabIndex={tabbable ? 0 : -1}
       title={wrap === "wrap" ? undefined : text || undefined}
@@ -443,14 +457,14 @@ export function TableCell({
       className={cn(
         "group/cell relative border-e border-b p-0 align-top select-none",
         active ? GRID_SELECTED_CELL : "outline-none",
-        editing && "z-15",
+        editing && !sent && "z-15",
         className,
       )}
     >
       <div className="flex min-h-8 min-w-0 items-start px-2 py-1.5 text-sm leading-5">
         {display()}
       </div>
-      {!editing && column.type !== "checkbox" && (
+      {(!editing || sent) && column.type !== "checkbox" && (
         // Revealed by pointer or selection: painting these on every cell
         // turned the grid into a field of icons. They are the pointer path
         // only: the keyboard and screen readers reach the same actions with
@@ -494,7 +508,7 @@ export function TableCell({
           </Button>
         </div>
       )}
-      {editing && column.type !== "checkbox" && (
+      {editing && !sent && column.type !== "checkbox" && (
         <div
           className={cn(
             "bg-background absolute start-0 top-0 min-w-full rounded-sm shadow-md select-text",
