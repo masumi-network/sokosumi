@@ -21,6 +21,7 @@ interface FullCalendarProps {
   borderless?: boolean;
   dateClick?: (info: { date: Date }) => void;
   dayCellClass?: string;
+  defaultTimedEventDuration?: number;
   editable?: boolean;
   eventAllow?: (
     span: Record<string, never>,
@@ -378,6 +379,13 @@ describe("WorkspaceCalendar editing", () => {
     expect(props.dateClick).toEqual(expect.any(Function));
     expect(props.editable).toBe(false);
     expect(props.plugins).toContain(interactionPluginMock);
+  });
+
+  it("keeps a late entry inside its own day cell", () => {
+    renderCalendar();
+
+    const props = fullCalendarMock.mock.calls[0]?.[0] as FullCalendarProps;
+    expect(props.defaultTimedEventDuration).toBe(0);
   });
 
   it("colors the actual day cell on hover without an overlay", () => {
@@ -921,6 +929,40 @@ describe("WorkspaceCalendar editing", () => {
     );
     expect(refreshMock).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["a planned Run", ITEM],
+    ["a moved Run, keeping its move", MOVED_ITEM],
+  ])(
+    "offers Undo after skipping %s, back at its time before the skip",
+    async (_name, item) => {
+      const user = userEvent.setup();
+      renderCalendar({ items: [item] });
+
+      await openEventMenu(user);
+      await user.click(screen.getByRole("menuitem", { name: "event.skipRun" }));
+
+      await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledOnce());
+      const [message, options] = toastSuccessMock.mock.calls[0] as [
+        string,
+        { action: { label: string; onClick: () => void } },
+      ];
+      expect(message).toBe("event.runSkipped");
+      expect(options.action.label).toBe("event.undo");
+
+      options.action.onClick();
+
+      await waitFor(() =>
+        expect(changeTaskScheduleRunMock).toHaveBeenLastCalledWith({
+          scheduleId: "schedule-1",
+          runId: item.id,
+          expectedRevision: 4,
+          action: "move",
+          scheduledAt: item.scheduledAt,
+        }),
+      );
+    },
+  );
 
   it("restores a moved Run to the rule's time", async () => {
     const user = userEvent.setup();

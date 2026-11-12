@@ -35,6 +35,7 @@ import {
   CircleDashed,
   Clock3,
   Ellipsis,
+  Plus,
   Repeat,
   Sparkles,
 } from "lucide-react";
@@ -75,6 +76,7 @@ import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { useReportMovedSocialPostQuotes } from "@/app/projects/components/social-posts/social-post-quote";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
+import { storeTasksReturnPath } from "@/app/tasks/components/task-navigation";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
 import {
@@ -572,6 +574,7 @@ function CalendarView({
   canCreate,
   coworkers,
   date,
+  emptyState,
   items,
   onDateClick,
   runHandlers,
@@ -585,6 +588,8 @@ function CalendarView({
   canCreate: boolean;
   coworkers: CalendarCoworker[];
   date: Date;
+  /** What an empty period says: nothing yet, or nothing matching. */
+  emptyState: ReactNode;
   items: WorkspaceCalendarEntry[];
   onDateClick: (date: Date) => void;
   runHandlers: RunHandlers;
@@ -790,9 +795,9 @@ function CalendarView({
       >
         <h2 className="text-lg font-semibold">{t("agenda.upcoming")}</h2>
         {items.length === 0 ? (
-          <p className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
-            {t(socialOnly ? "empty.socialOnly" : "empty.title")}
-          </p>
+          <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
+            {emptyState}
+          </div>
         ) : null}
         {Array.from(days, ([day, dayItems]) => (
           <section
@@ -894,6 +899,9 @@ function CalendarView({
             durationEditable: false,
           }))}
           timeZone={timeZone}
+          // Every entry is an instant. FullCalendar's default hour ran a run
+          // after 11 PM into the next day's cell.
+          defaultTimedEventDuration={0}
           headerToolbar={false}
           height={fillSpace && fillHeight ? fillHeight : "auto"}
           // Timed events default to "list-item" (dot + time + title); the card
@@ -1184,6 +1192,31 @@ export function WorkspaceCalendar({
         (!lockedProjectId || source.sourceId === `project:${lockedProjectId}`),
     );
 
+  const filtersActive =
+    state.scope === "owned" ||
+    (!socialOnly &&
+      (state.assigneeId !== null ||
+        state.assigneeUserId !== null ||
+        state.status !== null)) ||
+    (socialOnly && (state.postStatus !== null || state.provider !== null));
+  // A filter, or a feature hidden under Show, can empty a busy period; an
+  // empty one otherwise is a new workspace, so say what lands here and how.
+  const emptyState = socialOnly ? (
+    t("empty.socialOnly")
+  ) : filtersActive || shownTypes.length < availableTypes.length ? (
+    t("empty.filtered")
+  ) : (
+    <>
+      <span className="text-foreground block font-medium">
+        {t("empty.title", { view })}
+      </span>
+      <span className="mt-1 block">{t("empty.hint")}</span>
+      {canCreate ? (
+        <span className="block">{t("empty.createHint", { view })}</span>
+      ) : null}
+    </>
+  );
+
   useMountEffect(() => {
     if (!isValidTimezone(state.timezone)) {
       void setState({ timezone: timeZone }, { shallow: false });
@@ -1341,13 +1374,29 @@ export function WorkspaceCalendar({
 
   async function handleRunChange(
     item: ChangeableRun,
-    change: { action: "skip" | "restore" },
+    change: Parameters<typeof changeRun>[1],
   ) {
     try {
       const result = await changeRun(item, change);
       if (!result.ok) {
         reportRunChangeFailure(result.error.kind);
         return;
+      }
+      // A skipped Run leaves the calendar, so its Undo lives here: it moves
+      // the Run back to its time before the skip, a moved Run included
+      // (Restore would reset it to the rule's time). The skip bumped the
+      // schedule's revision by one.
+      if (change.action === "skip") {
+        toast.success(t("event.runSkipped", { name: item.taskName }), {
+          action: {
+            label: t("event.undo"),
+            onClick: () =>
+              void handleRunChange(
+                { ...item, scheduleRevision: item.scheduleRevision + 1 },
+                { action: "move", scheduledAt: item.scheduledAt },
+              ),
+          },
+        });
       }
     } catch {
       reportRunChangeFailure("failed");
@@ -1358,7 +1407,13 @@ export function WorkspaceCalendar({
     onMoveRun: setMovingRun,
     onRestoreRun: (item) => void handleRunChange(item, { action: "restore" }),
     onSkipRun: (item) => void handleRunChange(item, { action: "skip" }),
-    onOpen: (path) => router.push(path),
+    onOpen: (path) => {
+      // A task opened here offers Back to this view, period and filters.
+      if (path.startsWith("/tasks/")) {
+        storeTasksReturnPath(path);
+      }
+      router.push(path);
+    },
   };
 
   async function loadNextPage() {
@@ -1726,17 +1781,20 @@ export function WorkspaceCalendar({
                   ? "min-h-11 min-w-11 sm:min-h-8 sm:min-w-0"
                   : undefined
               }
-              showActiveIndicator={
-                state.scope === "owned" ||
-                (!socialOnly &&
-                  (state.assigneeId !== null ||
-                    state.assigneeUserId !== null ||
-                    state.status !== null)) ||
-                (socialOnly &&
-                  (state.postStatus !== null || state.provider !== null))
-              }
+              showActiveIndicator={filtersActive}
             />
           </div>
+          {canCreate ? (
+            // Phones have the + button; a day click is pointer-only.
+            <Button
+              className="max-md:hidden"
+              type="button"
+              onClick={handleAgendaCreate}
+            >
+              <Plus aria-hidden />
+              {t("create.fab")}
+            </Button>
+          ) : null}
         </div>
       </div>
       {canCreate ? (
@@ -1758,9 +1816,11 @@ export function WorkspaceCalendar({
             statuses={SOCIAL_POST_STATUSES}
           />
         ) : null}
-        {visibleItems.length === 0 && view !== "agenda" ? (
+        {/* The grid's period, not the whole loaded range: an empty week next
+            to a busy one still says so. */}
+        {view !== "agenda" && !visibleItems.some(inShownPeriod) ? (
           <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
-            {t(socialOnly ? "empty.socialOnly" : "empty.title")}
+            {emptyState}
           </div>
         ) : null}
         <CalendarView
@@ -1768,6 +1828,7 @@ export function WorkspaceCalendar({
           canCreate={canCreate}
           coworkers={coworkers}
           date={date}
+          emptyState={emptyState}
           items={visibleItems}
           onDateClick={handleDateClick}
           runHandlers={runHandlers}
