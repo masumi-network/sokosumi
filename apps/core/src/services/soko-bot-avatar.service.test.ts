@@ -147,6 +147,20 @@ describe("Soko Bot avatar pool", () => {
     await expect(generateAvatars(2, "user-1")).resolves.toBe(0);
   });
 
+  it("offers one picture per animal before repeating one", async () => {
+    for (const subject of ["sloth", "sloth", "sloth", "fox", "sloth", "owl"])
+      store.seed({ subject });
+
+    const offered = await listAvailableAvatars(4);
+
+    expect(offered.map((one) => one.subject).sort()).toEqual([
+      "fox",
+      "owl",
+      "sloth",
+      "sloth",
+    ]);
+  });
+
   it("reports how many images it actually added", async () => {
     // Probe succeeds, then one of the two remaining fills fails.
     putMock
