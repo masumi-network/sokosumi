@@ -47,7 +47,9 @@ export function BusinessMark({
   size = 28,
   wide = false,
 }: {
-  overview: CmoOverview;
+  /** A Cuso's overview, or his row in the Cuso picker (no brand visual). */
+  overview: Pick<CmoOverview, "projectLogo" | "businessName"> &
+    Partial<Pick<CmoOverview, "brandVisual">>;
   size?: number;
   /** Where room allows, a wordmark keeps its shape instead of a square. */
   wide?: boolean;

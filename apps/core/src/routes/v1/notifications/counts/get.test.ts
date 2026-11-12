@@ -125,14 +125,20 @@ describe("GET /notifications/counts", () => {
           referenceId: "task_waiting",
         },
         {
-          id: "n_task_done",
-          messageKey: "Notifications.Task.inputRequired",
-          referenceId: "task_done",
+          id: "n_grant",
+          messageKey: "notifications.vendorGrant.pending",
+          referenceId: "grant_pending",
+        },
+        {
+          id: "n_grant_done",
+          messageKey: "notifications.vendorGrant.pending",
+          referenceId: "grant_done",
         },
       ],
       { unread: 5, needsAction: 1, mentions: 2 },
     );
     taskFindManyMock.mockResolvedValue([{ id: "task_waiting" }]);
+    vendorGrantFindManyMock.mockResolvedValue([{ id: "grant_pending" }]);
 
     const app = createApp();
     const response = await app.request("http://localhost/counts");
@@ -149,8 +155,27 @@ describe("GET /notifications/counts", () => {
       where: {
         userId: "user_123",
         ...notificationFeedWhere(),
-        id: { in: ["n_task"] },
+        id: { in: ["n_task", "n_grant"] },
       },
+    });
+    // Needs you lists the active workspace's waiting Tasks from the Task
+    // summary, so only their asks leave the count. The ask still counted
+    // here is from another workspace, which that list does not cover.
+    expect(taskFindManyMock).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["task_waiting"] },
+        status: "INPUT_REQUIRED",
+        projectId: undefined,
+        NOT: {
+          archivedAt: null,
+          workspace: { organizationId: "org_123" },
+          OR: [
+            { visibility: "PUBLIC" },
+            { visibility: "PRIVATE", ownerId: "user_123" },
+          ],
+        },
+      },
+      select: { id: true },
     });
     // The Mentions tab counts what is still unread under it.
     expect(notificationCountMock).toHaveBeenCalledWith({

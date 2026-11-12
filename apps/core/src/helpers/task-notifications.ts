@@ -81,6 +81,12 @@ export async function dispatchTaskNotification(
     name: string | null;
     assignee: { name: string } | null;
     assigneeSokoBot: { name: string | null } | null;
+    /**
+     * Who wrote the status event, when it was a Soko Bot, an agent or a
+     * person. It names the row before the assignee does: a Soko Bot that
+     * finished a Task assigned to its person did the work, not the person.
+     */
+    writerName?: string | null;
     project: { name: string } | null;
     projectId: string | null;
     workspaceId: string | null;
@@ -138,6 +144,7 @@ export async function dispatchTaskNotification(
       ...task,
       extraMessageParams: {
         coworkerName:
+          task.writerName?.trim() ||
           task.assigneeSokoBot?.name?.trim() ||
           task.assignee?.name ||
           "Assistant",
@@ -243,12 +250,28 @@ export async function notifyTaskStatusEvent(
             name: true,
           },
         },
+        events: {
+          where: { id: eventId },
+          select: {
+            sokoBot: { select: { name: true } },
+            coworker: { select: { name: true } },
+            user: { select: { name: true } },
+          },
+        },
       },
     });
 
     if (taskWithRelations) {
+      const { events, ...task } = taskWithRelations;
+      const writer = events[0];
       await dispatchTaskNotification(
-        taskWithRelations,
+        {
+          ...task,
+          writerName:
+            writer?.sokoBot?.name ??
+            writer?.coworker?.name ??
+            writer?.user?.name,
+        },
         eventId,
         status,
         actorUserId,

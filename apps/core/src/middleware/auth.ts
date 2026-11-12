@@ -38,6 +38,8 @@ export interface UserAuthenticationContext {
    * that use {@link requireFirstPartyUserAuthContext} accept it.
    */
   firstPartyClient?: boolean;
+  /** The OAuth client that issued the token, for `authenticationMethod: "oauth"`. */
+  oauthClientId?: string;
   /**
    * Admin user id when this session impersonates another user (Better Auth
    * `impersonatedBy`). Absent otherwise. `userId`/`role` always describe the
@@ -633,6 +635,7 @@ async function verifyOAuthToken(
       organizationId: null,
       role: oauthToken.user.role ?? DEFAULT_USER_ROLE,
       authenticationMethod: "oauth",
+      oauthClientId: oauthToken.clientId,
       ...(client.skipConsent ? { firstPartyClient: true } : {}),
     },
   });

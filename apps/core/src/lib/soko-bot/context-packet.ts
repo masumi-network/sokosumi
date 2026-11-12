@@ -545,6 +545,8 @@ export class ContextPacketBuilder {
       userId: input.userId,
       organizationId,
       referenceId,
+      // The bot's Project (Cuso's): its Project credits count (ADR 0067).
+      projectId: input.sharedScope?.projectId,
       tx: prisma,
     });
     // Only routes that can hire carry the marketplace; the count still goes in.
