@@ -6,7 +6,7 @@ import type {
 } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { coreErrorOf } from "@/app/contacts/contacts-view";
 import { contactsService } from "@/lib/services/contacts.client";
@@ -113,17 +113,17 @@ export function useContactUpdate() {
  * Puts a contact on a manual list or takes it off. The chip changes at once.
  * Saves go to Core one after the other, in the order of the clicks, and the
  * reload waits for the last of them: a reload between two saves would show
- * the lists from before the second one.
+ * the lists from before the second one. `isSaving` marks a list whose save
+ * has not answered yet, so the changed chip does not read as saved.
  */
 export function useListToggle() {
   const t = useTranslations("App.Contacts");
   const cache = useQueryClient();
   const saves = useRef({ open: 0, last: Promise.resolve() }).current;
-  return async function toggleList(
-    contact: Contact,
-    list: ContactList,
-    on: boolean,
-  ) {
+  const [saving, setSaving] = useState<string[]>([]);
+  const isSaving = (contactId: string, listId: string) =>
+    saving.includes(`${contactId} ${listId}`);
+  async function toggleList(contact: Contact, list: ContactList, on: boolean) {
     const { id, name, color } = list;
     // A load under way holds the lists from before this click.
     void cache.cancelQueries({ queryKey: contactKey(contact.id) });
@@ -139,6 +139,8 @@ export function useListToggle() {
         ? [...contact.lists, { id, name, color, addedAutomatically: false }]
         : contact.lists.filter((item) => item.id !== id),
     });
+    const key = `${contact.id} ${id}`;
+    setSaving((current) => [...current, key]);
     saves.open += 1;
     const save = saves.last.then(() =>
       contactsService.changeMembers(
@@ -153,9 +155,21 @@ export function useListToggle() {
     try {
       await save;
     } catch (error) {
-      toast.error(coreErrorOf(error).message ?? t("errors.saveFailed"));
+      toast.error(
+        t(on ? "panel.addToListFailed" : "panel.removeFromListFailed", {
+          name: contact.name,
+          list: name,
+        }),
+        { description: coreErrorOf(error).message },
+      );
     }
     saves.open -= 1;
     if (saves.open === 0) await refreshContacts(cache, contact.id);
-  };
+    // Drops one entry: a second click on the same list keeps its own.
+    setSaving((current) => {
+      const index = current.indexOf(key);
+      return current.filter((_, at) => at !== index);
+    });
+  }
+  return { toggleList, isSaving };
 }

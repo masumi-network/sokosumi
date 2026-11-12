@@ -11093,6 +11093,8 @@
         "noManualLists": "No lists yet.",
         "newList": "New list…",
         "newListAddFailed": "{list} is ready, but {name} isn't on it yet.",
+        "addToListFailed": "Could not add {name} to {list}. The contact is off the list again.",
+        "removeFromListFailed": "Could not take {name} off {list}. The contact is back on the list.",
         "empty": "Add…",
         "location": "Location",
         "nextStepTitle": "Next step",

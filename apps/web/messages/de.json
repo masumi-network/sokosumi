@@ -11093,6 +11093,8 @@
         "noManualLists": "Noch keine Listen.",
         "newList": "Neue Liste…",
         "newListAddFailed": "{list} ist angelegt, aber {name} steht noch nicht darauf.",
+        "addToListFailed": "{name} konnte nicht zu {list} hinzugefügt werden. Der Kontakt steht wieder nicht auf der Liste.",
+        "removeFromListFailed": "{name} konnte nicht von {list} entfernt werden. Der Kontakt steht wieder auf der Liste.",
         "empty": "Hinzufügen…",
         "location": "Ort",
         "nextStepTitle": "Nächster Schritt",

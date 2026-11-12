@@ -8,7 +8,8 @@ import { CONTACTS_KEY, contactKey } from "./use-contacts-data";
 
 const f = vi.hoisted(() => ({ changeMembers: vi.fn(), toastError: vi.fn() }));
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    [key, ...Object.values(values ?? {})].join(" "),
 }));
 vi.mock("sonner", () => ({ toast: { error: f.toastError } }));
 vi.mock("@/lib/auth/auth.client", () => ({ useSession: () => ({}) }));
@@ -33,7 +34,13 @@ function setup() {
   const { result } = renderHook(() => useListToggle(), { wrapper });
   const shown = () =>
     cache.getQueryData<Contact>(contactKey(contact.id))?.lists ?? [];
-  return { toggle: result.current, shown, invalidate, cache };
+  return {
+    toggle: result.current.toggleList,
+    shown,
+    invalidate,
+    cache,
+    result,
+  };
 }
 
 describe("useListToggle", () => {
@@ -190,9 +197,37 @@ describe("useListToggle", () => {
     f.changeMembers.mockRejectedValue({ message: "No access" });
     const { toggle, invalidate } = setup();
     await act(() => toggle(contact, list, true));
-    expect(f.toastError).toHaveBeenCalledOnce();
+    expect(f.toastError).toHaveBeenCalledWith(
+      "panel.addToListFailed Ada Investors",
+      { description: "No access" },
+    );
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: contactKey(contact.id),
     });
+  });
+
+  it("names the contact and list when taking it off fails", async () => {
+    f.changeMembers.mockRejectedValue({});
+    const { toggle } = setup();
+    await act(() => toggle(contact, list, false));
+    expect(f.toastError).toHaveBeenCalledWith(
+      "panel.removeFromListFailed Ada Investors",
+      { description: undefined },
+    );
+  });
+
+  it("marks the list as saving until the save answers", async () => {
+    let finish = () => {};
+    f.changeMembers.mockReturnValue(
+      new Promise<void>((resolve) => void (finish = resolve)),
+    );
+    const { toggle, result } = setup();
+    let done = Promise.resolve();
+    act(() => void (done = toggle(contact, list, true)));
+    expect(result.current.isSaving("contact-1", "list-1")).toBe(true);
+    expect(result.current.isSaving("contact-1", "list-2")).toBe(false);
+    finish();
+    await act(() => done);
+    expect(result.current.isSaving("contact-1", "list-1")).toBe(false);
   });
 });
