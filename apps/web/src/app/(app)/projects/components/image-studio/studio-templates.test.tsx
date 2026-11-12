@@ -236,7 +236,13 @@ describe("starting from a template", () => {
     expect(screen.getByText("#23453c")).toBeInTheDocument();
     expect(screen.getByText("Georgia")).toBeInTheDocument();
     expect(tone).toHaveValue("Clear and warm");
-    fireEvent.click(screen.getByRole("button", { name: "BrandKit.resetLook" }));
+    // The saved message commits before the look transition ends; a busy
+    // Button swallows clicks, so wait until it is idle.
+    const resetLook = screen.getByRole("button", {
+      name: "BrandKit.resetLook",
+    });
+    await waitFor(() => expect(resetLook).not.toHaveAttribute("aria-busy"));
+    fireEvent.click(resetLook);
     await screen.findByText("BrandKit.lookReset");
     expect(screen.getByText("#a33421")).toBeInTheDocument();
     expect(tone).toHaveValue("Clear and warm");
