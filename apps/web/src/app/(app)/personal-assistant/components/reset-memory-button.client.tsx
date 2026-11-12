@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { toast } from "sonner";
@@ -22,7 +21,6 @@ import { useSokoBotTargetId } from "./soko-bot-target";
 
 export function ResetMemoryButton() {
   const t = useTranslations("App.SokoBot.Memory");
-  const router = useRouter();
   const botId = useSokoBotTargetId();
   const [isPending, startTransition] = useTransition();
 
@@ -51,7 +49,6 @@ export function ResetMemoryButton() {
                   return;
                 }
                 toast.success(t("resetDone"));
-                router.refresh();
               })
             }
           >

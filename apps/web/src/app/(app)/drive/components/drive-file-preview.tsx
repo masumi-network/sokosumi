@@ -5,9 +5,11 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { DriveSpreadsheet } from "@/app/drive/components/drive-spreadsheet";
+import { CapTableFileView } from "@/components/cap-table/cap-table-view";
 import Markdown from "@/components/markdown";
 import { TeamFileView } from "@/components/team/team-view";
 import { Button } from "@/components/ui/button";
+import { isCapTableFileName } from "@/lib/cap-table-file";
 import { spreadsheetKind } from "@/lib/spreadsheet-file";
 import { isTeamFileName } from "@/lib/team-file";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
@@ -164,9 +166,11 @@ export function DriveFilePreview({
   const type = effectiveType(mimeType, displayName);
   const source = contentUrl({ resourceId, store });
   const isTeam = isTeamFileName(displayName);
+  const isCapTable = isCapTableFileName(displayName);
   const sheet = spreadsheetKind(type, displayName);
   const isText =
     !isTeam &&
+    !isCapTable &&
     !sheet &&
     TEXT_TYPES.has(type) &&
     (sizeBytes === null || sizeBytes <= MAX_TEXT_PREVIEW_BYTES);
@@ -230,6 +234,8 @@ export function DriveFilePreview({
 
       {isTeam ? (
         <TeamFileView url={source} />
+      ) : isCapTable ? (
+        <CapTableFileView url={source} />
       ) : sheet ? (
         <DriveSpreadsheet
           resourceId={resourceId}

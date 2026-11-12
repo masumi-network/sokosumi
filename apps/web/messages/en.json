@@ -1106,6 +1106,27 @@
       "empty": "This sheet is empty.",
       "truncated": "Showing the first {rows} rows and 50 columns. Download the file to see the rest."
     },
+    "CapTableView": {
+      "loading": "Loading cap table",
+      "failed": "This cap table file can't be shown. Check that it is a valid cap table file.",
+      "title": "{company} cap table",
+      "asOf": "As of {date}",
+      "ownership": "Ownership, fully diluted",
+      "holder": "Holder",
+      "class": "Class",
+      "shares": "Shares",
+      "issued": "Issued",
+      "fullyDiluted": "Fully diluted",
+      "optionPool": "Option pool",
+      "vesting": "Vesting: {schedule}",
+      "granted": "{granted} granted, {available} available",
+      "total": "Total",
+      "issuedShares": "Issued shares",
+      "reservedShares": "Reserved for stock plan",
+      "unallocatedShares": "Not issued or reserved",
+      "authorizedShares": "Authorized shares",
+      "parValue": "Par value"
+    },
     "TeamView": {
       "loading": "Loading team",
       "failed": "This team file can't be shown. Check that it is a valid team file.",
@@ -1840,6 +1861,7 @@
       },
       "Detail": {
         "back": "Back to tasks",
+        "backToCalendar": "Back to calendar",
         "privateBadge": "Private",
         "visibility": "Visibility",
         "parentTask": "Parent:",
@@ -3564,7 +3586,20 @@
           }
         },
         "Calendar": {
-          "title": "Calendar"
+          "title": "Calendar",
+          "nextIssue": "Next issue",
+          "nothingScheduled": "Nothing scheduled yet. Schedule an issue and it shows here.",
+          "openFullCalendar": "Open full calendar",
+          "emptyTitle": "No issues yet",
+          "emptyDescription": "Write an issue and it shows here by date.",
+          "goToIssues": "Go to issues",
+          "groups": {
+            "scheduled": "Scheduled",
+            "unscheduled": "Not scheduled",
+            "sent": "Sent"
+          },
+          "count": "{count, plural, one {# issue} other {# issues}}",
+          "newestOnly": "Showing the newest {count} issues. Open the full calendar to see older ones."
         },
         "Issues": {
           "title": "Issues",
@@ -3595,6 +3630,7 @@
           "previewText": "Preview text",
           "status": "Status",
           "sentAt": "Sent {date}",
+          "sentTo": "Sent {date} to {count, plural, one {# subscriber} other {# subscribers}}",
           "firstPage": "First page",
           "nextPage": "Next page",
           "results": "{count, plural, one {# issue} other {# issues}}",
@@ -3777,10 +3813,10 @@
           "Image": {
             "width": "Width",
             "widths": {
-              "100": "Full width",
-              "75": "Three quarters",
+              "25": "Quarter",
               "50": "Half",
-              "25": "Quarter"
+              "75": "Three quarters",
+              "100": "Full width"
             },
             "align": "Alignment",
             "aligns": {
@@ -10453,6 +10489,8 @@
         "moveRun": "Move run",
         "skipRun": "Skip run",
         "restoreRun": "Restore run",
+        "runSkipped": "Skipped the {name} run.",
+        "undo": "Undo",
         "openSchedule": "Open schedule",
         "allDay": "All day",
         "runStale": "This schedule changed somewhere else. The calendar is reloading; try again.",
@@ -10497,7 +10535,10 @@
         "showing": "Times in {zone}"
       },
       "empty": {
-        "title": "Nothing scheduled matches these filters.",
+        "title": "{view, select, month {Nothing scheduled this month} week {Nothing scheduled this week} other {Nothing coming up}}",
+        "filtered": "Nothing scheduled matches these filters.",
+        "hint": "Tasks with a start time, schedule runs and dated posts show up here.",
+        "createHint": "{view, select, agenda {Use Schedule a task to add one.} other {Use Schedule a task, or click a day to start on that date.}}",
         "socialOnly": "No social posts are scheduled in this period."
       },
       "schedules": {
@@ -10843,7 +10884,7 @@
       },
       "toolbar": {
         "search": "Search contacts",
-        "searchPlaceholder": "Search name, company, email…",
+        "searchPlaceholder": "Search name, company, email, place…",
         "me": "Me",
         "clearFilter": "Clear {filter} filter",
         "export": "Export CSV",
@@ -10958,6 +10999,7 @@
         "channelTaken": "Someone on your team already has this person in Contacts.",
         "openExisting": "Open contact",
         "failed": "The contact didn't save. Try again.",
+        "listFailed": "The contact is saved but isn't on the list yet. Try again to add them.",
         "cancel": "Cancel",
         "submit": "Add contact"
       },
@@ -11049,6 +11091,8 @@
         "addToList": "Add to a list",
         "manualLists": "Lists",
         "noManualLists": "No lists yet.",
+        "newList": "New list…",
+        "newListAddFailed": "{list} is ready, but {name} isn't on it yet.",
         "empty": "Add…",
         "location": "Location",
         "nextStepTitle": "Next step",
