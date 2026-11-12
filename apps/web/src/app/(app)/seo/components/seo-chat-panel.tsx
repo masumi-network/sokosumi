@@ -16,7 +16,7 @@ import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import { SEO_ASK_BUTTON_ID } from "./seo-ask-button";
-import { SeoChatComposer, SeoPromptChips } from "./seo-chat-composer";
+import { SeoChatComposer } from "./seo-chat-composer";
 import { seoChatSuggestions } from "./seo-chat-prompts";
 import {
   SeoAgentOrb,
@@ -175,20 +175,6 @@ function SeoChatThread({
         ) : null}
       </div>
       <div className="shrink-0 space-y-2 px-4 pb-4">
-        <SeoPromptChips
-          busy={chat.busy}
-          prompts={prompts}
-          onPick={(question) => {
-            // The chips change once the question is out: focus moves to the
-            // field, or to the thread where the field would open a keyboard.
-            document
-              .getElementById(
-                devicePrefersHover() ? inputId : threadId(inputId),
-              )
-              ?.focus({ preventScroll: true });
-            void chat.send(question);
-          }}
-        />
         {chat.error ? (
           <p role="alert" className="text-destructive text-sm">
             {chat.error}
@@ -203,6 +189,7 @@ function SeoChatThread({
           }}
           busy={chat.busy}
           sharing={chat.sharing}
+          prompts={prompts}
         />
       </div>
     </div>

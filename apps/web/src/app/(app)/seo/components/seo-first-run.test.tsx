@@ -849,7 +849,7 @@ describe("SEO agent chat", () => {
     ).toBeVisible();
   });
 
-  it("sends a suggested question with one click in the chat sheet", async () => {
+  it("puts a suggested question in the field, to send or change, in the chat sheet", async () => {
     const user = userEvent.setup();
     const workspace = chatWorkspace();
     const posts: string[] = [];
@@ -870,12 +870,22 @@ describe("SEO agent chat", () => {
         name: copy.agent.prompts.first,
       }),
     );
+    const field = within(sheet).getByLabelText("Your question");
+    // The press only fills the field: nothing is sent until Send.
+    expect(field).toHaveValue(copy.agent.prompts.first);
+    await waitFor(() => expect(field).toHaveFocus());
+    expect(posts).toEqual([]);
+    // With a question in the field the suggestions step aside.
+    expect(
+      within(sheet).queryByRole("group", { name: copy.chat.suggestions }),
+    ).toBeNull();
+    await user.click(
+      within(sheet).getByRole("button", { name: copy.chat.send }),
+    );
     expect(
       await within(sheet).findByText("Start with the title."),
     ).toBeVisible();
     expect(posts).toEqual([copy.agent.prompts.first]);
-    // A keyboard is at hand: the next question can be typed at once.
-    expect(within(sheet).getByLabelText("Your question")).toHaveFocus();
     // The chips follow the answer: its follow-up is offered, the question asked is not.
     expect(
       within(sheet).getByRole("button", { name: copy.agent.prompts.howToDo }),

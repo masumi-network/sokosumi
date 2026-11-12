@@ -80,6 +80,19 @@ describe("SEO agent reply", () => {
     }
   });
 
+  it("shows a bare page address without its scheme and www, and keeps a named link", () => {
+    const links = [
+      ...reply(
+        "See https://www.site.app/ and https://site.app/guides/plug-in/ or [the guide](https://site.app/guide).",
+      ).querySelectorAll("a"),
+    ].map((link) => [link.textContent, link.getAttribute("href")]);
+    expect(links).toEqual([
+      ["site.app", "https://www.site.app/"],
+      ["site.app/guides/plug-in", "https://site.app/guides/plug-in/"],
+      ["the guide", "https://site.app/guide"],
+    ]);
+  });
+
   it("puts reply headings below the chat heading and wraps a table", () => {
     const structure = reply(
       "# Summary\n\n| Page | Clicks |\n| --- | --- |\n| / | 4 |",

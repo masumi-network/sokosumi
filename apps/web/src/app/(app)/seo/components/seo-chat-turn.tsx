@@ -12,7 +12,7 @@ import {
 import { useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -108,86 +108,109 @@ function ChatActions({
   model: SeoWorkspaceModel;
 }) {
   const t = useTranslations("App.Seo");
-  return (
-    <div className="flex flex-wrap gap-2">
-      {turn.actions.map((action, index) => {
-        if (action.kind === "connect")
-          return (
-            <SeoConnectionButton
-              key={`${action.provider}:${index}`}
-              provider={action.provider}
-              inRow
-              onConnected={() => {
-                void model.result.refetch();
-              }}
-            />
-          );
-        if (action.kind === "task") {
-          // The reply is history; the current workspace decides whether the action still exists.
-          // Opportunity IDs stay stable across syncs; a fix belongs to one report.
-          const current = model.data.actions.find(
-            (row) =>
-              row.id === action.actionId &&
-              (row.kind === "opportunity" ||
-                row.observationId === action.observationId),
-          );
-          if (!current) return null;
-          return current.taskId ? (
-            <Button
-              key={`${action.actionId}:${index}`}
-              asChild
-              size="sm"
-              variant="outline"
-            >
-              <Link href={`/tasks/${encodeURIComponent(current.taskId)}`}>
+  const tasks: ReactNode[] = [];
+  const buttons: ReactNode[] = [];
+  turn.actions.forEach((action, index) => {
+    if (action.kind === "connect") {
+      buttons.push(
+        <SeoConnectionButton
+          key={`${action.provider}:${index}`}
+          provider={action.provider}
+          inRow
+          onConnected={() => {
+            void model.result.refetch();
+          }}
+        />,
+      );
+      return;
+    }
+    if (action.kind === "task") {
+      // The reply is history; the current workspace decides whether the action still exists.
+      // Opportunity IDs stay stable across syncs; a fix belongs to one report.
+      const current = model.data.actions.find(
+        (row) =>
+          row.id === action.actionId &&
+          (row.kind === "opportunity" ||
+            row.observationId === action.observationId),
+      );
+      if (!current) return;
+      // One list row per task: the title as text and one small button, not a long button per title.
+      // A reader who cannot edit still sees the fix the reply points to, without the button.
+      tasks.push(
+        <li
+          key={`${action.actionId}:${index}`}
+          className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-3 py-2"
+        >
+          <span className="min-w-48 flex-1 text-sm break-words">
+            {current.title}
+          </span>
+          {current.taskId ? (
+            <Button asChild size="sm" variant="ghost" className="shrink-0">
+              <Link
+                href={`/tasks/${encodeURIComponent(current.taskId)}`}
+                aria-label={`${t("openTask")}: ${current.title}`}
+              >
                 <ArrowUpRight />
                 {t("openTask")}
               </Link>
             </Button>
           ) : model.data.availableActions.canEdit ? (
             <Button
-              key={`${action.actionId}:${index}`}
               size="sm"
               variant="outline"
-              className="h-auto max-w-full py-1.5 text-start break-words whitespace-normal"
+              className="shrink-0"
+              // The visible words are the same on every row; the name says which task.
+              aria-label={t("chat.createTask", { title: current.title })}
               loading={model.pending}
               onClick={() => {
                 void model.createActionTask(current);
               }}
             >
               <ClipboardPlus />
-              {t("chat.createTask", { title: current.title })}
+              {t("actions.createTask")}
             </Button>
-          ) : null;
-        }
-        // Older replies may still suggest the removed report import.
-        if (
-          action.dialog === "import" ||
-          (action.dialog === "analysis" &&
-            !model.data.availableActions.canRequestAnalysis)
-        )
-          return null;
-        const Icon = ACTION_ICONS[action.dialog];
-        // A newer Core can name a dialog this build does not have.
-        if (!Icon) return null;
-        return (
-          <Button
-            key={`${action.dialog}:${index}`}
-            variant="outline"
-            size="sm"
-            disabled={!model.data.availableActions.canEdit}
-            onClick={() => {
-              // While a check runs the form does not open: the chat stays, beside the notice.
-              if (action.dialog === "analysis" && model.checkInFlight()) return;
-              model.setChatOpen(false);
-              model.setDialog(action.dialog as SeoDialog);
-            }}
-          >
-            <Icon />
-            {t(ACTION_LABELS[action.dialog])}
-          </Button>
-        );
-      })}
+          ) : null}
+        </li>,
+      );
+      return;
+    }
+    // Older replies may still suggest the removed report import.
+    if (
+      action.dialog === "import" ||
+      (action.dialog === "analysis" &&
+        !model.data.availableActions.canRequestAnalysis)
+    )
+      return;
+    const Icon = ACTION_ICONS[action.dialog];
+    // A newer Core can name a dialog this build does not have.
+    if (!Icon) return;
+    buttons.push(
+      <Button
+        key={`${action.dialog}:${index}`}
+        variant="outline"
+        size="sm"
+        disabled={!model.data.availableActions.canEdit}
+        onClick={() => {
+          // While a check runs the form does not open: the chat stays, beside the notice.
+          if (action.dialog === "analysis" && model.checkInFlight()) return;
+          model.setChatOpen(false);
+          model.setDialog(action.dialog as SeoDialog);
+        }}
+      >
+        <Icon />
+        {t(ACTION_LABELS[action.dialog])}
+      </Button>,
+    );
+  });
+  if (!tasks.length && !buttons.length) return null;
+  return (
+    <div className="space-y-2">
+      {tasks.length ? (
+        <ul className="divide-border divide-y rounded-lg border">{tasks}</ul>
+      ) : null}
+      {buttons.length ? (
+        <div className="flex flex-wrap gap-2">{buttons}</div>
+      ) : null}
     </div>
   );
 }

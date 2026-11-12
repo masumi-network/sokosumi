@@ -15,13 +15,11 @@ import { SEO_CHAT_QUESTION_LIMIT } from "./use-seo-chat";
 /** An IME reports this key code for the Enter that confirms a composition. */
 const IME_KEY_CODE = 229;
 
-/** Questions the reader can send with one click: small chips right over the question field. */
-export function SeoPromptChips({
-  busy = false,
+/** Questions inside the question card: a press puts the question in the field, to send or to change. */
+function SeoPromptChips({
   prompts,
   onPick,
 }: {
-  busy?: boolean;
   prompts: readonly SeoChatPrompt[];
   onPick: (question: string) => void;
 }) {
@@ -29,18 +27,19 @@ export function SeoPromptChips({
   if (!prompts.length) return null;
   return (
     // A new set rises in, so the change after an answer is seen.
-    <div key={prompts.join()} className="content-rise flex flex-wrap gap-2">
+    <div
+      key={prompts.join()}
+      role="group"
+      aria-label={t("chat.suggestions")}
+      className="content-rise flex flex-wrap gap-2 px-4 pt-3"
+    >
       {prompts.map((prompt) => (
         <button
           key={prompt}
           type="button"
           // A quiet pill. On a phone an invisible band widens the hit area to 40px.
-          className="border-border text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring press relative inline-flex min-h-7 max-w-full items-center rounded-full border px-2.5 py-0.5 text-start text-xs transition-colors outline-none focus-visible:ring-2 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 max-sm:min-h-8 max-sm:before:absolute max-sm:before:inset-x-0 max-sm:before:-inset-y-1 max-sm:before:content-['']"
-          // Not the disabled attribute: that drops focus from the chip just pressed.
-          aria-disabled={busy || undefined}
-          onClick={() => {
-            if (!busy) onPick(t(`agent.prompts.${prompt}`));
-          }}
+          className="border-border text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring press relative inline-flex min-h-7 max-w-full items-center rounded-full border px-2.5 py-0.5 text-start text-xs transition-colors outline-none focus-visible:ring-2 max-sm:min-h-8 max-sm:before:absolute max-sm:before:inset-x-0 max-sm:before:-inset-y-1 max-sm:before:content-['']"
+          onClick={() => onPick(t(`agent.prompts.${prompt}`))}
         >
           {t(`agent.prompts.${prompt}`)}
         </button>
@@ -57,6 +56,7 @@ export function SeoChatComposer({
   onSend,
   busy = false,
   sharing,
+  prompts = [],
 }: {
   inputId: string;
   value: string;
@@ -64,6 +64,8 @@ export function SeoChatComposer({
   onSend: () => void;
   busy?: boolean;
   sharing: "organization" | "personal";
+  /** Shown in the card while the field is empty. */
+  prompts?: readonly SeoChatPrompt[];
 }) {
   const t = useTranslations("App.Seo");
   const Sharing = sharing === "organization" ? Users : Lock;
@@ -79,6 +81,24 @@ export function SeoChatComposer({
         attachments={[]}
         onRemoveAttachment={() => {}}
         removeAttachmentLabel={(name) => name}
+        aboveEditor={
+          value ? null : (
+            <SeoPromptChips
+              prompts={prompts}
+              onPick={(question) => {
+                const field = document.getElementById(inputId);
+                if (!(field instanceof HTMLTextAreaElement)) return;
+                onChange(question);
+                // Focus inside the tap, so a phone opens its keyboard; the pressed chip goes with the empty field.
+                field.focus();
+                // The reader can change the question before sending it: the caret waits at its end, once the value is in.
+                requestAnimationFrame(() =>
+                  field.setSelectionRange(question.length, question.length),
+                );
+              }}
+            />
+          )
+        }
         isSending={busy}
         sendDisabled={!value.trim()}
         sendAriaLabel={t("chat.send")}

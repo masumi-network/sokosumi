@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 const REMARK_PLUGINS = [remarkBreaks, remarkGfm];
 /** Only an outside address becomes a link. An app path in model output could start an app action. */
 const OUTSIDE_LINK = /^(https?:|mailto:)/i;
+/** The scheme, "www." and a closing slash of a bare address: "https://www.site.app/" reads as "site.app". */
+const ADDRESS_NOISE = /^https?:\/\/(www\.)?|\/$/gi;
 
 /**
  * How a reply renders. Its headings sit below the chat's own heading. It loads
@@ -32,7 +34,8 @@ const COMPONENTS: Components = {
         target="_blank"
         rel="noopener noreferrer"
       >
-        {children}
+        {/* A bare address is long and alike on every line; the short form names the page. */}
+        {children === href ? href.replace(ADDRESS_NOISE, "") : children}
       </a>
     ) : (
       children
