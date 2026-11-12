@@ -6,6 +6,15 @@ const text = z.string().max(20_000);
 const label = z.string().max(100);
 const url = z.string().max(4096);
 const count = z.number().finite().nullable();
+/** The SEO bot writes at most 1500 characters. One character can be 2 UTF-16 units, which is what the check counts. */
+export const SEO_STRATEGY_DRAFT_MAX_LENGTH = 3000;
+
+/** The one place of a promotion action: where the owner posts or gets listed. */
+export const seoStrategyPlaceSchema = z.object({
+  name: text.min(1),
+  url,
+  form: label,
+});
 
 /** The strategy results of a site audit that Core keeps. The helper checks each URL at import. */
 export const seoStrategyPayloadSchema = z.object({
@@ -34,6 +43,10 @@ export const seoStrategyPayloadSchema = z.object({
         expectedEffect: text,
         effort: z.enum(["low", "medium", "high"]),
         limit: text.nullable(),
+        /** A promotion action names one place to post in or to get listed on. Older rows have none. */
+        place: seoStrategyPlaceSchema.optional(),
+        /** The text the audit wrote for the place, for the owner to read and post. */
+        draft: z.string().max(SEO_STRATEGY_DRAFT_MAX_LENGTH).optional(),
         targets: z
           .array(
             z.object({

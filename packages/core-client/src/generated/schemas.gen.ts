@@ -40438,6 +40438,33 @@ export const ProjectSeoStrategySchema = {
                         ],
                         maxLength: 20000
                     },
+                    place: {
+                        type: 'object',
+                        properties: {
+                            name: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 20000
+                            },
+                            url: {
+                                type: 'string',
+                                maxLength: 4096
+                            },
+                            form: {
+                                type: 'string',
+                                maxLength: 100
+                            }
+                        },
+                        required: [
+                            'name',
+                            'url',
+                            'form'
+                        ]
+                    },
+                    draft: {
+                        type: 'string',
+                        maxLength: 3000
+                    },
                     targets: {
                         type: 'array',
                         items: {

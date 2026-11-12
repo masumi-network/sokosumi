@@ -245,6 +245,69 @@ describe("public SEO report trust boundary", () => {
     ).toEqual([null, null, null]);
   });
 
+  it("keeps a promotion action's place and text; a place that is no web link goes with its text, and the action stays", () => {
+    const base = siteStrategyReport();
+    const promote = {
+      ...base.strategy.actions[0],
+      kind: "promote",
+      targets: [],
+      place: {
+        name: "r/example",
+        url: "https://www.reddit.com/r/example/",
+        form: "community",
+      },
+      draft: "I make Example.\n\nIt does one thing.",
+    };
+    const actions = parsePublicSeoArtifact({
+      ...base,
+      strategy: {
+        ...base.strategy,
+        actions: [
+          promote,
+          {
+            ...promote,
+            place: { ...promote.place, url: "javascript:alert(1)" },
+          },
+          {
+            ...promote,
+            place: { ...promote.place, name: " " },
+            draft: "x".repeat(3001),
+          },
+          { ...promote, place: null, draft: null },
+          // A form of the fields that Core cannot read.
+          { ...promote, place: "r/example", draft: 5 },
+          { ...promote, place: { ...promote.place, form: "x".repeat(101) } },
+          // 1500 characters of 2 UTF-16 units each: the longest text the bot writes.
+          { ...promote, draft: "\u{1F600}".repeat(1500) },
+          { ...promote, draft: " \n" },
+        ],
+      },
+    }).strategy?.actions;
+    expect(actions?.[0]).toMatchObject({
+      kind: "promote",
+      place: promote.place,
+      draft: promote.draft,
+    });
+    expect(actions?.[1]).toMatchObject({ kind: "promote" });
+    expect(actions?.[1].place).toBeUndefined();
+    expect(actions?.[1].draft).toBeUndefined();
+    // A blank name shows the address. A text longer than the bot writes, or a null, loses the text only.
+    expect(actions?.[2].place?.name).toBe(promote.place.url);
+    expect(actions?.[2].draft).toBeUndefined();
+    expect(actions?.[3]).toMatchObject({ kind: "promote" });
+    expect(actions?.[3].place).toBeUndefined();
+    expect(actions?.[3].draft).toBeUndefined();
+    // Core kept neither field before, so a form it cannot read loses the place and its text, not the strategy.
+    for (const row of [4, 5]) {
+      expect(actions?.[row]).toMatchObject({ kind: "promote" });
+      expect(actions?.[row].place).toBeUndefined();
+      expect(actions?.[row].draft).toBeUndefined();
+    }
+    expect(actions?.[6].draft).toHaveLength(3000);
+    expect(actions?.[7].place).toEqual(promote.place);
+    expect(actions?.[7].draft).toBeUndefined();
+  });
+
   it("imports the audit with a note when it cannot read the strategy section", () => {
     for (const broken of [
       { verdict: "keep" },

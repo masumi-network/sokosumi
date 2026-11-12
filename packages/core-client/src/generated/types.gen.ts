@@ -10647,6 +10647,12 @@ export type ProjectSeoStrategy = {
         expectedEffect: string;
         effort: 'low' | 'medium' | 'high';
         limit: string | null;
+        place?: {
+            name: string;
+            url: string;
+            form: string;
+        };
+        draft?: string;
         targets: Array<{
             url: string;
             title: string | null;
