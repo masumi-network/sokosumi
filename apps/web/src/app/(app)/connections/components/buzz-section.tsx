@@ -62,10 +62,15 @@ export async function BuzzSection() {
                   the dialog must outlive that. */}
               <div className="flex items-center gap-2">
                 <BuzzConnectButton
-                  showTrigger={!authorized}
-                  variant={!linked && connected ? "outline" : "primary"}
+                  variant={
+                    linked && !authorized
+                      ? "primary"
+                      : connected
+                        ? "outline"
+                        : "primary"
+                  }
                   label={
-                    linked
+                    linked && !authorized
                       ? t("authorize")
                       : connected
                         ? t("connectAgain")

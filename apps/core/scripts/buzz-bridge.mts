@@ -27,6 +27,7 @@ import {
   drainBuzzOutbox,
   enableBuzzForOrganization,
   linkedBuzzRooms,
+  markBuzzQuestionAnswered,
   readerSecretKey,
   removeAgentsWithoutOwner,
   saveInboundCursor,
@@ -264,7 +265,12 @@ async function run() {
         // A Coworker's answer is still streaming: the event stays unfinished
         // (so is the saved cursor) until it ends, and is asked again if it
         // fails.
-        void answer.then((ok) => {
+        void answer.then(async (ok) => {
+          if (ok) {
+            await markBuzzQuestionAnswered(event.id).catch((error) =>
+              log(`in  ${id} answer not recorded`, error),
+            );
+          }
           if (ok || attempt + 1 >= ANSWER_ATTEMPTS) {
             if (!ok)
               log(`in  kind ${event.kind} ${id} answer failed, giving up`);
@@ -401,7 +407,29 @@ async function run() {
   }
 
   async function refreshSubscriptions() {
-    for (const community of await buzzSubscriptions()) {
+    const communities = await buzzSubscriptions();
+    // A reader with nothing left to read (its last DM gone, its community
+    // deleted) is closed, not left open until shutdown.
+    const wanted = new Set(
+      communities.flatMap((community) =>
+        community.readers.map(
+          (reader) => `${community.communityId}:${reader.readerId}`,
+        ),
+      ),
+    );
+    for (const [slot, { subscription }] of live) {
+      if (wanted.has(slot)) continue;
+      // Out of `live` first, so its close is not taken for a drop.
+      live.delete(slot);
+      reconnect.delete(slot);
+      subscription.close();
+      log(`closed ${slot.slice(0, 20)}: nothing left to read`);
+    }
+    const communityIds = new Set(communities.map((c) => c.communityId));
+    for (const communityId of expected.keys()) {
+      if (!communityIds.has(communityId)) expected.delete(communityId);
+    }
+    for (const community of communities) {
       expected.set(
         community.communityId,
         community.readers.map(

@@ -483,7 +483,6 @@ async function resyncRoomsOf(userId: string) {
 
 // ---------------------------------------------------------------- agents
 
-const AGENT_VENDOR_SLUG = "buzz-agents";
 const HEX_64 = /^[0-9a-f]{64}$/;
 
 type FoundAgent = { name: string; picture: string | null; relayUrl: string };
@@ -641,9 +640,15 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
       ]),
     );
     const access = await agentAccessOf(userId, memberships, communities);
+    // One vendor per owner: Core lets a vendor's Coworkers see each other's
+    // work, which must not cross from one person's agents to another's.
     const vendor = await prisma.vendor.upsert({
-      where: { slug: AGENT_VENDOR_SLUG },
-      create: { slug: AGENT_VENDOR_SLUG, name: "Buzz agents", listed: false },
+      where: { slug: `buzz-agents-${owner.id}` },
+      create: {
+        slug: `buzz-agents-${owner.id}`,
+        name: `Buzz agents · ${owner.user?.name ?? "someone"}`,
+        listed: false,
+      },
       update: {},
     });
     for (const [pubkey, agent] of found) {
@@ -681,12 +686,13 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
       } else if (
         existing?.coworker &&
         (existing.coworker.archivedAt ||
+          existing.coworker.vendorId !== vendor.id ||
           existing.coworker.name !== details.name ||
           existing.coworker.image !== details.image)
       ) {
         await prisma.coworker.update({
           where: { id: coworkerId },
-          data: { ...details, archivedAt: null },
+          data: { ...details, vendorId: vendor.id, archivedAt: null },
         });
         changed.push(coworkerId);
       }
@@ -881,11 +887,13 @@ export async function linkBuzzApp(userId: string, input: string) {
   );
   if (identity.appPubkey && identity.appPubkey !== owner) throw otherLinked;
   if (identity.appPubkey === owner) {
+    // Linked already: new invites, so a join that was interrupted resumes.
+    const invites = await invitesTo(communities);
     await prisma.buzzIdentity.update({
       where: { id: identity.id },
       data: { appAuthTag: tag as string[] },
     });
-    return [];
+    return invites;
   }
   const taken = await prisma.buzzIdentity.findFirst({
     where: {
@@ -2163,8 +2171,9 @@ async function unansweredDirectQuestion(messageId: string, eventId: string) {
 }
 
 /**
- * A Direct takes one turn at a time, so a question's answer is the message
- * right after it in its thread; a later answer to another question is not.
+ * A Direct takes one turn at a time, so the message right after a question in
+ * its thread, if the Coworker's, is its answer. Not the only evidence: an
+ * answer that came after a retry is recorded on the link instead.
  */
 async function isAnswered(question: {
   id: string;
@@ -2183,6 +2192,14 @@ async function isAnswered(question: {
     select: { senderCoworkerId: true },
   });
   return Boolean(next?.senderCoworkerId);
+}
+
+/** The Coworker's answer to this Buzz question ended well. */
+export async function markBuzzQuestionAnswered(eventId: string) {
+  await prisma.buzzMessageLink.updateMany({
+    where: { eventId },
+    data: { answeredAt: new Date() },
+  });
 }
 
 /**
@@ -2219,7 +2236,15 @@ async function postToCoworkerDirect(input: {
     });
   let message = await stored();
   // Answered already (a worker that stopped before linking): only link.
-  const answered = message && (await isAnswered(message));
+  const answered =
+    message &&
+    ((
+      await prisma.buzzMessageLink.findUnique({
+        where: { messageId: message.id },
+        select: { answeredAt: true },
+      })
+    )?.answeredAt ||
+      (await isAnswered(message)));
   if (!answered) {
     // Core stores the message (once: same client id) and starts the turn;
     // the call returns when the answer has begun streaming. A turn that
@@ -2469,7 +2494,8 @@ export async function applyInboundEvent(
   if (reactionEcho) return "echo";
   if (
     messageEcho &&
-    !(await unansweredDirectQuestion(messageEcho.messageId, event.id))
+    (messageEcho.answeredAt ||
+      !(await unansweredDirectQuestion(messageEcho.messageId, event.id)))
   ) {
     return "echo";
   }

@@ -748,6 +748,11 @@ describe("a person's own Buzz agents", () => {
         profile(STRANGER_KEY, [ownerAuthTag(OWNER_KEY, AGENT_PUBKEY)]),
       ]);
     await expect(syncBuzzAgents()).resolves.toEqual(["coworker-new"]);
+    // Bob's agents have a vendor of their own: Core lets a vendor's Coworkers
+    // see each other's work.
+    expect(db.vendor.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { slug: "buzz-agents-identity-bob" } }),
+    );
     expect(db.coworker.create).toHaveBeenCalledTimes(1);
     expect(db.coworker.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -1142,6 +1147,20 @@ describe("a Direct question whose answer failed", () => {
     await expect(applyInboundEvent(event, core)).resolves.toBe("echo");
     expect(core).not.toHaveBeenCalled();
   });
+
+  it("does not ask again for a question answered after a retry", async () => {
+    setUpDirect();
+    const event = nostrEvent({ content: "hi" });
+    db.buzzMessageLink.findUnique.mockResolvedValue({
+      messageId: "stored",
+      answeredAt: new Date(),
+    });
+    // The next message is another question: its answer came later.
+    db.chatRoomMessage.findFirst.mockResolvedValue({ senderCoworkerId: null });
+    const core = vi.fn<CoreRequest>(async () => ({ status: 200, body: null }));
+    await expect(applyInboundEvent(event, core)).resolves.toBe("echo");
+    expect(core).not.toHaveBeenCalled();
+  });
 });
 
 describe("buzzContentOf", () => {
@@ -1244,11 +1263,11 @@ describe("linkBuzzApp", () => {
     expect(db.buzzIdentity.updateMany).not.toHaveBeenCalled();
   });
 
-  it("keeps the linked Buzz identity's proof for the person's Sokosumi key", async () => {
+  it("keeps the linked Buzz identity's proof, with new invites to resume joining", async () => {
     db.buzzIdentity.findUnique.mockResolvedValue(identity);
     const tag = ownerAuthTag(APP_KEY, SOKOSUMI_PUBKEY);
     await expect(linkBuzzApp("user-bob", JSON.stringify(tag))).resolves.toEqual(
-      [],
+      [expect.objectContaining({ organizationName: "Acme" })],
     );
     expect(db.buzzIdentity.update).toHaveBeenCalledWith({
       where: { id: "identity-bob" },

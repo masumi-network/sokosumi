@@ -124,6 +124,9 @@ model BuzzMessageLink {
   /// The Buzz channel the event is in. A DM is retired when its people
   /// change; messages linked there stay there.
   channelId    String?         @db.Uuid
+  /// A question from Buzz in a Direct with a Coworker: when its answer ended
+  /// well. Until then a replay of its event asks again.
+  answeredAt   DateTime?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
