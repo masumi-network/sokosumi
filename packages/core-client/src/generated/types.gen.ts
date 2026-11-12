@@ -10474,6 +10474,8 @@ export type ProjectSeoKeyword = {
     source: string;
     volume: number | null;
     intent: string | null;
+    conversion: 'high' | 'medium' | 'low' | null;
+    feature: string | null;
     device: 'mobile' | 'desktop' | null;
     position: number | null;
     positionStatus: 'ranked' | 'not_in_range' | 'unavailable';

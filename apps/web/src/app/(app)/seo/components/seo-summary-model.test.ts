@@ -66,6 +66,8 @@ function keyword(
     source: "focus",
     volume: null,
     intent: null,
+    conversion: null,
+    feature: null,
     device: "desktop",
     position: null,
     positionStatus: "not_in_range",

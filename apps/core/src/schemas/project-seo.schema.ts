@@ -285,6 +285,8 @@ export const seoFindingSchema = z
     observedAt: dateTimeSchema,
   })
   .openapi("ProjectSeoFinding");
+/** The SEO bot's estimate of how likely a searcher takes the page's action. It is not a measured rate. */
+export const seoConversionSchema = z.enum(["high", "medium", "low"]);
 export const seoKeywordSchema = z
   .object({
     id: z.string(),
@@ -297,6 +299,9 @@ export const seoKeywordSchema = z
     source: z.string(),
     volume: z.number().nullable(),
     intent: z.string().nullable(),
+    conversion: seoConversionSchema.nullable(),
+    /** The product feature the keyword is about, in the words of the check. */
+    feature: z.string().nullable(),
     device: z.union([seoDeviceSchema, z.null()]),
     position: z.number().nullable(),
     positionStatus: z.enum(["ranked", "not_in_range", "unavailable"]),

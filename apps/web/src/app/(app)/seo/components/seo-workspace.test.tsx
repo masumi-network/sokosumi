@@ -458,6 +458,8 @@ describe("SEO workspace integration", () => {
       position: null,
       positionStatus: "not_in_range",
       intent: null,
+      conversion: null,
+      feature: null,
     } as const;
     workspace.keywords.push(
       { ...read, id: "small", keyword: "charge timer", volume: 90 },
@@ -3398,6 +3400,8 @@ describe("SEO workspace integration", () => {
         source: "saved",
         volume: null,
         intent: null,
+        conversion: null,
+        feature: null,
         device: null,
         position: null,
         positionStatus: "unavailable",
@@ -3875,6 +3879,8 @@ describe("SEO workspace integration", () => {
       source: "saved",
       volume: null,
       intent: null,
+      conversion: null,
+      feature: null,
       device: null,
       position: null,
       positionStatus: "unavailable",
@@ -4208,6 +4214,8 @@ describe("SEO workspace integration", () => {
       source: "focus",
       volume: null,
       intent: null,
+      conversion: null,
+      feature: null,
       device: "mobile",
       checkedResults: 20,
       observedAt,
@@ -4557,6 +4565,8 @@ describe("SEO workspace integration", () => {
       positionStatus: "not_in_range",
       volume: 90,
       intent: null,
+      conversion: null,
+      feature: null,
     });
     // A second read looked deeper; the sentence names the depth every read reached.
     workspace.keywords.push({
@@ -4625,6 +4635,8 @@ describe("SEO workspace integration", () => {
       positionStatus: "not_in_range",
       volume: 90,
       intent: null,
+      conversion: null,
+      feature: null,
     });
     vi.stubGlobal(
       "fetch",
@@ -4709,6 +4721,8 @@ describe("SEO workspace integration", () => {
       checkedResults: 20,
       observedAt,
       observationId,
+      conversion: null,
+      feature: null,
     } as const;
     workspace.keywords.push(
       {
@@ -4886,6 +4900,8 @@ describe("SEO workspace integration", () => {
       observationId: "observation",
       volume: 50,
       intent: null,
+      conversion: null,
+      feature: null,
     } as const;
     const idea = {
       ...read,

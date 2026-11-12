@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 
 import { badRequest } from "@/helpers/error";
 import {
+  seoConversionSchema,
   seoDeviceSchema,
   seoModuleCoverageSchema,
   seoSeveritySchema,
@@ -15,6 +16,7 @@ const text = z.string().max(20_000);
 const nullableNumber = z.number().finite().nullable();
 const observedAt = z.string().datetime();
 const source = z.object({ sourceRef: text, observedAt });
+const FEATURE_CHARS = 200;
 const finding = source.extend({
   id: text,
   pageUrl: seoUrlSchema,
@@ -33,6 +35,8 @@ const keyword = source.extend({
   checkedResults: z.number().int().nullable(),
   volume: nullableNumber.optional(),
   intent: text.nullable().optional(),
+  conversion: seoConversionSchema.nullable().optional(),
+  feature: z.string().max(FEATURE_CHARS).nullable().optional(),
   source: text.optional(),
 });
 const competitor = source.extend({
@@ -303,7 +307,10 @@ const partial = z
           .passthrough(),
       )
       .max(10000),
-    keywords: z.array(keyword).max(5000),
+    // A focused result carries no estimate: only a page Report does. One sent all the same is not read.
+    keywords: z
+      .array(keyword.omit({ conversion: true, feature: true }))
+      .max(5000),
     competitors: z.array(competitor).max(1000),
     findings: z.array(finding).max(5000),
     actions: z.array(action).max(100),
@@ -316,6 +323,17 @@ const partial = z
     gaps: z.array(z.object({ reason: text }).passthrough()).max(500),
   })
   .passthrough();
+// A page Report's estimate for a keyword. A value Core cannot read is dropped: it must not fail the import.
+const estimate = {
+  conversion: seoConversionSchema.optional().catch(undefined),
+  feature: z
+    .string()
+    .trim()
+    .min(1)
+    .max(FEATURE_CHARS)
+    .optional()
+    .catch(undefined),
+};
 const legacy = z.object({
   request: z.object({ url: seoUrlSchema }),
   snapshotId: text,
@@ -337,6 +355,7 @@ const legacy = z.object({
             mobile: text.nullable(),
             desktop: text.nullable(),
           }),
+          ...estimate,
         }),
       )
       .max(500),
@@ -421,6 +440,7 @@ const legacy = z.object({
           volume: z.number().finite(),
           position: nullableNumber,
           intent: text.nullable(),
+          ...estimate,
         }),
       ),
     })
@@ -567,6 +587,8 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
             : null,
           volume: row.volume,
           intent: row.intent,
+          conversion: row.conversion,
+          feature: row.feature,
           source: "focus",
           sourceRef: result.snapshotId,
           observedAt: at,
@@ -612,6 +634,8 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       checkedResults: null,
       volume: row.volume,
       intent: row.intent,
+      conversion: row.conversion,
+      feature: row.feature,
       source: "opportunity",
       sourceRef: result.snapshotId,
       observedAt: at,

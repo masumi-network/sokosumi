@@ -225,6 +225,8 @@ describe("native audit chat inference boundary", () => {
       source: "rank_refresh",
       volume: 100,
       intent: null,
+      conversion: null,
+      feature: null,
       device: "desktop" as const,
       position: 4,
       positionStatus: "ranked" as const,

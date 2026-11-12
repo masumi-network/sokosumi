@@ -385,6 +385,8 @@ export function projectSeoProjection(
         source: item.source ?? "rank_refresh",
         volume: item.volume ?? null,
         intent: item.intent ?? null,
+        conversion: item.conversion ?? null,
+        feature: item.feature ?? null,
       });
     }
     for (const item of data.competitors) {
@@ -482,6 +484,8 @@ export function projectSeoProjection(
       source: "saved",
       volume: null,
       intent: null,
+      conversion: null,
+      feature: null,
       device: null,
       position: null,
       positionStatus: "unavailable",

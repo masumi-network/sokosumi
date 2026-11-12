@@ -85,6 +85,84 @@ describe("public SEO report trust boundary", () => {
     );
   });
 
+  it("keeps a keyword's conversion estimate and feature, and imports the report without a value it cannot read", () => {
+    const fixture = legacyReport();
+    const estimate = { conversion: "medium", feature: "Low battery alerts" };
+    const report = parsePublicSeoArtifact({
+      ...fixture,
+      header: {
+        ...fixture.header,
+        focusKeywords: [{ ...fixture.header.focusKeywords[0], ...estimate }],
+      },
+      keywordOpportunities: {
+        list: [
+          { ...fixture.keywordOpportunities.list[0], ...estimate },
+          {
+            keyword: "unread estimate",
+            volume: 10,
+            position: null,
+            intent: null,
+            conversion: "certain",
+            feature: "x".repeat(201),
+          },
+          {
+            keyword: "blank feature",
+            volume: 10,
+            position: null,
+            intent: null,
+            conversion: "low",
+            feature: "   ",
+          },
+        ],
+      },
+    });
+    const rows = (keyword: string) =>
+      report.keywords.filter((row) => row.keyword === keyword);
+    // The focus keyword is one row per device; both carry the estimate.
+    expect(rows("example")).toHaveLength(2);
+    for (const row of [...rows("example"), ...rows("opportunity")])
+      expect(row).toMatchObject(estimate);
+    expect(rows("unread estimate")).toEqual([
+      expect.objectContaining({ source: "opportunity", volume: 10 }),
+    ]);
+    expect(rows("unread estimate")[0].conversion).toBeUndefined();
+    expect(rows("unread estimate")[0].feature).toBeUndefined();
+    // A feature of spaces only is no feature: the level stays.
+    expect(rows("blank feature")[0].conversion).toBe("low");
+    expect(rows("blank feature")[0].feature).toBeUndefined();
+    // A report from before the estimate has none.
+    const before = parsePublicSeoArtifact(fixture);
+    expect(before.keywords.every((row) => row.conversion === undefined)).toBe(
+      true,
+    );
+  });
+
+  it("imports a focused result that carries an estimate, and does not read the estimate", () => {
+    const fixture = focusedReport();
+    const report = parsePublicSeoArtifact({
+      ...fixture,
+      keywords: [
+        {
+          keyword: "example",
+          pageUrl: SEO_TEST_PAGE,
+          device: "desktop",
+          position: 4,
+          positionStatus: "ranked",
+          checkedResults: 100,
+          sourceRef: "snapshot",
+          observedAt: fixture.observedAt,
+          conversion: "certain",
+          feature: 7,
+        },
+      ],
+    });
+    expect(report.keywords).toEqual([
+      expect.objectContaining({ keyword: "example", position: 4 }),
+    ]);
+    expect(report.keywords[0]).not.toHaveProperty("conversion");
+    expect(report.keywords[0]).not.toHaveProperty("feature");
+  });
+
   it("refuses private Google evidence before projecting public fields, including nested site pages", () => {
     expect(() =>
       parsePublicSeoArtifact({

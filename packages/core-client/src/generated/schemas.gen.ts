@@ -39468,6 +39468,24 @@ export const ProjectSeoKeywordSchema = {
                 'null'
             ]
         },
+        conversion: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'high',
+                'medium',
+                'low',
+                null
+            ]
+        },
+        feature: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         device: {
             anyOf: [
                 {
@@ -39548,6 +39566,8 @@ export const ProjectSeoKeywordSchema = {
         'source',
         'volume',
         'intent',
+        'conversion',
+        'feature',
         'device',
         'position',
         'positionStatus',

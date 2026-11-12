@@ -511,6 +511,38 @@ describe("stored SEO workspace projections", () => {
     input.tasks = [{ id: taskId, status: "COMPLETED", completedAt: now }];
     expect(projectSeoProjection(input).analyses[0].status).toBe("failed");
   });
+  it("shows a keyword's conversion estimate and feature, and null for a row without one", () => {
+    const { input, original } = actionFixture();
+    const raw = legacyReport();
+    const estimated = parsePublicSeoArtifact({
+      ...raw,
+      keywordOpportunities: {
+        list: [
+          {
+            keyword: "estimated idea",
+            volume: 20,
+            position: null,
+            intent: null,
+            conversion: "high",
+            feature: "Low battery alerts",
+          },
+        ],
+      },
+    });
+    input.observations = [
+      observation(input, estimated, "2026-11-03T12:00:00Z"),
+      original,
+    ];
+    const { keywords } = projectSeoProjection(input);
+    expect(
+      keywords.find((row) => row.keyword === "estimated idea"),
+    ).toMatchObject({ conversion: "high", feature: "Low battery alerts" });
+    // A row without an estimate says null, not "low".
+    expect(keywords.find((row) => row.keyword === "gap term")).toMatchObject({
+      conversion: null,
+      feature: null,
+    });
+  });
   it("keeps keyword Markets and device rows distinct while preserving saved priorities", () => {
     const { input, original } = actionFixture();
     const german = parsePublicSeoArtifact(legacyReport());

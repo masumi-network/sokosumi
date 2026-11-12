@@ -24,6 +24,8 @@ function row(patch: Partial<Keyword>): Keyword {
     source: "focus",
     volume: null,
     intent: null,
+    conversion: null,
+    feature: null,
     device: null,
     position: null,
     positionStatus: "unavailable",
