@@ -213,6 +213,20 @@ describe("WorkspaceCalendar accessibility", () => {
     );
   });
 
+  it("says an empty week is empty while another week holds runs", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC&view=week">
+        <WorkspaceCalendar
+          initialDate="2030-01-20"
+          items={[ITEM]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(screen.getByText("empty.title")).toBeInTheDocument();
+  });
+
   it.each([
     { search: "", empty: ["empty.title", "empty.hint", "empty.createHint"] },
     { search: "&status=READY", empty: ["empty.filtered"] },

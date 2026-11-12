@@ -1817,7 +1817,9 @@ export function WorkspaceCalendar({
             statuses={SOCIAL_POST_STATUSES}
           />
         ) : null}
-        {visibleItems.length === 0 && view !== "agenda" ? (
+        {/* The grid's period, not the whole loaded range: an empty week next
+            to a busy one still says so. */}
+        {view !== "agenda" && !visibleItems.some(inShownPeriod) ? (
           <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
             {emptyState}
           </div>
