@@ -156,6 +156,7 @@ describe("AddFromContactsDialog", () => {
     await user.click(disabled);
     expect(disabled).not.toBeChecked();
     expect(mocks.list).toHaveBeenCalledWith({
+      hasChannel: "EMAIL",
       search: undefined,
       sort: "name",
       direction: "asc",
