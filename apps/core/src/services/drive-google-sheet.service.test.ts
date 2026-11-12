@@ -18,9 +18,10 @@ vi.mock("@/services/image-studio-drive.service", () => ({
 }));
 
 import {
-  exportGoogleSheet,
   googleSpreadsheetId,
+  readGoogleSheet,
   refreshGoogleSheetLink,
+  renderGoogleSheet,
 } from "./drive-google-sheet.service";
 
 const SHEET_ID = "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms";
@@ -48,6 +49,10 @@ function sheetResponse(bytes: Uint8Array) {
     "content-type": XLSX_TYPE,
     "content-disposition": `attachment; filename="Model.xlsx"; filename*=UTF-8''Q4%20Model.xlsx`,
   });
+}
+
+function pdfResponse() {
+  respondWith("%PDF-1.4 rendered", { "content-type": "application/pdf" });
 }
 
 beforeEach(() => {
@@ -81,27 +86,27 @@ describe("googleSpreadsheetId", () => {
   });
 });
 
-describe("exportGoogleSheet", () => {
-  it("names the copy after the sheet and hashes what it holds", async () => {
+describe("readGoogleSheet", () => {
+  it("reads the sheet's title and hashes what it holds", async () => {
     sheetResponse(await workbook("<v>1</v>", "2026-11-12T10:00:00Z"));
-    const first = await exportGoogleSheet(SHEET_ID);
+    const first = await readGoogleSheet(SHEET_ID);
     sheetResponse(await workbook("<v>1</v>", "2026-11-12T11:00:00Z"));
-    const again = await exportGoogleSheet(SHEET_ID);
+    const again = await readGoogleSheet(SHEET_ID);
     sheetResponse(await workbook("<v>2</v>", "2026-11-12T11:00:00Z"));
-    const changed = await exportGoogleSheet(SHEET_ID);
+    const changed = await readGoogleSheet(SHEET_ID);
 
     expect(fetch).toHaveBeenCalledWith(
       `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`,
       expect.anything(),
     );
-    expect(first.name).toBe("Q4 Model.xlsx");
+    expect(first.title).toBe("Q4 Model");
     expect(again.contentHash).toBe(first.contentHash);
     expect(changed.contentHash).not.toBe(first.contentHash);
   });
 
   it("says the sheet is not shared when Google answers with a sign-in page", async () => {
     respondWith("<html>Sign in</html>", { "content-type": "text/html" });
-    await expect(exportGoogleSheet(SHEET_ID)).rejects.toMatchObject({
+    await expect(readGoogleSheet(SHEET_ID)).rejects.toMatchObject({
       reason: "not_shared",
     });
   });
@@ -111,17 +116,33 @@ describe("exportGoogleSheet", () => {
       "content-type": XLSX_TYPE,
       "content-length": String(10 * 1024 * 1024 * 1024),
     });
-    await expect(exportGoogleSheet(SHEET_ID)).rejects.toMatchObject({
+    await expect(readGoogleSheet(SHEET_ID)).rejects.toMatchObject({
       reason: "too_large",
     });
+  });
+});
+
+describe("renderGoogleSheet", () => {
+  it("asks Google for its own PDF of every tab, laid out to read", async () => {
+    pdfResponse();
+    const pdf = await renderGoogleSheet(SHEET_ID);
+
+    const url = new URL(String(vi.mocked(fetch).mock.calls[0][0]));
+    expect(url.pathname).toBe(`/spreadsheets/d/${SHEET_ID}/export`);
+    expect(Object.fromEntries(url.searchParams)).toMatchObject({
+      format: "pdf",
+      fitw: "true",
+      gridlines: "false",
+    });
+    expect(pdf.toString()).toBe("%PDF-1.4 rendered");
   });
 });
 
 describe("refreshGoogleSheetLink", () => {
   const resource = {
     workspaceId: "ws",
-    sourceId: "drive/organizations/org/Finance/Model.xlsx",
-    displayName: "Model.xlsx",
+    sourceId: "drive/organizations/org/Finance/Model.pdf",
+    displayName: "Model.pdf",
     ownerUserId: null,
     ownerOrganizationId: "org",
     lifecycle: "ACTIVE",
@@ -129,7 +150,7 @@ describe("refreshGoogleSheetLink", () => {
 
   async function linkedTo(cell: string) {
     sheetResponse(await workbook(cell, "2026-11-12T10:00:00Z"));
-    const { contentHash } = await exportGoogleSheet(SHEET_ID);
+    const { contentHash } = await readGoogleSheet(SHEET_ID);
     const row = {
       id: "link",
       spreadsheetId: SHEET_ID,
@@ -157,9 +178,10 @@ describe("refreshGoogleSheetLink", () => {
     expect(link?.error).toBeNull();
   });
 
-  it("rewrites the copy in place when the sheet changed", async () => {
+  it("rewrites the copy with Google's new PDF when the sheet changed", async () => {
     await linkedTo("<v>1</v>");
     sheetResponse(await workbook("<v>2</v>", "2026-11-12T12:00:00Z"));
+    pdfResponse();
 
     await refreshGoogleSheetLink("file");
 
@@ -167,7 +189,8 @@ describe("refreshGoogleSheetLink", () => {
       expect.objectContaining({
         organizationId: "org",
         pathname: resource.sourceId,
-        name: "Model.xlsx",
+        name: "Model.pdf",
+        contentType: "application/pdf",
       }),
     );
   });

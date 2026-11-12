@@ -8,53 +8,25 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, RefreshCw } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import { useState } from "react";
 
-import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
 import { Button } from "@/components/ui/button";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import { cn } from "@/lib/utils";
 import type { FileStore } from "@/lib/utils/file-search.client";
 
 /**
- * A spreadsheet in Drive, with where it comes from when it copies a Google
- * Sheet: when the copy was last read, Refresh, and the sheet itself.
+ * Where a Drive file comes from when it holds Google's PDF of a linked sheet:
+ * when it was last read, Refresh, and the sheet itself. Nothing for any other
+ * file.
  */
-export function DriveSpreadsheet({
-  resourceId,
-  store,
-  url,
-  kind,
-}: {
-  resourceId: string;
-  store: FileStore;
-  url: string;
-  kind: "xlsx" | "csv";
-}) {
-  // Refresh rewrites the bytes at the same address, so the table remounts.
-  const [version, setVersion] = useState(0);
-  return (
-    <div className="grid min-w-0 gap-3">
-      {kind === "xlsx" ? (
-        <GoogleSheetBar
-          resourceId={resourceId}
-          store={store}
-          onRefreshed={() => setVersion((value) => value + 1)}
-        />
-      ) : null}
-      <SpreadsheetFileView key={version} url={url} kind={kind} />
-    </div>
-  );
-}
-
-function GoogleSheetBar({
+export function GoogleSheetBar({
   resourceId,
   store,
   onRefreshed,
 }: {
   resourceId: string;
   store: FileStore;
-  onRefreshed: () => void;
+  onRefreshed?: () => void;
 }) {
   const t = useTranslations("App.Drive.GoogleSheet");
   const format = useFormatter();
@@ -84,7 +56,7 @@ function GoogleSheetBar({
     },
     onSuccess: (next) => {
       queryClient.setQueryData(queryKey, next);
-      if (!next.error) onRefreshed();
+      if (!next.error) onRefreshed?.();
     },
   });
 
