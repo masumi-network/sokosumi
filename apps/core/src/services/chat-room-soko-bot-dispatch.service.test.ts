@@ -131,6 +131,7 @@ beforeEach(() => {
   startTurn.mockResolvedValue({ turnId: "turn-a", status: "COMPLETED" });
   findMentionTurn.mockResolvedValue([]);
   findOpenDelivery.mockResolvedValue(null);
+  deliverOutbox.mockResolvedValue(undefined);
   transaction.mockImplementation(
     async (fn: (tx: unknown) => Promise<unknown>) =>
       fn({
@@ -420,6 +421,11 @@ describe("a reclaimed mention whose turn already ended", () => {
       expect.objectContaining({ clientTurnId: "chat:mention-a" }),
     );
     expect(deliverOutbox).toHaveBeenCalledWith("turn-done");
+    // Then the answer is written if the delivery could not (backoff, lease).
+    expect(persistChatTurn).toHaveBeenCalledWith(
+      "turn-done",
+      expect.anything(),
+    );
     expect(releaseMention).not.toHaveBeenCalled();
     expect(fail).not.toHaveBeenCalled();
     expect(reconcileTurn).not.toHaveBeenCalled();
@@ -462,5 +468,21 @@ describe("a reclaimed mention whose turn already ended", () => {
     );
     expect(persistChatTurn).not.toHaveBeenCalled();
     expect(reconcileTurn).not.toHaveBeenCalled();
+  });
+  it("closes the reply as failed even while the failed turn's delivery is still open", async () => {
+    // A PERSISTED delivery only republishes the message as it is now: the
+    // reopened "Thinking…". The failed card must come back regardless.
+    startTurn.mockResolvedValue({
+      turnId: "turn-failed",
+      status: "FAILED",
+      duplicate: true,
+    });
+    findOpenDelivery.mockResolvedValue({ id: "delivery-a" });
+    deliverOutbox.mockRejectedValueOnce(new Error("Ably down"));
+    await runSokoBotMentionDispatch(input());
+    expect(deliverOutbox).toHaveBeenCalledWith("turn-failed");
+    expect(fail).toHaveBeenCalledWith(
+      expect.objectContaining({ existingPlaceholderId: "response-a" }),
+    );
   });
 });

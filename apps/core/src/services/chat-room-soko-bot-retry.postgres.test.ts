@@ -22,16 +22,34 @@ import {
  * - a turn that completed after the dispatch looked keeps its answer instead
  *   of becoming a failed card;
  * - Retry releases only a failed turn with nothing left to deliver, and the
- *   next start runs under a key of its own.
+ *   next start runs under a key of its own;
+ * - Retry through the real route while the failed card's delivery is still
+ *   PERSISTED (its publication failed) leaves the card failed, not
+ *   "Thinking…", and once that publication lands the next Retry starts a
+ *   fresh turn under one stable key.
  */
 
-const { startTurn, publish } = vi.hoisted(() => ({
+const { startTurn, publish, background } = vi.hoisted(() => ({
   startTurn: vi.fn(),
   publish: vi.fn(),
+  background: [] as Promise<unknown>[],
 }));
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: publish,
+  publishChatRoomMessageRealtime: vi.fn(),
 }));
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (work: Promise<unknown>) => {
+    background.push(work);
+  },
+}));
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 vi.mock("@/helpers/chat-room-message-created-effects", () => ({
   invalidateChatRoomMessageReaders: vi.fn(),
 }));
@@ -312,5 +330,120 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     expect(startTurn.mock.calls[0][0].clientTurnId).toBe(
       `chat:${failed.mention.id}:retry:${old.id}`,
     );
+  });
+
+  it("keeps the failed card through Retry while its publication is still owed, then retries fresh", async () => {
+    const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
+    const mountRetry = (
+      await import(
+        "@/routes/v1/chats/rooms/[id]/messages/[messageId]/mentions/[mentionId]/retry/post"
+      )
+    ).default;
+    const { deliverSokoBotDelivery } = await import(
+      "./soko-bot-delivery.service"
+    );
+    const app = new OpenAPIHonoWithAuth();
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "user",
+        userId,
+        organizationId: null,
+        role: "user",
+      } as never);
+      return next();
+    });
+    mountRetry(app);
+
+    const m = await staleMention();
+    const old = await turnFor(m, "FAILED");
+    const delivery = await db.sokoBotDelivery.findFirstOrThrow({
+      where: { turnId: old.id },
+    });
+    // The failed card is written, then its publication fails: PERSISTED, in
+    // backoff.
+    publish.mockRejectedValue(new Error("Ably invalid key"));
+    expect(await deliverSokoBotDelivery(delivery.id)).toBe(false);
+    expect(
+      await db.sokoBotDelivery.findUnique({ where: { id: delivery.id } }),
+    ).toMatchObject({ status: "PERSISTED" });
+    expect(
+      await db.chatRoomMention.findUnique({ where: { id: m.mention.id } }),
+    ).toMatchObject({ status: "failed" });
+    publish.mockReset();
+    publish.mockResolvedValue(undefined);
+
+    // The model start hands back the turn holding a key, as startTurn does.
+    startTurn.mockImplementation(async (start: { clientTurnId: string }) =>
+      start.clientTurnId === `chat:${m.mention.id}`
+        ? { turnId: old.id, status: "FAILED", duplicate: true }
+        : { turnId: randomUUID(), status: "QUEUED", duplicate: false },
+    );
+    const retry = async () => {
+      background.length = 0;
+      const response = await app.request(
+        `/${roomId}/messages/${m.source.id}/mentions/${m.mention.id}/retry`,
+        { method: "POST" },
+      );
+      await Promise.all(background);
+      return response.status;
+    };
+    const reply = async () => {
+      const message = await db.chatRoomMessage.findUniqueOrThrow({
+        where: { id: m.response.id },
+      });
+      return message.metadata as Record<string, unknown>;
+    };
+
+    // Retry while the publication is still owed: the old turn keeps the
+    // mention, and the reply ends failed again, never "Thinking…".
+    expect(await retry()).toBe(200);
+    expect(startTurn.mock.calls.map(([start]) => start.clientTurnId)).toEqual([
+      `chat:${m.mention.id}`,
+    ]);
+    expect(
+      await db.sokoBotTurn.findUnique({ where: { id: old.id } }),
+    ).toMatchObject({ chatMentionId: m.mention.id });
+    expect(
+      await db.chatRoomMention.findUnique({ where: { id: m.mention.id } }),
+    ).toMatchObject({ status: "failed" });
+    expect(await reply()).toMatchObject({ mention_failed: true });
+    expect((await reply()).streaming).not.toBe(true);
+
+    // The owed publication lands and leaves the card as it is.
+    await db.sokoBotDelivery.update({
+      where: { id: delivery.id },
+      data: { nextAttemptAt: new Date(0) },
+    });
+    expect(await deliverSokoBotDelivery(delivery.id)).toBe(true);
+    expect(
+      await db.sokoBotDelivery.findUnique({ where: { id: delivery.id } }),
+    ).toMatchObject({ status: "PUBLISHED" });
+    expect(await reply()).toMatchObject({ mention_failed: true });
+    expect((await reply()).streaming).not.toBe(true);
+
+    // Now Retry lets go of the old turn and starts a fresh one.
+    startTurn.mockClear();
+    expect(await retry()).toBe(200);
+    expect(
+      await db.sokoBotTurn.findUnique({ where: { id: old.id } }),
+    ).toMatchObject({
+      chatMentionId: null,
+      chatResponseMessageId: m.response.id,
+    });
+    const fresh = `chat:${m.mention.id}:retry:${old.id}`;
+    expect(startTurn.mock.calls.map(([start]) => start.clientTurnId)).toEqual([
+      fresh,
+    ]);
+    // Another worker deriving the key for this attempt gets the same one.
+    await db.chatRoomMention.update({
+      where: { id: m.mention.id },
+      data: { status: "pending" },
+    });
+    startTurn.mockClear();
+    await runDispatch(m);
+    expect(startTurn.mock.calls.map(([start]) => start.clientTurnId)).toEqual([
+      fresh,
+    ]);
   });
 });

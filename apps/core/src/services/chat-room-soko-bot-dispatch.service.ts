@@ -48,10 +48,16 @@ function isActiveTurnStatus(status: string): boolean {
 }
 
 /**
- * Puts an ended turn's outcome on the reply that was reopened for it. A
- * delivery still to land owns that outcome; its worker retries if this push
- * loses the lease. With none left, a completed turn's answer is written the
- * way delivery writes it, and a failed or cancelled one fails the reply.
+ * Puts an ended turn's outcome back on the reply that was reopened for it.
+ *
+ * A delivery still open is pushed first, but it cannot be relied on to close
+ * the reply: one already PERSISTED only publishes what the message holds now
+ * (the reopened "Thinking…"), and one in backoff or leased elsewhere does
+ * nothing here. So the outcome is always reapplied after: a completed turn's
+ * answer through the shared chat write (a no-op once the mention answered),
+ * a failed or cancelled one as the failed card, terminal and retryable. The
+ * turn keeps the mention until its delivery finishes; Retry then starts a
+ * fresh turn (`releaseFailedTurnForRetry`).
  */
 async function settleEndedTurn(
   turnId: string,
@@ -63,8 +69,9 @@ async function settleEndedTurn(
     select: { id: true },
   });
   if (open) {
-    await deliverSokoBotTurnOutbox(turnId);
-    return;
+    await deliverSokoBotTurnOutbox(turnId).catch((error: unknown) => {
+      console.error("Soko Bot delivery push failed:", { turnId, error });
+    });
   }
   if (status !== "COMPLETED") {
     await failPlaceholder(new Error(`Soko Bot turn ${status.toLowerCase()}`));
