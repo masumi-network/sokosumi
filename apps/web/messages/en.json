@@ -11987,7 +11987,15 @@
           "queries": "Which searches bring people to these pages?",
           "competitors": "What do you know about my competitors?",
           "measure": "The check measured “{name}” on {url} as {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. Draft a change and suggest it as an action I can approve.",
-          "track": "Which keyword ideas should I track?"
+          "track": "Which keyword ideas should I track?",
+          "howToDo": "How do I make this change?",
+          "whyFirst": "Why is this the first step?",
+          "whichPage": "Which page should I change first?",
+          "howLong": "How long until Google shows a change?",
+          "moreClicks": "Which of these searches could bring more clicks?",
+          "whyKeywords": "Why these keywords?",
+          "theyDo": "What do they do that my pages do not?",
+          "simpler": "Explain that in simpler words"
         },
         "researchCompetitors": "Research competitors",
         "verdict": {

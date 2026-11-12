@@ -11987,7 +11987,15 @@
           "queries": "Über welche Suchen kommen Menschen auf diese Seiten?",
           "competitors": "Was weißt du über meine Wettbewerber?",
           "measure": "Die Prüfung hat „{name}“ auf {url} mit {value} gemessen, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Entwirf eine Änderung und schlage sie als Aktion vor, die ich freigeben kann.",
-          "track": "Welche Keyword-Ideen soll ich verfolgen?"
+          "track": "Welche Keyword-Ideen soll ich verfolgen?",
+          "howToDo": "Wie setze ich diese Änderung um?",
+          "whyFirst": "Warum ist das der erste Schritt?",
+          "whichPage": "Welche Seite soll ich zuerst ändern?",
+          "howLong": "Wie lange dauert es, bis Google eine Änderung zeigt?",
+          "moreClicks": "Welche dieser Suchen könnten mehr Klicks bringen?",
+          "whyKeywords": "Warum diese Keywords?",
+          "theyDo": "Was machen sie, was meine Seiten nicht machen?",
+          "simpler": "Erkläre das in einfacheren Worten"
         },
         "researchCompetitors": "Wettbewerber recherchieren",
         "verdict": {

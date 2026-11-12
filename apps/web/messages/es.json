@@ -11987,7 +11987,15 @@
           "queries": "¿Qué búsquedas traen personas a estas páginas?",
           "competitors": "¿Qué sabes de mis competidores?",
           "measure": "La comprobación midió «{name}» en {url}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. Prepara un cambio y proponlo como una acción que pueda aprobar.",
-          "track": "¿Qué ideas de palabras clave debo seguir?"
+          "track": "¿Qué ideas de palabras clave debo seguir?",
+          "howToDo": "¿Cómo hago este cambio?",
+          "whyFirst": "¿Por qué es este el primer paso?",
+          "whichPage": "¿Qué página debo cambiar primero?",
+          "howLong": "¿Cuánto tarda Google en mostrar un cambio?",
+          "moreClicks": "¿Cuáles de estas búsquedas podrían traer más clics?",
+          "whyKeywords": "¿Por qué estas palabras clave?",
+          "theyDo": "¿Qué hacen ellos que mis páginas no hacen?",
+          "simpler": "Explícalo con palabras más sencillas"
         },
         "researchCompetitors": "Investigar competidores",
         "verdict": {

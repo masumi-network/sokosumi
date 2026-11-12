@@ -9,66 +9,33 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { resolveComposerEnterAction } from "@/lib/utils/composer-wysiwyg-input-rules";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
+import type { SeoChatPrompt } from "./seo-chat-prompts";
 import { SEO_CHAT_QUESTION_LIMIT } from "./use-seo-chat";
-
-const SEO_AGENT_PROMPTS = [
-  "first",
-  "unranked",
-  "queries",
-  "track",
-  "competitors",
-] as const;
-
-/** The example questions the saved data can answer: no search statistics, no question about searches. */
-export function seoAgentPrompts({
-  competitors,
-  searches,
-  unranked,
-}: {
-  /** True where no checked keyword is in Google's top results: the question about that result stands in for "what first", which the Agent tab answers. */
-  unranked: boolean;
-  /** False where the Audit has no competitor. */
-  competitors: boolean;
-  /** False where no search statistics are synced: the question about keywords to track stands in. */
-  searches: boolean;
-}) {
-  return SEO_AGENT_PROMPTS.filter(
-    (prompt) =>
-      (competitors || prompt !== "competitors") &&
-      prompt !== (searches ? "track" : "queries") &&
-      prompt !== (unranked ? "first" : "unranked"),
-  );
-}
 
 /** An IME reports this key code for the Enter that confirms a composition. */
 const IME_KEY_CODE = 229;
 
-/** Questions the reader can send with one click. */
+/** Questions the reader can send with one click: small chips right over the question field. */
 export function SeoPromptChips({
   busy = false,
-  competitors = true,
-  searches = true,
-  unranked = false,
+  prompts,
   onPick,
 }: {
-  /** True where no checked keyword is in Google's top results. */
-  unranked?: boolean;
   busy?: boolean;
-  /** False where the Audit has no competitor: the question about them has no answer. */
-  competitors?: boolean;
-  /** False where no search statistics are synced. */
-  searches?: boolean;
+  prompts: readonly SeoChatPrompt[];
   onPick: (question: string) => void;
 }) {
   const t = useTranslations("App.Seo");
+  if (!prompts.length) return null;
   return (
-    <div className="flex flex-wrap gap-2">
-      {seoAgentPrompts({ competitors, searches, unranked }).map((prompt) => (
+    // A new set rises in, so the change after an answer is seen.
+    <div key={prompts.join()} className="content-rise flex flex-wrap gap-2">
+      {prompts.map((prompt) => (
         <button
           key={prompt}
           type="button"
-          // The app's prompt chip: a quiet pill that wraps inside the panel on a phone.
-          className="border-border text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring press inline-flex min-h-8 max-w-full items-center rounded-full border px-3 py-1 text-start text-sm transition-colors outline-none focus-visible:ring-2 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 max-sm:min-h-10"
+          // A quiet pill. On a phone an invisible band widens the hit area to 40px.
+          className="border-border text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring press relative inline-flex min-h-7 max-w-full items-center rounded-full border px-2.5 py-0.5 text-start text-xs transition-colors outline-none focus-visible:ring-2 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 max-sm:min-h-8 max-sm:before:absolute max-sm:before:inset-x-0 max-sm:before:-inset-y-1 max-sm:before:content-['']"
           // Not the disabled attribute: that drops focus from the chip just pressed.
           aria-disabled={busy || undefined}
           onClick={() => {

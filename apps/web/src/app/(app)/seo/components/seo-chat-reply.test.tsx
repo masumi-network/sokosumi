@@ -1,6 +1,5 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { seoAgentPrompts } from "./seo-chat-composer";
 import { SeoChatReply } from "./seo-chat-reply";
 
 afterEach(cleanup);
@@ -8,22 +7,6 @@ afterEach(cleanup);
 function reply(text: string) {
   return render(<SeoChatReply text={text} />).container;
 }
-
-describe("SEO agent example questions", () => {
-  it("offers only questions the saved data can answer", () => {
-    // No search statistics: the question about searches has no answer, so the one about keywords stands in.
-    expect(
-      seoAgentPrompts({ competitors: true, searches: false, unranked: false }),
-    ).toEqual(["first", "track", "competitors"]);
-    expect(
-      seoAgentPrompts({ competitors: false, searches: true, unranked: false }),
-    ).toEqual(["first", "queries"]);
-    // No keyword in Google's top results: the question about that result stands in for "what first".
-    expect(
-      seoAgentPrompts({ competitors: true, searches: false, unranked: true }),
-    ).toEqual(["unranked", "track", "competitors"]);
-  });
-});
 
 describe("SEO agent reply", () => {
   it("shows an HTML tag as the text the agent wrote, in prose and in code", () => {

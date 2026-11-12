@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, RotateCw } from "lucide-react";
+import { RotateCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,8 @@ import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import { SEO_ASK_BUTTON_ID } from "./seo-ask-button";
-import {
-  SeoChatComposer,
-  SeoPromptChips,
-  seoAgentPrompts,
-} from "./seo-chat-composer";
+import { SeoChatComposer, SeoPromptChips } from "./seo-chat-composer";
+import { seoChatSuggestions } from "./seo-chat-prompts";
 import {
   SeoAgentOrb,
   SeoChatQuestion,
@@ -57,49 +54,6 @@ function SeoChatHeading({
         {title}
         {description}
       </div>
-    </div>
-  );
-}
-
-/** A first visit: questions the reader can send with one click. */
-function ChatWelcome({
-  chat,
-  inputId,
-  competitors,
-  searches,
-  unranked,
-}: {
-  chat: Chat;
-  inputId: string;
-  competitors: boolean;
-  searches: boolean;
-  unranked: boolean;
-}) {
-  const t = useTranslations("App.Seo");
-  return (
-    // The sheet's header says what the agent does: the first visit shows the questions only.
-    <div className="content-rise flex w-full flex-col gap-2 py-4">
-      {seoAgentPrompts({ competitors, searches, unranked }).map((prompt) => (
-        <Button
-          key={prompt}
-          type="button"
-          variant="outline"
-          className="h-auto min-h-10 justify-between gap-3 py-2 text-start whitespace-normal"
-          onClick={() => {
-            // These buttons leave with the greeting: focus moves to the
-            // field, or to the thread where the field would open a keyboard.
-            document
-              .getElementById(
-                devicePrefersHover() ? inputId : threadId(inputId),
-              )
-              ?.focus({ preventScroll: true });
-            void chat.send(t(`agent.prompts.${prompt}`));
-          }}
-        >
-          {t(`agent.prompts.${prompt}`)}
-          <ArrowUp className="text-muted-foreground" />
-        </Button>
-      ))}
     </div>
   );
 }
@@ -146,11 +100,22 @@ function SeoChatThread({
           : "";
   // The keywords tile says "0 of N": the first example asks about that result.
   const unranked = seoSummary(model.data).keywords?.found === 0;
-  const welcome =
-    !chat.turns.length &&
-    !chat.pending &&
-    !chat.history.isPending &&
-    !chat.history.isError;
+  // The suggestions follow the thread: what was asked last, and what was not asked yet.
+  const prompts = chat.history.isPending
+    ? []
+    : seoChatSuggestions({
+        competitors: seoHasCompetitor(model.data),
+        searches: Boolean(model.data.searchQueries?.rows.length),
+        unranked,
+        // A failed turn has no answer to follow up on, and its question can be asked again.
+        asked: [
+          ...chat.turns
+            .filter((turn) => turn.status !== "failed")
+            .map((turn) => turn.question),
+          ...(chat.pending ? [chat.pending] : []),
+        ],
+        textOf: (prompt) => t(`agent.prompts.${prompt}`),
+      });
   return (
     <div className={cn("flex min-h-0 flex-col", className)}>
       <p role="status" className="sr-only">
@@ -187,14 +152,6 @@ function SeoChatThread({
               {t("retry")}
             </Button>
           </div>
-        ) : welcome ? (
-          <ChatWelcome
-            chat={chat}
-            inputId={inputId}
-            competitors={seoHasCompetitor(model.data)}
-            searches={Boolean(model.data.searchQueries?.rows.length)}
-            unranked={unranked}
-          />
         ) : null}
         {chat.turns.map((turn) => (
           <SeoChatTurn
@@ -218,17 +175,20 @@ function SeoChatThread({
         ) : null}
       </div>
       <div className="shrink-0 space-y-2 px-4 pb-4">
-        {welcome ? null : (
-          <SeoPromptChips
-            busy={chat.busy}
-            competitors={seoHasCompetitor(model.data)}
-            searches={Boolean(model.data.searchQueries?.rows.length)}
-            unranked={unranked}
-            onPick={(question) => {
-              void chat.send(question);
-            }}
-          />
-        )}
+        <SeoPromptChips
+          busy={chat.busy}
+          prompts={prompts}
+          onPick={(question) => {
+            // The chips change once the question is out: focus moves to the
+            // field, or to the thread where the field would open a keyboard.
+            document
+              .getElementById(
+                devicePrefersHover() ? inputId : threadId(inputId),
+              )
+              ?.focus({ preventScroll: true });
+            void chat.send(question);
+          }}
+        />
         {chat.error ? (
           <p role="alert" className="text-destructive text-sm">
             {chat.error}

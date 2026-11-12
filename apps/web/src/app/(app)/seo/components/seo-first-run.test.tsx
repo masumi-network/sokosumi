@@ -863,6 +863,36 @@ describe("SEO agent chat", () => {
     expect(posts).toEqual([copy.agent.prompts.first]);
     // A keyboard is at hand: the next question can be typed at once.
     expect(within(sheet).getByLabelText("Your question")).toHaveFocus();
+    // The chips follow the answer: its follow-up is offered, the question asked is not.
+    expect(
+      within(sheet).getByRole("button", { name: copy.agent.prompts.howToDo }),
+    ).toBeVisible();
+    expect(
+      within(sheet).queryByRole("button", { name: copy.agent.prompts.first }),
+    ).toBeNull();
+  });
+
+  it("offers the question of a failed turn again, with no follow-up to it", async () => {
+    const user = userEvent.setup();
+    const workspace = chatWorkspace();
+    const failed = {
+      ...turn(copy.agent.prompts.first, ""),
+      response: null,
+      status: "failed",
+    };
+    network(workspace, {
+      chat: () => Response.json({ sharing: "personal", turns: [failed] }),
+    });
+    renderWorkspace(workspace);
+    const sheet = await openChat(user);
+    expect(
+      await within(sheet).findByRole("button", {
+        name: copy.agent.prompts.first,
+      }),
+    ).toBeVisible();
+    expect(
+      within(sheet).queryByRole("button", { name: copy.agent.prompts.howToDo }),
+    ).toBeNull();
   });
 
   it("opens the sheet on a touch screen with focus on the thread, so no keyboard covers the answer", async () => {
