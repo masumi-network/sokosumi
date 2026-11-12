@@ -29,6 +29,10 @@ export type SeoKeywordGroup = {
   conversion: Keyword["conversion"];
   /** The product feature the keyword is about, in the words of the check. */
   feature: string | null;
+  /** The newest keyword difficulty (0 to 100) a check gave; null without one. */
+  difficulty: number | null;
+  /** Estimated monthly clicks now (at the best rank read) and at places 10, 3 and 1; null without a volume. */
+  clicks: Keyword["clicks"];
 };
 
 /**
@@ -83,6 +87,7 @@ export function keywordGroups(rows: Keyword[]) {
     const ranks = reads.flatMap((row) =>
       row.position === null ? [] : [row.position],
     );
+    const best = ranks.length ? Math.min(...ranks) : null;
     // Rows come newest first: the first estimate is the newest. Its feature goes with it,
     // so a level never stands over the feature of another check.
     const estimated = group.find((row) => row.conversion !== null);
@@ -91,10 +96,17 @@ export function keywordGroups(rows: Keyword[]) {
       lead: group.find((row) => row.saved) ?? reads[0] ?? group[0],
       reads,
       volume: group.find((row) => row.volume !== null)?.volume ?? null,
-      best: ranks.length ? Math.min(...ranks) : null,
+      best,
       sources: [...new Set(group.map((row) => row.source))],
       conversion: estimated?.conversion ?? null,
       feature: estimated?.feature ?? null,
+      difficulty:
+        group.find((row) => row.difficulty !== null)?.difficulty ?? null,
+      // The estimate now goes with the best rank, as the list shows it; a row of another rank would claim
+      // a gain the keyword does not have.
+      clicks:
+        group.find((row) => row.position === best && row.clicks)?.clicks ??
+        null,
     };
   });
   // The reader's own choices first, so a keyword the reader just tracked never hides behind "Show more".

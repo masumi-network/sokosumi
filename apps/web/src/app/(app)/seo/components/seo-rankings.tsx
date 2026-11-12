@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/segmented-control-classes";
 import { cn } from "@/lib/utils";
 import { SeoCompetitors } from "./seo-competitors";
+import { SeoKeywordMap } from "./seo-keyword-map";
 import { keywordGroups } from "./seo-keyword-rows-model";
 import { SeoKeywords, SeoQueryFilter } from "./seo-keywords";
 import { type SeoRankingsSection, seoSectionClass } from "./seo-shared";
@@ -82,6 +83,8 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
           />
         </div>
       </div>
+      {/* Keywords and ideas on one map: which ones are worth the work. The competitors list has no use for it. */}
+      {section === "competitors" ? null : <SeoKeywordMap groups={groups} />}
       <SeoKeywords model={model} section={section} />
       <div className={seoSectionClass(section === "competitors")}>
         <SeoCompetitors model={model} />
