@@ -5,7 +5,9 @@ import type { GridMove } from "@/components/data-grid/grid-keys";
 import { TableCell, TableUpdatedCell } from "./table-cell";
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  // A message that carries a reason shows it, so a dropped reason fails.
+  useTranslations: () => (key: string, values?: { reason?: string }) =>
+    values?.reason ? `${key} ${values.reason}` : key,
   useFormatter: () => ({
     // A named format (Last updated) reads back as `name:iso`; options format.
     dateTime: (date: Date, format: string | Intl.DateTimeFormatOptions) =>
@@ -147,7 +149,7 @@ describe("table cell editing", () => {
     fail({ error: "Conflict" });
     // It says the value was not saved and is back, before the reason.
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "errors.cellNotSaved",
+      "errors.cellNotSaved errors.conflict",
     );
     expect(screen.getByRole("textbox")).toHaveValue("Keep me");
     expect(screen.getByRole("textbox")).toBeEnabled();

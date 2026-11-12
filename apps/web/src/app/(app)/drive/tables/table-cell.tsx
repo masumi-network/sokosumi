@@ -102,8 +102,9 @@ export function TableCell({
   const [error, setError] = useState("");
   const [uncertain, setUncertain] = useState(false);
   const [pending, setPending] = useState(false);
-  // The value a save in flight will write. The cell reads as saved at once and
-  // its editor is out of the way; a failed save brings the editor back.
+  // The value a save in flight will write. The cell shows it at once, marked
+  // as pending until the save answers, and its editor is out of the way; a
+  // failed save brings the editor back.
   const [sent, setSent] = useState<{ value: Value }>();
   // An editor that returns with a failed save must not pull focus out of the
   // cell the user moved on to.
