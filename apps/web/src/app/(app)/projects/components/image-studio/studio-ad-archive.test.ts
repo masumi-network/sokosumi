@@ -10,6 +10,12 @@ vi.mock("./studio-ad-headline", () => ({
 }));
 
 const ASSET: StudioAsset = {
+  myThumb: null,
+  myReasons: [],
+  myComment: null,
+  thumbsUp: 0,
+  thumbsDown: 0,
+  score: 0.5,
   id: "asset-a",
   projectId: "project-a",
   projectName: "Launch",
@@ -53,9 +59,9 @@ describe("downloading selected Studio ads", () => {
     const zip = await JSZip.loadAsync(data);
 
     expect(fetchAsset.mock.calls.map(([url]) => url)).toEqual([
-      "/api/projects/project-a/image-studio/assets/asset-a/content",
-      "/api/projects/project-a/image-studio/assets/asset-b/content",
-      "/api/projects/project-a/image-studio/assets/asset-c/content",
+      "/api/projects/project-a/image-studio/assets/asset-a/content?download=true",
+      "/api/projects/project-a/image-studio/assets/asset-b/content?download=true",
+      "/api/projects/project-a/image-studio/assets/asset-c/content?download=true",
     ]);
     expect(await zip.file("ad-1-1080x1350.png")?.async("text")).toBe("one");
     expect(await zip.file("ad-2-1080x1350.png")?.async("text")).toBe("two");
@@ -124,7 +130,7 @@ describe("downloading selected Studio ads", () => {
       ),
     );
     expect(fetchAsset).toHaveBeenCalledWith(
-      "/api/projects/project-a/image-studio/assets/asset-a/content?logo=bottom-right",
+      "/api/projects/project-a/image-studio/assets/asset-a/content?logo=bottom-right&download=true",
       expect.any(Object),
     );
     expect(await zip.file("ad-1-1080x1350-branded.png")?.async("text")).toBe(

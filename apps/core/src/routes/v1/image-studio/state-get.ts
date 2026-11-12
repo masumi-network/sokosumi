@@ -58,6 +58,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     const [assetPage, jobs] = await Promise.all([
       listAssets({
         ...scope,
+        sort: query.sort,
         limit: ASSET_PAGE,
         ...(query.before && query.beforeId
           ? {

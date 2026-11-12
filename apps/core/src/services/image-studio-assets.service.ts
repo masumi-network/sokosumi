@@ -20,8 +20,15 @@ import {
   type ImageJobFailureReason,
   readImageJobFailureReason,
 } from "@/lib/image-studio/failure-reason";
-import type { StudioAdHeadline } from "@/schemas/project-image-studio.schema";
+import type {
+  StudioAdHeadline,
+  StudioAssetRating,
+} from "@/schemas/project-image-studio.schema";
 import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
+import {
+  emptyStudioAssetRating,
+  getStudioAssetRatings,
+} from "./image-studio-feedback.service";
 
 /**
  * Versions, lineage, and the bytes behind them.
@@ -37,7 +44,7 @@ import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
  * `lib/image-studio/blob-store.ts`.
  */
 
-export interface AssetView {
+export interface AssetView extends StudioAssetRating {
   id: string;
   projectId: string;
   /** Named on the row so a workspace-wide gallery can say where each image lives. */
@@ -116,6 +123,7 @@ function toAssetView({
     ...(headline ? { headline } : {}),
     ...splitVideoSettings(asset.mediaType === "VIDEO", asset.settings),
     projectName: project.name,
+    ...emptyStudioAssetRating(),
   };
 }
 
@@ -168,6 +176,98 @@ interface ListScope {
   userId: string;
 }
 
+interface ListAssetOptions extends ListScope {
+  limit: number;
+  /** Return versions older than this cursor instead of the newest page. */
+  before?: { createdAt: Date; id: string };
+  /** Always include this version, whatever its age. */
+  pinnedAssetId?: string;
+  sort?: "newest" | "best";
+}
+
+async function applyRatings(assets: AssetView[], userId: string) {
+  const ratings = await getStudioAssetRatings(
+    assets.map((asset) => asset.id),
+    userId,
+  );
+  return assets.map((asset) => ({ ...asset, ...ratings.get(asset.id)! }));
+}
+
+async function appendPinnedAsset(
+  assets: AssetView[],
+  options: ListAssetOptions,
+  where: Prisma.ProjectImageAssetWhereInput,
+) {
+  if (
+    options.pinnedAssetId &&
+    !assets.some((asset) => asset.id === options.pinnedAssetId)
+  ) {
+    const pinned = await prisma.projectImageAsset.findFirst({
+      where: { id: options.pinnedAssetId, ...where },
+      select: assetSelect,
+    });
+    // Appended out of order on purpose: it is not part of this page, it is the
+    // version the caller is looking at. The client keys off ids.
+    if (pinned) assets.push(toAssetView(pinned));
+  }
+}
+
+async function listBestAssets(
+  options: ListAssetOptions,
+  where: Prisma.ProjectImageAssetWhereInput,
+) {
+  // Rank lightweight ids before hydrating the page: a high-rated older image
+  // must be reachable even when it is outside the newest hundred versions.
+  const candidates = await prisma.projectImageAsset.findMany({
+    where,
+    select: { id: true, createdAt: true },
+  });
+  const ratings = await getStudioAssetRatings(
+    candidates.map((asset) => asset.id),
+    options.userId,
+  );
+  candidates.sort(
+    (left, right) =>
+      ratings.get(right.id)!.score - ratings.get(left.id)!.score ||
+      right.createdAt.getTime() - left.createdAt.getTime() ||
+      right.id.localeCompare(left.id),
+  );
+  const cursorId = options.before?.id;
+  const cursorIndex = cursorId
+    ? candidates.findIndex((asset) => asset.id === cursorId)
+    : -1;
+  // A hidden/deleted anchor ends this page chain; restarting would duplicate
+  // every already-loaded image. Refreshing starts a fresh ranked list.
+  const start = cursorId
+    ? cursorIndex === -1
+      ? candidates.length
+      : cursorIndex + 1
+    : 0;
+  const page = candidates.slice(start, start + options.limit + 1);
+  const hasMore = page.length > options.limit;
+  const ids = page.slice(0, options.limit).map((asset) => asset.id);
+  const rows =
+    ids.length > 0
+      ? await prisma.projectImageAsset.findMany({
+          where: { ...where, id: { in: ids } },
+          select: assetSelect,
+        })
+      : [];
+  const byId = new Map(rows.map((asset) => [asset.id, asset]));
+  const assets = ids.flatMap((id) => {
+    const asset = byId.get(id);
+    return asset ? [{ ...toAssetView(asset), ...ratings.get(id)! }] : [];
+  });
+  const last = page.slice(0, options.limit).at(-1);
+  const nextCursor =
+    hasMore && last ? { createdAt: last.createdAt, id: last.id } : null;
+  await appendPinnedAsset(assets, options, where);
+  return {
+    assets: assets.map((asset) => ({ ...asset, ...ratings.get(asset.id)! })),
+    nextCursor,
+  };
+}
+
 async function scopeWhere(scope: ListScope) {
   if (scope.projectId === null) {
     await requireWorkspaceAccess(scope);
@@ -179,25 +279,19 @@ async function scopeWhere(scope: ListScope) {
 
 /**
  * A page of versions, newest first, plus any version the caller is looking at.
+ * `sort: "best"` ranks feedback across the whole scope before paging.
  *
  * The pinned asset matters: a selection is preserved in the URL, and a project
  * past one page of history would otherwise reload to an empty preview because
  * the selected version was not in the newest page. It is fetched by id
  * regardless of age and merged in.
  */
-export async function listAssets(
-  options: ListScope & {
-    limit: number;
-    /** Return versions older than this cursor instead of the newest page. */
-    before?: { createdAt: Date; id: string };
-    /** Always include this version, whatever its age. */
-    pinnedAssetId?: string;
-  },
-): Promise<{
+export async function listAssets(options: ListAssetOptions): Promise<{
   assets: AssetView[];
   nextCursor: { createdAt: Date; id: string } | null;
 }> {
-  const where = await scopeWhere(options);
+  const where = { ...(await scopeWhere(options)), hiddenAt: null };
+  if (options.sort === "best") return listBestAssets(options, where);
 
   // Ordered by `(createdAt, id)`, not `createdAt` alone. Two versions settled
   // in the same millisecond are not rare — a webhook and a poll finishing
@@ -235,20 +329,9 @@ export async function listAssets(
   const nextCursor =
     hasMore && last ? { createdAt: last.createdAt, id: last.id } : null;
 
-  if (
-    options.pinnedAssetId &&
-    !assets.some((asset) => asset.id === options.pinnedAssetId)
-  ) {
-    const pinned = await prisma.projectImageAsset.findFirst({
-      where: { id: options.pinnedAssetId, ...where },
-      select: assetSelect,
-    });
-    // Appended out of order on purpose: it is not part of this page, it is the
-    // version the caller is looking at. The client keys off ids.
-    if (pinned) assets.push(toAssetView(pinned));
-  }
+  await appendPinnedAsset(assets, options, where);
 
-  return { assets, nextCursor };
+  return { assets: await applyRatings(assets, options.userId), nextCursor };
 }
 
 export async function listStudioBatchAssets(options: {
@@ -263,6 +346,7 @@ export async function listStudioBatchAssets(options: {
     projectId,
     workspaceId,
     mediaType: ProjectImageMediaType.IMAGE,
+    hiddenAt: null,
   };
   const readyRevision = { projectId, workspaceId, asset: { is: image } };
   const slots = await prisma.projectImageJob.findMany({
@@ -286,7 +370,7 @@ export async function listStudioBatchAssets(options: {
       },
     },
   });
-  return slots
+  const assets = slots
     .flatMap(({ asset, batchRefinements }) => {
       const latest = batchRefinements[0]?.asset ?? asset;
       return latest &&
@@ -300,6 +384,7 @@ export async function listStudioBatchAssets(options: {
         right.createdAt.getTime() - left.createdAt.getTime() ||
         right.id.localeCompare(left.id),
     );
+  return applyRatings(assets, options.userId);
 }
 
 export async function getAsset(options: {
@@ -314,7 +399,7 @@ export async function getAsset(options: {
     select: assetSelect,
   });
   if (!asset) throw notFound("Image not found");
-  return toAssetView(asset);
+  return (await applyRatings([toAssetView(asset)], options.userId))[0]!;
 }
 
 /**

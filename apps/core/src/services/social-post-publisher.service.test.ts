@@ -33,6 +33,7 @@ const {
   transactionMock,
   ssrfSafeFetchMock,
   resolveXSubscriptionTypeMock,
+  recordAdEventsMock,
 } = vi.hoisted(() => ({
   publishingAccessMock: vi.fn(),
   attemptFindFirstMock: vi.fn(),
@@ -52,6 +53,11 @@ const {
   transactionMock: vi.fn(),
   ssrfSafeFetchMock: vi.fn(),
   resolveXSubscriptionTypeMock: vi.fn(),
+  recordAdEventsMock: vi.fn(),
+}));
+
+vi.mock("@/services/social-studio-events.service", () => ({
+  recordSocialStudioAdEvents: recordAdEventsMock,
 }));
 
 vi.mock("@/services/x-subscription-tier.service", () => ({
@@ -272,6 +278,15 @@ describe("social post publisher service", () => {
       expect(publishXPostMock).toHaveBeenCalledWith(
         expect.objectContaining({ quoteExternalId: "1906" }),
       );
+      expect(recordAdEventsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          postId: POST_ID,
+          type: "posted",
+          media: [],
+        }),
+      );
     });
 
     it("also publishes now once the target has a confirmed X id", async () => {
@@ -338,6 +353,7 @@ describe("social post publisher service", () => {
       expect(settleCall().data).not.toHaveProperty("attemptCount");
       expect(attemptCreateMock).not.toHaveBeenCalled();
       expect(publishXPostMock).not.toHaveBeenCalled();
+      expect(recordAdEventsMock).not.toHaveBeenCalled();
       vi.setSystemTime(new Date(NOW.getTime() + 60_000));
       prepare(target);
       expect(

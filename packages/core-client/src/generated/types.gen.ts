@@ -6170,6 +6170,12 @@ export type ProjectImageAsset = {
     jobId: string;
     settings: ProjectImageSettings;
     contentPath: string;
+    myThumb: 1 | -1 | null;
+    myReasons: Array<'off-brand' | 'bad text' | 'wrong product' | 'ugly' | 'great'>;
+    myComment: string | null;
+    thumbsUp: number;
+    thumbsDown: number;
+    score: number;
 };
 
 export type ProjectVideoSettings = {
@@ -10603,6 +10609,25 @@ export const StudioAdPlacementRatio = {
 } as const;
 
 export type StudioAdPlacementRatio = typeof StudioAdPlacementRatio[keyof typeof StudioAdPlacementRatio];
+
+export type RecordStudioAssetEvent = {
+    type: 'viewed_lightbox';
+};
+
+export type StudioAssetRating = {
+    myThumb: 1 | -1 | null;
+    myReasons: Array<'off-brand' | 'bad text' | 'wrong product' | 'ugly' | 'great'>;
+    myComment: string | null;
+    thumbsUp: number;
+    thumbsDown: number;
+    score: number;
+};
+
+export type SetStudioAssetFeedback = {
+    thumb: 1 | -1 | null;
+    reasons?: Array<'off-brand' | 'bad text' | 'wrong product' | 'ugly' | 'great'>;
+    comment?: string | null;
+};
 
 export type ProjectImageStudioCaption = {
     text: string;
@@ -46041,6 +46066,7 @@ export type GetImageStudioStateData = {
     };
     path?: never;
     query?: {
+        sort?: 'newest' | 'best';
         assetId?: string;
         before?: Date;
         beforeId?: string;
@@ -68150,6 +68176,7 @@ export type GetProjectsByIdImageStudioData = {
         id: string;
     };
     query?: {
+        sort?: 'newest' | 'best';
         assetId?: string;
         before?: Date;
         beforeId?: string;
@@ -70074,6 +70101,7 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentData = {
     query?: {
         logo?: StudioLogoPosition;
         placement?: StudioAdPlacementRatio;
+        download?: 'true';
     };
     url: '/projects/{id}/image-studio/assets/{assetId}/content';
 };
@@ -70170,6 +70198,283 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponses = {
 };
 
 export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponse = GetProjectsByIdImageStudioAssetsByAssetIdContentResponses[keyof GetProjectsByIdImageStudioAssetsByAssetIdContentResponses];
+
+export type RecordStudioAssetEventData = {
+    body: RecordStudioAssetEvent;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        assetId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/assets/{assetId}/events';
+};
+
+export type RecordStudioAssetEventErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Image not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid event
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RecordStudioAssetEventError = RecordStudioAssetEventErrors[keyof RecordStudioAssetEventErrors];
+
+export type RecordStudioAssetEventResponses = {
+    /**
+     * View acknowledged
+     */
+    204: void;
+};
+
+export type RecordStudioAssetEventResponse = RecordStudioAssetEventResponses[keyof RecordStudioAssetEventResponses];
+
+export type SetStudioAssetFeedbackData = {
+    body: SetStudioAssetFeedback;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        assetId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/assets/{assetId}/feedback';
+};
+
+export type SetStudioAssetFeedbackErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Image not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid feedback
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetStudioAssetFeedbackError = SetStudioAssetFeedbackErrors[keyof SetStudioAssetFeedbackErrors];
+
+export type SetStudioAssetFeedbackResponses = {
+    /**
+     * Workspace asset rating
+     */
+    200: {
+        data: StudioAssetRating;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetStudioAssetFeedbackResponse = SetStudioAssetFeedbackResponses[keyof SetStudioAssetFeedbackResponses];
+
+export type HideStudioAssetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        assetId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/assets/{assetId}/hide';
+};
+
+export type HideStudioAssetErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Image not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid asset
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type HideStudioAssetError = HideStudioAssetErrors[keyof HideStudioAssetErrors];
+
+export type HideStudioAssetResponses = {
+    /**
+     * Asset hidden
+     */
+    204: void;
+};
+
+export type HideStudioAssetResponse = HideStudioAssetResponses[keyof HideStudioAssetResponses];
 
 export type SaveStudioAdHeadlineData = {
     body: SaveStudioAdHeadline;

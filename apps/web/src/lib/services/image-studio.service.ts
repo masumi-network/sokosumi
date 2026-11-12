@@ -8,6 +8,7 @@ import type {
   ProjectImageStudioState,
   SaveStudioBrandCopy,
   SaveStudioBrandLook,
+  SetStudioAssetFeedbackData,
   SocialPostMediaRef,
   StudioProductCatalog,
   StudioProductImport,
@@ -19,6 +20,7 @@ interface StudioStateQuery {
   assetId?: string;
   before?: string;
   beforeId?: string;
+  sort?: "newest" | "best";
 }
 
 /**
@@ -53,6 +55,7 @@ export const imageStudioService = {
         assetId?: string;
         before?: Date;
         beforeId?: string;
+        sort?: "newest" | "best";
       },
     );
     return result.data;
@@ -85,6 +88,23 @@ export const imageStudioService = {
   ) {
     return (await coreClient.saveStudioAdHeadline(projectId, assetId, text))
       .data;
+  },
+
+  async setFeedback(
+    projectId: string,
+    assetId: string,
+    input: SetStudioAssetFeedbackData["body"],
+  ) {
+    return (await coreClient.setStudioAssetFeedback(projectId, assetId, input))
+      .data;
+  },
+
+  async hideAsset(projectId: string, assetId: string) {
+    await coreClient.hideStudioAsset(projectId, assetId);
+  },
+
+  async recordView(projectId: string, assetId: string) {
+    await coreClient.recordStudioAssetEvent(projectId, assetId);
   },
 
   async listBatchAssets(projectId: string, batchId: string) {

@@ -18,6 +18,12 @@ vi.mock("@/components/ui/image-viewer", () => ({
 }));
 
 const ASSET: StudioAsset = {
+  myThumb: null,
+  myReasons: [],
+  myComment: null,
+  thumbsUp: 0,
+  thumbsDown: 0,
+  score: 0.5,
   id: "asset-a",
   projectId: "project-a",
   projectName: "Campaign",

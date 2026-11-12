@@ -48,6 +48,21 @@ describe("GET image studio asset content", () => {
     vi.stubGlobal("fetch", fetchMock);
   });
 
+  it("forwards an explicit download flag without treating the original image as a render", async () => {
+    fetchMock.mockResolvedValue(
+      new Response("image", { headers: { "content-type": "image/png" } }),
+    );
+    const response = await GET(
+      new NextRequest(`${request().url}?download=true`),
+      { params },
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://core.test/v1/projects/project-1/image-studio/assets/asset-1/content?download=true",
+      expect.objectContaining({ cache: "no-store" }),
+    );
+    expect(response.headers.get("cache-control")).toBe("private, no-cache");
+  });
+
   it("passes a storage outage through as 503 rather than calling it missing", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ error: "Service Unavailable" }), {

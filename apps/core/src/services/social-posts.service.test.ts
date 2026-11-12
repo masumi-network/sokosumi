@@ -33,6 +33,7 @@ const {
   transactionMock,
   queryRawMock,
   resolveXSubscriptionTypeMock,
+  recordAdEventsMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
   workspaceFindUniqueOrThrowMock: vi.fn(),
@@ -50,6 +51,11 @@ const {
   transactionMock: vi.fn(),
   queryRawMock: vi.fn(),
   resolveXSubscriptionTypeMock: vi.fn(),
+  recordAdEventsMock: vi.fn(),
+}));
+
+vi.mock("@/services/social-studio-events.service", () => ({
+  recordSocialStudioAdEvents: recordAdEventsMock,
 }));
 
 vi.mock("@/services/x-subscription-tier.service", () => ({
@@ -240,6 +246,113 @@ describe("social posts service", () => {
     socialPostFindUniqueMock.mockResolvedValue(draftPost);
     socialPostCreateMock.mockResolvedValue(draftPost);
     socialPostUpdateManyMock.mockResolvedValue({ count: 1 });
+  });
+
+  it("records attached studio media after a successful draft save", async () => {
+    const { createSocialPost } = await loadService();
+    socialPostCreateMock.mockResolvedValue({
+      ...draftPost,
+      media: [IMAGE_REF],
+    });
+    await createSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      organizationId: null,
+      text: "Launch",
+      media: [IMAGE_REF],
+    });
+    expect(recordAdEventsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        postId: POST_ID,
+        type: "attached_to_post",
+        media: [IMAGE_REF],
+        threadParts: [],
+      }),
+    );
+    expect(recordAdEventsMock.mock.invocationCallOrder[0]).toBeGreaterThan(
+      socialPostCreateMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("does not record scheduling when the transaction rolls back", async () => {
+    const { createSocialPost } = await loadService();
+    transactionMock.mockRejectedValueOnce(new Error("transaction rolled back"));
+    await expect(
+      createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        organizationId: null,
+        text: "Launch",
+        media: [IMAGE_REF],
+        scheduledAt: FUTURE,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+      }),
+    ).rejects.toThrow("transaction rolled back");
+    expect(recordAdEventsMock).not.toHaveBeenCalled();
+  });
+
+  it("records a schedule only after its transaction commits", async () => {
+    const { createSocialPost } = await loadService();
+    transactionMock.mockResolvedValueOnce({
+      ...scheduledPost,
+      media: [IMAGE_REF],
+    });
+    await createSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      organizationId: null,
+      text: "Launch",
+      media: [IMAGE_REF],
+      scheduledAt: FUTURE,
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+    });
+    expect(recordAdEventsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "scheduled", media: [IMAGE_REF] }),
+    );
+    expect(recordAdEventsMock.mock.invocationCallOrder[0]).toBeGreaterThan(
+      transactionMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("keeps an edit successful when its optional event comparison read fails", async () => {
+    const { updateSocialPost } = await loadService();
+    socialPostFindFirstMock.mockRejectedValueOnce(
+      new Error("comparison unavailable"),
+    );
+    transactionMock.mockResolvedValueOnce({ ...draftPost, media: [IMAGE_REF] });
+    await expect(
+      updateSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        organizationId: null,
+        postId: POST_ID,
+        media: [IMAGE_REF],
+        revision: 0,
+      }),
+    ).resolves.toMatchObject({ id: POST_ID });
+    expect(recordAdEventsMock).not.toHaveBeenCalled();
+  });
+
+  it("does not count a draft awaiting approval as scheduled", async () => {
+    const { scheduleSocialPost } = await loadService();
+    transactionMock.mockResolvedValueOnce({
+      ...scheduledPost,
+      status: "NEEDS_APPROVAL",
+    });
+    await scheduleSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      scheduledAt: FUTURE,
+      timezone: "UTC",
+      revision: 0,
+    });
+    expect(recordAdEventsMock).not.toHaveBeenCalled();
   });
 
   it.each(["x", "instagram"] as const)(
@@ -3173,6 +3286,7 @@ describe("social posts service", () => {
     it("replaces media on update and re-checks the text rule", async () => {
       socialPostFindFirstMock
         .mockResolvedValueOnce({ ...draftPost, text: "", media: [IMAGE_REF] })
+        .mockResolvedValueOnce({ ...draftPost, text: "", media: [IMAGE_REF] })
         .mockResolvedValueOnce({ ...draftPost, media: [GIF_REF], revision: 1 });
       const { updateSocialPost } = await loadService();
 
@@ -3447,6 +3561,7 @@ describe("social posts service", () => {
         status: "reauthorization_required",
       });
       socialPostFindFirstMock
+        .mockResolvedValueOnce(failed)
         .mockResolvedValueOnce(failed)
         .mockResolvedValueOnce({
           ...failed,

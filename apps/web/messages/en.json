@@ -4541,7 +4541,26 @@
         "processedMegapixels": "processed megapixel"
       },
       "creditsCheckedOn": "Price checked {date}",
-      "pickBody": "Content Studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery."
+      "pickBody": "Content Studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery.",
+      "Rating": {
+        "label": "Rate ad",
+        "up": "Thumbs up",
+        "down": "Thumbs down",
+        "reasons": "Reasons (optional)",
+        "offBrand": "Off-brand",
+        "badText": "Bad text",
+        "wrongProduct": "Wrong product",
+        "ugly": "Ugly",
+        "great": "Great",
+        "comment": "Comment (optional)",
+        "more": "More ad actions",
+        "hide": "Hide ad",
+        "sort": "Sort ads",
+        "newest": "Newest",
+        "best": "Best first",
+        "saveFailed": "Failed to save rating. Try again.",
+        "hideFailed": "Failed to hide ad. Try again."
+      }
     },
     "Ads": {
       "title": "Ads",

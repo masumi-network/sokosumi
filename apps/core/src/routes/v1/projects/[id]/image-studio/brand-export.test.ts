@@ -9,13 +9,17 @@ const mocks = vi.hoisted(() => ({
   openAssetStream: vi.fn(),
   findProject: vi.fn(),
   downloadLogo: vi.fn(),
+  eventCreate: vi.fn(),
 }));
 
 vi.mock("@/services/image-studio-assets.service", () => ({
   openAssetStream: mocks.openAssetStream,
 }));
 vi.mock("@/lib/db/prisma", () => ({
-  default: { project: { findUnique: mocks.findProject } },
+  default: {
+    project: { findUnique: mocks.findProject },
+    adEvent: { create: mocks.eventCreate },
+  },
 }));
 vi.mock("@/lib/remote-image", () => ({
   downloadRemoteImage: mocks.downloadLogo,
@@ -77,9 +81,12 @@ describe("Studio branded asset content", () => {
       bytes: new Uint8Array(artwork).buffer,
     });
 
-    const response = await app().request(`${path}?logo=bottom-right`, {
-      headers: { Range: "bytes=0-10" },
-    });
+    const response = await app().request(
+      `${path}?logo=bottom-right&download=true`,
+      {
+        headers: { Range: "bytes=0-10" },
+      },
+    );
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("image/png");
     expect(response.headers.get("cache-control")).toBe("private, no-store");
@@ -90,6 +97,15 @@ describe("Studio branded asset content", () => {
       workspaceId: "workspace-a",
     });
     expect(mocks.downloadLogo).toHaveBeenCalledWith(logo, expect.any(Object));
+    expect(mocks.eventCreate).toHaveBeenCalledExactlyOnceWith({
+      data: {
+        workspaceId: "workspace-a",
+        userId: "user-a",
+        assetId,
+        type: "downloaded",
+        meta: undefined,
+      },
+    });
     expect(await sharp(await response.arrayBuffer()).metadata()).toMatchObject({
       format: "png",
       width: 160,
@@ -102,6 +118,7 @@ describe("Studio branded asset content", () => {
     expect((await app().request(`${path}?logo=top-left`)).status).toBe(404);
     expect(mocks.findProject).not.toHaveBeenCalled();
     expect(mocks.downloadLogo).not.toHaveBeenCalled();
+    expect(mocks.eventCreate).not.toHaveBeenCalled();
   });
 
   it("exports the selected crop with no logo lookup when branding is off", async () => {
@@ -121,6 +138,7 @@ describe("Studio branded asset content", () => {
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(response.headers.get("content-disposition")).toContain("-4x5.png");
     expect(mocks.findProject).not.toHaveBeenCalled();
+    expect(mocks.eventCreate).not.toHaveBeenCalled();
     await expect(
       sharp(await response.arrayBuffer()).metadata(),
     ).resolves.toMatchObject({
@@ -129,4 +147,25 @@ describe("Studio branded asset content", () => {
       format: "png",
     });
   });
+
+  it.each([false, true])(
+    "logs explicit original downloads only (download=%s)",
+    async (download) => {
+      mocks.openAssetStream.mockResolvedValueOnce({
+        stream: new Response(new Uint8Array([1, 2])).body,
+        contentType: "image/png",
+        size: 2,
+        checksum: "sha",
+      });
+      mocks.eventCreate.mockRejectedValueOnce(
+        new Error("event store unavailable"),
+      );
+      const response = await app().request(
+        download ? `${path}?download=true` : path,
+      );
+      expect(response.status).toBe(200);
+      expect(mocks.eventCreate).toHaveBeenCalledTimes(download ? 1 : 0);
+      expect((await response.arrayBuffer()).byteLength).toBe(2);
+    },
+  );
 });

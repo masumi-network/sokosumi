@@ -40,6 +40,7 @@ export interface ImageViewerImage {
   src: string;
   alt: string;
   downloadFilename?: string;
+  downloadSrc?: string;
   /** A video plays with its own controls in place of the image. */
   isVideo?: boolean;
 }
@@ -145,6 +146,7 @@ function ImageViewerChrome({
   src,
   alt,
   downloadFilename,
+  downloadSrc,
   isVideo = false,
   position,
   total,
@@ -275,7 +277,7 @@ function ImageViewerChrome({
             size="icon"
             variant="ghost"
           >
-            <a aria-label={t("download")} download={downloadFilename} href={src}>
+            <a aria-label={t("download")} download={downloadFilename} href={downloadSrc ?? src}>
               <Download className="size-4" aria-hidden="true" />
             </a>
           </Button>

@@ -4541,7 +4541,26 @@
         "processedMegapixels": "megapíxel procesado"
       },
       "creditsCheckedOn": "Precio comprobado el {date}",
-      "pickBody": "Content Studio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería."
+      "pickBody": "Content Studio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería.",
+      "Rating": {
+        "label": "Valorar anuncio",
+        "up": "Me gusta",
+        "down": "No me gusta",
+        "reasons": "Motivos (opcional)",
+        "offBrand": "No refleja la marca",
+        "badText": "Texto deficiente",
+        "wrongProduct": "Producto incorrecto",
+        "ugly": "Poco atractivo",
+        "great": "Excelente",
+        "comment": "Comentario (opcional)",
+        "more": "Más acciones del anuncio",
+        "hide": "Ocultar anuncio",
+        "sort": "Ordenar anuncios",
+        "newest": "Más recientes",
+        "best": "Mejores primero",
+        "saveFailed": "No se pudo guardar la valoración. Inténtalo de nuevo.",
+        "hideFailed": "No se pudo ocultar el anuncio. Inténtalo de nuevo."
+      }
     },
     "Ads": {
       "title": "Anuncios",

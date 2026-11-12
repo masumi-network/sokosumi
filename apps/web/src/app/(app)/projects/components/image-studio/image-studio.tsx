@@ -2,6 +2,7 @@
 
 import type {
   CreateProjectVideoJobRequest,
+  SetStudioAssetFeedbackData,
   StudioAdHeadline,
   StudioLogoPosition,
   StudioProduct,
@@ -24,6 +25,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useOptimistic,
   useRef,
   useState,
   useTransition,
@@ -43,6 +45,11 @@ import {
   startVideoGeneration,
   writeStudioAssetCaption,
 } from "@/lib/actions/image-studio/action";
+import {
+  hideStudioAsset,
+  rateStudioAsset,
+  recordStudioAssetView,
+} from "@/lib/actions/image-studio/feedback";
 import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
 import { cn } from "@/lib/utils";
 
@@ -332,6 +339,96 @@ export function ImageStudio({
     hasOlder,
   } = studio;
 
+  const [ratingBusyIds, setRatingBusyIds] = useState<string[]>([]);
+  const [, startFeedback] = useTransition();
+  const [visibleAssets, updateFeedback] = useOptimistic(
+    state.assets,
+    (
+      assets,
+      update: {
+        asset: StudioAsset;
+        feedback?: SetStudioAssetFeedbackData["body"];
+        hide?: boolean;
+      },
+    ) =>
+      update.hide
+        ? assets.filter((asset) => asset.id !== update.asset.id)
+        : assets.map((asset) => {
+            if (asset.id !== update.asset.id || !update.feedback) return asset;
+            const previous = asset.myThumb ?? null;
+            const thumb = update.feedback.thumb;
+            return {
+              ...asset,
+              myThumb: thumb,
+              myReasons: update.feedback.reasons ?? [],
+              myComment: update.feedback.comment ?? null,
+              thumbsUp:
+                (asset.thumbsUp ?? 0) -
+                Number(previous === 1) +
+                Number(thumb === 1),
+              thumbsDown:
+                (asset.thumbsDown ?? 0) -
+                Number(previous === -1) +
+                Number(thumb === -1),
+            };
+          }),
+  );
+
+  function handleRate(
+    asset: StudioAsset,
+    feedback: SetStudioAssetFeedbackData["body"],
+  ) {
+    if (ratingBusyIds.includes(asset.id)) return;
+    setRatingBusyIds((current) => [...current, asset.id]);
+    startFeedback(async () => {
+      updateFeedback({ asset, feedback });
+      try {
+        const result = await rateStudioAsset({
+          projectId: asset.projectId,
+          assetId: asset.id,
+          feedback,
+        });
+        if (!result.ok) toast.error(t("Rating.saveFailed"));
+        else studio.updateRating(asset.id, result.value);
+      } catch {
+        toast.error(t("Rating.saveFailed"));
+      } finally {
+        setRatingBusyIds((current) => current.filter((id) => id !== asset.id));
+      }
+    });
+  }
+
+  function handleHide(asset: StudioAsset) {
+    if (ratingBusyIds.includes(asset.id)) return;
+    setRatingBusyIds((current) => [...current, asset.id]);
+    startFeedback(async () => {
+      updateFeedback({ asset, hide: true });
+      try {
+        const result = await hideStudioAsset({
+          projectId: asset.projectId,
+          assetId: asset.id,
+        });
+        if (!result.ok) toast.error(t("Rating.hideFailed"));
+        else {
+          studio.removeAsset(asset.id);
+          setCheckedIds((current) => current.filter((id) => id !== asset.id));
+          setViewing(null);
+        }
+      } catch {
+        toast.error(t("Rating.hideFailed"));
+      } finally {
+        setRatingBusyIds((current) => current.filter((id) => id !== asset.id));
+      }
+    });
+  }
+
+  const handleViewed = useCallback((asset: StudioAsset) => {
+    void recordStudioAssetView({
+      projectId: asset.projectId,
+      assetId: asset.id,
+    }).catch(() => {});
+  }, []);
+
   /**
    * Bring the deep-linked tile onto the screen, once.
    *
@@ -367,10 +464,10 @@ export function ImageStudio({
   const checkedAssets = useMemo(
     () =>
       checkedIds.flatMap((id) => {
-        const asset = state.assets.find((asset) => asset.id === id);
+        const asset = visibleAssets.find((asset) => asset.id === id);
         return asset ? [asset] : [];
       }),
-    [checkedIds, state.assets],
+    [checkedIds, visibleAssets],
   );
   const referenceProjectIds = new Set(
     checkedAssets.map(({ projectId }) => projectId),
@@ -568,7 +665,7 @@ export function ImageStudio({
     viewing?.mode === "compare"
       ? checkedAssets.slice(0, 4)
       : viewing?.mode === "single" && selectedAsset
-        ? [selectedAsset]
+        ? visibleAssets.filter((asset) => asset.id === selectedAsset.id)
         : [];
 
   async function scheduleAsset(asset: StudioAsset) {
@@ -1197,7 +1294,9 @@ export function ImageStudio({
         className={cn(
           showsNothing
             ? "pointer-events-none mt-auto"
-            : "app-scrollbar flex min-h-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto [overflow-anchor:none]",
+            : studio.sort === "best"
+              ? "app-scrollbar flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto [overflow-anchor:none]"
+              : "app-scrollbar flex min-h-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto [overflow-anchor:none]",
         )}
       >
         <div
@@ -1211,7 +1310,7 @@ export function ImageStudio({
               : cn("justify-end", STUDIO_COMPOSER_GUTTER_CLASS),
           )}
         >
-          <div ref={topRef} />
+          {studio.sort !== "best" ? <div ref={topRef} /> : null}
           {hasOlder ? (
             <p className="text-muted-foreground text-center text-xs">
               {labels.loadOlder}
@@ -1239,10 +1338,15 @@ export function ImageStudio({
           ) : (
             <StudioGallery
               activeJobs={activeJobs}
-              assets={state.assets}
+              assets={visibleAssets}
               cancelRequestedJobIds={cancelRequestedJobIds}
               catalog={catalog}
               labels={labels}
+              sort={studio.sort}
+              onSortChange={studio.setSort}
+              onRate={readOnly ? undefined : handleRate}
+              onHide={readOnly ? undefined : handleHide}
+              ratingBusyIds={ratingBusyIds}
               onCancelJob={readOnly ? undefined : handleCancelJob}
               onOpen={(assetId) => {
                 selectAsset(assetId);
@@ -1269,6 +1373,8 @@ export function ImageStudio({
               selectedIds={checkedIds}
             />
           )}
+
+          {studio.sort === "best" ? <div ref={topRef} /> : null}
 
           {queue.failed.map((failure) => (
             <StudioFailedSubmission
@@ -1433,6 +1539,10 @@ export function ImageStudio({
       {lightboxAssets.length > 0 ? (
         <StudioLightbox
           assets={lightboxAssets}
+          onRate={readOnly ? undefined : handleRate}
+          onHide={readOnly ? undefined : handleHide}
+          onViewed={handleViewed}
+          ratingBusyIds={ratingBusyIds}
           catalog={catalog}
           creditsByAssetId={credits}
           elapsedByAssetId={elapsed}
@@ -1542,7 +1652,13 @@ export function ImageStudio({
               },
             }));
           }}
-          siblings={state.assets}
+          siblings={
+            studio.sort === "best"
+              ? [...visibleAssets].sort(
+                  (a, b) => (b.score ?? 0) - (a.score ?? 0),
+                )
+              : [...visibleAssets].reverse()
+          }
         />
       ) : null}
     </div>
