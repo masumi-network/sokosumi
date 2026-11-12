@@ -4,7 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { notFound } from "@/helpers/error";
 import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
-import { createTaskForActor, updateTaskForActor } from "./task-domain.service";
+import {
+  createTaskForActor,
+  restoreTaskRecord,
+  updateTaskForActor,
+} from "./task-domain.service";
 
 const access = vi.hoisted(() => ({ requireTaskWriteAccess: vi.fn() }));
 vi.mock("@/helpers/access-control", async (importOriginal) => ({
@@ -453,5 +457,80 @@ describe("a shared Soko Bot acting on its own (ADR 0057)", () => {
 
     await expect(update()).rejects.toMatchObject({ status: 404 });
     expect(tx.task.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe("restoreTaskRecord", () => {
+  const actor = { kind: "user", userId: "user_123" } as const;
+  const updatedAt = new Date("2026-11-10T10:00:00.000Z");
+
+  function restoreTx(count = 1) {
+    const updateMany = vi.fn().mockResolvedValue({ count });
+    const eventCreate = vi.fn();
+    return {
+      tx: {
+        task: { updateMany },
+        taskEvent: { create: eventCreate },
+      } as never,
+      updateMany,
+      eventCreate,
+    };
+  }
+
+  it.each([TaskStatus.QUEUED, TaskStatus.READY, TaskStatus.GRANT_PENDING])(
+    "brings a %s Task back as a Draft that will not run",
+    async (status) => {
+      const { tx, updateMany, eventCreate } = restoreTx();
+
+      await restoreTaskRecord(
+        tx,
+        { id: "tsk_1", status, updatedAt } as Task,
+        actor,
+      );
+
+      expect(updateMany).toHaveBeenCalledWith({
+        where: { id: "tsk_1", archivedAt: { not: null }, updatedAt },
+        data: {
+          archivedAt: null,
+          status: TaskStatus.DRAFT,
+          runAt: null,
+          pendingVendorGrantId: null,
+          grantResumeStatus: null,
+        },
+      });
+      expect(eventCreate).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          taskId: "tsk_1",
+          comment: "Task restored",
+          status: TaskStatus.DRAFT,
+          userId: "user_123",
+        }),
+      });
+    },
+  );
+
+  it("keeps a finished Task's status", async () => {
+    const { tx, updateMany } = restoreTx();
+
+    await restoreTaskRecord(
+      tx,
+      { id: "tsk_2", status: TaskStatus.COMPLETED, updatedAt } as Task,
+      actor,
+    );
+
+    expect(updateMany.mock.calls[0][0].data).toEqual({ archivedAt: null });
+  });
+
+  it("refuses when the Task changed meanwhile", async () => {
+    const { tx, eventCreate } = restoreTx(0);
+
+    await expect(
+      restoreTaskRecord(
+        tx,
+        { id: "tsk_3", status: TaskStatus.DRAFT, updatedAt } as Task,
+        actor,
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(eventCreate).not.toHaveBeenCalled();
   });
 });

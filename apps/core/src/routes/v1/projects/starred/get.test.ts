@@ -19,7 +19,10 @@ const { projectStarFindManyMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: { projectStar: { findMany: projectStarFindManyMock } },
+  default: {
+    projectStar: { findMany: projectStarFindManyMock },
+    sokoBot: { findMany: async () => [] },
+  },
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {

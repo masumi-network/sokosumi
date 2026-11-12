@@ -60,6 +60,7 @@ import type {
   GetChatsRoomsData,
   GetChatsRoomsDiscoverableData,
   GetChatsSavedMessagesData,
+  GetChatsSignalsDecisionsData,
   GetChatsSignalsRoomsByIdDecisionsData,
   GetChatsThreadsEarlierData,
   GetChatsThreadsUnreadData,
@@ -155,9 +156,12 @@ import type {
   PostProjectsByIdSocialPostsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
+  PostTasksByIdChatMessagesData,
   PostTasksByIdFilesData,
   PostTasksByIdLinksData,
   PostTasksData,
+  PostTasksDueDatesMoveOverdueData,
+  PostTasksDueDatesUndoData,
   PostUsersByIdFilesData,
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
@@ -256,7 +260,6 @@ import {
   getChatRoomInviteLinksByToken as coreGetChatRoomInviteLinksByToken,
   getChatsInvitations as coreGetChatsInvitations,
   getChatsInvitationsById as coreGetChatsInvitationsById,
-  getChatsRecent as coreGetChatsRecent,
   getChatsRooms as coreGetChatsRooms,
   getChatsRoomsById as coreGetChatsRoomsById,
   getChatsRoomsByIdInvitations as coreGetChatsRoomsByIdInvitations,
@@ -272,6 +275,8 @@ import {
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
   getChatsRoomsElsewhere as coreGetChatsRoomsElsewhere,
   getChatsSavedMessages as coreGetChatsSavedMessages,
+  getChatsSignalsDecisions as coreGetChatsSignalsDecisions,
+  getChatsSignalsImportant as coreGetChatsSignalsImportant,
   getChatsSignalsMessagesByMessageIdRouting as coreGetChatsSignalsMessagesByMessageIdRouting,
   getChatsSignalsRoomsByIdCatchUp as coreGetChatsSignalsRoomsByIdCatchUp,
   getChatsSignalsRoomsByIdDecisions as coreGetChatsSignalsRoomsByIdDecisions,
@@ -303,6 +308,7 @@ import {
   getOrganizationsByIdBillingDetails as coreGetOrganizationsByIdBillingDetails,
   getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
   getOrganizationsByIdCoworkerAccess as coreGetOrganizationsByIdCoworkerAccess,
+  getOrganizationsByIdCreditSpend as coreGetOrganizationsByIdCreditSpend,
   getOrganizationsByIdDeletion as coreGetOrganizationsByIdDeletion,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdInviteLinks as coreGetOrganizationsByIdInviteLinks,
@@ -519,10 +525,13 @@ import {
   postProjectsByIdTasks as corePostProjectsByIdTasks,
   postPublicNewslettersByPublicSlugSubscribe as corePostPublicNewslettersByPublicSlugSubscribe,
   postTasks as corePostTasks,
+  postTasksByIdChatMessages as corePostTasksByIdChatMessages,
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
   postTasksByIdParticipants as corePostTasksByIdParticipants,
+  postTasksDueDatesMoveOverdue as corePostTasksDueDatesMoveOverdue,
+  postTasksDueDatesUndo as corePostTasksDueDatesUndo,
   postTasksSchedules as corePostTasksSchedules,
   postTasksSchedulesByIdEnd as corePostTasksSchedulesByIdEnd,
   postTasksSchedulesByIdPause as corePostTasksSchedulesByIdPause,
@@ -1785,6 +1794,17 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getChatDecisions(
+    query?: GetChatsSignalsDecisionsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsSignalsDecisions({ client, query, cache: "no-store" }),
+      "Failed to fetch decisions",
+    );
+  }
+
   async function getChatRoomDecisions(
     id: string,
     query?: GetChatsSignalsRoomsByIdDecisionsData["query"],
@@ -1871,6 +1891,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function sendTaskToChat(
+    taskId: string,
+    body: NonNullable<PostTasksByIdChatMessagesData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostTasksByIdChatMessages({
+          client,
+          path: { id: taskId },
+          body,
+        }),
+      "Failed to send task to chat",
+    );
+  }
+
   async function unpinChatRoomMessage(roomId: string, messageId: string) {
     return executeCoreOperation(
       getClient,
@@ -1913,11 +1949,11 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getChatRecentSokoBotMessages() {
+  async function getChatImportantMessages() {
     return executeCoreOperation(
       getClient,
-      (client) => coreGetChatsRecent({ client, cache: "no-store" }),
-      "Failed to fetch recent Soko Bot chats",
+      (client) => coreGetChatsSignalsImportant({ client, cache: "no-store" }),
+      "Failed to fetch important chat messages",
     );
   }
 
@@ -3635,6 +3671,23 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization seat summary",
+    );
+  }
+
+  /**
+   * Credits an organization spent this UTC month and last, per billed user.
+   * Core allows owners and admins only.
+   */
+  async function getOrganizationCreditSpend(organizationId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdCreditSpend({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization credit spend",
     );
   }
 
@@ -5654,6 +5707,26 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function moveOverdueTasks(
+    body: NonNullable<PostTasksDueDatesMoveOverdueData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePostTasksDueDatesMoveOverdue({ client, body }),
+      "Failed to move overdue tasks",
+    );
+  }
+
+  async function undoMoveOverdueTasks(
+    body: NonNullable<PostTasksDueDatesUndoData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePostTasksDueDatesUndo({ client, body }),
+      "Failed to undo moving overdue tasks",
+    );
+  }
+
   async function getTaskLinks(id: string) {
     return executeCoreOperation(
       getClient,
@@ -6907,7 +6980,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomThreadMessages,
     getChatRoomThreads,
     getChatRoomThreadsUnreadCount,
-    getChatRecentSokoBotMessages,
+    getChatImportantMessages,
     getChatUnreadThreads,
     getChatEarlierThreads,
     getChatRooms,
@@ -6928,6 +7001,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     unsaveChatMessage,
     getChatCatchUpSummary,
     getChatRoomCatchUp,
+    getChatDecisions,
     getChatRoomDecisions,
     correctChatMessageSignal,
     setChatMessageSignalLoop,
@@ -6935,6 +7009,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     pinChatRoomMessage,
     unpinChatRoomMessage,
     sendChatRoomMessageToSelf,
+    sendTaskToChat,
     muteChatRoom,
     unmuteChatRoom,
     markChatRoomUnread,
@@ -7087,6 +7162,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     listCoworkerAssignments,
     assignCoworkerDeveloper,
     unassignCoworkerDeveloper,
+    getOrganizationCreditSpend,
     getOrganizationSeatSummary,
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
@@ -7204,6 +7280,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTasks,
     getTasksSummary,
     patchTask,
+    moveOverdueTasks,
+    undoMoveOverdueTasks,
     suggestTaskTags,
     putJobShare,
     putTaskShare,

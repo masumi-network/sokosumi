@@ -95,16 +95,21 @@ vi.mock("../schedule-row-actions.client", () => ({
   ScheduleRowActions: () => null,
 }));
 vi.mock("../proactive-settings.client", () => ({
-  ProactiveSettings: () => null,
+  ProactiveSettings: () => <span data-testid="proactive" />,
 }));
 vi.mock("../follow-board-toggle.client", () => ({
-  FollowBoardToggle: () => null,
+  FollowBoardToggle: () => <span data-testid="follow-board" />,
+}));
+vi.mock("../mail-auto-read-toggle.client", () => ({
+  MailAutoReadToggle: () => <span data-testid="mail-auto-read" />,
 }));
 vi.mock("../integrations-section.client", () => ({
   IntegrationsSection: () => <span data-testid="integrations" />,
 }));
 vi.mock("./tool-connectors.client", () => ({
-  ToolConnectors: () => <span data-testid="connectors" />,
+  ToolConnectors: ({ readOnly }: { readOnly?: boolean }) => (
+    <span data-testid="connectors" data-read-only={String(Boolean(readOnly))} />
+  ),
 }));
 vi.mock("../ad-accounts-section", () => ({
   AdAccountsSection: ({ botProjectId }: { botProjectId: string | null }) => (
@@ -194,6 +199,57 @@ describe("SokoBotConsole", () => {
     expect(screen.queryByTestId("archive")).not.toBeInTheDocument();
     expect(screen.queryByTestId("delete")).not.toBeInTheDocument();
     expect(screen.queryByTestId("reset")).not.toBeInTheDocument();
+  });
+
+  it("locks Cuso's settings, memory and archive, with the CMO banner", () => {
+    renderConsole({ canManage: true, cmoProjectId: "project-9" });
+    expect(screen.getByTestId("cmo-project-banner")).toBeInTheDocument();
+    for (const id of ["archive", "delete", "reset", "proactive"]) {
+      expect(screen.queryByTestId(id)).not.toBeInTheDocument();
+    }
+    expect(screen.queryByTestId("follow-board")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("mail-auto-read")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Rename/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps those controls on any other shared bot", () => {
+    renderConsole({ canManage: true, cmoProjectId: null });
+    expect(screen.queryByTestId("cmo-project-banner")).not.toBeInTheDocument();
+    for (const id of ["archive", "delete", "reset", "proactive"]) {
+      expect(screen.getByTestId(id)).toBeInTheDocument();
+    }
+  });
+
+  it("leaves Cuso's schedules readable but offers no new one", () => {
+    viewMock.mockReturnValue(null);
+    renderConsole({ cmoProjectId: "project-9" });
+    expect(screen.getByText("Schedules.title")).toBeInTheDocument();
+    expect(screen.queryByTestId("schedule")).not.toBeInTheDocument();
+    // Chat with Cuso stays open.
+    expect(
+      screen.getByRole("button", { name: /Console.openChat/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers Cuso's apps read-only and any other bot's to connect", () => {
+    viewMock.mockReturnValue(null);
+    const integrations = { configured: true, integrations: [] };
+    const { unmount } = renderConsole({
+      integrations,
+      cmoProjectId: "project-9",
+    });
+    expect(screen.getByTestId("connectors")).toHaveAttribute(
+      "data-read-only",
+      "true",
+    );
+    unmount();
+    renderConsole({ integrations, cmoProjectId: null });
+    expect(screen.getByTestId("connectors")).toHaveAttribute(
+      "data-read-only",
+      "false",
+    );
   });
 
   it("shows schedules in the default view, not under Advanced", () => {

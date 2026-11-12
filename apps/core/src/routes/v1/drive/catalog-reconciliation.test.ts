@@ -34,8 +34,13 @@ const { listMock, headMock, delMock, renameMock } = vi.hoisted(() => ({
   renameMock: vi.fn(),
 }));
 
+const { fileFindFirstMock } = vi.hoisted(() => ({
+  fileFindFirstMock: vi.fn(),
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    fileResource: { findFirst: fileFindFirstMock },
     dataRoom: {
       findMany: vi.fn(async () => []),
       deleteMany: vi.fn(async () => ({ count: 0 })),
@@ -125,6 +130,7 @@ const PREFIX = "drive/users/user_123/reports/";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  fileFindFirstMock.mockResolvedValue(null);
   headMock.mockResolvedValue({
     contentType: "text/markdown",
     cacheControl: "",
@@ -137,6 +143,48 @@ beforeEach(() => {
 });
 
 describe("folder delete", () => {
+  it("refuses to delete a folder containing a file confirmed on a CMO Project", async () => {
+    fileFindFirstMock.mockResolvedValue({ id: "cmo-file" });
+
+    const response = await appWith(mountFolderDelete).request("/delete", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        scope: "org",
+        organizationId: "org_1",
+        folderPath: "reports",
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      kind: "cmo_project_read_only",
+    });
+    expect(fileFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          workspaceId: "workspace-1",
+          sourceId: { startsWith: "drive/organizations/org\\_1/reports/" },
+          links: {
+            some: {
+              state: "CONFIRMED",
+              project: {
+                workspaceId: "workspace-1",
+                sokoBots: {
+                  some: expect.objectContaining({
+                    archivedAt: null,
+                    deletedAt: null,
+                  }),
+                },
+              },
+            },
+          },
+        }),
+      }),
+    );
+    expect(delMock).not.toHaveBeenCalled();
+  });
+
   it("tombstones every pathname it removed", async () => {
     listMock.mockResolvedValue({
       blobs: [{ pathname: `${PREFIX}q1.md` }, { pathname: `${PREFIX}q2.md` }],
@@ -207,38 +255,42 @@ describe("file move", () => {
 });
 
 describe("file move in an organization's Files", () => {
-  it("takes the organization from the pathname when the body names none", async () => {
-    headMock
-      .mockResolvedValueOnce({
-        contentType: "application/pdf",
-        cacheControl: "",
-      })
-      .mockRejectedValueOnce(new BlobNotFoundError("gone"));
-    listMock.mockResolvedValue({ blobs: [], hasMore: false });
-    const { resolveDriveTasksWorkspace } = await import(
-      "@/helpers/drive-tasks-workspace"
-    );
+  it.each([undefined, "other_org"])(
+    "takes the organization from the pathname when the request organization is %s",
+    async (organizationId) => {
+      headMock
+        .mockResolvedValueOnce({
+          contentType: "application/pdf",
+          cacheControl: "",
+        })
+        .mockRejectedValueOnce(new BlobNotFoundError("gone"));
+      listMock.mockResolvedValue({ blobs: [], hasMore: false });
+      const { resolveDriveTasksWorkspace } = await import(
+        "@/helpers/drive-tasks-workspace"
+      );
 
-    const response = await appWith(mountMove).request("/move", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        itemType: "file",
-        sourcePathname: "drive/organizations/org_1/deck.pdf",
-        targetFolderPath: "Masumi Fundraising",
-      }),
-    });
+      const response = await appWith(mountMove).request("/move", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          itemType: "file",
+          organizationId,
+          sourcePathname: "drive/organizations/org_1/deck.pdf",
+          targetFolderPath: "Masumi Fundraising",
+        }),
+      });
 
-    expect(response.status).toBe(200);
-    expect(resolveDriveTasksWorkspace).toHaveBeenCalledWith(
-      expect.objectContaining({ scope: "org", organizationId: "org_1" }),
-    );
-    expect(renameMock).toHaveBeenCalledWith(
-      "drive/organizations/org_1/deck.pdf",
-      "drive/organizations/org_1/Masumi Fundraising/deck.pdf",
-      expect.anything(),
-    );
-  });
+      expect(response.status).toBe(200);
+      expect(resolveDriveTasksWorkspace).toHaveBeenCalledWith(
+        expect.objectContaining({ scope: "org", organizationId: "org_1" }),
+      );
+      expect(renameMock).toHaveBeenCalledWith(
+        "drive/organizations/org_1/deck.pdf",
+        "drive/organizations/org_1/Masumi Fundraising/deck.pdf",
+        expect.anything(),
+      );
+    },
+  );
 });
 
 describe("folder rename", () => {

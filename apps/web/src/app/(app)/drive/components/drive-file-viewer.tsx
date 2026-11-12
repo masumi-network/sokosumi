@@ -9,6 +9,9 @@ import {
   contentUrl,
   effectiveType,
 } from "@/app/drive/components/drive-file-preview";
+import { DriveSpreadsheet } from "@/app/drive/components/drive-spreadsheet";
+import { CapTableFileView } from "@/components/cap-table/cap-table-view";
+import { TeamFileView } from "@/components/team/team-view";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,6 +23,9 @@ import {
 import { DocumentViewer } from "@/components/ui/document-viewer";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
+import { isCapTableFileName } from "@/lib/cap-table-file";
+import { spreadsheetKind } from "@/lib/spreadsheet-file";
+import { isTeamFileName } from "@/lib/team-file";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import type { FileStore } from "@/lib/utils/file-search.client";
 import { formatBytes } from "@/lib/utils/format-bytes";
@@ -59,6 +65,43 @@ export function DriveFileViewer({
   const url = contentUrl({ resourceId: file.id, store });
   const type = effectiveType(file.mimeType, file.displayName);
   const kind = classifyFilePreview(url, file.displayName, type);
+  const sheet = spreadsheetKind(type, file.displayName);
+
+  const capTable = isCapTableFileName(file.displayName);
+  if (isTeamFileName(file.displayName) || capTable || sheet) {
+    return (
+      <Dialog
+        open
+        onOpenChange={(open) => {
+          if (!open) onClose();
+        }}
+      >
+        <DialogContent
+          className="max-h-[92dvh] overflow-y-auto sm:max-w-6xl"
+          data-testid="drive-file-viewer"
+        >
+          <DialogTitle className="truncate text-base font-medium">
+            {file.displayName}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {file.displayName}
+          </DialogDescription>
+          {capTable ? (
+            <CapTableFileView url={url} />
+          ) : sheet ? (
+            <DriveSpreadsheet
+              resourceId={file.id}
+              store={store}
+              url={url}
+              kind={sheet}
+            />
+          ) : (
+            <TeamFileView url={url} />
+          )}
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   if (kind.isImage) {
     return (

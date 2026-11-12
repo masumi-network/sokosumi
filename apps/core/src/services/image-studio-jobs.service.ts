@@ -264,11 +264,14 @@ async function reserveJob(input: ReserveImageJobInput) {
 async function requireBalanceForQuote(options: {
   userId: string;
   organizationId: string | null;
+  /** The job's Project: the balance its delivery will charge (ADR 0067). */
+  projectId: string;
   chargedCents: bigint;
   tx: Prisma.TransactionClient;
 }): Promise<void> {
   if (options.chargedCents <= 0n) return;
 
+  // shortcut: in-flight sums the requester's pending jobs across all Projects, so it can only refuse too often, never overspend; scope it per Project when pending images in two scoped Projects get refused.
   const committed = await options.tx.projectImageJob.aggregate({
     where: {
       requestedByUserId: options.userId,
@@ -281,6 +284,7 @@ async function requireBalanceForQuote(options: {
     options.userId,
     options.organizationId,
     options.tx,
+    { projectId: options.projectId },
   );
   const required = inFlight + options.chargedCents;
   if (balance >= required) return;
@@ -466,6 +470,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     await requireBalanceForQuote({
       userId: input.userId,
       organizationId: input.organizationId,
+      projectId: input.projectId,
       chargedCents,
       tx,
     });
@@ -1999,6 +2004,7 @@ async function insertAsset(input: {
         transactionId = await createTaskEventTransaction({
           userId: input.job.requestedByUserId,
           organizationId: input.job.organizationId,
+          projectId: input.job.projectId,
           cents: chargedCents,
           tx,
         });

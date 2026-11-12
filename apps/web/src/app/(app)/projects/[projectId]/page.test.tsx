@@ -68,11 +68,17 @@ vi.mock("@/lib/services/user.service", () => ({
 // Stubbed: the pin reads the reader's Pin list through react-query, and this
 // file is about the page, not about Pin state.
 vi.mock("@/app/projects/components/project-header-actions", () => ({
-  ProjectHeaderActions: () => (
-    <div>
+  ProjectHeaderActions: ({ cmo }: { cmo?: boolean }) => (
+    <div data-testid="project-header-actions" data-cmo={String(Boolean(cmo))}>
       <div>Pin project</div>
       <div>Project actions</div>
     </div>
+  ),
+}));
+
+vi.mock("@/components/cmo-project-banner", () => ({
+  CmoProjectBanner: ({ projectId }: { projectId: string }) => (
+    <div data-testid="cmo-project-banner">{projectId}</div>
   ),
 }));
 
@@ -86,7 +92,11 @@ vi.mock("@/app/projects/components/project-brand-card", () => ({
   ProjectBrandProvider: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
-  ProjectBrandCard: () => <div data-testid="brand-card">Brand card</div>,
+  ProjectBrandCard: ({ readOnly }: { readOnly?: boolean }) => (
+    <div data-testid="brand-card" data-read-only={String(Boolean(readOnly))}>
+      Brand card
+    </div>
+  ),
 }));
 
 function buildProject() {
@@ -109,6 +119,7 @@ function buildProject() {
     contextMdUpdating: false,
     latestUpdate: null,
     projectRevision: 3,
+    cmo: false,
     closingAt: null,
     closedAt: null,
     createdAt: new Date("2026-05-27T10:00:00.000Z"),
@@ -247,6 +258,42 @@ describe("ProjectDetailPage", () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
+
+  it.each([
+    [false, "an ordinary Project"],
+    [true, "a CMO Project"],
+  ])(
+    "marks and locks the page only for a CMO Project (cmo %s: %s)",
+    async (cmo) => {
+      projectServiceMock.getProjectById.mockResolvedValue({
+        ...buildProject(),
+        cmo,
+      });
+
+      const { default: ProjectDetailPage } = await import("./page");
+      render(
+        await ProjectDetailPage({
+          params: Promise.resolve({ projectId: "project-1" }),
+        }),
+      );
+
+      expect(screen.queryByTestId("cmo-project-banner") !== null).toBe(cmo);
+      // Edit and Close live in the header menu, which hides them on `cmo`.
+      expect(screen.getByTestId("project-header-actions")).toHaveAttribute(
+        "data-cmo",
+        String(cmo),
+      );
+      expect(screen.getByTestId("brand-card")).toHaveAttribute(
+        "data-read-only",
+        String(cmo),
+      );
+      expect(
+        screen.queryByRole("link", {
+          name: "App.Projects.Detail.writeBriefing",
+        }) !== null,
+      ).toBe(!cmo);
+    },
+  );
 
   it("navigates Overview, Design and Memory, and nothing else", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(buildProject());

@@ -143,7 +143,10 @@ const websiteResearchRoute = withOrganizationSlugHeaderParameter(
       "Prepare website copy, products, visual suggestions, and a logo candidate for review.",
     tags,
     request: { params: imageStudioProjectParamsSchema },
-    responses: websiteDraftResponses,
+    responses: {
+      ...websiteDraftResponses,
+      409: jsonErrorResponse("CMO project is read-only"),
+    },
   }),
 );
 

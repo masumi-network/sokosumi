@@ -118,12 +118,14 @@ describe("TaskScheduleActions", () => {
         scheduleId: SCHEDULE_ID,
         expectedRevision: 1,
       });
-      await waitFor(() => expect(refreshMock).toHaveBeenCalled());
-      expect(toastMock.success).toHaveBeenCalledWith("ranNow", {
-        duration: Infinity,
-        closeButton: true,
-        action: { label: "openTask", onClick: expect.any(Function) },
-      });
+      await waitFor(() =>
+        expect(toastMock.success).toHaveBeenCalledWith("ranNow", {
+          duration: Infinity,
+          closeButton: true,
+          action: { label: "openTask", onClick: expect.any(Function) },
+        }),
+      );
+      expect(refreshMock).not.toHaveBeenCalled();
       toastMock.success.mock.calls[0][1].action.onClick();
       expect(pushMock).toHaveBeenCalledWith("/tasks/task_now");
     },
@@ -140,8 +142,10 @@ describe("TaskScheduleActions", () => {
       scheduleId: SCHEDULE_ID,
       action: "pause",
     });
-    await waitFor(() => expect(refreshMock).toHaveBeenCalled());
-    expect(toastMock.success).toHaveBeenCalledWith("paused");
+    await waitFor(() =>
+      expect(toastMock.success).toHaveBeenCalledWith("paused"),
+    );
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("blocks another Run now submit while the first is pending", async () => {

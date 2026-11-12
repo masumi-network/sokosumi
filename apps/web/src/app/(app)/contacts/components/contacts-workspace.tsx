@@ -574,6 +574,7 @@ export function ContactsWorkspace({
                     loadingMore={isFetchingNextPage}
                     onLoadMore={loadMore}
                     footer={t("showing", { shown: contacts.length, total })}
+                    search={search}
                   />
                 </div>
               </>
@@ -596,6 +597,7 @@ export function ContactsWorkspace({
       ) : null}
       {dialog?.kind === "add" ? (
         <AddContactDialog
+          listId={viewList?.kind === "manual" ? viewList.id : undefined}
           onClose={() => setDialog(null)}
           onCreated={(id) => {
             setDialog(null);

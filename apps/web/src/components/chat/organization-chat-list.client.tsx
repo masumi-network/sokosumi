@@ -312,7 +312,6 @@ export function OrganizationChatList({
       toast.success(tActions("restoreSuccess", { name: room.name }));
       upsertRoomToTop(result.value);
       router.push(`/chat/rooms/${result.value.id}`);
-      router.refresh();
     });
   }
 
@@ -332,7 +331,6 @@ export function OrganizationChatList({
       }
       toast.success(tActions("deleteSuccess", { name: room.name }));
       setArchivedRows((current) => current.filter((row) => row.id !== room.id));
-      router.refresh();
     });
   }
 
@@ -361,7 +359,6 @@ export function OrganizationChatList({
         replaceAllRooms(roomsResult.value.rooms, requestRevision);
       }
       router.push(`/chat/rooms/${invitation.roomId}`);
-      router.refresh();
     });
   }
 
@@ -381,7 +378,6 @@ export function OrganizationChatList({
       setPendingRows((current) =>
         current.filter((row) => row.id !== invitation.id),
       );
-      router.refresh();
     });
   }
 
