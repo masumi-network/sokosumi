@@ -116,10 +116,11 @@ export function SeoWorkspace({
   const editScope = Boolean(
     model.data.scope.id && model.data.availableActions.canEdit,
   );
+  const picked = seoRunDays(model.data, model.filters).picked;
   const dateFields = useSeoDateFields({
     filters: model.filters,
     dates: controls.dates,
-    picked: seoRunDays(model.data, model.filters).picked,
+    picked,
   });
   // An empty filter block would still add a gap under the header.
   // With a page picker the closed date filter stands beside it, in the header line. Without one it stays under
@@ -130,7 +131,7 @@ export function SeoWorkspace({
     dateFields.open ||
     editScope;
   const [filtersOpen, setFiltersOpen] = useState(
-    Boolean(model.filters.from || model.filters.to),
+    Boolean(model.filters.from || model.filters.to) && !picked,
   );
   // The tab bar scrolls sideways on a phone; keep the open tab in view.
   const tabBar = useRef<HTMLDivElement>(null);

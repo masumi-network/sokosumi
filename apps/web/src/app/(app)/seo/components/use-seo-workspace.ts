@@ -33,7 +33,7 @@ import {
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
 import { type SeoAnalysisKind, seoKeywordTargetPageId } from "./seo-form-model";
-import { seoCheckRunning } from "./seo-setup-model";
+import { seoCheckBlocking } from "./seo-setup-model";
 import {
   SEO_DEFAULT_STATISTICS_DAYS,
   type SeoStatisticsProvider,
@@ -166,7 +166,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
    * nothing and says why: the buttons, the steps of the Agent tab and the replies in the chat.
    */
   function checkInFlight() {
-    if (!seoCheckRunning(data)) return false;
+    if (!seoCheckBlocking(data, new Date())) return false;
     toast.info(t("analysis.alreadyRunning"));
     return true;
   }
@@ -395,6 +395,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     keywordDraft,
     analysisKind,
     openAnalysis,
+    checkInFlight,
     refreshSearchStatistics,
     filteredCompetitors,
     toggleKeyword,

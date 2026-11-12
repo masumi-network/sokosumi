@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  seoCheckBlocking,
   seoRunAction,
   seoRunningCheck,
   seoRunProgress,
@@ -143,6 +144,31 @@ describe("SEO first-run setup", () => {
     expect(
       seoRunProgress(workspace, new Date("2026-01-02T11:59:00Z")),
     ).toMatchObject({ share: 0, minutesLeft: 20 });
+  });
+
+  it("lets a new check start once the check in flight is three hours old: Core has no end for it", () => {
+    const workspace = seoTestWorkspace();
+    const started = new Date("2026-01-02T12:00:00Z");
+    workspace.analyses = [
+      {
+        id: "a1",
+        kind: "audit_full",
+        status: "running",
+        taskId: null,
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 2,
+        createdAt: started,
+      },
+    ];
+    const after = (minutes: number) =>
+      seoCheckBlocking(
+        workspace,
+        new Date(started.getTime() + minutes * 60_000),
+      );
+    expect(after(179)).toBe(true);
+    expect(after(180)).toBe(false);
+    workspace.analyses = [];
+    expect(after(0)).toBe(false);
   });
 
   it("speaks for the whole Audit, so a page, date or channel filter ends it", () => {

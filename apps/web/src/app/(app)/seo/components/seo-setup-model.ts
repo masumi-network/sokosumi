@@ -32,6 +32,21 @@ export function seoRunningCheck(workspace: ProjectSeoWorkspace) {
   );
 }
 
+/**
+ * A check older than this blocks no new one. Core has no end for a check whose Task ended without a result: the
+ * reader needs a way to start the next. The longest check, a full audit, has a time limit of one hour.
+ */
+const SEO_CHECK_STALE_MS = 3 * 60 * 60_000;
+
+/** A check in flight that a new one must wait for: it started less than three hours ago. */
+export function seoCheckBlocking(workspace: ProjectSeoWorkspace, now: Date) {
+  const check = seoRunningCheck(workspace);
+  return Boolean(
+    check &&
+      now.getTime() - new Date(check.createdAt).getTime() < SEO_CHECK_STALE_MS,
+  );
+}
+
 /** A full audit ends some minutes after its time limit: the last steps run after it. */
 const SEO_AFTER_LIMIT_SECONDS = 300;
 /** The bar never shows a full share: only the result says that the check is done. */
@@ -52,7 +67,7 @@ export function seoRunProgress(workspace: ProjectSeoWorkspace, now: Date) {
     )
     .sort((a, b) => a - b);
   const usualSeconds = earlier.length
-    ? earlier[Math.floor(earlier.length / 2)]
+    ? earlier[Math.floor((earlier.length - 1) / 2)]
     : check.kind === "audit_full"
       ? defaultFullAuditSeconds(check.pageIds.length) + SEO_AFTER_LIMIT_SECONDS
       : null;

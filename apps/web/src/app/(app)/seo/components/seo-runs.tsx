@@ -3,7 +3,6 @@
 import { Loader2 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { seoRunDays } from "./seo-runs-model";
 import { seoRunProgress } from "./seo-setup-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -43,10 +42,11 @@ export function SeoRuns({ model }: { model: SeoWorkspaceModel }) {
             </span>
           ) : null}
           {progress.share === null ? null : (
-            <Progress
-              aria-label={t("setup.checkProgress")}
-              value={Math.round(progress.share * 100)}
-              className="absolute inset-x-0 bottom-0 h-0.5 rounded-none"
+            // A picture only: the running line on the Agent tab is the bar that a screen reader announces.
+            <span
+              aria-hidden
+              className="bg-primary absolute inset-x-0 bottom-0 h-0.5 origin-left transition-transform duration-500 ease-out motion-reduce:transition-none"
+              style={{ transform: `scaleX(${progress.share})` }}
             />
           )}
         </span>
@@ -66,7 +66,12 @@ export function SeoRuns({ model }: { model: SeoWorkspaceModel }) {
           }}
         >
           <time dateTime={entry.day}>
-            {format.dateTime(entry.at, { month: "short", day: "numeric" })}
+            {/* The day of the filter: a run late in the evening west of UTC is on the next day. */}
+            {format.dateTime(entry.at, {
+              month: "short",
+              day: "numeric",
+              timeZone: "UTC",
+            })}
           </time>
           {entry.issues === null ? null : (
             <span className="text-muted-foreground">

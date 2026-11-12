@@ -177,6 +177,8 @@ function ChatActions({
             size="sm"
             disabled={!model.data.availableActions.canEdit}
             onClick={() => {
+              // While a check runs the form does not open: the chat stays, beside the notice.
+              if (action.dialog === "analysis" && model.checkInFlight()) return;
               model.setChatOpen(false);
               model.setDialog(action.dialog as SeoDialog);
             }}
