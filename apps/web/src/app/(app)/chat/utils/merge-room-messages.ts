@@ -31,6 +31,40 @@ export function applyFullChatRoomMessageEvent(
 }
 
 /**
+ * A Soko Bot reply's place in time: its attempt's start (`soko_bot.attempt_at`,
+ * which Core carries on every write of the reply), then settled over
+ * "Thinking…".
+ */
+function sokoBotReplyOrder(message: ChatRoomMessage): [number, number] | null {
+  const metadata = message.metadata as Record<string, unknown> | null;
+  const sokoBot = metadata?.soko_bot as { attempt_at?: unknown } | undefined;
+  const at = sokoBot?.attempt_at;
+  if (typeof at !== "number") return null;
+  return [at, metadata?.streaming === true ? 0 : 1];
+}
+
+/**
+ * Whether `incoming` is an older copy of a Soko Bot reply than `known`.
+ *
+ * Every publisher reads the message and then sends it, so a copy read before
+ * a later write can arrive after it: a "Thinking…" read before the turn
+ * failed, or an old failed card read before a Retry answered. Taking it would
+ * hide Try again or the answer until the next refresh. A fresh Retry's
+ * "Thinking…" belongs to a newer attempt and still replaces a failed card.
+ */
+export function isStaleSokoBotReply(
+  known: ChatRoomMessage,
+  incoming: ChatRoomMessage,
+): boolean {
+  const current = sokoBotReplyOrder(known);
+  const next = sokoBotReplyOrder(incoming);
+  if (!current || !next) return false;
+  return (
+    next[0] < current[0] || (next[0] === current[0] && next[1] < current[1])
+  );
+}
+
+/**
  * Carry the viewer's unread reply count onto a fresher copy of a message that
  * does not state one.
  *
@@ -139,6 +173,9 @@ export function mergeRoomMessages(
     // message, so keep the existing object when nothing in it changed.
     const existingById = byId.get(message.id);
     if (existingById != null && isSameMessage(existingById, message)) {
+      continue;
+    }
+    if (existingById != null && isStaleSokoBotReply(existingById, message)) {
       continue;
     }
     byId.set(message.id, message);

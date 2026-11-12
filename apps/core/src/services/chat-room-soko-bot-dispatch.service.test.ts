@@ -61,7 +61,10 @@ vi.mock("@/services/soko-bot-chat.service", () => ({
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: publishById,
 }));
-vi.mock("./chat-room-mention-state", () => ({
+vi.mock("./chat-room-mention-state", async (importOriginal) => ({
+  readSokoBotAttemptAt: (
+    await importOriginal<typeof import("./chat-room-mention-state")>()
+  ).readSokoBotAttemptAt,
   claimMentionForDispatch: claim,
   markMentionFailed: fail,
   failSokoBotReplyIfOwned: fail,
@@ -128,6 +131,8 @@ function input(
   };
 }
 
+const CLAIM = new Date(1_000);
+
 function withReply() {
   const base = input();
   return {
@@ -140,7 +145,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   loadRoomContextMessages.mockResolvedValue([]);
   findMember.mockResolvedValue({ id: "member-a" });
-  claim.mockResolvedValue(true);
+  claim.mockResolvedValue({ stamp: CLAIM, reclaimed: false });
   placeholder.mockResolvedValue("response-a");
   startTurn.mockResolvedValue({ turnId: "turn-a", status: "COMPLETED" });
   findMentionTurn.mockResolvedValue([]);
@@ -232,7 +237,7 @@ describe("Soko Bot mention dispatch", () => {
     );
   });
   it("does not open another turn when the dispatch claim loses", async () => {
-    claim.mockResolvedValue(false);
+    claim.mockResolvedValue(null);
     await runSokoBotMentionDispatch(input());
     expect(placeholder).not.toHaveBeenCalled();
     expect(startTurn).not.toHaveBeenCalled();
@@ -474,11 +479,7 @@ describe("a reclaimed mention whose turn already ended", () => {
     });
     await runSokoBotMentionDispatch(input());
     expect(fail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        mentionId: "mention-a",
-        clientTurnId: "chat:mention-a",
-        replyId: "response-a",
-      }),
+      expect.objectContaining({ mentionId: "mention-a", stamp: CLAIM }),
     );
     expect(persistChatTurn).not.toHaveBeenCalled();
     expect(reconcileTurn).not.toHaveBeenCalled();
@@ -496,7 +497,7 @@ describe("a reclaimed mention whose turn already ended", () => {
     await runSokoBotMentionDispatch(input());
     expect(deliverOutbox).toHaveBeenCalledWith("turn-failed");
     expect(fail).toHaveBeenCalledWith(
-      expect.objectContaining({ replyId: "response-a" }),
+      expect.objectContaining({ mentionId: "mention-a", stamp: CLAIM }),
     );
   });
   it("restores a failed turn still holding the mention without reopening its reply", async () => {
@@ -516,21 +517,14 @@ describe("a reclaimed mention whose turn already ended", () => {
     expect(startTurn).not.toHaveBeenCalled();
     expect(deliverOutbox).toHaveBeenCalledWith("turn-failed");
     expect(fail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        clientTurnId: "chat:mention-a",
-        replyId: "response-a",
-      }),
+      expect.objectContaining({ mentionId: "mention-a", stamp: CLAIM }),
     );
   });
   it("routes a failure past the claim through the ownership check", async () => {
     loadRoomContextMessages.mockRejectedValue(new Error("room read failed"));
     await runSokoBotMentionDispatch(input());
     expect(fail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        clientTurnId: "chat:mention-a",
-        replyId: "response-a",
-        stamp: new Date(0),
-      }),
+      expect.objectContaining({ mentionId: "mention-a", stamp: CLAIM }),
     );
   });
   it("writes nothing when the ownership check itself fails", async () => {
@@ -540,29 +534,51 @@ describe("a reclaimed mention whose turn already ended", () => {
     fail.mockRejectedValue(new Error("transaction timeout"));
     await expect(runSokoBotMentionDispatch(input())).resolves.toBeUndefined();
   });
-  it("fails a reply it could not open under the ownership check", async () => {
+  it("fails a reply it could not open under its own claim", async () => {
     placeholder.mockRejectedValue(new Error("insert failed"));
-    const base = input();
-    const findUniqueOrThrow = vi.fn(async () => ({
-      updatedAt: new Date(5),
-      responseMessageId: null,
-    }));
     const prisma = (await import("@/lib/db/prisma")).default as unknown as {
-      chatRoomMention: { findUniqueOrThrow: typeof findUniqueOrThrow };
+      chatRoomMention: { findUniqueOrThrow: () => Promise<unknown> };
     };
     const real = prisma.chatRoomMention.findUniqueOrThrow;
-    prisma.chatRoomMention.findUniqueOrThrow = findUniqueOrThrow;
+    prisma.chatRoomMention.findUniqueOrThrow = async () => ({
+      responseMessageId: null,
+    });
     try {
-      await runSokoBotMentionDispatch(base);
+      await runSokoBotMentionDispatch(input());
     } finally {
       prisma.chatRoomMention.findUniqueOrThrow = real;
     }
     expect(startTurn).not.toHaveBeenCalled();
+    // The claim's own stamp, never one read back later.
     expect(fail).toHaveBeenCalledWith(
-      expect.objectContaining({ replyId: null, stamp: new Date(5) }),
+      expect.objectContaining({ mentionId: "mention-a", stamp: CLAIM }),
     );
   });
-  it("fails a fresh attempt's reply under its own key", async () => {
+  it("opens a new attempt's reply with its claim stamp, and a reclaim keeps the attempt", async () => {
+    await runSokoBotMentionDispatch(input());
+    expect(placeholder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sokoBotAttempt: { at: CLAIM.getTime(), claimStamp: CLAIM },
+      }),
+    );
+    placeholder.mockClear();
+    const later = new Date(9_000);
+    claim.mockResolvedValue({ stamp: later, reclaimed: true });
+    const base = withReply();
+    await runSokoBotMentionDispatch({
+      ...base,
+      mention: {
+        ...base.mention,
+        responseMessage: { metadata: { soko_bot: { attempt_at: 1_000 } } },
+      },
+    });
+    expect(placeholder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sokoBotAttempt: { at: 1_000, claimStamp: later },
+      }),
+    );
+  });
+  it("starts a fresh attempt under its own key and fails it under its own claim", async () => {
     findMentionTurn.mockResolvedValue([
       {
         id: "turn-old",
@@ -573,11 +589,13 @@ describe("a reclaimed mention whose turn already ended", () => {
     ]);
     startTurn.mockRejectedValue(new Error("Gateway refused"));
     await runSokoBotMentionDispatch(input());
-    expect(fail).toHaveBeenCalledWith(
+    expect(startTurn).toHaveBeenCalledWith(
       expect.objectContaining({
         clientTurnId: "chat:mention-a:retry:turn-old",
-        replyId: "response-a",
       }),
+    );
+    expect(fail).toHaveBeenCalledWith(
+      expect.objectContaining({ mentionId: "mention-a", stamp: CLAIM }),
     );
   });
 });

@@ -125,6 +125,13 @@ export async function publishMentionThoughtPlaceholder(params: {
   sokoBotId?: string | null;
   reasoningSteps: Array<{ type: string; text: string }>;
   thoughtStartedAtMs: number;
+  /**
+   * Soko Bot only: the attempt this reply now shows
+   * (`readSokoBotAttemptAt`), and the claim stamp to leave on the mention
+   * when creating the reply, so the claim still identifies its worker
+   * (`failSokoBotReplyIfOwned`).
+   */
+  sokoBotAttempt?: { at: number; claimStamp: Date };
 }): Promise<string> {
   const metadata: Record<string, Prisma.InputJsonValue> = {
     in_reply_to_message_id: params.sourceMessageId,
@@ -132,6 +139,9 @@ export async function publishMentionThoughtPlaceholder(params: {
     streaming: true,
     reasoning: params.reasoningSteps,
   };
+  if (params.sokoBotAttempt) {
+    metadata.soko_bot = { attempt_at: params.sokoBotAttempt.at };
+  }
   if (params.thoughtStartedAtMs > 0) {
     metadata.thought_timing_ms = { start: params.thoughtStartedAtMs };
   }
@@ -160,7 +170,12 @@ export async function publishMentionThoughtPlaceholder(params: {
     });
     await tx.chatRoomMention.update({
       where: { id: params.mentionId, status: { not: "responded" } },
-      data: { responseMessageId: row.id },
+      data: {
+        responseMessageId: row.id,
+        ...(params.sokoBotAttempt
+          ? { updatedAt: params.sokoBotAttempt.claimStamp }
+          : {}),
+      },
     });
     // The placeholder already counts toward unreadCount; without the bump the
     // web read overlay keeps the room painted read until the final reply lands.

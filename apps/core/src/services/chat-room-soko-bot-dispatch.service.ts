@@ -1,3 +1,4 @@
+import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
@@ -21,8 +22,35 @@ import {
 import {
   claimMentionForDispatch,
   failSokoBotReplyIfOwned,
+  readSokoBotAttemptAt,
 } from "./chat-room-mention-state";
 import { publishMentionThoughtPlaceholder } from "./chat-room-mention-stream";
+
+/**
+ * Fails a Soko Bot mention only where `failSokoBotReplyIfOwned` allows, then
+ * publishes the failed card. `stamp` is the mention's `updatedAt` this worker
+ * observed before claiming, or its claim's stamp after. Every Soko Bot
+ * failure goes through here, before the claim (from the caller) and after.
+ */
+export async function failSokoBotMention(
+  mentionId: string,
+  stamp: Date | null,
+  error: unknown,
+): Promise<void> {
+  const failed = await failSokoBotReplyIfOwned({ mentionId, stamp, error });
+  if (!failed) return;
+  if (failed.eventType === "create") {
+    const reply = await prisma.chatRoomMessage.findUnique({
+      where: { id: failed.replyId },
+      select: { roomId: true },
+    });
+    if (reply)
+      await invalidateChatRoomMessageReaders({ roomId: reply.roomId }).catch(
+        () => undefined,
+      );
+  }
+  await publishChatRoomMessageRealtimeById(failed.replyId, failed.eventType);
+}
 
 /**
  * Accepting a Soko Bot turn — classify, build the context packet, insert the
@@ -153,6 +181,7 @@ export async function runSokoBotMentionDispatch(params: {
       };
     };
     responseMessageId: string | null;
+    responseMessage?: { metadata: unknown } | null;
     sokoBot: {
       id: string;
       userId: string | null;
@@ -196,43 +225,25 @@ export async function runSokoBotMentionDispatch(params: {
     await failWithShell("Soko Bot is no longer a member of this room");
     return;
   }
-  const claimed = await claimMentionForDispatch(mentionId);
-  if (!claimed) return;
+  const claim = await claimMentionForDispatch(mentionId);
+  if (!claim) return;
 
-  // This attempt: the key its turn runs under, its reply, and, until a turn
-  // holds the mention, the mention's write stamp after this worker's own
-  // writes (claim, opening the reply). A stale reclaim or Retry rewrites the
-  // stamp, so it tells this attempt from a newer one sharing the key.
+  // This attempt: the key its turn runs under, its reply, and its claim's
+  // stamp (`failSokoBotReplyIfOwned`), which the mention keeps until another
+  // claim, a stale reclaim or Retry rewrites it.
   let clientTurnId = `chat:${mentionId}`;
   let replyId = mention.responseMessageId;
-  let stamp: Date | null = null;
   // From here the caller's closure is stale: it captured the mention's
   // responseMessageId before this placeholder existed, so failing through it
   // would open a second bubble and leave this one streaming for ever — the
   // shape of the "Thinking…" messages that never ended.
-  // Every failure past the claim ends here, and only while this attempt
-  // still owns the mention: after Retry hands it to a fresh attempt, a
-  // dispatch resuming late must not fail the new reply or discard its answer.
-  const failReply = async (error: unknown) => {
-    const failed = await failSokoBotReplyIfOwned({
-      mentionId,
-      clientTurnId,
-      replyId,
-      stamp,
-      sourceMessageId: mention.message.id,
-      error,
-    });
-    if (failed && replyId)
-      await publishChatRoomMessageRealtimeById(replyId, "update");
-  };
+  // Every failure past the claim ends here. It writes only what this worker
+  // may: a turn holding the mention is failed only by its own failure, and
+  // before any turn only while the claim is still this worker's.
+  const failReply = (error: unknown) =>
+    failSokoBotMention(mentionId, claim.stamp, error);
 
   try {
-    stamp = (
-      await prisma.chatRoomMention.findUniqueOrThrow({
-        where: { id: mentionId },
-        select: { updatedAt: true },
-      })
-    ).updatedAt;
     // The key this start runs under. The turn holding the mention keeps it:
     // a reclaimed dispatch resumes that turn (and its delivery) instead of
     // running the request again. Only an explicit Retry lets go of a failed
@@ -276,6 +287,16 @@ export async function runSokoBotMentionDispatch(params: {
           sokoBotId: bot.id,
           reasoningSteps: [],
           thoughtStartedAtMs: Date.now(),
+          sokoBotAttempt: {
+            // A stale reclaim continues the attempt it took over (its give-up
+            // budget and event order); a claim from `pending` (a new message
+            // or an explicit Retry) starts one.
+            at:
+              (claim.reclaimed
+                ? readSokoBotAttemptAt(mention.responseMessage?.metadata)
+                : undefined) ?? claim.stamp.getTime(),
+            claimStamp: claim.stamp,
+          },
         });
       } catch (publishError) {
         console.error("Soko Bot Thought placeholder create failed:", {
@@ -283,18 +304,16 @@ export async function runSokoBotMentionDispatch(params: {
           error: publishError,
         });
       }
-      if (replyId !== mention.responseMessageId || !replyId) {
+      if (!replyId) {
         // The create may have committed with its acknowledgement lost, leaving a
         // bubble streaming that this worker never learned the id of. Marking the
         // mention failed without adopting it is how a placeholder outlives every
         // other signal, so look before giving up.
         const committed = await prisma.chatRoomMention.findUniqueOrThrow({
           where: { id: mentionId },
-          select: { responseMessageId: true, updatedAt: true },
+          select: { responseMessageId: true },
         });
         replyId = committed.responseMessageId;
-        // Opening the reply wrote the mention: this attempt's own write.
-        stamp = committed.updatedAt;
       }
     }
     if (!replyId) throw new Error("Could not open the reply");
@@ -387,9 +406,9 @@ export async function runSokoBotMentionDispatch(params: {
       );
     }
   } catch (error) {
-    // If even the fenced write fails, write nothing: an unchecked write could
-    // fail a newer attempt and discard its answer. The mention stays `sent`
-    // for stale reclaim to settle.
+    // If even the checked write fails, write nothing: an unchecked write could
+    // fail a newer attempt or a completed turn and discard its answer. The
+    // mention stays `sent` for stale reclaim to settle.
     await failReply(error).catch((fenceError: unknown) => {
       console.error("Soko Bot reply failure left for reclaim:", {
         mentionId,

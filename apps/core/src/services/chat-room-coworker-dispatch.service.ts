@@ -34,6 +34,7 @@ import {
   markMentionFailed,
   ROOM_COWORKER_STREAM_TIMEOUT,
   ROOM_MENTION_GIVE_UP_MS,
+  readSokoBotAttemptAt,
 } from "./chat-room-mention-state";
 import {
   consumeMentionProviderStream,
@@ -42,7 +43,10 @@ import {
   failMentionWithCoworkerShell,
   publishMentionThoughtPlaceholder,
 } from "./chat-room-mention-stream";
-import { runSokoBotMentionDispatch } from "./chat-room-soko-bot-dispatch.service";
+import {
+  failSokoBotMention,
+  runSokoBotMentionDispatch,
+} from "./chat-room-soko-bot-dispatch.service";
 
 /** Cap Ably thought updates; first beat always publishes. */
 const MENTION_THOUGHT_PUBLISH_MIN_INTERVAL_MS = 250;
@@ -96,6 +100,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   const mention = await prisma.chatRoomMention.findUnique({
     where: { id: mentionId },
     include: {
+      responseMessage: { select: { metadata: true } },
       coworker: {
         select: {
           id: true,
@@ -186,21 +191,40 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
 
     // Fail closed when the human sender row was deleted (SetNull): billing /
     // provider auth as the room creator would attribute cost to the wrong user.
+    // A Soko Bot mention another worker may have claimed since this one read
+    // it fails only through the ownership check, against the `updatedAt` read
+    // here (`failSokoBotMention`).
     const failWithShell = (error: unknown) =>
-      failMentionWithCoworkerShell({
-        mentionId,
-        sourceMessageId: mention.message.id,
-        roomId: mention.message.roomId,
-        parentMessageId: mention.message.parentMessageId,
-        coworkerId: mention.coworkerId,
-        sokoBotId: mention.sokoBotId,
-        existingPlaceholderId: mention.responseMessageId,
-        error,
-      });
+      mention.sokoBotId
+        ? failSokoBotMention(mentionId, mention.updatedAt, error)
+        : failMentionWithCoworkerShell({
+            mentionId,
+            sourceMessageId: mention.message.id,
+            roomId: mention.message.roomId,
+            parentMessageId: mention.message.parentMessageId,
+            coworkerId: mention.coworkerId,
+            sokoBotId: mention.sokoBotId,
+            existingPlaceholderId: mention.responseMessageId,
+            error,
+          });
 
     // `instanceof` because unit fixtures build partial mention rows; the real
     // query selects every scalar, so this is always a Date in production.
-    const askedAt = mention.createdAt;
+    // Measured from the current attempt, not the original ask: a `pending`
+    // mention was written now or by an explicit Retry, and a reclaimed one
+    // carries its attempt's start on the reply (`readSokoBotAttemptAt`). An
+    // old failure retried today gets a fresh budget; stale reclaim of one
+    // attempt stays bounded.
+    const attemptAt =
+      mention.status === "pending"
+        ? mention.updatedAt instanceof Date
+          ? mention.updatedAt.getTime()
+          : undefined
+        : readSokoBotAttemptAt(mention.responseMessage?.metadata);
+    const askedAt =
+      mention.createdAt instanceof Date
+        ? new Date(Math.max(mention.createdAt.getTime(), attemptAt ?? 0))
+        : mention.createdAt;
     if (
       askedAt instanceof Date &&
       Date.now() - askedAt.getTime() > ROOM_MENTION_GIVE_UP_MS &&

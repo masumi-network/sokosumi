@@ -105,29 +105,58 @@ describe("applyFullChatRoomMessageEvent", () => {
     expect(next.map((row) => row.id)).toEqual(["m1"]);
   });
 
-  it("lets a fresh Retry's Thinking replace a failed Soko Bot card", () => {
-    // Core never publishes "Thinking…" for an attempt that already ended, so
-    // the newest full event is the truth: a late failed card stays failed,
-    // and a fresh attempt's "Thinking…" replaces it.
-    const failed = {
+  describe("a Soko Bot reply's delayed copies", () => {
+    const reply = (metadata: Record<string, unknown>) => ({
       ...sokoBotMessage("reply_1", "2026-07-01T10:00:01.000Z", ""),
-      metadata: { mention_id: "mention_1", mention_failed: true },
-    };
-    const thinking = {
-      ...failed,
-      metadata: { mention_id: "mention_1", streaming: true, reasoning: [] },
-    };
+      metadata: { mention_id: "mention_1", ...metadata },
+    });
+    const thinking = (attemptAt: number) =>
+      reply({
+        streaming: true,
+        reasoning: [],
+        soko_bot: { attempt_at: attemptAt },
+      });
+    const failed = (attemptAt: number) =>
+      reply({ mention_failed: true, soko_bot: { attempt_at: attemptAt } });
+    const answered = (attemptAt: number) => ({
+      ...reply({ soko_bot: { attempt_at: attemptAt } }),
+      content: "Three invoices are due.",
+    });
+    const update = (current: ChatRoomMessage, message: ChatRoomMessage) =>
+      applyFullChatRoomMessageEvent([current], {
+        eventType: "update",
+        message,
+      })[0];
 
-    const retried = applyFullChatRoomMessageEvent([failed], {
-      eventType: "update",
-      message: thinking,
+    it("keeps the failed card when Thinking read before the failure lands after it", () => {
+      expect(update(failed(1000), thinking(1000))?.metadata).toEqual(
+        failed(1000).metadata,
+      );
     });
-    expect(retried[0]?.metadata).toEqual(thinking.metadata);
-    const late = applyFullChatRoomMessageEvent([failed], {
-      eventType: "update",
-      message: failed,
+    it("keeps a fresh Retry's answer when the old failed card lands after it", () => {
+      const shown = update(answered(2000), failed(1000));
+      expect(shown?.content).toBe("Three invoices are due.");
     });
-    expect(late[0]?.metadata).toEqual(failed.metadata);
+    it("keeps a fresh Retry's Thinking when the old failed card lands after it", () => {
+      expect(update(thinking(2000), failed(1000))?.metadata).toEqual(
+        thinking(2000).metadata,
+      );
+    });
+    it("lets a fresh Retry's Thinking replace the failed card", () => {
+      expect(update(failed(1000), thinking(2000))?.metadata).toEqual(
+        thinking(2000).metadata,
+      );
+    });
+    it("lets the attempt's answer replace its Thinking", () => {
+      expect(update(thinking(2000), answered(2000))?.content).toBe(
+        "Three invoices are due.",
+      );
+    });
+    it("orders nothing it cannot place", () => {
+      // Replies written before Core carried the attempt keep last-wins.
+      const legacy = reply({ streaming: true });
+      expect(update(failed(1000), legacy)?.metadata).toEqual(legacy.metadata);
+    });
   });
 
   it("keeps the viewer's unread reply count when a broadcast event replaces the parent", () => {

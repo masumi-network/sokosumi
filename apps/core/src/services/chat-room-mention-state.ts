@@ -85,19 +85,26 @@ export async function listStaleSentChatRoomMentionIds(
 /**
  * Win the dispatch slot: `pending` → `sent`, or reclaim a stale `sent` row
  * left behind when the previous worker died after claiming.
+ *
+ * Returns the claim's stamp, written as the mention's `updatedAt` in the
+ * claiming statement itself, so it identifies this claim without a second
+ * read (`failSokoBotReplyIfOwned`); `reclaimed` when it took over a stale
+ * `sent` row rather than a `pending` one.
  */
 export async function claimMentionForDispatch(
   mentionId: string,
-): Promise<boolean> {
+): Promise<{ stamp: Date; reclaimed: boolean } | null> {
+  const stamp = new Date();
   const pendingClaim = await prisma.chatRoomMention.updateMany({
     where: { id: mentionId, status: "pending" },
     data: {
       status: "sent",
       error: null,
+      updatedAt: stamp,
     },
   });
   if (pendingClaim.count > 0) {
-    return true;
+    return { stamp, reclaimed: false };
   }
 
   const staleBefore = new Date(Date.now() - ROOM_SENT_STALE_MS);
@@ -110,9 +117,10 @@ export async function claimMentionForDispatch(
     data: {
       status: "sent",
       error: null,
+      updatedAt: stamp,
     },
   });
-  return staleClaim.count > 0;
+  return staleClaim.count > 0 ? { stamp, reclaimed: true } : null;
 }
 
 /**
@@ -154,72 +162,118 @@ export async function releaseFailedTurnForRetry(
 }
 
 /**
- * Fails a Soko Bot reply for one attempt, only while that attempt still owns
- * the mention. Once a turn holds the mention, the attempt owns it when that
- * turn runs under its key (`clientTurnId`). Before any turn holds it, the
- * attempt owns it when the mention's write stamp is still the one the attempt
- * left (`stamp`): a stale reclaim or Retry rewrites it.
+ * The time a Soko Bot reply's attempt started, carried in its metadata by
+ * every write to that reply. Web orders full message events by it (newer
+ * attempt, then settled over "Thinking…"), and dispatch measures its give-up
+ * budget from it, so an explicit Retry starts a fresh budget.
+ */
+export function readSokoBotAttemptAt(metadata: unknown): number | undefined {
+  if (!metadata || typeof metadata !== "object") return undefined;
+  const sokoBot = (metadata as { soko_bot?: unknown }).soko_bot;
+  if (!sokoBot || typeof sokoBot !== "object") return undefined;
+  const at = (sokoBot as { attempt_at?: unknown }).attempt_at;
+  return typeof at === "number" ? at : undefined;
+}
+
+/**
+ * Fails a Soko Bot mention, and its reply, only when the failing worker may.
  *
- * Ownership is checked and the failed card and mention written under the
- * mention's row lock, the lock Retry's reset takes before
- * `releaseFailedTurnForRetry`. A dispatch that resumes after Retry handed the
- * mention to a fresh attempt changes nothing; checking before writing without
- * the lock would leave that window open.
+ * - A turn holds the mention: only that turn's own failure may be written
+ *   (FAILED or CANCELLED). A worker's local error (a read, a restore, a
+ *   setup step) never fails a running or COMPLETED turn: the running one ends
+ *   by its own deadline and delivery, and the completed one's answer would
+ *   be lost. The mention stays `sent` for stale reclaim to settle.
+ * - No turn holds it: the worker owns it only while the mention's
+ *   `updatedAt` is still `stamp`, the value it observed (before claiming) or
+ *   wrote (its claim, kept while opening the reply). Any other claim, stale
+ *   reclaim or Retry rewrites it.
  *
- * A reply already gone gets no new card: a soft-deleted one was withdrawn on
- * purpose (the room changed, or it was deleted), and a hard-deleted one left
- * the mention without a reply, which Retry opens afresh. The mention is still
- * marked failed so Retry is offered. Returns whether the reply now shows the
- * failed card, so the caller publishes it.
+ * All of this runs under the mention's row lock, the lock Retry's reset and
+ * every claim take, so no check-then-write gap remains.
+ *
+ * The reply: a live empty one becomes the failed card. A missing one (never
+ * opened, or hard-deleted) is created as the failed card, so Retry has a card
+ * to live on. A soft-deleted one was withdrawn on purpose and stays deleted.
+ * Returns the reply to publish and how, or null when nothing was written.
  */
 export async function failSokoBotReplyIfOwned(params: {
   mentionId: string;
-  clientTurnId: string;
-  replyId: string | null;
   stamp: Date | null;
-  sourceMessageId: string;
   error: unknown;
-}): Promise<boolean> {
-  const { mentionId, replyId } = params;
+}): Promise<{ replyId: string; eventType: "create" | "update" } | null> {
+  const { mentionId } = params;
   return prisma.$transaction(async (tx) => {
     const [locked] = await tx.$queryRaw<{ updatedAt: Date }[]>`
       SELECT "updatedAt" FROM "chat_room_mention"
       WHERE "id" = ${mentionId}::uuid FOR UPDATE`;
-    if (!locked) return false;
+    if (!locked) return null;
     const holder = await tx.sokoBotTurn.findUnique({
       where: { chatMentionId: mentionId },
-      select: { clientTurnId: true },
+      select: { id: true, status: true },
     });
     const owned = holder
-      ? holder.clientTurnId === params.clientTurnId
+      ? holder.status === "FAILED" || holder.status === "CANCELLED"
       : params.stamp?.getTime() === locked.updatedAt.getTime();
-    if (!owned) return false;
-    // Same guards as `failMentionThoughtPlaceholder`: never erase final
-    // content or a responded mention.
-    const shell = replyId
-      ? await tx.chatRoomMessage.updateMany({
-          where: {
-            id: replyId,
-            content: "",
-            deletedAt: null,
-            mentionResponseFor: { status: { not: "responded" } },
-          },
-          data: {
-            metadata: {
-              in_reply_to_message_id: params.sourceMessageId,
-              mention_id: mentionId,
-              mention_failed: true,
-            },
-          },
-        })
-      : { count: 0 };
-    await tx.chatRoomMention.updateMany({
-      where: { id: mentionId, status: { not: "responded" } },
+    if (!owned) return null;
+    const mention = await tx.chatRoomMention.findUniqueOrThrow({
+      where: { id: mentionId },
+      select: {
+        status: true,
+        sokoBotId: true,
+        messageId: true,
+        responseMessage: { select: { id: true, metadata: true } },
+        message: { select: { roomId: true, parentMessageId: true } },
+      },
+    });
+    if (mention.status === "responded") return null;
+    await tx.chatRoomMention.update({
+      where: { id: mentionId },
       data: {
         status: "failed",
         error: errorMessage(params.error).slice(0, 500),
       },
     });
-    return shell.count > 0;
+    const metadata = {
+      in_reply_to_message_id: mention.messageId,
+      mention_id: mentionId,
+      mention_failed: true,
+      soko_bot: {
+        ...(holder ? { turn_id: holder.id } : {}),
+        attempt_at:
+          readSokoBotAttemptAt(mention.responseMessage?.metadata) ??
+          params.stamp?.getTime() ??
+          Date.now(),
+      },
+    };
+    const reply = mention.responseMessage;
+    if (reply) {
+      // Same guards as `failMentionThoughtPlaceholder`: never erase final
+      // content, never touch a withdrawn (soft-deleted) reply.
+      const shell = await tx.chatRoomMessage.updateMany({
+        where: { id: reply.id, content: "", deletedAt: null },
+        data: { metadata },
+      });
+      return shell.count > 0
+        ? { replyId: reply.id, eventType: "update" }
+        : null;
+    }
+    const created = await tx.chatRoomMessage.create({
+      data: {
+        roomId: mention.message.roomId,
+        parentMessageId: mention.message.parentMessageId,
+        senderSokoBotId: mention.sokoBotId,
+        content: "",
+        metadata,
+      },
+    });
+    await tx.chatRoomMention.update({
+      where: { id: mentionId },
+      data: { responseMessageId: created.id },
+    });
+    await tx.chatRoom.update({
+      where: { id: mention.message.roomId },
+      data: { updatedAt: new Date() },
+    });
+    return { replyId: created.id, eventType: "create" };
   });
 }

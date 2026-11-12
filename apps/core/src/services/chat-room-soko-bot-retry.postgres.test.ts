@@ -38,14 +38,22 @@ import {
  *   before the dispatch goes on, never reopens "Thinking…".
  */
 
-const { startTurn, publish, background, afterOutboxPush } = vi.hoisted(() => ({
-  startTurn: vi.fn(),
-  publish: vi.fn(),
-  background: [] as Promise<unknown>[],
-  // Where a dispatch settling an ended turn waits once that turn's delivery
-  // push returned, before it puts the outcome back on the reply.
-  afterOutboxPush: { current: null as null | (() => Promise<void>) },
-}));
+const { startTurn, publish, background, afterOutboxPush, hold } = vi.hoisted(
+  () => ({
+    // One-shot holds on the public dispatch: before its workspace lookup
+    // (before the claim) and before its room context read (after it).
+    hold: {
+      workspace: null as null | (() => Promise<void>),
+      context: null as null | (() => Promise<void>),
+    },
+    startTurn: vi.fn(),
+    publish: vi.fn(),
+    background: [] as Promise<unknown>[],
+    // Where a dispatch settling an ended turn waits once that turn's delivery
+    // push returned, before it puts the outcome back on the reply.
+    afterOutboxPush: { current: null as null | (() => Promise<void>) },
+  }),
+);
 vi.mock("@/services/soko-bot-delivery.service", async (importOriginal) => {
   const actual =
     await importOriginal<
@@ -56,6 +64,36 @@ vi.mock("@/services/soko-bot-delivery.service", async (importOriginal) => {
     deliverSokoBotTurnOutbox: async (turnId: string) => {
       await actual.deliverSokoBotTurnOutbox(turnId);
       await afterOutboxPush.current?.();
+    },
+  };
+});
+vi.mock("@/routes/v1/chats/rooms/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/routes/v1/chats/rooms/helpers")>();
+  return {
+    ...actual,
+    resolveWorkspaceIdForChatRoom: async (
+      ...args: Parameters<typeof actual.resolveWorkspaceIdForChatRoom>
+    ) => {
+      const held = hold.workspace;
+      hold.workspace = null;
+      await held?.();
+      return actual.resolveWorkspaceIdForChatRoom(...args);
+    },
+  };
+});
+vi.mock("./chat-room-mention-context", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./chat-room-mention-context")>();
+  return {
+    ...actual,
+    loadRoomContextMessages: async (
+      ...args: Parameters<typeof actual.loadRoomContextMessages>
+    ) => {
+      const held = hold.context;
+      hold.context = null;
+      await held?.();
+      return actual.loadRoomContextMessages(...args);
     },
   };
 });
@@ -157,6 +195,8 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
   });
   beforeEach(() => {
     afterOutboxPush.current = null;
+    hold.workspace = null;
+    hold.context = null;
     startTurn.mockReset();
     publish.mockReset();
     publish.mockResolvedValue(undefined);
@@ -778,47 +818,410 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     ).toMatchObject({ chatMentionId: m.mention.id });
   });
 
-  it("lets a worker that could not open the reply fail it only while no reclaim took over", async () => {
-    const { claimMentionForDispatch, failSokoBotReplyIfOwned } = await import(
-      "./chat-room-mention-state"
+  // ---- review 5: ownership, Retry budget and event order ----
+
+  function gate() {
+    let reached!: () => void;
+    let release!: () => void;
+    const atHold = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    return { reached, atHold, release, released };
+  }
+
+  async function publicDispatch(mentionId: string) {
+    const { dispatchChatRoomMention } = await import(
+      "./chat-room-coworker-dispatch.service"
+    );
+    await dispatchChatRoomMention(mentionId);
+  }
+
+  async function retryRoute(m: {
+    source: { id: string };
+    mention: { id: string };
+  }) {
+    const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
+    const mountRetry = (
+      await import(
+        "@/routes/v1/chats/rooms/[id]/messages/[messageId]/mentions/[mentionId]/retry/post"
+      )
+    ).default;
+    const app = new OpenAPIHonoWithAuth();
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "user",
+        userId,
+        organizationId: null,
+        role: "user",
+      } as never);
+      return next();
+    });
+    mountRetry(app);
+    background.length = 0;
+    const response = await app.request(
+      `/${roomId}/messages/${m.source.id}/mentions/${m.mention.id}/retry`,
+      { method: "POST" },
+    );
+    await Promise.all(background);
+    return response.status;
+  }
+
+  /** A start that inserts its turn on the mention and leaves it running. */
+  function startsRunningTurn(
+    mentionId: string,
+    replyId: () => Promise<string>,
+  ) {
+    const started: string[] = [];
+    startTurn.mockImplementation(async (start: { clientTurnId: string }) => {
+      const turn = await db.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "CHAT",
+          status: "RUNNING",
+          clientTurnId: start.clientTurnId,
+          userMessage: "What is due today?",
+          chatMentionId: mentionId,
+          chatResponseMessageId: await replyId(),
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+          destinationRoomId: roomId,
+          destinationAudience: {
+            userIds: [userId],
+            coworkerIds: [],
+            botIds: [botId],
+          },
+        },
+      });
+      started.push(turn.id);
+      return { turnId: turn.id, status: "RUNNING", duplicate: false };
+    });
+    return started;
+  }
+
+  async function mentionReply(mentionId: string) {
+    const mention = await db.chatRoomMention.findUniqueOrThrow({
+      where: { id: mentionId },
+    });
+    if (!mention.responseMessageId) throw new Error("no reply opened");
+    return mention.responseMessageId;
+  }
+
+  /** Completes a turn and lands its answer through the real delivery. */
+  async function completeAndDeliver(turnId: string, answer: string) {
+    const { deliverSokoBotDelivery } = await import(
+      "./soko-bot-delivery.service"
+    );
+    await db.sokoBotTurn.update({
+      where: { id: turnId },
+      data: { status: "COMPLETED", finalAnswer: answer },
+    });
+    await db.$transaction((tx) => enqueue(tx, turnId));
+    const delivery = await db.sokoBotDelivery.findFirstOrThrow({
+      where: { turnId },
+    });
+    return deliverSokoBotDelivery(delivery.id);
+  }
+
+  async function mentionState(mentionId: string) {
+    const mention = await db.chatRoomMention.findUniqueOrThrow({
+      where: { id: mentionId },
+      include: { responseMessage: true },
+    });
+    return {
+      status: mention.status,
+      content: mention.responseMessage?.content,
+      metadata: (mention.responseMessage?.metadata ?? {}) as Record<
+        string,
+        unknown
+      >,
+    };
+  }
+
+  /** A new message mentioning the bot, not yet dispatched. */
+  async function pendingMention() {
+    const source = await db.chatRoomMessage.create({
+      data: { roomId, senderUserId: userId, content: "What is due today?" },
+    });
+    const mention = await db.chatRoomMention.create({
+      data: { messageId: source.id, sokoBotId: botId, status: "pending" },
+    });
+    return { source, mention };
+  }
+
+  it.each([
+    { fault: "delivery lookup" as const },
+    { fault: "answer restore" as const },
+  ])(
+    "keeps a completed turn's answer when settling it hits a $fault failure",
+    async ({ fault }) => {
+      const m = await staleMention();
+      const turn = await turnFor(m, "COMPLETED");
+      const delivery = await db.sokoBotDelivery.findFirstOrThrow({
+        where: { turnId: turn.id },
+      });
+      const spy =
+        fault === "delivery lookup"
+          ? vi
+              .spyOn(db.sokoBotDelivery, "findFirst")
+              .mockRejectedValueOnce(new Error("connection reset"))
+          : vi
+              .spyOn(db, "$transaction")
+              .mockRejectedValueOnce(
+                new Error("Transaction API error: timeout"),
+              );
+      if (fault === "answer restore")
+        // Backoff: the push does nothing, so the answer has to be restored here.
+        await db.sokoBotDelivery.update({
+          where: { id: delivery.id },
+          data: { nextAttemptAt: new Date(Date.now() + 60_000) },
+        });
+      let faulted = 0;
+      try {
+        await publicDispatch(m.mention.id);
+        faulted = spy.mock.calls.length;
+      } finally {
+        spy.mockRestore();
+      }
+      expect(faulted).toBeGreaterThan(0);
+      // Nothing failed: the mention waits for the answer.
+      const waiting = await mentionState(m.mention.id);
+      expect(waiting.status).toBe("sent");
+      expect(waiting.metadata.mention_failed).toBeUndefined();
+
+      const { deliverSokoBotDelivery } = await import(
+        "./soko-bot-delivery.service"
+      );
+      await db.sokoBotDelivery.update({
+        where: { id: delivery.id },
+        data: { nextAttemptAt: new Date(0) },
+      });
+      expect(await deliverSokoBotDelivery(delivery.id)).toBe(true);
+      expect(await mentionState(m.mention.id)).toMatchObject({
+        status: "responded",
+        content: "Two invoices are due.",
+      });
+    },
+  );
+
+  it("lets a worker failing before its claim leave the attempt another worker started alone", async () => {
+    const m = await pendingMention();
+    // Worker A loaded the pending mention, then waits in its workspace
+    // lookup, which then fails.
+    const a = gate();
+    hold.workspace = async () => {
+      a.reached();
+      await a.released;
+      throw new Error("workspace lookup failed");
+    };
+    const workerA = publicDispatch(m.mention.id);
+    await a.atHold;
+
+    // Worker B claims, opens the reply and starts the turn.
+    const started = startsRunningTurn(m.mention.id, () =>
+      mentionReply(m.mention.id),
+    );
+    await publicDispatch(m.mention.id);
+    expect(started).toHaveLength(1);
+
+    a.release();
+    await workerA;
+    const running = await mentionState(m.mention.id);
+    expect(running.status).toBe("sent");
+    expect(running.metadata).toMatchObject({ streaming: true });
+    expect(running.metadata.mention_failed).toBeUndefined();
+
+    expect(
+      await completeAndDeliver(started[0], "Three invoices are due."),
+    ).toBe(true);
+    expect(await mentionState(m.mention.id)).toMatchObject({
+      status: "responded",
+      content: "Three invoices are due.",
+    });
+  });
+
+  it.each([{ reclaimerStarts: true }, { reclaimerStarts: false }])(
+    "lets a stale worker resuming with a setup error leave the reclaimer's attempt alone (reclaimer starts its turn: $reclaimerStarts)",
+    async ({ reclaimerStarts }) => {
+      const m = await pendingMention();
+      // Worker A claims, opens the reply, then stalls reading the room.
+      const a = gate();
+      hold.context = async () => {
+        a.reached();
+        await a.released;
+        throw new Error("room read failed");
+      };
+      const workerA = publicDispatch(m.mention.id);
+      await a.atHold;
+      // A stalls past the stale window; worker B reclaims under the same key.
+      await db.$executeRaw`UPDATE chat_room_mention SET "updatedAt" = now() - interval '1 hour' WHERE id = ${m.mention.id}::uuid`;
+      const started = reclaimerStarts
+        ? startsRunningTurn(m.mention.id, () => mentionReply(m.mention.id))
+        : [];
+      if (!reclaimerStarts)
+        startTurn.mockResolvedValue({ turnId: randomUUID(), status: "QUEUED" });
+      await publicDispatch(m.mention.id);
+      expect(startTurn.mock.calls.map(([start]) => start.clientTurnId)).toEqual(
+        [`chat:${m.mention.id}`],
+      );
+
+      a.release();
+      await workerA;
+      const after = await mentionState(m.mention.id);
+      expect(after.status).toBe("sent");
+      expect(after.metadata).toMatchObject({ streaming: true });
+      expect(after.metadata.mention_failed).toBeUndefined();
+
+      if (reclaimerStarts) {
+        expect(
+          await completeAndDeliver(started[0], "Three invoices are due."),
+        ).toBe(true);
+        expect(await mentionState(m.mention.id)).toMatchObject({
+          status: "responded",
+          content: "Three invoices are due.",
+        });
+      }
+    },
+  );
+
+  it("gives an explicit Retry of an old failure a fresh budget, and still gives up a stale old attempt", async () => {
+    const { deliverSokoBotDelivery } = await import(
+      "./soko-bot-delivery.service"
     );
     const m = await staleMention();
-    await db.chatRoomMention.update({
-      where: { id: m.mention.id },
-      data: { responseMessageId: null },
+    const old = await turnFor(m, "FAILED");
+    // Asked, and failed, 20 minutes ago.
+    await db.$executeRaw`UPDATE chat_room_mention SET "createdAt" = now() - interval '20 minutes' WHERE id = ${m.mention.id}::uuid`;
+    const delivery = await db.sokoBotDelivery.findFirstOrThrow({
+      where: { turnId: old.id },
     });
-    await db.$executeRaw`UPDATE chat_room_mention SET "updatedAt" = now() - interval '1 hour' WHERE id = ${m.mention.id}::uuid`;
-    const stampNow = async () =>
-      (
-        await db.chatRoomMention.findUniqueOrThrow({
-          where: { id: m.mention.id },
-        })
-      ).updatedAt;
-    const fail = (stamp: Date) =>
-      failSokoBotReplyIfOwned({
-        mentionId: m.mention.id,
-        clientTurnId: `chat:${m.mention.id}`,
-        replyId: null,
-        stamp,
-        sourceMessageId: m.source.id,
-        error: "Could not open the reply",
+    expect(await deliverSokoBotDelivery(delivery.id)).toBe(true);
+    expect((await mentionState(m.mention.id)).status).toBe("failed");
+
+    const started = startsRunningTurn(m.mention.id, async () => m.response.id);
+    expect(await retryRoute(m)).toBe(200);
+    expect(startTurn.mock.calls.map(([start]) => start.clientTurnId)).toEqual([
+      `chat:${m.mention.id}:retry:${old.id}`,
+    ]);
+    const retried = await mentionState(m.mention.id);
+    expect(retried.status).toBe("sent");
+    expect(retried.metadata).toMatchObject({ streaming: true });
+    expect(
+      await completeAndDeliver(started[0], "Three invoices are due."),
+    ).toBe(true);
+    expect(await mentionState(m.mention.id)).toMatchObject({
+      status: "responded",
+      content: "Three invoices are due.",
+    });
+
+    // An attempt that started 20 minutes ago and keeps being reclaimed
+    // without a turn is still given up.
+    const stuck = await pendingMention();
+    const reply = await db.chatRoomMessage.create({
+      data: {
+        roomId,
+        senderSokoBotId: botId,
+        content: "",
+        metadata: {
+          streaming: true,
+          soko_bot: { attempt_at: Date.now() - 20 * 60_000 },
+        },
+      },
+    });
+    await db.chatRoomMention.update({
+      where: { id: stuck.mention.id },
+      data: { status: "sent", responseMessageId: reply.id },
+    });
+    await db.$executeRaw`UPDATE chat_room_mention SET "updatedAt" = now() - interval '1 hour', "createdAt" = now() - interval '20 minutes' WHERE id = ${stuck.mention.id}::uuid`;
+    startTurn.mockClear();
+    await publicDispatch(stuck.mention.id);
+    expect(startTurn).not.toHaveBeenCalled();
+    expect(
+      await db.chatRoomMention.findUnique({ where: { id: stuck.mention.id } }),
+    ).toMatchObject({
+      status: "failed",
+      error: "Soko Bot never picked this up; ask again",
+    });
+  });
+
+  it("orders every published copy of a reply by attempt, so no delayed copy can replace a newer one", async () => {
+    // Every full event the room receives for the reply, as published.
+    const copies: Record<string, unknown>[] = [];
+    const m = await pendingMention();
+    publish.mockImplementation(async (id: string) => {
+      const reply = await db.chatRoomMention.findUnique({
+        where: { id: m.mention.id },
+        select: { responseMessageId: true },
       });
+      if (reply?.responseMessageId !== id) return;
+      const message = await db.chatRoomMessage.findUniqueOrThrow({
+        where: { id },
+      });
+      copies.push({
+        ...(message.metadata as Record<string, unknown>),
+        content: message.content,
+      });
+    });
+    // Same comparison as Web's `isStaleSokoBotReply`.
+    const order = (copy: Record<string, unknown>) => {
+      const at = (copy.soko_bot as { attempt_at?: unknown } | undefined)
+        ?.attempt_at;
+      expect(typeof at).toBe("number");
+      return [at as number, copy.streaming === true ? 0 : 1] as const;
+    };
+    const older = (a: readonly number[], b: readonly number[]) =>
+      a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
 
-    // Worker A claims, cannot open the reply, and stalls past the stale
-    // window; worker B reclaims the same attempt key.
-    expect(await claimMentionForDispatch(m.mention.id)).toBe(true);
-    const stale = await stampNow();
-    await db.$executeRaw`UPDATE chat_room_mention SET "updatedAt" = now() - interval '1 hour' WHERE id = ${m.mention.id}::uuid`;
-    expect(await claimMentionForDispatch(m.mention.id)).toBe(true);
-    const current = await stampNow();
+    // Attempt 1: opens, runs, fails; its publication lands.
+    const first = startsRunningTurn(m.mention.id, () =>
+      mentionReply(m.mention.id),
+    );
+    await publicDispatch(m.mention.id);
+    const { deliverSokoBotDelivery } = await import(
+      "./soko-bot-delivery.service"
+    );
+    await db.sokoBotTurn.update({
+      where: { id: first[0] },
+      data: { status: "FAILED", errorDetail: "Gateway refused" },
+    });
+    await db.$transaction((tx) => enqueue(tx, first[0]));
+    const failedDelivery = await db.sokoBotDelivery.findFirstOrThrow({
+      where: { turnId: first[0] },
+    });
+    expect(await deliverSokoBotDelivery(failedDelivery.id)).toBe(true);
+    const thinking1 = copies.find((copy) => copy.streaming === true);
+    const failed1 = copies.at(-1);
+    expect(failed1).toMatchObject({ mention_failed: true });
 
-    expect(await fail(stale)).toBe(false);
-    expect(
-      await db.chatRoomMention.findUnique({ where: { id: m.mention.id } }),
-    ).toMatchObject({ status: "sent" });
-    expect(await fail(current)).toBe(false);
-    expect(
-      await db.chatRoomMention.findUnique({ where: { id: m.mention.id } }),
-    ).toMatchObject({ status: "failed", error: "Could not open the reply" });
+    // Attempt 2: explicit Retry, runs, answers.
+    copies.length = 0;
+    const second = startsRunningTurn(m.mention.id, () =>
+      mentionReply(m.mention.id),
+    );
+    // Retry needs the reply authored by this user's mention source.
+    expect(await retryRoute({ source: m.source, mention: m.mention })).toBe(
+      200,
+    );
+    const thinking2 = copies.find((copy) => copy.streaming === true);
+    expect(await completeAndDeliver(second[0], "Three invoices are due.")).toBe(
+      true,
+    );
+    const answered2 = copies.at(-1);
+    expect(answered2).toMatchObject({ content: "Three invoices are due." });
+
+    if (!thinking1 || !failed1 || !thinking2 || !answered2)
+      throw new Error("missing copy");
+    // A delayed "Thinking…" from before the failure loses to the failed card.
+    expect(older(order(thinking1), order(failed1))).toBe(true);
+    // A fresh Retry's "Thinking…" replaces the failed card.
+    expect(older(order(failed1), order(thinking2))).toBe(true);
+    // A delayed old failed card loses to the fresh answer and its Thinking.
+    expect(older(order(failed1), order(answered2))).toBe(true);
+    expect(older(order(thinking2), order(answered2))).toBe(true);
   });
 });

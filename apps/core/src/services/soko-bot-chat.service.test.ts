@@ -46,6 +46,7 @@ vi.mock("@/lib/db/prisma", () => ({
       update: messageUpdate,
       updateMany: messageUpdate,
       findFirst: messageFindFirst,
+      findUnique: vi.fn().mockResolvedValue(null),
       create: messageCreate,
     },
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
@@ -54,6 +55,7 @@ vi.mock("@/lib/db/prisma", () => ({
         sokoBotTurn: { findUnique: turnFindUnique },
         chatRoomMention: { updateMany: mentionUpdateMany },
         chatRoomMessage: {
+          findUnique: vi.fn().mockResolvedValue(null),
           update: messageUpdate,
           delete: messageDelete,
           create: messageCreate,

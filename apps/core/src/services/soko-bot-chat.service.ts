@@ -18,6 +18,7 @@ import prisma from "@/lib/db/prisma";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { collectTurnResultSnapshots } from "@/services/chat-result-preview.service";
+import { readSokoBotAttemptAt } from "@/services/chat-room-mention-state";
 
 /**
  * Soko Bot in chat. The bot is a first-class sokoBot member, sender,
@@ -189,6 +190,22 @@ async function loadChatLinkedTurn(
   };
 }
 
+/**
+ * The reply's attempt stamp (`readSokoBotAttemptAt`), to carry onto the next
+ * write of that reply so Web keeps ordering its events.
+ */
+async function readReplyAttemptAt(
+  messageId: string,
+  client: Prisma.TransactionClient = prisma,
+): Promise<{ attempt_at?: number }> {
+  const reply = await client.chatRoomMessage.findUnique({
+    where: { id: messageId },
+    select: { metadata: true },
+  });
+  const at = readSokoBotAttemptAt(reply?.metadata);
+  return at === undefined ? {} : { attempt_at: at };
+}
+
 /** The Thought of an answer with no reasoning summary and no tool calls. */
 export const ANSWERED_DIRECTLY = "Answered directly, without using any tools.";
 
@@ -209,6 +226,7 @@ export async function publishSokoBotChatProgress(
   if (now - last < PROGRESS_PUBLISH_MIN_INTERVAL_MS) return;
   lastProgressPublishAt.set(turn.chatResponseMessageId, now);
 
+  const attemptAt = await readReplyAttemptAt(turn.chatResponseMessageId);
   const updated = await prisma.chatRoomMessage.updateMany({
     where: {
       id: turn.chatResponseMessageId,
@@ -224,7 +242,7 @@ export async function publishSokoBotChatProgress(
         thought_timing_ms: {
           start: (turn.startedAt ?? turn.createdAt).getTime(),
         },
-        soko_bot: { turn_id: turn.id },
+        soko_bot: { turn_id: turn.id, ...attemptAt },
       },
     },
   });
@@ -434,6 +452,7 @@ export async function persistSokoBotChatTurn(
     });
     return;
   }
+  const attemptAt = await readReplyAttemptAt(responseMessageId, tx);
   const startedAtMs = (turn.startedAt ?? turn.createdAt).getTime();
   const endedAtMs = (turn.completedAt ?? new Date()).getTime();
 
@@ -469,6 +488,7 @@ export async function persistSokoBotChatTurn(
             turn_id: turn.id,
             pending_decision_ids: turn.pendingDecisionIds,
             task_ids: turn.taskIds,
+            ...attemptAt,
           },
         },
       },
@@ -496,7 +516,7 @@ export async function persistSokoBotChatTurn(
         in_reply_to_message_id: mention.messageId,
         mention_id: mention.id,
         mention_failed: true,
-        soko_bot: { turn_id: turn.id },
+        soko_bot: { turn_id: turn.id, ...attemptAt },
       },
     },
   });
