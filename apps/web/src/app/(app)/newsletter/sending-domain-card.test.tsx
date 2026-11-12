@@ -220,7 +220,7 @@ describe("SendingDomainCard", () => {
     expect(screen.queryByText(T.fallback)).not.toBeInTheDocument();
   });
 
-  it("lets a project member resume and refreshes the warm-up status", async () => {
+  it("lets a project member resume without a second page render", async () => {
     const user = userEvent.setup();
     mocks.resume.mockResolvedValue({ ok: true, value: WARMING_DOMAIN });
     renderCard({ sendingDomain: PAUSED_DOMAIN });
@@ -228,7 +228,7 @@ describe("SendingDomainCard", () => {
     await waitFor(() =>
       expect(mocks.resume).toHaveBeenCalledWith({ projectId: PROJECT_ID }),
     );
-    expect(mocks.refresh).toHaveBeenCalledOnce();
+    expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
   it.each(["PENDING", "FAILED"] as const)(
@@ -300,7 +300,7 @@ describe("SendingDomainCard", () => {
         fromAddress: "news@brand.example",
       }),
     );
-    expect(mocks.refresh).toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
   it("shows the error next to the field", async () => {
@@ -561,7 +561,7 @@ describe("SendingDomainCard", () => {
     expect(
       screen.getByRole("button", { name: T.checkAgain }),
     ).toBeInTheDocument();
-    expect(mocks.refresh).toHaveBeenCalledOnce();
+    expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
   it.each(["GoDaddy", "IONOS"])(
@@ -644,7 +644,8 @@ describe("SendingDomainCard", () => {
     const { rerenderCard } = renderCard({ sendingDomain: DOMAIN });
     expect(await screen.findByText(T.oneClick.unavailable)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: T.checkAgain }));
-    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
+    await waitFor(() => expect(mocks.check).toHaveBeenCalledOnce());
+    expect(mocks.refresh).not.toHaveBeenCalled();
     rerenderCard({ sendingDomain: checked });
 
     expect(toast.info).toHaveBeenCalledExactlyOnceWith(
