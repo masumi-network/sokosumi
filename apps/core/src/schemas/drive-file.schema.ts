@@ -435,3 +435,56 @@ export const moveDriveItemRequestSchema = z
     },
   )
   .openapi("MoveDriveItemRequest");
+
+/**
+ * Link a Google Sheet into Drive by its share link.
+ */
+export const linkDriveGoogleSheetRequestSchema = z
+  .object({
+    url: z.string().min(1).max(2_000).openapi({
+      example:
+        "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit",
+      description:
+        "The sheet's address. Its sharing must be 'Anyone with the link can view'.",
+    }),
+    scope: driveFileScopeSchema,
+    organizationId: z.string().optional().openapi({
+      description: "Organization ID (required when scope=org)",
+    }),
+    folder: z.string().max(1_000).optional().openapi({
+      example: "Finance",
+      description: "Folder to put the copy in; the Drive root when omitted",
+    }),
+  })
+  .openapi("LinkDriveGoogleSheetRequest");
+
+/**
+ * A Drive file that copies a Google Sheet, refreshed every hour.
+ */
+export const driveGoogleSheetSchema = z
+  .object({
+    resourceId: z
+      .string()
+      .uuid()
+      .openapi({ description: "The copy's file id" }),
+    pathname: z.string().openapi({
+      example: "drive/organizations/org_123/Finance/Model.xlsx",
+      description: "The copy's Blob pathname",
+    }),
+    name: z.string().openapi({ example: "Model.xlsx" }),
+    url: z.string().url().openapi({
+      example:
+        "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      description: "The sheet in Google Sheets",
+    }),
+    syncedAt: dateTimeSchema.openapi({
+      description: "When Sokosumi last read the sheet",
+    }),
+    error: z
+      .union([z.enum(["not_shared", "too_large", "failed"]), z.null()])
+      .openapi({
+        description:
+          "Why the last refresh failed (the copy stays as it was), or null.",
+      }),
+  })
+  .openapi("DriveGoogleSheet");
