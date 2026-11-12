@@ -1666,6 +1666,13 @@
           "more": "{count, plural, one {# weitere anzeigen} other {# weitere anzeigen}}",
           "error": "Konnte nicht mehr laden. Versuche es erneut."
         },
+        "FollowUps": {
+          "title": "Nachfassen",
+          "separator": " · ",
+          "today": "Heute",
+          "overdue": "Überfällig · {date}",
+          "more": "{count, plural, one {# weiterer Kontakt fällig} other {# weitere Kontakte fällig}}"
+        },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
           "heading": "Was steht als Nächstes an?",

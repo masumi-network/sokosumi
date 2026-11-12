@@ -1313,7 +1313,8 @@ export function parseSmartFilter(
   return contactFilterSchema.parse(value);
 }
 
-type ContactSortField = (typeof CONTACT_SORT_FIELDS)[number];
+/** The shared sort fields, plus the follow-up day Home lists by. */
+type ContactSortField = (typeof CONTACT_SORT_FIELDS)[number] | "followUpAt";
 
 export interface ListContactsOptions {
   filter: ContactFilter;
@@ -1323,6 +1324,8 @@ export interface ListContactsOptions {
   listId?: string;
   /** People at the company this name belongs to, by any spelling. */
   company?: string;
+  /** Follow-up on or before this `YYYY-MM-DD`, the reader's own day. */
+  followUpBy?: string;
   archived?: boolean;
   sort: ContactSortField;
   direction?: "asc" | "desc";
@@ -1335,10 +1338,12 @@ export async function contactListWhere(
   actor: ContactActor,
   options: Pick<
     ListContactsOptions,
-    "filter" | "listId" | "company" | "archived"
+    "filter" | "listId" | "company" | "followUpBy" | "archived"
   >,
 ): Promise<Prisma.ContactWhereInput> {
   const and = contactFilterWhere(actor, options.filter);
+  if (options.followUpBy)
+    and.push({ followUpAt: { lte: dateFromIsoDate(options.followUpBy) } });
   const companies = [options.filter.company, options.company];
   if (options.listId) {
     const list = await prisma.contactList.findFirst({
@@ -1377,6 +1382,7 @@ function contactOrderBy(
   // Every contact has a first contact; only the other dates can be empty.
   const nullable =
     sort === "organization" ||
+    sort === "followUpAt" ||
     (sort.endsWith("ContactAt") && sort !== "firstContactAt");
   if (sort === "familiarity" || sort === "importance")
     throw new Error("Score sorts are ordered by listContactsByScore");
@@ -1419,13 +1425,14 @@ export async function listContacts(
 export async function contactIdsWhere(
   options: Pick<
     ListContactsOptions,
-    "filter" | "listId" | "company" | "archived"
+    "filter" | "listId" | "company" | "followUpBy" | "archived"
   >,
   where: Prisma.ContactWhereInput,
 ): Promise<string[] | undefined> {
   const narrowed =
     Object.values(options.filter).some((value) => value !== undefined) ||
     !!options.listId ||
+    !!options.followUpBy ||
     !!options.company ||
     !!options.archived;
   if (!narrowed) return undefined;

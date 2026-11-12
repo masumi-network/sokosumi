@@ -47,6 +47,7 @@ export function contactQueryOptions(
     mode: query.mode,
     listId: query.listId,
     company: query.company,
+    followUpBy: query.followUpBy,
     archived: query.archived === "true",
     sort: query.sort,
     direction: query.direction,

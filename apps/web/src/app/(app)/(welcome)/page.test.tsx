@@ -14,6 +14,7 @@ const getActivitySummary = vi.fn(async () => ({ awaitingInput: 2 }));
 const listNeedsYou = vi.fn(async () => []);
 const loadMyDay = vi.fn(async (_today: string) => null);
 const myDay = vi.fn();
+const loadFollowUps = vi.fn(async (_today: string) => null);
 const redirect = vi.fn((path: string) => {
   throw new Error(`NEXT_REDIRECT ${path}`);
 });
@@ -32,6 +33,10 @@ vi.mock("./components/my-day", () => ({
     myDay(props);
     return <div>my day</div>;
   },
+}));
+vi.mock("./components/follow-ups", () => ({
+  loadFollowUps: (today: string) => loadFollowUps(today),
+  FollowUps: () => <div>follow-ups</div>,
 }));
 vi.mock("next/navigation", () => ({
   redirect: (path: string) => redirect(path),
@@ -179,6 +184,7 @@ describe("WelcomePage", () => {
     expect(getActivitySummary).not.toHaveBeenCalled();
     expect(listNeedsYou).not.toHaveBeenCalled();
     expect(loadMyDay).not.toHaveBeenCalled();
+    expect(loadFollowUps).not.toHaveBeenCalled();
     expect(chatLanding).not.toHaveBeenCalled();
   });
 
@@ -188,6 +194,14 @@ describe("WelcomePage", () => {
 
     expect(screen.getByText("my day")).toBeTruthy();
     expect(loadMyDay).toHaveBeenCalledWith("2026-11-10");
+  });
+
+  it("puts contact follow-ups, due by the same day, under My day", async () => {
+    getMine.mockResolvedValue(null);
+    await renderPage();
+
+    expect(screen.getByText("follow-ups")).toBeTruthy();
+    expect(loadFollowUps).toHaveBeenCalledWith("2026-11-10");
   });
 
   it("keeps the coworker welcome without a Soko Bot", async () => {

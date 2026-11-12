@@ -33517,6 +33517,10 @@ export type GetContactsData = {
         lastContactOlderThanDays?: number;
         createdWithinDays?: number;
         followUpDue?: 'true' | 'false';
+        /**
+         * Only contacts with a follow-up on or before this `YYYY-MM-DD`, the reader's own day. `followUpDue` uses Core's UTC day instead.
+         */
+        followUpBy?: string;
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
         /**
@@ -33537,7 +33541,7 @@ export type GetContactsData = {
         query?: string;
         mode?: 'both' | 'words' | 'meaning';
         archived?: 'true' | 'false';
-        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance';
+        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance' | 'followUpAt';
         direction?: 'asc' | 'desc';
     };
     url: '/contacts';
@@ -33834,6 +33838,10 @@ export type GetContactsExportCsvData = {
         lastContactOlderThanDays?: number;
         createdWithinDays?: number;
         followUpDue?: 'true' | 'false';
+        /**
+         * Only contacts with a follow-up on or before this `YYYY-MM-DD`, the reader's own day. `followUpDue` uses Core's UTC day instead.
+         */
+        followUpBy?: string;
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
         /**
@@ -33854,7 +33862,7 @@ export type GetContactsExportCsvData = {
         query?: string;
         mode?: 'both' | 'words' | 'meaning';
         archived?: 'true' | 'false';
-        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance';
+        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance' | 'followUpAt';
         direction?: 'asc' | 'desc';
     };
     url: '/contacts/export.csv';
@@ -33991,6 +33999,10 @@ export type GetContactsMapData = {
         lastContactOlderThanDays?: number;
         createdWithinDays?: number;
         followUpDue?: 'true' | 'false';
+        /**
+         * Only contacts with a follow-up on or before this `YYYY-MM-DD`, the reader's own day. `followUpDue` uses Core's UTC day instead.
+         */
+        followUpBy?: string;
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
         /**
@@ -34011,7 +34023,7 @@ export type GetContactsMapData = {
         query?: string;
         mode?: 'both' | 'words' | 'meaning';
         archived?: 'true' | 'false';
-        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance';
+        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance' | 'followUpAt';
         direction?: 'asc' | 'desc';
     };
     url: '/contacts/map';
@@ -35008,6 +35020,10 @@ export type GetContactsBreakdownData = {
         lastContactOlderThanDays?: number;
         createdWithinDays?: number;
         followUpDue?: 'true' | 'false';
+        /**
+         * Only contacts with a follow-up on or before this `YYYY-MM-DD`, the reader's own day. `followUpDue` uses Core's UTC day instead.
+         */
+        followUpBy?: string;
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
         /**

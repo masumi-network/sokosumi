@@ -562,6 +562,40 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     ]);
   });
 
+  it("lists follow-ups due by the reader's day, earliest first", async () => {
+    const make = (name: string, followUpAt: string | null) =>
+      create(asAlice, { name, followUpAt });
+    await make("FollowBy Today", "2031-03-09");
+    await make("FollowBy Overdue", "2031-03-02");
+    await make("FollowBy Tomorrow", "2031-03-10");
+    await make("FollowBy None", null);
+    const archived = await make("FollowBy Archived", "2031-03-01");
+    await inContactTransaction((tx) =>
+      setContactArchived(tx, asAlice, archived.contact.id, true),
+    );
+    await create(asOutsider, {
+      name: "FollowBy Elsewhere",
+      followUpAt: "2031-03-01",
+    });
+    const names = (actor: ContactActor) =>
+      listContacts(actor, {
+        filter: {},
+        followUpBy: "2031-03-09",
+        sort: "followUpAt",
+        direction: "asc",
+        limit: 200,
+      }).then((page) =>
+        page.items
+          .map((contact) => contact.name)
+          .filter((name) => name.startsWith("FollowBy")),
+      );
+    expect(await names(asAlice)).toEqual([
+      "FollowBy Overdue",
+      "FollowBy Today",
+    ]);
+    expect(await names(asOutsider)).toEqual(["FollowBy Elsewhere"]);
+  });
+
   it("derives the reply state from directions and filters by it", async () => {
     const now = Date.now();
     const days = (count: number) =>

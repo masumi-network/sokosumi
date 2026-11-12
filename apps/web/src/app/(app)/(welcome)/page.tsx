@@ -24,6 +24,7 @@ import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 
+import { FollowUps, loadFollowUps } from "./components/follow-ups";
 import { loadMyDay, MyDay } from "./components/my-day";
 import { SokoBotHome } from "./components/soko-bot-home";
 import {
@@ -109,10 +110,16 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   // The reader's Tasks due today or overdue, by their own calendar day. One
   // rendered promise shared by both compositions, like Needs you below.
   const today = dayInTimeZone(now, timeZone);
+  // Contacts to get back to by the same day sit right under it.
   const myDay = (
-    <Suspense fallback={null}>
-      {MyDay({ feed: loadMyDay(today), today })}
-    </Suspense>
+    <>
+      <Suspense fallback={null}>
+        {MyDay({ feed: loadMyDay(today), today })}
+      </Suspense>
+      <Suspense fallback={null}>
+        {FollowUps({ feed: loadFollowUps(today), today })}
+      </Suspense>
+    </>
   );
   // What waits on the reader, as the quiet list under either welcome. One
   // promise of the rendered panel, so the two breakpoint compositions share

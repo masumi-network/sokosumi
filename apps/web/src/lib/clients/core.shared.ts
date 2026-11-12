@@ -64,6 +64,7 @@ import type {
   GetChatsSignalsRoomsByIdDecisionsData,
   GetChatsThreadsEarlierData,
   GetChatsThreadsUnreadData,
+  GetContactsData,
   GetCoworkersData,
   GetEnterpriseContractsData,
   GetHistoryData,
@@ -282,6 +283,7 @@ import {
   getChatsThreadsEarlier as coreGetChatsThreadsEarlier,
   getChatsThreadsUnread as coreGetChatsThreadsUnread,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
+  getContacts as coreGetContacts,
   getCouponDetails as coreGetCouponDetails,
   getCoworkers as coreGetCoworkers,
   getCoworkersById as coreGetCoworkersById,
@@ -5909,6 +5911,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getContacts(query?: GetContactsData["query"]) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetContacts({ client, query, cache: "no-store" }),
+      "Failed to fetch contacts",
+    );
+  }
+
   async function getCoworkers(query?: GetCoworkersData["query"]) {
     return executeCoreOperation(
       getClient,
@@ -7012,6 +7022,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getAgents,
     createAgentRating,
     getCategories,
+    getContacts,
     getCoworkers,
     getOwnedCoworkers,
     getCoworkerById,

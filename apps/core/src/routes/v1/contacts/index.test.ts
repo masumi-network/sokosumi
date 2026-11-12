@@ -295,6 +295,19 @@ describe("contacts routes", () => {
     const body = await response.json();
     expect(body.meta.pagination).toMatchObject({ total: 1, nextCursor: null });
 
+    await request(
+      "/contacts?followUpBy=2026-10-22&sort=followUpAt&direction=asc&limit=5",
+    );
+    expect(services.listContacts).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        followUpBy: "2026-10-22",
+        sort: "followUpAt",
+        direction: "asc",
+      }),
+    );
+    expect((await request("/contacts?followUpBy=2026-13-40")).status).toBe(422);
+
     exportContactsCsv.mockResolvedValue('"Name"\r\n"Nina Keller"');
     const csv = await request("/contacts/export.csv?search=nina");
     expect(csv.status).toBe(200);

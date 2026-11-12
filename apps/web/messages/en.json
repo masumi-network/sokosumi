@@ -1666,6 +1666,13 @@
           "more": "{count, plural, one {Show # more} other {Show # more}}",
           "error": "Couldn't load more. Try again."
         },
+        "FollowUps": {
+          "title": "Follow-ups",
+          "separator": " · ",
+          "today": "Today",
+          "overdue": "Overdue · {date}",
+          "more": "{count, plural, one {# more follow-up due} other {# more follow-ups due}}"
+        },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
           "heading": "What's next?",

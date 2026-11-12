@@ -1666,6 +1666,13 @@
           "more": "{count, plural, one {Mostrar # más} other {Mostrar # más}}",
           "error": "No se pudieron cargar más. Inténtalo de nuevo."
         },
+        "FollowUps": {
+          "title": "Seguimientos",
+          "separator": " · ",
+          "today": "Hoy",
+          "overdue": "Vencido · {date}",
+          "more": "{count, plural, one {# seguimiento más pendiente} other {# seguimientos más pendientes}}"
+        },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
           "heading": "¿Qué sigue?",

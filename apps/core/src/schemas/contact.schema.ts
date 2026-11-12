@@ -307,6 +307,10 @@ export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   lastContactOlderThanDays: positiveDays,
   createdWithinDays: positiveDays,
   followUpDue: booleanQuery,
+  followUpBy: calendarDateSchema.optional().openapi({
+    description:
+      "Only contacts with a follow-up on or before this `YYYY-MM-DD`, the reader's own day. `followUpDue` uses Core's UTC day instead.",
+  }),
   hasChannel: contactChannelTypeSchema.optional(),
   hasInteractions: booleanQuery,
   organization: z.string().trim().min(1).max(200).optional().openapi({
@@ -326,7 +330,7 @@ export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   }),
   mode: z.enum(["both", "words", "meaning"]).optional(),
   archived: booleanQuery,
-  sort: z.enum(CONTACT_SORT_FIELDS).default("updatedAt"),
+  sort: z.enum([...CONTACT_SORT_FIELDS, "followUpAt"]).default("updatedAt"),
   direction: z.enum(["asc", "desc"]).optional(),
 });
 
