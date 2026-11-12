@@ -1,4 +1,5 @@
 import type { BrandBrain, MarketingStrategyPlan } from "@sokosumi/soko-bot";
+import { CMO_PLAN_HARD_RULES } from "@sokosumi/soko-bot";
 import { CMO_CHANNELS } from "@sokosumi/utils";
 
 import type { EmbedTexts } from "@/lib/embeddings";
@@ -28,11 +29,11 @@ export const CMO_PLAN_REVIEWS_PER_TURN = 4;
  */
 export const CMO_CALENDAR_REVIEWS_PER_TURN = 2;
 
-const MIN_PIECES = 16;
+const MIN_PIECES = CMO_PLAN_HARD_RULES.minPieces;
 const MIN_FORMATS = 6;
-const MAX_SUMMARY_WORDS = 20;
+const MAX_SUMMARY_WORDS = CMO_PLAN_HARD_RULES.maxSummaryWords;
 /** How far, in points, the calendar's shares may stray from the mix and the pillars. */
-export const CMO_SHARE_TOLERANCE = 7;
+export const CMO_SHARE_TOLERANCE = CMO_PLAN_HARD_RULES.shareTolerance;
 /** Videos a month: each costs about four pictures, and a plan once asked for eight. */
 export const CMO_MAX_VIDEOS_PER_MONTH = 4;
 

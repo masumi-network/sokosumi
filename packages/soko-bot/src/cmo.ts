@@ -290,6 +290,12 @@ export const CMO_STRATEGY_SAVE_PARTS = [
 ] as const;
 export type CmoStrategySavePart = (typeof CMO_STRATEGY_SAVE_PARTS)[number];
 
+/**
+ * Tool input for save_strategy. Parts are partial, so hard rules
+ * (`CMO_PLAN_HARD_RULES`: summary words, piece count, share tolerance) run
+ * in Core after the part merges into the stored plan (`cmoPlanRuleProblems`),
+ * not as Zod refinements here.
+ */
 export const cmoSaveStrategyInputSchema = z.object({
   part: z.enum(CMO_STRATEGY_SAVE_PARTS).default("all"),
   strategy: z
@@ -569,19 +575,31 @@ export function isCmoScheduleKey(
  * The fields a save_strategy call replaces. Tool calls must fill every field,
  * often with empty lists, so only the fields of the named part are taken.
  */
+function isStrategySavePart(value: unknown): value is CmoStrategySavePart {
+  return (
+    typeof value === "string" &&
+    (CMO_STRATEGY_SAVE_PARTS as readonly string[]).includes(value)
+  );
+}
+
 /** Which part a save_strategy call replaces; see CMO_STRATEGY_SAVE_PARTS. */
 export function cmoStrategySavePart(input: unknown): CmoStrategySavePart {
-  const part = (input as { part?: unknown } | null)?.part;
-  return CMO_STRATEGY_SAVE_PARTS.includes(part as CmoStrategySavePart)
-    ? (part as CmoStrategySavePart)
-    : "all";
+  const part =
+    input && typeof input === "object" && "part" in input
+      ? (input as { part?: unknown }).part
+      : undefined;
+  return isStrategySavePart(part) ? part : "all";
 }
 
 export function parseCmoStrategySave(input: unknown): CmoStrategySave {
-  const raw = (input ?? {}) as { part?: unknown; strategy?: unknown };
-  const sent = (
-    raw.strategy && typeof raw.strategy === "object" ? raw.strategy : {}
-  ) as Record<string, unknown>;
+  const raw =
+    input && typeof input === "object"
+      ? (input as { part?: unknown; strategy?: unknown })
+      : {};
+  const sent =
+    raw.strategy && typeof raw.strategy === "object"
+      ? (raw.strategy as Record<string, unknown>)
+      : {};
   // The other part's fields are filler; they are dropped before checking.
   const { calendar, ...plan } = sent;
   const picked =
@@ -613,12 +631,21 @@ function patchFields(
   sent: Record<string, unknown>,
   strategy: CmoStrategySave,
 ): CmoStrategySave {
+  const patched: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(strategy)) {
+    if (
+      key in sent &&
+      value !== undefined &&
+      !(Array.isArray(value) && value.length === 0)
+    ) {
+      patched[key] = value;
+    }
+  }
+  // Parse for shape, then keep only keys we already selected: Zod defaults on
+  // the partial schema would otherwise invent empty lists the plan must keep.
+  const kept = new Set(Object.keys(patched));
+  const parsed = cmoStrategySaveSchema.parse(patched);
   return Object.fromEntries(
-    Object.entries(strategy).filter(
-      ([key, value]) =>
-        key in sent &&
-        value !== undefined &&
-        !(Array.isArray(value) && value.length === 0),
-    ),
-  ) as CmoStrategySave;
+    Object.entries(parsed).filter(([key]) => kept.has(key)),
+  );
 }
