@@ -78,7 +78,7 @@ export function carryVideoSettings(
 }
 
 const TRIGGER_CLASS =
-  "text-muted-foreground hover:text-foreground h-8 max-w-[16rem] min-w-0 gap-1.5 px-2 text-sm font-medium";
+  "text-muted-foreground hover:text-foreground h-8 max-w-[min(16rem,100%)] min-w-0 gap-1.5 px-2 text-sm font-medium";
 
 function chipClass(active: boolean): string {
   return cn(
@@ -221,15 +221,8 @@ export function StudioVideoComposer({
         removeAttachmentLabel={() => ""}
         sendAriaLabel={labels.generateVideo}
         sendDisabled={!ready}
-        toolbarEnd={
-          credits === null ? null : (
-            <span className="text-muted-foreground text-xs tabular-nums">
-              {t("creditsCount", { count: credits })}
-            </span>
-          )
-        }
         toolbarStart={
-          <>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
             {modeSwitch}
             <Popover>
               <PopoverTrigger asChild>
@@ -368,7 +361,12 @@ export function StudioVideoComposer({
                 </Row>
               </PopoverContent>
             </Popover>
-          </>
+            {credits === null ? null : (
+              <span className="text-muted-foreground ml-auto text-xs tabular-nums">
+                {t("creditsCount", { count: credits })}
+              </span>
+            )}
+          </div>
         }
         withOuterPadding={false}
         withSafeAreaPadding

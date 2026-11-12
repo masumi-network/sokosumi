@@ -278,6 +278,7 @@ export async function TaskDetailView({
               files={task.files ?? []}
               expandLabel={t("expand")}
               collapseLabel={t("collapse")}
+              downloadAllName={task.name}
             />
 
             {task.jobs.length > 0 && (

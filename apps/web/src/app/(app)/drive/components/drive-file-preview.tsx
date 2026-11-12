@@ -4,9 +4,11 @@ import { Download, ExternalLink, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { DriveSpreadsheet } from "@/app/drive/components/drive-spreadsheet";
 import Markdown from "@/components/markdown";
 import { TeamFileView } from "@/components/team/team-view";
 import { Button } from "@/components/ui/button";
+import { spreadsheetKind } from "@/lib/spreadsheet-file";
 import { isTeamFileName } from "@/lib/team-file";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import type { FileStore } from "@/lib/utils/file-search.client";
@@ -122,6 +124,7 @@ const EXTENSION_TYPES: Record<string, string> = {
   svg: "image/svg+xml",
   txt: "text/plain",
   webp: "image/webp",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 };
 
 export function effectiveType(
@@ -161,8 +164,10 @@ export function DriveFilePreview({
   const type = effectiveType(mimeType, displayName);
   const source = contentUrl({ resourceId, store });
   const isTeam = isTeamFileName(displayName);
+  const sheet = spreadsheetKind(type, displayName);
   const isText =
     !isTeam &&
+    !sheet &&
     TEXT_TYPES.has(type) &&
     (sizeBytes === null || sizeBytes <= MAX_TEXT_PREVIEW_BYTES);
   // Played from the same authorized route, so nothing public is handed out.
@@ -225,6 +230,13 @@ export function DriveFilePreview({
 
       {isTeam ? (
         <TeamFileView url={source} />
+      ) : sheet ? (
+        <DriveSpreadsheet
+          resourceId={resourceId}
+          store={store}
+          url={source}
+          kind={sheet}
+        />
       ) : rendersAsImage(type) ? (
         // Not `next/image`: the bytes come from an authorized route with a
         // per-request check, not from an optimizable public asset.
