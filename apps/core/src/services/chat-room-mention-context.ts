@@ -56,7 +56,7 @@ export function withAttachmentNote(prompt: string, content: string): string {
 }
 
 /**
- * Prompt sent to a coworker for a room mention or thread reply. The
+ * Prompt sent to a coworker for a mention in a room or in a thread. The
  * CONTEXT block carries the recent messages the coworker never saw (it only
  * receives what is addressed to it), oldest first. Nothing in it is secret —
  * it is the same room history the humans in the room can read.
@@ -69,7 +69,7 @@ export function buildRoomMentionPrompt(params: {
   contextMessages: readonly RoomContextMessage[];
 }): string {
   const action = params.isThreadReply
-    ? "replied to a thread you are part of"
+    ? "mentioned you in a thread"
     : "mentioned you";
   const messageBlock = `${params.senderName} ${action} in #${params.roomName}:\n\n${params.content}`;
 
