@@ -219,6 +219,42 @@ describe("applyInboundEvent", () => {
     expect(core).not.toHaveBeenCalled();
   });
 
+  it("takes a reaction back when Buzz deletes its copy signed with the other key", async () => {
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findFirst.mockResolvedValue({
+      id: "link",
+      eventId: "first",
+      duplicateEventIds: ["copy"],
+      identityId: "identity-bob",
+      messageId: "message",
+      emoji: "👍",
+      pendingEvent: null,
+    });
+    db.chatRoomMessage.findUnique.mockResolvedValue({ roomId: "room" });
+    const deletion = nostrEvent({
+      kind: 5,
+      tags: [
+        ["h", CHANNEL],
+        ["e", "copy"],
+      ],
+    });
+    await expect(applyInboundEvent(deletion, core)).resolves.toBe("unreacted");
+    expect(db.buzzReactionLink.findFirst).toHaveBeenCalledWith({
+      where: { duplicateEventIds: { has: "copy" } },
+    });
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "DELETE",
+        path: `/v1/chats/rooms/room/messages/message/reactions/${encodeURIComponent("👍")}`,
+      }),
+    );
+    // Both events stay undone, so neither brings it back.
+    expect(db.buzzUndoneEvent.createMany).toHaveBeenCalledWith({
+      data: [{ eventId: "first" }, { eventId: "copy" }],
+      skipDuplicates: true,
+    });
+  });
+
   it("remembers the same reaction signed with the person's other key", async () => {
     db.buzzMessageLink.findUnique.mockImplementation(
       async ({ where }: { where: { eventId?: string } }) =>

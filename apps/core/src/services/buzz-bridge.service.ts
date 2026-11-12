@@ -124,6 +124,14 @@ async function publish(
 
 // ---------------------------------------------------------------- identities
 
+async function isPersonalAgent(coworkerId: string) {
+  const coworker = await prisma.coworker.findUnique({
+    where: { id: coworkerId },
+    select: { baseURL: true },
+  });
+  return isBuzzAgentBaseUrl(coworker?.baseURL);
+}
+
 type IdentityOwner =
   | { userId: string }
   | { sokoBotId: string }
@@ -134,6 +142,11 @@ export async function ensureIdentity(
 ): Promise<BuzzIdentity> {
   const existing = await prisma.buzzIdentity.findUnique({ where: owner });
   if (existing) return existing;
+  // A personal agent's key is in its owner's Buzz app: Sokosumi never makes
+  // one for it (one whose owner is gone stays without).
+  if ("coworkerId" in owner && (await isPersonalAgent(owner.coworkerId))) {
+    throw new Error("A personal agent has no key without its owner");
+  }
   const secretKey = generateSecretKey();
   try {
     return await prisma.buzzIdentity.create({
@@ -864,7 +877,7 @@ export async function removeAgentsWithoutOwner() {
     where: {
       archivedAt: null,
       baseURL: { startsWith: BUZZ_AGENT_URL_PREFIX },
-      buzzIdentity: null,
+      OR: [{ buzzIdentity: null }, { buzzIdentity: { ownerIdentityId: null } }],
     },
     select: { id: true },
   });
@@ -1774,6 +1787,15 @@ export async function reconcileMessage(
   // Timeline notices have no author; Buzz posts its own.
   if (!author) return "skipped";
   const { channel, relayUrl } = synced;
+  // A personal agent whose owner's account is gone has no key any more; the
+  // sweep archives it.
+  if (
+    "coworkerId" in author &&
+    (await isPersonalAgent(author.coworkerId)) &&
+    !(await prisma.buzzIdentity.findUnique({ where: author }))
+  ) {
+    return "skipped";
+  }
   const authorIdentity = await ensureIdentity(author);
   let link = message.buzzLink;
   // A Buzz agent's messages start on Buzz and are linked as they come in;
@@ -3072,9 +3094,14 @@ export async function applyInboundEvent(
           result = "deleted";
           continue;
         }
-        const reactionLink = await prisma.buzzReactionLink.findUnique({
-          where: { eventId: targetEventId },
-        });
+        // The reaction, by its own event or a copy signed with the other key.
+        const reactionLink =
+          (await prisma.buzzReactionLink.findUnique({
+            where: { eventId: targetEventId },
+          })) ??
+          (await prisma.buzzReactionLink.findFirst({
+            where: { duplicateEventIds: { has: targetEventId } },
+          }));
         if (!reactionLink) {
           // Undone in Sokosumi already: taking it back on Buzz changes nothing.
           const undoneTarget = await prisma.buzzUndoneEvent.findUnique({
@@ -3098,9 +3125,13 @@ export async function applyInboundEvent(
             path: `/v1/chats/rooms/${message.roomId}/messages/${reactionLink.messageId}/reactions/${encodeURIComponent(reactionLink.emoji)}`,
           });
         }
-        // Its copies signed with the other key are taken back with it.
+        // Taking back one copy takes the reaction back: whichever of its
+        // events is still on Buzz is undone too.
         await prisma.$transaction([
-          rememberUndone(reactionLink.duplicateEventIds),
+          rememberUndone([
+            reactionLink.eventId,
+            ...reactionLink.duplicateEventIds,
+          ]),
           prisma.buzzReactionLink.deleteMany({
             where: { id: reactionLink.id },
           }),
