@@ -18,6 +18,7 @@ import {
 } from "@/services/project-social-connections.service";
 import { refreshSocialAccountStatistics } from "@/services/social-account-statistics.service";
 import {
+  BILLED_PER_READ_PROVIDERS,
   SOCIAL_SYNC_FRESH_MS,
   type SocialSyncReadModel,
   type SocialSyncStoredRow,
@@ -135,6 +136,7 @@ export async function requestSocialAccountRefresh(
     },
     select: {
       status: true,
+      provider: true,
       performanceHeadFetchedAt: true,
       performanceRefreshAttemptedAt: true,
       performanceRefreshRequestedAt: true,
@@ -153,6 +155,7 @@ export async function requestSocialAccountRefresh(
     sync: socialSyncReadModel(
       {
         status: row.status,
+        provider: row.provider,
         performanceHeadFetchedAt: row.performanceHeadFetchedAt,
         performanceRefreshAttemptedAt: row.performanceRefreshAttemptedAt,
         performanceRefreshRequestedAt: row.performanceRefreshRequestedAt,
@@ -273,6 +276,7 @@ export async function runDueSocialAccountSync(
       data: { performanceRefreshAttemptedAt: now },
     });
     if (claimed.count === 0) continue;
+    const billed = BILLED_PER_READ_PROVIDERS.has(account.provider);
     // Accounts connected before LinkedIn photos were read get one on sync.
     await backfillLinkedInAccountProfile(account);
 
@@ -302,7 +306,10 @@ export async function runDueSocialAccountSync(
         );
         if (snapshot?.historyComplete) metrics.accountsCompleted += 1;
       }
+      // Older history of a billed account goes on with the day's read, never
+      // on its own hourly: each page is up to a hundred posts billed.
       while (
+        (needHead || !billed) &&
         continueHistory &&
         !input.abortSignal?.aborted &&
         input.shouldContinue() &&
