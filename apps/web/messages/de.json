@@ -10392,6 +10392,8 @@
         "moveRun": "Lauf verschieben",
         "skipRun": "Lauf überspringen",
         "restoreRun": "Lauf wiederherstellen",
+        "runSkipped": "Lauf von {name} übersprungen.",
+        "undo": "Rückgängig",
         "openSchedule": "Zeitplan öffnen",
         "allDay": "Ganztägig",
         "runStale": "Dieser Zeitplan wurde an anderer Stelle geändert. Der Kalender lädt neu; versuche es erneut.",

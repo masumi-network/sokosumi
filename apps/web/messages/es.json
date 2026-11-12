@@ -10392,6 +10392,8 @@
         "moveRun": "Mover ejecución",
         "skipRun": "Omitir ejecución",
         "restoreRun": "Restaurar ejecución",
+        "runSkipped": "Se omitió la ejecución de {name}.",
+        "undo": "Deshacer",
         "openSchedule": "Abrir programación",
         "allDay": "Todo el día",
         "runStale": "Esta programación cambió en otro lugar. El calendario se está recargando; inténtalo de nuevo.",

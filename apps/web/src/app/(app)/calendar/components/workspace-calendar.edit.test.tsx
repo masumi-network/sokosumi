@@ -21,6 +21,7 @@ interface FullCalendarProps {
   borderless?: boolean;
   dateClick?: (info: { date: Date }) => void;
   dayCellClass?: string;
+  defaultTimedEventDuration?: number;
   editable?: boolean;
   eventAllow?: (
     span: Record<string, never>,
@@ -378,6 +379,13 @@ describe("WorkspaceCalendar editing", () => {
     expect(props.dateClick).toEqual(expect.any(Function));
     expect(props.editable).toBe(false);
     expect(props.plugins).toContain(interactionPluginMock);
+  });
+
+  it("keeps a late entry inside its own day cell", () => {
+    renderCalendar();
+
+    const props = fullCalendarMock.mock.calls[0]?.[0] as FullCalendarProps;
+    expect(props.defaultTimedEventDuration).toBe(0);
   });
 
   it("colors the actual day cell on hover without an overlay", () => {
@@ -920,6 +928,33 @@ describe("WorkspaceCalendar editing", () => {
       }),
     );
     expect(refreshMock).toHaveBeenCalledOnce();
+  });
+
+  it("offers Undo after a skip, restoring at the revision the skip left", async () => {
+    const user = userEvent.setup();
+    renderCalendar();
+
+    await openEventMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "event.skipRun" }));
+
+    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalledOnce());
+    const [message, options] = toastSuccessMock.mock.calls[0] as [
+      string,
+      { action: { label: string; onClick: () => void } },
+    ];
+    expect(message).toBe("event.runSkipped");
+    expect(options.action.label).toBe("event.undo");
+
+    options.action.onClick();
+
+    await waitFor(() =>
+      expect(changeTaskScheduleRunMock).toHaveBeenLastCalledWith({
+        scheduleId: "schedule-1",
+        runId: ITEM.id,
+        expectedRevision: 4,
+        action: "restore",
+      }),
+    );
   });
 
   it("restores a moved Run to the rule's time", async () => {

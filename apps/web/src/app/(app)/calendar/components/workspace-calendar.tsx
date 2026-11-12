@@ -894,6 +894,9 @@ function CalendarView({
             durationEditable: false,
           }))}
           timeZone={timeZone}
+          // Every entry is an instant. FullCalendar's default hour ran a run
+          // after 11 PM into the next day's cell.
+          defaultTimedEventDuration={0}
           headerToolbar={false}
           height={fillSpace && fillHeight ? fillHeight : "auto"}
           // Timed events default to "list-item" (dot + time + title); the card
@@ -1350,6 +1353,20 @@ export function WorkspaceCalendar({
         return;
       }
       router.refresh();
+      // A skipped Run leaves the calendar, so its Undo lives here. The skip
+      // bumped the schedule's revision by one.
+      if (change.action === "skip") {
+        toast.success(t("event.runSkipped", { name: item.taskName }), {
+          action: {
+            label: t("event.undo"),
+            onClick: () =>
+              void handleRunChange(
+                { ...item, scheduleRevision: item.scheduleRevision + 1 },
+                { action: "restore" },
+              ),
+          },
+        });
+      }
     } catch {
       reportRunChangeFailure("failed");
     }

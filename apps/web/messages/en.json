@@ -10392,6 +10392,8 @@
         "moveRun": "Move run",
         "skipRun": "Skip run",
         "restoreRun": "Restore run",
+        "runSkipped": "Skipped the {name} run.",
+        "undo": "Undo",
         "openSchedule": "Open schedule",
         "allDay": "All day",
         "runStale": "This schedule changed somewhere else. The calendar is reloading; try again.",
