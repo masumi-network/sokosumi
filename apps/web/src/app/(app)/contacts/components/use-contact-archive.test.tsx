@@ -3,7 +3,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useContactArchive } from "./use-contact-archive";
+import {
+  FAILURE_TOAST_WAIT_MS,
+  useContactArchive,
+} from "./use-contact-archive";
 import { CONTACTS_KEY } from "./use-contacts-data";
 
 const f = vi.hoisted(() => ({
@@ -80,10 +83,35 @@ describe("useContactArchive", () => {
     });
     expect(f.toastSuccess).not.toHaveBeenCalled();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: CONTACTS_KEY });
-    // The toast says the contact is back, so it waits for the reload.
-    expect(invalidate.mock.invocationCallOrder[0]).toBeLessThan(
-      f.toastError.mock.invocationCallOrder[0],
-    );
+  });
+
+  it("shows the failure toast once the reload has finished", async () => {
+    f.archive.mockRejectedValueOnce({ message: "No access" });
+    const { archive, invalidate } = setup();
+    let reloaded = () => {};
+    const reload = new Promise<void>((resolve) => void (reloaded = resolve));
+    invalidate.mockImplementation(() => reload);
+    let done = Promise.resolve();
+    await act(async () => void (done = archive(ada, () => {})));
+    expect(f.toastError).not.toHaveBeenCalled();
+    reloaded();
+    await act(() => done);
+    expect(f.toastError).toHaveBeenCalledOnce();
+  });
+
+  it("shows the failure toast after the cap when the reload hangs", async () => {
+    vi.useFakeTimers();
+    try {
+      f.archive.mockRejectedValueOnce({ message: "No access" });
+      const { archive, invalidate } = setup();
+      invalidate.mockImplementation(() => new Promise(() => {}));
+      await act(async () => void archive(ada, () => {}));
+      expect(f.toastError).not.toHaveBeenCalled();
+      await act(() => vi.advanceTimersByTimeAsync(FAILURE_TOAST_WAIT_MS));
+      expect(f.toastError).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps the answer of a page load that was under way off the grid", async () => {

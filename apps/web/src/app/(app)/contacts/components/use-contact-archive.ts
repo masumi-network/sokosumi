@@ -9,6 +9,9 @@ import { CONTACTS_KEY, refreshContacts } from "./use-contacts-data";
 
 type Page = { contacts: Contact[]; total: number };
 
+/** Longest wait for the reload before the failure toast shows anyway. */
+export const FAILURE_TOAST_WAIT_MS = 1500;
+
 /**
  * Archives a contact. Its row leaves the loaded pages and `onDone` runs at
  * once; the reload after the save, or after a failure, shows what Core holds,
@@ -42,17 +45,25 @@ export function useContactArchive() {
       },
     );
     onDone();
+    let failure: { error: unknown } | null = null;
     try {
       await contactsService.archive(contact.id);
       toast.success(t("panel.archived", { name: contact.name }));
     } catch (error) {
-      // After the reload, so the contact is back when the toast says it is.
-      await refreshContacts(cache, contact.id);
-      toast.error(t("panel.archiveFailed", { name: contact.name }), {
-        description: coreErrorOf(error).message,
-      });
-      return;
+      failure = { error };
     }
-    await refreshContacts(cache, contact.id);
+    const refresh = refreshContacts(cache, contact.id);
+    if (failure) {
+      // After the reload, so the contact is back when the toast says it is;
+      // a reload that retries against a failing Core does not hold it long.
+      await Promise.race([
+        refresh.catch(() => {}),
+        new Promise((done) => setTimeout(done, FAILURE_TOAST_WAIT_MS)),
+      ]);
+      toast.error(t("panel.archiveFailed", { name: contact.name }), {
+        description: coreErrorOf(failure.error).message,
+      });
+    }
+    await refresh;
   };
 }
