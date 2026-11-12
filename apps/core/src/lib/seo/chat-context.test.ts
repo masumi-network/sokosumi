@@ -342,6 +342,17 @@ describe("native audit chat inference boundary", () => {
     ]);
     // The agent must know that it has 5 of the 7 notes.
     expect(limited).toBe(true);
+    // A long note is cut, and the agent must know that too.
+    workspace.strategy.placesNotes = [
+      `${"x".repeat(400)}(https://terms.test/)`,
+    ];
+    const cut = JSON.parse(seoChatContext(workspace));
+    expect([cut.strategy.placesNotes[0].length, cut.limited]).toEqual([
+      400,
+      true,
+    ]);
+    workspace.strategy.placesNotes = ["short"];
+    expect(JSON.parse(seoChatContext(workspace)).limited).toBe(false);
   });
 
   it("gives the agent the site audit's strategy actions with their limits", () => {

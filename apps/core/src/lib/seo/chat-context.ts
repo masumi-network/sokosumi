@@ -290,6 +290,13 @@ export function seoChatContext(workspace: ProjectSeoWorkspace): string {
       context.strategy?.placesNotes.length ?? 0,
     ],
   ].some(([total, provided]) => total > provided);
+  // A cut note can end in a cut address: the agent must know (review of the place notes).
+  if (
+    context.strategy?.placesNotes.some(
+      (note, index) => note !== workspace.strategy?.placesNotes?.[index],
+    )
+  )
+    context.limited = true;
   let encoded = JSON.stringify(context);
   // Trim complete rows, retaining valid evidence and the current statistics/dispatch state.
   for (const rows of collections) {
