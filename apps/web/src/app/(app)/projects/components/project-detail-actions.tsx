@@ -151,7 +151,6 @@ export function ProjectDetailActions({
         setIsCloseDialogOpen(false);
         setCloseReason("");
         toast.success(labels.closeDialog.success);
-        router.refresh();
       } catch {
         router.refresh();
         toast.error(labels.closeDialog.error, { duration: Infinity });

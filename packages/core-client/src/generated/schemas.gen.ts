@@ -17811,6 +17811,98 @@ export const CreateDriveFileUploadSessionRequestSchema = {
     ]
 } as const;
 
+export const DriveGoogleSheetSchema = {
+    type: 'object',
+    properties: {
+        resourceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The copy\'s file id'
+        },
+        pathname: {
+            type: 'string',
+            example: 'drive/organizations/org_123/Finance/Model.xlsx',
+            description: 'The copy\'s Blob pathname'
+        },
+        name: {
+            type: 'string',
+            example: 'Model.xlsx'
+        },
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
+            description: 'The sheet in Google Sheets'
+        },
+        syncedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When Sokosumi last read the sheet'
+        },
+        error: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: [
+                        'not_shared',
+                        'too_large',
+                        'failed'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Why the last refresh failed (the copy stays as it was), or null.'
+        }
+    },
+    required: [
+        'resourceId',
+        'pathname',
+        'name',
+        'url',
+        'syncedAt',
+        'error'
+    ]
+} as const;
+
+export const LinkDriveGoogleSheetRequestSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000,
+            example: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit',
+            description: 'The sheet\'s address. Its sharing must be \'Anyone with the link can view\'.'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string',
+            description: 'Organization ID (required when scope=org)'
+        },
+        folder: {
+            type: 'string',
+            maxLength: 1000,
+            example: 'Finance',
+            description: 'Folder to put the copy in; the Drive root when omitted'
+        }
+    },
+    required: [
+        'url',
+        'scope'
+    ]
+} as const;
+
 export const DriveItemsSchema = {
     type: 'array',
     items: {
@@ -49374,6 +49466,135 @@ export const TaskTagSuggestionSchema = {
     required: [
         'tags',
         'receipt'
+    ]
+} as const;
+
+export const MoveOverdueTasksSchema = {
+    type: 'object',
+    properties: {
+        moved: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    from: {
+                        type: 'string',
+                        description: 'The due day the Task had before (YYYY-MM-DD).',
+                        example: '2026-11-02'
+                    },
+                    version: {
+                        type: 'string',
+                        description: 'The Task\'s `updatedAt` right after the move. Undo needs it, so it puts the Task back only if nothing changed since.',
+                        example: '2026-11-12T09:30:00.123Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'from',
+                    'version'
+                ]
+            }
+        },
+        skipped: {
+            type: 'integer',
+            description: 'Overdue Tasks that changed meanwhile, could not be edited or failed, and kept their due day.'
+        }
+    },
+    required: [
+        'moved',
+        'skipped'
+    ]
+} as const;
+
+export const MoveOverdueTasksRequestSchema = {
+    type: 'object',
+    properties: {
+        today: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The caller\'s own calendar day (YYYY-MM-DD).',
+            example: '2026-11-12'
+        },
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The new due day; today or later (YYYY-MM-DD).',
+            example: '2026-11-13'
+        }
+    },
+    required: [
+        'today',
+        'to'
+    ]
+} as const;
+
+export const UndoMoveOverdueTasksSchema = {
+    type: 'object',
+    properties: {
+        restored: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Ids of the Tasks put back on their old due day.'
+        },
+        skipped: {
+            type: 'integer',
+            description: 'Tasks that changed in any way since the move, or could not be edited, and were left as they are.'
+        }
+    },
+    required: [
+        'restored',
+        'skipped'
+    ]
+} as const;
+
+export const UndoMoveOverdueTasksRequestSchema = {
+    type: 'object',
+    properties: {
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The due day the move gave the Tasks (YYYY-MM-DD).',
+            example: '2026-11-13'
+        },
+        tasks: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        minLength: 1
+                    },
+                    from: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                        description: 'The due day to put back (YYYY-MM-DD).',
+                        example: '2026-11-02'
+                    },
+                    version: {
+                        type: 'string',
+                        description: 'The `version` the move returned for this Task.',
+                        example: '2026-11-12T09:30:00.123Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'from',
+                    'version'
+                ]
+            },
+            minItems: 1,
+            maxItems: 100
+        }
+    },
+    required: [
+        'to',
+        'tasks'
     ]
 } as const;
 
