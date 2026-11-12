@@ -232,7 +232,10 @@ describe("a video from a prompt", () => {
 
 describe("animating a gallery image", () => {
   beforeEach(() => {
-    assetFindFirstMock.mockResolvedValue({ mediaType: "IMAGE" });
+    assetFindFirstMock.mockResolvedValue({
+      mediaType: "IMAGE",
+      job: { productId: "product-a", productName: "Clay mug" },
+    });
     assetFindManyMock.mockResolvedValue([
       {
         id: "asset-1",
@@ -255,6 +258,8 @@ describe("animating a gallery image", () => {
         kind: "IMAGE_TO_VIDEO",
         model: "minimax/h3-max-turbo/image-to-video",
         referenceAssetIds: ["asset-1"],
+        productId: "product-a",
+        productName: "Clay mug",
       }),
     });
     const input = submitToQueueMock.mock.calls[0]![0].input;

@@ -1,9 +1,17 @@
+import { z } from "@hono/zod-openapi";
+import { productBrief } from "@sokosumi/utils";
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
+import prisma from "@/lib/db/prisma";
 import { getImageCatalog } from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
-import { describeImageStudioRefusal } from "@/lib/image-studio/request-validation";
+import {
+  describeImageStudioRefusal,
+  IMAGE_PROMPT_MAX_LENGTH,
+} from "@/lib/image-studio/request-validation";
 
 import { createImageJobRequestSchema } from "@/schemas/project-image-studio.schema";
+import { isCmoProject } from "@/services/cmo-cuso.service";
 import {
   getAsset,
   getJob,
@@ -16,6 +24,10 @@ import {
   reconcileProjectJobs,
 } from "@/services/image-studio-jobs.service";
 import { authorizeAgentSession } from "@/services/image-studio-sessions.service";
+import {
+  copyRemoteStudioProductPhoto,
+  readStudioProductCatalog,
+} from "@/services/studio-product-catalog.service";
 
 import { authorizeAgentGrant as authorize } from "./authorize";
 
@@ -34,6 +46,9 @@ import { authorizeAgentGrant as authorize } from "./authorize";
  */
 
 const app = new Hono();
+const createAgentImageJobSchema = createImageJobRequestSchema
+  .omit({ exportHeadline: true, useProductCutout: true })
+  .extend({ catalogProductId: z.string().uuid().optional() });
 
 /**
  * Confirm the grant's user still has access to the grant's project.
@@ -110,6 +125,11 @@ app.get("/versions", async (c) => {
 app.post("/generations", async (c) => {
   const context = await authorize(c.req.raw);
   if (context instanceof Response) return context;
+  // A CMO Project's Studio is CMO's (ADR 0066); Cuso's own media go through
+  // Core's services, not this surface.
+  if (await isCmoProject(context.projectId)) {
+    return c.json({ ok: false, error: "cmo_project_read_only" }, 409);
+  }
 
   // The same schema the session-authenticated route uses. Hand-rolled `typeof`
   // checks let a non-UUID reference reach Prisma as a 500, and let an
@@ -121,7 +141,7 @@ app.post("/generations", async (c) => {
   > | null;
   if (!raw) return c.json({ ok: false, error: "invalid_input" }, 400);
 
-  const parsed = createImageJobRequestSchema.safeParse({
+  const parsed = createAgentImageJobSchema.safeParse({
     ...raw,
     settings: {
       aspectRatio: raw.aspectRatio,
@@ -141,19 +161,76 @@ app.post("/generations", async (c) => {
     );
   }
   const input = parsed.data;
+  const replay = input.catalogProductId
+    ? await prisma.projectImageJob.findUnique({
+        where: {
+          projectId_idempotencyKey: {
+            projectId: context.projectId,
+            idempotencyKey: input.idempotencyKey,
+          },
+        },
+      })
+    : null;
 
-  const job = await createImageJob({
-    projectId: context.projectId,
-    workspaceId: context.workspaceId,
-    userId: context.userId,
-    sessionId: input.sessionId,
-    prompt: input.prompt,
-    modelId: input.modelId,
-    settings: { ...DEFAULT_SETTINGS, ...input.settings },
-    referenceAssetIds: input.referenceAssetIds,
-    parentAssetId: input.parentAssetId,
-    idempotencyKey: input.idempotencyKey,
-  });
+  let prompt = input.prompt;
+  let product: { id: string; name: string } | undefined;
+  let photoId: string | undefined;
+  if (input.catalogProductId && !replay) {
+    const catalog = await readStudioProductCatalog(context.projectId);
+    const selected = catalog.products.find(
+      ({ id }) => id === input.catalogProductId,
+    );
+    if (!selected)
+      return c.json({ ok: false, error: "product_not_found" }, 404);
+    product = { id: selected.id, name: selected.name };
+    prompt = [prompt, productBrief(selected)].join("\n\n");
+    if (prompt.length > IMAGE_PROMPT_MAX_LENGTH) {
+      return c.json({ ok: false, error: "product_brief_too_long" }, 422);
+    }
+    photoId = selected.photo?.id;
+    if (!photoId && selected.imageUrl) {
+      try {
+        const photo = await copyRemoteStudioProductPhoto({
+          name: selected.name,
+          imageUrl: selected.imageUrl,
+          workspaceId: context.workspaceId,
+          organizationId: context.organizationId,
+          userId: context.userId,
+        });
+        photoId = photo.id;
+      } catch (error) {
+        if (!(error instanceof HTTPException) || error.status !== 422)
+          throw error;
+        return c.json({ ok: false, error: "product_photo_unavailable" }, 422);
+      }
+    }
+  }
+
+  const job =
+    replay ??
+    (await createImageJob({
+      projectId: context.projectId,
+      workspaceId: context.workspaceId,
+      userId: context.userId,
+      sessionId: input.sessionId,
+      prompt,
+      ...(product ? { product } : {}),
+      modelId: input.modelId,
+      settings: { ...DEFAULT_SETTINGS, ...input.settings },
+      referenceAssetIds: input.referenceAssetIds,
+      ...(photoId ? { referenceFileIds: [photoId] } : {}),
+      referenceFileActor: {
+        kind: "interactive",
+        userId: context.userId,
+        organizationId: context.organizationId,
+      },
+      reuseParentPhotoIfAvailable: !input.catalogProductId,
+      reuseParentCutout: !input.catalogProductId,
+      reuseParentBatchSlot: true,
+      reuseParentHeadlineIfAvailable: !input.catalogProductId,
+      parentAssetId: input.parentAssetId,
+      idempotencyKey: input.idempotencyKey,
+    }));
 
   return c.json({
     ok: true,

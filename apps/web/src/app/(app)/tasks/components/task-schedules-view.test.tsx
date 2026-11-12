@@ -1,7 +1,7 @@
 import type { TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { TaskSchedulesView } from "./task-schedules-view";
@@ -25,7 +25,10 @@ const {
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}(${Object.values(values).join(", ")})` : key,
-  useFormatter: () => ({ dateTime: () => "Mon, 9:00" }),
+  useFormatter: () => ({
+    dateTime: () => "Mon, 9:00",
+    list: (items: string[]) => items.join(" & "),
+  }),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -127,16 +130,19 @@ function renderView(
     nextCursor = null,
     projectId = null,
     state = null,
+    otherStateCounts,
   }: {
     nextCursor?: string | null;
     projectId?: string | null;
     state?: TaskScheduleState | null;
+    otherStateCounts?: { state: TaskScheduleState; count: number }[];
   } = {},
 ) {
   return render(
     <TaskSchedulesView
       schedules={schedules}
       nextCursor={nextCursor}
+      otherStateCounts={otherStateCounts}
       coworkerOptions={[ELENA]}
       assigneeDisplayOptions={[ELENA, MEMBER]}
       projectOptions={[]}
@@ -254,6 +260,120 @@ describe("TaskSchedulesView", () => {
     expect(
       screen.getByRole("dialog", { name: "schedule dialog" }),
     ).toBeInTheDocument();
+  });
+
+  it("says why a state filter is empty and offers every schedule", async () => {
+    const user = userEvent.setup();
+    searchParamsRef.current = new URLSearchParams("scheduleState=ENDED");
+    renderView([], {
+      state: "ENDED",
+      otherStateCounts: [
+        { state: "ACTIVE", count: 17 },
+        { state: "PAUSED", count: 0 },
+      ],
+    });
+
+    expect(screen.getByText("emptyFiltered.ENDED")).toBeInTheDocument();
+    expect(
+      screen.getByText("emptyFilteredOthers(stateCount.ACTIVE(17))"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("empty")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "showAll" }));
+
+    expect(replaceMock).toHaveBeenCalledWith("/schedules");
+  });
+
+  describe("focus after Show all", () => {
+    const ENDED_EMPTY = {
+      state: "ENDED" as const,
+      otherStateCounts: [{ state: "ACTIVE" as const, count: 1 }],
+    };
+
+    /** The browser URL the router would have committed. */
+    function at(url: string) {
+      window.history.replaceState(null, "", url);
+      searchParamsRef.current = new URL(
+        url,
+        window.location.origin,
+      ).searchParams;
+    }
+
+    async function clickShowAllFromEmptyEnded() {
+      const user = userEvent.setup();
+      at("/schedules?scheduleState=ENDED");
+      const view = renderView([], ENDED_EMPTY);
+      await user.click(screen.getByRole("button", { name: "showAll" }));
+      expect(replaceMock).toHaveBeenCalledWith("/schedules");
+      replaceMock.mockClear();
+      return { user, view };
+    }
+
+    afterEach(() => at("/"));
+
+    it("lands on the All tab when Show all arrives", async () => {
+      const { view } = await clickShowAllFromEmptyEnded();
+      // The new filter is a new key on the page, so the view mounts afresh.
+      at("/schedules");
+      view.unmount();
+      renderView([schedule({})]);
+
+      expect(screen.getByRole("tab", { name: "filterAll" })).toHaveFocus();
+      expect(replaceMock).not.toHaveBeenCalled();
+    });
+
+    it("drops the request when the user leaves before it arrives", async () => {
+      const { view } = await clickShowAllFromEmptyEnded();
+      at("/tasks");
+      view.unmount();
+
+      at("/schedules?scheduleState=PAUSED");
+      const paused = renderView([schedule({ state: "PAUSED" })], {
+        state: "PAUSED",
+      });
+      expect(replaceMock).not.toHaveBeenCalled();
+      expect(screen.getByRole("tab", { name: "state.PAUSED" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      expect(document.body).toHaveFocus();
+
+      paused.unmount();
+      at("/schedules");
+      renderView([schedule({})]);
+      expect(document.body).toHaveFocus();
+      expect(replaceMock).not.toHaveBeenCalled();
+    });
+
+    it("drops the request when it never arrives and another filter is picked", async () => {
+      const { user, view } = await clickShowAllFromEmptyEnded();
+      // Navigation failed: still on Ended, the reader picks Paused instead.
+      await user.click(screen.getByRole("tab", { name: "state.PAUSED" }));
+      expect(replaceMock).toHaveBeenCalledWith(
+        "/schedules?scheduleState=PAUSED",
+      );
+      replaceMock.mockClear();
+
+      at("/schedules?scheduleState=PAUSED");
+      view.unmount();
+      renderView([schedule({ state: "PAUSED" })], { state: "PAUSED" });
+      expect(replaceMock).not.toHaveBeenCalled();
+      expect(document.body).toHaveFocus();
+    });
+  });
+
+  it("keeps the first-use text when no state holds a schedule", () => {
+    renderView([], {
+      state: "PAUSED",
+      otherStateCounts: [
+        { state: "ACTIVE", count: 0 },
+        { state: "ENDED", count: 0 },
+      ],
+    });
+
+    expect(screen.getByText("empty")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "showAll" }),
+    ).not.toBeInTheDocument();
   });
 
   it("loads more of the same project and state", async () => {

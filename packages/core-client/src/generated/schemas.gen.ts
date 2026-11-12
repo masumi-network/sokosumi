@@ -1839,6 +1839,10 @@ export const SokoBotDeletionResultSchema = {
                 jobs: {
                     type: 'integer',
                     minimum: 0
+                },
+                socialPosts: {
+                    type: 'integer',
+                    minimum: 0
                 }
             },
             required: [
@@ -1848,7 +1852,8 @@ export const SokoBotDeletionResultSchema = {
                 'chatMessages',
                 'uploadedTaskFiles',
                 'taskSchedules',
-                'jobs'
+                'jobs',
+                'socialPosts'
             ]
         }
     },
@@ -11141,43 +11146,6 @@ export const ChatPersonSchema = {
     ]
 } as const;
 
-export const ChatRecentSokoBotMessageSchema = {
-    type: 'object',
-    properties: {
-        roomId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        messageId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        parentMessageId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid',
-            description: 'The Thread\'s parent when the message is a reply.'
-        },
-        content: {
-            type: 'string'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'roomId',
-        'messageId',
-        'parentMessageId',
-        'content',
-        'createdAt'
-    ]
-} as const;
-
 export const ChatRoomSchema = {
     type: 'object',
     properties: {
@@ -13382,6 +13350,94 @@ export const ChatResultOutputSchema = {
             maxLength: 2000,
             pattern: '^\\/(?![\\/\\\\])[^\\\\\\r\\n]*$',
             default: null
+        },
+        transformation: {
+            type: 'object',
+            properties: {
+                provider: {
+                    type: 'string',
+                    enum: [
+                        'x',
+                        'linkedin',
+                        'facebook',
+                        'instagram',
+                        'tiktok',
+                        'youtube'
+                    ]
+                },
+                code: {
+                    type: 'string',
+                    enum: [
+                        'pad_4_5',
+                        'pad_1_91_1',
+                        'resize',
+                        'jpeg',
+                        'srgb',
+                        'smaller_file'
+                    ]
+                },
+                notice: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 500
+                },
+                original: {
+                    type: 'object',
+                    properties: {
+                        pathname: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'drive/users/user_123/launch.png',
+                            description: 'Drive blob pathname; must belong to the active workspace'
+                        },
+                        fileUrl: {
+                            type: 'string',
+                            format: 'uri',
+                            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
+                            description: 'Public Blob URL of the Drive file'
+                        },
+                        name: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'launch.png'
+                        },
+                        size: {
+                            type: 'integer',
+                            minimum: 0,
+                            example: 240000
+                        },
+                        mimeType: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'image/png'
+                        },
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'image',
+                                'gif',
+                                'video'
+                            ],
+                            example: 'image'
+                        }
+                    },
+                    required: [
+                        'pathname',
+                        'fileUrl',
+                        'name',
+                        'size',
+                        'mimeType',
+                        'kind'
+                    ]
+                }
+            },
+            required: [
+                'provider',
+                'code',
+                'notice',
+                'original'
+            ],
+            description: 'Required provider adaptation, with the original source retained.'
         }
     },
     required: [
@@ -13943,6 +13999,119 @@ export const ChatSignalListItemSchema = {
     ]
 } as const;
 
+export const ChatCatchUpItemSchema = {
+    type: 'object',
+    properties: {
+        messageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomName: {
+            type: 'string'
+        },
+        roomKind: {
+            type: 'string',
+            enum: [
+                'channel',
+                'direct'
+            ]
+        },
+        parentMessageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        senderName: {
+            type: 'string'
+        },
+        senderImageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        excerpt: {
+            type: 'string'
+        },
+        bucket: {
+            $ref: '#/components/schemas/ChatCatchUpBucket'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        dueAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        inReplyTo: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                senderName: {
+                    type: 'string'
+                },
+                excerpt: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'senderName',
+                'excerpt'
+            ],
+            description: 'For a decision: the earlier message it answers, so a bare reply reads on its own.'
+        }
+    },
+    required: [
+        'messageId',
+        'roomId',
+        'roomName',
+        'roomKind',
+        'parentMessageId',
+        'senderName',
+        'senderImageUrl',
+        'excerpt',
+        'bucket',
+        'createdAt',
+        'dueAt',
+        'inReplyTo'
+    ]
+} as const;
+
+export const ChatCatchUpBucketSchema = {
+    type: 'string',
+    enum: [
+        'needsYou',
+        'escalation',
+        'urgent',
+        'blocker',
+        'bug',
+        'decisionMade',
+        'announcement',
+        'needsDecision',
+        'commitment',
+        'workRequest',
+        'review',
+        'question',
+        'fyi',
+        'chitChat'
+    ],
+    description: 'The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.'
+} as const;
+
 export const ChatCatchUpSummarySchema = {
     type: 'object',
     properties: {
@@ -14123,27 +14292,6 @@ export const ChatCatchUpSummarySchema = {
     ]
 } as const;
 
-export const ChatCatchUpBucketSchema = {
-    type: 'string',
-    enum: [
-        'needsYou',
-        'escalation',
-        'urgent',
-        'blocker',
-        'bug',
-        'decisionMade',
-        'announcement',
-        'needsDecision',
-        'commitment',
-        'workRequest',
-        'review',
-        'question',
-        'fyi',
-        'chitChat'
-    ],
-    description: 'The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.'
-} as const;
-
 export const ChatCatchUpTopicSchema = {
     type: 'object',
     properties: {
@@ -14226,98 +14374,6 @@ export const ChatCatchUpTopicSchema = {
         'people',
         'latestAt',
         'messages'
-    ]
-} as const;
-
-export const ChatCatchUpItemSchema = {
-    type: 'object',
-    properties: {
-        messageId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        roomId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        roomName: {
-            type: 'string'
-        },
-        roomKind: {
-            type: 'string',
-            enum: [
-                'channel',
-                'direct'
-            ]
-        },
-        parentMessageId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid'
-        },
-        senderName: {
-            type: 'string'
-        },
-        senderImageUrl: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        excerpt: {
-            type: 'string'
-        },
-        bucket: {
-            $ref: '#/components/schemas/ChatCatchUpBucket'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        dueAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        inReplyTo: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                senderName: {
-                    type: 'string'
-                },
-                excerpt: {
-                    type: 'string'
-                }
-            },
-            required: [
-                'senderName',
-                'excerpt'
-            ],
-            description: 'For a decision: the earlier message it answers, so a bare reply reads on its own.'
-        }
-    },
-    required: [
-        'messageId',
-        'roomId',
-        'roomName',
-        'roomKind',
-        'parentMessageId',
-        'senderName',
-        'senderImageUrl',
-        'excerpt',
-        'bucket',
-        'createdAt',
-        'dueAt',
-        'inReplyTo'
     ]
 } as const;
 
@@ -17761,6 +17817,98 @@ export const CreateDriveFileUploadSessionRequestSchema = {
     ]
 } as const;
 
+export const DriveGoogleSheetSchema = {
+    type: 'object',
+    properties: {
+        resourceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The copy\'s file id'
+        },
+        pathname: {
+            type: 'string',
+            example: 'drive/organizations/org_123/Finance/Model.xlsx',
+            description: 'The copy\'s Blob pathname'
+        },
+        name: {
+            type: 'string',
+            example: 'Model.xlsx'
+        },
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
+            description: 'The sheet in Google Sheets'
+        },
+        syncedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When Sokosumi last read the sheet'
+        },
+        error: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: [
+                        'not_shared',
+                        'too_large',
+                        'failed'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Why the last refresh failed (the copy stays as it was), or null.'
+        }
+    },
+    required: [
+        'resourceId',
+        'pathname',
+        'name',
+        'url',
+        'syncedAt',
+        'error'
+    ]
+} as const;
+
+export const LinkDriveGoogleSheetRequestSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000,
+            example: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit',
+            description: 'The sheet\'s address. Its sharing must be \'Anyone with the link can view\'.'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string',
+            description: 'Organization ID (required when scope=org)'
+        },
+        folder: {
+            type: 'string',
+            maxLength: 1000,
+            example: 'Finance',
+            description: 'Folder to put the copy in; the Drive root when omitted'
+        }
+    },
+    required: [
+        'url',
+        'scope'
+    ]
+} as const;
+
 export const DriveItemsSchema = {
     type: 'array',
     items: {
@@ -21058,6 +21206,122 @@ export const HistoryImageItemSchema = {
     ]
 } as const;
 
+export const StudioAgentProductSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/StudioProductIdentity'
+        },
+        {
+            type: 'object',
+            properties: {
+                hasPhoto: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'hasPhoto'
+            ]
+        }
+    ]
+} as const;
+
+export const StudioProductIdentitySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 160
+        }
+    },
+    required: [
+        'id',
+        'name'
+    ]
+} as const;
+
+export const StudioAgentAdHeadlineSchema = {
+    type: 'object',
+    properties: {
+        headline: {
+            $ref: '#/components/schemas/StudioAdHeadline'
+        },
+        approvedLines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 120
+            }
+        }
+    },
+    required: [
+        'headline',
+        'approvedLines'
+    ]
+} as const;
+
+export const StudioAdHeadlineSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SaveStudioAdHeadline'
+        },
+        {
+            type: 'object',
+            properties: {
+                revision: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'revision'
+            ]
+        }
+    ]
+} as const;
+
+export const SaveStudioAdHeadlineSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 120
+        }
+    },
+    required: [
+        'text'
+    ]
+} as const;
+
+export const SaveStudioAgentAdHeadlineSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SaveStudioAdHeadline'
+        },
+        {
+            type: 'object',
+            properties: {
+                expectedRevision: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'expectedRevision'
+            ]
+        }
+    ]
+} as const;
+
 export const ProjectImageStudioCatalogSchema = {
     type: 'object',
     properties: {
@@ -21409,6 +21673,16 @@ export const ProjectImageAssetSchema = {
         projectName: {
             type: 'string'
         },
+        product: {
+            $ref: '#/components/schemas/StudioProductIdentity'
+        },
+        batchId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        headline: {
+            $ref: '#/components/schemas/StudioAdHeadline'
+        },
         rootId: {
             type: 'string',
             format: 'uuid'
@@ -21629,6 +21903,19 @@ export const ProjectImageJobSchema = {
                 format: 'uuid'
             }
         },
+        referenceFileIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            }
+        },
+        useProductCutout: {
+            type: 'boolean'
+        },
+        product: {
+            $ref: '#/components/schemas/StudioProductIdentity'
+        },
         error: {
             type: [
                 'string',
@@ -21647,6 +21934,7 @@ export const ProjectImageJobSchema = {
                 'provider_unreachable',
                 'submission_uncertain',
                 'reference_not_sendable',
+                'product_cutout_unavailable',
                 'request_not_supported',
                 'cancelled',
                 'abandoned_before_send',
@@ -21759,7 +22047,7 @@ export const CreditsResponseExtraSchema = {
             items: {
                 $ref: '#/components/schemas/CreditBucketBreakdown'
             },
-            description: 'Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id'
+            description: 'Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id. In the organization\'s own view, every Project\'s credits follow as their own rows with `project` set; `credits` leaves them out'
         },
         enterprise: {
             type: [
@@ -21798,7 +22086,7 @@ export const CreditsResponseExtraSchema = {
         'buckets',
         'enterprise'
     ],
-    description: '`extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.'
+    description: '`extra.credits`: non-subscription totals (sums over `extra.buckets` lines without a `project`). `extra.buckets`: per-bucket lines, Project credits included.'
 } as const;
 
 export const CreditsResponseExtraCreditsSchema = {
@@ -21806,12 +22094,12 @@ export const CreditsResponseExtraCreditsSchema = {
     properties: {
         total: {
             type: 'number',
-            description: 'Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`',
+            description: 'Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`, leaving out Project credits (lines with a `project`)',
             example: 25
         },
         remaining: {
             type: 'number',
-            description: 'Sum of remaining balances across those buckets (matches sum of each line’s `remaining`)',
+            description: 'Sum of remaining balances across those buckets (matches sum of each of their lines’ `remaining`)',
             example: 12.5
         },
         used: {
@@ -21849,6 +22137,25 @@ export const CreditBucketBreakdownSchema = {
             format: 'date-time',
             example: '2026-07-01T00:00:00.000Z',
             description: 'When this bucket expires; null if it does not expire'
+        },
+        project: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ],
+            description: 'Set on Project credits: only that Project\'s work spends them, and they are left out of the organization\'s totals'
         }
     },
     required: [
@@ -23762,6 +24069,85 @@ export const OrganizationSeatSummarySchema = {
     ]
 } as const;
 
+export const OrganizationCreditSpendSchema = {
+    type: 'object',
+    properties: {
+        month: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}$',
+            description: 'Current UTC calendar month, as YYYY-MM',
+            example: '2026-11'
+        },
+        previousMonth: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}$',
+            description: 'Previous UTC calendar month, as YYYY-MM',
+            example: '2026-10'
+        },
+        rows: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    userId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        description: 'User the credits were billed to. Null for organization charges billed to no person.',
+                        example: 'user_123'
+                    },
+                    name: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        description: 'Display name of the billed user',
+                        example: 'Jane Doe'
+                    },
+                    image: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        description: 'Avatar of the billed user',
+                        example: null
+                    },
+                    isMember: {
+                        type: 'boolean',
+                        description: 'Whether the billed user is a member of the organization today. False for former members and for the no-person row.',
+                        example: true
+                    },
+                    credits: {
+                        type: 'number',
+                        description: 'Credits spent this month, before refunds. Top ups are not spend.',
+                        example: 12.5
+                    },
+                    previousCredits: {
+                        type: 'number',
+                        description: 'Credits spent last month, before refunds',
+                        example: 3
+                    }
+                },
+                required: [
+                    'userId',
+                    'name',
+                    'image',
+                    'isMember',
+                    'credits',
+                    'previousCredits'
+                ]
+            },
+            description: 'One row per current member (zero when they spent nothing), plus former members and the no-person row when they spent in either month. Highest spend this month first.'
+        }
+    },
+    required: [
+        'month',
+        'previousMonth',
+        'rows'
+    ]
+} as const;
+
 export const OrganizationBillingPlanSchema = {
     type: 'object',
     properties: {
@@ -24330,6 +24716,16 @@ export const ProjectLatestUpdateSchema = {
     ]
 } as const;
 
+export const StudioLogoPositionSchema = {
+    type: 'string',
+    enum: [
+        'top-left',
+        'top-right',
+        'bottom-left',
+        'bottom-right'
+    ]
+} as const;
+
 export const ProjectDesignMdSchema = {
     type: 'object',
     properties: {
@@ -24480,6 +24876,17 @@ export const ProjectSchema = {
             format: 'uri',
             example: 'https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/logos/logo.png'
         },
+        studioLogoPosition: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioLogoPosition'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Default project logo placement for Studio ad exports.'
+        },
         designMd: {
             anyOf: [
                 {
@@ -24531,6 +24938,11 @@ export const ProjectSchema = {
             default: 0,
             description: 'Revision used for optimistic Project mutations',
             example: 0
+        },
+        cmo: {
+            type: 'boolean',
+            description: 'A CMO Project: it has a live Cuso, so it is read-only outside CMO (ADR 0066).',
+            example: false
         },
         scheduledSocialPostCount: {
             type: 'integer',
@@ -24586,6 +24998,7 @@ export const ProjectSchema = {
         'memoryModel',
         'contextMd',
         'contextMdUpdating',
+        'cmo',
         'createdAt',
         'updatedAt'
     ]
@@ -37880,6 +38293,94 @@ export const SocialPostMediaRefSchema = {
                 'video'
             ],
             example: 'image'
+        },
+        transformation: {
+            type: 'object',
+            properties: {
+                provider: {
+                    type: 'string',
+                    enum: [
+                        'x',
+                        'linkedin',
+                        'facebook',
+                        'instagram',
+                        'tiktok',
+                        'youtube'
+                    ]
+                },
+                code: {
+                    type: 'string',
+                    enum: [
+                        'pad_4_5',
+                        'pad_1_91_1',
+                        'resize',
+                        'jpeg',
+                        'srgb',
+                        'smaller_file'
+                    ]
+                },
+                notice: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 500
+                },
+                original: {
+                    type: 'object',
+                    properties: {
+                        pathname: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'drive/users/user_123/launch.png',
+                            description: 'Drive blob pathname; must belong to the active workspace'
+                        },
+                        fileUrl: {
+                            type: 'string',
+                            format: 'uri',
+                            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
+                            description: 'Public Blob URL of the Drive file'
+                        },
+                        name: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'launch.png'
+                        },
+                        size: {
+                            type: 'integer',
+                            minimum: 0,
+                            example: 240000
+                        },
+                        mimeType: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'image/png'
+                        },
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'image',
+                                'gif',
+                                'video'
+                            ],
+                            example: 'image'
+                        }
+                    },
+                    required: [
+                        'pathname',
+                        'fileUrl',
+                        'name',
+                        'size',
+                        'mimeType',
+                        'kind'
+                    ]
+                }
+            },
+            required: [
+                'provider',
+                'code',
+                'notice',
+                'original'
+            ],
+            description: 'Required provider adaptation, with the original source retained.'
         }
     },
     required: [
@@ -38799,6 +39300,403 @@ export const ProjectImageSessionSchema = {
     ]
 } as const;
 
+export const StudioBrandKitSchema = {
+    type: 'object',
+    properties: {
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri'
+        },
+        studioLogoPosition: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioLogoPosition'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        colors: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        fonts: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        lookRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        hasCustomLook: {
+            type: 'boolean'
+        },
+        summary: {
+            type: 'string'
+        },
+        tone: {
+            type: 'string'
+        },
+        audience: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 8
+        },
+        approvedLines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 2000
+            },
+            maxItems: 8
+        },
+        version: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        }
+    },
+    required: [
+        'logo',
+        'colors',
+        'fonts',
+        'summary',
+        'tone',
+        'audience',
+        'approvedLines',
+        'version'
+    ]
+} as const;
+
+export const StudioWebsiteCopySchema = {
+    type: 'object',
+    properties: {
+        summary: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 2000
+        },
+        lines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 2000
+            },
+            maxItems: 8
+        },
+        tone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 400
+        },
+        audience: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 8
+        }
+    },
+    required: [
+        'summary',
+        'lines'
+    ]
+} as const;
+
+export const StudioWebsiteDraftSchema = {
+    type: 'object',
+    properties: {
+        brandCopy: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioWebsiteCopy'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        products: {
+            type: [
+                'array',
+                'null'
+            ],
+            items: {
+                $ref: '#/components/schemas/StudioProduct'
+            },
+            maxItems: 20
+        },
+        visual: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioWebsiteVisual'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'brandCopy',
+        'products'
+    ]
+} as const;
+
+export const StudioProductSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 160
+        },
+        description: {
+            type: 'string',
+            maxLength: 800
+        },
+        price: {
+            type: 'string',
+            maxLength: 80
+        },
+        url: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        },
+        imageUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        },
+        photo: {
+            $ref: '#/components/schemas/StudioProductPhoto'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'description',
+        'price',
+        'url',
+        'imageUrl'
+    ]
+} as const;
+
+export const StudioProductPhotoSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255
+        }
+    },
+    required: [
+        'id',
+        'name'
+    ]
+} as const;
+
+export const StudioWebsiteVisualSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/StudioBrandLook'
+        },
+        {
+            type: 'object',
+            properties: {
+                logo: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uri'
+                }
+            },
+            required: [
+                'logo'
+            ]
+        }
+    ]
+} as const;
+
+export const StudioBrandLookSchema = {
+    type: 'object',
+    properties: {
+        colors: {
+            type: 'array',
+            items: {
+                type: 'string',
+                pattern: '^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i'
+            },
+            maxItems: 8
+        },
+        fonts: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 80,
+                pattern: '^[^\\p{Cc}\\p{Cf}]+$/u'
+            },
+            maxItems: 4
+        }
+    },
+    required: [
+        'colors',
+        'fonts'
+    ]
+} as const;
+
+export const SaveStudioBrandCopySchema = {
+    type: 'object',
+    properties: {
+        copy: {
+            $ref: '#/components/schemas/StudioBrandCopy'
+        },
+        version: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        }
+    },
+    required: [
+        'copy',
+        'version'
+    ]
+} as const;
+
+export const StudioBrandCopySchema = {
+    type: 'object',
+    properties: {
+        summary: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        },
+        tone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 400
+        },
+        audience: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 8
+        },
+        approvedLines: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 2000
+            },
+            maxItems: 8
+        }
+    },
+    required: [
+        'summary',
+        'tone',
+        'audience',
+        'approvedLines'
+    ]
+} as const;
+
+export const StudioBrandLookStateSchema = {
+    type: 'object',
+    properties: {
+        colors: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        fonts: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        lookRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        hasCustomLook: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'colors',
+        'fonts',
+        'lookRevision',
+        'hasCustomLook'
+    ]
+} as const;
+
+export const SaveStudioBrandLookSchema = {
+    type: 'object',
+    properties: {
+        look: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioBrandLook'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        lookRevision: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'look',
+        'lookRevision'
+    ]
+} as const;
+
 export const CreateProjectImageJobRequestSchema = {
     type: 'object',
     properties: {
@@ -38813,6 +39711,21 @@ export const CreateProjectImageJobRequestSchema = {
             minLength: 1,
             maxLength: 4000
         },
+        product: {
+            $ref: '#/components/schemas/StudioProductIdentity'
+        },
+        batchId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        exportHeadline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
+        useProductCutout: {
+            type: 'boolean'
+        },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
         },
@@ -38824,6 +39737,14 @@ export const CreateProjectImageJobRequestSchema = {
             },
             maxItems: 4,
             default: []
+        },
+        referenceFileIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 4
         },
         parentAssetId: {
             type: [
@@ -38850,6 +39771,43 @@ export const CreateProjectImageJobRequestSchema = {
     required: [
         'prompt',
         'idempotencyKey'
+    ]
+} as const;
+
+export const StudioProductCatalogSchema = {
+    type: 'object',
+    properties: {
+        products: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/StudioProduct'
+            },
+            maxItems: 20
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'products',
+        'revision'
+    ]
+} as const;
+
+export const StudioProductImportSchema = {
+    type: 'object',
+    properties: {
+        products: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/StudioProduct'
+            },
+            maxItems: 20
+        }
+    },
+    required: [
+        'products'
     ]
 } as const;
 
@@ -38927,6 +39885,16 @@ export const CancelProjectImageJobResponseSchema = {
     },
     required: [
         'accepted'
+    ]
+} as const;
+
+export const StudioAdPlacementRatioSchema = {
+    type: 'string',
+    enum: [
+        '1:1',
+        '4:5',
+        '9:16',
+        '16:9'
     ]
 } as const;
 
@@ -41355,6 +42323,16 @@ export const PatchProjectRequestSchema = {
             ],
             format: 'uri'
         },
+        studioLogoPosition: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioLogoPosition'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         identifier: {
             type: 'string',
             pattern: '^[A-Z][A-Z0-9]{1,6}$',
@@ -42889,7 +43867,7 @@ export const NotificationCountsSchema = {
         needsAction: {
             type: 'integer',
             minimum: 0,
-            description: 'Number of feed notifications whose request still waits on the reader',
+            description: 'Number of feed notifications whose request still waits on the reader, not counting a Task\'s ask for a Task the active workspace\'s GET /tasks/summary already counts',
             example: 2
         },
         mentions: {
@@ -43927,6 +44905,76 @@ export const PublicSharedTaskFileSchema = {
         'fileUrl',
         'mimeType',
         'size',
+        'createdAt'
+    ]
+} as const;
+
+export const CmoCusoListSchema = {
+    type: 'object',
+    properties: {
+        cusos: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoCuso'
+            }
+        },
+        mayHire: {
+            type: 'boolean',
+            description: 'The caller is on Core\'s hire allowlist (CMO_HIRE_ALLOWLIST).'
+        }
+    },
+    required: [
+        'cusos',
+        'mayHire'
+    ]
+} as const;
+
+export const CmoCusoSchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string'
+        },
+        businessName: {
+            type: 'string'
+        },
+        websiteUrl: {
+            type: 'string'
+        },
+        projectLogo: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        organizationId: {
+            type: 'string'
+        },
+        organizationName: {
+            type: 'string'
+        },
+        hiring: {
+            type: 'boolean',
+            description: 'No plan of his is approved yet: he is still being hired.'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'projectId',
+        'businessName',
+        'websiteUrl',
+        'projectLogo',
+        'organizationId',
+        'organizationName',
+        'hiring',
         'createdAt'
     ]
 } as const;
@@ -48304,77 +49352,16 @@ export const CmoOnboardingRequestSchema = {
             type: 'string',
             maxLength: 500,
             format: 'uri',
-            description: 'The business\'s website. Cuso is hired into a new organization named after it.'
+            description: 'The business\'s website, which names the new Project.'
+        },
+        organizationId: {
+            type: 'string',
+            minLength: 1,
+            description: 'An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.'
         }
     },
     required: [
         'websiteUrl'
-    ]
-} as const;
-
-export const CmoTurnStartedSchema = {
-    type: 'object',
-    properties: {
-        turnId: {
-            type: 'string'
-        }
-    },
-    required: [
-        'turnId'
-    ]
-} as const;
-
-export const CmoStrategyRequestSchema = {
-    type: 'object',
-    properties: {
-        note: {
-            type: 'string',
-            maxLength: 1000
-        }
-    }
-} as const;
-
-export const CmoAdBudgetRequestSchema = {
-    type: 'object',
-    properties: {
-        monthly: {
-            type: 'number',
-            minimum: 0,
-            maximum: 10000000
-        },
-        currency: {
-            type: 'string',
-            pattern: '^[A-Za-z]{3}$',
-            description: 'ISO 4217, such as EUR.'
-        }
-    },
-    required: [
-        'monthly',
-        'currency'
-    ]
-} as const;
-
-export const CmoPieceTextSchema = {
-    type: 'object',
-    properties: {
-        text: {
-            type: 'string'
-        }
-    },
-    required: [
-        'text'
-    ]
-} as const;
-
-export const CmoMeasurementConnectSchema = {
-    type: 'object',
-    properties: {
-        redirectUrl: {
-            type: 'string'
-        }
-    },
-    required: [
-        'redirectUrl'
     ]
 } as const;
 
@@ -48387,32 +49374,6 @@ export const CmoAdsConnectSchema = {
     },
     required: [
         'redirectUrl'
-    ]
-} as const;
-
-export const CmoAdsFinalizedSchema = {
-    type: 'object',
-    properties: {
-        state: {
-            type: 'string',
-            enum: [
-                'connected',
-                'none',
-                'choose'
-            ]
-        },
-        adConnectionId: {
-            type: 'string'
-        },
-        accounts: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/AvailableAdAccount'
-            }
-        }
-    },
-    required: [
-        'state'
     ]
 } as const;
 
@@ -48468,6 +49429,98 @@ export const CmoAdCampaignsSchema = {
     required: [
         'accounts'
     ]
+} as const;
+
+export const CmoAdsFinalizedSchema = {
+    type: 'object',
+    properties: {
+        state: {
+            type: 'string',
+            enum: [
+                'connected',
+                'none',
+                'choose'
+            ]
+        },
+        adConnectionId: {
+            type: 'string'
+        },
+        accounts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AvailableAdAccount'
+            }
+        }
+    },
+    required: [
+        'state'
+    ]
+} as const;
+
+export const CmoPieceTextSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string'
+        }
+    },
+    required: [
+        'text'
+    ]
+} as const;
+
+export const CmoMeasurementConnectSchema = {
+    type: 'object',
+    properties: {
+        redirectUrl: {
+            type: 'string'
+        }
+    },
+    required: [
+        'redirectUrl'
+    ]
+} as const;
+
+export const CmoTurnStartedSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            type: 'string'
+        }
+    },
+    required: [
+        'turnId'
+    ]
+} as const;
+
+export const CmoAdBudgetRequestSchema = {
+    type: 'object',
+    properties: {
+        monthly: {
+            type: 'number',
+            minimum: 0,
+            maximum: 10000000
+        },
+        currency: {
+            type: 'string',
+            pattern: '^[A-Za-z]{3}$',
+            description: 'ISO 4217, such as EUR.'
+        }
+    },
+    required: [
+        'monthly',
+        'currency'
+    ]
+} as const;
+
+export const CmoStrategyRequestSchema = {
+    type: 'object',
+    properties: {
+        note: {
+            type: 'string',
+            maxLength: 1000
+        }
+    }
 } as const;
 
 export const SokoBotApiKeySchema = {
@@ -48876,6 +49929,9 @@ export const SharedSokoBotSummarySchema = {
         },
         viewerCanManage: {
             type: 'boolean'
+        },
+        cuso: {
+            type: 'boolean'
         }
     },
     required: [
@@ -48888,7 +49944,8 @@ export const SharedSokoBotSummarySchema = {
         'status',
         'archivedAt',
         'sharedRoomId',
-        'viewerCanManage'
+        'viewerCanManage',
+        'cuso'
     ]
 } as const;
 
@@ -51287,6 +52344,135 @@ export const TaskTagSuggestionSchema = {
     ]
 } as const;
 
+export const MoveOverdueTasksSchema = {
+    type: 'object',
+    properties: {
+        moved: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    from: {
+                        type: 'string',
+                        description: 'The due day the Task had before (YYYY-MM-DD).',
+                        example: '2026-11-02'
+                    },
+                    version: {
+                        type: 'string',
+                        description: 'The Task\'s `updatedAt` right after the move. Undo needs it, so it puts the Task back only if nothing changed since.',
+                        example: '2026-11-12T09:30:00.123Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'from',
+                    'version'
+                ]
+            }
+        },
+        skipped: {
+            type: 'integer',
+            description: 'Overdue Tasks that changed meanwhile, could not be edited or failed, and kept their due day.'
+        }
+    },
+    required: [
+        'moved',
+        'skipped'
+    ]
+} as const;
+
+export const MoveOverdueTasksRequestSchema = {
+    type: 'object',
+    properties: {
+        today: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The caller\'s own calendar day (YYYY-MM-DD).',
+            example: '2026-11-12'
+        },
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The new due day; today or later (YYYY-MM-DD).',
+            example: '2026-11-13'
+        }
+    },
+    required: [
+        'today',
+        'to'
+    ]
+} as const;
+
+export const UndoMoveOverdueTasksSchema = {
+    type: 'object',
+    properties: {
+        restored: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Ids of the Tasks put back on their old due day.'
+        },
+        skipped: {
+            type: 'integer',
+            description: 'Tasks that changed in any way since the move, or could not be edited, and were left as they are.'
+        }
+    },
+    required: [
+        'restored',
+        'skipped'
+    ]
+} as const;
+
+export const UndoMoveOverdueTasksRequestSchema = {
+    type: 'object',
+    properties: {
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The due day the move gave the Tasks (YYYY-MM-DD).',
+            example: '2026-11-13'
+        },
+        tasks: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        minLength: 1
+                    },
+                    from: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                        description: 'The due day to put back (YYYY-MM-DD).',
+                        example: '2026-11-02'
+                    },
+                    version: {
+                        type: 'string',
+                        description: 'The `version` the move returned for this Task.',
+                        example: '2026-11-12T09:30:00.123Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'from',
+                    'version'
+                ]
+            },
+            minItems: 1,
+            maxItems: 100
+        }
+    },
+    required: [
+        'to',
+        'tasks'
+    ]
+} as const;
+
 export const TaskScheduleSchema = {
     type: 'object',
     properties: {
@@ -52239,6 +53425,29 @@ export const TaskSellerReceiptSchema = {
         'settled',
         'txHash',
         'withdrawnForSeller'
+    ]
+} as const;
+
+export const SendTaskToChatRequestSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        note: {
+            type: 'string',
+            maxLength: 2000
+        },
+        clientMessageId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        }
+    },
+    required: [
+        'roomId',
+        'clientMessageId'
     ]
 } as const;
 

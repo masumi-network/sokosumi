@@ -58,6 +58,7 @@ describe("image studio versions", () => {
     assetFindFirstMock.mockResolvedValue({
       blobPathname: "projects/p/image-studio/stored-object",
       contentType: "image/png",
+      mediaType: "IMAGE",
       checksum: "abc",
     });
     getMock.mockResolvedValue({
@@ -85,17 +86,20 @@ describe("image studio versions", () => {
     expect(Object.keys(result)).toEqual([
       "stream",
       "contentType",
+      "mediaType",
       "size",
       "checksum",
       "contentRange",
     ]);
     expect(result.contentRange).toBeNull();
+    expect(result.mediaType).toBe("IMAGE");
   });
 
   it("passes a video's byte range to the store and reports the partial answer", async () => {
     assetFindFirstMock.mockResolvedValue({
       blobPathname: "projects/p/image-studio/clip",
       contentType: "video/mp4",
+      mediaType: "VIDEO",
       checksum: "abc",
     });
     getMock.mockResolvedValue({
@@ -113,7 +117,9 @@ describe("image studio versions", () => {
 
     expect(getMock).toHaveBeenCalledWith(
       "projects/p/image-studio/clip",
-      expect.objectContaining({ headers: { range: "bytes=0-99" } }),
+      expect.objectContaining({
+        headers: { "accept-encoding": "identity", range: "bytes=0-99" },
+      }),
     );
     expect(result.contentRange).toBe("bytes 0-99/1000");
     expect(result.size).toBe(100);

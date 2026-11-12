@@ -2,22 +2,35 @@ import { readFileSync } from "node:fs";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { startGeneration, listImageOptions, readGeneration } = vi.hoisted(
-  () => ({
-    startGeneration: vi.fn(),
-    listImageOptions: vi.fn(),
-    readGeneration: vi.fn(),
-  }),
-);
+const {
+  startGeneration,
+  listImageOptions,
+  readGeneration,
+  listStudioProducts,
+  readAdHeadline,
+  saveAdHeadline,
+} = vi.hoisted(() => ({
+  startGeneration: vi.fn(),
+  listImageOptions: vi.fn(),
+  readGeneration: vi.fn(),
+  listStudioProducts: vi.fn(),
+  readAdHeadline: vi.fn(),
+  saveAdHeadline: vi.fn(),
+}));
 vi.mock("../lib/core", () => ({
   startGeneration,
   listImageOptions,
   readGeneration,
+  listStudioProducts,
+  readAdHeadline,
+  saveAdHeadline,
 }));
 
+import adHeadline from "./ad_headline";
 import check from "./check_generation";
 import generate from "./generate_image";
 import options from "./list_image_options";
+import products from "./list_products";
 import refine from "./refine_image";
 
 // These tools use only session identity and turn ID from the runtime context.
@@ -77,6 +90,42 @@ describe("image generation tools", () => {
         settings: {},
       },
     });
+  });
+
+  it("reads and saves an approved headline without starting a generation", async () => {
+    const assetId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    const identity = { userId: "user-1", projectId: "project-1" };
+    const headline = { text: "Brew at your own pace.", revision: 4 };
+    const options = {
+      headline: { text: null, revision: 3 },
+      approvedLines: [headline.text],
+    };
+    readAdHeadline.mockResolvedValueOnce(options);
+    saveAdHeadline.mockResolvedValueOnce(headline);
+    expect(await adHeadline.execute({ action: "read", assetId }, ctx)).toEqual(
+      options,
+    );
+    expect(readAdHeadline).toHaveBeenCalledExactlyOnceWith(identity, assetId);
+    await expect(
+      adHeadline.execute({ action: "save", assetId, text: headline.text }, ctx),
+    ).rejects.toThrow(/revision/);
+    expect(saveAdHeadline).not.toHaveBeenCalled();
+    expect(
+      await adHeadline.execute(
+        {
+          action: "save",
+          assetId,
+          expectedRevision: 3,
+          text: headline.text,
+        },
+        ctx,
+      ),
+    ).toEqual({ assetId, headline });
+    expect(saveAdHeadline).toHaveBeenCalledExactlyOnceWith(identity, assetId, {
+      expectedRevision: 3,
+      text: headline.text,
+    });
+    expect(startGeneration).not.toHaveBeenCalled();
   });
 
   it("forwards chosen model, placement, output format and seed to Core without changing scope", async () => {
@@ -148,6 +197,32 @@ describe("image generation tools", () => {
     listImageOptions.mockResolvedValue({ catalog });
     expect(await options.execute({}, ctx)).toEqual({ catalog });
     expect(startGeneration).not.toHaveBeenCalled();
+  });
+
+  it("looks up the project's products and passes the chosen replacement on an edit", async () => {
+    const productId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    const sourceVersionId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const catalog = {
+      products: [{ id: productId, name: "Clay mug", hasPhoto: true }],
+    };
+    const identity = { userId: "user-1", projectId: "project-1" };
+    listStudioProducts.mockResolvedValueOnce(catalog);
+    expect(await products.execute({}, ctx)).toEqual(catalog);
+    expect(listStudioProducts).toHaveBeenCalledExactlyOnceWith(identity);
+    expect(startGeneration).not.toHaveBeenCalled();
+
+    await refine.execute(
+      { ...base, sourceVersionId, catalogProductId: productId },
+      ctx,
+    );
+    expect(startGeneration).toHaveBeenCalledWith(
+      identity,
+      expect.objectContaining({
+        catalogProductId: productId,
+        parentAssetId: sourceVersionId,
+        referenceAssetIds: [sourceVersionId],
+      }),
+    );
   });
 
   it("returns generation provenance and stops on an uncertain provider submission", async () => {

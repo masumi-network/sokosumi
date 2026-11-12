@@ -1143,6 +1143,34 @@ export async function sendRoomMessageToSelfAction(
   }
 }
 
+/**
+ * Send a Task to a chat room. Core reads the Task and the room again and
+ * refuses private Tasks, guests, agents and other workspaces.
+ */
+export async function sendTaskToChatAction(
+  taskId: string,
+  input: { roomId: string; note: string; clientMessageId: string },
+): Promise<RoomActionResult<ChatRoomMessage>> {
+  const t = await getTranslations("App.Tasks.Detail.actions.sendToChat");
+  try {
+    const message = await chatRoomService.sendTaskToChat(taskId, {
+      roomId: cleanString(input.roomId),
+      note: input.note,
+      clientMessageId: input.clientMessageId,
+    });
+    return roomOk(message);
+  } catch (error) {
+    // Refused, or the Task or room is gone: retrying cannot help.
+    if (
+      error instanceof CoreApiRequestError &&
+      (error.status === 403 || error.status === 404)
+    ) {
+      return roomFail(t("refused"), CommonErrorCode.UNAUTHORIZED);
+    }
+    return roomCatch(error, t("error"));
+  }
+}
+
 export async function listPinnedMessagesAction(
   roomId: string,
   options?: { cursor?: string; limit?: number },

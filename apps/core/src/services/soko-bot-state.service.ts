@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { canManageSokoBot } from "@/helpers/soko-bot-management";
 import {
   ME_SOKO_BOT,
@@ -145,6 +146,7 @@ export async function listSharedSokoBots(
       status: true,
       archivedAt: true,
       sharedRoomId: true,
+      versionId: true,
     },
   });
   const first = bots[0];
@@ -152,10 +154,17 @@ export async function listSharedSokoBots(
   const viewerCanManage = first
     ? await canManageSokoBot(viewerUserId, first)
     : false;
-  return bots.map(({ userId: _userId, workspaceId: _workspaceId, ...bot }) => ({
-    ...bot,
-    scope:
-      bot.projectId === null ? ("workspace" as const) : ("project" as const),
-    viewerCanManage,
-  }));
+  return bots.map(
+    ({ userId: _userId, workspaceId: _workspaceId, versionId, ...bot }) => ({
+      ...bot,
+      // Cuso as `CUSO_BOT_WHERE` finds him: a Project bot on CMO's version.
+      cuso:
+        bot.projectId !== null &&
+        versionId !== null &&
+        CMO_SOKO_BOT_VERSION_IDS.includes(versionId),
+      scope:
+        bot.projectId === null ? ("workspace" as const) : ("project" as const),
+      viewerCanManage,
+    }),
+  );
 }

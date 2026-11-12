@@ -115,6 +115,7 @@ export default async function AuthenticatedAppFrame({
         <NotificationProvider
           key={session.user.id}
           userId={session.user.id}
+          organizationId={activeOrganizationId}
           sessionId={session.session.id}
           sessionCreatedAt={new Date(session.session.createdAt).getTime()}
         >

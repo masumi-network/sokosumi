@@ -1,3 +1,5 @@
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { isAPIError } from "better-auth/api";
 import { ComposioConfigError } from "@/clients/composio.client";
 import {
   conflict,
@@ -9,8 +11,10 @@ import { mapControlPlaneError } from "@/routes/v1/soko-bots/helpers";
 import { cmoOverviewSchema } from "@/schemas/cmo.schema";
 import {
   CmoConflictError,
+  CmoError,
   CmoForbiddenError,
   CmoNotFoundError,
+  type CusoTarget,
 } from "@/services/cmo-cuso.service";
 import {
   type CmoOverview,
@@ -82,16 +86,28 @@ function mapOverview(overview: CmoOverview) {
   });
 }
 
-export async function requireOverview(userId: string) {
-  const overview = await getCmoOverview(userId);
+/** The overview of the Cuso a CMO call names. */
+export async function requireOverview(target: CusoTarget) {
+  const overview = await getCmoOverview(target);
   if (!overview) throw notFound("Cuso is not hired yet");
   return mapOverview(overview);
 }
 
 export function rethrow(error: unknown): never {
-  if (error instanceof CmoNotFoundError) throw notFound(error.message);
-  if (error instanceof CmoConflictError) throw conflict(error.message);
-  if (error instanceof CmoForbiddenError) throw forbidden(error.message);
+  const kind =
+    error instanceof CmoError && error.kind ? { kind: error.kind } : undefined;
+  if (error instanceof CmoNotFoundError) throw notFound(error.message, kind);
+  if (error instanceof CmoConflictError) throw conflict(error.message, kind);
+  if (error instanceof CmoForbiddenError) throw forbidden(error.message, kind);
+  // Hiring into a new organization: Better Auth's organization limit.
+  if (
+    isAPIError(error) &&
+    error.body?.code === "YOU_HAVE_REACHED_THE_MAXIMUM_NUMBER_OF_ORGANIZATIONS"
+  ) {
+    throw forbidden("You've reached the organization limit", {
+      kind: CORE_API_ERROR_KINDS.ORGANIZATION_LIMIT_REACHED,
+    });
+  }
   if (
     error instanceof ComposioConfigError ||
     (error instanceof SokoBotIntegrationError &&
