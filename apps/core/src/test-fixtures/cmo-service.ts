@@ -10,6 +10,7 @@ import { vi } from "vitest";
 
 export const memberFindMany = vi.fn();
 export const sokoBotFindUnique = vi.fn();
+export const sokoBotUpdateMany = vi.fn();
 export const cusoFindMany = vi.fn();
 export const memberFindUnique = vi.fn();
 export const chatRoomDelete = vi.fn();
@@ -55,6 +56,10 @@ export const projectUpdateMany = vi.fn();
 export const brainFindUnique = vi.fn();
 export const brainUpsert = vi.fn();
 export const brainUpdate = vi.fn();
+export const userFindUnique = vi.fn();
+
+/** Env values a test sets over the real ones, e.g. the hire allowlist. */
+export const envOverrides: Partial<import("@/config/env").EnvConfig> = {};
 
 type CusoFixture = {
   sokoBotId?: string;
@@ -198,9 +203,7 @@ const client = {
     upsert: brainUpsert,
     update: brainUpdate,
   },
-  user: {
-    findUnique: async () => ({ preferredOrganizationId: "org-1" }),
-  },
+  user: { findUnique: userFindUnique },
   member: {
     findUnique: memberFindUnique,
     // An organization role read by workspace answers like one by organization.
@@ -212,6 +215,7 @@ const client = {
     // Finding Cuso by his bot or by a member: the Cuso `cusoFind` stands for.
     findFirst: async (args: unknown) => asCusoBot(await cusoFind(args)),
     findMany: cusoFindMany,
+    updateMany: sokoBotUpdateMany,
   },
   chatRoom: { delete: chatRoomDelete, update: chatRoomUpdate },
   chatRoomMessage: {
@@ -226,7 +230,7 @@ const client = {
     findUnique: projectFindUnique,
     update: projectUpdate,
     updateMany: projectUpdateMany,
-    // Cuso's Project lives in the business's organization (ADR 0060).
+    // Cuso's Project lives in the business's organization (ADR 0065).
     findFirst: async () => ({
       workspace: { id: "ws-1", userId: null, organizationId: "org-1" },
     }),
@@ -269,13 +273,25 @@ const client = {
 export const funding = {
   spendable: 100,
   requireFunding: vi.fn(),
-  BillingError: class extends Error {},
+  /** A hirer's Seat and first turn on a Cuso being hired: allowed unless a test refuses them. */
+  requireMemberFunding: vi.fn(),
+  BillingError: class extends Error {
+    constructor(
+      message: string,
+      readonly reason: "seat" | "credits" = "credits",
+    ) {
+      super(message);
+    }
+  },
 };
 
 /** The module mocks, keyed by what they stand for. */
 export const cmoServiceMocks = {
   prisma: { default: client },
-  env: (actual: typeof import("@/config/env")) => actual,
+  env: (actual: typeof import("@/config/env")) => ({
+    ...actual,
+    getEnv: () => ({ ...actual.getEnv(), ...envOverrides }),
+  }),
   socialPosts: { cancelSocialPost },
   sharedCreate: { createSharedSokoBot: createBot },
   controlPlane: {
@@ -291,6 +307,7 @@ export const cmoServiceMocks = {
   },
   billing: {
     requireSokoBotTurnFunding: funding.requireFunding,
+    requireMemberTurnFunding: funding.requireMemberFunding,
     SokoBotBillingAccessError: funding.BillingError,
   },
   vercelFunctions: { waitUntil: vi.fn() },
@@ -341,6 +358,15 @@ export const revised = { ...strategy, summary: "Twice the LinkedIn posts." };
 export function resetCmoServiceMocks(): void {
   vi.clearAllMocks();
   strategyRows.length = 0;
+  // The person asking is on the hire allowlist unless a test says otherwise.
+  userFindUnique.mockResolvedValue({
+    email: "lena@harborbikes.com",
+    preferredOrganizationId: "org-1",
+  });
+  for (const key of Object.keys(envOverrides)) {
+    delete envOverrides[key as keyof typeof envOverrides];
+  }
+  envOverrides.CMO_HIRE_ALLOWLIST = ["lena@harborbikes.com"];
   expireTurn.mockResolvedValue(true);
   toolCallFindMany.mockResolvedValue([]);
   // A report message comes back as it was written.
@@ -350,8 +376,10 @@ export function resetCmoServiceMocks(): void {
     metadata: args.create.metadata,
   }));
   projectUpdateMany.mockResolvedValue({ count: 1 });
+  // The starter grant's liveness write finds the live Cuso unless a test archives him.
+  sokoBotUpdateMany.mockResolvedValue({ count: 1 });
   messageFindMany.mockResolvedValue([]);
-  // Every hire lives in the business's organization (ADR 0060), and the
+  // Every hire lives in the business's organization (ADR 0065), and the
   // member asking owns it unless a test says otherwise.
   workspaceFindUnique.mockResolvedValue({ organizationId: "org-1" });
   memberFindUnique.mockResolvedValue({ role: "owner" });

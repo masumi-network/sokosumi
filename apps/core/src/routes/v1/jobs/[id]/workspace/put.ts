@@ -18,6 +18,7 @@ import {
 } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import { jobSchema } from "@/schemas/job.schema";
+import { requireNotCmoProject } from "@/services/cmo-cuso.service";
 import { serializeJobDetails } from "@/types/job";
 
 const paramsSchema = z.object({
@@ -111,6 +112,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         targetOrganizationId ?? null,
         tx,
       );
+
+      if (accessibleJob.projectId) {
+        await requireNotCmoProject(
+          accessibleJob.projectId,
+          accessibleJob.workspaceId,
+          tx,
+        );
+      }
 
       await tx.job.update({
         where: {

@@ -117,7 +117,9 @@ describe("image studio versions", () => {
 
     expect(getMock).toHaveBeenCalledWith(
       "projects/p/image-studio/clip",
-      expect.objectContaining({ headers: { range: "bytes=0-99" } }),
+      expect.objectContaining({
+        headers: { "accept-encoding": "identity", range: "bytes=0-99" },
+      }),
     );
     expect(result.contentRange).toBe("bytes 0-99/1000");
     expect(result.size).toBe(100);

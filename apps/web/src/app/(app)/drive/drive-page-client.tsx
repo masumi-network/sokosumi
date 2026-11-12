@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Copy,
   Download,
+  FileSpreadsheet,
   Folder,
   FolderInput,
   FolderPlus,
@@ -54,6 +55,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { DriveAllFilesPanel } from "@/app/drive/components/drive-all-files-panel";
+import { DriveCmoProjectBanner } from "@/app/drive/components/drive-cmo-project-banner";
 import {
   DriveDataRoomDialog,
   type DriveDataRoomFolder,
@@ -65,6 +67,7 @@ import {
   driveItemActivation,
   forcedDownloadUrl,
 } from "@/app/drive/components/drive-item-card";
+import { DriveLinkSheetDialog } from "@/app/drive/components/drive-link-sheet-dialog";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
 import { DriveRecentsTagFilter } from "@/app/drive/components/drive-recents-tag-filter";
@@ -322,6 +325,7 @@ function DrivePageWorkspace({
     () => searchParams.get("folder") ?? "",
   );
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
+  const [linkSheetDialogOpen, setLinkSheetDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [snapshotFolder, setSnapshotFolder] = useState<string | null>(null);
@@ -1668,6 +1672,12 @@ function DrivePageWorkspace({
 
   return (
     <div className={cn("@container w-full", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
+      {/* Drive scopes to a Project only on the Tasks view. */}
+      <DriveCmoProjectBanner
+        projectId={
+          isTasksView && projectIdParam !== "null" ? projectIdParam : null
+        }
+      />
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
         <div
           data-testid="files-desktop-header"
@@ -1702,6 +1712,13 @@ function DrivePageWorkspace({
                   >
                     <FolderPlus className="size-4" aria-hidden />
                     {t("createFolder")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => setLinkSheetDialogOpen(true)}
+                    data-testid="files-mobile-link-sheet"
+                  >
+                    <FileSpreadsheet className="size-4" aria-hidden />
+                    {t("GoogleSheet.button")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1754,6 +1771,16 @@ function DrivePageWorkspace({
                 >
                   <FolderPlus className="size-4" aria-hidden />
                   {t("createFolder")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => setLinkSheetDialogOpen(true)}
+                >
+                  <FileSpreadsheet className="size-4" aria-hidden />
+                  {t("GoogleSheet.button")}
                 </Button>
                 {/* A real button: a label over a hidden input never gets
                     keyboard focus, so Tab skipped Upload. */}
@@ -2301,6 +2328,14 @@ function DrivePageWorkspace({
         onOpenChange={(open) => {
           if (!open) setShareItem(null);
         }}
+      />
+
+      <DriveLinkSheetDialog
+        open={linkSheetDialogOpen}
+        store={driveStore}
+        folder={currentFolder}
+        onOpenChange={setLinkSheetDialogOpen}
+        onLinked={() => void refreshDriveItems()}
       />
 
       <DriveDataRoomDialog

@@ -144,7 +144,11 @@ export function PreviewMediaItem({
   /** Feed cards mark a video with a play badge; TikTok/YouTube draw their own. */
   showPlay?: boolean;
 }) {
-  const mediaClassName = cn("size-full object-cover", className);
+  const mediaClassName = cn(
+    "size-full",
+    media.kind === "video" ? "object-cover" : "bg-muted object-contain",
+    className,
+  );
   const src =
     "fileUrl" in media
       ? media.fileUrl
@@ -227,11 +231,7 @@ export function PreviewMediaGrid({
         <PreviewMediaItem
           media={first}
           showPlay
-          className={
-            compact
-              ? "max-h-64 w-full object-cover object-top"
-              : "max-h-[32rem]"
-          }
+          className={compact ? "max-h-64 w-full" : "max-h-[32rem]"}
         />
       </div>
     );

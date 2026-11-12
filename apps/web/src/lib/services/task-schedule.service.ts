@@ -46,6 +46,18 @@ export const taskScheduleService = (() => {
     };
   }
 
+  /** How many schedules match, read from Core's total, not a loaded page. */
+  async function countSchedules(
+    params: Pick<ListTaskSchedulesParams, "projectId" | "state">,
+  ): Promise<number> {
+    const result = await coreClient.listTaskSchedules({
+      projectId: params.projectId ?? undefined,
+      state: params.state ?? undefined,
+      limit: 1,
+    });
+    return result.meta?.pagination?.total ?? 0;
+  }
+
   /** Null when the schedule is gone or the viewer may not read it. */
   async function getSchedule(id: string): Promise<TaskSchedule | null> {
     try {
@@ -141,6 +153,7 @@ export const taskScheduleService = (() => {
 
   return {
     listAssignees,
+    countSchedules,
     listSchedules,
     getSchedule,
     createSchedule,

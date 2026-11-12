@@ -8,11 +8,13 @@ export async function getCredits(
   userId: string | null,
   organizationId: string | null,
   tx: Prisma.TransactionClient = prisma,
+  options?: { projectId?: string | null },
 ): Promise<number> {
   const cents = await creditBucketRepository.getBalance(
     userId,
     organizationId,
     tx,
+    options,
   );
   return convertCentsToCredits(cents);
 }

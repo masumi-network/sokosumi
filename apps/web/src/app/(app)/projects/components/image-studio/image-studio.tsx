@@ -9,13 +9,7 @@ import type {
   StudioProductPhoto,
 } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS, productBrief } from "@sokosumi/utils";
-import {
-  AlertTriangle,
-  Columns2,
-  Download,
-  MessageSquare,
-  X,
-} from "lucide-react";
+import { AlertTriangle, Columns2, Download, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -81,6 +75,7 @@ import { StudioFailedSubmission } from "./studio-failed-submission";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
+import { StudioProjectToolbar } from "./studio-project-toolbar";
 import { StudioTemplateCanvas } from "./studio-template-canvas";
 import type { StudioBrief } from "./studio-templates";
 import {
@@ -157,6 +152,7 @@ export function ImageStudio({
   studioLogoPosition: initialLogoPosition,
   projectScopePrompt,
   websiteUrl,
+  readOnly = false,
 }: {
   /**
    * The model catalog, read once by the page.
@@ -179,6 +175,11 @@ export function ImageStudio({
   studioLogoPosition?: StudioLogoPosition | null;
   projectScopePrompt?: React.ReactNode;
   websiteUrl?: string | null;
+  /**
+   * A CMO Project: CMO makes its images, so the studio shows them without a
+   * composer, brand tools or draw actions (ADR 0066).
+   */
+  readOnly?: boolean;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
@@ -812,6 +813,7 @@ export function ImageStudio({
     openProjectScope({
       required: true,
       reason: t("pickForGeneration"),
+      excludeCmo: true,
       onSelect: (picked) => {
         setPickedProjectId(picked);
         sendTo(picked, requests);
@@ -1127,16 +1129,19 @@ export function ImageStudio({
           "relative isolate overflow-y-auto max-md:overflow-y-auto",
       )}
     >
-      {showsNothing ? (
+      {showsNothing && !readOnly ? (
         <StudioTemplateCanvas labels={labels} onApplyTemplate={applyTemplate} />
       ) : null}
       {problem ? <Notice closeLabel={labels.close}>{problem}</Notice> : null}
-      {activeProjectId ? (
-        <div
-          className={cn(
-            "flex flex-wrap justify-end gap-2 pt-2",
-            STUDIO_COMPOSER_GUTTER_CLASS,
-          )}
+      {activeProjectId && !readOnly ? (
+        <StudioProjectToolbar
+          assistantControls={assistant ? "studio-assistant-panel" : undefined}
+          assistantOpen={assistantOpen}
+          assistantTriggerRef={assistantTriggerRef}
+          onAssistantToggle={() => {
+            if (assistantOpen) closeAssistant();
+            else openAssistant(assistant?.asset ?? null);
+          }}
         >
           <StudioWebsiteTools
             key={activeProjectId}
@@ -1149,22 +1154,7 @@ export function ImageStudio({
             projectId={activeProjectId}
             websiteUrl={websiteUrl}
           />
-          <Button
-            aria-controls={assistant ? "studio-assistant-panel" : undefined}
-            aria-expanded={assistantOpen}
-            onClick={() => {
-              if (assistantOpen) closeAssistant();
-              else openAssistant(assistant?.asset ?? null);
-            }}
-            ref={assistantTriggerRef}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <MessageSquare aria-hidden />
-            {t("Assistant.title")}
-          </Button>
-        </div>
+        </StudioProjectToolbar>
       ) : null}
 
       <div
@@ -1202,10 +1192,12 @@ export function ImageStudio({
               </p>
               <div className="pointer-events-auto inline-flex flex-wrap items-center justify-center gap-2">
                 {projectScopePrompt}
-                <StudioCreativeStart
-                  onApplyBrief={applyTemplate}
-                  onFocusPrompt={() => promptRef.current?.focus()}
-                />
+                {readOnly ? null : (
+                  <StudioCreativeStart
+                    onApplyBrief={applyTemplate}
+                    onFocusPrompt={() => promptRef.current?.focus()}
+                  />
+                )}
               </div>
             </div>
           ) : (
@@ -1215,14 +1207,18 @@ export function ImageStudio({
               cancelRequestedJobIds={cancelRequestedJobIds}
               catalog={catalog}
               labels={labels}
-              onCancelJob={handleCancelJob}
+              onCancelJob={readOnly ? undefined : handleCancelJob}
               onOpen={(assetId) => {
                 selectAsset(assetId);
                 setViewing({ mode: "single" });
               }}
-              onReroll={(asset) => repeat(asset, "asset", true)}
-              onReusePrompt={reusePrompt}
-              onVariation={(asset) => repeat(asset, "asset")}
+              onReroll={
+                readOnly ? undefined : (asset) => repeat(asset, "asset", true)
+              }
+              onReusePrompt={readOnly ? undefined : reusePrompt}
+              onVariation={
+                readOnly ? undefined : (asset) => repeat(asset, "asset")
+              }
               onToggleSelect={(assetId) => {
                 setTemplateUndo(null);
                 setParentAssetId(undefined);
@@ -1393,7 +1389,7 @@ export function ImageStudio({
           )}
           ref={dock.dockRef}
         >
-          {composer}
+          {readOnly ? null : composer}
         </div>
       </div>
 
@@ -1411,37 +1407,47 @@ export function ImageStudio({
               : undefined
           }
           onAnimate={
-            videoModelsFor(catalog, "image").length > 0 ? animate : undefined
+            !readOnly && videoModelsFor(catalog, "image").length > 0
+              ? animate
+              : undefined
           }
           onClose={() => setViewing(null)}
           onDownloadBatch={handleDownloadBatch}
           downloadingBatch={downloadingAds}
           headlineForAsset={headlineForAsset}
           savingHeadline={savingHeadline}
-          onHeadlineChange={changeHeadline}
-          onEditWithAssistant={activeProjectId ? openAssistant : undefined}
+          onHeadlineChange={readOnly ? undefined : changeHeadline}
+          onEditWithAssistant={
+            activeProjectId && !readOnly ? openAssistant : undefined
+          }
           editWithAssistantLabel={t("Assistant.edit")}
-          onRegenerate={(asset) => repeat(asset, "asset")}
-          onSchedule={scheduleAsset}
+          onRegenerate={
+            readOnly ? undefined : (asset) => repeat(asset, "asset")
+          }
+          onSchedule={readOnly ? undefined : scheduleAsset}
           onSelect={selectAsset}
-          onUseAsReference={(asset) => {
-            setBatchProducts([]);
-            setDraftProduct(asset.product);
-            setParentAssetId(undefined);
-            setHasNewerSettings(true);
-            setTemplateUndo(null);
-            setCheckedIds([asset.id]);
-            setPrompt("");
-            setTarget((current) => ({
-              ...current,
-              creativeDirection: undefined,
-              placementRatios: undefined,
-              settings: { ...settingsOf(asset), seed: null },
-            }));
-            setViewing(null);
-            requestAnimationFrame(() => promptRef.current?.focus());
-          }}
-          onWriteCaption={writeCaption}
+          onUseAsReference={
+            readOnly
+              ? undefined
+              : (asset) => {
+                  setBatchProducts([]);
+                  setDraftProduct(asset.product);
+                  setParentAssetId(undefined);
+                  setHasNewerSettings(true);
+                  setTemplateUndo(null);
+                  setCheckedIds([asset.id]);
+                  setPrompt("");
+                  setTarget((current) => ({
+                    ...current,
+                    creativeDirection: undefined,
+                    placementRatios: undefined,
+                    settings: { ...settingsOf(asset), seed: null },
+                  }));
+                  setViewing(null);
+                  requestAnimationFrame(() => promptRef.current?.focus());
+                }
+          }
+          onWriteCaption={readOnly ? undefined : writeCaption}
           caption={
             lightboxAssets.length === 1
               ? captionByAssetId[lightboxAssets[0].id]?.text

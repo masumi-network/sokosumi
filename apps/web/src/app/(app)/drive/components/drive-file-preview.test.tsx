@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   contentUrl,
   effectiveType,
+  rendersAsImage,
   rendersAsMarkdown,
 } from "./drive-file-preview";
 
@@ -87,10 +88,9 @@ describe("effectiveType", () => {
   });
 
   it("never guesses a type that would render as a document", () => {
-    // A stored page or vector image must reach the attachment path, whatever
-    // it is called.
+    // A stored page must reach the attachment path, whatever it is called.
+    // SVG is not here: it is rendered through <img> only (see "SVG preview").
     expect(effectiveType(null, "page.html")).toBe("");
-    expect(effectiveType(null, "logo.svg")).toBe("");
   });
 });
 
@@ -106,5 +106,26 @@ describe("rendersAsMarkdown", () => {
     for (const type of ["text/csv", "application/json", "text/plain"]) {
       expect(rendersAsMarkdown(type)).toBe(false);
     }
+  });
+});
+
+describe("SVG preview", () => {
+  it("renders a recorded SVG type through <img>", () => {
+    expect(rendersAsImage(effectiveType("image/svg+xml", "logo.svg"))).toBe(
+      true,
+    );
+  });
+
+  it("falls back to the extension when the catalog has no type", () => {
+    expect(effectiveType(null, "logo.SVG")).toBe("image/svg+xml");
+  });
+
+  it("never treats SVG as text or Markdown, which would put its markup in our DOM", () => {
+    expect(rendersAsMarkdown("image/svg+xml")).toBe(false);
+  });
+
+  it("does not render other markup types as images", () => {
+    expect(rendersAsImage("text/html")).toBe(false);
+    expect(rendersAsImage("application/xhtml+xml")).toBe(false);
   });
 });

@@ -116,7 +116,7 @@ function TriggerLabel({
 const COUNT_VISIBLE_FROM = 0.9;
 
 const TRIGGER_CLASS =
-  "text-muted-foreground hover:text-foreground h-8 max-w-[16rem] min-w-0 gap-1.5 px-2 text-sm font-medium";
+  "text-muted-foreground hover:text-foreground h-8 max-w-[min(16rem,100%)] min-w-0 gap-1.5 px-2 text-sm font-medium";
 
 /**
  * Where a generation is described and bought.
@@ -796,40 +796,12 @@ export function StudioComposer({
             : labels.generateOne
         }
         sendDisabled={!canGenerate}
-        toolbarEnd={
-          <>
-            {promptLength >= MAX_PROMPT_LENGTH * COUNT_VISIBLE_FROM ? (
-              <span
-                className={cn(
-                  "text-muted-foreground text-xs tabular-nums",
-                  promptTooLong && "text-destructive",
-                )}
-              >
-                {t("promptCharacterCount", {
-                  count: promptLength,
-                  limit: MAX_PROMPT_LENGTH,
-                })}
-              </span>
-            ) : null}
-            {onUndoTemplate ? (
-              <Button
-                type="button"
-                className="text-muted-foreground hover:text-foreground h-8 px-2 text-sm font-medium"
-                onClick={onUndoTemplate}
-                size="sm"
-                variant="ghost"
-              >
-                <Undo2 aria-hidden />
-                <span className="max-sm:sr-only">{t("undoTemplate")}</span>
-              </Button>
-            ) : null}
-          </>
-        }
         toolbarStart={
-          <>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
             {modeSwitch}
             {!hasProductBatch && onProductPhotoChange && onPhotoUploadChange ? (
               <StudioProductPhotoControl
+                iconOnly
                 onPhotoChange={onProductPhotoChange}
                 onUploadingChange={onPhotoUploadChange}
                 photo={productPhoto ?? null}
@@ -840,7 +812,6 @@ export function StudioComposer({
               <StudioTemplateMenu
                 labels={labels}
                 onApplyTemplate={onApplyTemplate}
-                triggerClassName={TRIGGER_CLASS}
               />
             ) : null}
             <Popover>
@@ -1314,11 +1285,11 @@ export function StudioComposer({
                 <PopoverTrigger asChild>
                   <Button
                     type="button"
-                    className="text-muted-foreground hover:text-foreground h-8 min-w-0 px-2 text-sm font-medium"
+                    className="text-muted-foreground hover:text-foreground h-auto min-h-8 max-w-full min-w-0 px-2 py-1 text-sm font-medium whitespace-normal"
                     size="sm"
                     variant="ghost"
                   >
-                    <span className="min-w-0 truncate tabular-nums">
+                    <span className="min-w-0 text-start tabular-nums">
                       {hasProductBatch || frameCount > 1
                         ? batchCredits === null
                           ? t("placementPlan", { count: totalJobs })
@@ -1427,7 +1398,32 @@ export function StudioComposer({
                 </PopoverContent>
               </Popover>
             ) : null}
-          </>
+            {promptLength >= MAX_PROMPT_LENGTH * COUNT_VISIBLE_FROM ? (
+              <span
+                className={cn(
+                  "text-muted-foreground text-xs tabular-nums",
+                  promptTooLong && "text-destructive",
+                )}
+              >
+                {t("promptCharacterCount", {
+                  count: promptLength,
+                  limit: MAX_PROMPT_LENGTH,
+                })}
+              </span>
+            ) : null}
+            {onUndoTemplate ? (
+              <Button
+                type="button"
+                className="text-muted-foreground hover:text-foreground h-8 px-2 text-sm font-medium"
+                onClick={onUndoTemplate}
+                size="sm"
+                variant="ghost"
+              >
+                <Undo2 aria-hidden />
+                <span className="max-sm:sr-only">{t("undoTemplate")}</span>
+              </Button>
+            ) : null}
+          </div>
         }
         className={STUDIO_COMPOSER_GUTTER_CLASS}
         withOuterPadding={false}

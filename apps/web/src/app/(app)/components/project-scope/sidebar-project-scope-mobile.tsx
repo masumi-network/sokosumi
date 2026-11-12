@@ -133,6 +133,7 @@ export function SidebarScopeMobileChip() {
               onSelectAll={request ? undefined : () => select(null)}
               onCreate={openScopeCreate}
               onDone={() => setScopeSheetOpen(false)}
+              excludeCmo={request?.excludeCmo}
               // The reason's own rule already sits above the list.
               className={cn(
                 "min-h-0 flex-1 rounded-none",
