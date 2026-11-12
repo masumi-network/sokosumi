@@ -56,10 +56,17 @@ export function useContactArchive() {
     if (failure) {
       // After the reload, so the contact is back when the toast says it is;
       // a reload that retries against a failing Core does not hold it long.
-      await Promise.race([
-        refresh.catch(() => {}),
-        new Promise((done) => setTimeout(done, FAILURE_TOAST_WAIT_MS)),
-      ]);
+      let cap: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          refresh.catch(() => {}),
+          new Promise((done) => {
+            cap = setTimeout(done, FAILURE_TOAST_WAIT_MS);
+          }),
+        ]);
+      } finally {
+        clearTimeout(cap);
+      }
       toast.error(t("panel.archiveFailed", { name: contact.name }), {
         description: coreErrorOf(failure.error).message,
       });
