@@ -302,6 +302,27 @@ describe("applyInboundEvent", () => {
     });
   });
 
+  it("takes no edit signed with the key Sokosumi keeps for a sign of being on Buzz", async () => {
+    // Sokosumi's own edit coming back, signed with Bob's Sokosumi key. (It
+    // waits for its message here; being on Buzz is decided before that.)
+    await applyInboundEvent(
+      nostrEvent({
+        kind: 40003,
+        tags: [
+          ["h", CHANNEL],
+          ["e", "f".repeat(64)],
+        ],
+        content: "fixed",
+      }),
+      core,
+    ).catch(() => undefined);
+    expect(db.buzzIdentity.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { lastActiveOnBuzzAt: expect.any(Date) },
+      }),
+    );
+  });
+
   it("records an edit only after Core has it, so a crash in between replays it", async () => {
     db.buzzMessageLink.findUnique
       .mockResolvedValueOnce(null)

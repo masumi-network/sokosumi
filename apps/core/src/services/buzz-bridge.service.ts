@@ -2634,8 +2634,14 @@ export async function applyInboundEvent(
   // delete or react.
   if (agent && change.type !== "message") return "ignored";
   // Seen on Buzz: the person is connected (refreshed at most every minute).
+  // Not from an edit or deletion signed with the key Sokosumi keeps: those
+  // are Sokosumi's own, coming back.
+  const fromSokosumi =
+    event.pubkey === author.pubkey &&
+    (change.type === "edit" || change.type === "delete");
   if (
     author.userId &&
+    !fromSokosumi &&
     (!author.lastActiveOnBuzzAt ||
       Date.now() - author.lastActiveOnBuzzAt.getTime() > 60_000)
   ) {

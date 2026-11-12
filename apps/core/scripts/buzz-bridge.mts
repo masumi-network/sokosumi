@@ -115,16 +115,24 @@ function coreRequester(baseUrl: string): CoreRequest {
   };
 }
 
-/** A UI message stream that carries no `error` chunk. */
+/**
+ * A UI message stream that finished: a `finish` chunk, and no `error` or
+ * `abort`. One cut off or aborted is no answer.
+ */
 function streamEndedWell(text: string): boolean {
-  return !text.split("\n").some((line) => {
-    if (!line.startsWith("data: ")) return false;
+  const types = text.split("\n").flatMap((line) => {
+    if (!line.startsWith("data: ")) return [];
     try {
-      return (JSON.parse(line.slice(6)) as { type?: unknown }).type === "error";
+      return [(JSON.parse(line.slice(6)) as { type?: unknown }).type];
     } catch {
-      return false;
+      return [];
     }
   });
+  return (
+    types.includes("finish") &&
+    !types.includes("error") &&
+    !types.includes("abort")
+  );
 }
 
 /** Older events first, the order Sokosumi should see them in. */
@@ -200,17 +208,20 @@ async function run() {
     retries.add(timer);
   };
 
-  // `attempt` counts tries to apply the event; `failedAnswers`, Coworker
-  // answers that failed once started, which have their own limit.
+  // `attempt` counts tries to apply the event (for the backoff);
+  // `failedAnswers`, Coworker answers that failed once started; `targetWaits`,
+  // waits on a target that is not on its way in. Each has its own limit, so a
+  // run of transient failures does not give up on a target, or an answer.
   const apply = (
     communityId: string,
     event: Event,
     attempt: number,
     failedAnswers = 0,
+    targetWaits = 0,
   ) => {
     if (stopping) return;
     inbound = inbound.then(async () => {
-      const finalAttempt = attempt + 1 >= TARGET_ATTEMPTS;
+      const finalAttempt = targetWaits + 1 >= TARGET_ATTEMPTS;
       // A target still on its way in (say Core is down and it keeps
       // retrying) is worth waiting for however long that takes.
       try {
@@ -246,7 +257,14 @@ async function run() {
           }
           log(`in  kind ${event.kind} ${id} answer failed, asking again`);
           retryLater(
-            () => apply(communityId, event, attempt, failedAnswers + 1),
+            () =>
+              apply(
+                communityId,
+                event,
+                attempt,
+                failedAnswers + 1,
+                targetWaits,
+              ),
             Math.min(2_000 * 2 ** failedAnswers, 5 * 60_000),
           );
         });
@@ -271,7 +289,8 @@ async function run() {
         const delay = Math.min(2_000 * 2 ** attempt, 5 * 60_000);
         if (targetInFlight) {
           retryLater(
-            () => apply(communityId, event, attempt, failedAnswers),
+            () =>
+              apply(communityId, event, attempt, failedAnswers, targetWaits),
             delay,
           );
           return;
@@ -283,7 +302,14 @@ async function run() {
           );
         }
         retryLater(
-          () => apply(communityId, event, attempt + 1, failedAnswers),
+          () =>
+            apply(
+              communityId,
+              event,
+              attempt + 1,
+              failedAnswers,
+              waiting ? targetWaits + 1 : targetWaits,
+            ),
           delay,
         );
       }
