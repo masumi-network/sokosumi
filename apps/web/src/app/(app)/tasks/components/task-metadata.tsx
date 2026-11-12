@@ -1,6 +1,13 @@
 import type { Task } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-import { Building2, FolderKanban, Lock, Repeat, UserRound } from "lucide-react";
+import {
+  Building2,
+  CalendarClock,
+  FolderKanban,
+  Lock,
+  Repeat,
+  UserRound,
+} from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
@@ -26,6 +33,7 @@ import {
   type TaskMetadataStatusFieldLabels,
 } from "./task-metadata-status-field";
 import { TaskPriorityIcon } from "./task-priority-icon";
+import { TaskRunAtBadge } from "./task-run-at-badge";
 import { getTaskStatusMarker } from "./task-status-badge";
 
 interface TaskMetadataLabels {
@@ -37,6 +45,7 @@ interface TaskMetadataLabels {
   project: string;
   noProject: string;
   schedule: string;
+  startsAt: string;
   assignee: string;
   noAssignee: string;
   memberFallback: string;
@@ -51,6 +60,8 @@ interface TaskMetadataTask {
   selectableStatuses: Task["selectableStatuses"];
   organization: Task["organization"];
   assignee: Task["assignee"];
+  /** ISO start time; shown while the task waits for it (Scheduled). */
+  runAt?: string | null;
 }
 
 interface PersonDisplay {
@@ -158,6 +169,19 @@ export function TaskMetadata({
             <span className="truncate">{statusLabel}</span>
           </PropertyRow>
         )}
+
+        {task.status === "QUEUED" && task.runAt ? (
+          <PropertyRow
+            label={labels.startsAt}
+            icon={<CalendarClock className="text-muted-foreground size-4" />}
+          >
+            <TaskRunAtBadge
+              runAt={task.runAt}
+              showIcon={false}
+              className="text-foreground text-sm"
+            />
+          </PropertyRow>
+        ) : null}
 
         {editable ? (
           <TaskMetadataPriorityField

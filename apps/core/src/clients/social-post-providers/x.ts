@@ -6,7 +6,10 @@ import {
 } from "@sokosumi/utils";
 import sharp from "sharp";
 
-import { deleteComposioToolSession } from "@/clients/composio.client";
+import {
+  ComposioApiError,
+  deleteComposioToolSession,
+} from "@/clients/composio.client";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import {
   ComposioPublishOutcomeUnknownError,
@@ -25,6 +28,7 @@ import {
   downloadSocialPostMedia,
   SocialPostMediaError,
 } from "@/helpers/social-post-media";
+import { classifyPublishError } from "@/helpers/social-post-publish-errors";
 
 const X_CREATE_POST_TOOL_SLUG = "TWITTER_CREATION_OF_A_POST";
 
@@ -93,26 +97,32 @@ async function prepareXImage(
       "X image uploads need a still image. Attach a still JPEG, PNG or WebP image and try again.",
     );
   }
-  if (metadata.format !== "webp") {
-    const extensionMatches =
-      metadata.format === "jpeg"
-        ? /\.jpe?g$/i.test(media.name)
-        : /\.png$/i.test(media.name);
-    return {
-      ...media,
-      mimeType: `image/${metadata.format}`,
-      name: extensionMatches
-        ? media.name
-        : media.name.replace(/\.[^/.]+$/, `.${metadata.format}`),
-    };
-  }
-  // X accepts WebP, but Composio's simple-upload examples only cover JPEG/PNG.
-  const bytes = await sharp(media.bytes)
-    .autoOrient()
-    .png()
-    .toBuffer()
-    .catch(() => null);
-  if (!bytes) {
+  let bytes: Buffer;
+  let hasTransparency: boolean;
+  try {
+    hasTransparency =
+      metadata.hasAlpha === true &&
+      !(await sharp(media.bytes).stats()).isOpaque;
+    const image = sharp(media.bytes).autoOrient().toColourspace("srgb");
+    // X accepts WebP, but Composio's simple-upload examples only cover JPEG/PNG.
+    // Normalize every still format, stripping metadata and unusual encodings.
+    if (hasTransparency) {
+      bytes = await image.png({ palette: false }).toBuffer();
+    } else {
+      const jpeg = image.removeAlpha();
+      bytes = await jpeg
+        .clone()
+        .jpeg({ quality: 90, progressive: false })
+        .toBuffer();
+      for (const quality of [80, 70, 60, 50, 40]) {
+        if (bytes.byteLength <= X_IMAGE_MAX_BYTES) break;
+        bytes = await jpeg
+          .clone()
+          .jpeg({ quality, progressive: false })
+          .toBuffer();
+      }
+    }
+  } catch {
     throw new SocialPostMediaError(
       "media_type_mismatch",
       "The image could not be converted for X. Attach a JPEG or PNG image and try again.",
@@ -124,11 +134,12 @@ async function prepareXImage(
       "The converted image is larger than X's 5 MB limit. Choose a smaller image and try again.",
     );
   }
+  const extension = hasTransparency ? "png" : "jpeg";
   return {
     ...media,
     bytes: new Uint8Array(bytes),
-    name: `${(media.name || "attachment").replace(/\.[^/.]+$/, "")}.png`,
-    mimeType: "image/png",
+    name: `${(media.name || "attachment").replace(/\.[^/.]+$/, "")}.${extension}`,
+    mimeType: `image/${extension}`,
   };
 }
 
@@ -251,25 +262,59 @@ async function uploadXMedia(
       : "TWITTER_UPLOAD_LARGE_MEDIA";
   const step = X_PUBLISH_TOOL_STEPS[toolSlug];
   const name = media.name || "attachment";
-  const s3key = await stageSocialPublishFile({
-    toolkitSlug: "twitter",
-    toolSlug,
-    file: media,
-    signal,
-  });
-  const result = await executeComposioTool({
-    sessionId,
-    toolSlug,
-    arguments: {
-      media: { name, mimetype: media.mimeType, s3key },
-      media_category: mediaCategory(media.kind),
-      ...(media.kind === "image" ? { media_type: media.mimeType } : {}),
-    },
-    context: step.context,
-    refused: step.refused,
-    timeoutMs: toolSlug === "TWITTER_UPLOAD_LARGE_MEDIA" ? 120_000 : 15_000,
-    signal,
-  });
+  async function stage(tool: XPublishToolSlug): Promise<string> {
+    return stageSocialPublishFile({
+      toolkitSlug: "twitter",
+      toolSlug: tool,
+      file: media,
+      signal,
+    });
+  }
+  function upload(tool: XPublishToolSlug, s3key: string) {
+    signal?.throwIfAborted();
+    return executeComposioTool({
+      sessionId,
+      toolSlug: tool,
+      arguments: {
+        media: { name, mimetype: media.mimeType, s3key },
+        media_category: mediaCategory(media.kind),
+        ...(media.kind === "image" ? { media_type: media.mimeType } : {}),
+      },
+      context: step.context,
+      refused: step.refused,
+      timeoutMs: tool === "TWITTER_UPLOAD_LARGE_MEDIA" ? 120_000 : 15_000,
+      signal,
+    });
+  }
+  const s3key = await stage(toolSlug);
+  let result: Record<string, unknown> | null;
+  try {
+    result = await upload(toolSlug, s3key);
+  } catch (error) {
+    const status =
+      error instanceof ComposioToolError
+        ? error.providerStatus
+        : error instanceof ComposioApiError
+          ? (error.providerStatus ?? error.httpStatus)
+          : null;
+    if (
+      media.kind !== "image" ||
+      status === null ||
+      status < 400 ||
+      status >= 500 ||
+      status === 408 ||
+      (error instanceof ComposioApiError &&
+        (error.httpStatus >= 500 ||
+          [401, 408, 429].includes(error.httpStatus))) ||
+      classifyPublishError(error, "x").kind !== "rejected"
+    )
+      throw error;
+    signal?.throwIfAborted();
+    result = await upload(
+      "TWITTER_UPLOAD_LARGE_MEDIA",
+      await stage("TWITTER_UPLOAD_LARGE_MEDIA"),
+    );
+  }
   const mediaId = mediaIdOf(result);
   if (!mediaId)
     throw new ComposioToolError({

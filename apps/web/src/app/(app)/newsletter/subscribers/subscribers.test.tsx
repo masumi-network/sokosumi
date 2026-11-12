@@ -388,7 +388,7 @@ describe("newsletter subscribers", () => {
     expect(mocks.url.mock.lastCall?.[0].queryString).toBe("");
   });
 
-  it("validates consent before adding, then adds and refreshes", async () => {
+  it("validates consent before adding, then adds without a second page render", async () => {
     renderSubscribers({ data: EMPTY });
     const { user, dialog } = await openAdd();
     await user.type(dialog.getByLabelText(COPY.Add.email), "new@example.com");
@@ -419,7 +419,7 @@ describe("newsletter subscribers", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
-    expect(mocks.refresh).toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
   it("keeps duplicate errors inline and retains the typed subscriber", async () => {
@@ -571,7 +571,7 @@ describe("newsletter subscribers", () => {
         .getAllByText(COPY.Import.doneDescription)
         .filter((node) => !node.closest(".sr-only")),
     ).toHaveLength(1);
-    expect(mocks.refresh).toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
     await user.click(dialog.getByRole("button", { name: COPY.done }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -692,7 +692,7 @@ describe("newsletter subscribers", () => {
         subscriberId: PERSON.id,
         status: NewsletterSubscriberStatus.UNSUBSCRIBED,
       });
-      expect(mocks.refresh).toHaveBeenCalled();
+      expect(mocks.refresh).not.toHaveBeenCalled();
     },
   );
 
@@ -860,7 +860,7 @@ describe("newsletter subscribers", () => {
       projectId: "p1",
       subscriberId: PERSON.id,
     });
-    expect(mocks.refresh).toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
   it.each(["de", "es"] as const)(

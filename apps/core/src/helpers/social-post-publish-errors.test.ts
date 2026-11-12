@@ -149,6 +149,84 @@ describe("classifyPublishError", () => {
     },
   );
 
+  it.each([
+    "The image type was rejected. Try a JPEG or PNG image.",
+    "The image file is too large. Use an image under 5 MB.",
+    "The image upload request has invalid parameters. Try again or use a different image.",
+    "The image file is invalid or damaged. Try a different image.",
+    "The image file is missing. Attach it again.",
+  ])("keeps a known X image 403 rejection connected: %s", (reason) => {
+    const message = `X could not upload the image (403): ${reason}`;
+    for (const error of [
+      new ComposioApiError(403, undefined, message),
+      new ComposioToolError({
+        message,
+        providerMessage: reason,
+        providerStatus: 403,
+      }),
+    ]) {
+      const classified = classifyPublishError(error, "x");
+      expect(classified).toEqual({
+        kind: "rejected",
+        transient: false,
+        summary: message,
+      });
+      expect(shouldRequestReauthorization(error, classified)).toBe(false);
+    }
+  });
+
+  it.each([
+    [401, "unauthorized", false],
+    [429, "rate_limited", true],
+    [503, "provider_unavailable", true],
+  ] as const)(
+    "uses nested X image status %s instead of the HTTP wrapper",
+    (providerStatus, kind, transient) => {
+      const error = new ComposioApiError(
+        400,
+        undefined,
+        `X could not upload the image (${providerStatus}): The upload service could not accept the image. Try again or use a different image.`,
+        providerStatus,
+      );
+      const classified = classifyPublishError(error, "x");
+      expect(classified).toMatchObject({ kind, transient });
+      expect(shouldRequestReauthorization(error, classified)).toBe(false);
+    },
+  );
+
+  it.each([
+    [
+      "The X connection is unauthorized or missing permission to upload images. Reconnect it and try again.",
+      "unauthorized",
+      false,
+    ],
+    [
+      "X's upload rate limit was reached. Try again later.",
+      "rate_limited",
+      true,
+    ],
+    ["The image upload timed out. Try again later.", "timeout", true],
+    [
+      "The image upload service is temporarily unavailable. Try again later.",
+      "provider_unavailable",
+      true,
+    ],
+  ] as const)(
+    "preserves a canonical X image reason behind HTTP 400: %s",
+    (reason, kind, transient) => {
+      expect(
+        classifyPublishError(
+          new ComposioApiError(
+            400,
+            undefined,
+            `X could not upload the image (400): ${reason}`,
+          ),
+          "x",
+        ),
+      ).toMatchObject({ kind, transient });
+    },
+  );
+
   it("keeps X media-upload 400 failures out of unauthorized classification", () => {
     expect(
       classifyPublishError(
