@@ -7,6 +7,8 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   getSocialPost,
+  prepareSocialPostMutationMedia,
+  type ScheduleSocialPostInput,
   type SocialPostSummary,
   scheduleSocialPost,
 } from "@/services/social-posts.service";
@@ -49,13 +51,10 @@ export interface ResolveNextSocialQueueSlotInput extends ProjectScope {
   socialConnectionId: string;
 }
 
-export interface QueueSocialPostInput extends ProjectScope {
-  userId: string;
-  coworkerId?: string;
-  postId: string;
-  socialConnectionId?: string;
-  revision: number;
-}
+export type QueueSocialPostInput = Omit<
+  ScheduleSocialPostInput,
+  "scheduledAt" | "timezone"
+>;
 
 function mapSlot(slot: {
   id: string;
@@ -160,6 +159,7 @@ export async function resolveNextSocialQueueSlot(
 export async function queueSocialPost(
   input: QueueSocialPostInput,
 ): Promise<SocialPostSummary> {
+  input = await prepareSocialPostMutationMedia(input);
   return serializableTransaction(async (tx) => {
     const post = await getSocialPost(input, tx);
     const socialConnectionId =
