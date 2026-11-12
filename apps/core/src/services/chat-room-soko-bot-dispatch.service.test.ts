@@ -58,9 +58,9 @@ vi.mock("@/helpers/chat-room-message-realtime", () => ({
 vi.mock("./chat-room-mention-state", () => ({
   claimMentionForDispatch: claim,
   markMentionFailed: fail,
+  failSokoBotReplyIfOwned: fail,
 }));
 vi.mock("./chat-room-mention-stream", () => ({
-  failMentionWithCoworkerShell: fail,
   publishMentionThoughtPlaceholder: placeholder,
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
@@ -385,9 +385,10 @@ describe("Retry on a failed Soko Bot reply", () => {
   it("never lets go of the turn holding the mention itself", async () => {
     findMentionTurn.mockResolvedValue([
       {
-        id: "turn-done",
+        id: "turn-live",
         clientTurnId: "chat:mention-a",
         chatMentionId: "mention-a",
+        status: "RUNNING",
       },
     ]);
     await runSokoBotMentionDispatch(input());
@@ -407,19 +408,14 @@ describe("a reclaimed mention whose turn already ended", () => {
         id: "turn-done",
         clientTurnId: "chat:mention-a",
         chatMentionId: "mention-a",
+        status: "COMPLETED",
       },
     ]);
-    startTurn.mockResolvedValue({
-      turnId: "turn-done",
-      status: "COMPLETED",
-      duplicate: true,
-    });
     findOpenDelivery.mockResolvedValue({ id: "delivery-a" });
     await runSokoBotMentionDispatch(input());
-    expect(startTurn).toHaveBeenCalledTimes(1);
-    expect(startTurn).toHaveBeenCalledWith(
-      expect.objectContaining({ clientTurnId: "chat:mention-a" }),
-    );
+    // Settled from the turn itself: no start, and the reply never reopened.
+    expect(startTurn).not.toHaveBeenCalled();
+    expect(placeholder).not.toHaveBeenCalled();
     expect(deliverOutbox).toHaveBeenCalledWith("turn-done");
     // Then the answer is written if the delivery could not (backoff, lease).
     expect(persistChatTurn).toHaveBeenCalledWith(
@@ -437,6 +433,7 @@ describe("a reclaimed mention whose turn already ended", () => {
         id: "turn-live",
         clientTurnId: "chat:mention-a",
         chatMentionId: "mention-a",
+        status: "RUNNING",
       },
     ]);
     startTurn.mockResolvedValue({
@@ -463,7 +460,8 @@ describe("a reclaimed mention whose turn already ended", () => {
     expect(fail).toHaveBeenCalledWith(
       expect.objectContaining({
         mentionId: "mention-a",
-        existingPlaceholderId: "response-a",
+        clientTurnId: "chat:mention-a",
+        replyId: "response-a",
       }),
     );
     expect(persistChatTurn).not.toHaveBeenCalled();
@@ -482,7 +480,52 @@ describe("a reclaimed mention whose turn already ended", () => {
     await runSokoBotMentionDispatch(input());
     expect(deliverOutbox).toHaveBeenCalledWith("turn-failed");
     expect(fail).toHaveBeenCalledWith(
-      expect.objectContaining({ existingPlaceholderId: "response-a" }),
+      expect.objectContaining({ replyId: "response-a" }),
+    );
+  });
+  it("restores a failed turn still holding the mention without reopening its reply", async () => {
+    // Retry while the failed turn's delivery is owed: a reopened "Thinking…"
+    // is what a concurrent publisher could send after the failed card.
+    findMentionTurn.mockResolvedValue([
+      {
+        id: "turn-failed",
+        clientTurnId: "chat:mention-a",
+        chatMentionId: "mention-a",
+        status: "FAILED",
+      },
+    ]);
+    findOpenDelivery.mockResolvedValue({ id: "delivery-a" });
+    const base = input();
+    await runSokoBotMentionDispatch({
+      ...base,
+      mention: { ...base.mention, responseMessageId: "response-a" },
+    });
+    expect(placeholder).not.toHaveBeenCalled();
+    expect(startTurn).not.toHaveBeenCalled();
+    expect(deliverOutbox).toHaveBeenCalledWith("turn-failed");
+    expect(fail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientTurnId: "chat:mention-a",
+        replyId: "response-a",
+      }),
+    );
+  });
+  it("fails a fresh attempt's reply under its own key", async () => {
+    findMentionTurn.mockResolvedValue([
+      {
+        id: "turn-old",
+        clientTurnId: "chat:mention-a",
+        chatMentionId: null,
+        status: "FAILED",
+      },
+    ]);
+    startTurn.mockRejectedValue(new Error("Gateway refused"));
+    await runSokoBotMentionDispatch(input());
+    expect(fail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientTurnId: "chat:mention-a:retry:turn-old",
+        replyId: "response-a",
+      }),
     );
   });
 });

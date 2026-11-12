@@ -152,3 +152,69 @@ export async function releaseFailedTurnForRetry(
     data: { chatMentionId: null },
   });
 }
+
+/**
+ * Fails a Soko Bot reply for the attempt started under `clientTurnId`, only
+ * while that attempt still owns the mention: its turn holds the mention, or it
+ * has no turn yet and no other turn does. Ownership is checked and the failed
+ * card and mention written under the mention's row lock, the lock Retry's
+ * reset takes before `releaseFailedTurnForRetry`. A dispatch that resumes
+ * after Retry handed the mention to a fresh attempt changes nothing; checking
+ * before writing without the lock would leave that window open. Returns
+ * whether the reply now shows the failed card, so the caller publishes it.
+ */
+export async function failSokoBotReplyIfOwned(params: {
+  mentionId: string;
+  sokoBotId: string;
+  clientTurnId: string;
+  replyId: string | null;
+  sourceMessageId: string;
+  error: unknown;
+}): Promise<boolean> {
+  const { mentionId, replyId } = params;
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "chat_room_mention" WHERE "id" = ${mentionId}::uuid FOR UPDATE`;
+    const holder = await tx.sokoBotTurn.findUnique({
+      where: { chatMentionId: mentionId },
+      select: { clientTurnId: true },
+    });
+    const owned = holder
+      ? holder.clientTurnId === params.clientTurnId
+      : !(await tx.sokoBotTurn.findUnique({
+          where: {
+            sokoBotId_clientTurnId: {
+              sokoBotId: params.sokoBotId,
+              clientTurnId: params.clientTurnId,
+            },
+          },
+          select: { id: true },
+        }));
+    if (!owned) return false;
+    // Same guards as `failMentionThoughtPlaceholder`: never erase final
+    // content or a responded mention.
+    const shell = replyId
+      ? await tx.chatRoomMessage.updateMany({
+          where: {
+            id: replyId,
+            content: "",
+            mentionResponseFor: { status: { not: "responded" } },
+          },
+          data: {
+            metadata: {
+              in_reply_to_message_id: params.sourceMessageId,
+              mention_id: mentionId,
+              mention_failed: true,
+            },
+          },
+        })
+      : { count: 0 };
+    await tx.chatRoomMention.updateMany({
+      where: { id: mentionId, status: { not: "responded" } },
+      data: {
+        status: "failed",
+        error: errorMessage(params.error).slice(0, 500),
+      },
+    });
+    return shell.count > 0;
+  });
+}

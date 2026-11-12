@@ -20,12 +20,10 @@ import {
 } from "./chat-room-mention-context";
 import {
   claimMentionForDispatch,
+  failSokoBotReplyIfOwned,
   markMentionFailed,
 } from "./chat-room-mention-state";
-import {
-  failMentionWithCoworkerShell,
-  publishMentionThoughtPlaceholder,
-} from "./chat-room-mention-stream";
+import { publishMentionThoughtPlaceholder } from "./chat-room-mention-stream";
 
 /**
  * Accepting a Soko Bot turn — classify, build the context packet, insert the
@@ -48,16 +46,17 @@ function isActiveTurnStatus(status: string): boolean {
 }
 
 /**
- * Puts an ended turn's outcome back on the reply that was reopened for it.
+ * Puts an ended turn's outcome back on its reply.
  *
  * A delivery still open is pushed first, but it cannot be relied on to close
- * the reply: one already PERSISTED only publishes what the message holds now
- * (the reopened "Thinking…"), and one in backoff or leased elsewhere does
- * nothing here. So the outcome is always reapplied after: a completed turn's
- * answer through the shared chat write (a no-op once the mention answered),
- * a failed or cancelled one as the failed card, terminal and retryable. The
- * turn keeps the mention until its delivery finishes; Retry then starts a
- * fresh turn (`releaseFailedTurnForRetry`).
+ * the reply: one already PERSISTED only publishes what the message holds now,
+ * and one in backoff or leased elsewhere does nothing here. So the outcome is
+ * always reapplied after: a completed turn's answer through the shared chat
+ * write (a no-op once the mention answered), a failed or cancelled one as the
+ * failed card, terminal and retryable, only while the turn still owns the
+ * mention (`failSokoBotReplyIfOwned`). The turn keeps the mention until its
+ * delivery finishes; Retry then starts a fresh turn
+ * (`releaseFailedTurnForRetry`).
  */
 async function settleEndedTurn(
   turnId: string,
@@ -201,6 +200,54 @@ export async function runSokoBotMentionDispatch(params: {
   const claimed = await claimMentionForDispatch(mentionId);
   if (!claimed) return;
 
+  // The key this start runs under. The turn holding the mention keeps it:
+  // a reclaimed dispatch resumes that turn (and its delivery) instead of
+  // running the request again. Only an explicit Retry lets go of a failed
+  // turn (`releaseFailedTurnForRetry`); the next attempt is then keyed by the
+  // newest turn it follows, so workers that see the same predecessor share
+  // one key. Newest by key, not by link: a retry whose start threw left no
+  // turn, and the original still holds `chat:<id>`.
+  const keyPrefix = `chat:${mentionId}`;
+  const [newest] = await prisma.sokoBotTurn.findMany({
+    where: { sokoBotId: bot.id, clientTurnId: { startsWith: keyPrefix } },
+    orderBy: { createdAt: "desc" },
+    take: 1,
+    select: { id: true, clientTurnId: true, chatMentionId: true, status: true },
+  });
+  const holder = newest?.chatMentionId === mentionId ? newest : null;
+  const clientTurnId = holder
+    ? holder.clientTurnId
+    : newest
+      ? `${keyPrefix}:retry:${newest.id}`
+      : keyPrefix;
+  // Fails this attempt's reply, and only while this attempt still owns the
+  // mention: after Retry hands it to a fresh attempt, a dispatch resuming
+  // late must not fail the new reply or discard its answer.
+  const failReply = (replyId: string | null) => async (error: unknown) => {
+    const failed = await failSokoBotReplyIfOwned({
+      mentionId,
+      sokoBotId: bot.id,
+      clientTurnId,
+      replyId,
+      sourceMessageId: mention.message.id,
+      error,
+    });
+    if (failed && replyId)
+      await publishChatRoomMessageRealtimeById(replyId, "update");
+  };
+  // A turn that already ended still holds the mention (stale reclaim, or
+  // Retry while its delivery was owed): put its outcome back without
+  // reopening the reply. A reopened "Thinking…" is a snapshot a concurrent
+  // publisher of that delivery could read and send after the outcome.
+  if (holder && !isActiveTurnStatus(holder.status)) {
+    await settleEndedTurn(
+      holder.id,
+      holder.status,
+      failReply(mention.responseMessageId),
+    );
+    return;
+  }
+
   const startedAtMs = Date.now();
   let placeholderId: string | null = mention.responseMessageId;
   try {
@@ -240,16 +287,7 @@ export async function runSokoBotMentionDispatch(params: {
   // responseMessageId before this placeholder existed, so failing through it
   // would open a second bubble and leave this one streaming for ever — the
   // shape of the "Thinking…" messages that never ended.
-  const failPlaceholder = (error: unknown) =>
-    failMentionWithCoworkerShell({
-      mentionId,
-      sourceMessageId: mention.message.id,
-      roomId: mention.message.roomId,
-      parentMessageId: mention.message.parentMessageId,
-      sokoBotId: bot.id,
-      existingPlaceholderId: placeholderId,
-      error,
-    });
+  const failPlaceholder = failReply(placeholderId);
 
   // Every mention carries the conversation right above it, as coworker
   // mentions do. In a direct chat that is the bot's own posts too: inbox
@@ -259,26 +297,7 @@ export async function runSokoBotMentionDispatch(params: {
   // the placeholder above streaming for ever while the mention was marked
   // failed somewhere the reader could not see.
   let message: string;
-  // The key this start runs under. The turn holding the mention keeps it:
-  // a reclaimed dispatch resumes that turn (and its delivery) instead of
-  // running the request again. Only an explicit Retry lets go of a failed
-  // turn (`releaseFailedTurnForRetry`); the next attempt is then keyed by the
-  // newest turn it follows, so workers that see the same predecessor share
-  // one key. Newest by key, not by link: a retry whose start threw left no
-  // turn, and the original still holds `chat:<id>`.
-  let clientTurnId = `chat:${mentionId}`;
   try {
-    const [newest] = await prisma.sokoBotTurn.findMany({
-      where: { sokoBotId: bot.id, clientTurnId: { startsWith: clientTurnId } },
-      orderBy: { createdAt: "desc" },
-      take: 1,
-      select: { id: true, clientTurnId: true, chatMentionId: true },
-    });
-    if (newest?.chatMentionId === mentionId) {
-      clientTurnId = newest.clientTurnId;
-    } else if (newest) {
-      clientTurnId = `chat:${mentionId}:retry:${newest.id}`;
-    }
     const said = withAttachmentNote(
       roomMessagePromptText(
         mention.message.content,

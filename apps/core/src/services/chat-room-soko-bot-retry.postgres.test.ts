@@ -26,14 +26,35 @@ import {
  * - Retry through the real route while the failed card's delivery is still
  *   PERSISTED (its publication failed) leaves the card failed, not
  *   "Thinking…", and once that publication lands the next Retry starts a
- *   fresh turn under one stable key.
+ *   fresh turn under one stable key;
+ * - an old dispatch that resumes after Retry handed the mention to a fresh
+ *   attempt changes nothing, and the fresh answer lands;
+ * - nothing a concurrent publisher can read during that Retry is
+ *   "Thinking…", so a delayed event cannot cover the failed card, while a
+ *   fresh Retry's "Thinking…" still replaces it.
  */
 
-const { startTurn, publish, background } = vi.hoisted(() => ({
+const { startTurn, publish, background, afterOutboxPush } = vi.hoisted(() => ({
   startTurn: vi.fn(),
   publish: vi.fn(),
   background: [] as Promise<unknown>[],
+  // Where a dispatch settling an ended turn waits once that turn's delivery
+  // push returned, before it puts the outcome back on the reply.
+  afterOutboxPush: { current: null as null | (() => Promise<void>) },
 }));
+vi.mock("@/services/soko-bot-delivery.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/services/soko-bot-delivery.service")
+    >();
+  return {
+    ...actual,
+    deliverSokoBotTurnOutbox: async (turnId: string) => {
+      await actual.deliverSokoBotTurnOutbox(turnId);
+      await afterOutboxPush.current?.();
+    },
+  };
+});
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: publish,
   publishChatRoomMessageRealtime: vi.fn(),
@@ -131,6 +152,7 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     await db.user.deleteMany({ where: { id: userId } });
   });
   beforeEach(() => {
+    afterOutboxPush.current = null;
     startTurn.mockReset();
     publish.mockReset();
     publish.mockResolvedValue(undefined);
@@ -237,10 +259,8 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
 
     await runDispatch(m);
 
-    expect(startTurn).toHaveBeenCalledTimes(1);
-    expect(startTurn.mock.calls[0][0].clientTurnId).toBe(
-      `chat:${m.mention.id}`,
-    );
+    // The turn holding the mention already ended: no start, no second turn.
+    expect(startTurn).not.toHaveBeenCalled();
     expect(
       await db.sokoBotTurn.count({
         where: { clientTurnId: { startsWith: `chat:${m.mention.id}` } },
@@ -396,12 +416,28 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
       return message.metadata as Record<string, unknown>;
     };
 
+    // Every reply event as the room receives it (the snapshot read when
+    // published), and the one a concurrent publisher of the owed delivery
+    // reads mid-dispatch and sends only after the dispatch finished.
+    const events: Record<string, unknown>[] = [];
+    publish.mockImplementation(async (id: string) => {
+      if (id === m.response.id) events.push(await reply());
+    });
+    let delayed: Record<string, unknown> | undefined;
+    afterOutboxPush.current = async () => {
+      delayed = await reply();
+    };
+    // The client keeps the last full event for a message id
+    // (`applyFullChatRoomMessageEvent` in Web's merge-room-messages.ts).
+    const shown = () => (delayed ? [...events, delayed] : events).at(-1);
+
     // Retry while the publication is still owed: the old turn keeps the
     // mention, and the reply ends failed again, never "Thinking…".
     expect(await retry()).toBe(200);
-    expect(startTurn.mock.calls.map(([start]) => start.clientTurnId)).toEqual([
-      `chat:${m.mention.id}`,
-    ]);
+    expect(startTurn).not.toHaveBeenCalled();
+    expect(delayed).toMatchObject({ mention_failed: true });
+    expect(events.some((event) => event.streaming === true)).toBe(false);
+    expect(shown()).toMatchObject({ mention_failed: true });
     expect(
       await db.sokoBotTurn.findUnique({ where: { id: old.id } }),
     ).toMatchObject({ chatMentionId: m.mention.id });
@@ -423,9 +459,14 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     expect(await reply()).toMatchObject({ mention_failed: true });
     expect((await reply()).streaming).not.toBe(true);
 
-    // Now Retry lets go of the old turn and starts a fresh one.
+    // Now Retry lets go of the old turn and starts a fresh one, whose
+    // "Thinking…" replaces the failed card.
     startTurn.mockClear();
+    events.length = 0;
+    delayed = undefined;
     expect(await retry()).toBe(200);
+    expect(shown()).toMatchObject({ streaming: true });
+    expect(shown()?.mention_failed).toBeUndefined();
     expect(
       await db.sokoBotTurn.findUnique({ where: { id: old.id } }),
     ).toMatchObject({
@@ -446,5 +487,127 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     expect(startTurn.mock.calls.map(([start]) => start.clientTurnId)).toEqual([
       fresh,
     ]);
+  });
+
+  it("lets an old dispatch resuming after Retry leave the fresh attempt and its answer alone", async () => {
+    const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
+    const mountRetry = (
+      await import(
+        "@/routes/v1/chats/rooms/[id]/messages/[messageId]/mentions/[mentionId]/retry/post"
+      )
+    ).default;
+    const { deliverSokoBotDelivery } = await import(
+      "./soko-bot-delivery.service"
+    );
+    const app = new OpenAPIHonoWithAuth();
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "user",
+        userId,
+        organizationId: null,
+        role: "user",
+      } as never);
+      return next();
+    });
+    mountRetry(app);
+
+    const m = await staleMention();
+    const old = await turnFor(m, "FAILED");
+    const fresh = `chat:${m.mention.id}:retry:${old.id}`;
+    // The fresh attempt's start inserts its turn on the mention, as startTurn
+    // does, and leaves it running.
+    let freshTurnId: string | undefined;
+    startTurn.mockImplementation(async (start: { clientTurnId: string }) => {
+      const turn = await db.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "CHAT",
+          status: "RUNNING",
+          clientTurnId: start.clientTurnId,
+          userMessage: "What is due today?",
+          chatMentionId: m.mention.id,
+          chatResponseMessageId: m.response.id,
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+          destinationRoomId: roomId,
+          destinationAudience: {
+            userIds: [userId],
+            coworkerIds: [],
+            botIds: [botId],
+          },
+        },
+      });
+      freshTurnId = turn.id;
+      return { turnId: turn.id, status: "RUNNING", duplicate: false };
+    });
+
+    // The old dispatch (stale reclaim of the failed turn) pushes its delivery:
+    // failed card and failed mention, PUBLISHED. Hold it right there.
+    let reached!: () => void;
+    const atHold = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    let resume!: () => void;
+    const held = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    afterOutboxPush.current = async () => {
+      reached();
+      await held;
+    };
+    const oldDispatch = runDispatch(m);
+    await atHold;
+    afterOutboxPush.current = null;
+    expect(
+      await db.sokoBotDelivery.findFirst({ where: { turnId: old.id } }),
+    ).toMatchObject({ status: "PUBLISHED" });
+    expect(
+      await db.chatRoomMention.findUnique({ where: { id: m.mention.id } }),
+    ).toMatchObject({ status: "failed" });
+
+    // Real Retry: releases the old turn and starts the fresh attempt.
+    background.length = 0;
+    const response = await app.request(
+      `/${roomId}/messages/${m.source.id}/mentions/${m.mention.id}/retry`,
+      { method: "POST" },
+    );
+    expect(response.status).toBe(200);
+    await Promise.all(background);
+    expect(startTurn.mock.calls.map(([start]) => start.clientTurnId)).toEqual([
+      fresh,
+    ]);
+
+    // The old dispatch resumes and must not touch the fresh attempt.
+    resume();
+    await oldDispatch;
+    expect(
+      await db.chatRoomMention.findUnique({ where: { id: m.mention.id } }),
+    ).toMatchObject({ status: "sent" });
+    const running = await db.chatRoomMessage.findUniqueOrThrow({
+      where: { id: m.response.id },
+    });
+    expect(running.metadata).toMatchObject({ streaming: true });
+    expect(running.metadata).not.toMatchObject({ mention_failed: true });
+
+    // The fresh turn completes and its answer lands through the real delivery.
+    if (!freshTurnId) throw new Error("fresh turn not started");
+    await db.sokoBotTurn.update({
+      where: { id: freshTurnId },
+      data: { status: "COMPLETED", finalAnswer: "Three invoices are due." },
+    });
+    await db.$transaction((tx) => enqueue(tx, freshTurnId as string));
+    const delivery = await db.sokoBotDelivery.findFirstOrThrow({
+      where: { turnId: freshTurnId },
+    });
+    expect(await deliverSokoBotDelivery(delivery.id)).toBe(true);
+    expect(
+      await db.chatRoomMention.findUnique({ where: { id: m.mention.id } }),
+    ).toMatchObject({ status: "responded" });
+    expect(
+      await db.chatRoomMessage.findUnique({ where: { id: m.response.id } }),
+    ).toMatchObject({ content: "Three invoices are due." });
   });
 });

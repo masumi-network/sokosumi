@@ -105,6 +105,31 @@ describe("applyFullChatRoomMessageEvent", () => {
     expect(next.map((row) => row.id)).toEqual(["m1"]);
   });
 
+  it("lets a fresh Retry's Thinking replace a failed Soko Bot card", () => {
+    // Core never publishes "Thinking…" for an attempt that already ended, so
+    // the newest full event is the truth: a late failed card stays failed,
+    // and a fresh attempt's "Thinking…" replaces it.
+    const failed = {
+      ...sokoBotMessage("reply_1", "2026-07-01T10:00:01.000Z", ""),
+      metadata: { mention_id: "mention_1", mention_failed: true },
+    };
+    const thinking = {
+      ...failed,
+      metadata: { mention_id: "mention_1", streaming: true, reasoning: [] },
+    };
+
+    const retried = applyFullChatRoomMessageEvent([failed], {
+      eventType: "update",
+      message: thinking,
+    });
+    expect(retried[0]?.metadata).toEqual(thinking.metadata);
+    const late = applyFullChatRoomMessageEvent([failed], {
+      eventType: "update",
+      message: failed,
+    });
+    expect(late[0]?.metadata).toEqual(failed.metadata);
+  });
+
   it("keeps the viewer's unread reply count when a broadcast event replaces the parent", () => {
     const parent = {
       ...message("m1", "2026-07-01T10:00:00.000Z", "hello"),
