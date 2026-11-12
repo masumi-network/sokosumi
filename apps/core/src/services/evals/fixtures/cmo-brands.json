@@ -6,7 +6,8 @@
     "main": "coworker",
     "avoid": "lead.research|prospect|dossier",
     "why": "trap: a side product shares the goal's word",
-    "contentLanguage": "english"
+    "contentLanguage": "english",
+    "siteLanguage": "English"
   },
   {
     "name": "cal.com",
@@ -15,14 +16,16 @@
     "main": "schedul",
     "avoid": "lead.rout|inbound lead|routing",
     "why": "trap: a feature shares the goal's word",
-    "contentLanguage": "english"
+    "contentLanguage": "english",
+    "siteLanguage": "English"
   },
   {
     "name": "plausible.io",
     "url": "https://plausible.io/",
     "goal": "More sales",
     "main": "analytic|plausible",
-    "contentLanguage": "english"
+    "contentLanguage": "english",
+    "siteLanguage": "English"
   },
   {
     "name": "tartinebakery.com",
@@ -39,7 +42,8 @@
     "goal": "Launch something",
     "main": "canvas|whiteboard|sdk|draw",
     "why": "vague goal",
-    "contentLanguage": "english"
+    "contentLanguage": "english",
+    "siteLanguage": "English"
   },
   {
     "name": "nmkr.io",
@@ -66,10 +70,11 @@
     "name": "Mailchimp",
     "url": "https://mailchimp.com/",
     "goal": "More leads",
-    "main": "email|marketing",
+    "main": "e[- ]?mail|marketing",
     "avoid": "lead.gen|lead capture",
     "why": "trap: sells lead capture among many tools",
-    "contentLanguage": "english"
+    "contentLanguage": "english",
+    "siteLanguage": "English"
   },
   {
     "name": "HubSpot",
@@ -78,7 +83,8 @@
     "main": "crm|customer platform|marketing|sales|hubspot",
     "avoid": "lead.gen|lead capture",
     "why": "trap: sells lead tools among many",
-    "contentLanguage": "english"
+    "contentLanguage": "english",
+    "siteLanguage": "English"
   },
   {
     "name": "Blue Bottle Coffee",
@@ -86,7 +92,8 @@
     "goal": "Launch something: our new holiday blend, online and in cafes from 20 November",
     "main": "coffee",
     "why": "owners no longer state a goal: the plan sells the coffee, not a launch it was never told about",
-    "contentLanguage": "english"
+    "contentLanguage": "english",
+    "siteLanguage": "English"
   },
   {
     "name": "Calm",
@@ -100,15 +107,17 @@
     "url": "https://www.freitag.ch/",
     "goal": "More sales",
     "main": "bag|tarp|recycl|freitag",
-    "why": "Swiss brand, German site"
+    "why": "Swiss brand, German site",
+    "siteLanguage": "English"
   },
   {
     "name": "lemlist",
     "url": "https://www.lemlist.com/",
     "goal": "More leads",
-    "main": "outreach|cold email|prospect|lead|lemlist",
+    "main": "outreach|cold email|prospect|lead|lemlist|outbound",
     "why": "here leads is the product",
-    "contentLanguage": "english"
+    "contentLanguage": "english",
+    "siteLanguage": "English"
   },
   {
     "name": "Wise",
@@ -124,7 +133,8 @@
     "goal": "Mehr Gäste",
     "main": "vegetar|vegan|restaurant|hiltl",
     "why": "local restaurant with a German site: German posts, whatever language the owner plans in",
-    "contentLanguage": "german|deutsch"
+    "contentLanguage": "german|deutsch",
+    "siteLanguage": "German"
   },
   {
     "name": "Apple",

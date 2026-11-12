@@ -18,7 +18,7 @@ export interface CmoPlanReview {
   problems: string[];
 }
 
-/** Saves in one planning turn the review answers; past them Cuso finishes as he is. */
+/** Saves in one planning turn the semantic review answers; past them Cuso finishes as he is, with deterministic checks still returned. */
 export const CMO_PLAN_REVIEWS_PER_TURN = 4;
 
 const MIN_PIECES = 16;
@@ -457,6 +457,7 @@ export async function cmoPlanDrift(input: {
         mainOffer: brain.reveal?.positioning ?? brain.summary,
         products: brain.products,
         plan: {
+          coreOffer: strategy.ladder?.core.what,
           idea: strategy.idea?.sentence,
           summary: strategy.summary,
           offer: strategy.offer?.what,
@@ -468,7 +469,7 @@ export async function cmoPlanDrift(input: {
         sellsMainOffer: {
           type: "boolean",
           instructions:
-            "Does the plan sell the business's main offer rather than a narrower side product or feature?",
+            "Does the plan's core offer match the business's main product or service, rather than a narrower side product or feature? A trial, demo or introductory call is a valid entry offer when it leads to that core offer; do not treat the entry offer alone as product drift.",
         },
       },
       timeoutMs: 15_000,

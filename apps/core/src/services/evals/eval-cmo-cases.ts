@@ -15,6 +15,7 @@ export interface CmoEvalBrand {
   avoid?: string;
   /** The language its posts must be written in. */
   contentLanguage?: string;
+  siteLanguage?: string;
   /** Words the plan's summary uses when it must not be in English. */
   planLanguage?: string;
   /** A business with many product lines lists at least this many offers. */

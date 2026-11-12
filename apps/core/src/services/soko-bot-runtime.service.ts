@@ -5766,8 +5766,10 @@ export class SokoBotRuntimeService {
     const saves = await prisma.sokoBotToolCall.count({
       where: { turnId: authorized.turn.id, capability: "save_strategy" },
     });
-    if (saves > CMO_PLAN_REVIEWS_PER_TURN) return null;
     const problems = cmoPlanProblems(strategy);
+    if (saves > CMO_PLAN_REVIEWS_PER_TURN) {
+      return { save: saves, mainOffer: "skipped", problems };
+    }
     const bot = plan.planSent
       ? await prisma.sokoBot.findUnique({
           where: { id: authorized.turn.sokoBotId },

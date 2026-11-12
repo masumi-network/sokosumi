@@ -279,6 +279,7 @@ export async function startCmoCase(
   const { turnId } = await requestCmoStrategy({
     userId: lane.userId,
     projectId: lane.cusoProjectId,
+    siteLanguage: evalCase.brand.siteLanguage,
   });
   return { kind: "started", turnId, state: {} };
 }
@@ -478,6 +479,7 @@ export async function pollCmoCase(
         answer: turn.finalAnswer,
         summary: strategy?.summary ?? null,
         offer: strategy?.offer?.what ?? null,
+        coreOffer: strategy?.ladder?.core.what ?? null,
         contentLanguage: strategy?.contentLanguage ?? null,
         pillars: strategy?.pillars.map((pillar) => pillar.name),
         calendar: strategy?.calendar

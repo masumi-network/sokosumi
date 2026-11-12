@@ -4,9 +4,17 @@ import { describe, expect, it, vi } from "vitest";
 // A plain function, not a spy: a spy reports the rejection the code handles.
 const jev = vi.hoisted(() => ({
   answer: (): Promise<unknown> => Promise.resolve(undefined),
+  input: undefined as
+    | Parameters<typeof import("@/lib/soko-bot/jev").evaluateWithJev>[0]
+    | undefined,
 }));
 vi.mock("@/lib/soko-bot/jev", () => ({
-  evaluateWithJev: () => jev.answer(),
+  evaluateWithJev: (
+    input: Parameters<typeof import("@/lib/soko-bot/jev").evaluateWithJev>[0],
+  ) => {
+    jev.input = input;
+    return jev.answer();
+  },
 }));
 
 import {
@@ -303,6 +311,42 @@ describe("cmoPlanDrift", () => {
     expect(drift.problem).toMatch(/drifts from the main offer/);
     expect(drift.costUsd).toBe(0.0004);
     expect(drift.verdict).toBe("drift");
+  });
+
+  it("reviews the core product separately from its entry offer", async () => {
+    jev.answer = async () => ({
+      answers: new Map([
+        ["sellsMainOffer", { type: "boolean", probability: 0.92 }],
+      ]),
+      costUsd: 0,
+    });
+    await cmoPlanDrift({
+      strategy: plan({
+        ladder: { core: { what: "Custom AI CoWorker" } },
+        offer: {
+          what: "30-minute call and demo",
+          why: "See it work",
+          action: "Book a call",
+          proof: [],
+        },
+      }),
+      brain,
+    });
+    expect(jev.input).toMatchObject({
+      state: {
+        plan: {
+          coreOffer: "Custom AI CoWorker",
+          offer: "30-minute call and demo",
+        },
+      },
+      questions: {
+        sellsMainOffer: {
+          instructions: expect.stringContaining(
+            "A trial, demo or introductory call is a valid entry offer when it leads to that core offer",
+          ),
+        },
+      },
+    });
   });
 
   it("lets a plan on the main offer through", async () => {

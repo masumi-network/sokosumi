@@ -145,6 +145,7 @@ export async function setCmoAdBudget(
 export async function requestCmoStrategy(
   input: CusoTarget & {
     note?: string;
+    siteLanguage?: string;
   },
 ): Promise<{ turnId: string }> {
   return requestStrategyForCuso(await requireCuso(input), input);
@@ -152,7 +153,7 @@ export async function requestCmoStrategy(
 
 async function requestStrategyForCuso(
   cuso: Cuso,
-  input: { userId: string; note?: string },
+  input: { userId: string; note?: string; siteLanguage?: string },
 ): Promise<{ turnId: string }> {
   const brain = parseBrandBrain(cuso.brandBrain);
   if (!brain) {
@@ -166,7 +167,7 @@ async function requestStrategyForCuso(
   const { detectSiteLanguage } = await import("@/lib/site-platform");
   const siteLanguage = input.note
     ? null
-    : await detectSiteLanguage(cuso.websiteUrl);
+    : (input.siteLanguage ?? (await detectSiteLanguage(cuso.websiteUrl)));
   const span = planWindow();
   return startCmoTurn(cuso, input.userId, {
     clientTurnId: `${STRATEGY_TURN_PREFIX}${cuso.sokoBotId}:${Date.now()}`,
@@ -186,7 +187,7 @@ async function requestStrategyForCuso(
               "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the plan's goals with it.",
               ...(siteLanguage
                 ? [
-                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, even though this plan is in the owner's language, unless the owner asked for another.`,
+                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, even though this plan is in the owner's language, unless the owner asked for another. This instruction sets only contentLanguage. Keep the summary, offer, pillar names, calendar titles and briefs in the owner's language; do not translate the plan into the site's language.`,
                   ]
                 : []),
               ...ownerAnswers(brain),

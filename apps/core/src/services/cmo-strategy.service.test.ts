@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { keepAnswers } from "@/helpers/question-answers";
+import { detectSiteLanguage } from "@/lib/site-platform";
 import {
   cancelSocialPost,
   connectionFindMany,
@@ -97,7 +98,7 @@ const plan = (row: { plan: unknown }) => row.plan as typeof strategy;
 const approvedRows = () => strategyRows.filter((row) => row.approvedAt);
 
 vi.mock("@/lib/site-platform", () => ({
-  detectSiteLanguage: async () => "German",
+  detectSiteLanguage: vi.fn().mockResolvedValue("German"),
 }));
 
 describe("requestCmoStrategy", () => {
@@ -186,6 +187,29 @@ describe("requestCmoStrategy", () => {
 
     expect(JSON.stringify(startTurn.mock.lastCall)).toContain(
       "The website is written in German: set contentLanguage to German",
+    );
+  });
+
+  it("uses the frozen site language without reading the live German site", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+    vi.mocked(detectSiteLanguage).mockClear();
+
+    await requestCmoStrategy({
+      projectId: "project-1",
+      userId: "user-1",
+      siteLanguage: "English",
+    });
+
+    expect(detectSiteLanguage).not.toHaveBeenCalled();
+    const message = JSON.stringify(startTurn.mock.lastCall);
+    expect(message).toContain("set contentLanguage to English");
+    expect(message).toContain("This instruction sets only contentLanguage.");
+    expect(message).toContain(
+      "do not translate the plan into the site's language",
+    );
+    expect(message).toContain(
+      "Write acme.io's marketing strategy for the four weeks",
     );
   });
 

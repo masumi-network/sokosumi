@@ -52,6 +52,9 @@ export function strategyChecks(
       checks: [{ label: "Strategy saved", pass: false, actual: "none" }],
     };
   const head = [
+    strategy.ladder?.core.what ?? "",
+    strategy.idea?.sentence ?? "",
+    strategy.positioning ?? "",
     strategy.summary,
     strategy.offer?.what ?? "",
     ...strategy.pillars.map((pillar) => pillar.name),
@@ -61,15 +64,23 @@ export function strategyChecks(
     {
       label: "Sells the main offer",
       pass: new RegExp(brand.main, "i").test(head),
-      actual: (strategy.offer?.what ?? strategy.summary).slice(0, 200),
+      actual:
+        `Core: ${strategy.ladder?.core.what ?? "missing"}; entry: ${strategy.offer?.what ?? "missing"}; headline: ${head}`.slice(
+          0,
+          600,
+        ),
     },
   ];
   if (brand.avoid)
     checks.push({
       label: "Does not sell a side product",
       // What the plan sells; the summary may name the side product as one part.
-      pass: !new RegExp(brand.avoid, "i").test(strategy.offer?.what ?? ""),
-      actual: strategy.offer?.what ?? "",
+      pass: !new RegExp(brand.avoid, "i").test(
+        [strategy.ladder?.core.what ?? "", strategy.offer?.what ?? ""].join(
+          " ",
+        ),
+      ),
+      actual: `Core: ${strategy.ladder?.core.what ?? "missing"}; entry: ${strategy.offer?.what ?? "missing"}`,
     });
   if (brand.contentLanguage)
     checks.push({

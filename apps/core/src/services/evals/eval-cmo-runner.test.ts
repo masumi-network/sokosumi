@@ -6,6 +6,12 @@ const prisma = vi.hoisted(() => {
   return {
     project: { update: ok() },
     marketingStrategy: { deleteMany: ok() },
+    sokoBotTurn: {
+      count: vi.fn().mockResolvedValue(0),
+      findUniqueOrThrow: vi
+        .fn()
+        .mockResolvedValue({ status: "COMPLETED", finalAnswer: "Ready" }),
+    },
     brandBrain: { deleteMany: ok(), create: ok() },
     socialComment: {
       deleteMany: ok(),
@@ -19,12 +25,95 @@ vi.mock("@/services/cmo-cuso.service", () => ({
   findCusoForBot: vi.fn().mockResolvedValue({ id: "cuso-1" }),
 }));
 
+vi.mock("@/services/cmo-strategy.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/cmo-strategy.service")>()),
+  requestCmoStrategy: vi.fn().mockResolvedValue({ turnId: "turn-1" }),
+}));
+vi.mock("@/services/marketing-strategy.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/marketing-strategy.service")
+  >()),
+  newestMarketingStrategy: vi.fn(),
+}));
+
+import { requestCmoStrategy } from "@/services/cmo-strategy.service";
+import { newestMarketingStrategy } from "@/services/marketing-strategy.service";
+import { CMO_EVAL_CASES } from "./eval-cmo-cases";
 import {
   commentChecks,
   monthPlanFromTomorrow,
+  pollCmoCase,
   prepareCmoComments,
+  startCmoCase,
 } from "./eval-cmo-runner";
 import type { EvalLaneRecord } from "./eval-lanes.service";
+
+describe("strategy eval cases", () => {
+  const lane = {
+    userId: "user-1",
+    cusoBotId: "cuso-1",
+    cusoProjectId: "project-1",
+  } as EvalLaneRecord;
+  const context = {
+    resultId: "result-1",
+    firstOfSuite: false,
+    startedAt: new Date(),
+  };
+  const evalCase = CMO_EVAL_CASES.find(
+    (item) => item.id === "cmo-strategy-mailchimp",
+  )!;
+
+  it("passes the frozen site language into fresh strategy generation", async () => {
+    await startCmoCase(evalCase, lane, context);
+    expect(requestCmoStrategy).toHaveBeenLastCalledWith({
+      userId: "user-1",
+      projectId: "project-1",
+      siteLanguage: "English",
+    });
+  });
+
+  it.each(["Email and SMS marketing plans", null])(
+    "exports the core offer separately from the trial: %s",
+    async (coreOffer) => {
+      vi.mocked(newestMarketingStrategy).mockResolvedValue({
+        id: "strategy-1",
+        projectId: lane.cusoProjectId,
+        createdAt: context.startedAt,
+        updatedAt: context.startedAt,
+        authorSokoBotId: lane.cusoBotId,
+        authorUserId: null,
+        authorTurnId: "turn-1",
+        approvedAt: null,
+        approvedByUserId: null,
+        monthReview: null,
+        plan: {
+          month: "2026-11",
+          summary: "Explain email marketing plans.",
+          goals: ["More trials"],
+          pillars: [],
+          channels: [],
+          calendar: [],
+          ...(coreOffer ? { ladder: { core: { what: coreOffer } } } : {}),
+          offer: {
+            what: "14-day Standard trial",
+            why: "Try the plan",
+            action: "Start trial",
+          },
+        },
+      });
+      const result = await pollCmoCase(
+        evalCase,
+        lane,
+        { turnId: "turn-1", state: {} },
+        context,
+      );
+      expect(result).toMatchObject({
+        kind: "done",
+        outcome: { output: { coreOffer, offer: "14-day Standard trial" } },
+      });
+    },
+  );
+});
 
 describe("prepareCmoComments", () => {
   it("publishes the comment post with exactly one creator: the lane's Cuso", async () => {
