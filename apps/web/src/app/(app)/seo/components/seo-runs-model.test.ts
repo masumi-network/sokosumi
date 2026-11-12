@@ -85,6 +85,16 @@ describe("SEO runs of a site", () => {
       undefined,
       false,
     ]);
+    // A range marks the days inside it instead.
+    const inRange = (filters: { from: string | null; to: string | null }) =>
+      seoRunDays({ runs }, filters)
+        .days.filter((entry) => entry.inRange)
+        .map((entry) => entry.day);
+    expect(inRange({ from: "2026-11-01", to: "2026-11-10" })).toEqual([
+      "2026-11-10",
+    ]);
+    expect(inRange({ from: "2026-11-11", to: null })).toEqual(["2026-11-12"]);
+    expect(inRange({ from: null, to: "2026-11-12" })).toEqual([]);
   });
 
   it("keeps the five newest days, and an older day only while it is in view", () => {

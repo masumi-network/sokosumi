@@ -12049,7 +12049,8 @@
         "left": "about {minutes} min left",
         "late": "longer than usual",
         "earlier": "You see an earlier check ({day}).",
-        "latest": "Show the latest check"
+        "latest": "Show the latest check",
+        "inRange": "in the date range"
       },
       "filterDates": "Filter by date",
       "syncNow": "Sync now",

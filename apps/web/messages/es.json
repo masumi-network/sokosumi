@@ -12049,7 +12049,8 @@
         "left": "quedan unos {minutes} min",
         "late": "más de lo habitual",
         "earlier": "Ves una comprobación anterior ({day}).",
-        "latest": "Mostrar la comprobación más reciente"
+        "latest": "Mostrar la comprobación más reciente",
+        "inRange": "en el rango de fechas"
       },
       "filterDates": "Filtrar por fecha",
       "syncNow": "Sincronizar ahora",

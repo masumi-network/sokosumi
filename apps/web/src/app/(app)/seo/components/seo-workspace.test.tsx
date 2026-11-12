@@ -1068,6 +1068,51 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
   });
 
+  it("puts the runs on a timeline, newest on the right, with the date filter at its end", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.metrics = [seoTestMetric()];
+    const run = (observedAt: string, issues: number) => ({
+      observationId: crypto.randomUUID(),
+      kind: "audit_full",
+      observedAt: new Date(observedAt),
+      issues,
+      seconds: 600,
+    });
+    workspace.runs = [
+      run("2026-11-12T13:00:00Z", 5),
+      run("2026-11-10T09:00:00Z", 6),
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=traffic");
+    const runs = screen.getByRole("group", { name: "Checks" });
+    expect(
+      within(runs)
+        .getAllByRole("button", { pressed: undefined })
+        .map((button) => button.textContent),
+    ).toEqual(["Nov 106 issues", "Nov 125 issues", "Filter by date"]);
+    // The timeline holds the one date filter: the header and the filter block have none.
+    expect(
+      screen.getAllByRole("button", { name: "Filter by date" }),
+    ).toHaveLength(1);
+    await user.click(
+      within(runs).getByRole("button", { name: "Filter by date" }),
+    );
+    const from = screen.getByLabelText("Activity from");
+    expect(from).toHaveFocus();
+    // The fields open under the timeline, over the tabs.
+    expect(
+      runs.compareDocumentPosition(from) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("tablist").compareDocumentPosition(from) &
+        Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
+  });
+
   it("folds empty date fields opened on another tab when the Agent tab opens", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();

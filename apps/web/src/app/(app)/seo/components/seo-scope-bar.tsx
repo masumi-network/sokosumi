@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { SeoSelect } from "./seo-form-fields";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -145,10 +146,12 @@ export function SeoPagePicker({ model }: { model: SeoWorkspaceModel }) {
 export function SeoDateFilterButton({
   dateFields,
   onReveal,
+  className,
 }: {
   dateFields: ReturnType<typeof useSeoDateFields>;
   /** In the header the button stands outside the filter block, which can be folded: the caller opens it. */
   onReveal?: () => void;
+  className?: string;
 }) {
   const t = useTranslations("App.Seo");
   return (
@@ -157,7 +160,10 @@ export function SeoDateFilterButton({
       size="sm"
       aria-expanded={false}
       // Quiet as the page picker beside it: text and an icon, no box.
-      className="text-muted-foreground hover:text-foreground -my-1 h-7 gap-1 px-0 font-normal hover:bg-transparent has-[>svg]:px-0 dark:hover:bg-transparent"
+      className={cn(
+        "text-muted-foreground hover:text-foreground -my-1 h-7 gap-1 px-0 font-normal hover:bg-transparent has-[>svg]:px-0 dark:hover:bg-transparent",
+        className,
+      )}
       onClick={() => {
         dateFields.reveal();
         onReveal?.();
@@ -168,8 +174,45 @@ export function SeoDateFilterButton({
       }}
     >
       <CalendarRange className="size-4" />
-      {t("filterDates")}
+      <span>{t("filterDates")}</span>
     </Button>
+  );
+}
+
+/** The open date filter: the first and last day, and why they cannot narrow the view. */
+export function SeoDateFields({
+  model,
+  dateFields,
+}: {
+  model: SeoWorkspaceModel;
+  dateFields: ReturnType<typeof useSeoDateFields>;
+}) {
+  const t = useTranslations("App.Seo");
+  const { filters, setFilters } = model;
+  return (
+    <>
+      <PerformanceDateRange
+        idPrefix="seo-period"
+        from={filters.from ?? ""}
+        until={filters.to ?? ""}
+        fromLabel={t("dateFrom")}
+        untilLabel={t("dateTo")}
+        invalid={model.invalidDates}
+        onFromChange={(from) => {
+          dateFields.reveal();
+          void setFilters({ from: from || null });
+        }}
+        onUntilChange={(to) => {
+          dateFields.reveal();
+          void setFilters({ to: to || null });
+        }}
+      />
+      {model.invalidDates ? (
+        <p role="alert" className="text-destructive w-full text-sm">
+          {t("invalidDates")}
+        </p>
+      ) : null}
+    </>
   );
 }
 
@@ -177,11 +220,14 @@ export function SeoScopeBar({
   model,
   dateFields,
   dateButton,
+  dates,
 }: {
   model: SeoWorkspaceModel;
   dateFields: ReturnType<typeof useSeoDateFields>;
   /** False where the header line holds the closed date filter. */
   dateButton: boolean;
+  /** False where the row of runs holds the date filter. */
+  dates: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const { filters, setFilters } = model;
@@ -207,30 +253,10 @@ export function SeoScopeBar({
           />
         </div>
       ) : null}
-      {dateFields.open ? (
-        <PerformanceDateRange
-          idPrefix="seo-period"
-          from={filters.from ?? ""}
-          until={filters.to ?? ""}
-          fromLabel={t("dateFrom")}
-          untilLabel={t("dateTo")}
-          invalid={model.invalidDates}
-          onFromChange={(from) => {
-            dateFields.reveal();
-            void setFilters({ from: from || null });
-          }}
-          onUntilChange={(to) => {
-            dateFields.reveal();
-            void setFilters({ to: to || null });
-          }}
-        />
+      {!dates ? null : dateFields.open ? (
+        <SeoDateFields model={model} dateFields={dateFields} />
       ) : controls.dates && dateButton ? (
         <SeoDateFilterButton dateFields={dateFields} />
-      ) : null}
-      {model.invalidDates ? (
-        <p role="alert" className="text-destructive w-full text-sm">
-          {t("invalidDates")}
-        </p>
       ) : null}
     </div>
   );

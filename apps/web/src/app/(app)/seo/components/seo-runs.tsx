@@ -2,19 +2,41 @@
 
 import { Loader2 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
+import { cn } from "@/lib/utils";
 import { seoRunDays } from "./seo-runs-model";
+import {
+  SeoDateFields,
+  SeoDateFilterButton,
+  type useSeoDateFields,
+} from "./seo-scope-bar";
 import { seoRunProgress } from "./seo-setup-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const MINUTE_MS = 60_000;
+/** One stop of the timeline. The line runs through the middle of its dot, 7 px from the top. */
+const STOP_CLASS =
+  "relative flex min-w-24 flex-1 flex-col items-center pt-0.5 text-center";
+const LINE_CLASS = "absolute top-[7px] h-0 border-t";
 
 /**
- * The runs of the site over the tabs: one entry per day with its result, the one in view marked, and a check
- * in flight first. A press shows the page as it was on that day. One run, with none in flight, is no choice.
- * Quiet text, not a second tab bar: the tabs below are the one row of filled choices.
+ * The runs of the site over the tabs as a timeline: one stop per day with its result, oldest on the left and
+ * the newest on the right, a check in flight after it. A press shows the page as it was on that day. The date
+ * filter stands at the end of the line and opens its fields under it: both choose the time the page shows.
  */
-export function SeoRuns({ model }: { model: SeoWorkspaceModel }) {
+export function SeoRuns({
+  model,
+  dateFields,
+  dates,
+  shown,
+}: {
+  model: SeoWorkspaceModel;
+  /** The workspace decides once whether the row shows: it holds the date filter then. */
+  shown: boolean;
+  dateFields: ReturnType<typeof useSeoDateFields>;
+  /** The tab in view has data that dates narrow. */
+  dates: boolean;
+}) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
   const now = useNow({ updateInterval: MINUTE_MS });
@@ -22,79 +44,138 @@ export function SeoRuns({ model }: { model: SeoWorkspaceModel }) {
   const progress = seoRunProgress(model.data, now);
   // The way back unmounts with its line: focus moves to the newest entry.
   const newestRef = useRef<HTMLButtonElement>(null);
-  if (days.length + (progress ? 1 : 0) < 2) return null;
+  const line = useRef<HTMLOListElement>(null);
+  const pickedDay = picked ? model.filters.to : null;
+  const running = Boolean(progress);
+  // On a phone the line scrolls sideways: the newest stop starts in view at the right end.
+  useEffect(() => {
+    const bar = line.current;
+    if (bar && days.length) bar.scrollLeft = bar.scrollWidth;
+  }, [days.length, running]);
+  // A picked older day comes into view; a pick already in view does not move the line.
+  useEffect(() => {
+    const bar = line.current;
+    const stop = pickedDay
+      ? bar?.querySelector<HTMLElement>(`time[datetime="${pickedDay}"]`)
+      : null;
+    if (!bar || !stop) return;
+    const outer = bar.getBoundingClientRect();
+    const inner = stop.getBoundingClientRect();
+    if (inner.left < outer.left) bar.scrollLeft -= outer.left - inner.left;
+    else if (inner.right > outer.right)
+      bar.scrollLeft += inner.right - outer.right;
+  }, [pickedDay]);
+  if (!shown) return null;
   const dayOf = (at: Date) =>
     // The day of the filter: a run late in the evening west of UTC is on the next day.
     format.dateTime(at, { month: "short", day: "numeric", timeZone: "UTC" });
   const inView = days.find((entry) => entry.selected);
+  const stops = days.toReversed();
   return (
-    <div className="space-y-1">
-      {/* On a phone the row scrolls sideways in itself, without a scroll track. */}
+    <div className="space-y-3">
       <div
         role="group"
-        aria-labelledby="seo-runs-label"
-        className="app-scrollbar -m-1 flex items-center gap-x-4 overflow-x-auto p-1 text-sm max-sm:[scrollbar-width:none]"
+        aria-label={t("runs.label")}
+        className="flex items-start gap-x-4"
       >
-        <span id="seo-runs-label" className="text-muted-foreground shrink-0">
-          {t("runs.label")}
-        </span>
-        {progress ? (
-          <span className="relative flex h-8 shrink-0 items-center gap-1.5 overflow-hidden max-sm:h-10">
-            <Loader2
-              aria-hidden
-              className="size-4 animate-spin motion-reduce:animate-pulse"
-            />
-            {t("runs.running")}
-            {progress.minutesLeft || progress.late ? (
-              <span className="text-muted-foreground">
-                {progress.minutesLeft
-                  ? t("runs.left", { minutes: progress.minutesLeft })
-                  : t("runs.late")}
+        <ol
+          ref={line}
+          role="list"
+          // On a phone the line scrolls sideways in itself, without a scroll track.
+          className="app-scrollbar -m-1 flex min-w-0 flex-1 overflow-x-auto p-1 text-sm max-sm:[scrollbar-width:none]"
+        >
+          {stops.map((entry, index) => (
+            <li key={entry.day} className={STOP_CLASS}>
+              {index > 0 ? (
+                <span
+                  aria-hidden
+                  className={cn(LINE_CLASS, "border-border right-1/2 left-0")}
+                />
+              ) : null}
+              {index < stops.length - 1 || running ? (
+                <span
+                  aria-hidden
+                  className={cn(
+                    LINE_CLASS,
+                    "border-border right-0 left-1/2",
+                    // Dashed to the check in flight: it is not done.
+                    index === stops.length - 1 && "border-dashed",
+                  )}
+                />
+              ) : null}
+              <button
+                ref={entry.newest ? newestRef : undefined}
+                type="button"
+                aria-pressed={entry.selected}
+                // The run in view is bright with a filled dot; the others are muted.
+                className="group text-muted-foreground hover:text-foreground aria-pressed:text-foreground focus-visible:ring-ring press relative flex min-h-10 flex-col items-center rounded-sm px-2 transition-colors outline-none focus-visible:ring-2 aria-pressed:font-medium"
+                onClick={() => {
+                  void model.setFilters({
+                    from: null,
+                    to: entry.newest ? null : entry.day,
+                  });
+                }}
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    // The ring in the page colour cuts the line around the dot.
+                    "ring-background mb-1.5 size-2.5 rounded-full ring-4 transition-colors duration-150 motion-reduce:transition-none",
+                    entry.selected
+                      ? "bg-primary"
+                      : entry.inRange
+                        ? "bg-primary opacity-60"
+                        : "bg-muted-foreground group-hover:bg-foreground",
+                  )}
+                />
+                <time dateTime={entry.day}>{dayOf(entry.at)}</time>
+                {entry.inRange ? (
+                  <span className="sr-only">{t("runs.inRange")}</span>
+                ) : null}
+                {entry.issues === null ? null : (
+                  <span className="text-muted-foreground text-xs font-normal">
+                    {t("pages.issues", { count: entry.issues })}
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+          {progress ? (
+            <li className={STOP_CLASS}>
+              {stops.length ? (
+                // Dashed: the run is not done.
+                <span
+                  aria-hidden
+                  className={cn(
+                    LINE_CLASS,
+                    "border-border right-1/2 left-0 border-dashed",
+                  )}
+                />
+              ) : null}
+              <span className="relative flex min-h-10 flex-col items-center px-2">
+                <Loader2
+                  aria-hidden
+                  className="bg-background -mt-[3px] mb-1 size-4 animate-spin rounded-full motion-reduce:animate-pulse"
+                />
+                {t("runs.running")}
+                {progress.minutesLeft || progress.late ? (
+                  <span className="text-muted-foreground text-xs">
+                    {progress.minutesLeft
+                      ? t("runs.left", { minutes: progress.minutesLeft })
+                      : t("runs.late")}
+                  </span>
+                ) : null}
               </span>
-            ) : null}
-            {progress.share === null ? null : (
-              // A picture only: the running line on the Agent tab is the bar that a screen reader announces.
-              <span
-                aria-hidden
-                // Thin and muted: the 2px underline marks the run in view.
-                className="bg-muted-foreground absolute inset-x-0 bottom-0 h-px origin-left transition-transform duration-500 ease-out motion-reduce:transition-none"
-                style={{ transform: `scaleX(${progress.share})` }}
-              />
-            )}
-          </span>
+            </li>
+          ) : null}
+        </ol>
+        {dates && !dateFields.open ? (
+          // Icon only on a phone: the line needs the width. Its name stays for a screen reader.
+          <SeoDateFilterButton
+            dateFields={dateFields}
+            className="my-0 shrink-0 max-sm:min-h-10 max-sm:min-w-10 max-sm:justify-center max-sm:[&>span]:sr-only"
+          />
         ) : null}
-        {days.map((entry) => (
-          <button
-            key={entry.day}
-            ref={entry.newest ? newestRef : undefined}
-            type="button"
-            aria-pressed={entry.selected}
-            // The run in view is bright and underlined; the others are muted text.
-            className="text-muted-foreground hover:text-foreground aria-pressed:text-foreground focus-visible:ring-ring press flex min-h-8 shrink-0 items-center gap-1.5 rounded-sm transition-colors outline-none focus-visible:ring-2 aria-pressed:font-medium max-sm:min-h-10"
-            onClick={() => {
-              void model.setFilters({
-                from: null,
-                to: entry.newest ? null : entry.day,
-              });
-            }}
-          >
-            <time
-              dateTime={entry.day}
-              className={
-                entry.selected
-                  ? "underline decoration-2 underline-offset-[6px]"
-                  : undefined
-              }
-            >
-              {dayOf(entry.at)}
-            </time>
-            {entry.issues === null ? null : (
-              <span className="text-muted-foreground font-normal">
-                {t("pages.issues", { count: entry.issues })}
-              </span>
-            )}
-          </button>
-        ))}
       </div>
       {picked && inView ? (
         // An earlier check in view says so, with the way back.
@@ -111,6 +192,11 @@ export function SeoRuns({ model }: { model: SeoWorkspaceModel }) {
             {t("runs.latest")}
           </button>
         </p>
+      ) : null}
+      {dateFields.open ? (
+        <div className="flex flex-wrap items-end gap-3">
+          <SeoDateFields model={model} dateFields={dateFields} />
+        </div>
       ) : null}
     </div>
   );

@@ -64,7 +64,7 @@ import { SeoPageChangeDialog } from "./seo-page-change-dialog";
 import { SeoPageError } from "./seo-page-error";
 import { SeoRankings } from "./seo-rankings";
 import { SeoRuns } from "./seo-runs";
-import { seoRunDays } from "./seo-runs-model";
+import { seoRunDays, seoRunsRow } from "./seo-runs-model";
 import {
   SeoDateFilterButton,
   SeoPagePicker,
@@ -72,7 +72,7 @@ import {
   seoScopeControls,
   useSeoDateFields,
 } from "./seo-scope-bar";
-import { seoRunAction, seoSetup } from "./seo-setup-model";
+import { seoCheckRunning, seoRunAction, seoSetup } from "./seo-setup-model";
 import { SeoEmpty, SeoPageLink } from "./seo-shared";
 import { SeoStatisticsDialog } from "./seo-statistics-dialog";
 import { SeoTraffic } from "./seo-traffic";
@@ -116,7 +116,10 @@ export function SeoWorkspace({
   const editScope = Boolean(
     model.data.scope.id && model.data.availableActions.canEdit,
   );
-  const picked = seoRunDays(model.data, model.filters).picked;
+  const runDays = seoRunDays(model.data, model.filters);
+  const picked = runDays.picked;
+  // The timeline of runs holds the date filter: both choose the time the page shows.
+  const runsRow = seoRunsRow(runDays.days, seoCheckRunning(model.data));
   const dateFields = useSeoDateFields({
     filters: model.filters,
     dates: controls.dates,
@@ -127,8 +130,7 @@ export function SeoWorkspace({
   // the tabs: one line more in the header of the dated tabs only would move the tab row from tab to tab.
   const showFilters =
     foldFilters ||
-    (controls.dates && !pagePicker) ||
-    dateFields.open ||
+    (!runsRow && ((controls.dates && !pagePicker) || dateFields.open)) ||
     editScope;
   const [filtersOpen, setFiltersOpen] = useState(
     Boolean(model.filters.from || model.filters.to) && !picked,
@@ -228,7 +230,7 @@ export function SeoWorkspace({
               // Both narrow the view, so they stand on one line.
               <div className="flex flex-wrap items-center gap-x-4">
                 <SeoPagePicker model={model} />
-                {controls.dates && !dateFields.open ? (
+                {controls.dates && !dateFields.open && !runsRow ? (
                   // Its fields open in the filter block under the tabs.
                   <SeoDateFilterButton
                     dateFields={dateFields}
@@ -401,7 +403,12 @@ export function SeoWorkspace({
         }}
         className="gap-4"
       >
-        <SeoRuns model={model} />
+        <SeoRuns
+          model={model}
+          dateFields={dateFields}
+          dates={controls.dates}
+          shown={runsRow}
+        />
         <div
           ref={tabBar}
           // On a phone the tabs fill the row; a fifth tab still scrolls, without a scroll track.
@@ -470,6 +477,7 @@ export function SeoWorkspace({
               model={model}
               dateFields={dateFields}
               dateButton={!pagePicker}
+              dates={!runsRow}
             />
             {editScope ? (
               <Button

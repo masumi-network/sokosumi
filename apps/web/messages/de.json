@@ -12049,7 +12049,8 @@
         "left": "noch etwa {minutes} Min.",
         "late": "länger als üblich",
         "earlier": "Du siehst eine ältere Prüfung ({day}).",
-        "latest": "Neueste Prüfung zeigen"
+        "latest": "Neueste Prüfung zeigen",
+        "inRange": "im Zeitraum"
       },
       "filterDates": "Nach Datum filtern",
       "syncNow": "Jetzt synchronisieren",

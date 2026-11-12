@@ -14,6 +14,8 @@ export interface SeoRunDay {
   /** The newest check of the day that tested page rules: the check the page shows when this day is picked. */
   check: string | null;
   selected: boolean;
+  /** Inside a range of days the reader set: a range with a start marks no one run. */
+  inRange: boolean;
   newest: boolean;
 }
 
@@ -42,6 +44,7 @@ export function seoRunDays(
         issues: null,
         check: null,
         selected: false,
+        inRange: false,
         newest: days.size === 0,
       });
     // The newest check of the day that tested rules gives the count, or none where it read only some pages.
@@ -61,11 +64,19 @@ export function seoRunDays(
       ? all.find((entry) => entry.day <= to)
       : all[0];
   if (selected) selected.selected = true;
+  if (from)
+    for (const entry of all)
+      entry.inRange = entry.day >= from && (!to || entry.day <= to);
   return {
     days: all.filter((entry, index) => index < SEO_RUN_DAYS || entry.selected),
     /** The end date is the pick of an older run, not a date the reader set in the date fields. */
     picked: Boolean(selected && !selected.newest && selected.day === to),
   };
+}
+
+/** The row of runs shows with two entries at least: one run, with none in flight, is no choice. */
+export function seoRunsRow(days: SeoRunDay[], running: boolean) {
+  return days.length + (running ? 1 : 0) >= 2;
 }
 
 /**
