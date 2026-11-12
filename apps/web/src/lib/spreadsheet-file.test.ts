@@ -113,6 +113,33 @@ describe("readSpreadsheet", () => {
     expect(sheet.rows[1][1].numeric).toBe(true);
   });
 
+  it("brings a chart Google Sheets exported as a picture", async () => {
+    const zip = await JSZip.loadAsync(
+      await workbook({
+        Model: `<row r="1"><c r="A1"><v>1</v></c></row>`,
+        Chart: "",
+      }),
+    );
+    zip.file(
+      "xl/worksheets/_rels/sheet2.xml.rels",
+      `<Relationships><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>`,
+    );
+    zip.file(
+      "xl/drawings/_rels/drawing1.xml.rels",
+      `<Relationships><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/Chart1.png"/></Relationships>`,
+    );
+    zip.file("xl/media/Chart1.png", new Uint8Array([137, 80, 78, 71]));
+
+    const [model, chart] = await readSpreadsheet(
+      "xlsx",
+      await zip.generateAsync({ type: "arraybuffer" }),
+    );
+
+    expect(model.images).toEqual([]);
+    expect(chart.rows).toEqual([]);
+    expect(chart.images).toEqual(["data:image/png;base64,iVBORw=="]);
+  });
+
   it("refuses a file that is not a workbook", async () => {
     const zip = await new JSZip().generateAsync({ type: "arraybuffer" });
     await expect(readSpreadsheet("xlsx", zip)).rejects.toThrow();

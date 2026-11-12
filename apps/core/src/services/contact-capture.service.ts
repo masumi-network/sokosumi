@@ -211,6 +211,13 @@ interface SourceCursor {
   followsAt?: string;
   /** The followers page still to read; set until all were read. */
   followersToken?: string | null;
+  /**
+   * Every follower was read once; a later walk stops at a page of people who
+   * were all contacts before it began.
+   */
+  followersWalked?: boolean;
+  /** When the current walk began at the newest follower. */
+  followersWalkFrom?: string;
   /** Provider lacks a needed tool: left alone until then. */
   pausedUntil?: string;
 }
@@ -1381,7 +1388,9 @@ export class ContactCaptureService {
   /**
    * X keeps about 30 days of DMs, so there is no long backfill: every hour
    * the newest pages back to `since` (the first run reads all it has). Once
-   * a day, followers become contacts, newest first.
+   * a day, followers become contacts, newest first: X bills every follower a
+   * page returns, so a long walk goes on a few pages a day, and after one
+   * full walk a walk ends at the first page it has nothing new on.
    */
   private async captureX(
     context: RunContext,
@@ -1396,9 +1405,8 @@ export class ContactCaptureService {
     const dmsDue =
       cursor.backfillUntil !== null ||
       now.getTime() - since.getTime() >= this.limits.xIntervalMs;
-    // An unfinished followers walk goes on every run; a new one daily.
+    // A day's walk, new or unfinished, at most once a day.
     const followsDue =
-      !!cursor.followersToken ||
       !cursor.followsAt ||
       now.getTime() - new Date(cursor.followsAt).getTime() >=
         this.limits.xFollowsIntervalMs;
@@ -1491,8 +1499,11 @@ export class ContactCaptureService {
 
   /**
    * Walks the owner's followers from where the last run stopped, a page at a
-   * time. A page is read again when the run's write budget ends inside it;
-   * followers already on a contact are passed over, so that costs nothing.
+   * time, at most `xFollowPages` pages a day. A page is read again when the
+   * run's write budget ends inside it. After one full walk, a new one stops at
+   * the first page whose people were all contacts before it began: X lists
+   * followers newest first, so everyone after them was read before. People a
+   * walk adds itself, or who only became contacts from a DM, keep it going.
    */
   private async readXFollowers(
     context: RunContext,
@@ -1507,6 +1518,17 @@ export class ContactCaptureService {
       index ??= personNameIndex(context.actor.workspaceId);
       return index;
     };
+    // Before `followersWalked` existed, `followsAt` was set only by a finished
+    // walk.
+    cursor.followersWalked ??= Boolean(cursor.followsAt);
+    if (!cursor.followersToken)
+      cursor.followersWalkFrom = context.now.toISOString();
+    const walkFrom = new Date(
+      cursor.followersWalkFrom ?? context.now.toISOString(),
+    );
+    // Today's walk, however far it gets.
+    cursor.followsAt = context.now.toISOString();
+    await save();
     for (let page = 0; page < this.limits.xFollowPages; page += 1) {
       if (budget.calls <= 0 || !this.canRead(context)) return;
       const token = cursor.followersToken ?? null;
@@ -1521,14 +1543,19 @@ export class ContactCaptureService {
       const followers = result.items.flatMap(
         (raw) => parseXFollower(raw) ?? [],
       );
-      const done = await this.addXFollowers(context, followers, names);
+      const { done, settled } = await this.addXFollowers(
+        context,
+        followers,
+        names,
+        walkFrom,
+      );
       await recordXFollowerCounts(context.actor.workspaceId, followers);
       if (!done) return;
-      cursor.followersToken = result.nextToken;
-      // Only a finished walk waits a day; an unfinished one goes on next run.
-      if (!result.nextToken) cursor.followsAt = context.now.toISOString();
+      const caughtUp = cursor.followersWalked === true && settled;
+      cursor.followersToken = caughtUp ? null : result.nextToken;
+      if (!result.nextToken) cursor.followersWalked = true;
       await save();
-      if (!result.nextToken) return;
+      if (caughtUp || !result.nextToken) return;
     }
   }
 
@@ -1536,28 +1563,38 @@ export class ContactCaptureService {
    * Each follower who looks like a person joins the contact they certainly
    * are (`matchFollower`), or becomes a new contact in the "X followers"
    * list. Their bio stands in for the summary, so the model never enriches
-   * them. False when the write budget ran out first.
+   * them. `done` is false when the write budget ran out first; `settled` when
+   * the page has people and every one was a contact before `walkFrom`.
    */
   private async addXFollowers(
     context: RunContext,
     followers: readonly XFollower[],
     names: () => Promise<Map<string, string[]>>,
-  ): Promise<boolean> {
+    walkFrom: Date,
+  ): Promise<{ done: boolean; settled: boolean }> {
     const { actor } = context;
     const handleOf = (follower: XFollower) =>
       normalizeContactChannelValue("X", follower.username) ?? "";
-    const linked = new Set(
-      (
-        await prisma.contactChannel.findMany({
-          where: {
-            workspaceId: actor.workspaceId,
-            type: "X",
-            value: { in: followers.map(handleOf) },
-          },
-          select: { value: true },
-        })
-      ).map((channel) => channel.value),
+    const channels = await prisma.contactChannel.findMany({
+      where: {
+        workspaceId: actor.workspaceId,
+        type: "X",
+        value: { in: followers.map(handleOf) },
+      },
+      select: { value: true, createdAt: true },
+    });
+    const linked = new Set(channels.map((channel) => channel.value));
+    const before = new Set(
+      channels
+        .filter((channel) => channel.createdAt < walkFrom)
+        .map((channel) => channel.value),
     );
+    const people = followers.filter(
+      (follower) => linked.has(handleOf(follower)) || !isLikelyBot(follower),
+    );
+    const settled =
+      people.length > 0 &&
+      people.every((follower) => before.has(handleOf(follower)));
     const open = followers.filter((follower) => {
       if (linked.has(handleOf(follower))) return false;
       if (!isLikelyBot(follower)) return true;
@@ -1565,7 +1602,7 @@ export class ContactCaptureService {
         (context.stats.skipped.bot_user ?? 0) + 1;
       return false;
     });
-    if (open.length === 0) return true;
+    if (open.length === 0) return { done: true, settled };
     const index = await names();
     const bucketOf = (follower: XFollower) =>
       index.get(followerNameKey(follower.name ?? "") ?? "") ?? [];
@@ -1594,7 +1631,7 @@ export class ContactCaptureService {
     );
     for (const follower of open) {
       if (context.budget.captures <= 0 || !context.shouldContinue())
-        return false;
+        return { done: false, settled };
       context.budget.captures -= 1;
       const profile = `https://x.com/${follower.username}`;
       const fields = {
@@ -1668,7 +1705,7 @@ export class ContactCaptureService {
         if (!isConflict(error)) throw error;
       }
     }
-    return true;
+    return { done: true, settled };
   }
 }
 
