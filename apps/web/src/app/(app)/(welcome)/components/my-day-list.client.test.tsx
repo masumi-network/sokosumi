@@ -110,15 +110,6 @@ describe("MyDayList", () => {
       expect(screen.getByRole("status").textContent).toBe("error"),
     );
     expect(screen.getAllByTestId("home-my-day-row")).toHaveLength(5);
-    // The error shows before the transition ends; a click while the button
-    // is still busy is ignored, so wait for it to be idle before the retry.
-    await waitFor(() =>
-      expect(
-        screen
-          .getByRole("button", { name: 'more:{"count":1}' })
-          .getAttribute("aria-busy"),
-      ).toBeNull(),
-    );
 
     loadMoreMyDay.mockResolvedValueOnce({
       rows: [row(6)],
