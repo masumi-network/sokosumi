@@ -118,6 +118,150 @@ describe("X image upload failures", () => {
     },
   );
 
+  it.each([
+    (problem: Record<string, unknown>) => problem,
+    (problem: Record<string, unknown>) => JSON.stringify(problem),
+    (problem: Record<string, unknown>) => ({
+      data: { error: JSON.stringify({ response: problem }) },
+    }),
+    (problem: Record<string, unknown>) => ({ errors: [problem] }),
+  ])("preserves only allowlisted X problem diagnostics", async (wrap) => {
+    const { projectComposioResponse } = await import("./composio.client");
+    const body = wrap({
+      type: "https://api.x.com/2/problems/invalid-request",
+      title: "Invalid Request",
+      status: 400,
+      detail: "One or more parameters to your request was invalid.",
+      errors: [
+        {
+          message: "media contains private-error-value",
+          parameters: { media: "private-parameter-value" },
+        },
+      ],
+      request: { title: "private-request-value" },
+    });
+    const failure = await projectComposioResponse(
+      Response.json(body, { status: 400 }),
+      "upload X image",
+    ).catch((error: unknown) => error);
+    expect(failure).toMatchObject({
+      message:
+        "X could not upload the image (400, invalid-request): The image upload request has invalid parameters. Try again or use a different image.",
+      httpStatus: 400,
+      body: undefined,
+    });
+    expect(logSetMock).toHaveBeenCalledWith({
+      composio: expect.objectContaining({
+        providerStatus: 400,
+        problem: { type: "invalid-request", title: "Invalid Request" },
+        reason:
+          "The image upload request has invalid parameters. Try again or use a different image.",
+      }),
+    });
+    const retained = JSON.stringify([failure, logSetMock.mock.calls]);
+    expect(retained).not.toContain("private-");
+    expect(retained).not.toContain("One or more parameters");
+    expect(retained).not.toContain("https://api.x.com");
+  });
+
+  it("drops free-form problem titles, types, statuses and validation values", async () => {
+    const { composioXImageUploadFailure, projectComposioResponse } =
+      await import("./composio.client");
+    const body = {
+      error: {
+        title: "private-title",
+        type: "https://api.x.com/2/problems/private-type",
+        status: "400 private-status",
+        detail: "private-detail",
+        errors: [{ input: "private-input", parameters: "private-parameters" }],
+      },
+    };
+    expect(composioXImageUploadFailure(body)).toEqual({
+      reason:
+        "The upload service could not accept the image. Try again or use a different image.",
+      message:
+        "X could not upload the image: The upload service could not accept the image. Try again or use a different image.",
+      status: null,
+    });
+    const failure = await projectComposioResponse(
+      Response.json(body, { status: 400 }),
+      "upload X image",
+    ).catch((error: unknown) => error);
+    expect(JSON.stringify([failure, logSetMock.mock.calls])).not.toContain(
+      "private-",
+    );
+  });
+
+  it.each([
+    [401, "unauthorized"],
+    [429, "rate limit"],
+    [408, "timed out"],
+    [504, "timed out"],
+  ])(
+    "uses nested provider status %s for its safe reason",
+    async (status, reason) => {
+      const { composioXImageUploadFailure } = await import("./composio.client");
+      const failure = composioXImageUploadFailure(
+        {
+          status: 400,
+          data: JSON.stringify({ error: { response: { status } } }),
+        },
+        400,
+      );
+      expect(failure.status).toBe(status);
+      expect(failure.reason).toContain(reason);
+    },
+  );
+
+  it.each([401, 429, 503])(
+    "retains provider status %s separately from an HTTP 400 wrapper",
+    async (providerStatus) => {
+      const { projectComposioResponse } = await import("./composio.client");
+      const failure = await projectComposioResponse(
+        Response.json(
+          {
+            error: {
+              response: JSON.stringify({
+                status: providerStatus,
+                request: { token: "private-request-token" },
+              }),
+            },
+          },
+          { status: 400 },
+        ),
+        "upload X image",
+      ).catch((error: unknown) => error);
+      expect(failure).toMatchObject({
+        httpStatus: 400,
+        providerStatus,
+        body: undefined,
+        message: expect.stringContaining(`(${providerStatus})`),
+      });
+      expect(logSetMock).toHaveBeenCalledWith({
+        composio: expect.objectContaining({
+          upstreamStatus: 400,
+          providerStatus,
+        }),
+      });
+      expect(JSON.stringify([failure, logSetMock.mock.calls])).not.toContain(
+        "private-request-token",
+      );
+    },
+  );
+
+  it("does not label a 403 parameter rejection as unauthorized", async () => {
+    const { composioXImageUploadFailure } = await import("./composio.client");
+    expect(
+      composioXImageUploadFailure({
+        status: 403,
+        type: "https://api.x.com/2/problems/invalid-request",
+        title: "Invalid Request",
+      }).reason,
+    ).toBe(
+      "The image upload request has invalid parameters. Try again or use a different image.",
+    );
+  });
+
   it("never retains secrets echoed inside a recognized provider message", async () => {
     const { projectComposioResponse } = await import("./composio.client");
     const secrets = ["short-secret", "bare-private-value", "alice@example.com"];

@@ -34,6 +34,7 @@ export function SocialPostComposerMedia({
           {media.map((ref) => (
             <FileChipMiniPreview
               key={ref.pathname}
+              className="[&_img]:object-contain"
               fileName={ref.name}
               mediaType={ref.mimeType}
               onRemove={disabled ? undefined : () => onRemove(ref.pathname)}

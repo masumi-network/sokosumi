@@ -5255,7 +5255,7 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.getByTestId("social-posts-section-drafts"),
     ).not.toHaveTextContent("Scheduled text");
-    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -5600,7 +5600,7 @@ describe("ProjectSocialPosts", () => {
     expect(updateProjectSocialPost).not.toHaveBeenCalled();
   });
 
-  it("reports quotes moved while rescheduling from the preview and refreshes the calendar", async () => {
+  it("reports quotes moved while rescheduling from the preview without a second page render", async () => {
     freezeClock();
     const user = userEvent.setup();
     vi.mocked(scheduleProjectSocialPost).mockResolvedValue({
@@ -5651,7 +5651,7 @@ describe("ProjectSocialPosts", () => {
     expect(toastSuccessMock).toHaveBeenCalledWith(
       "Also moved 1 quote to keep it after this post",
     );
-    expect(refreshMock).toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("names a time that is too soon next to When", async () => {
@@ -5800,7 +5800,7 @@ describe("ProjectSocialPosts", () => {
       });
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Post canceled.");
-    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(refreshMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("social-posts-selected"),
@@ -6574,7 +6574,7 @@ describe("ProjectSocialPosts", () => {
       });
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Post published.");
-    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(refreshMock).not.toHaveBeenCalled();
     await waitFor(() => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
@@ -6629,7 +6629,7 @@ describe("ProjectSocialPosts", () => {
         "Also moved 1 quote to keep it after this post",
       ),
     );
-    expect(refreshMock).toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("stays on Needs attention after a retry when other posts still need it", async () => {

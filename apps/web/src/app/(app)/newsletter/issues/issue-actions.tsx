@@ -6,7 +6,6 @@ import type {
 } from "@sokosumi/core-client";
 import { CalendarClock, Check, Send } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { SocialPostSchedulePicker } from "@/app/projects/components/social-posts/social-post-schedule-picker";
@@ -63,7 +62,6 @@ export function IssueActions({
 }: IssueActionsProps) {
   const t = useTranslations("App.Projects.Newsletter.Issues.Lifecycle");
   const format = useFormatter();
-  const router = useRouter();
   const [pending, setPending] = useState<IssueAction | null>(null);
   const [dialog, setDialog] = useState<
     "schedule" | "sendNow" | "cancel" | null
@@ -131,7 +129,6 @@ export function IssueActions({
       }
       onChanged?.(result.value);
       setDialog(null);
-      router.refresh();
     } catch {
       setError(t("error"));
     } finally {
