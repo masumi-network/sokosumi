@@ -15,6 +15,8 @@ import {
   SeoSection,
   SeoSource,
   SeoState,
+  seoPagePath,
+  seoSiteUrl,
 } from "./seo-shared";
 import {
   latestSeoMeasurements,
@@ -41,6 +43,15 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
     value ? format.dateTime(new Date(value), { dateStyle: "medium" }) : null;
   // The tests tile over this list dates the last check. A row repeats a date only when its check is of another day.
   const tileDay = seoDay(seoSummary(model.data).tests?.observedAt);
+  const site = seoSiteUrl(model.data);
+  // A page with no name of its own: the home page has the name the other tabs give it, so an issue row that
+  // says "Home page" points at a row of this list. Another page without a name has its address only.
+  const pageName = (page: { label: string; url: string }) =>
+    page.label && page.label !== page.url
+      ? page.label
+      : site && seoPagePath(page.url, site) === "/"
+        ? t("pages.home")
+        : null;
   // Known issues stay visible; an incomplete check adds its note.
   const pageResult = (summary: { issues: number; incomplete: boolean }) =>
     [
@@ -133,14 +144,14 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                         : [];
                     })
                   : [];
-              const named = Boolean(page.label && page.label !== page.url);
+              const name = pageName(page);
               return (
                 <li key={page.id} className="space-y-1 px-4 py-3">
                   {/* The badge shares the first line, so the address under a name has the width of the row. */}
                   <div className="flex items-start justify-between gap-3">
-                    {named ? (
+                    {name ? (
                       <h3 className="min-w-0 text-sm font-medium break-words">
-                        {page.label}
+                        {name}
                       </h3>
                     ) : (
                       <SeoPageLink url={page.url} />
@@ -150,12 +161,12 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                       <SeoState>{t("related")}</SeoState>
                     ) : null}
                   </div>
-                  {named ? <SeoPageLink url={page.url} /> : null}
+                  {name ? <SeoPageLink url={page.url} /> : null}
                   {/* With one primary page the badge says what the page is related to, unless its parent is another page. */}
                   {parent &&
                   (primaryPages > 1 || parent.relationship !== "primary") ? (
                     <p className="text-muted-foreground text-sm">
-                      {t("relatedTo")}: {parent.label || parent.url}
+                      {t("relatedTo")}: {pageName(parent) ?? parent.url}
                     </p>
                   ) : null}
                   {summary ? (

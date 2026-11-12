@@ -289,6 +289,7 @@ export function SeoPageLink({
   label,
   site,
   clamp = false,
+  quiet = false,
 }: {
   url: string;
   label?: string | null;
@@ -296,6 +297,8 @@ export function SeoPageLink({
   site?: string | null;
   /** On a phone the address keeps to one line and ends in dots: a path of three lines made a row 130 px high. The link opens the whole address. */
   clamp?: boolean;
+  /** A detail under a name (the page of an open action, the page of a competitor): small and muted, as the page under a keyword. */
+  quiet?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const path = site ? seoPagePath(url, site) : null;
@@ -307,7 +310,10 @@ export function SeoPageLink({
       // The break points split the text; the name stays the whole address.
       aria-label={label || url}
       title={path ? url : undefined}
-      className="inline-flex max-w-full min-w-0 items-start gap-1 text-sm underline-offset-4 hover:underline"
+      className={cn(
+        "inline-flex max-w-full min-w-0 items-start gap-1 underline-offset-4 hover:underline",
+        quiet ? "text-muted-foreground text-xs" : "text-sm",
+      )}
     >
       <bdi
         className={cn(

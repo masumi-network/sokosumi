@@ -47,9 +47,13 @@ function SeoActionCardHead({
   onToggle: (() => void) | undefined;
   children: ReactNode;
 }) {
+  // An open card has its page link directly under the title: the head ends close over it.
+  const pad = open ? "pt-3 pb-1" : "py-3";
   if (!onToggle)
     return (
-      <span className="flex items-center gap-3 px-4 py-3">{children}</span>
+      <span className={cn("flex items-center gap-3 px-4", pad)}>
+        {children}
+      </span>
     );
   return (
     <button
@@ -59,7 +63,8 @@ function SeoActionCardHead({
       onClick={onToggle}
       className={cn(
         HOLDER_ITEM_HOVER_CLASS,
-        "focus-visible:ring-ring flex w-full cursor-pointer items-center gap-3 rounded-lg px-4 py-3 text-start outline-none focus-visible:ring-2",
+        "focus-visible:ring-ring flex w-full cursor-pointer items-center gap-3 rounded-lg px-4 text-start outline-none focus-visible:ring-2",
+        pad,
       )}
     >
       {children}
@@ -164,6 +169,15 @@ export function SeoActionCard({
       </h3>
       {open ? (
         <div id={bodyId} className="space-y-2 px-4 pb-4">
+          {/* The page stays near the title: the closed row names it there, the open card links it under the
+              head. The link is no part of the head: a press on it opens the page, not the card. */}
+          <div className="flex">
+            <SeoPageLink
+              url={action.pageUrl}
+              site={seoSiteUrl(model.data)}
+              quiet
+            />
+          </div>
           {/* What the check found, where an issue is behind the action; the effect of the fix reads like a spec and waits in the details. Two lines, four on a phone; the open details show all of it. */}
           <p className="text-muted-foreground line-clamp-4 text-sm whitespace-pre-wrap break-words group-has-[details[open]]:line-clamp-none sm:line-clamp-2">
             {problem
@@ -179,7 +193,6 @@ export function SeoActionCard({
               </span>
             ) : null}
           </p>
-          <SeoPageLink url={action.pageUrl} site={seoSiteUrl(model.data)} />
           <details className="text-sm">
             <SeoFoldSummary className="py-2.5 font-medium">
               {t("actions.whyDetails")}

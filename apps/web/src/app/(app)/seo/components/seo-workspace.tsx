@@ -246,9 +246,16 @@ export function SeoWorkspace({
               ) : (
                 <Play className="size-4" />
               )}
-              {/* On the phone a running check shows its spinner only; the label names it. */}
+              {/* On the phone a running check shows its spinner only; the label names it. The phone words say
+                  what runs and are part of the label, so a voice command with the shown words finds the button. */}
               {runAudit.running ? null : (
-                <span className="sm:hidden">{t("runShort")}</span>
+                <span className="sm:hidden">
+                  {t(
+                    runAudit.kind === "audit_full"
+                      ? "runAuditShort"
+                      : "runCheckShort",
+                  )}
+                </span>
               )}
               <span className="max-sm:hidden">{t(runAudit.label)}</span>
             </Button>

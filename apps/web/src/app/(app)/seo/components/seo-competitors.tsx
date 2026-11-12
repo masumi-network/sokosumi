@@ -222,7 +222,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                         {host}
                       </p>
                       {/* The site is the line above: the page shows as its path. */}
-                      <SeoPageLink url={row.url} site={row.url} clamp />
+                      <SeoPageLink url={row.url} site={row.url} clamp quiet />
                       {mixed && !chosen(row) ? (
                         <div className="mt-1">
                           <SeoState>{t("competitors.suggested")}</SeoState>
@@ -243,7 +243,11 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                           <ul className="space-y-1 pb-1">
                             {pages.slice(1).map((page) => (
                               <li key={page.id}>
-                                <SeoPageLink url={page.url} site={page.url} />
+                                <SeoPageLink
+                                  url={page.url}
+                                  site={page.url}
+                                  quiet
+                                />
                                 {facts(page) ? (
                                   <p className="text-xs tabular-nums">
                                     {facts(page)}

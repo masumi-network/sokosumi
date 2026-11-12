@@ -85,7 +85,7 @@ function SeoAgentPanel({
   // The button that started the check leaves with the setup card. Focus that
   // fell to the page moves to the result; focus anywhere else is left alone.
   const verdict = useRef<HTMLParagraphElement>(null);
-  // On a phone the steps start more than one screen under the headline: an arrow beside the headline leads there.
+  // On a phone the steps start more than one screen under the headline: a line of the result card leads there.
   const stepList = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (checkSeen && !checkRunning && document.activeElement === document.body)
@@ -255,42 +255,11 @@ function SeoAgentPanel({
       {setup ? (
         <SeoSetupCard model={model} setup={setup} />
       ) : (
-        <div
-          className={cn(
-            HOLDER_ITEM_CLASS,
-            "content-rise relative space-y-2 p-4",
-          )}
-        >
-          {primary === -1 ? null : (
-            <Button
-              variant="ghost"
-              size="sm"
-              // In the corner of the card; the headline leaves it room on a phone.
-              className="text-muted-foreground absolute end-1 top-1 min-w-10 sm:hidden"
-              aria-label={t("agent.toSteps")}
-              onClick={() => {
-                stepList.current?.scrollIntoView({
-                  block: "start",
-                  behavior: window.matchMedia(
-                    "(prefers-reduced-motion: reduce)",
-                  ).matches
-                    ? "auto"
-                    : "smooth",
-                });
-                // A screen reader goes on from the steps, not from this button.
-                stepList.current?.focus({ preventScroll: true });
-              }}
-            >
-              <ArrowDown />
-            </Button>
-          )}
+        <div className={cn(HOLDER_ITEM_CLASS, "content-rise space-y-2 p-4")}>
           <p
             ref={verdict}
             tabIndex={-1}
-            className={cn(
-              "focus-visible:outline-ring rounded-sm text-lg font-semibold text-balance focus-visible:outline-2",
-              primary !== -1 && "max-sm:pe-8",
-            )}
+            className="focus-visible:outline-ring rounded-sm text-lg font-semibold text-balance focus-visible:outline-2"
             data-testid="seo-agent-verdict"
             // The search numbers alone name no period; the line under them does.
             aria-describedby={trafficLead ? periodId : undefined}
@@ -322,6 +291,36 @@ function SeoAgentPanel({
               <SeoDate day value={brief.lastCheck.at} />
             </p>
           ) : null}
+          {primary === -1 ? null : (
+            // On a phone the steps start more than one screen down. The headline names the result; this line
+            // names the way to its first step. At the end of the card the button hangs into the card's padding,
+            // so the card grows little; before another line it keeps the gap of the lines. On a wide screen the
+            // line is an empty box that takes back the gap before it: a hidden box would leave that gap at the
+            // end of the card.
+            <div className="max-sm:last:-mb-2 sm:-mt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                // The words start at the text edge of the card.
+                className="-ms-2.5 sm:hidden"
+                onClick={() => {
+                  stepList.current?.scrollIntoView({
+                    block: "start",
+                    behavior: window.matchMedia(
+                      "(prefers-reduced-motion: reduce)",
+                    ).matches
+                      ? "auto"
+                      : "smooth",
+                  });
+                  // A screen reader goes on from the steps, not from this button.
+                  stepList.current?.focus({ preventScroll: true });
+                }}
+              >
+                {t("agent.toSteps")}
+                <ArrowDown />
+              </Button>
+            </div>
+          )}
           <SeoStrategyLine strategy={model.data.strategy} />
           {traffic ? (
             // The link is its own item: when it wraps, no separator leads its line.

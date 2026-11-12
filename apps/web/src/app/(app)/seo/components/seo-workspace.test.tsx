@@ -1407,6 +1407,47 @@ describe("SEO workspace integration", () => {
     },
   );
 
+  it("names a Health page row without a name of its own only when it is the home page", () => {
+    const workspace = seoTestWorkspace();
+    workspace.findings = [];
+    // A page added without a name has its address as its label.
+    workspace.pages[0].label = workspace.pages[0].url;
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: crypto.randomUUID(),
+      url: "https://example.com/blog",
+      label: "https://example.com/blog",
+      relationship: "related",
+    });
+    // The root of another site is not the home page of this one.
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: crypto.randomUUID(),
+      url: "https://other.example/",
+      label: "https://other.example/",
+      relationship: "related",
+    });
+    workspace.timeline = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=health");
+    // The home page has the word the issue rows use, and its address under it.
+    const home = screen.getByRole("heading", { level: 3, name: "Home page" });
+    const homeRow = home.closest("li");
+    if (!homeRow) throw new Error("Home page row missing");
+    expect(
+      within(homeRow).getByRole("link", { name: "https://example.com/" }),
+    ).toBeVisible();
+    // Another page has no made-up name: its address is its first line.
+    const blogRow = screen
+      .getByRole("link", { name: "https://example.com/blog" })
+      .closest("li");
+    if (!blogRow) throw new Error("Blog row missing");
+    expect(within(blogRow).queryByRole("heading")).toBeNull();
+  });
+
   it("dates a Health page row only when its check is of another day than the tests tile", () => {
     const workspace = seoTestWorkspace();
     workspace.findings = [];
@@ -1512,7 +1553,8 @@ describe("SEO workspace integration", () => {
   );
 
   it.each([
-    { label: "", expected: "Related to: https://example.com/" },
+    // A home page without a name of its own has the name its own row has.
+    { label: "", expected: "Related to: Home page" },
     { label: "Home", expected: "Related to: Home" },
   ])(
     "shows the related page's parent when its label is '$label'",
@@ -4324,7 +4366,7 @@ describe("SEO workspace integration", () => {
       /^1 of 21 on the first pageResults read per keyword: 20$/,
     );
     expect(screen.getByText("The title is missing")).not.toBeVisible();
-    await user.click(screen.getByText("Why, and the evidence"));
+    await user.click(screen.getByText("Reason and evidence"));
     expect(screen.getByText("The title is missing")).toBeVisible();
     expect(screen.getByText("A descriptive search result")).toBeVisible();
     // The Actions tab is the full list of the same cards: the reasons stay closed, and its first card has the filled button.
@@ -4383,7 +4425,7 @@ describe("SEO workspace integration", () => {
     expect(
       await screen.findAllByRole("button", { name: "Create draft task" }),
     ).toHaveLength(1);
-    expect(screen.getAllByText("Why, and the evidence")).toHaveLength(1);
+    expect(screen.getAllByText("Reason and evidence")).toHaveLength(1);
     // The one proposal of the Agent tab stays open: its title is no button that could close it.
     expect(
       screen.queryByRole("button", { name: /^Fix the page title/ }),
