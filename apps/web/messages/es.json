@@ -11054,6 +11054,14 @@
         "summary": "En los primeros resultados de Google para {found} de {read, plural, one {# palabra clave comprobada} other {# palabras clave comprobadas}}",
         "firstPage": "{count} en la primera página",
         "more": "{count, plural, one {Mostrar # palabra clave más} other {Mostrar # palabras clave más}}",
+        "conversion": {
+          "title": "Probabilidad de conversión",
+          "feature": "Función: <feature></feature>",
+          "note": "La probabilidad de conversión es una estimación de la comprobación: según lo que busca la persona y lo bien que encaja tu producto. No es una tasa medida.",
+          "high": "Alta",
+          "medium": "Media",
+          "low": "Baja"
+        },
         "ideas": {
           "title": "{count, plural, one {# idea de palabra clave} other {# ideas de palabras clave}}",
           "why": "Por qué aparece",

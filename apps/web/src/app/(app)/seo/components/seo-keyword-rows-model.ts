@@ -11,6 +11,9 @@ const DEVICE_ORDER: Record<string, number> = { mobile: 0, desktop: 1 };
 /** Why a check lists a keyword it read no position for. Every other source is a keyword the check set out to read. */
 export const SEO_IDEA_SOURCES = ["gap", "opportunity"] as const;
 
+/** The order of the estimate in the Ideas list. A keyword without an estimate shares the place of "low": not judged is not worse than low. */
+const CONVERSION_ORDER = { high: 0, medium: 1, low: 2 } as const;
+
 export type SeoKeywordGroup = {
   /** Carries the row actions and the Search Console fallback; all rows of a group share one tracked state. */
   lead: Keyword;
@@ -21,12 +24,17 @@ export type SeoKeywordGroup = {
   best: number | null;
   /** Why the check lists the keyword, for an idea ("gap", "opportunity"). */
   sources: string[];
+  /** The newest estimate a check gave of how likely a searcher takes the page's action; null without one. */
+  conversion: Keyword["conversion"];
+  /** The product feature the keyword is about, in the words of the check. */
+  feature: string | null;
 };
 
 /**
  * A check reports one keyword once per device, and again as a competitor gap or an idea.
  * The lists show it once: "checked" holds tracked keywords and the keywords a check set out to read,
  * "ideas" the keywords a check only lists as a competitor gap or an opportunity.
+ * Ideas with a high or medium conversion estimate lead their list.
  */
 export function keywordGroups(rows: Keyword[]) {
   const members = new Map<string, Keyword[]>();
@@ -65,6 +73,9 @@ export function keywordGroups(rows: Keyword[]) {
     const ranks = reads.flatMap((row) =>
       row.position === null ? [] : [row.position],
     );
+    // Rows come newest first: the first estimate is the newest. Its feature goes with it,
+    // so a level never stands over the feature of another check.
+    const estimated = group.find((row) => row.conversion !== null);
     return {
       // The tracked row carries the saved choice the row actions change.
       lead: group.find((row) => row.saved) ?? reads[0] ?? group[0],
@@ -72,6 +83,8 @@ export function keywordGroups(rows: Keyword[]) {
       volume: group.find((row) => row.volume !== null)?.volume ?? null,
       best: ranks.length ? Math.min(...ranks) : null,
       sources: [...new Set(group.map((row) => row.source))],
+      conversion: estimated?.conversion ?? null,
+      feature: estimated?.feature ?? null,
     };
   });
   // Tracked keywords first, so a keyword the reader just tracked never hides behind "Show more".
@@ -81,6 +94,12 @@ export function keywordGroups(rows: Keyword[]) {
     (left.best ?? Number.POSITIVE_INFINITY) -
       (right.best ?? Number.POSITIVE_INFINITY) ||
     (right.volume ?? -1) - (left.volume ?? -1);
+  // An idea has no rank to order by. A high or medium estimate says which searches bring visitors
+  // who act, so it leads; the other ideas follow, the most searched first.
+  const estimate = (group: SeoKeywordGroup) =>
+    CONVERSION_ORDER[group.conversion ?? "low"];
+  const byConversion = (left: SeoKeywordGroup, right: SeoKeywordGroup) =>
+    estimate(left) - estimate(right) || byReach(left, right);
   // A focus keyword whose read failed is still a keyword of the check, not an idea.
   const checked = (group: SeoKeywordGroup) =>
     group.reads.length > 0 ||
@@ -90,7 +109,7 @@ export function keywordGroups(rows: Keyword[]) {
     );
   return {
     checked: groups.filter(checked).toSorted(byReach),
-    ideas: groups.filter((group) => !checked(group)).toSorted(byReach),
+    ideas: groups.filter((group) => !checked(group)).toSorted(byConversion),
   };
 }
 

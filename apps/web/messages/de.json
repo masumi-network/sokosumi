@@ -11054,6 +11054,14 @@
         "summary": "In den ersten Google-Ergebnissen für {found} von {read, plural, one {# geprüftem Keyword} other {# geprüften Keywords}}",
         "firstPage": "{count} auf der ersten Seite",
         "more": "{count, plural, one {# weiteres Keyword anzeigen} other {# weitere Keywords anzeigen}}",
+        "conversion": {
+          "title": "Conversion-Chance",
+          "feature": "Funktion: <feature></feature>",
+          "note": "Die Conversion-Chance ist eine Schätzung der Prüfung: danach, was die suchende Person will und wie gut dein Produkt dazu passt. Sie ist keine gemessene Rate.",
+          "high": "Hoch",
+          "medium": "Mittel",
+          "low": "Niedrig"
+        },
         "ideas": {
           "title": "{count, plural, one {# Keyword-Idee} other {# Keyword-Ideen}}",
           "why": "Warum es gelistet ist",

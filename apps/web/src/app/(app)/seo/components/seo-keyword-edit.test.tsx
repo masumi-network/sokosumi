@@ -603,6 +603,119 @@ describe("Keywords after a check", () => {
     expect(screen.getByRole("button", { name: "Show less" })).toHaveFocus();
   });
 
+  it("shows the conversion estimate and its feature in the lists that have one, with the note that it is an estimate", () => {
+    const { workspace } = savedKeywordWorkspace();
+    const base = {
+      ...workspace.keywords[0],
+      saved: false,
+      version: 0,
+      countryCode: "US",
+      languageCode: "en",
+    };
+    workspace.keywords = [
+      { ...base, id: "read", keyword: "battery app", source: "focus" },
+      {
+        ...base,
+        id: "alerts",
+        keyword: "low battery alert",
+        source: "opportunity",
+        volume: 50,
+        conversion: "high",
+        feature: "Low battery alerts",
+      },
+      {
+        ...base,
+        id: "gap",
+        keyword: "battery widget",
+        source: "gap",
+        volume: 900,
+      },
+    ];
+    renderWorkspace(workspace);
+    // Only the Ideas list has an estimate: the Keywords list gets no column of "Not available".
+    expect(
+      screen.getAllByRole("columnheader", { name: "Chance to convert" }),
+    ).toHaveLength(1);
+    expect(
+      screen.getAllByText(/^Chance to convert is the check's/),
+    ).toHaveLength(1);
+    const ideas = screen
+      .getByRole("heading", { name: "2 keyword ideas" })
+      .closest("section");
+    if (!ideas) throw new Error("no Ideas section");
+    const [, first, second] = within(ideas).getAllByRole("row");
+    // The estimate leads, not the searches.
+    expect(within(first).getByText("low battery alert")).toBeVisible();
+    expect(within(first).getByText("High")).toBeVisible();
+    // The feature names itself: "High 80% charge limit" would read as one value.
+    expect(first).toHaveTextContent("Feature: Low battery alerts");
+    expect(within(second).getByText("battery widget")).toBeVisible();
+    expect(within(second).getByText("Not available")).toBeVisible();
+  });
+
+  it("shows the estimate of a checked keyword, and its daily positions still span every column", async () => {
+    const user = userEvent.setup();
+    const workspace = searchQueryWorkspace();
+    if (!workspace.searchQueries) throw new Error("fixture");
+    workspace.searchQueries.keywordSeries = {
+      rowLimit: 10_000,
+      truncated: false,
+      keywords: [
+        {
+          keyword: "stablecoins",
+          points: [
+            { date: "2026-10-01", clicks: 1, impressions: 6, position: 3.2 },
+          ],
+        },
+      ],
+    };
+    workspace.keywords[0] = {
+      ...workspace.keywords[0],
+      conversion: "medium",
+      feature: "Yield tracker",
+    };
+    renderWorkspace(workspace);
+    const header = screen.getByRole("columnheader", {
+      name: "Chance to convert",
+    });
+    const table = header.closest("table");
+    if (!table) throw new Error("no Keywords table");
+    const row = within(table).getByText("Stablecoins").closest("tr");
+    if (!row) throw new Error("no keyword row");
+    expect(within(row).getByText("Medium")).toBeVisible();
+    expect(row).toHaveTextContent("Feature: Yield tracker");
+    await user.click(screen.getByRole("button", { name: "Daily positions" }));
+    const chart = screen
+      .getByRole("group", { name: "Average position for “Stablecoins”" })
+      .closest("td");
+    expect(chart).toHaveAttribute(
+      "colspan",
+      // The chart holds a table of its own: count the header cells of this table only.
+      String(table.querySelectorAll(":scope > thead th").length),
+    );
+  });
+
+  it("shows no conversion column for a check without an estimate", () => {
+    const { workspace } = savedKeywordWorkspace();
+    workspace.keywords = [
+      {
+        ...workspace.keywords[0],
+        id: "gap",
+        saved: false,
+        version: 0,
+        source: "gap",
+      },
+    ];
+    renderWorkspace(workspace);
+    expect(
+      screen.getByRole("heading", { name: "1 keyword idea" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("columnheader", { name: "Chance to convert" }),
+    ).toBeNull();
+    expect(screen.queryByText(/^Chance to convert is the check's/)).toBeNull();
+  });
+
   it("dates a row from an older check and names an idea's market when the markets differ", () => {
     const { workspace } = savedKeywordWorkspace();
     const [saved] = workspace.keywords;

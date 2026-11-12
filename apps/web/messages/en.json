@@ -11054,6 +11054,14 @@
         "summary": "In Google's top results for {found} of {read, plural, one {# checked keyword} other {# checked keywords}}",
         "firstPage": "{count} on the first page",
         "more": "{count, plural, one {Show # more keyword} other {Show # more keywords}}",
+        "conversion": {
+          "title": "Chance to convert",
+          "feature": "Feature: <feature></feature>",
+          "note": "Chance to convert is the check's estimate, from what the searcher looks for and how well your product fits. It is not a measured rate.",
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low"
+        },
         "ideas": {
           "title": "{count, plural, one {# keyword idea} other {# keyword ideas}}",
           "why": "Why it is listed",

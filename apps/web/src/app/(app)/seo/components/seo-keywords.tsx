@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
 import { SeoKeywordIdeas } from "./seo-keyword-ideas";
 import {
   keywordGroups,
@@ -121,6 +122,8 @@ export function SeoKeywords({
   // A column no row has measured only repeats "Not available"; name it once instead.
   const shown = {
     volume: checked.some((group) => group.volume !== null),
+    // Only a check that estimates conversion fills the column.
+    conversion: checked.some((group) => group.conversion !== null),
     // Where no keyword shows a page, the result line says so once; a column of "Not found" adds nothing.
     // The column also dates each row, so it stays while the reads come from more than one check.
     position: !(
@@ -153,6 +156,7 @@ export function SeoKeywords({
     Number(shown.position) +
     Number(shown.market) +
     Number(shown.volume) +
+    Number(shown.conversion) +
     Number(shown.priority);
   const first = model.data.keywords[0];
   // The bars set each keyword against the most searched one of the list.
@@ -271,6 +275,9 @@ export function SeoKeywords({
                         {t("keywords.volume")}
                       </TableHead>
                     ) : null}
+                    {shown.conversion ? (
+                      <TableHead>{t("keywords.conversion.title")}</TableHead>
+                    ) : null}
                     {shown.position ? (
                       <TableHead>{t("keywords.position")}</TableHead>
                     ) : null}
@@ -283,7 +290,8 @@ export function SeoKeywords({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map(({ lead: row, reads, volume, sources }) => {
+                  {rows.map((group) => {
+                    const { lead: row, reads, volume, sources } = group;
                     const target = model.data.pages.find(
                       (page) => page.id === row.targetPageId,
                     );
@@ -392,6 +400,12 @@ export function SeoKeywords({
                                 />
                               )}
                             </TableCell>
+                          ) : null}
+                          {shown.conversion ? (
+                            <SeoConversionCell
+                              conversion={group.conversion}
+                              feature={group.feature}
+                            />
                           ) : null}
                           {shown.position ? (
                             <TableCell
@@ -537,6 +551,7 @@ export function SeoKeywords({
                   })}
                 </TableBody>
               </Table>
+              {shown.conversion ? <SeoConversionNote /> : null}
               {hidden.length && !paidOff ? (
                 <p className="text-muted-foreground border-t px-4 py-2 text-xs">
                   {t("unmeasuredColumns", {

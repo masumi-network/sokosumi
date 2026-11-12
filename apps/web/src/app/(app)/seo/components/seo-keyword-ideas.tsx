@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
 import {
   SEO_IDEA_SOURCES,
   type SeoKeywordGroup,
@@ -27,7 +28,7 @@ import {
 } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-/** Keywords a check found but read no position for: one row each, the most searched first. */
+/** Keywords a check found but read no position for: one row each, a high or medium conversion estimate first, then the most searched. */
 export function SeoKeywordIdeas({
   model,
   ideas,
@@ -47,6 +48,8 @@ export function SeoKeywordIdeas({
       : ideas.slice(0, SEO_LIST_PAGE_SIZE);
   const shown = {
     volume: ideas.some((group) => group.volume !== null),
+    // Only a check that estimates conversion fills the column.
+    conversion: ideas.some((group) => group.conversion !== null),
   };
   const manyPages = model.data.scope.pageIds.length > 1;
   // The bars set each idea against the most searched one of the list.
@@ -79,6 +82,9 @@ export function SeoKeywordIdeas({
                   {t("keywords.volume")}
                 </TableHead>
               ) : null}
+              {shown.conversion ? (
+                <TableHead>{t("keywords.conversion.title")}</TableHead>
+              ) : null}
               <TableHead>{t("keywords.ideas.why")}</TableHead>
               <TableHead>
                 <span className="sr-only">{t("queries.rowActions")}</span>
@@ -86,7 +92,7 @@ export function SeoKeywordIdeas({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map(({ lead, volume, sources }) => (
+            {rows.map(({ lead, volume, sources, conversion, feature }) => (
               <TableRow key={lead.id}>
                 <TableCell className="min-w-48 whitespace-normal">
                   <p className="font-medium break-words">
@@ -128,7 +134,13 @@ export function SeoKeywordIdeas({
                     )}
                   </TableCell>
                 ) : null}
-                {/* On a phone the reason follows the number on one line: muted, so the two do not read as one phrase. */}
+                {shown.conversion ? (
+                  <SeoConversionCell
+                    conversion={conversion}
+                    feature={feature}
+                  />
+                ) : null}
+                {/* On a phone the reason follows the number or the estimate on one line: muted, so the two do not read as one phrase. */}
                 <TableCell className="max-sm:text-muted-foreground whitespace-normal">
                   {format.list(
                     SEO_IDEA_SOURCES.filter((source) =>
@@ -156,6 +168,7 @@ export function SeoKeywordIdeas({
             ))}
           </TableBody>
         </Table>
+        {shown.conversion ? <SeoConversionNote /> : null}
       </div>
       {ideas.length > SEO_LIST_PAGE_SIZE && !model.keywordSearch ? (
         <SeoShowMore

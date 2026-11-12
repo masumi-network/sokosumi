@@ -100,6 +100,58 @@ describe("SEO keyword rows", () => {
     ]);
   });
 
+  it("puts ideas with a high or medium conversion estimate first, and keeps the checked order by rank", () => {
+    const idea = (keyword: string, patch: Partial<Keyword>) =>
+      row({ keyword, source: "opportunity", ...patch });
+    const { checked, ideas } = keywordGroups([
+      idea("most searched", { volume: 900 }),
+      idea("low", { volume: 500, conversion: "low" }),
+      idea("high small", {
+        volume: 50,
+        conversion: "high",
+        feature: "Low battery alerts",
+      }),
+      idea("high big", { volume: 70, conversion: "high" }),
+      // A newer check that gives no estimate lists the keyword first: the estimate of the other row stays.
+      // It has more searches than both "high" ideas: only the level puts it after them.
+      row({ keyword: "medium", source: "gap", volume: 80 }),
+      idea("medium", { volume: 80, conversion: "medium" }),
+      // An older check named a feature; the newest estimate names none, so none shows.
+      idea("medium", { conversion: "high", feature: "Older feature" }),
+      row({
+        keyword: "rank 8",
+        positionStatus: "ranked",
+        position: 8,
+        conversion: "high",
+      }),
+      row({ keyword: "rank 3", positionStatus: "ranked", position: 3 }),
+    ]);
+    expect(ideas.map((group) => group.lead.keyword)).toEqual([
+      "high big",
+      "high small",
+      "medium",
+      // No estimate is not worse than "low": the two share a place, the most searched first.
+      "most searched",
+      "low",
+    ]);
+    expect(ideas[1]).toMatchObject({
+      conversion: "high",
+      feature: "Low battery alerts",
+    });
+    expect(ideas[2]).toMatchObject({
+      conversion: "medium",
+      feature: null,
+      sources: ["gap", "opportunity"],
+    });
+    expect(ideas[3]).toMatchObject({ conversion: null, feature: null });
+    // A read keyword shows its estimate; its place is still by rank.
+    expect(checked.map((group) => group.lead.keyword)).toEqual([
+      "rank 3",
+      "rank 8",
+    ]);
+    expect(checked[1].conversion).toBe("high");
+  });
+
   it("keeps a tracked keyword first and a failed read out of the ideas", () => {
     const { checked, ideas } = keywordGroups([
       row({ keyword: "rank 3", positionStatus: "ranked", position: 3 }),
