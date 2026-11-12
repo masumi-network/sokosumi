@@ -18,15 +18,20 @@ import {
   unpinRoomMessageAction,
 } from "@/app/chat/actions";
 import { isRoomComposerContentOverLimit } from "@/app/chat/components/room-helpers";
+import {
+  filterTopLevelChatRoomMessages,
+  isTopLevelChatRoomMessage,
+} from "@/app/chat/utils/chat-room-message-scope";
+import { keepKnownThreadUnreadReplyCount } from "@/app/chat/utils/merge-room-messages";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 
 interface RoomMessageMutationsOptions {
   /** Read at call time: the open Room is resolved after this hook runs. */
   getSelectedRoomId: () => string | undefined;
   isStillSelectedRoom: (roomId: string) => boolean;
-  mergeUpdatedMessage: (updatedMessage: ChatRoomMessage) => void;
   messagesState: readonly ChatRoomMessage[];
   setMessagesState: (update: SetStateAction<ChatRoomMessage[]>) => void;
+  setThreadMessages: Dispatch<SetStateAction<ChatRoomMessage[]>>;
   threadParentMessage: ChatRoomMessage | null;
   setThreadParentMessage: Dispatch<SetStateAction<ChatRoomMessage | null>>;
 }
@@ -35,9 +40,9 @@ interface RoomMessageMutationsOptions {
 export function useRoomMessageMutations({
   getSelectedRoomId,
   isStillSelectedRoom,
-  mergeUpdatedMessage,
   messagesState,
   setMessagesState,
+  setThreadMessages,
   threadParentMessage,
   setThreadParentMessage,
 }: RoomMessageMutationsOptions) {
@@ -60,6 +65,38 @@ export function useRoomMessageMutations({
         { pinned: boolean; echoed: boolean; done: Promise<boolean> }
       >(),
   );
+
+  function mergeUpdatedMessage(updatedMessage: ChatRoomMessage) {
+    setMessagesState((current) => {
+      // Thread replies never belong in the room list (edit/delete/reaction).
+      if (!isTopLevelChatRoomMessage(updatedMessage)) {
+        return current.filter((message) => message.id !== updatedMessage.id);
+      }
+      return filterTopLevelChatRoomMessages(
+        current.map((message) =>
+          message.id === updatedMessage.id
+            ? keepKnownThreadUnreadReplyCount(message, updatedMessage)
+            : message,
+        ),
+      );
+    });
+    // Parent lives in threadParentMessage only — never in the replies list.
+    // Purge any prior leak (e.g. pre-fix Ably merge of the root).
+    if (isTopLevelChatRoomMessage(updatedMessage)) {
+      setThreadMessages((current) =>
+        current.filter((message) => message.id !== updatedMessage.id),
+      );
+    } else {
+      setThreadMessages((current) =>
+        current.map((message) =>
+          message.id === updatedMessage.id ? updatedMessage : message,
+        ),
+      );
+    }
+    setThreadParentMessage((current) =>
+      current?.id === updatedMessage.id ? updatedMessage : current,
+    );
+  }
 
   function setRowPinned(messageId: string, pinned: boolean) {
     // Unloaded rows arrive with Core's pinnedAt. The local time stands in
@@ -284,5 +321,6 @@ export function useRoomMessageMutations({
     handleSaveEdit,
     handleRemoveUnfurl,
     handleDeleteMessage,
+    mergeUpdatedMessage,
   };
 }
