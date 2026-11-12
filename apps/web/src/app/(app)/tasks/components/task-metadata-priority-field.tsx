@@ -2,7 +2,6 @@
 
 import { TaskPriority } from "@sokosumi/core-client";
 import { Check } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
@@ -51,7 +50,6 @@ export function TaskMetadataPriorityField({
   priority,
   labels,
 }: TaskMetadataPriorityFieldProps) {
-  const router = useRouter();
   const [current, setCurrent] = useState(priority);
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -70,7 +68,6 @@ export function TaskMetadataPriorityField({
           toast.error(labels.updateError);
           return;
         }
-        router.refresh();
       } catch (error) {
         console.error("Failed to update task priority", error);
         setCurrent(previous);

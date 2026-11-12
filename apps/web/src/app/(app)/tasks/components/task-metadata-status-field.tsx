@@ -79,7 +79,6 @@ export function TaskMetadataStatusField({
           showCalendarClientUpgradeModal();
           return;
         }
-        router.refresh();
         toast.success(labels.updateStatusSuccess);
       } catch (error) {
         console.error("Failed to update task status", error);
