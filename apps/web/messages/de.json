@@ -1122,6 +1122,8 @@
       "granted": "{granted} zugeteilt, {available} verfügbar",
       "total": "Gesamt",
       "issuedShares": "Ausgegebene Anteile",
+      "reservedShares": "Für Mitarbeiterbeteiligung reserviert",
+      "unallocatedShares": "Weder ausgegeben noch reserviert",
       "authorizedShares": "Genehmigte Anteile",
       "parValue": "Nennwert"
     },

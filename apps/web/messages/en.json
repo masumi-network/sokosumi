@@ -1122,6 +1122,8 @@
       "granted": "{granted} granted, {available} available",
       "total": "Total",
       "issuedShares": "Issued shares",
+      "reservedShares": "Reserved for stock plan",
+      "unallocatedShares": "Not issued or reserved",
       "authorizedShares": "Authorized shares",
       "parValue": "Par value"
     },

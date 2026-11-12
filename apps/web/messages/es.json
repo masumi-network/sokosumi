@@ -1122,6 +1122,8 @@
       "granted": "{granted} concedidas, {available} disponibles",
       "total": "Total",
       "issuedShares": "Acciones emitidas",
+      "reservedShares": "Reservadas para el plan de acciones",
+      "unallocatedShares": "Ni emitidas ni reservadas",
       "authorizedShares": "Acciones autorizadas",
       "parValue": "Valor nominal"
     },

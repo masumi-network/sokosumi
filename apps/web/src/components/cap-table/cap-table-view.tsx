@@ -74,7 +74,13 @@ export function CapTableFileView({ url }: { url: string }) {
 export function CapTableView({ capTable }: { capTable: CapTable }) {
   const t = useTranslations("Components.CapTableView");
   const format = useFormatter();
-  const { rows, issuedShares, fullyDilutedShares } = capTableRows(capTable);
+  const {
+    rows,
+    issuedShares,
+    reservedShares,
+    fullyDilutedShares,
+    unallocatedShares,
+  } = capTableRows(capTable);
   const shares = (value: number) => format.number(value);
   const percent = (value: number) =>
     format.number(value, {
@@ -201,8 +207,17 @@ export function CapTableView({ capTable }: { capTable: CapTable }) {
         </table>
       </div>
 
-      <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
+      <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm sm:grid-cols-5">
         <Fact label={t("issuedShares")} value={shares(issuedShares)} />
+        {reservedShares > 0 ? (
+          <Fact label={t("reservedShares")} value={shares(reservedShares)} />
+        ) : null}
+        {unallocatedShares !== null ? (
+          <Fact
+            label={t("unallocatedShares")}
+            value={shares(unallocatedShares)}
+          />
+        ) : null}
         {capTable.authorizedShares ? (
           <Fact
             label={t("authorizedShares")}
@@ -223,7 +238,7 @@ export function CapTableView({ capTable }: { capTable: CapTable }) {
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid gap-0.5">
+    <div className="flex flex-col justify-between gap-0.5">
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="font-medium tabular-nums">{value}</dd>
     </div>

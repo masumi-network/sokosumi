@@ -67,11 +67,14 @@ export interface CapTableRow {
 export function capTableRows(table: CapTable): {
   rows: CapTableRow[];
   issuedShares: number;
+  reservedShares: number;
   fullyDilutedShares: number;
+  /** Authorized but neither issued nor reserved; null without a known authorization. */
+  unallocatedShares: number | null;
 } {
   const issuedShares = table.holders.reduce((sum, h) => sum + h.shares, 0);
-  const fullyDilutedShares =
-    issuedShares + table.pools.reduce((sum, p) => sum + p.reserved, 0);
+  const reservedShares = table.pools.reduce((sum, p) => sum + p.reserved, 0);
+  const fullyDilutedShares = issuedShares + reservedShares;
   const rows: CapTableRow[] = [
     ...table.holders.map((holder) => ({
       name: holder.name,
@@ -92,5 +95,14 @@ export function capTableRows(table: CapTable): {
       pool: true,
     })),
   ];
-  return { rows, issuedShares, fullyDilutedShares };
+  return {
+    rows,
+    issuedShares,
+    reservedShares,
+    fullyDilutedShares,
+    unallocatedShares:
+      table.authorizedShares === undefined
+        ? null
+        : table.authorizedShares - fullyDilutedShares,
+  };
 }

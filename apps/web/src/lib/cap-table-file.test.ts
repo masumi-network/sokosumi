@@ -42,10 +42,18 @@ describe("capTableRows", () => {
   it("splits ownership of issued stock and of the fully diluted count", () => {
     const table = parseCapTable(sumico);
     if (!table) throw new Error("fixture must parse");
-    const { rows, issuedShares, fullyDilutedShares } = capTableRows(table);
+    const {
+      rows,
+      issuedShares,
+      reservedShares,
+      fullyDilutedShares,
+      unallocatedShares,
+    } = capTableRows(table);
 
     expect(issuedShares).toBe(7_000_000);
+    expect(reservedShares).toBe(2_000_000);
     expect(fullyDilutedShares).toBe(9_000_000);
+    expect(unallocatedShares).toBe(1_000_000);
     expect(
       rows.map((row) => [
         row.name,
