@@ -698,7 +698,7 @@ describe("SEO workspace integration", () => {
     ).toBe(true);
     // The fold counts suggestions apart from notes, as the Agent tab does.
     expect(details.querySelector("summary")).toHaveTextContent(
-      /1 suggestion\s*2 notes$/,
+      /1 suggestion\s*·\s*2 notes$/,
     );
     // Rows from different checks keep their own date.
     expect(within(details).queryByText(/From the check on/)).toBeNull();

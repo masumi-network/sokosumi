@@ -379,7 +379,7 @@ function StrategyActionBody({
                 key={`${index}:${target.url}`}
                 className="flex flex-wrap items-baseline gap-x-2"
               >
-                <SeoPageLink url={target.url} label={target.title} />
+                <SeoPageLink quiet url={target.url} label={target.title} />
                 {notes.length ? (
                   <span className="text-muted-foreground text-xs">
                     {notes.join(" · ")}

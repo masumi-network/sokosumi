@@ -304,6 +304,65 @@ describe("SEO timeline recovery", () => {
     expect(screen.getByText("Statistics sync failed")).toBeVisible();
   });
 
+  it("leaves History out while the runs row opens each check in it", () => {
+    const workspace = seoTestWorkspace();
+    const check = (id: string, day: number, hour = 10) => ({
+      id,
+      kind: "page_check" as const,
+      source: "agent" as const,
+      observedAt: new Date(
+        `2026-11-0${day}T${String(hour).padStart(2, "0")}:00:00Z`,
+      ),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: `${id}-task`,
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop" as const],
+      rulebookVersion: "test-rules",
+      artifactHash: id,
+      issues: 1,
+      coverage: { checked: 12, skipped: 0, failed: 0 },
+    });
+    const show = (checks: ReturnType<typeof check>[]) => {
+      workspace.observations = checks;
+      workspace.timeline = checks.map((observation) => ({
+        id: `${observation.id}-event`,
+        kind: "check" as const,
+        title: "SEO check results imported",
+        status: "completed",
+        detail: "",
+        at: observation.observedAt,
+        pageIds: observation.pageIds,
+        taskId: observation.sourceTaskId,
+        observationId: observation.id,
+      }));
+      workspace.runs = checks.map((observation) => ({
+        observationId: observation.id,
+        kind: observation.kind,
+        observedAt: observation.observedAt,
+        issues: 1,
+        seconds: null,
+      }));
+      return render(
+        <NextIntlClientProvider
+          locale="en"
+          timeZone="UTC"
+          formats={createFormats()}
+          messages={messages}
+        >
+          <SeoTimeline workspace={workspace} summarized />
+        </NextIntlClientProvider>,
+      );
+    };
+    const covered = show([check("newest", 3), check("older", 2)]);
+    expect(screen.queryByRole("heading", { name: "History" })).toBeNull();
+    covered.unmount();
+    // A pick of Nov 2 shows its newest check: the morning check of that day is reached only here.
+    show([check("newest", 3), check("evening", 2, 18), check("morning", 2, 8)]);
+    expect(screen.getByRole("heading", { name: "History" })).toBeVisible();
+  });
+
   it("folds back-to-back clean checks of the same pages into one row", () => {
     const workspace = seoTestWorkspace();
     const check = (id: string, day: number, checked: number, issues = 0) => ({

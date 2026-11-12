@@ -26,6 +26,7 @@ import { SeoGettingStarted } from "./seo-getting-started";
 import { SeoAutomation } from "./seo-monitors";
 import { seoOverviewModel } from "./seo-overview-model";
 import { seoRarelyShown } from "./seo-performance-model";
+import { seoRunsDateCheck } from "./seo-runs-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning, seoRunLeads, seoSetup } from "./seo-setup-model";
 import {
@@ -36,7 +37,7 @@ import {
 } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
-import { seoSummary } from "./seo-summary-model";
+import { lastRuleCheck, seoSummary } from "./seo-summary-model";
 import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { useSeoAutopilot } from "./use-seo-autopilot";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -75,6 +76,11 @@ function SeoAgentPanel({
   const format = useFormatter();
   // "No issues" holds only for the newest check, and only if it measured something.
   const lastCheckMeasured = (brief.lastCheck?.checked ?? 0) > 0;
+  const runsShown = seoRunsDateCheck(
+    model.data,
+    model.filters,
+    lastRuleCheck(model.data)?.id ?? null,
+  );
   // How the pages do in search sits next to whether they are healthy.
   const traffic = seoSearchTraffic(model.data.metrics);
   const rarelyShown = Boolean(
@@ -293,7 +299,8 @@ function SeoAgentPanel({
                           ? trafficLine
                           : t("agent.verdict.noCheckOff")}
           </p>
-          {brief.lastCheck ? (
+          {/* The runs row over the tabs names the day of the check in view. */}
+          {brief.lastCheck && !runsShown ? (
             <p className="text-muted-foreground text-sm">
               {t("agent.lastCheckOn")}{" "}
               <SeoDate day value={brief.lastCheck.at} />

@@ -21,6 +21,7 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
+import { seoRunChecks } from "./seo-runs-model";
 import {
   SeoDate,
   SeoEmpty,
@@ -224,6 +225,22 @@ export function SeoTimeline({
     nodes.every(
       ({ event }) => !FLAGGED_STATUSES.has(event.status.toLowerCase()),
     );
+  // The runs row over the tabs opens each of these checks: a pick of its day shows its tests and results link.
+  // A list of the same checks would be a second way to the same thing.
+  const runChecks = seoRunChecks(workspace);
+  if (
+    folded &&
+    nodes.every(
+      ({ observation, earlier }) =>
+        observation !== undefined &&
+        observation !== null &&
+        !earlier.length &&
+        !observation.coverage.failed &&
+        !observation.coverage.modules?.failed &&
+        runChecks.has(observation.id),
+    )
+  )
+    return null;
   const visible = showAll ? nodes : nodes.slice(0, SEO_TIMELINE_VISIBLE);
   const onePage = workspace.scope.pageIds.length <= 1;
   return (

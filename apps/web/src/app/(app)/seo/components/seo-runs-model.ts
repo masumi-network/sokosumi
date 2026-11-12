@@ -11,6 +11,8 @@ export interface SeoRunDay {
   at: Date;
   /** Null where the checks of the day tested no page rules. */
   issues: number | null;
+  /** The newest check of the day that tested page rules: the check the page shows when this day is picked. */
+  check: string | null;
   selected: boolean;
   newest: boolean;
 }
@@ -38,13 +40,16 @@ export function seoRunDays(
         day,
         at: run.at,
         issues: null,
+        check: null,
         selected: false,
         newest: days.size === 0,
       });
     // The newest check of the day that tested rules gives the count, or none where it read only some pages.
     if (rule && !counted.has(day)) {
       counted.add(day);
-      days.get(day)!.issues = run.issues;
+      const entry = days.get(day)!;
+      entry.issues = run.issues;
+      entry.check = run.observationId;
     }
   }
   const all = [...days.values()];
@@ -61,4 +66,34 @@ export function seoRunDays(
     /** The end date is the pick of an older run, not a date the reader set in the date fields. */
     picked: Boolean(selected && !selected.newest && selected.day === to),
   };
+}
+
+/**
+ * The rule checks that the runs row opens, one per day it shows; none where the row shows no choice.
+ * A pick of the day shows that check in the tiles, with its day, its tests and the link to its results.
+ */
+export function seoRunChecks(workspace: Pick<ProjectSeoWorkspace, "runs">) {
+  const { days } = seoRunDays(workspace, { from: null, to: null });
+  // A check of some of the pages has no count in the row: only its own History row says what it covered.
+  return new Set(
+    days.length < 2
+      ? []
+      : days.flatMap((entry) =>
+          entry.check && entry.issues !== null ? [entry.check] : [],
+        ),
+  );
+}
+
+/** The runs row names the day of this rule check: it is the run in view, so a line with its date says it twice. */
+export function seoRunsDateCheck(
+  workspace: Pick<ProjectSeoWorkspace, "runs">,
+  filters: { from: string | null; to: string | null },
+  checkId: string | null,
+) {
+  const { days } = seoRunDays(workspace, filters);
+  return (
+    checkId !== null &&
+    days.length > 1 &&
+    days.find((entry) => entry.selected)?.check === checkId
+  );
 }

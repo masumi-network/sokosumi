@@ -10,7 +10,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
@@ -496,16 +495,16 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
             </h2>
             {suggestions || flagged ? (
               // On a phone the counts are a line of their own under the name.
-              <span className="flex flex-wrap items-center gap-1.5 max-sm:order-last max-sm:col-span-2">
+              // Plain muted counts: outlined pills read as more controls in the row.
+              <span className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 text-sm max-sm:order-last max-sm:col-span-2">
                 {suggestions ? (
-                  <Badge variant="outline" className="font-normal">
+                  <span>
                     {t("overview.suggestionCount", { count: suggestions })}
-                  </Badge>
+                  </span>
                 ) : null}
+                {suggestions && flagged ? <span aria-hidden>·</span> : null}
                 {flagged ? (
-                  <Badge variant="outline" className="font-normal">
-                    {t("overview.noteCount", { count: flagged })}
-                  </Badge>
+                  <span>{t("overview.noteCount", { count: flagged })}</span>
                 ) : null}
               </span>
             ) : null}
