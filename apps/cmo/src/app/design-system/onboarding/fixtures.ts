@@ -212,13 +212,9 @@ const briefPlan: Strategy = {
       goal: "Show a rocket at work on X, every day",
       channels: ["x"],
       metric: "Profile visits",
-      plays: [
-        {
-          channel: "x",
-          what: "Buyers trust what they see done",
-          cadence: "daily",
-        },
-      ],
+      plays: [{ channel: "x", what: "Daily launch clips", cadence: "daily" }],
+      why: "Buyers trust what they see done.",
+      basedOn: ["customers"],
     },
     {
       stage: "consideration",
@@ -226,12 +222,9 @@ const briefPlan: Strategy = {
       goal: "Compare launch kits honestly, task by task",
       channels: ["seo", "google_ads"],
       metric: "Site visits",
-      plays: [
-        {
-          channel: "seo",
-          what: "Searches for “Moonshot alternative” are where buyers decide",
-        },
-      ],
+      plays: [{ channel: "seo", what: "Comparison articles" }],
+      why: "Searches for “Moonshot alternative” are where buyers decide.",
+      basedOn: ["competition"],
     },
     {
       stage: "conversion",
@@ -239,9 +232,9 @@ const briefPlan: Strategy = {
       goal: "Let Orbit Labs and Lena Brandt vouch for you",
       channels: ["linkedin"],
       metric: "Free sign-ups",
-      plays: [
-        { channel: "linkedin", what: "Named proof is your strongest asset" },
-      ],
+      plays: [{ channel: "linkedin", what: "Customer quotes" }],
+      why: "Named proof is your strongest asset.",
+      basedOn: ["proof", "customers"],
     },
   ],
   pace: { level: "all_in", why: "Teams decide fast", perWeek: 7 },
@@ -262,6 +255,7 @@ const briefPlan: Strategy = {
       id: "pq2",
       question: "Can I quote Lena Brandt from Orbit Labs?",
       statement: "Thursday's LinkedIn post quotes Lena Brandt.",
+      entryIds: ["w1-li-thu"],
     },
     {
       id: "pq3",
@@ -302,6 +296,31 @@ const pricingBrain: NonNullable<CmoOverview["brandBrain"]> = {
     customers: {
       answer: "Product teams at large companies.",
       findings: [],
+      openQuestions: [],
+    },
+    competition: {
+      answer:
+        "Moonshot sells kits to solo builders; Orbit Labs sells to enterprises through sales.",
+      findings: [
+        {
+          point: "Moonshot leads with a launch discount.",
+          evidence: "fact",
+          confidence: "high",
+          sourceUrl: "https://moonshot.io",
+        },
+      ],
+      openQuestions: [],
+    },
+    proof: {
+      answer: "Orbit Labs and Lena Brandt's team ship with Acme every month.",
+      findings: [
+        {
+          point: "Lena Brandt is quoted on the homepage.",
+          evidence: "claim",
+          confidence: "medium",
+          sourceUrl: "https://acme.io",
+        },
+      ],
       openQuestions: [],
     },
   },
@@ -409,23 +428,16 @@ export function screenOverview(screen: Screen): CmoOverview {
         brandVisual: visual,
       });
     case "brand-fix":
+      // A general correction Cuso is still working in.
       return draft({
         ...unconfirmed,
         strategy: null,
         brandBrain: {
           ...answeredBrain,
-          profile: {
-            ...answeredBrain.profile,
-            customers: {
-              answer: "Product teams at large companies.",
-              findings: [],
-              openQuestions: [],
-              fix: {
-                note: "We sell to agencies too, not only in-house teams.",
-                at: ago(0.5).toISOString(),
-                fixed: false,
-              },
-            },
+          fix: {
+            note: "We sell to agencies too, not only in-house teams.",
+            at: ago(0.5).toISOString(),
+            fixed: false,
           },
         },
         research: research(6),
