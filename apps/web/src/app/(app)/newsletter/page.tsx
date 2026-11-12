@@ -1,7 +1,5 @@
-import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
-import { getTranslations } from "next-intl/server";
 import type { SearchParams } from "nuqs/server";
 
 import { newsletterService } from "@/lib/services/newsletter.service";
@@ -18,10 +16,7 @@ interface NewsletterPageProps {
   searchParams: Promise<SearchParams>;
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("App.Newsletter");
-  return { title: t("title") };
-}
+export { generateNewsletterMetadata as generateMetadata } from "./newsletter-project";
 
 /**
  * Newsletter, as a top-level destination like Social.

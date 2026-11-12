@@ -78,6 +78,10 @@ import {
   requireLockedOpenProject,
   requireScopedProject,
 } from "@/services/project-social-connections.service";
+import {
+  prepareSocialPostMedia,
+  requirePreparedSocialPostProvider,
+} from "@/services/social-post-media-preparation.service";
 import { resolveXSubscriptionType } from "@/services/x-subscription-tier.service";
 
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
@@ -319,6 +323,9 @@ export interface UpdateSocialPostInput
 
 export interface ScheduleSocialPostInput extends ProjectScope {
   userId: string;
+  organizationId?: string | null;
+  /** Prepared before the scheduling transaction when the target account changes. */
+  media?: SocialPostMediaRef[];
   coworkerId?: string;
   postId: string;
   scheduledAt: Date;
@@ -794,6 +801,7 @@ function normalizeSocialPostMedia(
   input: NormalizeMediaInput,
 ): SocialPostMediaRef[] {
   const provider = requireProvider(input.provider);
+  requirePreparedSocialPostProvider(input.media, provider);
   const media = input.media.map((ref): SocialPostMediaRef => {
     const fileUrl = requireWorkspaceDriveFileUrl(input, ref);
     const mimeType = ref.mimeType.trim().toLowerCase();
@@ -809,6 +817,7 @@ function normalizeSocialPostMedia(
       size: ref.size,
       mimeType,
       kind: ref.kind,
+      ...(ref.transformation ? { transformation: ref.transformation } : {}),
     };
   });
   const validation = validateSocialPostMedia(provider, media);
@@ -1068,10 +1077,103 @@ export async function getSocialPost(
   return mapSocialPost(await requireScopedPost(input, tx));
 }
 
+interface SocialPostMediaMutationInput {
+  organizationId?: string | null;
+  workspaceId: string;
+  userId: string;
+  projectId: string;
+  postId?: string;
+  socialConnectionId?: string | null;
+  media?: readonly SocialPostMediaRef[];
+  threadParts?: SocialPostThreadPartInput[];
+}
+
+/** Resolves image adaptations before opening the mutation's database transaction. */
+export async function prepareSocialPostMutationMedia<
+  T extends SocialPostMediaMutationInput,
+>(input: T): Promise<T> {
+  if (
+    input.media === undefined &&
+    input.socialConnectionId === undefined &&
+    !input.threadParts?.some((part) => part.media?.length)
+  )
+    return input;
+  await requireScopedProject(input);
+  const post = input.postId
+    ? await prisma.socialPost.findUnique({
+        where: {
+          id: input.postId,
+          projectId: input.projectId,
+          workspaceId: input.workspaceId,
+        },
+        select: {
+          id: true,
+          provider: true,
+          media: true,
+          socialConnectionId: true,
+        },
+      })
+    : null;
+  if (input.postId && !post) throw notFound("Social post not found");
+  const connectionId =
+    input.socialConnectionId !== undefined
+      ? input.socialConnectionId
+      : post?.socialConnectionId;
+  const provider = connectionId
+    ? requireProvider(
+        (await requireProjectConnection(input.projectId, connectionId, prisma))
+          .provider,
+      )
+    : post && input.socialConnectionId === undefined
+      ? requireProvider(post.provider)
+      : "x";
+  const media =
+    input.media ?? (post ? parseSocialPostMedia(post.media, post.id) : []);
+  if (
+    media.length === 0 &&
+    input.media === undefined &&
+    !input.threadParts?.some((part) => part.media?.length)
+  )
+    return input;
+  const organizationId =
+    input.organizationId !== undefined
+      ? input.organizationId
+      : (
+          await prisma.workspace.findUniqueOrThrow({
+            where: { id: input.workspaceId },
+            select: { organizationId: true },
+          })
+        ).organizationId;
+  const scope = { ...input, organizationId };
+  return {
+    ...input,
+    media: await prepareSocialPostMedia(scope, provider, media),
+    ...(input.threadParts
+      ? {
+          threadParts: await Promise.all(
+            input.threadParts.map(async (part) => ({
+              ...part,
+              ...(part.media
+                ? {
+                    media: await prepareSocialPostMedia(
+                      scope,
+                      provider,
+                      part.media,
+                    ),
+                  }
+                : {}),
+            })),
+          ),
+        }
+      : {}),
+  };
+}
+
 export async function createSocialPost(
   input: CreateSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
+  if (tx === prisma) input = await prepareSocialPostMutationMedia(input);
   if ((input.scheduledAt || input.quotedPostId) && tx === prisma) {
     return serializableTransaction(
       (tx) => createSocialPost(input, tx),
@@ -1180,6 +1282,7 @@ export async function updateSocialPost(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
   if (tx === prisma) {
+    input = await prepareSocialPostMutationMedia(input);
     return serializableTransaction(
       (tx) => updateSocialPost(input, tx),
       "Project changed while editing a Social post",
@@ -1443,6 +1546,7 @@ export async function scheduleSocialPost(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
   if (tx === prisma) {
+    input = await prepareSocialPostMutationMedia(input);
     return serializableTransaction(
       (tx) => scheduleSocialPost(input, tx),
       "Project changed while scheduling a Social post",
@@ -1471,7 +1575,7 @@ export async function scheduleSocialPost(
       "A partially published thread must keep its original X account",
     );
   }
-  const media = parseSocialPostMedia(post.media, post.id);
+  const media = input.media ?? parseSocialPostMedia(post.media, post.id);
   const currentProvider = requireProvider(post.provider);
   const connection = await requireActiveProjectConnection(
     input.projectId,
@@ -1479,6 +1583,7 @@ export async function scheduleSocialPost(
     tx,
   );
   const provider = requireProvider(connection.provider);
+  requirePreparedSocialPostProvider(media, provider);
   requireStoredThreadParts(post, provider, connection.subscriptionType);
   if (!post.publishedExternalId) {
     const validation = validateSocialPostMedia(provider, media);
@@ -1526,6 +1631,7 @@ export async function scheduleSocialPost(
           scheduledAt: input.scheduledAt,
           timezone: input.timezone ?? post.timezone,
           socialConnectionId: connection.id,
+          ...(input.media ? { media: mediaJson(media) } : {}),
           ...(provider !== currentProvider ? { provider } : {}),
           scheduledByUserId: input.userId,
           scheduledByCoworkerId: input.coworkerId ?? null,

@@ -290,7 +290,8 @@ describe("newsletter issues list", () => {
     await user.click(
       within(dialog).getByRole("button", { name: COPY.Delete.action }),
     );
-    await waitFor(() => expect(mocks.refresh).toHaveBeenCalled());
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalledTimes(2));
+    expect(mocks.refresh).not.toHaveBeenCalled();
     expect(mocks.remove).toHaveBeenLastCalledWith({
       projectId: NEWSLETTER_PROJECT_ID,
       issueId: NEWSLETTER_ISSUE.id,

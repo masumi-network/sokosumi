@@ -3182,3 +3182,233 @@ button.cuso-status {
 .sheet-steps .note {
   white-space: nowrap;
 }
+
+/* Avatar lab: test bench at /avatar-lab, not linked from the app. */
+.lab {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 16px 16px 64px;
+}
+
+.lab-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 560px;
+}
+
+.lab-title {
+  font-size: clamp(2.25rem, 6vw, 4.5rem);
+}
+
+.lab-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+@media (min-width: 640px) {
+  .lab-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lab-controls {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1040px) {
+  .lab-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(0, 0.8fr);
+  }
+
+  .lab-controls {
+    grid-column: auto;
+  }
+}
+
+.lab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.lab-stage {
+  display: grid;
+  place-items: center;
+  min-height: 360px;
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+}
+
+.lab-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.lab-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 0.875rem;
+}
+
+.lab-field legend,
+.lab-field > span {
+  margin-bottom: 8px;
+  padding: 0;
+  color: var(--muted);
+}
+
+.lab-field input[type="range"] {
+  accent-color: var(--foreground);
+}
+
+.lab-segments {
+  display: flex;
+  gap: 8px;
+}
+
+.lab-segment {
+  position: relative;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  text-transform: capitalize;
+}
+
+.lab-segment:has(input:checked) {
+  border-color: var(--foreground);
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.lab-segment:has(input:focus-visible) {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.lab-segment input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lab-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+
+.lab-check input {
+  accent-color: var(--foreground);
+}
+
+.lab-sizes {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.lab-size-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 24px;
+}
+
+.lab-size-label {
+  width: 80px;
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.lab-size {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* Flat Cuso: black and white only. Line and solid flip with the theme. */
+.flat-cuso {
+  --cuso-ink: var(--foreground);
+  --cuso-paper: var(--background);
+  overflow: visible;
+}
+
+.flat-cuso-body,
+.flat-cuso-shoe {
+  fill: var(--cuso-paper);
+  stroke: var(--cuso-ink);
+}
+
+.flat-cuso-limb,
+.flat-cuso-ring {
+  stroke: var(--cuso-ink);
+}
+
+.flat-cuso-hand,
+.flat-cuso-eyes {
+  fill: var(--cuso-ink);
+}
+
+.flat-cuso-stage {
+  fill: var(--surface);
+}
+
+.flat-cuso[data-variant="solid"] .flat-cuso-body {
+  fill: var(--cuso-ink);
+}
+
+.flat-cuso[data-variant="solid"] .flat-cuso-eyes {
+  fill: var(--cuso-paper);
+}
+
+.flat-cuso-eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: translate(var(--gaze-x, 0), var(--gaze-y, 0));
+  transition: transform 120ms ease-out;
+}
+
+.flat-cuso-eyes[data-lively] {
+  animation: flat-cuso-blink 4.2s infinite;
+}
+
+@keyframes flat-cuso-blink {
+  0%,
+  92%,
+  100% {
+    scale: 1 1;
+  }
+  95% {
+    scale: 1 0.1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flat-cuso-eyes,
+  .flat-cuso-eyes[data-lively] {
+    animation: none;
+    transform: none;
+  }
+}

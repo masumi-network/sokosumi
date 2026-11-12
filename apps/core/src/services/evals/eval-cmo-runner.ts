@@ -371,6 +371,7 @@ export async function prepareCmoComments(
     data: {
       projectId: lane.cusoProjectId,
       workspaceId: lane.workspaceId,
+      creatorSokoBotId: lane.cusoBotId,
       provider: "instagram",
       text: "Scheduling should take one link, not ten emails. Share your Cal link and let people pick a time that works.",
       status: "PUBLISHED",
