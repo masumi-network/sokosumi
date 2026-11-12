@@ -61,6 +61,7 @@ const PROPER_PHRASES = [
   "Field Notes Studio",
   "Field Notes",
   "Studio Weekly",
+  "Advanced Web Ranking",
 ];
 
 /** Longest first, so "Soko Bots" is not stripped as "Soko Bot" plus a stray "s". */
