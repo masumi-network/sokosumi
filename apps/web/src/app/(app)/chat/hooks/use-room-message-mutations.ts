@@ -280,8 +280,20 @@ export function useRoomMessageMutations({
         openEditSaves.delete(messageId);
         setMessageSaving(messageId, false);
         if (!result?.ok) {
+          // A newer edit, or Core's own update for this one before a lost
+          // answer, keeps the row's text: then the toast does not say the
+          // earlier text is back. flushSync runs the updaters now, so the
+          // flag holds what they found.
+          let restored = false;
+          flushSync(() => {
+            patchMessage(messageId, (row) => {
+              if (row.editedAt !== editedAt || !before) return row;
+              restored = true;
+              return { ...row, ...before };
+            });
+          });
           toast.error(result?.error.message ?? t("Edit.saveError"), {
-            description: t("Edit.restored"),
+            description: restored ? t("Edit.restored") : undefined,
             action: {
               label: t("Edit.action"),
               onClick: () => {
@@ -292,9 +304,6 @@ export function useRoomMessageMutations({
               },
             },
           });
-          patchMessage(messageId, (row) =>
-            row.editedAt === editedAt && before ? { ...row, ...before } : row,
-          );
           return;
         }
         if (!isStillSelectedRoom(roomId)) {

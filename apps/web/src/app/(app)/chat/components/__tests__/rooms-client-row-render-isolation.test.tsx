@@ -1144,6 +1144,12 @@ describe("RoomsClient transcript row render isolation", () => {
       });
 
       expect(m2()).toEqual(["edited elsewhere", "false", ""]);
+      // The row keeps the newer text, so the toast does not say the earlier
+      // text is back.
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+        "Edit.saveError",
+        expect.objectContaining({ description: undefined }),
+      );
     });
   });
 
