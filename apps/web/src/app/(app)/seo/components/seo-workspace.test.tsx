@@ -3083,7 +3083,7 @@ describe("SEO workspace integration", () => {
         taskId: null,
         pageIds: workspace.scope.pageIds,
         scopeVersion: 2,
-        createdAt: new Date("2026-01-02T12:00:00Z"),
+        createdAt: new Date(),
       },
     ];
     renderWorkspace(workspace);
@@ -3793,7 +3793,7 @@ describe("SEO workspace integration", () => {
         taskId: null,
         pageIds: workspace.scope.pageIds,
         scopeVersion: 2,
-        createdAt: new Date("2026-01-04T12:00:00Z"),
+        createdAt: new Date(),
       },
     ];
     // Site health has one run control: the header's.

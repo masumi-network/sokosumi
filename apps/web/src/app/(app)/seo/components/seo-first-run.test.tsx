@@ -195,7 +195,8 @@ describe("SEO audit first run", () => {
         taskId: null,
         pageIds: workspace.scope.pageIds,
         scopeVersion: 2,
-        createdAt: new Date("2026-01-02T12:00:00Z"),
+        // A check that started three hours ago or more is no check in flight.
+        createdAt: new Date(),
       },
     ];
     network(workspace, {

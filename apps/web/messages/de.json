@@ -11130,7 +11130,7 @@
         "task_created": "Entwurfsaufgabe erstellt",
         "implemented": "Umgesetzt",
         "verified": "Verifiziert",
-        "help": "Eine erledigte Aufgabe gilt erst nach einer neuen Prüfung derselben Seite als bestätigt.",
+        "help": "Eine Aktion gilt als bestätigt, wenn die neueste Prüfung derselben Seite das Problem nicht mehr findet.",
         "noFixes": "Keine Korrekturen aus diesen Prüfungen empfohlen",
         "noFixesBody": "Die letzte Prüfung fand nichts zu beheben. Synchronisiere Statistiken oder prüfe weitere Seiten, um neue Arbeit zu finden.",
         "checksIncomplete": "Diese Prüfungen sind unvollständig",

@@ -11130,7 +11130,7 @@
         "task_created": "Borrador de tarea creado",
         "implemented": "Implementada",
         "verified": "Verificada",
-        "help": "Una tarea terminada cuenta como verificada solo tras una nueva comprobación de la misma página.",
+        "help": "Una acción cuenta como verificada cuando la comprobación más reciente de la misma página ya no encuentra el problema.",
         "noFixes": "Estas comprobaciones no recomiendan correcciones",
         "noFixesBody": "La última comprobación no encontró nada que corregir. Sincroniza estadísticas o comprueba más páginas para encontrar trabajo nuevo.",
         "checksIncomplete": "Estas comprobaciones están incompletas",

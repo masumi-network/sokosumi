@@ -33,19 +33,19 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
   if (!clicks && !demand.rows.length) return null;
   return (
     // Beside the tiles the pictures are cells of the tiles' grid: the keyword picture stands beside the keyword
-    // tiles and is as tall as they are, and the daily clicks take the full width under both. Two pictures in one
+    // tiles and is as tall as they are, and the daily clicks take the full width under both. On a phone the
+    // clicks come first, as before. Two pictures in one
     // column were more than twice as tall as the tiles.
     <div
       className="flex flex-col gap-2 lg:[&:not(:only-child)]:contents"
       data-testid="seo-agent-graphics"
     >
-      {demand.rows.length ? <SeoDemandChart demand={demand} /> : null}
       {clicks ? (
         // The chart is a figure with its own name.
         <div
           className={cn(
             "bg-background rounded-lg border p-3",
-            demand.rows.length > 0 && "lg:col-span-2",
+            demand.rows.length > 0 && "lg:order-last lg:col-span-2",
           )}
         >
           <SeoTrendChart
@@ -59,6 +59,7 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
           />
         </div>
       ) : null}
+      {demand.rows.length ? <SeoDemandChart demand={demand} /> : null}
     </div>
   );
 }

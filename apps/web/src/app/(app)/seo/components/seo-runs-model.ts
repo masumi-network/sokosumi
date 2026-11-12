@@ -24,24 +24,28 @@ export function seoRunDays(
   filters: { from: string | null; to: string | null },
 ) {
   const days = new Map<string, SeoRunDay>();
+  /** Days whose newest rule check is known: an older check of the day says less about the page that day. */
+  const counted = new Set<string>();
   // Core does not promise an order.
   const runs = (workspace.runs ?? [])
     .map((run) => ({ ...run, at: new Date(run.observedAt) }))
     .sort((a, b) => b.at.getTime() - a.at.getTime());
   for (const run of runs) {
     const day = run.at.toISOString().slice(0, 10);
-    const issues = RULE_KINDS.has(run.kind) ? run.issues : null;
-    const known = days.get(day);
-    if (!known)
+    const rule = RULE_KINDS.has(run.kind);
+    if (!days.has(day))
       days.set(day, {
         day,
         at: run.at,
-        issues,
+        issues: null,
         selected: false,
         newest: days.size === 0,
       });
-    // The newest check of the day that tested rules gives the count.
-    else if (known.issues === null) known.issues = issues;
+    // The newest check of the day that tested rules gives the count, or none where it read only some pages.
+    if (rule && !counted.has(day)) {
+      counted.add(day);
+      days.get(day)!.issues = run.issues;
+    }
   }
   const all = [...days.values()];
   const { from, to } = filters;

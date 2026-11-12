@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   seoCheckBlocking,
   seoRunAction,
@@ -63,6 +63,15 @@ describe("SEO header run action", () => {
 });
 
 describe("SEO first-run setup", () => {
+  // The checks of these cases start on 2026-01-02 at 12:00: an hour later they are in flight.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-01-02T13:00:00Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("has two steps: the page, then the first check as the next thing to do", () => {
     const workspace = seoTestWorkspace();
     expect(seoSetup(workspace)).toEqual({
@@ -146,7 +155,7 @@ describe("SEO first-run setup", () => {
     ).toMatchObject({ share: 0, minutesLeft: 20 });
   });
 
-  it("lets a new check start once the check in flight is three hours old: Core has no end for it", () => {
+  it("ends a check in flight after three hours: Core has no end for a check whose Task ended without a result", () => {
     const workspace = seoTestWorkspace();
     const started = new Date("2026-01-02T12:00:00Z");
     workspace.analyses = [
@@ -167,6 +176,9 @@ describe("SEO first-run setup", () => {
       );
     expect(after(179)).toBe(true);
     expect(after(180)).toBe(false);
+    // The page says the same: no check runs, and the first check can start again.
+    vi.setSystemTime(new Date(started.getTime() + 180 * 60_000));
+    expect(seoSetup(workspace)).toMatchObject({ check: "next" });
     workspace.analyses = [];
     expect(after(0)).toBe(false);
   });

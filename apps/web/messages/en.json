@@ -11130,7 +11130,7 @@
         "task_created": "Draft task created",
         "implemented": "Implemented",
         "verified": "Verified",
-        "help": "A done Task counts as verified only after a new check of the same page.",
+        "help": "An action counts as verified when the newest check of the same page no longer finds the issue.",
         "noFixes": "No fixes recommended from these checks",
         "noFixesBody": "The last check found nothing to fix. Sync statistics or check more pages to find new work.",
         "checksIncomplete": "These checks are incomplete",

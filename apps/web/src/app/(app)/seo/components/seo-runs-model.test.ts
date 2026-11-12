@@ -40,6 +40,19 @@ describe("SEO runs of a site", () => {
     expect(picked).toBe(false);
   });
 
+  it("takes the count of a day from its newest rule check, also where that check read only some pages", () => {
+    const partial = {
+      ...run("2026-11-12T15:00:00Z", 0, "page_check"),
+      issues: null,
+    };
+    const { days } = seoRunDays(
+      { runs: [partial, run("2026-11-12T10:00:00Z", 5)] },
+      none,
+    );
+    // The full check of the morning says less about the page of that day than the later check of one page.
+    expect(days.map((entry) => entry.issues)).toEqual([null]);
+  });
+
   it("marks the run that an end date shows, and no run for a range of days", () => {
     const runs = [
       run("2026-11-12T13:00:00Z", 5),

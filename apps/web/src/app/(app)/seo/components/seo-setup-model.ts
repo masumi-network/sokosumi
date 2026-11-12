@@ -22,29 +22,33 @@ const newestAnalysis = (analyses: SeoAnalysis[]) =>
     null,
   );
 
-/** The newest check that Core accepted and has not finished. */
-export function seoRunningCheck(workspace: ProjectSeoWorkspace) {
-  return newestAnalysis(
+/**
+ * A check older than this is no check in flight. Core has no end for a check whose Task ended without a result:
+ * the page stops saying that it runs, and the reader can start the next. The longest check, a full audit, has a
+ * time limit of one hour.
+ */
+const SEO_CHECK_STALE_MS = 3 * 60 * 60_000;
+
+/** The newest check that Core accepted and has not finished, if it started less than three hours ago. */
+export function seoRunningCheck(
+  workspace: ProjectSeoWorkspace,
+  now = new Date(),
+) {
+  const check = newestAnalysis(
     workspace.analyses.filter(
       (analysis) =>
         analysis.status === "requested" || analysis.status === "running",
     ),
   );
+  return check &&
+    now.getTime() - new Date(check.createdAt).getTime() < SEO_CHECK_STALE_MS
+    ? check
+    : null;
 }
 
-/**
- * A check older than this blocks no new one. Core has no end for a check whose Task ended without a result: the
- * reader needs a way to start the next. The longest check, a full audit, has a time limit of one hour.
- */
-const SEO_CHECK_STALE_MS = 3 * 60 * 60_000;
-
-/** A check in flight that a new one must wait for: it started less than three hours ago. */
+/** A check in flight that a new one must wait for. */
 export function seoCheckBlocking(workspace: ProjectSeoWorkspace, now: Date) {
-  const check = seoRunningCheck(workspace);
-  return Boolean(
-    check &&
-      now.getTime() - new Date(check.createdAt).getTime() < SEO_CHECK_STALE_MS,
-  );
+  return seoRunningCheck(workspace, now) !== null;
 }
 
 /** A full audit ends some minutes after its time limit: the last steps run after it. */
@@ -59,7 +63,7 @@ const MINUTE_MS = 60_000;
  * default time limit of its pages. Another first check has no usual time: no share and no time left.
  */
 export function seoRunProgress(workspace: ProjectSeoWorkspace, now: Date) {
-  const check = seoRunningCheck(workspace);
+  const check = seoRunningCheck(workspace, now);
   if (!check) return null;
   const earlier = (workspace.runs ?? [])
     .flatMap((run) =>
