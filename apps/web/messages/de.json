@@ -1099,6 +1099,13 @@
     "ConnectLink": {
       "error": "Die Verbindung konnte nicht gestartet werden."
     },
+    "SpreadsheetView": {
+      "loading": "Tabelle wird geladen",
+      "failed": "Diese Tabelle konnte nicht geöffnet werden.",
+      "sheet": "Blatt {number}",
+      "empty": "Dieses Blatt ist leer.",
+      "truncated": "Es werden die ersten {rows} Zeilen und 50 Spalten angezeigt. Lade die Datei herunter, um den Rest zu sehen."
+    },
     "TeamView": {
       "loading": "Team wird geladen",
       "failed": "Diese Team-Datei kann nicht angezeigt werden. Prüfe, ob sie eine gültige Team-Datei ist.",
