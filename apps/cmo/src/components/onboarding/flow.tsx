@@ -4,7 +4,7 @@ import "./onboarding.css";
 import "./brief.css";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import { AGENT_NAME } from "../../lib/agent";
 import type { BrandSectionKey } from "../../lib/brand-sections";
@@ -42,7 +42,6 @@ import {
   WelcomeBack,
 } from "./brief-chat";
 import { BriefMain } from "./brief-main";
-import { useElapsedSeconds } from "./checklist";
 import { researchGroups, USUAL_SECONDS } from "./live";
 import { connectedNetworks, strategySocialChannels } from "./networks";
 import { Refusal } from "./refusal";
@@ -118,16 +117,28 @@ function askedInWords(overview: CmoOverview, messages: CusoMessage[]) {
   );
 }
 
-/** Past the usual time, or past twice it, for a whole read or plan. */
-function slowness(
-  overview: CmoOverview,
-  elapsed: number | null,
-): BriefLocal["slow"] {
+/**
+ * Past the usual time, or past twice it, for a whole read or plan. It renders
+ * again only when a threshold passes, never every second.
+ */
+function useSlowness(overview: CmoOverview): BriefLocal["slow"] {
   const work = overview.work;
-  if (!work || work.status !== "running" || work.change || elapsed === null) {
-    return "none";
-  }
-  const usual = USUAL_SECONDS[work.kind];
+  const whole = work?.status === "running" && !work.change ? work : null;
+  const started = whole ? new Date(whole.startedAt).getTime() : null;
+  const usual = whole ? USUAL_SECONDS[whole.kind] * 1_000 : 0;
+  const [, passed] = useReducer((count: number) => count + 1, 0);
+  useEffect(() => {
+    if (started === null) return;
+    const timers = [usual, usual * 2]
+      .map((at) => started + at - Date.now())
+      .filter((wait) => wait > 0)
+      .map((wait) => window.setTimeout(passed, wait));
+    return () => {
+      for (const timer of timers) window.clearTimeout(timer);
+    };
+  }, [started, usual]);
+  if (started === null) return "none";
+  const elapsed = Date.now() - started;
   return elapsed >= usual * 2 ? "stuck" : elapsed >= usual ? "slow" : "none";
 }
 
@@ -213,17 +224,19 @@ export function OnboardingFlow({
 
   const work = overview.work;
   const running = work?.status === "running";
-  const elapsed = useElapsedSeconds(work?.startedAt, running);
+  const slow = useSlowness(overview);
   const local: BriefLocal = {
     briefed,
     skipped,
     launched,
     askedInWords: askedInWords(overview, messages),
-    slow: slowness(overview, elapsed),
+    slow,
   };
 
   // Read once on this device, after the first render (the server has none).
   const initial = useRef({ overview: initialOverview, local });
+  // The stage this device showed last time, read before this visit writes it.
+  const seenBefore = useRef<string | null | undefined>(undefined);
   useEffect(() => {
     const loaded = [
       ...new Set([...initial.current.local.briefed, ...readBriefed(projectId)]),
@@ -239,10 +252,13 @@ export function OnboardingFlow({
       ...initial.current.local,
       briefed: loaded,
     });
+    if (seenBefore.current === undefined) {
+      seenBefore.current = readSeen(projectId);
+    }
     const movedOn =
       welcome ??
       (initial.current.overview.work?.status !== "running" &&
-        readSeen(projectId) !== stage);
+        seenBefore.current !== stage);
     setAway(movedOn && waiting.length >= 2);
   }, [projectId, welcome]);
 
@@ -260,6 +276,10 @@ export function OnboardingFlow({
   const ask: Ask | null = asks[0] ?? null;
   const key = ask ? askKey(ask) : null;
   const folded = key !== null && foldedAt === key;
+  // A refusal belongs to the question it answered.
+  useEffect(() => {
+    if (key) setNotice(null);
+  }, [key]);
 
   // The tab says when Cuso needs you.
   const title = useRef<string | null>(null);

@@ -725,6 +725,10 @@ function BriefingAds(props: ChatAskProps) {
   const [amount, setAmount] = useState(String(ads?.monthly ?? ""));
   const [noteRefusal, setNoteRefusal] = useState<string | null>(null);
   if (!ads) return null;
+  // Only Google's ads are search ads; Meta's are image ads.
+  const kind = entries.every((entry) => entry.channel === "google_ads")
+    ? "search "
+    : "";
   const network = joinNames(
     [
       ...new Set(entries.map((entry) => AD_NETWORK[entry.channel] ?? "")),
@@ -734,7 +738,7 @@ function BriefingAds(props: ChatAskProps) {
   const price = money(ads.monthly, ads.currency);
   return (
     <Bubble
-      question={`The plan has ${entries.length} search ${entries.length === 1 ? "ad" : "ads"}${firstWeek ? ` from week ${firstWeek}` : ""}. Spend ${price} a month on ${network || "ads"}?`}
+      question={`The plan has ${entries.length} ${kind}${entries.length === 1 ? "ad" : "ads"}${firstWeek ? ` from week ${firstWeek}` : ""}. Spend ${price} a month on ${network || "ads"}?`}
       sub={`Paid to ${network || "the ad network"}, on top of your plan. Without ads I post only.`}
     >
       <Answers>

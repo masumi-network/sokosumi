@@ -244,17 +244,69 @@ describe("the chat asks, one thing at a time", () => {
     );
   });
 
-  it("folds the chat on Esc and opens it again", async () => {
+  it("folds the chat on Esc and opens it again, focused on the question", async () => {
     await render(asking({ brandBrain: { ...brain, questions: [] } }));
+    // Esc on the page (a sheet's own Esc) leaves the chat open.
     await act(async () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(container.querySelector("[data-brief-question]")).not.toBeNull();
+    await act(async () => {
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
     });
     expect(container.querySelector("[data-brief-question]")).toBeNull();
     expect(text()).toContain("1 thing waits");
     await press("Open");
+    const question = container.querySelector("[data-brief-question]");
+    expect(question?.textContent).toBe("Did I get Acme right?");
+    expect(document.activeElement).toBe(question);
+  });
+});
+
+describe("chat details", () => {
+  it("keeps a typed note when Esc is pressed in its field", async () => {
+    await render(asking());
+    typeInto("#brief-brand-note", "Mostly LinkedIn");
+    await act(async () => {
+      container
+        .querySelector("#brief-brand-note")
+        ?.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
+    });
+    expect(
+      container.querySelector<HTMLInputElement>("#brief-brand-note")?.value,
+    ).toBe("Mostly LinkedIn");
+  });
+
+  it("clears a refusal once the chat moves on", async () => {
+    const answer = (count: number) =>
+      asking({
+        brandBrain: {
+          ...brain,
+          questions: (brain.questions ?? []).map((question, index) =>
+            index < count ? { ...question, answer: "no" as const } : question,
+          ),
+        },
+      });
+    const answers = [answer(1), answer(2)];
+    const overview = answer(0);
+    await render(
+      overview,
+      actionsFor(overview, {
+        answerBrandQuestion: async () => answers.shift() ?? answer(2),
+        fixBrandSection: async () => "You're out of credits.",
+      }),
+    );
+    await press("No");
+    expect(text()).toContain("You're out of credits.");
+    await press("Yes");
     expect(container.querySelector("[data-brief-question]")?.textContent).toBe(
       "Did I get Acme right?",
     );
+    expect(text()).not.toContain("You're out of credits.");
   });
 });
 

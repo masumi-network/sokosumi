@@ -913,7 +913,6 @@ body:has(.ob) .site-header {
   color: var(--muted);
 }
 
-
 .ob-connected {
   display: inline-flex;
   align-items: center;
@@ -964,15 +963,11 @@ body:has(.ob) .site-header {
     line-height: 2.75rem;
   }
 
-  
-
   .ob-main .button:not(.button-small):not(.button-ghost) {
     flex: 1 1 100%;
     width: 100%;
     justify-content: center;
   }
-
-  
 
   .ob-brand-panel:has(.ob-side) {
     grid-template-columns: minmax(0, 1fr);
@@ -1040,7 +1035,6 @@ body:has(.ob) .site-header {
   .ob-rules li > svg {
     display: none;
   }
-
 }
 
 /* The goal is the headline: short, two lines at most; the sentence under it. */

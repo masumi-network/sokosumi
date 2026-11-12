@@ -1,7 +1,6 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { useEffect, useState } from "react";
 
 /** Done (green, check), working (dashed, dot) or not yet (hairline). */
 interface ChecklistItem {
@@ -42,21 +41,6 @@ export function Checklist({
       ))}
     </ol>
   );
-}
-
-/** Seconds since the work started, ticking while it runs. */
-export function useElapsedSeconds(
-  since: Date | string | undefined,
-  running: boolean,
-): number | null {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!running) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
-    return () => window.clearInterval(timer);
-  }, [running]);
-  if (!running || !since) return null;
-  return Math.max(0, Math.round((now - new Date(since).getTime()) / 1_000));
 }
 
 /** A section Cuso has not saved yet: a dashed outline, never a shimmer. */

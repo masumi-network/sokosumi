@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, Check } from "lucide-react";
-import { type ReactNode, useEffect, useRef } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useRef } from "react";
 
 import { AGENT_NAME } from "../../lib/agent";
 import type { CusoPose } from "../../lib/thread";
@@ -46,7 +46,7 @@ export function Timeline({ marks }: TimelineProps) {
         ))}
       </ol>
       {current ? (
-        <p className="brief-fold" aria-hidden="true">
+        <p className="brief-fold">
           <span>
             Step {at + 1} of {marks.length} · <b>{current.label}</b>
           </span>
@@ -100,17 +100,21 @@ export function BriefBar({ marks, pose, mode }: BriefBarProps) {
       ?.querySelector<HTMLElement>("[data-brief-question]")
       ?.focus({ preventScroll: true });
   }, [askKey]);
-  // Esc folds the chat away.
+  // Esc folds the chat away, from inside the chat only: a sheet on the page
+  // closes on its own Esc, and a field with words in it keeps them.
   const onLater = mode.kind === "asking" ? (mode.onLater ?? null) : null;
-  useEffect(() => {
-    if (!onLater) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
-      onLater();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onLater]);
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key !== "Escape" || event.defaultPrevented || !onLater) return;
+    const field = event.target;
+    if (
+      (field instanceof HTMLInputElement ||
+        field instanceof HTMLTextAreaElement) &&
+      field.value
+    ) {
+      return;
+    }
+    onLater();
+  };
 
   return (
     <footer
@@ -124,6 +128,7 @@ export function BriefBar({ marks, pose, mode }: BriefBarProps) {
         <section
           ref={chat}
           className="brief-bar-body"
+          onKeyDown={onKeyDown}
           aria-label={
             mode.kind === "asking" ? `${AGENT_NAME} needs you` : undefined
           }
