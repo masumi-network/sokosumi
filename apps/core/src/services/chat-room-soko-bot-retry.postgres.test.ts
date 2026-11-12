@@ -38,7 +38,8 @@ vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: publish,
   publishChatRoomMessageRealtime: vi.fn(),
 }));
-vi.mock("@vercel/functions", () => ({
+vi.mock("@vercel/functions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/functions")>()),
   waitUntil: (work: Promise<unknown>) => {
     background.push(work);
   },
