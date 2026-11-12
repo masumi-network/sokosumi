@@ -103,7 +103,8 @@ export function StudioCreativeStart({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button size="sm" type="button" variant="outline">
+        {/* Default size: it sits beside the project scope buttons in the empty state. */}
+        <Button type="button" variant="outline">
           <Sparkles aria-hidden />
           {t("open")}
         </Button>
