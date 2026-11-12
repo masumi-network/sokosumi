@@ -595,10 +595,12 @@ describe("publishSokoBotChatProgress", () => {
     );
     holdsMention.mockResolvedValueOnce(false);
     await publishSokoBotChatProgress("turn-a");
+    // Progress needs the turn still running, not only holding the mention.
     expect(holdsMention).toHaveBeenCalledWith(
       expect.anything(),
       "turn-a",
       "mention-a",
+      { running: true },
     );
     expect(messageUpdate).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();

@@ -839,10 +839,13 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     await dispatchChatRoomMention(mentionId);
   }
 
-  async function retryRoute(m: {
-    source: { id: string };
-    mention: { id: string };
-  }) {
+  async function retryRoute(
+    m: {
+      source: { id: string };
+      mention: { id: string };
+    },
+    { awaitDispatch = true } = {},
+  ) {
     const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
     const mountRetry = (
       await import(
@@ -866,8 +869,9 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
       `/${roomId}/messages/${m.source.id}/mentions/${m.mention.id}/retry`,
       { method: "POST" },
     );
-    await Promise.all(background);
-    return response.status;
+    const dispatched = Promise.all([...background]);
+    if (awaitDispatch) await dispatched;
+    return { status: response.status, dispatched };
   }
 
   /** A start that inserts its turn on the mention and leaves it running. */
@@ -1104,7 +1108,7 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     expect((await mentionState(m.mention.id)).status).toBe("failed");
 
     const started = startsRunningTurn(m.mention.id, async () => m.response.id);
-    expect(await retryRoute(m)).toBe(200);
+    expect((await retryRoute(m)).status).toBe(200);
     expect(startTurn.mock.calls.map(([start]) => start.clientTurnId)).toEqual([
       `chat:${m.mention.id}:retry:${old.id}`,
     ]);
@@ -1204,9 +1208,9 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
       mentionReply(m.mention.id),
     );
     // Retry needs the reply authored by this user's mention source.
-    expect(await retryRoute({ source: m.source, mention: m.mention })).toBe(
-      200,
-    );
+    expect(
+      (await retryRoute({ source: m.source, mention: m.mention })).status,
+    ).toBe(200);
     const thinking2 = copies.find((copy) => copy.streaming === true);
     expect(await completeAndDeliver(second[0], "Three invoices are due.")).toBe(
       true,
@@ -1365,7 +1369,7 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     const second = startsRunningTurn(m.mention.id, () =>
       mentionReply(m.mention.id),
     );
-    expect(await retryRoute(m)).toBe(200);
+    expect((await retryRoute(m)).status).toBe(200);
     expect(second).toHaveLength(1);
     const attempt2 = readSokoBotAttemptAt(
       (await db.chatRoomMessage.findUniqueOrThrow({ where: { id: replyId } }))
@@ -1424,4 +1428,265 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     expect(old.length).toBeGreaterThan(0);
     expect(show([...copies, ...old])?.content).toBe("Three invoices are due.");
   });
+
+  // ---- review 7: open failures and retained terminal holders ----
+
+  /** Records every full copy of the mention's reply, read when published. */
+  function recordReplyCopies(mentionId: string) {
+    const copies: { metadata: unknown; content: string }[] = [];
+    const failNext = { current: false };
+    publish.mockImplementation(async (id: string) => {
+      const link = await db.chatRoomMention.findUnique({
+        where: { id: mentionId },
+        select: { responseMessageId: true },
+      });
+      if (link?.responseMessageId !== id) return;
+      if (failNext.current) {
+        failNext.current = false;
+        throw new Error("Ably invalid key");
+      }
+      const row = await db.chatRoomMessage.findUniqueOrThrow({ where: { id } });
+      copies.push({ metadata: row.metadata, content: row.content });
+    });
+    return { copies, failNext };
+  }
+
+  async function replyRow(mentionId: string) {
+    return db.chatRoomMessage.findUniqueOrThrow({
+      where: { id: await mentionReply(mentionId) },
+    });
+  }
+
+  it("fails, without starting, a Retry whose open failed before committing, and keeps the next answer over the old failure", async () => {
+    const { isStaleSokoBotReply, readSokoBotAttemptAt } = await import(
+      "@sokosumi/utils"
+    );
+    const { deliverSokoBotDelivery } = await import(
+      "./soko-bot-delivery.service"
+    );
+    const m = await pendingMention();
+    const { copies } = recordReplyCopies(m.mention.id);
+    const first = startsRunningTurn(m.mention.id, () =>
+      mentionReply(m.mention.id),
+    );
+    await publicDispatch(m.mention.id);
+    await db.sokoBotTurn.update({
+      where: { id: first[0] },
+      data: { status: "FAILED", errorDetail: "Gateway refused" },
+    });
+    await db.$transaction((tx) => enqueue(tx, first[0]));
+    const failedDelivery = await db.sokoBotDelivery.findFirstOrThrow({
+      where: { turnId: first[0] },
+    });
+    expect(await deliverSokoBotDelivery(failedDelivery.id)).toBe(true);
+    const oldFailed = copies.at(-1);
+    expect(oldFailed?.metadata).toMatchObject({ mention_failed: true });
+    const attempt1 = readSokoBotAttemptAt(
+      (await replyRow(m.mention.id)).metadata,
+    );
+
+    // Retry: the reset commits, then the open's transaction cannot start.
+    const realTx = db.$transaction.bind(db) as (...a: never[]) => unknown;
+    let calls = 0;
+    const openFails = vi.spyOn(db, "$transaction").mockImplementation((async (
+      ...args: never[]
+    ) => {
+      calls += 1;
+      if (calls === 2)
+        throw new Error(
+          "Transaction API error: Unable to start a transaction in the given time.",
+        );
+      return realTx(...args);
+    }) as never);
+    startTurn.mockClear();
+    try {
+      expect((await retryRoute(m)).status).toBe(200);
+    } finally {
+      openFails.mockRestore();
+    }
+    expect(calls).toBeGreaterThanOrEqual(3);
+    // No turn on the old reply; it is failed again, with no new attempt.
+    expect(startTurn).not.toHaveBeenCalled();
+    const afterFault = await replyRow(m.mention.id);
+    expect(afterFault.metadata).toMatchObject({ mention_failed: true });
+    expect(
+      (afterFault.metadata as { streaming?: boolean }).streaming,
+    ).toBeUndefined();
+    expect(readSokoBotAttemptAt(afterFault.metadata)).toBe(attempt1);
+    expect(
+      (
+        await db.chatRoomMention.findUniqueOrThrow({
+          where: { id: m.mention.id },
+        })
+      ).status,
+    ).toBe("failed");
+
+    // The next Retry opens a new attempt and answers.
+    const second = startsRunningTurn(m.mention.id, () =>
+      mentionReply(m.mention.id),
+    );
+    expect((await retryRoute(m)).status).toBe(200);
+    expect(await completeAndDeliver(second[0], "Three invoices are due.")).toBe(
+      true,
+    );
+    const answered = await replyRow(m.mention.id);
+    expect(answered.content).toBe("Three invoices are due.");
+    const attempt2 = readSokoBotAttemptAt(answered.metadata);
+    expect(attempt2).toBeGreaterThan(attempt1 as number);
+
+    // The old failure arriving last cannot replace the answer.
+    const show = (order: typeof copies) =>
+      order.reduce<(typeof copies)[number] | undefined>(
+        (shown, copy) =>
+          shown && isStaleSokoBotReply(shown.metadata, copy.metadata)
+            ? shown
+            : copy,
+        undefined,
+      );
+    if (!oldFailed) throw new Error("no failed copy");
+    expect(show([...copies, oldFailed])?.content).toBe(
+      "Three invoices are due.",
+    );
+  });
+
+  it("continues on the reply its open committed when only the acknowledgement was lost", async () => {
+    const { readSokoBotAttemptAt } = await import("@sokosumi/utils");
+    const m = await pendingMention();
+    recordReplyCopies(m.mention.id);
+    const realTx = db.$transaction.bind(db) as (...a: never[]) => unknown;
+    const lostAck = vi.spyOn(db, "$transaction").mockImplementationOnce((async (
+      ...args: never[]
+    ) => {
+      await realTx(...args);
+      throw new Error("Connection reset after commit");
+    }) as never);
+    const started = startsRunningTurn(m.mention.id, () =>
+      mentionReply(m.mention.id),
+    );
+    try {
+      await publicDispatch(m.mention.id);
+    } finally {
+      lostAck.mockRestore();
+    }
+    const replyId = await mentionReply(m.mention.id);
+    expect(started).toHaveLength(1);
+    expect(startTurn.mock.calls[0][0].chat.responseMessageId).toBe(replyId);
+    expect(await repliesFor(m.mention.id)).toHaveLength(1);
+    const opened = await replyRow(m.mention.id);
+    expect(opened.metadata).toMatchObject({ streaming: true });
+    const attempt = readSokoBotAttemptAt(opened.metadata);
+
+    expect(
+      await completeAndDeliver(started[0], "Three invoices are due."),
+    ).toBe(true);
+    const answered = await replyRow(m.mention.id);
+    expect(answered.content).toBe("Three invoices are due.");
+    expect(readSokoBotAttemptAt(answered.metadata)).toBe(attempt);
+  });
+
+  it.each([{ ended: "FAILED" as const }, { ended: "CANCELLED" as const }])(
+    "keeps a $ended turn's card terminal through owed publication, Retry and late progress",
+    async ({ ended }) => {
+      const { publishSokoBotChatProgress } = await import(
+        "./soko-bot-chat.service"
+      );
+      const { deliverSokoBotDelivery } = await import(
+        "./soko-bot-delivery.service"
+      );
+      const m = await pendingMention();
+      const { copies, failNext } = recordReplyCopies(m.mention.id);
+      const first = startsRunningTurn(m.mention.id, () =>
+        mentionReply(m.mention.id),
+      );
+      await publicDispatch(m.mention.id);
+
+      // The turn's progress write is delayed at its transaction.
+      const realTx = db.$transaction.bind(db) as (...a: never[]) => unknown;
+      const p = gate();
+      const delayed = vi
+        .spyOn(db, "$transaction")
+        .mockImplementationOnce((async (...args: never[]) => {
+          p.reached();
+          await p.released;
+          return realTx(...args);
+        }) as never);
+      const lateProgress = publishSokoBotChatProgress(first[0]);
+      await p.atHold;
+      delayed.mockRestore();
+
+      // The turn ends; its card is written but publication fails (PERSISTED).
+      await db.sokoBotTurn.update({
+        where: { id: first[0] },
+        data: { status: ended, errorDetail: "Gateway refused" },
+      });
+      await db.$transaction((tx) => enqueue(tx, first[0]));
+      const delivery = await db.sokoBotDelivery.findFirstOrThrow({
+        where: { turnId: first[0] },
+      });
+      failNext.current = true;
+      expect(await deliverSokoBotDelivery(delivery.id)).toBe(false);
+      expect(
+        await db.sokoBotDelivery.findUnique({ where: { id: delivery.id } }),
+      ).toMatchObject({ status: "PERSISTED" });
+      expect((await replyRow(m.mention.id)).metadata).toMatchObject({
+        mention_failed: true,
+      });
+      const terminalFrom = copies.length;
+
+      // Retry: the turn keeps the mention (publication owed), the mention is
+      // pending, and Retry's own dispatch waits before claiming.
+      const r = gate();
+      hold.workspace = async () => {
+        r.reached();
+        await r.released;
+      };
+      const retried = await retryRoute(m, { awaitDispatch: false });
+      expect(retried.status).toBe(200);
+      await r.atHold;
+      expect(
+        await db.chatRoomMention.findUniqueOrThrow({
+          where: { id: m.mention.id },
+        }),
+      ).toMatchObject({ status: "pending" });
+      expect(
+        await db.sokoBotTurn.findUnique({ where: { id: first[0] } }),
+      ).toMatchObject({ chatMentionId: m.mention.id });
+
+      // The late progress lands: nothing reopens.
+      p.release();
+      await lateProgress;
+      const afterProgress = await replyRow(m.mention.id);
+      expect(afterProgress.metadata).toMatchObject({ mention_failed: true });
+      expect(
+        (afterProgress.metadata as { streaming?: boolean }).streaming,
+      ).toBeUndefined();
+
+      // Retry's dispatch settles the ended turn; the owed publication lands.
+      r.release();
+      await retried.dispatched;
+      await db.sokoBotDelivery.update({
+        where: { id: delivery.id },
+        data: { nextAttemptAt: new Date(0) },
+      });
+      expect(await deliverSokoBotDelivery(delivery.id)).toBe(true);
+
+      expect(
+        await db.chatRoomMention.findUniqueOrThrow({
+          where: { id: m.mention.id },
+        }),
+      ).toMatchObject({ status: "failed" });
+      expect((await replyRow(m.mention.id)).metadata).toMatchObject({
+        mention_failed: true,
+      });
+      // Nothing published after the turn ended is "Thinking…".
+      const after = copies.slice(terminalFrom);
+      expect(after.length).toBeGreaterThan(0);
+      expect(
+        after.some(
+          (copy) =>
+            (copy.metadata as { streaming?: boolean }).streaming === true,
+        ),
+      ).toBe(false);
+    },
+  );
 });

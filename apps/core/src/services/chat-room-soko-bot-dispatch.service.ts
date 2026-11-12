@@ -22,6 +22,7 @@ import {
 import {
   claimMentionForDispatch,
   failSokoBotReplyIfOwned,
+  findSokoBotReplyOpenedBy,
   openSokoBotReply,
 } from "./chat-room-mention-state";
 
@@ -289,14 +290,14 @@ export async function runSokoBotMentionDispatch(params: {
           mentionId,
           error: openError,
         });
-        const committed = await prisma.chatRoomMention.findUniqueOrThrow({
-          where: { id: mentionId },
-          select: { responseMessageId: true, updatedAt: true },
-        });
-        // Adopt only a reply this claim opened: the link keeps its stamp.
-        return committed.responseMessageId &&
-          committed.updatedAt.getTime() === claim.stamp.getTime()
-          ? { replyId: committed.responseMessageId, eventType: null }
+        const committed = await findSokoBotReplyOpenedBy(
+          mentionId,
+          claim.stamp,
+        );
+        // Not opened by this claim: fail it under the ownership check rather
+        // than start a turn on a reply this attempt never opened.
+        return committed
+          ? { replyId: committed, eventType: "update" as const }
           : undefined;
       });
       // Another claim, a stale reclaim or Retry owns the mention now: this

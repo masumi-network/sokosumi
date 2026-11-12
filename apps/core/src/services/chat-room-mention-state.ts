@@ -173,22 +173,35 @@ async function lockMention(
   return locked;
 }
 
+const ENDED_TURN_STATUSES: readonly string[] = [
+  "COMPLETED",
+  "FAILED",
+  "CANCELLED",
+];
+
 /**
  * Whether `turnId` still holds the mention, checked under its row lock, so a
  * reply write in the same transaction belongs to the turn that owns it. A
- * turn Retry released, or one delayed past its own end, writes nothing.
+ * turn Retry released writes nothing.
+ *
+ * `running`: also only while the turn has not ended. A FAILED or CANCELLED
+ * turn keeps the mention while its delivery is owed, and Retry can reset the
+ * mention to `pending` meanwhile; its outcome may still be written, but a
+ * progress write delayed past its end would reopen "Thinking…" for nothing.
  */
 export async function holdsSokoBotMention(
   tx: Prisma.TransactionClient,
   turnId: string,
   mentionId: string,
+  options: { running?: boolean } = {},
 ): Promise<boolean> {
   if (!(await lockMention(tx, mentionId))) return false;
   const holder = await tx.sokoBotTurn.findUnique({
     where: { chatMentionId: mentionId },
-    select: { id: true },
+    select: { id: true, status: true },
   });
-  return holder?.id === turnId;
+  if (holder?.id !== turnId) return false;
+  return !options.running || !ENDED_TURN_STATUSES.includes(holder.status);
 }
 
 /**
@@ -241,7 +254,10 @@ export async function openSokoBotReply(params: {
       streaming: true,
       reasoning: [],
       thought_timing_ms: { start: Date.now() },
-      soko_bot: { attempt_at: attemptAt },
+      // `opened_by`: proof that this claim opened the reply, for a worker
+      // that lost this transaction's acknowledgement
+      // (`findSokoBotReplyOpenedBy`).
+      soko_bot: { attempt_at: attemptAt, opened_by: stamp.getTime() },
     };
     const reply = mention.responseMessage;
     if (reply && reply.deletedAt == null) {
@@ -274,6 +290,44 @@ export async function openSokoBotReply(params: {
       data: { updatedAt: new Date() },
     });
     return { replyId: created.id, eventType: "create" as const };
+  });
+}
+
+/**
+ * The reply `openSokoBotReply` opened for the claim with this `stamp`, for a
+ * worker whose open threw: it may have committed with its acknowledgement
+ * lost. Only a reply this claim opened counts (`soko_bot.opened_by`), checked
+ * under the mention's row lock while the claim still owns it. The claim's
+ * stamp alone proves nothing: an explicit Retry leaves the old failed reply
+ * linked, and adopting it would start a turn on the old attempt.
+ */
+export async function findSokoBotReplyOpenedBy(
+  mentionId: string,
+  stamp: Date,
+): Promise<string | null> {
+  return prisma.$transaction(async (tx) => {
+    const locked = await lockMention(tx, mentionId);
+    if (locked?.updatedAt.getTime() !== stamp.getTime()) return null;
+    const holder = await tx.sokoBotTurn.findUnique({
+      where: { chatMentionId: mentionId },
+      select: { id: true },
+    });
+    if (holder) return null;
+    const mention = await tx.chatRoomMention.findUniqueOrThrow({
+      where: { id: mentionId },
+      select: {
+        responseMessage: {
+          select: { id: true, deletedAt: true, metadata: true },
+        },
+      },
+    });
+    const reply = mention.responseMessage;
+    const openedBy = (
+      reply?.metadata as { soko_bot?: { opened_by?: unknown } } | null
+    )?.soko_bot?.opened_by;
+    return reply && reply.deletedAt == null && openedBy === stamp.getTime()
+      ? reply.id
+      : null;
   });
 }
 

@@ -231,11 +231,15 @@ export async function publishSokoBotChatProgress(
 
   const mention = turn.mention;
   const replyId = turn.chatResponseMessageId;
-  // Written only while this turn still holds the mention, under its lock: a
-  // progress write delayed past the turn's end and a Retry would otherwise
-  // reopen the fresh attempt's reply as this old turn, with its old attempt.
+  // Written only while this turn still holds the mention and is still
+  // running, under its lock: a progress write delayed past the turn's end and
+  // a Retry would otherwise reopen the fresh attempt's reply as this old
+  // turn, with its old attempt, or reopen a failed card the turn still holds
+  // while its delivery is owed.
   const updated = await prisma.$transaction(async (tx) => {
-    if (!(await holdsSokoBotMention(tx, turn.id, mention.id)))
+    if (
+      !(await holdsSokoBotMention(tx, turn.id, mention.id, { running: true }))
+    )
       return { count: 0 };
     const attemptAt = await readReplyAttemptAt(replyId, tx);
     return tx.chatRoomMessage.updateMany({

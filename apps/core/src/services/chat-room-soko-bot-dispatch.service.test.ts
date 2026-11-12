@@ -13,6 +13,7 @@ const {
   claim,
   fail,
   placeholder,
+  openedBy,
   startTurn,
   reconcileTurn,
   TurnInProgress,
@@ -29,6 +30,7 @@ const {
   claim: vi.fn(),
   fail: vi.fn(),
   placeholder: vi.fn(),
+  openedBy: vi.fn(),
   startTurn: vi.fn(),
   reconcileTurn: vi.fn(),
   TurnInProgress: class extends Error {},
@@ -64,6 +66,7 @@ vi.mock("@/helpers/chat-room-message-realtime", () => ({
 vi.mock("./chat-room-mention-state", () => ({
   claimMentionForDispatch: claim,
   openSokoBotReply: placeholder,
+  findSokoBotReplyOpenedBy: openedBy,
   markMentionFailed: fail,
   failSokoBotReplyIfOwned: fail,
 }));
@@ -532,25 +535,28 @@ describe("a reclaimed mention whose turn already ended", () => {
     fail.mockRejectedValue(new Error("transaction timeout"));
     await expect(runSokoBotMentionDispatch(input())).resolves.toBeUndefined();
   });
-  it("fails a reply it could not open under its own claim", async () => {
-    placeholder.mockRejectedValue(new Error("insert failed"));
-    const prisma = (await import("@/lib/db/prisma")).default as unknown as {
-      chatRoomMention: { findUniqueOrThrow: () => Promise<unknown> };
-    };
-    const real = prisma.chatRoomMention.findUniqueOrThrow;
-    prisma.chatRoomMention.findUniqueOrThrow = async () => ({
-      responseMessageId: null,
-    });
-    try {
-      await runSokoBotMentionDispatch(input());
-    } finally {
-      prisma.chatRoomMention.findUniqueOrThrow = real;
-    }
+  it("fails, without starting, a reply its claim did not open", async () => {
+    // The open threw before committing: the linked reply is an old one.
+    placeholder.mockRejectedValue(new Error("Unable to start a transaction"));
+    openedBy.mockResolvedValue(null);
+    await runSokoBotMentionDispatch(withReply());
+    expect(openedBy).toHaveBeenCalledWith("mention-a", CLAIM);
     expect(startTurn).not.toHaveBeenCalled();
-    // The claim's own stamp, never one read back later.
     expect(fail).toHaveBeenCalledWith(
       expect.objectContaining({ mentionId: "mention-a", stamp: CLAIM }),
     );
+  });
+  it("continues on the reply its claim opened when only the acknowledgement was lost", async () => {
+    placeholder.mockRejectedValue(new Error("connection reset"));
+    openedBy.mockResolvedValue("response-b");
+    await runSokoBotMentionDispatch(input());
+    expect(publishById).toHaveBeenCalledWith("response-b", "update");
+    expect(startTurn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chat: expect.objectContaining({ responseMessageId: "response-b" }),
+      }),
+    );
+    expect(fail).not.toHaveBeenCalled();
   });
   it("opens the reply only through its own claim", async () => {
     await runSokoBotMentionDispatch(input());
