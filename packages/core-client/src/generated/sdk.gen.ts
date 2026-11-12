@@ -2172,7 +2172,7 @@ export const getDriveDataRoomsById = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * Change a data room's settings: title, logo, allowed email domains, when it closes, downloads, watermark and first-visit notices.
+ * Change a data room's settings: title, welcome note, logo, allowed email domains, when it closes, downloads, watermark and first-visit notices.
  */
 export const patchDriveDataRoomsById = <ThrowOnError extends boolean = false>(options: Options<PatchDriveDataRoomsByIdData, ThrowOnError>): RequestResult<PatchDriveDataRoomsByIdResponses, PatchDriveDataRoomsByIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchDriveDataRoomsByIdResponses, PatchDriveDataRoomsByIdErrors, ThrowOnError>({
     responseTransformer: patchDriveDataRoomsByIdResponseTransformer,
