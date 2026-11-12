@@ -18,7 +18,6 @@ import {
 } from "@sokosumi/utils";
 import { ArrowDown } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type ReactNode,
@@ -226,7 +225,6 @@ export function TaskActivitySection({
     () => agentNameById ?? new Map<string, string>(),
     [agentNameById],
   );
-  const router = useRouter();
   const [isSending, startSending] = useTransition();
   const [, startExpandTransition] = useTransition();
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
@@ -427,7 +425,6 @@ export function TaskActivitySection({
       startSending(async () => {
         try {
           await createTaskComment({ taskId, comment, mentionedUserIds });
-          router.refresh();
           resolve(true);
         } catch {
           setLocalEvents((prev) =>
