@@ -17,6 +17,8 @@ import { Subscribers } from "./subscribers";
 
 export const instant = false;
 
+export { generateNewsletterMetadata as generateMetadata } from "@/app/newsletter/newsletter-project";
+
 interface SubscribersPageProps {
   searchParams: Promise<SearchParams>;
 }

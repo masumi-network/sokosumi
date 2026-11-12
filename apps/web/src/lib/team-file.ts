@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { CAP_TABLE_FILE_SUFFIX } from "@/lib/cap-table-file";
+
 /**
  * A team file: people, their roles and who reports to whom, as JSON named
  * `*.team.json`. Drive and data rooms render it as an org chart with a
@@ -52,9 +54,15 @@ export function isTeamFileName(name: string): boolean {
   return name.toLowerCase().endsWith(TEAM_FILE_SUFFIX);
 }
 
-/** "Team.team.json" reads as "Team" wherever a file name is shown. */
+/**
+ * "Team.team.json" reads as "Team", and "Cap table.captable.json" as
+ * "Cap table", wherever a file name is shown.
+ */
 export function fileTitle(name: string): string {
-  return isTeamFileName(name) ? name.slice(0, -TEAM_FILE_SUFFIX.length) : name;
+  const suffix = [TEAM_FILE_SUFFIX, CAP_TABLE_FILE_SUFFIX].find((end) =>
+    name.toLowerCase().endsWith(end),
+  );
+  return suffix ? name.slice(0, -suffix.length) : name;
 }
 
 export function parseTeam(json: unknown): Team | null {

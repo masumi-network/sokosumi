@@ -15,6 +15,7 @@ import {
   matchesContactSearch,
   primaryEmail,
   STAGE_DOT,
+  searchMatchRange,
   smartFilterOf,
   sortChannels,
 } from "./contacts-view";
@@ -239,6 +240,7 @@ describe("matchesContactSearch", () => {
   const ada = {
     name: "Ada Lovelace",
     organization: "Analytical Engines",
+    location: "Zürich, Switzerland",
     channels: [{ value: "ada@engines.test" }],
   } as Parameters<typeof matchesContactSearch>[0];
 
@@ -247,6 +249,47 @@ describe("matchesContactSearch", () => {
     expect(matchesContactSearch(ada, " engines ")).toBe(true);
     expect(matchesContactSearch(ada, "ada@")).toBe(true);
     expect(matchesContactSearch(ada, "babbage")).toBe(false);
+  });
+
+  it("matches the location without accents", () => {
+    expect(matchesContactSearch(ada, "zurich")).toBe(true);
+    expect(matchesContactSearch(ada, "ZÜRICH")).toBe(true);
+    expect(
+      matchesContactSearch({ ...ada, location: "Ærøskøbing" }, "aeroskobing"),
+    ).toBe(true);
+    expect(matchesContactSearch({ ...ada, location: null }, "zurich")).toBe(
+      false,
+    );
+  });
+});
+
+describe("searchMatchRange", () => {
+  it("finds the match in the original text, accents and case aside", () => {
+    expect(searchMatchRange("Zürich, Switzerland", "zurich")).toEqual([0, 6]);
+    expect(searchMatchRange("Zürich, Switzerland", " switz")).toEqual([8, 13]);
+    expect(searchMatchRange("Zurich", "ZÜRICH")).toEqual([0, 6]);
+    expect(searchMatchRange("Basel", "zurich")).toBeNull();
+    expect(searchMatchRange("Basel", "  ")).toBeNull();
+  });
+
+  it("folds like PostgreSQL unaccent: expansions and letters NFD keeps", () => {
+    // Æ becomes "ae" and ø "o": NFD splits neither.
+    expect(searchMatchRange("Ærøskøbing", "aeroskobing")).toEqual([0, 10]);
+    expect(searchMatchRange("Straße 5, Berlin", "strasse")).toEqual([0, 6]);
+    expect(searchMatchRange("Œuvre", "oeuv")).toEqual([0, 3]);
+    expect(searchMatchRange("Łódź", "lodz")).toEqual([0, 4]);
+    // Half of an expansion still marks the whole letter.
+    expect(searchMatchRange("Ærø", "e")).toEqual([0, 1]);
+    expect(searchMatchRange("Gießen", "ss")).toEqual([3, 4]);
+  });
+
+  it("keeps combining accents and joined characters inside the mark", () => {
+    // Decomposed letters: the accent after the last matched letter is kept.
+    expect(searchMatchRange("Cafe\u0301 Paris", "cafe")).toEqual([0, 5]);
+    expect(searchMatchRange("Zu\u0308rich", "zu")).toEqual([0, 3]);
+    expect(searchMatchRange("Zu\u0308rich", "zurich")).toEqual([0, 7]);
+    // A flag is one character made of two code points.
+    expect(searchMatchRange("Bern 🇨🇭", "bern 🇨")).toEqual([0, 9]);
   });
 });
 
