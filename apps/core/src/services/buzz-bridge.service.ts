@@ -1390,32 +1390,47 @@ export async function syncRoomChannel(roomId: string) {
         (pubkey) => !wanted.has(pubkey) && pubkey !== config.operatorPubkey,
       )
       .map((pubkey) => ({ pubkey }));
-    if (toAdd.length > 0) {
-      await publish(
-        relayUrl,
-        config.operatorSecretKey,
-        channelMembersDraft({
-          channelId: channel.channelId,
-          kind: BUZZ_KIND.addMember,
-          members: toAdd,
-        }),
-      );
-    }
-    for (const member of toRemove) {
-      await publish(
-        relayUrl,
-        config.operatorSecretKey,
-        channelMembersDraft({
-          channelId: channel.channelId,
-          kind: BUZZ_KIND.removeMember,
-          members: [member],
-        }),
-      );
-    }
-    channel = await prisma.buzzChannel.update({
-      where: { id: channel.id },
-      data: { membersHash },
+    const channelId = channel.channelId;
+    await whileOpen(relayUrl, channelId, async () => {
+      // The relay takes at most 100 members per event.
+      for (let i = 0; i < toAdd.length; i += 100) {
+        await publish(
+          relayUrl,
+          config.operatorSecretKey,
+          channelMembersDraft({
+            channelId,
+            kind: BUZZ_KIND.addMember,
+            members: toAdd.slice(i, i + 100),
+          }),
+        );
+      }
+      for (const member of toRemove) {
+        await publish(
+          relayUrl,
+          config.operatorSecretKey,
+          channelMembersDraft({
+            channelId,
+            kind: BUZZ_KIND.removeMember,
+            members: [member],
+          }),
+        );
+      }
     });
+    // Saved only once the relay shows that roster: it can take an event and
+    // still refuse some of its members, which the next sweep then retries.
+    const after =
+      toAdd.length + toRemove.length > 0
+        ? await channelMemberPubkeys(relayUrl, channelId)
+        : current;
+    const synced =
+      [...wanted.keys()].every((pubkey) => after.has(pubkey)) &&
+      toRemove.every(({ pubkey }) => !after.has(pubkey));
+    if (synced) {
+      channel = await prisma.buzzChannel.update({
+        where: { id: channel.id },
+        data: { membersHash },
+      });
+    }
   }
   // Name, topic and archiving follow the room, after its members. An
   // archived channel takes no edits on Buzz, so it gets only that; reopening
@@ -1433,15 +1448,7 @@ export async function syncRoomChannel(roomId: string) {
         content: "",
         tags: [["h", channelId], ...tags],
       });
-    try {
-      await edit([["archived", String(archived)]]);
-    } catch (error) {
-      // Already so: the relay refuses a change that changes nothing.
-      const already =
-        error instanceof BuzzRelayRejectedError &&
-        /channel is (not )?archived/i.test(error.reason);
-      if (!already) throw error;
-    }
+    await setArchived(relayUrl, channelId, archived);
     if (!archived) {
       // Empty clears a topic that was removed.
       await edit([
@@ -1455,6 +1462,61 @@ export async function syncRoomChannel(roomId: string) {
     });
   }
   return { channel, relayUrl };
+}
+
+function isArchivedRefusal(error: unknown): boolean {
+  return (
+    error instanceof BuzzRelayRejectedError &&
+    /channel is archived/i.test(error.reason)
+  );
+}
+
+/** Archives or reopens a channel on Buzz; already so is fine. */
+async function setArchived(
+  relayUrl: string,
+  channelId: string,
+  archived: boolean,
+) {
+  try {
+    await publish(relayUrl, requireConfig().operatorSecretKey, {
+      kind: BUZZ_KIND.editChannel,
+      content: "",
+      tags: [
+        ["h", channelId],
+        ["archived", String(archived)],
+      ],
+    });
+  } catch (error) {
+    // The relay refuses a change that changes nothing.
+    const already =
+      error instanceof BuzzRelayRejectedError &&
+      /channel is (not )?archived/i.test(error.reason);
+    if (!already) throw error;
+  }
+}
+
+/**
+ * Makes changes to a channel the relay refuses while it is archived (members,
+ * deletion): reopened for them, then archived again unless it is gone.
+ */
+async function whileOpen<T>(
+  relayUrl: string,
+  channelId: string,
+  change: () => Promise<T>,
+  { reArchive = true }: { reArchive?: boolean } = {},
+): Promise<T> {
+  try {
+    return await change();
+  } catch (error) {
+    if (!isArchivedRefusal(error)) throw error;
+  }
+  await setArchived(relayUrl, channelId, false);
+  if (!reArchive) return change();
+  try {
+    return await change();
+  } finally {
+    await setArchived(relayUrl, channelId, true);
+  }
 }
 
 async function channelMemberPubkeys(
@@ -3030,30 +3092,73 @@ export async function deleteChannelsOfDeletedRooms() {
     select: {
       id: true,
       channelId: true,
+      membersHash: true,
       community: { select: { relayUrl: true } },
     },
   });
+  let deleted = 0;
   for (const channel of orphaned) {
+    const relayUrl = channel.community.relayUrl;
     try {
-      await publish(
-        channel.community.relayUrl,
-        requireConfig().operatorSecretKey,
-        {
-          kind: BUZZ_KIND.deleteChannel,
-          content: "",
-          tags: [["h", channel.channelId]],
-        },
-      );
+      // A DM is its opener's, not the operator's: one of its people whose key
+      // Sokosumi keeps deletes it.
+      const signers = isDirect(channel)
+        ? await directMessageSigners(relayUrl, channel.channelId)
+        : [requireConfig().operatorSecretKey];
+      await deleteGroup(relayUrl, channel.channelId, signers);
+      await prisma.buzzChannel.delete({ where: { id: channel.id } });
+      deleted += 1;
     } catch (error) {
-      if (!isAlreadyDone(error)) throw error;
+      // Kept, and tried again on the next sweep; the others go on.
+      console.error(
+        `Buzz channel ${channel.channelId.slice(0, 8)} of a deleted room not deleted`,
+        error,
+      );
     }
-    await prisma.buzzChannel.delete({ where: { id: channel.id } });
   }
   // An organization's community goes once its channels are gone from Buzz.
   await prisma.buzzCommunity.deleteMany({
     where: { organizationId: null, channels: { none: {} } },
   });
-  return orphaned.length;
+  return deleted;
+}
+
+/** Secret keys Sokosumi keeps of a DM's people, who may delete it. */
+async function directMessageSigners(relayUrl: string, channelId: string) {
+  const members = await channelMemberPubkeys(relayUrl, channelId);
+  const identities = await prisma.buzzIdentity.findMany({
+    where: { pubkey: { in: [...members] }, encryptedSecretKey: { not: null } },
+  });
+  return identities.map((identity) => identitySecretKey(identity));
+}
+
+/** Deletes a group with the first of these keys the relay lets do it. */
+async function deleteGroup(
+  relayUrl: string,
+  channelId: string,
+  signers: Uint8Array[],
+) {
+  let refusal: unknown = new Error("No key that may delete this channel");
+  for (const secretKey of signers) {
+    try {
+      await whileOpen(
+        relayUrl,
+        channelId,
+        () =>
+          publish(relayUrl, secretKey, {
+            kind: BUZZ_KIND.deleteChannel,
+            content: "",
+            tags: [["h", channelId]],
+          }),
+        { reArchive: false },
+      );
+      return;
+    } catch (error) {
+      if (isAlreadyDone(error)) return;
+      refusal = error;
+    }
+  }
+  throw refusal;
 }
 
 /** Rooms of Buzz organizations that have no channel yet. */
