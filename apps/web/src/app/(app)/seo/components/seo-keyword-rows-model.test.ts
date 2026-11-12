@@ -266,6 +266,10 @@ describe("SEO keyword rows", () => {
     expect(page.rows.at(-1)?.lead.keyword).toBe("read 9");
     expect(page.more).toBe(2);
     expect(keywordPage(checked.slice(0, 15), 10).more).toBe(0);
+    // A fold that would hide one row hides none.
+    const eleven = keywordGroups(read.slice(0, 11)).checked;
+    expect(keywordPage(eleven, 10)).toMatchObject({ more: 0 });
+    expect(keywordPage(eleven, 10).rows).toHaveLength(11);
   });
 
   it("tells a failed read from a keyword no check has read", () => {

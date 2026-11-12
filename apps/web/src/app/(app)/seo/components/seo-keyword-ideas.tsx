@@ -19,11 +19,11 @@ import {
 } from "./seo-keyword-rows-model";
 import {
   SEO_COMPACT_ROWS_CLASS,
-  SEO_LIST_PAGE_SIZE,
   SeoBarNumber,
   SeoPageText,
   SeoSection,
   SeoShowMore,
+  seoFoldCount,
   seoMarketName,
 } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -42,10 +42,9 @@ export function SeoKeywordIdeas({
   const [expanded, setExpanded] = useState(false);
   if (!ideas.length) return null;
   // A search already narrows the list; it shows every match.
+  const visible = seoFoldCount(ideas.length);
   const rows =
-    expanded || model.keywordSearch
-      ? ideas
-      : ideas.slice(0, SEO_LIST_PAGE_SIZE);
+    expanded || model.keywordSearch ? ideas : ideas.slice(0, visible);
   const shown = {
     volume: ideas.some((group) => group.volume !== null),
     // Only a check that estimates conversion fills the column.
@@ -173,10 +172,10 @@ export function SeoKeywordIdeas({
         </Table>
         {shown.conversion ? <SeoConversionNote /> : null}
       </div>
-      {ideas.length > SEO_LIST_PAGE_SIZE && !model.keywordSearch ? (
+      {ideas.length > visible && !model.keywordSearch ? (
         <SeoShowMore
           more={t("keywords.ideas.more", {
-            count: ideas.length - SEO_LIST_PAGE_SIZE,
+            count: ideas.length - visible,
           })}
           expanded={expanded}
           onToggle={() => setExpanded((open) => !open)}

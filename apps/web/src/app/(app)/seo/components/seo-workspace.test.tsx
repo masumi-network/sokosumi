@@ -1100,16 +1100,51 @@ describe("SEO workspace integration", () => {
   it("puts the filters under the tabs so the tab row stays put", () => {
     const workspace = seoTestWorkspace();
     workspace.metrics = [seoTestMetric()];
+    // One page and no saved selection: the header has no page picker.
+    workspace.scopes = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    const view = renderWorkspace(workspace, "?tab=traffic");
+    const after = (name: string) =>
+      screen
+        .getByRole("tablist")
+        .compareDocumentPosition(screen.getByRole("button", { name })) &
+      Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(after("Filter by date")).toBeTruthy();
+    view.unmount();
+    // With a page picker the header has a line on every tab: the closed filter stands in it and adds no row.
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: crypto.randomUUID(),
+      url: "https://example.com/blogs",
+      relationship: "related",
+      relatedToPageId: workspace.pages[0].id,
+    });
+    workspace.scope.pageIds = workspace.pages.map((page) => page.id);
+    renderWorkspace(workspace, "?tab=traffic");
+    expect(after("Filter by date")).toBeFalsy();
+    expect(
+      screen.getByRole("button", { name: "Filter by date" }).parentElement,
+    ).toContainElement(screen.getByRole("combobox", { name: "Pages" }));
+  });
+
+  it("opens the folded filter block when the header's date filter is pressed", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    // Google Analytics data adds the traffic choice, so a phone folds the filter block.
+    workspace.metrics = [{ ...seoTestMetric(), source: "ga4" }];
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace, "?tab=traffic");
-    const tabs = screen.getByRole("tablist");
-    const dates = screen.getByRole("button", { name: "Filter by date" });
-    expect(
-      tabs.compareDocumentPosition(dates) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    const fold = screen.getByRole("button", { name: "Filters" });
+    expect(fold).toHaveAttribute("aria-expanded", "false");
+    await user.click(screen.getByRole("button", { name: "Filter by date" }));
+    // The date fields stand in that block: a press that opened them in a closed block would show nothing.
+    expect(fold).toHaveAttribute("aria-expanded", "true");
   });
 
   it("puts no badge on a page while the Audit has one primary page", () => {
@@ -3959,15 +3994,22 @@ describe("SEO workspace integration", () => {
         return Response.json({ turns: [] });
       }),
     );
-    renderWorkspace(workspace);
+    // A result that asks for a change is a line of the Agent card.
+    workspace.strategy.verdict = "out of reach";
+    const first = renderWorkspace(workspace);
     expect(await screen.findByTestId("seo-agent-strategy")).toHaveTextContent(
-      "Keyword strategy: Keep these keywords: the site can reach at least half of their searches",
+      "Keyword strategy: Most searches of these keywords are out of reach for the site",
     );
+    first.unmount();
+    // "Keep these keywords" asks for nothing: the card does not say it.
+    workspace.strategy.verdict = "keep";
+    renderWorkspace(workspace);
     expect(
-      screen.getByText(
+      await screen.findByText(
         "The site audit recommends 2 actions from the keyword strategy. The first: Ask to be added to these lists of products.",
       ),
     ).toBeVisible();
+    expect(screen.queryByTestId("seo-agent-strategy")).toBeNull();
     // The step opens a list and has no end, so it never takes the filled style.
     expect(
       screen.getByRole("button", { name: "View these actions" }),
@@ -3984,7 +4026,7 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     expect(
       screen.getByText(
-        "The site audit recommends these from the search results for your keywords. Each one needs a plan, so the button puts a question to the SEO agent in the chat.",
+        "The site audit recommends these from the search results for your keywords.",
       ),
     ).toBeVisible();
     // "No recommended actions" above these cards would say two things at once.
@@ -4000,7 +4042,7 @@ describe("SEO workspace integration", () => {
       })
       .closest("article");
     if (!card) throw new Error("no card");
-    // With more than one action each card starts as one row: the title, the kind and the effort.
+    // With more than one action each card starts as one row: the title and the effort.
     expect(
       within(card).queryByRole("button", { name: "Draft a plan" }),
     ).toBeNull();
@@ -4008,15 +4050,17 @@ describe("SEO workspace integration", () => {
       within(card).queryByText("Ask on the product's merits only."),
     ).toBeNull();
     await user.click(within(card).getByRole("button", { expanded: false }));
-    expect(within(card).getByText("Effort: Medium")).toBeVisible();
-    expect(within(card).getByText("On another site")).toBeVisible();
-    // An action on the site's own pages says so.
+    // The effort is plain text, and the title alone says the kind of action: no outlined label on a row.
+    expect(within(card).getByText("Effort: Medium")).not.toHaveAttribute(
+      "data-slot",
+      "badge",
+    );
+    expect(within(card).queryByText("On another site")).toBeNull();
     const page = screen
       .getByRole("heading", { name: /Write a comparison page/ })
       .closest("article");
     if (!page) throw new Error("no page card");
     await user.click(within(page).getByRole("button", { expanded: false }));
-    expect(within(page).getByText("New page")).toBeVisible();
     expect(within(page).queryByText("Limit")).toBeNull();
     // Both buttons have one name; each card's title tells them apart.
     expect(
@@ -4093,6 +4137,35 @@ describe("SEO workspace integration", () => {
     ).not.toHaveClass("bg-primary");
   });
 
+  it("does not repeat a type that every place of an action shares", async () => {
+    const user = userEvent.setup();
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    const strategy = seoTestStrategy();
+    const [action] = strategy.actions;
+    strategy.actions = [
+      {
+        ...action,
+        targets: action.targets.map((target) => ({
+          ...target,
+          type: "listicle",
+        })),
+      },
+    ];
+    workspace.strategy = strategy;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(url.endsWith("/chat") ? { turns: [] } : workspace),
+      ),
+    );
+    renderWorkspace(workspace);
+    await user.click(await screen.findByRole("tab", { name: "Actions" }));
+    const list = await screen.findByRole("link", { name: "Best battery apps" });
+    // The state still tells the places apart. The type is the same on each line, and the title names it.
+    expect(list.closest("li")).toHaveTextContent("Does not name the product");
+    expect(screen.queryByText(/List of products/)).toBeNull();
+  });
+
   it("shows a promotion action's place as a link and its text with a copy button; the question names the place", async () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
@@ -4125,7 +4198,6 @@ describe("SEO workspace integration", () => {
     expect(
       await screen.findByRole("link", { name: "r/macapps" }),
     ).toHaveAttribute("href", "https://www.reddit.com/r/macapps/");
-    expect(screen.getByText("Promotion")).toBeVisible();
     // The name does not say which site the link opens, so the site shows beside it.
     expect(screen.getByText("Community · reddit.com")).toBeVisible();
     expect(

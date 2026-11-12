@@ -475,7 +475,7 @@ describe("SEO competitor baselines", () => {
     expect(screen.queryByText(/^Last position check$/)).toBeNull();
   });
 
-  it("dates each row when the rows come from several checks", () => {
+  it("dates the list with the newest check, and a row of an older check under its name", () => {
     const workspace = seoTestWorkspace();
     const row = {
       id: "older",
@@ -503,11 +503,20 @@ describe("SEO competitor baselines", () => {
       },
     ];
     renderWorkspace(workspace);
-    // One line with one date would give the older check's rows the newer date.
-    expect(screen.queryByText(/^Last position check$/)).toBeNull();
+    // One line dates the newest check. A column with a date on every row said the same on most rows.
+    expect(screen.getByText(/^Last position check/)).toHaveTextContent(
+      "Last position check Feb 3, 2026",
+    );
     expect(
-      screen.getByRole("columnheader", { name: "Last checked" }),
-    ).toBeVisible();
+      screen.queryByRole("columnheader", { name: "Last checked" }),
+    ).toBeNull();
+    // The line's date is not the date of the older check's row, so that row says its own.
+    expect(screen.getByText("older.example").closest("td")).toHaveTextContent(
+      "Last checked: Jan 3, 2026",
+    );
+    expect(
+      screen.getByText("newer.example").closest("td"),
+    ).not.toHaveTextContent("Last checked");
   });
 
   it("keeps the results link of your page when another check found the competitors", () => {

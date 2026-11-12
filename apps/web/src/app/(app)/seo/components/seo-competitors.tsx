@@ -22,7 +22,6 @@ import {
 import { SeoRowMenu } from "./seo-row-menu";
 import {
   SEO_COMPACT_ROWS_CLASS,
-  SEO_LIST_PAGE_SIZE,
   SeoAddButton,
   SeoDate,
   SeoEmpty,
@@ -32,6 +31,7 @@ import {
   SeoShowMore,
   SeoSource,
   SeoState,
+  seoFoldCount,
 } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -45,31 +45,31 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
   const { sites, platforms } = competitorSites(all);
   const [expanded, setExpanded] = useState(false);
   // A search already narrows the list; it shows every match.
+  const visible = seoFoldCount(sites.length);
   const rows =
-    expanded || model.competitorSearch
-      ? sites
-      : sites.slice(0, SEO_LIST_PAGE_SIZE);
+    expanded || model.competitorSearch ? sites : sites.slice(0, visible);
   const number = (value: number | null) =>
     value === null ? t("none") : format.number(value);
-  // One check for every row is said once above the table, not in two columns of every row.
-  // A competitor the reader added comes from no check.
+  // The newest check is said once above the table, not in a column of every row. A row of an older check
+  // carries its date under its name. A competitor the reader added comes from no check.
   // The whole list counts, not the rows of a search: the line stands over the search field, and a line that
   // comes and goes while the reader types moves the field.
-  const everySite = model.data.competitors.filter((row) => row.role !== "page");
-  const checks = new Set(
-    everySite.flatMap((row) => (row.observationId ? [row.observationId] : [])),
-  );
   // A row without a date cannot date the line.
-  const oneCheck =
-    checks.size === 1
-      ? everySite.find((row) => row.observationId && row.observedAt)
-      : undefined;
+  const time = (value: string | Date | null) =>
+    value ? new Date(value).getTime() : 0;
+  // Only the first page of a site carries a date of its own, so only these rows count.
+  const newest = competitorSites(
+    model.data.competitors.filter((row) => row.role !== "page"),
+  )
+    .sites.map((site) => site.lead)
+    .filter((row) => row.observationId && row.observedAt)
+    .sort((a, b) => time(b.observedAt) - time(a.observedAt))
+    .at(0);
   // A column no row has measured only repeats "Not available"; name it once instead.
   const shown = {
     rank: all.some((row) => row.rank !== null),
     backlinks: all.some((row) => row.backlinks !== null),
     domains: all.some((row) => row.referringDomains !== null),
-    observed: !oneCheck && all.some((row) => row.observedAt !== null),
   };
   // The check reads no backlink count for a competitor, so the line under the table does not name that column.
   const hidden = [
@@ -109,20 +109,20 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
         ) : null
       }
     >
-      {oneCheck ? (
+      {newest ? (
         // The date opens the results of the check. It stands under the title, at the place and in the size of the
         // meta line on Keywords, so the line holds its place when the switch changes the list.
         <p className="text-muted-foreground px-2 pb-1 text-sm">
           <SeoSource
             workspace={model.data}
-            observationId={oneCheck.observationId}
+            observationId={newest.observationId}
           >
-            {t("keywords.readOn")} <SeoDate day value={oneCheck.observedAt} />
+            {t("keywords.readOn")} <SeoDate day value={newest.observedAt} />
           </SeoSource>
         </p>
       ) : null}
       {/* A list that shows every site needs no filter. */}
-      {sites.length > SEO_LIST_PAGE_SIZE || model.competitorSearch ? (
+      {sites.length > visible || model.competitorSearch ? (
         <div className="px-2 pb-3">
           <Label htmlFor="seo-competitor-search" className="sr-only">
             {t("search")}
@@ -158,7 +158,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                 </span>
               ) : null}
               {row.observationId &&
-              row.observationId !== oneCheck?.observationId ? (
+              row.observationId !== newest?.observationId ? (
                 <SeoSource
                   workspace={model.data}
                   observationId={row.observationId}
@@ -174,12 +174,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
             {/* A lone "Site" header names what every row already shows. */}
             <TableHeader
               className={cn(
-                !(
-                  shown.rank ||
-                  shown.backlinks ||
-                  shown.domains ||
-                  shown.observed
-                ) && "sr-only",
+                !(shown.rank || shown.backlinks || shown.domains) && "sr-only",
               )}
             >
               <TableRow>
@@ -199,7 +194,6 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                     {t("competitors.domainsShort")}
                   </TableHead>
                 ) : null}
-                {shown.observed ? <TableHead>{t("observed")}</TableHead> : null}
                 <TableHead>
                   <span className="sr-only">{t("manage")}</span>
                 </TableHead>
@@ -221,6 +215,13 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                       </p>
                       {/* The site is the line above: the page shows as its path. */}
                       <SeoPageLink url={row.url} site={row.url} clamp quiet />
+                      {/* The line above the table dates the newest check; a row of an older one carries its date. */}
+                      {row.observedAt &&
+                      row.observationId !== newest?.observationId ? (
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          {t("observed")}: <SeoDate value={row.observedAt} />
+                        </p>
+                      ) : null}
                       {mixed && !chosen(row) ? (
                         <div className="mt-1">
                           <SeoState>{t("competitors.suggested")}</SeoState>
@@ -286,11 +287,6 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                       >
                         {/* A plain number: one site with many links made every other bar empty. */}
                         {number(row.referringDomains)}
-                      </TableCell>
-                    ) : null}
-                    {shown.observed ? (
-                      <TableCell data-label={t("observed")}>
-                        <SeoDate value={row.observedAt} />
                       </TableCell>
                     ) : null}
                     <TableCell className="text-right">
@@ -368,10 +364,10 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
           }
         />
       )}
-      {sites.length > SEO_LIST_PAGE_SIZE && !model.competitorSearch ? (
+      {sites.length > visible && !model.competitorSearch ? (
         <SeoShowMore
           more={t("competitors.more", {
-            count: sites.length - SEO_LIST_PAGE_SIZE,
+            count: sites.length - visible,
           })}
           expanded={expanded}
           onToggle={() => setExpanded((open) => !open)}

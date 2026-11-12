@@ -11526,7 +11526,7 @@
           "queries": "Über welche Suchen kommen Menschen auf diese Seiten?",
           "competitors": "Was weißt du über meine Wettbewerber?",
           "measure": "Die Prüfung hat „{name}“ auf {url} mit {value} gemessen, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Entwirf eine Änderung und schlage sie als Aktion vor, die ich freigeben kann.",
-          "track": "Welche Keywords soll ich verfolgen?"
+          "track": "Welche Keyword-Ideen soll ich verfolgen?"
         },
         "researchCompetitors": "Wettbewerber recherchieren",
         "verdict": {
@@ -11613,7 +11613,7 @@
       },
       "strategy": {
         "title": "Keyword-Strategie",
-        "from": "Aus dem Website-Audit vom",
+        "from": "Aus der Prüfung vom",
         "verdict": {
           "keep": "Behalte diese Keywords: Die Website kann mindestens die Hälfte ihrer Suchen erreichen",
           "outOfReach": "Die meisten Suchen dieser Keywords sind für die Website außer Reichweite",
@@ -11626,13 +11626,19 @@
         "reach": {
           "ranks": "Rankt bereits",
           "inReach": "In Reichweite",
-          "open": "Offen: ein Forum ist in den Ergebnissen",
+          "open": "Ein Forum ist in den Ergebnissen",
           "outOfReach": "Außer Reichweite",
           "notDetermined": "Reichweite nicht bestimmt"
         },
+        "reachCount": {
+          "ranks": "{count, plural, one {# Keyword-Gruppe rankt bereits} other {# Keyword-Gruppen ranken bereits}}",
+          "inReach": "{count, plural, one {# Keyword-Gruppe ist in Reichweite} other {# Keyword-Gruppen sind in Reichweite}}",
+          "open": "{count, plural, one {# Keyword-Gruppe hat ein Forum in den Ergebnissen} other {# Keyword-Gruppen haben ein Forum in den Ergebnissen}}",
+          "outOfReach": "{count, plural, one {# Keyword-Gruppe ist außer Reichweite} other {# Keyword-Gruppen sind außer Reichweite}}",
+          "notDetermined": "{count, plural, one {# Keyword-Gruppe hat keine bekannte Reichweite} other {# Keyword-Gruppen haben keine bekannte Reichweite}}"
+        },
         "falling": "{count, plural, one {# Keyword-Gruppe verliert Suchen} other {# Keyword-Gruppen verlieren Suchen}}",
-        "details": "So liest du das",
-        "reachHelp": "Die Zahlen zählen Keyword-Gruppen. Rankt bereits: Eine Seite der Website rankt schon für das Keyword oder steht im Featured Snippet. In Reichweite: Das Audit hat die verweisenden Domains der Website mit der schwächsten Top-10-Seite verglichen, die es zählen konnte, und die Website ist nah genug. Offen: Ein Forum ist in den Suchergebnissen, ein Zeichen, dass die Ergebnisse für neue Seiten offen sind.",
+        "reachHelp": "Rankt bereits: Eine Seite der Website rankt schon für das Keyword oder steht im Featured Snippet. In Reichweite: Das Audit hat die verweisenden Domains der Website mit der schwächsten Top-10-Seite verglichen, die es zählen konnte, und die Website ist nah genug. Ein Forum in den Suchergebnissen ist ein Zeichen, dass die Ergebnisse für neue Seiten offen sind.",
         "trend": {
           "falling": "Suchen fallen: {recent} pro Monat in den letzten Monaten",
           "rising": "Suchen steigen: {recent} pro Monat in den letzten Monaten"
@@ -11652,17 +11658,10 @@
         "actions": {
           "title": "Aktionen aus der Keyword-Strategie",
           "help": "Das Website-Audit empfiehlt diese Aktionen aus den Suchergebnissen für deine Keywords.",
-          "helpAsk": "Jede braucht einen Plan, daher stellt die Schaltfläche dem SEO-Agenten eine Frage im Chat.",
           "limit": "Grenze",
           "prompt": "Das Website-Audit empfiehlt: „{title}“. Entwirf einen Plan mit den Schritten in Reihenfolge.{hasLimit, select, yes { Halte diese Grenze ein: {limit}} other {}}{count, plural, =0 {} one { Der Ort: {targets}} other { Die Orte: {targets}}}",
           "open": "Diese Aktionen ansehen",
           "place": "Ort"
-        },
-        "actionKind": {
-          "getListed": "Auf einer anderen Website",
-          "newPage": "Neue Seite",
-          "retargetPage": "Seitenänderung",
-          "promote": "Vermarktung"
         },
         "placeForm": {
           "community": "Community",

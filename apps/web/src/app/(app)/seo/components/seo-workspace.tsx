@@ -64,6 +64,7 @@ import { SeoPageChangeDialog } from "./seo-page-change-dialog";
 import { SeoPageError } from "./seo-page-error";
 import { SeoRankings } from "./seo-rankings";
 import {
+  SeoDateFilterButton,
   SeoPagePicker,
   SeoScopeBar,
   seoScopeControls,
@@ -118,8 +119,13 @@ export function SeoWorkspace({
     dates: controls.dates,
   });
   // An empty filter block would still add a gap under the header.
+  // With a page picker the closed date filter stands beside it, in the header line. Without one it stays under
+  // the tabs: one line more in the header of the dated tabs only would move the tab row from tab to tab.
   const showFilters =
-    foldFilters || controls.dates || dateFields.open || editScope;
+    foldFilters ||
+    (controls.dates && !pagePicker) ||
+    dateFields.open ||
+    editScope;
   const [filtersOpen, setFiltersOpen] = useState(
     Boolean(model.filters.from || model.filters.to),
   );
@@ -212,7 +218,19 @@ export function SeoWorkspace({
           ) : null}
           {/* One page in view: its URL says more than a count. */}
           <div className="min-w-0 max-sm:col-span-2 max-sm:row-start-3">
-            {pagePicker ? <SeoPagePicker model={model} /> : null}
+            {pagePicker ? (
+              // Both narrow the view, so they stand on one line.
+              <div className="flex flex-wrap items-center gap-x-4">
+                <SeoPagePicker model={model} />
+                {controls.dates && !dateFields.open ? (
+                  // Its fields open in the filter block under the tabs.
+                  <SeoDateFilterButton
+                    dateFields={dateFields}
+                    onReveal={() => setFiltersOpen(true)}
+                  />
+                ) : null}
+              </div>
+            ) : null}
             {scopePage ? (
               <SeoPageLink url={scopePage.url} />
             ) : pagePicker ? null : (
@@ -441,7 +459,11 @@ export function SeoWorkspace({
               filtersOpen || !foldFilters ? "block" : "hidden",
             )}
           >
-            <SeoScopeBar model={model} dateFields={dateFields} />
+            <SeoScopeBar
+              model={model}
+              dateFields={dateFields}
+              dateButton={!pagePicker}
+            />
             {editScope ? (
               <Button
                 variant="ghost"

@@ -59,7 +59,7 @@ import {
   seoSectionClass,
 } from "./seo-shared";
 import { seoQueryPeriod } from "./seo-statistics-model";
-import { SeoKeywordDemand, SeoStrategyCard } from "./seo-strategy";
+import { SeoKeywordDemand, SeoStrategyFold } from "./seo-strategy";
 import { seoStrategyGroupOf } from "./seo-strategy-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -129,14 +129,11 @@ export function SeoKeywords({
     // Only a check that estimates conversion fills the column.
     conversion: checked.some((group) => group.conversion !== null),
     // Where no keyword shows a page, the result line says so once; a column of "Not found" adds nothing.
-    // The column also dates each row, so it stays while the reads come from more than one check.
+    // A row of an older check then carries its date under its name.
     position: !(
       all.checked.length > 0 &&
       all.checked.every(
-        (group) =>
-          group.reads.length > 0 &&
-          group.best === null &&
-          group.reads[0].observationId === summary.newest?.observationId,
+        (group) => group.reads.length > 0 && group.best === null,
       )
     ),
     // One market for every keyword is said once, in the result line above the table.
@@ -167,6 +164,18 @@ export function SeoKeywords({
     ...checked.map((group) => group.volume ?? 0),
   );
   const groupOf = seoStrategyGroupOf(model.data.strategy);
+  // A keyword in two rows of one Market has two pages: each of these rows names its page, the primary page too.
+  // The Market column tells the rows of two Markets apart.
+  const nameOf = (row: (typeof checked)[number]["lead"]) =>
+    JSON.stringify([
+      normalizeQuery(row.keyword),
+      row.countryCode,
+      row.languageCode,
+    ]);
+  const names = checked.map((group) => nameOf(group.lead));
+  const repeated = new Set(
+    names.filter((name, index) => names.indexOf(name) !== index),
+  );
   // A check that found no page in the results is the worst result of the tab. The fixes the agent proposes are
   // the one next step it can offer, so the card leads to them.
   const fixes =
@@ -177,15 +186,6 @@ export function SeoKeywords({
   const bothLists = Boolean(model.keywordSearch) && section !== "competitors";
   return (
     <div className="space-y-5">
-      {/* Without a strategy the holder is empty and takes no room. */}
-      <div
-        className={cn(
-          "empty:hidden",
-          seoSectionClass(section !== "competitors"),
-        )}
-      >
-        <SeoStrategyCard model={model} />
-      </div>
       <div className={seoSectionClass(bothLists || section === "keywords")}>
         <SeoSection
           // The switch above names the list, so the title is its result: one sentence.
@@ -349,7 +349,7 @@ export function SeoKeywords({
                                 <SeoPageText
                                   url={row.pageUrl}
                                   workspace={model.data}
-                                  skipPrimary
+                                  skipPrimary={!repeated.has(nameOf(row))}
                                   oneLine
                                 />
                               ) : null
@@ -371,6 +371,17 @@ export function SeoKeywords({
                               group={groupOf(row)}
                               keyword={row.keyword}
                             />
+                            {/* Without the position column, a row of an older check says so here. */}
+                            {!shown.position &&
+                            reads.length > 0 &&
+                            reads[0].observedAt &&
+                            reads[0].observationId !==
+                              summary.newest?.observationId ? (
+                              <p className="text-muted-foreground mt-1 text-xs">
+                                {t("observed")}:{" "}
+                                <SeoDate value={reads[0].observedAt} />
+                              </p>
+                            ) : null}
                             <SeoKeywordTrendToggle
                               trend={
                                 cellSaysEmpty ? { state: "absent" } : trend
@@ -613,6 +624,7 @@ export function SeoKeywords({
               onToggle={() => setExpanded((open) => !open)}
             />
           ) : null}
+          <SeoStrategyFold model={model} />
         </SeoSection>
       </div>
       <div className={seoSectionClass(bothLists || section === "ideas")}>

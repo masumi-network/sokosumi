@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { TableCell } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import type { SeoKeywordGroup } from "./seo-keyword-rows-model";
 
 /** A check's estimate for one keyword: the level, and under it the named product feature the keyword is about. */
@@ -12,7 +13,8 @@ export function SeoConversionCell({
   const t = useTranslations("App.Seo");
   return (
     <TableCell
-      className="whitespace-normal"
+      // A phone row is its values on one line: an estimate the check did not make takes no place in it.
+      className={cn("whitespace-normal", !conversion && "max-sm:hidden!")}
       // The level does not name itself: "High" needs its label on a phone too.
       data-label={t("keywords.conversion.title")}
     >

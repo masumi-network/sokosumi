@@ -16,10 +16,8 @@ import {
   SeoPageLink,
   SeoSection,
   SeoSource,
-  SeoState,
 } from "./seo-shared";
 import {
-  SEO_STRATEGY_ACTION_KINDS,
   SEO_STRATEGY_PLACE_FORMS,
   SEO_STRATEGY_REACHES,
   SEO_STRATEGY_VERDICTS,
@@ -44,10 +42,20 @@ function useStrategyLabels() {
       const key = seoStrategyKey(SEO_STRATEGY_REACHES, word);
       return key ? t(`strategy.reach.${key}`) : word;
     },
+    // A count with its noun: "12" beside "In reach" did not say 12 of what.
+    reachCount: (word: string, count: number) => {
+      const key = seoStrategyKey(SEO_STRATEGY_REACHES, word);
+      return key
+        ? t(`strategy.reachCount.${key}`, { count })
+        : `${count} ${word}`;
+    },
   };
 }
 
-/** The Agent card's line: the site audit's keyword result in one sentence. The Rankings tab holds its numbers. */
+/**
+ * The Agent card's line: the site audit's keyword result in one sentence. The Rankings tab holds its numbers.
+ * "Keep these keywords" asks for nothing, so the card does not say it; a result that asks for a change shows.
+ */
 export function SeoStrategyLine({
   strategy,
 }: {
@@ -55,7 +63,11 @@ export function SeoStrategyLine({
 }) {
   const t = useTranslations("App.Seo");
   const labels = useStrategyLabels();
-  if (!strategy) return null;
+  if (
+    !strategy ||
+    seoStrategyKey(SEO_STRATEGY_VERDICTS, strategy.verdict) === "keep"
+  )
+    return null;
   return (
     <p className="text-sm" data-testid="seo-agent-strategy">
       <span className="text-muted-foreground">{t("strategy.title")}: </span>
@@ -64,8 +76,12 @@ export function SeoStrategyLine({
   );
 }
 
-/** The site audit's result for the keywords: the verdict, its reason and how many keyword groups the site can reach. */
-export function SeoStrategyCard({ model }: { model: SeoWorkspaceModel }) {
+/**
+ * The site audit's result for the keywords, as one closed line under the keyword list: the verdict. Open, it adds
+ * the reason, how many keyword groups the site can reach and the check the result comes from.
+ * As a card over the list it stood over the result of the list and over the ideas, with the words of an analyst.
+ */
+export function SeoStrategyFold({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const labels = useStrategyLabels();
   const strategy = model.data.strategy;
@@ -73,65 +89,51 @@ export function SeoStrategyCard({ model }: { model: SeoWorkspaceModel }) {
   const reason = seoStrategyReason(strategy);
   const counts = seoStrategyCounts(strategy.groups);
   return (
-    <SeoSection
-      title={t("strategy.title")}
-      description={
-        <>
-          {t("strategy.from")} <SeoDate value={strategy.observedAt} />
-        </>
-      }
-    >
-      <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-2 p-4")}>
-        <p
-          className="text-base font-semibold text-balance"
-          data-testid="seo-strategy-verdict"
-        >
-          {labels.verdict(strategy.verdict)}
-        </p>
-        <p className="max-w-prose text-sm break-words">{reason.lead}</p>
-        {reason.niche ? (
-          <p className="max-w-prose text-sm break-words">{reason.niche}</p>
-        ) : null}
+    <details className="px-2 text-sm">
+      <SeoFoldSummary className="py-2.5">
+        <span className="min-w-0 break-words">
+          <span className="text-muted-foreground">{t("strategy.title")}: </span>
+          <span className="font-medium" data-testid="seo-strategy-verdict">
+            {labels.verdict(strategy.verdict)}
+          </span>
+        </span>
+      </SeoFoldSummary>
+      <div className="max-w-prose space-y-2 pb-2">
+        <p className="break-words">{reason.lead}</p>
+        {reason.niche ? <p className="break-words">{reason.niche}</p> : null}
         {counts.reaches.length ? (
-          <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+          <ul role="list" className="tabular-nums">
             {counts.reaches.map(({ reach, count }) => (
-              <span key={reach}>
-                <span className="font-medium tabular-nums">{count}</span>{" "}
-                <span className="text-muted-foreground">
-                  {labels.reach(reach)}
-                </span>
-              </span>
+              <li key={reach}>{labels.reachCount(reach, count)}</li>
             ))}
             {counts.falling ? (
-              <span className="text-muted-foreground">
-                {t("strategy.falling", { count: counts.falling })}
-              </span>
+              <li>{t("strategy.falling", { count: counts.falling })}</li>
             ) : null}
-          </p>
+          </ul>
         ) : null}
-        <details className="text-sm">
-          <SeoFoldSummary className="py-2.5 font-medium">
-            {t("strategy.details")}
-          </SeoFoldSummary>
-          <div className="text-muted-foreground max-w-prose space-y-2 pt-1">
-            <p>{t("strategy.reachHelp")}</p>
-            {reason.details.length ? (
-              <ul className="list-disc space-y-1 ps-4">
-                {reason.details.map((line, index) => (
-                  <li key={`${index}:${line}`} className="break-words">
-                    {line}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        </details>
-        <SeoSource
-          observationId={strategy.observationId}
-          workspace={model.data}
-        />
+        <div className="text-muted-foreground space-y-2">
+          <p>{t("strategy.reachHelp")}</p>
+          {reason.details.length ? (
+            <ul className="list-disc space-y-1 ps-4">
+              {reason.details.map((line, index) => (
+                <li key={`${index}:${line}`} className="break-words">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <p>
+            {/* The date is the link to the results of the check. */}
+            <SeoSource
+              observationId={strategy.observationId}
+              workspace={model.data}
+            >
+              {t("strategy.from")} <SeoDate day value={strategy.observedAt} />
+            </SeoSource>
+          </p>
+        </div>
       </div>
-    </SeoSection>
+    </details>
   );
 }
 
@@ -196,7 +198,7 @@ function StrategyDraft({ text, titleId }: { text: string; titleId: string }) {
 }
 
 /**
- * One action of the keyword strategy. Closed, it is one row: the title, the kind and the effort, so a list of
+ * One action of the keyword strategy. Closed, it is one row: the title and the effort, so a list of
  * actions reads as a list. Open, it adds the reason, the places, the limit, the suggested text and the button.
  */
 function StrategyActionCard({
@@ -216,7 +218,6 @@ function StrategyActionCard({
   // Null until the reader presses the row: the start state follows the list, also when the list changes.
   const [toggled, setToggled] = useState<boolean | null>(null);
   const open = toggled ?? startOpen;
-  const kind = seoStrategyKey(SEO_STRATEGY_ACTION_KINDS, action.kind);
   return (
     <article className={cn(HOLDER_ITEM_CLASS, "min-w-0")}>
       <h3>
@@ -232,13 +233,10 @@ function StrategyActionCard({
             >
               {action.title}
             </span>
-            <span className="flex flex-wrap items-center gap-1 max-sm:mt-1">
-              {kind ? (
-                <SeoState>{t(`strategy.actionKind.${kind}`)}</SeoState>
-              ) : null}
-              <SeoState>
-                {t("actions.effort")}: {t(`priority.${action.effort}`)}
-              </SeoState>
+            {/* Quiet plain text, as the impact of a fix row. Two outlined labels on every row made the list a
+                list of labels, and the title already says what kind of action it is. */}
+            <span className="text-muted-foreground block text-xs font-normal whitespace-nowrap max-sm:mt-0.5">
+              {t("actions.effort")}: {t(`priority.${action.effort}`)}
             </span>
           </span>
         </SeoActionCardHead>
@@ -283,6 +281,10 @@ function StrategyActionBody({
   const places = action.place
     ? [action.place.url]
     : action.targets.map((target) => target.url);
+  // One type on every place of a list tells no place from another: "List of products" stood on four lines.
+  const oneType =
+    action.targets.length > 1 &&
+    new Set(action.targets.map((target) => target.type)).size === 1;
   return (
     <div id={bodyId} className="space-y-3 px-4 pt-1 pb-4">
       <p className="text-muted-foreground max-w-prose text-sm break-words">
@@ -306,7 +308,9 @@ function StrategyActionBody({
           {action.targets.map((target, index) => {
             const keys = seoStrategyTargetNotes(target);
             const notes = [
-              keys.type ? t(`strategy.targetType.${keys.type}`) : null,
+              keys.type && !oneType
+                ? t(`strategy.targetType.${keys.type}`)
+                : null,
               keys.state ? t(`strategy.targetState.${keys.state}`) : null,
             ].filter((note): note is string => note !== null);
             return (
@@ -383,12 +387,8 @@ export function SeoStrategyActions({ model }: { model: SeoWorkspaceModel }) {
   return (
     <SeoSection
       title={t("strategy.actions.title")}
-      // Without an audit the cards have no button, so the text names none.
-      description={
-        model.data.auditId
-          ? `${t("strategy.actions.help")} ${t("strategy.actions.helpAsk")}`
-          : t("strategy.actions.help")
-      }
+      // One sentence. The button of an open row names itself; a sentence about it stood over rows that show none.
+      description={t("strategy.actions.help")}
     >
       <ul role="list" className={SEO_ROW_LIST_CLASS}>
         {actions.map((action, index) => (

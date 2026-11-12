@@ -24,12 +24,6 @@ export const SEO_STRATEGY_REACHES = {
   "out of reach": "outOfReach",
   "not determined": "notDetermined",
 } as const;
-export const SEO_STRATEGY_ACTION_KINDS = {
-  "get listed": "getListed",
-  "new page": "newPage",
-  "retarget page": "retargetPage",
-  promote: "promote",
-} as const;
 /** What the owner does at the place of a promotion action. */
 export const SEO_STRATEGY_PLACE_FORMS = {
   community: "community",

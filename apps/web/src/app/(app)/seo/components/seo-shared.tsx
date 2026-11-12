@@ -99,8 +99,7 @@ export function seoSectionClass(shown: boolean) {
 
 /** A search box helps only in a list longer than about one screen. */
 export const SEO_SEARCH_MIN_ROWS = 20;
-/** Rows a long list shows before its "Show more" button. */
-export const SEO_LIST_PAGE_SIZE = 10;
+export { SEO_LIST_PAGE_SIZE, seoFoldCount } from "./seo-list-model";
 /** The mark of the chosen one in a set of bordered toggle buttons. */
 export const SEO_CHOSEN_CLASS = "bg-quinary border-foreground";
 /**

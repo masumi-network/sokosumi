@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { seoMarketName, seoPageName, seoPagePath } from "./seo-shared";
+import {
+  seoFoldCount,
+  seoMarketName,
+  seoPageName,
+  seoPagePath,
+} from "./seo-shared";
+
+describe("seoFoldCount", () => {
+  it("folds a list only when the fold hides more than one row", () => {
+    expect(seoFoldCount(10)).toBe(10);
+    // "Show 1 more" takes the room of the row it hides.
+    expect(seoFoldCount(11)).toBe(11);
+    expect(seoFoldCount(12)).toBe(10);
+    expect(seoFoldCount(4, 3)).toBe(4);
+    expect(seoFoldCount(5, 3)).toBe(3);
+  });
+});
 
 describe("seoMarketName", () => {
   it("keeps a code Intl does not accept as saved", () => {

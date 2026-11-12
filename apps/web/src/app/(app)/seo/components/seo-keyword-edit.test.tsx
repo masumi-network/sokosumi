@@ -551,7 +551,7 @@ function queryOrder() {
 }
 
 describe("Keywords after a check", () => {
-  it("leads with the site audit's keyword result and says each keyword's reach and falling searches", () => {
+  it("says the site audit's keyword result in one closed line under the list, and each keyword's reach and falling searches", () => {
     const { workspace } = savedKeywordWorkspace();
     const row = (keyword: string) => ({
       ...workspace.keywords[0],
@@ -580,13 +580,28 @@ describe("Keywords after a check", () => {
     // A trend without its recent searches has no number to show.
     workspace.strategy.groups[2].trend = "rising";
     const { unmount } = renderWorkspace(workspace);
-    expect(screen.getByTestId("seo-strategy-verdict")).toHaveTextContent(
+    const verdict = screen.getByTestId("seo-strategy-verdict");
+    expect(verdict).toHaveTextContent(
       "Keep these keywords: the site can reach at least half of their searches",
     );
+    // The line is closed and stands after the keyword rows: the result of the list leads the card.
+    const fold = verdict.closest("details");
+    if (!fold) throw new Error("no strategy fold");
+    expect(fold.open).toBe(false);
+    expect(
+      screen.getByRole("table").compareDocumentPosition(fold) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    fold.open = true;
     expect(
       screen.getByText(
         "160 of 160 monthly searches of the keyword groups with a known reach lie in groups the site ranks for or can reach.",
       ),
+    ).toBeVisible();
+    // A count names what it counts.
+    expect(screen.getByText("1 keyword group is in reach")).toBeVisible();
+    expect(
+      screen.getByText("1 keyword group has a forum in the results"),
     ).toBeVisible();
     // Each keyword's numbers are one line of the folded details.
     expect(
@@ -613,8 +628,9 @@ describe("Keywords after a check", () => {
       /Ranks now|Searches|trend/,
     );
     expect(cell("battery widget")).toHaveTextContent(
-      "Open: a forum is in the results",
+      "A forum is in the results",
     );
+    expect(cell("battery widget")).not.toHaveTextContent("Open:");
     expect(cell("battery health checker")).not.toHaveTextContent(
       /reach|Searches/i,
     );
@@ -632,6 +648,54 @@ describe("Keywords after a check", () => {
       "expand",
     );
     expect(screen.queryByText(/loses searches/)).toBeNull();
+  });
+
+  it("names the page on each row of a keyword that two pages hold", () => {
+    const workspace = seoTestWorkspace();
+    const home = workspace.pages[0].url;
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: crypto.randomUUID(),
+      url: "https://example.com/guides",
+      label: "Guides",
+      relationship: "related",
+      relatedToPageId: workspace.pages[0].id,
+    });
+    workspace.scope.pageIds = workspace.pages.map((page) => page.id);
+    const row = (id: string, keyword: string, pageUrl: string) => ({
+      ...workspace.keywords[0],
+      id,
+      keyword,
+      pageUrl,
+      saved: false,
+      version: 0,
+      countryCode: "US",
+      languageCode: "en",
+    });
+    workspace.keywords = [
+      row("home", "battery app", home),
+      row("guides", "battery app", "https://example.com/guides"),
+      row("alone", "charge timer", home),
+      // The same keyword in another Market is on the same page: the Market tells the two rows apart.
+      {
+        ...row("german", "charge timer", home),
+        countryCode: "DE",
+        languageCode: "de",
+      },
+    ];
+    renderWorkspace(workspace);
+    const cells = screen
+      .getAllByText("battery app")
+      .map((name) => name.closest("td")?.textContent);
+    // Two rows with one name: the page tells them apart, the primary page too.
+    expect(cells).toHaveLength(2);
+    expect(cells.filter((text) => text?.includes("Home page"))).toHaveLength(1);
+    expect(cells.filter((text) => text?.includes("/guides"))).toHaveLength(1);
+    // A keyword of the primary page alone names no page: most rows belong to that page.
+    const alone = screen.getAllByText("charge timer");
+    expect(alone).toHaveLength(2);
+    for (const name of alone)
+      expect(name.closest("td")).not.toHaveTextContent("Home page");
   });
 
   it("shows a keyword once, the result first, and the unread keywords as ideas", async () => {
@@ -1129,7 +1193,7 @@ describe("Search Console queries", () => {
     ).toBeNull();
   });
 
-  it("keeps the Position column while the reads come from two checks, and says so when no keyword is found", () => {
+  it("shows no Position column where no keyword is found, and dates a row of an older check under its name", () => {
     const { workspace } = savedKeywordWorkspace();
     const missed = (
       patch: Partial<ProjectSeoWorkspace["keywords"][number]>,
@@ -1157,11 +1221,16 @@ describe("Search Console queries", () => {
       }),
     ];
     const { unmount } = renderWorkspace(workspace);
-    // The result line dates the newest check only: each row needs its own date.
-    expect(
-      screen.getByRole("columnheader", { name: "Position" }),
-    ).toBeVisible();
-    expect(screen.getAllByText("Not found")).toHaveLength(2);
+    // The result line says once that no keyword is found: a column of "Not found" repeats it on every row.
+    expect(screen.queryByRole("columnheader", { name: "Position" })).toBeNull();
+    expect(screen.queryByText("Not found")).toBeNull();
+    // The result line dates the newest check only: the row of the older check carries its own date.
+    expect(screen.getByText("charge timer").closest("td")).toHaveTextContent(
+      "Last checked: Oct 11, 2026",
+    );
+    expect(screen.getByText("battery app").closest("td")).not.toHaveTextContent(
+      "Last checked",
+    );
     unmount();
     // A read without a depth gives no depth sentence; the result line still says that no keyword is found.
     workspace.keywords = [

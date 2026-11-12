@@ -29,6 +29,7 @@ import {
   SEO_ROW_LIST_CLASS,
   SeoDate,
   SeoPeriod,
+  seoFoldCount,
 } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
@@ -100,7 +101,8 @@ function SeoAgentPanel({
     ? []
     : brief.steps.filter((step) => step !== statisticsStep);
   const [showAllSteps, setShowAllSteps] = useState(false);
-  const shown = showAllSteps ? steps : steps.slice(0, SEO_AGENT_VISIBLE_STEPS);
+  const visibleSteps = seoFoldCount(steps.length, SEO_AGENT_VISIBLE_STEPS);
+  const shown = showAllSteps ? steps : steps.slice(0, visibleSteps);
   // The first proposal with its own button carries the one primary action,
   // unless a setup step or the header's run button holds it.
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
@@ -423,7 +425,7 @@ function SeoAgentPanel({
               {t("agent.nothingNext")}
             </p>
           )}
-          {steps.length > SEO_AGENT_VISIBLE_STEPS ? (
+          {steps.length > visibleSteps ? (
             <Button
               variant="ghost"
               size="sm"
@@ -433,7 +435,7 @@ function SeoAgentPanel({
               {showAllSteps
                 ? t("overview.showLess")
                 : t("agent.moreSteps", {
-                    count: steps.length - SEO_AGENT_VISIBLE_STEPS,
+                    count: steps.length - visibleSteps,
                   })}
               <ChevronDown
                 className={cn(

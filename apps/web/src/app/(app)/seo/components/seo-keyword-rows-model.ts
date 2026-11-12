@@ -1,4 +1,5 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { seoFoldCount } from "./seo-list-model";
 import { normalizeQuery } from "./seo-search-model";
 
 type Keyword = ProjectSeoWorkspace["keywords"][number];
@@ -145,10 +146,11 @@ export function keywordReadFailed(
 export function keywordPage(checked: SeoKeywordGroup[], size: number) {
   const decided = (group: SeoKeywordGroup) => group.lead.version > 0;
   const rest = checked.filter((group) => !decided(group));
-  const kept = new Set(rest.slice(0, size));
+  const cut = seoFoldCount(rest.length, size);
+  const kept = new Set(rest.slice(0, cut));
   return {
     rows: checked.filter((group) => decided(group) || kept.has(group)),
-    more: Math.max(0, rest.length - size),
+    more: rest.length - cut,
   };
 }
 

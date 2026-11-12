@@ -134,12 +134,51 @@ export function SeoPagePicker({ model }: { model: SeoWorkspaceModel }) {
   );
 }
 
+/**
+ * The closed date filter: quiet words, no outline. It stands in the header line beside the page picker, or in
+ * the filter block where the header has no picker. An outlined button in a row of its own stood over every
+ * dated tab for a choice most readers never make.
+ */
+export function SeoDateFilterButton({
+  dateFields,
+  onReveal,
+}: {
+  dateFields: ReturnType<typeof useSeoDateFields>;
+  /** In the header the button stands outside the filter block, which can be folded: the caller opens it. */
+  onReveal?: () => void;
+}) {
+  const t = useTranslations("App.Seo");
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      aria-expanded={false}
+      // Quiet as the page picker beside it: text and an icon, no box.
+      className="text-muted-foreground hover:text-foreground -my-1 h-7 gap-1 px-0 font-normal hover:bg-transparent has-[>svg]:px-0 dark:hover:bg-transparent"
+      onClick={() => {
+        dateFields.reveal();
+        onReveal?.();
+        // The button unmounts; keep focus on the field it revealed.
+        requestAnimationFrame(() =>
+          document.getElementById("seo-period-from")?.focus(),
+        );
+      }}
+    >
+      <CalendarRange className="size-4" />
+      {t("filterDates")}
+    </Button>
+  );
+}
+
 export function SeoScopeBar({
   model,
   dateFields,
+  dateButton,
 }: {
   model: SeoWorkspaceModel;
   dateFields: ReturnType<typeof useSeoDateFields>;
+  /** False where the header line holds the closed date filter. */
+  dateButton: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const { filters, setFilters } = model;
@@ -182,22 +221,8 @@ export function SeoScopeBar({
             void setFilters({ to: to || null });
           }}
         />
-      ) : controls.dates ? (
-        <Button
-          variant="outline"
-          size="sm"
-          aria-expanded={false}
-          onClick={() => {
-            dateFields.reveal();
-            // The button unmounts; keep focus on the field it revealed.
-            requestAnimationFrame(() =>
-              document.getElementById("seo-period-from")?.focus(),
-            );
-          }}
-        >
-          <CalendarRange className="size-4" />
-          {t("filterDates")}
-        </Button>
+      ) : controls.dates && dateButton ? (
+        <SeoDateFilterButton dateFields={dateFields} />
       ) : null}
       {model.invalidDates ? (
         <p role="alert" className="text-destructive w-full text-sm">

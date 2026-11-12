@@ -11526,7 +11526,7 @@
           "queries": "¿Qué búsquedas traen personas a estas páginas?",
           "competitors": "¿Qué sabes de mis competidores?",
           "measure": "La comprobación midió «{name}» en {url}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. Prepara un cambio y proponlo como una acción que pueda aprobar.",
-          "track": "¿Qué palabras clave debo seguir?"
+          "track": "¿Qué ideas de palabras clave debo seguir?"
         },
         "researchCompetitors": "Investigar competidores",
         "verdict": {
@@ -11613,7 +11613,7 @@
       },
       "strategy": {
         "title": "Estrategia de palabras clave",
-        "from": "De la auditoría del sitio del",
+        "from": "De la comprobación del",
         "verdict": {
           "keep": "Mantén estas palabras clave: el sitio puede alcanzar al menos la mitad de sus búsquedas",
           "outOfReach": "La mayoría de las búsquedas de estas palabras clave están fuera del alcance del sitio",
@@ -11626,13 +11626,19 @@
         "reach": {
           "ranks": "Ya posiciona",
           "inReach": "Al alcance",
-          "open": "Abierto: hay un foro en los resultados",
+          "open": "Hay un foro en los resultados",
           "outOfReach": "Fuera de alcance",
           "notDetermined": "Alcance no determinado"
         },
+        "reachCount": {
+          "ranks": "{count, plural, one {# grupo de palabras clave ya posiciona} other {# grupos de palabras clave ya posicionan}}",
+          "inReach": "{count, plural, one {# grupo de palabras clave está al alcance} other {# grupos de palabras clave están al alcance}}",
+          "open": "{count, plural, one {# grupo de palabras clave tiene un foro en los resultados} other {# grupos de palabras clave tienen un foro en los resultados}}",
+          "outOfReach": "{count, plural, one {# grupo de palabras clave está fuera de alcance} other {# grupos de palabras clave están fuera de alcance}}",
+          "notDetermined": "{count, plural, one {# grupo de palabras clave no tiene un alcance conocido} other {# grupos de palabras clave no tienen un alcance conocido}}"
+        },
         "falling": "{count, plural, one {# grupo de palabras clave pierde búsquedas} other {# grupos de palabras clave pierden búsquedas}}",
-        "details": "Cómo leer esto",
-        "reachHelp": "Los números cuentan grupos de palabras clave. Ya posiciona: una página del sitio ya posiciona para la palabra clave o está en el fragmento destacado. Al alcance: la auditoría comparó los dominios de referencia del sitio con la página más débil del top 10 que pudo contar, y el sitio está lo bastante cerca. Abierto: hay un foro en los resultados de búsqueda, una señal de que los resultados están abiertos a páginas nuevas.",
+        "reachHelp": "Ya posiciona: una página del sitio ya posiciona para la palabra clave o está en el fragmento destacado. Al alcance: la auditoría comparó los dominios de referencia del sitio con la página más débil del top 10 que pudo contar, y el sitio está lo bastante cerca. Un foro en los resultados de búsqueda es una señal de que los resultados están abiertos a páginas nuevas.",
         "trend": {
           "falling": "Las búsquedas bajan: {recent} al mes en los últimos meses",
           "rising": "Las búsquedas suben: {recent} al mes en los últimos meses"
@@ -11652,17 +11658,10 @@
         "actions": {
           "title": "Acciones de la estrategia de palabras clave",
           "help": "La auditoría del sitio recomienda estas acciones a partir de los resultados de búsqueda de tus palabras clave.",
-          "helpAsk": "Cada una necesita un plan, así que el botón le hace una pregunta al agente SEO en el chat.",
           "limit": "Límite",
           "prompt": "La auditoría del sitio recomienda: «{title}». Redacta un plan con los pasos en orden.{hasLimit, select, yes { Respeta este límite: {limit}} other {}}{count, plural, =0 {} one { El lugar: {targets}} other { Los lugares: {targets}}}",
           "open": "Ver estas acciones",
           "place": "Lugar"
-        },
-        "actionKind": {
-          "getListed": "En otro sitio",
-          "newPage": "Página nueva",
-          "retargetPage": "Cambio de página",
-          "promote": "Promoción"
         },
         "placeForm": {
           "community": "Comunidad",
