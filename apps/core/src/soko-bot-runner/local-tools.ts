@@ -245,6 +245,28 @@ export function htmlToText(html: string): string {
   );
 }
 
+const SOCIAL_HOST =
+  /^(x\.com|twitter\.com|linkedin\.com|instagram\.com|facebook\.com|youtube\.com|tiktok\.com|github\.com)$/;
+const SHARE_PATH = /^\/(intent|share|sharer|shareArticle|sharing)\b/i;
+
+/**
+ * The social profiles a page links to. Footers often link them with icons
+ * only, so the page's text alone loses them.
+ */
+export function socialLinks(html: string): string[] {
+  const links = new Set<string>();
+  for (const [, href = ""] of html.matchAll(
+    /<a\b[^>]*\bhref=["']([^"']+)["']/gi,
+  )) {
+    const url = URL.parse(href.replace(/&amp;/g, "&"));
+    const host = url?.hostname.toLowerCase().replace(/^(www|m)\./, "") ?? "";
+    const path = url?.pathname.replace(/\/+$/, "") ?? "";
+    if (SOCIAL_HOST.test(host) && path && !SHARE_PATH.test(path))
+      links.add(`https://${host}${path}`);
+  }
+  return [...links].slice(0, 20);
+}
+
 export async function fetchWebPage(input: {
   url: string;
   maxChars?: number;
@@ -253,6 +275,7 @@ export async function fetchWebPage(input: {
   status: number;
   contentType: string;
   text: string;
+  profiles?: string[];
 }> {
   const url = new URL(input.url);
   if (url.protocol !== "https:" && url.protocol !== "http:")
@@ -277,12 +300,17 @@ export async function fetchWebPage(input: {
   }
   const raw = Buffer.concat(chunks).toString("utf8");
   const contentType = response.headers.get("content-type") ?? "";
-  const text = contentType.includes("html") ? htmlToText(raw) : raw;
+  const html = contentType.includes("html");
+  const profiles = html ? socialLinks(raw) : [];
   return {
     url: response.url,
     status: response.status,
     contentType,
-    text: clip(text, input.maxChars ?? DEFAULT_FETCH_CHARS),
+    text: clip(
+      html ? htmlToText(raw) : raw,
+      input.maxChars ?? DEFAULT_FETCH_CHARS,
+    ),
+    ...(profiles.length > 0 ? { profiles } : {}),
   };
 }
 

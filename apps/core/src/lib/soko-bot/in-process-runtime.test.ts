@@ -13,8 +13,10 @@ const {
   findManyMock,
   streamModelCallMock,
   getContextMock,
+  cmoTurnPartsMock,
   waitUntilMock,
 } = vi.hoisted(() => ({
+  cmoTurnPartsMock: vi.fn(),
   reconcileTurnMock: vi.fn(),
   authorizeMock: vi.fn(),
   createEventMock: vi.fn(),
@@ -72,6 +74,9 @@ vi.mock("./active-background-runs", () => ({
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: { reconcileTurn: reconcileTurnMock },
+}));
+vi.mock("@/services/cmo-hiring.service", () => ({
+  cmoTurnParts: cmoTurnPartsMock,
 }));
 vi.mock("@/services/soko-bot-runtime.service", () => ({
   sokoBotRuntimeService: {
@@ -166,6 +171,113 @@ describe("InProcessSokoBotRuntime", () => {
       (event) => event.type === "message.completed",
     );
     expect(completed?.data.message).toBe("Nothing was changed in this turn.");
+  });
+
+  it("runs a Cuso first read's parts side by side, then the turn with their hand-overs", async () => {
+    authorizeMock.mockResolvedValue({
+      turn: { id: TURN_ID, versionId: "cmo-v2" },
+      grant: { capabilities: ["create_task"] },
+    });
+    cmoTurnPartsMock.mockResolvedValue([
+      {
+        key: "website",
+        title: "Website",
+        message: "Read the site",
+        tools: ["web_fetch"],
+      },
+      {
+        key: "reviews",
+        title: "Reviews",
+        message: "Read the reviews",
+        tools: ["web_fetch"],
+      },
+    ]);
+    let running = 0;
+    let most = 0;
+    streamModelCallMock.mockImplementation(async (options) => {
+      const message = options.messages[0].content as string;
+      running++;
+      most = Math.max(most, running);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      running--;
+      return {
+        text: message.startsWith("Read the")
+          ? `Found: ${message}`
+          : "Saved the essentials.",
+        finishReason: "stop",
+        steps: [],
+      };
+    });
+
+    await new InProcessSokoBotRuntime().createSession({
+      sessionId: null,
+      turnId: TURN_ID,
+      message: "Save the essentials",
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "workspace_1",
+    });
+    await Promise.all(pendingTurns);
+
+    expect(cmoTurnPartsMock).toHaveBeenCalledWith(TURN_ID);
+    const calls = streamModelCallMock.mock.calls.map((call) => call[0]);
+    expect(calls).toHaveLength(3);
+    expect(most).toBe(2);
+    // Parts get a short step cap; the turn keeps its own.
+    expect(calls[0].stopWhen[0]).toBe(12);
+    // A part never gets the turn's outward tools.
+    expect(Object.keys(calls[0].tools)).toEqual([]);
+    expect(Object.keys(calls[2].tools)).toEqual(["create_task"]);
+    const last = calls[2].messages[0].content as string;
+    expect(last.startsWith("Save the essentials")).toBe(true);
+    expect(last).toContain("### Website\nFound: Read the site");
+    expect(last).toContain("### Reviews\nFound: Read the reviews");
+    // Every part's model call is metered like the turn's.
+    expect(
+      recordedEvents().filter((event) => event.type === "step.started"),
+    ).toHaveLength(3);
+  });
+
+  it("ends a turn on the step whose tool said so, with that tool's answer", async () => {
+    authorizeMock.mockResolvedValue({
+      turn: { id: TURN_ID, versionId: "cmo-v2" },
+      grant: { capabilities: ["read_memory"] },
+    });
+    cmoTurnPartsMock.mockResolvedValue([]);
+    const ended = {
+      text: "",
+      toolResults: [
+        {
+          output: {
+            evidenceToolCallId: "c1",
+            result: { endTurn: "Scheduling for everyone" },
+          },
+        },
+      ],
+    };
+    streamModelCallMock.mockResolvedValue({
+      text: "",
+      finishReason: "tool-calls",
+      steps: [ended],
+    });
+
+    await new InProcessSokoBotRuntime().createSession({
+      sessionId: null,
+      turnId: TURN_ID,
+      message: "Save the essentials",
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "workspace_1",
+    });
+    await Promise.all(pendingTurns);
+
+    const [, endedByTool] = streamModelCallMock.mock.calls[0]?.[0].stopWhen;
+    expect(endedByTool({ steps: [ended] })).toBe(true);
+    expect(endedByTool({ steps: [{ text: "", toolResults: [] }] })).toBe(false);
+    expect(
+      recordedEvents().find((event) => event.type === "message.completed")?.data
+        .message,
+    ).toBe("Scheduling for everyone");
   });
 
   it("reports the model and metered usage the drain bills on", async () => {

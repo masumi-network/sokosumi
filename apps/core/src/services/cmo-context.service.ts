@@ -169,10 +169,46 @@ const CMO_DESIGN_MD_CHARS = 1_600;
  */
 export const CMO_CONTEXT_BUDGET_BYTES = 32 * 1_024;
 
+/** What a piece past two weeks keeps when the packet is tight. */
+const SHORT_ENTRY_KEYS = [
+  "id",
+  "date",
+  "channel",
+  "format",
+  "pillar",
+  "title",
+  "status",
+] as const;
+
 type MarketingContext = Record<string, unknown> & {
   brandBrain?: Record<string, unknown> | null;
   strategy?: (Record<string, unknown> & { calendar?: unknown[] }) | null;
 };
+
+/** The Brand Brain with each profile section cut to these keys. */
+function profileKeeping(
+  context: MarketingContext,
+  keys: readonly string[],
+): MarketingContext {
+  const brain = context.brandBrain;
+  if (!brain) return context;
+  const profile = (brain.profile ?? {}) as Record<
+    string,
+    Record<string, unknown>
+  >;
+  return {
+    ...context,
+    brandBrain: {
+      ...brain,
+      profile: Object.fromEntries(
+        Object.entries(profile).map(([name, section]) => [
+          name,
+          Object.fromEntries(keys.map((key) => [key, section[key]])),
+        ]),
+      ),
+    },
+  };
+}
 
 /**
  * Sheds detail, least needed first, until the context fits its budget.
@@ -246,26 +282,7 @@ export function fitCmoMarketingContext(
         ...entry,
         detailsStored: true,
       })),
-    (current) =>
-      current.brandBrain
-        ? {
-            ...current,
-            brandBrain: {
-              ...current.brandBrain,
-              profile: Object.fromEntries(
-                Object.entries(
-                  (current.brandBrain.profile ?? {}) as Record<
-                    string,
-                    Record<string, unknown>
-                  >,
-                ).map(([key, section]) => [
-                  key,
-                  { headline: section.headline, answer: section.answer },
-                ]),
-              ),
-            },
-          }
-        : current,
+    (current) => profileKeeping(current, ["headline", "answer"]),
     (current) =>
       without(current, "strategy", [
         "alternatives",
@@ -278,8 +295,33 @@ export function fitCmoMarketingContext(
       without(current, "brandBrain", ["reveal", "alternatives", "channels"]),
     (current) =>
       calendar(current, ({ pillar: _p, campaignId: _c, ...entry }) => entry),
-    // Last: the next two weeks only. A 60-piece month with its visuals once
-    // left no room in the packet, and every run failed to start.
+    // Before any piece past two weeks: what the Brand Brain still had to ask,
+    // then the profile's answers.
+    (current) => without(current, "brandBrain", ["questions"]),
+    (current) => profileKeeping(current, ["headline"]),
+    // Pieces past two weeks as one short line each, so a change can still
+    // name every entry it touches (cutting a channel, a new audience).
+    (current) =>
+      current.strategy
+        ? {
+            ...current,
+            strategy: {
+              ...current.strategy,
+              calendar: (current.strategy.calendar ?? []).map((entry) => {
+                const piece = entry as Record<string, unknown>;
+                return typeof piece.date === "string" && piece.date > twoWeeks
+                  ? Object.fromEntries(
+                      SHORT_ENTRY_KEYS.filter((key) => key in piece).map(
+                        (key) => [key, piece[key]],
+                      ),
+                    )
+                  : entry;
+              }),
+            },
+          }
+        : current,
+    // Last resort: the next two weeks only. A 60-piece month with its visuals
+    // once left no room in the packet, and every run failed to start.
     (current) =>
       current.strategy
         ? {

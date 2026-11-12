@@ -43,6 +43,14 @@ import {
   runtimeEvent,
   SOKO_BOT_MAX_STEPS,
 } from "./turn-loop";
+import {
+  endedByTool,
+  partTools,
+  TURN_PART_MAX_MS,
+  TURN_PART_MAX_STEPS,
+  toolEndedTurn,
+  withPartHandOvers,
+} from "./turn-parts";
 
 /**
  * Vercel kills Core at `maxDuration` (300s), and a killed invocation writes
@@ -80,7 +88,8 @@ async function runTurn(
   const log = new RuntimeEventLog(input.turnId, sessionId);
 
   try {
-    const abortSignal = AbortSignal.timeout(await turnBudgetMs(input.turnId));
+    const budgetMs = await turnBudgetMs(input.turnId);
+    const abortSignal = AbortSignal.timeout(budgetMs);
     await announceTurn(log, input.message);
     const turn = await prepareTurn(sessionId, input.turnId, {
       sandbox: false,
@@ -128,60 +137,86 @@ async function runTurn(
 
     // The drain reads the model from `step.started` and meters usage from
     // `step.completed`; billing depends on both, so emit them per step.
-    const userMessage = await withActiveBackgroundRuns(
-      input.turnId,
-      await withTurnSkills(input.turnId, input.message),
-    );
-    await log.append(runtimeEvent("step.started", { modelId: turn.model }));
-    const result = await withEvaluationTurn(input.turnId, () =>
-      streamModelCall({
-        ...sokoBotModelRequest({
-          role: "agent",
-          model: turn.model,
-          inferenceRegion: turn.inferenceRegion,
-        }),
-        system: turn.system,
-        messages: [{ role: "user", content: userMessage }],
-        tools,
-        prepareStep: prepareEvaluationStep,
-        stopWhen: stepCountIs(SOKO_BOT_MAX_STEPS),
-        abortSignal,
-        async onStepFinish(step) {
-          assertSokoBotInferenceRegion(step.providerMetadata, {
-            model: turn.model,
+    const runModel = async (
+      message: string,
+      maxSteps: number,
+      signal: AbortSignal,
+      offered: ToolSet = tools,
+    ) => {
+      await log.append(runtimeEvent("step.started", { modelId: turn.model }));
+      const result = await withEvaluationTurn(input.turnId, () =>
+        streamModelCall({
+          ...sokoBotModelRequest({
             role: "agent",
-          });
-          await log.append(
-            runtimeEvent("step.completed", {
-              modelId: turn.model,
-              inference: sokoBotInferenceEvidence(step.providerMetadata),
-              usage: {
-                inputTokens: step.usage?.inputTokens ?? 0,
-                outputTokens: step.usage?.outputTokens ?? 0,
-                cacheReadTokens:
-                  step.usage?.inputTokenDetails?.cacheReadTokens ?? 0,
-                cacheWriteTokens:
-                  step.usage?.inputTokenDetails?.cacheWriteTokens ?? 0,
-                costUsd: gatewayCostUsd(step.providerMetadata),
-              },
-            }),
-          );
-        },
-      }),
-    );
+            model: turn.model,
+            inferenceRegion: turn.inferenceRegion,
+          }),
+          system: turn.system,
+          messages: [{ role: "user", content: message }],
+          tools: offered,
+          prepareStep: prepareEvaluationStep,
+          stopWhen: [stepCountIs(maxSteps), endedByTool],
+          abortSignal: signal,
+          async onStepFinish(step) {
+            assertSokoBotInferenceRegion(step.providerMetadata, {
+              model: turn.model,
+              role: "agent",
+            });
+            await log.append(
+              runtimeEvent("step.completed", {
+                modelId: turn.model,
+                inference: sokoBotInferenceEvidence(step.providerMetadata),
+                usage: {
+                  inputTokens: step.usage?.inputTokens ?? 0,
+                  outputTokens: step.usage?.outputTokens ?? 0,
+                  cacheReadTokens:
+                    step.usage?.inputTokenDetails?.cacheReadTokens ?? 0,
+                  cacheWriteTokens:
+                    step.usage?.inputTokenDetails?.cacheWriteTokens ?? 0,
+                  costUsd: gatewayCostUsd(step.providerMetadata),
+                },
+              }),
+            );
+          },
+        }),
+      );
+      assertSokoBotInferenceRegion(result.steps.at(-1)?.providerMetadata, {
+        model: turn.model,
+        role: "agent",
+      });
+      // A model can answer in one step and end on an empty one; `text` is
+      // only the last step's.
+      const text =
+        toolEndedTurn(result.steps) ??
+        (result.text ||
+          (result.steps.findLast((step) => step.text.trim())?.text ?? ""));
+      return { text, finishReason: result.finishReason };
+    };
 
-    assertSokoBotInferenceRegion(result.steps.at(-1)?.providerMetadata, {
-      model: turn.model,
-      role: "agent",
-    });
+    // On Vercel the budget is one invocation: parts may use at most half of
+    // it, so the turn still has time to write from their hand-overs.
+    const partMs = Math.min(TURN_PART_MAX_MS, budgetMs / 2);
+    const userMessage = await withPartHandOvers(
+      await withActiveBackgroundRuns(
+        input.turnId,
+        await withTurnSkills(input.turnId, input.message),
+      ),
+      turn.parts,
+      async (part) =>
+        (
+          await runModel(
+            part.message,
+            TURN_PART_MAX_STEPS,
+            AbortSignal.any([abortSignal, AbortSignal.timeout(partMs)]),
+            partTools(tools, part),
+          )
+        ).text,
+    );
+    const result = await runModel(userMessage, SOKO_BOT_MAX_STEPS, abortSignal);
     await finishTurn({
       log,
       turnId: input.turnId,
-      // A model can answer in one step and end on an empty one; `text` is
-      // only the last step's.
-      text:
-        result.text ||
-        (result.steps.findLast((step) => step.text.trim())?.text ?? ""),
+      text: result.text,
       finishReason: result.finishReason,
       requiresActionProof: turn.requiresActionProof,
     });

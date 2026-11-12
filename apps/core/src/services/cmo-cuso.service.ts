@@ -412,6 +412,21 @@ export async function startCmoTurn(
 
 export const ONBOARDING_TURN_PREFIX = "cmo:onboarding:";
 
+/** How long a run usually takes; the CMO app's slow copy uses the same. */
+const CMO_USUAL_MS = { research: 7 * 60_000, strategy: 6 * 60_000 } as const;
+
+/**
+ * A run past twice its usual time may be restarted by the founder's Try
+ * again, even while it still makes progress.
+ */
+export function cmoRunIsSlow(
+  kind: keyof typeof CMO_USUAL_MS,
+  startedAt: Date,
+  now: Date,
+): boolean {
+  return now.getTime() - startedAt.getTime() > 2 * CMO_USUAL_MS[kind];
+}
+
 /** Where Cuso's first look at the business stands, for the learning card. */
 export type CmoLearningState = SettledTurnStatus;
 

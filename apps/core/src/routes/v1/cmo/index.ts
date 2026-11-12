@@ -11,6 +11,7 @@ import mountSetCmoAdCampaignStatusForProject from "./projects/[projectId]/ads/ca
 import mountListCmoAdChoicesForProject from "./projects/[projectId]/ads/connections/[adConnectionId]/choices/get.js";
 import mountFinalizeCmoAdsForProject from "./projects/[projectId]/ads/finalize/post.js";
 import mountLaunchCmoSearchAdForProject from "./projects/[projectId]/ads/launch/post.js";
+import mountFixCmoBrandSectionForProject from "./projects/[projectId]/brand/fix/post.js";
 import mountAnswerCmoBrandBrainQuestionForProject from "./projects/[projectId]/brand-brain/answers/post.js";
 import mountConfirmCmoBrandBrainForProject from "./projects/[projectId]/brand-brain/confirm/post.js";
 import mountUpdateCmoBrandBrainForProject from "./projects/[projectId]/brand-brain/put.js";
@@ -59,6 +60,7 @@ mountRetryCmoOnboardingForProject(app);
 mountStartCmoOverForProject(app);
 mountSetCmoAdBudgetForProject(app);
 mountApplyCmoPlanAnswersForProject(app);
+mountFixCmoBrandSectionForProject(app);
 mountRequestCmoStrategyForProject(app);
 mountRevertCmoUpdateForProject(app);
 

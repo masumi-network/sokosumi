@@ -15,7 +15,13 @@ vi.mock(
 import {
   answerBrandBrainQuestion,
   brandBrainCorrections,
+  brandBrainPreview,
+  closeBrandBrainFix,
+  compactBrandBrain,
+  parseBrandBrain,
+  requestBrandBrainFix,
   saveBrandBrain,
+  saveBrandBrainPreview,
   saveStudioBrandCopy,
 } from "./brand-brain.service";
 
@@ -248,6 +254,74 @@ describe("saveBrandBrain", () => {
   });
 });
 
+describe("Brand Brain preview", () => {
+  const preview = {
+    line: "Acme sells rockets to founders who ship weekly.",
+    facts: ["From 9 dollars a month", "Based in Berlin"],
+  };
+  const essentials = {
+    summary: "Acme sells rockets.",
+    voice: { tone: "Direct", do: [], dont: [], examples: [] },
+    audience: ["Founders"],
+    products: ["Rockets"],
+    competitors: [],
+    channels: [],
+    profile: {},
+  };
+  const section = {
+    answer: "From 9 dollars",
+    findings: [],
+    openQuestions: [],
+  };
+
+  it("stores a first look beside the sections saved so far", async () => {
+    brainFindUnique.mockResolvedValue({
+      body: { profile: { pricing: section } },
+    });
+    await expect(saveBrandBrainPreview(PROJECT_ID, preview)).resolves.toBe(
+      true,
+    );
+    const body = brainUpsert.mock.calls[0]?.[0].update.body;
+    expect(body).toEqual({ profile: { pricing: section }, preview });
+    expect(brandBrainPreview(body)).toEqual(preview);
+  });
+
+  it("keeps the first look while sections land", async () => {
+    brainFindUnique.mockResolvedValue({ body: { profile: {}, preview } });
+    await saveBrandBrain(PROJECT_ID, { sections: { pricing: section } });
+    const body = brainUpsert.mock.calls[0]?.[0].update.body;
+    expect(body.preview).toEqual(preview);
+  });
+
+  it("drops the first look once the essentials save", async () => {
+    brainFindUnique.mockResolvedValue({ body: { profile: {}, preview } });
+    await saveBrandBrain(PROJECT_ID, { brandBrain: essentials });
+    const body = brainUpsert.mock.calls[0]?.[0].update.body;
+    expect(body.preview).toBeUndefined();
+    expect(brandBrainPreview(body)).toBeNull();
+  });
+
+  it("never writes a first look over the essentials", async () => {
+    brainFindUnique.mockResolvedValue({ body: essentials });
+    await expect(saveBrandBrainPreview(PROJECT_ID, preview)).resolves.toBe(
+      false,
+    );
+    expect(brainUpsert).not.toHaveBeenCalled();
+  });
+
+  it("never reaches a turn's packet", () => {
+    const packet = compactBrandBrain(
+      parseBrandBrain({ ...essentials, preview }),
+    );
+    expect(JSON.stringify(packet)).not.toContain(preview.line);
+  });
+
+  it("reads nothing from a missing or malformed preview", () => {
+    expect(brandBrainPreview(null)).toBeNull();
+    expect(brandBrainPreview({ profile: {}, preview: { line: 3 } })).toBeNull();
+  });
+});
+
 describe("Brand Brain questions", () => {
   const question = {
     id: "found-via-google",
@@ -465,5 +539,190 @@ describe("Brand Brain questions", () => {
     expect(
       brainUpsert.mock.lastCall?.[0].update.body.questions[0],
     ).toMatchObject({ corrected: false });
+  });
+});
+
+describe("Brand Brain fixes", () => {
+  const essentials = {
+    summary: "Acme sells rockets.",
+    voice: { tone: "Direct", do: [], dont: [], examples: [] },
+    audience: ["Founders"],
+    products: ["Rockets"],
+    competitors: [],
+    channels: [],
+  };
+  const sixteen = Object.fromEntries(
+    [
+      "company",
+      "offer",
+      "pricing",
+      "problems",
+      "customers",
+      "buyers",
+      "value",
+      "positioning",
+      "competition",
+      "sales",
+      "marketing",
+      "content",
+      "proof",
+      "reputation",
+      "momentum",
+      "opportunities",
+    ].map((key) => [
+      key,
+      { answer: `What ${key} says.`, findings: [], openQuestions: [] },
+    ]),
+  );
+  const asked = "2026-11-10T10:00:00.000Z";
+
+  it("holds the owner's fix on its one section until Cuso rewrites it", async () => {
+    brainFindUnique.mockResolvedValue({
+      body: { ...essentials, profile: sixteen, questions: [] },
+    });
+
+    await requestBrandBrainFix(PROJECT_ID, {
+      section: "pricing",
+      note: "From 19 dollars a month.",
+      at: new Date(asked),
+    });
+
+    const body = brainUpdate.mock.lastCall?.[0].data.body;
+    expect(body.profile.pricing.fix).toEqual({
+      note: "From 19 dollars a month.",
+      at: asked,
+      fixed: false,
+    });
+    expect({ ...body.profile, pricing: null }).toEqual({
+      ...sixteen,
+      pricing: null,
+    });
+  });
+
+  it("marks the fix done when its section is rewritten, and leaves the other 15 untouched", async () => {
+    const waiting = {
+      ...sixteen,
+      pricing: {
+        ...sixteen.pricing,
+        fix: { note: "From 19 dollars.", at: asked, fixed: false },
+      },
+    };
+    brainFindUnique.mockResolvedValue({
+      body: { ...essentials, profile: waiting, questions: [] },
+    });
+
+    await saveBrandBrain(PROJECT_ID, {
+      sections: {
+        pricing: {
+          answer: "From 19 dollars a month.",
+          findings: [],
+          // Cuso cannot close a fix himself.
+          fix: { note: "Done.", at: asked, fixed: true },
+        },
+      },
+    });
+
+    const body = brainUpsert.mock.lastCall?.[0].update.body;
+    expect(body.profile.pricing.answer).toBe("From 19 dollars a month.");
+    expect(body.profile.pricing.fix).toEqual({
+      note: "From 19 dollars.",
+      at: asked,
+      fixed: true,
+    });
+    expect({ ...body.profile, pricing: null }).toEqual({
+      ...waiting,
+      pricing: null,
+    });
+  });
+
+  it("keeps the fix open when a save leaves the section's answer as it was", async () => {
+    const waiting = {
+      ...sixteen,
+      pricing: {
+        ...sixteen.pricing,
+        fix: { note: "From 19 dollars.", at: asked, fixed: false },
+      },
+    };
+    brainFindUnique.mockResolvedValue({
+      body: { ...essentials, profile: waiting, questions: [] },
+    });
+
+    await saveBrandBrain(PROJECT_ID, {
+      sections: { pricing: { answer: "What pricing says.", findings: [] } },
+    });
+
+    expect(
+      brainUpsert.mock.lastCall?.[0].update.body.profile.pricing.fix,
+    ).toMatchObject({ fixed: false });
+  });
+
+  it("keeps a fix with no section as the owner's general correction, every section untouched", async () => {
+    brainFindUnique.mockResolvedValue({
+      body: { ...essentials, profile: sixteen, questions: [] },
+    });
+
+    await requestBrandBrainFix(PROJECT_ID, {
+      note: "We moved from Zurich to Basel.",
+      at: new Date(asked),
+    });
+
+    const body = brainUpdate.mock.lastCall?.[0].data.body;
+    expect(body.fix).toEqual({
+      note: "We moved from Zurich to Basel.",
+      at: asked,
+      fixed: false,
+    });
+    expect(body.profile).toEqual(sixteen);
+  });
+
+  it("adds a second general correction to the one still open", async () => {
+    brainFindUnique.mockResolvedValue({
+      body: {
+        ...essentials,
+        profile: sixteen,
+        questions: [],
+        fix: { note: "We moved to Basel.", at: asked, fixed: false },
+      },
+    });
+
+    await requestBrandBrainFix(PROJECT_ID, { note: "No more catering." });
+
+    expect(brainUpdate.mock.lastCall?.[0].data.body.fix).toMatchObject({
+      note: "We moved to Basel. No more catering.",
+      fixed: false,
+    });
+  });
+
+  it("keeps the general correction Core holds, whatever a save sends", async () => {
+    const held = { note: "We moved to Basel.", at: asked, fixed: false };
+    brainFindUnique.mockResolvedValue({
+      body: { ...essentials, profile: sixteen, questions: [], fix: held },
+    });
+
+    await saveBrandBrain(PROJECT_ID, {
+      brandBrain: {
+        ...essentials,
+        profile: sixteen,
+        // Cuso cannot close the owner's correction himself.
+        fix: { note: "Done.", at: asked, fixed: true },
+      },
+    });
+
+    expect(brainUpsert.mock.lastCall?.[0].update.body.fix).toEqual(held);
+  });
+
+  it("closes a general correction once a fix turn was sent it, never one asked later", async () => {
+    const open = { note: "We moved to Basel.", at: asked, fixed: false };
+    brainFindUnique.mockResolvedValue({
+      body: { ...essentials, profile: sixteen, questions: [], fix: open },
+    });
+
+    await closeBrandBrainFix(PROJECT_ID, Date.parse(asked) - 1);
+    expect(brainUpdate).not.toHaveBeenCalled();
+
+    await closeBrandBrainFix(PROJECT_ID, Date.parse(asked));
+    const body = brainUpdate.mock.lastCall?.[0].data.body;
+    expect(body.fix).toEqual({ ...open, fixed: true });
+    expect(body.profile).toEqual(sixteen);
   });
 });
