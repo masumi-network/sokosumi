@@ -87,6 +87,26 @@ function renderCard(
 }
 
 describe("Social post calendar event", () => {
+  it.each(["preview", "week"] as const)(
+    "shows the entire attached image in the %s card",
+    (variant) => {
+      const { container } = renderCard(
+        {
+          previewMedia: {
+            fileUrl: "https://example.com/wide.png",
+            kind: "image",
+          },
+        },
+        variant,
+      );
+      const image = container.querySelector(
+        'img[src="https://example.com/wide.png"]',
+      );
+      expect(image).toHaveClass("object-contain");
+      expect(image).not.toHaveClass("object-cover");
+    },
+  );
+
   it.each(["compact", "preview"] as const)(
     "shows waiting on a due quote in %s",
     (variant) => {

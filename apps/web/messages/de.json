@@ -1664,7 +1664,24 @@
         "MyDay": {
           "title": "Mein Tag",
           "more": "{count, plural, one {# weitere anzeigen} other {# weitere anzeigen}}",
-          "error": "Konnte nicht mehr laden. Versuche es erneut."
+          "error": "Konnte nicht mehr laden. Versuche es erneut.",
+          "MoveOverdue": {
+            "trigger": "{count, plural, one {# Überfällige verschieben} other {# Überfällige verschieben}}",
+            "label": "{count, plural, one {# überfällige Aufgabe verschieben auf} other {# überfällige Aufgaben verschieben auf}}",
+            "targets": {
+              "today": "Heute",
+              "tomorrow": "Morgen",
+              "nextMonday": "Nächsten Montag"
+            },
+            "moved": "{count, plural, one {# Aufgabe auf {date} verschoben} other {# Aufgaben auf {date} verschoben}}",
+            "movedPartly": "{count} von {total} Aufgaben auf {date} verschoben. Die anderen haben sich geändert oder du darfst sie nicht bearbeiten.",
+            "nothingMoved": "Nichts verschoben. Diese Aufgaben haben sich geändert oder du darfst sie nicht bearbeiten.",
+            "error": "Deine überfälligen Aufgaben konnten nicht verschoben werden. Versuch es noch einmal.",
+            "undo": "Rückgängig",
+            "undone": "{count, plural, one {# Aufgabe zurückgesetzt} other {# Aufgaben zurückgesetzt}}",
+            "undonePartly": "{count} von {total} Aufgaben zurückgesetzt. Die anderen haben sich inzwischen geändert.",
+            "undoError": "Das Verschieben konnte nicht rückgängig gemacht werden. Versuch es noch einmal."
+          }
         },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
@@ -1852,6 +1869,11 @@
         "authenticate": "Authentifizieren",
         "expand": "Ausklappen",
         "collapse": "Weniger anzeigen",
+        "downloadAll": {
+          "button": "Alle herunterladen",
+          "failed": "Die Dateien konnten nicht heruntergeladen werden. Versuche es erneut oder öffne sie einzeln.",
+          "partial": "{included} von {total} Dateien heruntergeladen. Nicht enthalten: {names}{more, plural, =0 {} one { und # weitere} other { und # weitere}}. Öffne sie einzeln."
+        },
         "actorCoworker": "Coworker",
         "actorUser": "Nutzer",
         "actorSokoBot": "Assistent",
@@ -2902,6 +2924,14 @@
           "timeout": "Zeitüberschreitung.",
           "missing": "Beitrag konnte nicht geöffnet werden.",
           "mediaUnavailable": "Medien sind im importierten Verlauf noch nicht enthalten.",
+          "mediaNotice": {
+            "pad_4_5": "{provider} fügt Ränder für 4:5 hinzu.",
+            "pad_1_91_1": "{provider} fügt Ränder für 1,91:1 hinzu.",
+            "resize": "{provider} skaliert dieses Bild.",
+            "jpeg": "{provider} konvertiert dieses Bild in JPEG.",
+            "srgb": "{provider} konvertiert dieses Bild in sRGB.",
+            "smaller_file": "{provider} komprimiert dieses Bild."
+          },
           "linkedin": {
             "like": "Gefällt mir",
             "comment": "Kommentieren",

@@ -13344,6 +13344,94 @@ export const ChatResultOutputSchema = {
             maxLength: 2000,
             pattern: '^\\/(?![\\/\\\\])[^\\\\\\r\\n]*$',
             default: null
+        },
+        transformation: {
+            type: 'object',
+            properties: {
+                provider: {
+                    type: 'string',
+                    enum: [
+                        'x',
+                        'linkedin',
+                        'facebook',
+                        'instagram',
+                        'tiktok',
+                        'youtube'
+                    ]
+                },
+                code: {
+                    type: 'string',
+                    enum: [
+                        'pad_4_5',
+                        'pad_1_91_1',
+                        'resize',
+                        'jpeg',
+                        'srgb',
+                        'smaller_file'
+                    ]
+                },
+                notice: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 500
+                },
+                original: {
+                    type: 'object',
+                    properties: {
+                        pathname: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'drive/users/user_123/launch.png',
+                            description: 'Drive blob pathname; must belong to the active workspace'
+                        },
+                        fileUrl: {
+                            type: 'string',
+                            format: 'uri',
+                            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
+                            description: 'Public Blob URL of the Drive file'
+                        },
+                        name: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'launch.png'
+                        },
+                        size: {
+                            type: 'integer',
+                            minimum: 0,
+                            example: 240000
+                        },
+                        mimeType: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'image/png'
+                        },
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'image',
+                                'gif',
+                                'video'
+                            ],
+                            example: 'image'
+                        }
+                    },
+                    required: [
+                        'pathname',
+                        'fileUrl',
+                        'name',
+                        'size',
+                        'mimeType',
+                        'kind'
+                    ]
+                }
+            },
+            required: [
+                'provider',
+                'code',
+                'notice',
+                'original'
+            ],
+            description: 'Required provider adaptation, with the original source retained.'
         }
     },
     required: [
@@ -38107,6 +38195,94 @@ export const SocialPostMediaRefSchema = {
                 'video'
             ],
             example: 'image'
+        },
+        transformation: {
+            type: 'object',
+            properties: {
+                provider: {
+                    type: 'string',
+                    enum: [
+                        'x',
+                        'linkedin',
+                        'facebook',
+                        'instagram',
+                        'tiktok',
+                        'youtube'
+                    ]
+                },
+                code: {
+                    type: 'string',
+                    enum: [
+                        'pad_4_5',
+                        'pad_1_91_1',
+                        'resize',
+                        'jpeg',
+                        'srgb',
+                        'smaller_file'
+                    ]
+                },
+                notice: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 500
+                },
+                original: {
+                    type: 'object',
+                    properties: {
+                        pathname: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'drive/users/user_123/launch.png',
+                            description: 'Drive blob pathname; must belong to the active workspace'
+                        },
+                        fileUrl: {
+                            type: 'string',
+                            format: 'uri',
+                            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
+                            description: 'Public Blob URL of the Drive file'
+                        },
+                        name: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'launch.png'
+                        },
+                        size: {
+                            type: 'integer',
+                            minimum: 0,
+                            example: 240000
+                        },
+                        mimeType: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'image/png'
+                        },
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'image',
+                                'gif',
+                                'video'
+                            ],
+                            example: 'image'
+                        }
+                    },
+                    required: [
+                        'pathname',
+                        'fileUrl',
+                        'name',
+                        'size',
+                        'mimeType',
+                        'kind'
+                    ]
+                }
+            },
+            required: [
+                'provider',
+                'code',
+                'notice',
+                'original'
+            ],
+            description: 'Required provider adaptation, with the original source retained.'
         }
     },
     required: [
@@ -49198,6 +49374,135 @@ export const TaskTagSuggestionSchema = {
     required: [
         'tags',
         'receipt'
+    ]
+} as const;
+
+export const MoveOverdueTasksSchema = {
+    type: 'object',
+    properties: {
+        moved: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    from: {
+                        type: 'string',
+                        description: 'The due day the Task had before (YYYY-MM-DD).',
+                        example: '2026-11-02'
+                    },
+                    version: {
+                        type: 'string',
+                        description: 'The Task\'s `updatedAt` right after the move. Undo needs it, so it puts the Task back only if nothing changed since.',
+                        example: '2026-11-12T09:30:00.123Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'from',
+                    'version'
+                ]
+            }
+        },
+        skipped: {
+            type: 'integer',
+            description: 'Overdue Tasks that changed meanwhile, could not be edited or failed, and kept their due day.'
+        }
+    },
+    required: [
+        'moved',
+        'skipped'
+    ]
+} as const;
+
+export const MoveOverdueTasksRequestSchema = {
+    type: 'object',
+    properties: {
+        today: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The caller\'s own calendar day (YYYY-MM-DD).',
+            example: '2026-11-12'
+        },
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The new due day; today or later (YYYY-MM-DD).',
+            example: '2026-11-13'
+        }
+    },
+    required: [
+        'today',
+        'to'
+    ]
+} as const;
+
+export const UndoMoveOverdueTasksSchema = {
+    type: 'object',
+    properties: {
+        restored: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Ids of the Tasks put back on their old due day.'
+        },
+        skipped: {
+            type: 'integer',
+            description: 'Tasks that changed in any way since the move, or could not be edited, and were left as they are.'
+        }
+    },
+    required: [
+        'restored',
+        'skipped'
+    ]
+} as const;
+
+export const UndoMoveOverdueTasksRequestSchema = {
+    type: 'object',
+    properties: {
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The due day the move gave the Tasks (YYYY-MM-DD).',
+            example: '2026-11-13'
+        },
+        tasks: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        minLength: 1
+                    },
+                    from: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                        description: 'The due day to put back (YYYY-MM-DD).',
+                        example: '2026-11-02'
+                    },
+                    version: {
+                        type: 'string',
+                        description: 'The `version` the move returned for this Task.',
+                        example: '2026-11-12T09:30:00.123Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'from',
+                    'version'
+                ]
+            },
+            minItems: 1,
+            maxItems: 100
+        }
+    },
+    required: [
+        'to',
+        'tasks'
     ]
 } as const;
 

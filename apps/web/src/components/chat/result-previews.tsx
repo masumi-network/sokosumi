@@ -176,6 +176,7 @@ export function ResultPreviewCard({
             name: output.name,
             size: output.sizeBytes ?? 0,
             mimeType: output.contentType ?? "image/png",
+            transformation: output.transformation,
             kind: output.contentType?.startsWith("video/")
               ? "video"
               : output.contentType === "image/gif"

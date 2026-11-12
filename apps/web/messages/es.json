@@ -1664,7 +1664,24 @@
         "MyDay": {
           "title": "Mi día",
           "more": "{count, plural, one {Mostrar # más} other {Mostrar # más}}",
-          "error": "No se pudieron cargar más. Inténtalo de nuevo."
+          "error": "No se pudieron cargar más. Inténtalo de nuevo.",
+          "MoveOverdue": {
+            "trigger": "{count, plural, one {Mover # vencida} other {Mover # vencidas}}",
+            "label": "{count, plural, one {Mover # tarea vencida a} other {Mover # tareas vencidas a}}",
+            "targets": {
+              "today": "Hoy",
+              "tomorrow": "Mañana",
+              "nextMonday": "El próximo lunes"
+            },
+            "moved": "{count, plural, one {# tarea movida al {date}} other {# tareas movidas al {date}}}",
+            "movedPartly": "{count} de {total} tareas movidas al {date}. Las demás cambiaron o no puedes editarlas.",
+            "nothingMoved": "No se movió nada. Esas tareas cambiaron o no puedes editarlas.",
+            "error": "No se pudieron mover tus tareas vencidas. Inténtalo de nuevo.",
+            "undo": "Deshacer",
+            "undone": "{count, plural, one {# tarea devuelta} other {# tareas devueltas}}",
+            "undonePartly": "{count} de {total} tareas devueltas. Las demás cambiaron desde entonces.",
+            "undoError": "No se pudo deshacer el cambio. Inténtalo de nuevo."
+          }
         },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
@@ -1852,6 +1869,11 @@
         "authenticate": "Autenticar",
         "expand": "Expandir",
         "collapse": "Contraer",
+        "downloadAll": {
+          "button": "Descargar todo",
+          "failed": "No se pudieron descargar los archivos. Inténtalo de nuevo o ábrelos uno a uno.",
+          "partial": "Se descargaron {included} de {total} archivos. No incluidos: {names}{more, plural, =0 {} one { y # más} other { y # más}}. Ábrelos uno a uno."
+        },
         "actorCoworker": "Coworker",
         "actorUser": "Usuario",
         "actorSokoBot": "Asistente",
@@ -2902,6 +2924,14 @@
           "timeout": "Se agotó el tiempo.",
           "missing": "No se pudo abrir esta publicación.",
           "mediaUnavailable": "El historial importado aún no incluye los archivos multimedia.",
+          "mediaNotice": {
+            "pad_4_5": "{provider} añadirá márgenes para 4:5.",
+            "pad_1_91_1": "{provider} añadirá márgenes para 1,91:1.",
+            "resize": "{provider} ajustará el tamaño de esta imagen.",
+            "jpeg": "{provider} convertirá esta imagen a JPEG.",
+            "srgb": "{provider} convertirá esta imagen a sRGB.",
+            "smaller_file": "{provider} comprimirá esta imagen."
+          },
           "linkedin": {
             "like": "Recomendar",
             "comment": "Comentar",
