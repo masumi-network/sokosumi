@@ -2,9 +2,10 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Job } from "@sokosumi/core-client";
+import { QueryClientContext } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { type UseFormReturn, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ import {
   type JobDetailsNameFormSchemaType,
   jobDetailsNameFormSchema,
 } from "@/lib/schemas/job";
+import { getJobQueryKey } from "@/queries/jobs";
 
 export interface UseJobDetailsNameControllerResult {
   editing: boolean;
@@ -45,6 +47,8 @@ export function useJobDetailsNameController(
 ): UseJobDetailsNameControllerResult {
   const t = useTranslations("Components.Jobs.JobDetails.Header.JobName");
   const router = useRouter();
+  // The public share page renders this view with no query provider.
+  const queryClient = useContext(QueryClientContext);
   const [editing, setEditing] = useState(false);
   const form = useForm<JobDetailsNameFormSchemaType>({
     resolver: zodResolver(
@@ -69,6 +73,13 @@ export function useJobDetailsNameController(
   const submit = async (data: JobDetailsNameFormSchemaType) => {
     const result = await updateJobName({ jobId: job.id, data });
     if (result.ok) {
+      // The page reads the job from this query, and a refresh does not
+      // replace its data. Without this write the old name stays on screen.
+      queryClient?.setQueryData<Job>(getJobQueryKey(job.id), (current) =>
+        current
+          ? { ...current, name: data.name === "" ? null : data.name }
+          : current,
+      );
       setEditing(false);
       toast.success(t("success"));
       router.refresh();
