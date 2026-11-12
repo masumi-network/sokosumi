@@ -904,6 +904,48 @@ describe("RoomsClient transcript row render isolation", () => {
       );
     });
 
+    it("says the message is back only for the failure that put it back", async () => {
+      let fail: (error: Error) => void = () => {};
+      vi.mocked(deleteRoomMessageAction)
+        .mockRejectedValueOnce(new Error("down"))
+        .mockImplementationOnce(
+          () =>
+            new Promise((_resolve, reject) => {
+              fail = reject;
+            }),
+        );
+      await mountRoom();
+
+      await clickDelete();
+      expect(rows()).toHaveLength(3);
+
+      await clickDelete();
+      const event = chatRoomMessageEventDataSchema.parse(
+        JSON.parse(
+          JSON.stringify({
+            eventType: "delete",
+            message: {
+              ...message("m2", 2),
+              content: "",
+              deletedAt: new Date("2026-07-02T00:00:00.000Z"),
+            },
+          }),
+        ),
+      );
+      await act(async () => {
+        realtimeOptions().onMessage?.(event);
+      });
+      await act(async () => {
+        fail(new Error("down"));
+      });
+
+      expect(rows()).toEqual(["false:body m1", "false:body m3"]);
+      expect(toast.error.mock.calls.map(([, options]) => options)).toEqual([
+        { description: "Message.restored" },
+        { description: undefined },
+      ]);
+    });
+
     it("keeps a newer realtime update when the delete then fails", async () => {
       let fail: (error: Error) => void = () => {};
       vi.mocked(deleteRoomMessageAction).mockImplementationOnce(
