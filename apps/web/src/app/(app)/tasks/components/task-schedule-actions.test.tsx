@@ -48,7 +48,10 @@ vi.mock("./task-schedule-dialog", () => ({
     onSaved?: (scheduleId: string) => void;
   }) =>
     copyOf ? (
-      <div role="dialog" aria-label={`copy ${copyOf.name}`}>
+      <div
+        role="dialog"
+        aria-label={`copy ${copyOf.name} into ${copyOf.projectId ?? "none"}`}
+      >
         <button type="button" onClick={() => onSaved?.("copy-id")}>
           save copy
         </button>
@@ -274,7 +277,7 @@ describe("TaskScheduleActions", () => {
     await user.click(screen.getByRole("button", { name: "more" }));
     expect(
       screen.getAllByRole("menuitem").map((item) => item.textContent),
-    ).toEqual(["copy", "delete"]);
+    ).toEqual(["copy", "copyToProject", "delete"]);
   });
 
   it.each(["ACTIVE", "ENDED"] as const)(
@@ -287,13 +290,62 @@ describe("TaskScheduleActions", () => {
       await user.click(screen.getByRole("menuitem", { name: "copy" }));
       await user.click(
         within(
-          screen.getByRole("dialog", { name: "copy Daily digest" }),
+          screen.getByRole("dialog", { name: "copy Daily digest into none" }),
         ).getByRole("button", { name: "save copy" }),
       );
 
       expect(pushMock).toHaveBeenCalledWith("/schedules/copy-id");
     },
   );
+
+  it("copies to another Project chosen first, offering only open non-CMO others", async () => {
+    const user = userEvent.setup();
+    render(
+      <TaskScheduleActions
+        schedule={{ ...schedule("ACTIVE"), projectId: "p_here" }}
+        coworkerOptions={[]}
+        projectOptions={[
+          { id: "p_here", name: "Here" },
+          { id: "p_there", name: "There" },
+          { id: "p_closed", name: "Closed", closed: true },
+          { id: "p_cmo", name: "Brand", cmo: true },
+        ]}
+        canCreatePrivate={false}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "more" }));
+    await user.click(screen.getByRole("menuitem", { name: "copyToProject" }));
+
+    const picker = screen.getByRole("dialog");
+    expect(within(picker).getAllByRole("option")).toHaveLength(1);
+    const there = within(picker).getByRole("option", { name: /There$/ });
+    expect(screen.queryByRole("dialog", { name: /^copy / })).toBeNull();
+
+    await user.click(there);
+    await user.click(
+      within(
+        screen.getByRole("dialog", { name: "copy Daily digest into p_there" }),
+      ).getByRole("button", { name: "save copy" }),
+    );
+
+    expect(pushMock).toHaveBeenCalledWith("/schedules/copy-id");
+  });
+
+  it("says when no other Project can take the copy, and cancelling writes nothing", async () => {
+    const user = userEvent.setup();
+    renderActions("ACTIVE");
+
+    await user.click(screen.getByRole("button", { name: "more" }));
+    await user.click(screen.getByRole("menuitem", { name: "copyToProject" }));
+
+    expect(screen.getByText("copyToProjectNone")).toBeInTheDocument();
+    expect(screen.queryByRole("option")).toBeNull();
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
 
   it("opens the edit dialog", async () => {
     const user = userEvent.setup();

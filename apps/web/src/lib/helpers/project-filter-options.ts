@@ -19,6 +19,7 @@ export async function getProjectFilterOptions(
     briefingUrl: project.briefingUrl,
     contextMd: project.contextMd,
     cmo: project.cmo,
+    closed: Boolean(project.closedAt),
   }));
 
   if (
@@ -41,6 +42,7 @@ export async function getProjectFilterOptions(
       briefingUrl: selectedProject.briefingUrl,
       contextMd: selectedProject.contextMd,
       cmo: selectedProject.cmo,
+      closed: Boolean(selectedProject.closedAt),
     },
     ...projectOptions,
   ];

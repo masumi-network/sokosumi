@@ -2295,6 +2295,10 @@
         "Actions": {
           "edit": "Edit",
           "copy": "Copy",
+          "copyToProject": "Copy to another Project",
+          "copyToProjectTitle": "Copy to which Project?",
+          "copyToProjectDescription": "Choose the Project for the new schedule. The original stays where it is.",
+          "copyToProjectNone": "No other open Project to copy into. Create or reopen one in Projects first.",
           "runNow": "Run now",
           "pause": "Pause",
           "resume": "Resume",

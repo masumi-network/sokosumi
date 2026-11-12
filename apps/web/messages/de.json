@@ -2295,6 +2295,10 @@
         "Actions": {
           "edit": "Bearbeiten",
           "copy": "Kopieren",
+          "copyToProject": "In anderes Projekt kopieren",
+          "copyToProjectTitle": "In welches Projekt kopieren?",
+          "copyToProjectDescription": "Wähle das Projekt für den neuen Zeitplan. Das Original bleibt, wo es ist.",
+          "copyToProjectNone": "Kein anderes offenes Projekt zum Kopieren. Lege zuerst unter Projekte eines an oder öffne eines wieder.",
           "runNow": "Jetzt ausführen",
           "pause": "Pausieren",
           "resume": "Fortsetzen",

@@ -2295,6 +2295,10 @@
         "Actions": {
           "edit": "Editar",
           "copy": "Copiar",
+          "copyToProject": "Copiar a otro proyecto",
+          "copyToProjectTitle": "¿A qué proyecto copiar?",
+          "copyToProjectDescription": "Elige el proyecto para la nueva programación. La original se queda donde está.",
+          "copyToProjectNone": "No hay otro proyecto abierto al que copiar. Primero crea o reabre uno en Proyectos.",
           "runNow": "Ejecutar ahora",
           "pause": "Pausar",
           "resume": "Reanudar",
