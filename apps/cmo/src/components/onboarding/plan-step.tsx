@@ -72,7 +72,6 @@ export function PlanReview({
   const work = overview.work;
   const writing = work?.kind === "strategy" && work.status === "running";
   const approved = strategyApproved(overview);
-  const questions = strategy.questions ?? [];
   const pieces = strategy.calendar.length;
   const changes = strategy.changes ?? [];
   const written = strategy.contentLanguage
@@ -82,9 +81,6 @@ export function PlanReview({
   // The short goal is the headline; the long sentence sits under it.
   const sentence = strategy.idea?.sentence ?? strategy.summary;
   const goal = outcomeLine(strategy) || firstClause(sentence);
-  const ads = strategy.ads;
-  const pace = PACES.find((option) => option.level === strategy.pace?.level);
-  const hasChecks = questions.length > 0 || pace || ads;
 
   return (
     <section className="ob-plan">
@@ -115,34 +111,7 @@ export function PlanReview({
           </div>
         ) : null}
 
-        {hasChecks ? (
-          <div className="card ob-checks">
-            <h2>{approved ? "What you approved" : "Your answers"}</h2>
-            <ul className="ob-approved">
-              {questions.map((question) => (
-                <li key={question.id}>
-                  {question.question}{" "}
-                  <b>{ANSWER_WORDS[question.answer ?? ""]}</b>
-                  {question.answer === "no" && question.note
-                    ? `: ${question.note}`
-                    : ""}
-                </li>
-              ))}
-              {pace ? (
-                <li>
-                  Pace: <b>{pace.name}</b>, {pace.does.toLowerCase()}
-                </li>
-              ) : null}
-              {ads ? (
-                <li>
-                  {ads.monthly > 0
-                    ? `${money(ads.monthly, ads.currency)} a month for ads`
-                    : "No ads"}
-                </li>
-              ) : null}
-            </ul>
-          </div>
-        ) : null}
+        <PlanAnswers overview={overview} />
 
         <div className="ob-tabs" role="tablist" aria-label="Plan">
           {TABS.map((candidate, index) => (
@@ -202,6 +171,46 @@ export function PlanReview({
         ) : null}
       </AnimatePresence>
     </section>
+  );
+}
+
+/**
+ * What the plan was checked with: each answer, the pace and the ad budget.
+ * The plan's See more and the briefing's look back show it.
+ */
+export function PlanAnswers({ overview }: { overview: CmoOverview }) {
+  const strategy = overview.strategy as Strategy;
+  const approved = strategyApproved(overview);
+  const questions = strategy.questions ?? [];
+  const ads = strategy.ads;
+  const pace = PACES.find((option) => option.level === strategy.pace?.level);
+  if (questions.length === 0 && !pace && !ads) return null;
+  return (
+    <div className="card ob-checks">
+      <h2>{approved ? "What you approved" : "Your answers"}</h2>
+      <ul className="ob-approved">
+        {questions.map((question) => (
+          <li key={question.id}>
+            {question.question} <b>{ANSWER_WORDS[question.answer ?? ""]}</b>
+            {question.answer === "no" && question.note
+              ? `: ${question.note}`
+              : ""}
+          </li>
+        ))}
+        {pace ? (
+          <li>
+            Pace: <b>{pace.name}</b>, {pace.does.toLowerCase()}
+          </li>
+        ) : null}
+        {ads ? (
+          <li>
+            {ads.monthly > 0
+              ? `${money(ads.monthly, ads.currency)} a month for ads`
+              : "No ads"}
+          </li>
+        ) : null}
+      </ul>
+    </div>
   );
 }
 

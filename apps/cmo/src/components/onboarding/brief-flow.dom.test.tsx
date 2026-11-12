@@ -836,3 +836,144 @@ describe("waiting and coming back", () => {
     expect(text()).not.toContain("Welcome back");
   });
 });
+
+describe("looking back along the bar", () => {
+  const stageButton = (label: string) => {
+    const found = [
+      ...container.querySelectorAll<HTMLButtonElement>(
+        ".brief-timeline button",
+      ),
+    ].find((element) => element.textContent?.includes(label));
+    if (!found) throw new Error(`No stage "${label}"`);
+    return found;
+  };
+  const question = () =>
+    container.querySelector("[data-brief-question]")?.textContent;
+  const page = () => container.querySelector(".brief-main")?.textContent ?? "";
+
+  it("makes finished stages and the current one buttons, and the ones ahead disabled", async () => {
+    await render(draft({ strategy: fullPlan }));
+    for (const label of ["Website", "Research", "Brand check", "Plan"]) {
+      expect(stageButton(label).disabled).toBe(false);
+    }
+    const now = stageButton("Briefing");
+    expect(now.disabled).toBe(false);
+    expect(now.getAttribute("aria-current")).toBe("step");
+    for (const label of ["Go live", "Your month"]) {
+      expect(stageButton(label).disabled).toBe(true);
+      expect(stageButton(label).getAttribute("aria-disabled")).toBe("true");
+    }
+  });
+
+  it("shows a finished stage read-only, marks it viewed, and goes back", async () => {
+    await render(draft({ strategy: fullPlan }));
+    await act(async () => stageButton("Research").click());
+
+    expect(page()).toContain("Back to Briefing");
+    expect(page()).toContain("What I learned about acme.io");
+    expect(page()).toContain("Acme sells rockets. Founders buy them.");
+    // Review mode changes nothing: no fields on the page.
+    expect(
+      container.querySelector(".brief-main input, .brief-main textarea"),
+    ).toBeNull();
+    const viewed = stageButton("Research");
+    expect(viewed.className).toContain("viewed");
+    expect(viewed.textContent).toContain("viewing");
+    // Progress stays where it is.
+    expect(stageButton("Briefing").getAttribute("aria-current")).toBe("step");
+    // The chat keeps asking the current question.
+    expect(question()).toBe(
+      "Your briefing is ready. Does this plan sound right?",
+    );
+
+    await press("Back to Briefing");
+    expect(page()).not.toContain("Back to Briefing");
+    expect(stageButton("Research").className).not.toContain("viewed");
+  });
+
+  it("shows the plan's goal and moves, and the current stage takes you back", async () => {
+    await render(draft({ strategy: fullPlan }), undefined, {
+      briefed: ["plan", "pace"],
+    });
+    await act(async () => stageButton("Plan").click());
+    expect(page()).toContain("Back to Briefing");
+    expect(page()).toContain("Goal");
+    expect(question()).toBe("Do you ship every month?");
+
+    await act(async () => stageButton("Briefing").click());
+    expect(page()).not.toContain("Back to Briefing");
+  });
+
+  it("shows the briefing's answers once it is done", async () => {
+    const answered = draft({
+      strategy: {
+        ...fullPlan,
+        questions: [{ ...firstCheck, answer: "yes" }, secondCheck],
+      },
+    });
+    await render(answered, undefined, {
+      briefed: ["plan", "pace", "checks", "ads"],
+    });
+    await act(async () => stageButton("Briefing").click());
+    expect(page()).toContain("Back to Go live");
+    expect(page()).toContain("Your answers");
+    expect(page()).toContain("Do you ship every month? Yes");
+  });
+
+  it("stays on the stage looked at when the current one finishes", async () => {
+    const setAdBudget = vi.fn(async () => ({ overview: null, error: null }));
+    const overview = draft({ strategy: fullPlan });
+    await render(overview, actionsFor(overview, { setAdBudget }), {
+      briefed: ["plan", "pace", "checks"],
+    });
+    await act(async () => stageButton("Research").click());
+    await press("No ads");
+
+    expect(stageButton("Go live").getAttribute("aria-current")).toBe("step");
+    expect(page()).toContain("What I learned about acme.io");
+    expect(page()).toContain("Back to Go live");
+  });
+
+  it("opens a sheet of the stages on a phone, picks one and closes", async () => {
+    await render(draft({ strategy: fullPlan }));
+    const fold = container.querySelector<HTMLButtonElement>(
+      "button.brief-fold-button",
+    );
+    expect(fold?.getAttribute("aria-expanded")).toBe("false");
+    await act(async () => fold?.click());
+
+    const sheet = container.querySelector('[role="dialog"]');
+    expect(sheet?.getAttribute("aria-label")).toBe("Your progress");
+    const rows = [...(sheet?.querySelectorAll("li") ?? [])];
+    expect(rows).toHaveLength(7);
+    expect(rows[1]?.textContent).toContain("Research");
+    expect(rows[1]?.textContent).toContain("Cuso");
+    expect(rows[1]?.textContent).toContain("Done");
+    expect(rows[4]?.textContent).toContain("Now");
+    expect(rows[5]?.textContent).toContain("Later");
+    expect(rows[5]?.querySelector("button")?.disabled).toBe(true);
+
+    await act(async () => rows[1]?.querySelector("button")?.click());
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(page()).toContain("Back to Briefing");
+    expect(container.querySelector(".brief-fold")?.textContent).toContain(
+      "Viewing: Research",
+    );
+
+    // Esc closes it, and focus goes back to the step line.
+    await act(async () => fold?.click());
+    await act(async () => {
+      container
+        .querySelector('[role="dialog"]')
+        ?.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
+    });
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(fold);
+    // The chat never moved.
+    expect(question()).toBe(
+      "Your briefing is ready. Does this plan sound right?",
+    );
+  });
+});

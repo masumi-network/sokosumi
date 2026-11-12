@@ -30,6 +30,7 @@ import {
   briefStage,
   meanwhile,
   planUnfitted,
+  type StageId,
   stageMarks,
   workingStatus,
 } from "./brief";
@@ -197,6 +198,8 @@ export function OnboardingFlow({
   const [notice, setNotice] = useState<string | null>(null);
   // The chat's free text field, which a tapped piece writes into.
   const [draft, setDraft] = useState("");
+  // A finished stage the person looks back at; the chat stays on the current.
+  const [viewing, setViewing] = useState<StageId | null>(null);
   const draftRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
@@ -422,6 +425,15 @@ export function OnboardingFlow({
   };
 
   const marks = stageMarks(overview, local);
+  // Only a finished stage is looked back at; it stays shown when the current
+  // stage moves on, and the current stage itself is the page as usual.
+  const looking =
+    marks.find((mark) => mark.id === viewing && mark.state === "done")?.id ??
+    null;
+  const view = (id: StageId) => {
+    setViewing(id === stage ? null : id);
+    document.getElementById("brief-main")?.scrollIntoView?.({ block: "start" });
+  };
   const status = workingStatus(overview, local);
   if (changing && work?.kind === "strategy" && running && work.change) {
     status.title = `Changing: ${changing}`;
@@ -528,6 +540,8 @@ export function OnboardingFlow({
           setDraft(`Change “${entry.title}”: `);
           window.setTimeout(() => draftRef.current?.focus(), 0);
         }}
+        viewing={looking}
+        onBack={() => setViewing(null)}
         onConnectMeasurement={(provider) =>
           actions.connectMeasurement(provider, "onboarding")
         }
@@ -545,7 +559,13 @@ export function OnboardingFlow({
           },
         }}
       />
-      <BriefBar marks={marks} pose={poseFor(mode.kind, overview)} mode={mode} />
+      <BriefBar
+        marks={marks}
+        pose={poseFor(mode.kind, overview)}
+        mode={mode}
+        viewing={looking}
+        onView={view}
+      />
     </div>
   );
 }
