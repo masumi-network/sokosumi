@@ -82,5 +82,17 @@ export const sokoBotStateSchema = z
     sokoBot: z.object(sokoBotSchema.shape).nullable(),
     /** Project and workspace bots the viewer can reach. Absent for a Soko Bot's own key. */
     sharedBots: z.array(sharedSokoBotSummarySchema).optional(),
+    /**
+     * While your bot is in error: the failed reply of its last failed turn and
+     * its room, when that turn answered a chat you can still open. Both null
+     * for other work (a schedule, an event) or a room you cannot open.
+     */
+    lastFailure: z
+      .object({
+        roomId: z.string().uuid().nullable(),
+        messageId: z.string().uuid().nullable(),
+      })
+      .nullable()
+      .optional(),
   })
   .openapi("SokoBotState");

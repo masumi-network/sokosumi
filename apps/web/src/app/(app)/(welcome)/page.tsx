@@ -1,4 +1,3 @@
-import { SokoBotStatus } from "@sokosumi/core-client";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
@@ -8,7 +7,6 @@ import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
 import { ChatLanding } from "@/app/chat/components/landing/chat-landing";
 import { ChatLandingMobile } from "@/app/chat/components/landing/chat-landing.mobile";
 import { resolveLandingGreetingName } from "@/app/chat/components/landing/landing-content";
-import { chatRoomHref } from "@/app/chat/utils/chat-route-base";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import type { NeedsYouLead } from "@/app/projects/components/needs-you-panel-list";
 import {
@@ -24,7 +22,6 @@ import { notificationService } from "@/lib/services/notification.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
-import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 
 import { loadMyDay, MyDay } from "./components/my-day";
@@ -33,6 +30,7 @@ import {
   findSokoBotDirectRoom,
   SOKO_BOT_HOME_TASK_LIMIT,
   type SokoBotHomeChat,
+  sokoBotFailureLead,
   toImportantChats,
   toTeamDay,
 } from "./components/soko-bot-home-data";
@@ -104,7 +102,9 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   if (!isWorkspaceReady(access?.gate)) {
     redirect(WORKSPACE_GATE_PATH);
   }
-  const sokoBot = await sokoBotService.getMine().catch(() => null);
+  const { sokoBot, lastFailure } = await sokoBotService
+    .getMineWithLastFailure()
+    .catch(() => ({ sokoBot: null, lastFailure: null }));
   const notice =
     (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
   const landingNotice = <ChatLandingNotice notice={notice} />;
@@ -143,20 +143,17 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
         })
         .catch(() => ({ tasks: [] })),
     ]);
-    // A failed reply waits on the reader too: the sidebar and the bot's page
-    // say so, and Home said "Nothing waits on you". Opens the bot's Direct,
-    // where the failed reply and its Try again are.
+    // A failed bot waits on the reader too: the sidebar and the bot's page
+    // say so, and Home said "Nothing waits on you".
     const tHome = await getTranslations("App.Chat.Landing.SokoBotHome");
-    const failedLead =
-      sokoBot.status === SokoBotStatus.ERROR
-        ? {
-            title: tHome("failedReply", {
-              name: sokoBot.name?.trim() || tHome("defaultName"),
-            }),
-            detail: tHome("openChat"),
-            href: roomId ? chatRoomHref(roomId) : SOKO_BOT_ROUTE,
-          }
-        : undefined;
+    const failedLead = sokoBotFailureLead(
+      {
+        name: sokoBot.name?.trim() || tHome("defaultName"),
+        status: sokoBot.status,
+      },
+      lastFailure,
+      tHome,
+    );
     return (
       <>
         {landingNotice}

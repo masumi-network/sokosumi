@@ -48,13 +48,17 @@ vi.mock("@/components/ui/sheet", () => ({
     isValidElement(children) ? cloneElement(children, props) : <>{children}</>,
 }));
 
-const { publishFailedSokoBotId } = vi.hoisted(() => ({
-  publishFailedSokoBotId: vi.fn(),
-}));
-vi.mock("@/components/chat/personal-assistant-chrome-store", () => ({
-  publishPersonalAssistantChromeVisible: vi.fn(),
-  publishFailedSokoBotId,
-}));
+// The real failed-bot store, so the row and the chat list are checked
+// against each other; only the Instant `/chat` flag is stubbed.
+vi.mock(
+  "@/components/chat/personal-assistant-chrome-store",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/components/chat/personal-assistant-chrome-store")
+    >()),
+    publishPersonalAssistantChromeVisible: vi.fn(),
+  }),
+);
 
 vi.mock("@/components/aurora-orb", () => ({
   AuroraOrb: ({ className }: { className?: string }) => (
@@ -62,7 +66,8 @@ vi.mock("@/components/aurora-orb", () => ({
   ),
 }));
 
-import { SokoBotStatus } from "@sokosumi/core-client";
+import { type ChatRoom, SokoBotStatus } from "@sokosumi/core-client";
+import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 
@@ -343,12 +348,76 @@ describe("PersonalAssistantNav live status", () => {
     );
   });
 
-  it("tells the chat list when the bot's last reply failed", async () => {
-    vi.stubGlobal("fetch", answer({ status: SokoBotStatus.ERROR }));
-    renderNav({ bot });
-
-    await waitFor(() =>
-      expect(publishFailedSokoBotId).toHaveBeenLastCalledWith("bot-1"),
+  /** Your Direct with the bot, as the chat list draws it. */
+  function renderNavWithDirect(rendered: SidebarSokoBotLive) {
+    const room = {
+      id: "dm-1",
+      kind: "direct",
+      isSelfDirect: false,
+      isGroupDirect: false,
+      isReadOnly: false,
+      userMembers: [
+        {
+          id: "me",
+          name: "Me",
+          email: "me@example.com",
+          image: null,
+          presence: "online",
+        },
+      ],
+      coworkerMembers: [],
+      formerUserMembers: [],
+      sokoBotMembers: [
+        {
+          id: rendered.id,
+          name: "Mo",
+          caption: null,
+          image: null,
+          avatarSeed: null,
+          ownerUserId: "me",
+          scope: "personal",
+          sharedRoomId: null,
+          presence: "offline",
+        },
+      ],
+    } as unknown as ChatRoom;
+    return render(
+      <SidebarProvider defaultOpen>
+        <PersonalAssistantNav bot={rendered} />
+        <DirectRoomAvatarStack room={room} currentUserId="me" />
+      </SidebarProvider>,
     );
+  }
+
+  it("agrees with the chat list from the server's status when polling fails, then on recovery", async () => {
+    let recovered = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        if (!recovered) throw new Error("offline");
+        return {
+          ok: true,
+          json: async () => ({ activity: { status: SokoBotStatus.IDLE } }),
+        };
+      }),
+    );
+    renderNavWithDirect({ ...bot, status: SokoBotStatus.ERROR });
+    const direct = screen.getByTestId(`dm-sidebar-avatar-${bot.id}`);
+
+    await waitFor(() => expect(direct).toHaveTextContent("ERROR"));
+    expect(screen.getByRole("link", { name: /Mo/ })).toHaveAccessibleName(
+      /ERROR/,
+    );
+    expect(direct).not.toHaveTextContent("Presence.online");
+
+    recovered = true;
+    document.dispatchEvent(new Event("visibilitychange"));
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: /Mo/ })).toHaveAccessibleName(
+        /ready/,
+      ),
+    );
+    expect(direct).toHaveTextContent("Presence.online");
+    expect(direct).not.toHaveTextContent("ERROR");
   });
 });

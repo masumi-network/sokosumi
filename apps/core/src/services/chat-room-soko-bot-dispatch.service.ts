@@ -1,12 +1,15 @@
+import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
+import { persistSokoBotChatTurn } from "@/services/soko-bot-chat.service";
 import {
   ACTIVE_TURN_STATUSES,
   FOREGROUND_TURN,
   SokoBotTurnInProgressError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
+import { deliverSokoBotTurnOutbox } from "@/services/soko-bot-delivery.service";
 
 import {
   buildDirectMessagePrompt,
@@ -42,6 +45,51 @@ const RUNNING_TURN_POLL_MS = 2_000;
 
 function isActiveTurnStatus(status: string): boolean {
   return (ACTIVE_TURN_STATUSES as readonly string[]).includes(status);
+}
+
+/**
+ * Puts an ended turn's outcome on the reply that was reopened for it. A
+ * delivery still to land owns that outcome; its worker retries if this push
+ * loses the lease. With none left, a completed turn's answer is written the
+ * way delivery writes it, and a failed or cancelled one fails the reply.
+ */
+async function settleEndedTurn(
+  turnId: string,
+  status: string,
+  failPlaceholder: (error: unknown) => Promise<void>,
+): Promise<void> {
+  const open = await prisma.sokoBotDelivery.findFirst({
+    where: { turnId, status: { in: ["PENDING", "PERSISTED"] } },
+    select: { id: true },
+  });
+  if (open) {
+    await deliverSokoBotTurnOutbox(turnId);
+    return;
+  }
+  if (status !== "COMPLETED") {
+    await failPlaceholder(new Error(`Soko Bot turn ${status.toLowerCase()}`));
+    return;
+  }
+  const reply = await prisma.$transaction(async (tx) => {
+    await persistSokoBotChatTurn(turnId, tx);
+    return tx.sokoBotTurn.findUnique({
+      where: { id: turnId },
+      select: {
+        chatResponseMessageId: true,
+        chatMention: { select: { messageId: true } },
+      },
+    });
+  });
+  if (reply?.chatResponseMessageId)
+    await publishChatRoomMessageRealtimeById(
+      reply.chatResponseMessageId,
+      "update",
+    );
+  if (reply?.chatMention)
+    await publishChatRoomMessageRealtimeById(
+      reply.chatMention.messageId,
+      "mention_status",
+    );
 }
 
 export async function acceptOnceIdle<T>(
@@ -204,30 +252,25 @@ export async function runSokoBotMentionDispatch(params: {
   // the placeholder above streaming for ever while the mention was marked
   // failed somewhere the reader could not see.
   let message: string;
-  // The key this start runs under. Retry reopens a mention whose turn has
-  // already ended, and that turn holds both the mention (one turn per mention)
-  // and the key `chat:<mention>`: starting again under it handed back the
-  // ended turn, nothing started, and the reopened "Thinking…" never ended.
-  // So the newest turn under this mention's keys, once ended, lets go of the
-  // mention and the retry starts under a key of its own; a live one (a
-  // reclaimed dispatch) keeps its key. Newest by key, not by link: a retry
-  // whose start threw left no turn, and the original still holds `chat:<id>`.
+  // The key this start runs under. The turn holding the mention keeps it:
+  // a reclaimed dispatch resumes that turn (and its delivery) instead of
+  // running the request again. Only an explicit Retry lets go of a failed
+  // turn (`releaseFailedTurnForRetry`); the next attempt is then keyed by the
+  // newest turn it follows, so workers that see the same predecessor share
+  // one key. Newest by key, not by link: a retry whose start threw left no
+  // turn, and the original still holds `chat:<id>`.
   let clientTurnId = `chat:${mentionId}`;
   try {
-    const [earlier] = await prisma.sokoBotTurn.findMany({
+    const [newest] = await prisma.sokoBotTurn.findMany({
       where: { sokoBotId: bot.id, clientTurnId: { startsWith: clientTurnId } },
       orderBy: { createdAt: "desc" },
       take: 1,
-      select: { id: true, status: true, clientTurnId: true },
+      select: { id: true, clientTurnId: true, chatMentionId: true },
     });
-    if (earlier && isActiveTurnStatus(earlier.status)) {
-      clientTurnId = earlier.clientTurnId;
-    } else if (earlier) {
-      await prisma.sokoBotTurn.updateMany({
-        where: { id: earlier.id, chatMentionId: mentionId },
-        data: { chatMentionId: null },
-      });
-      clientTurnId = `chat:${mentionId}:retry:${earlier.id}`;
+    if (newest?.chatMentionId === mentionId) {
+      clientTurnId = newest.clientTurnId;
+    } else if (newest) {
+      clientTurnId = `chat:${mentionId}:retry:${newest.id}`;
     }
     const said = withAttachmentNote(
       roomMessagePromptText(
@@ -296,12 +339,11 @@ export async function runSokoBotMentionDispatch(params: {
 
   try {
     const result = await acceptOnceIdle(accept, bot.id);
-    // An ended turn handed back for this key writes nothing more to the
-    // reply, so say it failed rather than leave "Thinking…" running.
+    // A turn that already ended answers through its own outcome: a
+    // completed one may still be delivering, and failing the reply here
+    // would turn a good answer into a failed card.
     if (result.duplicate && !isActiveTurnStatus(result.status)) {
-      await failPlaceholder(
-        new Error(`Soko Bot turn already ended (${result.status})`),
-      );
+      await settleEndedTurn(result.turnId, result.status, failPlaceholder);
       return;
     }
     if (

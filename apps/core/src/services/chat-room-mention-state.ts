@@ -1,3 +1,4 @@
+import type { Prisma } from "@sokosumi/database";
 import prisma from "@/lib/db/prisma";
 
 /** Hard ceiling for streamText only (not conversation create ≤25s). */
@@ -112,4 +113,42 @@ export async function claimMentionForDispatch(
     },
   });
   return staleClaim.count > 0;
+}
+
+/**
+ * Explicit Retry only, inside the transaction that resets the mention. A
+ * failed or cancelled turn whose outcome is already written lets go of the
+ * mention (one turn per mention), so the dispatch starts a new turn under
+ * `chat:<mention>:retry:<that turn>` instead of getting this one back. A turn
+ * still running, completed, or with a delivery still to land keeps the link:
+ * the dispatch then resumes it rather than running the request again. The
+ * turn keeps its room (`destinationRoomId`) and reply (`chatResponseMessageId`).
+ */
+export async function releaseFailedTurnForRetry(
+  tx: Prisma.TransactionClient,
+  mentionId: string,
+): Promise<void> {
+  const turn = await tx.sokoBotTurn.findUnique({
+    where: { chatMentionId: mentionId },
+    select: {
+      id: true,
+      status: true,
+      deliveries: {
+        where: { status: { in: ["PENDING", "PERSISTED"] } },
+        select: { id: true },
+        take: 1,
+      },
+    },
+  });
+  if (
+    !turn ||
+    (turn.status !== "FAILED" && turn.status !== "CANCELLED") ||
+    turn.deliveries.length > 0
+  ) {
+    return;
+  }
+  await tx.sokoBotTurn.updateMany({
+    where: { id: turn.id, chatMentionId: mentionId, status: turn.status },
+    data: { chatMentionId: null },
+  });
 }

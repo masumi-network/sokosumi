@@ -2,6 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getMine = vi.fn();
+const lastFailure = vi.fn(() => null as unknown);
 const listRooms = vi.fn();
 const listMessages = vi.fn();
 const listImportantMessages = vi.fn();
@@ -46,7 +47,12 @@ vi.mock("@/lib/services/user.service", () => ({
   },
 }));
 vi.mock("@/lib/services/soko-bot.service", () => ({
-  sokoBotService: { getMine: () => getMine() },
+  sokoBotService: {
+    getMineWithLastFailure: async () => ({
+      sokoBot: await getMine(),
+      lastFailure: lastFailure(),
+    }),
+  },
 }));
 vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
@@ -122,6 +128,7 @@ async function renderPage() {
 describe("WelcomePage", () => {
   beforeEach(() => {
     getWorkspaceAccess.mockResolvedValue({ gate: "ready" });
+    lastFailure.mockReturnValue(null);
     listRooms.mockResolvedValue({
       rooms: [
         {
@@ -241,6 +248,53 @@ describe("WelcomePage", () => {
         needsYou: expect.anything(),
       }),
     );
+    expect(needsYouPanel).toHaveBeenCalledWith(
+      expect.objectContaining({ lead: undefined }),
+    );
+  });
+
+  describe("a bot whose last turn failed", () => {
+    const failedBot = {
+      id: "bot-1",
+      name: "Pip",
+      status: "ERROR",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    };
+
+    it.each([
+      ["its Direct", "room-1", "shell-1"],
+      // Not the Direct: the reply that failed was in a channel.
+      ["a channel", "channel-9", "shell-2"],
+    ])("opens the failed reply in %s", async (_where, roomId, messageId) => {
+      getMine.mockResolvedValue(failedBot);
+      lastFailure.mockReturnValue({ roomId, messageId });
+      await renderPage();
+      expect(needsYouPanel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lead: {
+            title: "App.Chat.Landing.SokoBotHome.failedReply",
+            detail: "App.Chat.Landing.SokoBotHome.openChat",
+            href: `/chat/rooms/${roomId}?message=${messageId}`,
+          },
+        }),
+      );
+    });
+
+    it("sends other failed work to the bot's page in neutral words", async () => {
+      getMine.mockResolvedValue(failedBot);
+      lastFailure.mockReturnValue({ roomId: null, messageId: null });
+      await renderPage();
+      expect(needsYouPanel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lead: {
+            title: "App.Chat.Landing.SokoBotHome.failedWork",
+            detail: "App.Chat.Landing.SokoBotHome.openBot",
+            href: "/personal-assistant",
+          },
+        }),
+      );
+    });
   });
 });
 

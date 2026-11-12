@@ -5,6 +5,11 @@ const {
   findTurn,
   findMentionTurn,
   releaseMention,
+  findOpenDelivery,
+  deliverOutbox,
+  persistChatTurn,
+  publishById,
+  transaction,
   claim,
   fail,
   placeholder,
@@ -16,6 +21,11 @@ const {
   findTurn: vi.fn(),
   findMentionTurn: vi.fn(),
   releaseMention: vi.fn(),
+  findOpenDelivery: vi.fn(),
+  deliverOutbox: vi.fn(),
+  persistChatTurn: vi.fn(),
+  publishById: vi.fn(),
+  transaction: vi.fn(),
   claim: vi.fn(),
   fail: vi.fn(),
   placeholder: vi.fn(),
@@ -30,8 +40,20 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: findTurn,
       findMany: findMentionTurn,
       updateMany: releaseMention,
+      findUnique: vi.fn(),
     },
+    sokoBotDelivery: { findFirst: findOpenDelivery },
+    $transaction: transaction,
   },
+}));
+vi.mock("@/services/soko-bot-delivery.service", () => ({
+  deliverSokoBotTurnOutbox: deliverOutbox,
+}));
+vi.mock("@/services/soko-bot-chat.service", () => ({
+  persistSokoBotChatTurn: persistChatTurn,
+}));
+vi.mock("@/helpers/chat-room-message-realtime", () => ({
+  publishChatRoomMessageRealtimeById: publishById,
 }));
 vi.mock("./chat-room-mention-state", () => ({
   claimMentionForDispatch: claim,
@@ -108,6 +130,18 @@ beforeEach(() => {
   placeholder.mockResolvedValue("response-a");
   startTurn.mockResolvedValue({ turnId: "turn-a", status: "COMPLETED" });
   findMentionTurn.mockResolvedValue([]);
+  findOpenDelivery.mockResolvedValue(null);
+  transaction.mockImplementation(
+    async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        sokoBotTurn: {
+          findUnique: async () => ({
+            chatResponseMessageId: "response-a",
+            chatMention: { messageId: "source-a" },
+          }),
+        },
+      }),
+  );
 });
 
 describe("Soko Bot mention dispatch", () => {
@@ -320,11 +354,15 @@ describe("a message sent while the bot is still answering", () => {
 });
 
 describe("Retry on a failed Soko Bot reply", () => {
-  it("starts a new turn instead of getting the failed one back", async () => {
-    // The failed turn holds the mention and the key `chat:<mention>`. Reusing
-    // them handed back that turn and left "Thinking…" running for ever.
+  it("starts a new turn after the one Retry let go of", async () => {
+    // Retry released the failed turn from the mention; it still holds the
+    // key `chat:<mention>`, which handed it back and left "Thinking…" running.
     findMentionTurn.mockResolvedValue([
-      { id: "turn-failed", status: "FAILED", clientTurnId: "chat:mention-a" },
+      {
+        id: "turn-failed",
+        clientTurnId: "chat:mention-a",
+        chatMentionId: null,
+      },
     ]);
     await runSokoBotMentionDispatch(input());
     expect(findMentionTurn).toHaveBeenCalledWith(
@@ -336,10 +374,6 @@ describe("Retry on a failed Soko Bot reply", () => {
         orderBy: { createdAt: "desc" },
       }),
     );
-    expect(releaseMention).toHaveBeenCalledWith({
-      where: { id: "turn-failed", chatMentionId: "mention-a" },
-      data: { chatMentionId: null },
-    });
     expect(startTurn).toHaveBeenCalledWith(
       expect.objectContaining({
         clientTurnId: "chat:mention-a:retry:turn-failed",
@@ -347,23 +381,73 @@ describe("Retry on a failed Soko Bot reply", () => {
       }),
     );
   });
-  it("keeps a live turn's key when a dispatch is reclaimed", async () => {
+  it("never lets go of the turn holding the mention itself", async () => {
     findMentionTurn.mockResolvedValue([
       {
-        id: "turn-live",
-        status: "RUNNING",
-        clientTurnId: "chat:mention-a:retry:turn-failed",
+        id: "turn-done",
+        clientTurnId: "chat:mention-a",
+        chatMentionId: "mention-a",
       },
     ]);
     await runSokoBotMentionDispatch(input());
     expect(releaseMention).not.toHaveBeenCalled();
     expect(startTurn).toHaveBeenCalledWith(
-      expect.objectContaining({
-        clientTurnId: "chat:mention-a:retry:turn-failed",
-      }),
+      expect.objectContaining({ clientTurnId: "chat:mention-a" }),
     );
   });
-  it("ends the reply as failed when the start hands back an ended turn", async () => {
+});
+
+describe("a reclaimed mention whose turn already ended", () => {
+  it("delivers a completed turn's pending answer instead of running it again", async () => {
+    // Completed, delivery queued but not landed, mention still `sent`; stale
+    // reclaim runs the dispatch again.
+    findMentionTurn.mockResolvedValue([
+      {
+        id: "turn-done",
+        clientTurnId: "chat:mention-a",
+        chatMentionId: "mention-a",
+      },
+    ]);
+    startTurn.mockResolvedValue({
+      turnId: "turn-done",
+      status: "COMPLETED",
+      duplicate: true,
+    });
+    findOpenDelivery.mockResolvedValue({ id: "delivery-a" });
+    await runSokoBotMentionDispatch(input());
+    expect(startTurn).toHaveBeenCalledTimes(1);
+    expect(startTurn).toHaveBeenCalledWith(
+      expect.objectContaining({ clientTurnId: "chat:mention-a" }),
+    );
+    expect(deliverOutbox).toHaveBeenCalledWith("turn-done");
+    expect(releaseMention).not.toHaveBeenCalled();
+    expect(fail).not.toHaveBeenCalled();
+    expect(reconcileTurn).not.toHaveBeenCalled();
+  });
+  it("keeps the answer of a turn that completed while the start looked", async () => {
+    // Lookup saw it running; it completed before the start checked the key.
+    findMentionTurn.mockResolvedValue([
+      {
+        id: "turn-live",
+        clientTurnId: "chat:mention-a",
+        chatMentionId: "mention-a",
+      },
+    ]);
+    startTurn.mockResolvedValue({
+      turnId: "turn-live",
+      status: "COMPLETED",
+      duplicate: true,
+    });
+    await runSokoBotMentionDispatch(input());
+    expect(persistChatTurn).toHaveBeenCalledWith(
+      "turn-live",
+      expect.anything(),
+    );
+    expect(publishById).toHaveBeenCalledWith("response-a", "update");
+    expect(publishById).toHaveBeenCalledWith("source-a", "mention_status");
+    expect(fail).not.toHaveBeenCalled();
+  });
+  it("fails the reply when the ended turn failed and nothing is left to deliver", async () => {
     startTurn.mockResolvedValue({
       turnId: "turn-failed",
       status: "FAILED",
@@ -376,6 +460,7 @@ describe("Retry on a failed Soko Bot reply", () => {
         existingPlaceholderId: "response-a",
       }),
     );
+    expect(persistChatTurn).not.toHaveBeenCalled();
     expect(reconcileTurn).not.toHaveBeenCalled();
   });
 });

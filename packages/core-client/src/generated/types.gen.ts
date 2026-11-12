@@ -12091,6 +12091,10 @@ export type SokoBotState = {
         updatedAt: Date;
     } | null;
     sharedBots?: Array<SharedSokoBotSummary>;
+    lastFailure?: {
+        roomId: string | null;
+        messageId: string | null;
+    } | null;
 };
 
 export type SharedSokoBotSummary = {

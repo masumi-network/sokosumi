@@ -46902,6 +46902,32 @@ export const SokoBotStateSchema = {
             items: {
                 $ref: '#/components/schemas/SharedSokoBotSummary'
             }
+        },
+        lastFailure: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                roomId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uuid'
+                },
+                messageId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'roomId',
+                'messageId'
+            ]
         }
     },
     required: [

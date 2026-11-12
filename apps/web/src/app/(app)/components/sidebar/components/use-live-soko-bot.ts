@@ -43,7 +43,6 @@ export function useLiveSokoBot<Bot extends LiveFields & { id: string }>(
     setLive(null);
   }
 
-  const botId = bot.id;
   useEffect(() => {
     let stopped = false;
     let asking = false;
@@ -61,9 +60,6 @@ export function useLiveSokoBot<Bot extends LiveFields & { id: string }>(
         const body = activityResponseSchema.safeParse(await response.json());
         if (body.success && !stopped) {
           const { lastActivityAt, ...rest } = body.data.activity;
-          publishFailedSokoBotId(
-            rest.status === SokoBotStatus.ERROR ? botId : null,
-          );
           setLive(
             lastActivityAt === undefined ? rest : { ...rest, lastActivityAt },
           );
@@ -81,11 +77,19 @@ export function useLiveSokoBot<Bot extends LiveFields & { id: string }>(
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       stopped = true;
-      publishFailedSokoBotId(null);
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [botId]);
+  }, []);
 
-  return live ? { ...bot, ...live } : bot;
+  const current = live ? { ...bot, ...live } : bot;
+  // The chat list's Direct with this bot says what this row says: from the
+  // server's status until a poll answers, and kept when a poll fails.
+  const failedId = current.status === SokoBotStatus.ERROR ? current.id : null;
+  useEffect(() => {
+    publishFailedSokoBotId(failedId);
+    return () => publishFailedSokoBotId(null);
+  }, [failedId]);
+
+  return current;
 }

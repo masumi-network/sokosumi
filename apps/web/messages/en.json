@@ -1680,7 +1680,9 @@
             "planTomorrow": "Plan tomorrow"
           },
           "failedReply": "{name} couldn't finish its last reply",
-          "openChat": "Open the chat"
+          "openChat": "Open the chat",
+          "failedWork": "{name} couldn't finish what it was working on",
+          "openBot": "Open {name}'s page"
         }
       },
       "SokoBot": {
