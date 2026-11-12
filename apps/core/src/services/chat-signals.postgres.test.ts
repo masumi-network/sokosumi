@@ -21,6 +21,7 @@ import {
   correctChatMessageSignal,
   getChatRoomCatchUp,
   getChatRoomNeedsYouCounts,
+  listChatDecisions,
   listChatNeedsYou,
   listChatOpenLoops,
   listChatRoomMessagesWithTag,
@@ -44,6 +45,9 @@ const carla = randomUUID();
 const organizationId = randomUUID();
 const channelId = randomUUID();
 const quietChannelId = randomUUID();
+const carlaOnlyChannelId = randomUUID();
+const otherOrganizationId = randomUUID();
+const otherChannelId = randomUUID();
 const HOUR = 60 * 60 * 1000;
 const now = Date.now();
 
@@ -111,6 +115,39 @@ async function postMessage(
   });
   await prisma.chatMessageSignal.create({
     data: { messageId: message.id, roomId: channelId, createdAt },
+  });
+  return message.id;
+}
+
+/** A message Jev already read as a decision (or not), straight to the store. */
+async function taggedMessage(input: {
+  roomId: string;
+  content: string;
+  createdAt: Date;
+  decision?: boolean;
+  parentMessageId?: string;
+  deletedAt?: Date;
+}): Promise<string> {
+  const message = await prisma.chatRoomMessage.create({
+    data: {
+      roomId: input.roomId,
+      senderUserId: carla,
+      content: input.content,
+      createdAt: input.createdAt,
+      parentMessageId: input.parentMessageId,
+      deletedAt: input.deletedAt,
+    },
+  });
+  await prisma.chatMessageSignal.create({
+    data: {
+      messageId: message.id,
+      roomId: input.roomId,
+      state: "tagged",
+      probabilities: {
+        decisionMade: input.decision === false ? 0.1 : 0.95,
+      },
+      taggedAt: input.createdAt,
+    },
   });
   return message.id;
 }
@@ -187,9 +224,15 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
 
   afterAll(async () => {
     await prisma.chatRoom.deleteMany({
-      where: { id: { in: [channelId, quietChannelId] } },
+      where: {
+        id: {
+          in: [channelId, quietChannelId, carlaOnlyChannelId, otherChannelId],
+        },
+      },
     });
-    await prisma.organization.deleteMany({ where: { id: organizationId } });
+    await prisma.organization.deleteMany({
+      where: { id: { in: [organizationId, otherOrganizationId] } },
+    });
     await prisma.user.deleteMany({
       where: { id: { in: [alice, bob, carla] } },
     });
@@ -514,5 +557,191 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
     expect(
       forBob.quietRooms.find((room) => room.roomId === quietChannelId),
     ).toMatchObject({ mentionsYou: false });
+  });
+  it("lists decisions across rooms, read or not, muted, in Threads, paged by position", async () => {
+    // Bob has read the channel and muted it: the decision stays listed.
+    await prisma.chatRoomReadState.updateMany({
+      where: { roomId: channelId, userId: bob },
+      data: { lastReadAt: new Date() },
+    });
+    await prisma.chatRoomUserMember.updateMany({
+      where: { roomId: channelId, userId: bob },
+      data: { mutedAt: new Date() },
+    });
+    const sameInstant = new Date(now - 2 * HOUR);
+    const inThread = await taggedMessage({
+      roomId: channelId,
+      content: "Agreed in the thread: blue, not orange.",
+      createdAt: sameInstant,
+      parentMessageId: decision,
+    });
+    const alsoThen = await taggedMessage({
+      roomId: channelId,
+      content: "We go with the annual plan only.",
+      createdAt: sameInstant,
+    });
+    await taggedMessage({
+      roomId: channelId,
+      content: "Deleted: we drop the beta.",
+      createdAt: new Date(now - HOUR),
+      deletedAt: new Date(),
+    });
+    await taggedMessage({
+      roomId: channelId,
+      content: "Lunch at noon?",
+      createdAt: new Date(now - HOUR),
+      decision: false,
+    });
+    await prisma.chatRoom.create({
+      data: {
+        id: carlaOnlyChannelId,
+        organizationId,
+        name: "carla-only",
+        slug: `carla-only-${carlaOnlyChannelId.slice(0, 8)}`,
+        kind: "channel",
+        discoverability: "private",
+        createdByUserId: carla,
+        userMembers: { create: [{ userId: carla }] },
+      },
+    });
+    const elsewhere = await taggedMessage({
+      roomId: carlaOnlyChannelId,
+      content: "Private call: we hire two people.",
+      createdAt: new Date(now - HOUR),
+    });
+
+    // One row per page walks every decision once, the equal timestamps too.
+    const seen: string[] = [];
+    let after: { createdAt: Date; id: string } | undefined;
+    for (let pages = 0; pages < 10; pages++) {
+      const page = await listChatDecisions(bob, organizationId, {
+        after,
+        take: 1,
+      });
+      expect(page.total).toBe(3);
+      seen.push(...page.messages.map((message) => message.id));
+      const last = page.messages.at(-1);
+      if (!page.hasMore || !last) break;
+      after = { createdAt: last.createdAt, id: last.id };
+    }
+    expect(seen).toHaveLength(3);
+    expect(new Set(seen)).toEqual(new Set([inThread, alsoThen, decision]));
+    expect(seen.at(-1)).toBe(decision);
+
+    // Carla sees her private room's decision; Bob never does.
+    const carlaIds = (
+      await listChatDecisions(carla, organizationId, { take: 10 })
+    ).messages.map((message) => message.id);
+    expect(carlaIds[0]).toBe(elsewhere);
+    expect(seen).not.toContain(elsewhere);
+
+    // Another workspace's sidebar does not list this organization's rooms.
+    expect(
+      (await listChatDecisions(bob, randomUUID(), { take: 10 })).messages,
+    ).toEqual([]);
+
+    // A reader's correction takes a decision out for everyone.
+    await correctChatMessageSignal({
+      messageId: alsoThen,
+      userId: carla,
+      tag: "decisionMade",
+      applies: false,
+    });
+    expect(
+      (await listChatDecisions(bob, organizationId, { take: 10 })).total,
+    ).toBe(2);
+  });
+  it("keeps workspaces apart, survives a deleted page boundary, and drops a room the reader left", async () => {
+    await prisma.organization.create({
+      data: {
+        id: otherOrganizationId,
+        name: "Signals other",
+        slug: `signals-other-${otherOrganizationId}`,
+      },
+    });
+    await prisma.member.createMany({
+      data: [bob, carla].map((userId) => ({
+        userId,
+        organizationId: otherOrganizationId,
+      })),
+    });
+    await prisma.chatRoom.create({
+      data: {
+        id: otherChannelId,
+        organizationId: otherOrganizationId,
+        name: "other",
+        slug: `other-${otherChannelId.slice(0, 8)}`,
+        kind: "channel",
+        discoverability: "public",
+        createdByUserId: carla,
+        userMembers: { create: [bob, carla].map((userId) => ({ userId })) },
+      },
+    });
+    const newest = await taggedMessage({
+      roomId: otherChannelId,
+      content: "We sign with the Berlin studio.",
+      createdAt: new Date(now - 10 * 60 * 1000),
+    });
+    const middle = await taggedMessage({
+      roomId: otherChannelId,
+      content: "Budget stays at 40k.",
+      createdAt: new Date(now - 20 * 60 * 1000),
+    });
+    const corrected = await taggedMessage({
+      roomId: otherChannelId,
+      content: "Let's keep Fridays meeting-free.",
+      createdAt: new Date(now - 30 * 60 * 1000),
+      decision: false,
+    });
+    // A reader marks a message Jev missed: it joins the list.
+    await correctChatMessageSignal({
+      messageId: corrected,
+      userId: carla,
+      tag: "decisionMade",
+      applies: true,
+    });
+
+    const ids = async (organization: string, userId = bob) =>
+      (
+        await listChatDecisions(userId, organization, { take: 50 })
+      ).messages.map((message) => message.id);
+
+    // Each workspace lists only its own rooms' decisions.
+    expect(await ids(otherOrganizationId)).toEqual([newest, middle, corrected]);
+    const firstWorkspace = await ids(organizationId);
+    expect(firstWorkspace).toContain(decision);
+    for (const id of [newest, middle, corrected]) {
+      expect(firstWorkspace).not.toContain(id);
+    }
+
+    // The boundary row is deleted between pages: the next page still
+    // starts right after it.
+    const first = await listChatDecisions(bob, otherOrganizationId, {
+      take: 1,
+    });
+    expect(first.messages.map((message) => message.id)).toEqual([newest]);
+    const boundary = first.messages[0];
+    await prisma.chatRoomMessage.update({
+      where: { id: newest },
+      data: { deletedAt: new Date() },
+    });
+    const next = await listChatDecisions(bob, otherOrganizationId, {
+      after: { createdAt: boundary.createdAt, id: boundary.id },
+      take: 5,
+    });
+    expect(next.messages.map((message) => message.id)).toEqual([
+      middle,
+      corrected,
+    ]);
+    expect(next.total).toBe(2);
+
+    // Bob leaves the first workspace's channel after reading its decisions.
+    await prisma.chatRoomUserMember.deleteMany({
+      where: { roomId: channelId, userId: bob },
+    });
+    expect(await ids(organizationId)).not.toContain(decision);
+    expect(await ids(organizationId, carla)).toContain(decision);
+    // The other workspace is untouched.
+    expect(await ids(otherOrganizationId)).toEqual([middle, corrected]);
   });
 });

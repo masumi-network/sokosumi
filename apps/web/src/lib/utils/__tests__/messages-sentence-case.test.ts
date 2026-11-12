@@ -27,6 +27,9 @@ const PROPER_PHRASES = [
   "Google Analytics",
   "Search Console",
   "Display Network",
+  // Google's spreadsheet product, which Files links.
+  "Google Sheets",
+  "Google Sheet",
   "Meta Ads",
   // The Files area, named as a destination ("Copy to Files").
   "to Files",
@@ -77,7 +80,6 @@ const PROPER_WORDS = new Set([
   "LinkedIn",
   "Claude",
   "Eve",
-  "Jev",
   "YouTube",
   "Slack",
   "Notion",

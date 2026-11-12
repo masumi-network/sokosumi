@@ -126,6 +126,22 @@ const baseEnvSchema = z.object({
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.email().default("noreply@sokosumi.com"),
 
+  // Who may hire Cuso while CMO is invite-only: full emails and `@domain`
+  // entries, comma-separated. Unset or empty means nobody may hire.
+  CMO_HIRE_ALLOWLIST: z
+    .string()
+    .default("")
+    .transform((value) =>
+      value
+        .split(",")
+        .map((entry) => entry.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+
+  // CMO's OAuth client id: only its tokens may write through `/v1/cmo/**`
+  // (ADR 0066). Unset refuses every such write.
+  CMO_OAUTH_CLIENT_ID: z.string().trim().min(1).optional(),
+
   // Project newsletters use a separate sending domain from transactional email.
   NEWSLETTER_FROM_DOMAIN: z.hostname().optional(),
   RESEND_NEWSLETTER_WEBHOOK_SECRET: z.string().min(1).optional(),

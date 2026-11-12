@@ -163,6 +163,7 @@ export async function prepareCmoComments(
     data: {
       projectId: lane.cusoProjectId,
       workspaceId: lane.workspaceId,
+      creatorSokoBotId: lane.cusoBotId,
       provider: "instagram",
       text: "Scheduling should take one link, not ten emails. Share your Cal link and let people pick a time that works.",
       status: "PUBLISHED",
@@ -273,7 +274,10 @@ export async function startCmoCase(
     return { kind: "started", turnId, state: {} };
   }
   await pointCusoAt(lane, evalCase.brand, evalCase.brandBrain);
-  const { turnId } = await requestCmoStrategy({ userId: lane.userId });
+  const { turnId } = await requestCmoStrategy({
+    userId: lane.userId,
+    projectId: lane.cusoProjectId,
+  });
   return { kind: "started", turnId, state: {} };
 }
 

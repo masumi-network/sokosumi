@@ -98,7 +98,6 @@ export function CreateProjectModal() {
   function handleSuccess() {
     handleClose();
     stripCreateProjectSearchParams();
-    router.refresh();
   }
 
   if (!hasOpened) {

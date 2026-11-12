@@ -465,10 +465,11 @@ export function CreateTaskModal({
           onCancel={handleDismiss}
           onSubmittingChange={setIsDismissDisabled}
           onCreatedChange={setIsCreated}
-          onCreated={(taskId) => {
-            onTaskCreated?.(taskId);
-            router.refresh();
-          }}
+          // No router.refresh() here: `createTask` calls revalidatePath, so its
+          // response already carries the current page. A refresh on top holds
+          // that render back until a second full page render ends. A custom
+          // `onCreateTask` must revalidate too, or the page never updates.
+          onCreated={onTaskCreated}
           onSuccess={(task) => {
             storeTasksReturnPath();
             handleClose();

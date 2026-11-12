@@ -38,6 +38,9 @@ function createDatabaseProject(
     websiteUrl: null,
     sitePlatform: null,
     logo: null,
+    studioLogoPosition: null,
+    studioBrandLook: null,
+    studioBrandLookRevision: 0,
     designMdUrl: null,
     designMdExtractionId: null,
     postingInstructionsMd: null,
@@ -74,6 +77,32 @@ describe("project schemas", () => {
         briefing: "x".repeat(20_001),
       }),
     ).toThrow();
+  });
+
+  it("accepts or clears a Studio default and only exposes it with the approved project logo", () => {
+    expect(
+      patchProjectRequestSchema.parse({ studioLogoPosition: "top-left" }),
+    ).toMatchObject({ studioLogoPosition: "top-left" });
+    expect(
+      patchProjectRequestSchema.parse({ studioLogoPosition: null }),
+    ).toMatchObject({ studioLogoPosition: null });
+    expect(
+      patchProjectRequestSchema.safeParse({ studioLogoPosition: "center" })
+        .success,
+    ).toBe(false);
+    const project = createDatabaseProject({ studioLogoPosition: "top-left" });
+    expect(
+      mapProjectForApi(project, { cmo: false }).studioLogoPosition,
+    ).toBeUndefined();
+    expect(
+      mapProjectForApi(
+        {
+          ...project,
+          logo: `https://abc123.public.blob.vercel-storage.com/projects/${project.id}/logos/hash`,
+        },
+        { cmo: false },
+      ).studioLogoPosition,
+    ).toBe("top-left");
   });
 
   it("validates website and PATCH logo while stripping create-only legacy brand fields", () => {
@@ -138,17 +167,21 @@ describe("project schemas", () => {
 
   it("maps the project identifier", () => {
     expect(
-      mapProjectForApi(createDatabaseProject({ identifier: "LAU" })).identifier,
+      mapProjectForApi(createDatabaseProject({ identifier: "LAU" }), {
+        cmo: false,
+      }).identifier,
     ).toBe("LAU");
   });
 
   it("maps posting instructions and accepts them alone on PATCH", () => {
     expect(
-      mapProjectForApi(createDatabaseProject()).postingInstructionsMd,
+      mapProjectForApi(createDatabaseProject(), { cmo: false })
+        .postingInstructionsMd,
     ).toBe(null);
     expect(
       mapProjectForApi(
         createDatabaseProject({ postingInstructionsMd: "Tone: warm" }),
+        { cmo: false },
       ).postingInstructionsMd,
     ).toBe("Tone: warm");
     expect(
@@ -193,13 +226,17 @@ describe("project schemas", () => {
       designMdExtractionId: "extract_123",
     });
 
-    expect(mapProjectForApi(project)).toMatchObject({
+    expect(mapProjectForApi(project, { cmo: false })).toMatchObject({
       websiteUrl: "https://example.com",
       logo: project.logo,
       designMd: { url: designMdUrl, extractionId: "extract_123" },
     });
-    expect(mapProjectForApi(createDatabaseProject()).designMd).toBeNull();
-    expect(mapProjectForApi(createDatabaseProject()).latestUpdate).toBeNull();
+    expect(
+      mapProjectForApi(createDatabaseProject(), { cmo: false }).designMd,
+    ).toBeNull();
+    expect(
+      mapProjectForApi(createDatabaseProject(), { cmo: false }).latestUpdate,
+    ).toBeNull();
   });
 
   it("maps latest update markdown when both body and timestamp exist", () => {
@@ -211,6 +248,7 @@ describe("project schemas", () => {
             "# Weekly Activity Report\n\nDate window: 2026-09-01 to 2026-09-07\n\n## TL;DR\n\nShipped.",
           latestUpdateMdUpdatedAt: updatedAt,
         }),
+        { cmo: false },
       ).latestUpdate,
     ).toEqual({
       content:
@@ -227,6 +265,7 @@ describe("project schemas", () => {
           closingAt: new Date("2026-08-26T12:00:00.000Z"),
           closedAt: new Date("2026-08-26T12:05:00.000Z"),
         }),
+        { cmo: false },
       ),
     ).toMatchObject({
       projectRevision: 4,
@@ -235,12 +274,20 @@ describe("project schemas", () => {
       closedAt: "2026-08-26T12:05:00.000Z",
     });
     expect(
-      mapProjectForApi(
-        createDatabaseProject({ projectRevision: 4 }),
-        new Date(),
-        3,
-      ).scheduledSocialPostCount,
+      mapProjectForApi(createDatabaseProject({ projectRevision: 4 }), {
+        cmo: false,
+        scheduledSocialPostCount: 3,
+      }).scheduledSocialPostCount,
     ).toBe(3);
+  });
+
+  it("marks a CMO Project", () => {
+    expect(mapProjectForApi(createDatabaseProject(), { cmo: true }).cmo).toBe(
+      true,
+    );
+    expect(mapProjectForApi(createDatabaseProject(), { cmo: false }).cmo).toBe(
+      false,
+    );
   });
 
   it("maps memory metadata and active update state", () => {
@@ -254,7 +301,10 @@ describe("project schemas", () => {
     });
 
     expect(
-      mapProjectForApi(project, new Date("2026-08-16T10:05:00.000Z")),
+      mapProjectForApi(project, {
+        cmo: false,
+        now: new Date("2026-08-16T10:05:00.000Z"),
+      }),
     ).toMatchObject({
       briefing: "# Briefing",
       memoryEnabled: false,
@@ -279,7 +329,9 @@ describe("project schemas", () => {
       PROJECT_MEMORY_MODEL: "mistral/custom-eu-model",
     });
 
-    expect(mapProjectForApi(createDatabaseProject())).toMatchObject({
+    expect(
+      mapProjectForApi(createDatabaseProject(), { cmo: false }),
+    ).toMatchObject({
       memoryEnabled: true,
       memoryModel: {
         id: "mistral/custom-eu-model",
@@ -297,7 +349,9 @@ describe("project schemas", () => {
       PROJECT_MEMORY_MODEL: "mistral/mistral-medium-3.5",
     });
 
-    expect(mapProjectForApi(createDatabaseProject()).memoryEnabled).toBe(false);
+    expect(
+      mapProjectForApi(createDatabaseProject(), { cmo: false }).memoryEnabled,
+    ).toBe(false);
   });
 
   it("treats update markers older than five minutes as stale", () => {
@@ -306,8 +360,10 @@ describe("project schemas", () => {
     });
 
     expect(
-      mapProjectForApi(project, new Date("2026-08-16T10:05:00.000Z"))
-        .contextMdUpdating,
+      mapProjectForApi(project, {
+        cmo: false,
+        now: new Date("2026-08-16T10:05:00.000Z"),
+      }).contextMdUpdating,
     ).toBe(false);
   });
 });

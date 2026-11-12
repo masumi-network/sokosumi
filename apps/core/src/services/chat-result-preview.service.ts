@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { jobInclude, type Prisma } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { type ChatResultReference } from "@sokosumi/soko-bot";
-import { formatTaskIdentifier } from "@sokosumi/utils";
+import { formatTaskIdentifier, type SocialPostMediaRef } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { socialProviderProjectSelect } from "@/config/social-providers";
 import {
@@ -112,6 +112,7 @@ interface ResolvedWorkspace {
 }
 
 interface ResultOutput {
+  transformation?: SocialPostMediaRef["transformation"];
   name: string;
   contentType: string | null;
   sizeBytes: number | null;
@@ -127,14 +128,20 @@ function driveFileOutputs(
     displayName: string;
     mimeType: string | null;
     sizeBytes: number | null;
+    sourceId?: string;
   }>,
+  media: readonly SocialPostMediaRef[] = [],
 ): ResultOutput[] {
   const scope = organizationId
     ? `scope=org&organizationId=${encodeURIComponent(organizationId)}`
     : "scope=me";
   return resources.map((file) => {
     const href = `/api/drive/files/${encodeURIComponent(file.id)}/content?${scope}`;
+    const transformation = media.find(
+      (item) => item.pathname === file.sourceId,
+    )?.transformation;
     return {
+      ...(transformation ? { transformation } : {}),
       name: file.displayName.slice(0, 500),
       contentType: file.mimeType,
       sizeBytes: file.sizeBytes,
@@ -306,6 +313,7 @@ export async function preloadChatResultHydration(
         publishedAt: true,
         timezone: true,
         media: true,
+        threadParts: { select: { media: true }, orderBy: { position: "asc" } },
         project: { select: socialProviderProjectSelect },
         socialConnection: {
           select: {
@@ -318,11 +326,20 @@ export async function preloadChatResultHydration(
       },
     });
     const pathnamesByPost = new Map<string, string[]>();
+    const mediaByPost = new Map<string, SocialPostMediaRef[]>();
     const pathnamesByWorkspace = new Map<string, Set<string>>();
     for (const post of posts) {
-      const pathnames = parseSocialPostMedia(post.media, post.id).map(
-        (media) => media.pathname,
+      const media = [
+        ...parseSocialPostMedia(post.media, post.id),
+        ...(post.threadParts ?? []).flatMap((part) =>
+          parseSocialPostMedia(part.media, post.id),
+        ),
+      ];
+      mediaByPost.set(
+        entityKey(post.workspaceId, post.projectId, post.id),
+        media,
       );
+      const pathnames = media.map((item) => item.pathname);
       pathnamesByPost.set(
         entityKey(post.workspaceId, post.projectId, post.id),
         pathnames,
@@ -379,6 +396,7 @@ export async function preloadChatResultHydration(
           displayName: string;
           mimeType: string | null;
           sizeBytes: number | null;
+          sourceId?: string;
         }
       >
     >();
@@ -408,6 +426,7 @@ export async function preloadChatResultHydration(
         const resource = live?.get(id);
         return resource ? [resource] : [];
       });
+      const media = mediaByPost.get(key) ?? [];
       social.set(key, {
         text: post.text,
         provider: post.provider,
@@ -420,7 +439,7 @@ export async function preloadChatResultHydration(
         publishedAt: post.publishedAt,
         timezone: post.timezone,
         socialConnection: post.socialConnection,
-        outputs: driveFileOutputs(workspace.organizationId, resources),
+        outputs: driveFileOutputs(workspace.organizationId, resources, media),
       });
     }
   }
@@ -507,13 +526,16 @@ export async function resolveChatResultReference(
     organizationId,
     kind: actor.kind ?? "interactive",
   };
-  async function files(ids: string[]) {
+  async function files(
+    ids: string[],
+    media: readonly SocialPostMediaRef[] = [],
+  ) {
     const resources = await loadLiveResources({
       workspaceId: actor.workspaceId,
       actor: fileActor,
       resourceIds: ids.slice(0, 12),
     });
-    return driveFileOutputs(organizationId, resources);
+    return driveFileOutputs(organizationId, resources, media);
   }
   let data: ChatResultAvailable;
   switch (ref.kind) {
@@ -741,7 +763,11 @@ export async function resolveChatResultReference(
               },
               client,
             );
-            const pathnames = loaded.media.map((media) => media.pathname);
+            const media = [
+              ...loaded.media,
+              ...(loaded.threadParts ?? []).flatMap((part) => part.media),
+            ];
+            const pathnames = media.map((item) => item.pathname);
             return {
               text: loaded.text,
               provider: loaded.provider,
@@ -768,6 +794,7 @@ export async function resolveChatResultReference(
                         take: 12,
                       })
                     ).map((file) => file.id),
+                media,
               ),
             };
           })();

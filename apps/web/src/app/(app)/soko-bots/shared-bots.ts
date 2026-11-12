@@ -22,6 +22,6 @@ export async function loadSharedBots(): Promise<SharedBotsLoad | null> {
   const projects = await getProjectFilterOptions().catch(() => []);
   return {
     bots,
-    projects: projects.map(({ id, name }) => ({ id, name })),
+    projects: projects.map(({ id, name, cmo }) => ({ id, name, cmo })),
   };
 }

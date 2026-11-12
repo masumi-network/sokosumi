@@ -1,5 +1,6 @@
 "use client";
 
+import type { StudioProductIdentity } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -45,12 +46,17 @@ export interface QueuedGeneration {
   settings: StudioSettings;
   parentAssetId: string | null;
   referenceAssetIds: string[];
+  referenceFileIds?: string[];
+  product?: StudioProductIdentity;
+  batchId?: string;
+  exportHeadline?: string;
+  useProductCutout?: boolean;
   /** Fixed per request: a retry must return the first job, never buy a second. */
   idempotencyKey: string;
 }
 
 /** A request as the composer builds it, before it is aimed at a project. */
-export type GenerationRequest = Omit<QueuedGeneration, "projectId">;
+export type GenerationRequest = Omit<QueuedGeneration, "projectId" | "batchId">;
 
 /** Localized failure codes; other rejections retain Core's message. */
 export type QueueErrorCode = "unreachable" | "insufficient_credits";
@@ -177,7 +183,16 @@ export function useGenerationQueue({
           prompt: next.prompt,
           settings: next.settings,
           parentAssetId: next.parentAssetId,
+          ...(next.product ? { product: next.product } : {}),
+          ...(next.batchId ? { batchId: next.batchId } : {}),
+          ...(next.exportHeadline
+            ? { exportHeadline: next.exportHeadline }
+            : {}),
+          ...(next.useProductCutout ? { useProductCutout: true } : {}),
           referenceAssetIds: next.referenceAssetIds,
+          ...(next.referenceFileIds?.length
+            ? { referenceFileIds: next.referenceFileIds }
+            : {}),
           sessionId: null,
           idempotencyKey: next.idempotencyKey,
         });

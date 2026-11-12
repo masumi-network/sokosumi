@@ -1,5 +1,12 @@
-import { type Prisma, ProjectImageJobStatus } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/utils";
+import {
+  type Prisma,
+  ProjectImageJobStatus,
+  ProjectImageMediaType,
+} from "@sokosumi/database";
+import {
+  convertCentsToCredits,
+  MAX_STUDIO_BATCH_IMAGES,
+} from "@sokosumi/utils";
 import { get } from "@vercel/blob";
 
 import { internalServerError, notFound } from "@/helpers/error";
@@ -13,6 +20,8 @@ import {
   type ImageJobFailureReason,
   readImageJobFailureReason,
 } from "@/lib/image-studio/failure-reason";
+import type { StudioAdHeadline } from "@/schemas/project-image-studio.schema";
+import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
 
 /**
  * Versions, lineage, and the bytes behind them.
@@ -33,6 +42,9 @@ export interface AssetView {
   projectId: string;
   /** Named on the row so a workspace-wide gallery can say where each image lives. */
   projectName: string;
+  product?: StudioProductIdentity;
+  batchId?: string;
+  headline?: StudioAdHeadline;
   settings: unknown;
   rootId: string;
   parentId: string | null;
@@ -68,16 +80,40 @@ const assetSelect = {
   durationSeconds: true,
   createdAt: true,
   jobId: true,
+  headline: { select: { text: true, revision: true } },
+  job: {
+    select: {
+      productId: true,
+      productName: true,
+      batchId: true,
+      batchSlot: { select: { batchId: true } },
+    },
+  },
 } as const;
 
+function productView(job: {
+  productId?: string | null;
+  productName?: string | null;
+}): { product?: StudioProductIdentity } {
+  return job.productId && job.productName
+    ? { product: { id: job.productId, name: job.productName } }
+    : {};
+}
+
 function toAssetView({
+  headline,
+  job,
   project,
   ...asset
 }: Prisma.ProjectImageAssetGetPayload<{
   select: typeof assetSelect;
 }>): AssetView {
+  const batchId = job.batchId ?? job.batchSlot?.batchId;
   return {
     ...asset,
+    ...productView(job),
+    ...(batchId ? { batchId } : {}),
+    ...(headline ? { headline } : {}),
     ...splitVideoSettings(asset.mediaType === "VIDEO", asset.settings),
     projectName: project.name,
   };
@@ -215,6 +251,57 @@ export async function listAssets(
   return { assets, nextCursor };
 }
 
+export async function listStudioBatchAssets(options: {
+  projectId: string;
+  workspaceId: string;
+  userId: string;
+  batchId: string;
+}): Promise<AssetView[]> {
+  await requireProjectAccess(options);
+  const { projectId, workspaceId, batchId } = options;
+  const image = {
+    projectId,
+    workspaceId,
+    mediaType: ProjectImageMediaType.IMAGE,
+  };
+  const readyRevision = { projectId, workspaceId, asset: { is: image } };
+  const slots = await prisma.projectImageJob.findMany({
+    where: {
+      projectId,
+      workspaceId,
+      batchId,
+      OR: [
+        { asset: { is: image } },
+        { batchRefinements: { some: readyRevision } },
+      ],
+    },
+    take: MAX_STUDIO_BATCH_IMAGES + 1,
+    select: {
+      asset: { select: assetSelect },
+      batchRefinements: {
+        where: readyRevision,
+        orderBy: { asset: { version: "desc" } },
+        take: 1,
+        select: { asset: { select: assetSelect } },
+      },
+    },
+  });
+  return slots
+    .flatMap(({ asset, batchRefinements }) => {
+      const latest = batchRefinements[0]?.asset ?? asset;
+      return latest &&
+        latest.mediaType === ProjectImageMediaType.IMAGE &&
+        latest.projectId === projectId
+        ? [toAssetView(latest)]
+        : [];
+    })
+    .sort(
+      (left, right) =>
+        right.createdAt.getTime() - left.createdAt.getTime() ||
+        right.id.localeCompare(left.id),
+    );
+}
+
 export async function getAsset(options: {
   assetId: string;
   projectId: string;
@@ -251,13 +338,19 @@ export async function openAssetStream(options: {
   contentType: string;
   size: number;
   checksum: string;
+  mediaType: "IMAGE" | "VIDEO";
   /** Set when the store answered a byte range: the response is then a 206. */
   contentRange: string | null;
 }> {
   await requireProjectAccess(options);
   const asset = await prisma.projectImageAsset.findFirst({
     where: { id: options.assetId, projectId: options.projectId },
-    select: { blobPathname: true, contentType: true, checksum: true },
+    select: {
+      blobPathname: true,
+      contentType: true,
+      checksum: true,
+      mediaType: true,
+    },
   });
   if (!asset) throw notFound("Image not found");
 
@@ -269,7 +362,11 @@ export async function openAssetStream(options: {
   const result = await get(asset.blobPathname, {
     access: "private",
     token: requireStudioBlobToken(),
-    ...(options.range ? { headers: { range: options.range } } : {}),
+    // Uncompressed, so `result.blob.size` is the real length (see driveRead).
+    headers: {
+      "accept-encoding": "identity",
+      ...(options.range ? { range: options.range } : {}),
+    },
   });
   if (!result || result.statusCode !== 200) {
     throw notFound("Image bytes are no longer available");
@@ -280,6 +377,7 @@ export async function openAssetStream(options: {
   return {
     stream: result.stream,
     contentType: asset.contentType || result.blob.contentType,
+    mediaType: asset.mediaType,
     size: result.blob.size,
     checksum: asset.checksum,
     contentRange,
@@ -328,6 +426,9 @@ export interface JobView {
   video: VideoSettingsView | null;
   /** The versions this job referenced, so a retry keeps all of them. */
   referenceAssetIds: string[];
+  referenceFileIds?: string[];
+  useProductCutout?: boolean;
+  product?: StudioProductIdentity;
   /** One sentence a person can read. Never the provider's own words. */
   error: string | null;
   /**
@@ -378,6 +479,10 @@ export async function getJob(options: {
       prompt: true,
       settings: true,
       referenceAssetIds: true,
+      referenceFileIds: true,
+      useProductCutout: true,
+      productId: true,
+      productName: true,
       error: true,
       failureReason: true,
       parentAssetId: true,
@@ -410,6 +515,10 @@ export async function listJobs(
       prompt: true,
       settings: true,
       referenceAssetIds: true,
+      referenceFileIds: true,
+      useProductCutout: true,
+      productId: true,
+      productName: true,
       error: true,
       failureReason: true,
       parentAssetId: true,
@@ -434,6 +543,10 @@ export function toJobView(job: {
   prompt: string;
   settings: unknown;
   referenceAssetIds: string[];
+  referenceFileIds?: string[];
+  useProductCutout?: boolean;
+  productId?: string | null;
+  productName?: string | null;
   error: string | null;
   failureReason: string | null;
   parentAssetId: string | null;
@@ -452,11 +565,16 @@ export function toJobView(job: {
     kind: job.kind,
     model: job.model,
     prompt: job.prompt,
+    ...productView(job),
     ...splitVideoSettings(
       job.kind === "TEXT_TO_VIDEO" || job.kind === "IMAGE_TO_VIDEO",
       job.settings,
     ),
     referenceAssetIds: job.referenceAssetIds,
+    ...(job.referenceFileIds?.length
+      ? { referenceFileIds: job.referenceFileIds }
+      : {}),
+    ...(job.useProductCutout ? { useProductCutout: true } : {}),
     error: job.error,
     failureReason: readImageJobFailureReason(job.failureReason),
     parentAssetId: job.parentAssetId,

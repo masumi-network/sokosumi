@@ -5,6 +5,7 @@ import {
   type Prisma,
 } from "../generated/prisma/client.js";
 import { buildFreeCreditReferenceId } from "./credit.js";
+import type { CreditBucketProjectOption } from "./credit-bucket-scope.js";
 
 export class GrantFreeCreditsError extends Error {
   constructor(message: string) {
@@ -13,7 +14,8 @@ export class GrantFreeCreditsError extends Error {
   }
 }
 
-interface GrantFreeCreditsParams {
+/** A `projectId` makes them Project credits of the organization (ADR 0067). */
+interface GrantFreeCreditsParams extends CreditBucketProjectOption {
   credits: number;
   expiresAt: Date | null;
   grantId: string;
@@ -52,6 +54,12 @@ export async function grantFreeCredits(
     );
   }
 
+  if (params.targetType === "user" && params.projectId) {
+    throw new GrantFreeCreditsError(
+      "User free credits cannot be scoped to a Project",
+    );
+  }
+
   if (params.targetType === "user" && params.transactionUserId === null) {
     throw new GrantFreeCreditsError(
       "User free credits require a transaction actor user id",
@@ -85,6 +93,7 @@ export async function grantFreeCredits(
           amount,
           expiresAt: params.expiresAt,
           organizationId: params.organizationId,
+          projectId: params.projectId,
           referenceId,
           referenceNote: params.referenceNote,
           referenceType: CreditBucketReferenceType.FREE,

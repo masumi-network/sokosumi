@@ -193,7 +193,10 @@ export {
   normalizeContactChannelValue,
   updateContactSchema,
 } from "./contacts.js";
-export { CORE_API_ERROR_KINDS } from "./core-api-error-kind.js";
+export {
+  CORE_API_ERROR_KINDS,
+  type CoreApiErrorKind,
+} from "./core-api-error-kind.js";
 export {
   buildCoworkerImagePathname,
   COWORKER_IMAGE_ALLOWED_MIME_TYPES,
@@ -257,7 +260,11 @@ export {
   sanitizeDriveFileName,
   validateDriveFolderPath,
 } from "./drive-file-path.js";
-export { isVercelBlobPublicHost } from "./entity-image-upload.js";
+export {
+  ENTITY_IMAGE_MAX_SIZE_BYTES,
+  extensionForEntityImageMime,
+  isVercelBlobPublicHost,
+} from "./entity-image-upload.js";
 export {
   CURATED_FILE_VOCABULARY,
   CURATED_VOCABULARY_VERSION,
@@ -498,7 +505,16 @@ export {
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
-export { encodeTableCsv, parseTableCsv } from "./table-csv.js";
+export {
+  MAX_STUDIO_BATCH_IMAGES,
+  MAX_STUDIO_HEADLINE_LENGTH,
+} from "./studio-limits.js";
+export {
+  isStudioLogoMime,
+  STUDIO_LOGO_MIME_TYPES,
+} from "./studio-logo-upload.js";
+export { productBrief } from "./studio-product-brief.js";
+export { encodeTableCsv, parseTableCsv, readCsvRows } from "./table-csv.js";
 export { validateTableValues } from "./table-value-validation.js";
 export {
   canArchiveTaskStatus,
@@ -513,6 +529,13 @@ export {
   descriptionIncludesTaskAttachmentLink,
   formatTaskAttachmentMarkdown,
 } from "./task-attachments.js";
+export {
+  type TaskChatMessageTask,
+  type TaskChatRoomAudience,
+  type TaskChatRoomRefusal,
+  taskChatMessage,
+  taskChatRoomRefusal,
+} from "./task-chat-share.js";
 export {
   PROJECT_BRIEFING_ATTACHMENT_LABEL,
   PROJECT_CONTEXT_MD_ATTACHMENT_LABEL,

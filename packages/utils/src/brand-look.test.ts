@@ -146,6 +146,21 @@ Primary #5850ec drives every call to action.
     );
   });
 
+  it("can preserve declared neutrals while filtering incidental greys", () => {
+    const css = `
+      :root { --brand-primary: #000; --secondary: #fff; --color-brand-muted: #777; --accent: #bb5d36; }
+      body { color: #aaa; background: #eee; }
+    `;
+
+    expect(brandColors(css)).toEqual(["#bb5d36"]);
+    expect(brandColors(css, 5, { includeDeclaredNeutrals: true })).toEqual([
+      "#bb5d36",
+      "#000000",
+      "#ffffff",
+      "#777777",
+    ]);
+  });
+
   // CodeQL js/polynomial-redos: these took seconds before the fix.
   it.each([
     ["repeated --", "--".repeat(50_000)],
