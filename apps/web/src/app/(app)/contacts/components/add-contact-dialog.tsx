@@ -61,6 +61,8 @@ export function AddContactDialog({
   const [whyInteresting, setWhyInteresting] = useState("");
   const [error, setError] = useState("");
   const [existingId, setExistingId] = useState<string | null>(null);
+  /** Saved already: a retry only adds them to the list, never creates twice. */
+  const [createdId, setCreatedId] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   function updateChannel(key: string, change: Partial<ChannelDraft>) {
@@ -81,31 +83,38 @@ export function AddContactDialog({
     setPending(true);
     setError("");
     setExistingId(null);
+    let id = createdId;
     try {
-      const result = await contactsService.create({
-        name: name.trim() || undefined,
-        organization: organization.trim() || null,
-        role: role.trim() || null,
-        location: location.trim() || null,
-        stage: prospect ? "PROSPECT" : undefined,
-        whyInteresting: prospect ? whyInteresting.trim() || null : undefined,
-        channels: filled.map((channel, index) => ({
-          type: channel.type,
-          value: channel.value.trim(),
-          isPrimary: index === 0,
-          source: "MANUAL",
-        })),
-        upsert: false,
-      });
-      if (listId)
-        await contactsService.changeMembers(listId, {
-          add: [result.contact.id],
+      if (!id) {
+        const result = await contactsService.create({
+          name: name.trim() || undefined,
+          organization: organization.trim() || null,
+          role: role.trim() || null,
+          location: location.trim() || null,
+          stage: prospect ? "PROSPECT" : undefined,
+          whyInteresting: prospect ? whyInteresting.trim() || null : undefined,
+          channels: filled.map((channel, index) => ({
+            type: channel.type,
+            value: channel.value.trim(),
+            isPrimary: index === 0,
+            source: "MANUAL",
+          })),
+          upsert: false,
         });
+        id = result.contact.id;
+        setCreatedId(id);
+      }
+      if (listId) await contactsService.changeMembers(listId, { add: [id] });
       await refreshContacts(cache);
-      onCreated(result.contact.id);
+      onCreated(id);
     } catch (caught) {
       const failure = coreErrorOf(caught);
-      if (
+      if (id) {
+        // Saved, only the list failed: show them and offer the contact.
+        await refreshContacts(cache);
+        setExistingId(id);
+        setError(t("listFailed"));
+      } else if (
         failure.kind === "contact_channel_taken" &&
         failure.existingContactId
       ) {

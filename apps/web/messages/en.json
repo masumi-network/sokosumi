@@ -10897,6 +10897,7 @@
         "channelTaken": "Someone on your team already has this person in Contacts.",
         "openExisting": "Open contact",
         "failed": "The contact didn't save. Try again.",
+        "listFailed": "The contact is saved but isn't on the list yet. Try again to add them.",
         "cancel": "Cancel",
         "submit": "Add contact"
       },

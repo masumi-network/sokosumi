@@ -10897,6 +10897,7 @@
         "channelTaken": "Alguien de tu equipo ya tiene a esta persona en Contactos.",
         "openExisting": "Abrir contacto",
         "failed": "El contacto no se guardó. Inténtalo de nuevo.",
+        "listFailed": "El contacto está guardado, pero aún no está en la lista. Inténtalo de nuevo para añadirlo.",
         "cancel": "Cancelar",
         "submit": "Añadir contacto"
       },
