@@ -3,6 +3,8 @@ import { z } from "@hono/zod-openapi";
 import { seoUrlSchema } from "@/schemas/project-seo.schema";
 import {
   SEO_STRATEGY_DRAFT_MAX_LENGTH,
+  SEO_STRATEGY_PLACES_NOTES_MAX,
+  SEO_STRATEGY_TEXT_MAX_LENGTH,
   type SeoStrategyPayload,
   seoStrategyPayloadSchema,
   seoStrategyPlaceSchema,
@@ -57,8 +59,12 @@ const source = z.object({
         }),
       )
       .optional(),
+    // Core kept no note before, so a form it cannot read loses the note, not the strategy.
+    placesNote: z.string().nullish().catch(undefined),
   }),
 });
+/** The SEO bot joins its place notes with this separator in one line. */
+const PLACES_NOTE_SEPARATOR = "; ";
 /**
  * A target or a place is a link in the workspace, so only a plain web address stays.
  * The check trims more than `new URL` does, so the checked value is the one to store.
@@ -95,7 +101,19 @@ export function publicSeoStrategy(raw: unknown): {
   const pages = new Map(
     parsed.data.selection?.pages.map((page) => [page.n, page.url]),
   );
-  const { verdict, why, groups, actions = [] } = parsed.data.strategy;
+  const {
+    verdict,
+    why,
+    groups,
+    actions = [],
+    placesNote,
+  } = parsed.data.strategy;
+  // One line per note; a blank line or one longer than the payload allows is dropped, not the strategy.
+  const placesNotes = (placesNote ?? "")
+    .split(PLACES_NOTE_SEPARATOR)
+    .map((line) => line.trim())
+    .filter((line) => line && line.length <= SEO_STRATEGY_TEXT_MAX_LENGTH)
+    .slice(0, SEO_STRATEGY_PLACES_NOTES_MAX);
   const strategy = seoStrategyPayloadSchema.safeParse({
     verdict,
     why,
@@ -134,6 +152,7 @@ export function publicSeoStrategy(raw: unknown): {
         };
       },
     ),
+    ...(placesNotes.length ? { placesNotes } : {}),
   });
   return strategy.success
     ? { strategy: strategy.data }

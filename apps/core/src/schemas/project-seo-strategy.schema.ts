@@ -2,12 +2,17 @@ import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 
-const text = z.string().max(20_000);
+/** The longest text field of a stored strategy. */
+export const SEO_STRATEGY_TEXT_MAX_LENGTH = 20_000;
+const text = z.string().max(SEO_STRATEGY_TEXT_MAX_LENGTH);
 const label = z.string().max(100);
 const url = z.string().max(4096);
 const count = z.number().finite().nullable();
 /** The SEO bot writes at most 1500 characters. One character can be 2 UTF-16 units, which is what the check counts. */
 export const SEO_STRATEGY_DRAFT_MAX_LENGTH = 3000;
+
+/** The SEO bot's place notes are a few lines; more are cut at import. */
+export const SEO_STRATEGY_PLACES_NOTES_MAX = 20;
 
 /** The one place of a promotion action: where the owner posts or gets listed. */
 export const seoStrategyPlaceSchema = z.object({
@@ -60,6 +65,11 @@ export const seoStrategyPayloadSchema = z.object({
       }),
     )
     .max(50),
+  /**
+   * Why a promotion place is missing or has no text: a community whose terms ban promotion, a place the audit's agent
+   * left out or did not answer for. Older rows have none.
+   */
+  placesNotes: z.array(text).max(SEO_STRATEGY_PLACES_NOTES_MAX).optional(),
 });
 export type SeoStrategyPayload = z.infer<typeof seoStrategyPayloadSchema>;
 

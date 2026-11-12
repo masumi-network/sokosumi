@@ -10934,6 +10934,7 @@ export type ProjectSeoStrategy = {
             state: string | null;
         }>;
     }>;
+    placesNotes?: Array<string>;
     observationId: string;
     observedAt: Date;
     countryCode: string | null;

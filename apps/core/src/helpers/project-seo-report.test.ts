@@ -386,6 +386,33 @@ describe("public SEO report trust boundary", () => {
     expect(actions?.[7].draft).toBeUndefined();
   });
 
+  it("keeps the place notes one per line; a note in a form Core cannot read is dropped, not the strategy", () => {
+    const base = siteStrategyReport();
+    const notes = (placesNote: unknown) =>
+      parsePublicSeoArtifact({
+        ...base,
+        strategy: { ...base.strategy, placesNote },
+      }).strategy;
+    expect(
+      notes(
+        "the place_fit agent gave no answer for r/mac, so it shows without a ready text; discussions.apple.com is in 3 of 9 SERP reads, but its terms ban promotion (https://discussions.apple.com/terms), so it is no place",
+      )?.placesNotes,
+    ).toEqual([
+      "the place_fit agent gave no answer for r/mac, so it shows without a ready text",
+      "discussions.apple.com is in 3 of 9 SERP reads, but its terms ban promotion (https://discussions.apple.com/terms), so it is no place",
+    ]);
+    // Blank lines and a line longer than the payload allows go; the rest of the strategy stays.
+    expect(notes(` ; ${"x".repeat(20_001)}; ok`)?.placesNotes).toEqual(["ok"]);
+    for (const other of [undefined, null, "", 5, ["a"]]) {
+      expect(notes(other)?.verdict).toBe(base.strategy.verdict);
+      expect(notes(other)?.placesNotes).toBeUndefined();
+    }
+    expect(
+      notes(Array.from({ length: 30 }, (_, n) => `note ${n}`).join("; "))
+        ?.placesNotes,
+    ).toHaveLength(20);
+  });
+
   it("imports the audit with a note when it cannot read the strategy section", () => {
     for (const broken of [
       { verdict: "keep" },

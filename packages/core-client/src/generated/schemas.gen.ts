@@ -41509,6 +41509,14 @@ export const ProjectSeoStrategySchema = {
             },
             maxItems: 50
         },
+        placesNotes: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 20000
+            },
+            maxItems: 20
+        },
         observationId: {
             type: 'string',
             format: 'uuid'
