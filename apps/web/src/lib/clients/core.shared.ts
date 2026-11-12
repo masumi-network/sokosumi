@@ -160,7 +160,8 @@ import type {
   PostTasksByIdFilesData,
   PostTasksByIdLinksData,
   PostTasksData,
-  PostTasksDueDatesData,
+  PostTasksDueDatesMoveOverdueData,
+  PostTasksDueDatesUndoData,
   PostUsersByIdFilesData,
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
@@ -529,7 +530,8 @@ import {
   postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
   postTasksByIdParticipants as corePostTasksByIdParticipants,
-  postTasksDueDates as corePostTasksDueDates,
+  postTasksDueDatesMoveOverdue as corePostTasksDueDatesMoveOverdue,
+  postTasksDueDatesUndo as corePostTasksDueDatesUndo,
   postTasksSchedules as corePostTasksSchedules,
   postTasksSchedulesByIdEnd as corePostTasksSchedulesByIdEnd,
   postTasksSchedulesByIdPause as corePostTasksSchedulesByIdPause,
@@ -5705,13 +5707,23 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function moveTaskDueDates(
-    body: NonNullable<PostTasksDueDatesData["body"]>,
+  async function moveOverdueTasks(
+    body: NonNullable<PostTasksDueDatesMoveOverdueData["body"]>,
   ) {
     return executeCoreOperation(
       getClient,
-      (client) => corePostTasksDueDates({ client, body }),
-      "Failed to move due dates",
+      (client) => corePostTasksDueDatesMoveOverdue({ client, body }),
+      "Failed to move overdue tasks",
+    );
+  }
+
+  async function undoMoveOverdueTasks(
+    body: NonNullable<PostTasksDueDatesUndoData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePostTasksDueDatesUndo({ client, body }),
+      "Failed to undo moving overdue tasks",
     );
   }
 
@@ -7268,7 +7280,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTasks,
     getTasksSummary,
     patchTask,
-    moveTaskDueDates,
+    moveOverdueTasks,
+    undoMoveOverdueTasks,
     suggestTaskTags,
     putJobShare,
     putTaskShare,

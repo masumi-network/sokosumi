@@ -49201,25 +49201,98 @@ export const TaskTagSuggestionSchema = {
     ]
 } as const;
 
-export const MoveTaskDueDatesSchema = {
+export const MoveOverdueTasksSchema = {
     type: 'object',
     properties: {
         moved: {
             type: 'array',
             items: {
-                type: 'string'
-            },
-            description: 'Ids of the Tasks whose due day changed. The others were skipped.'
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    from: {
+                        type: 'string',
+                        description: 'The due day the Task had before (YYYY-MM-DD).',
+                        example: '2026-11-02'
+                    },
+                    version: {
+                        type: 'string',
+                        description: 'The Task\'s `updatedAt` right after the move. Undo needs it, so it puts the Task back only if nothing changed since.',
+                        example: '2026-11-12T09:30:00.123Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'from',
+                    'version'
+                ]
+            }
+        },
+        skipped: {
+            type: 'integer',
+            description: 'Overdue Tasks that changed meanwhile, could not be edited or failed, and kept their due day.'
         }
     },
     required: [
-        'moved'
+        'moved',
+        'skipped'
     ]
 } as const;
 
-export const MoveTaskDueDatesRequestSchema = {
+export const MoveOverdueTasksRequestSchema = {
     type: 'object',
     properties: {
+        today: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The caller\'s own calendar day (YYYY-MM-DD).',
+            example: '2026-11-12'
+        },
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The new due day; today or later (YYYY-MM-DD).',
+            example: '2026-11-13'
+        }
+    },
+    required: [
+        'today',
+        'to'
+    ]
+} as const;
+
+export const UndoMoveOverdueTasksSchema = {
+    type: 'object',
+    properties: {
+        restored: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Ids of the Tasks put back on their old due day.'
+        },
+        skipped: {
+            type: 'integer',
+            description: 'Tasks that changed in any way since the move, or could not be edited, and were left as they are.'
+        }
+    },
+    required: [
+        'restored',
+        'skipped'
+    ]
+} as const;
+
+export const UndoMoveOverdueTasksRequestSchema = {
+    type: 'object',
+    properties: {
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The due day the move gave the Tasks (YYYY-MM-DD).',
+            example: '2026-11-13'
+        },
         tasks: {
             type: 'array',
             items: {
@@ -49227,26 +49300,24 @@ export const MoveTaskDueDatesRequestSchema = {
                 properties: {
                     id: {
                         type: 'string',
-                        minLength: 1,
-                        example: 'tsk_123'
+                        minLength: 1
                     },
                     from: {
                         type: 'string',
                         pattern: '^\\d{4}-\\d{2}-\\d{2}$',
-                        description: 'The due day the Task must still have (YYYY-MM-DD).',
-                        example: '2026-11-10'
+                        description: 'The due day to put back (YYYY-MM-DD).',
+                        example: '2026-11-02'
                     },
-                    to: {
+                    version: {
                         type: 'string',
-                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
-                        description: 'The new due day (YYYY-MM-DD).',
-                        example: '2026-11-13'
+                        description: 'The `version` the move returned for this Task.',
+                        example: '2026-11-12T09:30:00.123Z'
                     }
                 },
                 required: [
                     'id',
                     'from',
-                    'to'
+                    'version'
                 ]
             },
             minItems: 1,
@@ -49254,6 +49325,7 @@ export const MoveTaskDueDatesRequestSchema = {
         }
     },
     required: [
+        'to',
         'tasks'
     ]
 } as const;

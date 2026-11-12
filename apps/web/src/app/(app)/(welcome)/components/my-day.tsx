@@ -15,10 +15,10 @@ export const MY_DAY_STATUSES = TASK_STATUS_DISPLAY_ORDER.filter(
 );
 
 /**
- * The most overdue Tasks one move re-dates. Anything past it stays overdue
- * and the menu offers it again after the move.
+ * The most overdue Tasks one move re-dates (Core's cap). Anything past it
+ * stays overdue and the menu offers it again after the move.
  */
-export const MOVE_OVERDUE_LIMIT = 100;
+const MOVE_OVERDUE_LIMIT = 100;
 
 /** Overdue work a move may re-date: open, and not parked on a vendor grant. */
 const MOVABLE_STATUSES = MY_DAY_STATUSES.filter(
@@ -26,22 +26,18 @@ const MOVABLE_STATUSES = MY_DAY_STATUSES.filter(
 );
 
 /**
- * The reader's open Tasks due before `today`, owned or assigned to them in
- * the active workspace, oldest first: what "Move overdue" re-dates.
+ * How many Tasks "Move overdue" would re-date: the reader's open Tasks due
+ * before `today`, owned or assigned to them in the active workspace. Core
+ * picks the same set when the move runs. 0 on failure hides the menu.
  */
-export function listOverdue(today: string, limit = MOVE_OVERDUE_LIMIT) {
-  return taskService.listTasks({
-    scope: "mine",
-    dueOnTo: shiftDay(today, -1),
-    sort: "dueOn",
-    status: MOVABLE_STATUSES,
-    limit,
-  });
-}
-
-/** How many Tasks "Move overdue" would re-date. 0 on failure hides it. */
 export function countOverdue(today: string): Promise<number> {
-  return listOverdue(today, 1)
+  return taskService
+    .listTasks({
+      scope: "mine",
+      dueOnTo: shiftDay(today, -1),
+      status: MOVABLE_STATUSES,
+      limit: 1,
+    })
     .then(({ tasks, pagination }) =>
       Math.min(pagination?.total ?? tasks.length, MOVE_OVERDUE_LIMIT),
     )

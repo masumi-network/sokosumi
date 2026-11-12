@@ -28,7 +28,6 @@ vi.mock("./my-day-list.client", () => ({
 import {
   countOverdue,
   loadMyDay,
-  MOVE_OVERDUE_LIMIT,
   MY_DAY_LIMIT,
   MyDay,
   type MyDayPage,
@@ -122,12 +121,12 @@ describe("countOverdue", () => {
       pagination: { total: 250, nextCursor: "a" },
     });
 
-    await expect(countOverdue("2026-11-10")).resolves.toBe(MOVE_OVERDUE_LIMIT);
+    // Core moves at most 100 at once.
+    await expect(countOverdue("2026-11-10")).resolves.toBe(100);
     const query = listTasks.mock.calls[0]?.[0];
     expect(query).toMatchObject({
       scope: "mine",
       dueOnTo: "2026-11-09",
-      sort: "dueOn",
       limit: 1,
     });
     expect(query.status).not.toContain("COMPLETED");

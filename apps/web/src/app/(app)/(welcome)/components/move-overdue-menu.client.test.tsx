@@ -73,9 +73,11 @@ describe("MoveOverdueMenu", () => {
   });
 
   it("moves to the chosen day, then Undo puts the moved Tasks back", async () => {
-    const moved = [{ id: "a", from: "2026-11-01" }];
-    moveOverdueTasks.mockResolvedValue({ moved, tried: 1 });
-    undoMoveOverdueTasks.mockResolvedValue(1);
+    const moved = [
+      { id: "a", from: "2026-11-01", version: "2026-11-12T09:30:00.123Z" },
+    ];
+    moveOverdueTasks.mockResolvedValue({ moved, skipped: 0 });
+    undoMoveOverdueTasks.mockResolvedValue({ restored: 1, skipped: 0 });
     render(<MoveOverdueMenu today="2026-11-12" count={1} />);
 
     fireEvent.click(screen.getByText("targets.tomorrow"));
@@ -103,8 +105,10 @@ describe("MoveOverdueMenu", () => {
 
   it("says when only some Tasks moved", async () => {
     moveOverdueTasks.mockResolvedValue({
-      moved: [{ id: "a", from: "2026-11-01" }],
-      tried: 3,
+      moved: [
+        { id: "a", from: "2026-11-01", version: "2026-11-12T09:30:00.123Z" },
+      ],
+      skipped: 2,
     });
     render(<MoveOverdueMenu today="2026-11-12" count={3} />);
 
@@ -113,6 +117,26 @@ describe("MoveOverdueMenu", () => {
     await waitFor(() =>
       expect(toast.success.mock.calls[0]?.[0]).toBe(
         'movedPartly:{"count":1,"total":3,"date":"2026-11-12T12:00:00.000Z"}',
+      ),
+    );
+  });
+
+  it("says when Undo left Tasks that changed since", async () => {
+    const moved = [
+      { id: "a", from: "2026-11-01", version: "2026-11-12T09:30:00.123Z" },
+      { id: "b", from: "2026-11-02", version: "2026-11-12T09:30:00.456Z" },
+    ];
+    moveOverdueTasks.mockResolvedValue({ moved, skipped: 0 });
+    undoMoveOverdueTasks.mockResolvedValue({ restored: 1, skipped: 1 });
+    render(<MoveOverdueMenu today="2026-11-12" count={2} />);
+
+    fireEvent.click(screen.getByText("targets.today"));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    toast.success.mock.calls[0]?.[1].action.onClick();
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenLastCalledWith(
+        'undonePartly:{"count":1,"total":2}',
       ),
     );
   });

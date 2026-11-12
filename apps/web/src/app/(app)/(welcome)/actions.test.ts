@@ -1,51 +1,35 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { listOverdue, moveTaskDueDates } = vi.hoisted(() => ({
-  listOverdue: vi.fn(),
-  moveTaskDueDates: vi.fn(),
-}));
+const { moveOverdueTasks: coreMove, undoMoveOverdueTasks: coreUndo } =
+  vi.hoisted(() => ({
+    moveOverdueTasks: vi.fn(),
+    undoMoveOverdueTasks: vi.fn(),
+  }));
 
 vi.mock("@/lib/services/task.service", () => ({
-  taskService: { moveTaskDueDates },
+  taskService: { moveOverdueTasks: coreMove, undoMoveOverdueTasks: coreUndo },
 }));
-vi.mock("./components/my-day", () => ({
-  listOverdue,
-  loadMyDay: vi.fn(),
-  MOVE_OVERDUE_LIMIT: 100,
-}));
+vi.mock("./components/my-day", () => ({ loadMyDay: vi.fn() }));
 
 import { moveOverdueTasks, undoMoveOverdueTasks } from "./actions";
+
+const moved = [
+  { id: "a", from: "2026-11-01", version: "2026-11-12T09:30:00.123Z" },
+];
 
 describe("moveOverdueTasks", () => {
   afterEach(() => vi.clearAllMocks());
 
-  it("moves each overdue Task from the day it has now, and reports what moved", async () => {
-    listOverdue.mockResolvedValue({
-      tasks: [
-        { id: "a", dueOn: "2026-11-01" },
-        { id: "b", dueOn: "2026-11-05" },
-      ],
+  it("asks Core to move the reader's overdue Tasks and passes back what moved", async () => {
+    coreMove.mockResolvedValue({ moved, skipped: 1 });
+
+    await expect(
+      moveOverdueTasks({ today: "2026-11-10", to: "2026-11-11" }),
+    ).resolves.toEqual({ moved, skipped: 1 });
+    expect(coreMove).toHaveBeenCalledWith({
+      today: "2026-11-10",
+      to: "2026-11-11",
     });
-    // Core skipped b: it changed since it was read.
-    moveTaskDueDates.mockResolvedValue(["a"]);
-
-    await expect(
-      moveOverdueTasks({ today: "2026-11-10", to: "2026-11-11" }),
-    ).resolves.toEqual({ moved: [{ id: "a", from: "2026-11-01" }], tried: 2 });
-    expect(listOverdue).toHaveBeenCalledWith("2026-11-10");
-    expect(moveTaskDueDates).toHaveBeenCalledWith([
-      { id: "a", from: "2026-11-01", to: "2026-11-11" },
-      { id: "b", from: "2026-11-05", to: "2026-11-11" },
-    ]);
-  });
-
-  it("asks Core nothing when nothing is overdue", async () => {
-    listOverdue.mockResolvedValue({ tasks: [] });
-
-    await expect(
-      moveOverdueTasks({ today: "2026-11-10", to: "2026-11-11" }),
-    ).resolves.toEqual({ moved: [], tried: 0 });
-    expect(moveTaskDueDates).not.toHaveBeenCalled();
   });
 
   it("gives null for a bad day or a Core failure", async () => {
@@ -53,9 +37,9 @@ describe("moveOverdueTasks", () => {
     await expect(
       moveOverdueTasks({ today: "today", to: "2026-11-11" }),
     ).resolves.toBeNull();
-    expect(listOverdue).not.toHaveBeenCalled();
+    expect(coreMove).not.toHaveBeenCalled();
 
-    listOverdue.mockRejectedValue(new Error("down"));
+    coreMove.mockRejectedValue(new Error("down"));
     await expect(
       moveOverdueTasks({ today: "2026-11-10", to: "2026-11-11" }),
     ).resolves.toBeNull();
@@ -65,28 +49,19 @@ describe("moveOverdueTasks", () => {
 describe("undoMoveOverdueTasks", () => {
   afterEach(() => vi.clearAllMocks());
 
-  it("puts each Task back only from the day the move gave it", async () => {
-    moveTaskDueDates.mockResolvedValue(["a"]);
+  it("sends each Task's old day and version back to Core", async () => {
+    coreUndo.mockResolvedValue({ restored: ["a"], skipped: 0 });
 
     await expect(
-      undoMoveOverdueTasks({
-        to: "2026-11-11",
-        moved: [
-          { id: "a", from: "2026-11-01" },
-          { id: "b", from: "2026-11-05" },
-        ],
-      }),
-    ).resolves.toBe(1);
-    expect(moveTaskDueDates).toHaveBeenCalledWith([
-      { id: "a", from: "2026-11-11", to: "2026-11-01" },
-      { id: "b", from: "2026-11-11", to: "2026-11-05" },
-    ]);
+      undoMoveOverdueTasks({ to: "2026-11-11", moved }),
+    ).resolves.toEqual({ restored: 1, skipped: 0 });
+    expect(coreUndo).toHaveBeenCalledWith({ to: "2026-11-11", tasks: moved });
   });
 
   it("gives null for an empty undo", async () => {
     await expect(
       undoMoveOverdueTasks({ to: "2026-11-11", moved: [] }),
     ).resolves.toBeNull();
-    expect(moveTaskDueDates).not.toHaveBeenCalled();
+    expect(coreUndo).not.toHaveBeenCalled();
   });
 });

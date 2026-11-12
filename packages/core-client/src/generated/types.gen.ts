@@ -12686,24 +12686,61 @@ export type TaskTagSuggestion = {
     receipt: string;
 };
 
-export type MoveTaskDueDates = {
-    /**
-     * Ids of the Tasks whose due day changed. The others were skipped.
-     */
-    moved: Array<string>;
-};
-
-export type MoveTaskDueDatesRequest = {
-    tasks: Array<{
+export type MoveOverdueTasks = {
+    moved: Array<{
         id: string;
         /**
-         * The due day the Task must still have (YYYY-MM-DD).
+         * The due day the Task had before (YYYY-MM-DD).
          */
         from: string;
         /**
-         * The new due day (YYYY-MM-DD).
+         * The Task's `updatedAt` right after the move. Undo needs it, so it puts the Task back only if nothing changed since.
          */
-        to: string;
+        version: string;
+    }>;
+    /**
+     * Overdue Tasks that changed meanwhile, could not be edited or failed, and kept their due day.
+     */
+    skipped: number;
+};
+
+export type MoveOverdueTasksRequest = {
+    /**
+     * The caller's own calendar day (YYYY-MM-DD).
+     */
+    today: string;
+    /**
+     * The new due day; today or later (YYYY-MM-DD).
+     */
+    to: string;
+};
+
+export type UndoMoveOverdueTasks = {
+    /**
+     * Ids of the Tasks put back on their old due day.
+     */
+    restored: Array<string>;
+    /**
+     * Tasks that changed in any way since the move, or could not be edited, and were left as they are.
+     */
+    skipped: number;
+};
+
+export type UndoMoveOverdueTasksRequest = {
+    /**
+     * The due day the move gave the Tasks (YYYY-MM-DD).
+     */
+    to: string;
+    tasks: Array<{
+        id: string;
+        /**
+         * The due day to put back (YYYY-MM-DD).
+         */
+        from: string;
+        /**
+         * The `version` the move returned for this Task.
+         */
+        version: string;
     }>;
 };
 
@@ -85426,14 +85463,14 @@ export type SuggestTaskTagsResponses = {
 
 export type SuggestTaskTagsResponse = SuggestTaskTagsResponses[keyof SuggestTaskTagsResponses];
 
-export type PostTasksDueDatesData = {
-    body?: MoveTaskDueDatesRequest;
+export type PostTasksDueDatesMoveOverdueData = {
+    body?: MoveOverdueTasksRequest;
     path?: never;
     query?: never;
-    url: '/tasks/due-dates';
+    url: '/tasks/due-dates/move-overdue';
 };
 
-export type PostTasksDueDatesErrors = {
+export type PostTasksDueDatesMoveOverdueErrors = {
     /**
      * Unauthorized
      */
@@ -85481,14 +85518,14 @@ export type PostTasksDueDatesErrors = {
     };
 };
 
-export type PostTasksDueDatesError = PostTasksDueDatesErrors[keyof PostTasksDueDatesErrors];
+export type PostTasksDueDatesMoveOverdueError = PostTasksDueDatesMoveOverdueErrors[keyof PostTasksDueDatesMoveOverdueErrors];
 
-export type PostTasksDueDatesResponses = {
+export type PostTasksDueDatesMoveOverdueResponses = {
     /**
-     * Moved due days
+     * Moved overdue Tasks
      */
     200: {
-        data: MoveTaskDueDates;
+        data: MoveOverdueTasks;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -85497,7 +85534,80 @@ export type PostTasksDueDatesResponses = {
     };
 };
 
-export type PostTasksDueDatesResponse = PostTasksDueDatesResponses[keyof PostTasksDueDatesResponses];
+export type PostTasksDueDatesMoveOverdueResponse = PostTasksDueDatesMoveOverdueResponses[keyof PostTasksDueDatesMoveOverdueResponses];
+
+export type PostTasksDueDatesUndoData = {
+    body?: UndoMoveOverdueTasksRequest;
+    path?: never;
+    query?: never;
+    url: '/tasks/due-dates/undo';
+};
+
+export type PostTasksDueDatesUndoErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksDueDatesUndoError = PostTasksDueDatesUndoErrors[keyof PostTasksDueDatesUndoErrors];
+
+export type PostTasksDueDatesUndoResponses = {
+    /**
+     * Undid the move
+     */
+    200: {
+        data: UndoMoveOverdueTasks;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksDueDatesUndoResponse = PostTasksDueDatesUndoResponses[keyof PostTasksDueDatesUndoResponses];
 
 export type GetTasksSchedulesData = {
     body?: never;

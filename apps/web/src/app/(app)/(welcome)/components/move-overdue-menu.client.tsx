@@ -20,7 +20,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { moveOverdueTasks, undoMoveOverdueTasks } from "../actions";
+import {
+  type MovedTask,
+  moveOverdueTasks,
+  undoMoveOverdueTasks,
+} from "../actions";
 
 interface MoveOverdueMenuProps {
   /** The reader's day, `YYYY-MM-DD`. */
@@ -52,19 +56,19 @@ export function MoveOverdueMenu({ today, count }: MoveOverdueMenuProps) {
     });
   }
 
-  function handleUndo(to: string, moved: { id: string; from: string }[]) {
+  function handleUndo(to: string, moved: MovedTask[]) {
     startTransition(async () => {
-      const restored = await undoMoveOverdueTasks({ to, moved }).catch(
+      const undone = await undoMoveOverdueTasks({ to, moved }).catch(
         () => null,
       );
-      if (restored === null) {
+      if (!undone) {
         toast.error(t("undoError"));
         return;
       }
       toast.success(
-        restored < moved.length
-          ? t("undonePartly", { count: restored, total: moved.length })
-          : t("undone", { count: restored }),
+        undone.restored < moved.length
+          ? t("undonePartly", { count: undone.restored, total: moved.length })
+          : t("undone", { count: undone.restored }),
       );
       router.refresh();
     });
@@ -77,16 +81,24 @@ export function MoveOverdueMenu({ today, count }: MoveOverdueMenuProps) {
         toast.error(t("error"));
         return;
       }
-      const { moved, tried } = result;
+      const { moved, skipped } = result;
       const date = dateOf(to);
       if (moved.length === 0) {
         toast.info(t("nothingMoved"));
       } else {
         toast.success(
-          moved.length < tried
-            ? t("movedPartly", { count: moved.length, total: tried, date })
+          skipped > 0
+            ? t("movedPartly", {
+                count: moved.length,
+                total: moved.length + skipped,
+                date,
+              })
             : t("moved", { count: moved.length, date }),
           {
+            // Undo is the only way back for up to 100 dates: it stays until
+            // the reader uses or closes it, never on a timer.
+            duration: Number.POSITIVE_INFINITY,
+            closeButton: true,
             action: {
               label: t("undo"),
               onClick: () => handleUndo(to, moved),
