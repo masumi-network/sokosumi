@@ -176,6 +176,12 @@ describe("the copy rules code checks", () => {
     expect(bannedCopyProblems("Let that sink in.")).toHaveLength(1);
     expect(bannedCopyProblems("Thread: how we price")).toHaveLength(1);
     expect(bannedCopyProblems("Tag a friend who bakes")).toHaveLength(1);
+    expect(
+      bannedCopyProblems("Fresh rye today. Like if you agree"),
+    ).toHaveLength(1);
+    expect(
+      bannedCopyProblems("We would like to know if you prefer rye."),
+    ).toEqual([]);
     expect(bannedCopyProblems("Let's delve into fees.")).toHaveLength(1);
     expect(bannedCopyProblems("We cut our fees to 3%.")).toEqual([]);
   });

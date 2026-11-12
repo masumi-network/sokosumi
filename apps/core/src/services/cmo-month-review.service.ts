@@ -272,7 +272,7 @@ export function cmoCountedProblems(
                   "120 to 155",
                 ),
                 /^# \S/m.test(text) ? null : "it has no # title",
-                field(text, "Link from")
+                /^(#+ )?\**Link from\**:\**\s*\S/im.test(text)
                   ? null
                   : "it has no Link from: line naming the pages that should link to it",
               ]
@@ -332,22 +332,36 @@ function passes(
     : null;
 }
 
-/** What the pieces' facts are checked against: what the business sells and has proven. */
+/**
+ * What the pieces' facts are checked against: what the business sells, charges
+ * and has proven, and the approved plan's offer, which its pieces state.
+ */
 export type CmoBrandFacts = Pick<
   BrandBrain,
   "summary" | "products" | "offers"
-> & {
-  customerQuotes: string[];
-  proof: NonNullable<BrandBrain["profile"]>["proof"];
-};
+> &
+  Pick<
+    NonNullable<BrandBrain["profile"]>,
+    "proof" | "pricing" | "customers" | "reputation"
+  > & {
+    customerQuotes: string[];
+    planOffer: MarketingStrategyPlan["offer"];
+  };
 
-export function cmoBrandFacts(brain: BrandBrain): CmoBrandFacts {
+export function cmoBrandFacts(
+  brain: BrandBrain,
+  planOffer: MarketingStrategyPlan["offer"],
+): CmoBrandFacts {
   return {
     summary: brain.summary,
     products: brain.products,
     offers: brain.offers,
     customerQuotes: (brain.voiceOfCustomer ?? []).map((quote) => quote.quote),
     proof: brain.profile?.proof,
+    pricing: brain.profile?.pricing,
+    customers: brain.profile?.customers,
+    reputation: brain.profile?.reputation,
+    planOffer,
   };
 }
 
@@ -498,7 +512,7 @@ export function cmoRewriteMessage(input: {
     : [];
   return [
     `Background run: rewrite pieces in ${input.businessName}'s month`,
-    "An evaluator read every piece you made. The pieces below miss their pillar, their network's writing skill or the brand's voice. Rewrite each one's words to fix what its line says, following your production skill and the writing skills below.",
+    "An evaluator read every piece you made. The pieces below miss their pillar, their network's writing skill or the brand's voice. Rewrite each one's words to fix what its line says, following your production skill and the writing skills below. Change only what a piece's line names: keep its other sentences, its facts from the Brand Brain and the plan's offer, and its labelled lines as they are.",
     ...(off.length > 0
       ? [
           "",

@@ -1,4 +1,4 @@
-import type { CmoCalendarEntry } from "@sokosumi/soko-bot";
+import type { BrandBrain, CmoCalendarEntry } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { evaluateWithJev, updateMany, readPieceText, recordUsage } = vi.hoisted(
@@ -24,6 +24,7 @@ vi.mock("@/services/soko-bot-billing.service", () => ({
 import {
   advanceCmoMonthReview,
   type CmoMonthReview,
+  cmoBrandFacts,
   cmoCountedProblems,
   cmoPiecesToRewrite,
   cmoPillarShares,
@@ -305,6 +306,10 @@ describe("readCmoMonth", () => {
       offers: [{ name: "Pro", what: "Routing", price: "$49 a month" }],
       customerQuotes: ["Set up in ten minutes"],
       proof: undefined,
+      pricing: undefined,
+      customers: undefined,
+      reputation: undefined,
+      planOffer: undefined,
     };
     await readCmoMonth({
       pillars: [],
@@ -388,6 +393,21 @@ describe("cmoCountedProblems", () => {
     ).toEqual([]);
   });
 
+  it("takes an article's Link from as a line, a block or a heading, but not empty", () => {
+    const article = `Description: ${description}\n\n# How to route leads\n\n`;
+    for (const links of [
+      'Link from:\n- /pricing, on "routing"\n- /teams, on "team routing"',
+      '## Link from:\n- /pricing, on "routing"',
+      '**Link from:** /pricing, on "routing"',
+    ])
+      expect(cmoCountedProblems("seo", "article", article + links)).toEqual([]);
+    expect(
+      cmoCountedProblems("seo", "article", `${article}Link from:`),
+    ).toEqual([
+      "it has no Link from: line naming the pages that should link to it",
+    ]);
+  });
+
   it("counts a Meta ad's visible point and headline, and a display ad's fields", () => {
     expect(
       cmoCountedProblems(
@@ -438,6 +458,47 @@ describe("cmoCountedProblems", () => {
   });
 });
 
+describe("cmoBrandFacts", () => {
+  it("holds the prices, customers, reviews and the plan's offer a piece may state", () => {
+    const section = (answer: string) => ({
+      answer,
+      findings: [],
+      openQuestions: [],
+    });
+    const planOffer = {
+      what: "14-day Teams trial",
+      why: "Try routing first",
+      proof: ["Teams from $12 per user on yearly billing"],
+      action: "Start a 14-day Teams trial",
+    };
+    const facts = cmoBrandFacts(
+      {
+        summary: "Acme routes leads.",
+        products: ["Router"],
+        offers: [],
+        voiceOfCustomer: [{ kind: "outcome", quote: "Set up in ten minutes" }],
+        profile: {
+          proof: section("Deel saves 6,000 hours"),
+          pricing: section("Teams has a 14-day trial"),
+          customers: section("Sales teams"),
+          reputation: section("4.5 on G2"),
+          company: section("Founded 2021"),
+        },
+      } as unknown as BrandBrain,
+      planOffer,
+    );
+    expect(facts).toMatchObject({
+      customerQuotes: ["Set up in ten minutes"],
+      proof: { answer: "Deel saves 6,000 hours" },
+      pricing: { answer: "Teams has a 14-day trial" },
+      customers: { answer: "Sales teams" },
+      reputation: { answer: "4.5 on G2" },
+      planOffer,
+    });
+    expect(facts).not.toHaveProperty("company");
+  });
+});
+
 describe("cmoRewriteMessage", () => {
   it("lists each piece with its reasons and hands over its channel's skills", () => {
     const message = cmoRewriteMessage({
@@ -457,6 +518,7 @@ describe("cmoRewriteMessage", () => {
     );
     expect(message).toContain('<skill id="x">');
     expect(message).not.toContain('<skill id="linkedin">');
+    expect(message).toContain("Change only what a piece's line names");
     expect(message).toContain("DONE:");
   });
 
