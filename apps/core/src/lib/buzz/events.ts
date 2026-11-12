@@ -25,6 +25,7 @@ export const BUZZ_KIND = {
   editChannel: 9002,
   adminDelete: 9005,
   createChannel: 9007,
+  deleteChannel: 9008,
   addCommunityMember: 9030,
   /** Relay-signed (NIP-43): a key was admitted to the community. */
   memberAdded: 8000,

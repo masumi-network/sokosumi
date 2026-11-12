@@ -23,6 +23,7 @@ import {
   buzzSubscriptions,
   CoreRejectedError,
   type CoreRequest,
+  deleteChannelsOfDeletedRooms,
   drainBuzzOutbox,
   enableBuzzForOrganization,
   linkedBuzzRooms,
@@ -32,7 +33,6 @@ import {
   syncBuzzAgents,
   syncRoomChannel,
   unlinkedBuzzRooms,
-  verifyBuzzAppLinks,
 } from "@/services/buzz-bridge.service";
 
 const args = process.argv.slice(2);
@@ -95,10 +95,13 @@ function coreRequester(baseUrl: string): CoreRequest {
       signal: AbortSignal.timeout(timeoutMs ?? 30_000),
     });
     // A stream has started once its headers are in: answer then, and keep
-    // reading it so the answer is not cut off.
+    // reading it so the answer is not cut off and a failure is seen.
     if (streamed && response.ok) {
-      void response.arrayBuffer().catch(() => undefined);
-      return { status: response.status, body: null };
+      return {
+        status: response.status,
+        body: null,
+        finished: response.text().then(streamEndedWell, () => false),
+      };
     }
     const text = await response.text();
     let parsed: unknown = text;
@@ -109,6 +112,18 @@ function coreRequester(baseUrl: string): CoreRequest {
     }
     return { status: response.status, body: parsed };
   };
+}
+
+/** A UI message stream that carries no `error` chunk. */
+function streamEndedWell(text: string): boolean {
+  return !text.split("\n").some((line) => {
+    if (!line.startsWith("data: ")) return false;
+    try {
+      return (JSON.parse(line.slice(6)) as { type?: unknown }).type === "error";
+    } catch {
+      return false;
+    }
+  });
 }
 
 /** Older events first, the order Sokosumi should see them in. */
@@ -197,6 +212,8 @@ async function run() {
   let inbound = Promise.resolve();
   const seen = new Set<string>();
   const TARGET_ATTEMPTS = 6;
+  // A Coworker answer that fails after it started is asked for again a few times.
+  const ANSWER_ATTEMPTS = 4;
   // Per community: events not finished yet, and the newest one finished. The
   // saved cursor never passes an unfinished event.
   const unfinished = new Map<string, Map<string, number>>();
@@ -229,7 +246,21 @@ async function run() {
       // A target still on its way in (say Core is down and it keeps
       // retrying) is worth waiting for however long that takes.
       try {
-        const result = await applyInboundEvent(event, core, { finalAttempt });
+        const result = await applyInboundEvent(event, core, {
+          finalAttempt,
+          onTurnFailed: () => {
+            const id = event.id.slice(0, 8);
+            if (attempt + 1 >= ANSWER_ATTEMPTS) {
+              log(`in  kind ${event.kind} ${id} answer failed, giving up`);
+              return;
+            }
+            log(`in  kind ${event.kind} ${id} answer failed, asking again`);
+            retryLater(
+              () => apply(communityId, event, attempt + 1),
+              Math.min(2_000 * 2 ** attempt, 5 * 60_000),
+            );
+          },
+        });
         if (result !== "echo" && result !== "ignored") {
           log(`in  kind ${event.kind} ${event.id.slice(0, 8)} → ${result}`);
         }
@@ -407,12 +438,11 @@ async function run() {
     try {
       if (Date.now() - lastRoomSweep > 30_000) {
         lastRoomSweep = Date.now();
-        for (const identityId of await verifyBuzzAppLinks()) {
-          log(`app key linked for ${identityId.slice(0, 8)}`);
-        }
         for (const change of await syncBuzzAgents()) {
           log(`agent ${change.slice(0, 13)} synced`);
         }
+        const deleted = await deleteChannelsOfDeletedRooms();
+        if (deleted > 0) log(`${deleted} channel(s) of deleted rooms removed`);
         for (const room of await unlinkedBuzzRooms()) {
           await syncRoomChannel(room.id);
           log(`out room ${room.id.slice(0, 8)} → channel`);

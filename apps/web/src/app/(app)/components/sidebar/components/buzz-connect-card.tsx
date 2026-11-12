@@ -93,7 +93,7 @@ export function BuzzConnectCard() {
       <BuzzConnectDialog
         open={open}
         onOpenChange={setOpen}
-        resume={data?.app?.status === "linked"}
+        resume={Boolean(data?.app)}
         onNotNow={() => {
           dismiss();
           setOpen(false);

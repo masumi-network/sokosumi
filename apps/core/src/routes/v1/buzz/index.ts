@@ -47,10 +47,6 @@ const connectionSchema = z
     app: z
       .object({
         npub: z.string(),
-        status: z.enum(["pending", "linked"]).openapi({
-          description:
-            "pending until the key joins a community with the invite Sokosumi issued for it.",
-        }),
         authorized: z.boolean().openapi({
           description:
             "Whether the caller's Buzz app authorized their Sokosumi key, so their Buzz agents take what they write in Sokosumi as theirs.",

@@ -31,7 +31,7 @@ export async function BuzzSection() {
     return null;
   }
 
-  const linked = connection.app?.status === "linked";
+  const linked = connection.app !== null;
   const authorized = connection.app?.authorized === true;
   const connected = linked || connection.lastActiveOnBuzzAt !== null;
   const npub = `${connection.app?.npub.slice(0, 16)}…`;
@@ -58,19 +58,23 @@ export async function BuzzSection() {
                 <h3 className="text-sm font-semibold">{t("statusTitle")}</h3>
                 <p className="text-muted-foreground text-sm">{status}</p>
               </div>
-              {linked ? (
-                <div className="flex items-center gap-2">
-                  {authorized ? null : (
-                    <BuzzConnectButton label={t("authorize")} resume />
-                  )}
-                  <BuzzUnlinkButton />
-                </div>
-              ) : (
+              {/* One button in one place: linking happens mid-dialog, and
+                  the dialog must outlive that. */}
+              <div className="flex items-center gap-2">
                 <BuzzConnectButton
-                  variant={connected ? "outline" : "primary"}
-                  label={connected ? t("connectAgain") : t("connect")}
+                  showTrigger={!authorized}
+                  variant={!linked && connected ? "outline" : "primary"}
+                  label={
+                    linked
+                      ? t("authorize")
+                      : connected
+                        ? t("connectAgain")
+                        : t("connect")
+                  }
+                  resume={linked}
                 />
-              )}
+                {linked ? <BuzzUnlinkButton /> : null}
+              </div>
             </div>
             {connected ? (
               <div className="space-y-1 border-t pt-3">

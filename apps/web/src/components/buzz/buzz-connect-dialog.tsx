@@ -30,7 +30,6 @@ import { cn } from "@/lib/utils";
 const BUZZ_SECURITY_URL = "buzz://settings?section=security";
 /** Where Buzz is downloaded: the app's own releases. */
 const BUZZ_DOWNLOAD_URL = "https://github.com/block/buzz-app/releases/latest";
-const POLL_MS = 3000;
 
 export const BUZZ_CONNECTION_QUERY_KEY = ["buzz-connection"] as const;
 
@@ -116,18 +115,12 @@ function BuzzConnectFlow({
 
   const path = isNew ? NEW_PATH : HAVE_PATH;
   const index = path.indexOf(step);
-  const waiting = step === "link-join";
 
-  // Polled only while a step waits on Buzz; it ends the wait on its own.
   const connection = useQuery({
     queryKey: BUZZ_CONNECTION_QUERY_KEY,
     queryFn: fetchBuzzConnection,
-    refetchInterval: waiting ? POLL_MS : false,
   });
   const data = connection.data;
-  if (step === "link-join" && data?.app?.status === "linked") {
-    setStep("done");
-  }
 
   const hosts = [
     ...new Set((data?.communities ?? []).map((c) => new URL(c.relayUrl).host)),
@@ -297,7 +290,6 @@ function BuzzConnectFlow({
                   />
                 ) : null}
               </div>
-              <Waiting label={t("join.waiting")} />
             </Stage>
           )}
 
@@ -459,9 +451,15 @@ function BuzzConnectFlow({
             {t("authorize.save")}
           </Button>
         )}
-        {waiting && (
-          <Button variant="ghost" className="h-11 px-4" onClick={finish}>
-            {t("later")}
+        {step === "link-join" && (
+          <Button
+            variant="primary"
+            size="lg"
+            style={BUZZ_ACTION_STYLE}
+            className="rounded-full h-11 px-6"
+            onClick={next}
+          >
+            {t("join.next")}
           </Button>
         )}
         {step === "done" && (
@@ -618,20 +616,5 @@ function CopyChip({ value, label }: { value: string; label?: string }) {
         <Copy className="size-3.5 shrink-0" />
       )}
     </button>
-  );
-}
-
-function Waiting({ label }: { label: string }) {
-  return (
-    <p
-      className="text-muted-foreground mt-6 inline-flex items-center gap-2 text-sm"
-      aria-live="polite"
-    >
-      <span className="relative flex size-2">
-        <span className="bg-foreground absolute inline-flex size-full animate-ping rounded-full motion-reduce:animate-none" />
-        <span className="bg-foreground relative inline-flex size-2 rounded-full" />
-      </span>
-      {label}
-    </p>
   );
 }

@@ -3001,10 +3001,6 @@ export type BuzzConnection = {
     app: {
         npub: string;
         /**
-         * pending until the key joins a community with the invite Sokosumi issued for it.
-         */
-        status: 'pending' | 'linked';
-        /**
          * Whether the caller's Buzz app authorized their Sokosumi key, so their Buzz agents take what they write in Sokosumi as theirs.
          */
         authorized: boolean;

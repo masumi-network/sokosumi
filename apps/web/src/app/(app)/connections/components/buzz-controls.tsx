@@ -89,26 +89,31 @@ export function BuzzConnectButton({
   variant = "primary",
   label,
   resume = false,
+  showTrigger = true,
 }: {
   variant?: "primary" | "outline";
   label: string;
   /** Opens at the Authorize step. */
   resume?: boolean;
+  /** Without it the dialog stays mounted, so one already open finishes. */
+  showTrigger?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button
-        type="button"
-        variant={variant}
-        size="sm"
-        className="rounded-full px-4"
-        // The first connect is Buzz's own action: an ink pill.
-        style={variant === "primary" ? BUZZ_ACTION_STYLE : undefined}
-        onClick={() => setOpen(true)}
-      >
-        {label}
-      </Button>
+      {showTrigger ? (
+        <Button
+          type="button"
+          variant={variant}
+          size="sm"
+          className="rounded-full px-4"
+          // The first connect is Buzz's own action: an ink pill.
+          style={variant === "primary" ? BUZZ_ACTION_STYLE : undefined}
+          onClick={() => setOpen(true)}
+        >
+          {label}
+        </Button>
+      ) : null}
       <BuzzConnectDialog open={open} onOpenChange={setOpen} resume={resume} />
     </>
   );

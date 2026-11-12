@@ -47,17 +47,14 @@ model BuzzIdentity {
   /// When the person last did something from a Buzz app (with either key):
   /// how Sokosumi knows they are connected.
   lastActiveOnBuzzAt DateTime?
-  /// The person's own Buzz app key (hex), linked once it joined a community
-  /// with an invite Sokosumi issued for it. What they write from Buzz with it
-  /// is theirs in Sokosumi; Sokosumi still signs with `pubkey`.
+  /// The person's own Buzz app key (hex), linked from the proof it signed for
+  /// `pubkey`. What they write from Buzz with it is theirs in Sokosumi;
+  /// Sokosumi still signs with `pubkey`.
   appPubkey          String?   @unique
   /// The person's own app key vouching for `pubkey` (a NIP-OA `auth` tag their
   /// Buzz app signed), sent on what Sokosumi signs for them so their Buzz
   /// agents take it as theirs.
   appAuthTag         Json?
-  /// A key the person asked to link, until it joins with that invite.
-  pendingAppPubkey   String?
-  pendingAppSince    DateTime?
   ownerIdentityId    String?        @db.Uuid
   ownerIdentity      BuzzIdentity?  @relation("BuzzAgentOwner", fields: [ownerIdentityId], references: [id], onDelete: Cascade)
   agents             BuzzIdentity[] @relation("BuzzAgentOwner")
@@ -82,11 +79,13 @@ model BuzzCommunityMember {
   @@map("buzz_community_member")
 }
 
-/// A chat room and the Buzz channel (NIP-29 group) that carries it.
+/// A chat room and the Buzz channel (NIP-29 group) that carries it. A
+/// deleted room leaves its channel without one until the group is deleted
+/// on Buzz.
 model BuzzChannel {
   id          String        @id @default(uuid(7)) @db.Uuid
-  roomId      String        @unique @db.Uuid
-  room        ChatRoom      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId      String?       @unique @db.Uuid
+  room        ChatRoom?     @relation(fields: [roomId], references: [id], onDelete: SetNull)
   communityId String        @db.Uuid
   community   BuzzCommunity @relation(fields: [communityId], references: [id], onDelete: Cascade)
   /// The group id: the value of every event's `h` tag.

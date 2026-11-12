@@ -1099,11 +1099,11 @@
       },
       "join": {
         "title": "Join from Buzz",
-        "subtitle": "Open the invite in Buzz and choose <b>Join</b>. This continues by itself when it's done.",
+        "subtitle": "Open the invite in Buzz and choose <b>Join</b>.",
         "open": "Open in Buzz",
         "openNamed": "Open {name} in Buzz",
         "copyInvite": "Copy invite link",
-        "waiting": "Waiting for Buzz…"
+        "next": "I've joined"
       },
       "authorize": {
         "title": "Authorize Sokosumi",

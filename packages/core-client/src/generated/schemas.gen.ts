@@ -11062,14 +11062,6 @@ export const BuzzConnectionSchema = {
                 npub: {
                     type: 'string'
                 },
-                status: {
-                    type: 'string',
-                    enum: [
-                        'pending',
-                        'linked'
-                    ],
-                    description: 'pending until the key joins a community with the invite Sokosumi issued for it.'
-                },
                 authorized: {
                     type: 'boolean',
                     description: 'Whether the caller\'s Buzz app authorized their Sokosumi key, so their Buzz agents take what they write in Sokosumi as theirs.'
@@ -11077,7 +11069,6 @@ export const BuzzConnectionSchema = {
             },
             required: [
                 'npub',
-                'status',
                 'authorized'
             ],
             description: 'The caller\'s own Buzz app key, when they linked one instead of importing Sokosumi\'s.'
