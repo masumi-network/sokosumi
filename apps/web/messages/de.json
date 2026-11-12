@@ -1115,7 +1115,7 @@
         "subtitle": "Dann nehmen deine Buzz-Agenten, was du in Sokosumi schreibst, als deins an. Dein privater Schlüssel bleibt in Buzz.",
         "open": "Öffne in Buzz <b>Settings → Buzz → Security → Authorize external identity</b>.",
         "paste": "Füge diesen Schlüssel ein und wähle <b>Authorize identity</b>:",
-        "confirm": "Wähle <b>Authorize this key</b>, dann <b>Copy ownership proof</b>, und füge ihn unten ein.",
+        "confirm": "Wähle <b>Authorize this key</b>, dann <b>Copy ownership proof</b>, und füge ihn hier ein:",
         "label": "Eigentumsnachweis",
         "placeholder": "[\"auth\", …]",
         "save": "Autorisieren"

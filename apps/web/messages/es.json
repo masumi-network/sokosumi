@@ -1115,7 +1115,7 @@
         "subtitle": "Así tus agentes de Buzz toman lo que escribes en Sokosumi como tuyo. Tu clave privada se queda en Buzz.",
         "open": "En Buzz, abre <b>Settings → Buzz → Security → Authorize external identity</b>.",
         "paste": "Pega esta clave y elige <b>Authorize identity</b>:",
-        "confirm": "Elige <b>Authorize this key</b>, luego <b>Copy ownership proof</b> y pégala abajo.",
+        "confirm": "Elige <b>Authorize this key</b>, luego <b>Copy ownership proof</b>, y pégala aquí:",
         "label": "Prueba de propiedad",
         "placeholder": "[\"auth\", …]",
         "save": "Autorizar"

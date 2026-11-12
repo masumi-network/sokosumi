@@ -3,15 +3,7 @@
 import type { BuzzConnection } from "@sokosumi/core-client";
 import { getBuzzConnectionResponseTransformer } from "@sokosumi/core-client/transformers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Check,
-  Copy,
-  Download,
-  KeyRound,
-  Link2,
-  ShieldCheck,
-  UserPlus,
-} from "lucide-react";
+import { Check, Copy, Download, KeyRound, Link2, UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useState } from "react";
 
@@ -382,11 +374,7 @@ function BuzzConnectFlow({
 
           {step === "authorize" && (
             <Stage
-              hero={
-                <BuzzIconTile>
-                  <ShieldCheck />
-                </BuzzIconTile>
-              }
+              hero={null}
               title={t("authorize.title")}
               subtitle={t("authorize.subtitle")}
               headingRef={focusHeading}
@@ -405,42 +393,42 @@ function BuzzConnectFlow({
                 </Instruction>
                 <Instruction n={3}>
                   {t.rich("authorize.confirm", { b: label })}
+                  <form
+                    id="buzz-connect-proof"
+                    className="mt-2"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void authorize();
+                    }}
+                  >
+                    <Input
+                      value={proof}
+                      onChange={(event) => {
+                        setProof(event.target.value);
+                        setProofError(null);
+                      }}
+                      placeholder={t("authorize.placeholder")}
+                      aria-label={t("authorize.label")}
+                      aria-invalid={proofError ? true : undefined}
+                      aria-describedby={
+                        proofError ? "buzz-connect-proof-error" : undefined
+                      }
+                      autoComplete="off"
+                      spellCheck={false}
+                      className="h-9 font-mono text-xs"
+                    />
+                    {proofError ? (
+                      <p
+                        id="buzz-connect-proof-error"
+                        role="alert"
+                        className="text-destructive mt-2 text-sm"
+                      >
+                        {proofError}
+                      </p>
+                    ) : null}
+                  </form>
                 </Instruction>
               </ol>
-              <form
-                id="buzz-connect-proof"
-                className="mx-auto mt-4 w-full max-w-sm text-left"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void authorize();
-                }}
-              >
-                <Input
-                  value={proof}
-                  onChange={(event) => {
-                    setProof(event.target.value);
-                    setProofError(null);
-                  }}
-                  placeholder={t("authorize.placeholder")}
-                  aria-label={t("authorize.label")}
-                  aria-invalid={proofError ? true : undefined}
-                  aria-describedby={
-                    proofError ? "buzz-connect-proof-error" : undefined
-                  }
-                  autoComplete="off"
-                  spellCheck={false}
-                  className="h-11 font-mono text-sm"
-                />
-                {proofError ? (
-                  <p
-                    id="buzz-connect-proof-error"
-                    role="alert"
-                    className="text-destructive mt-2 text-sm"
-                  >
-                    {proofError}
-                  </p>
-                ) : null}
-              </form>
             </Stage>
           )}
 
