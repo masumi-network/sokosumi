@@ -265,4 +265,28 @@ describe("HeaderLeadingControl", () => {
     fireEvent.click(screen.getByRole("link", { name: "back" }));
     expect(routerPushMock).toHaveBeenCalledWith("/tasks?view=list&status=todo");
   });
+
+  it.each([
+    { pathname: "/tasks/t1", href: "/calendar?view=agenda" },
+    { pathname: "/tasks/archived", href: "/tasks" },
+  ])(
+    "goes back to a stored Calendar only from a task ($pathname)",
+    async ({ pathname, href }) => {
+      window.sessionStorage.setItem(
+        TASKS_RETURN_PATH_SESSION_KEY,
+        "/calendar?view=agenda",
+      );
+      mockPathname = pathname;
+      render(<HeaderLeadingControl />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("link", { name: "back" })).toHaveAttribute(
+          "href",
+          href,
+        );
+      });
+      fireEvent.click(screen.getByRole("link", { name: "back" }));
+      expect(routerPushMock).toHaveBeenCalledWith(href);
+    },
+  );
 });

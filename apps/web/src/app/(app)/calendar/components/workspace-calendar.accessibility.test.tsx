@@ -5,7 +5,8 @@ import type {
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { TASKS_RETURN_PATH_SESSION_KEY } from "@/app/tasks/components/task-navigation";
 
 const pushMock = vi.hoisted(() => vi.fn());
 const openCreateTaskModalMock = vi.hoisted(() => vi.fn());
@@ -91,6 +92,11 @@ function renderCalendar(view: "month" | "week" | "agenda") {
 }
 
 describe("WorkspaceCalendar accessibility", () => {
+  afterEach(() => {
+    window.sessionStorage.clear();
+    window.history.replaceState(null, "", "/");
+  });
+
   it.each(
     (["month", "week", "agenda"] as const).flatMap((view) => [
       { key: "Enter", view },
@@ -136,6 +142,7 @@ describe("WorkspaceCalendar accessibility", () => {
 
   it("opens a released Run's Task from its one accessible control", async () => {
     const user = userEvent.setup();
+    window.history.replaceState(null, "", "/calendar?timezone=UTC&view=month");
     const { container } = render(
       <NuqsTestingAdapter searchParams="?timezone=UTC&view=month">
         <WorkspaceCalendar
@@ -167,7 +174,70 @@ describe("WorkspaceCalendar accessibility", () => {
 
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     expect(pushMock).toHaveBeenCalledWith("/tasks/task-1");
+    // The task's Back returns to this view.
+    expect(window.sessionStorage.getItem(TASKS_RETURN_PATH_SESSION_KEY)).toBe(
+      "/calendar?timezone=UTC&view=month",
+    );
   });
+
+  it("schedules a task from a labelled toolbar button, by keyboard", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC&view=week">
+        <WorkspaceCalendar
+          initialDate="2030-01-02"
+          items={[]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+    const fab = container.querySelector("[data-list-mobile-create-fab]");
+    const button = screen
+      .getAllByRole("button", { name: "create.fab" })
+      .find((candidate) => !fab?.contains(candidate));
+
+    expect(button).toHaveClass("max-md:hidden");
+    button?.focus();
+    await user.keyboard("{Enter}");
+
+    expect(openCreateTaskModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runAt: expect.objectContaining({ timezone: "UTC" }),
+      }),
+    );
+  });
+
+  it.each([
+    { search: "", empty: ["empty.title", "empty.hint", "empty.createHint"] },
+    { search: "&status=READY", empty: ["empty.filtered"] },
+    { search: "&types=tasks", empty: ["empty.filtered"] },
+  ])(
+    "tells an empty week from a filtered one ($search)",
+    ({ search, empty }) => {
+      render(
+        <NuqsTestingAdapter searchParams={`?timezone=UTC&view=week${search}`}>
+          <WorkspaceCalendar
+            initialDate="2030-01-02"
+            items={[]}
+            sources={SOURCES}
+          />
+        </NuqsTestingAdapter>,
+      );
+
+      for (const key of [
+        "empty.title",
+        "empty.hint",
+        "empty.createHint",
+        "empty.filtered",
+      ]) {
+        if (empty.includes(key)) {
+          expect(screen.getByText(key)).toBeInTheDocument();
+        } else {
+          expect(screen.queryByText(key)).not.toBeInTheDocument();
+        }
+      }
+    },
+  );
 
   it("offers the Run views and leaves Task Schedules to /schedules", () => {
     renderCalendar("month");

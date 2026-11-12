@@ -37,4 +37,40 @@ describe("BackToTasksButton", () => {
 
     expect(routerPushMock).toHaveBeenCalledWith("/tasks?view=list");
   });
+
+  it("goes back to the Calendar a task was opened from, by name", async () => {
+    window.sessionStorage.setItem(
+      TASKS_RETURN_PATH_SESSION_KEY,
+      "/calendar?date=2026-11-19&view=week",
+    );
+
+    render(
+      <BackToTasksButton
+        label="Back to tasks"
+        calendarLabel="Back to calendar"
+      />,
+    );
+
+    const button = await screen.findByRole("button", {
+      name: "Back to calendar",
+    });
+    fireEvent.click(button);
+
+    expect(routerPushMock).toHaveBeenCalledWith(
+      "/calendar?date=2026-11-19&view=week",
+    );
+  });
+
+  it("keeps a page without a Calendar label on the board", async () => {
+    window.sessionStorage.setItem(
+      TASKS_RETURN_PATH_SESSION_KEY,
+      "/calendar?view=week",
+    );
+
+    render(<BackToTasksButton label="Back" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Back" }));
+
+    expect(routerPushMock).toHaveBeenCalledWith("/tasks");
+  });
 });

@@ -171,6 +171,7 @@ export async function TaskDetailView({
                   : undefined
               }
               backLabel={t("back")}
+              calendarBackLabel={t("backToCalendar")}
               parentLink={
                 <>
                   {parentTask ? (
@@ -517,6 +518,7 @@ async function TaskMetadataSection({
           selectableStatuses: task.selectableStatuses,
           organization: task.organization,
           assignee: task.assignee,
+          runAt: task.runAt?.toISOString() ?? null,
         }}
         project={project ? { id: project.id, name: project.name } : null}
         schedule={
@@ -535,6 +537,7 @@ async function TaskMetadataSection({
           project: t("project"),
           noProject: t("noProject"),
           schedule: t("schedule"),
+          startsAt: tTasks("RunAt.title"),
           assignee: t("assignee"),
           noAssignee: t("noAssignee"),
           memberFallback: t("memberFallback"),

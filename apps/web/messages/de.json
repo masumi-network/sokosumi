@@ -1816,6 +1816,7 @@
       },
       "Detail": {
         "back": "Zurück zu Tasks",
+        "backToCalendar": "Zurück zum Kalender",
         "privateBadge": "Privat",
         "visibility": "Sichtbarkeit",
         "parentTask": "Übergeordnet:",
@@ -3740,10 +3741,10 @@
           "Image": {
             "width": "Breite",
             "widths": {
-              "100": "Volle Breite",
-              "75": "Drei Viertel",
+              "25": "Viertel",
               "50": "Halb",
-              "25": "Viertel"
+              "75": "Drei Viertel",
+              "100": "Volle Breite"
             },
             "align": "Ausrichtung",
             "aligns": {
@@ -10438,7 +10439,10 @@
         "showing": "Zeiten in {zone}"
       },
       "empty": {
-        "title": "Nichts Geplantes entspricht diesen Filtern.",
+        "title": "{view, select, month {Diesen Monat ist nichts geplant} week {Diese Woche ist nichts geplant} other {Nichts steht an}}",
+        "filtered": "Nichts Geplantes entspricht diesen Filtern.",
+        "hint": "Tasks mit Startzeit, Läufe von Zeitplänen und datierte Beiträge erscheinen hier.",
+        "createHint": "{view, select, agenda {Mit „Task planen“ fügst du einen hinzu.} other {Mit „Task planen“ oder einem Klick auf einen Tag startest du an diesem Datum.}}",
         "socialOnly": "In diesem Zeitraum sind keine Social-Beiträge geplant."
       },
       "schedules": {

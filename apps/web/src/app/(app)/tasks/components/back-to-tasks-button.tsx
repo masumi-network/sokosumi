@@ -5,23 +5,32 @@ import { useRouter } from "next/navigation";
 
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
-import { getStoredTasksReturnPath } from "./task-navigation";
+import {
+  getStoredTasksReturnPath,
+  isCalendarReturnPath,
+} from "./task-navigation";
 import { useTasksReturnPath } from "./use-tasks-return-path";
 
 interface BackToTasksButtonProps {
   label: string;
+  /** Set on a task's own page: a task opened from the Calendar goes back there. */
+  calendarLabel?: string;
 }
 
-export function BackToTasksButton({ label }: BackToTasksButtonProps) {
+export function BackToTasksButton({
+  label,
+  calendarLabel,
+}: BackToTasksButtonProps) {
   const router = useRouter();
-  const returnPath = useTasksReturnPath();
+  const allowCalendar = calendarLabel !== undefined;
+  const returnPath = useTasksReturnPath({ allowCalendar });
 
   useMountEffect(() => {
-    router.prefetch(getStoredTasksReturnPath());
+    router.prefetch(getStoredTasksReturnPath({ allowCalendar }));
   });
 
   const handleNavigate = () => {
-    router.push(getStoredTasksReturnPath());
+    router.push(getStoredTasksReturnPath({ allowCalendar }));
   };
 
   return (
@@ -33,7 +42,11 @@ export function BackToTasksButton({ label }: BackToTasksButtonProps) {
       onFocus={() => router.prefetch(returnPath)}
     >
       <ArrowLeft className="size-4" />
-      <span>{label}</span>
+      <span>
+        {calendarLabel && isCalendarReturnPath(returnPath)
+          ? calendarLabel
+          : label}
+      </span>
     </button>
   );
 }
