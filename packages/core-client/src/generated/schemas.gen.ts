@@ -13344,6 +13344,94 @@ export const ChatResultOutputSchema = {
             maxLength: 2000,
             pattern: '^\\/(?![\\/\\\\])[^\\\\\\r\\n]*$',
             default: null
+        },
+        transformation: {
+            type: 'object',
+            properties: {
+                provider: {
+                    type: 'string',
+                    enum: [
+                        'x',
+                        'linkedin',
+                        'facebook',
+                        'instagram',
+                        'tiktok',
+                        'youtube'
+                    ]
+                },
+                code: {
+                    type: 'string',
+                    enum: [
+                        'pad_4_5',
+                        'pad_1_91_1',
+                        'resize',
+                        'jpeg',
+                        'srgb',
+                        'smaller_file'
+                    ]
+                },
+                notice: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 500
+                },
+                original: {
+                    type: 'object',
+                    properties: {
+                        pathname: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'drive/users/user_123/launch.png',
+                            description: 'Drive blob pathname; must belong to the active workspace'
+                        },
+                        fileUrl: {
+                            type: 'string',
+                            format: 'uri',
+                            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
+                            description: 'Public Blob URL of the Drive file'
+                        },
+                        name: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'launch.png'
+                        },
+                        size: {
+                            type: 'integer',
+                            minimum: 0,
+                            example: 240000
+                        },
+                        mimeType: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'image/png'
+                        },
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'image',
+                                'gif',
+                                'video'
+                            ],
+                            example: 'image'
+                        }
+                    },
+                    required: [
+                        'pathname',
+                        'fileUrl',
+                        'name',
+                        'size',
+                        'mimeType',
+                        'kind'
+                    ]
+                }
+            },
+            required: [
+                'provider',
+                'code',
+                'notice',
+                'original'
+            ],
+            description: 'Required provider adaptation, with the original source retained.'
         }
     },
     required: [
@@ -38107,6 +38195,94 @@ export const SocialPostMediaRefSchema = {
                 'video'
             ],
             example: 'image'
+        },
+        transformation: {
+            type: 'object',
+            properties: {
+                provider: {
+                    type: 'string',
+                    enum: [
+                        'x',
+                        'linkedin',
+                        'facebook',
+                        'instagram',
+                        'tiktok',
+                        'youtube'
+                    ]
+                },
+                code: {
+                    type: 'string',
+                    enum: [
+                        'pad_4_5',
+                        'pad_1_91_1',
+                        'resize',
+                        'jpeg',
+                        'srgb',
+                        'smaller_file'
+                    ]
+                },
+                notice: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 500
+                },
+                original: {
+                    type: 'object',
+                    properties: {
+                        pathname: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'drive/users/user_123/launch.png',
+                            description: 'Drive blob pathname; must belong to the active workspace'
+                        },
+                        fileUrl: {
+                            type: 'string',
+                            format: 'uri',
+                            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
+                            description: 'Public Blob URL of the Drive file'
+                        },
+                        name: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'launch.png'
+                        },
+                        size: {
+                            type: 'integer',
+                            minimum: 0,
+                            example: 240000
+                        },
+                        mimeType: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'image/png'
+                        },
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'image',
+                                'gif',
+                                'video'
+                            ],
+                            example: 'image'
+                        }
+                    },
+                    required: [
+                        'pathname',
+                        'fileUrl',
+                        'name',
+                        'size',
+                        'mimeType',
+                        'kind'
+                    ]
+                }
+            },
+            required: [
+                'provider',
+                'code',
+                'notice',
+                'original'
+            ],
+            description: 'Required provider adaptation, with the original source retained.'
         }
     },
     required: [
