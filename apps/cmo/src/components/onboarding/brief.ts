@@ -83,7 +83,8 @@ export function briefStage(overview: CmoOverview, local: BriefLocal): StageId {
   if (!strategy || strategy.calendar.length === 0 || planWriting(overview)) {
     return "plan";
   }
-  return "briefing";
+  // Approval belongs to Go live: the briefing ends with its last step.
+  return briefingLeft(overview, local).length > 0 ? "briefing" : "golive";
 }
 
 export interface StageMark {
@@ -239,51 +240,60 @@ export function briefAsks(overview: CmoOverview, local: BriefLocal): Ask[] {
     return running && local.slow !== "stuck" ? [] : [{ kind: "plan-retry" }];
   }
 
+  const approve: Ask = {
+    kind: "approve",
+    canApprove: overview.viewerCanApprove,
+  };
   if (stage === "briefing") {
     // The next question waits until a change lands.
     if (strategyRunning(overview)) return [];
-    // Once a plan was approved, the briefing is over on every device: a
-    // newer draft only waits for its approval, after any no is fitted.
-    if (overview.approvedStrategy) {
-      return planUnfitted(overview)
-        ? [{ kind: "plan-apply" }]
-        : [{ kind: "approve", canApprove: overview.viewerCanApprove }];
-    }
-    const strategy = overview.strategy as Strategy;
-    const asks: Ask[] = [];
-    if (!local.briefed.includes("plan")) asks.push({ kind: "briefing-plan" });
-    if (!local.briefed.includes("pace")) asks.push({ kind: "briefing-week" });
-    const questions = strategy.questions ?? [];
-    const open = local.briefed.includes("checks")
-      ? []
-      : questions.filter((question) => !question.answer);
-    for (const question of open) {
-      asks.push({
-        kind: "plan-question",
-        id: question.id,
-        index: questions.indexOf(question),
-        total: questions.length,
-      });
-    }
-    // All the nos become one patch once every check is answered; approval
-    // waits for it.
-    const unfitted = planUnfitted(overview);
-    if (unfitted && open.length === 0) asks.push({ kind: "plan-apply" });
-    if (
-      briefSteps(overview).includes("ads") &&
-      !local.briefed.includes("ads") &&
-      !strategy.ads?.setByOwner
-    ) {
-      asks.push({ kind: "briefing-ads" });
-    }
-    if (!unfitted) {
-      asks.push({ kind: "approve", canApprove: overview.viewerCanApprove });
-    }
-    return asks;
+    // Approval is Go live's question; it counts here as the one after.
+    const left = briefingLeft(overview, local);
+    return planUnfitted(overview) ? left : [...left, approve];
   }
 
-  if (stage === "golive") return [{ kind: "connect" }];
+  if (stage === "golive") {
+    if (strategyApproved(overview)) return [{ kind: "connect" }];
+    return strategyRunning(overview) ? [] : [approve];
+  }
   return [];
+}
+
+/**
+ * What the briefing still needs: the plan, week one, the plan's checks (and
+ * fitting the nos), then the ads. Once a plan was approved, the briefing is
+ * over on every device: a newer draft only fits its nos.
+ */
+function briefingLeft(overview: CmoOverview, local: BriefLocal): Ask[] {
+  const unfitted = planUnfitted(overview);
+  if (overview.approvedStrategy)
+    return unfitted ? [{ kind: "plan-apply" }] : [];
+  const strategy = overview.strategy as Strategy;
+  const asks: Ask[] = [];
+  if (!local.briefed.includes("plan")) asks.push({ kind: "briefing-plan" });
+  if (!local.briefed.includes("pace")) asks.push({ kind: "briefing-week" });
+  const questions = strategy.questions ?? [];
+  const open = local.briefed.includes("checks")
+    ? []
+    : questions.filter((question) => !question.answer);
+  for (const question of open) {
+    asks.push({
+      kind: "plan-question",
+      id: question.id,
+      index: questions.indexOf(question),
+      total: questions.length,
+    });
+  }
+  // All the nos become one patch once every check is answered.
+  if (unfitted && open.length === 0) asks.push({ kind: "plan-apply" });
+  if (
+    briefSteps(overview).includes("ads") &&
+    !local.briefed.includes("ads") &&
+    !strategy.ads?.setByOwner
+  ) {
+    asks.push({ kind: "briefing-ads" });
+  }
+  return asks;
 }
 
 /** The working bar: Core's own count, what Cuso does, what it means for you. */

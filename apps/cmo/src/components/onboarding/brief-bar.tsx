@@ -96,9 +96,11 @@ export function BriefBar({ marks, pose, mode }: BriefBarProps) {
   // Focus moves to the question when the chat opens or moves on.
   useEffect(() => {
     if (!askKey) return;
+    // A heading, focused for screen readers: no ring, since nothing on it
+    // can be pressed (the guards keep outlines; the browser skips this one).
     chat.current
       ?.querySelector<HTMLElement>("[data-brief-question]")
-      ?.focus({ preventScroll: true });
+      ?.focus({ preventScroll: true, focusVisible: false } as FocusOptions);
   }, [askKey]);
   // Esc folds the chat away, from inside the chat only: a sheet on the page
   // closes on its own Esc, and a field with words in it keeps them.

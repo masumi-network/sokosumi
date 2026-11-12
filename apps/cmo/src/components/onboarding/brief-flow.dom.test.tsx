@@ -575,6 +575,12 @@ describe("briefing", () => {
       briefed: ["plan", "pace"],
     });
     expect(text()).toContain("Your month, in one table");
+    // Approval is Go live's: Briefing is done and its steps are gone.
+    expect(
+      container.querySelector('.brief-timeline [aria-current="step"]')
+        ?.textContent,
+    ).toContain("6 Go live");
+    expect(container.querySelector(".brief-steps-row")).toBeNull();
     await press("Approve plan");
     expect(approveStrategy).toHaveBeenCalled();
     expect(text()).toContain("Connect at least one place week one posts to.");

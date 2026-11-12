@@ -85,6 +85,57 @@ describe("briefStage", () => {
     ).toBe("briefing");
   });
 
+  it("asks for the approval on Go live once the briefing is done", () => {
+    const done = local({ briefed: ["plan", "pace"] });
+    expect(briefStage(draft(), local())).toBe("briefing");
+    expect(briefStage(draft(), done)).toBe("golive");
+    expect(
+      stageMarks(draft(), done).map((mark) => [mark.id, mark.state]),
+    ).toEqual([
+      ["website", "done"],
+      ["research", "done"],
+      ["brand", "done"],
+      ["plan", "done"],
+      ["briefing", "done"],
+      ["golive", "now"],
+      ["month", "next"],
+    ]);
+    expect(briefAsks(draft(), done)).toEqual([
+      { kind: "approve", canApprove: true },
+    ]);
+    // A change on its way holds the approval until it lands.
+    expect(
+      briefAsks(
+        draft({ work: work("strategy", { change: "patch", steps: [] }) }),
+        done,
+      ),
+    ).toEqual([]);
+  });
+
+  it("goes straight to Go live for a newer draft after an approval, unless a no needs fitting", () => {
+    expect(briefStage(draft({ approvedStrategy: strategy }), local())).toBe(
+      "golive",
+    );
+    const unfitted = {
+      ...strategy,
+      changes: [],
+      questions: [
+        {
+          id: "pq",
+          question: "Ship monthly?",
+          statement: "They ship.",
+          answer: "no" as const,
+        },
+      ],
+    };
+    expect(
+      briefStage(
+        draft({ strategy: unfitted, approvedStrategy: strategy }),
+        local(),
+      ),
+    ).toBe("briefing");
+  });
+
   it("goes live once approved, and is the month once launched", () => {
     expect(briefStage(draft(approved), local())).toBe("golive");
     expect(briefStage(draft(approved), local({ launched: true }))).toBe(

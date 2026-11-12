@@ -20,7 +20,11 @@
   width: 100%;
   max-width: 960px;
   margin: 0 auto;
-  padding: 32px 32px 48px;
+  /*
+   * The bar is sticky in the page's flow, so the page always scrolls clear
+   * of it; the bottom padding clears Cuso's half above its line, with room.
+   */
+  padding: 32px 32px 80px;
 }
 
 /* ── One result ── */
@@ -510,11 +514,6 @@ button.brief-week-row:hover .brief-week-text b {
   box-shadow: var(--shadow-hard);
 }
 
-.brief-question:focus-visible {
-  outline: 2px solid var(--foreground);
-  outline-offset: 2px;
-}
-
 .brief-question {
   margin: 0;
   font-size: 1rem;
@@ -646,7 +645,7 @@ button.brief-week-row:hover .brief-week-text b {
 /* ── Phone: the timeline folds into one line, the chat takes the bottom half ── */
 @media (max-width: 767px) {
   .brief-main {
-    padding: 16px 16px 32px;
+    padding: 16px 16px 56px;
     gap: 16px;
   }
 

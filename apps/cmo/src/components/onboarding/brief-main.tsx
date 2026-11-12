@@ -16,6 +16,7 @@ import {
 import { channelLabel, formatDay, planWeeks } from "../../lib/calendar";
 import { channelKey } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
+import { strategyApproved } from "../../lib/strategy";
 import { VIEW_PATHS } from "../../lib/views";
 import { firstSentence, hostOf } from "../brand-profile";
 import { businessDisplayName } from "../business-mark";
@@ -951,23 +952,26 @@ export function BriefMain({
               <AdsDetail strategy={strategy} />
             </SeeMore>
           </>
-        ) : step === "checks" ? (
-          weekView("Week one", false)
         ) : (
-          <>
-            <Result label="Your month, in one table">
-              <MonthTable strategy={strategy} />
-            </Result>
-            <Result label="When you approve">
-              <p>
-                I start making all {strategy.calendar.length} pieces: words
-                first, then pictures. Nothing posts on a network you haven't
-                connected. You can change or stop any piece later.
-              </p>
-            </Result>
-            <SeeMore label="the full calendar">{monthDetail}</SeeMore>
-          </>
+          weekView("Week one", false)
         )}
+      </>
+    );
+  } else if (stage === "golive" && strategy && !strategyApproved(overview)) {
+    // The one gate: the whole month in one table, and what approval starts.
+    body = (
+      <>
+        <Result label="Your month, in one table">
+          <MonthTable strategy={strategy} />
+        </Result>
+        <Result label="When you approve">
+          <p>
+            I start making all {strategy.calendar.length} pieces: words first,
+            then pictures. Nothing posts on a network you haven't connected. You
+            can change or stop any piece later.
+          </p>
+        </Result>
+        <SeeMore label="the full calendar">{monthDetail}</SeeMore>
       </>
     );
   } else if (stage === "golive") {
