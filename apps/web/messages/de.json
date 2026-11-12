@@ -11629,22 +11629,23 @@
           "outOfReach": "Außer Reichweite",
           "notDetermined": "Reichweite nicht bestimmt"
         },
+        "groups": "{first, select, true {{count, plural, one {# Gruppe ähnlicher Keywords} other {# Gruppen ähnlicher Keywords}}} other {{count, plural, one {# Gruppe} other {# Gruppen}}}}",
         "reachCount": {
-          "ranks": "{count, plural, one {# Keyword-Gruppe rankt bereits} other {# Keyword-Gruppen ranken bereits}}",
-          "inReach": "{count, plural, one {# Keyword-Gruppe ist in Reichweite} other {# Keyword-Gruppen sind in Reichweite}}",
-          "open": "{count, plural, one {# Keyword-Gruppe hat ein Forum in den Ergebnissen} other {# Keyword-Gruppen haben ein Forum in den Ergebnissen}}",
-          "outOfReach": "{count, plural, one {# Keyword-Gruppe ist außer Reichweite} other {# Keyword-Gruppen sind außer Reichweite}}",
-          "notDetermined": "{count, plural, one {# Keyword-Gruppe hat keine bekannte Reichweite} other {# Keyword-Gruppen haben keine bekannte Reichweite}}"
+          "ranks": "{groups} {count, plural, one {rankt} other {ranken}} bereits",
+          "inReach": "{groups} {count, plural, one {ist} other {sind}} in Reichweite",
+          "open": "{groups} {count, plural, one {hat} other {haben}} ein Forum in den Ergebnissen",
+          "outOfReach": "{groups} {count, plural, one {ist} other {sind}} außer Reichweite",
+          "notDetermined": "{groups} {count, plural, one {hat} other {haben}} keine bekannte Reichweite"
         },
-        "falling": "{count, plural, one {# Keyword-Gruppe verliert Suchen} other {# Keyword-Gruppen verlieren Suchen}}",
+        "moving": "{count, plural, one {Die Suchen ändern sich bei # Gruppe} other {Die Suchen ändern sich bei # Gruppen}}",
         "reachHelp": {
-          "ranks": "Eine Keyword-Gruppe rankt, wenn eine Seite der Website in den Ergebnissen oder im Featured Snippet steht.",
-          "inReach": "Eine Keyword-Gruppe ist in Reichweite, wenn die verweisenden Domains der Website nah an denen der schwächsten Top-10-Seite liegen, die das Audit zählen konnte.",
+          "ranks": "Eine Gruppe rankt, wenn eine Seite der Website in den Ergebnissen oder im Featured Snippet steht.",
+          "inReach": "Eine Gruppe ist in Reichweite, wenn die verweisenden Domains der Website nah an denen der schwächsten Top-10-Seite liegen, die das Audit zählen konnte.",
           "open": "Ein Forum in den Suchergebnissen ist ein Zeichen, dass die Ergebnisse für neue Seiten offen sind."
         },
         "trend": {
-          "falling": "Suchen fallen auf {recent} pro Monat",
-          "rising": "Suchen steigen auf {recent} pro Monat"
+          "falling": "Suchen fallen",
+          "rising": "Suchen steigen"
         },
         "targetType": {
           "appStore": "App Store",

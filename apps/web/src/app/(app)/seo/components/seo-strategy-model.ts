@@ -72,9 +72,9 @@ export function seoStrategyKey<Keys extends Record<string, string>>(
 
 /**
  * The reason in parts. The first sentence gives the result. For a verdict about a niche,
- * the last sentence names the niche. The clauses between them give one keyword's numbers each,
- * and the sentence about the groups left out is a line of its own.
- * Text in a form this does not know stays in the details, so nothing is lost.
+ * the last sentence names the niche. The clauses between them give the numbers of one keyword group whose
+ * searches fall or rise each: the page counts these lines, so its count and the lines under it agree.
+ * The sentence about the groups left out is a note, as is text in a form this does not know: nothing is lost.
  */
 export function seoStrategyReason({
   verdict,
@@ -91,11 +91,15 @@ export function seoStrategyReason({
   }
   const leftOut = LEFT_OUT.exec(rest)?.[0];
   if (leftOut) rest = rest.slice(0, -leftOut.length).trim();
+  const clauses = rest ? rest.split(NEXT_KEYWORD) : [];
+  // The clause of a keyword starts with the keyword in quotes.
+  const ofKeyword = (clause: string) => clause.startsWith('"');
   return {
     lead,
     niche,
-    details: [
-      ...(rest ? rest.split(NEXT_KEYWORD) : []),
+    moving: clauses.filter(ofKeyword),
+    notes: [
+      ...clauses.filter((clause) => !ofKeyword(clause)),
       ...(leftOut ? [leftOut] : []),
     ],
   };
@@ -125,8 +129,8 @@ export function seoStrategyGroupOf(strategy: Strategy) {
 }
 
 /**
- * What a keyword's group adds under the keyword: its reach, and the recent searches when they move.
- * The group's searches are those of its biggest keyword, so only that keyword shows them.
+ * What a keyword's group adds under the keyword: its reach, and the direction of its searches when they move.
+ * The group's searches are those of its biggest keyword, so only that keyword shows the direction.
  */
 export function seoKeywordDemand(
   group: SeoStrategyGroup | undefined,
@@ -141,14 +145,13 @@ export function seoKeywordDemand(
       : group.reach;
   const trend =
     normalizeQuery(keyword) === normalizeQuery(group.lead) &&
-    group.recent !== null &&
     (group.trend === "falling" || group.trend === "rising")
-      ? { direction: group.trend, recent: group.recent }
+      ? group.trend
       : null;
   return reach || trend ? { reach, trend } : null;
 }
 
-/** How many keyword groups each reach holds, most first, and how many lose searches. */
+/** How many keyword groups each reach holds, most first. */
 export function seoStrategyCounts(groups: SeoStrategyGroup[]) {
   const reaches = new Map<string, number>();
   for (const group of groups)
@@ -157,7 +160,6 @@ export function seoStrategyCounts(groups: SeoStrategyGroup[]) {
     reaches: [...reaches]
       .map(([reach, count]) => ({ reach, count }))
       .sort((a, b) => b.count - a.count),
-    falling: groups.filter((group) => group.trend === "falling").length,
   };
 }
 

@@ -3,7 +3,7 @@
 import type { ProjectSeoStrategy } from "@sokosumi/core-client";
 import { Check, Copy, WandSparkles } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { useClipboard } from "@/hooks/use-clipboard";
@@ -51,10 +51,17 @@ function useStrategyLabels() {
         : word;
     },
     // A count with its noun: "12" beside "In reach" did not say 12 of what.
-    reachCount: (word: string, count: number) => {
+    reachCount: (word: string, count: number, first: boolean) => {
       const key = seoStrategyKey(SEO_STRATEGY_REACHES, word);
       return key
-        ? t(`strategy.reachCount.${key}`, { count })
+        ? t(`strategy.reachCount.${key}`, {
+            count,
+            // The first count says what a group is ("groups of similar keywords"); the next ones say "groups".
+            groups: t("strategy.groups", {
+              count,
+              first: first ? "true" : "false",
+            }),
+          })
         : `${count} ${word}`;
     },
   };
@@ -104,6 +111,10 @@ export function SeoStrategyFold({
   if (!strategy) return null;
   const reason = seoStrategyReason(strategy);
   const counts = seoStrategyCounts(strategy.groups);
+  // The first count the page has words for says what a group is.
+  const firstCount = counts.reaches.findIndex(
+    ({ reach }) => seoStrategyKey(SEO_STRATEGY_REACHES, reach) !== null,
+  );
   return (
     <details className="px-2 text-sm">
       <SeoFoldSummary className="py-2.5">
@@ -116,14 +127,14 @@ export function SeoStrategyFold({
       </SeoFoldSummary>
       <div className="max-w-prose space-y-2 pb-2">
         {/* The counts lead: they are the reader's own words. The sentence of the audit follows them, quieter. */}
-        {counts.reaches.length ? (
+        {counts.reaches.length || reason.moving.length ? (
           <ul role="list" className="space-y-1.5">
-            {counts.reaches.map(({ reach, count }) => {
+            {counts.reaches.map(({ reach, count }, index) => {
               const key = seoStrategyKey(SEO_STRATEGY_REACHES, reach);
               return (
                 <li key={reach}>
                   <span className="tabular-nums">
-                    {labels.reachCount(reach, count)}
+                    {labels.reachCount(reach, count, index === firstCount)}
                   </span>
                   {/* What a count means stands with its count. As one paragraph after all counts, a sentence
                       stood far from its number. A reach that no count names gets no sentence. */}
@@ -135,9 +146,14 @@ export function SeoStrategyFold({
                 </li>
               );
             })}
-            {counts.falling ? (
-              <li className="tabular-nums">
-                {t("strategy.falling", { count: counts.falling })}
+            {reason.moving.length ? (
+              <li className="space-y-1">
+                {/* The count is the count of the audit's lines under it. One line can say "rises", so it counts
+                    the groups that move. After the sentence of the audit the lines read as a part of that sentence. */}
+                <span className="block tabular-nums">
+                  {t("strategy.moving", { count: reason.moving.length })}
+                </span>
+                <StrategyLines lines={reason.moving} />
               </li>
             ) : null}
           </ul>
@@ -151,15 +167,7 @@ export function SeoStrategyFold({
           {reason.lead}
         </p>
         {reason.niche ? <p className="break-words">{reason.niche}</p> : null}
-        {reason.details.length ? (
-          <ul className="text-muted-foreground list-disc space-y-1 ps-4">
-            {reason.details.map((line, index) => (
-              <li key={`${index}:${line}`} className="break-words">
-                {line}
-              </li>
-            ))}
-          </ul>
-        ) : null}
+        <StrategyLines lines={reason.notes} />
         {dated ? null : (
           <p className="text-muted-foreground">
             {/* The date is the link to the results of the check. */}
@@ -176,7 +184,24 @@ export function SeoStrategyFold({
   );
 }
 
-/** Under a keyword: the reach of its group, and the recent searches when they move. */
+/** Lines of the audit's reason: one per keyword, or a note. */
+function StrategyLines({ lines }: { lines: string[] }) {
+  if (!lines.length) return null;
+  return (
+    <ul className="text-muted-foreground list-disc space-y-1 ps-4">
+      {lines.map((line, index) => (
+        <li key={`${index}:${line}`} className="break-words">
+          {line}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * Under a keyword: the reach of its group, and the direction of its searches when they move.
+ * The recent number stood here over the row's own searches: two numbers with one name. The strategy line has it.
+ */
 export function SeoKeywordDemand({
   group,
   keyword,
@@ -185,17 +210,12 @@ export function SeoKeywordDemand({
   keyword: string;
 }) {
   const t = useTranslations("App.Seo");
-  const format = useFormatter();
   const labels = useStrategyLabels();
   const demand = seoKeywordDemand(group, keyword);
   if (!demand) return null;
   const parts = [
     demand.reach ? labels.reach(demand.reach) : null,
-    demand.trend
-      ? t(`strategy.trend.${demand.trend.direction}`, {
-          recent: format.number(demand.trend.recent),
-        })
-      : null,
+    demand.trend ? t(`strategy.trend.${demand.trend}`) : null,
   ].filter((part): part is string => part !== null);
   return (
     <p className="text-muted-foreground mt-1 text-xs">{parts.join(" · ")}</p>
@@ -430,7 +450,18 @@ export function SeoStrategyActions({
   afterFixes?: boolean;
 }) {
   const t = useTranslations("App.Seo");
-  const [expanded, setExpanded] = useState(false);
+  // The Agent row "8 actions from the keyword strategy" leads here: the reader sees the count the row named.
+  const { shownStrategy, setShownStrategy } = model;
+  // The list is open on its first paint then, so the group scrolls into view at its full height.
+  const [expanded, setExpanded] = useState(shownStrategy);
+  const group = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!shownStrategy) return;
+    setExpanded(true);
+    group.current?.scrollIntoView({ block: "start" });
+    group.current?.focus({ preventScroll: true });
+    setShownStrategy(false);
+  }, [shownStrategy, setShownStrategy]);
   const actions = model.data.strategy?.actions ?? [];
   if (!actions.length) return null;
   const visible = seoFoldCount(
@@ -438,30 +469,40 @@ export function SeoStrategyActions({
     afterFixes ? SEO_STRATEGY_ACTIONS_AFTER_FIXES : undefined,
   );
   return (
-    // The title says where the actions come from: a sentence under it said the same.
-    <SeoSection title={t("strategy.actions.title")}>
-      <ul role="list" className={SEO_ROW_LIST_CLASS}>
-        {(expanded ? actions : actions.slice(0, visible)).map(
-          (action, index) => (
-            <li key={`${index}:${action.title}`}>
-              <StrategyActionCard
-                action={action}
-                model={model}
-                startOpen={actions.length === 1}
-              />
-            </li>
-          ),
-        )}
-      </ul>
-      {actions.length > visible ? (
-        <SeoShowMore
-          more={t("strategy.actions.more", {
-            count: actions.length - visible,
-          })}
-          expanded={expanded}
-          onToggle={() => setExpanded((open) => !open)}
-        />
-      ) : null}
-    </SeoSection>
+    <div
+      ref={group}
+      // It takes the focus after the Agent row, so a screen reader names it.
+      role="group"
+      aria-label={t("strategy.actions.title")}
+      tabIndex={-1}
+      // On a phone the app header lies over the top of the scroll area.
+      className="focus-visible:outline-ring scroll-mt-20 rounded-xl focus-visible:outline-2 md:scroll-mt-4"
+    >
+      {/* The title says where the actions come from: a sentence under it said the same. */}
+      <SeoSection title={t("strategy.actions.title")}>
+        <ul role="list" className={SEO_ROW_LIST_CLASS}>
+          {(expanded ? actions : actions.slice(0, visible)).map(
+            (action, index) => (
+              <li key={`${index}:${action.title}`}>
+                <StrategyActionCard
+                  action={action}
+                  model={model}
+                  startOpen={actions.length === 1}
+                />
+              </li>
+            ),
+          )}
+        </ul>
+        {actions.length > visible ? (
+          <SeoShowMore
+            more={t("strategy.actions.more", {
+              count: actions.length - visible,
+            })}
+            expanded={expanded}
+            onToggle={() => setExpanded((open) => !open)}
+          />
+        ) : null}
+      </SeoSection>
+    </div>
   );
 }

@@ -581,8 +581,6 @@ describe("Keywords after a check", () => {
       },
     ];
     workspace.strategy = seoTestStrategy();
-    // A trend without its recent searches has no number to show.
-    workspace.strategy.groups[2].trend = "rising";
     const { unmount } = renderWorkspace(workspace);
     const verdict = screen.getByTestId("seo-strategy-verdict");
     // The closed line is the verdict alone: its reason stands in the open part.
@@ -601,10 +599,12 @@ describe("Keywords after a check", () => {
         "160 of 160 monthly searches of the keyword groups with a known reach lie in groups the site ranks for or can reach.",
       ),
     ).toBeVisible();
-    // A count names what it counts.
-    expect(screen.getByText("1 keyword group is in reach")).toBeVisible();
+    // The first count says what a group is; the next ones say "group".
     expect(
-      screen.getByText("1 keyword group has a forum in the results"),
+      screen.getByText("1 group of similar keywords is in reach"),
+    ).toBeVisible();
+    expect(
+      screen.getByText("1 group has a forum in the results"),
     ).toBeVisible();
     // Each keyword's numbers are one line of the folded details.
     expect(
@@ -615,24 +615,30 @@ describe("Keywords after a check", () => {
     expect(
       screen.getByText(/^1 of 4 keyword groups are left out/).tagName,
     ).toBe("LI");
-    expect(screen.getByText("1 keyword group loses searches")).toBeVisible();
+    // The lines about the keywords whose searches move stand under the count of those groups.
+    const moving = screen
+      .getByText("Searches change for 2 groups")
+      .closest("li");
+    expect(moving).toHaveTextContent(/"battery app" falls to 47/);
+    expect(moving).toHaveTextContent(/"charge timer" rises to 60/);
+    expect(moving).not.toHaveTextContent(/left out/);
     // The help says what a count in view means, in the line of that count.
     expect(
-      screen
-        .getByText("1 keyword group has a forum in the results")
-        .closest("li"),
+      screen.getByText("1 group has a forum in the results").closest("li"),
     ).toHaveTextContent(/A forum in the search results is a sign/);
     expect(
-      screen.getByText("1 keyword group is in reach").closest("li"),
+      screen.getByText("1 group of similar keywords is in reach").closest("li"),
     ).not.toHaveTextContent(/forum/);
     const cell = (keyword: string) => {
       const found = screen.getByText(keyword).closest("td");
       if (!found) throw new Error(`no cell for ${keyword}`);
       return found;
     };
+    // One number per row: the direction alone, beside the row's own searches.
     expect(cell("battery app")).toHaveTextContent(
-      "In reach · Searches falling to 47 a month",
+      "In reach · Searches are falling",
     );
+    expect(cell("battery app")).not.toHaveTextContent("47");
     expect(cell("Battery apps")).toHaveTextContent("In reach");
     expect(cell("Battery apps")).not.toHaveTextContent("Searches");
     // A rank shows as a position, and flat searches say nothing.
@@ -653,11 +659,9 @@ describe("Keywords after a check", () => {
       (group) => group.reach === "in reach",
     );
     const inReach = renderWorkspace(workspace);
-    expect(
-      screen.getByText(/A keyword group is in reach when/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/A group is in reach when/)).toBeInTheDocument();
     expect(screen.queryByText(/A forum in the search results/)).toBeNull();
-    expect(screen.queryByText(/A keyword group ranks when/)).toBeNull();
+    expect(screen.queryByText(/A group ranks when/)).toBeNull();
     inReach.unmount();
     // A verdict word from a newer SEO bot shows as it came.
     workspace.strategy = {

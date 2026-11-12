@@ -194,7 +194,7 @@ function SeoAgentPanel({
         />
       )
     ) : step.kind === "strategy" ? (
-      <SeoActionsLinkRow key="strategy" model={model}>
+      <SeoActionsLinkRow key="strategy" model={model} strategy>
         {t("agent.steps.strategy", { count: step.count })}
       </SeoActionsLinkRow>
     ) : (

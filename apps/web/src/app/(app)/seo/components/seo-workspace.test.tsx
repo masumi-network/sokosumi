@@ -26,6 +26,7 @@ import {
   SEO_TEST_PROJECT,
   seoTestCheckedAudit,
   seoTestMetric,
+  seoTestObservation,
   seoTestStrategy,
   seoTestWorkspace,
 } from "./seo-test-fixture";
@@ -4180,6 +4181,25 @@ describe("SEO workspace integration", () => {
       .click(screen.getByRole("button", { name: "Show 2 more actions" }));
     expect(rows()).toHaveLength(5);
     second.unmount();
+    // The Agent row names the count of the strategy actions: it lands on their group, with every row in view.
+    // With a finished check the Agent tab shows its steps.
+    workspace.observations = [seoTestObservation(workspace)];
+    const third = renderWorkspace(workspace, "?tab=agent");
+    await userEvent.setup().click(
+      await screen.findByRole("button", {
+        name: "5 actions from the keyword strategy",
+      }),
+    );
+    const group = await screen.findByRole("heading", {
+      name: "Actions from the keyword strategy",
+    });
+    await waitFor(() => expect(rows()).toHaveLength(5));
+    await waitFor(() => expect(group.closest("[role='group']")).toHaveFocus());
+    // The landing is for one press: opened by its tab again, the group starts with three rows.
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Agent" }));
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Actions" }));
+    await waitFor(() => expect(rows()).toHaveLength(3));
+    third.unmount();
     // Alone on the tab the list is the page: it shows every row.
     workspace.actions = [];
     renderWorkspace(workspace, "?tab=actions");

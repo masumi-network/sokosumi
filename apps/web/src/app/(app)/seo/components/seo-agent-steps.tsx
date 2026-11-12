@@ -209,9 +209,12 @@ export function SeoStepRow({
  */
 export function SeoActionsLinkRow({
   model,
+  strategy = false,
   children,
 }: {
   model: SeoWorkspaceModel;
+  /** The row counts the strategy actions: it leads to their group, with every row in view. */
+  strategy?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -223,7 +226,8 @@ export function SeoActionsLinkRow({
           "text-muted-foreground px-4 py-2.5 text-sm",
         )}
         onClick={() => {
-          void model.setFilters({ tab: "actions" });
+          if (strategy) model.showStrategy();
+          else void model.setFilters({ tab: "actions" });
         }}
       >
         <span className="min-w-0 flex-1">{children}</span>

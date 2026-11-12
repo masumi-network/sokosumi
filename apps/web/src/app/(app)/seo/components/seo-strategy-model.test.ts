@@ -31,16 +31,23 @@ describe("SEO strategy results", () => {
     expect(seoStrategyReason(seoTestStrategy())).toEqual({
       lead: "160 of 160 monthly searches of the keyword groups with a known reach lie in groups the site ranks for or can reach.",
       niche: null,
-      details: [
+      moving: [
         '"battery app" falls to 47 searches a month in the last 3 months, against a 12-month mean of 140',
         '"charge timer" rises to 60 searches a month in the last 3 months, against a 12-month mean of 20.',
+      ],
+      notes: [
         "1 of 4 keyword groups are left out: no search volume, or no referring-domains count to compare.",
       ],
     });
     // A full stop inside a number ends no sentence.
     expect(
       seoStrategyReason({ verdict: "keep", why: "Only 3.5 searches a month" }),
-    ).toEqual({ lead: "Only 3.5 searches a month", niche: null, details: [] });
+    ).toEqual({
+      lead: "Only 3.5 searches a month",
+      niche: null,
+      moving: [],
+      notes: [],
+    });
   });
 
   it("shows the niche sentence of a niche verdict, which the bot writes last", () => {
@@ -57,37 +64,37 @@ describe("SEO strategy results", () => {
     ).toEqual({
       lead,
       niche,
-      details: [
+      moving: [
         // A keyword with "; " stays in one line.
         '"a; z" falls to 4 searches a month',
         '"b" rises to 9 searches a month.',
-        leftOut,
       ],
+      notes: [leftOut],
     });
     // A niche name or keyword with a full stop stays whole.
     const market =
       'The near market "U.S. freelancers" has 90 monthly searches for "coconut vs. istat", and the site can reach it.';
     expect(
       seoStrategyReason({ verdict: "move", why: `${lead} ${market}` }),
-    ).toEqual({ lead, niche: market, details: [] });
+    ).toEqual({ lead, niche: market, moving: [], notes: [] });
     const none =
       "None of the 4 niche candidates has 50 or more monthly searches in the site's reach.";
     expect(
       seoStrategyReason({ verdict: "no fit", why: `${lead} ${none}` }),
-    ).toEqual({ lead, niche: none, details: [] });
+    ).toEqual({ lead, niche: none, moving: [], notes: [] });
     // A niche name that starts like another verdict's sentence does not move the split.
     const odd =
       'The narrower niche "None of the above tools" has 320 monthly searches for "x", and the site can reach it.';
     expect(
       seoStrategyReason({ verdict: "narrow", why: `${lead} ${odd}` }),
-    ).toEqual({ lead, niche: odd, details: [] });
-    // A last sentence in a form this does not know stays in the details.
+    ).toEqual({ lead, niche: odd, moving: [], notes: [] });
+    // A last sentence in a form this does not know is a note: it is no line of a keyword.
     expect(
       seoStrategyReason({ verdict: "move", why: `${lead} Try video.` }),
-    ).toEqual({ lead, niche: null, details: ["Try video."] });
+    ).toEqual({ lead, niche: null, moving: [], notes: ["Try video."] });
     expect(
       seoStrategyReason({ verdict: "narrow", why: `${lead} ${niche}` }),
-    ).toEqual({ lead, niche, details: [] });
+    ).toEqual({ lead, niche, moving: [], notes: [] });
     // The same text under another verdict has no niche sentence.
     expect(
       seoStrategyReason({ verdict: "keep", why: `${lead} ${niche}` }).niche,
@@ -141,7 +148,7 @@ describe("SEO strategy results", () => {
     const [falling, ranks, open] = seoTestStrategy().groups;
     expect(seoKeywordDemand(falling, " Battery  App")).toEqual({
       reach: "in reach",
-      trend: { direction: "falling", recent: 47 },
+      trend: "falling",
     });
     // The searches are those of the group's biggest keyword. Another keyword of the group has its own.
     expect(seoKeywordDemand(falling, "battery health checker")).toEqual({
@@ -153,18 +160,19 @@ describe("SEO strategy results", () => {
     expect(seoKeywordDemand({ ...ranks, trend: "rising" }, ranks.lead)).toEqual(
       {
         reach: null,
-        trend: { direction: "rising", recent: 47 },
+        trend: "rising",
       },
     );
     // A forum in the results is no row fact: the strategy line counts it.
-    // A trend without its recent searches has no number to show.
-    expect(
-      seoKeywordDemand({ ...open, trend: "rising" }, open.lead),
-    ).toBeNull();
+    // The row says the direction alone, so it needs no recent number.
+    expect(seoKeywordDemand({ ...open, trend: "rising" }, open.lead)).toEqual({
+      reach: null,
+      trend: "rising",
+    });
     expect(seoKeywordDemand(undefined, "x")).toBeNull();
   });
 
-  it("counts the keyword groups per reach, most first, and the ones that lose searches", () => {
+  it("counts the keyword groups per reach, most first", () => {
     const { groups } = seoTestStrategy();
     expect(seoStrategyCounts([...groups, groups[2]])).toEqual({
       reaches: [
@@ -172,7 +180,6 @@ describe("SEO strategy results", () => {
         { reach: "in reach", count: 1 },
         { reach: "ranks", count: 1 },
       ],
-      falling: 1,
     });
   });
 

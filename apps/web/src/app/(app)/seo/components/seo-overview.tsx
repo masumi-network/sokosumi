@@ -348,7 +348,8 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                 <li key={finding.id}>
                   <details className="group text-sm">
                     <summary className="focus-visible:ring-ring grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-start sm:grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 gap-y-0.5 rounded-sm px-4 py-2.5 group-open:pb-1 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
-                      <h3 className="font-medium break-words">
+                      {/* Plain wrap, as an action title: balanced lines ended the first line at half the row. */}
+                      <h3 className="font-medium text-wrap break-words">
                         {/* The same words start every row: they are quiet, the name of the check is the bright part. */}
                         {t.rich("overview.failedCheck", {
                           name: checkName(finding.title),

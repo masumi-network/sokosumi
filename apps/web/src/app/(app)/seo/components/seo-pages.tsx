@@ -150,70 +150,76 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
               const name = pageName(page);
               return (
                 <li key={page.id} className="space-y-1 px-4 py-3">
-                  {/* The badge shares the first line, so the address under a name has the width of the row. */}
-                  <div className="flex items-start justify-between gap-3">
-                    {name ? (
-                      <h3 className="min-w-0 text-sm font-medium break-words">
-                        {name}
-                      </h3>
-                    ) : (
-                      <SeoPageLink url={page.url} />
-                    )}
-                    {/* With one primary page the names tell the pages apart. With more, the badge marks a page
+                  {/* On a desktop the result stands at the end of the name line: a page is two lines, not three. */}
+                  <div className="space-y-1 sm:flex sm:items-start sm:justify-between sm:gap-4 sm:space-y-0">
+                    <div className="min-w-0 space-y-1 sm:flex-1">
+                      {/* The badge shares the first line, so the address under a name has the width of the row. */}
+                      <div className="flex items-start justify-between gap-3">
+                        {name ? (
+                          <h3 className="min-w-0 text-sm font-medium break-words">
+                            {name}
+                          </h3>
+                        ) : (
+                          <SeoPageLink url={page.url} />
+                        )}
+                        {/* With one primary page the names tell the pages apart. With more, the badge marks a page
                         that was added beside one of them, and the line under it names which. */}
-                    {page.relationship !== "primary" && primaryPages > 1 ? (
-                      <SeoState>{t("related")}</SeoState>
-                    ) : null}
-                  </div>
-                  {name ? <SeoPageLink url={page.url} quiet /> : null}
-                  {/* With one primary page the line shows only for a page whose parent is another related page:
+                        {page.relationship !== "primary" && primaryPages > 1 ? (
+                          <SeoState>{t("related")}</SeoState>
+                        ) : null}
+                      </div>
+                      {name ? <SeoPageLink url={page.url} quiet /> : null}
+                      {/* With one primary page the line shows only for a page whose parent is another related page:
                       the names alone do not say which page it belongs to. */}
-                  {parent &&
-                  (primaryPages > 1 || parent.relationship !== "primary") ? (
-                    <p className="text-muted-foreground text-sm">
-                      {t("relatedTo")}: {pageName(parent) ?? parent.url}
-                    </p>
-                  ) : null}
-                  {summary ? (
-                    // The result of the page's last check. A count is no link: underlined, "3 issues" reads as
-                    // "show these issues". The tile over the list opens the results; only a check with other
-                    // results keeps its own link, on its date or, on the tile's day, on the result.
-                    <p className="text-muted-foreground text-sm">
-                      {summary.checkedAt ? (
-                        sameDayAsTile(summary.checkedAt) ? (
-                          resultsOf(summary.checkId) === tileResults ? (
-                            pageResult(summary)
+                      {parent &&
+                      (primaryPages > 1 ||
+                        parent.relationship !== "primary") ? (
+                        <p className="text-muted-foreground text-sm">
+                          {t("relatedTo")}: {pageName(parent) ?? parent.url}
+                        </p>
+                      ) : null}
+                    </div>
+                    {summary ? (
+                      // The result of the page's last check. A count is no link: underlined, "3 issues" reads as
+                      // "show these issues". The tile over the list opens the results; only a check with other
+                      // results keeps its own link, on its date or, on the tile's day, on the result.
+                      <p className="text-muted-foreground text-sm sm:max-w-[50%] sm:text-end">
+                        {summary.checkedAt ? (
+                          sameDayAsTile(summary.checkedAt) ? (
+                            resultsOf(summary.checkId) === tileResults ? (
+                              pageResult(summary)
+                            ) : (
+                              <SeoSource
+                                observationId={summary.checkId}
+                                workspace={model.data}
+                              >
+                                {pageResult(summary)}
+                              </SeoSource>
+                            )
                           ) : (
-                            <SeoSource
-                              observationId={summary.checkId}
-                              workspace={model.data}
-                            >
+                            <>
+                              <SeoSource
+                                observationId={summary.checkId}
+                                workspace={model.data}
+                              >
+                                {t("pages.lastCheck")}{" "}
+                                <SeoDate day value={summary.checkedAt} />
+                              </SeoSource>
+                              {" · "}
                               {pageResult(summary)}
-                            </SeoSource>
+                            </>
                           )
                         ) : (
-                          <>
-                            <SeoSource
-                              observationId={summary.checkId}
-                              workspace={model.data}
-                            >
-                              {t("pages.lastCheck")}{" "}
-                              <SeoDate day value={summary.checkedAt} />
-                            </SeoSource>
-                            {" · "}
-                            {pageResult(summary)}
-                          </>
-                        )
-                      ) : (
-                        // Checks outside the date filter are not in view.
-                        t(
-                          datesFiltered
-                            ? "pages.notCheckedInDates"
-                            : "pages.notChecked",
-                        )
-                      )}
-                    </p>
-                  ) : null}
+                          // Checks outside the date filter are not in view.
+                          t(
+                            datesFiltered
+                              ? "pages.notCheckedInDates"
+                              : "pages.notChecked",
+                          )
+                        )}
+                      </p>
+                    ) : null}
+                  </div>
                   {totals.length ? (
                     // Two columns on a phone, like the query and keyword cards.
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:flex sm:flex-wrap sm:gap-x-5">

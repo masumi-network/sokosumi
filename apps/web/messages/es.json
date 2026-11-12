@@ -11629,22 +11629,23 @@
           "outOfReach": "Fuera de alcance",
           "notDetermined": "Alcance no determinado"
         },
+        "groups": "{first, select, true {{count, plural, one {# grupo de palabras clave parecidas} other {# grupos de palabras clave parecidas}}} other {{count, plural, one {# grupo} other {# grupos}}}}",
         "reachCount": {
-          "ranks": "{count, plural, one {# grupo de palabras clave ya posiciona} other {# grupos de palabras clave ya posicionan}}",
-          "inReach": "{count, plural, one {# grupo de palabras clave está al alcance} other {# grupos de palabras clave están al alcance}}",
-          "open": "{count, plural, one {# grupo de palabras clave tiene un foro en los resultados} other {# grupos de palabras clave tienen un foro en los resultados}}",
-          "outOfReach": "{count, plural, one {# grupo de palabras clave está fuera de alcance} other {# grupos de palabras clave están fuera de alcance}}",
-          "notDetermined": "{count, plural, one {# grupo de palabras clave no tiene un alcance conocido} other {# grupos de palabras clave no tienen un alcance conocido}}"
+          "ranks": "{groups} ya {count, plural, one {posiciona} other {posicionan}}",
+          "inReach": "{groups} {count, plural, one {está} other {están}} al alcance",
+          "open": "{groups} {count, plural, one {tiene} other {tienen}} un foro en los resultados",
+          "outOfReach": "{groups} {count, plural, one {está} other {están}} fuera de alcance",
+          "notDetermined": "{groups} {count, plural, one {no tiene} other {no tienen}} un alcance conocido"
         },
-        "falling": "{count, plural, one {# grupo de palabras clave pierde búsquedas} other {# grupos de palabras clave pierden búsquedas}}",
+        "moving": "{count, plural, one {Las búsquedas cambian en # grupo} other {Las búsquedas cambian en # grupos}}",
         "reachHelp": {
-          "ranks": "Un grupo de palabras clave posiciona cuando una página del sitio está en los resultados o en el fragmento destacado.",
-          "inReach": "Un grupo de palabras clave está al alcance cuando los dominios de referencia del sitio están cerca de los de la página más débil del top 10 que la auditoría pudo contar.",
+          "ranks": "Un grupo posiciona cuando una página del sitio está en los resultados o en el fragmento destacado.",
+          "inReach": "Un grupo está al alcance cuando los dominios de referencia del sitio están cerca de los de la página más débil del top 10 que la auditoría pudo contar.",
           "open": "Un foro en los resultados de búsqueda es una señal de que los resultados están abiertos a páginas nuevas."
         },
         "trend": {
-          "falling": "Las búsquedas bajan a {recent} al mes",
-          "rising": "Las búsquedas suben a {recent} al mes"
+          "falling": "Las búsquedas bajan",
+          "rising": "Las búsquedas suben"
         },
         "targetType": {
           "appStore": "Tienda de apps",

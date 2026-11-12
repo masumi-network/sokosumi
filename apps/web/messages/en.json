@@ -11629,22 +11629,23 @@
           "outOfReach": "Out of reach",
           "notDetermined": "Reach not determined"
         },
+        "groups": "{first, select, true {{count, plural, one {# group of similar keywords} other {# groups of similar keywords}}} other {{count, plural, one {# group} other {# groups}}}}",
         "reachCount": {
-          "ranks": "{count, plural, one {# keyword group ranks now} other {# keyword groups rank now}}",
-          "inReach": "{count, plural, one {# keyword group is in reach} other {# keyword groups are in reach}}",
-          "open": "{count, plural, one {# keyword group has a forum in the results} other {# keyword groups have a forum in the results}}",
-          "outOfReach": "{count, plural, one {# keyword group is out of reach} other {# keyword groups are out of reach}}",
-          "notDetermined": "{count, plural, one {# keyword group has no known reach} other {# keyword groups have no known reach}}"
+          "ranks": "{groups} {count, plural, one {ranks} other {rank}} now",
+          "inReach": "{groups} {count, plural, one {is} other {are}} in reach",
+          "open": "{groups} {count, plural, one {has} other {have}} a forum in the results",
+          "outOfReach": "{groups} {count, plural, one {is} other {are}} out of reach",
+          "notDetermined": "{groups} {count, plural, one {has} other {have}} no known reach"
         },
-        "falling": "{count, plural, one {# keyword group loses searches} other {# keyword groups lose searches}}",
+        "moving": "{count, plural, one {Searches change for # group} other {Searches change for # groups}}",
         "reachHelp": {
-          "ranks": "A keyword group ranks when a page of the site is in the results or in the featured snippet.",
-          "inReach": "A keyword group is in reach when the referring domains of the site are close to those of the weakest top-10 page the audit could count.",
+          "ranks": "A group ranks when a page of the site is in the results or in the featured snippet.",
+          "inReach": "A group is in reach when the referring domains of the site are close to those of the weakest top-10 page the audit could count.",
           "open": "A forum in the search results is a sign that the results are open to new pages."
         },
         "trend": {
-          "falling": "Searches falling to {recent} a month",
-          "rising": "Searches rising to {recent} a month"
+          "falling": "Searches are falling",
+          "rising": "Searches are rising"
         },
         "targetType": {
           "appStore": "App store",

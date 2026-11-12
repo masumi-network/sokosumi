@@ -265,6 +265,12 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setShownAction(seoActionKey(action));
     void setFilters({ tab: "actions" });
   }
+  // The Agent row for the strategy actions leads to their group. The group opens in full and takes the focus once.
+  const [shownStrategy, setShownStrategy] = useState(false);
+  function showStrategy() {
+    setShownStrategy(true);
+    void setFilters({ tab: "actions" });
+  }
   function openChat(draft?: string) {
     if (draft) setChatDraft(draft);
     setChatOpen(true);
@@ -362,6 +368,9 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     shownAction,
     setShownAction,
     showAction,
+    shownStrategy,
+    setShownStrategy,
+    showStrategy,
     chatDraft,
     setChatDraft,
     chatOpen,
