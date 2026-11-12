@@ -966,6 +966,48 @@ describe("personal agents", () => {
     });
   });
 
+  it("looks for the owner's agents first when an invite names a key it does not know yet", async () => {
+    db.buzzMessageLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzIdentity.findFirst.mockResolvedValue(bob);
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+      membersHash: "abc",
+      community: { relayUrl: "ws://relay" },
+    });
+    // Made in Buzz a moment ago: no identity for it yet.
+    db.buzzIdentity.count.mockResolvedValueOnce(0);
+    db.buzzIdentity.findMany
+      // The agent sweep, for Bob only (finding nothing new to make here).
+      .mockResolvedValueOnce([])
+      // Then the invite's lookup finds the agent the sweep made.
+      .mockResolvedValueOnce([{ pubkey: AGENT, coworkerId: "cw-agent" }]);
+    relay.queryEvents.mockResolvedValue([
+      { kind: 39002, created_at: 1, tags: [["p", AGENT]] },
+    ]);
+    const invite = nostrEvent({
+      kind: 9000,
+      tags: [
+        ["h", CHANNEL],
+        ["p", AGENT],
+      ],
+    });
+    await expect(applyInboundEvent(invite, core)).resolves.toBe("members");
+    expect(db.buzzIdentity.findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { userId: { not: null }, id: "identity-bob" },
+      }),
+    );
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: "/v1/chats/rooms/room/members",
+        body: { coworkerIds: ["cw-agent"] },
+      }),
+    );
+  });
+
   it("does not let a replayed invite undo a later removal", async () => {
     db.buzzMessageLink.findUnique.mockResolvedValue(null);
     db.buzzReactionLink.findUnique.mockResolvedValue(null);

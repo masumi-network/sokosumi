@@ -2047,6 +2047,16 @@ async function applyMemberChange(
       })
     : null;
   if (!channel || isDirect(channel)) return "ignored";
+  // An agent made a moment ago is added before the agent sweep has seen it:
+  // look for this person's agents now, or the member sync below removes it.
+  if (change.added) {
+    const known = await prisma.buzzIdentity.count({
+      where: { pubkey: { in: change.pubkeys } },
+    });
+    if (known < change.pubkeys.length) {
+      await syncBuzzAgents({ identityId: author.id });
+    }
+  }
   // Whatever happens below, the room's members are checked against Buzz
   // again: a change Sokosumi does not take (someone else invited, an agent
   // not allowed) is put back instead of lingering.
