@@ -472,6 +472,7 @@ async function run() {
   process.on("SIGTERM", stop);
 
   let lastRoomSweep = 0;
+  const roomRests = new Map<string, number>();
   let lastMemberSweep = 0;
   while (!stopping) {
     try {
@@ -490,12 +491,17 @@ async function run() {
         }
         const deleted = await deleteChannelsOfDeletedRooms();
         if (deleted > 0) log(`${deleted} channel(s) of deleted rooms removed`);
-        for (const room of await unlinkedBuzzRooms()) {
+        // A room that failed rests ten minutes, so the next ones get a turn.
+        for (const [roomId, until] of roomRests) {
+          if (until <= Date.now()) roomRests.delete(roomId);
+        }
+        for (const room of await unlinkedBuzzRooms(50, [...roomRests.keys()])) {
           // One room's trouble (its relay down) must not keep others off Buzz.
           try {
             await syncRoomChannel(room.id);
             log(`out room ${room.id.slice(0, 8)} → channel`);
           } catch (error) {
+            roomRests.set(room.id, Date.now() + 10 * 60_000);
             log(
               `out room ${room.id.slice(0, 8)} channel failed`,
               error instanceof Error ? error.message : error,

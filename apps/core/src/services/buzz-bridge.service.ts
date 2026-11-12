@@ -251,7 +251,14 @@ async function tellRefusalOnBuzz(
       })
     : null;
   if (message.parentMessageId && !root) {
-    throw new Error("Thread root is not on Buzz yet");
+    // A root deleted before it reached Buzz never will: post on its own.
+    const parent = await prisma.chatRoomMessage.findUnique({
+      where: { id: message.parentMessageId },
+      select: { deletedAt: true },
+    });
+    if (parent && !parent.deletedAt) {
+      throw new Error("Thread root is not on Buzz yet");
+    }
   }
   await ensureOperatorProfile(relayUrl);
   const config = requireConfig();
@@ -1532,6 +1539,10 @@ async function setArchived(
       tags: [
         ["h", channelId],
         ["archived", String(archived)],
+        // Archiving again within the same second (after reopening it for a
+        // change) would otherwise be the same event, which the relay takes
+        // for a duplicate and drops.
+        ["alt", `${archived ? "Archived" : "Reopened"} (${randomUUID()})`],
       ],
     });
   } catch (error) {
@@ -1652,8 +1663,17 @@ async function deliver(
   const secretKey = signer
     ? identitySecretKey(signer)
     : config.operatorSecretKey;
+  // A change decided before its channel was archived still goes out: the
+  // channel is reopened for it.
+  const channelId = event.tags.find((tag) => tag[0] === "h")?.[1];
+  const send = (signed: PendingEvent) =>
+    channelId
+      ? whileOpen(relayUrl, channelId, () =>
+          publishSignedEvent({ relayUrl, event: signed, secretKey }),
+        )
+      : publishSignedEvent({ relayUrl, event: signed, secretKey });
   try {
-    await publishSignedEvent({ relayUrl, event, secretKey });
+    await send(event);
     return event;
   } catch (error) {
     if (isAlreadyDone(error)) return event;
@@ -1668,11 +1688,26 @@ async function deliver(
         secretKey,
       );
       await recordResigned(fresh);
-      await publishSignedEvent({ relayUrl, event: fresh, secretKey });
+      await send(fresh);
       return fresh;
     }
     throw error;
   }
+}
+
+/**
+ * What a message link records of an event signed again (a new id and time):
+ * the message's id if it is the message, and an edit's order, so its echo
+ * stays one.
+ */
+function resignedLinkData(fresh: PendingEvent) {
+  return {
+    pendingEvent: fresh as unknown as object,
+    ...(fresh.kind === BUZZ_KIND.message ? { eventId: fresh.id } : {}),
+    ...(fresh.kind === BUZZ_KIND.edit
+      ? { lastEditAt: fresh.created_at, lastEditEventId: fresh.id }
+      : {}),
+  };
 }
 
 /** Brings one message's Buzz copy (and its reactions) up to date. */
@@ -1735,10 +1770,7 @@ export async function reconcileMessage(
     const sent = await deliver(relayUrl, unfinished, (fresh) =>
       prisma.buzzMessageLink.update({
         where: { messageId: messageLinkId },
-        data: {
-          pendingEvent: fresh as unknown as object,
-          ...(fresh.kind === BUZZ_KIND.message ? { eventId: fresh.id } : {}),
-        },
+        data: resignedLinkData(fresh),
       }),
     );
     link = await prisma.buzzMessageLink.update({
@@ -1768,7 +1800,7 @@ export async function reconcileMessage(
     await deliver(relayUrl, event, (fresh) =>
       prisma.buzzMessageLink.update({
         where: { messageId: message.id },
-        data: { pendingEvent: fresh as unknown as object },
+        data: resignedLinkData(fresh),
       }),
     );
     link = await prisma.buzzMessageLink.update({
@@ -3221,9 +3253,14 @@ async function deleteGroup(
 }
 
 /** Rooms of Buzz organizations that have no channel yet. */
-export async function unlinkedBuzzRooms(limit = 50) {
+export async function unlinkedBuzzRooms(
+  limit = 50,
+  /** Rooms that just failed, so the next ones get their turn. */
+  skip: string[] = [],
+) {
   return prisma.chatRoom.findMany({
     where: {
+      id: { notIn: skip },
       archivedAt: null,
       buzzChannel: null,
       organization: { buzzCommunity: { isNot: null } },
