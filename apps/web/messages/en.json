@@ -9559,7 +9559,7 @@
       "GoogleSheet": {
         "button": "Link Google Sheet",
         "dialogTitle": "Link a Google Sheet",
-        "dialogDescription": "Paste the sheet's link. In Google Sheets, set Share → General access to “Anyone with the link”. Sokosumi keeps a copy here and updates it every hour.",
+        "dialogDescription": "Paste the sheet's link. In Google Sheets, set Share → General access to “Anyone with the link”. Sokosumi keeps Google’s PDF of it here and updates it every hour.",
         "linkLabel": "Google Sheets link",
         "link": "Link",
         "linking": "Linking…",

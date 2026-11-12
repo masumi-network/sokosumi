@@ -9559,7 +9559,7 @@
       "GoogleSheet": {
         "button": "Vincular Google Sheet",
         "dialogTitle": "Vincular una hoja de Google",
-        "dialogDescription": "Pega el enlace de la hoja. En Google Sheets, en Compartir → Acceso general, elige «Cualquier persona con el enlace». Sokosumi guarda aquí una copia y la actualiza cada hora.",
+        "dialogDescription": "Pega el enlace de la hoja. En Google Sheets, en Compartir → Acceso general, elige «Cualquier persona con el enlace». Sokosumi guarda aquí el PDF de Google y lo actualiza cada hora.",
         "linkLabel": "Enlace de Google Sheets",
         "link": "Vincular",
         "linking": "Vinculando…",

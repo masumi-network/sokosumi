@@ -9559,7 +9559,7 @@
       "GoogleSheet": {
         "button": "Google Sheet verknüpfen",
         "dialogTitle": "Google Sheet verknüpfen",
-        "dialogDescription": "Füge den Link zum Sheet ein. Stelle in Google Sheets unter Teilen → Allgemeiner Zugriff „Jeder, der über den Link verfügt“ ein. Sokosumi speichert hier eine Kopie und aktualisiert sie stündlich.",
+        "dialogDescription": "Füge den Link zum Sheet ein. Stelle in Google Sheets unter Teilen → Allgemeiner Zugriff „Jeder, der über den Link verfügt“ ein. Sokosumi speichert hier das PDF von Google und aktualisiert es stündlich.",
         "linkLabel": "Google-Sheets-Link",
         "link": "Verknüpfen",
         "linking": "Wird verknüpft…",
