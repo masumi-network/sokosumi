@@ -9,6 +9,20 @@ interface UseLoadWhenVisibleOptions {
    */
   boundaryKey: string;
   onVisible: () => void;
+  /**
+   * CSS margin around the list's scroller, as `rootMargin`. The element counts
+   * as visible this far before it is on screen, so the next page is there
+   * when the reader arrives.
+   */
+  ahead?: string;
+}
+
+function scrollerOf(element: Element) {
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    const { overflowY } = getComputedStyle(node);
+    if (overflowY === "auto" || overflowY === "scroll") return node;
+  }
+  return null;
 }
 
 /**
@@ -22,7 +36,7 @@ interface UseLoadWhenVisibleOptions {
  */
 export function useLoadWhenVisible(
   ref: RefObject<Element | null>,
-  { armed, boundaryKey, onVisible }: UseLoadWhenVisibleOptions,
+  { armed, boundaryKey, onVisible, ahead }: UseLoadWhenVisibleOptions,
 ): void {
   const onVisibleRef = useRef(onVisible);
   onVisibleRef.current = onVisible;
@@ -35,16 +49,20 @@ export function useLoadWhenVisible(
     if (!armed || !element || typeof IntersectionObserver === "undefined") {
       return;
     }
-    const observer = new IntersectionObserver((entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) {
-        return;
-      }
-      observer.disconnect();
-      onVisibleRef.current();
-    });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) {
+          return;
+        }
+        observer.disconnect();
+        onVisibleRef.current();
+      },
+      // A margin only reaches past the scroller when the scroller is the root.
+      ahead ? { root: scrollerOf(element), rootMargin: ahead } : undefined,
+    );
     observer.observe(element);
     return () => {
       observer.disconnect();
     };
-  }, [ref, armed, boundaryKey]);
+  }, [ref, armed, boundaryKey, ahead]);
 }
