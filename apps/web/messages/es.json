@@ -9005,6 +9005,7 @@
         "delete": "Eliminar",
         "deleteConfirm": "¿Eliminar este mensaje? Los demás verán que fue eliminado.",
         "deleted": "Este mensaje fue eliminado",
+        "deleteError": "No se pudo eliminar el mensaje. Inténtalo de nuevo.",
         "showMore": "Mostrar más",
         "showLess": "Mostrar menos"
       },
