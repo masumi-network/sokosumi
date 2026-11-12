@@ -10959,7 +10959,8 @@
         "clearActivityDates": "Clear activity dates",
         "noFixes": "No fixes recommended from these checks",
         "noFixesBody": "These checks did not produce a recommended fix. They cover only the selected pages and checks, not your whole site or search performance.",
-        "failedCheck": "Not passed: {name}",
+        "failedCheck": "<prefix>Not passed:</prefix> {name}",
+        "checkedOn": "Checked",
         "seeFix": "See the fix",
         "diagnostics": "Title, description and other page details",
         "perDay": "{metric} per day",
@@ -11006,7 +11007,7 @@
         "periodSame": "Previous {days, plural, one {day} other {# days}}: {previous}, no change",
         "changeMarker": "Recorded change on {day}: {changes}",
         "points": "{value} pp",
-        "fixNamed": "Fix: {name}"
+        "fixNamed": "<prefix>Fix:</prefix> {name}"
       },
       "keywords": {
         "title": "Keywords",
@@ -11505,11 +11506,11 @@
             "no_queries": "Load the searches behind your Search Console totals, so the agent can suggest work."
           },
           "connect": {
-            "search_console": "Connect Google to measure clicks, impressions and the searches that show these pages.",
+            "search_console": "Connect Google to see which searches show these pages and how often people click them.",
             "ga4": "Connect Google Analytics to measure visits and page views."
           },
           "sync": {
-            "search_console": "Search Console is connected. Sync statistics to measure clicks, impressions and the searches that show these pages.",
+            "search_console": "Search Console is connected. Sync statistics to see which searches show these pages and how often people click them.",
             "ga4": "Google Analytics is connected. Sync statistics to measure visits and page views."
           },
           "competitors": {
@@ -11520,6 +11521,7 @@
         },
         "prompts": {
           "first": "What should I do first?",
+          "unranked": "Why are my pages not in Google's top results?",
           "queries": "Which searches bring people to these pages?",
           "competitors": "What do you know about my competitors?",
           "measure": "The check measured “{name}” on {url} as {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. Draft a change and suggest it as an action I can approve.",

@@ -10959,7 +10959,8 @@
         "clearActivityDates": "Aktivitätsdaten entfernen",
         "noFixes": "Keine Korrekturen aus diesen Prüfungen empfohlen",
         "noFixesBody": "Diese Prüfungen haben keine Korrektur vorgeschlagen. Sie decken nur die ausgewählten Seiten und Prüfungen ab, nicht die gesamte Website oder Suchleistung.",
-        "failedCheck": "Nicht bestanden: {name}",
+        "failedCheck": "<prefix>Nicht bestanden:</prefix> {name}",
+        "checkedOn": "Geprüft am",
         "seeFix": "Zur Korrektur",
         "diagnostics": "Titel, Beschreibung und weitere Seitendetails",
         "perDay": "{metric} pro Tag",
@@ -11006,7 +11007,7 @@
         "periodSame": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, unverändert",
         "changeMarker": "Erfasste Änderung am {day}: {changes}",
         "points": "{value} Pp.",
-        "fixNamed": "Korrektur: {name}"
+        "fixNamed": "<prefix>Korrektur:</prefix> {name}"
       },
       "keywords": {
         "title": "Keywords",
@@ -11505,11 +11506,11 @@
             "no_queries": "Lade die Suchanfragen hinter deinen Search-Console-Summen, damit der Agent Arbeit vorschlagen kann."
           },
           "connect": {
-            "search_console": "Verbinde Google, um Klicks, Impressionen und Suchanfragen zu messen.",
+            "search_console": "Verbinde Google, um zu sehen, bei welchen Suchen diese Seiten erscheinen und wie oft sie angeklickt werden.",
             "ga4": "Verbinde Google Analytics, um Besuche und Seitenaufrufe zu messen."
           },
           "sync": {
-            "search_console": "Die Search Console ist verbunden. Synchronisiere die Statistiken, um Klicks, Impressionen und Suchanfragen zu messen.",
+            "search_console": "Die Search Console ist verbunden. Synchronisiere die Statistiken, um zu sehen, bei welchen Suchen diese Seiten erscheinen und wie oft sie angeklickt werden.",
             "ga4": "Google Analytics ist verbunden. Synchronisiere die Statistiken, um Besuche und Seitenaufrufe zu messen."
           },
           "competitors": {
@@ -11520,6 +11521,7 @@
         },
         "prompts": {
           "first": "Was soll ich zuerst tun?",
+          "unranked": "Warum sind meine Seiten nicht in den ersten Google-Ergebnissen?",
           "queries": "Über welche Suchen kommen Menschen auf diese Seiten?",
           "competitors": "Was weißt du über meine Wettbewerber?",
           "measure": "Die Prüfung hat „{name}“ auf {url} mit {value} gemessen, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Entwirf eine Änderung und schlage sie als Aktion vor, die ich freigeben kann.",

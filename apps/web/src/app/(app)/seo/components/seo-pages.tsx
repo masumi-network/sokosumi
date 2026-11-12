@@ -22,7 +22,7 @@ import {
   latestSeoMeasurements,
   seoReportedPeriod,
 } from "./seo-statistics-model";
-import { seoSummary } from "./seo-summary-model";
+import { useSeoTileDay } from "./seo-summary-tiles";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** Saved selections and page rankings only help when there are pages to compare. */
@@ -38,11 +38,8 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
   const summaries = seoPageSummaries(model.data);
-  // The day as the reader sees it (the text of a date line), so two checks compare the way their dates read.
-  const seoDay = (value: Date | string | null | undefined) =>
-    value ? format.dateTime(new Date(value), { dateStyle: "medium" }) : null;
   // The tests tile over this list dates the last check. A row repeats a date only when its check is of another day.
-  const tileDay = seoDay(seoSummary(model.data).tests?.observedAt);
+  const sameDayAsTile = useSeoTileDay(model.data);
   const site = seoSiteUrl(model.data);
   // A page with no name of its own: the home page has the name the other tabs give it, so an issue row that
   // says "Home page" points at a row of this list. Another page without a name has its address only.
@@ -173,7 +170,7 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                     // The result of the page's last check; its date, or the result alone, opens the results.
                     <p className="text-muted-foreground text-sm">
                       {summary.checkedAt ? (
-                        seoDay(summary.checkedAt) === tileDay ? (
+                        sameDayAsTile(summary.checkedAt) ? (
                           <SeoSource
                             observationId={summary.checkId}
                             workspace={model.data}

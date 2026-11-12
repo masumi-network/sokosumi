@@ -197,7 +197,11 @@ export function SeoActionCard({
           <p className="text-muted-foreground line-clamp-4 text-sm whitespace-pre-wrap break-words group-has-[details[open]]:line-clamp-none sm:line-clamp-2">
             {problem
               ? t("actions.problem", {
-                  check: t("overview.failedCheck", { name: problem.check }),
+                  check: t.markup("overview.failedCheck", {
+                    name: problem.check,
+                    // Plain words in a running line: the tag is for the Health row title.
+                    prefix: (chunks) => chunks,
+                  }),
                   found: problem.found,
                 })
               : action.expectedEffect}

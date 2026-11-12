@@ -11,13 +11,22 @@ import { resolveComposerEnterAction } from "@/lib/utils/composer-wysiwyg-input-r
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import { SEO_CHAT_QUESTION_LIMIT } from "./use-seo-chat";
 
-const SEO_AGENT_PROMPTS = ["first", "queries", "track", "competitors"] as const;
+const SEO_AGENT_PROMPTS = [
+  "first",
+  "unranked",
+  "queries",
+  "track",
+  "competitors",
+] as const;
 
 /** The example questions the saved data can answer: no search statistics, no question about searches. */
 export function seoAgentPrompts({
   competitors,
   searches,
+  unranked,
 }: {
+  /** True where no checked keyword is in Google's top results: the question about that result stands in for "what first", which the Agent tab answers. */
+  unranked: boolean;
   /** False where the Audit has no competitor. */
   competitors: boolean;
   /** False where no search statistics are synced: the question about keywords to track stands in. */
@@ -26,7 +35,8 @@ export function seoAgentPrompts({
   return SEO_AGENT_PROMPTS.filter(
     (prompt) =>
       (competitors || prompt !== "competitors") &&
-      prompt !== (searches ? "track" : "queries"),
+      prompt !== (searches ? "track" : "queries") &&
+      prompt !== (unranked ? "first" : "unranked"),
   );
 }
 
@@ -38,8 +48,11 @@ export function SeoPromptChips({
   busy = false,
   competitors = true,
   searches = true,
+  unranked = false,
   onPick,
 }: {
+  /** True where no checked keyword is in Google's top results. */
+  unranked?: boolean;
   busy?: boolean;
   /** False where the Audit has no competitor: the question about them has no answer. */
   competitors?: boolean;
@@ -50,7 +63,7 @@ export function SeoPromptChips({
   const t = useTranslations("App.Seo");
   return (
     <div className="flex flex-wrap gap-2">
-      {seoAgentPrompts({ competitors, searches }).map((prompt) => (
+      {seoAgentPrompts({ competitors, searches, unranked }).map((prompt) => (
         <button
           key={prompt}
           type="button"

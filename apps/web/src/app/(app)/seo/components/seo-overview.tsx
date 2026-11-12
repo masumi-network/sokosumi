@@ -3,7 +3,13 @@
 import { ChevronDown, ChevronRight, WandSparkles } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +34,7 @@ import {
 import { SeoPages } from "./seo-pages";
 import { seoCheckRunning } from "./seo-setup-model";
 import {
-  SEO_ROW_BUTTON_CLASS,
+  SEO_ROW_FILLED_CLASS,
   SeoDate,
   SeoFoldSummary,
   SeoPageLink,
@@ -39,7 +45,7 @@ import {
   seoPageName,
   seoSiteUrl,
 } from "./seo-shared";
-import { SeoSummaryTiles } from "./seo-summary-tiles";
+import { SeoSummaryTiles, useSeoTileDay } from "./seo-summary-tiles";
 import { SeoTimeline } from "./seo-timeline";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -256,11 +262,17 @@ function PageDetail({
   );
 }
 
+/** The words that start every row of a list ("Not passed:", "Fix:"): quiet, so the part that differs leads. */
+const quietPrefix = (chunks: ReactNode) => (
+  <span className="text-muted-foreground font-normal">{chunks}</span>
+);
+
 /** Site health: what the checks found, page by page and over time. */
 export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const { data } = model;
   const overview = seoOverviewModel(data);
+  const sameDayAsTile = useSeoTileDay(data);
   const checkRunning = seoCheckRunning(data);
   // Timeline rows carry their own check's coverage; only checks without a row are listed here.
   const onTimeline = new Set(data.timeline.map((event) => event.observationId));
@@ -275,11 +287,11 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
       ? overview.diagnostics[0]
       : undefined;
   // The check's own time; its rows may carry later times per device.
-  const oneCheckAt = oneCheck
-    ? (data.observations.find(
-        (observation) => observation.id === oneCheck.observationId,
-      )?.observedAt ?? oneCheck.observedAt)
-    : null;
+  const checkedAt = (finding: (typeof overview.diagnostics)[number]) =>
+    data.observations.find(
+      (observation) => observation.id === finding.observationId,
+    )?.observedAt ?? finding.observedAt;
+  const oneCheckAt = oneCheck ? checkedAt(oneCheck) : null;
   // Measurements report a value; notes are rules the check flagged that do not count as issues.
   const measures = overview.diagnostics.filter(
     (finding) => finding.severity === "measure",
@@ -337,8 +349,10 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                   <details className="group text-sm">
                     <summary className="focus-visible:ring-ring grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-start sm:grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 gap-y-0.5 rounded-sm px-4 py-2.5 group-open:pb-1 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
                       <h3 className="font-medium break-words">
-                        {t("overview.failedCheck", {
+                        {/* The same words start every row: they are quiet, the name of the check is the bright part. */}
+                        {t.rich("overview.failedCheck", {
                           name: checkName(finding.title),
+                          prefix: quietPrefix,
                         })}
                       </h3>
                       {/* On a phone the impact label is the row's last line: beside the title it broke the title
@@ -384,15 +398,16 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                         <button
                           type="button"
                           className={cn(
-                            SEO_ROW_BUTTON_CLASS,
+                            SEO_ROW_FILLED_CLASS,
                             "text-foreground px-3 py-2",
                           )}
                           onClick={() => model.showAction(fix.action)}
                         >
                           <span className="min-w-0 flex-1 break-words">
                             {fix.named
-                              ? t("overview.fixNamed", {
+                              ? t.rich("overview.fixNamed", {
                                   name: fix.action.title,
+                                  prefix: quietPrefix,
                                 })
                               : t("overview.seeFix")}
                           </span>
@@ -409,15 +424,20 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                           </li>
                         ))}
                       </ul>
-                      <p className="text-xs">
-                        {/* The date is the link to the check, as on every other line that dates one. */}
-                        <SeoSource
-                          observationId={finding.observationId}
-                          workspace={data}
-                        >
-                          <SeoDate value={finding.observedAt} />
-                        </SeoSource>
-                      </p>
+                      {/* The tests tile over the list dates the last check: a finding of that day repeats no date
+                          (its page row under the list links to the check). An older finding has its date, with a
+                          word, and the date is the link to its check. */}
+                      {sameDayAsTile(checkedAt(finding)) ? null : (
+                        <p className="text-xs">
+                          <SeoSource
+                            observationId={finding.observationId}
+                            workspace={data}
+                          >
+                            {t("overview.checkedOn")}{" "}
+                            <SeoDate value={checkedAt(finding)} day />
+                          </SeoSource>
+                        </p>
+                      )}
                     </div>
                   </details>
                 </li>

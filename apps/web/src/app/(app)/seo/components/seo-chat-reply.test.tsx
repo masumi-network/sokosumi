@@ -12,15 +12,16 @@ function reply(text: string) {
 describe("SEO agent example questions", () => {
   it("offers only questions the saved data can answer", () => {
     // No search statistics: the question about searches has no answer, so the one about keywords stands in.
-    expect(seoAgentPrompts({ competitors: true, searches: false })).toEqual([
-      "first",
-      "track",
-      "competitors",
-    ]);
-    expect(seoAgentPrompts({ competitors: false, searches: true })).toEqual([
-      "first",
-      "queries",
-    ]);
+    expect(
+      seoAgentPrompts({ competitors: true, searches: false, unranked: false }),
+    ).toEqual(["first", "track", "competitors"]);
+    expect(
+      seoAgentPrompts({ competitors: false, searches: true, unranked: false }),
+    ).toEqual(["first", "queries"]);
+    // No keyword in Google's top results: the question about that result stands in for "what first".
+    expect(
+      seoAgentPrompts({ competitors: true, searches: false, unranked: true }),
+    ).toEqual(["unranked", "track", "competitors"]);
   });
 });
 

@@ -28,6 +28,7 @@ import {
   SeoChatWorking,
 } from "./seo-chat-turn";
 import { seoHasCompetitor } from "./seo-shared";
+import { seoSummary } from "./seo-summary-model";
 import { useSeoChat } from "./use-seo-chat";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -66,17 +67,19 @@ function ChatWelcome({
   inputId,
   competitors,
   searches,
+  unranked,
 }: {
   chat: Chat;
   inputId: string;
   competitors: boolean;
   searches: boolean;
+  unranked: boolean;
 }) {
   const t = useTranslations("App.Seo");
   return (
     // The sheet's header says what the agent does: the first visit shows the questions only.
     <div className="content-rise flex w-full flex-col gap-2 py-4">
-      {seoAgentPrompts({ competitors, searches }).map((prompt) => (
+      {seoAgentPrompts({ competitors, searches, unranked }).map((prompt) => (
         <Button
           key={prompt}
           type="button"
@@ -141,6 +144,8 @@ function SeoChatThread({
         : sent?.status === "failed" && !chat.error
           ? t("chat.failed")
           : "";
+  // The keywords tile says "0 of N": the first example asks about that result.
+  const unranked = seoSummary(model.data).keywords?.found === 0;
   const welcome =
     !chat.turns.length &&
     !chat.pending &&
@@ -188,6 +193,7 @@ function SeoChatThread({
             inputId={inputId}
             competitors={seoHasCompetitor(model.data)}
             searches={Boolean(model.data.searchQueries?.rows.length)}
+            unranked={unranked}
           />
         ) : null}
         {chat.turns.map((turn) => (
@@ -217,6 +223,7 @@ function SeoChatThread({
             busy={chat.busy}
             competitors={seoHasCompetitor(model.data)}
             searches={Boolean(model.data.searchQueries?.rows.length)}
+            unranked={unranked}
             onPick={(question) => {
               void chat.send(question);
             }}

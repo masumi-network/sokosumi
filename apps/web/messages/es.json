@@ -10959,7 +10959,8 @@
         "clearActivityDates": "Borrar fechas de actividad",
         "noFixes": "Estas comprobaciones no recomiendan correcciones",
         "noFixesBody": "Estas comprobaciones no propusieron una corrección. Solo cubren las páginas y comprobaciones seleccionadas, no todo el sitio ni su rendimiento en búsquedas.",
-        "failedCheck": "No superada: {name}",
+        "failedCheck": "<prefix>No superada:</prefix> {name}",
+        "checkedOn": "Comprobado el",
         "seeFix": "Ver la corrección",
         "diagnostics": "Título, descripción y otros detalles de la página",
         "perDay": "{metric} por día",
@@ -11006,7 +11007,7 @@
         "periodSame": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, sin cambio",
         "changeMarker": "Cambio registrado el {day}: {changes}",
         "points": "{value} p. p.",
-        "fixNamed": "Corrección: {name}"
+        "fixNamed": "<prefix>Corrección:</prefix> {name}"
       },
       "keywords": {
         "title": "Palabras clave",
@@ -11505,11 +11506,11 @@
             "no_queries": "Carga las búsquedas detrás de tus totales de Search Console para que el agente pueda sugerir trabajo."
           },
           "connect": {
-            "search_console": "Conecta Google para medir clics, impresiones y las búsquedas que muestran estas páginas.",
+            "search_console": "Conecta Google para ver qué búsquedas muestran estas páginas y cuántas veces se hace clic en ellas.",
             "ga4": "Conecta Google Analytics para medir visitas y páginas vistas."
           },
           "sync": {
-            "search_console": "Search Console está conectado. Sincroniza las estadísticas para medir clics, impresiones y las búsquedas que muestran estas páginas.",
+            "search_console": "Search Console está conectado. Sincroniza las estadísticas para ver qué búsquedas muestran estas páginas y cuántas veces se hace clic en ellas.",
             "ga4": "Google Analytics está conectado. Sincroniza las estadísticas para medir visitas y páginas vistas."
           },
           "competitors": {
@@ -11520,6 +11521,7 @@
         },
         "prompts": {
           "first": "¿Qué debo hacer primero?",
+          "unranked": "¿Por qué mis páginas no están en los primeros resultados de Google?",
           "queries": "¿Qué búsquedas traen personas a estas páginas?",
           "competitors": "¿Qué sabes de mis competidores?",
           "measure": "La comprobación midió «{name}» en {url}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. Prepara un cambio y proponlo como una acción que pueda aprobar.",

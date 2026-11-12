@@ -614,11 +614,20 @@ export function SeoFoldSummary({
   );
 }
 
+const SEO_ROW_CONTROL_CLASS =
+  "focus-visible:ring-ring flex w-full cursor-pointer items-center gap-3 text-start outline-none focus-visible:ring-2";
+
 /** A row that is one button: the whole row opens its target, and an arrow at its end says so. */
 export const SEO_ROW_BUTTON_CLASS = cn(
   HOLDER_ITEM_CLASS,
   HOLDER_ITEM_HOVER_CLASS,
-  "focus-visible:ring-ring flex w-full cursor-pointer items-center gap-3 text-start outline-none focus-visible:ring-2",
+  SEO_ROW_CONTROL_CLASS,
+);
+
+/** The same row inside a row that has an outline: a quiet fill and no outline of its own, so frames do not nest. */
+export const SEO_ROW_FILLED_CLASS = cn(
+  "bg-card-background hover:bg-card-background-hover rounded-lg transition-colors",
+  SEO_ROW_CONTROL_CLASS,
 );
 
 /** Orange marks what hurts search most (critical and high), grey marks low; the text beside the mark carries the name. */

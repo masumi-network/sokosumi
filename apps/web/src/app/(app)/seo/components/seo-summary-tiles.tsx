@@ -9,6 +9,18 @@ import { cn } from "@/lib/utils";
 import { SEO_SEVERITY_MARK_CLASS, SeoDate } from "./seo-shared";
 import { seoSummary } from "./seo-summary-model";
 
+/**
+ * Says if a time is of the day the tests tile shows. A row under the tile repeats no date of that day.
+ * The day is the text of a date line, so two checks compare the way their dates read.
+ */
+export function useSeoTileDay(workspace: ProjectSeoWorkspace) {
+  const format = useFormatter();
+  const day = (value: Date | string | null | undefined) =>
+    value ? format.dateTime(new Date(value), { dateStyle: "medium" }) : null;
+  const tile = day(seoSummary(workspace).tests?.observedAt);
+  return (value: Date | string | null | undefined) => day(value) === tile;
+}
+
 /** The part of a bar that is not the counted thing. */
 const REST_MARK_CLASS = "bg-quaternary";
 
@@ -34,6 +46,8 @@ function Tile({
   label,
   value,
   rest,
+  restHint,
+  quiet,
   bar,
   children,
   testId,
@@ -43,6 +57,10 @@ function Tile({
   value: string;
   /** The total the value is a part of, or its unit. */
   rest?: string;
+  /** What the rest of the total is, as the hint of a pointer. */
+  restHint?: string;
+  /** A count the reader does not act on: its number is quiet, so the number of the tile beside it leads. */
+  quiet?: boolean;
   bar?: ReactNode;
   children?: ReactNode;
   testId: string;
@@ -70,13 +88,21 @@ function Tile({
         ) : null}
       </dt>
       <dd className="flex flex-col gap-1.5" data-testid={testId}>
-        <p className="text-xl leading-tight font-semibold tabular-nums sm:text-2xl">
+        <p
+          className={cn(
+            "text-xl leading-tight font-semibold tabular-nums sm:text-2xl",
+            quiet && "text-muted-foreground",
+          )}
+        >
           {value}
           {rest ? (
             // The space is outside the unit: in a narrow tile the unit moves to the next line as one piece.
             <>
               {" "}
-              <span className="text-muted-foreground text-sm font-normal whitespace-nowrap">
+              <span
+                title={restHint}
+                className="text-muted-foreground text-sm font-normal whitespace-nowrap"
+              >
                 {rest}
               </span>
             </>
@@ -216,6 +242,14 @@ export function SeoSummaryTiles({
           label={t("summary.tests")}
           value={format.number(tests.decided)}
           rest={t("summary.of", { total: format.number(tests.total) })}
+          // The line under the number says the split only when two kinds are outside the count.
+          restHint={
+            tests.undecided && !tests.unavailable
+              ? t("summary.testsNoResult", { count: tests.undecided })
+              : undefined
+          }
+          // The issue count beside it is the message of the tab; this count asks for no action.
+          quiet
           testId="seo-summary-tests"
         >
           {/* No bar: a nearly full bar reads as a health score, and this is a count of tests that ran. */}

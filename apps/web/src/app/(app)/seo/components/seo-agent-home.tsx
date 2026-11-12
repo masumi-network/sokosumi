@@ -291,36 +291,6 @@ function SeoAgentPanel({
               <SeoDate day value={brief.lastCheck.at} />
             </p>
           ) : null}
-          {primary === -1 ? null : (
-            // On a phone the steps start more than one screen down. The headline names the result; this line
-            // names the way to its first step. At the end of the card the button hangs into the card's padding,
-            // so the card grows little; before another line it keeps the gap of the lines. On a wide screen the
-            // line is an empty box that takes back the gap before it: a hidden box would leave that gap at the
-            // end of the card.
-            <div className="max-sm:last:-mb-2 sm:-mt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                // The words start at the text edge of the card.
-                className="-ms-2.5 sm:hidden"
-                onClick={() => {
-                  stepList.current?.scrollIntoView({
-                    block: "start",
-                    behavior: window.matchMedia(
-                      "(prefers-reduced-motion: reduce)",
-                    ).matches
-                      ? "auto"
-                      : "smooth",
-                  });
-                  // A screen reader goes on from the steps, not from this button.
-                  stepList.current?.focus({ preventScroll: true });
-                }}
-              >
-                {t("agent.toSteps")}
-                <ArrowDown />
-              </Button>
-            </div>
-          )}
           <SeoStrategyLine strategy={model.data.strategy} />
           {traffic ? (
             // The link is its own item: when it wraps, no separator leads its line.
@@ -366,6 +336,35 @@ function SeoAgentPanel({
           ) : null}
           <SeoCheckRunning workspace={model.data} />
           {upkeep}
+          {primary === -1 ? null : (
+            // On a phone the steps start more than one screen down, and the outlined buttons over the card are not
+            // the next step. The last row of the card is the way to the first step: a row control with a line over
+            // it, as wide as the card, like the "more fixes" row of the list. On a wide screen the row is an empty
+            // box that takes back the gap before it: a hidden box would leave that gap at the end of the card.
+            <div className="max-sm:-mx-4 max-sm:-mb-4 max-sm:border-t sm:-mt-2">
+              <Button
+                variant="ghost"
+                // The words start at the text edge of the card; the arrow stands at its other edge (a button
+                // with an icon has a smaller inset by default).
+                className="h-11 w-full justify-between rounded-t-none rounded-b-lg px-4 has-[>svg]:px-4 sm:hidden"
+                onClick={() => {
+                  stepList.current?.scrollIntoView({
+                    block: "start",
+                    behavior: window.matchMedia(
+                      "(prefers-reduced-motion: reduce)",
+                    ).matches
+                      ? "auto"
+                      : "smooth",
+                  });
+                  // A screen reader goes on from the steps, not from this button.
+                  stepList.current?.focus({ preventScroll: true });
+                }}
+              >
+                {t("agent.toSteps")}
+                <ArrowDown />
+              </Button>
+            </div>
+          )}
         </div>
       )}
       {/* The setup card has no line for upkeep, so it sits under the card. */}

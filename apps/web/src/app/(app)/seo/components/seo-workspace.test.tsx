@@ -300,7 +300,9 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace, "?tab=health");
     expect(
-      screen.getByText("Not passed: The page has no description"),
+      screen.getByRole("heading", {
+        name: "Not passed: The page has no description",
+      }),
     ).toBeVisible();
     // No action fixes this issue, so no link promises a fix.
     expect(
@@ -312,7 +314,9 @@ describe("SEO workspace integration", () => {
     expect(evidence).not.toBeVisible();
     // The row is the switch: it opens the evidence of its issue.
     await user.click(
-      screen.getByText("Not passed: The page has no description"),
+      screen.getByRole("heading", {
+        name: "Not passed: The page has no description",
+      }),
     );
     expect(evidence).toBeVisible();
   });
@@ -360,9 +364,10 @@ describe("SEO workspace integration", () => {
     });
     expect(row).toBeVisible();
     // The open row names the fix its button leads to.
-    const fixName = screen.getByText(
-      "Fix: Make the markup price match the page",
-    );
+    const fixName = screen.getByRole("button", {
+      name: "Fix: Make the markup price match the page",
+      hidden: true,
+    });
     expect(fixName).not.toBeVisible();
     await user.click(row);
     expect(fixName).toBeVisible();
@@ -1451,6 +1456,72 @@ describe("SEO workspace integration", () => {
       .closest("li");
     if (!blogRow) throw new Error("Blog row missing");
     expect(within(blogRow).queryByRole("heading")).toBeNull();
+  });
+
+  it("dates a Health issue row only when its finding is of another day than the tests tile", () => {
+    const workspace = seoTestWorkspace();
+    const finding = {
+      id: "price",
+      observationId: "962a86bb-5702-4d64-a6c4-15be5bf8ed80",
+      pageUrl: workspace.pages[0].url,
+      device: "mobile" as const,
+      rowId: "SD-08",
+      title: "Markup matches the visible page",
+      severity: "major" as const,
+      evidence: ["The markup says 6.99, the page shows 9.99."],
+      sourceRef: "html:head",
+      // A row can carry a later time than its check (one read per device): the day of the check counts.
+      observedAt: new Date("2026-01-04T12:00:00Z"),
+    };
+    workspace.findings.push(finding, {
+      ...finding,
+      id: "older",
+      observationId: "older-check",
+      rowId: "SD-09",
+      title: "Older finding",
+      observedAt: new Date("2026-01-02T12:00:00Z"),
+    });
+    // Newest first: the tile dates the check of Jan 3.
+    workspace.observations = [
+      { id: finding.observationId, day: 3 },
+      { id: "older-check", day: 2 },
+    ].map(({ id, day }) => ({
+      id,
+      kind: "page_check" as const,
+      source: "seo_coworker" as const,
+      observedAt: new Date(Date.UTC(2026, 0, day, 12)),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "check-task",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["mobile" as const],
+      rulebookVersion: "html-v1",
+      artifactHash: `hash-${day}`,
+      issues: 1,
+      coverage: {
+        checked: 2,
+        skipped: 0,
+        failed: 0,
+        modules: { notRequested: 0, failed: 0 },
+      },
+    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=health");
+    expect(screen.getByTestId("seo-summary-tests")).toHaveTextContent(
+      "Last check Jan 3, 2026",
+    );
+    // The finding of the tile's day repeats no date. The older one has its date, with a word that names it.
+    const dated = screen.getAllByText("Checked");
+    expect(dated).toHaveLength(1);
+    expect(dated[0].closest("li")).toHaveTextContent("Older finding");
+    // The day alone, as in the tile: the rule compares days.
+    expect(dated[0]).toHaveTextContent(
+      /^Checked Jan 2, 2026(, View results)?$/,
+    );
   });
 
   it("dates a Health page row only when its check is of another day than the tests tile", () => {
@@ -2613,12 +2684,18 @@ describe("SEO workspace integration", () => {
       ),
     );
     renderWorkspace(workspace, "?tab=health");
-    expect(screen.getByText("Not passed: Previous page finding")).toBeVisible();
+    expect(
+      screen.getByRole("heading", {
+        name: "Not passed: Previous page finding",
+      }),
+    ).toBeVisible();
     await user.click(screen.getByRole("combobox", { name: "Pages" }));
     await user.click(screen.getByRole("option", { name: "Other page" }));
     await waitFor(() =>
       expect(
-        screen.queryByText("Not passed: Previous page finding"),
+        screen.queryByRole("heading", {
+          name: "Not passed: Previous page finding",
+        }),
       ).not.toBeInTheDocument(),
     );
     expect(screen.getByText("Loading SEO results")).toBeVisible();
@@ -3295,6 +3372,76 @@ describe("SEO workspace integration", () => {
     await userEvent.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(screen.getByText("Current Google account")).toBeVisible();
+  });
+
+  it("leads the chat examples with the question about Google's results when no keyword is in them", async () => {
+    const user = userEvent.setup();
+    const workspace = {
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+      auditName: "Launch pages",
+    };
+    // One full audit read one keyword, and no page is in its results.
+    workspace.observations.push({
+      id: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
+      kind: "audit_full",
+      source: "seo_coworker",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["mobile"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 198, skipped: 0, failed: 0 },
+    });
+    workspace.keywords.push({
+      id: "missing",
+      keyword: "charge timer",
+      countryCode: "US",
+      languageCode: "en",
+      pageUrl: workspace.pages[0].url,
+      targetPageId: null,
+      saved: false,
+      priority: "medium",
+      version: 0,
+      source: "focus",
+      device: "mobile",
+      checkedResults: 100,
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      observationId: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
+      position: null,
+      positionStatus: "not_in_range",
+      volume: 90,
+      intent: null,
+      conversion: null,
+      feature: null,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, _init?: RequestInit) =>
+        Response.json(url.endsWith("/chat") ? { turns: [] } : workspace),
+      ),
+    );
+    renderWorkspace(workspace);
+    expect(await screen.findByTestId("seo-summary-keywords")).toHaveTextContent(
+      /^0 of /,
+    );
+    await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
+    const panel = await screen.findByRole("dialog", {
+      name: "Ask the SEO agent",
+    });
+    expect(
+      await within(panel).findByRole("button", {
+        name: "Why are my pages not in Google's top results?",
+      }),
+    ).toBeVisible();
+    expect(
+      within(panel).queryByRole("button", { name: "What should I do first?" }),
+    ).toBeNull();
   });
 
   it("opens embedded SEO chat without assistant setup, navigation, or a paid send", async () => {
@@ -4915,6 +5062,11 @@ describe("SEO workspace integration", () => {
     const tests = screen.getByTestId("seo-summary-tests");
     expect(tests).toHaveTextContent("201 of 231");
     expect(within(tests).queryByText(/gave no result/)).toBeNull();
+    // The count behind "of 231" is the hint of those words.
+    expect(within(tests).getByText("of 231")).toHaveAttribute(
+      "title",
+      "30 tests gave no result",
+    );
     // The issues can come from older checks: the tile dates its check.
     expect(tests).toHaveTextContent("Last check Jan 3, 2026");
     expect(screen.queryByTestId("seo-summary-keywords")).toBeNull();
