@@ -199,6 +199,28 @@
   font-weight: 500;
 }
 
+.brief-move-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.brief-move-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.brief-source-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.6875rem;
+  cursor: pointer;
+}
+
 .brief-move-n {
   display: grid;
   place-items: center;

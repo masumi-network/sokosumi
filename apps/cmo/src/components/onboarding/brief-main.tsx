@@ -308,24 +308,62 @@ function Goal({ strategy }: { strategy: Strategy }) {
   );
 }
 
-/** The plan's moves: each funnel stage's job and the first thing it does. */
-function Moves({ strategy }: { strategy: Strategy }) {
+/**
+ * The plan's moves: each funnel stage's job, its reason and the Brand Brain
+ * sections it rests on, each of which opens that section in place. A plan
+ * saved before Core sent reasons shows the stage's first play instead.
+ */
+function Moves({
+  overview,
+  strategy,
+}: {
+  overview: CmoOverview;
+  strategy: Strategy;
+}) {
+  const [shown, setShown] = useState<string | null>(null);
   const stages = (strategy.funnel ?? []).slice(0, 3);
   if (stages.length === 0) return null;
   return (
     <ol className="brief-moves">
       {stages.map((stage, index) => {
         const play = stage.plays?.[0];
+        const sections = overview.brandBrain ? (stage.basedOn ?? []) : [];
+        const open = sections.find(
+          (section) => shown === `${stage.stage}:${section}`,
+        );
         return (
           <li key={stage.stage}>
             <span className="brief-move-n num">{index + 1}</span>
-            <div>
+            <div className="brief-move-body">
               <p className="brief-move">{stage.goal}</p>
-              {play ? (
+              {stage.why ? (
+                <p className="muted">{stage.why}</p>
+              ) : play ? (
                 <p className="muted">
                   {channelLabel(play.channel)}: {play.what}
                   {play.cadence ? `, ${play.cadence}` : ""}
                 </p>
+              ) : null}
+              {sections.length > 0 ? (
+                <p className="brief-move-sources">
+                  {sections.map((section) => {
+                    const key = `${stage.stage}:${section}`;
+                    return (
+                      <button
+                        key={section}
+                        type="button"
+                        className="brief-source brief-source-link"
+                        aria-expanded={shown === key}
+                        onClick={() => setShown(shown === key ? null : key)}
+                      >
+                        Brand Brain · {BRAND_SECTIONS[section].title}
+                      </button>
+                    );
+                  })}
+                </p>
+              ) : null}
+              {open ? (
+                <SectionResult overview={overview} section={open} />
               ) : null}
             </div>
           </li>
@@ -858,7 +896,7 @@ export function BriefMain({
         ) : step === "plan" ? (
           <>
             <Goal strategy={strategy} />
-            <Moves strategy={strategy} />
+            <Moves overview={overview} strategy={strategy} />
             <SeeMore label="the whole strategy: pillars, channels, funnel, budget, measurement">
               <PlanReview
                 overview={overview}

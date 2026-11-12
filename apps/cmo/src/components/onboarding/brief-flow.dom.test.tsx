@@ -428,6 +428,53 @@ describe("briefing", () => {
     expect(setAdBudget).toHaveBeenCalledWith(0, "USD");
   });
 
+  it("grounds each move in its reason and the Brand Brain section it rests on", async () => {
+    const grounded = draft({
+      strategy: {
+        ...fullPlan,
+        funnel: [
+          {
+            stage: "awareness",
+            name: "Hear about us",
+            goal: "Show a rocket at work on X, every day",
+            channels: ["x"],
+            metric: "Profile visits",
+            plays: [{ channel: "x", what: "Daily launch clips" }],
+            why: "Buyers trust what they see done.",
+            basedOn: ["customers"],
+          },
+          {
+            stage: "consideration",
+            name: "Look closer",
+            goal: "Compare launch kits honestly",
+            channels: ["seo"],
+            metric: "Site visits",
+            plays: [{ channel: "seo", what: "Comparison articles" }],
+          },
+        ],
+      },
+      brandBrain: {
+        ...brain,
+        profile: {
+          customers: {
+            answer: "Product teams of ten to fifty.",
+            findings: [],
+            openQuestions: [],
+          },
+        },
+      },
+    });
+    await render(grounded);
+    expect(text()).toContain("Buyers trust what they see done.");
+    // A move without a reason keeps its first play instead.
+    expect(text()).toContain("Comparison articles");
+    const source = button("Brand Brain · Target customers");
+    expect(source.getAttribute("aria-expanded")).toBe("false");
+    await act(async () => source.click());
+    expect(source.getAttribute("aria-expanded")).toBe("true");
+    expect(text()).toContain("Product teams of ten to fifty.");
+  });
+
   it("remembers the steps gone through on this device", async () => {
     const overview = draft({ strategy: fullPlan });
     await render(overview);
