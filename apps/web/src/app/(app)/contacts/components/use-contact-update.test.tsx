@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useListToggle } from "./use-contact-update";
+import { FAILURE_TOAST_WAIT_MS, useListToggle } from "./use-contact-update";
 import { CONTACTS_KEY, contactKey } from "./use-contacts-data";
 
 const f = vi.hoisted(() => ({ changeMembers: vi.fn(), toastError: vi.fn() }));
@@ -204,10 +204,42 @@ describe("useListToggle", () => {
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: contactKey(contact.id),
     });
-    // The toast says the list is back, so it waits for the reload.
-    expect(invalidate.mock.invocationCallOrder[0]).toBeLessThan(
-      f.toastError.mock.invocationCallOrder[0],
-    );
+  });
+
+  it("shows the failure toast once the reload has finished", async () => {
+    f.changeMembers.mockRejectedValue({ message: "No access" });
+    const { toggle, invalidate } = setup();
+    let reloaded = () => {};
+    const reload = new Promise<void>((resolve) => void (reloaded = resolve));
+    invalidate.mockImplementation(() => reload);
+    let done = Promise.resolve();
+    await act(async () => void (done = toggle(contact, list, true)));
+    expect(f.toastError).not.toHaveBeenCalled();
+    reloaded();
+    await act(() => done);
+    expect(f.toastError).toHaveBeenCalledOnce();
+  });
+
+  it("shows the failure toast after the cap when the reload hangs", async () => {
+    vi.useFakeTimers();
+    try {
+      f.changeMembers.mockRejectedValue({ message: "No access" });
+      const { toggle, invalidate } = setup();
+      invalidate.mockImplementation(() => new Promise(() => {}));
+      await act(async () => void toggle(contact, list, true));
+      expect(f.toastError).not.toHaveBeenCalled();
+      await act(() => vi.advanceTimersByTimeAsync(FAILURE_TOAST_WAIT_MS));
+      expect(f.toastError).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still says so when the save rejects with null", async () => {
+    f.changeMembers.mockRejectedValue(null);
+    const { toggle } = setup();
+    await act(() => toggle(contact, list, true));
+    expect(f.toastError).toHaveBeenCalledOnce();
   });
 
   it("names the contact and list when taking it off fails", async () => {

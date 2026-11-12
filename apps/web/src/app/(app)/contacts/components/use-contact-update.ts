@@ -22,6 +22,9 @@ import {
   writeContact,
 } from "./use-contacts-data";
 
+/** Longest wait for the reload before a failure toast shows anyway. */
+export const FAILURE_TOAST_WAIT_MS = 1500;
+
 export type ContactFields = Omit<
   NonNullable<PatchContactsByIdData["body"]>,
   "version"
@@ -152,14 +155,24 @@ export function useListToggle() {
       () => {},
       () => {},
     );
-    const failure = await save.then(
-      () => null,
-      (error: unknown) => error,
-    );
+    let failed = false;
+    let failure: unknown;
+    try {
+      await save;
+    } catch (error) {
+      failed = true;
+      failure = error;
+    }
     saves.open -= 1;
-    if (saves.open === 0) await refreshContacts(cache, contact.id);
-    // After the reload, so the list is back when the toast says it is.
-    if (failure !== null) {
+    const refresh =
+      saves.open === 0 ? refreshContacts(cache, contact.id) : Promise.resolve();
+    if (failed) {
+      // After the reload, so the list is back when the toast says it is;
+      // a reload that retries against a failing Core does not hold it long.
+      await Promise.race([
+        refresh.catch(() => {}),
+        new Promise((done) => setTimeout(done, FAILURE_TOAST_WAIT_MS)),
+      ]);
       toast.error(
         t(on ? "panel.addToListFailed" : "panel.removeFromListFailed", {
           name: contact.name,
@@ -168,6 +181,7 @@ export function useListToggle() {
         { description: coreErrorOf(failure).message },
       );
     }
+    await refresh;
     // Drops one entry: a second click on the same list keeps its own.
     setSaving((current) => {
       const index = current.indexOf(key);
