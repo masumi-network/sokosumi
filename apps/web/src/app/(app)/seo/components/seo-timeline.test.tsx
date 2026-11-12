@@ -167,12 +167,68 @@ describe("SEO timeline recovery", () => {
     );
     // One time per check: the save time is not a second date.
     expect(within(recheck).queryByText("Saved")).toBeNull();
-    // A check's Task holds its results; the link says so.
-    const task = within(recheck).getByRole("link", { name: "View results" });
+    // A check's Task holds its results. The date of the row is the link, and its name says where it leads.
+    const task = within(recheck).getByRole("link", { name: /View results$/ });
     expect(task).toHaveAttribute("href", "/tasks/second-task");
-    // One check needs no Details: its Task sits on the row.
+    expect(task).toContainElement(recheck.querySelector("time"));
+    // One check needs no Details and no second line for the link.
     expect(task).toBeVisible();
     expect(task.closest("details")).toBeNull();
+    expect(within(recheck).getAllByRole("link")).toHaveLength(1);
+  });
+
+  it("keeps the row of a check that the tiles do not show", () => {
+    const workspace = seoTestWorkspace();
+    const older = {
+      id: "older",
+      kind: "page_check" as const,
+      source: "agent" as const,
+      observedAt: new Date("2026-11-01T10:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "older-task",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop" as const],
+      rulebookVersion: "test-rules",
+      artifactHash: "older-hash",
+      issues: 1,
+      coverage: { checked: 12, skipped: 0, failed: 0 },
+    };
+    // The newest check has no event: the tiles show it, and the only row is of the check before it.
+    workspace.observations = [
+      {
+        ...older,
+        id: "newest",
+        sourceTaskId: "newest-task",
+        observedAt: new Date("2026-11-02T10:00:00Z"),
+      },
+      older,
+    ];
+    workspace.timeline = [
+      {
+        id: "older-event",
+        kind: "check",
+        title: "SEO check results imported",
+        status: "completed",
+        detail: "",
+        at: older.observedAt,
+        pageIds: older.pageIds,
+        taskId: older.sourceTaskId,
+        observationId: older.id,
+      },
+    ];
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        formats={createFormats()}
+        messages={messages}
+      >
+        <SeoTimeline workspace={workspace} summarized />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText("1 issue found")).toBeVisible();
   });
 
   it("folds back-to-back clean checks of the same pages into one row", () => {
@@ -330,7 +386,8 @@ describe("SEO timeline recovery", () => {
       issues: 0,
       coverage: { checked: 12, skipped: 0, failed: 0 },
     });
-    workspace.observations = [check("us", 1, "US"), check("gb", 2, "GB")];
+    // Newest first, as the workspace gives them.
+    workspace.observations = [check("gb", 2, "GB"), check("us", 1, "US")];
     workspace.timeline = workspace.observations.map((observation) => ({
       id: observation.id,
       kind: "check",
@@ -349,9 +406,10 @@ describe("SEO timeline recovery", () => {
         formats={createFormats()}
         messages={messages}
       >
-        <SeoTimeline workspace={workspace} />
+        <SeoTimeline workspace={workspace} summarized />
       </NextIntlClientProvider>,
     );
+    // The tiles name no market, so the last check keeps its row here, also on an Audit with several pages.
     expect(screen.getAllByText("No issues found")).toHaveLength(2);
     expect(screen.getByText(/United Kingdom · English/)).toBeVisible();
   });

@@ -960,7 +960,7 @@ describe("SEO workspace integration", () => {
     ).toBeNull();
     expect(
       within(screen.getByRole("list", { name: "SEO activity, newest first" }))
-        .getAllByRole("link", { name: "View results" })
+        .getAllByRole("link", { name: /View results$/ })
         .map((link) => link.getAttribute("href")),
     ).toContain("/tasks/one-check-task");
   });
@@ -1369,30 +1369,30 @@ describe("SEO workspace integration", () => {
   );
 
   it.each([
-    // [case, pages, issues of each check, tests that failed, optional parts lost, Timeline shown]
-    ["one page: no page card gives the last check", 1, [1], 0, 0, true],
+    // [case, pages, issues of each check (oldest first), tests that failed, optional parts lost, Timeline rows]
+    ["one page: no page card gives the last check", 1, [1], 0, 0, 1],
+    ["several pages and one check: the page cards give it", 2, [1], 0, 0, 0],
     [
-      "several pages and one check: the page cards give it",
+      "two checks with issues: the tiles give the last one, a row the one before",
       2,
-      [1],
+      [1, 2],
       0,
       0,
-      false,
+      1,
     ],
-    ["two checks with issues: two rows", 2, [1, 2], 0, 0, true],
     [
       "two clean checks: one row that folds the earlier one",
       2,
       [0, 0],
       0,
       0,
-      true,
+      1,
     ],
-    ["a check with failed tests: the row says so", 2, [0], 1, 0, true],
-    ["a check that lost an optional part: the row says so", 2, [1], 0, 1, true],
+    ["a check with failed tests: the row says so", 2, [0], 1, 0, 1],
+    ["a check that lost an optional part: the row says so", 2, [1], 0, 1, 1],
   ] as const)(
     "shows the Health Timeline only when it adds to the tiles and page cards, %s",
-    (_case, pages, issues, failed, lost, shown) => {
+    (_case, pages, issues, failed, lost, rows) => {
       const workspace = seoTestWorkspace();
       workspace.findings = [];
       if (pages > 1)
@@ -1404,14 +1404,14 @@ describe("SEO workspace integration", () => {
         });
       const pageIds = workspace.pages.map((page) => page.id);
       workspace.scope.pageIds = pageIds;
-      workspace.observations = issues.map((count, index) => ({
+      const checks = issues.map((count, index) => ({
         id: `check-${index}`,
         kind: "page_check" as const,
         source: "seo_coworker" as const,
         observedAt: new Date(Date.UTC(2026, 0, 3 + index, 12)),
         pageIds,
         scopeVersion: 2,
-        sourceTaskId: "check-task",
+        sourceTaskId: `check-task-${index}`,
         countryCode: "US",
         languageCode: "en",
         devices: ["desktop" as const],
@@ -1425,6 +1425,8 @@ describe("SEO workspace integration", () => {
           modules: { notRequested: 0, failed: lost },
         },
       }));
+      // The workspace gives its checks newest first.
+      workspace.observations = checks.toReversed();
       workspace.timeline = workspace.observations.map((observation) => ({
         id: `event-${observation.id}`,
         kind: "check" as const,
@@ -1443,19 +1445,33 @@ describe("SEO workspace integration", () => {
       renderWorkspace(workspace, "?tab=health");
       expect(screen.getByTestId("seo-summary-tests")).toBeVisible();
       expect(screen.queryByRole("heading", { name: "Timeline" }) !== null).toBe(
-        shown,
+        rows > 0,
       );
       // The date of the tests tile opens the results of the last check, with or without a Timeline.
       expect(
         within(screen.getByTestId("seo-summary-tests")).getByRole("link", {
           name: /, View results$/,
         }),
-      ).toHaveAttribute("href", "/tasks/check-task");
-      // A Timeline row links the results of its check.
+      ).toHaveAttribute("href", `/tasks/check-task-${issues.length - 1}`);
+      const list = screen.queryByRole("list", {
+        name: "SEO activity, newest first",
+      });
+      if (!list) {
+        expect(rows).toBe(0);
+        return;
+      }
+      expect(within(list).getAllByRole("listitem")).toHaveLength(rows);
+      // A Timeline row links the results of its check: the first link is of the newest check of the row.
+      // With several pages the tiles give the last check, so the row is the check before it.
       expect(
-        screen.queryAllByRole("link", { name: "View results", hidden: true })
-          .length > 0,
-      ).toBe(shown);
+        within(list)
+          .getAllByRole("link", { name: /View results$/, hidden: true })[0]
+          .getAttribute("href"),
+      ).toBe(
+        `/tasks/check-task-${
+          _case.startsWith("two checks with issues") ? 0 : issues.length - 1
+        }`,
+      );
     },
   );
 

@@ -527,7 +527,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
           </summary>
           <div className={cn(HOLDER_ITEM_CLASS, "mt-2 space-y-4 p-4")}>
             {oneCheck ? (
-              // The check's Timeline row, or its page cards when the Timeline is hidden, link its results.
+              // The date of the tests tile, the check's Timeline row or its page card links its results.
               <p className="text-muted-foreground text-xs">
                 {t.rich("overview.fromCheck", {
                   date: () => <SeoDate value={oneCheckAt} />,

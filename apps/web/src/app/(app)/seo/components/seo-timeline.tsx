@@ -27,6 +27,7 @@ import {
   seoMarketName,
 } from "./seo-shared";
 import { seoCoverageIsNews } from "./seo-statistics-model";
+import { lastRuleCheck } from "./seo-summary-model";
 import {
   buildSeoTimeline,
   foldCleanChecks,
@@ -164,19 +165,7 @@ export function SeoTimeline({
             new Date(event.at).getTime() > (lastRoutine.get(event.title) ?? 0)),
       ),
   );
-  const nodes = foldCleanChecks(synced, (node) => resultOf(node) === 0);
-  // One check and nothing else: the tiles and the page cards already give its day, its tests and its issues.
-  // A check that lost an optional part keeps its row: only the row says so.
-  if (
-    summarized &&
-    nodes.length === 1 &&
-    resultOf(nodes[0]) !== null &&
-    !nodes[0].earlier?.length &&
-    !nodes[0].observation?.coverage.modules?.failed
-  )
-    return null;
-  const visible = showAll ? nodes : nodes.slice(0, SEO_TIMELINE_VISIBLE);
-  const onePage = workspace.scope.pageIds.length <= 1;
+  const all = foldCleanChecks(synced, (node) => resultOf(node) === 0);
   // The market only tells runs apart when they used different ones.
   const manyMarkets =
     new Set(
@@ -184,6 +173,24 @@ export function SeoTimeline({
         ({ countryCode, languageCode }) => `${countryCode}/${languageCode}`,
       ),
     ).size > 1;
+  // The tiles and the page cards already give the last check: its day, its tests, its issues and the link to
+  // its results. Its row would say them a second time, so the list starts at the event before it.
+  // A check that lost an optional part keeps its row: only the row says so. So does each check when the
+  // checks used different markets: only the row names the market.
+  const first = all.at(0);
+  const tiled =
+    summarized &&
+    !manyMarkets &&
+    first !== undefined &&
+    resultOf(first) !== null &&
+    !first.earlier.length &&
+    !first.observation?.coverage.modules?.failed &&
+    // The tiles show the newest check. A newer check without an event here leaves this row its own news.
+    first.observation?.id === lastRuleCheck(workspace)?.id;
+  const nodes = tiled ? all.slice(1) : all;
+  if (tiled && nodes.length === 0) return null;
+  const visible = showAll ? nodes : nodes.slice(0, SEO_TIMELINE_VISIBLE);
+  const onePage = workspace.scope.pageIds.length <= 1;
   return (
     <SeoSection title={t("timeline.title")}>
       {nodes.length === 0 ? (
@@ -289,6 +296,19 @@ export function SeoTimeline({
                               { dateStyle: "medium" },
                             )}
                           </>
+                        ) : observation && event.taskId ? (
+                          // The date opens the results of the check: its Task is the record behind the row.
+                          // The link has a 40 px hit area on a phone; the negative margin keeps the line in place.
+                          <Link
+                            href={`/tasks/${encodeURIComponent(event.taskId)}`}
+                            className="-my-3 inline-block py-3 underline underline-offset-4"
+                          >
+                            <SeoDate value={at} />
+                            {/* A date alone does not say where the link leads. */}
+                            <span className="sr-only">
+                              , {t("timeline.viewResults")}
+                            </span>
+                          </Link>
                         ) : (
                           <SeoDate value={at} />
                         )}
@@ -347,13 +367,9 @@ export function SeoTimeline({
                         {t("timeline.incomplete")}
                       </p>
                     ) : null}
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-                      {observation && !earlier.length ? (
-                        // One check needs no details: its Task is the record behind the row.
-                        event.taskId ? (
-                          taskLink(event.taskId, true)
-                        ) : null
-                      ) : (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs empty:hidden">
+                      {observation && !earlier.length ? null : (
+                        // One check needs no details: its date opens its results.
                         <details className="text-muted-foreground">
                           <SeoFoldSummary className="py-3 underline-offset-4 hover:underline">
                             {/* Folded checks open to a list of the checks, each with its own results link. */}
