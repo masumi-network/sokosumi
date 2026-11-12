@@ -10,6 +10,7 @@ import {
   effectiveType,
 } from "@/app/drive/components/drive-file-preview";
 import { DriveSpreadsheet } from "@/app/drive/components/drive-spreadsheet";
+import { CapTableFileView } from "@/components/cap-table/cap-table-view";
 import { TeamFileView } from "@/components/team/team-view";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +23,7 @@ import {
 import { DocumentViewer } from "@/components/ui/document-viewer";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
+import { isCapTableFileName } from "@/lib/cap-table-file";
 import { spreadsheetKind } from "@/lib/spreadsheet-file";
 import { isTeamFileName } from "@/lib/team-file";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
@@ -65,7 +67,8 @@ export function DriveFileViewer({
   const kind = classifyFilePreview(url, file.displayName, type);
   const sheet = spreadsheetKind(type, file.displayName);
 
-  if (isTeamFileName(file.displayName) || sheet) {
+  const capTable = isCapTableFileName(file.displayName);
+  if (isTeamFileName(file.displayName) || capTable || sheet) {
     return (
       <Dialog
         open
@@ -83,7 +86,9 @@ export function DriveFileViewer({
           <DialogDescription className="sr-only">
             {file.displayName}
           </DialogDescription>
-          {sheet ? (
+          {capTable ? (
+            <CapTableFileView url={url} />
+          ) : sheet ? (
             <DriveSpreadsheet
               resourceId={file.id}
               store={store}

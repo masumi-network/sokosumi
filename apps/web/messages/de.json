@@ -1106,6 +1106,27 @@
       "empty": "Dieses Blatt ist leer.",
       "truncated": "Es werden die ersten {rows} Zeilen und 50 Spalten angezeigt. Lade die Datei herunter, um den Rest zu sehen."
     },
+    "CapTableView": {
+      "loading": "Cap Table wird geladen",
+      "failed": "Diese Cap-Table-Datei kann nicht angezeigt werden. Prüfe, ob es eine gültige Cap-Table-Datei ist.",
+      "title": "Cap Table von {company}",
+      "asOf": "Stand {date}",
+      "ownership": "Beteiligung, voll verwässert",
+      "holder": "Inhaber",
+      "class": "Gattung",
+      "shares": "Anteile",
+      "issued": "Ausgegeben",
+      "fullyDiluted": "Voll verwässert",
+      "optionPool": "Optionspool",
+      "vesting": "Vesting: {schedule}",
+      "granted": "{granted} zugeteilt, {available} verfügbar",
+      "total": "Gesamt",
+      "issuedShares": "Ausgegebene Anteile",
+      "reservedShares": "Für Mitarbeiterbeteiligung reserviert",
+      "unallocatedShares": "Weder ausgegeben noch reserviert",
+      "authorizedShares": "Genehmigte Anteile",
+      "parValue": "Nennwert"
+    },
     "TeamView": {
       "loading": "Team wird geladen",
       "failed": "Diese Team-Datei kann nicht angezeigt werden. Prüfe, ob sie eine gültige Team-Datei ist.",
