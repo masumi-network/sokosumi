@@ -5957,7 +5957,7 @@ export class SokoBotRuntimeService {
               ...(filed > 0 ? { filed } : {}),
               ...(leftAsSaved.length > 0 ? { leftAsSaved } : {}),
               undrafted: undrafted.length,
-              firstUndrafted: undrafted[0],
+              ...(undrafted[0] ? { firstUndrafted: undrafted[0] } : {}),
               ...(review ? { review } : {}),
               ...(review && review.problems.length > 0
                 ? {

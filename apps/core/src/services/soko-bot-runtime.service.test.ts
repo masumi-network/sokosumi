@@ -11135,6 +11135,7 @@ describe("CMO record saves", () => {
       versionId: "strategy-2",
       approved: false,
     });
+    expect(result).not.toHaveProperty("firstUndrafted");
   });
 
   it("saves the Brand Brain to Cuso's Project", async () => {
