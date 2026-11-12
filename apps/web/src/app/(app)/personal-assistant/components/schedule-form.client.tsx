@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -66,7 +65,6 @@ function OpenScheduleForm({
   const t = useTranslations("App.SokoBot.Schedules.Form");
   const tWhen = useTranslations("App.Tasks.Schedules.Dialog.When");
   const formatter = useFormatter();
-  const router = useRouter();
   const ids = { name: useId(), prompt: useId(), next: useId() };
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
@@ -103,7 +101,6 @@ function OpenScheduleForm({
       }
       toast.success(t("created"));
       onClose();
-      router.refresh();
     });
   }
 

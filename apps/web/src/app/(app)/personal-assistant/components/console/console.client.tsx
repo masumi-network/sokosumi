@@ -290,7 +290,6 @@ export function SokoBotConsole({
       setPickedAvatar(null);
       setEditingPicture(false);
       await refresh();
-      router.refresh();
     });
   }
 
