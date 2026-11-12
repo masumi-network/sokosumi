@@ -70,6 +70,7 @@ export function seoSummary(workspace: ProjectSeoWorkspace) {
             undecided: check.coverage.skipped,
             unavailable: check.coverage.failed,
             observedAt: check.observedAt,
+            observationId: check.id,
           }
         : null,
     keywords: rankings.read

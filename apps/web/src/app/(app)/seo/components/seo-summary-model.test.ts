@@ -121,6 +121,8 @@ describe("seoSummary", () => {
       undecided: 30,
       unavailable: 2,
       observedAt: new Date("2026-01-03T12:00:00Z"),
+      // The tile's date opens the results of this check.
+      observationId: CHECK,
     });
   });
 

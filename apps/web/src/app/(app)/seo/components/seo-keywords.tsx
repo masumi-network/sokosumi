@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronRight } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import {
   SeoKeywordTrendChart,
   SeoKeywordTrendToggle,
 } from "./seo-keyword-trend";
+import { seoOpenFixes, seoOverviewModel } from "./seo-overview-model";
 import {
   keywordSuggestions,
   keywordTrend,
@@ -38,6 +40,7 @@ import {
 import {
   SEO_COMPACT_ROWS_CLASS,
   SEO_LIST_PAGE_SIZE,
+  SEO_ROW_BUTTON_CLASS,
   SEO_SEARCH_MIN_ROWS,
   SeoAddButton,
   SeoBarNumber,
@@ -165,6 +168,12 @@ export function SeoKeywords({
     ...checked.map((group) => group.volume ?? 0),
   );
   const groupOf = seoStrategyGroupOf(model.data.strategy);
+  // A check that found no page in the results is the worst result of the tab. The fixes the agent proposes are
+  // the one next step it can offer, so the card leads to them. "Track" on a row does not answer the result.
+  const fixes =
+    summary.read > 0 && summary.found === 0
+      ? seoOpenFixes(seoOverviewModel(model.data)).length
+      : 0;
   // One search box filters keywords and ideas: while it holds text, both lists show their matches.
   const bothLists = Boolean(model.keywordSearch) && section !== "competitors";
   return (
@@ -246,6 +255,20 @@ export function SeoKeywords({
                 ],
               ]}
             />
+          ) : null}
+          {fixes ? (
+            <button
+              type="button"
+              className={cn(SEO_ROW_BUTTON_CLASS, "px-4 py-2.5 text-sm")}
+              onClick={() => {
+                void model.setFilters({ tab: "actions" });
+              }}
+            >
+              <span className="min-w-0 flex-1 font-medium">
+                {t("keywords.nextFixes", { count: fixes })}
+              </span>
+              <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+            </button>
           ) : null}
           {paidOff ||
           !rows.length ||

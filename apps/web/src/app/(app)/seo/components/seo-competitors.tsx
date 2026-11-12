@@ -271,7 +271,10 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                     ) : null}
                     {shown.backlinks ? (
                       <TableCell
-                        className="text-right tabular-nums"
+                        className={cn(
+                          "text-right tabular-nums",
+                          row.backlinks === 0 && "text-muted-foreground",
+                        )}
                         data-label={t("competitors.backlinks")}
                       >
                         {number(row.backlinks)}
@@ -279,7 +282,11 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                     ) : null}
                     {shown.domains ? (
                       <TableCell
-                        className="text-right tabular-nums"
+                        className={cn(
+                          "text-right tabular-nums",
+                          // A measured 0 stays, in the quiet colour: the sites with links stand out of the column.
+                          row.referringDomains === 0 && "text-muted-foreground",
+                        )}
                         // A phone row has no column head: the short name keeps both values on one line.
                         data-label={t("competitors.domainsShort")}
                       >

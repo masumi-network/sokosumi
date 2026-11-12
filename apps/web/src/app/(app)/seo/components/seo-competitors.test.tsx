@@ -431,7 +431,7 @@ describe("SEO competitor baselines", () => {
     // A whole address may wrap after "." or "/", never inside "//".
     expect(platform.innerHTML).not.toContain("/<wbr>/");
     expect(platform.innerHTML).toContain("youtube.<wbr>com/");
-    await user.click(screen.getByText("Other sites in the results (1)"));
+    await user.click(screen.getByText("1 other site in the results"));
     expect(platform).toBeVisible();
     expect(screen.getByText("Position 1 · 900 linking sites")).toBeVisible();
     // Every site is in view, so there is nothing to filter: 12 pages of 2 sites show no filter box.

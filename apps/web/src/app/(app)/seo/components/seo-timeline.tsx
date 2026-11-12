@@ -62,7 +62,7 @@ export function SeoTimeline({
 }: {
   workspace: ProjectSeoWorkspace;
   onRetry?: () => void;
-  /** The tab shows the last check in its tiles and on each page card, with the link to its results. */
+  /** The tab shows the last check in its tiles, with the link to its results, and on each page card. */
   summarized?: boolean;
 }) {
   const t = useTranslations("App.Seo");

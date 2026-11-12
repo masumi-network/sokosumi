@@ -165,6 +165,13 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
   };
 }
 
+/** The fixes that wait for the reader: the count the Agent tab and the Keywords card lead with. */
+export function seoOpenFixes(
+  overview: Pick<ReturnType<typeof seoOverviewModel>, "recommendedActions">,
+) {
+  return overview.recommendedActions.filter((action) => action.kind === "fix");
+}
+
 /**
  * Per page in the current view: open issues and the newest check that covered it.
  * The workspace holds findings and checks only for the viewed pages and dates, so a

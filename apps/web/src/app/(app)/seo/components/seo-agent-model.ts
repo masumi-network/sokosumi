@@ -1,5 +1,5 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { seoOverviewModel } from "./seo-overview-model";
+import { seoOpenFixes, seoOverviewModel } from "./seo-overview-model";
 import { latestSeoMeasurements } from "./seo-statistics-model";
 import { lastRuleCheck } from "./seo-summary-model";
 
@@ -28,9 +28,7 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
   const analytics = latest.filter((metric) => metric.source === "ga4");
   const searchSaved = search[0] ?? null;
   const lastCheck = lastRuleCheck(workspace);
-  const fixes = overview.recommendedActions.filter(
-    (action) => action.kind === "fix",
-  );
+  const fixes = seoOpenFixes(overview);
   const opportunities = overview.recommendedActions.filter(
     (action) => action.kind === "opportunity",
   );

@@ -425,8 +425,8 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                         ))}
                       </ul>
                       {/* The tests tile over the list dates the last check: a finding of that day repeats no date
-                          (its page row under the list links to the check). An older finding has its date, with a
-                          word, and the date is the link to its check. */}
+                          (the date of the tile opens the results of that check). An older finding has its date,
+                          with a word, and the date is the link to its check. */}
                       {sameDayAsTile(checkedAt(finding)) ? null : (
                         <p className="text-xs">
                           <SeoSource
@@ -480,8 +480,8 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
         </SeoSection>
       ) : null}
       <SeoTimeline
-        // With several pages each page row gives its last check: its issues and the results link, and its day when
-        // the day is not the one the tests tile names.
+        // With several pages each page row gives its last check: its issues, and its day and the results link
+        // when the check is not the one the tests tile dates and links.
         // With one page only the Timeline row links the results.
         summarized={data.pages.length > 1}
         workspace={data}

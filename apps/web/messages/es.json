@@ -11078,6 +11078,7 @@
         "addButton": "Añadir una palabra clave",
         "keywordAndPage": "Palabra clave y su página",
         "readOn": "Última comprobación de posiciones",
+        "nextFixes": "{count, plural, one {Siguiente paso: # corrección} other {Siguiente paso: # correcciones}}",
         "searchKeywords": "Filtrar palabras clave"
       },
       "competitors": {
@@ -11104,7 +11105,7 @@
         "morePages": "{count, plural, one {# página más de este sitio} other {# páginas más de este sitio}}",
         "positionOf": "Posición {rank}",
         "domainsOf": "{count, plural, one {# sitio que enlaza} other {# sitios que enlazan}}",
-        "platforms": "Otros sitios en los resultados ({count})",
+        "platforms": "{count, plural, one {# sitio más en los resultados} other {# sitios más en los resultados}}",
         "platformsHelp": "Sitios de vídeo, foros, tiendas y páginas de ayuda. Ocupan un lugar en los resultados, pero no son rivales de tu sitio.",
         "dialogHelp": "Añade un sitio con el que compites. Se queda en esta lista como tu competidor.",
         "searchPlaceholder": "Filtrar sitios",

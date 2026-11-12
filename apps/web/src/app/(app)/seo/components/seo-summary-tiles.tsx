@@ -6,7 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { HOLDER_ITEM_HOVER_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
-import { SEO_SEVERITY_MARK_CLASS, SeoDate } from "./seo-shared";
+import { SEO_SEVERITY_MARK_CLASS, SeoDate, SeoSource } from "./seo-shared";
 import { seoSummary } from "./seo-summary-model";
 
 /**
@@ -94,7 +94,8 @@ function Tile({
         <div className="flex items-center justify-between gap-2">
           <p
             className={cn(
-              "min-w-0 text-xl leading-tight font-semibold tabular-nums sm:text-2xl",
+              // One size on every width: larger, the numbers outranked the headline of the Agent tab.
+              "min-w-0 text-xl leading-tight font-semibold tabular-nums",
               quiet && "text-muted-foreground",
             )}
           >
@@ -281,13 +282,19 @@ export function SeoSummaryTiles({
             {tests.undecided + tests.unavailable ? null : (
               <span>{t("summary.testsAll")}</span>
             )}
-            {/* The issues can come from older checks too; the tests are of this one. */}
+            {/* The issues can come from older checks too; the tests are of this one. The date opens its results:
+                a page row of this check, under the tile, repeats no link to them. */}
             <span>
-              {t("agent.lastCheckOn")}{" "}
-              {/* The date moves to the next line as one piece: a year alone on a line reads as a value. */}
-              <span className="whitespace-nowrap">
-                <SeoDate day value={tests.observedAt} />
-              </span>
+              <SeoSource
+                observationId={tests.observationId}
+                workspace={workspace}
+              >
+                {t("agent.lastCheckOn")}{" "}
+                {/* The date moves to the next line as one piece: a year alone on a line reads as a value. */}
+                <span className="whitespace-nowrap">
+                  <SeoDate day value={tests.observedAt} />
+                </span>
+              </SeoSource>
             </span>
           </span>
         </Tile>

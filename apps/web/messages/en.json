@@ -11078,6 +11078,7 @@
         "addButton": "Add a keyword",
         "keywordAndPage": "Keyword and its page",
         "readOn": "Last position check",
+        "nextFixes": "{count, plural, one {Next step: # fix} other {Next step: # fixes}}",
         "searchKeywords": "Filter keywords"
       },
       "competitors": {
@@ -11104,7 +11105,7 @@
         "morePages": "{count, plural, one {# more page of this site} other {# more pages of this site}}",
         "positionOf": "Position {rank}",
         "domainsOf": "{count, plural, one {# linking site} other {# linking sites}}",
-        "platforms": "Other sites in the results ({count})",
+        "platforms": "{count, plural, one {# other site in the results} other {# other sites in the results}}",
         "platformsHelp": "Video sites, forums, stores and help pages. They hold a place in the results, but they are not rivals of your site.",
         "dialogHelp": "Add a site you compete with. It stays on this list as your competitor.",
         "searchPlaceholder": "Filter sites",

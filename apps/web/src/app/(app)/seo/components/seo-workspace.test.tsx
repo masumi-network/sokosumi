@@ -1410,13 +1410,17 @@ describe("SEO workspace integration", () => {
       expect(screen.queryByRole("heading", { name: "Timeline" }) !== null).toBe(
         shown,
       );
-      // The link to the results is on the Timeline row, or on a page row when the Timeline is hidden: the row's
-      // date, or its result alone when the check is of the day the tests tile names.
+      // The date of the tests tile opens the results of the last check, with or without a Timeline.
       expect(
-        screen.getAllByRole("link", {
-          name: /^(View results$|Last check |(\d+|no) issues?\b)/,
-        }).length,
-      ).toBeGreaterThan(0);
+        within(screen.getByTestId("seo-summary-tests")).getByRole("link", {
+          name: /^Last check /,
+        }),
+      ).toHaveAttribute("href", "/tasks/check-task");
+      // A Timeline row links the results of its check.
+      expect(
+        screen.queryAllByRole("link", { name: "View results", hidden: true })
+          .length > 0,
+      ).toBe(shown);
     },
   );
 
@@ -1545,7 +1549,7 @@ describe("SEO workspace integration", () => {
     const [home, blog, guide] = workspace.pages.map((page) => page.id);
     workspace.scope.pageIds = [home, blog, guide];
     // Newest first: the last check read the home page alone; the guide's last check is of the same day, hours
-    // before; the blog's last check is of the day before.
+    // before; the blog's last check is of the day before. Each check has results of its own.
     workspace.observations = [
       { day: 4, hour: 15, pageIds: [home] },
       { day: 4, hour: 9, pageIds: [home, guide] },
@@ -1557,7 +1561,7 @@ describe("SEO workspace integration", () => {
       observedAt: new Date(Date.UTC(2026, 0, day, hour)),
       pageIds,
       scopeVersion: 2,
-      sourceTaskId: "check-task",
+      sourceTaskId: `task-${day}-${hour}`,
       countryCode: "US",
       languageCode: "en",
       devices: ["desktop" as const],
@@ -1580,14 +1584,24 @@ describe("SEO workspace integration", () => {
     expect(screen.getByTestId("seo-summary-tests")).toHaveTextContent(
       "Last check Jan 4, 2026",
     );
-    // The home page's check is the one the tile dates, and the guide's check is another one of the same day:
-    // both rows link the result and repeat no date.
-    expect(screen.getAllByRole("link", { name: /^no issues\b/ })).toHaveLength(
-      2,
-    );
+    // The date of the tile is the one link to the results of its check.
+    const dated = screen.getAllByRole("link", {
+      name: /^Last check Jan 4, 2026/,
+    });
+    expect(dated).toHaveLength(1);
+    expect(screen.getByTestId("seo-summary-tests")).toContainElement(dated[0]);
+    expect(dated[0]).toHaveAttribute("href", "/tasks/task-4-15");
+    // The home page's check is the one the tile dates: its row shows the result as text. An underlined count
+    // reads as "show these issues", and the link under it opened the results the tile opens.
+    // The guide's check is another one of the same day: its row links the result, and repeats no date.
+    const results = screen.getAllByRole("link", { name: /^no issues\b/ });
+    expect(results).toHaveLength(1);
+    expect(results[0]).toHaveAttribute("href", "/tasks/task-4-9");
     expect(
-      screen.queryByRole("link", { name: /^Last check Jan 4, 2026/ }),
-    ).toBeNull();
+      screen
+        .getAllByText("no issues")
+        .filter((element) => element.tagName !== "A"),
+    ).toHaveLength(1);
     // The blog's check is older: its row keeps the date, and the date is the link.
     expect(
       screen.getByRole("link", { name: /^Last check Jan 3, 2026/ }),
@@ -4531,6 +4545,102 @@ describe("SEO workspace integration", () => {
     expect(
       screen.getByRole("button", { name: "Create draft task" }),
     ).toHaveClass("bg-primary");
+  });
+
+  it("leads from a position check that found no page to the fixes, and only then", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestCheckedAudit();
+    const [check] = workspace.observations;
+    workspace.actions.push({
+      id: "fix-title",
+      observationId: check.id,
+      pageUrl: "https://example.com/",
+      findingIds: [],
+      title: "Fix the page title",
+      why: "The title is missing",
+      effort: "low",
+      expectedEffect: "A descriptive search result",
+      edit: null,
+      taskId: null,
+      status: "recommended",
+      kind: "fix",
+      evidence: [],
+    });
+    // An idea for a new page is no fix: the row does not count it.
+    workspace.actions.push({
+      ...workspace.actions[0],
+      id: "idea",
+      title: "Write a guide",
+      kind: "opportunity",
+    });
+    const read = {
+      countryCode: "US",
+      languageCode: "en",
+      pageUrl: workspace.pages[0].url,
+      targetPageId: null,
+      saved: false,
+      priority: "medium",
+      version: 0,
+      source: "focus",
+      volume: null,
+      intent: null,
+      conversion: null,
+      feature: null,
+      device: "mobile",
+      checkedResults: 20,
+      observedAt: check.observedAt,
+      observationId: check.id,
+      position: null,
+      positionStatus: "not_in_range",
+    } as const;
+    workspace.keywords.push(
+      { ...read, id: "first", keyword: "battery app" },
+      { ...read, id: "second", keyword: "charge timer" },
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=rankings");
+    // "0 of 2" alone is a dead end: "Track" on a row does not answer it. The fixes are the next step.
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Next step: 1 fix",
+      }),
+    );
+    expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    cleanup();
+    // One keyword in the results: the card has a result to show, and the row would be a second call to act.
+    workspace.keywords[0] = {
+      ...workspace.keywords[0],
+      position: 4,
+      positionStatus: "ranked",
+    };
+    renderWorkspace(workspace, "?tab=rankings");
+    expect(
+      await screen.findByRole("tab", { name: "Rankings" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getAllByText("charge timer").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /^Next step:/ })).toBeNull();
+    cleanup();
+    // No keyword in the results and no fix to offer: a row to an empty list would be the dead end again.
+    workspace.keywords[0] = {
+      ...workspace.keywords[0],
+      position: null,
+      positionStatus: "not_in_range",
+    };
+    workspace.actions = workspace.actions.filter(
+      (action) => action.kind !== "fix",
+    );
+    renderWorkspace(workspace, "?tab=rankings");
+    expect(
+      await screen.findByRole("tab", { name: "Rankings" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getAllByText("charge timer").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /^Next step:/ })).toBeNull();
   });
 
   it("shows one fix as a card on the Agent tab and each later fix as a row that opens it on the Actions tab", async () => {

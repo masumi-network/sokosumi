@@ -11078,6 +11078,7 @@
         "addButton": "Keyword hinzufügen",
         "keywordAndPage": "Keyword und seine Seite",
         "readOn": "Letzte Positionsprüfung",
+        "nextFixes": "{count, plural, one {Nächster Schritt: # Korrektur} other {Nächster Schritt: # Korrekturen}}",
         "searchKeywords": "Keywords filtern"
       },
       "competitors": {
@@ -11104,7 +11105,7 @@
         "morePages": "{count, plural, one {# weitere Seite dieser Website} other {# weitere Seiten dieser Website}}",
         "positionOf": "Position {rank}",
         "domainsOf": "{count, plural, one {# verlinkende Website} other {# verlinkende Websites}}",
-        "platforms": "Andere Websites in den Ergebnissen ({count})",
+        "platforms": "{count, plural, one {# andere Website in den Ergebnissen} other {# andere Websites in den Ergebnissen}}",
         "platformsHelp": "Videoseiten, Foren, Shops und Hilfeseiten. Sie haben einen Platz in den Ergebnissen, sind aber keine Rivalen deiner Website.",
         "dialogHelp": "Füge eine Website hinzu, mit der du konkurrierst. Sie bleibt als dein Mitbewerber in dieser Liste.",
         "searchPlaceholder": "Websites filtern",

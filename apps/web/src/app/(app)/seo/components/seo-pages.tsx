@@ -22,6 +22,7 @@ import {
   latestSeoMeasurements,
   seoReportedPeriod,
 } from "./seo-statistics-model";
+import { lastRuleCheck } from "./seo-summary-model";
 import { useSeoTileDay } from "./seo-summary-tiles";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -40,6 +41,11 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
   const summaries = seoPageSummaries(model.data);
   // The tests tile over this list dates the last check. A row repeats a date only when its check is of another day.
   const sameDayAsTile = useSeoTileDay(model.data);
+  // The results a check opens. The date of the tests tile opens the results of its check.
+  const resultsOf = (observationId: string | null) =>
+    model.data.observations.find((item) => item.id === observationId)
+      ?.sourceTaskId ?? null;
+  const tileResults = lastRuleCheck(model.data)?.sourceTaskId ?? null;
   const site = seoSiteUrl(model.data);
   // A page with no name of its own: the home page has the name the other tabs give it, so an issue row that
   // says "Home page" points at a row of this list. Another page without a name has its address only.
@@ -169,16 +175,22 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                     </p>
                   ) : null}
                   {summary ? (
-                    // The result of the page's last check; its date, or the result alone, opens the results.
+                    // The result of the page's last check. A count is no link: underlined, "3 issues" reads as
+                    // "show these issues". The tile over the list opens the results; only a check with other
+                    // results keeps its own link, on its date or, on the tile's day, on the result.
                     <p className="text-muted-foreground text-sm">
                       {summary.checkedAt ? (
                         sameDayAsTile(summary.checkedAt) ? (
-                          <SeoSource
-                            observationId={summary.checkId}
-                            workspace={model.data}
-                          >
-                            {pageResult(summary)}
-                          </SeoSource>
+                          resultsOf(summary.checkId) === tileResults ? (
+                            pageResult(summary)
+                          ) : (
+                            <SeoSource
+                              observationId={summary.checkId}
+                              workspace={model.data}
+                            >
+                              {pageResult(summary)}
+                            </SeoSource>
+                          )
                         ) : (
                           <>
                             <SeoSource

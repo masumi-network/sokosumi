@@ -213,7 +213,8 @@ export function SeoActionCard({
             ) : null}
           </p>
           <details className="text-sm">
-            <SeoFoldSummary className="py-2.5 font-medium">
+            {/* Detail behind a fold: quieter than the title and the found line over it. */}
+            <SeoFoldSummary className="text-muted-foreground py-2.5">
               {t("actions.whyDetails")}
             </SeoFoldSummary>
             <div className="space-y-3 pt-3">
