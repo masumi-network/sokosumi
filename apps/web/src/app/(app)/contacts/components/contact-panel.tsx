@@ -86,6 +86,7 @@ import {
 } from "./contact-visuals";
 import { GroupedRadioItems, useStageOptions } from "./contacts-toolbar";
 import { InlineField } from "./inline-field";
+import { useContactArchive } from "./use-contact-archive";
 import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
 import {
   CONTACT_DUPLICATES_KEY,
@@ -288,16 +289,7 @@ function PanelBody({
     }
   }
 
-  async function archive() {
-    try {
-      await contactsService.archive(contact.id);
-      await refreshContacts(cache, contact.id);
-      toast.success(t("panel.archived", { name: contact.name }));
-      onClose();
-    } catch (error) {
-      toast.error(coreErrorOf(error).message ?? t("errors.saveFailed"));
-    }
-  }
+  const archive = useContactArchive();
 
   const subtitle = [contact.role, contact.organization]
     .filter(Boolean)
@@ -462,7 +454,7 @@ function PanelBody({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"
-              onClick={() => void archive()}
+              onClick={() => void archive(contact, onClose)}
             >
               <Trash2 aria-hidden className="size-4" />
               {t("panel.archive")}
