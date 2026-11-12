@@ -1,11 +1,12 @@
 "use client";
 
 import type { ProjectSeoStrategy } from "@sokosumi/core-client";
-import { WandSparkles } from "lucide-react";
+import { Check, Copy, WandSparkles } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
+import { useClipboard } from "@/hooks/use-clipboard";
 import { cn } from "@/lib/utils";
 import {
   SeoDate,
@@ -17,12 +18,14 @@ import {
 } from "./seo-shared";
 import {
   SEO_STRATEGY_ACTION_KINDS,
+  SEO_STRATEGY_PLACE_FORMS,
   SEO_STRATEGY_REACHES,
   SEO_STRATEGY_VERDICTS,
   type SeoStrategyGroup,
   seoKeywordDemand,
   seoStrategyCounts,
   seoStrategyKey,
+  seoStrategyPlaceHost,
   seoStrategyReason,
   seoStrategyTargetNotes,
 } from "./seo-strategy-model";
@@ -156,6 +159,40 @@ export function SeoKeywordDemand({
   );
 }
 
+/** The text the audit wrote for a promotion place. The owner reads it, copies it and posts it. */
+function StrategyDraft({ text, titleId }: { text: string; titleId: string }) {
+  const t = useTranslations("App.Seo");
+  const { copied, copy } = useClipboard({
+    copySuccessMessage: t("strategy.draft.copied"),
+    copyErrorMessage: t("strategy.draft.copyError"),
+  });
+  return (
+    <div className="max-w-prose space-y-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-medium">{t("strategy.draft.title")}</p>
+        <Button
+          size="sm"
+          variant="outline"
+          aria-describedby={titleId}
+          onClick={() => void copy(text)}
+        >
+          {copied ? <Check /> : <Copy />}
+          {t("strategy.draft.copy")}
+        </Button>
+      </div>
+      <p className="text-muted-foreground">{t("strategy.draft.help")}</p>
+      {/* A model wrote the text, so it shows as plain text. Its line breaks are part of the post. It is in the site's language, which can read from right to left. */}
+      <p
+        dir="auto"
+        className="bg-muted rounded-md p-3 break-words whitespace-pre-wrap"
+        data-testid="seo-strategy-draft"
+      >
+        {text}
+      </p>
+    </div>
+  );
+}
+
 function StrategyActionCard({
   action,
   model,
@@ -168,6 +205,20 @@ function StrategyActionCard({
   // Every card has the same button name; the card's title tells them apart.
   const titleId = useId();
   const kind = seoStrategyKey(SEO_STRATEGY_ACTION_KINDS, action.kind);
+  const placeForm = action.place
+    ? seoStrategyKey(SEO_STRATEGY_PLACE_FORMS, action.place.form)
+    : null;
+  // The name is the bot's word, so the site the link opens shows beside it.
+  const placeNotes = action.place
+    ? [
+        placeForm ? t(`strategy.placeForm.${placeForm}`) : null,
+        seoStrategyPlaceHost(action.place),
+      ].filter((note): note is string => note !== null)
+    : [];
+  // A promotion action has one place. Its targets are the threads that show the place, so the question names the place.
+  const places = action.place
+    ? [action.place.url]
+    : action.targets.map((target) => target.url);
   return (
     <article className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-3 p-4")}>
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -186,6 +237,19 @@ function StrategyActionCard({
       <p className="text-muted-foreground max-w-prose text-sm break-words">
         {action.why}
       </p>
+      {action.place ? (
+        <p className="flex flex-wrap items-baseline gap-x-2">
+          <span className="text-sm font-medium">
+            {t("strategy.actions.place")}
+          </span>
+          <SeoPageLink url={action.place.url} label={action.place.name} />
+          {placeNotes.length ? (
+            <span className="text-muted-foreground text-xs">
+              {placeNotes.join(" · ")}
+            </span>
+          ) : null}
+        </p>
+      ) : null}
       {action.targets.length ? (
         <ul role="list" className="space-y-2.5">
           {action.targets.map((target, index) => {
@@ -227,6 +291,9 @@ function StrategyActionCard({
           </div>
         ) : null}
       </dl>
+      {action.draft ? (
+        <StrategyDraft text={action.draft} titleId={titleId} />
+      ) : null}
       {model.data.auditId ? (
         <Button
           size="sm"
@@ -236,10 +303,8 @@ function StrategyActionCard({
             model.openChat(
               t("strategy.actions.prompt", {
                 title: action.title,
-                count: action.targets.length,
-                targets: format.list(
-                  action.targets.map((target) => target.url),
-                ),
+                count: places.length,
+                targets: format.list(places),
                 // An action without a limit must not send the agent to look for one.
                 hasLimit: action.limit ? "yes" : "no",
                 limit: action.limit ?? "",
@@ -256,7 +321,8 @@ function StrategyActionCard({
 }
 
 /**
- * The actions of the audit's keyword strategy: a listing on another site, a new page, a page with a new target.
+ * The actions of the audit's keyword strategy: a listing on another site, a new page, a page with a new target,
+ * a place to promote the product in.
  * None is one page edit, so none has a draft Task. The button puts a question in the chat field and sends nothing.
  */
 export function SeoStrategyActions({ model }: { model: SeoWorkspaceModel }) {

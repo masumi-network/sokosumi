@@ -28,6 +28,16 @@ export const SEO_STRATEGY_ACTION_KINDS = {
   "get listed": "getListed",
   "new page": "newPage",
   "retarget page": "retargetPage",
+  promote: "promote",
+} as const;
+/** What the owner does at the place of a promotion action. */
+export const SEO_STRATEGY_PLACE_FORMS = {
+  community: "community",
+  launch: "launch",
+  listing: "listing",
+  post: "post",
+  article: "article",
+  video: "video",
 } as const;
 export const SEO_STRATEGY_TARGET_TYPES = {
   "app store": "appStore",
@@ -149,6 +159,18 @@ export function seoStrategyCounts(groups: SeoStrategyGroup[]) {
       .sort((a, b) => b.count - a.count),
     falling: groups.filter((group) => group.trend === "falling").length,
   };
+}
+
+/** The site a place's link opens, or null when the name is that site. */
+export function seoStrategyPlaceHost(
+  place: NonNullable<ProjectSeoStrategy["actions"][number]["place"]>,
+) {
+  if (!URL.canParse(place.url)) return null;
+  const host = new URL(place.url).hostname
+    .replace(/^www\./, "")
+    .replace(/\.+$/, "");
+  // Only the whole name counts: "reddit.com" holds "t.co", and the link could open t.co.
+  return !host || place.name.trim().toLowerCase() === host ? null : host;
 }
 
 /** The notes beside a target link: its page type and whether it names the product, as message keys. */

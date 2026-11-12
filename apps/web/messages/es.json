@@ -11642,12 +11642,29 @@
           "helpAsk": "Cada una necesita un plan, así que el botón le hace una pregunta al agente SEO en el chat.",
           "limit": "Límite",
           "prompt": "La auditoría del sitio recomienda: «{title}». Redacta un plan con los pasos en orden.{hasLimit, select, yes { Respeta este límite: {limit}} other {}}{count, plural, =0 {} one { El lugar: {targets}} other { Los lugares: {targets}}}",
-          "open": "Ver estas acciones"
+          "open": "Ver estas acciones",
+          "place": "Lugar"
         },
         "actionKind": {
           "getListed": "En otro sitio",
           "newPage": "Página nueva",
-          "retargetPage": "Cambio de página"
+          "retargetPage": "Cambio de página",
+          "promote": "Promoción"
+        },
+        "placeForm": {
+          "community": "Comunidad",
+          "launch": "Sitio de lanzamiento",
+          "listing": "Ficha",
+          "post": "Publicación",
+          "article": "Artículo",
+          "video": "Vídeo"
+        },
+        "draft": {
+          "title": "Texto sugerido",
+          "help": "La auditoría del sitio escribió este texto. Léelo y lee las normas del lugar antes de publicarlo.",
+          "copy": "Copiar texto",
+          "copied": "Texto copiado",
+          "copyError": "No se pudo copiar el texto"
         }
       },
       "summary": {

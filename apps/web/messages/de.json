@@ -11642,12 +11642,29 @@
           "helpAsk": "Jede braucht einen Plan, daher stellt die Schaltfläche dem SEO-Agenten eine Frage im Chat.",
           "limit": "Grenze",
           "prompt": "Das Website-Audit empfiehlt: „{title}“. Entwirf einen Plan mit den Schritten in Reihenfolge.{hasLimit, select, yes { Halte diese Grenze ein: {limit}} other {}}{count, plural, =0 {} one { Der Ort: {targets}} other { Die Orte: {targets}}}",
-          "open": "Diese Aktionen ansehen"
+          "open": "Diese Aktionen ansehen",
+          "place": "Ort"
         },
         "actionKind": {
           "getListed": "Auf einer anderen Website",
           "newPage": "Neue Seite",
-          "retargetPage": "Seitenänderung"
+          "retargetPage": "Seitenänderung",
+          "promote": "Vermarktung"
+        },
+        "placeForm": {
+          "community": "Community",
+          "launch": "Launch-Plattform",
+          "listing": "Eintrag",
+          "post": "Beitrag",
+          "article": "Artikel",
+          "video": "Video"
+        },
+        "draft": {
+          "title": "Textvorschlag",
+          "help": "Das Website-Audit hat diesen Text geschrieben. Lies ihn und die Regeln des Ortes, bevor du ihn veröffentlichst.",
+          "copy": "Text kopieren",
+          "copied": "Text kopiert",
+          "copyError": "Der Text konnte nicht kopiert werden"
         }
       },
       "summary": {

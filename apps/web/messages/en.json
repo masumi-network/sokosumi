@@ -11642,12 +11642,29 @@
           "helpAsk": "Each one needs a plan, so the button puts a question to the SEO agent in the chat.",
           "limit": "Limit",
           "prompt": "The site audit recommends: “{title}”. Draft a plan with the steps in order.{hasLimit, select, yes { Keep to this limit: {limit}} other {}}{count, plural, =0 {} one { The place: {targets}} other { The places: {targets}}}",
-          "open": "View these actions"
+          "open": "View these actions",
+          "place": "Place"
         },
         "actionKind": {
           "getListed": "On another site",
           "newPage": "New page",
-          "retargetPage": "Page change"
+          "retargetPage": "Page change",
+          "promote": "Promotion"
+        },
+        "placeForm": {
+          "community": "Community",
+          "launch": "Launch site",
+          "listing": "Listing",
+          "post": "Post",
+          "article": "Article",
+          "video": "Video"
+        },
+        "draft": {
+          "title": "Suggested text",
+          "help": "The site audit wrote this text. Read it and the rules of the place before you post it.",
+          "copy": "Copy text",
+          "copied": "Text copied",
+          "copyError": "Could not copy the text"
         }
       },
       "summary": {

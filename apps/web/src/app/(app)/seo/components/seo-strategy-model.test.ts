@@ -5,6 +5,7 @@ import {
   seoStrategyCounts,
   seoStrategyGroupOf,
   seoStrategyKey,
+  seoStrategyPlaceHost,
   seoStrategyReason,
   seoStrategyTargetNotes,
 } from "./seo-strategy-model";
@@ -13,6 +14,19 @@ import { seoTestStrategy } from "./seo-test-fixture";
 const us = { countryCode: "US", languageCode: "en" };
 
 describe("SEO strategy results", () => {
+  it("shows the site a place's link opens, unless the name is that site", () => {
+    const place = (name: string, url: string) =>
+      seoStrategyPlaceHost({ name, url, form: "community" });
+    expect(place("r/macapps", "https://www.reddit.com/r/macapps/")).toBe(
+      "reddit.com",
+    );
+    expect(place("Forums.Example.com", "https://forums.example.com/")).toBe(
+      null,
+    );
+    // The name holds the letters of the host, and the link opens another site.
+    expect(place("reddit.com", "https://t.co/abc")).toBe("t.co");
+  });
+
   it("splits the bot's reason into its result, one line per keyword and the groups left out", () => {
     expect(seoStrategyReason(seoTestStrategy())).toEqual({
       lead: "160 of 160 monthly searches of the keyword groups with a known reach lie in groups the site ranks for or can reach.",

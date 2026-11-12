@@ -3793,6 +3793,59 @@ describe("SEO workspace integration", () => {
     ).not.toHaveClass("bg-primary");
   });
 
+  it("shows a promotion action's place as a link and its text with a copy button; the question names the place", async () => {
+    const user = userEvent.setup();
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    const draft =
+      "I make Battery Sensei.\n\nIt shows the charge of each device.";
+    const strategy = seoTestStrategy();
+    strategy.actions = [
+      {
+        // The targets stay: for a promotion action they are the threads that show the place.
+        ...strategy.actions[0],
+        kind: "promote",
+        title: "Answer in r/macapps",
+        place: {
+          name: "r/macapps",
+          url: "https://www.reddit.com/r/macapps/",
+          form: "community",
+        },
+        draft,
+      },
+    ];
+    workspace.strategy = strategy;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(url.endsWith("/chat") ? { turns: [] } : workspace),
+      ),
+    );
+    renderWorkspace(workspace);
+    await user.click(await screen.findByRole("tab", { name: "Actions" }));
+    expect(
+      await screen.findByRole("link", { name: "r/macapps" }),
+    ).toHaveAttribute("href", "https://www.reddit.com/r/macapps/");
+    expect(screen.getByText("Promotion")).toBeVisible();
+    // The name does not say which site the link opens, so the site shows beside it.
+    expect(screen.getByText("Community · reddit.com")).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Best battery apps" }),
+    ).toBeVisible();
+    // The line breaks are part of the post.
+    const text = screen.getByTestId("seo-strategy-draft");
+    expect(text.textContent).toBe(draft);
+    expect(text).toHaveClass("whitespace-pre-wrap");
+    const write = vi.spyOn(navigator.clipboard, "writeText");
+    await user.click(screen.getByRole("button", { name: "Copy text" }));
+    expect(write).toHaveBeenCalledWith(draft);
+    await user.click(screen.getByRole("button", { name: "Draft a plan" }));
+    expect(
+      within(await screen.findByRole("dialog")).getByLabelText("Your question"),
+    ).toHaveValue(
+      "The site audit recommends: “Answer in r/macapps”. Draft a plan with the steps in order. Keep to this limit: Ask on the product's merits only. The place: https://www.reddit.com/r/macapps/",
+    );
+  });
+
   it("shows the Actions tab only once the Audit has actions", async () => {
     const workspace = seoTestWorkspace();
     workspace.actions = [];
