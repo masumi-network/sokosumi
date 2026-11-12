@@ -402,7 +402,8 @@
             },
             "Error": {
               "share": "Freigabe konnte nicht aktualisiert werden",
-              "copyLink": "Link konnte nicht kopiert werden"
+              "copyLink": "Link konnte nicht kopiert werden",
+              "searchIndexing": "Die Suchindexierung wurde nicht gespeichert. Die vorherige Einstellung gilt wieder."
             },
             "Errors": {
               "unauthenticated": "Du musst angemeldet sein.",
@@ -2034,7 +2035,8 @@
           },
           "Error": {
             "share": "Failed to update task sharing",
-            "copyLink": "Failed to copy public link"
+            "copyLink": "Failed to copy public link",
+            "searchIndexing": "Die Suchindexierung wurde nicht gespeichert. Die vorherige Einstellung gilt wieder."
           },
           "Errors": {
             "unauthenticated": "Melde dich an, um die Freigabe der Aufgabe zu verwalten",

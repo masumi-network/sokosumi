@@ -223,9 +223,16 @@ describe("JobShareModal", () => {
     );
     fireEvent.click(screen.getByRole("checkbox"));
     expect(screen.getByRole("checkbox")).not.toBeChecked();
+    expect(screen.getByRole("checkbox").parentElement).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
     fail(new Error("offline"));
     await waitFor(() => expect(screen.getByRole("checkbox")).toBeChecked());
-    expect(toastErrorMock).toHaveBeenCalled();
+    expect(toastErrorMock).toHaveBeenCalledWith("Error.searchIndexing");
+    expect(screen.getByRole("checkbox").parentElement).not.toHaveAttribute(
+      "aria-busy",
+    );
     expect(setQueryDataMock).not.toHaveBeenCalled();
   });
 
@@ -260,6 +267,7 @@ describe("JobShareModal", () => {
     fireEvent.click(screen.getByRole("checkbox"));
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalled());
     expect(screen.getByRole("checkbox")).not.toBeChecked();
+    expect(toastErrorMock).toHaveBeenCalledWith("Error.share");
   });
 
   it("removes public sharing without refreshing the page", async () => {

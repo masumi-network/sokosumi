@@ -418,7 +418,8 @@
             },
             "Error": {
               "share": "Failed to update share",
-              "copyLink": "Failed to copy link"
+              "copyLink": "Failed to copy link",
+              "searchIndexing": "Search indexing was not saved. It is back to its earlier setting."
             },
             "Errors": {
               "unauthenticated": "You must be logged in.",
@@ -2035,7 +2036,8 @@
           },
           "Error": {
             "share": "Failed to update task sharing",
-            "copyLink": "Failed to copy public link"
+            "copyLink": "Failed to copy public link",
+            "searchIndexing": "Search indexing was not saved. It is back to its earlier setting."
           },
           "Errors": {
             "unauthenticated": "Please log in to manage task sharing",

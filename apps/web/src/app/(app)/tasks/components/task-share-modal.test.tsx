@@ -149,10 +149,17 @@ describe("TaskShareModal", () => {
     );
     fireEvent.click(screen.getByRole("checkbox"));
     expect(screen.getByRole("checkbox")).not.toBeChecked();
+    expect(screen.getByRole("checkbox").parentElement).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
     expect(toastSuccessMock).not.toHaveBeenCalled();
     fail(new Error("offline"));
     await waitFor(() => expect(screen.getByRole("checkbox")).toBeChecked());
-    expect(toastErrorMock).toHaveBeenCalledWith("Error.share");
+    expect(toastErrorMock).toHaveBeenCalledWith("Error.searchIndexing");
+    expect(screen.getByRole("checkbox").parentElement).not.toHaveAttribute(
+      "aria-busy",
+    );
   });
 
   it("keeps what Core saved when a step after the save throws", async () => {
@@ -185,6 +192,7 @@ describe("TaskShareModal", () => {
     fireEvent.click(screen.getByRole("checkbox"));
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalled());
     expect(screen.getByRole("checkbox")).not.toBeChecked();
+    expect(toastErrorMock).toHaveBeenCalledWith("Error.share");
   });
 
   it("removes public task sharing", async () => {

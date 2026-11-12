@@ -66,7 +66,7 @@ export function TaskShareModal({
     onOpenChange(nextOpen);
   };
 
-  function handleShareError(error: unknown) {
+  function handleShareError(error: unknown, fallback = t("Error.share")) {
     const status =
       error instanceof CoreApiRequestError ? error.status : undefined;
 
@@ -88,7 +88,7 @@ export function TaskShareModal({
         toast.error(t("Errors.taskNotFound"));
         break;
       default:
-        toast.error(t("Error.share"));
+        toast.error(fallback);
         break;
     }
   }
@@ -115,7 +115,7 @@ export function TaskShareModal({
   const handleAllowSearchIndexingChange = async (
     value: boolean | "indeterminate",
   ) => {
-    if (!taskShare) {
+    if (!taskShare || isLoading) {
       return;
     }
 
@@ -123,17 +123,20 @@ export function TaskShareModal({
     // The box shows the choice at once and goes back if the save fails.
     const chosen = { ...taskShare, allowSearchIndexing: value === true };
     setTaskShare(chosen);
+    let answered = false;
     try {
       const nextTaskShare = await coreClient.putTaskShare(taskId, {
         allowSearchIndexing: value === true,
       });
+      answered = true;
       syncTaskShare(nextTaskShare);
       toast.success(t("Success.share"));
     } catch (error) {
       // Only the choice goes back: what Core answered, or a removed share,
       // stays.
       setTaskShare((now) => (now === chosen ? taskShare : now));
-      handleShareError(error);
+      // Say the box went back only when Core did not answer.
+      handleShareError(error, answered ? undefined : t("Error.searchIndexing"));
     } finally {
       setIsLoading(false);
     }
@@ -240,13 +243,15 @@ export function TaskShareModal({
               </div>
             ) : null}
             {taskShare?.token ? (
-              <div className="flex items-center gap-2">
+              <div
+                aria-busy={isLoading || undefined}
+                className={cn("flex items-center gap-2", {
+                  "pointer-events-none animate-pulse opacity-60": isLoading,
+                })}
+              >
                 <Checkbox
                   id="allow-task-search-indexing"
-                  disabled={isLoading}
-                  className={cn({
-                    "pointer-events-none animate-pulse opacity-60": isLoading,
-                  })}
+                  aria-disabled={isLoading || undefined}
                   checked={taskShare.allowSearchIndexing}
                   onCheckedChange={(value) =>
                     handleAllowSearchIndexingChange(value)
@@ -254,9 +259,7 @@ export function TaskShareModal({
                 />
                 <Label
                   htmlFor="allow-task-search-indexing"
-                  className={cn("cursor-pointer", {
-                    "pointer-events-none animate-pulse opacity-60": isLoading,
-                  })}
+                  className="cursor-pointer"
                 >
                   {t("allowSearchIndexing")}
                 </Label>

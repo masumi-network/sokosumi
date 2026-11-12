@@ -76,7 +76,7 @@ export default function JobShareModal({
     onOpenChange(open);
   };
 
-  function handleShareError(error: unknown) {
+  function handleShareError(error: unknown, fallback = t("Error.share")) {
     const status =
       error instanceof CoreApiRequestError ? error.status : undefined;
 
@@ -98,7 +98,7 @@ export default function JobShareModal({
         toast.error(t("Errors.jobNotFound"));
         break;
       default:
-        toast.error(t("Error.share"));
+        toast.error(fallback);
         break;
     }
   }
@@ -126,7 +126,7 @@ export default function JobShareModal({
     v: boolean | "indeterminate",
   ) => {
     const checked = v === true;
-    if (!jobShare) {
+    if (!jobShare || isLoading) {
       return;
     }
 
@@ -134,17 +134,20 @@ export default function JobShareModal({
     // The box shows the choice at once and goes back if the save fails.
     const chosen = { ...jobShare, allowSearchIndexing: checked };
     setJobShare(chosen);
+    let answered = false;
     try {
       const nextJobShare = await coreClient.putJobShare(job.id, {
         allowSearchIndexing: checked,
       });
+      answered = true;
       syncJobShare(nextJobShare);
       toast.success(t("Success.share"));
     } catch (error) {
       // Only the choice goes back: what Core answered, or a removed share,
       // stays.
       setJobShare((now) => (now === chosen ? jobShare : now));
-      handleShareError(error);
+      // Say the box went back only when Core did not answer.
+      handleShareError(error, answered ? undefined : t("Error.searchIndexing"));
     } finally {
       setIsLoading(false);
     }
@@ -250,13 +253,15 @@ export default function JobShareModal({
               </div>
             )}
             {jobShare && jobShare.token !== null && (
-              <div className="flex items-center gap-2">
+              <div
+                aria-busy={isLoading || undefined}
+                className={cn("flex items-center gap-2", {
+                  "pointer-events-none animate-pulse opacity-60": isLoading,
+                })}
+              >
                 <Checkbox
                   id="allow-search-indexing"
-                  disabled={isLoading}
-                  className={cn({
-                    "pointer-events-none animate-pulse opacity-60": isLoading,
-                  })}
+                  aria-disabled={isLoading || undefined}
                   checked={jobShare.allowSearchIndexing}
                   onCheckedChange={(v) => handleAllowSearchIndexingChange(v)}
                 />
