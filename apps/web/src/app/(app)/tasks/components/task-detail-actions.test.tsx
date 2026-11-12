@@ -1,6 +1,6 @@
 import type { MemberWithOrganization } from "@sokosumi/core-client";
 import { TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   type ComponentProps,
@@ -20,6 +20,11 @@ import {
   TaskDetailStatusProvider,
   useOptimisticTaskStatus,
 } from "@/app/tasks/components/task-detail-optimistic";
+import {
+  TaskDetailLinksProvider,
+  TaskParentLine,
+} from "@/app/tasks/components/task-detail-optimistic-links";
+import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import {
   type CreateTaskResult,
@@ -29,6 +34,7 @@ import {
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
+import { mapVisibleTaskLinks } from "./task-detail-api-types";
 
 const {
   pushMock,
@@ -532,12 +538,14 @@ vi.mock("@/app/tasks/components/task-form", () => ({
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void;
+  let reject!: (reason: Error) => void;
 
-  const promise = new Promise<T>((promiseResolve) => {
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
     resolve = promiseResolve;
+    reject = promiseReject;
   });
 
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 function taskStatusSuccess(taskId = "task-1") {
@@ -734,6 +742,31 @@ function renderActionsElement(
       taskOwnerId="owner-1"
       {...props}
     />
+  );
+}
+
+/** The header menu next to the related tasks list, as on the task page. */
+function renderWithRelatedList(
+  props?: Partial<ComponentProps<typeof TaskDetailActions>>,
+) {
+  return render(
+    <TaskDetailLinksProvider>
+      {renderActionsElement(props)}
+      <TaskRelatedTasks
+        tasks={mapVisibleTaskLinks(props?.taskLinks ?? [])}
+        relationLabels={
+          {
+            related: "Related",
+            blocks: "Blocking",
+            parent: "Sub-task",
+            child: "Parent task",
+          } as ComponentProps<typeof TaskRelatedTasks>["relationLabels"]
+        }
+        statusLabels={
+          {} as ComponentProps<typeof TaskRelatedTasks>["statusLabels"]
+        }
+      />
+    </TaskDetailLinksProvider>,
   );
 }
 
@@ -1631,7 +1664,7 @@ describe("TaskDetailActions", () => {
     });
   });
 
-  it("shows loading only on the selected linkable task while all picker rows stay disabled", async () => {
+  it("closes the picker and lists the linked task before the link answer", async () => {
     const user = userEvent.setup();
     const deferred = createDeferred<{
       taskId: string;
@@ -1659,18 +1692,12 @@ describe("TaskDetailActions", () => {
     const createTaskLinkMock = vi.mocked(createTaskLink);
     createTaskLinkMock.mockReturnValueOnce(deferred.promise);
 
-    renderActions();
+    renderWithRelatedList();
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
     await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
     await user.click(screen.getAllByRole("menuitem", { name: "Related" })[0]);
-
-    const alphaTaskButton = await screen.findByRole("button", {
-      name: "Alpha task",
-    });
-    const betaTaskButton = screen.getByRole("button", { name: "Beta task" });
-
-    await user.click(alphaTaskButton);
+    await user.click(await screen.findByRole("button", { name: "Alpha task" }));
 
     await waitFor(() => {
       expect(createTaskLinkMock).toHaveBeenCalledWith({
@@ -1678,23 +1705,134 @@ describe("TaskDetailActions", () => {
         relatedTaskId: "task-2",
         relation: TaskLinkRelation.RELATED,
       });
-      expect(alphaTaskButton).toBeDisabled();
-      expect(betaTaskButton).toBeDisabled();
-      expect(alphaTaskButton.querySelector(".animate-spin")).toBeTruthy();
-      expect(betaTaskButton.querySelector(".animate-spin")).toBeNull();
+    });
+    expect(
+      screen.queryByRole("button", { name: "Alpha task" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("group", { name: "Related" })).getByRole("link", {
+        name: "Alpha task",
+      }),
+    ).toBeInTheDocument();
+
+    // No link arrived from the server: the write failed, the row goes.
+    await act(async () => deferred.reject(new Error("link failed")));
+    expect(
+      screen.queryByRole("link", { name: "Alpha task" }),
+    ).not.toBeInTheDocument();
+    expect(toast.error).toHaveBeenCalled();
+  });
+
+  it("shows a new parent in place of the old one before the link answer", async () => {
+    const user = userEvent.setup();
+    const deferred = createDeferred<never>();
+    browserCoreClientMock.getTasks.mockResolvedValue({
+      data: [buildTaskListItem()],
+      meta: {
+        pagination: { cursor: null, limit: 20, total: 1, nextCursor: null },
+      },
+    });
+    vi.mocked(createTaskLink).mockReturnValueOnce(deferred.promise);
+
+    renderWithRelatedList({ taskLinks: [...defaultTaskLinks] });
+    expect(screen.getByRole("link", { name: "Parent task" })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
+    await user.click(screen.getAllByRole("menuitem", { name: "Sub-task" })[0]);
+    await user.click(await screen.findByRole("button", { name: "Alpha task" }));
+
+    const parents = await screen.findByRole("group", { name: "Parent task" });
+    await waitFor(() => {
+      expect(
+        within(parents).getByRole("link", { name: "Alpha task" }),
+      ).toBeInTheDocument();
+    });
+    expect(
+      within(parents).queryByRole("link", { name: "Parent task" }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => deferred.reject(new Error("link failed")));
+  });
+
+  it("keeps the parent when the picked task already has a link", async () => {
+    const user = userEvent.setup();
+    const deferred = createDeferred<never>();
+    browserCoreClientMock.getTasks.mockResolvedValue({
+      data: [buildTaskListItem({ id: "task-related", name: "Related task" })],
+      meta: {
+        pagination: { cursor: null, limit: 20, total: 1, nextCursor: null },
+      },
+    });
+    const createTaskLinkMock = vi.mocked(createTaskLink);
+    createTaskLinkMock.mockReturnValueOnce(deferred.promise);
+
+    renderWithRelatedList({
+      taskLinks: [...defaultTaskLinks, ...removableTaskLinks],
     });
 
-    deferred.resolve({
-      taskId: "task-1",
-      relatedTaskId: "task-2",
-      linkId: "link-2",
-    });
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: "Mark as" }));
+    await user.click(screen.getAllByRole("menuitem", { name: "Sub-task" })[0]);
+    await user.click(
+      await screen.findByRole("button", { name: "Related task" }),
+    );
+
+    await waitFor(() => expect(createTaskLinkMock).toHaveBeenCalled());
+    expect(screen.getByRole("link", { name: "Parent task" })).toBeVisible();
+
+    await act(async () => deferred.reject(new Error("link failed")));
+  });
+
+  it("takes a removed link off the list before the answer and puts it back on failure", async () => {
+    const user = userEvent.setup();
+    const deferred = createDeferred<never>();
+    vi.mocked(deleteTaskLink).mockReturnValueOnce(deferred.promise);
+
+    renderWithRelatedList({ taskLinks: [...removableTaskLinks] });
+    expect(screen.getByRole("link", { name: "Related task" })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: "Remove related" }));
+    await user.click(screen.getByRole("menuitem", { name: "Related task" }));
 
     await waitFor(() => {
       expect(
-        screen.queryByRole("button", { name: "Alpha task" }),
+        screen.queryByRole("link", { name: "Related task" }),
       ).not.toBeInTheDocument();
     });
+    expect(screen.getByRole("link", { name: "Blocked task" })).toBeVisible();
+
+    await act(async () => deferred.reject(new Error("remove failed")));
+    expect(screen.getByRole("link", { name: "Related task" })).toBeVisible();
+  });
+
+  it("takes the parent line away before the remove parent answer", async () => {
+    const user = userEvent.setup();
+    const deferred = createDeferred<never>();
+    vi.mocked(deleteTaskLink).mockReturnValueOnce(deferred.promise);
+    const [parent] = mapVisibleTaskLinks([...defaultTaskLinks]).filter(
+      (link) => link.relation === TaskLinkRelation.CHILD,
+    );
+
+    render(
+      <TaskDetailLinksProvider>
+        {renderActionsElement({ taskLinks: [...defaultTaskLinks] })}
+        <TaskParentLine parent={parent} href="/tasks/parent">
+          cloned from parent
+        </TaskParentLine>
+      </TaskDetailLinksProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: "Remove parent" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("cloned from parent")).not.toBeInTheDocument();
+    });
+
+    await act(async () => deferred.reject(new Error("remove failed")));
+    expect(screen.getByText("cloned from parent")).toBeVisible();
   });
 
   it("appends more task options when load more is selected", async () => {
