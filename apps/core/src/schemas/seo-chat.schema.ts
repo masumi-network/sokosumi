@@ -41,7 +41,8 @@ export const seoChatActionSchema = z.discriminatedUnion("kind", [
 export const seoChatReplySchema = z
   .object({
     reply: z.string().trim().min(1).max(12_000),
-    actions: z.array(seoChatActionSchema).max(SEO_CHAT_MAX_ACTIONS),
+    // parseSeoChatReply checks each action, so one malformed action does not lose the reply.
+    actions: z.array(z.unknown()).max(SEO_CHAT_MAX_ACTIONS),
   })
   .strict();
 

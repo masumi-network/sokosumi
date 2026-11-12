@@ -485,4 +485,24 @@ describe("native audit chat inference boundary", () => {
       { kind: "connect", provider: "ga4" },
     ]);
   });
+  it("keeps the reply when a task action uses id instead of actionId", () => {
+    const observationId = "0b8c4f1e-6f5c-4f0a-9d1e-2a3b4c5d6e7f";
+    const tasks = new Set([`${observationId}:fix-title`]);
+    expect(
+      parseSeoChatReply(
+        JSON.stringify({
+          reply: "Fix the title first.",
+          actions: [
+            { kind: "task", observationId, id: "fix-title" },
+            { kind: "task", observationId, actionId: "fix-title" },
+          ],
+        }),
+        true,
+        tasks,
+      ),
+    ).toEqual({
+      reply: "Fix the title first.",
+      actions: [{ kind: "task", observationId, actionId: "fix-title" }],
+    });
+  });
 });

@@ -1,6 +1,8 @@
+import { z } from "@hono/zod-openapi";
 import type { ProjectSeoWorkspace } from "@/schemas/project-seo.schema";
 import {
   type SeoChatAction,
+  seoChatActionSchema,
   seoChatReplySchema,
 } from "@/schemas/seo-chat.schema";
 
@@ -62,7 +64,7 @@ Use Search Console for measured search clicks, impressions and positions. Use Go
 searchQueries are measured Search Console rows grouped by query and page for one period. averagePosition is a period mean across impressions, not a live rank; impressions are observed, not search volume. Queries can be anonymized, so rows can add up to less than page totals.
 Actions with kind fix come from confirmed checks. Actions with kind opportunity come from a named review heuristic over searchQueries; call them review suggestions, never failures, and never promise traffic. If no action exists, say what evidence is missing instead of inventing one.
 strategy is the site audit's keyword result for one country and language: a verdict, its reason and recommended actions. A strategy action is advice, not a failed check, and it cannot become a Task. When you name one, give its limit if it has one, and never promise a ranking or traffic.
-Available actions: connect with provider ga4 or search_console; open a native dialog named page, keyword, competitor, analysis, statistics or page_change; task with the observationId and id of a listed action whose status is recommended, so the user can turn it into a Task. Use no other actions. Do not suggest a new analysis while analysis dispatch is paused.
+Available actions, as JSON: {"kind":"connect","provider":"<ga4 or search_console>"}; {"kind":"open","dialog":"<one of page, keyword, competitor, analysis, statistics, page_change>"}; {"kind":"task","observationId":"<the listed action's observationId>","actionId":"<the listed action's id>"} for a listed action whose status is recommended, so the user can turn it into a Task. Use no other actions or keys. Do not suggest a new analysis while analysis dispatch is paused.
 Reply in the user's language. Use short, concrete sentences and cite the supplied page URLs when helpful.
 Write dates the way a person reads them, such as "Oct 10 to Nov 4", never as ISO dates. For a statistics period, name its firstDataDay and lastDataDay; points holds only the newest days. Do not use internal field names or terms such as coverage, partial, observation, observationId, scope or module in the reply text. Return JSON only: {"reply":"...","actions":[]}.`;
 
@@ -333,6 +335,12 @@ export function seoChatTaskActions(workspace: ProjectSeoWorkspace) {
   );
 }
 
+const knownActionKindSchema = z.object({
+  kind: z.enum(
+    seoChatActionSchema.options.map((option) => option.shape.kind.value),
+  ),
+});
+
 /** Provider JSON is a trust boundary. Unknown actions never become executable UI controls. */
 export function parseSeoChatReply(
   text: string,
@@ -344,12 +352,15 @@ export function parseSeoChatReply(
     .replace(/^```(?:json)?\s*/, "")
     .replace(/\s*```$/, "");
   const reply = seoChatReplySchema.parse(JSON.parse(trimmed));
+  const actions = reply.actions.flatMap((raw) => {
+    const action = seoChatActionSchema.safeParse(raw);
+    if (action.success) return [action.data];
+    // An unknown kind fails the whole reply, as before. A known kind with a wrong key or value is dropped; it never reaches the UI.
+    if (!knownActionKindSchema.safeParse(raw).success) throw action.error;
+    return [];
+  });
   return {
-    ...reply,
-    actions: availableSeoChatActions(
-      reply.actions,
-      canRequestAnalysis,
-      taskActions,
-    ),
+    reply: reply.reply,
+    actions: availableSeoChatActions(actions, canRequestAnalysis, taskActions),
   };
 }
