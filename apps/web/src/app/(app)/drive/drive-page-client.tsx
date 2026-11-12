@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Copy,
   Download,
+  FileSpreadsheet,
   Folder,
   FolderInput,
   FolderPlus,
@@ -66,6 +67,7 @@ import {
   driveItemActivation,
   forcedDownloadUrl,
 } from "@/app/drive/components/drive-item-card";
+import { DriveLinkSheetDialog } from "@/app/drive/components/drive-link-sheet-dialog";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
 import { DriveRecentsTagFilter } from "@/app/drive/components/drive-recents-tag-filter";
@@ -323,6 +325,7 @@ function DrivePageWorkspace({
     () => searchParams.get("folder") ?? "",
   );
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
+  const [linkSheetDialogOpen, setLinkSheetDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [snapshotFolder, setSnapshotFolder] = useState<string | null>(null);
@@ -1710,6 +1713,13 @@ function DrivePageWorkspace({
                     <FolderPlus className="size-4" aria-hidden />
                     {t("createFolder")}
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => setLinkSheetDialogOpen(true)}
+                    data-testid="files-mobile-link-sheet"
+                  >
+                    <FileSpreadsheet className="size-4" aria-hidden />
+                    {t("GoogleSheet.button")}
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : null}
@@ -1761,6 +1771,16 @@ function DrivePageWorkspace({
                 >
                   <FolderPlus className="size-4" aria-hidden />
                   {t("createFolder")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => setLinkSheetDialogOpen(true)}
+                >
+                  <FileSpreadsheet className="size-4" aria-hidden />
+                  {t("GoogleSheet.button")}
                 </Button>
                 {/* A real button: a label over a hidden input never gets
                     keyboard focus, so Tab skipped Upload. */}
@@ -2308,6 +2328,14 @@ function DrivePageWorkspace({
         onOpenChange={(open) => {
           if (!open) setShareItem(null);
         }}
+      />
+
+      <DriveLinkSheetDialog
+        open={linkSheetDialogOpen}
+        store={driveStore}
+        folder={currentFolder}
+        onOpenChange={setLinkSheetDialogOpen}
+        onLinked={() => void refreshDriveItems()}
       />
 
       <DriveDataRoomDialog
