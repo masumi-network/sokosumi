@@ -834,6 +834,27 @@ describe.skipIf(!enabled)(
         vi.unstubAllGlobals();
       }
       expect(await worse()).toBe(1);
+      // An Owner without access to the Workspace gets no notification for the same worse result.
+      const worseRow = await prisma.projectSeoObservation.findFirstOrThrow({
+        where: { sourceTaskId: againTaskId },
+      });
+      await prisma.taskSchedule.update({
+        where: { id: monitor.id },
+        data: { ownerId: otherId },
+      });
+      try {
+        await notifySeoMonitorWorse(againTaskId, worseRow.id);
+      } finally {
+        await prisma.taskSchedule.update({
+          where: { id: monitor.id },
+          data: { ownerId: userId },
+        });
+      }
+      expect(
+        await prisma.notification.count({
+          where: { userId: otherId, messageKey: SEO_MONITOR_WORSE_MESSAGE_KEY },
+        }),
+      ).toBe(0);
       // A second file of the same Run counts once: the change still compares against the Run before.
       await result(againTaskId, "2026-11-03T10:00:00.000Z", "fired");
       // A late result of the oldest Run keeps that Run's place: the pair stays the two newest Runs.

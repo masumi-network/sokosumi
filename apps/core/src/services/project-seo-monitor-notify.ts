@@ -1,5 +1,9 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind } from "@sokosumi/database";
+import {
+  hasCalendarWorkspaceAccess,
+  lockCalendarWorkspaceMembership,
+} from "@/helpers/calendar-membership-fence";
 import { createNotification } from "@/helpers/notifications";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
@@ -88,18 +92,28 @@ export async function notifySeoMonitorWorse(
     payload: payload.data,
   });
   if (!isSeoMonitorChangeWorse(change)) return;
-  await createNotification({
-    userId: ownerId,
-    workspaceId: task.workspaceId,
-    kind: NotificationKind.TASK,
-    referenceId: taskId,
-    eventId: observationId,
-    messageKey: SEO_MONITOR_WORSE_MESSAGE_KEY,
-    messageParams: {
-      taskName: task.name,
-      newFailures: change.newFailureCount,
-      drops: change.dropCount,
-    },
+  // Under the membership lock: an Owner removed from the Workspace gets no notification.
+  await prisma.$transaction(async (tx) => {
+    await lockCalendarWorkspaceMembership(tx, task.workspaceId);
+    if (!(await hasCalendarWorkspaceAccess(tx, task.workspaceId, ownerId))) {
+      return;
+    }
+    await createNotification(
+      {
+        userId: ownerId,
+        workspaceId: task.workspaceId,
+        kind: NotificationKind.TASK,
+        referenceId: taskId,
+        eventId: observationId,
+        messageKey: SEO_MONITOR_WORSE_MESSAGE_KEY,
+        messageParams: {
+          taskName: task.name,
+          newFailures: change.newFailureCount,
+          drops: change.dropCount,
+        },
+      },
+      tx,
+    );
   });
 }
 
