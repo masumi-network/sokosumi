@@ -15,6 +15,7 @@ import prisma from "@/lib/db/prisma";
 import {
   GA4_LANDING_PAGES_UNAVAILABLE_NOTE,
   ga4LandingPageArguments,
+  ga4LandingPlan,
   normalizeGa4LandingPages,
 } from "@/lib/seo/native-ga4-landing";
 import {
@@ -396,12 +397,17 @@ export async function syncProjectSeoStatistics(
         )
       : null;
   // Organic key events per landing page. Google Analytics only.
+  const landingPlan = input.provider === "ga4" ? ga4LandingPlan(query) : null;
   const collectLandingPages = async () =>
-    input.provider === "ga4"
+    landingPlan?.query.pageUrls.length
       ? normalizeGa4LandingPages(
-          query,
+          landingPlan.query,
           unwrapNativeStatistics(
-            await read(integration, tool, ga4LandingPageArguments(query)),
+            await read(
+              integration,
+              tool,
+              ga4LandingPageArguments(landingPlan.query),
+            ),
             ["metricHeaders"],
           ),
         )
@@ -504,10 +510,12 @@ export async function syncProjectSeoStatistics(
           value: before.value,
         };
     }
-  if (input.provider === "ga4") {
+  if (landingPlan) {
+    if (landingPlan.note) metrics.notes.push(landingPlan.note);
     if (landing.status === "fulfilled" && landing.value)
       metrics.landingPages = landing.value;
-    else metrics.notes.push(GA4_LANDING_PAGES_UNAVAILABLE_NOTE);
+    else if (landingPlan.query.pageUrls.length)
+      metrics.notes.push(GA4_LANDING_PAGES_UNAVAILABLE_NOTE);
   }
   if (input.provider === "search_console") {
     if (queries.status === "fulfilled" && queries.value) {

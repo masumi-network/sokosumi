@@ -23,6 +23,34 @@ function landingPath(url: string): string {
   return `${parsed.pathname}${parsed.search}`;
 }
 
+/** Pages that share a path on different hosts are left out of the landing read. */
+export const GA4_SHARED_LANDING_PATH_NOTE =
+  "Key events per landing page were not read for pages that share a path on different hosts: Google Analytics names a landing page by its path only.";
+
+/**
+ * The pages a landing read can tell apart. GA4's landing dimension carries no host, so
+ * "https://example.com/" and "https://blog.example.com/" are one row there. Those pages
+ * are left out with a note, never given one page's numbers.
+ */
+export function ga4LandingPlan(query: NativeStatisticsQuery) {
+  const urlsByPath = new Map<string, Set<string>>();
+  for (const url of query.pageUrls) {
+    const urls = urlsByPath.get(landingPath(url)) ?? new Set<string>();
+    urls.add(url);
+    urlsByPath.set(landingPath(url), urls);
+  }
+  const pageUrls = query.pageUrls.filter(
+    (url) => urlsByPath.get(landingPath(url))?.size === 1,
+  );
+  return {
+    query: { ...query, pageUrls },
+    note:
+      pageUrls.length < query.pageUrls.length
+        ? GA4_SHARED_LANDING_PATH_NOTE
+        : null,
+  };
+}
+
 /** Landing rows follow an AI Assistant read; every other read counts organic search. */
 function landingChannel(query: NativeStatisticsQuery) {
   return query.channel === "ai_assistant" ? "ai_assistant" : "organic";

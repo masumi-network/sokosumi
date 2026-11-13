@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  GA4_SHARED_LANDING_PATH_NOTE,
   ga4LandingPageArguments,
+  ga4LandingPlan,
   normalizeGa4LandingPages,
 } from "./native-ga4-landing";
 import type { NativeStatisticsQuery } from "./native-statistics";
@@ -168,5 +170,19 @@ describe("GA4 key events per landing page", () => {
         rowCount: 300,
       }).truncated,
     ).toBe(true);
+  });
+
+  it("leaves out pages that share a path on another host, with a note", () => {
+    const plan = ga4LandingPlan({
+      ...query,
+      pageUrls: [
+        "https://example.com/",
+        "https://blog.example.com/",
+        "https://example.com/shop?ref=nav",
+      ],
+    });
+    expect(plan.query.pageUrls).toEqual(["https://example.com/shop?ref=nav"]);
+    expect(plan.note).toBe(GA4_SHARED_LANDING_PATH_NOTE);
+    expect(ga4LandingPlan(query)).toEqual({ query, note: null });
   });
 });
