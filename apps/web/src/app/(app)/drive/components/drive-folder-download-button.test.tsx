@@ -102,6 +102,45 @@ describe("DriveFolderDownloadButton", () => {
     );
   });
 
+  it("leaves data rooms out unread and names them", async () => {
+    listDriveItems.mockImplementation(async ({ folder: path }) =>
+      path === "Clients/Acme"
+        ? [
+            file("brief.pdf"),
+            { ...folder("Deal room"), dataRoom: true },
+            folder("Brand"),
+          ]
+        : path === "Clients/Acme/Brand"
+          ? [{ ...folder("Board"), dataRoom: true }]
+          : [],
+    );
+    archive.createFilesArchive.mockResolvedValue({
+      data: new ArrayBuffer(1),
+      included: ["brief.pdf"],
+      missing: [],
+    });
+
+    await userEvent.click(renderButton());
+
+    await waitFor(() =>
+      expect(toast.info).toHaveBeenCalledWith(
+        "Data rooms are not in the zip: Deal room, Brand/Board. Their files stay private to the people let in.",
+        { duration: 15_000 },
+      ),
+    );
+    expect(listDriveItems).not.toHaveBeenCalledWith(
+      expect.objectContaining({ folder: "Clients/Acme/Deal room" }),
+    );
+    expect(archive.createFilesArchive).toHaveBeenCalledWith(
+      [{ name: "brief.pdf", fileUrl: "https://blob.test/brief.pdf" }],
+      expect.any(AbortSignal),
+      expect.any(Number),
+      FOLDER_ARCHIVE_MAX_FILES,
+    );
+    expect(archive.saveZip).toHaveBeenCalledOnce();
+    expect(toast.warning).not.toHaveBeenCalled();
+  });
+
   it("says so when the folder has no files", async () => {
     listDriveItems.mockImplementation(async ({ folder: path }) =>
       path === "Clients/Acme" ? [folder("Empty")] : [],

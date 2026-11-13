@@ -9627,6 +9627,7 @@
       "moveFolderAction": "Move folder",
       "downloadFolderButton": "Download",
       "downloadFolderAction": "Download {name} as a zip",
+      "downloadFolderRoomsLeftOut": "Data rooms are not in the zip: {names}. Their files stay private to the people let in.",
       "moveFileError": "Failed to move file",
       "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "No task files yet",

@@ -2,6 +2,7 @@
 
 import { Download } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useFilesArchiveDownload } from "@/hooks/use-files-archive-download";
 import type { ArchiveFile } from "@/lib/files-archive";
@@ -15,19 +16,24 @@ export const FOLDER_ARCHIVE_MAX_FILES = 200;
 
 /**
  * Every file under `folder`, with its path inside the zip relative to it.
- * A data room's bytes are private, so its files fail to load and are named
- * as not included rather than silently dropped.
+ * A data room's bytes are private and its link cannot open them, so a room
+ * is not walked: its path goes to `rooms` for the reader to be told.
  */
 export async function listFolderFiles(
   store: DriveWorkspaceStore,
   folder: string,
   signal: AbortSignal,
+  rooms: string[] = [],
   relative = "",
 ): Promise<ArchiveFile[]> {
   const items = await listDriveItems({ ...store, folder, signal });
   const files: ArchiveFile[] = [];
   for (const item of items) {
-    if (item.type === "file") {
+    const path = relative ? `${relative}/${item.name}` : item.name;
+    if (item.dataRoom) {
+      // A file is only in a room through its folder, so name the room once.
+      if (item.type === "folder") rooms.push(path);
+    } else if (item.type === "file") {
       files.push({
         name: item.name,
         fileUrl: item.fileUrl,
@@ -40,7 +46,8 @@ export async function listFolderFiles(
           store,
           `${folder}/${item.path}`,
           signal,
-          relative ? `${relative}/${item.name}` : item.name,
+          rooms,
+          path,
         )),
       );
     }
@@ -68,13 +75,20 @@ export function DriveFolderDownloadButton({
       data-testid="files-download-folder"
       aria-label={t("downloadFolderAction", { name })}
       loading={downloading}
-      onClick={() =>
-        void download(
+      onClick={async () => {
+        const rooms: string[] = [];
+        const done = await download(
           name,
-          (signal) => listFolderFiles(store, folder, signal),
+          (signal) => listFolderFiles(store, folder, signal, rooms),
           FOLDER_ARCHIVE_MAX_FILES,
-        )
-      }
+        );
+        if (done && rooms.length > 0) {
+          toast.info(
+            t("downloadFolderRoomsLeftOut", { names: rooms.join(", ") }),
+            { duration: 15_000 },
+          );
+        }
+      }}
     >
       <Download className="size-4" aria-hidden />
       <span className="hidden @lg:inline">{t("downloadFolderButton")}</span>

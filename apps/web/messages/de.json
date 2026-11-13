@@ -9627,6 +9627,7 @@
       "moveFolderAction": "Ordner verschieben",
       "downloadFolderButton": "Herunterladen",
       "downloadFolderAction": "{name} als ZIP herunterladen",
+      "downloadFolderRoomsLeftOut": "Datenräume sind nicht im ZIP: {names}. Ihre Dateien bleiben privat für die eingeladenen Personen.",
       "moveFileError": "Datei konnte nicht verschoben werden",
       "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "Noch keine Aufgabendateien",

@@ -9627,6 +9627,7 @@
       "moveFolderAction": "Mover carpeta",
       "downloadFolderButton": "Descargar",
       "downloadFolderAction": "Descargar {name} como zip",
+      "downloadFolderRoomsLeftOut": "Las salas de datos no están en el zip: {names}. Sus archivos siguen siendo privados para las personas con acceso.",
       "moveFileError": "Error al mover archivo",
       "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "Aún no hay archivos de tareas",
