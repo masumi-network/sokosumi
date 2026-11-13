@@ -5,7 +5,13 @@ const prisma = vi.hoisted(() => {
   const ok = () => vi.fn().mockResolvedValue({});
   return {
     project: { update: ok() },
-    marketingStrategy: { deleteMany: ok() },
+    marketingStrategy: { deleteMany: ok(), create: ok() },
+    sokoBotTurn: {
+      findMany: vi.fn().mockResolvedValue([]),
+      findUniqueOrThrow: vi
+        .fn()
+        .mockResolvedValue({ status: "COMPLETED", finalAnswer: "Ready" }),
+    },
     brandBrain: { deleteMany: ok(), create: ok() },
     socialComment: {
       deleteMany: ok(),
@@ -19,14 +25,139 @@ vi.mock("@/services/cmo-cuso.service", () => ({
   findCusoForBot: vi.fn().mockResolvedValue({ id: "cuso-1" }),
 }));
 
+const expireTurn = vi.hoisted(() => vi.fn().mockResolvedValue(true));
+vi.mock("@/services/soko-bot-control-plane.service", () => ({
+  sokoBotControlPlane: { expireTurn },
+}));
+
+vi.mock("@/services/cmo-strategy.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/cmo-strategy.service")>()),
+  requestCmoStrategy: vi.fn().mockResolvedValue({ turnId: "turn-1" }),
+}));
+vi.mock("@/services/marketing-strategy.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/marketing-strategy.service")
+  >()),
+  newestMarketingStrategy: vi.fn(),
+}));
+
+import { requestCmoStrategy } from "@/services/cmo-strategy.service";
+import { newestMarketingStrategy } from "@/services/marketing-strategy.service";
+import { CMO_EVAL_CASES } from "./eval-cmo-cases";
 import {
   commentChecks,
   monthPlanFromTomorrow,
-  prepareCmoComments,
+  pollCmoCase,
+  prepareCmoChatCase,
+  startCmoCase,
 } from "./eval-cmo-runner";
 import type { EvalLaneRecord } from "./eval-lanes.service";
 
-describe("prepareCmoComments", () => {
+describe("strategy eval cases", () => {
+  const lane = {
+    userId: "user-1",
+    cusoBotId: "cuso-1",
+    cusoProjectId: "project-1",
+  } as EvalLaneRecord;
+  const context = {
+    resultId: "result-1",
+    firstOfSuite: false,
+    startedAt: new Date(),
+  };
+  const evalCase = CMO_EVAL_CASES.find(
+    (item) => item.id === "cmo-strategy-mailchimp",
+  )!;
+
+  it("passes the frozen site language into fresh strategy generation", async () => {
+    await startCmoCase(evalCase, lane, context);
+    expect(requestCmoStrategy).toHaveBeenLastCalledWith({
+      userId: "user-1",
+      projectId: "project-1",
+      siteLanguage: "English",
+    });
+  });
+
+  it("waits for a turn that is still inside its deadline", async () => {
+    prisma.sokoBotTurn.findMany.mockResolvedValueOnce([
+      { id: "turn-0", deadlineAt: new Date(Date.now() + 60_000) },
+    ]);
+    expect(await startCmoCase(evalCase, lane, context)).toEqual({
+      kind: "busy",
+    });
+    expect(expireTurn).not.toHaveBeenCalled();
+  });
+
+  it("ends a turn past its deadline instead of waiting on it", async () => {
+    prisma.sokoBotTurn.findMany.mockResolvedValueOnce([
+      { id: "turn-0", deadlineAt: new Date(Date.now() - 60_000) },
+    ]);
+    expect(await startCmoCase(evalCase, lane, context)).toMatchObject({
+      kind: "started",
+    });
+    expect(expireTurn).toHaveBeenCalledWith("turn-0");
+  });
+
+  it("ends the turn of a case that timed out, so the lane is free", async () => {
+    prisma.sokoBotTurn.findUniqueOrThrow.mockResolvedValueOnce({
+      status: "RUNNING",
+    });
+    const result = await pollCmoCase(
+      evalCase,
+      lane,
+      { turnId: "turn-9", state: {} },
+      { ...context, startedAt: new Date(Date.now() - 46 * 60_000) },
+    );
+    expect(result).toMatchObject({
+      kind: "done",
+      outcome: { status: "ERROR" },
+    });
+    expect(expireTurn).toHaveBeenCalledWith("turn-9");
+  });
+
+  it.each(["Email and SMS marketing plans", null])(
+    "exports the core offer separately from the trial: %s",
+    async (coreOffer) => {
+      vi.mocked(newestMarketingStrategy).mockResolvedValue({
+        id: "strategy-1",
+        projectId: lane.cusoProjectId,
+        createdAt: context.startedAt,
+        updatedAt: context.startedAt,
+        authorSokoBotId: lane.cusoBotId,
+        authorUserId: null,
+        authorTurnId: "turn-1",
+        approvedAt: null,
+        approvedByUserId: null,
+        monthReview: null,
+        plan: {
+          month: "2026-11",
+          summary: "Explain email marketing plans.",
+          goals: ["More trials"],
+          pillars: [],
+          channels: [],
+          calendar: [],
+          ...(coreOffer ? { ladder: { core: { what: coreOffer } } } : {}),
+          offer: {
+            what: "14-day Standard trial",
+            why: "Try the plan",
+            action: "Start trial",
+          },
+        },
+      });
+      const result = await pollCmoCase(
+        evalCase,
+        lane,
+        { turnId: "turn-1", state: {} },
+        context,
+      );
+      expect(result).toMatchObject({
+        kind: "done",
+        outcome: { output: { coreOffer, offer: "14-day Standard trial" } },
+      });
+    },
+  );
+});
+
+describe("prepareCmoChatCase", () => {
   it("publishes the comment post with exactly one creator: the lane's Cuso", async () => {
     const lane = {
       lane: 1,
@@ -35,7 +166,7 @@ describe("prepareCmoComments", () => {
       cusoBotId: "cuso-bot-1",
       cusoProjectId: "project-1",
     } as EvalLaneRecord;
-    await prepareCmoComments(lane);
+    await prepareCmoChatCase(lane, "cmo-comments");
     const { data } = prisma.socialPost.create.mock.calls[0]?.[0] as {
       data: Record<string, unknown>;
     };
@@ -46,6 +177,37 @@ describe("prepareCmoComments", () => {
     ].filter((key) => data[key] != null);
     expect(creators).toEqual(["creatorSokoBotId"]);
     expect(data.creatorSokoBotId).toBe("cuso-bot-1");
+  });
+});
+
+describe("a Cuso chat case's lane", () => {
+  const lane = {
+    lane: 1,
+    cusoBotId: "cuso-bot-1",
+    cusoProjectId: "project-1",
+  } as EvalLaneRecord;
+
+  it("holds the chat brand and its month as a draft, whatever ran before", async () => {
+    vi.clearAllMocks();
+    expect(await prepareCmoChatCase(lane, "cmo-brand")).toEqual({});
+    expect(prisma.project.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ websiteUrl: "https://cal.com/" }),
+      }),
+    );
+    expect(prisma.brandBrain.create).toHaveBeenCalledOnce();
+    const { data } = prisma.marketingStrategy.create.mock.calls[0]?.[0] as {
+      data: { plan: MarketingStrategyPlan; approvedAt?: Date };
+    };
+    expect(data.plan.calendar.length).toBeGreaterThan(0);
+    expect(data.approvedAt).toBeUndefined();
+  });
+
+  it("holds nothing for a client Cuso has not learned", async () => {
+    vi.clearAllMocks();
+    await prepareCmoChatCase(lane, "cmo-new-client");
+    expect(prisma.brandBrain.create).not.toHaveBeenCalled();
+    expect(prisma.marketingStrategy.create).not.toHaveBeenCalled();
   });
 });
 

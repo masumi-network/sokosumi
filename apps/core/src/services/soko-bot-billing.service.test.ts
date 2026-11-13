@@ -202,6 +202,7 @@ describe("Soko Bot billing", () => {
       chargedCents: expected,
       expectedCents: expected,
       shortfall: false,
+      organizationId: null,
     });
     expect(transactionCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -225,7 +226,10 @@ describe("Soko Bot billing", () => {
 
   it("returns existing charge and reports a metering shortfall", async () => {
     const charged = convertCreditsToCents(5);
-    usageFindUniqueMock.mockResolvedValue({ cents: charged });
+    usageFindUniqueMock.mockResolvedValue({
+      cents: charged,
+      organizationId: "org_1",
+    });
 
     const result = await recordSokoBotTurnUsage(
       {
@@ -241,6 +245,7 @@ describe("Soko Bot billing", () => {
       chargedCents: charged,
       expectedCents: convertCreditsToCents(100),
       shortfall: true,
+      organizationId: "org_1",
     });
     expect(transactionCreateMock).not.toHaveBeenCalled();
   });
@@ -293,7 +298,7 @@ describe("Soko Bot billing", () => {
       ]);
       transactionCreateMock.mockResolvedValue({ id: "transaction_1" });
 
-      await recordSokoBotTurnUsage(
+      const result = await recordSokoBotTurnUsage(
         {
           turnId: "turn_1",
           sokoBotId: SOKO_BOT_ID,
@@ -303,6 +308,8 @@ describe("Soko Bot billing", () => {
         transactionClient() as never,
       );
 
+      // The wallet it drew on, so the low-balance check reads the same one.
+      expect(result.organizationId).toBe("org_1");
       expect(balanceMock).toHaveBeenCalledWith(
         "user_1",
         "org_1",
@@ -543,6 +550,7 @@ describe("Soko Bot billing", () => {
         chargedCents: 0n,
         expectedCents: expected,
         shortfall: true,
+        organizationId: "org_1",
       });
       expect(transactionCreateMock).not.toHaveBeenCalled();
       expect(poolBalanceMock).not.toHaveBeenCalled();

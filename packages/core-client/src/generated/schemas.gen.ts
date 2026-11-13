@@ -38813,8 +38813,8 @@ export const CreateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 10,
-            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+            maxItems: 20,
+            description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
         },
         threadParts: {
             type: 'array',
@@ -38830,8 +38830,8 @@ export const CreateSocialPostRequestSchema = {
                         items: {
                             $ref: '#/components/schemas/SocialPostMediaRef'
                         },
-                        maxItems: 10,
-                        description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+                        maxItems: 20,
+                        description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
                     }
                 },
                 required: [
@@ -38940,8 +38940,8 @@ export const UpdateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 10,
-            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+            maxItems: 20,
+            description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
         },
         threadParts: {
             type: 'array',
@@ -38957,8 +38957,8 @@ export const UpdateSocialPostRequestSchema = {
                         items: {
                             $ref: '#/components/schemas/SocialPostMediaRef'
                         },
-                        maxItems: 10,
-                        description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+                        maxItems: 20,
+                        description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
                     }
                 },
                 required: [

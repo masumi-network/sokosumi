@@ -35,12 +35,19 @@ function filesFromClipboard(clipboardData: DataTransfer | null): File[] {
 export function RoomFileDropZone({
   enabled,
   onFiles,
+  onDropTransfer,
   label,
   children,
   className,
 }: {
   enabled: boolean;
-  onFiles: (files: File[]) => void;
+  /** Dropped and pasted files. Leave out to ignore paste. */
+  onFiles?: (files: File[]) => void;
+  /**
+   * The raw drop, in place of `onFiles`, for callers that read folders out of
+   * it. Read `items` before awaiting: the browser empties them after the event.
+   */
+  onDropTransfer?: (dataTransfer: DataTransfer) => void;
   label: string;
   children: ReactNode;
   className?: string;
@@ -85,17 +92,22 @@ export function RoomFileDropZone({
       event.preventDefault();
       event.stopPropagation();
       resetDrag();
+      if (onDropTransfer) {
+        onDropTransfer(event.dataTransfer);
+        return;
+      }
       const files = Array.from(event.dataTransfer.files).filter(
         (file) => file.size > 0,
       );
       if (files.length === 0) return;
-      onFiles(files);
+      onFiles?.(files);
     },
-    [onFiles, resetDrag],
+    [onFiles, onDropTransfer, resetDrag],
   );
 
   const handlePaste = useCallback(
     (event: ClipboardEvent<HTMLDivElement>) => {
+      if (!onFiles) return;
       const files = filesFromClipboard(event.clipboardData);
       if (files.length === 0) return;
       event.preventDefault();

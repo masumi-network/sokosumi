@@ -31,7 +31,7 @@ export const SOCIAL_POST_WRITING_GUIDES = Object.fromEntries(
 
 const MAX_HASHTAGS = {
   x: 2,
-  linkedin: 5,
+  linkedin: 3,
   facebook: 3,
   instagram: 5,
   tiktok: 5,
@@ -71,6 +71,12 @@ const BANNED_COPY: readonly { pattern: RegExp; problem: string }[] = [
   {
     pattern: /\btag (a friend|someone|a mate)\b/i,
     problem: "asks people to tag someone, which networks treat as bait",
+  },
+  {
+    pattern:
+      /(^|[.!?:;]\s+)(like|share|comment|repost)( (this|it|below|the post|this post))? if\b/im,
+    problem:
+      'asks for a like, share or comment in exchange ("Like if you agree"), which networks treat as bait',
   },
   {
     pattern:

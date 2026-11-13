@@ -347,7 +347,7 @@ const SOCIAL_POST_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
  */
 export const SOCIAL_POST_MEDIA_RULES = {
   x: {
-    maxImages: 4,
+    maxImages: 20,
     maxGifs: 1,
     maxVideos: 1,
     // X documents 5 MB and Composio requires less than 5 MiB.

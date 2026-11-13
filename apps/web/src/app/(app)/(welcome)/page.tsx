@@ -36,6 +36,7 @@ import {
   type SokoBotHomeChat,
   sokoBotFailureLead,
   toImportantChats,
+  toNewSchedules,
   toTeamDay,
 } from "./components/soko-bot-home-data";
 
@@ -210,6 +211,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           summary={summary ?? null}
           teamTasks={toTeamDay(recent.tasks, new Date())}
           chats={chats}
+          schedules={toNewSchedules(sokoBot.schedules ?? [], new Date())}
           myDay={myDay}
           needsYou={needsYouPanel(failedLead)}
         />

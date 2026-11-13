@@ -10370,7 +10370,7 @@ export type CreateSocialPostRequest = {
      */
     firstComment?: string;
     /**
-     * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
+     * Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.
      */
     media?: Array<SocialPostMediaRef>;
     /**
@@ -10379,7 +10379,7 @@ export type CreateSocialPostRequest = {
     threadParts?: Array<{
         text: string;
         /**
-         * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
+         * Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.
          */
         media?: Array<SocialPostMediaRef>;
     }>;
@@ -10412,7 +10412,7 @@ export type UpdateSocialPostRequest = {
      */
     firstComment?: string;
     /**
-     * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
+     * Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.
      */
     media?: Array<SocialPostMediaRef>;
     /**
@@ -10421,7 +10421,7 @@ export type UpdateSocialPostRequest = {
     threadParts?: Array<{
         text: string;
         /**
-         * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
+         * Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.
          */
         media?: Array<SocialPostMediaRef>;
     }>;
