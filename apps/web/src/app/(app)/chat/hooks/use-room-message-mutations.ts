@@ -9,6 +9,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import {
   deleteRoomMessageAction,
@@ -24,6 +25,7 @@ import {
 } from "@/app/chat/utils/chat-room-message-scope";
 import { keepKnownThreadUnreadReplyCount } from "@/app/chat/utils/merge-room-messages";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
+import { tombstoneChatRoomMessage } from "@/lib/ably/apply-chat-room-message-id-envelope";
 
 interface RoomMessageMutationsOptions {
   /** Read at call time: the open Room is resolved after this hook runs. */
@@ -57,7 +59,6 @@ export function useRoomMessageMutations({
     inThread: boolean;
   } | null>(null);
   const [isSavingEdit, startSavingEditTransition] = useTransition();
-  const [_isDeleting, startDeleteTransition] = useTransition();
   const [openUnfurlRemovals] = useState(() => new Set<string>());
   const [pinWrites] = useState(
     () =>
@@ -356,35 +357,68 @@ export function useRoomMessageMutations({
             ?.threadReplyCount ?? null)
       : null;
 
-    startDeleteTransition(async () => {
-      const result = await deleteRoomMessageAction(roomId, message.id);
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
-      }
-      if (!isStillSelectedRoom(roomId)) {
-        return;
-      }
-      mergeUpdatedMessage(result.value);
+    // The row shows as deleted at once. A refused delete gives the row back
+    // what the tombstone took, unless a full message replaced the tombstone:
+    // an update, or Core's own tombstone when only the answer was lost. A
+    // field patch (reaction, link preview, mention status) that came for the
+    // tombstone is lost with it until the next read.
+    const tombstone = tombstoneChatRoomMessage(message);
+    mergeUpdatedMessage(tombstone);
+    void deleteRoomMessageAction(roomId, message.id)
+      .catch(() => null)
+      .then((result) => {
+        if (!result?.ok) {
+          // Core's own tombstone before a lost answer keeps the row deleted;
+          // that case still gets this toast, but without the line that says
+          // the message is back. flushSync runs the updaters now, so the flag
+          // holds what they found.
+          let restored = false;
+          flushSync(() => {
+            patchMessage(message.id, (row) => {
+              if (row.deletedAt !== tombstone.deletedAt) return row;
+              restored = true;
+              return {
+                ...row,
+                content: message.content,
+                deletedAt: message.deletedAt,
+                editedAt: message.editedAt,
+                mentions: message.mentions,
+                reactions: message.reactions,
+                metadata: message.metadata,
+                quote: message.quote,
+                membership: message.membership,
+                unfurls: message.unfurls,
+              };
+            });
+          });
+          toast.error(result?.error.message ?? t("Message.deleteError"), {
+            description: restored ? t("Message.restored") : undefined,
+          });
+          return;
+        }
+        if (!isStillSelectedRoom(roomId)) {
+          return;
+        }
+        mergeUpdatedMessage(result.value);
 
-      if (
-        wasLiveReply &&
-        parentMessageId != null &&
-        parentCountBefore != null &&
-        result.value.deletedAt != null
-      ) {
-        const applyParent = (row: ChatRoomMessage) =>
-          applyReplySoftDeleteToParentIfUnchanged(
-            row,
-            parentMessageId,
-            parentCountBefore,
+        if (
+          wasLiveReply &&
+          parentMessageId != null &&
+          parentCountBefore != null &&
+          result.value.deletedAt != null
+        ) {
+          const applyParent = (row: ChatRoomMessage) =>
+            applyReplySoftDeleteToParentIfUnchanged(
+              row,
+              parentMessageId,
+              parentCountBefore,
+            );
+          setMessagesState((current) => current.map(applyParent));
+          setThreadParentMessage((current) =>
+            current ? applyParent(current) : null,
           );
-        setMessagesState((current) => current.map(applyParent));
-        setThreadParentMessage((current) =>
-          current ? applyParent(current) : null,
-        );
-      }
-    });
+        }
+      });
   }
 
   return {

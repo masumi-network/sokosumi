@@ -9,6 +9,7 @@ import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
 import { chatRoomMessageEventDataSchema } from "@/lib/ably/schema";
 import { RoomsClient } from "../rooms-client";
 import {
+  deleteRoomMessageAction,
   editRoomMessageAction,
   pinRoomMessageAction,
   removeRoomMessageUnfurlAction,
@@ -73,6 +74,7 @@ vi.mock("../room-message-row", async () => {
       editDraft,
       onToggleReaction,
       onPin,
+      onDelete,
       onRemoveUnfurl,
       onStartEdit,
       onOpenThread,
@@ -86,6 +88,7 @@ vi.mock("../room-message-row", async () => {
       editDraft?: string;
       onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
       onPin?: (message: ChatRoomMessage) => void;
+      onDelete?: (message: ChatRoomMessage) => void;
       onRemoveUnfurl?: (message: ChatRoomMessage, url: string) => void;
       onStartEdit?: (message: ChatRoomMessage) => void;
       onOpenThread?: (message: ChatRoomMessage) => void;
@@ -98,6 +101,7 @@ vi.mock("../room-message-row", async () => {
           data-testid="chat-message-row"
           data-message-id={message.id}
           data-pinned={String(Boolean(isPinned))}
+          data-deleted={String(message.deletedAt != null)}
           data-unfurls={(message.unfurls ?? [])
             .map((unfurl) => unfurl.url)
             .join(" ")}
@@ -114,6 +118,9 @@ vi.mock("../room-message-row", async () => {
           </button>
           <button type="button" onClick={() => onStartEdit?.(message)}>
             {`Edit ${message.id}`}
+          </button>
+          <button type="button" onClick={() => onDelete?.(message)}>
+            {`Delete ${message.id}`}
           </button>
           {(message.unfurls ?? []).map((unfurl) => (
             <button
@@ -773,6 +780,207 @@ describe("RoomsClient transcript row render isolation", () => {
       });
 
       expect(previews()).toEqual(["", "c", ""]);
+    });
+  });
+
+  describe("delete", () => {
+    const rows = () =>
+      screen
+        .getAllByTestId("chat-message-row")
+        .map(
+          (row) =>
+            `${row.getAttribute("data-deleted")}:${row.firstChild?.textContent}`,
+        );
+    const clickDelete = async () => {
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Delete m2" }));
+      });
+    };
+
+    // The transcript leaves out a message with no text, so a tombstone too.
+    it("takes the message out before Core answers", async () => {
+      let answer: (result: unknown) => void = () => {};
+      vi.mocked(deleteRoomMessageAction).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
+      );
+      await mountRoom();
+
+      await clickDelete();
+      expect(rows()).toEqual(["false:body m1", "false:body m3"]);
+      expect(deleteRoomMessageAction).toHaveBeenCalledWith(
+        "room-channel",
+        "m2",
+      );
+
+      await act(async () => {
+        answer({
+          ok: true,
+          value: {
+            ...message("m2", 2),
+            content: "",
+            deletedAt: new Date("2026-07-02T00:00:00.000Z"),
+          },
+        });
+      });
+      expect(rows()).toEqual(["false:body m1", "false:body m3"]);
+    });
+
+    it("puts a refused message back and says so", async () => {
+      vi.mocked(deleteRoomMessageAction).mockResolvedValueOnce({
+        ok: false as const,
+        error: { message: "Delete refused" } as never,
+      });
+      await mountRoom();
+
+      await clickDelete();
+
+      expect(rows()).toEqual([
+        "false:body m1",
+        "false:body m2",
+        "false:body m3",
+      ]);
+      expect(toast.error).toHaveBeenCalledWith("Delete refused", {
+        description: "Message.restored",
+      });
+    });
+
+    it("puts the message back when the request fails", async () => {
+      vi.mocked(deleteRoomMessageAction).mockRejectedValueOnce(
+        new Error("down"),
+      );
+      await mountRoom();
+
+      await clickDelete();
+
+      expect(rows()).toEqual([
+        "false:body m1",
+        "false:body m2",
+        "false:body m3",
+      ]);
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+        "Message.deleteError",
+        { description: "Message.restored" },
+      );
+    });
+
+    it("keeps the message deleted when Core's delete event came before the failed answer", async () => {
+      let fail: (error: Error) => void = () => {};
+      vi.mocked(deleteRoomMessageAction).mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            fail = reject;
+          }),
+      );
+      await mountRoom();
+      await clickDelete();
+      const event = chatRoomMessageEventDataSchema.parse(
+        JSON.parse(
+          JSON.stringify({
+            eventType: "delete",
+            message: {
+              ...message("m2", 2),
+              content: "",
+              deletedAt: new Date("2026-07-02T00:00:00.000Z"),
+            },
+          }),
+        ),
+      );
+      await act(async () => {
+        realtimeOptions().onMessage?.(event);
+      });
+
+      await act(async () => {
+        fail(new Error("down"));
+      });
+
+      expect(rows()).toEqual(["false:body m1", "false:body m3"]);
+      // The row stays deleted, so the toast does not say it is back.
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+        "Message.deleteError",
+        { description: undefined },
+      );
+    });
+
+    it("says the message is back only for the failure that put it back", async () => {
+      let fail: (error: Error) => void = () => {};
+      vi.mocked(deleteRoomMessageAction)
+        .mockRejectedValueOnce(new Error("down"))
+        .mockImplementationOnce(
+          () =>
+            new Promise((_resolve, reject) => {
+              fail = reject;
+            }),
+        );
+      await mountRoom();
+
+      await clickDelete();
+      expect(rows()).toHaveLength(3);
+
+      await clickDelete();
+      const event = chatRoomMessageEventDataSchema.parse(
+        JSON.parse(
+          JSON.stringify({
+            eventType: "delete",
+            message: {
+              ...message("m2", 2),
+              content: "",
+              deletedAt: new Date("2026-07-02T00:00:00.000Z"),
+            },
+          }),
+        ),
+      );
+      await act(async () => {
+        realtimeOptions().onMessage?.(event);
+      });
+      await act(async () => {
+        fail(new Error("down"));
+      });
+
+      expect(rows()).toEqual(["false:body m1", "false:body m3"]);
+      expect(toast.error.mock.calls.map(([, options]) => options)).toEqual([
+        { description: "Message.restored" },
+        { description: undefined },
+      ]);
+    });
+
+    it("keeps a newer realtime update when the delete then fails", async () => {
+      let fail: (error: Error) => void = () => {};
+      vi.mocked(deleteRoomMessageAction).mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            fail = reject;
+          }),
+      );
+      await mountRoom();
+      await clickDelete();
+      const event = chatRoomMessageEventDataSchema.parse(
+        JSON.parse(
+          JSON.stringify({
+            eventType: "update",
+            message: { ...message("m2", 2), content: "edited m2" },
+          }),
+        ),
+      );
+      await act(async () => {
+        realtimeOptions().onMessage?.(event);
+      });
+
+      await act(async () => {
+        fail(new Error("down"));
+      });
+
+      expect(rows()).toEqual([
+        "false:body m1",
+        "false:edited m2",
+        "false:body m3",
+      ]);
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+        "Message.deleteError",
+        { description: undefined },
+      );
     });
   });
 

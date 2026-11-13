@@ -9085,6 +9085,8 @@
         "delete": "Eliminar",
         "deleteConfirm": "¿Eliminar este mensaje? Los demás verán que fue eliminado.",
         "deleted": "Este mensaje fue eliminado",
+        "deleteError": "No se pudo eliminar el mensaje. Inténtalo de nuevo.",
+        "restored": "El mensaje vuelve a estar en la conversación.",
         "showMore": "Mostrar más",
         "showLess": "Mostrar menos"
       },

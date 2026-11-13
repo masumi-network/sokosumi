@@ -9085,6 +9085,8 @@
         "delete": "Löschen",
         "deleteConfirm": "Diese Nachricht löschen? Andere sehen, dass sie gelöscht wurde.",
         "deleted": "Diese Nachricht wurde gelöscht",
+        "deleteError": "Die Nachricht konnte nicht gelöscht werden. Versuche es erneut.",
+        "restored": "Die Nachricht ist wieder in der Unterhaltung.",
         "showMore": "Mehr anzeigen",
         "showLess": "Weniger anzeigen"
       },
