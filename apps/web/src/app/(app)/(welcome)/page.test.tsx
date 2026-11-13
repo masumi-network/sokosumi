@@ -55,10 +55,6 @@ vi.mock("@/lib/services/user.service", () => ({
 vi.mock("@/lib/services/soko-bot.service", () => ({
   sokoBotService: { getMine: () => getMine() },
 }));
-const cachedRooms = vi.fn((_args: unknown) => listRooms());
-vi.mock("@/app/components/private-sidebar-cache", () => ({
-  getPrivateCachedMembershipVisibleRooms: (args: unknown) => cachedRooms(args),
-}));
 vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
     listRooms: (...args: unknown[]) => listRooms(...args),
@@ -298,11 +294,7 @@ describe("WelcomePage", () => {
     });
     await renderPage();
     expect(screen.getByText("bot home")).toBeTruthy();
-    // The sidebar's cached slice, keyed like the sidebar's.
-    expect(cachedRooms).toHaveBeenCalledWith({
-      userId: "user-1",
-      activeOrganizationId: null,
-    });
+    expect(listRooms).toHaveBeenCalledWith();
     expect(sokoBotHome).toHaveBeenCalledWith(
       expect.objectContaining({
         roomId: "room-1",
