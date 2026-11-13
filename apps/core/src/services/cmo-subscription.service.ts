@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
+import { CreditBucketReferenceType } from "@sokosumi/database";
 import { getNextMonthlyPeriodEnd } from "@sokosumi/database/helpers";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { err, ok, type Result } from "neverthrow";
@@ -14,8 +14,8 @@ import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { cmoProductMetadataSchema } from "@/services/cmo-catalog.service";
+import { grantCmoCredits } from "@/services/cmo-credit-grant.service";
 import { monthOfPaidYear } from "@/services/cmo-yearly-grant-sync.service";
-import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 
 /** What Polar's events do to a Cuso's CMO subscription and its credits (ADR 0068). */
 
@@ -308,8 +308,7 @@ export async function handlePolarOrderPaid(
   const monthStart = new Date(
     billed?.start_timestamp ?? subscription.current_period_start,
   );
-  await grantOrderMonth(
-    row,
+  await grantCmoCredits(
     {
       amount,
       // One month after the grant month starts; a monthly plan's month is
@@ -318,8 +317,11 @@ export async function handlePolarOrderPaid(
         plan.interval === "month"
           ? new Date(billed?.end_timestamp ?? subscription.current_period_end)
           : getNextMonthlyPeriodEnd(monthStart, monthStart),
-      orderId: order.id,
+      organizationId: row.organizationId,
+      projectId: row.projectId,
+      referenceId: `${order.id}:0`,
       referenceNote: product.name,
+      referenceType: CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH,
     },
     async (tx) => {
       await tx.cmoSubscription.updateMany({
@@ -335,58 +337,6 @@ export async function handlePolarOrderPaid(
       });
     },
   );
-}
-
-/**
- * Grants an order's month 0 as Project credits, with `alsoWrite` in the same
- * transaction. The grant rides on the bucket's unique key: a redelivered or
- * raced order ends there and grants nothing more.
- */
-async function grantOrderMonth(
-  row: { organizationId: string; projectId: string },
-  grant: {
-    amount: bigint;
-    expiresAt: Date;
-    orderId: string;
-    referenceNote: string;
-  },
-  alsoWrite?: (tx: Prisma.TransactionClient) => Promise<void>,
-): Promise<void> {
-  const { organizationId, projectId } = row;
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.transaction.create({
-        data: {
-          amount: grant.amount,
-          organizationId,
-          userId: null,
-          sourceCreditBucket: {
-            create: {
-              amount: grant.amount,
-              expiresAt: grant.expiresAt,
-              organizationId,
-              projectId,
-              referenceId: `${grant.orderId}:0`,
-              referenceNote: grant.referenceNote,
-              referenceType: CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH,
-              userId: null,
-            },
-          },
-        },
-      });
-      await alsoWrite?.(tx);
-      await markOutOfCreditsTasksAsToppedUp({
-        organizationId,
-        projectId,
-        tx,
-        userId: null,
-      });
-    });
-  } catch (error) {
-    // The bucket of this order and month exists: granted by an earlier or a
-    // concurrent delivery.
-    if (!isPrismaUniqueViolation(error)) throw error;
-  }
 }
 
 /** The old plan's monthly credits, which the upgrade wrote on the subscription. */
@@ -456,11 +406,14 @@ export async function handlePolarPlanChangePaid(
       Math.min(Math.max(left, 0), 1),
   );
   if (credits <= 0) return;
-  await grantOrderMonth(row, {
+  await grantCmoCredits({
     amount: convertCreditsToCents(credits),
     expiresAt: month.expiresAt,
-    orderId: order.id,
+    organizationId: row.organizationId,
+    projectId: row.projectId,
+    referenceId: `${order.id}:0`,
     referenceNote: product.name,
+    referenceType: CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH,
   });
 }
 

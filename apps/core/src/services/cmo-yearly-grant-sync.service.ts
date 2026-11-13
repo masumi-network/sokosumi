@@ -3,10 +3,9 @@ import { CreditBucketReferenceType } from "@sokosumi/database";
 import { getNextMonthlyPeriodEnd } from "@sokosumi/database/helpers";
 import { convertCreditsToCents } from "@sokosumi/utils";
 
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { getCmoCatalog } from "@/services/cmo-catalog.service";
-import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
+import { grantCmoCredits } from "@/services/cmo-credit-grant.service";
 
 /**
  * A yearly CMO plan is paid once a year and granted month by month (ADR 0068).
@@ -115,40 +114,19 @@ export async function syncCmoYearlyGrants(
       result.errors += 1;
       continue;
     }
-    const { organizationId, projectId } = grant;
-    const amount = convertCreditsToCents(plan.credits);
     try {
-      await prisma.$transaction(async (tx) => {
-        await tx.transaction.create({
-          data: {
-            amount,
-            organizationId,
-            userId: null,
-            sourceCreditBucket: {
-              create: {
-                amount,
-                expiresAt: grant.expiresAt,
-                organizationId,
-                projectId,
-                referenceId: grant.referenceId,
-                referenceNote: plan.name,
-                referenceType,
-                userId: null,
-              },
-            },
-          },
-        });
-        await markOutOfCreditsTasksAsToppedUp({
-          organizationId,
-          projectId,
-          tx,
-          userId: null,
-        });
+      const granted = await grantCmoCredits({
+        amount: convertCreditsToCents(plan.credits),
+        expiresAt: grant.expiresAt,
+        organizationId: grant.organizationId,
+        projectId: grant.projectId,
+        referenceId: grant.referenceId,
+        referenceNote: plan.name,
+        referenceType,
       });
-      result.granted += 1;
+      // Otherwise granted by a concurrent run.
+      if (granted === "granted") result.granted += 1;
     } catch (error) {
-      // Granted by a concurrent run.
-      if (isPrismaUniqueViolation(error)) continue;
       result.errors += 1;
       console.error(
         `${LOG_PREFIX} Failed to grant ${grant.referenceId} to CMO subscription ${grant.id}:`,

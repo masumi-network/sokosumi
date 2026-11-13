@@ -7,12 +7,12 @@ import {
 } from "@/clients/polar.client";
 import { isFirstPartyAppUrl } from "@/config/cors-allow-origin";
 import { serviceUnavailable } from "@/helpers/error";
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import {
   cmoProductMetadataSchema,
   getCmoCatalog,
 } from "@/services/cmo-catalog.service";
+import { grantCmoCredits } from "@/services/cmo-credit-grant.service";
 import {
   CmoConflictError,
   type CusoTarget,
@@ -24,7 +24,6 @@ import {
   cmoCheckoutMetadataSchema,
   reportUnusableEvent,
 } from "@/services/cmo-subscription.service";
-import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 
 /** Project top-ups: credits a member buys for one subscribed Cuso (ADR 0068). */
 
@@ -118,38 +117,13 @@ export async function handlePolarTopUpPaid(
   // An order has no paid date of its own: the event's timestamp stands in.
   const expiresAt = new Date(event.timestamp);
   expiresAt.setUTCFullYear(expiresAt.getUTCFullYear() + 1);
-  const referenceNote = order.product.name;
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.transaction.create({
-        data: {
-          amount,
-          organizationId,
-          userId: null,
-          sourceCreditBucket: {
-            create: {
-              amount,
-              expiresAt,
-              organizationId,
-              projectId,
-              referenceId: `${order.id}:0`,
-              referenceNote,
-              referenceType: CreditBucketReferenceType.PROJECT_TOP_UP,
-              userId: null,
-            },
-          },
-        },
-      });
-      await markOutOfCreditsTasksAsToppedUp({
-        organizationId,
-        projectId,
-        tx,
-        userId: null,
-      });
-    });
-  } catch (error) {
-    // The bucket of this order exists: granted by an earlier or a concurrent
-    // delivery.
-    if (!isPrismaUniqueViolation(error)) throw error;
-  }
+  await grantCmoCredits({
+    amount,
+    expiresAt,
+    organizationId,
+    projectId,
+    referenceId: `${order.id}:0`,
+    referenceNote: order.product.name,
+    referenceType: CreditBucketReferenceType.PROJECT_TOP_UP,
+  });
 }
