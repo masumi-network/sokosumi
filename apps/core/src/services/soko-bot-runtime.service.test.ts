@@ -520,6 +520,7 @@ vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: serializableTransactionMock.mockImplementation(
     async (operation) =>
       operation({
+        projectSeoAnalysis: { findUnique: async () => null },
         $queryRaw: transactionTurnLockMock,
         sokoBot: {
           findFirst: transactionBotFindFirstMock,

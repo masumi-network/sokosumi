@@ -39,6 +39,8 @@ export const SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE =
   "Analytics returned no aggregate row. Missing measurements are unavailable, not zero.";
 export const SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE =
   "Analytics reported thresholding or data loss.";
+export const SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE =
+  "Analytics reported sampled data. Totals and daily values are estimates.";
 export const SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE =
   "The daily Analytics result was truncated.";
 
@@ -138,6 +140,7 @@ export type SeoStatisticsNoteGap =
   | "analyticsTimeZone"
   | "analyticsNoAggregate"
   | "analyticsThresholding"
+  | "analyticsSampling"
   | "analyticsTruncated"
   | "analyticsLandingPages"
   | "analyticsSharedLandingPath"
@@ -176,6 +179,7 @@ const FIXED_NOTES = new Map<string, SeoStatisticsNoteReading>([
   [SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE, gap("analyticsTimeZone")],
   [SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE, gap("analyticsNoAggregate")],
   [SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE, gap("analyticsThresholding")],
+  [SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE, gap("analyticsSampling")],
   [SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE, gap("analyticsTruncated")],
   [
     SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,

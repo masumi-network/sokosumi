@@ -11617,11 +11617,13 @@
           },
           "snippet": {
             "owned": "The page's site",
+            "checked_site": "A checked site",
             "other": "Another site",
             "none": "None"
           },
           "paa": {
             "owned": "Links the page's site",
+            "checked_site": "Links a checked site",
             "shown": "Shown",
             "none": "None"
           },
@@ -12457,6 +12459,7 @@
           "analyticsTimeZone": "Google Analytics did not return the property time zone in the last sync. Period comparisons are limited.",
           "analyticsNoAggregate": "Google Analytics returned no totals in the last sync.",
           "analyticsThresholding": "Google Analytics reported thresholding or data loss in the last sync. Some values are left out.",
+          "analyticsSampling": "Analytics reported sampled data. Totals and daily values are estimates.",
           "analyticsTruncated": "Google Analytics cut the daily values in the last sync. Some days are left out.",
           "analyticsLandingPages": "Google Analytics key events per landing page were unavailable in the last sync.",
           "analyticsSharedLandingPath": "Key events per landing page were not read in the last sync for pages that share a path on different hosts.",

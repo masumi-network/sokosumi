@@ -109,6 +109,50 @@ describe("seoSerpMarkers", () => {
     });
   });
 
+  it("attributes a featured snippet to the row's host instead of every host the check read", () => {
+    const pageUrls = ["https://a.example/", "https://b.example/"];
+    const history = [
+      series({ pageUrls }, [
+        point("01", {
+          pages: [0, 1],
+          featured: { domain: "www.a.example", pageOwned: true },
+        }),
+      ]),
+    ];
+    const mark = (pageUrl: string | null) =>
+      seoSerpMarkers(history, [seoTestKeyword({ pageUrl })])[0];
+    expect(mark("https://www.a.example/other")).toMatchObject({
+      featured: "owned",
+    });
+    expect(mark(pageUrls[1])).toMatchObject({ featured: "other" });
+    expect(mark(null)).toMatchObject({ featured: "checked_site" });
+  });
+
+  it("names PAA ownership as a checked site unless the row's host is the only host the check read", () => {
+    const pageUrls = [
+      "https://www.a.example/",
+      "https://a.example/other",
+      "https://b.example/",
+    ];
+    const mark = (pages: number[], pageUrl: string | null) =>
+      seoSerpMarkers(
+        [series({ pageUrls }, [point("01", { pages, paaOwned: true })])],
+        [seoTestKeyword({ pageUrl })],
+      )[0];
+    expect(mark([0, 1], "https://a.example/")).toMatchObject({
+      peopleAlsoAsk: "owned",
+    });
+    expect(mark([0, 2], "https://b.example/")).toMatchObject({
+      peopleAlsoAsk: "checked_site",
+    });
+    expect(mark([0], "https://b.example/")).toMatchObject({
+      peopleAlsoAsk: "checked_site",
+    });
+    expect(mark([0], null)).toMatchObject({
+      peopleAlsoAsk: "checked_site",
+    });
+  });
+
   it("names a suspect read without its data", () => {
     const [mark] = seoSerpMarkers(
       [series({}, [point("01", { suspect: true, paaOwned: true })])],

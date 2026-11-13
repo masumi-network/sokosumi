@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import {
   SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE,
+  SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE,
   SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE,
   SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE,
   SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE,
@@ -80,6 +81,7 @@ export const ga4ReportSchema = z.object({
       timeZone: z.string().optional(),
       subjectToThresholding: z.boolean().optional(),
       dataLossFromOtherRow: z.boolean().optional(),
+      samplingMetadatas: z.array(z.unknown()).optional(),
     })
     .optional(),
 });
@@ -404,6 +406,10 @@ export function normalizeGa4Statistics(
     )
   )
     notes.push(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE);
+  if (
+    [period, daily].some((report) => report.metadata?.samplingMetadatas?.length)
+  )
+    notes.push(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE);
   if ((daily.rowCount ?? daily.rows.length) > daily.rows.length)
     notes.push(SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE);
   const coverage =

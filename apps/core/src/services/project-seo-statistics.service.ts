@@ -1,7 +1,9 @@
 import { z } from "@hono/zod-openapi";
 import {
   SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
+  SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE,
   SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE,
+  SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE,
   SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
   SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
@@ -334,25 +336,25 @@ export async function syncProjectSeoStatistics(
     );
     return payload;
   };
-  // The daily read is shared: the earlier window needs its last reported day.
+  // The daily read is shared: Search Console's earlier window needs its last reported day.
   const dailyRead = collect(true);
   // Totals over the equal window before the reported days, read the same way. Google reports a
   // few days late, so the current total covers [from, last reported day]; the earlier window
   // has as many days, so a reporting delay never reads as a drop. GA4 needs no
   // retention cutoff: its retention setting does not limit aggregated reports.
   const collectPrevious = async () => {
-    const reported = normalize(query, null, await dailyRead, "")
-      .metrics.flatMap((metric) => metric.points)
-      .filter((point) => point.value !== null)
-      .map((point) => point.date);
-    if (!reported.length) throw new Error("No reported day to compare");
-    const last = reported.reduce((a, b) => (a > b ? a : b));
-    const window = previousSeoPeriod(
-      query.from,
-      input.provider === "search_console"
-        ? searchConsoleSettledEnd(query.to, last)
-        : last,
-    );
+    // GA4 totals cover the requested period. A missing daily row means no traffic, not an earlier period end.
+    let end = query.to;
+    if (input.provider === "search_console") {
+      const reported = normalize(query, null, await dailyRead, "")
+        .metrics.flatMap((metric) => metric.points)
+        .filter((point) => point.value !== null)
+        .map((point) => point.date);
+      if (!reported.length) throw new Error("No reported day to compare");
+      const last = reported.reduce((a, b) => (a > b ? a : b));
+      end = searchConsoleSettledEnd(query.to, last);
+    }
+    const window = previousSeoPeriod(query.from, end);
     // Search Console keeps about 16 months; an older window would be partly empty.
     if (
       input.provider === "search_console" &&
@@ -513,7 +515,18 @@ export async function syncProjectSeoStatistics(
     new Date().toISOString(),
   );
   // A failed earlier window leaves the change unknown; it never reads as zero.
-  if (previous.status === "fulfilled" && period.status === "fulfilled")
+  if (previous.status === "fulfilled" && period.status === "fulfilled") {
+    const previousNotes = previous.value.totals.notes;
+    if (previousNotes.includes(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE)) {
+      metrics.coverage = "partial";
+      if (!metrics.notes.includes(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE))
+        metrics.notes.push(SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE);
+    }
+    if (previousNotes.includes(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE)) {
+      metrics.coverage = "partial";
+      if (!metrics.notes.includes(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE))
+        metrics.notes.push(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE);
+    }
     for (const metric of metrics.metrics) {
       const before = previous.value.totals.metrics.find(
         (candidate) => candidate.key === metric.key,
@@ -524,6 +537,7 @@ export async function syncProjectSeoStatistics(
           value: before.value,
         };
     }
+  }
   if (landingPlan) {
     if (landingPlan.skippedUrls.length)
       metrics.notes.push(SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE);

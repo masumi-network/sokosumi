@@ -14,6 +14,7 @@ import {
   seoDefaultMetric,
   seoMatchingProperty,
   seoQueryPeriod,
+  seoSearchTraffic,
   seoStatisticsPeriod,
 } from "./seo-statistics-model";
 
@@ -206,6 +207,54 @@ describe("seoQueryPeriod", () => {
       to: source.to,
     });
   });
+
+  it.each([
+    {
+      from: "2026-01-01",
+      to: "2026-01-02",
+      beforeFrom: "2025-12-30",
+      beforeTo: "2025-12-31",
+      end: "2026-01-02",
+    },
+    // The requested end is not settled yet: the comparison retains only one current day.
+    {
+      from: "2026-01-01",
+      to: "2026-01-04",
+      beforeFrom: "2025-12-31",
+      beforeTo: "2025-12-31",
+      end: "2026-01-01",
+    },
+    // UTC calendar arithmetic keeps the leap day and crosses the month boundary.
+    {
+      from: "2024-02-28",
+      to: "2024-03-02",
+      beforeFrom: "2024-02-24",
+      beforeTo: "2024-02-27",
+      end: "2024-03-02",
+    },
+  ])(
+    "retains the settled endpoint $end for a quiet period from $from to $to",
+    ({ from, to, beforeFrom, beforeTo, end }) => {
+      const clicks = metric({
+        id: "sync-a:clicks",
+        key: "clicks",
+        source: "search_console",
+        from,
+        to,
+        points: [{ date: from, value: 2 }],
+        previous: { from: beforeFrom, to: beforeTo, value: 3 },
+      });
+      const metrics = [
+        clicks,
+        { ...clicks, id: "sync-a:impressions", key: "impressions", value: 20 },
+      ];
+      const period = { from, to: end };
+      expect(
+        seoQueryPeriod({ observationId: "sync-a", from, to }, metrics),
+      ).toEqual(period);
+      expect(seoSearchTraffic(metrics)?.period).toEqual(period);
+    },
+  );
 });
 
 describe("seoDefaultMetric", () => {

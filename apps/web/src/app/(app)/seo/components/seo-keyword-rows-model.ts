@@ -69,7 +69,14 @@ export function keywordGroups(rows: Keyword[]) {
     // device, or an older read per device, would pass as a result of that check.
     const time = (row: Keyword) =>
       row.observedAt ? new Date(row.observedAt).getTime() : 0;
-    const top = read.reduce<Keyword | null>(
+    // A failed attempt is still the newest check. An unread idea or a saved choice is no attempt.
+    const attempts = group.filter(
+      (row) =>
+        row.positionStatus !== "unavailable" ||
+        (row.source !== "saved" &&
+          !SEO_IDEA_SOURCES.some((source) => source === row.source)),
+    );
+    const top = attempts.reduce<Keyword | null>(
       (best, row) => (best && time(best) >= time(row) ? best : row),
       null,
     );

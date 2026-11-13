@@ -668,9 +668,11 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     actions: result.actions.map((row) => ({
       id: String(row.n),
       pageUrl,
-      findingIds: findings
-        .filter((item) => row.findings.includes(item.rowId))
-        .map((item) => item.id),
+      findingIds: result.findings
+        .filter((item) => row.findings.includes(item.id))
+        .flatMap((item) =>
+          item.devices.map((device) => `${item.id}:${device}`),
+        ),
       title: row.title,
       why: row.why,
       effort: row.effort,

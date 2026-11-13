@@ -386,6 +386,9 @@ export async function createProjectSeoActionTask(
         })
       : null;
     if (sameOpportunity) return commitSeoMutation(tx, sameOpportunity, hooks);
+    const proposedEdit = action.edit
+      ? `\n\nProposed edit:\n${JSON.stringify(action.edit, null, 2)}`
+      : "";
     const task = await createTaskForActor(
       {
         actor: actor.sokoBotId
@@ -396,7 +399,7 @@ export async function createProjectSeoActionTask(
         workspaceId: actor.workspaceId,
         projectId: await requireSeoTaskProject(actor, tx),
         name: action.title,
-        description: `Page: ${action.pageUrl}\n\n${action.why}\n\nExpected effect (hypothesis): ${action.expectedEffect}${evidence.length ? `\n\nMeasured evidence:\n${evidence.map((line) => `- ${line}`).join("\n")}` : ""}\n\nSource SEO observation: ${observation.id}\nSource audit Task: ${observation.sourceTaskId ?? "none"}\n\n${evidence.length ? "Compare a later Search Console period before calling this an improvement." : "Implementation needs a fresh check before it is verified."}`,
+        description: `Page: ${action.pageUrl}\n\n${action.why}\n\nExpected effect (hypothesis): ${action.expectedEffect}${proposedEdit}${evidence.length ? `\n\nMeasured evidence:\n${evidence.map((line) => `- ${line}`).join("\n")}` : ""}\n\nSource SEO observation: ${observation.id}\nSource audit Task: ${observation.sourceTaskId ?? "none"}\n\n${evidence.length ? "Compare a later Search Console period before calling this an improvement." : "Implementation needs a fresh check before it is verified."}`,
         status: "DRAFT",
         visibility: "PUBLIC",
       },

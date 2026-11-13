@@ -1,4 +1,5 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { seoHost } from "./seo-competitors-model";
 import { normalizeQuery } from "./seo-search-model";
 
 type Series = NonNullable<ProjectSeoWorkspace["serpHistory"]>[number];
@@ -56,9 +57,9 @@ export type SeoSerpMarker =
       observationId: string;
       suspect: false;
       aiOverview: SeoAiOverviewMark;
-      featured: "owned" | "other" | "none";
+      featured: "owned" | "checked_site" | "other" | "none";
       /** The People also ask box: an answer links the page's site, it shows, or it does not. */
-      peopleAlsoAsk: "owned" | "shown" | "none";
+      peopleAlsoAsk: "owned" | "checked_site" | "shown" | "none";
       features: NamedFeature[];
       /** Features of other types, counted only. */
       otherFeatures: number;
@@ -87,6 +88,7 @@ export function seoSerpMarkers(
   if (!lead || !serpHistory) return [];
   const key = normalizeQuery(lead.keyword);
   const page = lead.pageUrl === null ? null : pageKey(lead.pageUrl);
+  const pageHost = page === null ? null : seoHost(page);
   return serpHistory
     .filter(
       (series) =>
@@ -108,6 +110,10 @@ export function seoSerpMarkers(
           const url = series.pageUrls[index];
           return url === undefined ? [] : [pageKey(url)];
         });
+        const checkedHosts = new Set(checked.map(seoHost));
+        const featuredHost = point.featured?.domain
+          ? seoHost(`https://${point.featured.domain}`)
+          : null;
         return {
           date,
           device: series.device,
@@ -128,11 +134,20 @@ export function seoSerpMarkers(
                       : "cited_checked",
           featured: !point.featured
             ? "none"
-            : point.featured.pageOwned
-              ? "owned"
-              : "other",
+            : pageHost !== null && featuredHost !== null
+              ? featuredHost === pageHost
+                ? "owned"
+                : "other"
+              : point.featured.pageOwned
+                ? "checked_site"
+                : "other",
+          // The worker proves that PAA links one selected host, but does not name which one.
           peopleAlsoAsk: point.paaOwned
-            ? "owned"
+            ? pageHost !== null &&
+              checkedHosts.size === 1 &&
+              checkedHosts.has(pageHost)
+              ? "owned"
+              : "checked_site"
             : types.has("people_also_ask")
               ? "shown"
               : "none",

@@ -11617,11 +11617,13 @@
           },
           "snippet": {
             "owned": "El sitio de la página",
+            "checked_site": "Un sitio comprobado",
             "other": "Otro sitio",
             "none": "Ninguno"
           },
           "paa": {
             "owned": "Enlaza el sitio de la página",
+            "checked_site": "Enlaza un sitio comprobado",
             "shown": "Se muestra",
             "none": "Ninguno"
           },
@@ -12457,6 +12459,7 @@
           "analyticsTimeZone": "Google Analytics no devolvió la zona horaria de la propiedad en la última sincronización. Las comparaciones de periodos son limitadas.",
           "analyticsNoAggregate": "Google Analytics no devolvió totales en la última sincronización.",
           "analyticsThresholding": "Google Analytics aplicó umbrales o perdió datos en la última sincronización. Faltan algunos valores.",
+          "analyticsSampling": "Analytics informó de datos basados en una muestra. Los totales y los valores diarios son estimaciones.",
           "analyticsTruncated": "Google Analytics recortó los valores diarios en la última sincronización. Faltan algunos días.",
           "analyticsLandingPages": "Los eventos clave por página de destino de Google Analytics no estaban disponibles en la última sincronización.",
           "analyticsSharedLandingPath": "En la última sincronización no se leyeron los eventos clave por página de destino de las páginas que comparten una ruta en distintos hosts.",

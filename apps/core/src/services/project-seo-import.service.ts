@@ -293,8 +293,9 @@ export async function reconcileProjectSeoTaskFile(
       ![400, 403, 404, 409, 422].includes(error.status)
     )
       throw error;
-    await prisma.projectSeoAnalysis.update({
-      where: { id: analysis.id },
+    // A concurrent valid report may have completed this analysis while this file was read.
+    await prisma.projectSeoAnalysis.updateMany({
+      where: { id: analysis.id, status: { not: "completed" } },
       data: {
         status: "failed",
         failureReason:

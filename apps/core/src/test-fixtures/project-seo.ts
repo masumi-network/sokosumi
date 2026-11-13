@@ -75,7 +75,7 @@ export function legacyReport() {
         why: "The page has no title",
         effort: "low",
         whatToExpect: "A clearer search snippet",
-        findings: ["title"],
+        findings: ["finding"],
       },
     ],
     rankingData: {

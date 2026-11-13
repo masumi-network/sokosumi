@@ -27,7 +27,7 @@ import {
   seoChangeMarkers,
   seoCoverageIsNews,
   seoDefaultMetric,
-  seoReportedPeriod,
+  seoMeasuredPeriod,
 } from "./seo-statistics-model";
 import { seoChannelLabel } from "./seo-traffic-model";
 import { SeoTrendChart } from "./seo-trend-chart";
@@ -55,7 +55,8 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
   const periodChanges = seoPeriodChange(visible);
   // Google reports a few days late, so the period ends on the last reported day. It starts where the
   // read starts, because Google leaves quiet days out; the agent card and search queries do the same.
-  const reported = seoReportedPeriod(visible);
+  // The equal comparison window retains settled quiet days. Analytics totals keep the requested end.
+  const reported = seoMeasuredPeriod(visible);
   const canSync = workspace.availableActions.canSyncMetrics;
   // Only the empty card asks: a connected account with nothing synced needs a sync, not a connection.
   const connection = useSeoConnectionStatus("search_console", !active).status

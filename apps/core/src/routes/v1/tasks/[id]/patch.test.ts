@@ -363,6 +363,7 @@ describe("PATCH /tasks/{id}", () => {
     mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
+        projectSeoAnalysis: { findUnique: async () => null },
         project: {
           findFirst: projectFindFirstMock,
         },
@@ -789,6 +790,7 @@ describe("PATCH /tasks/{id}", () => {
       mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
       prismaTransactionMock.mockImplementation(async (callback) => {
         return await callback({
+          projectSeoAnalysis: { findUnique: async () => null },
           project: { findFirst: projectFindFirstMock },
           task: { update: taskUpdateMock },
         });
@@ -1252,6 +1254,7 @@ describe("PATCH /tasks/{id} Queued Task with a Run at (ADR 0041)", () => {
     mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
+        projectSeoAnalysis: { findUnique: async () => null },
         project: { findFirst: projectFindFirstMock },
         task: { update: taskUpdateMock },
         taskEvent: { create: taskEventCreateMock },
@@ -1363,6 +1366,7 @@ describe("PATCH /tasks/{id} Run at", () => {
     mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
+        projectSeoAnalysis: { findUnique: async () => null },
         project: { findFirst: projectFindFirstMock },
         task: { update: taskUpdateMock },
         taskEvent: { create: taskEventCreateMock },
@@ -1576,6 +1580,7 @@ describe("PATCH /tasks/{id} Seat check of the Owner (ADR 0057)", () => {
     mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
+        projectSeoAnalysis: { findUnique: async () => null },
         project: { findFirst: projectFindFirstMock },
         task: { update: taskUpdateMock },
       });

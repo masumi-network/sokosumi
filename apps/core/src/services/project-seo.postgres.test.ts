@@ -1222,6 +1222,86 @@ describe.skipIf(!enabled)(
       }
     });
 
+    it("keeps a completed analysis when a concurrent invalid report finishes later", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: SEO_TEST_PAGE,
+        relationship: "primary",
+      });
+      const analysis = await requestProjectSeoAnalysis(
+        actor,
+        requestSeoAnalysisSchema.parse({
+          kind: "page_check",
+          pageIds: [page.id],
+          countryCode: "US",
+          languageCode: "en",
+          devices: ["desktop"],
+          idempotencyKey: "concurrent-invalid-report",
+          coworkerId,
+        }),
+      );
+      const taskId = analysis.taskId;
+      if (!taskId) throw new Error("The Analysis did not create a Task");
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { status: "COMPLETED" },
+      });
+      const body = JSON.stringify({
+        ...focusedReport(),
+        requestId: analysis.id,
+      });
+      const [valid, invalid] = await Promise.all(
+        ["valid", "invalid"].map((name) =>
+          prisma.taskFile.create({
+            data: {
+              taskId,
+              name: `seo-report-${taskId}.json`,
+              fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${taskId}/${name}.json`,
+              mimeType: "application/json",
+              size: BigInt(Buffer.byteLength(body)),
+              uploadedByCoworkerId: coworkerId,
+            },
+          }),
+        ),
+      );
+      const invalidRead = Promise.withResolvers<void>();
+      const invalidResponse = Promise.withResolvers<Response>();
+      vi.stubGlobal("fetch", async (url: string) => {
+        if (url === invalid.fileUrl) {
+          invalidRead.resolve();
+          return invalidResponse.promise;
+        }
+        return new Response(body);
+      });
+      const invalidImport = reconcileProjectSeoTaskFile(taskId, invalid.id);
+      try {
+        await invalidRead.promise;
+        await reconcileProjectSeoTaskFile(taskId, valid.id);
+        expect(
+          await prisma.projectSeoAnalysis.findUniqueOrThrow({
+            where: { id: analysis.id },
+            select: { status: true },
+          }),
+        ).toEqual({ status: "completed" });
+        invalidResponse.resolve(new Response("not JSON"));
+        await invalidImport;
+        expect(
+          await prisma.projectSeoAnalysis.findUniqueOrThrow({
+            where: { id: analysis.id },
+            select: { status: true, failureReason: true },
+          }),
+        ).toEqual({ status: "completed", failureReason: null });
+        expect(
+          await prisma.projectSeoObservation.count({
+            where: { sourceTaskId: taskId, sourceFileId: valid.id },
+          }),
+        ).toBe(1);
+      } finally {
+        invalidResponse.resolve(new Response("not JSON"));
+        await invalidImport;
+        vi.unstubAllGlobals();
+      }
+    });
+
     it("applies the selected page filter before the bounded history limit", async () => {
       const selected = await addProjectSeoPage(actor, {
         url: "https://example.test/history-target",
@@ -1399,6 +1479,11 @@ describe.skipIf(!enabled)(
     });
 
     it("imports only ready owned artifacts, rechecks source authority after fetch and links each action once", async () => {
+      const edit = {
+        target: "head > title",
+        before: "<title></title>",
+        after: "<title>Example page</title>",
+      };
       async function source() {
         const task = await prisma.task.create({
           data: {
@@ -1409,7 +1494,11 @@ describe.skipIf(!enabled)(
             assigneeId: coworkerId,
           },
         });
-        const body = JSON.stringify(legacyReport());
+        const report = legacyReport();
+        const body = JSON.stringify({
+          ...report,
+          actions: report.actions.map((action) => ({ ...action, edit })),
+        });
         const file = await prisma.taskFile.create({
           data: {
             taskId: task.id,
@@ -1444,9 +1533,15 @@ describe.skipIf(!enabled)(
       expect((await createProjectSeoActionTask(actor, action)).taskId).toBe(
         link.taskId,
       );
-      expect(
-        await prisma.task.findUniqueOrThrow({ where: { id: link.taskId } }),
-      ).toMatchObject({ status: "DRAFT", projectId, ownerId: userId });
+      const createdTask = await prisma.task.findUniqueOrThrow({
+        where: { id: link.taskId },
+      });
+      expect(createdTask).toMatchObject({
+        status: "DRAFT",
+        projectId,
+        ownerId: userId,
+      });
+      expect(createdTask.description).toContain(JSON.stringify(edit, null, 2));
       const changed = await source();
       await expect(
         importProjectSeoAudit(actor, changed, {

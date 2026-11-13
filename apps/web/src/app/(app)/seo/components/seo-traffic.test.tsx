@@ -68,6 +68,29 @@ afterEach(() => {
 });
 
 describe("SEO Traffic search type", () => {
+  it.each(["ga4", "search_console"] as const)(
+    "labels the full %s aggregate period when the last day had no traffic",
+    (source) => {
+      const workspace = seoTestWorkspace();
+      workspace.metrics = [
+        {
+          ...seoTestMetric(),
+          source,
+          points: [{ date: "2026-01-01", value: 2 }],
+          ...(source === "search_console"
+            ? { previous: { from: "2025-12-30", to: "2025-12-31", value: 3 } }
+            : {}),
+        },
+      ];
+      renderTraffic(workspace);
+      const section = screen
+        .getByRole("heading", { name: "Traffic" })
+        .closest("section");
+      if (!section) throw new Error("Measurements section missing");
+      expect(within(section).getByText(/Jan 1.*2, 2026/)).toBeVisible();
+    },
+  );
+
   it("reads the chosen Search Console search type and offers no choice without Search Console data", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();

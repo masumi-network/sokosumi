@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import type { ProjectSeoWorkspace } from "@/schemas/project-seo.schema";
-import { parseSeoChatReply, seoChatContext } from "./chat-context";
+import {
+  parseSeoChatReply,
+  SEO_CHAT_SYSTEM,
+  seoChatContext,
+} from "./chat-context";
 
 function workspaceFixture(): ProjectSeoWorkspace {
   const pageId = randomUUID();
@@ -70,6 +74,21 @@ function workspaceFixture(): ProjectSeoWorkspace {
 }
 
 describe("native audit chat inference boundary", () => {
+  it("names the requested aggregate period instead of shortening it to traffic dates", () => {
+    const workspace = workspaceFixture();
+    workspace.metrics[0].points = [{ date: "2026-11-01", value: 321 }];
+    const [metric] = JSON.parse(seoChatContext(workspace)).metrics;
+    expect(metric).toMatchObject({
+      from: "2026-11-01",
+      to: "2026-11-02",
+      firstDataDay: "2026-11-01",
+      lastDataDay: "2026-11-01",
+    });
+    expect(SEO_CHAT_SYSTEM).toContain(
+      "Name the requested calendar period of a statistics total with its from and to.",
+    );
+  });
+
   it("names the whole data span of a sync even though only the newest daily points are sent", () => {
     const workspace = workspaceFixture();
     const days = Array.from({ length: 28 }, (_, index) => ({

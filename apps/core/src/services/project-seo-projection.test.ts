@@ -1166,6 +1166,78 @@ describe("stored SEO workspace projections", () => {
     ).toBe(true);
   });
 
+  it("withholds stored GA4 comparisons with unequal windows while keeping totals and compatible comparisons", () => {
+    const input = fixture();
+    const row = metricObservation(input, "2026-11-03T12:00:00Z", 24);
+    const validPrevious = {
+      from: "2026-09-29",
+      to: "2026-09-30",
+      value: 12,
+    };
+    for (const invalidPrevious of [
+      { from: "2026-09-30", to: "2026-09-30", value: 12 },
+      { from: "2026-09-28", to: "2026-09-29", value: 12 },
+    ]) {
+      input.observations = [
+        {
+          ...row,
+          payload: {
+            ...row.payload,
+            from: "2026-10-01",
+            to: "2026-10-02",
+            metrics: [
+              { ...row.payload.metrics[0], previous: invalidPrevious },
+              {
+                ...row.payload.metrics[0],
+                key: "page_views",
+                label: "Page views",
+                previous: validPrevious,
+              },
+            ],
+          },
+        },
+      ];
+      const result = projectSeoProjection(input);
+      expect(result.metrics[0]).toMatchObject({ value: 24, points: [] });
+      expect(result.metrics[0].previous).toBeUndefined();
+      expect(result.metrics[1].previous).toEqual(validPrevious);
+    }
+  });
+
+  it("retains a Search Console comparison shortened to its settled reporting period", () => {
+    const input = fixture();
+    const row = searchObservation(input, "2026-10-04T12:00:00Z");
+    const previous = {
+      from: "2026-09-30",
+      to: "2026-09-30",
+      value: 4,
+    };
+    input.observations = [
+      {
+        ...row,
+        payload: {
+          ...row.payload,
+          from: "2026-10-01",
+          to: "2026-10-02",
+          metrics: [
+            {
+              key: "clicks",
+              label: "Search clicks",
+              unit: "count",
+              value: 8,
+              points: [],
+              previous,
+            },
+          ],
+        },
+      },
+    ];
+    expect(projectSeoProjection(input).metrics[0]).toMatchObject({
+      value: 8,
+      previous,
+    });
+  });
+
   it("keeps a newer Discover sync out of the web search view", () => {
     const input = fixture();
     const web = searchObservation(input, "2026-11-02T12:00:00Z");

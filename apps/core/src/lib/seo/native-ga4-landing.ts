@@ -1,4 +1,3 @@
-import { z } from "@hono/zod-openapi";
 import {
   SEO_AI_SOURCE_ROW_LIMIT,
   type SeoLandingPages,
@@ -41,13 +40,6 @@ export function assertGa4LandingHost(
   input: unknown,
 ): void {
   const report = ga4ReportSchema.parse(input);
-  const sampling = z
-    .object({
-      metadata: z
-        .object({ samplingMetadatas: z.array(z.unknown()).optional() })
-        .optional(),
-    })
-    .parse(input);
   const hosts = new Set(query.pageUrls.map((url) => new URL(url).hostname));
   if (
     hosts.size !== 1 ||
@@ -62,7 +54,7 @@ export function assertGa4LandingHost(
     !hosts.has(report.rows[0]?.dimensionValues[0]?.value ?? "") ||
     report.metadata?.subjectToThresholding ||
     report.metadata?.dataLossFromOtherRow ||
-    sampling.metadata?.samplingMetadatas?.length
+    report.metadata?.samplingMetadatas?.length
   ) {
     throw new Error("Analytics landing host scope is not determined");
   }
@@ -155,6 +147,14 @@ export function normalizeGa4LandingPages(
   skippedUrls: string[] = [],
 ): SeoLandingPages {
   const report = ga4ReportSchema.parse(input);
+  if (
+    report.metadata?.subjectToThresholding ||
+    report.metadata?.dataLossFromOtherRow ||
+    report.metadata?.samplingMetadatas?.length ||
+    (landingChannel(query) === "organic" &&
+      (report.rowCount ?? report.rows.length) > report.rows.length)
+  )
+    throw new Error("Landing page totals are incomplete");
   const dimensions = landingDimensions(query);
   if (
     report.dimensionHeaders.map((header) => header.name).join() !==

@@ -3,6 +3,13 @@ import { describe, expect, it } from "vitest";
 import { lastRunStatus } from "./project-seo-monitor-runs";
 
 describe("SEO monitor last run status", () => {
+  it.each(["RUNNING", "COMPLETED"])(
+    "shows a %s Task as running until its requested analysis is imported",
+    (taskStatus) => {
+      expect(lastRunStatus(taskStatus, "requested")).toBe("running");
+    },
+  );
+
   it("reads a Task that failed without a result as failed, not as still requested", () => {
     expect(lastRunStatus("FAILED", "requested")).toBe("failed");
     expect(lastRunStatus("CANCELED", "running")).toBe("failed");

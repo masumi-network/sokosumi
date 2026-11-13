@@ -223,6 +223,56 @@ describe("SEO keyword rows", () => {
     ]);
   });
 
+  it.each(["focus", "rank_refresh"])(
+    "keeps an unavailable %s attempt from falling back to an older device's rank",
+    (source) => {
+      const { checked } = keywordGroups([
+        row({
+          source,
+          device: "mobile",
+          observationId: "new",
+          observedAt: new Date("2026-11-13T12:00:00Z"),
+        }),
+        row({
+          source,
+          device: "desktop",
+          observationId: "old",
+          observedAt: new Date("2026-11-12T12:00:00Z"),
+          positionStatus: "ranked",
+          position: 3,
+        }),
+      ]);
+      expect(checked).toHaveLength(1);
+      expect(checked[0].reads).toEqual([]);
+      expect(checked[0].best).toBeNull();
+      expect(keywordReadFailed(checked[0])).toBe(true);
+    },
+  );
+
+  it("keeps a saved choice and unread ideas from replacing the newest actual position attempt", () => {
+    const { checked } = keywordGroups([
+      ...["saved", "gap", "opportunity"].map((source) =>
+        row({
+          source,
+          saved: source === "saved",
+          version: source === "saved" ? 1 : 0,
+          observationId: source === "saved" ? null : "new",
+          observedAt: new Date("2026-11-13T12:00:00Z"),
+        }),
+      ),
+      row({
+        device: "desktop",
+        observationId: "old",
+        observedAt: new Date("2026-11-12T12:00:00Z"),
+        positionStatus: "ranked",
+        position: 3,
+      }),
+    ]);
+    expect(checked[0].reads.map((read) => read.observationId)).toEqual(["old"]);
+    expect(checked[0].best).toBe(3);
+    expect(keywordReadFailed(checked[0])).toBe(false);
+  });
+
   it("cuts the keywords of a check, tracked from the start, and keeps the reader's choices over the cut", () => {
     const fromCheck = Array.from({ length: 12 }, (_, index) =>
       row({

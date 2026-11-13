@@ -275,6 +275,31 @@ beforeEach(() => {
 });
 
 describe("native statistics collection boundary", () => {
+  it("retains the sampling warning when only the earlier comparison period is sampled", async () => {
+    state.answer = (slug, args) =>
+      JSON.stringify(args.dateRanges ?? []).includes("2025-12-30")
+        ? {
+            successful: true,
+            data: {
+              ...ga4(false),
+              metadata: {
+                timeZone: "Europe/Oslo",
+                samplingMetadatas: [
+                  { samplesReadCount: "1", samplingSpaceSize: "100" },
+                ],
+              },
+            },
+          }
+        : answer(slug, args);
+    await syncProjectSeoStatistics(actor, input);
+    const payload = nativeSeoMetricsSchema.parse(state.observations[0].payload);
+    expect(payload.metrics[0].previous?.value).toBe(6);
+    expect(payload.coverage).toBe("partial");
+    expect(payload.notes.join(" ")).toContain(
+      "Analytics reported sampled data",
+    );
+  });
+
   it("withholds previously stored landing totals that have no verified host while keeping page metrics", async () => {
     await syncProjectSeoStatistics(actor, input);
     const payload = nativeSeoMetricsSchema.parse(state.observations[0].payload);
@@ -379,7 +404,7 @@ describe("native statistics collection boundary", () => {
       source: "ga4",
       pageIds: [state.pageId],
     });
-    // Totals, days, landing pages, and the totals before. Google reported only Jan 1, so the earlier window is 1 day.
+    // The selected Jan 1-2 window has no traffic on Jan 2. Its earlier window still spans two days.
     expect(state.reads).toHaveLength(6);
     expect(state.reads[1].args.limit).toBe(400);
     expect(
@@ -388,13 +413,13 @@ describe("native statistics collection boundary", () => {
         .find((ranges) =>
           (JSON.stringify(ranges) ?? "").includes("2025-12-31"),
         ),
-    ).toEqual([{ startDate: "2025-12-31", endDate: "2025-12-31" }]);
+    ).toEqual([{ startDate: "2025-12-30", endDate: "2025-12-31" }]);
     const payload = state.observations[0].payload as {
       metrics: Array<{ key: string; previous?: unknown }>;
     };
     expect(payload.metrics[0]).toMatchObject({
       key: "page_views",
-      previous: { from: "2025-12-31", to: "2025-12-31", value: 6 },
+      previous: { from: "2025-12-30", to: "2025-12-31", value: 6 },
     });
   });
   it("stores organic key events per landing page and hands them to the workspace", async () => {

@@ -595,6 +595,7 @@ export async function changeTaskScheduleRun(
   return await prisma.$transaction(async (tx) => {
     const current = await findReadableSchedule(actor, id, tx);
     requireScheduleWriteAccess(actor, current);
+    requireSeoMonitorOwner(actor, current);
     if (current.state !== TaskScheduleState.ACTIVE) {
       throwStateConflict(
         "Only the Runs of an Active Task Schedule can be changed",

@@ -27,6 +27,11 @@ export function lastRunStatus(
   if (analysisStatus === "completed" || analysisStatus === "failed")
     return analysisStatus;
   if (taskStatus === "FAILED" || taskStatus === "CANCELED") return "failed";
+  if (
+    analysisStatus === "requested" &&
+    (taskStatus === "RUNNING" || taskStatus === "COMPLETED")
+  )
+    return "running";
   if (analysisStatus === "requested" || analysisStatus === "running")
     return analysisStatus;
   return taskStatus === "COMPLETED" ? "completed" : "running";

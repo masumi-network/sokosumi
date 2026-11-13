@@ -114,6 +114,42 @@ describe("GA4 key events per landing page", () => {
     });
   });
 
+  it.each(["organic", "ai_assistant"] as const)(
+    "refuses %s landing totals that Google thresholded, sampled or put into other rows",
+    (channel) => {
+      for (const metadata of [
+        { subjectToThresholding: true },
+        { dataLossFromOtherRow: true },
+        {
+          samplingMetadatas: [
+            { samplesReadCount: "1", samplingSpaceSize: "100" },
+          ],
+        },
+      ]) {
+        const payload = report([["/", "12", "1"]]);
+        if (channel === "ai_assistant") {
+          payload.dimensionHeaders.push({ name: "sessionSource" });
+          payload.rows[0].dimensionValues.push({ value: "chatgpt.com" });
+        }
+        expect(() =>
+          normalizeGa4LandingPages(
+            { ...query, channel },
+            { ...payload, metadata },
+          ),
+        ).toThrow("Landing page totals are incomplete");
+      }
+    },
+  );
+
+  it("refuses truncated organic landing totals instead of treating missing pages as unmeasured", () => {
+    expect(() =>
+      normalizeGa4LandingPages(query, {
+        ...report([["/", "12", "1"]]),
+        rowCount: 2,
+      }),
+    ).toThrow("Landing page totals are incomplete");
+  });
+
   it("refuses a landing page outside the selection, a repeated one or another grouping", () => {
     expect(() =>
       normalizeGa4LandingPages(query, report([["/other", "1", "1"]])),

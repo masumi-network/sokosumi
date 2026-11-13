@@ -282,7 +282,10 @@ function createApp(
 
 function mockTransaction(tx: TransactionMock) {
   prismaTransactionMock.mockImplementation(async (callback) => {
-    return await callback(tx);
+    return await callback({
+      ...tx,
+      projectSeoAnalysis: { findUnique: async () => null },
+    });
   });
 }
 

@@ -1,6 +1,7 @@
 import type { ProjectSeoObservation } from "@sokosumi/database";
 import { SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE } from "@sokosumi/utils";
 import { internalServerError } from "@/helpers/error";
+import { previousSeoPeriod } from "@/lib/seo/native-statistics";
 import {
   type ProjectSeoWorkspace,
   type SeoIndexedPage,
@@ -43,6 +44,17 @@ export function projectSeoMetricsRow(
   if (!parsed.success)
     throw internalServerError("Stored analytics evidence is not readable");
   const data = parsed.data;
+  // Older GA4 syncs shortened the previous window to the last traffic day while retaining the full current total.
+  if (data.provider === "ga4") {
+    const previous = previousSeoPeriod(data.from, data.to);
+    for (const metric of data.metrics)
+      if (
+        metric.previous &&
+        (metric.previous.from !== previous.from ||
+          metric.previous.to !== previous.to)
+      )
+        metric.previous = undefined;
+  }
   // Older syncs mapped a path to a URL without proving the host. Keep their page metrics, but withhold landing totals.
   if (
     data.landingPages &&

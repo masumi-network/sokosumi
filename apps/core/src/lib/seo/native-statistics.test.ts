@@ -94,6 +94,38 @@ describe("native SEO statistics", () => {
     expect(result.timeZone).toBe("Europe/Oslo");
   });
 
+  it.each(["period", "daily"])(
+    "marks a sampled %s read as partial without discarding its estimates",
+    (sampled) => {
+      const period = ga4([["60", "24", "30", "1200"]]);
+      const daily = ga4([["30", "15", "15", "600"]], ["20260101"]);
+      const report = sampled === "period" ? period : daily;
+      const sampledReport = {
+        ...report,
+        metadata: {
+          ...report.metadata,
+          samplingMetadatas: [
+            { samplesReadCount: "1", samplingSpaceSize: "100" },
+          ],
+        },
+      };
+      const result = normalizeGa4Statistics(
+        query,
+        sampled === "period" ? sampledReport : period,
+        sampled === "daily" ? sampledReport : daily,
+        "2026-01-03T00:00:00.000Z",
+      );
+      expect(result.coverage).toBe("partial");
+      expect(result.notes).toContain(
+        "Analytics reported sampled data. Totals and daily values are estimates.",
+      );
+      expect(result.metrics[0]).toMatchObject({
+        value: 60,
+        points: [{ date: "2026-01-01", value: 30 }],
+      });
+    },
+  );
+
   it("keeps absent rows unavailable but preserves an explicitly reported zero", () => {
     expect(
       normalizeGa4Statistics(

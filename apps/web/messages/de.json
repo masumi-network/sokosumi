@@ -11617,11 +11617,13 @@
           },
           "snippet": {
             "owned": "Website der Seite",
+            "checked_site": "Eine geprüfte Website",
             "other": "Andere Website",
             "none": "Keines"
           },
           "paa": {
             "owned": "Verlinkt die Website der Seite",
+            "checked_site": "Verlinkt eine geprüfte Website",
             "shown": "Angezeigt",
             "none": "Keine"
           },
@@ -12457,6 +12459,7 @@
           "analyticsTimeZone": "Google Analytics hat bei der letzten Synchronisierung die Zeitzone der Property nicht geliefert. Vergleiche von Zeiträumen sind eingeschränkt.",
           "analyticsNoAggregate": "Google Analytics hat bei der letzten Synchronisierung keine Summen geliefert.",
           "analyticsThresholding": "Google Analytics hat bei der letzten Synchronisierung Schwellenwerte angewendet oder Daten verloren. Einige Werte fehlen.",
+          "analyticsSampling": "Analytics hat Stichprobendaten gemeldet. Summen und Tageswerte sind Schätzungen.",
           "analyticsTruncated": "Google Analytics hat die Tageswerte bei der letzten Synchronisierung gekürzt. Einige Tage fehlen.",
           "analyticsLandingPages": "Die Schlüsselereignisse pro Landingpage von Google Analytics waren bei der letzten Synchronisierung nicht verfügbar.",
           "analyticsSharedLandingPath": "Für Seiten, die denselben Pfad auf verschiedenen Hosts haben, wurden bei der letzten Synchronisierung keine Schlüsselereignisse pro Landingpage gelesen.",

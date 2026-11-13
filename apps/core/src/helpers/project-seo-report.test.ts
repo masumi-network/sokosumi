@@ -21,6 +21,18 @@ import {
 import { SEO_STRATEGY_NOT_IMPORTED } from "./project-seo-strategy";
 
 describe("public SEO report trust boundary", () => {
+  it("links actions to their source finding IDs without mixing device-specific findings", () => {
+    const raw = legacyReport();
+    raw.findings = ["mobile", "desktop"].map((device) => ({
+      ...raw.findings[0],
+      id: `title.${device}`,
+      devices: [device],
+    }));
+    raw.actions[0].findings = ["title.desktop"];
+    const report = parsePublicSeoArtifact(raw);
+    expect(report.actions[0].findingIds).toEqual(["title.desktop:desktop"]);
+  });
+
   it("retains site-wide findings without inventing page or device evidence", () => {
     const raw = {
       ...siteStrategyReport(),

@@ -3,6 +3,7 @@ import type {
   ProjectSeoWorkspace,
 } from "@sokosumi/core-client";
 import { seoStatisticsLostData } from "@sokosumi/utils";
+import { seoWindowDays } from "./seo-performance-model";
 
 /**
  * The days every sync reads; the reader does not choose a range. A quarter gives the trend a
@@ -193,6 +194,23 @@ export function seoReportedPeriod(metrics: Pick<ProjectSeoMetric, "points">[]) {
   return days.length ? { from: days[0], to: days.at(-1) as string } : null;
 }
 
+/** The calendar period behind the totals. Quiet trailing days do not shorten a settled window. */
+export function seoMeasuredPeriod(metrics: ProjectSeoMetric[]) {
+  const first = metrics[0];
+  if (!first) return null;
+  if (first.source === "ga4") return { from: first.from, to: first.to };
+  const before = metrics.find((metric) => metric.previous)?.previous;
+  if (before) {
+    // Core reads an equal window before the settled current period. Its length also retains quiet days.
+    const end = new Date(`${first.from}T00:00:00Z`);
+    end.setUTCDate(end.getUTCDate() + seoWindowDays(before) - 1);
+    return { from: first.from, to: end.toISOString().slice(0, 10) };
+  }
+  // Older reads, or failed comparison reads, have no settled endpoint beyond their last reported day.
+  const reported = seoReportedPeriod(metrics);
+  return reported ? { from: first.from, to: reported.to } : null;
+}
+
 /**
  * The days behind the saved search rows. Totals saved by the same sync share their read,
  * so they also share the days Google reported. Metric ids are "<sync id>:<metric key>".
@@ -207,7 +225,7 @@ export function seoQueryPeriod(
       metric.id.split(":")[0] === source.observationId,
   );
   // Only the end moves: Google leaves out quiet days, so the first day with data is not the start.
-  const reported = seoReportedPeriod(sameRead);
+  const reported = seoMeasuredPeriod(sameRead);
   return { from: source.from, to: reported?.to ?? source.to };
 }
 
@@ -239,7 +257,7 @@ export function seoSearchTraffic(metrics: ProjectSeoMetric[]) {
   const impressions = total("impressions");
   const clicks = total("clicks");
   // Like the search queries: Google leaves out quiet days, so only the end moves.
-  const reported = seoReportedPeriod(search);
+  const reported = seoMeasuredPeriod(search);
   return impressions === null || clicks === null || !reported || !search.length
     ? null
     : {
