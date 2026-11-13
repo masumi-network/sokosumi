@@ -4573,7 +4573,8 @@
       "creditsCharged": "Added up from each model's own published price, at 1 credit per cent and no markup on it. This is the charge, not an approximation of one: the same figure is taken when the image is delivered. A generation that fails costs nothing.",
       "creditsUnderivable": "At least one of these models cannot be priced per image for the frame it would run at, so this batch cannot be totalled.",
       "creditsNoFigure": "No figure",
-      "failedNoCharge": "Nothing was charged for it.",
+      "failedAfterModel": "failed",
+      "failedNoCharge": "not charged",
       "failedBodyUnreported": "The model did not return an image, and this generation is too old to say why.",
       "FailureReasons": {
         "provider_rejected": "The image provider refused this request.",
