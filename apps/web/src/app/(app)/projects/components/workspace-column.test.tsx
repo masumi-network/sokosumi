@@ -164,6 +164,22 @@ describe("NeedsYouPanel", () => {
     expect(within(row).getByTestId("project-avatar")).toBeInTheDocument();
   });
 
+  it("takes a row's project from a project read still in flight", async () => {
+    render(
+      await NeedsYouPanel({
+        feed: Promise.resolve([notification("n1", project.id)]),
+        projects: Promise.resolve({
+          [project.id]: { name: "Launch", logo: null },
+        }),
+      }),
+    );
+
+    expect(screen.getByTestId("workspace-needs-you-row")).toHaveTextContent(
+      "Launch",
+    );
+    expect(getProjectByIdMock).not.toHaveBeenCalled();
+  });
+
   it("says nothing waits when the view is empty", async () => {
     render(await NeedsYouPanel({ feed: Promise.resolve([]), projects: {} }));
 
@@ -219,6 +235,36 @@ describe("NeedsYouPanel", () => {
       expect(screen.queryByRole("link")).toBeNull();
       unmount();
     }
+  });
+
+  it("puts your bot's failed reply first on Home and opens its chat", async () => {
+    render(
+      await NeedsYouPanel({
+        feed: Promise.resolve([]),
+        projects: {},
+        quiet: true,
+        lead: {
+          title: "Pip couldn't finish its last reply",
+          detail: "Open the chat",
+          href: "/chat/rooms/room-1",
+        },
+      }),
+    );
+
+    // Not "Nothing waits on you" while the sidebar says the bot failed.
+    expect(screen.queryByTestId("home-needs-you-empty")).toBeNull();
+    const [row] = screen.getAllByTestId("home-needs-you-row");
+    expect(
+      within(row).getByRole("link", {
+        name: /Pip couldn't finish its last reply.*Open the chat/,
+      }),
+    ).toHaveAttribute("href", "/chat/rooms/room-1");
+    // Show all is about notifications; a lone bot row has none to show.
+    expect(
+      screen.queryByRole("link", {
+        name: "App.Projects.column.needsYou.showAll",
+      }),
+    ).toBeNull();
   });
 });
 

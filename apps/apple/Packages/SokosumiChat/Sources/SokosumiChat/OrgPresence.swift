@@ -18,9 +18,23 @@ public final class OrgPresence: ObservableObject {
   private var publisher: OrgPresencePublisherState
   private var members: [ChatPresenceMember] = []
   private var reachable = true
+  /// The workspace creates the map before any presence event. The first dated call stamps `lastActiveAt`, so
+  /// construction does not read the injected clock. A jump-mark test clock counts a read as the mark landing.
+  private var awaitingClock = false
 
-  public init(now: Date = Date()) {
+  public init(now: Date) {
     publisher = OrgPresencePublisherState(now: now)
+  }
+
+  public init() {
+    publisher = OrgPresencePublisherState(now: .distantPast)
+    awaitingClock = true
+  }
+
+  private func stamp(_ now: Date) {
+    guard awaitingClock else { return }
+    awaitingClock = false
+    publisher.recordActivity(now: now)
   }
 
   /// Workspace switch: drop the previous roster at once so stale members never
@@ -36,6 +50,7 @@ public final class OrgPresence: ObservableObject {
   /// Full member set from the transport. Rosters for another organization
   /// (a switch raced the channel) are ignored.
   public func replaceRoster(organizationId id: String, members: [ChatPresenceMember], now: Date) {
+    stamp(now)
     guard id == organizationId else { return }
     self.members = members
     update(byUserId: aggregateChatPresence(members: members, now: now))
@@ -44,11 +59,13 @@ public final class OrgPresence: ObservableObject {
   /// Teammates age online → afk from their last activity without waiting
   /// for another Ably message; self follows the same clock.
   public func reclassify(now: Date) {
+    stamp(now)
     update(byUserId: aggregateChatPresence(members: members, now: now))
     update(selfPresence: publisher.selfPresence(connected: reachable, now: now))
   }
 
   public func reset(now: Date) {
+    stamp(now)
     organizationId = nil
     members = []
     reachable = true
@@ -64,17 +81,20 @@ public final class OrgPresence: ObservableObject {
   // MARK: - Publisher
 
   public func recordActivity(now: Date) {
+    stamp(now)
     publisher.recordActivity(now: now)
     update(selfPresence: publisher.selfPresence(connected: reachable, now: now))
   }
 
   public func setVisible(_ visible: Bool, now: Date) {
+    stamp(now)
     publisher.setVisible(visible, now: now)
     update(selfPresence: publisher.selfPresence(connected: reachable, now: now))
   }
 
   /// Socket reachability for the self dot only; teammates come from the roster.
   public func setReachable(_ reachable: Bool, now: Date) {
+    stamp(now)
     self.reachable = reachable
     update(selfPresence: publisher.selfPresence(connected: reachable, now: now))
   }
@@ -82,6 +102,7 @@ public final class OrgPresence: ObservableObject {
   /// Data worth an Ably message now, or nil when idle/unchanged presence
   /// would only repeat itself. Personal workspaces never publish.
   public func publication(force: Bool, now: Date) -> ChatPresenceMemberData? {
+    stamp(now)
     guard organizationId != nil, publisher.shouldPublish(force: force, now: now) else { return nil }
     let data = publisher.data
     publisher.markPublished(data, now: now)

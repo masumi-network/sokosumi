@@ -5,7 +5,6 @@ import {
   type NewsletterImportResult,
 } from "@sokosumi/core-client";
 import { Upload } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { type FormEvent, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -38,7 +37,6 @@ export function ImportSubscribersDialog({
 }: ImportSubscribersDialogProps) {
   const t = useTranslations("App.Projects.Newsletter.Subscribers");
   const format = useFormatter();
-  const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [consent, setConsent] = useState<NewsletterConsent>();
@@ -93,7 +91,6 @@ export function ImportSubscribersDialog({
         return;
       }
       setResult(response.value);
-      router.refresh();
     } catch {
       setError(t("Import.error"));
     } finally {

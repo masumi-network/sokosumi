@@ -48,9 +48,17 @@ vi.mock("@/components/ui/sheet", () => ({
     isValidElement(children) ? cloneElement(children, props) : <>{children}</>,
 }));
 
-vi.mock("@/components/chat/personal-assistant-chrome-store", () => ({
-  publishPersonalAssistantChromeVisible: vi.fn(),
-}));
+// The real failed-bot store, so the row and the chat list are checked
+// against each other; only the Instant `/chat` flag is stubbed.
+vi.mock(
+  "@/components/chat/personal-assistant-chrome-store",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/components/chat/personal-assistant-chrome-store")
+    >()),
+    publishPersonalAssistantChromeVisible: vi.fn(),
+  }),
+);
 
 vi.mock("@/components/aurora-orb", () => ({
   AuroraOrb: ({ className }: { className?: string }) => (
@@ -58,7 +66,8 @@ vi.mock("@/components/aurora-orb", () => ({
   ),
 }));
 
-import { SokoBotStatus } from "@sokosumi/core-client";
+import { type ChatRoom, SokoBotStatus } from "@sokosumi/core-client";
+import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 
@@ -209,7 +218,8 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
   it.each([
     // "Paused" is the status badge's own word, so it is the badge's string.
     [SokoBotStatus.PAUSED, /PAUSED/],
-    [SokoBotStatus.ERROR, /needsAttention/],
+    // The badge's own word, so the row, the bot's page and its Direct agree.
+    [SokoBotStatus.ERROR, /ERROR/],
     [SokoBotStatus.IDLE, /ready/],
   ])("gives a %s bot its status line and no pulse", (status, line) => {
     renderNav({ bot: { ...bot, status } });
@@ -336,5 +346,78 @@ describe("PersonalAssistantNav live status", () => {
     await waitFor(() =>
       expect(relativeTime).toHaveBeenLastCalledWith(latest, expect.anything()),
     );
+  });
+
+  /** Your Direct with the bot, as the chat list draws it. */
+  function renderNavWithDirect(rendered: SidebarSokoBotLive) {
+    const room = {
+      id: "dm-1",
+      kind: "direct",
+      isSelfDirect: false,
+      isGroupDirect: false,
+      isReadOnly: false,
+      userMembers: [
+        {
+          id: "me",
+          name: "Me",
+          email: "me@example.com",
+          image: null,
+          presence: "online",
+        },
+      ],
+      coworkerMembers: [],
+      formerUserMembers: [],
+      sokoBotMembers: [
+        {
+          id: rendered.id,
+          name: "Mo",
+          caption: null,
+          image: null,
+          avatarSeed: null,
+          ownerUserId: "me",
+          scope: "personal",
+          sharedRoomId: null,
+          presence: "offline",
+        },
+      ],
+    } as unknown as ChatRoom;
+    return render(
+      <SidebarProvider defaultOpen>
+        <PersonalAssistantNav bot={rendered} />
+        <DirectRoomAvatarStack room={room} currentUserId="me" />
+      </SidebarProvider>,
+    );
+  }
+
+  it("agrees with the chat list from the server's status when polling fails, then on recovery", async () => {
+    let recovered = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        if (!recovered) throw new Error("offline");
+        return {
+          ok: true,
+          json: async () => ({ activity: { status: SokoBotStatus.IDLE } }),
+        };
+      }),
+    );
+    renderNavWithDirect({ ...bot, status: SokoBotStatus.ERROR });
+    const direct = screen.getByTestId(`dm-sidebar-avatar-${bot.id}`);
+
+    await waitFor(() => expect(direct).toHaveTextContent("ERROR"));
+    expect(screen.getByRole("link", { name: /Mo/ })).toHaveAccessibleName(
+      /ERROR/,
+    );
+    expect(direct).not.toHaveTextContent("Presence.online");
+
+    recovered = true;
+    document.dispatchEvent(new Event("visibilitychange"));
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: /Mo/ })).toHaveAccessibleName(
+        /ready/,
+      ),
+    );
+    expect(direct).toHaveTextContent("Presence.online");
+    expect(direct).not.toHaveTextContent("ERROR");
   });
 });

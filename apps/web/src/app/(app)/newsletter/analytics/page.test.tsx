@@ -57,7 +57,7 @@ vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   useHasAnyScopeProject: () => ({ isPending: false, hasProjects: true }),
 }));
 
-import NewsletterAnalyticsPage from "./page";
+import NewsletterAnalyticsPage, { generateMetadata } from "./page";
 
 const PROPS = {
   searchParams: Promise.resolve({
@@ -75,6 +75,10 @@ beforeEach(() => {
   m.analytics.mockResolvedValue(NEWSLETTER_ANALYTICS);
 });
 describe("newsletter analytics page", () => {
+  it("titles the browser tab Newsletter", async () => {
+    await expect(generateMetadata()).resolves.toEqual({ title: "title" });
+  });
+
   it("loads authorized project analytics and forwards the URL range", async () => {
     render(await NewsletterAnalyticsPage(PROPS));
     expect(m.analytics).toHaveBeenCalledExactlyOnceWith(NEWSLETTER_PROJECT_ID, {

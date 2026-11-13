@@ -281,7 +281,7 @@
           "confirm": "Confirmar",
           "cancel": "Cancelar",
           "success": "Invitación cancelada correctamente",
-          "error": "No se pudo cancelar la invitación",
+          "error": "No se pudo cancelar la invitación para {email}. Sigue pendiente.",
           "Errors": {
             "unauthorizedAction": "Iniciar sesión"
           }
@@ -402,7 +402,8 @@
             },
             "Error": {
               "share": "No se pudo actualizar el acceso compartido",
-              "copyLink": "No se pudo copiar el enlace"
+              "copyLink": "No se pudo copiar el enlace",
+              "searchIndexing": "No se guardó la indexación en buscadores. Se restableció la configuración anterior."
             },
             "Errors": {
               "unauthenticated": "Debes iniciar sesión.",
@@ -896,7 +897,7 @@
         "IDLE": "Inactivo",
         "RUNNING": "En marcha",
         "PAUSED": "Pausado",
-        "ERROR": "Error"
+        "ERROR": "No pudo responder"
       },
       "TurnStatus": {
         "QUEUED": "En cola",
@@ -1098,6 +1099,34 @@
     },
     "ConnectLink": {
       "error": "No se pudo iniciar la conexión."
+    },
+    "SpreadsheetView": {
+      "loading": "Cargando hoja de cálculo",
+      "failed": "No se pudo abrir esta hoja de cálculo.",
+      "sheet": "Hoja {number}",
+      "empty": "Esta hoja está vacía.",
+      "truncated": "Se muestran las primeras {rows} filas y 50 columnas. Descarga el archivo para ver el resto."
+    },
+    "CapTableView": {
+      "loading": "Cargando tabla de capitalización",
+      "failed": "No se puede mostrar este archivo de tabla de capitalización. Comprueba que sea válido.",
+      "title": "Tabla de capitalización de {company}",
+      "asOf": "A {date}",
+      "ownership": "Participación, totalmente diluida",
+      "holder": "Titular",
+      "class": "Clase",
+      "shares": "Acciones",
+      "issued": "Emitidas",
+      "fullyDiluted": "Totalmente diluida",
+      "optionPool": "Pool de opciones",
+      "vesting": "Vesting: {schedule}",
+      "granted": "{granted} concedidas, {available} disponibles",
+      "total": "Total",
+      "issuedShares": "Acciones emitidas",
+      "reservedShares": "Reservadas para el plan de acciones",
+      "unallocatedShares": "Ni emitidas ni reservadas",
+      "authorizedShares": "Acciones autorizadas",
+      "parValue": "Valor nominal"
     },
     "TeamView": {
       "loading": "Cargando equipo",
@@ -1664,7 +1693,24 @@
         "MyDay": {
           "title": "Mi día",
           "more": "{count, plural, one {Mostrar # más} other {Mostrar # más}}",
-          "error": "No se pudieron cargar más. Inténtalo de nuevo."
+          "error": "No se pudieron cargar más. Inténtalo de nuevo.",
+          "MoveOverdue": {
+            "trigger": "{count, plural, one {Mover # vencida} other {Mover # vencidas}}",
+            "label": "{count, plural, one {Mover # tarea vencida a} other {Mover # tareas vencidas a}}",
+            "targets": {
+              "today": "Hoy",
+              "tomorrow": "Mañana",
+              "nextMonday": "El próximo lunes"
+            },
+            "moved": "{count, plural, one {# tarea movida al {date}} other {# tareas movidas al {date}}}",
+            "movedPartly": "{count} de {total} tareas movidas al {date}. Las demás cambiaron o no puedes editarlas.",
+            "nothingMoved": "No se movió nada. Esas tareas cambiaron o no puedes editarlas.",
+            "error": "No se pudieron mover tus tareas vencidas. Inténtalo de nuevo.",
+            "undo": "Deshacer",
+            "undone": "{count, plural, one {# tarea devuelta} other {# tareas devueltas}}",
+            "undonePartly": "{count} de {total} tareas devueltas. Las demás cambiaron desde entonces.",
+            "undoError": "No se pudo deshacer el cambio. Inténtalo de nuevo."
+          }
         },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
@@ -1678,7 +1724,11 @@
             "catchUp": "Ponme al día",
             "teamWins": "¿Qué terminamos?",
             "planTomorrow": "Planificar mañana"
-          }
+          },
+          "failedReply": "{name} no pudo terminar su última respuesta",
+          "openChat": "Abrir el chat",
+          "failedWork": "{name} no pudo terminar lo que estaba haciendo",
+          "openBot": "Abrir la página de {name}"
         }
       },
       "SokoBot": {
@@ -1693,6 +1743,7 @@
         "feedbackUseful": "Útil",
         "feedbackNotUseful": "No útil",
         "feedbackThanks": "Gracias, anotado.",
+        "feedbackError": "No se pudo guardar tu valoración.",
         "approvals": "{count, plural, one {# aprobación pendiente} other {# aprobaciones pendientes}}",
         "review": "Revisar en la página del asistente",
         "task": "Task",
@@ -1816,6 +1867,7 @@
       },
       "Detail": {
         "back": "Volver a Tasks",
+        "backToCalendar": "Volver al calendario",
         "privateBadge": "Privada",
         "visibility": "Visibilidad",
         "parentTask": "Padre:",
@@ -1852,6 +1904,11 @@
         "authenticate": "Autenticar",
         "expand": "Expandir",
         "collapse": "Contraer",
+        "downloadAll": {
+          "button": "Descargar todo",
+          "failed": "No se pudieron descargar los archivos. Inténtalo de nuevo o ábrelos uno a uno.",
+          "partial": "Se descargaron {included} de {total} archivos. No incluidos: {names}{more, plural, =0 {} one { y # más} other { y # más}}. Ábrelos uno a uno."
+        },
         "actorCoworker": "Coworker",
         "actorUser": "Usuario",
         "actorSokoBot": "Asistente",
@@ -1983,7 +2040,8 @@
           },
           "Error": {
             "share": "Failed to update task sharing",
-            "copyLink": "Failed to copy public link"
+            "copyLink": "Failed to copy public link",
+            "searchIndexing": "No se guardó la indexación en buscadores. Se restableció la configuración anterior."
           },
           "Errors": {
             "unauthenticated": "Inicia sesión para gestionar cómo se comparte la tarea",
@@ -2076,6 +2134,7 @@
         "noStatusMatches": "Ningún estado coincide",
         "untitledTask": "Tarea sin título",
         "saveError": "No se pudo guardar la tarea",
+        "createError": "No se pudo crear «{name}». Tus datos siguen en el formulario.",
         "back": "Atrás",
         "uploadFile": "Subir archivo",
         "uploadFileError": "No se pudo subir el archivo",
@@ -2891,6 +2950,14 @@
           "timeout": "Se agotó el tiempo.",
           "missing": "No se pudo abrir esta publicación.",
           "mediaUnavailable": "El historial importado aún no incluye los archivos multimedia.",
+          "mediaNotice": {
+            "pad_4_5": "{provider} añadirá márgenes para 4:5.",
+            "pad_1_91_1": "{provider} añadirá márgenes para 1,91:1.",
+            "resize": "{provider} ajustará el tamaño de esta imagen.",
+            "jpeg": "{provider} convertirá esta imagen a JPEG.",
+            "srgb": "{provider} convertirá esta imagen a sRGB.",
+            "smaller_file": "{provider} comprimirá esta imagen."
+          },
           "linkedin": {
             "like": "Recomendar",
             "comment": "Comentar",
@@ -3527,7 +3594,20 @@
           }
         },
         "Calendar": {
-          "title": "Calendario"
+          "title": "Calendario",
+          "nextIssue": "Próxima edición",
+          "nothingScheduled": "Aún no hay nada programado. Programa una edición y aparecerá aquí.",
+          "openFullCalendar": "Abrir en el calendario",
+          "emptyTitle": "Aún no hay ediciones",
+          "emptyDescription": "Escribe una edición y aparecerá aquí por fecha.",
+          "goToIssues": "Ir a ediciones",
+          "groups": {
+            "scheduled": "Programadas",
+            "unscheduled": "Sin programar",
+            "sent": "Enviadas"
+          },
+          "count": "{count, plural, one {# edición} other {# ediciones}}",
+          "newestOnly": "Se muestran las {count} ediciones más recientes. Abre el calendario para ver las anteriores."
         },
         "Issues": {
           "title": "Ediciones",
@@ -3558,6 +3638,7 @@
           "previewText": "Texto de vista previa",
           "status": "Estado",
           "sentAt": "Enviada el {date}",
+          "sentTo": "Enviada el {date} a {count, plural, one {# suscriptor} other {# suscriptores}}",
           "firstPage": "Primera página",
           "nextPage": "Página siguiente",
           "results": "{count, plural, one {# edición} other {# ediciones}}",
@@ -3740,10 +3821,10 @@
           "Image": {
             "width": "Ancho",
             "widths": {
-              "100": "Ancho completo",
-              "75": "Tres cuartos",
+              "25": "Un cuarto",
               "50": "Mitad",
-              "25": "Un cuarto"
+              "75": "Tres cuartos",
+              "100": "Ancho completo"
             },
             "align": "Alineación",
             "aligns": {
@@ -4368,7 +4449,6 @@
       "model": "Modelo",
       "aspectRatio": "Encuadre",
       "adPlacements": "Ubicaciones de anuncios",
-      "placementHelp": "Elige una o más ubicaciones o selecciona abajo una sola proporción personalizada.",
       "creativeDirection": "Dirección creativa",
       "adGallery": "Galería de anuncios",
       "groupByProduct": "Agrupar por producto",
@@ -5270,7 +5350,6 @@
         "SokoBot": {
           "fallbackName": "Soko Bot",
           "workingNow": "Trabajando ahora",
-          "needsAttention": "Requiere atención",
           "activeAgo": "Activo {time}",
           "ready": "Listo",
           "team": "Los Soko Bots de tu equipo"
@@ -8794,7 +8873,9 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "failed": "No se pudo responder",
+        "failed": "{name} no pudo responder",
+        "failedBody": "La respuesta se detuvo antes de terminar.",
+        "failedSaved": "La respuesta se detuvo antes de terminar. Tu mensaje está guardado.",
         "retry": "Reintentar"
       },
       "Outbound": {
@@ -8968,7 +9049,9 @@
         "messageRequired": "El mensaje es obligatorio.",
         "roomRequired": "La sala es obligatoria.",
         "pinError": "No se pudo fijar el mensaje.",
-        "unpinError": "No se pudo desfijar el mensaje."
+        "unpinError": "No se pudo desfijar el mensaje.",
+        "statePinned": "El mensaje está fijado.",
+        "stateUnpinned": "El mensaje no está fijado."
       },
       "SavedMessages": {
         "save": "Guardar para después",
@@ -8998,12 +9081,16 @@
       "Unfurl": {
         "openLink": "Abrir vista previa del enlace: {title}",
         "imageAlt": "Imagen de vista previa de {title}",
-        "remove": "Quitar vista previa del enlace: {title}"
+        "remove": "Quitar vista previa del enlace: {title}",
+        "removeError": "No se pudo quitar la vista previa del enlace. Inténtalo de nuevo.",
+        "restored": "La vista previa del enlace vuelve a estar en el mensaje."
       },
       "Message": {
         "delete": "Eliminar",
         "deleteConfirm": "¿Eliminar este mensaje? Los demás verán que fue eliminado.",
         "deleted": "Este mensaje fue eliminado",
+        "deleteError": "No se pudo eliminar el mensaje. Inténtalo de nuevo.",
+        "restored": "El mensaje vuelve a estar en la conversación.",
         "showMore": "Mostrar más",
         "showLess": "Mostrar menos"
       },
@@ -9033,7 +9120,9 @@
         "composerAria": "Editar mensaje. Usa Guardar o Cancelar para terminar. Con teclado: Intro guarda, Escape cancela y Mayús+Intro añade una nueva línea.",
         "edited": "Editado",
         "editedAt": "Editado {when}",
-        "save": "Guardar"
+        "save": "Guardar",
+        "saveError": "No se pudo guardar el cambio. Inténtalo de nuevo.",
+        "restored": "El mensaje vuelve a mostrar su texto anterior."
       },
       "Browse": {
         "trigger": "Explorar canales",
@@ -9101,7 +9190,9 @@
         "removeConfirmTitle": "¿Quitar a {name} de este canal?",
         "removeConfirmDescription": "{name} ya no verá este canal ni sus mensajes.",
         "removeSuccess": "Se quitó a {name} del canal.",
-        "undo": "Deshacer"
+        "removeError": "No se pudo quitar a {name} del canal.",
+        "undo": "Deshacer",
+        "undoError": "No se pudo volver a añadir a {name} al canal."
       },
       "AddMembers": {
         "title": "Añadir miembros",
@@ -9483,6 +9574,30 @@
       "createFolderDialogTitle": "Crear nueva carpeta",
       "createFolderDialogDescription": "Escribe un nombre para la nueva carpeta",
       "createFolderDialogConfirm": "Crear",
+      "GoogleSheet": {
+        "button": "Vincular Google Sheet",
+        "dialogTitle": "Vincular una hoja de Google",
+        "dialogDescription": "Pega el enlace de la hoja. En Google Sheets, en Compartir → Acceso general, elige «Cualquier persona con el enlace». Sokosumi guarda aquí el PDF de Google y lo actualiza cada hora.",
+        "linkLabel": "Enlace de Google Sheets",
+        "link": "Vincular",
+        "linking": "Vinculando…",
+        "cancel": "Cancelar",
+        "linked": "{name} vinculado",
+        "notALink": "Ese no es un enlace de Google Sheets. Cópialo de la barra de direcciones de la hoja.",
+        "notShared": "Sokosumi no puede abrir esa hoja. Cambia su acceso general a «Cualquier persona con el enlace» y vuelve a intentarlo.",
+        "nameTaken": "Ya hay un archivo con el nombre de esta hoja en esta carpeta.",
+        "failed": "Google Sheets no responde. Inténtalo de nuevo en un minuto.",
+        "source": "Hoja de Google",
+        "updated": "actualizada {when}",
+        "refresh": "Actualizar",
+        "refreshing": "Actualizando…",
+        "open": "Abrir en Google Sheets",
+        "error": {
+          "not_shared": "La última actualización falló: la hoja ya no se comparte por enlace. Esta copia es anterior.",
+          "too_large": "La última actualización falló: la hoja es demasiado grande. Esta copia es anterior.",
+          "failed": "La última actualización falló. Esta copia es anterior."
+        }
+      },
       "deleteFolderDialogTitle": "Eliminar carpeta",
       "deleteFolderAction": "Eliminar carpeta",
       "deleteFolderDialogDescription": "¿Seguro que quieres eliminar {folderName} y todo su contenido? Esta acción no se puede deshacer.",
@@ -9597,7 +9712,7 @@
         "bulkDeleteDescriptionSkipsTaskFiles": "Se eliminan para todos en este espacio de archivos. Los archivos de tareas se quedan con su tarea. No se puede deshacer.",
         "bulkDeleteCancel": "Cancelar",
         "bulkDeleted": "{count, plural, one {# archivo eliminado} other {# archivos eliminados}}",
-        "bulkDeletePartial": "{deleted} eliminados, {failed} fallaron y siguen seleccionados",
+        "bulkDeletePartial": "{deleted} eliminados. No se {failed, plural, one {pudo eliminar # archivo} other {pudieron eliminar # archivos}}. Inténtalo de nuevo.",
         "detailLoading": "Cargando archivo",
         "detailProcessing": "Procesamiento",
         "detailCategory": "Categoría",
@@ -9662,7 +9777,8 @@
         "collectionSaved": "Se guardó «{name}»",
         "collectionUpdated": "Se actualizó «{name}»",
         "collectionSaveFailed": "No se pudo guardar esa colección.",
-        "collectionDeleteFailed": "No se pudo eliminar esa colección.",
+        "collectionRenameFailed": "No se pudo cambiar el nombre de «{name}». El nuevo nombre no se guardó.",
+        "collectionDeleteFailed": "No se pudo eliminar «{name}». La colección vuelve a estar en su lugar.",
         "collectionsUnavailable": "No se pudieron cargar las colecciones.",
         "labelsUnavailable": "No se pudieron cargar las categorías ni las etiquetas.",
         "collectionActions": "Acciones para {name}",
@@ -9837,6 +9953,8 @@
         },
         "Settings": {
           "titleLabel": "Título",
+          "welcomeLabel": "Nota de bienvenida",
+          "welcomeHint": "Se muestra en la página de bienvenida al abrir la sala. Se mantienen los saltos de línea.",
           "logoLabel": "Logo",
           "noLogo": "Sin logo",
           "logoHint": "Una imagen de esta sala, junto al título.",
@@ -10172,6 +10290,7 @@
       },
       "Console": {
         "tagline": "Tu gestor de proyectos personal. Delega trabajo, hace seguimiento y te mantiene al día — háblale en el chat.",
+        "lastTurnFailed": "{name} no pudo terminar su última respuesta.",
         "lastActivity": "última actividad {time}",
         "adminView": "Vista de administrador",
         "openChat": "Abrir chat",
@@ -10392,6 +10511,8 @@
         "moveRun": "Mover ejecución",
         "skipRun": "Omitir ejecución",
         "restoreRun": "Restaurar ejecución",
+        "runSkipped": "Se omitió la ejecución de {name}.",
+        "undo": "Deshacer",
         "openSchedule": "Abrir programación",
         "allDay": "Todo el día",
         "runStale": "Esta programación cambió en otro lugar. El calendario se está recargando; inténtalo de nuevo.",
@@ -10436,7 +10557,10 @@
         "showing": "Horas en {zone}"
       },
       "empty": {
-        "title": "Nada programado coincide con estos filtros.",
+        "title": "{view, select, month {No hay nada programado este mes} week {No hay nada programado esta semana} other {No hay nada próximo}}",
+        "filtered": "Nada programado coincide con estos filtros.",
+        "hint": "Aquí aparecen las tareas con hora de inicio, las ejecuciones de programaciones y las publicaciones con fecha.",
+        "createHint": "{view, select, agenda {Usa «Programar una tarea» para añadir una.} other {Usa «Programar una tarea» o haz clic en un día para empezar en esa fecha.}}",
         "socialOnly": "No hay publicaciones sociales programadas en este periodo."
       },
       "schedules": {
@@ -10632,7 +10756,10 @@
         "csv": "Comprueba las comillas y los separadores del archivo CSV.",
         "csvHeaders": "Asigna un encabezado no vacío a cada columna del CSV.",
         "csvWidth": "Todas las filas del CSV deben tener el mismo número de columnas.",
-        "layout": "El diseño de columnas no se guardó y se restableció. {reason}"
+        "layout": "El diseño de columnas no se guardó y se restableció. {reason}",
+        "archiveRows": "{count, plural, one {No se pudo archivar # fila. Vuelve a estar en la tabla.} other {No se pudieron archivar # filas. Vuelven a estar en la tabla.}} {reason}",
+        "restoreRows": "{count, plural, one {No se pudo restaurar # fila. Vuelve a estar en las filas archivadas.} other {No se pudieron restaurar # filas. Vuelven a estar en las filas archivadas.}} {reason}",
+        "cellNotSaved": "Tu valor no se guardó. Vuelve a estar en el editor. {reason}"
       },
       "reorderColumn": "Reordenar {column}. Arrastra o pulsa las flechas izquierda y derecha.",
       "reorderRow": "Reordenar fila. Arrastra o pulsa las flechas arriba y abajo.",
@@ -10782,7 +10909,7 @@
       },
       "toolbar": {
         "search": "Buscar contactos",
-        "searchPlaceholder": "Buscar nombre, empresa, correo…",
+        "searchPlaceholder": "Buscar nombre, empresa, correo, lugar…",
         "me": "Yo",
         "clearFilter": "Quitar el filtro {filter}",
         "export": "Exportar CSV",
@@ -10897,6 +11024,7 @@
         "channelTaken": "Alguien de tu equipo ya tiene a esta persona en Contactos.",
         "openExisting": "Abrir contacto",
         "failed": "El contacto no se guardó. Inténtalo de nuevo.",
+        "listFailed": "El contacto está guardado, pero aún no está en la lista. Inténtalo de nuevo para añadirlo.",
         "cancel": "Cancelar",
         "submit": "Añadir contacto"
       },
@@ -10983,11 +11111,16 @@
         "linkCopied": "Enlace copiado",
         "archive": "Archivar contacto",
         "archived": "{name} archivado",
+        "archiveFailed": "No se pudo archivar a {name}. El contacto vuelve a estar en tu lista.",
         "changeStage": "Etapa: {stage}. Cambiar etapa",
         "changeLists": "Cambiar listas",
         "addToList": "Añadir a una lista",
         "manualLists": "Listas",
         "noManualLists": "Todavía no hay listas.",
+        "newList": "Nueva lista…",
+        "newListAddFailed": "{list} está creada, pero {name} aún no está en ella.",
+        "addToListFailed": "No se pudo añadir a {name} a {list}. El contacto vuelve a estar fuera de la lista.",
+        "removeFromListFailed": "No se pudo quitar a {name} de {list}. El contacto vuelve a estar en la lista.",
         "empty": "Añadir…",
         "location": "Ubicación",
         "nextStepTitle": "Próximo paso",
@@ -11290,8 +11423,6 @@
       "signOut": "Cerrar sesión",
       "empty": "Todavía no hay nada en esta sala de datos.",
       "indexLabel": "Contenido",
-      "pickFile": "Elige un archivo para abrirlo.",
-      "new": "Nuevo",
       "download": "Descargar",
       "watermarkNote": "Las páginas e imágenes que abres llevan tu correo y la hora.",
       "downloadToOpen": "Este archivo no se puede mostrar aquí. Descárgalo para abrirlo.",
@@ -11303,7 +11434,11 @@
       "awaitingAnswer": "Esperando respuesta",
       "askLabel": "Pregunta sobre este documento",
       "ask": "Preguntar",
-      "askFailed": "No se pudo enviar tu pregunta. Inténtalo de nuevo."
+      "askFailed": "No se pudo enviar tu pregunta. Inténtalo de nuevo.",
+      "welcome": "Bienvenida",
+      "welcomeTitle": "Te damos la bienvenida a {title}",
+      "contents": "{files, plural, one {# documento} other {# documentos}}{folders, plural, =0 {} one { en # carpeta} other { en # carpetas}}",
+      "openFirst": "Abrir {name}"
     }
   },
   "NotFound": {
