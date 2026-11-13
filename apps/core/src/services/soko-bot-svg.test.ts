@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { unsafeSvgReason } from "./soko-bot-svg";
 
+/** The fixed pattern takes well under 1 ms; the old one took seconds. */
+const SLOW_MS = 500;
+
 const card = `<?xml version="1.0"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
   <rect width="400" height="200" fill="#fff"/>
@@ -17,6 +20,19 @@ describe("unsafeSvgReason", () => {
 
   it("refuses anything that is not an svg", () => {
     expect(unsafeSvgReason("<html><svg></svg></html>")).toMatch(/start with/);
+    // A comment ends at its first "-->": text after it is not hidden in a longer comment.
+    expect(unsafeSvgReason("<!-- a --> text <!-- b --><svg></svg>")).toMatch(
+      /start with/,
+    );
+  });
+
+  it("reads many comment ends in linear time (CodeQL js/redos)", () => {
+    // The old lazy comment pattern took seconds here and doubled with each repeat.
+    const start = performance.now();
+    expect(unsafeSvgReason(`<!--${"--><!--".repeat(30)}`)).toMatch(
+      /start with/,
+    );
+    expect(performance.now() - start).toBeLessThan(SLOW_MS);
   });
 
   it.each([

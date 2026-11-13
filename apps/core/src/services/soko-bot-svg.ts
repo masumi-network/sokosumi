@@ -3,7 +3,11 @@
  * markup: no scripts, event handlers, embedded HTML or outside resources.
  */
 export function unsafeSvgReason(content: string): string | null {
-  if (!/^\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*<svg[\s>]/i.test(content))
+  if (
+    !/^\s*(<\?xml[^>]*>\s*)?(<!--(?:[^-]|-(?!->))*-->\s*)*<svg[\s>]/i.test(
+      content,
+    )
+  )
     return "An SVG must start with an <svg> element";
   if (/<\s*(script|foreignObject|iframe|object|embed)\b/i.test(content))
     return "An SVG may not contain scripts or embedded HTML";
