@@ -80,15 +80,22 @@ export function seoAuditGapValues(
 }
 
 /**
- * Whether a filter narrows the statistics Core returns: a sync counts only for its exact page group and
- * channel, and Search Console stores "organic" only. A narrowed view can lack a connected source's data.
+ * Whether a filter narrows the statistics Core returns: a sync counts only for its exact page group,
+ * channel and search type, and Search Console stores "organic" only. A narrowed view can lack a connected
+ * source's data. Web search is the default search type, so it does not narrow.
  */
 export function seoViewNarrowed(filters: {
   channel?: string | null;
   pageId?: string | null;
   scopeId?: string | null;
+  searchType?: string | null;
 }) {
-  return Boolean(filters.channel || filters.pageId || filters.scopeId);
+  return Boolean(
+    filters.channel ||
+      filters.pageId ||
+      filters.scopeId ||
+      (filters.searchType && filters.searchType !== "web"),
+  );
 }
 
 /** Which Google sources the saved statistics of these pages come from. */

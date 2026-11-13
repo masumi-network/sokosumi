@@ -106,6 +106,7 @@ describe("seoAuditGaps", () => {
       { channel: "all" },
       { pageId: "page" },
       { scopeId: "scope" },
+      { searchType: "discover" },
     ]) {
       const narrowed = seoViewNarrowed(filters);
       expect(narrowed).toBe(true);
@@ -123,6 +124,7 @@ describe("seoAuditGaps", () => {
     expect(
       seoViewNarrowed({ channel: null, pageId: null, scopeId: null }),
     ).toBe(false);
+    expect(seoViewNarrowed({ searchType: "web" })).toBe(false);
   });
 
   it("offers no fix the reader cannot take", () => {
