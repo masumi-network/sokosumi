@@ -260,6 +260,20 @@ describe("SERP feature history", () => {
     ]);
   });
 
+  it("names the pages of the check a citation speaks of", () => {
+    const raw = result(1, [{ position: 2 }], serps(1, [{}]));
+    const { serpHistory } = workspaceOf([
+      {
+        ...raw,
+        pageUrls: [`${SEO_TEST_PAGE}#top`, SEO_TEST_SECOND_PAGE],
+      },
+    ]);
+    expect(serpHistory?.[0].points[0].pageUrls).toEqual([
+      SEO_TEST_PAGE,
+      SEO_TEST_SECOND_PAGE,
+    ]);
+  });
+
   it("has no series for results from before SERP reads", () => {
     const old = result(1, [{ position: 5 }]);
     delete old.serps;

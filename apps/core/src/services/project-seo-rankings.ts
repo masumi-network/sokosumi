@@ -11,7 +11,7 @@ import {
   SEO_SERP_SERIES_MAX,
 } from "@/schemas/project-seo-rankings.schema";
 import { seoKeywordIdentity } from "./project-seo-keyword-rows";
-import { matchesSeoPeriod } from "./project-seo-store";
+import { matchesSeoPeriod, normalizeSeoUrl } from "./project-seo-store";
 
 /**
  * Public results the rank history reads, newest first. Its own bound: metric syncs and audits share the
@@ -161,6 +161,8 @@ function serpHistory(sources: Source[]): SerpSeries[] {
       entry.points.push({
         observedAt: read.observedAt,
         observationId: row.id,
+        // The bot reads a citation against every page of the Run, so the point names them.
+        pageUrls: data.pageUrls.map(normalizeSeoUrl),
         itemTypes: read.itemTypes,
         aiOverview: read.aiOverview,
         featured: read.featured,

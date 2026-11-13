@@ -29,9 +29,12 @@ const NOT_COUNTED = new Set([
 /**
  * "not_checked": the read did not ask for AI Overviews. It never reads as "no AI Overview". "undetermined": an
  * AI Overview shows, but a Google-wrapped reference on the page's host hides whether it cites the page.
+ * "cited" names the row's page: the check read that page alone. A check of several pages cites one of them
+ * ("cited_checked"), and the read does not say which.
  */
 export type SeoAiOverviewMark =
   | "cited"
+  | "cited_checked"
   | "shown"
   | "undetermined"
   | "absent"
@@ -52,18 +55,29 @@ export type SeoSerpMarker =
       otherFeatures: number;
     };
 
+/** A page URL as Core keys it: the fragment does not name another page. */
+function pageKey(url: string) {
+  const parsed = new URL(url);
+  parsed.hash = "";
+  return parsed.href;
+}
+
 /**
  * What the SERP showed for a keyword row group on each check, newest first, one entry per device read. A suspect
  * read carries no SERP data: it is named, not read.
  */
 export function seoSerpMarkers(
   serpHistory: ProjectSeoWorkspace["serpHistory"],
-  reads: Pick<Keyword, "keyword" | "countryCode" | "languageCode" | "device">[],
+  reads: Pick<
+    Keyword,
+    "keyword" | "countryCode" | "languageCode" | "device" | "pageUrl"
+  >[],
 ): SeoSerpMarker[] {
   const devices = new Set(reads.map((row) => row.device));
   const lead = reads[0];
   if (!lead || !serpHistory) return [];
   const key = normalizeQuery(lead.keyword);
+  const page = lead.pageUrl === null ? null : pageKey(lead.pageUrl);
   return serpHistory
     .filter(
       (series) =>
@@ -90,9 +104,12 @@ export function seoSerpMarkers(
               ? "absent"
               : ai.pageCited === null
                 ? "undetermined"
-                : ai.pageCited
-                  ? "cited"
-                  : "shown",
+                : !ai.pageCited
+                  ? "shown"
+                  : point.pageUrls.length === 1 &&
+                      pageKey(point.pageUrls[0]) === page
+                    ? "cited"
+                    : "cited_checked",
           featured: !point.featured
             ? "none"
             : point.featured.pageOwned

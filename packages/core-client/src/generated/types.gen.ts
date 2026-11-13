@@ -10971,6 +10971,7 @@ export type ProjectSeoSerpSeries = {
 export type ProjectSeoSerpPoint = {
     observedAt: Date;
     observationId: string;
+    pageUrls: Array<string>;
     itemTypes: Array<string>;
     aiOverview: {
         shown: boolean;
