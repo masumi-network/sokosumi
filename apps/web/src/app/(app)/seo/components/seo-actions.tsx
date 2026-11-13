@@ -4,7 +4,7 @@ import type { ProjectSeoAction } from "@sokosumi/core-client";
 import { ArrowUpRight, ClipboardPlus, Play, Plug, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
@@ -263,6 +263,7 @@ function ActionGroup({
   severity,
   primary,
   named,
+  buttons,
 }: {
   title: string;
   /** What the group is; absent where the section title says enough. */
@@ -274,16 +275,33 @@ function ActionGroup({
   primary: ProjectSeoAction | undefined;
   /** The other group has actions too: only then a group needs its name. */
   named: boolean;
+  /** Buttons on the title line of the group, as on the other lists. */
+  buttons?: ReactNode;
 }) {
   if (!actions.length) return null;
   return (
     <div className="space-y-2">
-      {named || help ? (
-        <div className="px-2">
-          {named ? <h3 className="text-sm font-semibold">{title}</h3> : null}
-          {help ? (
-            <p className="text-muted-foreground text-sm">{help}</p>
-          ) : null}
+      {named || help || buttons ? (
+        <div className="flex items-start justify-between gap-2 px-2">
+          <div className="min-w-0 flex-1">
+            {named ? (
+              // Beside the button the title takes its height, so both share a middle line.
+              <h3 className={cn("text-sm font-semibold", buttons && "py-1.5")}>
+                {title}
+              </h3>
+            ) : null}
+            {help ? (
+              <p
+                className={cn(
+                  "text-muted-foreground text-sm",
+                  buttons && !named && "py-1.5",
+                )}
+              >
+                {help}
+              </p>
+            ) : null}
+          </div>
+          {buttons}
         </div>
       ) : null}
       <ul role="list" className={SEO_ROW_LIST_CLASS}>
@@ -313,6 +331,13 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   const primary = [...fixes, ...opportunities].find(
     (action) => action.status === "recommended",
   );
+  const csv = (
+    <SeoCsvButton
+      name="actions"
+      title={t("actions.title")}
+      table={() => seoActionsExport(overview.actions, t)}
+    />
+  );
   // Two groups on the tab: each one names itself.
   const grouped = fixes.length > 0 && opportunities.length > 0;
   // The strategy actions are a group with a title of their own: a group over them needs one too.
@@ -341,6 +366,9 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
         {overview.actions.length ? (
           <div className="space-y-5">
             <ActionGroup
+              // The export of all actions stands on the title line of the first group, as on Keywords: the
+              // section's own title line can be hidden.
+              buttons={fixes.length ? csv : undefined}
               title={t("actions.fixesTitle")}
               // Alone under "Actions", a list of fixes needs no line; suggestions keep theirs: it says they promise no traffic.
               help={grouped ? t("actions.fixesHelp") : undefined}
@@ -351,6 +379,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
               named={grouped || strategyFollows}
             />
             <ActionGroup
+              buttons={fixes.length ? undefined : csv}
               title={t("actions.opportunitiesTitle")}
               help={t("actions.opportunitiesHelp")}
               actions={opportunities}
@@ -359,14 +388,6 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
               primary={primary}
               named={grouped || strategyFollows}
             />
-            {/* Under the list: the title row can be hidden, and the button would go with it. */}
-            <div className="flex justify-end">
-              <SeoCsvButton
-                name="actions"
-                title={t("actions.title")}
-                table={() => seoActionsExport(overview.actions, t)}
-              />
-            </div>
           </div>
         ) : (
           <SeoEmpty
