@@ -188,6 +188,11 @@ model Workspace {
   imageJobs     ProjectImageJob[]
   imageAssets   ProjectImageAsset[]
 
+  adEvals       AdEval[]
+  adFeedback    AdFeedback[]
+  adEvents      AdEvent[]
+  adDataConsent WorkspaceAdDataConsent?
+
   fileResources      FileResource[]
   fileEvidenceScopes FileEvidenceScope[]
   fileLabels         WorkspaceLabel[]
@@ -519,6 +524,8 @@ model Project {
   imageSessions ProjectImageSession[]
   imageJobs     ProjectImageJob[]
   imageAssets   ProjectImageAsset[]
+
+  adFeedback AdFeedback[]
 
   creditBuckets CreditBucket[]
 
@@ -5299,6 +5306,11 @@ model ProjectImageJob {
   productId   String? @db.Uuid
   productName String?
 
+  /// Composer context retained for prompt snapshots, including recovered jobs.
+  templateId        String?
+  creativeDirection String?
+  variationIndex    Int?
+
   /// All jobs from one Content Studio composer submission.
   batchId String? @db.Uuid
 
@@ -5422,7 +5434,8 @@ model ProjectImageJob {
   /// Why the last reconcile could not reach the provider. Display only.
   lastPollError          String?
 
-  asset ProjectImageAsset?
+  asset          ProjectImageAsset?
+  promptSnapshot ProjectImagePromptSnapshot?
 
   @@unique([projectId, idempotencyKey])
   @@unique([falRequestId])
@@ -5441,6 +5454,8 @@ model ProjectImageJob {
 model ProjectImageAsset {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
+  /// Soft hide is the only mutable visibility state; generated content stays immutable.
+  hiddenAt  DateTime?
 
   projectId String  @db.Uuid
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -5487,6 +5502,11 @@ model ProjectImageAsset {
 
   review   ProjectImageReview?
   headline ProjectImageHeadline?
+
+  adEvals         AdEval[]
+  adFeedback      AdFeedback[] @relation("AdFeedbackAsset")
+  adOtherFeedback AdFeedback[] @relation("AdFeedbackOtherAsset")
+  adEvents        AdEvent[]
 
   @@unique([rootId, version])
   @@index([projectId, createdAt])

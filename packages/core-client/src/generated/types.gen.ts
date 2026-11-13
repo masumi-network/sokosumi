@@ -6245,6 +6245,9 @@ export type ProjectImageJob = {
     kind: 'GENERATE' | 'EDIT' | 'TEXT_TO_VIDEO' | 'IMAGE_TO_VIDEO';
     model: string;
     prompt: string;
+    templateId?: string;
+    creativeDirection?: string;
+    variationIndex?: number;
     settings: ProjectImageSettings;
     video: ProjectVideoSettings | null;
     referenceAssetIds: Array<string>;
@@ -10604,6 +10607,9 @@ export type SaveStudioBrandLook = {
 export type CreateProjectImageJobRequest = {
     modelId?: string;
     prompt: string;
+    templateId?: string;
+    creativeDirection?: string;
+    variationIndex?: number;
     product?: StudioProductIdentity;
     batchId?: string;
     exportHeadline?: string;
