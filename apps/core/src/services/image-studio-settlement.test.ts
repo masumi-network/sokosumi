@@ -21,6 +21,7 @@ const {
   putMock,
   requireProjectAccessForUserMock,
   getEnvMock,
+  enqueueAdEvalMock,
 } = vi.hoisted(() => ({
   jobFindUniqueMock: vi.fn(),
   jobUpdateMock: vi.fn(),
@@ -33,6 +34,11 @@ const {
   putMock: vi.fn(),
   requireProjectAccessForUserMock: vi.fn(),
   getEnvMock: vi.fn(),
+  enqueueAdEvalMock: vi.fn(),
+}));
+
+vi.mock("@/services/ad-eval.service", () => ({
+  enqueueAdEval: enqueueAdEvalMock,
 }));
 
 // `BLOB_READ_WRITE_TOKEN` is present on purpose. It is the shared *public*
@@ -228,6 +234,60 @@ describe("model and placement provenance", () => {
   });
 });
 
+describe("automatic ad eval enqueue", () => {
+  beforeEach(() => {
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+  });
+
+  it("enqueues once after inserting an image asset", async () => {
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(assetCreateMock).toHaveBeenCalledOnce();
+    expect(enqueueAdEvalMock).toHaveBeenCalledExactlyOnceWith("job-1");
+    expect(assetCreateMock.mock.invocationCallOrder[0]).toBeLessThan(
+      enqueueAdEvalMock.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("does not enqueue a job that already has an asset", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...JOB,
+      asset: { id: "existing-asset" },
+    });
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(assetCreateMock).not.toHaveBeenCalled();
+    expect(enqueueAdEvalMock).not.toHaveBeenCalled();
+  });
+
+  it("does not enqueue when the transaction finds another settler's asset", async () => {
+    assetFindUniqueMock.mockResolvedValue({ id: "existing-asset" });
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(assetCreateMock).not.toHaveBeenCalled();
+    expect(enqueueAdEvalMock).not.toHaveBeenCalled();
+  });
+
+  it("does not enqueue a settlement lease loser", async () => {
+    jobUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(assetCreateMock).not.toHaveBeenCalled();
+    expect(enqueueAdEvalMock).not.toHaveBeenCalled();
+  });
+
+  it("does not enqueue when a competing insertion wins the unique key", async () => {
+    assetCreateMock.mockRejectedValueOnce({ code: "P2002" });
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(enqueueAdEvalMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("the stored version's dimensions", () => {
   /** A real PNG header, so the byte-reading fallback has something to read. */
   function pngBytes(width: number, height: number): Uint8Array {
@@ -353,6 +413,7 @@ describe("concurrent settlement", () => {
     expect(downloadMediaMock).toHaveBeenCalledTimes(1);
     expect(putMock).toHaveBeenCalledTimes(1);
     expect(assetCreateMock).toHaveBeenCalledTimes(1);
+    expect(enqueueAdEvalMock).toHaveBeenCalledExactlyOnceWith("job-1");
   });
 
   it("writes one object per job, so a loser cannot leave an orphan", async () => {
@@ -487,6 +548,7 @@ describe("a settlement whose storage write fails", () => {
     await expect(
       settleWithMedia("job-1", "https://v3b.fal.media/files/a.png"),
     ).resolves.toBeUndefined();
+    expect(enqueueAdEvalMock).not.toHaveBeenCalled();
   });
 
   it("hands the lease back to the owner that took it", async () => {
@@ -573,6 +635,7 @@ describe("settling a video", () => {
         height: 0,
       }),
     });
+    expect(enqueueAdEvalMock).not.toHaveBeenCalled();
   });
 
   it("calls an mp4 a CDN mislabelled a video, so it stays playable", async () => {

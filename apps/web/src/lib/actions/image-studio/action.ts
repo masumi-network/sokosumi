@@ -43,6 +43,9 @@ interface StartGenerationParameters extends AuthenticatedRequest {
    */
   modelId: string | null;
   prompt: string;
+  templateId?: string;
+  creativeDirection?: string;
+  variationIndex?: number;
   /**
    * Passed through whole. Spelling the fields out here meant every new
    * setting — `placementId` was the one that exposed it — had to be added in
@@ -107,6 +110,13 @@ export const startImageGeneration = withSession<
         ? { modelId: input.modelId as CreateProjectImageJobRequest["modelId"] }
         : {}),
       prompt: input.prompt,
+      ...(input.templateId ? { templateId: input.templateId } : {}),
+      ...(input.creativeDirection
+        ? { creativeDirection: input.creativeDirection }
+        : {}),
+      ...(input.variationIndex !== undefined
+        ? { variationIndex: input.variationIndex }
+        : {}),
       settings: input.settings,
       referenceAssetIds: input.referenceAssetIds,
       ...(input.referenceFileIds?.length

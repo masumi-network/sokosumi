@@ -122,6 +122,26 @@ const REQUEST = {
 } satisfies Parameters<typeof startImageGeneration>[0];
 
 describe("starting image generation", () => {
+  it("forwards prompt metadata including the first variation", async () => {
+    createJob.mockResolvedValue({ id: "job-1" });
+
+    await startImageGeneration({
+      ...REQUEST,
+      templateId: "social-post",
+      creativeDirection: "lifestyle",
+      variationIndex: 0,
+    });
+
+    expect(createJob).toHaveBeenCalledWith(
+      "project-1",
+      expect.objectContaining({
+        templateId: "social-post",
+        creativeDirection: "lifestyle",
+        variationIndex: 0,
+      }),
+    );
+  });
+
   it("preserves the request identity and returns the accepted job", async () => {
     const job = { id: "job-1" };
     createJob.mockResolvedValue(job);
