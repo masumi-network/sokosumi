@@ -180,8 +180,9 @@ export async function SokoBotHome({
                         aria-hidden
                         className="text-muted-foreground size-4 shrink-0"
                       />
-                      {/* On a phone one line cut the reminder's name off, so
-                          the bot and the reminder get a line each there. */}
+                      {/* On a phone the time beside the text left it about
+                          130px and cut the bot and the reminder off, so there
+                          the bot, the reminder and the time get a line each. */}
                       <span className="min-w-0 flex-1 text-sm sm:truncate">
                         <span className="text-foreground block truncate sm:inline">
                           {t("newSchedule", { name: botName })}
@@ -190,8 +191,13 @@ export async function SokoBotHome({
                           <span className="hidden sm:inline"> · </span>
                           {row.schedule.name}
                         </span>
+                        <span className="block sm:hidden">
+                          {timeOf(row.at)}
+                        </span>
                       </span>
-                      {timeOf(row.at)}
+                      <span className="hidden sm:contents">
+                        {timeOf(row.at)}
+                      </span>
                     </Link>
                   </li>
                 ) : row.kind === "chat" ? (
