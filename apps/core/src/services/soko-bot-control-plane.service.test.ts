@@ -4669,6 +4669,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       chargedCents: 5n,
       expectedCents: 5n,
       shortfall: false,
+      organizationId: null,
     });
     let insideTransaction = false;
     let notifiedInsideTransaction: boolean | null = null;
@@ -4691,7 +4692,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     const settled = await new SokoBotControlPlane().expireTurn("turn_1");
 
     expect(settled).toBe(true);
-    // After the transaction, on the personal wallet Soko Bot turns bill.
+    // After the transaction, on the wallet the turn was charged to.
     expect(notifiedInsideTransaction).toBe(false);
     expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
       userId: "user_1",
@@ -4715,6 +4716,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       chargedCents: 5n,
       expectedCents: 5n,
       shortfall: false,
+      organizationId: null,
     });
 
     const settled = await new SokoBotControlPlane().expireTurn("turn_1");
@@ -4723,6 +4725,36 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
       userId: "user_1",
       organizationId: null,
+    });
+  });
+
+  it("checks the Organization wallet a turn in an Organization workspace drew on", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      sokoBotId: BOT_ID,
+      requestedByUserId: "user_1",
+      eveSessionId: "session_1",
+      startedAt: new Date(Date.now() - 5_000),
+      costUsdMicros: 0n,
+      status: "RUNNING",
+      leaseToken: "lease_1",
+      scheduleRun: null,
+    });
+    turnUpdateManyMock.mockResolvedValue({ count: 1 });
+    botUpdateManyMock.mockResolvedValue({ count: 1 });
+    recordUsageMock.mockResolvedValue({
+      chargedCents: 5n,
+      expectedCents: 5n,
+      shortfall: false,
+      organizationId: "org_1",
+    });
+
+    await new SokoBotControlPlane().expireTurn("turn_1");
+
+    // Not the member's personal wallet: a new Organization owner has none,
+    // and was told "0 left" while the Organization held 249 credits.
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
+      userId: "user_1",
+      organizationId: "org_1",
     });
   });
 
