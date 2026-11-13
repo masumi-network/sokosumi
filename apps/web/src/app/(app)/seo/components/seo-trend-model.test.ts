@@ -1,3 +1,4 @@
+import { GOOGLE_EVENTS_AS_OF } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import { seoChartEvents, seoTrendModel } from "./seo-trend-model";
 
@@ -188,6 +189,29 @@ describe("seoTrendModel Google update bands", () => {
     ]);
   });
 
+  it("runs the band of an update still rolling out to the as-of day of the table", () => {
+    // 2026-11-08 to 2026-11-15: the November 2026 core update started on 2026-11-10, with no end on 2026-11-13.
+    const november = Array.from({ length: 8 }, (_, index) => ({
+      date: `2026-11-${String(8 + index).padStart(2, "0")}`,
+      value: 1,
+    }));
+    const model = seoTrendModel(november, "count");
+    expect(model.updates).toEqual([
+      expect.objectContaining({
+        name: "November 2026 core update",
+        first: "2026-11-10",
+        last: "2026-11-13",
+        x: 25,
+        width: 50,
+      }),
+    ]);
+    expect(model.updatesOn("2026-11-13")).toEqual([
+      "November 2026 core update",
+    ]);
+    expect(model.updatesOn("2026-11-14")).toEqual([]);
+    expect(model.updatesAsOf).toBe("2026-11-13");
+  });
+
   it("draws no band without points", () => {
     expect(
       seoTrendModel([], "count", [], false, [event("2026-10-11", "2026-10-12")])
@@ -238,7 +262,12 @@ describe("seoTrendModel updatesAsOf", () => {
   it("names the end of the update table only beside a band or past that end", () => {
     const old = [{ date: "2026-01-02", value: 1 }];
     expect(seoTrendModel(old, "count", [], false, []).updatesAsOf).toBeNull();
-    const late = [{ date: "2026-11-01", value: 1 }];
+    const late = [
+      {
+        date: `${Number(GOOGLE_EVENTS_AS_OF.slice(0, 4)) + 1}-01-01`,
+        value: 1,
+      },
+    ];
     expect(seoTrendModel(late, "count", [], false, []).updatesAsOf).toMatch(
       /^\d{4}-\d{2}-\d{2}$/,
     );

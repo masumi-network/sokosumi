@@ -8,7 +8,7 @@
  */
 
 /** The day the bot's stored copies of the dashboard and the Data anomalies page were fetched. */
-export const GOOGLE_EVENTS_AS_OF = "2026-09-24";
+export const GOOGLE_EVENTS_AS_OF = "2026-11-13";
 
 export type GoogleEventKind =
   | "core update"
@@ -30,6 +30,8 @@ export interface GoogleEvent {
   clicks: boolean;
   /** The pages it touches, when not every page. */
   scope?: string;
+  /** Still rolling out on the as-of day: last is that day, not the real end. */
+  open?: true;
   sources: string[];
 }
 
@@ -97,6 +99,14 @@ export const GOOGLE_EVENTS: readonly GoogleEvent[] = [
   update("May 2026 core update", "2026-05-21", "2026-06-02", ["G6-044"]),
   update("June 2026 spam update", "2026-06-24", "2026-06-26", ["G6-044"]),
   update("August 2026 spam update", "2026-08-18", "2026-08-21", ["G6-044"]),
+  // The core update had no end on the as-of day: its band runs to that day, and the next copy sets the real end.
+  update("September 2026 spam update", "2026-09-24", "2026-10-08", ["GB-035"]),
+  {
+    ...update("November 2026 core update", "2026-11-10", GOOGLE_EVENTS_AS_OF, [
+      "GB-035",
+    ]),
+    open: true,
+  },
   {
     name: "Impressions logging error",
     kind: "data anomaly",
