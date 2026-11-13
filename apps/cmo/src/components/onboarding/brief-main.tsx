@@ -16,6 +16,7 @@ import {
 import { channelLabel, formatDay, planWeeks } from "../../lib/calendar";
 import { channelKey } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
+import { joinNames } from "../../lib/names";
 import { strategyApproved } from "../../lib/strategy";
 import { VIEW_PATHS } from "../../lib/views";
 import { firstSentence, hostOf } from "../brand-profile";
@@ -33,7 +34,6 @@ import {
   adWeek,
   type BriefLocal,
   brandFixPending,
-  briefSteps,
   questionEntry,
   STAGES,
   type StageId,
@@ -70,7 +70,7 @@ function SeeMore({ label, children }: SeeMoreProps) {
         aria-controls={id}
         onClick={() => setOpen(!open)}
       >
-        {open ? "Show less" : `See more: ${label}`}
+        {open ? "Show less" : label}
       </button>
       <div id={id} className="brief-more-body" hidden={!open}>
         {open ? children : null}
@@ -96,19 +96,24 @@ function GroupChips({ overview }: { overview: CmoOverview }) {
   );
 }
 
-/** One result: a small label, the line, then where it comes from. */
+/**
+ * One result: a small label, the line, then where it comes from. A quiet
+ * result keeps its label for screen readers only, when the card says it.
+ */
 function Result({
   label,
   source,
+  quiet = false,
   children,
 }: {
   label: string;
   source?: string | undefined;
+  quiet?: boolean;
   children: ReactNode;
 }) {
   return (
     <section className="card brief-result" aria-label={label}>
-      <p className="brief-result-head">{label}</p>
+      {quiet ? null : <p className="brief-result-head">{label}</p>}
       {children}
       {source ? <p className="brief-source">{source}</p> : null}
     </section>
@@ -244,7 +249,7 @@ function BrandCheckResult({ overview }: { overview: CmoOverview }) {
   const line = brain.reveal?.positioning ?? firstSentence(brain.summary);
   return (
     <>
-      <Result label={`${businessDisplayName(overview)}, in one line`}>
+      <Result label={`${businessDisplayName(overview)}, in one line`} quiet>
         <p className="brief-statement">{line}</p>
       </Result>
       <ul className="brief-findings">
@@ -269,21 +274,18 @@ function PlanWriting({ overview }: { overview: CmoOverview }) {
   return (
     <>
       <section className="card brief-result" aria-label="Your briefing">
-        <p className="brief-result-head">
-          <span>Your briefing is being written</span>
-        </p>
         <Checklist
           items={[
             {
-              label: "Goal, moves, pillars and channels",
+              label: "Goal and moves",
               state: strategy ? "done" : running ? "working" : "next",
             },
             {
-              label: `Four weeks, day by day: week one in full, then titles${pieces > 0 ? ` · ${pieces} pieces so far` : ""}`,
+              label: "Four weeks, day by day",
               state: !strategy ? "next" : running ? "working" : "done",
             },
             {
-              label: "A last check of the whole month",
+              label: "A last check",
               state: strategy && pieces > 0 && !running ? "done" : "next",
             },
           ]}
@@ -494,9 +496,7 @@ function AdResult({ strategy }: { strategy: Strategy }) {
   const search = ad.searchAd;
   const week = adWeek(strategy, ad.date);
   return (
-    <Result
-      label={`${week ? `Week ${week} · ` : ""}first of ${ads.length} ${ad.channel === "meta_ads" ? "Meta" : "search"} ${ads.length === 1 ? "ad" : "ads"}`}
-    >
+    <Result label={`${week ? `Week ${week} · ` : ""}ad 1 of ${ads.length}`}>
       <p className="brief-line">
         {search?.headlines.slice(0, 2).join(" | ") ?? ad.title}
       </p>
@@ -546,38 +546,10 @@ function AdsDetail({ strategy }: { strategy: Strategy }) {
   );
 }
 
-const BRIEF_STEP_LABELS = {
-  plan: "The plan",
-  week: "Week one",
-  checks: "Your checks",
-  ads: "Ads",
-} as const;
-
-/** Where the briefing is: its steps in a row, the current one marked. */
-function BriefingSteps({
-  overview,
-  current,
-}: {
-  overview: CmoOverview;
-  current: keyof typeof BRIEF_STEP_LABELS | null;
-}) {
-  return (
-    <ol className="brief-steps-row" aria-label="Your briefing">
-      {briefSteps(overview).map((step, index) => (
-        <li
-          key={step}
-          aria-current={step === current ? "step" : undefined}
-          className={step === current ? "now" : undefined}
-        >
-          {index + 1} {BRIEF_STEP_LABELS[step]}
-        </li>
-      ))}
-    </ol>
-  );
-}
+type BriefStep = "plan" | "week" | "checks" | "ads";
 
 /** Which briefing step an ask belongs to. */
-function briefingStep(ask: Ask | null): keyof typeof BRIEF_STEP_LABELS | null {
+function briefingStep(ask: Ask | null): BriefStep | null {
   switch (ask?.kind) {
     case "briefing-plan":
       return "plan";
@@ -606,7 +578,6 @@ function Networks({
   );
   return (
     <section className="card brief-result" aria-label="Where your month posts">
-      <p className="brief-result-head">Where your month posts</p>
       <ul className="brief-networks">
         {networks.map((network) => (
           <li key={network.key}>
@@ -628,9 +599,8 @@ function Networks({
       </ul>
       {others.length > 0 ? (
         <p className="muted">
-          {others.map((channel) => channelLabel(channel.channel)).join(", ")}{" "}
-          {others.length === 1 ? "needs" : "need"} no account here. Ads connect
-          in Settings when you are ready.
+          {joinNames(others.map((channel) => channelLabel(channel.channel)))}{" "}
+          {others.length === 1 ? "needs" : "need"} no account here.
         </p>
       ) : null}
     </section>
@@ -654,14 +624,17 @@ function YourMonth({ overview }: { overview: CmoOverview }) {
             : "You're live."}
         </b>
       </p>
-      <Result label="Your month">
+      <Result label="Your month" quiet>
         <p className="brief-big num">
           <TypeIn text={`${written} of ${months} written`} />
         </p>
-        <p className="muted">
-          Words first, then pictures. Posts are scheduled on your networks as
-          they finish.
-        </p>
+        <span className="brief-progress" aria-hidden="true">
+          <span
+            style={{
+              width: `${months > 0 ? Math.round((written / months) * 100) : 0}%`,
+            }}
+          />
+        </span>
       </Result>
     </>
   );
@@ -712,6 +685,11 @@ function Away({ overview }: { overview: CmoOverview }) {
   );
 }
 
+/** How many sections the Brand Brain saved. */
+function savedCount(overview: CmoOverview): number {
+  return Object.keys(brandProfile(overview.brandBrain as BrandBrain)).length;
+}
+
 /** Every section the Brand Brain saved, one result each. */
 function SavedSections({ overview }: { overview: CmoOverview }) {
   const profile = brandProfile(overview.brandBrain as BrandBrain);
@@ -758,10 +736,11 @@ function StageReview({
           <GroupChips overview={overview} />
           <Result
             label={`What I learned about ${businessDisplayName(overview)}`}
+            quiet
           >
             <p className="brief-statement">{brain.summary}</p>
           </Result>
-          <SeeMore label="the sections I saved">
+          <SeeMore label={`All ${savedCount(overview)} sections`}>
             <SavedSections overview={overview} />
           </SeeMore>
         </>
@@ -770,7 +749,7 @@ function StageReview({
       return brain ? (
         <>
           <BrandCheckResult overview={overview} />
-          <SeeMore label="every section of your Brand Brain">
+          <SeeMore label="Your Brand Brain">
             <SavedSections overview={overview} />
           </SeeMore>
         </>
@@ -780,7 +759,7 @@ function StageReview({
         <>
           <Goal strategy={strategy} />
           <Moves overview={overview} strategy={strategy} />
-          <SeeMore label="the whole strategy: pillars, channels, funnel, budget, measurement">
+          <SeeMore label="The whole strategy">
             <PlanPanel overview={overview} strategy={strategy} />
           </SeeMore>
         </>
@@ -880,10 +859,7 @@ export function BriefMain({
         <GroupChips overview={overview} />
         {running || !work ? (
           preview ? (
-            <Result
-              label="A first look, from your homepage alone"
-              source={site}
-            >
+            <Result label="From your homepage" source={site}>
               <p className="brief-statement">
                 <TypeIn text={preview.line} />
               </p>
@@ -908,7 +884,11 @@ export function BriefMain({
         ) : null}
         {work && work.steps.length > 0 ? (
           <SeeMore
-            label={`every page I've read so far, ${work.steps.length} ${work.steps.length === 1 ? "step" : "steps"}`}
+            label={
+              ask?.kind === "research-retry"
+                ? "Pages read"
+                : `All ${work.steps.length} ${work.steps.length === 1 ? "page" : "pages"}`
+            }
           >
             <ResearchDetail overview={overview} />
           </SeeMore>
@@ -945,19 +925,12 @@ export function BriefMain({
         ) : (
           <Result
             label={`What I learned about ${businessDisplayName(overview)}`}
+            quiet
           >
             <p className="brief-statement">{brain?.summary}</p>
           </Result>
         )}
-        <SeeMore
-          label={
-            stage === "research"
-              ? "the sections I'm writing"
-              : "your whole Brand Brain: sections, voice, competitors, market map"
-          }
-        >
-          {brandDetail}
-        </SeeMore>
+        <SeeMore label="Your Brand Brain">{brandDetail}</SeeMore>
       </>
     );
   } else if (stage === "plan") {
@@ -965,7 +938,7 @@ export function BriefMain({
       <>
         <PlanWriting overview={overview} />
         {strategy ? (
-          <SeeMore label="the plan as it is written">
+          <SeeMore label="The plan so far">
             <PlanPanel overview={overview} strategy={strategy} />
           </SeeMore>
         ) : null}
@@ -983,12 +956,6 @@ export function BriefMain({
     const weekView = (title: string, pick: boolean) => (
       <section className="brief-result card" aria-label="Week one">
         <p className="brief-result-head">{title}</p>
-        {step === "week" ? (
-          <p className="muted">
-            Each piece: title, brief and why. The finished words and pictures
-            are made after you approve.
-          </p>
-        ) : null}
         <WeekList
           entries={week}
           patched={patched}
@@ -1003,19 +970,16 @@ export function BriefMain({
     const piece = question ? questionEntry(strategy, question) : null;
     body = (
       <>
-        <BriefingSteps overview={overview} current={step} />
         {changing ? (
           <>
             {weekView("Week one · being changed", false)}
-            <SeeMore label="what changed, and what it was before">
-              {monthDetail}
-            </SeeMore>
+            <SeeMore label="What changed">{monthDetail}</SeeMore>
           </>
         ) : step === "plan" ? (
           <>
             <Goal strategy={strategy} />
             <Moves overview={overview} strategy={strategy} />
-            <SeeMore label="the whole strategy: pillars, channels, funnel, budget, measurement">
+            <SeeMore label="The whole strategy">
               <PlanReview
                 overview={overview}
                 titled={false}
@@ -1025,38 +989,29 @@ export function BriefMain({
           </>
         ) : step === "week" ? (
           <>
-            {weekView(
-              `Week one · ${weekRange} · ${week.length} ${week.length === 1 ? "piece" : "pieces"}`,
-              true,
-            )}
-            <SeeMore
-              label={`all ${strategy.calendar.length}, and weeks 2 to 4`}
-            >
-              {monthDetail}
-            </SeeMore>
+            {weekView(`Week one · ${weekRange}`, true)}
+            <SeeMore label="Weeks 2 to 4">{monthDetail}</SeeMore>
           </>
         ) : question ? (
           <>
             {piece ? (
-              <section className="brief-result card" aria-label="The piece">
-                <p className="brief-result-head">
-                  The piece this question changes
-                </p>
+              <section
+                className="brief-result card"
+                aria-label="The piece this question changes"
+              >
                 <WeekList entries={[piece]} patched={patched} />
               </section>
             ) : (
-              <Result label="What a yes keeps in the plan">
+              <Result label="What a yes keeps in the plan" quiet>
                 <p className="brief-line">{question.statement}</p>
               </Result>
             )}
-            <SeeMore label="week one">{weekView("Week one", false)}</SeeMore>
+            <SeeMore label="Week one">{weekView("Week one", false)}</SeeMore>
           </>
         ) : step === "ads" ? (
           <>
             <AdResult strategy={strategy} />
-            <SeeMore
-              label={`all ${adEntries(strategy).length} ads and what I expect from them`}
-            >
+            <SeeMore label={`All ${adEntries(strategy).length} ads`}>
               <AdsDetail strategy={strategy} />
             </SeeMore>
           </>
@@ -1069,17 +1024,10 @@ export function BriefMain({
     // The one gate: the whole month in one table, and what approval starts.
     body = (
       <>
-        <Result label="Your month, in one table">
+        <Result label="Your month, in one table" quiet>
           <MonthTable strategy={strategy} />
         </Result>
-        <Result label="When you approve">
-          <p>
-            I start making all {strategy.calendar.length} pieces: words first,
-            then pictures. Nothing posts on a network you haven't connected. You
-            can change or stop any piece later.
-          </p>
-        </Result>
-        <SeeMore label="the full calendar">{monthDetail}</SeeMore>
+        <SeeMore label="Full calendar">{monthDetail}</SeeMore>
       </>
     );
   } else if (stage === "golive") {
@@ -1092,7 +1040,7 @@ export function BriefMain({
           className="brief-more-toggle"
           href={`${VIEW_PATHS.calendar}?project=${encodeURIComponent(overview.projectId)}`}
         >
-          See more: your calendar, in the Calendar view
+          Calendar
         </a>
       </>
     );

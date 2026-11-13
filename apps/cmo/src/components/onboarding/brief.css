@@ -1,5 +1,6 @@
 /*
- * Brief me: one result on the page, one bar at the bottom. Follows
+ * Brief me: the stages on top, one result on the page, Cuso's dock at the
+ * bottom. Follows
  * design-system.md; tokens only, from globals.css.
  */
 
@@ -236,22 +237,19 @@
   font-weight: 600;
 }
 
-.brief-steps-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  color: var(--muted);
-  font-size: 0.75rem;
-  line-height: 1rem;
-  font-weight: 500;
+/* How much of the month is written, under the count. */
+.brief-progress {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-mark);
+  background: var(--border);
 }
 
-.brief-steps-row .now {
-  color: var(--foreground);
-  font-weight: 600;
+.brief-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--foreground);
 }
 
 .brief-week {
@@ -371,9 +369,7 @@ button.brief-week-row:hover .brief-week-text b {
 .brief-bar-inner {
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr);
-  grid-template-areas:
-    "cuso body"
-    "line line";
+  grid-template-areas: "cuso body";
   gap: 16px 24px;
   width: 100%;
   max-width: 960px;
@@ -396,10 +392,6 @@ button.brief-week-row:hover .brief-week-text b {
   gap: 8px;
   align-content: start;
   min-width: 0;
-}
-
-.brief-bar-timeline {
-  grid-area: line;
 }
 
 .brief-state {
@@ -579,24 +571,38 @@ button.brief-week-row:hover .brief-week-text b {
   font-size: 1rem;
 }
 
-/* ── The timeline ── */
-.brief-timeline {
+/* ── The stages: one slim row under the header, always in view ── */
+.brief .brief-top {
+  position: static;
+}
+
+.brief-stages {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  border-bottom: 1px solid var(--border);
+  background: var(--background);
+}
+
+.brief-stage-list {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
-  margin: 0;
-  padding: 0;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 10px 32px 8px;
   list-style: none;
 }
 
-.brief-timeline > li {
+.brief-stage-list > li {
   display: grid;
   min-width: 0;
 }
 
 .brief-stage {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -616,62 +622,74 @@ button.brief-stage:disabled {
   cursor: default;
 }
 
-button.brief-stage:not(:disabled):hover .brief-stage-label,
-.brief-stage.viewed .brief-stage-label {
+button.brief-stage:not(:disabled):hover .brief-stage-label {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
-/* The stage the page shows: an ink underline, apart from the progress fill. */
-.brief-stage.viewed .brief-stage-label {
-  color: var(--foreground);
-  text-decoration-thickness: 2px;
-}
-
-.brief-stage-rule {
+.brief-stage-rule,
+.brief-stage-strip > span {
+  box-sizing: border-box;
   height: 4px;
+  border: 1px solid var(--border);
   border-radius: var(--radius-mark);
-  background: var(--border);
 }
 
-.brief-stage.done .brief-stage-rule {
-  background: var(--line);
+.brief-stage.done .brief-stage-rule,
+.brief-stage-strip > .done {
+  border-color: var(--foreground);
+  background: var(--foreground);
 }
 
-.brief-stage.now .brief-stage-rule {
+.brief-stage.now .brief-stage-rule,
+.brief-stage-strip > .now {
+  border-color: var(--line);
   background: var(--primary);
 }
 
-.brief-stage.background .brief-stage-rule {
+.brief-stage.background .brief-stage-rule,
+.brief-stage-strip > .background {
   border: 1px dashed var(--line);
-  background: none;
 }
 
 .brief-stage-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   overflow: hidden;
   color: var(--muted);
   font-size: 0.75rem;
   line-height: 1rem;
+  font-weight: 500;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.brief-stage-label .dot {
+  width: 6px;
+  height: 6px;
 }
 
 .brief-stage.done .brief-stage-label,
+.brief-stage.background .brief-stage-label {
+  color: var(--foreground);
+}
+
 .brief-stage.now .brief-stage-label {
   color: var(--foreground);
-  font-weight: 600;
+  font-weight: 700;
 }
 
-.brief-stage-who {
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 0.6875rem;
-  line-height: 0.875rem;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+/* The stage the page shows: an ink underline, apart from the progress fill. */
+.brief-stage.viewed .brief-stage-label,
+.brief-viewed {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 
-.brief-fold {
+/* The phone's row: the stage, where it sits, and the strip. */
+.brief-stage-row {
   display: none;
 }
 
@@ -680,6 +698,7 @@ button.brief-stage:not(:disabled):hover .brief-stage-label,
   align-items: center;
   gap: 4px;
   justify-self: start;
+  align-self: flex-start;
   padding: 0;
   border: 0;
   background: none;
@@ -695,33 +714,43 @@ button.brief-stage:not(:disabled):hover .brief-stage-label,
   text-underline-offset: 3px;
 }
 
-/* ── The phone's sheet of stages ── */
-.brief-sheet {
+/*
+ * ── The phone's sheet: it drops down from the stage row ──
+ * The backdrop sits outside the stage bar, under the dock: the page dims,
+ * the question being answered stays clear.
+ */
+.brief-sheet-backdrop {
   position: fixed;
-  right: 8px;
-  bottom: 8px;
-  left: 8px;
-  z-index: 41;
-  display: grid;
-  gap: 8px;
-  max-height: calc(100dvh - 16px);
-  padding: 16px;
-  overflow-y: auto;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--card);
+  inset: 0;
+  z-index: 15;
+  background: var(--scrim);
 }
 
-.brief-sheet-head {
-  display: flex;
-  align-items: center;
+.brief-sheet {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 31;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0 0 var(--radius-panel) var(--radius-panel);
+  background: var(--card);
+  box-shadow: var(--shadow-hard);
+}
+
+.brief-sheet .brief-stage-row {
+  border-bottom: 1px solid var(--border);
 }
 
 .brief-sheet-list {
   display: grid;
   margin: 0;
-  padding: 0;
+  padding: 0 16px 4px;
   list-style: none;
+}
+
+.brief-sheet-list li + li {
+  border-top: 1px solid var(--border);
 }
 
 .brief-sheet-row {
@@ -730,14 +759,14 @@ button.brief-stage:not(:disabled):hover .brief-stage-label,
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  min-height: 48px;
-  padding: 8px;
+  min-height: 44px;
+  padding: 0;
   border: 0;
-  border-radius: var(--radius-control);
   background: none;
   color: var(--foreground);
   font: inherit;
   font-size: 0.875rem;
+  font-weight: 500;
   text-align: left;
   cursor: pointer;
 }
@@ -747,23 +776,14 @@ button.brief-stage:not(:disabled):hover .brief-stage-label,
   cursor: default;
 }
 
-.brief-sheet-row:disabled b {
-  font-weight: 500;
+.brief-sheet-row.now {
+  font-weight: 700;
 }
 
-.brief-sheet-name {
-  display: grid;
-  gap: 2px;
-}
-
-.brief-sheet-name .muted {
-  font-size: 0.75rem;
-}
-
-.brief-sheet-row.viewed b {
+.brief-sheet-row.viewed .brief-sheet-name {
   text-decoration: underline;
   text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
+  text-underline-offset: 4px;
 }
 
 .brief-sheet-state {
@@ -772,18 +792,50 @@ button.brief-stage:not(:disabled):hover .brief-stage-label,
   gap: 6px;
   color: var(--muted);
   font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.brief-sheet-row.now .brief-sheet-state,
+.brief-sheet-row.done .brief-sheet-state {
+  color: var(--foreground);
 }
 
 /* The current stage keeps its Iris, as a fill. */
-.brief-sheet-row.now .brief-sheet-state::before {
-  content: "";
+.brief-now-dot {
   width: 8px;
   height: 8px;
+  border: 1px solid var(--line);
   border-radius: 50%;
   background: var(--primary);
 }
 
-/* ── Phone: the timeline folds into one line, the chat takes the bottom half ── */
+/* ── The field: a currency in front for a number ── */
+.brief-field {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+}
+
+.brief-field.has-prefix {
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--card);
+}
+
+.brief-prefix {
+  padding: 0 8px 0 10px;
+  border-right: 1px solid var(--border);
+  font-weight: 500;
+}
+
+.brief-field.has-prefix input {
+  height: 30px;
+  border: 0;
+}
+
+/* ── Phone: the stages fold into one row, the dock takes the bottom ── */
 @media (max-width: 767px) {
   .brief-main {
     padding: 16px 16px 56px;
@@ -826,87 +878,54 @@ button.brief-stage:not(:disabled):hover .brief-stage-label,
     transform-origin: top left;
   }
 
-  .brief-timeline {
+  .brief-stage-list {
     display: none;
   }
 
-  .brief-fold {
+  .brief-stage-row {
     display: grid;
     gap: 8px;
-    padding-top: 8px;
-    border-top: 1px solid var(--border);
-  }
-
-  .brief-fold-button {
     width: 100%;
     min-height: 44px;
-    padding-right: 0;
-    padding-bottom: 0;
-    padding-left: 0;
-    border-right: 0;
-    border-bottom: 0;
-    border-left: 0;
+    padding: 10px 16px;
+    border: 0;
     background: none;
-    color: inherit;
+    color: var(--foreground);
     font: inherit;
     text-align: left;
+  }
+
+  button.brief-stage-row {
     cursor: pointer;
   }
 
-  .brief-fold-chevron {
-    flex: none;
-    margin-left: auto;
-  }
-
-  .brief-fold-line {
+  .brief-stage-row-line {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 4px 12px;
-    margin: 0;
-    font-size: 0.75rem;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 0.875rem;
     line-height: 1rem;
   }
 
-  /* The seven stages as segments, marked like the desktop timeline. */
-  .brief-fold-strip {
+  .brief-stage-row-line b {
+    font-weight: 700;
+  }
+
+  .brief-stage-row-line svg {
+    align-self: center;
+    margin-left: auto;
+  }
+
+  .brief-stage-strip {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 4px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .brief-fold-strip li {
-    box-sizing: border-box;
-    height: 5px;
-    border-radius: var(--radius-mark);
-    background: var(--border);
-  }
-
-  .brief-fold-strip .done {
-    background: var(--line);
-  }
-
-  .brief-fold-strip .now {
-    background: var(--primary);
-  }
-
-  .brief-fold-strip .background {
-    border: 1px dashed var(--line);
-    background: none;
   }
 
   /* Send under the field, so a placeholder reads in full. */
-  .brief-note input {
+  .brief-field,
+  .brief-note > input {
     flex-basis: 100%;
-  }
-
-  .brief-bar-asking .brief-bar-inner {
-    grid-template-areas:
-      "cuso body"
-      "line line";
   }
 
   .brief-week-row {
@@ -923,13 +942,6 @@ button.brief-stage:not(:disabled):hover .brief-stage-label,
 .brief-hero {
   justify-content: center;
   gap: 16px;
-}
-
-.brief-lede {
-  max-width: 560px;
-  margin: 0;
-  font-size: 1rem;
-  line-height: 1.5rem;
 }
 
 .brief-hire {

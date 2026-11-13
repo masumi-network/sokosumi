@@ -28,13 +28,12 @@ import {
   type BriefLocal,
   briefAsks,
   briefStage,
-  meanwhile,
   planUnfitted,
   type StageId,
   stageMarks,
   workingStatus,
 } from "./brief";
-import { type BarMode, BriefBar } from "./brief-bar";
+import { type BarMode, BriefBar, StageBar } from "./brief-bar";
 import {
   askCount,
   askKey,
@@ -438,7 +437,6 @@ export function OnboardingFlow({
   if (changing && work?.kind === "strategy" && running && work.change) {
     status.title = `Changing: ${changing}`;
   }
-  const doing = meanwhile(overview);
   const later = () => {
     if (!ask) return;
     setAway(false);
@@ -467,15 +465,13 @@ export function OnboardingFlow({
     mode = {
       kind: "folded",
       waiting: asks.length,
-      meanwhile: doing,
       onOpen: () => setFoldedAt(null),
     };
   } else if (away) {
     mode = {
       kind: "asking",
-      count: `1 of ${asks.length}`,
+      count: "",
       askKey: "away",
-      meanwhile: doing,
       onLater: () => {
         setAway(false);
         setFoldedAt(key);
@@ -489,7 +485,6 @@ export function OnboardingFlow({
       kind: "asking",
       count: askCount(ask, overview),
       askKey: key ?? "",
-      meanwhile: doing,
       onLater: later,
       chat: (
         <>
@@ -527,6 +522,7 @@ export function OnboardingFlow({
           signOut={actions.signOut}
         />
       </header>
+      <StageBar marks={marks} viewing={looking} onView={view} />
       <BriefMain
         overview={overview}
         stage={stage}
@@ -559,13 +555,7 @@ export function OnboardingFlow({
           },
         }}
       />
-      <BriefBar
-        marks={marks}
-        pose={poseFor(mode.kind, overview)}
-        mode={mode}
-        viewing={looking}
-        onView={view}
-      />
+      <BriefBar pose={poseFor(mode.kind, overview)} mode={mode} />
     </div>
   );
 }

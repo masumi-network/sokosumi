@@ -6,7 +6,7 @@ import { CusoStatus } from "../../components/app/cuso-status";
 import { Sidebar } from "../../components/app/sidebar";
 import { CusoAvatar } from "../../components/cuso";
 import { STAGES } from "../../components/onboarding/brief";
-import { Timeline } from "../../components/onboarding/brief-bar";
+import { StageBar } from "../../components/onboarding/brief-bar";
 import { Checklist, SkeletonTile } from "../../components/onboarding/checklist";
 import { GoalBlock, SidePanel, Tile } from "../../components/onboarding/tiles";
 import { AGENT_NAME } from "../../lib/agent";
@@ -49,8 +49,8 @@ export function PartsPreview() {
   return (
     <div className="ds-parts">
       <div className="ds-part">
-        <p className="ds-t-small muted">Timeline (the bar's seven stages)</p>
-        <Timeline
+        <p className="ds-t-small muted">Stage bar (the seven stages)</p>
+        <StageBar
           marks={STAGES.map((stage, index) => ({
             ...stage,
             state:
@@ -61,12 +61,6 @@ export function PartsPreview() {
                   : index === 3
                     ? "background"
                     : "next",
-            who:
-              index < 2
-                ? "done"
-                : index === 3
-                  ? `${AGENT_NAME} · writing`
-                  : stage.who,
           }))}
         />
       </div>

@@ -6,7 +6,7 @@ The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi pale
 - **Source:** the concept canvas https://claude.ai/artifact/9mWPtBgNY9HQ8wLXcadZk4 (boards Vibe, Site, Reading, Brand, Plan, Launch, Home, each with a dark version). Where a board and this file disagree, this file wins; Plan, Launch and Home on the canvas still use the earlier "Cuso Pop" radii, pills and 2px borders, which this file replaces.
 - **Family:** colours follow the [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide). CMO is its own product: never Sokosumi chrome, names or wording.
 - **Tokens:** values live once, as CSS custom properties in `src/app/globals.css`. Components read tokens, never literals. `src/design-guards.test.ts` enforces the rules below; `src/components/showcases.css` is exempt because it draws the networks' own UIs.
-- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (the timeline, checklist, tile, side panel, goal block, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (one per state on the Brief me boards: hire, research, research-question, brand, plan, briefing-plan, briefing-week, briefing-checks, briefing-ads, briefing-change, approve, connect, month, and the slow, error, words and away states) and `/design-system/app/<view>` (chat, strategy, calendar, results, brain, channels, settings) render each real screen over fixture data (`?theme=dark` pins the theme).
+- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (the stage bar, checklist, tile, side panel, goal block, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (one per state on the Brief me boards: hire, research, research-question, brand, plan, briefing-plan, briefing-week, briefing-checks, briefing-ads, briefing-change, approve, connect, month, and the slow, error, words and away states) and `/design-system/app/<view>` (chat, strategy, calendar, results, brain, channels, settings) render each real screen over fixture data (`?theme=dark` pins the theme).
 
 ## Five rules
 
@@ -56,7 +56,7 @@ Inter, through `--font-sans`. Numbers that compare use `font-variant-numeric: ta
 | value     | 24 / 28     | 300        | -0.005em | tile values, big numbers, a question |
 | h2        | 16 / 20     | 600        | 0        | card and panel heads                 |
 | body      | 14 / 18     | 400        | 0        | UI text; 500 for labels and buttons  |
-| small     | 12 / 16     | 400 or 500 | 0        | meta, field help, the timeline       |
+| small     | 12 / 16     | 400 or 500 | 0        | meta, field help, the stage bar      |
 | micro     | 11 / 14     | 400 or 500 | 0        | sources, tags                        |
 
 Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
@@ -81,9 +81,11 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Header (onboarding).** Logo 16px high left, the site chip right (green 8px dot with a line edge, then the domain). Hairline below, 14px 32px padding.
 
-**Bar (onboarding).** Sticky at the bottom of every onboarding screen, an ink line above: a 96px Cuso (64px on a phone) whose pose is the state, then one of two states, never mixed. Working: a green live dot, "Cuso is working" with Core's count (groups, sections, pieces, never a time), what he is doing now and "Nothing needs you", in a polite live region. Needs you: a yellow "!" disc, "Cuso needs you" with a count ("2 of 4") and Later, then the chat. The page above it never asks.
+**Dock (onboarding).** Sticky at the bottom of every onboarding screen, an ink line above: a 96px Cuso (64px on a phone) whose pose is the state, then one state, never mixed. Working: a green live dot, "Cuso is working" (with the pieces while the plan writes, never a time), what he is doing now and "You can close this tab.", in a polite live region. Needs you: a yellow "!" disc, "Cuso needs you", a count ("2 of 4") only when more than one thing waits, and Later, then the chat. Live: a green dot, "You're live" and Go to Today. The page above it never asks.
 
-**Timeline.** Seven stages under the bar: a 4px rule, "3 Brand check" (small) and who acts (micro). Current: Iris rule, `aria-current="step"`. Done: ink rule. Work Cuso does behind the current stage: a dashed ink rule. Not yet: hairline rule, muted text. Under 768px it folds into one line: "Step 3 of 7 · Brand check" and what comes next.
+**Question.** Buttons answer, the field changes. Buttons are final answers: at most three, the yes first, none that only opens the field. One field, always the last row: its placeholder starts with "Or" and says what typing does ("Or say what to change"), Send stays off until there is text, and Enter sends; a number has its currency in front ("$ · Or another amount"). Where the text is the answer (the website, a research question) there are no buttons and the placeholder names the answer. A helper line under the question only for a cost or a consequence.
+
+**Stage bar.** Seven stages in one slim row under the header, sticky: a 4px rule over the name (small). Style alone says the state: done an ink rule, now an Iris rule and a bold name (`aria-current="step"`), work Cuso does behind the current stage a dashed rule and a green dot, ahead a hairline rule and a muted name (disabled). The stage the page shows is underlined. Under 768px it folds into one row, "Briefing 5 of 7" and a chevron over a seven-part strip, which drops down a sheet of the stages (Now, Viewing, a check, a green dot, or nothing on the right).
 
 **Buttons.** 44px high, 8px radius, body 500, 0 18px.
 

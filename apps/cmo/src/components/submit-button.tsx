@@ -9,6 +9,8 @@ interface SubmitButtonProps {
   formAction?: (formData: FormData) => void | Promise<void>;
   /** Submit even when the form's other fields are invalid. */
   formNoValidate?: boolean;
+  /** Off until the form has something to send, such as an empty field. */
+  disabled?: boolean;
   children: ReactNode;
 }
 
@@ -28,6 +30,7 @@ export function SubmitButton({
   className,
   formAction,
   formNoValidate,
+  disabled = false,
   children,
 }: SubmitButtonProps) {
   const { pending, action } = useFormStatus();
@@ -39,7 +42,7 @@ export function SubmitButton({
       type="submit"
       formAction={formAction}
       formNoValidate={formNoValidate}
-      disabled={pending && !busy}
+      disabled={(pending && !busy) || (disabled && !busy)}
       aria-busy={busy || undefined}
       aria-disabled={busy || undefined}
       onClick={busy ? preventResubmit : undefined}

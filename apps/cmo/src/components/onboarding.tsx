@@ -14,7 +14,7 @@ import { AccountMenu } from "./account-menu";
 import { useFocusFirstInvalid } from "./form-field";
 import { Logo } from "./logo";
 import { websiteMarks } from "./onboarding/brief";
-import { BriefBar } from "./onboarding/brief-bar";
+import { BriefBar, StageBar } from "./onboarding/brief-bar";
 
 interface OnboardingProps {
   /** The website typed before sign in, or a CMO sign-up link carried. */
@@ -92,11 +92,11 @@ export function Onboarding({
       <h2 className="brief-question" tabIndex={-1} data-brief-question>
         Hi, I'm {AGENT_NAME}. What's your website?
       </h2>
-      <p className="brief-sub">
-        {signedOut
-          ? "Next you sign in with Sokosumi, and I start reading."
-          : "I read it and the places around it. Your goal, pace and budget come in the briefing, next to the plan."}
-      </p>
+      {signedOut ? (
+        <p className="brief-sub">
+          Next you sign in with Sokosumi, and I start reading.
+        </p>
+      ) : null}
       {errors.form ? (
         <p className="alert" role="alert" tabIndex={-1}>
           {errors.form}
@@ -123,7 +123,7 @@ export function Onboarding({
           id="ob-website"
           name="websiteUrl"
           required
-          placeholder="yourbusiness.com"
+          placeholder="yoursite.com"
           autoComplete="url"
           inputMode="url"
           defaultValue={state.websiteUrl}
@@ -184,23 +184,13 @@ export function Onboarding({
           </a>
         )}
       </header>
+      <StageBar marks={websiteMarks()} />
       <main className="brief-main brief-hero">
         <h1 className="ob-display">Your marketing month, briefed.</h1>
-        <p className="brief-lede muted">
-          Give me your website. I read it, write your plan and brief you. You
-          decide, one thing at a time.
-        </p>
       </main>
       <BriefBar
-        marks={websiteMarks()}
         pose="needs-you"
-        mode={{
-          kind: "asking",
-          count: "1 of 1",
-          askKey: "website",
-          meanwhile: null,
-          chat,
-        }}
+        mode={{ kind: "asking", count: "", askKey: "website", chat }}
       />
     </div>
   );
