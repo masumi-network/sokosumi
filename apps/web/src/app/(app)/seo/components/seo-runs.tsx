@@ -166,7 +166,8 @@ export function SeoRuns({
               ref={line}
               role="list"
               // On a phone the line scrolls sideways in itself, without a scroll track. The days come in from the oldest.
-              className="app-scrollbar stagger -m-1 flex min-w-0 flex-1 overflow-x-auto p-1 text-sm max-sm:[scrollbar-width:none]"
+              // The margin over it gives the dots room under the top edge of the box (owner: "margin top").
+              className="app-scrollbar stagger -mx-1 mt-2 -mb-1 flex min-w-0 flex-1 overflow-x-auto p-1 text-sm max-sm:[scrollbar-width:none]"
             >
               {stops.map((entry, index) => (
                 <li key={entry.day} className={STOP_CLASS}>
