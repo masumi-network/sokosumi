@@ -9089,6 +9089,8 @@
       "Message": {
         "delete": "Delete",
         "deleteConfirm": "Delete this message? Others will see that it was deleted.",
+        "deleteNoteTitle": "Delete this note?",
+        "deleteNoteConfirm": "It's removed for good. Only you could see it.",
         "deleted": "This message was deleted",
         "deleteError": "Could not delete the message. Try again.",
         "restored": "The message is back in the conversation.",
@@ -9475,7 +9477,7 @@
         "Decisions": {
           "open": "Decisions",
           "title": "Decisions",
-          "empty": "No decisions here yet. Messages like \"Decided: we launch Monday\" collect here.",
+          "empty": "No decisions here yet. We find them in channels and in chats with other people who allow it. Notes to yourself are never tagged.",
           "loadOlder": "Load older",
           "note": "We find these for you. If one is wrong, open its message and click the × on the tag.",
           "description": "Decisions found in your chats, newest first, including ones you already read.",

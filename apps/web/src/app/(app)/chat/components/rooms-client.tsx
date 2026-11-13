@@ -3175,6 +3175,7 @@ function RoomView({
               onJumpToQuotedMessage={
                 stableMessageHandlers.onJumpToQuotedMessage
               }
+              isSelfDirect={room.isSelfDirect}
               onSendToSelf={
                 room.isSelfDirect
                   ? undefined
@@ -3458,6 +3459,7 @@ function RoomView({
                 onJumpToQuotedMessage={
                   stableMessageHandlers.onJumpToQuotedMessage
                 }
+                isSelfDirect={selectedRoom.isSelfDirect}
                 onSendToSelf={
                   selectedRoom.isSelfDirect
                     ? undefined
