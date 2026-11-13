@@ -1146,6 +1146,12 @@ describe("SEO workspace integration", () => {
         .getByRole("button", { name: /November 10th, 2026, Day with a check/ })
         .closest("td"),
     ).toHaveClass("bg-accent");
+    // The focus starts on that day, so the ring and the box mark one day.
+    expect(
+      within(picked).getByRole("button", {
+        name: /November 10th, 2026, Day with a check/,
+      }),
+    ).toHaveFocus();
     expect(
       within(picked)
         .getByRole("button", { name: /November 12th, 2026, Day with a check/ })
@@ -1160,6 +1166,34 @@ describe("SEO workspace integration", () => {
         { name: "Other dates" },
       ),
     ).toBeEnabled();
+  });
+
+  it("shows a day's issue count only where it changed from the day before", () => {
+    const workspace = seoTestWorkspace();
+    workspace.metrics = [seoTestMetric()];
+    const run = (observedAt: string, issues: number) => ({
+      observationId: crypto.randomUUID(),
+      kind: "audit_full",
+      observedAt: new Date(observedAt),
+      issues,
+      seconds: 600,
+    });
+    workspace.runs = [
+      run("2026-11-12T13:00:00Z", 5),
+      run("2026-11-10T09:00:00Z", 5),
+      run("2026-10-28T08:00:00Z", 7),
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=traffic");
+    const runs = screen.getByRole("group", { name: "Checks" });
+    expect(
+      within(within(runs).getByRole("list"))
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Oct 287 issues", "Nov 105 issues", "Nov 12"]);
   });
 
   it("boxes in the calendar the day the line of checks marks", async () => {

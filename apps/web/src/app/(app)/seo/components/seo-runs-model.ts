@@ -80,6 +80,20 @@ export function seoRunDays(
   };
 }
 
+/**
+ * The days whose issue count the row shows: the oldest count, then each count that differs from the one before.
+ * A count equal to the day before tells nothing new, and a row of equal counts shows none.
+ */
+export function seoRunCountDays(days: Pick<SeoRunDay, "day" | "issues">[]) {
+  const counted = days.filter((entry) => entry.issues !== null).toReversed();
+  const shown = new Set<string>();
+  counted.forEach((entry, index) => {
+    if (index === 0 || entry.issues !== counted[index - 1].issues)
+      shown.add(entry.day);
+  });
+  return shown.size > 1 ? shown : new Set<string>();
+}
+
 /** The row of runs shows with two entries at least: one run, with none in flight, is no choice. */
 export function seoRunsRow(days: SeoRunDay[], running: boolean) {
   return days.length + (running ? 1 : 0) >= 2;

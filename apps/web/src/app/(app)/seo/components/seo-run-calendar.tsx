@@ -3,7 +3,7 @@
 import { format as formatDay, isSameDay, isValid, parseISO } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { labelDayButton } from "react-day-picker";
 import { DATE_FNS_LOCALES } from "@/components/time-ago";
 import { Calendar } from "@/components/ui/calendar";
@@ -49,6 +49,7 @@ export function SeoRunCalendar({
   const t = useTranslations("App.Seo.runs");
   const locale = useLocale();
   const [open, setOpen] = useState(false);
+  const content = useRef<HTMLDivElement>(null);
   const { filters, setFilters } = model;
   const checks = checkDays.map((day) => parseISO(day));
   const checked = new Set(checkDays);
@@ -64,7 +65,22 @@ export function SeoRunCalendar({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent align="end" className="w-auto p-0">
+      <PopoverContent
+        ref={content}
+        align="end"
+        className="w-auto p-0"
+        // The focus ring starts on the boxed day: on today it marked a second day.
+        onOpenAutoFocus={(event) => {
+          const day = shownDay
+            ? content.current?.querySelector<HTMLButtonElement>(
+                `[data-day="${shownDay}"] button`,
+              )
+            : null;
+          if (!day) return;
+          event.preventDefault();
+          day.focus();
+        }}
+      >
         <Calendar
           mode="range"
           locale={DATE_FNS_LOCALES[locale] ?? enUS}

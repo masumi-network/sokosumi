@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   seoRunChecks,
+  seoRunCountDays,
   seoRunDays,
   seoRunsDateCheck,
   seoRunsNameSpan,
@@ -262,5 +263,38 @@ describe("SEO runs of a site", () => {
     expect(
       seoRunChecks({ runs: [run("2026-11-12T13:00:00Z", 5), partial] }),
     ).toEqual(new Set(["2026-11-12T13:00:00Z"]));
+  });
+});
+
+describe("seoRunCountDays", () => {
+  const day = (date: string, issues: number | null) => ({ day: date, issues });
+
+  it("shows the oldest count and each count that changed, newest first in", () => {
+    expect([
+      ...seoRunCountDays([
+        day("2026-11-13", 4),
+        day("2026-11-12", 4),
+        day("2026-11-11", null),
+        day("2026-11-10", 6),
+        day("2026-11-09", 6),
+      ]),
+    ]).toEqual(["2026-11-09", "2026-11-12"]);
+  });
+
+  it("shows no count where every day has the same one", () => {
+    expect(
+      seoRunCountDays([day("2026-11-13", 3), day("2026-11-12", 3)]).size,
+    ).toBe(0);
+    expect(seoRunCountDays([day("2026-11-13", 3)]).size).toBe(0);
+  });
+
+  it("shows a count that comes back after a change", () => {
+    expect([
+      ...seoRunCountDays([
+        day("2026-11-13", 2),
+        day("2026-11-12", 5),
+        day("2026-11-11", 2),
+      ]),
+    ]).toEqual(["2026-11-11", "2026-11-12", "2026-11-13"]);
   });
 });

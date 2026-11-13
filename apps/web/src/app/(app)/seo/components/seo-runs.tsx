@@ -5,7 +5,7 @@ import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { SeoRunCalendar } from "./seo-run-calendar";
-import { seoRunDays } from "./seo-runs-model";
+import { seoRunCountDays, seoRunDays } from "./seo-runs-model";
 import { seoRunProgress } from "./seo-setup-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -66,6 +66,7 @@ export function SeoRuns({
     format.dateTime(at, { month: "short", day: "numeric", timeZone: "UTC" });
   const inView = days.find((entry) => entry.selected);
   const stops = days.toReversed();
+  const countDays = seoRunCountDays(days);
   const { from, to } = model.filters;
   // A range the reader set in the calendar: no one check is in view then.
   const ranged = Boolean(from || (to && !picked));
@@ -143,7 +144,7 @@ export function SeoRuns({
                 {entry.inRange ? (
                   <span className="sr-only">{t("runs.inRange")}</span>
                 ) : null}
-                {entry.issues === null ? null : (
+                {entry.issues === null || !countDays.has(entry.day) ? null : (
                   <span className="text-muted-foreground text-xs font-normal">
                     {t("pages.issues", { count: entry.issues })}
                   </span>
