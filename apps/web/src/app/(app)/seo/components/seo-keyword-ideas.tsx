@@ -64,8 +64,9 @@ export function SeoKeywordIdeas({
     why: new Set(rows.map(({ sources }) => reasonsOf(sources).join())).size > 1,
   };
   const manyPages = model.data.scope.pageIds.length > 1;
-  // The bars set each idea against the most searched one of the list.
-  const mostSearched = Math.max(0, ...ideas.map((group) => group.volume ?? 0));
+  // The bars set each idea against the most searched row in view: the list leads with the best ideas, not the
+  // most searched, so a scale from beyond the fold left the bars in view near empty.
+  const mostSearched = Math.max(0, ...rows.map((group) => group.volume ?? 0));
   // "Track" saves the row's market: with several, each row names its own.
   const manyMarkets =
     new Set(ideas.map(({ lead }) => `${lead.countryCode}:${lead.languageCode}`))

@@ -940,6 +940,51 @@ describe("Keywords after a check", () => {
     );
   });
 
+  it("scales the search bars of the ideas to the most searched row in view", async () => {
+    const user = userEvent.setup();
+    const { workspace } = savedKeywordWorkspace();
+    const base = {
+      ...workspace.keywords[0],
+      saved: false,
+      version: 0,
+      countryCode: "US",
+      languageCode: "en",
+      source: "opportunity" as const,
+      difficulty: null,
+      clicks: null,
+    };
+    workspace.keywords = [
+      { ...base, id: "read", keyword: "battery app", source: "focus" },
+      // Eleven ideas with a high estimate lead the list; the most searched idea has none and starts beyond the fold.
+      ...Array.from({ length: 11 }, (_, index) => ({
+        ...base,
+        id: `idea-${index}`,
+        keyword: `idea ${index}`,
+        volume: 40 - index,
+        conversion: "high" as const,
+      })),
+      { ...base, id: "widget", keyword: "battery widget", volume: 900 },
+    ];
+    renderWorkspace(workspace);
+    const ideas = screen
+      .getByRole("heading", { name: "12 keyword ideas" })
+      .closest("section");
+    if (!ideas) throw new Error("no Ideas section");
+    const barOf = (keyword: string) =>
+      within(ideas)
+        .getByText(keyword)
+        .closest("tr")
+        ?.querySelector<HTMLElement>(".bg-chart-4")?.style.width;
+    // A scale from the fold-hidden 900 left every bar in view a stub.
+    expect(barOf("idea 0")).toBe("100%");
+    expect(barOf("idea 9")).toBe("78%");
+    await user.click(
+      within(ideas).getByRole("button", { name: "Show 2 more ideas" }),
+    );
+    expect(barOf("battery widget")).toBe("100%");
+    expect(barOf("idea 0")).toBe("4%");
+  });
+
   it("shows no conversion column for a check without an estimate", () => {
     const { workspace } = savedKeywordWorkspace();
     workspace.keywords = [
