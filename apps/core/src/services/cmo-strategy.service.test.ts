@@ -191,11 +191,11 @@ describe("requestCmoStrategy", () => {
       const message: string = JSON.stringify(call);
       expect(message).toContain("First correct the Brand Brain");
       expect(message).toContain(
-        '- marketing: you wrote \\"Most customers find the business through Google\\". True instead: LinkedIn',
+        '- marketing: you asked \\"Do most customers find you through Google?\\" and the owner said no. True instead: LinkedIn',
       );
-      expect(message).toContain("- company: you wrote");
-      expect(message).toContain("say the opposite plainly");
-      expect(message.match(/- \w+: you wrote/g)).toHaveLength(2);
+      expect(message).toContain("- company: you asked");
+      expect(message).toContain("Say the opposite plainly");
+      expect(message.match(/- \w+: you asked/g)).toHaveLength(2);
     }
   });
 
@@ -1174,6 +1174,63 @@ describe("a patch", () => {
     });
   });
 
+  it("drops every ad piece when the owner says no ads", async () => {
+    const plan = wholePlan();
+    seedStrategy({
+      ...plan,
+      ads: { ...plan.ads, monthly: 500 },
+      calendar: plan.calendar.map((entry, index) =>
+        index === 15 ? { ...entry, channel: "meta_ads" } : entry,
+      ),
+    });
+    cusoFind.mockResolvedValue({
+      ...HIRE,
+      businessName: "Acme",
+      brandBrain: {
+        summary: "Acme sells rockets.",
+        voice: { tone: "Direct", do: [], dont: [], examples: [] },
+        audience: [],
+        products: [],
+        competitors: [],
+        channels: [],
+      },
+    });
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    await setCmoAdBudget({
+      projectId: "project-1",
+      userId: "user-1",
+      monthly: 0,
+      currency: "eur",
+    });
+
+    const saved = planOf(strategyRows.at(-1)!);
+    expect(saved.calendar.find((entry) => entry.id === "e16")).toMatchObject({
+      channel: "meta_ads",
+      status: "skipped",
+    });
+    expect(
+      saved.calendar.filter((entry) => (entry.status as string) === "skipped"),
+    ).toHaveLength(1);
+  });
+
+  it("keeps a $0 plan free of ads when Cuso's patch leaves one in", async () => {
+    const first = await written();
+    const before = planOf(first);
+
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      {
+        calendar: [{ ...before.calendar[15]!, channel: "google_ads" }],
+      },
+      { turnId: "turn-2", part: "patch", rules: true },
+    );
+
+    expect(
+      planOf(strategyRows.at(-1)!).calendar.find((entry) => entry.id === "e16"),
+    ).toMatchObject({ channel: "google_ads", status: "skipped" });
+  });
+
   it("keeps the plan whole: a patch that breaks a rule saves nothing", async () => {
     const first = await written();
     const before = planOf(first);
@@ -1422,6 +1479,60 @@ describe("changes after the plan", () => {
     expect(message()).toContain("No more catering.");
     expect(startTurn.mock.lastCall?.[0].clientTurnId).toMatch(
       new RegExp(`:fix:\\d+:${Date.parse(asked)}$`),
+    );
+  });
+
+  it("names each question the owner said no to in a fix turn, never as 'True instead: Not true'", async () => {
+    // The state the Brief me review hit: two nos on one section, each also
+    // sent as that section's fix, and Cuso saved the opposite of both.
+    const asked = new Date(now.getTime() - 60_000).toISOString();
+    const no = {
+      section: "marketing" as const,
+      answer: "no" as const,
+      corrected: false,
+    };
+    cusoFind.mockResolvedValue({
+      ...cuso,
+      brandBrain: {
+        ...essentials,
+        profile: {
+          ...essentials.profile,
+          marketing: {
+            answer: "Word of mouth and Instagram.",
+            findings: [],
+            fix: {
+              note: "Not true: Acme sends a customer newsletter. Not true: Acme is running paid ads.",
+              at: asked,
+              fixed: false,
+            },
+          },
+        },
+        questions: [
+          {
+            ...no,
+            id: "q1",
+            question: "Do you currently send a customer newsletter?",
+            statement: "Acme sends a customer newsletter.",
+          },
+          {
+            ...no,
+            id: "q2",
+            question: "Are you currently running paid ads?",
+            statement: "Acme is running paid ads.",
+          },
+        ],
+      },
+    });
+    turnFindFirst.mockResolvedValue(turn("plan", 1, "COMPLETED"));
+
+    await startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now);
+
+    expect(message()).not.toContain("True instead: Not true");
+    expect(message()).toContain(
+      'you asked \\"Do you currently send a customer newsletter?\\" and the owner said no, so this is false: \\"Acme sends a customer newsletter.\\"',
+    );
+    expect(message()).toContain(
+      'you asked \\"Are you currently running paid ads?\\" and the owner said no',
     );
   });
 
