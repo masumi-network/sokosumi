@@ -196,9 +196,12 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
   it("checks a monitor's first Run when it is made, but never holds a scheduled Run", async () => {
     const input = {
       operationId: randomUUID(),
-      cadence: "daily" as const,
-      timeZone: "UTC",
-      targetRunCount: 2,
+      rule: {
+        expr: "0 9 * * *",
+        timezone: "UTC",
+        endsMode: "AFTER" as const,
+        targetRunCount: 2,
+      },
       analysis: rankings(),
     };
     await expect(
@@ -214,7 +217,10 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     );
     // The same key with another request is no replay: it is refused and makes no schedule.
     await expect(
-      createProjectSeoMonitor(vars, actor, { ...input, targetRunCount: 3 }),
+      createProjectSeoMonitor(vars, actor, {
+        ...input,
+        rule: { ...input.rule, targetRunCount: 3 },
+      }),
     ).rejects.toMatchObject({
       status: 409,
       cause: { kind: CORE_API_ERROR_KINDS.SCHEDULE_OPERATION_CONFLICT },
