@@ -8,10 +8,10 @@ Spec: `.scratch/cmo-polar/spec.md` (SOKD-204), "Setup only a human can do".
 
 **Status:** ready-for-human
 
-- [ ] The script covers sandbox and production as separate runs and never mixes their values.
-- [ ] It walks through nine products with their metadata (kind, tier slug, credits): three monthly plans ($200 / 10,000, $500 / 25,000, $1,000 / 50,000), three yearly plans ($2,000, $5,000, $10,000, same monthly credits), three packs ($150 / 5,000, $300 / 10,000, $750 / 25,000).
-- [ ] It walks through an access token with the scopes Core needs (checkouts, customer sessions, subscriptions, products, orders), and the webhook endpoint with its secret and the events Core handles.
-- [ ] It walks through the portal settings: plan changes off.
-- [ ] It writes the token, the secret and the environment to the local env file and to Core's Vercel projects (sandbox for preview and preprod, production for mainnet), and prints no secret.
-- [ ] It ends by reading the catalog through Core and listing the nine entries, so a wrong metadata value is caught at once.
+- [x] The script covers sandbox and production as separate runs and never mixes their values.
+- [x] It walks through nine products with their metadata (kind, tier slug, credits): three monthly plans ($200 / 10,000, $500 / 25,000, $1,000 / 50,000), three yearly plans ($2,000, $5,000, $10,000, same monthly credits), three packs ($150 / 5,000, $300 / 10,000, $750 / 25,000).
+- [x] It walks through an access token with the scopes Core needs (checkouts, customer sessions, subscriptions, products, orders), and the webhook endpoint with its secret and the events Core handles.
+- [x] It walks through the portal settings: plan changes off.
+- [x] It writes the token, the secret and the environment to the local env file and to Core's Vercel projects (sandbox for preview and preprod, production for mainnet), and prints no secret.
+- [x] It ends by reading the catalog through Core and listing the nine entries, so a wrong metadata value is caught at once.
 - [ ] The person has run it for sandbox.
