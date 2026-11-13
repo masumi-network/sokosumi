@@ -51,11 +51,7 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
   }
   // Every opener gets the widest check these pages allow, unless it names one.
   const [chosenKind, setKind] = useState<string>(
-    () =>
-      model.analysisKind ??
-      seoRunAction(model.data)?.kind ??
-      // While a check runs there is no run action: a schedule still repeats the widest check.
-      (kinds.includes("audit_full") ? "audit_full" : "page_check"),
+    () => model.analysisKind ?? seoRunAction(model.data)?.kind ?? "page_check",
   );
   // The check and the schedule start on their defaults: the fields show when the reader asks, or when a value is
   // refused. A schedule decides only when it runs.

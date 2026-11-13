@@ -230,6 +230,12 @@ describe("SEO monitor credits", () => {
   it("says the ceiling is per run, and prices only the requests one run makes", async () => {
     const user = userEvent.setup(),
       dialog = showDialog(workspace(), true);
+    // A schedule repeats the full audit unless the reader picks another check.
+    expect(
+      within(within(dialog).getByTestId("seo-analysis-summary")).getByText(
+        "Full audit",
+      ),
+    ).toBeVisible();
     await user.click(
       within(dialog).getByRole("button", { name: "Change options" }),
     );

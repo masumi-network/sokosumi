@@ -286,11 +286,11 @@ export function SeoAnalysisDialog({
           ) : null}
           {/* The one figure the reader decides on: the price in credits, the same ceiling Core checks. */}
           {maxCredits ? (
-            <div className="flex items-baseline justify-between gap-4 border-t pt-4">
-              <span className="text-muted-foreground text-sm">
+            <dl className="flex items-baseline justify-between gap-4 border-t pt-4">
+              <dt className="text-muted-foreground text-sm">
                 {t(monitor ? "analysis.pricePerRun" : "analysis.price")}
-              </span>
-              <span className="text-right">
+              </dt>
+              <dd className="text-right" aria-live="polite">
                 <span className="block font-semibold">
                   {t("analysis.maxCredits", { credits: maxCredits })}
                 </span>
@@ -301,8 +301,8 @@ export function SeoAnalysisDialog({
                       : "analysis.failedCheckFree",
                   )}
                 </span>
-              </span>
-            </div>
+              </dd>
+            </dl>
           ) : null}
           <DialogFooter>
             <Button
