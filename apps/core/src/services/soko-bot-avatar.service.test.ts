@@ -39,6 +39,7 @@ import {
   claimAvatar,
   generateAvatars,
   listAvailableAvatars,
+  restyleAvatars,
   topUpAvailableAvatars,
 } from "@/services/soko-bot-avatar.service";
 
@@ -339,5 +340,81 @@ describe("claiming a Soko Bot avatar", () => {
     });
     expect(store.bots.get(BOT_ID)?.avatarImageUrl).toBeNull();
     expect(store.avatars[0]?.claimedBySokoBotId).toBe("bot-2");
+  });
+});
+
+describe("restyling avatars from before the brand palette", () => {
+  function seedOld(sokoBotId: string, subject: string) {
+    store.bots.set(sokoBotId, { avatarImageUrl: "https://blob.test/old.png" });
+    return store.seed({
+      subject,
+      background: "gently muted teal",
+      claimedBySokoBotId: sokoBotId,
+    });
+  }
+
+  function avatarOf(sokoBotId: string) {
+    return store.avatars.find((row) => row.claimedBySokoBotId === sokoBotId);
+  }
+
+  it("keeps each bot's character and moves it onto a palette background", async () => {
+    seedOld("bot-1", "fox");
+    seedOld("bot-2", "fox");
+    seedOld("bot-3", "owl");
+    store.seed({ claimedBySokoBotId: "bot-4" });
+
+    await expect(restyleAvatars(10)).resolves.toEqual({
+      restyled: 3,
+      remaining: 0,
+    });
+
+    expect(billed()).toBe(3);
+    const foxes = [avatarOf("bot-1"), avatarOf("bot-2")];
+    expect(foxes.map((row) => row?.subject)).toEqual(["fox", "fox"]);
+    expect(foxes[0]?.background).not.toBe(foxes[1]?.background);
+    expect(avatarOf("bot-3")?.subject).toBe("owl");
+    for (const bot of ["bot-1", "bot-2", "bot-3"]) {
+      expect(avatarOf(bot)?.background).not.toBe("gently muted teal");
+      expect(store.bots.get(bot)?.avatarImageUrl).toBe(avatarOf(bot)?.imageUrl);
+    }
+    // The old pictures are free again but no longer offered.
+    await expect(listAvailableAvatars(6)).resolves.toEqual([]);
+  });
+
+  it("redraws at most the limit and says how many are left", async () => {
+    seedOld("bot-1", "fox");
+    seedOld("bot-2", "owl");
+    seedOld("bot-3", "cat");
+
+    await expect(restyleAvatars(2)).resolves.toEqual({
+      restyled: 2,
+      remaining: 1,
+    });
+    expect(billed()).toBe(2);
+  });
+
+  it("leaves a bot on its old avatar when its draw fails", async () => {
+    const old = seedOld("bot-1", "fox");
+    generateTextMock.mockRejectedValueOnce(new Error("model down"));
+
+    await expect(restyleAvatars(5)).resolves.toEqual({
+      restyled: 0,
+      remaining: 1,
+    });
+    expect(avatarOf("bot-1")?.id).toBe(old.id);
+    expect(store.bots.get("bot-1")?.avatarImageUrl).toBe(
+      "https://blob.test/old.png",
+    );
+  });
+
+  it("buys nothing without a gateway key or blob store", async () => {
+    seedOld("bot-1", "fox");
+    getEnvMock.mockReturnValue({});
+
+    await expect(restyleAvatars(5)).resolves.toEqual({
+      restyled: 0,
+      remaining: 1,
+    });
+    expect(billed()).toBe(0);
   });
 });

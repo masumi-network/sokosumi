@@ -2257,6 +2257,34 @@ export const AdminSokoBotVersionMigrationRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const RestyleSokoBotAvatarsResultSchema = {
+    type: 'object',
+    properties: {
+        restyled: {
+            type: 'integer'
+        },
+        remaining: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'restyled',
+        'remaining'
+    ]
+} as const;
+
+export const RestyleSokoBotAvatarsRequestSchema = {
+    type: 'object',
+    properties: {
+        limit: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 10,
+            default: 6
+        }
+    }
+} as const;
+
 export const AdminSokoBotChatRoomSchema = {
     type: 'object',
     properties: {

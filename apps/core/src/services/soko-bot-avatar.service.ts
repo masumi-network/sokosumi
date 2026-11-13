@@ -241,6 +241,7 @@ function buildAvatarPrompt(input: AvatarDraw): string {
 async function nextAvatarDraws(
   count: number,
   client: Prisma.TransactionClient | typeof prisma = prisma,
+  subjects: readonly AvatarSubject[] = SUBJECTS,
 ): Promise<AvatarDraw[]> {
   const existing = await client.sokoBotAvatar.findMany({
     select: { subject: true, background: true, seed: true },
@@ -252,8 +253,8 @@ async function nextAvatarDraws(
   // Walk subject × background diagonally so consecutive draws differ in both,
   // then bump the seed once the grid is exhausted.
   for (let seed = 1; draws.length < count && seed < 1_000; seed += 1) {
-    for (let i = 0; i < SUBJECTS.length && draws.length < count; i += 1) {
-      const subject = SUBJECTS[i]!;
+    for (let i = 0; i < subjects.length && draws.length < count; i += 1) {
+      const subject = subjects[i]!;
       const background = BACKGROUNDS[(i + seed) % BACKGROUNDS.length]!;
       const key = `${subject.subject}|${background.name}|${seed}`;
       if (used.has(key) || !readableOn(subject, background)) continue;
@@ -782,4 +783,81 @@ export async function claimAvatar(
         run,
         "Another avatar change is running. Try again.",
       );
+}
+
+/** Claimed avatars drawn before the brand palette. */
+const BEFORE_PALETTE = {
+  claimedBySokoBotId: { not: null },
+  reservedAt: null,
+  background: { notIn: BACKGROUNDS.map((background) => background.name) },
+};
+
+/** Hold one palette draw of a bot's own character, charged to no user. */
+async function reserveRestyle(subjectName: string): Promise<AvatarReservation> {
+  const subject = SUBJECTS.find((one) => one.subject === subjectName);
+  return await serializableTransaction(async (tx) => {
+    const [draw] = await nextAvatarDraws(1, tx, subject ? [subject] : SUBJECTS);
+    if (!draw) throw new Error(`No palette draw left for ${subjectName}`);
+    const row = await tx.sokoBotAvatar.create({
+      data: {
+        subject: draw.subject.subject,
+        background: draw.background.name,
+        seed: draw.seed,
+        model: AVATAR_MODEL,
+        imageUrl: "",
+        reservedAt: new Date(),
+      },
+      select: { id: true },
+    });
+    return { id: row.id, draw };
+  }, "Another avatar top-up is running. Try again.");
+}
+
+/**
+ * Redraw avatars from before the brand palette: each bot keeps its character
+ * and gets it on a palette background. One call redraws at most `limit`; the
+ * caller repeats until `remaining` is zero. A bot whose draw fails keeps its
+ * old avatar and is picked up by the next call.
+ */
+export async function restyleAvatars(
+  limit: number,
+): Promise<{ restyled: number; remaining: number }> {
+  let restyled = 0;
+  if (canDraw()) {
+    const old = await prisma.sokoBotAvatar.findMany({
+      where: BEFORE_PALETTE,
+      take: limit,
+      select: { subject: true, claimedBySokoBotId: true },
+    });
+    // One at a time: two draws of the same character would otherwise pick the
+    // same free combination and one would lose on the unique index.
+    const held: Array<{ sokoBotId: string; reservation: AvatarReservation }> =
+      [];
+    for (const row of old) {
+      if (!row.claimedBySokoBotId) continue;
+      held.push({
+        sokoBotId: row.claimedBySokoBotId,
+        reservation: await reserveRestyle(row.subject),
+      });
+    }
+    const results = await Promise.allSettled(
+      held.map(async ({ sokoBotId, reservation }) => {
+        await fillReservation(reservation);
+        await claimAvatar(sokoBotId, reservation.id);
+      }),
+    );
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        restyled += 1;
+        continue;
+      }
+      console.warn("Soko Bot avatar restyle failed", {
+        error: errorText(result.reason),
+      });
+    }
+  }
+  return {
+    restyled,
+    remaining: await prisma.sokoBotAvatar.count({ where: BEFORE_PALETTE }),
+  };
 }
