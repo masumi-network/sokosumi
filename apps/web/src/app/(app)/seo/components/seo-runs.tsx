@@ -103,7 +103,8 @@ export function SeoRuns({
         aria-labelledby={shown ? titleId : undefined}
         className="contents"
       >
-        <div className="order-1 flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-1 px-2 py-1.5 sm:flex-initial">
+        {/* Centred, not on the baseline: the date control is an icon and a word, so a baseline sets it low. */}
+        <div className="order-1 flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1.5 sm:flex-initial">
           {/* Under the audit name, the h2 of the page. */}
           <h3 id={titleId} className="text-sm font-semibold">
             {t("runs.label")}
@@ -157,8 +158,9 @@ export function SeoRuns({
         ) : null}
         {shown ? (
           <div
-            // A fill without an outline: the checks card around it is the one frame.
-            className="bg-background order-3 basis-full rounded-lg px-2 py-3"
+            // A fill without an outline: the checks card around it is the one frame. More room over the dots than
+            // under the dates, so the line does not sit on the top edge.
+            className="bg-background order-3 basis-full rounded-lg px-2 pt-5 pb-3"
           >
             <ol
               ref={line}
