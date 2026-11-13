@@ -884,6 +884,20 @@
       "loading": "Dokument wird geladen…",
       "fetchError": "Dieses Dokument konnte nicht geladen werden."
     },
+    "VoicePlayer": {
+      "play": "{name} abspielen",
+      "pause": "Pause",
+      "seek": "Wiedergabeposition",
+      "position": "{current} von {total}",
+      "speed": "Wiedergabegeschwindigkeit {rate}×",
+      "download": "{name} herunterladen",
+      "transcript": "Transkript",
+      "addTranscript": "Transkript hinzufügen",
+      "editTranscript": "Transkript bearbeiten",
+      "transcriptHint": "Schreibe auf, was gesagt wurde. Es wird in dieser Nachricht gespeichert, sodass alle in dieser Unterhaltung es lesen und durchsuchen können. Lass das Feld leer, um das Transkript zu entfernen.",
+      "cancel": "Abbrechen",
+      "save": "Speichern"
+    },
     "UserCombobox": {
       "placeholder": "Select a user",
       "search": "Search users by name or email…",

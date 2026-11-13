@@ -11,6 +11,7 @@ import { DocumentViewer } from "@/components/ui/document-viewer";
 import { FileChip } from "@/components/ui/file-chip";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
+import { VoicePlayer } from "@/components/ui/voice-player";
 import {
   Tooltip,
   TooltipContent,
@@ -38,6 +39,9 @@ export interface FileChipMiniPreviewProps {
 interface FileChipMiniPreviewFrameProps extends FileChipMiniPreviewProps {
   /** The caller owns the image viewer, e.g. a message's image gallery. */
   onOpenImage: () => void;
+  /** Audio only: the message's transcript, shown under the player. */
+  transcript?: string | null;
+  onSaveTranscript?: (transcript: string) => void;
 }
 
 const previewTriggerClassName =
@@ -245,8 +249,9 @@ function FileChipMiniPreviewShell({
 }
 
 /**
- * Sent-message / timeline surface. Video and audio use the full FileChip
- * inline player; images and documents keep the compact thumbnail frame.
+ * Sent-message / timeline surface. Video uses the full FileChip inline
+ * player, audio the compact {@link VoicePlayer}; images and documents keep
+ * the compact thumbnail frame.
  * Composer drafts use {@link FileChipMiniPreview} (always compact).
  */
 export function FileChipMiniPreviewFrame(props: FileChipMiniPreviewFrameProps) {
@@ -255,7 +260,18 @@ export function FileChipMiniPreviewFrame(props: FileChipMiniPreviewFrameProps) {
     props.fileName,
     props.mediaType,
   );
-  if (isVideo || isAudio) {
+  if (isAudio) {
+    return (
+      <VoicePlayer
+        url={props.url}
+        fileName={props.fileName ?? props.url.split("/").pop() ?? props.url}
+        transcript={props.transcript}
+        onSaveTranscript={props.onSaveTranscript}
+        className={cn("shrink", props.className)}
+      />
+    );
+  }
+  if (isVideo) {
     return (
       <FileChip
         url={props.url}

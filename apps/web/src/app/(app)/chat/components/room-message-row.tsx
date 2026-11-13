@@ -696,8 +696,11 @@ export function ChannelMessageText({
   canOpenHumanDirect,
   onOpenDirectMessage,
   openingDirectParticipantKey,
+  onSaveTranscript,
 }: {
   content: string;
+  /** Set when the viewer may edit the message: saves a voice transcript. */
+  onSaveTranscript?: (transcript: string) => void;
   enableMermaid?: boolean;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
@@ -799,6 +802,8 @@ export function ChannelMessageText({
                       onOpenImage={() => {
                         setOpenImageSrc(link.url);
                       }}
+                      transcript={link.transcript}
+                      onSaveTranscript={onSaveTranscript}
                     />
                   ),
                 )}
@@ -836,9 +841,11 @@ function ChannelMessageBody({
   canOpenHumanDirect,
   onOpenDirectMessage,
   openingDirectParticipantKey,
+  onSaveTranscript,
   trailing,
 }: {
   messageId: string;
+  onSaveTranscript?: (transcript: string) => void;
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
@@ -915,6 +922,7 @@ function ChannelMessageBody({
           canOpenHumanDirect={canOpenHumanDirect}
           onOpenDirectMessage={onOpenDirectMessage}
           openingDirectParticipantKey={openingDirectParticipantKey}
+          onSaveTranscript={onSaveTranscript}
         />
         {trailing}
       </div>
@@ -2380,6 +2388,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onQuote,
   onPin,
   onStartEdit,
+  onSaveTranscript,
   onDelete,
   onRemoveUnfurl,
   onRetryOutbound,
@@ -2424,6 +2433,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
   onStartEdit?: (message: ChatRoomMessage) => void;
+  /** Saves a voice message's transcript; offered where `onStartEdit` is. */
+  onSaveTranscript?: (message: ChatRoomMessage, transcript: string) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   onRemoveUnfurl?: (message: ChatRoomMessage, url: string) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
@@ -2964,6 +2975,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                     <ChannelMessageBody
                       messageId={message.id}
                       content={message.content}
+                      onSaveTranscript={
+                        canEdit && onSaveTranscript
+                          ? (transcript) =>
+                              onSaveTranscript(message, transcript)
+                          : undefined
+                      }
                       coworkersById={coworkersById}
                       coworkersBySlug={coworkersBySlug}
                       sokoBotsById={sokoBotsById}

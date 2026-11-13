@@ -892,6 +892,20 @@
       "loading": "Loading document…",
       "fetchError": "This document couldn't be loaded."
     },
+    "VoicePlayer": {
+      "play": "Play {name}",
+      "pause": "Pause",
+      "seek": "Playback position",
+      "position": "{current} of {total}",
+      "speed": "Playback speed {rate}×",
+      "download": "Download {name}",
+      "transcript": "Transcript",
+      "addTranscript": "Add transcript",
+      "editTranscript": "Edit transcript",
+      "transcriptHint": "Type what was said. It is saved in this message, so everyone in this conversation can read and search it. Leave it empty to remove the transcript.",
+      "cancel": "Cancel",
+      "save": "Save"
+    },
     "SokoBot": {
       "BotStatus": {
         "IDLE": "Idle",

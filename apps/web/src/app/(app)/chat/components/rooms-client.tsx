@@ -923,6 +923,7 @@ function RoomView({
     handleCancelEdit,
     handleEditDraftChange,
     handleSaveEdit,
+    handleSaveTranscript,
     handleRemoveUnfurl,
     handleDeleteMessage,
     mergeUpdatedMessage,
@@ -2769,6 +2770,7 @@ function RoomView({
     handleEditDraftChange,
     handleCancelEdit,
     handleSaveEdit,
+    handleSaveTranscript,
   };
   const latestMessageHandlersRef = useRef(latestMessageHandlers);
   latestMessageHandlersRef.current = latestMessageHandlers;
@@ -2790,6 +2792,18 @@ function RoomView({
         latestMessageHandlersRef.current.handleStartEdit(message, false),
       onStartThreadEdit: (message: ChatRoomMessage) =>
         latestMessageHandlersRef.current.handleStartEdit(message, true),
+      onSaveTranscript: (message: ChatRoomMessage, transcript: string) =>
+        latestMessageHandlersRef.current.handleSaveTranscript(
+          message,
+          transcript,
+          false,
+        ),
+      onSaveThreadTranscript: (message: ChatRoomMessage, transcript: string) =>
+        latestMessageHandlersRef.current.handleSaveTranscript(
+          message,
+          transcript,
+          true,
+        ),
       onDelete: (message: ChatRoomMessage) =>
         latestMessageHandlersRef.current.handleDeleteMessage(message),
       onRemoveUnfurl: (message: ChatRoomMessage, url: string) =>
@@ -3142,6 +3156,11 @@ function RoomView({
               onStartEdit={
                 isOutboundLocal ? undefined : stableMessageHandlers.onStartEdit
               }
+              onSaveTranscript={
+                isOutboundLocal
+                  ? undefined
+                  : stableMessageHandlers.onSaveTranscript
+              }
               onDelete={
                 isOutboundLocal ? undefined : stableMessageHandlers.onDelete
               }
@@ -3470,6 +3489,7 @@ function RoomView({
                 onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectParticipantKey={openingDirectKey}
                 onStartEdit={stableMessageHandlers.onStartThreadEdit}
+                onSaveTranscript={stableMessageHandlers.onSaveThreadTranscript}
                 onDelete={stableMessageHandlers.onDelete}
                 onRemoveUnfurl={stableMessageHandlers.onRemoveUnfurl}
                 editSession={editSession?.inThread ? editSession : null}

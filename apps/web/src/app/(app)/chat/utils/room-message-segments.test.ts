@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { segmentRoomMessageContent } from "./room-message-segments";
+import {
+  endsWithAttachmentRow,
+  segmentRoomMessageContent,
+} from "./room-message-segments";
 
 describe("segmentRoomMessageContent", () => {
   it("groups consecutive file links separated only by newlines", () => {
@@ -84,5 +87,34 @@ describe("segmentRoomMessageContent", () => {
         content: "\nand then more prose",
       }),
     );
+  });
+});
+
+describe("voice transcript", () => {
+  const voice = "[Voice.m4a](https://blob.example/v.m4a)";
+  const fence = "```transcript\nShip it Friday\n```";
+
+  it("moves the transcript onto the audio card", () => {
+    const segments = segmentRoomMessageContent(`${voice}\n\n${fence}`);
+    expect(segments).toEqual([
+      {
+        kind: "files",
+        links: [
+          expect.objectContaining({
+            url: "https://blob.example/v.m4a",
+            transcript: "Ship it Friday",
+          }),
+        ],
+      },
+    ]);
+    expect(endsWithAttachmentRow(`${voice}\n\n${fence}`)).toBe(true);
+  });
+
+  it("keeps the fence as text when the message has no audio", () => {
+    const content = `[a.pdf](https://blob.example/a.pdf)\n\n${fence}`;
+    expect(segmentRoomMessageContent(content).at(-1)).toMatchObject({
+      kind: "text",
+      content: `\n\n${fence}`,
+    });
   });
 });
