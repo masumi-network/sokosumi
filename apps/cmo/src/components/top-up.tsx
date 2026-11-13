@@ -20,13 +20,15 @@ export function topUpOffer(
   return overview.billing.status === "active" ? startTopUp : null;
 }
 
-/** Opens the top-up checkout for this Cuso. */
+/** Opens the top-up checkout for this Cuso (or, labelled, the plan checkout). */
 export function TopUpButton({
   startTopUp,
   className = "button button-small",
+  label = "Top up",
 }: {
   startTopUp: StartTopUp;
   className?: string;
+  label?: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export function TopUpButton({
           })
         }
       >
-        {pending ? "Opening…" : "Top up"}
+        {pending ? "Opening…" : label}
       </button>
       {error ? (
         <span className="note" role="alert">

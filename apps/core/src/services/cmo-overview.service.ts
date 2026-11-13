@@ -135,6 +135,7 @@ export interface CmoOverview {
     timezone: string | null;
   }[];
   roomId: string;
+  /** The CMO subscription gate (`isCmoSubscribed`): false is paused. */
   subscriptionActive: boolean;
   /** This member may approve the strategy. */
   viewerCanApprove: boolean;

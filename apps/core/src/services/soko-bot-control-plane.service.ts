@@ -1958,7 +1958,12 @@ export class SokoBotControlPlane {
     } catch (error) {
       // A chat turn's sender sees the refusal; a self-started one has nobody
       // watching, so the owner hears about it in their chat instead.
-      if (error instanceof SokoBotBillingAccessError && source !== "CHAT") {
+      // A paused Cuso is not out of credits; CMO shows why he is paused.
+      if (
+        error instanceof SokoBotBillingAccessError &&
+        error.reason !== "cmo_paused" &&
+        source !== "CHAT"
+      ) {
         await notifySokoBotOutOfCredits(bot.id).catch(
           (noticeError: unknown) => {
             console.warn("Soko Bot out-of-credits notice failed", {

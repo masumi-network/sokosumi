@@ -353,6 +353,9 @@ export async function Home({ searchParams, view }: HomeProps) {
         loadAdCampaigns: loadAdCampaigns.bind(null, projectId),
         startOver: startOver.bind(null, projectId),
         startTopUp: startTopUp.bind(null, projectId),
+        // Outside hiring the monthly plans, cheapest first; Polar's checkout
+        // lets the person switch.
+        subscribe: startPlanCheckout.bind(null, projectId, "month"),
         changePlan: changePlan.bind(null, projectId),
         openPortal: openPortal.bind(null, projectId),
         signOut,

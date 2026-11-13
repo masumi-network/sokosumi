@@ -444,6 +444,7 @@ export function SettingsPage({
   plans,
   changePlan,
   openPortal,
+  subscribe,
 }: PageProps & {
   name: string;
   email: string;
@@ -455,6 +456,8 @@ export function SettingsPage({
   plans: CmoSubscriptionPlan[];
   changePlan: ChangePlan;
   openPortal: OpenPortal;
+  /** Starts the CMO plan checkout. */
+  subscribe: StartTopUp;
 }) {
   return (
     <div className="page-body">
@@ -463,6 +466,7 @@ export function SettingsPage({
         plans={plans}
         changePlan={changePlan}
         openPortal={openPortal}
+        subscribe={subscribe}
       />
       <section className="card">
         <h3>Credits</h3>

@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 
 import { AGENT_NAME } from "../../lib/agent";
 import { money } from "../strategy-core";
+import { type StartTopUp, TopUpButton } from "../top-up";
 
 /** Moves the Cuso to a tier of his interval: what changed, or why not. */
 export type ChangePlan = (tier: string) => Promise<{
@@ -24,8 +25,9 @@ function tierName(tier: string): string {
 }
 
 /**
- * Settings: the Cuso's CMO subscription, straight from the overview. Renders
- * nothing without one; the credits sit in the card below. Owners and admins
+ * Settings: the Cuso's CMO subscription, straight from the overview. Without
+ * one it offers the plan checkout (a Cuso hired with Starter credits keeps
+ * them); the credits sit in the card below. Owners and admins
  * also see a pending downgrade, the other plans of the interval and the link
  * to Polar's customer portal; other members see none of them.
  */
@@ -34,15 +36,40 @@ export function SubscriptionCard({
   plans,
   changePlan,
   openPortal,
+  subscribe,
 }: {
   billing: CmoOverview["billing"];
   /** The CMO plans as Core lists them: by interval, each by credits. */
   plans: CmoSubscriptionPlan[];
   changePlan: ChangePlan;
   openPortal: OpenPortal;
+  /** Starts the CMO plan checkout; any member may pay. */
+  subscribe: StartTopUp;
 }) {
   const { tier, interval, periodEnd } = billing;
-  if (!tier) return null;
+  if (!tier) {
+    return (
+      <section className="card">
+        <h3>Subscription</h3>
+        <div className="li">
+          <span className="grow">
+            <span className="v">No CMO plan yet</span>
+          </span>
+          <TopUpButton
+            startTopUp={subscribe}
+            label="Subscribe"
+            className="button button-secondary button-small"
+          />
+        </div>
+        {billing.hiredWithStarterCredits ? (
+          <p className="note">
+            Your Starter credits stay. {AGENT_NAME} spends the plan's monthly
+            credits first, then them.
+          </p>
+        ) : null}
+      </section>
+    );
+  }
   const date = periodEnd?.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
@@ -101,7 +128,13 @@ export function SubscriptionCard({
   );
 }
 
-function PortalButton({ openPortal }: { openPortal: OpenPortal }) {
+export function PortalButton({
+  openPortal,
+  label = "Manage billing",
+}: {
+  openPortal: OpenPortal;
+  label?: string;
+}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   return (
@@ -122,7 +155,7 @@ function PortalButton({ openPortal }: { openPortal: OpenPortal }) {
           })
         }
       >
-        {pending ? "Opening…" : "Manage billing"}
+        {pending ? "Opening…" : label}
       </button>
       {error ? (
         <span className="note" role="alert">

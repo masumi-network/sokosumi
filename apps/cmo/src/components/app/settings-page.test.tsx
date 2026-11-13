@@ -32,6 +32,7 @@ function settings(billing: Partial<CmoOverview["billing"]> = {}) {
       plans={cmoPlans}
       changePlan={async () => ({ change: null, error: null })}
       openPortal={async () => ({ url: null, error: null })}
+      subscribe={async () => ({ url: null, error: null })}
     />,
   ).replace(/<[^>]+>/g, " ");
 }
@@ -71,13 +72,22 @@ describe("Settings: the CMO subscription", () => {
     expect(text).not.toContain("Renews on");
   });
 
-  it("shows only the credits without a subscription", () => {
+  it("offers the plan checkout without a subscription", () => {
     const text = settings();
 
     expect(text).toContain("8400");
-    expect(text).not.toContain("Subscription");
+    expect(text).toContain("No CMO plan yet");
+    expect(text).toContain("Subscribe");
     expect(text).not.toContain("Renews on");
     expect(text).not.toContain("payment failed");
+    expect(text).not.toContain("Starter credits");
+  });
+
+  it("lets a Cuso with Starter credits subscribe and keep them", () => {
+    const text = settings({ hiredWithStarterCredits: true });
+
+    expect(text).toContain("Subscribe");
+    expect(text).toContain("Your Starter credits stay");
   });
 });
 

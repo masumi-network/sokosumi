@@ -119,7 +119,8 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
         timezone: "Europe/Berlin",
       },
     ],
-    subscriptionActive: false,
+    // Cuso may work unless a test pauses him.
+    subscriptionActive: true,
     viewerCanApprove: true,
     brandBrain: {
       summary: "Acme sells rockets.",
