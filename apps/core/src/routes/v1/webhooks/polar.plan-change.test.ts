@@ -80,12 +80,14 @@ const SUBSCRIPTION = {
 function upgradePaid(
   timestamp = "2026-12-28T22:00:00.000Z",
   subscription: Record<string, unknown> = {},
+  createdAt = timestamp,
 ) {
   return ok({
     type: "order.paid",
     timestamp,
     data: {
       id: "order_3",
+      created_at: createdAt,
       billing_reason: "subscription_update",
       metadata: {},
       customer: { id: "cus_1", external_id: ORGANIZATION_ID },
@@ -192,6 +194,17 @@ describe("POST /v1/webhooks/polar: a paid upgrade", () => {
         userId: null,
       },
     ]);
+  });
+
+  it("counts the month left from when the order was made, not when it was delivered", async () => {
+    m.verifyPolarWebhook.mockResolvedValue(
+      // Delivered a week after Polar invoiced it halfway through the month.
+      upgradePaid("2027-01-04T22:00:00.000Z", {}, "2026-12-28T22:00:00.000Z"),
+    );
+
+    await post();
+
+    expect(grants()[0]?.amount).toBe(12_500n * CENTS_PER_CREDIT);
   });
 
   it("grants once per order: a redelivery ends on the bucket's key", async () => {

@@ -361,7 +361,7 @@ const upgradeFromCreditsSchema = z.object({
 /**
  * `order.paid` for a `subscription_update`: an upgrade Polar invoiced at once
  * grants the new monthly amount minus the old, times the share of the grant
- * month left at payment, expiring with that month's grant. It never moves the
+ * month left when Polar made the order, expiring with that month's grant. It never moves the
  * last paid order: the yearly grant job counts a year's months from it.
  */
 export async function handlePolarPlanChangePaid(
@@ -404,6 +404,8 @@ export async function handlePolarPlanChangePaid(
     return;
   }
   const row = upserted.value;
+  // Polar prorates from when it made the order; a delivery comes later.
+  const orderedAt = new Date(order.created_at);
   const periodStart = new Date(subscription.current_period_start);
   const month =
     plan.interval === "month"
@@ -411,9 +413,9 @@ export async function handlePolarPlanChangePaid(
           startsAt: periodStart,
           expiresAt: new Date(subscription.current_period_end),
         }
-      : monthOfPaidYear(periodStart, paidAt);
+      : monthOfPaidYear(periodStart, orderedAt);
   const left =
-    (month.expiresAt.getTime() - paidAt.getTime()) /
+    (month.expiresAt.getTime() - orderedAt.getTime()) /
     (month.expiresAt.getTime() - month.startsAt.getTime());
   const credits = Math.round(
     (plan.credits - from.data.upgradeFromCredits) *
