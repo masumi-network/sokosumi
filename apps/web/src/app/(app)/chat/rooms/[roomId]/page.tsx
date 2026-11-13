@@ -112,14 +112,20 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
     await Promise.all([
       getSession(),
       chatRoomService.getRoom(roomId),
+      // The membership read needs only the session's organization id, so it
+      // runs next to the organization read instead of after it. A member of
+      // an organization Core no longer shows the caller counts as none.
       userService
-        .getActiveOrganization()
+        .getActiveOrganizationId()
+        .then((organizationId) =>
+          Promise.all([
+            userService.getActiveOrganization(),
+            readMyMember(organizationId),
+          ]),
+        )
         .then(
-          async (organization) =>
-            [
-              organization,
-              await readMyMember(organization?.id ?? null),
-            ] as const,
+          ([organization, member]) =>
+            [organization, organization ? member : null] as const,
         ),
     ]);
 
