@@ -1,3 +1,4 @@
+import { domainToASCII } from "node:url";
 import { seoClickRate } from "./keyword-clicks";
 
 /** Weeks a share of voice keeps: the newest two years. */
@@ -28,9 +29,13 @@ export interface SeoShareWeek {
   unattributed: number;
 }
 
-/** A host as a SERP names it: lower case, "www." aside. */
+/**
+ * A host as a SERP names it: lower case, "www." aside, an international name in its ASCII form. A page URL's host
+ * is ASCII already; a SERP may name the Unicode form. A name that is no valid domain stays as it is.
+ */
 export function seoBareDomain(host: string): string {
-  return host.toLowerCase().replace(/^www\./, "");
+  const lower = host.toLowerCase();
+  return (domainToASCII(lower) || lower).replace(/^www\./, "");
 }
 
 function weekStart(at: string): string {

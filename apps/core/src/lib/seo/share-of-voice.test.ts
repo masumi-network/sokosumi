@@ -119,6 +119,16 @@ describe("seoShareOfVoice", () => {
     expect(week.site).toBe(1);
   });
 
+  it("matches an international site name in its Unicode and its ASCII form", () => {
+    const [week] = seoShareOfVoice(
+      [read([{ rank: 1, domain: "www.Bücher.test" }])],
+      // A page URL's host: the URL parser gives the ASCII form.
+      [new URL("https://bücher.test/page").hostname],
+      [],
+    );
+    expect(week.site).toBe(1);
+  });
+
   it("reads hosts with www. and upper case as one domain", () => {
     expect(seoBareDomain("WWW.Example.Test")).toBe("example.test");
     expect(seoBareDomain("blog.example.test")).toBe("blog.example.test");
