@@ -18,6 +18,7 @@ import {
   requireCuso,
 } from "@/services/cmo-cuso.service";
 import { recordCmoSubscriptionChange } from "@/services/cmo-subscription.service";
+import { grantStartedCmoYearlyMonths } from "@/services/cmo-yearly-grant-sync.service";
 import { mayApproveMarketingStrategy } from "@/services/marketing-strategy.service";
 
 /**
@@ -67,8 +68,13 @@ export async function changeCmoPlan(
   const subscription = await prisma.cmoSubscription.findFirst({
     where: { projectId: cuso.projectId, endedAt: null },
     select: {
+      id: true,
+      projectId: true,
+      organizationId: true,
       polarSubscriptionId: true,
       polarProductId: true,
+      currentPeriodStart: true,
+      lastPaidOrderId: true,
       interval: true,
       status: true,
       cancelAtPeriodEnd: true,
@@ -123,6 +129,13 @@ export async function changeCmoPlan(
     return { change: "kept" };
   }
   const upgrade = target.credits > current.credits;
+  const { lastPaidOrderId } = subscription;
+  if (upgrade && subscription.interval === "year" && lastPaidOrderId) {
+    await grantStartedCmoYearlyMonths(
+      { ...subscription, lastPaidOrderId },
+      current,
+    );
+  }
   const changed = await changePolarSubscriptionPlan({
     polarSubscriptionId: subscription.polarSubscriptionId,
     productId: target.productId,

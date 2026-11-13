@@ -40,6 +40,66 @@ export function monthOfPaidYear(
 }
 
 /**
+ * The started months of a paid year after month 0 (which came with the paid
+ * order), each with its bucket key and expiry. A missed month is granted
+ * late, never already expired.
+ */
+function startedMonths(
+  periodStart: Date,
+  paidOrderId: string,
+  now: Date,
+): { expiresAt: Date; referenceId: string }[] {
+  const lateExpiry = getNextMonthlyPeriodEnd(now, now);
+  const current = monthOfPaidYear(periodStart, now);
+  const months = [];
+  let expiresAt = getNextMonthlyPeriodEnd(periodStart, periodStart);
+  for (let index = 1; index <= current.index; index += 1) {
+    expiresAt = getNextMonthlyPeriodEnd(expiresAt, periodStart);
+    months.push({
+      expiresAt: expiresAt > now ? expiresAt : lateExpiry,
+      referenceId: `${paidOrderId}:${index}`,
+    });
+  }
+  return months;
+}
+
+/**
+ * Grants a yearly subscription's started months it lacks, at the tier it is
+ * on now. An upgrade calls it before it changes the tier: a month that began
+ * on the old tier gets the old tier's credits and the upgrade's order adds
+ * the prorated rest, where this job would grant the whole month at the new
+ * tier. A month granted already ends on the bucket's unique key.
+ */
+export async function grantStartedCmoYearlyMonths(
+  subscription: {
+    id: string;
+    projectId: string;
+    organizationId: string;
+    currentPeriodStart: Date;
+    lastPaidOrderId: string;
+  },
+  plan: { credits: number; name: string },
+): Promise<void> {
+  const paidOrderId = subscription.lastPaidOrderId;
+  for (const month of startedMonths(
+    subscription.currentPeriodStart,
+    paidOrderId,
+    new Date(),
+  )) {
+    await grantCmoCredits({
+      amount: convertCreditsToCents(plan.credits),
+      expiresAt: month.expiresAt,
+      organizationId: subscription.organizationId,
+      projectId: subscription.projectId,
+      referenceId: month.referenceId,
+      referenceNote: plan.name,
+      referenceType: CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH,
+      subscription: { cmoSubscriptionId: subscription.id, paidOrderId },
+    });
+  }
+}
+
+/**
  * Grants each active yearly CMO subscription every started month of its paid
  * year it does not have yet, so a month a run missed is granted by the next
  * (a subscriber never loses a paid month). A month whose own end has passed
@@ -71,31 +131,12 @@ export async function syncCmoYearlyGrants(
       lastPaidOrderId: true,
     },
   });
-  // A missed month is granted late, never already expired.
-  const lateExpiry = getNextMonthlyPeriodEnd(now, now);
   const due = subscriptions.flatMap((subscription) => {
     const paidOrderId = subscription.lastPaidOrderId;
     if (!paidOrderId) return [];
-    const current = monthOfPaidYear(subscription.currentPeriodStart, now);
-    const months = [];
-    let expiresAt = getNextMonthlyPeriodEnd(
-      subscription.currentPeriodStart,
-      subscription.currentPeriodStart,
+    return startedMonths(subscription.currentPeriodStart, paidOrderId, now).map(
+      (month) => ({ ...subscription, ...month, paidOrderId }),
     );
-    // Month 0 came with the paid order.
-    for (let index = 1; index <= current.index; index += 1) {
-      expiresAt = getNextMonthlyPeriodEnd(
-        expiresAt,
-        subscription.currentPeriodStart,
-      );
-      months.push({
-        ...subscription,
-        expiresAt: expiresAt > now ? expiresAt : lateExpiry,
-        paidOrderId,
-        referenceId: `${paidOrderId}:${index}`,
-      });
-    }
-    return months;
   });
   const result = { errors: 0, granted: 0, stoppedEarly: false };
   if (due.length === 0) return result;

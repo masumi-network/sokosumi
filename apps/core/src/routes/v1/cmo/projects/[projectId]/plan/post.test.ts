@@ -21,6 +21,8 @@ const m = vi.hoisted(() => ({
   createPolarCustomerPortalUrl: vi.fn(),
   listPolarProducts: vi.fn(),
   prisma: {
+    $queryRaw: vi.fn(),
+    $transaction: vi.fn(),
     cmoSubscription: {
       findFirst: vi.fn(),
       findUnique: vi.fn(),
@@ -29,6 +31,8 @@ const m = vi.hoisted(() => ({
     member: { findFirst: vi.fn() },
     project: { findUnique: vi.fn() },
     sokoBot: { findFirst: vi.fn() },
+    task: { findMany: vi.fn() },
+    transaction: { create: vi.fn() },
     workspace: { findUnique: vi.fn() },
   },
 }));
@@ -297,6 +301,56 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
       productId: "prod_scale_year",
       upgradeFromCredits: 25_000,
     });
+  });
+
+  it("grants a yearly plan's started month at the old tier before it upgrades", async () => {
+    const DAY = 86_400_000;
+    // Month 1 of the paid year began ten days ago; the grant job has not run.
+    const periodStart = new Date(Date.now() - 40 * DAY);
+    m.prisma.cmoSubscription.findFirst.mockResolvedValue({
+      ...SUBSCRIPTION,
+      id: "row-1",
+      projectId: PROJECT_ID,
+      organizationId: "org-1",
+      polarProductId: "prod_growth_year",
+      interval: "year",
+      currentPeriodStart: periodStart,
+      lastPaidOrderId: "order_y1",
+    });
+    m.prisma.$transaction.mockImplementation((run) => run(m.prisma));
+    m.prisma.$queryRaw.mockImplementation(async (sql: string[]) =>
+      sql.join("?").includes('"cmo_subscription"')
+        ? [
+            {
+              endedAt: null,
+              lastPaidOrderId: "order_y1",
+              lastPaidOrderRefundedAt: null,
+            },
+          ]
+        : [],
+    );
+    m.prisma.task.findMany.mockResolvedValue([]);
+    m.prisma.transaction.create.mockResolvedValue({ id: "tx_1" });
+
+    const response = await changePlan("scale");
+
+    expect(response.status).toBe(200);
+    // The upgrade's own order then adds the prorated rest of month 1; the
+    // grant job would have granted the whole month at the new tier.
+    expect(m.prisma.transaction.create).toHaveBeenCalledTimes(1);
+    expect(
+      m.prisma.transaction.create.mock.calls[0]?.[0].data.sourceCreditBucket
+        .create,
+    ).toMatchObject({
+      amount: 25_000n * 10_000_000_000n,
+      referenceId: "order_y1:1",
+      referenceType: "CMO_SUBSCRIPTION_MONTH",
+    });
+    expect(
+      m.prisma.transaction.create.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      m.changePolarSubscriptionPlan.mock.invocationCallOrder[0] ?? 0,
+    );
   });
 
   describe("keeping the plan while a downgrade is pending", () => {
