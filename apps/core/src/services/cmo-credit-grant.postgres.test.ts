@@ -19,8 +19,8 @@ import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { writeOffProjectCredits } from "@/helpers/cuso-project-credits";
-
 import { grantCmoCredits } from "./cmo-credit-grant.service";
+import { handlePolarOrderRefunded } from "./cmo-subscription.service";
 
 const url = process.env.DATABASE_URL;
 const enabled =
@@ -199,5 +199,93 @@ describe.skipIf(!db)("a CMO grant racing a Cuso ending", () => {
     });
 
     expect(await grantCmoCredits(grantFor(cuso))).toBe("not_live");
+  });
+
+  /**
+   * A yearly month grant racing a refund of the order it belongs to. The grant
+   * writes the subscription row it locks, so a refund whose snapshot is older
+   * than the grant fails on that row and runs again, then finds the bucket.
+   */
+  describe("a yearly month grant racing its order's refund", () => {
+    /** A subscribed Cuso on a yearly plan, paid by one order. */
+    async function yearlyCuso() {
+      const cuso = await subscribedCuso();
+      const orderId = `order-${randomUUID()}`;
+      await database().cmoSubscription.update({
+        where: { id: cuso.subscriptionId },
+        data: {
+          interval: "year",
+          lastPaidOrderId: orderId,
+          lastPaidAt: new Date(),
+        },
+      });
+      return { ...cuso, orderId };
+    }
+
+    function monthGrant(cuso: Awaited<ReturnType<typeof yearlyCuso>>) {
+      return {
+        ...grantFor(cuso),
+        referenceId: `${cuso.orderId}:1`,
+        subscription: {
+          cmoSubscriptionId: cuso.subscriptionId,
+          paidOrderId: cuso.orderId,
+        },
+      };
+    }
+
+    function refund(orderId: string) {
+      return handlePolarOrderRefunded({
+        type: "order.refunded",
+        timestamp: new Date().toISOString(),
+        data: { id: orderId, metadata: {} },
+      } as unknown as Parameters<typeof handlePolarOrderRefunded>[0]);
+    }
+
+    it("writes the month off when the grant commits while the refund reads", async () => {
+      const cuso = await yearlyCuso();
+      let release = () => {};
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let locked = () => {};
+      const holding = new Promise<void>((resolve) => {
+        locked = resolve;
+      });
+      // The grant holds the row while the refund takes its snapshot.
+      const granted = grantCmoCredits(monthGrant(cuso), async () => {
+        locked();
+        await held;
+      });
+      await holding;
+      const refunded = refund(cuso.orderId);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      release();
+
+      expect(await granted).toBe("granted");
+      await refunded;
+      expect(await left(cuso.projectId)).toBe(0n);
+    });
+
+    it("grants nothing when the refund commits first", async () => {
+      const cuso = await yearlyCuso();
+      let release = () => {};
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      // The refund's write of the row, held while the month is due.
+      const refunding = database().$transaction(async (tx) => {
+        await tx.cmoSubscription.update({
+          where: { id: cuso.subscriptionId },
+          data: { lastPaidOrderRefundedAt: new Date() },
+        });
+        await held;
+      });
+      const granted = grantCmoCredits(monthGrant(cuso));
+      release();
+      await refunding;
+
+      expect(await granted).toBe("not_live");
+      expect(await left(cuso.projectId)).toBe(0n);
+    });
   });
 });

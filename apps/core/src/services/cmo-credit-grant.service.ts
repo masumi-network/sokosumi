@@ -85,7 +85,9 @@ export async function grantCmoCredits(
  * grant. Every ending revokes, and so writes this row, before it archives the
  * Cuso: a grant either waits for that write and sees it, or commits first and
  * the ending's write-off takes its credits. The Cuso check reads what the
- * locked row already orders.
+ * locked row already orders. The lock is a write, not `FOR UPDATE`: a
+ * Serializable refund whose snapshot predates the grant then fails on this
+ * row and runs again, finding the new bucket.
  */
 async function lockLiveSubscription(
   tx: Prisma.TransactionClient,
@@ -95,15 +97,13 @@ async function lockLiveSubscription(
   const rows =
     "cmoSubscriptionId" in subscription
       ? await tx.$queryRaw<LockedSubscription[]>`
-          SELECT "endedAt", "lastPaidOrderId", "lastPaidOrderRefundedAt"
-          FROM "cmo_subscription"
+          UPDATE "cmo_subscription" SET "updatedAt" = "updatedAt"
           WHERE "id" = ${subscription.cmoSubscriptionId}::uuid
-          FOR UPDATE`
+          RETURNING "endedAt", "lastPaidOrderId", "lastPaidOrderRefundedAt"`
       : await tx.$queryRaw<LockedSubscription[]>`
-          SELECT "endedAt", "lastPaidOrderId", "lastPaidOrderRefundedAt"
-          FROM "cmo_subscription"
+          UPDATE "cmo_subscription" SET "updatedAt" = "updatedAt"
           WHERE "projectId" = ${subscription.projectId}::uuid AND "endedAt" IS NULL
-          FOR UPDATE`;
+          RETURNING "endedAt", "lastPaidOrderId", "lastPaidOrderRefundedAt"`;
   const row = rows[0];
   if (!row || row.endedAt !== null) return false;
   if (

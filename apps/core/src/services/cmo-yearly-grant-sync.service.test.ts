@@ -282,6 +282,19 @@ describe("syncCmoYearlyGrants", () => {
     expect(m.prisma.transaction.create).not.toHaveBeenCalled();
   });
 
+  it("writes the subscription row it locks, so a refund reading the order's buckets at the same time runs again", async () => {
+    vi.setSystemTime(new Date("2026-02-28T10:00:00.000Z"));
+
+    await sync();
+
+    // A refund is Serializable: only a write of the row, not a lock, makes
+    // its update fail when its snapshot predates the grant (coding conventions).
+    const lock = m.prisma.$queryRaw.mock.calls[0]?.[0] as string[];
+    expect(lock.join("?")).toMatch(
+      /^\s*UPDATE "cmo_subscription"\s+SET "updatedAt" = "updatedAt"/,
+    );
+  });
+
   it("counts no grant when a concurrent run wrote the month first", async () => {
     vi.setSystemTime(new Date("2026-03-31T10:00:00.000Z"));
     m.prisma.transaction.create.mockRejectedValue(
