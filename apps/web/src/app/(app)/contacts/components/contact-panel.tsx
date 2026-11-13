@@ -41,7 +41,6 @@ import {
   coreErrorOf,
   IMPORTANCE_LEVELS,
   isFollowUpDue,
-  LIST_COLOR_DOT,
   primaryEmail,
   sortChannels,
 } from "@/app/contacts/contacts-view";
@@ -49,7 +48,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -78,8 +76,8 @@ import { ContactListDialog } from "./contact-list-dialog";
 import {
   ChannelIcon,
   ContactAvatar,
-  Dot,
   ListChip,
+  ListOption,
   PersonAvatar,
   ReplyChip,
   ScoreMeter,
@@ -87,7 +85,11 @@ import {
 } from "./contact-visuals";
 import { GroupedRadioItems, useStageOptions } from "./contacts-toolbar";
 import { InlineField } from "./inline-field";
-import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
+import {
+  useContactUpdate,
+  useImportanceUpdate,
+  useListToggle,
+} from "./use-contact-update";
 import {
   CONTACT_DUPLICATES_KEY,
   contactKey,
@@ -269,17 +271,7 @@ function PanelBody({
     await refreshContacts(cache, contact.id);
   }
 
-  async function toggleList(list: ContactList, on: boolean) {
-    try {
-      await contactsService.changeMembers(
-        list.id,
-        on ? { add: [contact.id] } : { remove: [contact.id] },
-      );
-      await refreshContacts(cache, contact.id);
-    } catch (error) {
-      toast.error(coreErrorOf(error).message ?? t("errors.saveFailed"));
-    }
-  }
+  const { toggleList, isSaving } = useListToggle();
 
   async function enrich() {
     setEnriching(true);
@@ -618,6 +610,7 @@ function PanelBody({
                       name={list.name}
                       color={list.color}
                       automatic={list.addedAutomatically}
+                      saving={isSaving(contact.id, list.id)}
                     />
                   ))
                 ) : (
@@ -629,29 +622,15 @@ function PanelBody({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-56">
               <DropdownMenuLabel>{t("panel.manualLists")}</DropdownMenuLabel>
-              {manualLists.map((list) => {
-                const membership = contact.lists.find(
-                  (item) => item.id === list.id,
-                );
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={list.id}
-                    checked={!!membership}
-                    onSelect={(event) => event.preventDefault()}
-                    onCheckedChange={(checked) =>
-                      void toggleList(list, checked === true)
-                    }
-                  >
-                    <Dot className={LIST_COLOR_DOT[list.color]} />
-                    {list.name}
-                    {membership?.addedAutomatically ? (
-                      <span className="text-muted-foreground ms-auto ps-3 text-xs">
-                        {t("panel.automatic")}
-                      </span>
-                    ) : null}
-                  </DropdownMenuCheckboxItem>
-                );
-              })}
+              {manualLists.map((list) => (
+                <ListOption
+                  key={list.id}
+                  list={list}
+                  membership={contact.lists.find(({ id }) => id === list.id)}
+                  saving={isSaving(contact.id, list.id)}
+                  onToggle={(on) => void toggleList(contact, list, on)}
+                />
+              ))}
               {manualLists.length === 0 ? (
                 <p className="text-muted-foreground px-2 py-1.5 text-sm">
                   {t("panel.noManualLists")}

@@ -10740,7 +10740,10 @@
         "csv": "Check the quotes and separators in the CSV file.",
         "csvHeaders": "Give every CSV column a non-empty header.",
         "csvWidth": "Every CSV row must have the same number of columns.",
-        "layout": "Column layout wasn't saved and was reset. {reason}"
+        "layout": "Column layout wasn't saved and was reset. {reason}",
+        "archiveRows": "{count, plural, one {Could not archive # row. It is back in the table.} other {Could not archive # rows. They are back in the table.}} {reason}",
+        "restoreRows": "{count, plural, one {Could not restore # row. It is back in archived rows.} other {Could not restore # rows. They are back in archived rows.}} {reason}",
+        "cellNotSaved": "Your value was not saved. It is back in the editor. {reason}"
       },
       "reorderColumn": "Reorder {column}. Drag, or press the left and right arrow keys.",
       "reorderRow": "Reorder row. Drag, or press the up and down arrow keys.",
@@ -11099,6 +11102,8 @@
         "noManualLists": "No lists yet.",
         "newList": "New list…",
         "newListAddFailed": "{list} is ready, but {name} isn't on it yet.",
+        "addToListFailed": "Could not add {name} to {list}. The contact is off the list again.",
+        "removeFromListFailed": "Could not take {name} off {list}. The contact is back on the list.",
         "empty": "Add…",
         "location": "Location",
         "nextStepTitle": "Next step",
