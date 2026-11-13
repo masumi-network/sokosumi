@@ -6,6 +6,7 @@ import { getEnv } from "@/config/env";
 
 import { forbidden } from "@/helpers/error";
 import { parsePublicSeoArtifact } from "@/helpers/project-seo-report";
+import { SEO_SERPS_NOT_READ } from "@/helpers/project-seo-report-serps";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import seo from "@/routes/v1/projects/[id]/seo";
@@ -15,9 +16,11 @@ import {
   type SeoActor,
 } from "@/schemas/project-seo.schema";
 import {
+  focusedRankingsReport,
   focusedReport,
   legacyReport,
   SEO_TEST_PAGE,
+  serpRead,
 } from "@/test-fixtures/project-seo";
 import {
   addProjectSeoPage,
@@ -1251,6 +1254,299 @@ describe.skipIf(!enabled)(
         }),
       ).rejects.toMatchObject({ status: 404 });
     });
+
+    it("keeps old rankings reads in the position history past the bounded result list", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: "https://example.test/rank-history",
+        relationship: "primary",
+      });
+      const older: { id: string }[] = [];
+      for (const [day, position] of [
+        [1, 9],
+        [2, 7],
+      ] as const)
+        older.push(
+          await storeResult(
+            page.id,
+            rankingsPayload(page.url, `2026-09-0${day}T09:00:00.000Z`, {
+              position,
+            }),
+          ),
+        );
+      // Newer results the main list keeps first: it holds only the newest 100.
+      const check = parsePublicSeoArtifact({
+        ...focusedReport(),
+        scope: { ...focusedReport().scope, pageUrls: [page.url] },
+        checks: [],
+      });
+      await prisma.projectSeoObservation.createMany({
+        data: Array.from({ length: 100 }, (_, index) => ({
+          projectId,
+          source: "seo_coworker",
+          kind: "page_check",
+          sourceKey: `rank-history-noise:${index}`,
+          pageIds: [page.id],
+          artifactHash: "rank-history-noise",
+          payload: check,
+          observedAt: new Date("2026-10-01T00:00:00Z"),
+        })),
+      });
+      const newest = await storeResult(
+        page.id,
+        rankingsPayload(page.url, "2026-11-01T09:00:00.000Z", { position: 2 }),
+      );
+      const workspace = await getProjectSeoWorkspace(actor, {
+        pageId: page.id,
+      });
+      expect(workspace.observations.some((row) => row.id === older[0].id)).toBe(
+        false,
+      );
+      const row = workspace.keywords.find(
+        (item) => item.observationId === newest.id,
+      );
+      expect(
+        row?.positionHistory?.map((point) => [
+          point.observationId,
+          point.position,
+        ]),
+      ).toEqual([
+        [older[0].id, 9],
+        [older[1].id, 7],
+        [newest.id, 2],
+      ]);
+    });
+
+    it("reads the rank history only from rankings and audit_lite results", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: "https://example.test/rank-kinds",
+        relationship: "primary",
+      });
+      const full = await storeResult(
+        page.id,
+        parsePublicSeoArtifact({
+          ...legacyReport(),
+          request: { url: page.url },
+          header: {
+            ...legacyReport().header,
+            capturedAt: "2026-10-01T09:00:00.000Z",
+          },
+        }),
+      );
+      await storeResult(
+        page.id,
+        rankingsPayload(page.url, "2026-10-02T09:00:00.000Z", {
+          kind: "page_check",
+          position: 1,
+        }),
+      );
+      const lite = await storeResult(
+        page.id,
+        rankingsPayload(page.url, "2026-10-03T09:00:00.000Z", {
+          kind: "audit_lite",
+          position: 6,
+        }),
+      );
+      const rankings = await storeResult(
+        page.id,
+        rankingsPayload(page.url, "2026-10-04T09:00:00.000Z", { position: 4 }),
+      );
+      const workspace = await getProjectSeoWorkspace(actor, {
+        pageId: page.id,
+      });
+      const read = workspace.keywords.find(
+        (item) => item.observationId === rankings.id,
+      );
+      expect(
+        read?.positionHistory?.map((point) => point.observationId),
+      ).toEqual([lite.id, rankings.id]);
+      // The full audit's own keyword rows exist, without a history.
+      const fullRows = workspace.keywords.filter(
+        (item) => item.observationId === full.id,
+      );
+      expect(fullRows.length).toBeGreaterThan(0);
+      expect(fullRows.map((item) => item.positionHistory)).toEqual(
+        fullRows.map(() => undefined),
+      );
+      expect(
+        workspace.serpHistory?.flatMap((series) =>
+          series.points.map((point) => point.observationId),
+        ),
+      ).toEqual([lite.id, rankings.id]);
+    });
+
+    it("keeps private results and results of unselected pages out of the SERP history and share of voice", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: "https://example.test/rank-scope",
+        relationship: "primary",
+      });
+      const other = await addProjectSeoPage(actor, {
+        url: "https://example.test/rank-scope-other",
+        relationship: "primary",
+      });
+      const at = "2026-10-05T09:00:00.000Z";
+      await storeResult(page.id, rankingsPayload(page.url, at));
+      await storeResult(
+        other.id,
+        rankingsPayload(other.url, at, { serpKeyword: "unselected page" }),
+      );
+      await storeResult(
+        page.id,
+        rankingsPayload(page.url, at, { serpKeyword: "private result" }),
+        { ownerId: userId },
+      );
+      const workspace = await getProjectSeoWorkspace(actor, {
+        pageId: page.id,
+      });
+      expect(workspace.serpHistory?.map((series) => series.keyword)).toEqual([
+        "example",
+      ]);
+      expect(workspace.shareOfVoice?.weeks.map((week) => week.reads)).toEqual([
+        1,
+      ]);
+    });
+
+    it("imports the readable SERP reads of a rankings result and refuses a read of an unrequested keyword", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: "https://example.test/rank-import",
+        relationship: "primary",
+      });
+      const base = focusedRankingsReport();
+      // One rankings Analysis per report: a Task holds one report file.
+      const upload = async (idempotencyKey: string, serps: unknown[]) => {
+        const analysis = await requestProjectSeoAnalysis(
+          actor,
+          requestSeoAnalysisSchema.parse({
+            kind: "rankings",
+            pageIds: [page.id],
+            keywords: ["example"],
+            countryCode: "US",
+            languageCode: "en",
+            devices: ["desktop"],
+            idempotencyKey,
+            coworkerId,
+          }),
+        );
+        const taskId = analysis.taskId;
+        if (!taskId) throw new Error("The Analysis did not create a Task");
+        await prisma.task.update({
+          where: { id: taskId },
+          data: { status: "COMPLETED" },
+        });
+        const body = JSON.stringify({
+          ...base,
+          requestId: analysis.id,
+          scope: { ...base.scope, pageUrls: [page.url] },
+          keywords: [{ ...base.keywords[0], pageUrl: page.url }],
+          serps,
+        });
+        const file = await prisma.taskFile.create({
+          data: {
+            taskId,
+            name: `seo-report-${taskId}.json`,
+            fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${taskId}/report.json`,
+            mimeType: "application/json",
+            size: BigInt(Buffer.byteLength(body)),
+            uploadedByCoworkerId: coworkerId,
+          },
+        });
+        return {
+          input: { taskId, fileId: file.id },
+          fetchImpl: (async () => new Response(body)) as typeof fetch,
+        };
+      };
+      const unrequested = await upload("rankings-serp-unrequested", [
+        serpRead({ keyword: "unrequested" }),
+      ]);
+      await expect(
+        importProjectSeoAudit(actor, unrequested.input, {
+          fetchImpl: unrequested.fetchImpl,
+        }),
+      ).rejects.toMatchObject({ status: 400 });
+      const partial = await upload("rankings-serp-partial", [
+        serpRead(),
+        { keyword: 5 },
+      ]);
+      const imported = await importProjectSeoAudit(actor, partial.input, {
+        fetchImpl: partial.fetchImpl,
+      });
+      const stored = await prisma.projectSeoObservation.findUniqueOrThrow({
+        where: { id: imported.id },
+      });
+      const payload = stored.payload as { serps?: unknown[]; notes: string[] };
+      expect(payload.serps).toHaveLength(1);
+      expect(payload.notes).toContain(SEO_SERPS_NOT_READ);
+      expect(
+        await prisma.projectSeoObservation.count({
+          where: { sourceFileId: unrequested.input.fileId },
+        }),
+      ).toBe(0);
+      const workspace = await getProjectSeoWorkspace(actor, {
+        pageId: page.id,
+      });
+      expect(
+        workspace.serpHistory?.map((series) => [
+          series.keyword,
+          series.points.map((point) => point.pageUrls),
+        ]),
+      ).toEqual([["example", [[page.url]]]]);
+      expect(workspace.shareOfVoice?.weeks).toHaveLength(1);
+    });
+
+    it("counts only the confirmed competitors of its own project in share of voice", async () => {
+      const ownProjectId = randomUUID();
+      await prisma.project.create({
+        data: { id: ownProjectId, workspaceId, name: "SEO share test" },
+      });
+      const own: SeoActor = {
+        ...actor,
+        owner: { kind: "project", id: ownProjectId },
+      };
+      const page = await addProjectSeoPage(own, {
+        url: "https://example.test/share",
+        relationship: "primary",
+      });
+      await prisma.projectSeoCompetitor.createMany({
+        data: [
+          {
+            projectId: ownProjectId,
+            url: "https://rival-own.test/",
+            confirmed: true,
+          },
+          {
+            projectId: ownProjectId,
+            url: "https://rival-unconfirmed.test/",
+            confirmed: false,
+          },
+          { projectId, url: "https://rival-other.test/", confirmed: true },
+        ],
+      });
+      await prisma.projectSeoObservation.create({
+        data: {
+          projectId: ownProjectId,
+          source: "seo_coworker",
+          kind: "rankings",
+          sourceKey: randomUUID(),
+          pageIds: [page.id],
+          artifactHash: "share-of-voice",
+          payload: rankingsPayload(page.url, "2026-10-06T09:00:00.000Z", {
+            top: [
+              { rank: 1, domain: "rival-own.test" },
+              { rank: 2, domain: "example.test" },
+              { rank: 3, domain: "rival-other.test" },
+              { rank: 4, domain: "rival-unconfirmed.test" },
+            ],
+          }),
+          observedAt: new Date("2026-10-06T09:00:00.000Z"),
+        },
+      });
+      const week = (await getProjectSeoWorkspace(own, { pageId: page.id }))
+        .shareOfVoice?.weeks[0];
+      expect(week?.competitors.map((row) => row.domain)).toEqual([
+        "rival-own.test",
+      ]);
+      expect(week?.site).toBeGreaterThan(0);
+      expect(week?.others).toBeGreaterThan(0);
+    });
   },
 );
 
@@ -1276,4 +1572,60 @@ function metrics(pageUrls: string[]): NativeSeoMetrics {
       },
     ],
   };
+}
+
+/** A rankings-shaped result of one page: one desktop position read and one SERP read of "example". */
+function rankingsPayload(
+  pageUrl: string,
+  observedAt: string,
+  options: {
+    kind?: string;
+    position?: number;
+    serpKeyword?: string;
+    top?: { rank: number; domain: string }[];
+  } = {},
+) {
+  const base = focusedRankingsReport();
+  return parsePublicSeoArtifact({
+    ...base,
+    kind: options.kind ?? base.kind,
+    observedAt,
+    scope: { ...base.scope, pageUrls: [pageUrl] },
+    keywords: [
+      {
+        ...base.keywords[0],
+        pageUrl,
+        observedAt,
+        position: options.position ?? base.keywords[0].position,
+      },
+    ],
+    serps: [
+      serpRead({
+        observedAt,
+        keyword: options.serpKeyword ?? "example",
+        ...(options.top ? { top: options.top } : {}),
+      }),
+    ],
+  });
+}
+
+/** Stores a public result of the test project for one page. */
+function storeResult(
+  pageId: string,
+  payload: ReturnType<typeof parsePublicSeoArtifact>,
+  extra: { ownerId?: string } = {},
+) {
+  return prisma.projectSeoObservation.create({
+    data: {
+      projectId,
+      source: "seo_coworker",
+      kind: payload.kind,
+      sourceKey: randomUUID(),
+      pageIds: [pageId],
+      artifactHash: "rank-history",
+      payload,
+      observedAt: new Date(payload.observedAt),
+      ...extra,
+    },
+  });
 }
