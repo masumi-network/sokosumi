@@ -1170,6 +1170,38 @@ describe("stored SEO workspace projections", () => {
     expect(discoverView.searchQueries).toBeNull();
   });
 
+  it("shows a Discover split by device without query rows", () => {
+    const input = fixture();
+    const discover = searchObservation(input, "2026-11-03T12:00:00Z");
+    const devices = {
+      rowLimit: 250,
+      truncated: false,
+      rows: [
+        {
+          key: "mobile",
+          clicks: 3,
+          impressions: 40,
+          ctr: 0.075,
+          averagePosition: null,
+        },
+      ],
+    };
+    discover.payload = {
+      ...(discover.payload as object),
+      searchType: "discover",
+      queries: undefined,
+      devices,
+    } as never;
+    input.observations = [discover];
+    input.query = { searchType: "discover" };
+    const view = projectSeoProjection(input);
+    expect(view.searchQueries).toBeNull();
+    expect(view.searchBreakdown).toMatchObject({
+      observationId: discover.id,
+      devices,
+    });
+  });
+
   it("names the search type of image query rows and none for web rows", () => {
     const input = fixture();
     const image = searchObservation(input, "2026-11-03T12:00:00Z");

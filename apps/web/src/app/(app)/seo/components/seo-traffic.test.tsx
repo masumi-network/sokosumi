@@ -90,6 +90,43 @@ describe("SEO Traffic search type", () => {
     expect(screen.queryByRole("combobox", { name: "Search type" })).toBeNull();
   });
 
+  it("shows a Discover split by device beside the no query data note", () => {
+    const workspace = seoTestWorkspace();
+    workspace.metrics = [{ ...seoTestMetric(), searchType: "discover" }];
+    workspace.searchBreakdown = {
+      observationId: "c6b8a2c4-5b8e-4f0e-9a51-1f2f8a3f7c11",
+      propertyId: "sc-domain:example.com",
+      from: "2026-10-01",
+      to: "2026-10-28",
+      observedAt: new Date("2026-10-29T00:00:00Z"),
+      devices: {
+        rowLimit: 250,
+        truncated: false,
+        rows: [
+          {
+            key: "mobile",
+            clicks: 3,
+            impressions: 40,
+            ctr: 0.075,
+            averagePosition: null,
+          },
+        ],
+      },
+    };
+    renderTraffic(workspace, "&searchType=discover");
+    expect(
+      screen.getByText("This search type has no query data"),
+    ).toBeVisible();
+    const section = screen
+      .getByRole("heading", { name: "Countries and devices" })
+      .closest("section");
+    if (!section) throw new Error("Breakdown section missing");
+    const mobile = within(section).getByRole("row", { name: /Mobile/ });
+    expect(within(mobile).getAllByRole("cell").at(-1)).toHaveTextContent(
+      "Not available",
+    );
+  });
+
   it("refreshes the search type in view", async () => {
     const user = userEvent.setup();
     mutate.mockResolvedValue({ ok: true, value: null });

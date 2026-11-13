@@ -40082,6 +40082,16 @@ export const ProjectSeoWorkspaceSchema = {
                 }
             ]
         },
+        searchBreakdown: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoWorkspaceSearchBreakdown'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         brandTerms: {
             type: 'array',
             items: {
@@ -41195,12 +41205,6 @@ export const ProjectSeoSearchQueriesSchema = {
         keywordSeries: {
             $ref: '#/components/schemas/ProjectSeoKeywordSeries'
         },
-        countries: {
-            $ref: '#/components/schemas/ProjectSeoSearchBreakdown'
-        },
-        devices: {
-            $ref: '#/components/schemas/ProjectSeoSearchBreakdown'
-        },
         searchType: {
             type: 'string',
             enum: [
@@ -41299,6 +41303,43 @@ export const ProjectSeoKeywordSeriesSchema = {
         'keywords'
     ],
     additionalProperties: false
+} as const;
+
+export const ProjectSeoWorkspaceSearchBreakdownSchema = {
+    type: 'object',
+    properties: {
+        observationId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        propertyId: {
+            type: 'string'
+        },
+        from: {
+            type: 'string'
+        },
+        to: {
+            type: 'string'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        countries: {
+            $ref: '#/components/schemas/ProjectSeoSearchBreakdown'
+        },
+        devices: {
+            $ref: '#/components/schemas/ProjectSeoSearchBreakdown'
+        }
+    },
+    required: [
+        'observationId',
+        'propertyId',
+        'from',
+        'to',
+        'observedAt'
+    ]
 } as const;
 
 export const ProjectSeoSearchBreakdownSchema = {

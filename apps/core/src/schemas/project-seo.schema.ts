@@ -17,9 +17,11 @@ import {
 import { seoStrategySchema } from "./project-seo-strategy.schema";
 import {
   seoLandingPagesSchema,
+  seoSearchBreakdownSchema,
   seoSearchTypeSchema,
   seoTrafficChannelSchema,
   seoWorkspaceLandingPagesSchema,
+  seoWorkspaceSearchBreakdownSchema,
 } from "./project-seo-traffic.schema";
 
 export const SEO_MAX_PAGES = 10;
@@ -482,33 +484,6 @@ export const seoKeywordSeriesSchema = z
   })
   .strict()
   .openapi("ProjectSeoKeywordSeries");
-export const SEO_BREAKDOWN_ROW_LIMIT = 250;
-/**
- * Search Console totals for the same pages and period, grouped by one
- * dimension. A country key is ISO alpha-2, or Google's alpha-3 code when it
- * has no alpha-2 twin. A device key is desktop, mobile or tablet.
- */
-export const seoSearchBreakdownSchema = z
-  .object({
-    rowLimit: z.number().int().positive().max(SEO_BREAKDOWN_ROW_LIMIT),
-    truncated: z.boolean(),
-    rows: z
-      .array(
-        z
-          .object({
-            key: z.string().regex(/^(?:[A-Z]{2,3}|desktop|mobile|tablet)$/),
-            clicks: z.number().finite().nonnegative(),
-            impressions: z.number().finite().nonnegative(),
-            ctr: z.number().finite().min(0).max(1),
-            // Null: a Discover or Google News row came without a position.
-            averagePosition: z.number().finite().min(1).nullable(),
-          })
-          .strict(),
-      )
-      .max(SEO_BREAKDOWN_ROW_LIMIT),
-  })
-  .strict()
-  .openapi("ProjectSeoSearchBreakdown");
 /** Google's index verdict for one page from Search Console URL Inspection. */
 export const seoIndexedPageSchema = z
   .object({
@@ -550,9 +525,6 @@ export const seoSearchQueriesSchema = z
     rows: z.array(seoSearchQueryRowSchema.extend({ id: z.string() })),
     /** Daily positions of tracked keywords from the same observation. Absent when not requested. */
     keywordSeries: seoKeywordSeriesSchema.optional(),
-    /** Totals by country and by device from the same observation. Absent when the read failed or on older observations. */
-    countries: seoSearchBreakdownSchema.optional(),
-    devices: seoSearchBreakdownSchema.optional(),
     /** The Search Console search type of these rows. Absent reads web search. */
     searchType: seoSearchTypeSchema.optional(),
   })
@@ -665,6 +637,10 @@ export const projectSeoWorkspaceSchema = z
     ]),
     metrics: z.array(seoMetricSchema),
     searchQueries: z.union([seoSearchQueriesSchema, z.null()]),
+    /** Totals by country and by device from the newest Search Console sync that has them, with or without query rows. */
+    searchBreakdown: z
+      .union([seoWorkspaceSearchBreakdownSchema, z.null()])
+      .optional(),
     /** Owner-chosen brand terms that split Search Console queries. Absent before any was saved. */
     brandTerms: z.array(z.string()).optional(),
     /** Organic key events per landing page from the newest Google Analytics sync in view. */
@@ -767,7 +743,6 @@ export type SeoActor = {
   privateMetricsAllowed?: boolean;
 };
 export type NativeSeoMetrics = z.infer<typeof nativeSeoMetricsSchema>;
-export type SeoSearchBreakdown = z.infer<typeof seoSearchBreakdownSchema>;
 export type SeoIndexedPage = z.infer<typeof seoIndexedPageSchema>;
 export type SeoWorkspaceQuery = z.infer<typeof seoWorkspaceQuerySchema>;
 export type RequestSeoAnalysis = z.infer<typeof requestSeoAnalysisSchema>;

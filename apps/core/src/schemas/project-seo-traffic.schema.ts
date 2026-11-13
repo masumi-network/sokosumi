@@ -110,3 +110,43 @@ export const seoSettingsPayloadSchema = z
     recordedBy: z.string().min(1).max(128),
   })
   .strict();
+export const SEO_BREAKDOWN_ROW_LIMIT = 250;
+/**
+ * Search Console totals for the same pages and period, grouped by one
+ * dimension. A country key is ISO alpha-2, or Google's alpha-3 code when it
+ * has no alpha-2 twin. A device key is desktop, mobile or tablet.
+ */
+export const seoSearchBreakdownSchema = z
+  .object({
+    rowLimit: z.number().int().positive().max(SEO_BREAKDOWN_ROW_LIMIT),
+    truncated: z.boolean(),
+    rows: z
+      .array(
+        z
+          .object({
+            key: z.string().regex(/^(?:[A-Z]{2,3}|desktop|mobile|tablet)$/),
+            clicks: z.number().finite().nonnegative(),
+            impressions: z.number().finite().nonnegative(),
+            ctr: z.number().finite().min(0).max(1),
+            // Null: a Discover or Google News row came without a position.
+            averagePosition: z.number().finite().min(1).nullable(),
+          })
+          .strict(),
+      )
+      .max(SEO_BREAKDOWN_ROW_LIMIT),
+  })
+  .strict()
+  .openapi("ProjectSeoSearchBreakdown");
+export type SeoSearchBreakdown = z.infer<typeof seoSearchBreakdownSchema>;
+/** The newest Search Console country and device split in view, with where it came from. */
+export const seoWorkspaceSearchBreakdownSchema = z
+  .object({
+    observationId: z.string().uuid(),
+    propertyId: z.string(),
+    from: z.string(),
+    to: z.string(),
+    observedAt: dateTimeSchema,
+    countries: seoSearchBreakdownSchema.optional(),
+    devices: seoSearchBreakdownSchema.optional(),
+  })
+  .openapi("ProjectSeoWorkspaceSearchBreakdown");

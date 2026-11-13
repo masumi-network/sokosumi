@@ -108,19 +108,19 @@ describe("hiddenImpressions", () => {
   it("counts impressions a country split leaves out", () => {
     const workspace = workspaceWith(rows, [metric({ value: 35 })]);
     if (!workspace.searchQueries) throw new Error("Queries missing");
-    workspace.searchQueries.countries = {
-      rowLimit: 250,
+    const countries = {
+      ...workspace.searchQueries,
       truncated: false,
       rows: [
         { key: "EG", clicks: 0, impressions: 1, ctr: 0, averagePosition: 3 },
       ],
     };
-    expect(
-      hiddenImpressions(workspace, (queries) => queries.countries),
-    ).toEqual({ total: 35, listed: 1, hidden: 34 });
-    expect(
-      hiddenImpressions(workspace, (queries) => queries.devices),
-    ).toBeNull();
+    expect(hiddenImpressions(workspace, countries)).toEqual({
+      total: 35,
+      listed: 1,
+      hidden: 34,
+    });
+    expect(hiddenImpressions(workspace, undefined)).toBeNull();
   });
 
   it("returns null when rows add up to more than the total", () => {

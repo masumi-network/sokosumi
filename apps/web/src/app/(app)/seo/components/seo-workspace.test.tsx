@@ -2470,6 +2470,13 @@ describe("SEO workspace integration", () => {
       rowLimit: 250,
       truncated: false,
       rows: [],
+    };
+    workspace.searchBreakdown = {
+      observationId: "c6b8a2c4-5b8e-4f0e-9a51-1f2f8a3f7c11",
+      propertyId: "sc-domain:example.com",
+      from: "2026-10-01",
+      to: "2026-10-28",
+      observedAt: new Date(),
       countries: {
         rowLimit: 250,
         truncated: false,
@@ -2525,19 +2532,16 @@ describe("SEO workspace integration", () => {
       truncated: false,
       rows: [row(key, impressions)],
     });
-    workspace.searchQueries = {
+    const breakdown = {
       observationId: "c6b8a2c4-5b8e-4f0e-9a51-1f2f8a3f7c11",
       propertyId: "sc-domain:example.com",
       from: "2026-10-01",
       to: "2026-10-28",
-      timeZone: "UTC",
       observedAt,
-      rowLimit: 250,
-      truncated: false,
-      rows: [],
       countries: split(1, "EG"),
       devices: split(1, "desktop"),
     };
+    workspace.searchBreakdown = breakdown;
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
@@ -2552,7 +2556,7 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByText(/Google gives a device for only/)).toBeNull();
     same.unmount();
     // Different counts: each table says its own.
-    workspace.searchQueries.devices = split(5, "desktop");
+    breakdown.devices = split(5, "desktop");
     renderWorkspace(workspace, "?tab=traffic");
     expect(
       screen.getByText(

@@ -4,10 +4,8 @@ import countries from "i18n-iso-countries";
 import {
   SEO_BREAKDOWN_ROW_LIMIT,
   type SeoSearchBreakdown,
-  seoSearchBreakdownSchema,
-} from "@/schemas/project-seo.schema";
-import {
   type SeoSearchType,
+  seoSearchBreakdownSchema,
   seoSearchTypeHasQueries,
 } from "@/schemas/project-seo-traffic.schema";
 import { gscNumberSchema } from "./native-gsc-queries";

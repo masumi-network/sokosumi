@@ -10677,6 +10677,7 @@ export type ProjectSeoWorkspace = {
     metricsStatus: 'not_connected' | 'available' | 'partial' | 'unavailable';
     metrics: Array<ProjectSeoMetric>;
     searchQueries: ProjectSeoSearchQueries | null;
+    searchBreakdown?: ProjectSeoWorkspaceSearchBreakdown | null;
     brandTerms?: Array<string>;
     landingPages?: ProjectSeoLandingPages | null;
     indexStatus?: ProjectSeoIndexStatus | null;
@@ -10875,8 +10876,6 @@ export type ProjectSeoSearchQueries = {
         id: string;
     }>;
     keywordSeries?: ProjectSeoKeywordSeries;
-    countries?: ProjectSeoSearchBreakdown;
-    devices?: ProjectSeoSearchBreakdown;
     searchType?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
 };
 
@@ -10893,6 +10892,16 @@ export type ProjectSeoKeywordSeries = {
             position: number | null;
         }>;
     }>;
+};
+
+export type ProjectSeoWorkspaceSearchBreakdown = {
+    observationId: string;
+    propertyId: string;
+    from: string;
+    to: string;
+    observedAt: Date;
+    countries?: ProjectSeoSearchBreakdown;
+    devices?: ProjectSeoSearchBreakdown;
 };
 
 export type ProjectSeoSearchBreakdown = {

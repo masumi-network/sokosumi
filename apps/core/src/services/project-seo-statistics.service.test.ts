@@ -604,10 +604,10 @@ describe("Search Console query rows", () => {
       ctr: 0.11,
       averagePosition: 4.2,
     };
-    expect(workspace.searchQueries?.countries?.rows).toEqual([
+    expect(workspace.searchBreakdown?.countries?.rows).toEqual([
       { key: "DE", ...row },
     ]);
-    expect(workspace.searchQueries?.devices?.rows).toEqual([
+    expect(workspace.searchBreakdown?.devices?.rows).toEqual([
       { key: "mobile", ...row },
     ]);
     const payload = state.observations[0].payload as { notes: string[] };

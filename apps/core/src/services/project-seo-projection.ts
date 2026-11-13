@@ -676,6 +676,7 @@ export function projectSeoProjection(
     actions,
     metrics,
     searchQueries: search.searchQueries,
+    searchBreakdown: search.searchBreakdown,
     landingPages: metricRows.landingPages,
     indexStatus: newestIndexStatus(indexSources, selectedUrls),
     strategy,

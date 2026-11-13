@@ -17,15 +17,19 @@ const IMPRESSIONS_METRIC = "impressions";
  */
 export function hiddenImpressions(
   workspace: ProjectSeoWorkspace,
-  pick: (
-    queries: NonNullable<ProjectSeoWorkspace["searchQueries"]>,
-  ) => { truncated: boolean; rows: { impressions: number }[] } | undefined = (
-    queries,
-  ) => queries,
+  part:
+    | {
+        propertyId: string;
+        from: string;
+        to: string;
+        observedAt: Date | string;
+        truncated: boolean;
+        rows: { impressions: number }[];
+      }
+    | null
+    | undefined = workspace.searchQueries,
 ) {
-  const queries = workspace.searchQueries;
-  const part = queries && pick(queries);
-  if (!queries || !part || part.truncated) return null;
+  if (!part || part.truncated) return null;
   const total = latestSeoMeasurements(workspace.metrics).find(
     (metric) =>
       metric.source === "search_console" && metric.key === IMPRESSIONS_METRIC,
@@ -33,11 +37,10 @@ export function hiddenImpressions(
   if (
     !total ||
     total.value === null ||
-    total.propertyId !== queries.propertyId ||
-    total.from !== queries.from ||
-    total.to !== queries.to ||
-    new Date(total.observedAt).getTime() !==
-      new Date(queries.observedAt).getTime()
+    total.propertyId !== part.propertyId ||
+    total.from !== part.from ||
+    total.to !== part.to ||
+    new Date(total.observedAt).getTime() !== new Date(part.observedAt).getTime()
   )
     return null;
   const listed = part.rows.reduce((sum, row) => sum + row.impressions, 0);

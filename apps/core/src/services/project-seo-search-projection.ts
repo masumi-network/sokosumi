@@ -33,6 +33,7 @@ export function projectSearchEvidence(
   taskStatuses: Map<string, string>,
 ): {
   searchQueries: ProjectSeoWorkspace["searchQueries"];
+  searchBreakdown: ProjectSeoWorkspace["searchBreakdown"];
   actions: ProjectSeoWorkspace["actions"];
 } {
   const byId = new Map(sources.map((source) => [source.row.id, source]));
@@ -58,8 +59,24 @@ export function projectSearchEvidence(
           : "task_created",
     });
   }
+  // Discover and Google News sync a split but no query rows, so the split has its own source.
+  const split = sources.find(
+    (source) => source.data.countries || source.data.devices,
+  );
+  const searchBreakdown = split
+    ? {
+        observationId: split.row.id,
+        propertyId: split.data.propertyId,
+        from: split.data.from,
+        to: split.data.to,
+        observedAt: split.row.observedAt.toISOString(),
+        countries: split.data.countries,
+        devices: split.data.devices,
+      }
+    : null;
   const current = sources.find((source) => source.data.queries);
-  if (!current?.data.queries) return { searchQueries: null, actions };
+  if (!current?.data.queries)
+    return { searchQueries: null, searchBreakdown, actions };
   // A Task linked from an observation outside this scope still covers the same opportunity.
   const linkByAction = new Map<string, ProjectSeoActionTask>();
   for (const link of [...actionTasks].sort(
@@ -95,10 +112,9 @@ export function projectSearchEvidence(
         id: `${current.row.id}:query:${index}`,
       })),
       keywordSeries: current.data.keywordSeries,
-      countries: current.data.countries,
-      devices: current.data.devices,
       ...(current.data.searchType && { searchType: current.data.searchType }),
     },
+    searchBreakdown,
     actions,
   };
 }

@@ -23,7 +23,8 @@ export const SEO_BREAKDOWN_SHOWN = 10;
 export function SeoBreakdown({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const locale = useLocale();
-  const source = model.data.searchQueries;
+  // Its own source: a Discover or Google News sync has a split but no query rows.
+  const source = model.data.searchBreakdown;
   const countries = source?.countries;
   const devices = source?.devices;
   if (!source || (!countries?.rows.length && !devices?.rows.length))
@@ -39,11 +40,10 @@ export function SeoBreakdown({ model }: { model: SeoWorkspaceModel }) {
   // Google can leave impressions out of a split; say how many rows cover.
   const hidden = (dimension: "country" | "device") => {
     const split = dimension === "country" ? countries : devices;
-    const count = split?.rows.length
-      ? hiddenImpressions(model.data, (queries) =>
-          dimension === "country" ? queries.countries : queries.devices,
-        )
-      : null;
+    const count =
+      source && split?.rows.length
+        ? hiddenImpressions(model.data, { ...source, ...split })
+        : null;
     return count?.hidden ? count : null;
   };
   const byCountry = hidden("country");

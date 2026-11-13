@@ -4342,6 +4342,11 @@ const projectSeoSearchQueriesSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const projectSeoWorkspaceSearchBreakdownSchemaResponseTransformer = (data: any) => {
+    data.observedAt = new Date(data.observedAt);
+    return data;
+};
+
 const projectSeoLandingPagesSchemaResponseTransformer = (data: any) => {
     data.observedAt = new Date(data.observedAt);
     return data;
@@ -4423,6 +4428,9 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
     data.metrics = data.metrics.map((item: any) => projectSeoMetricSchemaResponseTransformer(item));
     if (data.searchQueries) {
         data.searchQueries = projectSeoSearchQueriesSchemaResponseTransformer(data.searchQueries);
+    }
+    if (data.searchBreakdown) {
+        data.searchBreakdown = projectSeoWorkspaceSearchBreakdownSchemaResponseTransformer(data.searchBreakdown);
     }
     if (data.landingPages) {
         data.landingPages = projectSeoLandingPagesSchemaResponseTransformer(data.landingPages);
