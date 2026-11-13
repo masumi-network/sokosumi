@@ -342,7 +342,8 @@ private struct SocialPostMediaCarousel: View {
       .overlay {
         GeometryReader { geometry in
           ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: 4) {
+            // Not lazy: at most twenty pictures, and every one stays reachable by VoiceOver and the keyboard.
+            HStack(spacing: 4) {
               ForEach(media) { item in
                 SocialPostMediaCell(media: item, carouselHeight: geometry.size.height)
                   .clipShape(.rect(cornerRadius: 8))
