@@ -90,6 +90,14 @@ describe("SEO monitor card model", () => {
         state: "ACTIVE",
       }),
     ).toBeNull();
+    // An ended monitor that ran until stopped has no runs left either.
+    expect(
+      seoMonitorRunsLeft({
+        rule: rule({ endsMode: "NEVER", targetRunCount: null }),
+        releasedCount: 9,
+        state: "ENDED",
+      }),
+    ).toBe(0);
   });
 
   it("warns only when the selected page group holds other pages than the monitor froze", () => {

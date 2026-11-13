@@ -61,8 +61,8 @@ export function seoMonitorCardHidden(
 export function seoMonitorRunsLeft(
   monitor: Pick<ProjectSeoMonitor, "rule" | "releasedCount" | "state">,
 ): number | null {
-  if (monitor.rule.targetRunCount === null) return null;
   if (monitor.state === "ENDED") return 0;
+  if (monitor.rule.targetRunCount === null) return null;
   return Math.max(0, monitor.rule.targetRunCount - monitor.releasedCount);
 }
 
