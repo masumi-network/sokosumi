@@ -127,7 +127,10 @@ beforeEach(() => {
   m.prisma.transaction.create.mockImplementation(async ({ data }) => {
     const bucket = data.sourceCreditBucket.create;
     if (buckets.has(bucket.referenceId)) {
-      throw Object.assign(new Error("unique"), { code: "P2002" });
+      throw Object.assign(new Error("unique"), {
+        code: "P2002",
+        meta: { target: ["referenceId", "referenceType"] },
+      });
     }
     buckets.set(bucket.referenceId, {
       amount: bucket.amount,
@@ -221,7 +224,10 @@ describe("syncCmoYearlyGrants", () => {
   it("counts no grant when a concurrent run wrote the month first", async () => {
     vi.setSystemTime(new Date("2026-03-31T10:00:00.000Z"));
     m.prisma.transaction.create.mockRejectedValue(
-      Object.assign(new Error("unique"), { code: "P2002" }),
+      Object.assign(new Error("unique"), {
+        code: "P2002",
+        meta: { target: ["referenceId", "referenceType"] },
+      }),
     );
 
     expect(await sync()).toEqual({

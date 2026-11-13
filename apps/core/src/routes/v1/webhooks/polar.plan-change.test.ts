@@ -185,7 +185,10 @@ describe("POST /v1/webhooks/polar: a paid upgrade", () => {
   it("grants once per order: a redelivery ends on the bucket's key", async () => {
     m.verifyPolarWebhook.mockResolvedValue(upgradePaid());
     m.prisma.transaction.create.mockRejectedValue(
-      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+      Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: { target: ["referenceId", "referenceType"] },
+      }),
     );
 
     const response = await post();

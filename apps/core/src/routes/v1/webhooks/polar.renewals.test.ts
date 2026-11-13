@@ -271,7 +271,10 @@ describe("POST /v1/webhooks/polar after the first payment", () => {
 
     it("grants nothing more when the late payment is delivered again", async () => {
       m.prisma.transaction.create.mockRejectedValue(
-        Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+        Object.assign(new Error("Unique constraint failed"), {
+          code: "P2002",
+          meta: { target: ["referenceId", "referenceType"] },
+        }),
       );
       m.verifyPolarWebhook.mockResolvedValue(
         renewalPaid("2026-12-15T08:00:00.000Z"),

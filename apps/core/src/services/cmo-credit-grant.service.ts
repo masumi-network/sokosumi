@@ -1,6 +1,6 @@
 import type { CreditBucketReferenceType, Prisma } from "@sokosumi/database";
 
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { isCreditBucketReferenceUniqueConstraintError } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 
@@ -62,7 +62,7 @@ export async function grantCmoCredits(
     });
     return "granted";
   } catch (error) {
-    if (!isPrismaUniqueViolation(error)) throw error;
+    if (!isCreditBucketReferenceUniqueConstraintError(error)) throw error;
     return "already_granted";
   }
 }

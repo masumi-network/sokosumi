@@ -320,7 +320,10 @@ describe("POST /v1/webhooks/polar", () => {
     it("answers 200 and grants nothing more when the order is delivered again", async () => {
       m.prisma.cmoSubscription.findUnique.mockResolvedValue(ROW);
       m.prisma.transaction.create.mockRejectedValue(
-        Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+        Object.assign(new Error("Unique constraint failed"), {
+          code: "P2002",
+          meta: { target: ["referenceId", "referenceType"] },
+        }),
       );
       m.verifyPolarWebhook.mockResolvedValue(orderPaid());
 
@@ -328,6 +331,21 @@ describe("POST /v1/webhooks/polar", () => {
 
       expect(response.status).toBe(200);
       expect(m.captureMessage).not.toHaveBeenCalled();
+    });
+
+    it("answers 500 for a unique violation on any other key, so Polar delivers again", async () => {
+      m.prisma.cmoSubscription.findUnique.mockResolvedValue(ROW);
+      m.prisma.transaction.create.mockRejectedValue(
+        Object.assign(new Error("Unique constraint failed"), {
+          code: "P2002",
+          meta: { target: ["id"] },
+        }),
+      );
+      m.verifyPolarWebhook.mockResolvedValue(orderPaid());
+
+      const response = await post();
+
+      expect(response.status).toBe(500);
     });
 
     it("answers 500 when the grant cannot be written, so Polar delivers again", async () => {

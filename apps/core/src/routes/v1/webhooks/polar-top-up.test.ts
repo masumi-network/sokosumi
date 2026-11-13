@@ -148,7 +148,10 @@ describe("POST /v1/webhooks/polar: order.paid for a Project top-up", () => {
 
   it("answers 200 and grants nothing more when the order is delivered again", async () => {
     m.prisma.transaction.create.mockRejectedValue(
-      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+      Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: { target: ["referenceId", "referenceType"] },
+      }),
     );
     m.verifyPolarWebhook.mockResolvedValue(topUpPaid());
 
