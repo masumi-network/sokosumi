@@ -942,7 +942,6 @@ export async function changePlan(
       error: errorText(error, "Could not change the plan"),
     };
   }
-  revalidatePath("/");
   return { change: data.data.change, error: null };
 }
 

@@ -17,6 +17,7 @@ import {
   cmoPayer,
   requireCuso,
 } from "@/services/cmo-cuso.service";
+import { recordCmoSubscriptionChange } from "@/services/cmo-subscription.service";
 import { mayApproveMarketingStrategy } from "@/services/marketing-strategy.service";
 
 /**
@@ -118,10 +119,7 @@ export async function changeCmoPlan(
       );
     }
     // Polar's own subscription.updated follows; the overview need not wait.
-    await prisma.cmoSubscription.update({
-      where: { polarSubscriptionId: subscription.polarSubscriptionId },
-      data: { pendingPolarProductId: null },
-    });
+    await recordCmoSubscriptionChange(cleared.value);
     return { change: "kept" };
   }
   const upgrade = target.credits > current.credits;
@@ -142,6 +140,9 @@ export async function changeCmoPlan(
       "not_allowed",
     );
   }
+  // The tier (or the pending tier) shows at once; the upgrade's extra
+  // credits still come only with Polar's paid order.
+  await recordCmoSubscriptionChange(changed.value);
   return { change: upgrade ? "upgrade" : "downgrade" };
 }
 

@@ -16,6 +16,7 @@ import { serviceUnavailable } from "@/helpers/error";
  */
 
 export type PolarProduct = models.Product;
+export type PolarSubscription = models.Subscription;
 export type PolarWebhookEvent = webhooks.WebhookPayload;
 export type PolarWebhookError =
   | "not_configured"
@@ -116,32 +117,35 @@ export type PolarPlanChangeError = "payment_failed" | "not_changeable";
  * set) applies now and Polar invoices the prorated difference at once; the
  * old plan's monthly credits go into the subscription's metadata, where the
  * paid `subscription_update` order's grant reads them. Without it the change
- * waits for the next period as Polar's pending update.
+ * waits for the next period as Polar's pending update. Answers the
+ * subscription as Polar holds it now.
  */
 export async function changePolarSubscriptionPlan(input: {
   polarSubscriptionId: string;
   productId: string;
   upgradeFromCredits?: number;
-}): Promise<Result<void, PolarPlanChangeError>> {
+}): Promise<Result<PolarSubscription, PolarPlanChangeError>> {
   const polar = requirePolar();
   try {
     if (input.upgradeFromCredits === undefined) {
-      await polar.subscriptions.update(input.polarSubscriptionId, {
-        product_id: input.productId,
-        proration_behavior: "next_period",
-      });
-      return ok(undefined);
+      return ok(
+        await polar.subscriptions.update(input.polarSubscriptionId, {
+          product_id: input.productId,
+          proration_behavior: "next_period",
+        }),
+      );
     }
     // Polar replaces the metadata: keep what the checkout wrote.
     const { metadata } = await polar.subscriptions.get(
       input.polarSubscriptionId,
     );
-    await polar.subscriptions.update(input.polarSubscriptionId, {
-      product_id: input.productId,
-      proration_behavior: "invoice",
-      metadata: { ...metadata, upgradeFromCredits: input.upgradeFromCredits },
-    });
-    return ok(undefined);
+    return ok(
+      await polar.subscriptions.update(input.polarSubscriptionId, {
+        product_id: input.productId,
+        proration_behavior: "invoice",
+        metadata: { ...metadata, upgradeFromCredits: input.upgradeFromCredits },
+      }),
+    );
   } catch (error) {
     return planChangeError(error);
   }
@@ -162,17 +166,19 @@ function planChangeError(error: unknown): Result<never, PolarPlanChangeError> {
 
 /**
  * Drops the subscription's scheduled change (a downgrade waiting for the next
- * period), so the current plan renews as it is.
+ * period), so the current plan renews as it is. Answers the subscription
+ * as Polar holds it now.
  */
 export async function clearPolarPendingPlanChange(
   polarSubscriptionId: string,
-): Promise<Result<void, PolarPlanChangeError>> {
+): Promise<Result<PolarSubscription, PolarPlanChangeError>> {
   const polar = requirePolar();
   try {
-    await polar.subscriptions.update(polarSubscriptionId, {
-      pending_update: null,
-    });
-    return ok(undefined);
+    return ok(
+      await polar.subscriptions.update(polarSubscriptionId, {
+        pending_update: null,
+      }),
+    );
   } catch (error) {
     return planChangeError(error);
   }

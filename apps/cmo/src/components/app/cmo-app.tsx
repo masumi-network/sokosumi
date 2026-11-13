@@ -276,6 +276,14 @@ export function CmoApp({
     [go],
   );
 
+  // Core writes Polar's answer before the change returns, so the card reads
+  // it now; an upgrade's credits follow with Polar's paid order on the poll.
+  const changePlan: ChangePlan = async (tier) => {
+    const result = await actions.changePlan(tier);
+    if (result.change) await refresh();
+    return result;
+  };
+
   const topUp = topUpOffer(overview, actions.startTopUp);
   const cardActions: CardActions = {
     approve: async () => setOverview(await actions.approveStrategy()),
@@ -560,7 +568,7 @@ export function CmoApp({
                   signOut={actions.signOut}
                   topUp={topUp}
                   plans={plans}
-                  changePlan={actions.changePlan}
+                  changePlan={changePlan}
                   openPortal={actions.openPortal}
                   subscribe={actions.subscribe}
                 />

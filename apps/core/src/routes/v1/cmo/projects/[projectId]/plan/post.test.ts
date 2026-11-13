@@ -21,7 +21,11 @@ const m = vi.hoisted(() => ({
   createPolarCustomerPortalUrl: vi.fn(),
   listPolarProducts: vi.fn(),
   prisma: {
-    cmoSubscription: { findFirst: vi.fn(), update: vi.fn() },
+    cmoSubscription: {
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      updateMany: vi.fn(),
+    },
     member: { findFirst: vi.fn() },
     project: { findUnique: vi.fn() },
     sokoBot: { findFirst: vi.fn() },
@@ -85,6 +89,34 @@ const SUBSCRIPTION = {
   pendingPolarProductId: null,
 };
 
+/** When Polar made the change, by its own clock. */
+const MODIFIED_AT = "2026-12-28T22:00:00.000Z";
+
+/** Polar's answer to a plan change: the subscription as it is now. */
+function polarSubscription(patch: Record<string, unknown> = {}) {
+  return {
+    id: "sub_1",
+    modified_at: MODIFIED_AT,
+    status: "active",
+    product_id: "prod_growth_month",
+    product: plan("growth", "month", 25_000),
+    recurring_interval: "month",
+    current_period_start: "2026-12-13T10:00:00.000Z",
+    current_period_end: "2027-01-13T10:00:00.000Z",
+    cancel_at_period_end: false,
+    ended_at: null,
+    metadata: { projectId: PROJECT_ID },
+    customer: { id: "cus_1", external_id: "org-1" },
+    pending_update: null,
+    ...patch,
+  };
+}
+
+/** Every write to the stored subscription row, with its newest-state guard. */
+function rowWrites() {
+  return m.prisma.cmoSubscription.updateMany.mock.calls.map(([args]) => args);
+}
+
 // Loading the routes takes seconds on a busy machine.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 60_000 });
 
@@ -136,8 +168,13 @@ function callerIs(role: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   m.listPolarProducts.mockResolvedValue(PRODUCTS);
-  m.changePolarSubscriptionPlan.mockResolvedValue(ok(undefined));
-  m.clearPolarPendingPlanChange.mockResolvedValue(ok(undefined));
+  m.changePolarSubscriptionPlan.mockResolvedValue(ok(polarSubscription()));
+  m.clearPolarPendingPlanChange.mockResolvedValue(ok(polarSubscription()));
+  m.prisma.cmoSubscription.findUnique.mockResolvedValue({
+    id: "row-1",
+    projectId: PROJECT_ID,
+    organizationId: "org-1",
+  });
   m.createPolarCustomerPortalUrl.mockResolvedValue(PORTAL_URL);
   m.prisma.project.findUnique.mockResolvedValue({
     id: PROJECT_ID,
@@ -171,6 +208,68 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
       productId: "prod_scale_month",
       upgradeFromCredits: 25_000,
     });
+  });
+
+  it("writes the upgraded tier onto the subscription before answering", async () => {
+    m.changePolarSubscriptionPlan.mockResolvedValue(
+      ok(
+        polarSubscription({
+          product_id: "prod_scale_month",
+          product: plan("scale", "month", 50_000),
+        }),
+      ),
+    );
+
+    await changePlan("scale");
+
+    // Polar's webhooks follow seconds later; one older than this changes nothing.
+    expect(rowWrites()).toEqual([
+      {
+        where: {
+          polarSubscriptionId: "sub_1",
+          polarEventAt: { lte: new Date(MODIFIED_AT) },
+        },
+        data: expect.objectContaining({
+          polarProductId: "prod_scale_month",
+          tier: "scale",
+          pendingPolarProductId: null,
+          polarEventAt: new Date(MODIFIED_AT),
+        }),
+      },
+    ]);
+  });
+
+  it("writes the scheduled downgrade as the pending tier before answering", async () => {
+    m.changePolarSubscriptionPlan.mockResolvedValue(
+      ok(
+        polarSubscription({
+          pending_update: { product_id: "prod_starter_month" },
+        }),
+      ),
+    );
+
+    await changePlan("starter");
+
+    expect(rowWrites()).toEqual([
+      {
+        where: {
+          polarSubscriptionId: "sub_1",
+          polarEventAt: { lte: new Date(MODIFIED_AT) },
+        },
+        data: expect.objectContaining({
+          tier: "growth",
+          pendingPolarProductId: "prod_starter_month",
+        }),
+      },
+    ]);
+  });
+
+  it("leaves the subscription as it was when the upgrade's payment fails", async () => {
+    m.changePolarSubscriptionPlan.mockResolvedValue(err("payment_failed"));
+
+    await changePlan("scale");
+
+    expect(m.prisma.cmoSubscription.updateMany).not.toHaveBeenCalled();
   });
 
   it("schedules a downgrade for the next period", async () => {
@@ -217,10 +316,18 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
         "sub_1",
       );
       expect(m.changePolarSubscriptionPlan).not.toHaveBeenCalled();
-      expect(m.prisma.cmoSubscription.update).toHaveBeenCalledExactlyOnceWith({
-        where: { polarSubscriptionId: "sub_1" },
-        data: { pendingPolarProductId: null },
-      });
+      expect(rowWrites()).toEqual([
+        {
+          where: {
+            polarSubscriptionId: "sub_1",
+            polarEventAt: { lte: new Date(MODIFIED_AT) },
+          },
+          data: expect.objectContaining({
+            tier: "growth",
+            pendingPolarProductId: null,
+          }),
+        },
+      ]);
     });
 
     it("leaves the subscription as it was when Polar refuses", async () => {
@@ -232,7 +339,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
       expect((await response.json()).kind).toBe(
         "subscription_change_not_allowed",
       );
-      expect(m.prisma.cmoSubscription.update).not.toHaveBeenCalled();
+      expect(m.prisma.cmoSubscription.updateMany).not.toHaveBeenCalled();
     });
 
     it("is for owners and admins only", async () => {
@@ -242,7 +349,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
 
       expect(response.status).toBe(403);
       expect(m.clearPolarPendingPlanChange).not.toHaveBeenCalled();
-      expect(m.prisma.cmoSubscription.update).not.toHaveBeenCalled();
+      expect(m.prisma.cmoSubscription.updateMany).not.toHaveBeenCalled();
     });
 
     it("answers 503 without Polar configuration", async () => {
@@ -251,7 +358,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
       );
 
       expect((await changePlan("growth")).status).toBe(503);
-      expect(m.prisma.cmoSubscription.update).not.toHaveBeenCalled();
+      expect(m.prisma.cmoSubscription.updateMany).not.toHaveBeenCalled();
     });
   });
 

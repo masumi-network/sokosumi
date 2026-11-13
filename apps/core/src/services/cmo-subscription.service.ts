@@ -241,7 +241,38 @@ async function upsertCmoSubscription(
 export async function handlePolarSubscriptionEvent(
   event: SubscriptionEvent,
 ): Promise<void> {
-  const subscription = event.data;
+  const issue = await writeCmoSubscription(event.data, {
+    eventAt: new Date(event.timestamp),
+    revoked: event.type === "subscription.revoked",
+  });
+  if (issue) reportUnusableEvent(event, issue.issue, issue.extra ?? {});
+}
+
+/**
+ * Polar's answer to a plan change Core asked for, written at once so the
+ * overview shows it before Polar's `subscription.updated` arrives. Polar's
+ * own modification time is the event time: that webhook's timestamp is not
+ * older, so it still applies, and nothing newer goes backwards.
+ */
+export async function recordCmoSubscriptionChange(
+  subscription: PolarSubscription,
+): Promise<void> {
+  const issue = await writeCmoSubscription(subscription, {
+    eventAt: new Date(subscription.modified_at ?? subscription.created_at),
+  });
+  if (issue) {
+    Sentry.captureMessage(`Polar plan change not recorded: ${issue.issue}`, {
+      level: "error",
+      extra: issue.extra,
+    });
+  }
+}
+
+/** The row from a Polar subscription, or why it can make none. */
+async function writeCmoSubscription(
+  subscription: PolarSubscription,
+  options: { eventAt: Date; revoked?: boolean },
+): Promise<UnusableEvent | null> {
   const extra = {
     polarSubscriptionId: subscription.id,
     polarProductId: subscription.product_id,
@@ -251,25 +282,20 @@ export async function handlePolarSubscriptionEvent(
     subscription.product.metadata,
     subscription.recurring_interval,
   );
-  if (!plan) {
-    reportUnusableEvent(event, "the product is not a CMO plan", extra);
-    return;
-  }
+  if (!plan) return { issue: "the product is not a CMO plan", extra };
   const row = await upsertCmoSubscription({
-    eventAt: new Date(event.timestamp),
+    eventAt: options.eventAt,
     externalCustomerId: subscription.customer.external_id,
     metadata: subscription.metadata,
     pendingProductId: subscription.pending_update?.product_id ?? null,
     plan,
-    revoked: event.type === "subscription.revoked",
+    revoked: options.revoked,
     subscription,
   });
   if (row.isErr()) {
-    reportUnusableEvent(event, row.error.issue, {
-      ...extra,
-      ...row.error.extra,
-    });
+    return { issue: row.error.issue, extra: { ...extra, ...row.error.extra } };
   }
+  return null;
 }
 
 /**
