@@ -64,6 +64,7 @@ import {
   DriveDataRoomDialog,
   type DriveDataRoomFolder,
 } from "@/app/drive/components/drive-data-room-dialog";
+import { DriveFolderDownloadButton } from "@/app/drive/components/drive-folder-download-button";
 import {
   DriveFilePreview,
   DriveItemCard,
@@ -1711,6 +1712,14 @@ function DrivePageWorkspace({
           <Link2 className="size-4" aria-hidden />
           <span className="hidden @lg:inline">{t("shareAction")}</span>
         </Button>
+      )}
+      {/* A room has its own Download all for the people let in. */}
+      {facetFolderRoom ? null : (
+        <DriveFolderDownloadButton
+          store={driveStore}
+          folder={facetFolder}
+          name={folderName}
+        />
       )}
       <Button
         type="button"
