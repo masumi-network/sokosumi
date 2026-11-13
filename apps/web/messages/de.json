@@ -11808,6 +11808,7 @@
         "desktop": "Desktop",
         "htmlOnly": "Liest den HTML-Code der ausgewählten Seiten. Diese Prüfung verwendet keine kostenpflichtigen Suchdaten und keine Modellaufrufe.",
         "maxCredits": "Bis zu {credits, plural, =1 {# Credit} other {# Credits}}",
+        "maxCreditsTotal": "Bis zu {credits, plural, =1 {# Credit} other {# Credits}} für {runs, plural, =1 {# Durchlauf} other {# Durchläufe}}",
         "htmlService": "Dieser Prüfdienst unterstützt HTML-Seitenprüfungen. Suchdaten und vollständige Audits sind hier nicht verfügbar.",
         "submit": "Prüfung starten",
         "queued": "Prüfung angefragt",

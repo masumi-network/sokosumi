@@ -11808,6 +11808,7 @@
         "desktop": "Desktop",
         "htmlOnly": "Reads the selected pages’ HTML. This check uses no paid search data or model calls.",
         "maxCredits": "Up to {credits, plural, =1 {# credit} other {# credits}}",
+        "maxCreditsTotal": "Up to {credits, plural, =1 {# credit} other {# credits}} for {runs, plural, =1 {# run} other {# runs}}",
         "htmlService": "This check service supports HTML page checks. Search data and full audits are unavailable here.",
         "submit": "Start check",
         "queued": "Check requested",

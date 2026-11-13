@@ -11808,6 +11808,7 @@
         "desktop": "Ordenador",
         "htmlOnly": "Lee el HTML de las páginas seleccionadas. Esta comprobación no usa datos de búsqueda de pago ni llamadas a modelos.",
         "maxCredits": "Hasta {credits, plural, =1 {# crédito} other {# créditos}}",
+        "maxCreditsTotal": "Hasta {credits, plural, =1 {# crédito} other {# créditos}} por {runs, plural, =1 {# ejecución} other {# ejecuciones}}",
         "htmlService": "Este servicio admite comprobaciones de páginas HTML. Los datos de búsqueda y las auditorías completas no están disponibles aquí.",
         "submit": "Iniciar comprobación",
         "queued": "Comprobación solicitada",

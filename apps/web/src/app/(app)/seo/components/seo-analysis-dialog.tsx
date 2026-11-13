@@ -64,6 +64,8 @@ export function SeoAnalysisDialog({
         ? { kind: "requests", count: form.providerCallsFor(market.keywords) }
         : { kind: "free" };
   const maxCredits = seoAnalysisMaxCredits(limits);
+  const runs =
+    form.rule?.endsMode === "AFTER" ? form.rule.targetRunCount : null;
   return (
     <Dialog
       open
@@ -71,7 +73,14 @@ export function SeoAnalysisDialog({
         if (!open && !model.pending) model.setDialog(null);
       }}
     >
-      <DialogContent className="max-h-dvh overflow-y-auto sm:max-w-lg">
+      <DialogContent
+        className="max-h-dvh overflow-y-auto sm:max-w-lg"
+        // The dialog itself, not "Change options": a ring on the fold outshone the submit. Tab goes on from here.
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          (event.currentTarget as HTMLElement | null)?.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>
             {t(monitor ? "monitor.create" : "analysis.title")}
@@ -94,7 +103,11 @@ export function SeoAnalysisDialog({
             <SeoAnalysisSummary
               kind={form.kind}
               pages={form.workspace.scope.pageIds.length}
-              scopeName={form.workspace.scope.name}
+              // The page picker's own choice: "All N pages" when nothing is picked, else the group's name.
+              scopeName={
+                model.filters.scopeId ? form.workspace.scope.name : null
+              }
+              allPages={!model.filters.scopeId && !model.filters.pageId}
               countryCode={market.countryCode}
               languageCode={market.languageCode}
               devices={form.devices}
@@ -294,6 +307,15 @@ export function SeoAnalysisDialog({
                 <span className="block font-semibold">
                   {t("analysis.maxCredits", { credits: maxCredits })}
                 </span>
+                {/* A schedule that ends after a number of runs has a total: the reader need not multiply. */}
+                {monitor && runs ? (
+                  <span className="text-muted-foreground block text-xs">
+                    {t("analysis.maxCreditsTotal", {
+                      credits: maxCredits * runs,
+                      runs,
+                    })}
+                  </span>
+                ) : null}
                 <span className="text-muted-foreground block text-xs">
                   {t(
                     monitor
@@ -313,8 +335,10 @@ export function SeoAnalysisDialog({
             >
               {t(noService ? "analysis.returnToAudit" : "cancel")}
             </Button>
+            {/* The one commit of the dialog wears the one brand fill, as every Sokosumi form's submit. */}
             <Button
               type="submit"
+              variant="primary"
               disabled={
                 noService ||
                 model.pending ||

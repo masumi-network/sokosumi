@@ -22,6 +22,7 @@ export function SeoAnalysisSummary({
   kind,
   pages,
   scopeName,
+  allPages,
   countryCode,
   languageCode,
   devices,
@@ -29,7 +30,10 @@ export function SeoAnalysisSummary({
 }: {
   kind: SeoAnalysisKind;
   pages: number;
-  scopeName: string;
+  /** The name of a saved page group; null for all pages or a picked page, which the count says alone. */
+  scopeName: string | null;
+  /** Every page of the Audit: the line reads "All 2 pages", the words of the page picker. */
+  allPages: boolean;
   countryCode: string;
   languageCode: string;
   devices: readonly SeoDevice[];
@@ -44,9 +48,11 @@ export function SeoAnalysisSummary({
     [t("analysis.summary.check"), t(`analysis.${kind}`)],
     [
       t("analysis.summary.pages"),
-      [t("pages.count", { count: pages }), scopeName]
-        .filter(Boolean)
-        .join(" · "),
+      allPages
+        ? t("allPagesCount", { count: pages })
+        : [t("pages.count", { count: pages }), scopeName]
+            .filter(Boolean)
+            .join(" · "),
     ],
     [
       t("analysis.summary.market"),
