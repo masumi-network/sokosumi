@@ -11551,8 +11551,7 @@
           "top3": "{clicks, plural, =0 {Top 3: keine zusätzlichen Klicks} one {Top 3: +# Klick im Monat} other {Top 3: +# Klicks im Monat}}",
           "gain": "Zusätzliche Klicks in den Top 3",
           "table": "Als Tabelle anzeigen",
-          "note": "Höher: mehr Suchanfragen. Weiter links: leichter in die Top 10. Ein größerer Punkt: mehr zusätzliche Klicks auf Platz 3. Die meisten Klicks gehen an die Top 3. Klicks sind Schätzungen aus den monatlichen Suchanfragen und dem Klickanteil je Google-Platz (Advanced Web Ranking, Juli 2026). Die Schwierigkeit stammt von DataForSEO.",
-          "waiting": "Erscheint, sobald ein Audit die Keyword-Schwierigkeit liefert. Dieses Audit hat noch keine."
+          "note": "Höher: mehr Suchanfragen. Weiter links: leichter in die Top 10. Ein größerer Punkt: mehr zusätzliche Klicks auf Platz 3. Die meisten Klicks gehen an die Top 3. Klicks sind Schätzungen aus den monatlichen Suchanfragen und dem Klickanteil je Google-Platz (Advanced Web Ranking, Juli 2026). Die Schwierigkeit stammt von DataForSEO."
         }
       },
       "competitors": {

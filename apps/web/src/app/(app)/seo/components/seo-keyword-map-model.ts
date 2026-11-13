@@ -76,24 +76,6 @@ export function seoKeywordMap(groups: {
   };
 }
 
-/**
- * Keywords with searches that the map cannot place: their audit gave no difficulty. The map then says when it
- * comes, so the reader knows where it is.
- */
-export function seoKeywordMapWaits(groups: {
-  checked: SeoKeywordGroup[];
-  ideas: SeoKeywordGroup[];
-}) {
-  const all = [...groups.checked, ...groups.ideas];
-  const searched = all.filter(
-    (group) => group.volume !== null && group.volume > 0,
-  );
-  return (
-    searched.length >= MIN_POINTS &&
-    all.every((group) => group.difficulty === null)
-  );
-}
-
 /** The point nearest to a spot on the map, in px, when it is within reach of the pointer. */
 export function seoNearestPoint(
   points: SeoKeywordPoint[],
