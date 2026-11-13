@@ -402,7 +402,8 @@
             },
             "Error": {
               "share": "No se pudo actualizar el acceso compartido",
-              "copyLink": "No se pudo copiar el enlace"
+              "copyLink": "No se pudo copiar el enlace",
+              "searchIndexing": "No se guardó la indexación en buscadores. Se restableció la configuración anterior."
             },
             "Errors": {
               "unauthenticated": "Debes iniciar sesión.",
@@ -2035,7 +2036,8 @@
           },
           "Error": {
             "share": "Failed to update task sharing",
-            "copyLink": "Failed to copy public link"
+            "copyLink": "Failed to copy public link",
+            "searchIndexing": "No se guardó la indexación en buscadores. Se restableció la configuración anterior."
           },
           "Errors": {
             "unauthenticated": "Inicia sesión para gestionar cómo se comparte la tarea",
