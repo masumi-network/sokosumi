@@ -281,7 +281,7 @@
           "confirm": "Bestätigen",
           "cancel": "Abbrechen",
           "success": "Einladung erfolgreich abgebrochen",
-          "error": "Einladung konnte nicht abgebrochen werden",
+          "error": "Die Einladung für {email} konnte nicht abgebrochen werden. Sie ist weiterhin ausstehend.",
           "Errors": {
             "unauthorizedAction": "Anmelden"
           }
@@ -9700,7 +9700,7 @@
         "bulkDeleteDescriptionSkipsTaskFiles": "Sie werden für alle in diesem Dateibereich entfernt. Dateien aus Tasks bleiben bei ihrem Task. Das kann nicht rückgängig gemacht werden.",
         "bulkDeleteCancel": "Abbrechen",
         "bulkDeleted": "{count, plural, one {# Datei gelöscht} other {# Dateien gelöscht}}",
-        "bulkDeletePartial": "{deleted} gelöscht, {failed} fehlgeschlagen und weiterhin ausgewählt",
+        "bulkDeletePartial": "{deleted} gelöscht. {failed, plural, one {# Datei konnte} other {# Dateien konnten}} nicht gelöscht werden. Versuche es erneut.",
         "detailLoading": "Datei wird geladen",
         "detailProcessing": "Verarbeitung",
         "detailCategory": "Kategorie",
@@ -9765,7 +9765,8 @@
         "collectionSaved": "„{name}“ gespeichert",
         "collectionUpdated": "„{name}“ aktualisiert",
         "collectionSaveFailed": "Diese Sammlung konnte nicht gespeichert werden.",
-        "collectionDeleteFailed": "Diese Sammlung konnte nicht gelöscht werden.",
+        "collectionRenameFailed": "„{name}“ konnte nicht umbenannt werden. Der neue Name wurde nicht gespeichert.",
+        "collectionDeleteFailed": "„{name}“ konnte nicht gelöscht werden. Die Sammlung ist wieder an ihrem Platz.",
         "collectionsUnavailable": "Sammlungen konnten nicht geladen werden.",
         "labelsUnavailable": "Kategorien und Tags konnten nicht geladen werden.",
         "collectionActions": "Aktionen für {name}",
