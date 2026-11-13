@@ -18,8 +18,12 @@ import { matchesSeoPeriod, normalizeSeoUrl } from "./project-seo-store";
  * workspace load, and a daily monitor fills this with about half a year of checks.
  */
 export const SEO_RANK_HISTORY_OBSERVATIONS = 200;
-/** Observation kinds that hold no public SEO result. */
-export const SEO_NON_RESULT_KINDS = ["metrics", "page_change"];
+/**
+ * Result kinds whose Run can read keyword positions and SERPs (`keyword.refresh`): "rankings", and "audit_lite"
+ * when it asks for it. A full audit's positions stay out of the history: its payload holds up to 10 page
+ * Reports, too heavy to load 200 times per workspace read.
+ */
+export const SEO_RANK_HISTORY_KINDS = ["rankings", "audit_lite"];
 
 export type SeoRankSource = Pick<
   ProjectSeoObservation,

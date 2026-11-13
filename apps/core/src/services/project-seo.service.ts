@@ -24,7 +24,7 @@ import { listProjectSeoMonitors } from "./project-seo-monitor.service";
 import { seoMonitorOfTasks } from "./project-seo-monitor-runs";
 import { projectSeoProjection } from "./project-seo-projection";
 import {
-  SEO_NON_RESULT_KINDS,
+  SEO_RANK_HISTORY_KINDS,
   SEO_RANK_HISTORY_OBSERVATIONS,
   withSeoRankings,
 } from "./project-seo-rankings";
@@ -353,7 +353,7 @@ export async function getProjectSeoWorkspace(
         ...seoOwnerWhere(actor),
         pageIds: { hasSome: scope.pageIds },
         ownerId: null,
-        kind: { notIn: SEO_NON_RESULT_KINDS },
+        kind: { in: SEO_RANK_HISTORY_KINDS },
       },
       select: { id: true, observedAt: true, payload: true },
       orderBy: { observedAt: "desc" },

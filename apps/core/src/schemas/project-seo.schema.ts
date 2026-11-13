@@ -341,7 +341,10 @@ export const seoKeywordSchema = z
     observationId: z.union([seoIdSchema, z.null()]),
     priority: z.enum(["low", "medium", "high"]),
     version: z.number().int(),
-    /** Every loaded paid read of this keyword, page and device, newest last. GSC average positions are separate. */
+    /**
+     * The loaded paid reads of this keyword, page and device from rankings checks (full audits left out), newest
+     * last. GSC average positions are separate.
+     */
     positionHistory: z
       .array(seoPositionPointSchema)
       .max(SEO_RANK_HISTORY_POINTS)
