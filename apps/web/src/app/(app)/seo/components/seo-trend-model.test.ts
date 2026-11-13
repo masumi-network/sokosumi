@@ -212,6 +212,25 @@ describe("seoTrendModel Google update bands", () => {
     expect(model.updatesAsOf).toBe("2026-11-13");
   });
 
+  it("stops an open band at the as-of day plus the longest finished rollout of the table", () => {
+    // The longest finished rollout is the March 2024 core update: 2024-03-05 to 2024-04-19, 45 days.
+    // So the open November 2026 core update shades at most to 2026-11-13 plus 45 days: 2026-12-28.
+    const winter = Array.from({ length: 120 }, (_, index) => ({
+      date: new Date(Date.UTC(2026, 10, 8 + index)).toISOString().slice(0, 10),
+      value: 1,
+    }));
+    const model = seoTrendModel(winter, "count");
+    const [open] = model.updates;
+    expect(open.name).toBe("November 2026 core update");
+    // Day bands of 100 / 120 percent: 2026-11-10 is band 2, 2026-12-28 is band 50.
+    expect(open.x).toBeCloseTo((2 * 100) / 120);
+    expect(open.x + open.width).toBeCloseTo((51 * 100) / 120);
+    expect(model.updatesOn("2026-12-28")).toEqual([
+      "November 2026 core update",
+    ]);
+    expect(model.updatesOn("2026-12-29")).toEqual([]);
+  });
+
   it("draws no band without points", () => {
     expect(
       seoTrendModel([], "count", [], false, [event("2026-10-11", "2026-10-12")])

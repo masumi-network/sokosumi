@@ -101,7 +101,7 @@ export const GOOGLE_EVENTS: readonly GoogleEvent[] = [
   update("August 2026 spam update", "2026-08-18", "2026-08-21", ["G6-044"]),
   update("September 2026 spam update", "2026-09-24", "2026-10-08", ["GB-035"]),
   // The core update had no end on the as-of day: its row ends on that day and is open, so a chart runs its band
-  // to the last plotted day. The next copy sets the real end.
+  // past that day, at most by the longest finished rollout in this table. The next copy sets the real end.
   {
     ...update("November 2026 core update", "2026-11-10", GOOGLE_EVENTS_AS_OF, [
       "GB-035",

@@ -49,6 +49,23 @@ function dayNumber(date: string) {
 }
 
 /**
+ * The last day an update still rolling out on the as-of day can shade: the as-of day plus the longest
+ * rollout of a finished update in the table. A stale table then cannot shade a chart without end.
+ */
+const OPEN_UPDATE_LAST_DAY =
+  dayNumber(GOOGLE_EVENTS_AS_OF) +
+  Math.max(
+    0,
+    ...GOOGLE_EVENTS.flatMap((event) =>
+      (event.kind === "core update" || event.kind === "spam update") &&
+      !event.open &&
+      event.last
+        ? [dayNumber(event.last) - dayNumber(event.first)]
+        : [],
+    ),
+  );
+
+/**
  * Scale and shape of one daily metric for a single-axis chart: bars for counts,
  * a line for rates and positions. x and y are percentages of the plot; x follows
  * the calendar, so a day the source left out is a gap, never a zero. Position runs top-down (1 at the
@@ -144,10 +161,13 @@ export function seoTrendModel(
   const updates = points.length
     ? events.flatMap((event) => {
         const from = Math.max(dayNumber(event.first), first);
-        // An update still rolling out has no known end: its band runs to the last plotted day.
-        const to = event.open
-          ? last
-          : Math.min(dayNumber(event.last ?? event.first), last);
+        // An update still rolling out has no known end: its band runs on, at most to OPEN_UPDATE_LAST_DAY.
+        const to = Math.min(
+          event.open
+            ? OPEN_UPDATE_LAST_DAY
+            : dayNumber(event.last ?? event.first),
+          last,
+        );
         if (from > to) return [];
         const x = clip(edges(from)[0]);
         return [
@@ -189,7 +209,9 @@ export function seoTrendModel(
         .filter(
           (update) =>
             update.first <= date &&
-            (update.open || (update.last ?? update.first) >= date),
+            (update.open
+              ? dayNumber(date) <= OPEN_UPDATE_LAST_DAY
+              : (update.last ?? update.first) >= date),
         )
         .map((update) => update.name),
     /**
