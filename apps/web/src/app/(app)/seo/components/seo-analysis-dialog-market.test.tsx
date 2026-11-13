@@ -144,7 +144,7 @@ describe("SEO check defaults", () => {
     ).toBeVisible();
     expect(within(summary).getByText("Akku Zustand")).toBeVisible();
     // A one-page full audit shows the 50-credit ceiling Core checks before it starts.
-    expect(within(dialog).getByText(/^Up to 50 credits: /)).toBeVisible();
+    expect(within(dialog).getByText(/^Up to 50 credits\. /)).toBeVisible();
     // No field asks for a choice until the reader wants one.
     expect(
       within(dialog).getByRole("button", { name: "Change options" }),
@@ -190,8 +190,9 @@ describe("SEO check defaults", () => {
     expect(
       within(summary).getByText("United States · English · Desktop"),
     ).toBeVisible();
-    expect(within(summary).getByText("Up to 20 data requests")).toBeVisible();
-    expect(within(dialog).getByText(/^Up to 150 credits: /)).toBeVisible();
+    // No limit shows, and no keyword means no paid request yet, so no price in credits.
+    expect(within(dialog).queryByText(/data requests/)).toBeNull();
+    expect(within(dialog).queryByText(/credits/)).toBeNull();
     // Keyword positions need a keyword: the request is not sent, and the fields open on the message.
     await user.click(
       within(dialog).getByRole("button", { name: "Start check" }),
@@ -226,7 +227,7 @@ describe("SEO check credits", () => {
 });
 
 describe("SEO monitor credits", () => {
-  it("says the ceiling is per run, since each run is charged on its own", async () => {
+  it("says the ceiling is per run, and prices only the requests one run makes", async () => {
     const user = userEvent.setup(),
       dialog = showDialog(workspace(), true);
     await user.click(
@@ -234,9 +235,7 @@ describe("SEO monitor credits", () => {
     );
     await user.click(screen.getByRole("option", { name: "Keyword positions" }));
     expect(
-      within(dialog).getByText(
-        /^Up to 150 credits per run: the DataForSEO cost of each run/,
-      ),
+      within(dialog).getByText(/^Up to 15 credits per run\. /),
     ).toBeVisible();
   });
 });

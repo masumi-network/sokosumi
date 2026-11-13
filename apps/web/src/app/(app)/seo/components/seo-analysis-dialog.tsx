@@ -1,6 +1,5 @@
 "use client";
 
-import { SEO_MIN_AUDIT_USD } from "@sokosumi/utils";
 import { CalendarClock, ChevronDown, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TaskScheduleWhen } from "@/app/tasks/components/task-schedule-when";
@@ -29,9 +28,9 @@ import {
   SEO_COUNTRIES,
   SEO_DEVICES,
   SEO_FULL_AUDIT_KEYWORDS,
+  SEO_FULL_AUDIT_LIMITS,
   SEO_MAX_MONITOR_RUNS,
   SEO_MAX_PAGES,
-  SEO_MAX_PROVIDER_CALLS,
   seoAnalysisMaxCredits,
 } from "./seo-form-model";
 import { useSeoAnalysisForm } from "./use-seo-analysis";
@@ -51,24 +50,20 @@ export function SeoAnalysisDialog({
   const form = useSeoAnalysisForm(model, monitor);
   const full = form.kind === "audit_full";
   const multiPageFull = full && form.workspace.scope.pageIds.length > 1;
-  const limits: SeoAnalysisLimits = multiPageFull
-    ? {
-        kind: "full",
-        usd: Number(form.usd) || 0,
-        seconds: Number(form.seconds) || 0,
-      }
-    : full
-      ? { kind: "standard" }
-      : form.usesPaidData
-        ? { kind: "requests", count: Number(form.providerCalls) || 0 }
-        : { kind: "free" };
-  const maxCredits = seoAnalysisMaxCredits(limits);
   const noService = !form.serviceAvailable;
   const market = useSeoAnalysisMarket(
     form.workspace.keywords,
     full ? SEO_FULL_AUDIT_KEYWORDS : undefined,
     seoDefaultMarket(form.workspace),
   );
+  const limits: SeoAnalysisLimits = multiPageFull
+    ? { kind: "full", ...SEO_FULL_AUDIT_LIMITS }
+    : full
+      ? { kind: "standard" }
+      : form.usesPaidData
+        ? { kind: "requests", count: form.providerCallsFor(market.keywords) }
+        : { kind: "free" };
+  const maxCredits = seoAnalysisMaxCredits(limits);
   return (
     <Dialog
       open
@@ -104,7 +99,6 @@ export function SeoAnalysisDialog({
                 languageCode={market.languageCode}
                 devices={form.devices}
                 keywords={form.wantsKeywords ? market.keywords : null}
-                limits={limits}
               />
               <Button
                 type="button"
@@ -238,10 +232,10 @@ export function SeoAnalysisDialog({
                   id="seo-analysis-competitors"
                   name="competitorUrls"
                   rows={3}
-                  defaultValue={form.workspace.competitors
-                    .filter((row) => row.confirmed)
-                    .map((row) => row.url)
-                    .join("\n")}
+                  value={form.competitorUrls}
+                  onChange={(event) =>
+                    form.setCompetitorUrls(event.target.value)
+                  }
                 />
               </SeoField>
             ) : null}
@@ -268,57 +262,7 @@ export function SeoAnalysisDialog({
                 ))}
               </div>
             </fieldset>
-            {multiPageFull ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <SeoField id="seo-analysis-usd" label={t("analysis.usd")}>
-                  <Input
-                    id="seo-analysis-usd"
-                    name="usd"
-                    type="number"
-                    min={SEO_MIN_AUDIT_USD}
-                    max="50"
-                    step="0.01"
-                    value={form.usd}
-                    onChange={(event) => form.setUsd(event.target.value)}
-                    required
-                  />
-                </SeoField>
-                <SeoField
-                  id="seo-analysis-seconds"
-                  label={t("analysis.seconds")}
-                >
-                  <Input
-                    id="seo-analysis-seconds"
-                    name="seconds"
-                    type="number"
-                    min="60"
-                    max="3600"
-                    value={form.seconds}
-                    onChange={(event) => form.setSeconds(event.target.value)}
-                    required
-                  />
-                </SeoField>
-              </div>
-            ) : full ? (
-              <p className="text-muted-foreground text-sm">
-                {t("analysis.standardPageLimits")}
-              </p>
-            ) : form.usesPaidData ? (
-              <SeoField id="seo-analysis-limit" label={t("analysis.requests")}>
-                <Input
-                  id="seo-analysis-limit"
-                  name="maxProviderCalls"
-                  type="number"
-                  min="0"
-                  max={SEO_MAX_PROVIDER_CALLS}
-                  value={form.providerCalls}
-                  onChange={(event) =>
-                    form.setProviderCalls(event.target.value)
-                  }
-                  required
-                />
-              </SeoField>
-            ) : (
+            {full || form.usesPaidData ? null : (
               <p className="text-muted-foreground text-sm">
                 {t("analysis.htmlOnly")}
               </p>
@@ -338,19 +282,8 @@ export function SeoAnalysisDialog({
               ) : null}
               <p className="text-muted-foreground text-sm">
                 {form.rule?.targetRunCount
-                  ? t("monitor.cap", {
-                      runs: form.rule.targetRunCount,
-                      calls:
-                        form.rule.targetRunCount *
-                        (Number.isFinite(form.runProviderCalls)
-                          ? form.runProviderCalls
-                          : 0),
-                    })
-                  : t("monitor.capPerRun", {
-                      calls: Number.isFinite(form.runProviderCalls)
-                        ? form.runProviderCalls
-                        : 0,
-                    })}
+                  ? t("monitor.cap", { runs: form.rule.targetRunCount })
+                  : t("monitor.capPerRun")}
               </p>
             </div>
           ) : null}

@@ -26,7 +26,6 @@ export function SeoAnalysisSummary({
   languageCode,
   devices,
   keywords,
-  limits,
 }: {
   kind: SeoAnalysisKind;
   pages: number;
@@ -36,7 +35,6 @@ export function SeoAnalysisSummary({
   devices: readonly SeoDevice[];
   /** The keyword field's text, or null for a check that reads no keyword. */
   keywords: string | null;
-  limits: SeoAnalysisLimits;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -67,22 +65,6 @@ export function SeoAnalysisSummary({
         ? t("analysis.summary.keywordCount", { count: words.length })
         : words.join(", ") || t("analysis.summary.noKeyword"),
     ]);
-  rows.push([
-    t("analysis.summary.limits"),
-    limits.kind === "full"
-      ? t("analysis.summary.fullLimits", {
-          usd: format.number(limits.usd, {
-            style: "currency",
-            currency: "USD",
-          }),
-          minutes: Math.ceil(limits.seconds / 60),
-        })
-      : limits.kind === "standard"
-        ? t("analysis.standardPageLimits")
-        : limits.kind === "requests"
-          ? t("analysis.summary.requests", { count: limits.count })
-          : t("analysis.summary.free"),
-  ]);
   return (
     <dl
       className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-sm"

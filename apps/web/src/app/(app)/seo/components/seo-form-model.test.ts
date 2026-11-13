@@ -20,7 +20,6 @@ function analysisForm() {
     countryCode: "DE",
     languageCode: "de",
     keywords: "stablecoins\nagent payments",
-    maxProviderCalls: "4",
   }))
     form.set(name, value);
   form.append("devices", "mobile");
@@ -131,51 +130,36 @@ describe("SEO form intent", () => {
     form.set("keywords", "x".repeat(81));
     expect(() => analysisSeoBody(form, seoTestWorkspace())).toThrow();
   });
-  it("uses the full-audit USD and time envelope instead of provider-call limits", () => {
+  it("sends the fixed USD 5 and 90-minute envelope instead of provider-call limits", () => {
     const form = analysisForm();
     form.set("kind", "audit_full");
     form.set("keywords", "stablecoins");
-    form.set("usd", "1.25");
-    form.set("seconds", "180");
     const workspace = seoTestWorkspace();
     workspace.scope.pageIds.push("a658c5bb-3084-4b26-81ee-b3208ee5ab61");
     const body = analysisSeoBody(form, workspace);
-    expect(body.fullAuditLimits).toEqual({ usd: 1.25, seconds: 180 });
+    expect(body.fullAuditLimits).toEqual({ usd: 5, seconds: 5_400 });
     expect(body.maxProviderCalls).toBeUndefined();
   });
-  it("rejects an undersized paid request budget while allowing a zero-call page check", () => {
+  it("asks for exactly the requests a focused check makes, and none for a page check", () => {
     const form = analysisForm();
-    form.set("maxProviderCalls", "0");
-    expect(() => analysisSeoBody(form, seoTestWorkspace())).toThrow(RangeError);
+    // Two keywords on two devices.
+    expect(analysisSeoBody(form, seoTestWorkspace()).maxProviderCalls).toBe(4);
     form.set("kind", "page_check");
     expect(analysisSeoBody(form, seoTestWorkspace()).maxProviderCalls).toBe(0);
   });
 
-  it.each(["page_check", "audit_lite"])(
-    "never carries a stale paid-data allowance into HTML-only %s",
-    (kind) => {
-      const form = analysisForm();
-      form.set("kind", kind);
-      form.set("maxProviderCalls", "20");
-      if (kind === "audit_lite") form.append("analyses", "page.inspect");
-      expect(analysisSeoBody(form, seoTestWorkspace()).maxProviderCalls).toBe(
-        0,
-      );
-      form.delete("maxProviderCalls");
-      expect(analysisSeoBody(form, seoTestWorkspace()).maxProviderCalls).toBe(
-        0,
-      );
-    },
-  );
-
-  it.each(["NaN", "Infinity", "-1", "101", "4.5"])(
-    "rejects a non-finite or unbounded paid-data allowance (%s)",
-    (allowance) => {
-      const form = analysisForm();
-      form.set("maxProviderCalls", allowance);
-      expect(() => analysisSeoBody(form, seoTestWorkspace())).toThrow();
-    },
-  );
+  it("refuses a check that needs more requests than Core allows", () => {
+    const form = analysisForm();
+    form.set("kind", "links");
+    form.set(
+      "competitorUrls",
+      Array.from(
+        { length: 100 },
+        (_, index) => `https://c${index}.example/`,
+      ).join("\n"),
+    );
+    expect(() => analysisSeoBody(form, seoTestWorkspace())).toThrow(RangeError);
+  });
 
   it("keeps Audit Lite modules explicit and omits unused prefilled competitors", () => {
     const form = analysisForm();
@@ -323,7 +307,7 @@ describe("seoAnalysisMaxCredits", () => {
       seoAnalysisMaxCredits({ kind: "full", usd: 60, seconds: 900 }),
     ).toBeNull();
     expect(seoAnalysisMaxCredits({ kind: "requests", count: 101 })).toBeNull();
-    for (const seconds of [30, 4_000, 90.5])
+    for (const seconds of [30, 5_401, 90.5])
       expect(
         seoAnalysisMaxCredits({ kind: "full", usd: 3, seconds }),
       ).toBeNull();

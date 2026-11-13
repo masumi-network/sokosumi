@@ -3318,7 +3318,7 @@ describe("SEO workspace integration", () => {
     },
   );
 
-  it("shows a paid-data budget only when Audit lite includes provider-backed checks", async () => {
+  it("shows a price in credits only when Audit lite includes provider-backed checks", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
@@ -3333,22 +3333,14 @@ describe("SEO workspace integration", () => {
       within(dialog).getByRole("combobox", { name: "Check type" }),
     );
     await user.click(screen.getByRole("option", { name: "Audit lite" }));
-    expect(within(dialog).queryByLabelText("Maximum data requests")).toBeNull();
-    await user.click(within(dialog).getByLabelText("Keyword positions"));
-    expect(within(dialog).getByLabelText("Maximum data requests")).toHaveValue(
-      20,
-    );
-    await user.clear(within(dialog).getByLabelText("Maximum data requests"));
-    await user.type(
-      within(dialog).getByLabelText("Maximum data requests"),
-      "5",
-    );
-    await user.click(within(dialog).getByLabelText("Keyword positions"));
-    expect(within(dialog).queryByLabelText("Maximum data requests")).toBeNull();
+    const price = /^Up to \d+ credits?\. /;
+    expect(within(dialog).queryByText(price)).toBeNull();
     await user.click(within(dialog).getByLabelText("Backlink overview"));
-    expect(within(dialog).getByLabelText("Maximum data requests")).toHaveValue(
-      5,
-    );
+    expect(within(dialog).getByText(price)).toBeVisible();
+    await user.click(within(dialog).getByLabelText("Backlink overview"));
+    expect(within(dialog).queryByText(price)).toBeNull();
+    // No limit field: the check asks for the requests it makes.
+    expect(within(dialog).queryByRole("spinbutton")).toBeNull();
   });
 
   it("keeps unavailable first-use recovery inside SEO without promising a hidden check", async () => {
@@ -3503,11 +3495,6 @@ describe("SEO workspace integration", () => {
     await user.type(
       within(dialog).getByLabelText("Keywords, one per line"),
       "stablecoins",
-    );
-    await user.clear(within(dialog).getByLabelText("Maximum data requests"));
-    await user.type(
-      within(dialog).getByLabelText("Maximum data requests"),
-      "2",
     );
     // No weekday is no rule: the form refuses to save.
     await user.click(within(dialog).getByRole("button", { name: "Monday" }));

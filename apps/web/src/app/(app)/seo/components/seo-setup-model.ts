@@ -24,7 +24,7 @@ const newestAnalysis = (analyses: SeoAnalysis[]) =>
 /**
  * A check older than this is no check in flight. Core has no end for a check whose Task ended without a result:
  * the page stops saying that it runs, and the reader can start the next. The longest check, a full audit, has a
- * time limit of one hour.
+ * time limit of 90 minutes.
  */
 const SEO_CHECK_STALE_MS = 3 * 60 * 60_000;
 

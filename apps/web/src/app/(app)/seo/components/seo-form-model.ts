@@ -71,9 +71,12 @@ export const SEO_MAX_PROVIDER_CALLS = 100;
 const SEO_MAX_AUDIT_USD = 50;
 /** Core's bounds of a multi-page audit's time limit in whole seconds (fullAuditLimits.seconds). */
 const SEO_MIN_AUDIT_SECONDS = 60;
-const SEO_MAX_AUDIT_SECONDS = 3_600;
-export const SEO_DEFAULT_PROVIDER_CALLS = 20;
-export const SEO_DEFAULT_FULL_AUDIT_USD = 3;
+const SEO_MAX_AUDIT_SECONDS = 5_400;
+/**
+ * The limits every multi-page full audit sends. The reader does not see them: the price shows in credits, and the
+ * time limit only keeps a stuck check from running on (owner, 2026-11-13).
+ */
+export const SEO_FULL_AUDIT_LIMITS = { usd: 5, seconds: 5_400 } as const;
 export const SEO_DEVICES = ["mobile", "desktop"] as const;
 export type SeoDevice = (typeof SEO_DEVICES)[number];
 const SEO_FULL_AUDIT_FIRST_PAGE_SECONDS = 960;
@@ -92,6 +95,20 @@ export function defaultFullAuditSeconds(pageCount: number) {
 export function formText(form: FormData, name: string) {
   return String(form.get(name) ?? "").trim();
 }
+/** The data requests of a focused check: one per keyword and device, and one per own and competitor page. */
+export function seoProviderCallsNeeded(
+  needs: { wantsKeywords: boolean; wantsCompetitors: boolean },
+  keywords: number,
+  devices: number,
+  pages: number,
+  competitors: number,
+) {
+  return (
+    (needs.wantsKeywords ? keywords * devices : 0) +
+    (needs.wantsCompetitors ? pages + competitors : 0)
+  );
+}
+
 export function formLines(value: string) {
   return value
     .split(/\r?\n/)
@@ -273,24 +290,16 @@ export function analysisSeoBody(
   const competitorUrls = wantsCompetitors
     ? formLines(formText(form, "competitorUrls"))
     : [];
-  const maxProviderCalls = usesPaidData
-    ? Number(formText(form, "maxProviderCalls"))
-    : 0;
-  if (kind !== "audit_full") {
-    if (
-      !Number.isInteger(maxProviderCalls) ||
-      maxProviderCalls < 0 ||
-      maxProviderCalls > SEO_MAX_PROVIDER_CALLS
-    )
-      throw new RangeError("Invalid SEO data request limit");
-    const neededCalls =
-      (wantsKeywords ? keywords.length * devices.length : 0) +
-      (wantsCompetitors
-        ? workspace.scope.pageIds.length + competitorUrls.length
-        : 0);
-    if (neededCalls > maxProviderCalls)
-      throw new RangeError("The selected checks exceed the data request limit");
-  }
+  // The reader sets no request limit: a focused check asks for exactly the requests it makes.
+  const maxProviderCalls = seoProviderCallsNeeded(
+    { wantsKeywords, wantsCompetitors },
+    keywords.length,
+    devices.length,
+    workspace.scope.pageIds.length,
+    competitorUrls.length,
+  );
+  if (kind !== "audit_full" && maxProviderCalls > SEO_MAX_PROVIDER_CALLS)
+    throw new RangeError("The selected checks exceed the data request limit");
   return {
     kind,
     ...(workspace.scope.id
@@ -307,10 +316,7 @@ export function analysisSeoBody(
     ...(kind === "audit_lite" ? { analyses } : {}),
     ...(kind === "audit_full" && workspace.scope.pageIds.length > 1
       ? {
-          fullAuditLimits: {
-            usd: Number(formText(form, "usd")),
-            seconds: Number(formText(form, "seconds")),
-          },
+          fullAuditLimits: { ...SEO_FULL_AUDIT_LIMITS },
         }
       : kind === "audit_full"
         ? {}

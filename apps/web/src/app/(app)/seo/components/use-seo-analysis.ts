@@ -6,13 +6,12 @@ import { toast } from "sonner";
 import {
   allowedSeoAnalysisKinds,
   analysisSeoBody,
-  defaultFullAuditSeconds,
+  formLines,
   SEO_ANALYSIS_MODULES,
-  SEO_DEFAULT_FULL_AUDIT_USD,
-  SEO_DEFAULT_PROVIDER_CALLS,
   SEO_DEVICES,
   type SeoDevice,
   seoAnalysisRequirements,
+  seoProviderCallsNeeded,
 } from "./seo-form-model";
 import {
   seoMonitorRuleOf,
@@ -30,8 +29,11 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
     model.data.availableActions.canUsePaidSearchData === true;
   const kinds = allowedSeoAnalysisKinds(canUsePaidSearchData, monitor);
   const modules = canUsePaidSearchData ? chosenModules : ["page.inspect"];
-  const [providerCalls, setProviderCalls] = useState(
-    String(SEO_DEFAULT_PROVIDER_CALLS),
+  const [competitorUrls, setCompetitorUrls] = useState(() =>
+    workspace.competitors
+      .filter((row) => row.confirmed)
+      .map((row) => row.url)
+      .join("\n"),
   );
   // A new monitor starts weekly on Mondays at 09:00 in the reader's time zone.
   const [when, setWhen] = useState(() =>
@@ -55,10 +57,6 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
   // A schedule has more to decide, so its fields are open.
   const [optionsOpen, setOptionsOpen] = useState(monitor);
   const [devices, setDevices] = useState<readonly SeoDevice[]>(SEO_DEVICES);
-  const [usd, setUsd] = useState(String(SEO_DEFAULT_FULL_AUDIT_USD));
-  const [seconds, setSeconds] = useState(() =>
-    String(defaultFullAuditSeconds(model.data.scope.pageIds.length)),
-  );
   function toggleDevice(device: SeoDevice, checked: boolean) {
     setDevices((previous) =>
       SEO_DEVICES.filter((value) =>
@@ -154,17 +152,20 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
     setWhen,
     rule,
     tooOften: seoMonitorTooOften(when),
-    providerCalls,
-    setProviderCalls,
+    competitorUrls,
+    setCompetitorUrls,
     optionsOpen,
     setOptionsOpen,
     devices,
     toggleDevice,
-    usd,
-    setUsd,
-    seconds,
-    setSeconds,
-    /** Data requests per run: a monitor that runs until stopped has no total. */
-    runProviderCalls: requirements.usesPaidData ? Number(providerCalls) : 0,
+    /** The data requests of one run of these keywords: a monitor that runs until stopped has no total. */
+    providerCallsFor: (keywords: string) =>
+      seoProviderCallsNeeded(
+        requirements,
+        formLines(keywords).length,
+        devices.length,
+        workspace.scope.pageIds.length,
+        formLines(competitorUrls).length,
+      ),
   };
 }
