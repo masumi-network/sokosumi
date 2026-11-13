@@ -2,6 +2,7 @@
 
 import {
   Check,
+  Columns2,
   Dices,
   Download,
   Loader2,
@@ -21,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { resolveModel, supportsVariation } from "./catalog";
+import { canCompareStudioAsset } from "./studio-batch";
 import { StudioImage } from "./studio-image";
 import {
   assetContentUrl,
@@ -49,6 +51,7 @@ export function StudioGallery({
   catalog,
   labels,
   onCancelJob,
+  onCompare,
   onOpen,
   onReroll,
   onReusePrompt,
@@ -65,6 +68,7 @@ export function StudioGallery({
   labels: StudioLabels;
   /** Omitted, with the draw actions below, in a read-only studio. */
   onCancelJob?: (jobId: string) => void;
+  onCompare?: (asset: StudioAsset) => void;
   onOpen: (assetId: string) => void;
   /** Same brief, same settings, no reference: another draw of the dice. */
   onReroll?: (asset: StudioAsset) => void;
@@ -205,6 +209,14 @@ export function StudioGallery({
                         "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100",
                       )}
                     >
+                      {onCompare && canCompareStudioAsset(asset, assets) ? (
+                        <HoverAction
+                          label={labels.compare}
+                          onClick={() => onCompare(asset)}
+                        >
+                          <Columns2 className="size-3.5" />
+                        </HoverAction>
+                      ) : null}
                       {video || !onReroll ? null : (
                         <HoverAction
                           label={labels.reroll}

@@ -7,6 +7,8 @@ import type {
 import {
   MAX_STUDIO_BATCH_IMAGES as MAX_BATCH,
   productBrief,
+  studioAdCopyPrompts,
+  studioAdVariationIndex,
 } from "@sokosumi/utils";
 import { Check, ChevronDown, Undo2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -40,8 +42,6 @@ import {
 import {
   STUDIO_CREATIVE_DIRECTIONS,
   type StudioCreativeDirection,
-  studioAdCopyPrompts,
-  studioAdVariationIndex,
 } from "./studio-creative-directions";
 import { AD_PLACEMENTS, type PlacementRatio } from "./studio-placements";
 import { StudioProductPhotoControl } from "./studio-product-photo";

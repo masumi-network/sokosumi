@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { resolveModel, supportsVariation } from "./catalog";
 import { StudioAdPreview } from "./studio-ad-preview";
 import type { StudioBatchDownloadReview } from "./studio-batch";
+import { StudioBatchCompareButton } from "./studio-batch-compare";
 import { StudioBatchHeadlines } from "./studio-batch-headlines";
 import { StudioImage } from "./studio-image";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
@@ -53,6 +54,7 @@ export function StudioLightbox({
   defaultLogoPosition,
   onAnimate,
   onClose,
+  onCompare,
   onDownloadBatch,
   downloadingBatch,
   headlineForAsset,
@@ -84,6 +86,7 @@ export function StudioLightbox({
   /** Opens the video composer on this image. Absent when no video model exists. */
   onAnimate?: (asset: StudioAsset) => void;
   onClose: () => void;
+  onCompare?: (asset: StudioAsset) => void;
   onDownloadBatch?: (
     asset: StudioAsset,
     logo?: StudioLogoPosition,
@@ -227,6 +230,14 @@ export function StudioLightbox({
               {writingCaption ? labels.writingCaption : null}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
+              {onCompare && single.batchId && !isVideoAsset(single) ? (
+                <StudioBatchCompareButton
+                  asset={single}
+                  key={single.id}
+                  labels={labels}
+                  onCompare={onCompare}
+                />
+              ) : null}
               {isVideoAsset(single) ? null : (
                 <StudioAdPreview
                   asset={single}

@@ -500,6 +500,11 @@ export {
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
 export {
+  studioAdBrief,
+  studioAdCopyPrompts,
+  studioAdVariationIndex,
+} from "./studio-ad-prompts.js";
+export {
   MAX_STUDIO_BATCH_IMAGES,
   MAX_STUDIO_HEADLINE_LENGTH,
 } from "./studio-limits.js";
