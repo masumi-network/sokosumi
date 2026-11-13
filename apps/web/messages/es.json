@@ -11095,6 +11095,7 @@
         "linkCopied": "Enlace copiado",
         "archive": "Archivar contacto",
         "archived": "{name} archivado",
+        "archiveFailed": "No se pudo archivar a {name}. El contacto vuelve a estar en tu lista.",
         "changeStage": "Etapa: {stage}. Cambiar etapa",
         "changeLists": "Cambiar listas",
         "addToList": "Añadir a una lista",
