@@ -41200,6 +41200,17 @@ export const ProjectSeoSearchQueriesSchema = {
         },
         devices: {
             $ref: '#/components/schemas/ProjectSeoSearchBreakdown'
+        },
+        searchType: {
+            type: 'string',
+            enum: [
+                'web',
+                'image',
+                'video',
+                'news',
+                'discover',
+                'googleNews'
+            ]
         }
     },
     required: [

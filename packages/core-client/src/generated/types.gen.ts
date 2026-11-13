@@ -10877,6 +10877,7 @@ export type ProjectSeoSearchQueries = {
     keywordSeries?: ProjectSeoKeywordSeries;
     countries?: ProjectSeoSearchBreakdown;
     devices?: ProjectSeoSearchBreakdown;
+    searchType?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
 };
 
 export type ProjectSeoKeywordSeries = {

@@ -1170,6 +1170,23 @@ describe("stored SEO workspace projections", () => {
     expect(discoverView.searchQueries).toBeNull();
   });
 
+  it("names the search type of image query rows and none for web rows", () => {
+    const input = fixture();
+    const image = searchObservation(input, "2026-11-03T12:00:00Z");
+    image.payload = {
+      ...(image.payload as object),
+      searchType: "image",
+    } as never;
+    input.observations = [image];
+    input.query = { searchType: "image" };
+    expect(projectSeoProjection(input).searchQueries?.searchType).toBe("image");
+    input.observations = [searchObservation(input, "2026-11-02T12:00:00Z")];
+    input.query = {};
+    const web = projectSeoProjection(input).searchQueries;
+    expect(web).not.toBeNull();
+    expect(web).not.toHaveProperty("searchType");
+  });
+
   it("keeps new import and action activity when their scoped evidence was measured earlier", () => {
     const { input, original } = actionFixture();
     const activityAt = new Date("2026-11-04T12:00:00Z");

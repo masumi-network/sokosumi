@@ -105,6 +105,29 @@ describe("native audit chat inference boundary", () => {
     ).toEqual(["discover", "web", undefined]);
   });
 
+  it("names the search type of the query rows, web when none is stored", () => {
+    const workspace = workspaceFixture();
+    const queries = {
+      observationId: "c6b8a2c4-5b8e-4f0e-9a51-1f2f8a3f7c11",
+      propertyId: "sc-domain:example.com",
+      from: "2026-11-01",
+      to: "2026-11-02",
+      timeZone: "UTC",
+      observedAt: "2026-11-03T00:00:00.000Z",
+      rowLimit: 250,
+      truncated: false,
+      rows: [],
+    };
+    workspace.searchQueries = { ...queries, searchType: "image" };
+    expect(JSON.parse(seoChatContext(workspace)).searchQueries).toMatchObject({
+      searchType: "image",
+    });
+    workspace.searchQueries = queries;
+    expect(JSON.parse(seoChatContext(workspace)).searchQueries).toMatchObject({
+      searchType: "web",
+    });
+  });
+
   it("separates rule checks from unrequested analysis modules in chat evidence", () => {
     const workspace = workspaceFixture();
     workspace.observations = [

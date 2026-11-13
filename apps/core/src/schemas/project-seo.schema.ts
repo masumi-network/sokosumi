@@ -553,6 +553,8 @@ export const seoSearchQueriesSchema = z
     /** Totals by country and by device from the same observation. Absent when the read failed or on older observations. */
     countries: seoSearchBreakdownSchema.optional(),
     devices: seoSearchBreakdownSchema.optional(),
+    /** The Search Console search type of these rows. Absent reads web search. */
+    searchType: seoSearchTypeSchema.optional(),
   })
   .openapi("ProjectSeoSearchQueries");
 export const seoTimelineSchema = z

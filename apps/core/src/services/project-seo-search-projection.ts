@@ -97,6 +97,7 @@ export function projectSearchEvidence(
       keywordSeries: current.data.keywordSeries,
       countries: current.data.countries,
       devices: current.data.devices,
+      ...(current.data.searchType && { searchType: current.data.searchType }),
     },
     actions,
   };
