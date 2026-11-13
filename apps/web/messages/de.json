@@ -11387,7 +11387,8 @@
         "actions": "Aktionen",
         "agent": "Agent",
         "traffic": "Zugriffe",
-        "rankings": "Rankings"
+        "rankings": "Rankings",
+        "improve": "Verbessern"
       },
       "overview": {
         "measurements": "Zugriffe",
@@ -12347,6 +12348,268 @@
       "datePresets": {
         "label": "Schnellauswahl",
         "days": "Letzte {count} Tage"
+      },
+      "improve": {
+        "catalog": {
+          "title": "Was der Agent noch nicht kann",
+          "help": "Funktionen, die der SEO-Agent und dieser Tab noch nicht haben, Stand {day}.",
+          "filterLabel": "Zeigen",
+          "filter": {
+            "all": "Alle",
+            "missing": "Fehlt",
+            "partial": "Teilweise gebaut"
+          }
+        },
+        "status": {
+          "partial": "Teilweise gebaut",
+          "missing": "Fehlt",
+          "planned": "Geplant"
+        },
+        "groups": {
+          "technical": "Technik",
+          "content": "Inhalt",
+          "keywords": "Keywords und Rankings",
+          "links": "Links",
+          "local": "Lokal",
+          "measurement": "Messung und Conversion",
+          "ai": "KI-Suche",
+          "workflow": "Ablauf und Automatisierung"
+        },
+        "unlocks": {
+          "search_console": "Search Console verbinden",
+          "ga4": "Google Analytics verbinden",
+          "ga4_key_events": "Schlüsselereignisse in Google Analytics einrichten",
+          "paid_data": "Bezahlte Suchdaten",
+          "development": "Entwicklung durch das Team",
+          "owner_decision": "Eine Entscheidung des Teams"
+        },
+        "needs": "Braucht: {list}",
+        "ask": "Agent fragen",
+        "askLabel": "Den Agent zu {title} fragen",
+        "askPrompt": "Der SEO-Tab kann das noch nicht: {title}. {missing} Was kann ich jetzt mit meinen Daten tun?",
+        "request": "Anfrage kopieren",
+        "requestLabel": "Eine Anfrage zu {title} kopieren",
+        "requestText": "Funktionswunsch für den SEO-Agent, Punkt {id}: {title}. Was fehlt: {missing}",
+        "copied": "Anfrage kopiert. Sende sie an das Sokosumi-Team.",
+        "copyFailed": "Die Anfrage konnte nicht kopiert werden.",
+        "gaps": {
+          "title": "Was dieses Audit nicht sehen konnte",
+          "help": "Daten, die diesen Seiten fehlen, mit dem Schritt, der sie ergänzt, wo es einen gibt.",
+          "none": "Diesem Audit fehlen keine bekannten Daten.",
+          "noSearchConsole": "Keine Daten aus der Search Console: Klicks, Suchanfragen und der Indexstatus bei Google werden nicht gemessen.",
+          "noAnalytics": "Keine Daten aus Google Analytics: Besuche und Schlüsselereignisse werden nicht gemessen.",
+          "statisticsUnavailable": "Die letzte Synchronisierung der Statistiken konnte die Daten nicht lesen.",
+          "queryFailed": "Ein Abruf der Search Console ist bei der letzten Synchronisierung fehlgeschlagen. Einige Tage haben keinen Wert.",
+          "noAggregate": "Die Search Console hat bei der letzten Synchronisierung keine Summen geliefert.",
+          "queryRows": "Die Suchzeilen der Search Console waren bei der letzten Synchronisierung nicht verfügbar.",
+          "keywordSeries": "Die täglichen Positionen der beobachteten Keywords waren bei der letzten Synchronisierung nicht verfügbar.",
+          "breakdown": "Summen nach Land oder Gerät waren bei der letzten Synchronisierung nicht verfügbar.",
+          "indexStatus": "Der Indexstatus bei Google war bei der letzten Synchronisierung für eine oder mehrere Seiten nicht verfügbar.",
+          "note": "Hinweis der letzten Synchronisierung: {note}",
+          "queriesTruncated": "Die Search Console listet nur die obersten {count} Suchzeilen. Seltenere Suchen fehlen.",
+          "noCheck": "Auf diesen Seiten lief noch keine Prüfung.",
+          "notChecked": "{count, plural, one {# Test} other {# Tests}} der letzten Prüfung hatten kein Ergebnis.",
+          "failed": "{count, plural, one {# Test} other {# Tests}} der letzten Prüfung waren nicht verfügbar.",
+          "modulesNotRequested": "Optionale Prüfungen, die bei der letzten Prüfung nicht angefordert wurden: {names}.",
+          "modulesFailed": "Optionale Prüfungen, die bei der letzten Prüfung nicht verfügbar waren: {names}.",
+          "paidOff": "Suchvolumen und aktuelle Rankings brauchen bezahlte Suchdaten, die für diese Seiten aus sind.",
+          "historyLimited": "Nur die neuesten {limit} Prüfungen und Synchronisierungen sind geladen. Ältere Einträge fehlen."
+        },
+        "fix": {
+          "connect_search_console": "Search Console verbinden",
+          "connect_ga4": "Google Analytics verbinden",
+          "sync": "Statistiken synchronisieren",
+          "run_check": "Prüfung starten"
+        },
+        "steps": {
+          "title": "Wie es besser wird",
+          "help": "Jeder Schritt und wie viele der fehlenden Funktionen er freischaltet.",
+          "items": "{count, plural, one {Schaltet # Funktion frei} other {Schaltet # Funktionen frei}}",
+          "done": "Erledigt",
+          "requests": "Um eine Funktion anzufragen, nutze in ihrer Zeile Anfrage kopieren und sende den Text an das Sokosumi-Team. Anfragen werden in Sokosumi noch nicht gespeichert."
+        },
+        "items": {
+          "1": {
+            "title": "Crawl der ganzen Website",
+            "missing": "Ein Audit liest höchstens 10 Seiten. Es gibt keinen Crawl aller verlinkten oder gelisteten URLs."
+          },
+          "2": {
+            "title": "Defekte Links und Weiterleitungsketten der ganzen Website",
+            "missing": "Es gibt keine Liste der defekten Links und Weiterleitungsketten der ganzen Website."
+          },
+          "3": {
+            "title": "Indexabdeckung aller URLs",
+            "missing": "Der Indexstatus bei Google zeigt sich nur für geprüfte Seiten, nicht für jede URL der Sitemap."
+          },
+          "4": {
+            "title": "Verwaiste Seiten",
+            "missing": "Es gibt keine Liste der Seiten, auf die keine andere Seite verlinkt."
+          },
+          "5": {
+            "title": "Fast doppelte und dünne Seiten",
+            "missing": "Es gibt keine Prüfung auf Seiten mit fast gleichem Haupttext."
+          },
+          "6": {
+            "title": "Core Web Vitals im SEO-Tab",
+            "missing": "Der Agent liest die Core Web Vitals, aber der Tab zeigt sie nicht."
+          },
+          "7": {
+            "title": "Prüfung eines Website-Umzugs",
+            "missing": "Es gibt keine Prüfung der Weiterleitungen bei einem Domain- oder URL-Umzug."
+          },
+          "8": {
+            "title": "Crawl-Daten des Googlebot",
+            "missing": "Es gibt keinen Import von Serverlogs oder des Berichts zu den Crawling-Statistiken."
+          },
+          "9": {
+            "title": "Content-Briefing für ein Ziel-Keyword",
+            "missing": "Es gibt kein Briefing der Unterthemen und Fragen der Top-Ergebnisse für ein Keyword."
+          },
+          "10": {
+            "title": "Entwürfe und Überarbeitungen von Fließtext",
+            "missing": "Der Agent entwirft nur Titel und Beschreibungen, keinen Fließtext."
+          },
+          "11": {
+            "title": "Liste zum Auffrischen von Inhalten",
+            "missing": "Es gibt keine Liste aller Seiten, die gegenüber dem Vorjahr Klicks verloren haben."
+          },
+          "12": {
+            "title": "Kannibalisierung aus der Search Console",
+            "missing": "Nur für geprüfte Seiten, nicht für jede Suchanfrage der Website."
+          },
+          "13": {
+            "title": "Signale zu Autor, Über uns und Kontakt",
+            "missing": "Es gibt keine Prüfung auf ein Autorenprofil, eine Über-uns-Seite und eine Kontaktseite."
+          },
+          "14": {
+            "title": "Prüfung der Veröffentlichungsdaten",
+            "missing": "Nur Daten in der Zukunft werden geprüft, nicht das sichtbare Datum gegen die strukturierten Daten."
+          },
+          "15": {
+            "title": "Karte der Themencluster",
+            "missing": "Es gibt keine Karte der Themen der Website und der Themen ohne Seite."
+          },
+          "16": {
+            "title": "Ranking-Verlauf für beobachtete Keywords",
+            "missing": "Bezahlte Positionen zeigen nur die letzte Prüfung. Es gibt keinen gespeicherten Verlauf."
+          },
+          "17": {
+            "title": "SERP-Funktionen im Zeitverlauf",
+            "missing": "Es gibt keinen Verlauf von KI-Übersichten, Featured Snippets und anderen Funktionen der Ergebnisse."
+          },
+          "18": {
+            "title": "Rankings auf Stadtebene",
+            "missing": "Rankings werden nur pro Land gelesen, nicht pro Stadt."
+          },
+          "19": {
+            "title": "Share of Voice",
+            "missing": "Es gibt keinen Anteil an Klicks gegenüber Wettbewerbern über die beobachteten Keywords."
+          },
+          "20": {
+            "title": "Aufteilung in Marken- und andere Zugriffe",
+            "missing": "Es gibt keine Aufteilung der Search-Console-Klicks in Markensuchen und andere Suchen."
+          },
+          "21": {
+            "title": "Saisonalität",
+            "missing": "Es zeigt sich ein Monatsvolumen, nicht die 12 Monate."
+          },
+          "22": {
+            "title": "Suchintention und Conversion-Klasse pro Keyword",
+            "missing": "Keywords haben noch keine Angabe zu Suchintention und Conversion."
+          },
+          "23": {
+            "title": "Eigenes Backlink-Profil",
+            "missing": "Backlink-Zahlen zeigen sich nur für Wettbewerber."
+          },
+          "24": {
+            "title": "Neue und verlorene verweisende Domains",
+            "missing": "Es gibt keine Liste der Domains, die angefangen oder aufgehört haben, auf die Website zu verlinken."
+          },
+          "25": {
+            "title": "Link-Schnittmenge",
+            "missing": "Es gibt keine Liste der Domains, die auf Wettbewerber verlinken, aber nicht auf die Website."
+          },
+          "26": {
+            "title": "Erwähnungen der Marke ohne Link",
+            "missing": "Es gibt keine Suche nach Seiten, die die Marke ohne Link nennen."
+          },
+          "27": {
+            "title": "Profil der Ankertexte",
+            "missing": "Es gibt keine Ansicht der Ankertexte eingehender Links."
+          },
+          "28": {
+            "title": "Tracker für Outreach",
+            "missing": "Beitragstexte lassen sich kopieren, aber Anfragen und gewonnene Links werden nicht verfolgt."
+          },
+          "29": {
+            "title": "Verbindung zum Unternehmensprofil",
+            "missing": "Es gibt keine Verbindung zum Google-Unternehmensprofil."
+          },
+          "30": {
+            "title": "Überwachung von Rezensionen und Antwortentwürfe",
+            "missing": "Es gibt keine Liste neuer Google-Rezensionen und keine Antwortentwürfe."
+          },
+          "31": {
+            "title": "Raster des Local Pack",
+            "missing": "Es gibt keine Position im Kartenbereich an Punkten rund um das Unternehmen."
+          },
+          "32": {
+            "title": "Search-Console-Verlauf über 16 Monate hinaus",
+            "missing": "Eine Synchronisierung liest die letzten 90 Tage. Über 16 Monate hinaus wird kein Verlauf gespeichert."
+          },
+          "33": {
+            "title": "Warnungen bei Einbrüchen von Zugriffen und Rankings",
+            "missing": "Es gibt keine Warnung, wenn Klicks, der Indexstatus oder ein Ranking fallen."
+          },
+          "34": {
+            "title": "Markierungen von Google-Updates in Diagrammen",
+            "missing": ""
+          },
+          "35": {
+            "title": "Organische Conversions pro Landingpage",
+            "missing": "Schlüsselereignisse und Umsatz pro Landingpage zeigen sich nicht."
+          },
+          "36": {
+            "title": "Wirkung vorher und nachher pro Aktion",
+            "missing": "Es gibt im Tab keine Klicks und Positionen vor und nach einer erledigten Aktion."
+          },
+          "37": {
+            "title": "Leistung in Discover, News, Bildern und Videos",
+            "missing": "Nur die Websuche wird gelesen, nicht Discover, News, Bilder oder Videos."
+          },
+          "38": {
+            "title": "Export und Zeitraum-Vorlagen",
+            "missing": "Es gibt keinen Vergleich mit demselben Zeitraum im Vorjahr."
+          },
+          "39": {
+            "title": "Verlauf der Zitate in KI-Übersichten",
+            "missing": "Der Tab zeigt nicht, ob eine KI-Übersicht die Website zitiert."
+          },
+          "40": {
+            "title": "Zugriffe über KI-Assistenten",
+            "missing": "Es gibt keine Ansicht der Besuche über KI-Assistenten wie ChatGPT oder Gemini."
+          },
+          "41": {
+            "title": "Erwähnungen der Marke in Antworten von KI-Modellen",
+            "missing": "Es gibt keine Prüfung, ob KI-Antworten die Marke nennen."
+          },
+          "42": {
+            "title": "Korrekturen im CMS oder als Pull Request anwenden",
+            "missing": "Korrekturen werden nicht ins CMS geschrieben oder als Pull Request gesendet."
+          },
+          "43": {
+            "title": "Wöchentliche Zusammenfassung",
+            "missing": "Es gibt keine wöchentliche E-Mail oder Nachricht mit den wichtigsten Änderungen."
+          },
+          "44": {
+            "title": "Erneute Prüfung und Crawl nach einer Korrektur",
+            "missing": "Nach einer erledigten Korrektur gibt es keine automatische erneute Prüfung und keine Indexprüfung."
+          },
+          "45": {
+            "title": "Teilbarer Bericht für Kunden",
+            "missing": "Es gibt keinen schreibgeschützten Link und kein PDF des Audits für Kunden."
+          }
+        }
       },
       "shareOfVoice": {
         "title": "Share of Voice",

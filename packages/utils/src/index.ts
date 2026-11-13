@@ -450,6 +450,17 @@ export {
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
 export {
+  SEO_CAPABILITIES,
+  SEO_CAPABILITIES_AS_OF,
+  SEO_CAPABILITY_GROUPS,
+  SEO_CAPABILITY_UNLOCKS,
+  type SeoCapability,
+  type SeoCapabilityGroup,
+  type SeoCapabilityId,
+  type SeoCapabilityStatus,
+  type SeoCapabilityUnlock,
+} from "./seo-capabilities.js";
+export {
   SEO_DEFAULT_FULL_AUDIT_USD,
   SEO_MARKUP_PERCENT,
   SEO_MAX_CALL_CENTS,

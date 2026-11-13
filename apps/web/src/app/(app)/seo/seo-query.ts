@@ -1,10 +1,16 @@
 import { z } from "zod";
 
 /**
- * Tab order: the agent first, then its approvals with the site's health, then the two tools. Actions stays in view
- * on a phone.
+ * Tab order: the agent first, then its approvals with the site's health, then the two tools, then what is missing.
+ * Actions stays in view on a phone.
  */
-export const SEO_TABS = ["agent", "actions", "traffic", "rankings"] as const;
+export const SEO_TABS = [
+  "agent",
+  "actions",
+  "traffic",
+  "rankings",
+  "improve",
+] as const;
 export type SeoTab = (typeof SEO_TABS)[number];
 
 /** Links saved before the agent layout keep opening the tab that now holds their content. */

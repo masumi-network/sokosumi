@@ -11387,7 +11387,8 @@
         "actions": "Actions",
         "agent": "Agent",
         "traffic": "Traffic",
-        "rankings": "Rankings"
+        "rankings": "Rankings",
+        "improve": "Improve"
       },
       "overview": {
         "measurements": "Traffic",
@@ -12347,6 +12348,268 @@
       "datePresets": {
         "label": "Quick periods",
         "days": "Last {count} days"
+      },
+      "improve": {
+        "catalog": {
+          "title": "What the agent cannot do yet",
+          "help": "Features the SEO agent and this tab do not have yet, as of {day}.",
+          "filterLabel": "Show",
+          "filter": {
+            "all": "All",
+            "missing": "Missing",
+            "partial": "Partly built"
+          }
+        },
+        "status": {
+          "partial": "Partly built",
+          "missing": "Missing",
+          "planned": "Planned"
+        },
+        "groups": {
+          "technical": "Technical",
+          "content": "Content",
+          "keywords": "Keywords and ranks",
+          "links": "Links",
+          "local": "Local",
+          "measurement": "Measurement and conversion",
+          "ai": "AI search",
+          "workflow": "Workflow and automation"
+        },
+        "unlocks": {
+          "search_console": "Connect Search Console",
+          "ga4": "Connect Google Analytics",
+          "ga4_key_events": "Set up key events in Google Analytics",
+          "paid_data": "Paid search data",
+          "development": "Development by the team",
+          "owner_decision": "A decision of the team"
+        },
+        "needs": "Needs: {list}",
+        "ask": "Ask the agent",
+        "askLabel": "Ask the agent about {title}",
+        "askPrompt": "The SEO tab cannot do this yet: {title}. {missing} What can I do now with the data I have?",
+        "request": "Copy request",
+        "requestLabel": "Copy a request for {title}",
+        "requestText": "Feature request for the SEO agent, item {id}: {title}. What is missing: {missing}",
+        "copied": "Request copied. Send it to the Sokosumi team.",
+        "copyFailed": "Could not copy the request.",
+        "gaps": {
+          "title": "What this audit could not see",
+          "help": "Data these pages lack, with the step that fills it where one exists.",
+          "none": "This audit has no known gap in its data.",
+          "noSearchConsole": "No Search Console data: clicks, searches and Google's index state are not measured.",
+          "noAnalytics": "No Google Analytics data: visits and key events are not measured.",
+          "statisticsUnavailable": "The last statistics sync could not read the data.",
+          "queryFailed": "One Search Console read failed in the last sync. Some days have no value.",
+          "noAggregate": "Search Console returned no totals in the last sync.",
+          "queryRows": "Search Console search rows were unavailable in the last sync.",
+          "keywordSeries": "Daily positions of tracked keywords were unavailable in the last sync.",
+          "breakdown": "Totals by country or by device were unavailable in the last sync.",
+          "indexStatus": "Google's index status was unavailable for one or more pages in the last sync.",
+          "note": "Note of the last sync: {note}",
+          "queriesTruncated": "Search Console lists only the top {count} search rows. Rarer searches are left out.",
+          "noCheck": "No check has run on these pages yet.",
+          "notChecked": "{count, plural, one {# test} other {# tests}} of the last check had no result.",
+          "failed": "{count, plural, one {# test} other {# tests}} of the last check were unavailable.",
+          "modulesNotRequested": "Optional checks not requested in the last check: {names}.",
+          "modulesFailed": "Optional checks unavailable in the last check: {names}.",
+          "paidOff": "Search volumes and live ranks need paid search data, which is off for these pages.",
+          "historyLimited": "Only the latest {limit} checks and syncs are loaded. Earlier history is not included."
+        },
+        "fix": {
+          "connect_search_console": "Connect Search Console",
+          "connect_ga4": "Connect Google Analytics",
+          "sync": "Sync statistics",
+          "run_check": "Run a check"
+        },
+        "steps": {
+          "title": "How to get it improved",
+          "help": "Each step, and how many of the missing features it unlocks.",
+          "items": "{count, plural, one {Unlocks # feature} other {Unlocks # features}}",
+          "done": "Done",
+          "requests": "To ask for one feature, use Copy request on its row and send the text to the Sokosumi team. Requests are not saved in Sokosumi yet."
+        },
+        "items": {
+          "1": {
+            "title": "Full-site crawl",
+            "missing": "An audit reads at most 10 pages. No crawl of every linked or listed URL."
+          },
+          "2": {
+            "title": "Site-wide broken links and redirect chains",
+            "missing": "No list of broken links and redirect chains for the whole site."
+          },
+          "3": {
+            "title": "Index coverage for all URLs",
+            "missing": "Google's index state shows for checked pages only, not for every sitemap URL."
+          },
+          "4": {
+            "title": "Orphan pages",
+            "missing": "No list of pages that no other page links to."
+          },
+          "5": {
+            "title": "Near-duplicate and thin pages",
+            "missing": "No check for pages with almost the same main text."
+          },
+          "6": {
+            "title": "Core Web Vitals in the SEO tab",
+            "missing": "The agent reads Core Web Vitals, but the tab does not show them."
+          },
+          "7": {
+            "title": "Site migration check",
+            "missing": "No check of the redirects of a domain or URL move."
+          },
+          "8": {
+            "title": "Googlebot crawl data",
+            "missing": "No import of server logs or of the Crawl Stats report."
+          },
+          "9": {
+            "title": "Content brief for a target keyword",
+            "missing": "No brief of the subtopics and questions of the top results for one keyword."
+          },
+          "10": {
+            "title": "Body text drafts and rewrites",
+            "missing": "The agent drafts titles and descriptions only, not body text."
+          },
+          "11": {
+            "title": "Content refresh queue",
+            "missing": "No list of all pages that lost clicks against the year before."
+          },
+          "12": {
+            "title": "Cannibalization from Search Console",
+            "missing": "Checked for audited pages only, not for every query of the site."
+          },
+          "13": {
+            "title": "Author, About and Contact signals",
+            "missing": "No check for an author profile, an About page and a Contact page."
+          },
+          "14": {
+            "title": "Publication date checks",
+            "missing": "Only future dates are checked, not the visible date against the structured data."
+          },
+          "15": {
+            "title": "Topic cluster map",
+            "missing": "No map of the site's topics and of the topics with no page."
+          },
+          "16": {
+            "title": "Rank history for tracked keywords",
+            "missing": "Paid positions show the latest check only. No stored history."
+          },
+          "17": {
+            "title": "SERP features over time",
+            "missing": "No history of AI Overviews, featured snippets and other result features."
+          },
+          "18": {
+            "title": "City-level rank",
+            "missing": "Ranks are read per country only, not per city."
+          },
+          "19": {
+            "title": "Share of voice",
+            "missing": "No share of clicks against competitors over the tracked keywords."
+          },
+          "20": {
+            "title": "Branded and non-branded traffic split",
+            "missing": "No split of Search Console clicks into brand searches and other searches."
+          },
+          "21": {
+            "title": "Seasonality",
+            "missing": "One monthly volume shows, not the 12 months."
+          },
+          "22": {
+            "title": "Search intent and conversion class per keyword",
+            "missing": "Keywords have no intent and conversion label yet."
+          },
+          "23": {
+            "title": "Own backlink profile",
+            "missing": "Backlink counts show for competitors only."
+          },
+          "24": {
+            "title": "New and lost referring domains",
+            "missing": "No list of domains that started or stopped linking to the site."
+          },
+          "25": {
+            "title": "Link intersect",
+            "missing": "No list of domains that link to competitors but not to the site."
+          },
+          "26": {
+            "title": "Unlinked brand mentions",
+            "missing": "No search for pages that name the brand without a link."
+          },
+          "27": {
+            "title": "Anchor text profile",
+            "missing": "No view of the anchor texts of inbound links."
+          },
+          "28": {
+            "title": "Outreach tracker",
+            "missing": "Post texts can be copied, but pitches and won links are not tracked."
+          },
+          "29": {
+            "title": "Business Profile connection",
+            "missing": "No connection to Google Business Profile."
+          },
+          "30": {
+            "title": "Review monitoring and reply drafts",
+            "missing": "No list of new Google reviews and no reply drafts."
+          },
+          "31": {
+            "title": "Local pack grid",
+            "missing": "No map pack rank at points around the business."
+          },
+          "32": {
+            "title": "Search Console history past 16 months",
+            "missing": "A sync reads the last 90 days. No history is kept past 16 months."
+          },
+          "33": {
+            "title": "Traffic and rank drop alerts",
+            "missing": "No alert when clicks, the index state or a rank drops."
+          },
+          "34": {
+            "title": "Google update markers on charts",
+            "missing": ""
+          },
+          "35": {
+            "title": "Organic conversions per landing page",
+            "missing": "Key events and revenue per landing page do not show."
+          },
+          "36": {
+            "title": "Before and after impact per action",
+            "missing": "No clicks and position before and after a done action in the tab."
+          },
+          "37": {
+            "title": "Discover, News, Image and Video performance",
+            "missing": "Only web search is read, not Discover, News, Image or Video."
+          },
+          "38": {
+            "title": "Export and date presets",
+            "missing": "No comparison with the same period last year."
+          },
+          "39": {
+            "title": "AI Overview citation history",
+            "missing": "The tab does not show if an AI Overview cites the site."
+          },
+          "40": {
+            "title": "AI assistant referral traffic",
+            "missing": "No view of visits from AI assistants such as ChatGPT or Gemini."
+          },
+          "41": {
+            "title": "Brand mentions in LLM answers",
+            "missing": "No check if AI answers name the brand."
+          },
+          "42": {
+            "title": "Apply fixes in the CMS or as a pull request",
+            "missing": "Fixes are not written to the CMS or sent as a pull request."
+          },
+          "43": {
+            "title": "Weekly digest",
+            "missing": "No weekly email or message with the main changes."
+          },
+          "44": {
+            "title": "Recheck and recrawl after a fix",
+            "missing": "No automatic recheck and index check after a fix is done."
+          },
+          "45": {
+            "title": "Shareable client report",
+            "missing": "No read-only link or PDF of the audit for clients."
+          }
+        }
       },
       "shareOfVoice": {
         "title": "Share of voice",
