@@ -1,6 +1,12 @@
+"use client";
+
 import type { TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
 
 import type { VisibleTaskLink } from "./task-detail-api-types";
+import {
+  applyTaskLinkChanges,
+  useOptimisticTaskLinks,
+} from "./task-detail-optimistic-links";
 import { TaskRelationRow } from "./task-relation-row";
 
 interface TaskRelatedTasksProps {
@@ -21,11 +27,13 @@ const RELATION_ORDER: readonly TaskLinkRelation[] = [
 ];
 
 export function TaskRelatedTasks({
-  tasks,
+  tasks: savedTasks,
   relationLabels,
   statusLabels,
   hrefBasePath,
 }: TaskRelatedTasksProps) {
+  const [changes] = useOptimisticTaskLinks();
+  const tasks = applyTaskLinkChanges(savedTasks, changes);
   if (tasks.length === 0) return null;
 
   const groups = new Map<TaskLinkRelation, VisibleTaskLink[]>();
