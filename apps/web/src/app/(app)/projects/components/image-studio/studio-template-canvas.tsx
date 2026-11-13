@@ -240,7 +240,7 @@ export function StudioTemplateCanvas({
             )),
           )}
         </div>
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--card-background)_15%,transparent_71%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--card-background)_15%,transparent_71%)] max-sm:bg-[radial-gradient(ellipse_at_center,var(--card-background)_40%,transparent_90%)]" />
       </div>
       <Button
         aria-label={
