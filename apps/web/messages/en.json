@@ -11566,7 +11566,7 @@
         "addButton": "Add a keyword",
         "keywordAndPage": "Keyword and its page",
         "readOn": "Last position check",
-        "checks": "{count, plural, one {Position check} other {Position checks}}",
+        "checks": "{count, plural, one {View the position check} other {View the position checks}}",
         "nextFixes": "{count, plural, one {Next step: # fix} other {Next step: # fixes}}",
         "searchKeywords": "Filter keywords",
         "map": {

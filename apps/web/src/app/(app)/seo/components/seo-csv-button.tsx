@@ -43,7 +43,8 @@ export function SeoCsvButton({
       }}
     >
       <Download className="size-4" />
-      {t("export.csv")}
+      {/* A phone shows the icon alone: the word squeezed the title beside it. The label still names it. */}
+      <span className="max-sm:sr-only">{t("export.csv")}</span>
     </Button>
   );
 }

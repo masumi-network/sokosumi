@@ -382,12 +382,15 @@ export function SeoSource({
   observationId,
   workspace,
   children,
+  named = false,
 }: {
   /** Null where the row comes from no check. */
   observationId: string | null;
   workspace: ProjectSeoWorkspace;
   /** The words of the link, for example the date of the check. Without a result to open they show as text. */
   children?: ReactNode;
+  /** The words already say where the link leads, so no hidden words are added. */
+  named?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const observation = workspace.observations.find(
@@ -407,7 +410,9 @@ export function SeoSource({
         <>
           {children}
           {/* A date alone does not say where the link leads. */}
-          <span className="sr-only">, {t("timeline.viewResults")}</span>
+          {named ? null : (
+            <span className="sr-only">, {t("timeline.viewResults")}</span>
+          )}
         </>
       ) : (
         t("timeline.viewResults")

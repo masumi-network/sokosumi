@@ -139,6 +139,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
           <SeoSource
             workspace={model.data}
             observationId={newest.observationId}
+            named={Boolean(namedDays)}
           >
             {namedDays ? (
               // The runs row over the tabs names these days.

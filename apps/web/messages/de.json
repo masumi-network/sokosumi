@@ -11566,7 +11566,7 @@
         "addButton": "Keyword hinzufügen",
         "keywordAndPage": "Keyword und seine Seite",
         "readOn": "Letzte Positionsprüfung",
-        "checks": "{count, plural, one {Positionsprüfung} other {Positionsprüfungen}}",
+        "checks": "{count, plural, one {Positionsprüfung ansehen} other {Positionsprüfungen ansehen}}",
         "nextFixes": "{count, plural, one {Nächster Schritt: # Korrektur} other {Nächster Schritt: # Korrekturen}}",
         "searchKeywords": "Keywords filtern",
         "map": {

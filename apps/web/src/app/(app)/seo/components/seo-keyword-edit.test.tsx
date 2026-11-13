@@ -1381,7 +1381,7 @@ describe("Search Console queries", () => {
     ];
     const named = renderWorkspace(workspace);
     expect(
-      screen.getByRole("link", { name: /^Position checks ?, View results$/ }),
+      screen.getByRole("link", { name: "View the position checks" }),
     ).toHaveAttribute("href", "/tasks/task-positions");
     expect(screen.queryByText(/^Position checks Oct 11/)).toBeNull();
     named.unmount();

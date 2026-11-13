@@ -609,7 +609,7 @@ describe("SEO competitor baselines", () => {
     ];
     renderWorkspace(workspace);
     expect(
-      screen.getByRole("link", { name: /^Position checks ?, View results$/ }),
+      screen.getByRole("link", { name: "View the position checks" }),
     ).toHaveAttribute("href", "/tasks/second-check-task");
     cleanup();
     // Without results to open the words would be no link: the line keeps its dates.

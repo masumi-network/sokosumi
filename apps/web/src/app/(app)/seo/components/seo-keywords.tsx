@@ -274,6 +274,7 @@ export function SeoKeywords({
                     <SeoSource
                       workspace={model.data}
                       observationId={summary.newest.observationId}
+                      named={Boolean(namedDays)}
                     >
                       {namedDays ? (
                         // The runs row over the tabs names these days.
