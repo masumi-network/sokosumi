@@ -129,6 +129,80 @@ describe("VoiceMessageRecorder", () => {
     expect(screen.queryByRole("timer")).toBeNull();
   });
 
+  it("opens the mic once when clicked twice during the permission prompt", async () => {
+    let grant: (stream: unknown) => void = () => undefined;
+    getUserMedia.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          grant = resolve;
+        }),
+    );
+    render(<VoiceMessageRecorder onRecorded={vi.fn()} />);
+    const mic = screen.getByRole("button", { name: "recordVoice" });
+    fireEvent.click(mic);
+    fireEvent.click(mic);
+    expect(getUserMedia).toHaveBeenCalledOnce();
+    await act(async () => grant({ getTracks: () => [{ stop: stopTrack }] }));
+    expect(screen.getByRole("timer")).toBeTruthy();
+  });
+
+  it("releases the mic when the composer unmounts during the permission prompt", async () => {
+    let grant: (stream: unknown) => void = () => undefined;
+    getUserMedia.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          grant = resolve;
+        }),
+    );
+    const onRecorded = vi.fn();
+    const onRecordingChange = vi.fn();
+    const { unmount } = render(
+      <VoiceMessageRecorder
+        onRecorded={onRecorded}
+        onRecordingChange={onRecordingChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "recordVoice" }));
+    unmount();
+    await act(async () => grant({ getTracks: () => [{ stop: stopTrack }] }));
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(lastRecorder).toBeNull();
+    act(() => vi.advanceTimersByTime(VOICE_MESSAGE_MAX_MS + 250));
+    expect(onRecorded).not.toHaveBeenCalled();
+    expect(onRecordingChange).not.toHaveBeenCalled();
+  });
+
+  it("releases the mic without attaching when unmounted while recording", async () => {
+    const onRecorded = vi.fn();
+    const { unmount } = render(
+      <VoiceMessageRecorder onRecorded={onRecorded} />,
+    );
+    await startRecording();
+    unmount();
+    expect(stopTrack).toHaveBeenCalled();
+    expect(onRecorded).not.toHaveBeenCalled();
+  });
+
+  it("moves focus to Stop on start and back to the mic on finish", async () => {
+    const onRecordingChange = vi.fn();
+    render(
+      <VoiceMessageRecorder
+        onRecorded={vi.fn()}
+        onRecordingChange={onRecordingChange}
+      />,
+    );
+    await startRecording();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "stopVoice" }),
+    );
+    expect(onRecordingChange).toHaveBeenLastCalledWith(true);
+    fireEvent.click(screen.getByRole("button", { name: "stopVoice" }));
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "recordVoice" }),
+    );
+    expect(onRecordingChange).toHaveBeenLastCalledWith(false);
+  });
+
   it("formats elapsed time as m:ss", () => {
     expect(formatVoiceElapsed(65_400)).toBe("1:05");
   });

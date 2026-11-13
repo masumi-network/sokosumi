@@ -2,7 +2,7 @@
 
 import { Mic, Square, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,9 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 export const VOICE_MESSAGE_MAX_MS = 120_000;
 
 /**
- * Safari records MP4/AAC, Chrome and Firefox WebM/Opus. Both are on the upload
- * allowlist. WebM gets `.weba` so chips classify it as audio, not video.
+ * MP4 (AAC or Opus) first: Safari and recent Chrome record it. WebM/Opus is
+ * the fallback (Firefox, older Chrome). Both are on the upload allowlist.
+ * WebM gets `.weba` so chips classify it as audio, not video.
  */
 const VOICE_FORMATS = [
   { mimeType: "audio/mp4", extension: "m4a" },
@@ -40,6 +41,18 @@ export function formatVoiceElapsed(ms: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
+function voiceFileStamp(at: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  // Local time; ":" is not allowed in file names on Windows.
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${pad(at.getHours())}.${pad(at.getMinutes())}`;
+}
+
+function stopStream(stream: MediaStream) {
+  for (const track of stream.getTracks()) track.stop();
+}
+
+const focusOnMount = (node: HTMLButtonElement | null) => node?.focus();
+
 interface Recording {
   recorder: MediaRecorder;
   stream: MediaStream;
@@ -49,6 +62,8 @@ interface Recording {
 
 interface VoiceMessageRecorderProps {
   onRecorded: (file: File) => void;
+  /** Tells the composer to hold Send while the mic is open. */
+  onRecordingChange?: (recording: boolean) => void;
   disabled?: boolean;
   buttonClassName?: string;
 }
@@ -60,37 +75,75 @@ interface VoiceMessageRecorderProps {
  */
 export function VoiceMessageRecorder({
   onRecorded,
+  onRecordingChange,
   disabled,
   buttonClassName,
 }: VoiceMessageRecorderProps) {
   const t = useTranslations("App.Channels.Toolbar");
   const isClient = useIsClient();
   const recordingRef = useRef<Recording | null>(null);
+  const startingRef = useRef(false);
+  const unmountedRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const returnFocusRef = useRef(false);
+  const [starting, setStarting] = useState(false);
   const [elapsedMs, setElapsedMs] = useState<number | null>(null);
 
   function finish(keep: boolean) {
     const recording = recordingRef.current;
     if (!recording) return;
+    recordingRef.current = null;
     recording.keep = keep;
     clearInterval(recording.timer);
     if (recording.recorder.state !== "inactive") recording.recorder.stop();
-    for (const track of recording.stream.getTracks()) track.stop();
-    recordingRef.current = null;
+    stopStream(recording.stream);
+    if (unmountedRef.current) return;
+    returnFocusRef.current =
+      containerRef.current?.contains(document.activeElement) ?? false;
     setElapsedMs(null);
+    onRecordingChange?.(false);
   }
 
-  useMountEffect(() => () => finish(false));
+  useMountEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+      finish(false);
+    };
+  });
+
+  // Stable so React calls it only when the mic button mounts.
+  const micRef = useCallback((node: HTMLButtonElement | null) => {
+    if (node && returnFocusRef.current) {
+      returnFocusRef.current = false;
+      node.focus();
+    }
+  }, []);
 
   async function start() {
     const format = pickVoiceFormat();
-    if (!format || recordingRef.current) return;
+    if (!format || startingRef.current || recordingRef.current) return;
+    startingRef.current = true;
+    setStarting(true);
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
-      toast.error(t("voiceBlocked"));
+      startingRef.current = false;
+      if (!unmountedRef.current) {
+        setStarting(false);
+        toast.error(t("voiceBlocked"));
+      }
       return;
     }
+    startingRef.current = false;
+    // Room switched or thread closed during the permission prompt.
+    if (unmountedRef.current) {
+      stopStream(stream);
+      return;
+    }
+    setStarting(false);
+
     const recorder = new MediaRecorder(stream, { mimeType: format.mimeType });
     const chunks: Blob[] = [];
     const startedAt = Date.now();
@@ -109,14 +162,10 @@ export function VoiceMessageRecorder({
     };
     recorder.onstop = () => {
       if (!recording.keep || chunks.length === 0) return;
-      const at = new Date(startedAt);
-      const pad = (value: number) => String(value).padStart(2, "0");
-      // Local time; ":" is not allowed in file names on Windows.
-      const stamp = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${pad(at.getHours())}.${pad(at.getMinutes())}`;
       onRecorded(
         new File(
           [new Blob(chunks, { type: format.mimeType })],
-          `${t("voiceFileName", { time: stamp })}.${format.extension}`,
+          `${t("voiceFileName", { time: voiceFileStamp(new Date(startedAt)) })}.${format.extension}`,
           { type: format.mimeType },
         ),
       );
@@ -128,6 +177,7 @@ export function VoiceMessageRecorder({
     recordingRef.current = recording;
     recorder.start();
     setElapsedMs(0);
+    onRecordingChange?.(true);
   }
 
   if (!isClient || !pickVoiceFormat()) return null;
@@ -135,13 +185,14 @@ export function VoiceMessageRecorder({
   if (elapsedMs === null) {
     return (
       <Button
+        ref={micRef}
         type="button"
         variant="ghost"
         size="icon"
         className={buttonClassName}
         title={t("recordVoice")}
         aria-label={t("recordVoice")}
-        disabled={disabled}
+        disabled={disabled || starting}
         onClick={() => void start()}
       >
         <Mic className="size-4" aria-hidden />
@@ -150,7 +201,7 @@ export function VoiceMessageRecorder({
   }
 
   return (
-    <div className="flex shrink-0 items-center gap-1">
+    <div ref={containerRef} className="flex shrink-0 items-center gap-1">
       <span
         role="timer"
         aria-label={t("voiceRecording")}
@@ -174,6 +225,7 @@ export function VoiceMessageRecorder({
         <X className="size-4" aria-hidden />
       </Button>
       <Button
+        ref={focusOnMount}
         type="button"
         variant="ghost"
         size="icon"

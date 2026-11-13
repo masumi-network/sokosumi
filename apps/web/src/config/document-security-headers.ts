@@ -50,10 +50,11 @@ export function documentSecurityHeaders(
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
     // Denies only the capabilities the product never uses; every unlisted
     // feature keeps its browser default, so same-origin clipboard writes and
-    // notifications keep working.
+    // notifications keep working. Microphone is same-origin only: chat voice
+    // messages record with it.
     {
       key: "Permissions-Policy",
-      value: "camera=(), microphone=(), geolocation=()",
+      value: "camera=(), microphone=(self), geolocation=()",
     },
     // Only the public newsletter signup embed accepts inbound framing. The iframes in
     // offer-card, document-viewer and image-viewer are outbound (third-party

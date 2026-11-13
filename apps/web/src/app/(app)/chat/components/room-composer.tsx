@@ -361,6 +361,9 @@ export function RoomComposer({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isUploadingFilesRef = useRef(false);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  // Settles when the running upload ends, so a voice recording can wait for it.
+  const uploadIdleRef = useRef<Promise<void>>(Promise.resolve());
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkInitialText, setLinkInitialText] = useState("");
   const [linkInitialUrl, setLinkInitialUrl] = useState("");
@@ -493,6 +496,10 @@ export function RoomComposer({
 
       isUploadingFilesRef.current = true;
       setIsUploadingFiles(true);
+      let markUploadIdle = () => {};
+      uploadIdleRef.current = new Promise((resolve) => {
+        markUploadIdle = resolve;
+      });
 
       try {
         const uploaded = await uploadComposeAttachments(selectedFiles, {
@@ -530,6 +537,7 @@ export function RoomComposer({
       } finally {
         isUploadingFilesRef.current = false;
         setIsUploadingFiles(false);
+        markUploadIdle();
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -537,6 +545,12 @@ export function RoomComposer({
     },
     [allowAttachments, onAttachmentsChange, roomId, tToolbar],
   );
+
+  async function attachVoiceRecording(file: File) {
+    // A paperclip, paste or Drive upload may still run; never drop the recording.
+    while (isUploadingFilesRef.current) await uploadIdleRef.current;
+    await handleFilesSelected([file]);
+  }
 
   async function handleAttachOverflowAsMarkdown() {
     if (!allowAttachments || !contentOverLimit) {
@@ -635,7 +649,12 @@ export function RoomComposer({
           t("Toolbar.removeAttachment", { name })
         }
         isSending={isSending}
-        sendDisabled={isUploadingFiles || sendDisabled || contentOverLimit}
+        sendDisabled={
+          isUploadingFiles ||
+          isRecordingVoice ||
+          sendDisabled ||
+          contentOverLimit
+        }
         toolbarEnd={
           showContentCount ? (
             <span
@@ -750,8 +769,9 @@ export function RoomComposer({
                 <VoiceMessageRecorder
                   buttonClassName={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
                   disabled={isUploadingFiles}
+                  onRecordingChange={setIsRecordingVoice}
                   onRecorded={(file) => {
-                    void handleFilesSelected([file]);
+                    void attachVoiceRecording(file);
                   }}
                 />
               </>
@@ -850,7 +870,10 @@ export function RoomComposer({
           mentionDisplayBySlug={mentionDisplay.bySlug}
           channels={channels}
           placeholder={placeholder}
-          onSubmitShortcut={() => formRef.current?.requestSubmit()}
+          onSubmitShortcut={() => {
+            // Enter while the mic is open would send without the recording.
+            if (!isRecordingVoice) formRef.current?.requestSubmit();
+          }}
           onLinkShortcut={openLinkDialog}
           onActiveFormatsChange={
             formatToolbarOpen ? handleActiveFormatsChange : undefined
