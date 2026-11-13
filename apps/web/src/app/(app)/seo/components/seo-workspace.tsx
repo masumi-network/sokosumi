@@ -203,25 +203,26 @@ export function SeoWorkspace({
     // Phone buttons and fields are at least 40 px tall; the tab row keeps its 36 px bar.
     // The space under the last row keeps it clear of the floating button.
     <div className="space-y-6 pb-16 [&_details[open]>:not(summary)]:content-rise max-sm:[&_[data-slot=button]]:min-h-10 max-sm:[&_[data-slot=dropdown-menu-trigger]]:min-h-10 max-sm:[&_[data-slot=input]]:min-h-10 max-sm:[&_[data-slot=select-trigger]]:min-h-10">
-      {/* On a phone the actions sit on the title row and the URL has its own row, so the header is as tall on every tab. */}
-      <div className="flex flex-wrap items-end justify-between gap-3 max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:items-center max-sm:gap-y-1">
-        <div className="min-w-0 space-y-1 max-sm:contents max-sm:space-y-0">
+      {/* The actions sit on the title row, centred to it, and the pages line has its own row under both: the
+          header is as tall on every tab, on every screen. */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1">
+        <div className="contents">
           <Link
             href={seoIndexHref(model.data.projectId ?? null)}
             // A way back, not a link in a sentence: a chevron and quiet words, no underline. The chevron hangs
             // left, so the words start where the title starts.
-            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area -ms-1 inline-flex w-fit max-sm:mb-1.5 items-center gap-0.5 rounded-sm text-sm transition-colors outline-none focus-visible:ring-2 max-sm:col-span-2 max-sm:justify-self-start"
+            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area -ms-1 col-span-2 mb-1 inline-flex w-fit items-center gap-0.5 justify-self-start rounded-sm text-sm transition-colors outline-none focus-visible:ring-2 max-sm:mb-1.5"
           >
             <ChevronLeft aria-hidden className="size-4" />
             {t("audits.all")}
           </Link>
           {model.data.auditName ? (
-            <h2 className="min-w-0 text-xl font-semibold break-words max-sm:col-start-1">
+            <h2 className="col-start-1 min-w-0 text-xl font-semibold break-words">
               {model.data.auditName}
             </h2>
           ) : null}
           {/* One page in view: its URL says more than a count. */}
-          <div className="min-w-0 max-sm:col-span-2 max-sm:row-start-3">
+          <div className="col-span-2 row-start-3 min-w-0">
             {pagePicker ? (
               // Both narrow the view, so they stand on one line.
               <div className="flex flex-wrap items-center gap-x-4">
@@ -244,7 +245,7 @@ export function SeoWorkspace({
             )}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 max-sm:col-start-2 max-sm:row-start-2 max-sm:flex-nowrap">
+        <div className="col-start-2 row-start-2 flex flex-nowrap gap-2">
           {runAudit ? (
             <Button
               size="sm"
@@ -407,8 +408,12 @@ export function SeoWorkspace({
         />
         <div
           ref={tabBar}
-          // On a phone the tabs fill the row; a fifth tab still scrolls, without a scroll track.
-          className="app-scrollbar w-fit max-w-full overflow-x-auto max-sm:w-full max-sm:[scrollbar-width:none]"
+          // On a phone the tabs fill the row; a fifth tab still scrolls, without a scroll track. The room above
+          // parts the tabs from the timeline over them.
+          className={cn(
+            "app-scrollbar w-fit max-w-full overflow-x-auto max-sm:w-full max-sm:[scrollbar-width:none]",
+            runsRow && "mt-3",
+          )}
         >
           <TabsList
             className={cn(
