@@ -1738,6 +1738,7 @@
         "feedbackUseful": "Useful",
         "feedbackNotUseful": "Not useful",
         "feedbackThanks": "Thanks, noted.",
+        "feedbackError": "Could not save your rating.",
         "approvals": "{count, plural, one {# approval waiting} other {# approvals waiting}}",
         "review": "Review on the assistant page",
         "task": "Task",
@@ -2138,6 +2139,7 @@
         "noStatusMatches": "No status matches",
         "untitledTask": "Untitled task",
         "saveError": "Failed to save task",
+        "createError": "Could not create “{name}”. Your input is still in the form.",
         "back": "Back",
         "uploadFile": "Upload file",
         "uploadFileError": "Failed to upload file",
@@ -9174,7 +9176,9 @@
         "removeConfirmTitle": "Remove {name} from this channel?",
         "removeConfirmDescription": "{name} will no longer see this channel or its messages.",
         "removeSuccess": "Removed {name} from the channel.",
-        "undo": "Undo"
+        "removeError": "Could not remove {name} from the channel.",
+        "undo": "Undo",
+        "undoError": "Could not put {name} back in the channel."
       },
       "AddMembers": {
         "title": "Add members",
@@ -9559,7 +9563,7 @@
       "GoogleSheet": {
         "button": "Link Google Sheet",
         "dialogTitle": "Link a Google Sheet",
-        "dialogDescription": "Paste the sheet's link. In Google Sheets, set Share → General access to “Anyone with the link”. Sokosumi keeps a copy here and updates it every hour.",
+        "dialogDescription": "Paste the sheet's link. In Google Sheets, set Share → General access to “Anyone with the link”. Sokosumi keeps Google’s PDF of it here and updates it every hour.",
         "linkLabel": "Google Sheets link",
         "link": "Link",
         "linking": "Linking…",
@@ -9934,6 +9938,8 @@
         },
         "Settings": {
           "titleLabel": "Title",
+          "welcomeLabel": "Welcome note",
+          "welcomeHint": "Shown on the Welcome page when someone opens the room. Line breaks are kept.",
           "logoLabel": "Logo",
           "noLogo": "No logo",
           "logoHint": "An image from this room, shown beside the title.",
@@ -11391,12 +11397,10 @@
         "failed": "Could not reach the data room. Try again."
       },
       "signedInAs": "Signed in as {email}",
-      "downloadAll": "Download all",
+      "downloadAll": "Download everything",
       "signOut": "Sign out",
       "empty": "Nothing in this data room yet.",
       "indexLabel": "Contents",
-      "pickFile": "Choose a file to open it.",
-      "new": "New",
       "download": "Download",
       "watermarkNote": "Pages and images you open carry your email and the time.",
       "downloadToOpen": "This file can't be shown here. Download it to open it.",
@@ -11408,7 +11412,11 @@
       "awaitingAnswer": "Waiting for an answer",
       "askLabel": "Ask the owner about this document",
       "ask": "Ask",
-      "askFailed": "Could not send your question. Try again."
+      "askFailed": "Could not send your question. Try again.",
+      "welcome": "Welcome",
+      "welcomeTitle": "Welcome to {title}",
+      "contents": "{files, plural, one {# document} other {# documents}}{folders, plural, =0 {} one { in # folder} other { in # folders}}",
+      "openFirst": "Open {name}"
     }
   },
   "NotFound": {

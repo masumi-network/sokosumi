@@ -38,8 +38,7 @@ interface TaskLinkTaskPickerDialogProps {
   onOpenChange: (open: boolean) => void;
   selectedOption: TaskLinkActionOption | null;
   isLinkPending: boolean;
-  pendingLinkTaskId: string | null;
-  onSelectTask: (option: TaskLinkActionOption, relatedTaskId: string) => void;
+  onSelectTask: (option: TaskLinkActionOption, task: TaskPickerTask) => void;
 }
 
 export function TaskLinkTaskPickerDialog({
@@ -48,7 +47,6 @@ export function TaskLinkTaskPickerDialog({
   onOpenChange,
   selectedOption,
   isLinkPending,
-  pendingLinkTaskId,
   onSelectTask,
 }: TaskLinkTaskPickerDialogProps) {
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
@@ -230,17 +228,10 @@ export function TaskLinkTaskPickerDialog({
                   disabled={isLinkPending}
                   onSelect={() => {
                     if (!selectedOption) return;
-                    onSelectTask(selectedOption, taskOption.id);
+                    onSelectTask(selectedOption, taskOption);
                   }}
                 >
-                  {isLinkPending && pendingLinkTaskId === taskOption.id ? (
-                    <Loader2
-                      className="size-4 animate-spin motion-reduce:animate-pulse"
-                      aria-hidden
-                    />
-                  ) : (
-                    <PickerIcon className="size-4" aria-hidden />
-                  )}
+                  <PickerIcon className="size-4" aria-hidden />
                   <span className="truncate">{taskOption.name}</span>
                 </CommandItem>
               );

@@ -9,12 +9,19 @@ const projectServiceMock = {
   listProjects: vi.fn(),
   pinProject: vi.fn(),
   unpinProject: vi.fn(),
+  hideProject: vi.fn(),
+  showProject: vi.fn(),
 };
 
 // Mock only the session source and exercise the real `withSession` wrapper so
 // its auth guard (and forged-session override) is covered, not reimplemented.
 vi.mock("@/lib/auth/auth.server", () => ({
   getSessionResult: (...args: unknown[]) => getSessionResultMock(...args),
+}));
+
+const revalidatePathMock = vi.fn();
+vi.mock("next/cache", () => ({
+  revalidatePath: (...args: unknown[]) => revalidatePathMock(...args),
 }));
 
 vi.mock("@/lib/services/project.service", () => ({
@@ -152,6 +159,8 @@ describe("project Pin actions", () => {
       { projectId: "project-1", starredAt },
     );
     expect(projectServiceMock.pinProject).toHaveBeenCalledWith("project-1");
+    // The answer carries the new page, so the caller needs no refresh.
+    expect(revalidatePathMock).toHaveBeenCalledWith("/projects");
   });
 
   it("Unpins a project for the signed-in reader", async () => {
@@ -166,7 +175,24 @@ describe("project Pin actions", () => {
       unpinProjectAction({ projectId: "project-1" }),
     ).resolves.toEqual({ projectId: "project-1", starredAt: null });
     expect(projectServiceMock.unpinProject).toHaveBeenCalledWith("project-1");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/projects");
   });
+
+  it.each([
+    ["hideProjectAction", "hideProject"],
+    ["showProjectAction", "showProject"],
+  ] as const)(
+    "%s revalidates the Projects page after the write",
+    async (action, write) => {
+      projectServiceMock[write].mockResolvedValue({ projectId: "project-1" });
+
+      const actions = await import("./actions");
+      await actions[action]({ projectId: "project-1" });
+
+      expect(projectServiceMock[write]).toHaveBeenCalledWith("project-1");
+      expect(revalidatePathMock).toHaveBeenCalledWith("/projects");
+    },
+  );
 
   it("rejects unauthenticated callers before touching a Pin", async () => {
     const { err } = await import("neverthrow");

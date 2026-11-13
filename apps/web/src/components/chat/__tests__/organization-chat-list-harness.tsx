@@ -27,6 +27,7 @@ const { harnessPathname, harnessSelection } = vi.hoisted(() => ({
 const {
   acceptInvitationMock,
   declineInvitationMock,
+  getRoomMock,
   listRoomsMock,
   listArchivedMock,
   listElsewhereMock,
@@ -38,6 +39,8 @@ const {
 } = vi.hoisted(() => ({
   acceptInvitationMock: vi.fn(),
   declineInvitationMock: vi.fn(),
+  /** The one-room sidebar read. Unset, the room is gone: read the whole list. */
+  getRoomMock: vi.fn(),
   listRoomsMock: vi.fn(),
   listArchivedMock: vi.fn(),
   listElsewhereMock: vi.fn(),
@@ -53,6 +56,7 @@ const {
 export {
   acceptInvitationMock,
   declineInvitationMock,
+  getRoomMock,
   harnessPathname,
   harnessRealCatchUp,
   harnessRowProps,
@@ -239,6 +243,11 @@ vi.mock("@/components/chat/organization-chat-list.actions", () => ({
 }));
 
 vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
+  // Null is a read that failed, so only an unset mock means the room is gone.
+  fetchSidebarRoom: async (roomId: string) => {
+    const room = await getRoomMock(roomId);
+    return room === undefined ? "gone" : room;
+  },
   fetchSidebarRoomCollection: async (collection: string) => {
     if (collection === "elsewhere") {
       return listElsewhereMock();
@@ -464,6 +473,7 @@ export function resetOrganizationChatListMocks() {
   markAllReadMock.mockResolvedValue({ ok: true, value: null });
   acceptInvitationMock.mockReset();
   declineInvitationMock.mockReset();
+  getRoomMock.mockReset();
   listRoomsMock.mockReset();
   listArchivedMock.mockReset();
   listPendingMock.mockReset();
