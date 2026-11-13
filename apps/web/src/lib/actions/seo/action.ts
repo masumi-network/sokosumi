@@ -19,6 +19,34 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
+const scheduleRevision = z.number().int().nonnegative();
+/** Monitor commands go straight to the Task Schedule routes: check their shape before the id goes into a path. */
+const monitorCommandSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("monitor_state"),
+      monitorId: z.uuid(),
+      action: z.enum(["pause", "resume", "end"]),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("monitor_run_now"),
+      monitorId: z.uuid(),
+      expectedRevision: scheduleRevision,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("monitor_update"),
+      monitorId: z.uuid(),
+      expectedRevision: scheduleRevision,
+      // Core checks the rule itself.
+      rule: z.record(z.string(), z.unknown()),
+    })
+    .strict(),
+]);
+
 export const mutateSeo = withSession<
   AuthenticatedRequest & { owner: SeoOwner; command: SeoCommand },
   ActionResultDto<null, ActionError>
@@ -28,7 +56,9 @@ export const mutateSeo = withSession<
       .object({ kind: z.enum(["audit", "project"]), id: z.uuid() })
       .strict()
       .safeParse(owner).success ||
-    !command
+    !command ||
+    (String(command.kind).startsWith("monitor_") &&
+      !monitorCommandSchema.safeParse(command).success)
   ) {
     return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
