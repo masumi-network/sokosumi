@@ -16,74 +16,25 @@ fetchRetryMaxtimeout: 120000
 networkConcurrency: 8
 
 overrides:
-  # js-yaml GHSA-2883-xcg3-v3hh (CVE-2026-84375) patched in 4.3.2;
-  # GHSA-5p4m-2wfm-xmqj patched in 4.3.1; GHSA-52cp-r559-cp3m patched in 4.3.0.
-  # 2026-11-04 re-resolve with overrides removed (lockfile-only, bumped direct
-  # pins) landed only js-yaml@4.2.0 via @hey-api/json-schema-ref-parser@1.4.4
-  # (latest; still depends on 4.2.0). pnpm audit reported GHSA-52cp-r559-cp3m,
-  # GHSA-5p4m-2wfm-xmqj, and GHSA-2883-xcg3-v3hh against that resolve. 4.3.2 is
-  # still the latest 4.x patch. 5.x is a separate major (5.5.0); its advisories
-  # are not the 4.x set.
-  # 2026-11-05 re-resolve with overrides removed (lockfile-only, today's bumped
-  # pins) landed the same js-yaml@4.2.0, plus undici@6.29.1, undici@7.30.1,
-  # undici@8.12.3, and esbuild@0.28.2. Audit reported the same three js-yaml
-  # GHSAs and no undici or esbuild advisory.
-  # 2026-11-06 re-resolve with overrides removed (lockfile-only, today's bumped
-  # pins, pnpm 12.18.0) landed js-yaml@4.2.0 again. pnpm audit reported
-  # GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj, and GHSA-2883-xcg3-v3hh. 4.3.2 is
-  # still the latest 4.x (`v4-legacy`).
-  # 2026-11-09 re-resolve with overrides removed (lockfile-only, today's bumped
-  # pins, pnpm 12.18.0) landed js-yaml@4.2.0 again via
-  # @hey-api/json-schema-ref-parser@1.4.4. pnpm audit reported the same three
-  # GHSAs. 4.3.2 is still the latest 4.x (`v4-legacy`). npm `latest` is 5.5.0.
-  # 2026-11-10 re-resolve with overrides removed (lockfile-only, today's bumped
-  # pins, pnpm 12.18.0) landed js-yaml@4.2.0 again via
-  # @hey-api/json-schema-ref-parser@1.4.4. pnpm audit reported the same three
-  # GHSAs. 4.3.2 is still the latest 4.x (`v4-legacy`). npm `latest` is 5.5.0.
-  # 2026-11-11 re-resolve with overrides removed (lockfile-only, today's bumped
-  # pins including eve 1.0.0-rc.9, pnpm 12.18.0) landed js-yaml@4.2.0 again via
-  # @hey-api/json-schema-ref-parser@1.4.4 (still latest). pnpm audit reported
-  # the same three GHSAs. 4.3.2 is still the latest 4.x (`v4-legacy`). npm
-  # `latest` is 5.5.0.
+  # js-yaml GHSA-2883-xcg3-v3hh, GHSA-5p4m-2wfm-xmqj, GHSA-52cp-r559-cp3m.
+  # Patched in 4.3.2 (`v4-legacy`). 5.x is a separate major; do not force it.
+  # 2026-11-13 re-resolve without overrides landed js-yaml@4.2.0 via
+  # @hey-api/json-schema-ref-parser@1.4.4 (still latest; still depends on 4.2.0).
+  # Audit reported all three GHSAs. npm `latest` is 5.5.0.
   "js-yaml@<4.3.2": "4.3.2"
-  # undici GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472, GHSA-xjj6-f33q-929c: dropped.
-  # GHSA-w293-vg96-wgc3 (CVE-2026-84961) is patched in 7.29.1 and 8.10.2; 6.x is
-  # outside the vulnerable range. Patched floors stay 6.29.1, 7.30.1, and 8.12.2.
-  # 2026-11-04 re-resolve with overrides removed (lockfile-only) landed only
-  # undici@6.29.1, undici@7.30.1, and undici@8.12.3.
-  # Those are still the patched floors (no newer 6/7/8). 2026-11-05 landed the
-  # same three undici versions.
-  # 2026-11-06: 7.30.1 and 8.12.2–8.12.3 are vulnerable to GHSA-mqg3-3v4r-cm32
-  # (CVE-2026-116592) plus GHSA-7xg3-fphp-28hg, GHSA-5rm8-gv32-r954,
-  # GHSA-9v6h-8rgp-m69f, GHSA-3g9m-rv3r-w5w2, and GHSA-r4pc-4jcp-7pqc. Fixed in
-  # 7.30.2 and 8.12.4. 6.29.1 is still the newest 6.x and those notes do not
-  # name 6.x. Fresh resolve without an undici override landed undici@6.29.1,
-  # undici@7.30.2 (patched), and undici@8.12.3 (still vulnerable). pnpm audit
-  # had not indexed the new GHSAs. The 8.x pin is required. No 7.x pin: the
-  # fresh resolve already selects 7.30.2, and the lockfile is updated to match.
-  # 2026-11-09 re-resolve with overrides removed (lockfile-only, today's bumped
-  # pins, pnpm 12.18.0) landed undici@6.29.1, undici@7.30.2, and undici@8.12.3.
-  # 8.12.4 and 7.30.2 are still the newest releases. The v8.12.4 notes still
-  # name 8.12.2 and 8.12.3 for CVE-2026-116592 / GHSA-mqg3-3v4r-cm32 and the
-  # five related fixes; the v7.30.2 notes name 7.30.1. pnpm audit still does
-  # not index those GHSAs (OSV has no undici entries for 8.12.3 or 7.30.1).
-  # The 8.x pin stays. No 7.x pin.
-  # 2026-11-10 re-resolve with overrides removed (lockfile-only, today's bumped
-  # pins, pnpm 12.18.0) landed undici@6.29.1, undici@7.30.2, and undici@8.12.3.
-  # 8.12.4 is still npm `latest`. 7.30.2 is still the newest 7.x. 6.29.1 is
-  # still the newest 6.x. pnpm audit still does not index the Nov 5 undici
-  # GHSAs. The 8.x pin stays. No 7.x pin.
-  # 2026-11-11 re-resolve with overrides removed (lockfile-only, today's bumped
-  # pins, pnpm 12.18.0) landed undici@6.29.1, undici@7.30.2, and undici@8.12.3.
-  # npm `latest` is still 8.12.4. The v8.12.4 notes still name 8.12.2 and
-  # 8.12.3. 7.30.2 is still the newest 7.x. 6.29.1 is still the newest 6.x.
-  # pnpm audit on that resolve did not report undici. The 8.x pin stays. No
-  # 7.x pin.
+  # undici GHSA-mqg3-3v4r-cm32 (and GHSA-7xg3-fphp-28hg, GHSA-5rm8-gv32-r954,
+  # GHSA-9v6h-8rgp-m69f, GHSA-3g9m-rv3r-w5w2, GHSA-r4pc-4jcp-7pqc) fixed in
+  # 7.30.2 and 8.12.4. 6.x is not named. Audit does not index these GHSAs.
+  # 2026-11-13 re-resolve without overrides landed 6.29.1, 7.30.2, 8.12.3, and
+  # 8.12.4. eve 1.0.0-rc.13 still depends on 8.12.3. No 6.x or 7.x pin.
   "undici@>=8.12.2 <8.12.4": "8.12.4"
   # zod GHSA-mrhx-c7xc-m3w5 patched in 4.6.6. 2026-11-10: @vercel/oidc 3.8.10
   # and 4.0.0 (via @vercel/blob 2.9.0 and @vercel/sandbox 3.9.1, both latest)
   # pin @vercel/cli-config 0.3.1, which pins zod 4.1.11. Workspace pins are
   # already 4.6.7.
+  # 2026-11-13 re-resolve with overrides removed landed zod@4.1.11 and
+  # zod@4.6.7. pnpm audit reported GHSA-mrhx-c7xc-m3w5. 4.6.7 is still npm
+  # `latest`. The 4.x floor stays.
   "zod@>=4.0.0 <4.6.6": "4.6.7"
   # zod GHSA-mrhx-c7xc-m3w5 has no 3.x fix. 2026-11-11: puppeteer and
   # puppeteer-core 25.11.0 (held to match @sparticuz/chromium-min 153.0.0, the
@@ -96,23 +47,29 @@ overrides:
   # protocol-parser reads `error.errors`, which zod 4 removed: drop this pin
   # before anything launches with webDriverBiDi, and when puppeteer moves past
   # 25.12.
+  # 2026-11-13 re-resolve with overrides removed still landed zod@3.25.76 from
+  # chromium-bidi@17.0.2. Puppeteer stays 25.11.0 (Chrome 153). pnpm audit
+  # reported GHSA-mrhx-c7xc-m3w5 for that zod. The parent pin stays.
   "chromium-bidi@17.0.2>zod": "4.6.7"
   # katex GHSA-238p-pmpm-9mq7 (low) patched in 0.18.2. 2026-11-11: micromark-extension-math
   # 3.1.0 (latest, via remark-math 6.0.0, @m2d/math and @lobehub/ui) still asks
   # for katex ^0.16.0. remark-math only parses here; katex runs only in the
   # extension's HTML renderer (`lib/html.js`, `katex.renderToString`), which no
   # code here uses. 0.19.1 matches the katex @lobehub/ui already resolves.
+  # 2026-11-13 re-resolve with overrides removed landed katex@0.16.47 beside
+  # 0.18.10 and 0.19.1. micromark-extension-math 3.1.0 (still latest) still
+  # depends on katex ^0.16.0. pnpm audit reported GHSA-238p-pmpm-9mq7. npm
+  # `latest` is 0.19.1. The parent pin stays.
   "micromark-extension-math>katex": "0.19.1"
   # postcss-selector-parser GHSA-rj75-hqrm-r3gf patched in 6.1.5.
   # @tailwindcss/typography 0.5.20 (latest) pins 6.0.10. 6.1.6 is the newest 6.x.
+  # 2026-11-13 re-resolve with overrides removed landed only
+  # postcss-selector-parser@6.0.10. @tailwindcss/typography 0.5.20 is still
+  # latest and still depends on 6.0.10. pnpm audit reported GHSA-rj75-hqrm-r3gf.
+  # 6.1.6 is still the newest 6.x (`legacy-v6`). npm `latest` is 7.2.1; not forced.
   "postcss-selector-parser@>=6.0.0 <6.1.5": "6.1.6"
-  # esbuild GHSA-g7r4-m6w7-qqqr: dropped. 2026-11-04 re-resolve without an
-  # override still lands only esbuild@0.28.2 (patched; 0.28.2 is still latest).
-  # 2026-11-05 re-resolve landed the same esbuild@0.28.2.
-  # 2026-11-06 re-resolve landed the same esbuild@0.28.2. npm `latest` is 0.28.2.
-  # 2026-11-09 re-resolve landed the same esbuild@0.28.2. npm `latest` is 0.28.2.
-  # 2026-11-10 re-resolve landed the same esbuild@0.28.2. npm `latest` is 0.28.2.
-  # 2026-11-11 re-resolve landed the same esbuild@0.28.2. npm `latest` is 0.28.2.
+  # esbuild GHSA-g7r4-m6w7-qqqr: dropped. 2026-11-13 re-resolve without an
+  # override landed only esbuild@0.28.2. npm `latest` is 0.28.2.
 ignoredOptionalDependencies:
   # `pdfjs-dist` declares `@napi-rs/canvas` as an optional dependency, for
   # rendering PDF pages to images. Files extraction reads the **text layer
