@@ -11386,8 +11386,7 @@
         "actions": "Aktionen",
         "agent": "Agent",
         "traffic": "Zugriffe",
-        "rankings": "Rankings",
-        "health": "Zustand"
+        "rankings": "Rankings"
       },
       "overview": {
         "measurements": "Zugriffe",
@@ -11396,7 +11395,7 @@
         "partial": "Einige Statistiken fehlen. Öffne jede Quelle, um zu sehen, welche.",
         "available": "Statistiken für die angegebenen Zeiträume sind verfügbar.",
         "priority": "Empfohlene Aktionen",
-        "findings": "Probleme zu beheben",
+        "findings": "Probleme noch ohne Lösung",
         "audits": "Erfasste Ergebnisse",
         "findingsCount": "{count, plural, one {# Befund} other {# Befunde}}",
         "auditsCount": "{count, plural, one {# erfasstes Ergebnis} other {# erfasste Ergebnisse}}",
@@ -11420,7 +11419,6 @@
         "noFixesBody": "Diese Prüfungen haben keine Korrektur vorgeschlagen. Sie decken nur die ausgewählten Seiten und Prüfungen ab, nicht die gesamte Website oder Suchleistung.",
         "failedCheck": "<prefix>Nicht bestanden:</prefix> {name}",
         "checkedOn": "Geprüft am",
-        "seeFix": "Zur Korrektur",
         "diagnostics": "Titel, Beschreibung und weitere Seitendetails",
         "perDay": "{metric} pro Tag",
         "chartHint": "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Tagen.",
@@ -11465,8 +11463,7 @@
         "periodWorse": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, jetzt schlechter",
         "periodSame": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, unverändert",
         "changeMarker": "Erfasste Änderung am {day}: {changes}",
-        "points": "{value} Pp.",
-        "fixNamed": "<prefix>Korrektur:</prefix> {name}"
+        "points": "{value} Pp."
       },
       "keywords": {
         "title": "Keywords",

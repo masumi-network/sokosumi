@@ -348,7 +348,7 @@ describe("Saved keyword edits", () => {
     expect(screen.getByText("Home page")).toBeVisible();
     // A page of another site keeps its site.
     expect(screen.getByText("https://other.example/x")).toBeVisible();
-    // No link per keyword: the Health tab holds the page links.
+    // No link per keyword: the Actions tab holds the page links.
     expect(screen.queryByRole("link", { name: pricingPage.url })).toBeNull();
   });
 

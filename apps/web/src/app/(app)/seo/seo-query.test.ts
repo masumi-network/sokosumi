@@ -34,7 +34,8 @@ describe("SEO tab in the URL", () => {
     ["overview", "agent"],
     ["keywords", "rankings"],
     ["competitors", "rankings"],
-    ["pages", "health"],
+    ["pages", "actions"],
+    ["health", "actions"],
     ["traffic", "traffic"],
     ["actions", "actions"],
   ])("opens %s links on the %s tab", (value, tab) => {

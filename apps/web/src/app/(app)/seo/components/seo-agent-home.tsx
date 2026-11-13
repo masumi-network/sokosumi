@@ -147,7 +147,7 @@ function SeoAgentPanel({
     brief.opportunities -
     steps.filter((step) => step.kind === "action").length;
   const actionKind = brief.opportunities ? "action" : "fix";
-  // The keyword results as numbers. The issue count is in the headline; its tiles lead the Health tab.
+  // The keyword results as numbers. The issue count is in the headline; its tiles lead the Actions tab.
   const tiles = (
     <>
       <SeoSummaryTiles

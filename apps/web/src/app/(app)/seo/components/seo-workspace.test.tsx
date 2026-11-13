@@ -322,8 +322,7 @@ describe("SEO workspace integration", () => {
     expect(evidence).toBeVisible();
   });
 
-  it("names the check that did not pass on Site health and leads to its fix", async () => {
-    const user = userEvent.setup();
+  it("shows an issue with a fix once, as the card of its fix, on the tab an old Health link opens", async () => {
     const workspace = seoTestWorkspace();
     const observationId = "962a86bb-5702-4d64-a6c4-15be5bf8ed80";
     workspace.findings.push({
@@ -359,42 +358,19 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace, "?tab=health");
-    // The row names the check, so the Actions tab is the one list of fix titles.
-    const row = screen.getByRole("heading", {
-      name: "Not passed: Markup matches the visible page",
-    });
-    expect(row).toBeVisible();
-    // The open row names the fix its button leads to.
-    const fixName = screen.getByRole("button", {
-      name: "Fix: Make the markup price match the page",
-      hidden: true,
-    });
-    expect(fixName).not.toBeVisible();
-    await user.click(row);
-    expect(fixName).toBeVisible();
-    await user.click(
-      screen.getByRole("button", {
-        name: "Fix: Make the markup price match the page",
-      }),
-    );
     expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    // The same title on the card of the fix, with the severity of its issue. The card takes the focus,
-    // so the reader does not look for the fix again in the list.
+    // The fix card names the check: an issue row over it would say the same thing twice.
+    expect(
+      screen.queryByRole("heading", {
+        name: "Not passed: Markup matches the visible page",
+      }),
+    ).toBeNull();
     const card = screen
       .getByRole("heading", { name: /^Make the markup price match the page/ })
       .closest("article");
-    await waitFor(() => expect(card).toHaveFocus());
-    // The card is marked while the focus is on it or on one of its controls, and no longer.
-    expect(card).toHaveAttribute("aria-current", "true");
-    await user.tab();
-    expect(card).not.toHaveFocus();
-    expect(card).toContainElement(document.activeElement as HTMLElement);
-    expect(card).toHaveAttribute("aria-current", "true");
-    await user.click(screen.getByRole("tab", { name: "Actions" }));
-    expect(card).not.toHaveAttribute("aria-current");
     // An open card holds its labels twice, and the style sheet shows one: in the head on a wide screen,
     // under the page link on a phone (the order of a closed row: title, page, labels). No style sheet here.
     const [headLabel, bodyLabel] = within(card!).getAllByText("High impact");
@@ -539,7 +515,10 @@ describe("SEO workspace integration", () => {
     expect(within(card!).getByRole("link", { name: guide })).toHaveTextContent(
       /^\/guides\/a$/,
     );
-    await user.click(screen.getByRole("tab", { name: "Health" }));
+    // Without its fix the issue has a row of its own under the cards.
+    cleanup();
+    served = { ...served, actions: [] };
+    renderWorkspace(served, "?tab=actions");
     // One device says something; the page is its own part, so the open row can leave it to the link.
     expect(
       screen.getByText(
@@ -3118,7 +3097,7 @@ describe("SEO workspace integration", () => {
     ).toBeNull();
     // Report import is gone: adding a page is the first step without checks.
     expect(screen.queryByRole("button", { name: /import/i })).toBeNull();
-    await user.click(screen.getByRole("tab", { name: "Health" }));
+    await user.click(screen.getByRole("tab", { name: "Actions" }));
     await user.click(screen.getAllByRole("button", { name: "Add a page" })[0]);
     const addPage = screen.getByRole("dialog", { name: "Add a page" });
     expect(addPage).toBeVisible();
@@ -4470,7 +4449,7 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
   });
 
-  it("shows the Actions tab only once the Audit has actions", async () => {
+  it("keeps the Actions tab without actions: the health of the site stands on it", async () => {
     const workspace = seoTestWorkspace();
     workspace.actions = [];
     vi.stubGlobal(
@@ -4480,7 +4459,8 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     expect(await screen.findByRole("tab", { name: "Agent" })).toBeVisible();
     expect(screen.getByRole("tab", { name: "Rankings" })).toBeVisible();
-    expect(screen.queryByRole("tab", { name: "Actions" })).toBeNull();
+    expect(screen.getByRole("tab", { name: "Actions" })).toBeVisible();
+    expect(screen.queryByRole("tab", { name: "Health" })).toBeNull();
   });
 
   it("hides labels, notes and filters that cannot change anything without paid data", async () => {
@@ -5385,14 +5365,14 @@ describe("SEO workspace integration", () => {
     expect(await screen.findByTestId("seo-summary-keywords")).toHaveTextContent(
       /^0 of 1$/,
     );
-    // The Health tile splits the tests without a result the way the Timeline row of the check does.
-    await userEvent.click(screen.getByRole("tab", { name: "Health" }));
+    // The tests tile splits the tests without a result the way the Timeline row of the check does.
+    await userEvent.click(screen.getByRole("tab", { name: "Actions" }));
     const tests = screen.getByTestId("seo-summary-tests");
     expect(within(tests).getByText("2 tests gave no result")).toBeVisible();
     expect(within(tests).getByText("1 unavailable")).toBeVisible();
   });
 
-  it("shows the keyword numbers on the Agent tab and the page-check numbers on Health, and one Rankings list at a time", async () => {
+  it("shows the keyword numbers on the Agent tab and the page-check numbers on Actions, and one Rankings list at a time", async () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     const observedAt = new Date("2026-01-03T12:00:00Z");
@@ -5529,8 +5509,8 @@ describe("SEO workspace integration", () => {
     expect(searches).toHaveTextContent("810 a month");
     // Every checked keyword has a number: the tile beside this one already says how many they are.
     expect(within(searches).queryByText(/checked keywords?$/)).toBeNull();
-    // The Health tab leads with the numbers of the page check, and not with the keyword numbers.
-    await user.click(screen.getByRole("tab", { name: "Health" }));
+    // The Actions tab leads with the numbers of the page check, and not with the keyword numbers.
+    await user.click(screen.getByRole("tab", { name: "Actions" }));
     const issues = screen.getByTestId("seo-summary-issues");
     expect(issues).toHaveTextContent(/^2/);
     expect(within(issues).getByText("1 high impact")).toBeVisible();

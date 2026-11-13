@@ -11386,8 +11386,7 @@
         "actions": "Acciones",
         "agent": "Agente",
         "traffic": "Tráfico",
-        "rankings": "Posiciones",
-        "health": "Estado"
+        "rankings": "Posiciones"
       },
       "overview": {
         "measurements": "Tráfico",
@@ -11396,7 +11395,7 @@
         "partial": "Faltan algunas estadísticas. Abre cada fuente para ver cuáles.",
         "available": "Hay estadísticas disponibles para los periodos indicados.",
         "priority": "Acciones recomendadas",
-        "findings": "Problemas por corregir",
+        "findings": "Problemas aún sin solución",
         "audits": "Resultados capturados",
         "findingsCount": "{count, plural, one {# hallazgo} other {# hallazgos}}",
         "auditsCount": "{count, plural, one {# resultado capturado} other {# resultados capturados}}",
@@ -11420,7 +11419,6 @@
         "noFixesBody": "Estas comprobaciones no propusieron una corrección. Solo cubren las páginas y comprobaciones seleccionadas, no todo el sitio ni su rendimiento en búsquedas.",
         "failedCheck": "<prefix>No superada:</prefix> {name}",
         "checkedOn": "Comprobado el",
-        "seeFix": "Ver la corrección",
         "diagnostics": "Título, descripción y otros detalles de la página",
         "perDay": "{metric} por día",
         "chartHint": "Use las flechas izquierda y derecha para moverse entre los días.",
@@ -11465,8 +11463,7 @@
         "periodWorse": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora peor",
         "periodSame": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, sin cambio",
         "changeMarker": "Cambio registrado el {day}: {changes}",
-        "points": "{value} p. p.",
-        "fixNamed": "<prefix>Corrección:</prefix> {name}"
+        "points": "{value} p. p."
       },
       "keywords": {
         "title": "Palabras clave",

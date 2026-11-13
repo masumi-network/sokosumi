@@ -298,7 +298,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       setPending(false);
     }
   }
-  // The action a "See the fix" link leads to. Its card takes the focus once.
+  // The action an Agent row leads to. Its card takes the focus once.
   const [shownAction, setShownAction] = useState<string | null>(null);
   function showAction(action: { observationId: string; id: string }) {
     setShownAction(seoActionKey(action));

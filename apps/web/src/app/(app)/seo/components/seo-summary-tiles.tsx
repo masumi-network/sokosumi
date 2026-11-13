@@ -130,7 +130,7 @@ function Tile({
 }
 
 /**
- * Two numbers with their parts. The Health tab shows the page check (issues, tests); the Agent tab shows
+ * Two numbers with their parts. The Actions tab shows the page check (issues, tests); the Agent tab shows
  * the rankings (keywords found, searches). No number shows on both tabs, so a pair fits one phone row.
  */
 export function SeoSummaryTiles({
@@ -162,7 +162,7 @@ export function SeoSummaryTiles({
           value={format.number(issues.total)}
           testId="seo-summary-issues"
         >
-          {/* No bar: the two counts under the number and the rows under the tile already show the split. */}
+          {/* No bar: the two counts under the number and the issue rows of the tab already show the split. */}
           {issues.parts.length ? (
             <ul className="flex flex-wrap gap-x-3 gap-y-0.5">
               {issues.parts.map((part) => (

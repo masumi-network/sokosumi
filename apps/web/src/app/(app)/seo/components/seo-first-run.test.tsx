@@ -690,7 +690,7 @@ describe("SEO agent chat", () => {
     expect(
       screen.getAllByRole("button", { name: copy.chat.title }),
     ).toHaveLength(1);
-    await user.click(screen.getByRole("tab", { name: "Health" }));
+    await user.click(screen.getByRole("tab", { name: "Actions" }));
     expect(
       screen.getAllByRole("button", { name: copy.chat.title }),
     ).toHaveLength(1);

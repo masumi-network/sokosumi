@@ -212,22 +212,19 @@ describe("SEO overview relevance", () => {
     ]);
     // An action that cites the merged device row still ranks as a fix for an issue.
     expect(result.recommendedActions.map((item) => item.id)).toEqual(["fix"]);
-    // The issue finds its fix through either device row; an issue without an action has none.
-    expect(
-      result.issues.map((item) => result.issueFix(item)?.action.id),
-    ).toEqual(["fix", undefined, undefined]);
-    expect(result.issueFix(result.issues[0])?.named).toBe(true);
+    // The issue finds its fix through either device row: only the issues without an action stay in the list.
+    expect(result.unplanned.map((item) => item.id)).toEqual([
+      "b-mobile",
+      "c-desktop",
+    ]);
     // The action cites the row rated minor, and shows the rating of its issue.
     expect(result.actionSeverity(workspace.actions[0])).toBe("major");
     expect(result.actionSeverity(action("search", []))).toBeNull();
-    // One action for two issues: its title names neither of them.
+    // One action for two issues takes both out of the list.
     workspace.actions = [action("both", ["a-mobile", "c-desktop"])];
-    const shared = seoOverviewModel(workspace);
-    expect(shared.issues.map((item) => shared.issueFix(item)?.named)).toEqual([
-      false,
-      undefined,
-      false,
-    ]);
+    expect(
+      seoOverviewModel(workspace).unplanned.map((item) => item.id),
+    ).toEqual(["b-mobile"]);
     workspace.pages[0].url = "https://example.com/";
     workspace.scope.pageIds = [workspace.pages[0].id];
     workspace.observations = [

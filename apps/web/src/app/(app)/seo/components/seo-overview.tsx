@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronRight, WandSparkles } from "lucide-react";
+import { ChevronDown, WandSparkles } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import {
@@ -33,7 +33,6 @@ import {
 import { SeoPages } from "./seo-pages";
 import { seoCheckRunning } from "./seo-setup-model";
 import {
-  SEO_ROW_FILLED_CLASS,
   SeoDate,
   SeoFoldSummary,
   SeoPageLink,
@@ -44,7 +43,7 @@ import {
   seoPageName,
   seoSiteUrl,
 } from "./seo-shared";
-import { SeoSummaryTiles, useSeoTileDay } from "./seo-summary-tiles";
+import { useSeoTileDay } from "./seo-summary-tiles";
 import { SeoTimeline } from "./seo-timeline";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -261,7 +260,7 @@ function PageDetail({
   );
 }
 
-/** The words that start every row of a list ("Not passed:", "Fix:"): quiet, so the part that differs leads. */
+/** The words that start every row of a list ("Not passed:"): quiet, so the part that differs leads. */
 const quietPrefix = (chunks: ReactNode) => (
   <span className="text-muted-foreground font-normal">{chunks}</span>
 );
@@ -334,15 +333,17 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
     : undefined;
   return (
     <div className="space-y-5">
-      <SeoSummaryTiles show="health" workspace={data} />
-      {overview.issues.length ? (
+      {overview.unplanned.length ? (
         <SeoSection title={t("overview.findings")}>
-          {/* One list, one row per issue: the row opens its evidence and the way to its fix. */}
-          <ul className={cn(HOLDER_ITEM_CLASS, "divide-y")}>
-            {overview.issues.map((finding) => {
+          {/* One list, one row per issue that no action fixes: the row opens its evidence. */}
+          <ul
+            className={cn(
+              HOLDER_ITEM_CLASS,
+              "stagger divide-y [--stagger-step:40ms]",
+            )}
+          >
+            {overview.unplanned.map((finding) => {
               // A test name alone reads like a pass, so the row says it did not pass.
-              // The title of the fix shows beside its button, and on the Actions tab.
-              const fix = overview.issueFix(finding);
               return (
                 <li key={finding.id}>
                   <details className="group text-sm">
@@ -393,27 +394,6 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                           <SeoSeverity severity={finding.severity} />
                         </span>
                       </div>
-                      {/* The reader opens a row to learn what to do: the fix stands before the proof. */}
-                      {fix ? (
-                        <button
-                          type="button"
-                          className={cn(
-                            SEO_ROW_FILLED_CLASS,
-                            "text-foreground px-3 py-2",
-                          )}
-                          onClick={() => model.showAction(fix.action)}
-                        >
-                          <span className="min-w-0 flex-1 break-words">
-                            {fix.named
-                              ? t.rich("overview.fixNamed", {
-                                  name: fix.action.title,
-                                  prefix: quietPrefix,
-                                })
-                              : t("overview.seeFix")}
-                          </span>
-                          <ChevronRight className="text-muted-foreground size-4 shrink-0" />
-                        </button>
-                      ) : null}
                       <ul className="list-disc space-y-1 ps-4">
                         {finding.evidence.map((evidence, index) => (
                           <li
@@ -424,7 +404,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                           </li>
                         ))}
                       </ul>
-                      {/* The tests tile over the list dates the last check: a finding of that day repeats no date
+                      {/* The tests tile at the top of the tab dates the last check: a finding of that day repeats no date
                           (the date of the tile opens the results of that check). An older finding has its date,
                           with a word, and the date is the link to its check. */}
                       {sameDayAsTile(checkedAt(finding)) ? null : (
@@ -446,7 +426,13 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
           </ul>
         </SeoSection>
       ) : null}
-      {overview.hasFailedChecks && overview.emptyState !== "incomplete" ? (
+      {/* The empty Actions list above says it already: only there, with no action and no strategy step. */}
+      {overview.hasFailedChecks &&
+      !(
+        overview.emptyState === "incomplete" &&
+        !overview.actions.length &&
+        !data.strategy?.actions.length
+      ) ? (
         <p className="text-muted-foreground px-2 text-sm">
           {t("actions.checksIncompleteBody")}
         </p>

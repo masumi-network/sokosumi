@@ -493,7 +493,7 @@ export function SeoBarNumber({
   );
 }
 
-/** A page of the Audit's site as text under a name: its path, or "Home page". The Health tab holds the links. */
+/** A page of the Audit's site as text under a name: its path, or "Home page". The Actions tab holds the links. */
 export function SeoPageText({
   url,
   workspace,
@@ -664,12 +664,6 @@ export function SeoNextStepRow({
     </button>
   );
 }
-
-/** The same row inside a row that has an outline: a quiet fill and no outline of its own, so frames do not nest. */
-export const SEO_ROW_FILLED_CLASS = cn(
-  "bg-card-background hover:bg-card-background-hover rounded-lg transition-colors",
-  SEO_ROW_CONTROL_CLASS,
-);
 
 /** Orange marks what hurts search most (critical and high), grey marks low; the text beside the mark carries the name. */
 export const SEO_SEVERITY_MARK_CLASS: Record<

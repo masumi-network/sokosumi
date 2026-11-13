@@ -30,7 +30,7 @@ const DATED_TABS: Partial<
     (data.keywords.length > 0 || data.competitors.length > 0) &&
     (data.observations.length > 1 || data.metrics.length > 0),
   // Statistics syncs alone give the filter nothing worth a control: a routine one is no timeline row, and failures fold into one.
-  health: (data) =>
+  actions: (data) =>
     data.timeline.filter((event) => event.kind !== "metrics").length > 1,
 };
 
@@ -55,7 +55,7 @@ export function seoScopeControls({
     channel:
       Boolean(filters.channel) ||
       data.metrics.some((metric) => metric.source === "ga4"),
-    // Dates narrow measured traffic, rankings and checks; the agent's brief and its approvals stay current.
+    // Dates narrow measured traffic, rankings and checks (the issues and history on Actions); the agent's brief stays current.
     // A chosen date always shows, so it can be cleared.
     dates:
       DATED_TABS[filters.tab]?.(data) === true ||

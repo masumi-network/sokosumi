@@ -8,7 +8,6 @@ import {
   ChevronDown,
   ChevronLeft,
   Eye,
-  HeartPulse,
   Info,
   ListChecks,
   ListOrdered,
@@ -76,6 +75,7 @@ import {
 import { seoCheckRunning, seoRunAction, seoSetup } from "./seo-setup-model";
 import { SeoEmpty, SeoPageLink } from "./seo-shared";
 import { SeoStatisticsDialog } from "./seo-statistics-dialog";
+import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { SeoTraffic } from "./seo-traffic";
 import { useSeoWorkspace } from "./use-seo-workspace";
 
@@ -90,7 +90,6 @@ const SEO_TAB_ICONS: Record<SeoTab, LucideIcon> = {
   actions: ListChecks,
   traffic: ChartLine,
   rankings: ListOrdered,
-  health: HeartPulse,
 };
 
 /**
@@ -190,16 +189,6 @@ export function SeoWorkspace({
         {t("loading")}
       </p>
     );
-  // Next steps on the Agent tab cover an Audit without actions; an empty Actions tab only disagreed with them.
-  const tabs = SEO_TABS.filter(
-    (tab) =>
-      tab !== "actions" ||
-      model.data.actions.length > 0 ||
-      Boolean(model.data.strategy?.actions.length) ||
-      // The notes on promotion places stand on this tab, also when the audit has no action.
-      Boolean(model.data.strategy?.placesNotes?.length) ||
-      model.filters.tab === "actions",
-  );
   const { canRequestAnalysis } = model.data.availableActions;
   // The filled button of every tab, until a result waits. The setup card is on the Agent tab only; there its own check step leads.
   const runAudit =
@@ -428,7 +417,7 @@ export function SeoWorkspace({
               "w-max max-sm:h-auto max-sm:min-w-full",
             )}
           >
-            {tabs.map((tab) => (
+            {SEO_TABS.map((tab) => (
               <TabsTrigger
                 key={tab}
                 value={tab}
@@ -558,12 +547,12 @@ export function SeoWorkspace({
             <TabsContent value="rankings" className="stagger space-y-6">
               <SeoRankings model={model} />
             </TabsContent>
-            <TabsContent value="health" className="content-in space-y-6">
+            {/* What to do first, then what the checks found: the health of the site stands under its fixes. */}
+            <TabsContent value="actions" className="stagger space-y-6">
+              <SeoSummaryTiles show="health" workspace={model.data} />
+              <SeoActions model={model} />
               <SeoIndexStatus model={model} />
               <SeoHealth model={model} />
-            </TabsContent>
-            <TabsContent value="actions" className="content-in">
-              <SeoActions model={model} />
             </TabsContent>
           </div>
         )}

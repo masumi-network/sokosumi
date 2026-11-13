@@ -1,13 +1,10 @@
 import { z } from "zod";
 
-/** Tab order: the agent first, then its approvals, then the three tools. Actions stays in view on a phone. */
-export const SEO_TABS = [
-  "agent",
-  "actions",
-  "traffic",
-  "rankings",
-  "health",
-] as const;
+/**
+ * Tab order: the agent first, then its approvals with the site's health, then the two tools. Actions stays in view
+ * on a phone.
+ */
+export const SEO_TABS = ["agent", "actions", "traffic", "rankings"] as const;
 export type SeoTab = (typeof SEO_TABS)[number];
 
 /** Links saved before the agent layout keep opening the tab that now holds their content. */
@@ -15,7 +12,9 @@ const LEGACY_SEO_TABS = new Map<string, SeoTab>([
   ["overview", "agent"],
   ["keywords", "rankings"],
   ["competitors", "rankings"],
-  ["pages", "health"],
+  ["pages", "actions"],
+  // Health was a tab of its own: its issues and pages now stand under the fixes.
+  ["health", "actions"],
 ]);
 
 export function seoTab(value: string | null | undefined): SeoTab | null {

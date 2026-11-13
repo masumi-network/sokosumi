@@ -11386,8 +11386,7 @@
         "actions": "Actions",
         "agent": "Agent",
         "traffic": "Traffic",
-        "rankings": "Rankings",
-        "health": "Health"
+        "rankings": "Rankings"
       },
       "overview": {
         "measurements": "Traffic",
@@ -11396,7 +11395,7 @@
         "partial": "Some statistics are missing. Open each source to see which.",
         "available": "Statistics are available for the stated periods.",
         "priority": "Recommended actions",
-        "findings": "Issues to fix",
+        "findings": "Issues with no fix yet",
         "audits": "Captured results",
         "findingsCount": "{count, plural, one {# finding} other {# findings}}",
         "auditsCount": "{count, plural, one {# captured result} other {# captured results}}",
@@ -11420,7 +11419,6 @@
         "noFixesBody": "These checks did not produce a recommended fix. They cover only the selected pages and checks, not your whole site or search performance.",
         "failedCheck": "<prefix>Not passed:</prefix> {name}",
         "checkedOn": "Checked",
-        "seeFix": "See the fix",
         "diagnostics": "Title, description and other page details",
         "perDay": "{metric} per day",
         "chartHint": "Use the left and right arrow keys to move between days.",
@@ -11465,8 +11463,7 @@
         "periodWorse": "Previous {days, plural, one {day} other {# days}}: {previous}, worse now",
         "periodSame": "Previous {days, plural, one {day} other {# days}}: {previous}, no change",
         "changeMarker": "Recorded change on {day}: {changes}",
-        "points": "{value} pp",
-        "fixNamed": "<prefix>Fix:</prefix> {name}"
+        "points": "{value} pp"
       },
       "keywords": {
         "title": "Keywords",

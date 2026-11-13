@@ -49,7 +49,7 @@ export function SeoActionCard({
   const t = useTranslations("App.Seo");
   const problem = seoOverviewModel(model.data).actionProblem(action);
   const card = useRef<HTMLElement>(null);
-  // "See the fix" on the Health tab and on an Agent row lead here: the card scrolls into view and takes the focus once.
+  // An action row on the Agent tab leads here: the card scrolls into view and takes the focus once.
   const shown = model.shownAction === seoActionKey(action);
   const { setShownAction } = model;
   // The card stays marked until the focus leaves the card, so the reader sees which of the cards the row meant.
@@ -152,7 +152,7 @@ export function SeoActionCard({
               ? t("actions.problem", {
                   check: t.markup("overview.failedCheck", {
                     name: problem.check,
-                    // Plain words in a running line: the tag is for the Health row title.
+                    // Plain words in a running line: the tag is for the title of an issue row.
                     prefix: (chunks) => chunks,
                   }),
                   found: problem.found,

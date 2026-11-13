@@ -82,7 +82,7 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
   // The worst issue an action fixes; an action from search data alone has none.
   const actionSeverity = (action: Action) =>
     SEO_ISSUE_SEVERITY_NAMES[actionRank(action)] ?? null;
-  // What is wrong, in the check's own words: the worst issue the action fixes and its first evidence line, named as Health names it.
+  // What is wrong, in the check's own words: the worst issue the action fixes and its first evidence line, named as its issue row names it.
   // The line alone can be a bare count ("4 of 20 images"), so the name of the check goes with it.
   const actionProblem = (action: Action) => {
     const issue = issues.find((issue) =>
@@ -112,21 +112,13 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
       footnote: line.slice(cut + 1) || null,
     };
   };
-  const fixOf = (issue: { findingIds: string[] }) =>
-    actions.find((action) =>
-      action.findingIds.some((id) => issue.findingIds.includes(id)),
-    ) ?? null;
-  // The action that fixes an issue names the problem; the issue's own title names the test.
-  // One action can fix several issues: its title then names none of them.
-  const issueFix = (issue: { findingIds: string[] }) => {
-    const action = fixOf(issue);
-    return action
-      ? {
-          action,
-          named: issues.filter((other) => fixOf(other) === action).length === 1,
-        }
-      : null;
-  };
+  // An issue with an action has its card on the Actions tab; the list under the cards keeps the rest.
+  const unplanned = issues.filter(
+    (issue) =>
+      !actions.some((action) =>
+        action.findingIds.some((id) => issue.findingIds.includes(id)),
+      ),
+  );
   const recommendedActions = actions.filter(
     (action) => action.status === "recommended",
   );
@@ -157,7 +149,7 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
     actions,
     actionSeverity,
     actionProblem,
-    issueFix,
+    unplanned,
     recommendedActions,
     recentChecks,
     hasFailedChecks,
