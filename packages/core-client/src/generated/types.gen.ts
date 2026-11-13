@@ -10845,6 +10845,7 @@ export type ProjectSeoMetric = {
     }>;
     notes: Array<string>;
     previous?: ProjectSeoPreviousPeriod;
+    searchType?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
 };
 
 export type ProjectSeoPreviousPeriod = {
@@ -11188,6 +11189,7 @@ export type SyncProjectSeoStatisticsRequest = {
     from: string;
     to: string;
     channel?: 'all' | 'organic';
+    searchType?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
 };
 
 export type RecordProjectSeoPageChangeRequest = {
@@ -11294,6 +11296,7 @@ export type SendSeoAuditChatRequest = {
         from?: string;
         to?: string;
         channel?: 'all' | 'organic';
+        searchType?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
     };
 };
 
@@ -71936,6 +71939,7 @@ export type GetProjectSeoWorkspaceData = {
         from?: string;
         to?: string;
         channel?: 'all' | 'organic';
+        searchType?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
     };
     url: '/projects/{id}/seo';
 };
@@ -74142,6 +74146,7 @@ export type GetSeoAuditWorkspaceData = {
         from?: string;
         to?: string;
         channel?: 'all' | 'organic';
+        searchType?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
     };
     url: '/seo/audits/{id}';
 };

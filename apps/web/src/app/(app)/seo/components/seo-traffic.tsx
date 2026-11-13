@@ -18,6 +18,7 @@ import { SeoMeasurements } from "./seo-measurements";
 import { MIN_PAGES_FOR_SELECTIONS } from "./seo-pages";
 import { topPages } from "./seo-search-model";
 import { SeoSearchQueries } from "./seo-search-queries";
+import { SeoSearchTypeFilter } from "./seo-search-type-filter";
 import {
   SEO_STACKED_TABLE_CLASS,
   SeoPageLink,
@@ -31,9 +32,15 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function SeoTraffic({ model }: { model: SeoWorkspaceModel }) {
   // Nothing measured yet: one card says what to connect. A second empty card would ask for the same account.
   if (!model.data.metrics.length && !model.data.searchQueries)
-    return <SeoMeasurements model={model} />;
+    return (
+      <div className="space-y-6">
+        <SeoSearchTypeFilter model={model} />
+        <SeoMeasurements model={model} />
+      </div>
+    );
   return (
     <div className="stagger space-y-6">
+      <SeoSearchTypeFilter model={model} />
       <SeoMeasurements model={model} />
       <SeoQueryFilter
         model={model}

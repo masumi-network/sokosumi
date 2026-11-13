@@ -215,6 +215,8 @@ describe("native SEO statistics", () => {
       0.02,
     );
     expect(result.timeZone).toBe("America/Los_Angeles");
+    // A web read keeps its old shape, so it dedupes against syncs stored before search types.
+    expect(result).not.toHaveProperty("searchType");
   });
 
   it("leaves CTR and position unmeasured on a Search Console day without impressions", () => {

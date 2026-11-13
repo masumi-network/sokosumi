@@ -74,7 +74,11 @@ vi.mock("@/lib/db/prisma", () => {
       findMany: async () => [scope],
     },
     projectSeoObservation: {
-      findMany: async () => state.observations,
+      // The workspace reads public evidence (no owner) and metric snapshots (an owner) apart.
+      findMany: async ({ where }: { where: { ownerId?: unknown } }) =>
+        state.observations.filter((row) =>
+          where.ownerId === null ? !row.ownerId : Boolean(row.ownerId),
+        ),
       upsert: async ({ create }: { create: Record<string, unknown> }) => {
         const saved = {
           id: "44444444-4444-4444-8444-444444444444",
@@ -769,5 +773,46 @@ describe("Search Console query rows", () => {
       SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
     );
     expect(seoStatisticsLostData(payload.notes)).toBe(false);
+  });
+
+  it("reads Discover without query rows or keyword days and keeps it apart from web search", async () => {
+    state.keywords.push(saved("battery"));
+    state.answer = gsc({
+      rows: [{ keys: ["battery", state.pageUrl], ...metric }],
+    });
+    const workspace = await syncProjectSeoStatistics(actor, {
+      ...gscInput,
+      searchType: "discover",
+    });
+    const analytics = state.reads.filter((read) =>
+      read.slug.endsWith("SEARCH_ANALYTICS_QUERY"),
+    );
+    expect(analytics.length).toBeGreaterThan(0);
+    expect(
+      analytics.every((read) => read.args.search_type === "discover"),
+    ).toBe(true);
+    expect(
+      analytics.some((read) =>
+        (read.args.dimensions as string[]).includes("query"),
+      ),
+    ).toBe(false);
+    const payload = state.observations[0].payload as {
+      searchType?: string;
+      queries?: unknown;
+      notes: string[];
+    };
+    expect(payload.searchType).toBe("discover");
+    expect(payload.queries).toBeUndefined();
+    expect(payload.notes.join(" ")).not.toContain(
+      "query rows were unavailable",
+    );
+    expect(workspace.metrics[0]).toMatchObject({ searchType: "discover" });
+  });
+
+  it("refuses a search type for Google Analytics before any read", async () => {
+    await expect(
+      syncProjectSeoStatistics(actor, { ...input, searchType: "image" }),
+    ).rejects.toThrow();
+    expect(state.reads).toHaveLength(0);
   });
 });

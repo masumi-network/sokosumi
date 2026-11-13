@@ -1141,6 +1141,35 @@ describe("stored SEO workspace projections", () => {
     ).toBe(true);
   });
 
+  it("keeps a newer Discover sync out of the web search view", () => {
+    const input = fixture();
+    const web = searchObservation(input, "2026-11-02T12:00:00Z");
+    const discover = searchObservation(input, "2026-11-03T12:00:00Z");
+    discover.payload = {
+      ...(discover.payload as object),
+      searchType: "discover",
+      queries: undefined,
+      metrics: [
+        {
+          key: "clicks",
+          label: "Search clicks",
+          unit: "count",
+          value: 7,
+          points: [],
+        },
+      ],
+    } as never;
+    input.observations = [discover, web];
+    const webView = projectSeoProjection(input);
+    expect(webView.metrics).toEqual([]);
+    expect(webView.searchQueries?.observationId).toBe(web.id);
+    input.query = { searchType: "discover" };
+    const discoverView = projectSeoProjection(input);
+    expect(discoverView.metrics.map((row) => row.value)).toEqual([7]);
+    expect(discoverView.metrics[0]).toMatchObject({ searchType: "discover" });
+    expect(discoverView.searchQueries).toBeNull();
+  });
+
   it("keeps new import and action activity when their scoped evidence was measured earlier", () => {
     const { input, original } = actionFixture();
     const activityAt = new Date("2026-11-04T12:00:00Z");

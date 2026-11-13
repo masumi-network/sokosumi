@@ -12338,6 +12338,17 @@
         "aMonth": "al mes",
         "depth": "{same, select, yes {Resultados leídos por palabra clave: {max}} other {Resultados leídos por palabra clave: {min} a {max}}}"
       },
+      "traffic": {
+        "searchType": "Tipo de búsqueda",
+        "searchTypes": {
+          "web": "Web",
+          "image": "Imágenes",
+          "video": "Vídeos",
+          "news": "Pestaña Noticias",
+          "discover": "Discover",
+          "googleNews": "Google Noticias"
+        }
+      },
       "export": {
         "csv": "Descargar CSV",
         "action": "Acción",

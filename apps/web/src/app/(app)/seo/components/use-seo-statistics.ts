@@ -149,6 +149,10 @@ export function useSeoStatistics(
           from: period.from,
           to: period.to,
           channel,
+          // Search Console reads the search type in view, so the new numbers show where the reader looks.
+          ...(provider === "search_console" && model.filters.searchType
+            ? { searchType: model.filters.searchType }
+            : {}),
           ...(workspace.scope.id
             ? {
                 scopeId: workspace.scope.id,

@@ -41037,6 +41037,17 @@ export const ProjectSeoMetricSchema = {
         },
         previous: {
             $ref: '#/components/schemas/ProjectSeoPreviousPeriod'
+        },
+        searchType: {
+            type: 'string',
+            enum: [
+                'web',
+                'image',
+                'video',
+                'news',
+                'discover',
+                'googleNews'
+            ]
         }
     },
     required: [
@@ -42868,6 +42879,18 @@ export const SyncProjectSeoStatisticsRequestSchema = {
                 'organic'
             ],
             default: 'all'
+        },
+        searchType: {
+            type: 'string',
+            enum: [
+                'web',
+                'image',
+                'video',
+                'news',
+                'discover',
+                'googleNews'
+            ],
+            default: 'web'
         }
     },
     required: [
@@ -43358,6 +43381,17 @@ export const SendSeoAuditChatRequestSchema = {
                     enum: [
                         'all',
                         'organic'
+                    ]
+                },
+                searchType: {
+                    type: 'string',
+                    enum: [
+                        'web',
+                        'image',
+                        'video',
+                        'news',
+                        'discover',
+                        'googleNews'
                     ]
                 }
             }

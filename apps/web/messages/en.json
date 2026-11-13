@@ -12338,6 +12338,17 @@
         "aMonth": "a month",
         "depth": "{same, select, yes {Results read per keyword: {max}} other {Results read per keyword: {min} to {max}}}"
       },
+      "traffic": {
+        "searchType": "Search type",
+        "searchTypes": {
+          "web": "Web",
+          "image": "Image",
+          "video": "Video",
+          "news": "News tab",
+          "discover": "Discover",
+          "googleNews": "Google News"
+        }
+      },
       "export": {
         "csv": "Download CSV",
         "action": "Action",

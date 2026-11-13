@@ -10,6 +10,7 @@ import {
 } from "@sokosumi/utils";
 
 import type { NativeSeoMetrics } from "@/schemas/project-seo.schema";
+import type { SeoSearchType } from "@/schemas/project-seo-traffic.schema";
 
 export const SEO_STATS_MAX_DAYS = 366;
 export const SEO_STATS_MAX_ROWS = 400;
@@ -99,6 +100,8 @@ export interface NativeStatisticsQuery {
   from: string;
   to: string;
   channel: "all" | "organic";
+  /** Search Console only. Absent reads web search. */
+  searchType?: SeoSearchType;
 }
 export interface SeoNativeTool {
   slug: string;
@@ -239,7 +242,7 @@ export function gscSearchAnalyticsArguments(
     start_date: query.from,
     end_date: query.to,
     dimensions,
-    search_type: "web",
+    search_type: query.searchType ?? "web",
     data_state: "final",
     dimension_filter_groups: [
       {
@@ -445,6 +448,10 @@ export function normalizeGscStatistics(
     propertyId: query.propertyId,
     pageUrls: query.pageUrls,
     channel: "organic",
+    // Web reads keep their old shape, so a repeated web sync still dedupes against older ones.
+    ...(query.searchType && query.searchType !== "web"
+      ? { searchType: query.searchType }
+      : {}),
     from: query.from,
     to: query.to,
     timeZone: GSC_TIME_ZONE,

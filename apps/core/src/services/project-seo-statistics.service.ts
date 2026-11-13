@@ -59,6 +59,7 @@ import {
   type SyncProjectSeoStatistics,
   syncProjectSeoStatisticsSchema,
 } from "@/schemas/project-seo-statistics.schema";
+import { seoSearchTypeHasQueries } from "@/schemas/project-seo-traffic.schema";
 import type { ComposioIntegrationAccount } from "@/services/composio-integration-tools.service";
 import {
   listIntegrationTools,
@@ -361,8 +362,12 @@ export async function syncProjectSeoStatistics(
     );
     return { window, totals };
   };
+  // Discover and Google News have no search query: no query rows and no keyword days to read.
+  const readsQueries =
+    input.provider === "search_console" &&
+    seoSearchTypeHasQueries(input.searchType);
   const collectQueries = async (): Promise<NativeSearchQueries | null> =>
-    input.provider === "search_console"
+    readsQueries
       ? normalizeGscQueries(
           query,
           unwrapNativeStatistics(
@@ -408,10 +413,9 @@ export async function syncProjectSeoStatistics(
       result.status === "fulfilled" ? [result.value] : [],
     );
   };
-  const tracked =
-    input.provider === "search_console"
-      ? selectTrackedKeywords(workspace.keywords)
-      : { groups: [], leftOut: [] };
+  const tracked = readsQueries
+    ? selectTrackedKeywords(workspace.keywords)
+    : { groups: [], leftOut: [] };
   // One read per keyword country; any failed read drops the whole series, so no country reads as partial.
   const collectKeywordSeries =
     async (): Promise<NativeKeywordSeries | null> => {
@@ -490,7 +494,8 @@ export async function syncProjectSeoStatistics(
         metrics.notes.push(
           seoStatisticsQueryRowsCutNote(queries.value.rowLimit),
         );
-    } else metrics.notes.push(SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE);
+    } else if (readsQueries)
+      metrics.notes.push(SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE);
     if (tracked.groups.length) {
       if (keywordSeries.status === "fulfilled" && keywordSeries.value) {
         metrics.keywordSeries = keywordSeries.value;
@@ -548,5 +553,6 @@ export async function syncProjectSeoStatistics(
     from: input.from,
     to: input.to,
     channel: metrics.channel,
+    ...(input.searchType !== "web" ? { searchType: input.searchType } : {}),
   });
 }

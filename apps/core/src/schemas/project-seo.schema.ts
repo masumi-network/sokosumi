@@ -15,6 +15,7 @@ import {
   seoShareOfVoiceSchema,
 } from "./project-seo-rankings.schema";
 import { seoStrategySchema } from "./project-seo-strategy.schema";
+import { seoSearchTypeSchema } from "./project-seo-traffic.schema";
 
 export const SEO_MAX_PAGES = 10;
 export const SEO_MAX_KEYWORDS = 20;
@@ -95,6 +96,8 @@ export const seoWorkspaceQuerySchema = z
     from: seoDateSchema.optional(),
     to: seoDateSchema.optional(),
     channel: z.enum(["all", "organic"]).optional(),
+    /** Search Console rows of this search type. Absent reads web search. */
+    searchType: seoSearchTypeSchema.optional(),
   })
   .refine(
     (input) =>
@@ -422,6 +425,8 @@ export const seoMetricSchema = z
     ),
     notes: z.array(z.string()),
     previous: seoPreviousPeriodSchema.optional(),
+    /** The Search Console search type. Absent for Google Analytics. */
+    searchType: seoSearchTypeSchema.optional(),
   })
   .openapi("ProjectSeoMetric");
 export const SEO_SEARCH_QUERY_ROW_LIMIT = 250;
@@ -685,6 +690,8 @@ export const nativeSeoMetricsSchema = z
     propertyId: z.string().min(1).max(500),
     pageUrls: z.array(seoUrlSchema).min(1).max(SEO_MAX_PAGES),
     channel: z.enum(["all", "organic"]),
+    /** Search Console search type. Absent on web search reads and on older observations. */
+    searchType: seoSearchTypeSchema.optional(),
     from: seoDateSchema,
     to: seoDateSchema,
     timeZone: z.string().min(1).max(100),

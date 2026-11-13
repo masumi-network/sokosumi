@@ -40,6 +40,7 @@ import {
   type SeoStatisticsProvider,
   seoStatisticsPeriod,
 } from "./seo-statistics-model";
+import { SEO_SEARCH_TYPES } from "./seo-traffic-model";
 
 /** The form of a day in the period filter, as Core reads it. */
 const SEO_DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -107,9 +108,17 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     from: parseAsString,
     to: parseAsString,
     channel: parseAsStringLiteral(["all", "organic"]),
+    searchType: parseAsStringLiteral(SEO_SEARCH_TYPES),
   });
   const query = new URLSearchParams();
-  for (const key of ["pageId", "scopeId", "from", "to", "channel"] as const) {
+  for (const key of [
+    "pageId",
+    "scopeId",
+    "from",
+    "to",
+    "channel",
+    "searchType",
+  ] as const) {
     if (filters[key]) query.set(key, filters[key]);
   }
   // A day in another form, or an end before the start: Core refuses both, so the page reads nothing and says why.
@@ -353,7 +362,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   }
   /** Rerun the saved Search Console read for the current pages over the default rolling period. */
   function refreshSearchStatistics(
-    saved: Pick<ProjectSeoMetric, "propertyId" | "channel">,
+    saved: Pick<ProjectSeoMetric, "propertyId" | "channel" | "searchType">,
     background = false,
   ) {
     const period = seoStatisticsPeriod(SEO_DEFAULT_STATISTICS_DAYS);
@@ -367,6 +376,9 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
           to: period.to,
           // The saved traffic channel, so the refreshed rows show in the same view.
           channel: saved.channel,
+          ...(saved.searchType && saved.searchType !== "web"
+            ? { searchType: saved.searchType }
+            : {}),
           ...(data.scope.id
             ? {
                 scopeId: data.scope.id,

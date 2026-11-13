@@ -50,6 +50,10 @@ export function projectSeoMetricsRow(
   )
     return;
   if (query.channel && data.channel !== query.channel) return;
+  // Search Console views one search type at a time: a Discover sync never stands in for web search.
+  const searchType =
+    data.provider === "search_console" ? (data.searchType ?? "web") : null;
+  if (searchType && searchType !== (query.searchType ?? "web")) return;
   if (data.provider === "search_console") out.searchSources.push({ row, data });
   out.timeline.push({
     id: `metrics:${row.id}`,
@@ -60,7 +64,7 @@ export function projectSeoMetricsRow(
     observationId: row.id,
     taskId: null,
     status: data.coverage,
-    detail: `${data.from} to ${data.to}. ${data.channel}. ${data.notes.join(" ")}`,
+    detail: `${data.from} to ${data.to}. ${data.channel}${searchType && searchType !== "web" ? ` ${searchType}` : ""}. ${data.notes.join(" ")}`,
   });
   const group = JSON.stringify([
     data.provider,
@@ -68,6 +72,7 @@ export function projectSeoMetricsRow(
     data.from,
     data.to,
     data.channel,
+    searchType,
   ]);
   if (out.seenGroups.has(group)) return;
   out.seenGroups.add(group);
@@ -84,5 +89,6 @@ export function projectSeoMetricsRow(
       observedAt: row.observedAt.toISOString(),
       coverage: data.coverage,
       notes: data.notes,
+      ...(searchType ? { searchType } : {}),
     });
 }

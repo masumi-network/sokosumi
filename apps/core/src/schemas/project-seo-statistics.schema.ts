@@ -9,6 +9,7 @@ import {
   seoDateSchema,
   seoIdSchema,
 } from "./project-seo.schema";
+import { seoSearchTypeSchema } from "./project-seo-traffic.schema";
 
 export const seoStatisticsProviderQuerySchema = z.object({
   provider: z.enum(SEO_STATS_PROVIDERS),
@@ -23,8 +24,14 @@ export const syncProjectSeoStatisticsSchema = z
     from: seoDateSchema,
     to: seoDateSchema,
     channel: z.enum(["all", "organic"]).default("all"),
+    searchType: seoSearchTypeSchema.default("web"),
   })
   .strict()
+  .refine(
+    (input) =>
+      input.searchType === "web" || input.provider === "search_console",
+    "Only Search Console reads a search type",
+  )
   .refine(
     (input) => !(input.pageIds && input.scopeId),
     "Choose pages or a saved scope",
@@ -52,7 +59,8 @@ export const projectSeoStatisticsPropertiesSchema = z
     reason: z.string().nullable(),
   })
   .openapi("ProjectSeoStatisticsProperties");
-export type SyncProjectSeoStatistics = z.infer<
+/** The request as callers send it: defaulted fields may be left out. */
+export type SyncProjectSeoStatistics = z.input<
   typeof syncProjectSeoStatisticsSchema
 >;
 export type ProjectSeoStatisticsProperties = z.infer<

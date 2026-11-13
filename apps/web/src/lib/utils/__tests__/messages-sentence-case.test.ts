@@ -51,6 +51,8 @@ const PROPER_PHRASES = [
   "Acme Inc.",
   "Times New Roman",
   "Google Domains",
+  // The Google News app and site, a Search Console search type.
+  "Google News",
   // Example organization name in a placeholder.
   "My Organization",
   // Example brands in the Ads and Newsletter no-project backdrops.

@@ -12338,6 +12338,17 @@
         "aMonth": "pro Monat",
         "depth": "{same, select, yes {Gelesene Ergebnisse pro Keyword: {max}} other {Gelesene Ergebnisse pro Keyword: {min} bis {max}}}"
       },
+      "traffic": {
+        "searchType": "Suchtyp",
+        "searchTypes": {
+          "web": "Web",
+          "image": "Bilder",
+          "video": "Videos",
+          "news": "News-Tab",
+          "discover": "Discover",
+          "googleNews": "Google News"
+        }
+      },
       "export": {
         "csv": "CSV herunterladen",
         "action": "Aktion",

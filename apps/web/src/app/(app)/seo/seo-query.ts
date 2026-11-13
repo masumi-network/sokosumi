@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SEO_SEARCH_TYPES } from "./components/seo-traffic-model";
 
 /**
  * Tab order: the agent first, then its approvals with the site's health, then the two tools, then what is missing.
@@ -39,6 +40,7 @@ export const seoFilterQuerySchema = z
     from: z.iso.date().optional(),
     to: z.iso.date().optional(),
     channel: z.enum(["all", "organic"]).optional(),
+    searchType: z.enum(SEO_SEARCH_TYPES).optional(),
   })
   .refine(
     (query) => !(query.pageId && query.scopeId),
