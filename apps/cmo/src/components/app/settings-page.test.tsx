@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { AGENT_NAME } from "../../lib/agent";
-import { cmoOverview } from "../../test-fixtures/cmo";
+import { cmoOverview, cmoPlans } from "../../test-fixtures/cmo";
 import { SettingsPage } from "./pages";
 
 const SUBSCRIBED = {
@@ -29,6 +29,9 @@ function settings(billing: Partial<CmoOverview["billing"]> = {}) {
       startOver={async () => null}
       signOut={async () => {}}
       topUp={null}
+      plans={cmoPlans}
+      changePlan={async () => ({ change: null, error: null })}
+      openPortal={async () => ({ url: null, error: null })}
     />,
   ).replace(/<[^>]+>/g, " ");
 }
@@ -75,5 +78,61 @@ describe("Settings: the CMO subscription", () => {
     expect(text).not.toContain("Subscription");
     expect(text).not.toContain("Renews on");
     expect(text).not.toContain("payment failed");
+  });
+});
+
+describe("Settings: changing the plan and the billing portal", () => {
+  const owner = { ...SUBSCRIBED, viewerCanManage: true };
+
+  it("offers an owner or admin the other plans of the interval, by credits", () => {
+    const text = settings(owner);
+
+    expect(text).toContain("Move to Starter");
+    expect(text).toContain("Move to Scale");
+    expect(text).not.toContain("Move to Growth");
+    expect(text.indexOf("Move to Starter")).toBeLessThan(
+      text.indexOf("Move to Scale"),
+    );
+    expect(text).toContain("50,000 credits a month");
+    expect(text).toContain("Manage billing");
+  });
+
+  it("offers the yearly plans on a yearly subscription", () => {
+    const text = settings({ ...owner, interval: "year" });
+
+    expect(text).toContain("Move to Scale");
+    expect(text).toContain("$10,000 a year");
+    expect(text).not.toContain("$1,000 a month");
+  });
+
+  it("shows a pending downgrade", () => {
+    expect(settings({ ...owner, pendingTier: "starter" })).toContain(
+      "Moves to Starter on 13 January 2027.",
+    );
+  });
+
+  it("keeps the portal but no plan change while past due or cancelled", () => {
+    for (const billing of [
+      { ...owner, status: "past_due" },
+      { ...owner, cancelAtPeriodEnd: true },
+    ]) {
+      const text = settings(billing);
+
+      expect(text).not.toContain("Move to");
+      expect(text).toContain("Manage billing");
+    }
+  });
+
+  it("shows other members neither the plan change, the pending downgrade nor the portal", () => {
+    const text = settings({
+      ...SUBSCRIBED,
+      pendingTier: "starter",
+      viewerCanManage: false,
+    });
+
+    expect(text).toContain("Growth");
+    expect(text).not.toContain("Move to");
+    expect(text).not.toContain("Moves to Starter");
+    expect(text).not.toContain("Manage billing");
   });
 });
