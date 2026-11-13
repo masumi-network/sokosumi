@@ -302,6 +302,26 @@ describe("native SEO statistics", () => {
     });
   });
 
+  it("filters an AI assistant read to GA4's AI Assistant channel group", () => {
+    const args = ga4StatisticsArguments(
+      { ...query, channel: "ai_assistant" },
+      true,
+    );
+    expect(args.dimensionFilter).toMatchObject({
+      andGroup: {
+        expressions: [
+          { filter: { fieldName: "pageLocation" } },
+          {
+            filter: {
+              fieldName: "sessionDefaultChannelGroup",
+              stringFilter: { matchType: "EXACT", value: "AI Assistant" },
+            },
+          },
+        ],
+      },
+    });
+  });
+
   it("refuses a native tool that would drop the date or page scope", () => {
     const descriptor = {
       slug: "GOOGLE_ANALYTICS_RUN_REPORT",

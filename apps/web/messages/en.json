@@ -11820,7 +11820,9 @@
         "readsAll": "Reads the last {days} days of all website traffic.",
         "channelAny": "All measured segments",
         "connectTitle": "Set up statistics",
-        "connectFirst": "Connect {provider} first. You can then sync its statistics here."
+        "connectFirst": "Connect {provider} first. You can then sync its statistics here.",
+        "channelAiAssistant": "AI assistants (ChatGPT, Gemini, Copilot)",
+        "readsAiAssistant": "Reads the last {days} days of visits from AI assistants such as ChatGPT, Gemini and Copilot."
       },
       "metrics": {
         "page_views": "Page views",
@@ -12349,7 +12351,8 @@
           "googleNews": "Google News"
         },
         "keyEvents": "Key events (organic)",
-        "noKeyEvents": "Google Analytics recorded no key events for these pages. Set up key events there to see conversions here."
+        "noKeyEvents": "Google Analytics recorded no key events for these pages. Set up key events there to see conversions here.",
+        "keyEventsAiAssistant": "Key events (AI assistants)"
       },
       "export": {
         "csv": "Download CSV",

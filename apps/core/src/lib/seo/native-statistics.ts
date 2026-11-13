@@ -10,7 +10,10 @@ import {
 } from "@sokosumi/utils";
 
 import type { NativeSeoMetrics } from "@/schemas/project-seo.schema";
-import type { SeoSearchType } from "@/schemas/project-seo-traffic.schema";
+import type {
+  SeoSearchType,
+  SeoTrafficChannel,
+} from "@/schemas/project-seo-traffic.schema";
 
 export const SEO_STATS_MAX_DAYS = 366;
 export const SEO_STATS_MAX_ROWS = 400;
@@ -99,7 +102,7 @@ export interface NativeStatisticsQuery {
   pageUrls: string[];
   from: string;
   to: string;
-  channel: "all" | "organic";
+  channel: SeoTrafficChannel;
   /** Search Console only. Absent reads web search. */
   searchType?: SeoSearchType;
 }
@@ -170,8 +173,14 @@ export function bindSeoToolArguments(
   return arguments_;
 }
 
-/** The GA4 default channel group of organic search sessions. */
-export const GA4_ORGANIC_CHANNEL_GROUP = "Organic Search";
+/**
+ * GA4 default channel group names per channel. "AI Assistant" is GA4's group for
+ * ChatGPT, Gemini, Copilot and other assistants; AI Overviews stay in Organic Search.
+ */
+export const GA4_CHANNEL_GROUPS = {
+  organic: "Organic Search",
+  ai_assistant: "AI Assistant",
+} as const satisfies Record<Exclude<SeoTrafficChannel, "all">, string>;
 /** Sessions of one GA4 default channel group, matched exactly. */
 export function ga4ChannelGroupFilter(group: string) {
   return {
@@ -201,16 +210,16 @@ export function ga4StatisticsArguments(
     dimensions: daily ? [{ name: "date" }] : [],
     metrics: GA4_METRICS.map(({ name }) => ({ name })),
     dimensionFilter:
-      query.channel === "organic"
-        ? {
+      query.channel === "all"
+        ? pageFilter
+        : {
             andGroup: {
               expressions: [
                 pageFilter,
-                ga4ChannelGroupFilter(GA4_ORGANIC_CHANNEL_GROUP),
+                ga4ChannelGroupFilter(GA4_CHANNEL_GROUPS[query.channel]),
               ],
             },
-          }
-        : pageFilter,
+          },
     limit: SEO_STATS_MAX_ROWS,
     returnPropertyQuota: true,
   };

@@ -145,7 +145,9 @@ export function SeoStatisticsDialog({
                   ? "statistics.readsSearch"
                   : form.channel === "organic"
                     ? "statistics.readsOrganic"
-                    : "statistics.readsAll",
+                    : form.channel === "ai_assistant"
+                      ? "statistics.readsAiAssistant"
+                      : "statistics.readsAll",
                 { days: SEO_DEFAULT_STATISTICS_DAYS },
               )}
             </p>

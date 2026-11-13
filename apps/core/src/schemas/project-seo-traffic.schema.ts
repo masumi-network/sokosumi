@@ -2,6 +2,15 @@ import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 
 /**
+ * Which sessions a Google Analytics read counts: all, organic search, or the GA4
+ * "AI Assistant" default channel group (ChatGPT, Gemini, Copilot and others).
+ * Search Console reads are organic search only.
+ */
+export const SEO_TRAFFIC_CHANNELS = ["all", "organic", "ai_assistant"] as const;
+export const seoTrafficChannelSchema = z.enum(SEO_TRAFFIC_CHANNELS);
+export type SeoTrafficChannel = z.infer<typeof seoTrafficChannelSchema>;
+
+/**
  * Search Console search types, as the Search Analytics `type` field names them.
  * `news` is the News tab of Google Search; `googleNews` is news.google.com and the Google News app.
  */
@@ -24,10 +33,10 @@ export function seoSearchTypeHasQueries(type: SeoSearchType = "web"): boolean {
 /** At most one landing row per selected page; equal to the page limit of a sync. */
 const SEO_LANDING_PAGE_ROW_LIMIT = 10;
 const landingCount = z.number().finite().nonnegative();
-/** Google Analytics organic sessions and key events of sessions that started on each selected page. */
+/** Google Analytics sessions and key events of one channel, for sessions that started on each selected page. */
 export const seoLandingPagesSchema = z
   .object({
-    channel: z.literal("organic"),
+    channel: z.enum(["organic", "ai_assistant"]),
     rows: z
       .array(
         z

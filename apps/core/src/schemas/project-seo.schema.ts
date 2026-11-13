@@ -18,6 +18,7 @@ import { seoStrategySchema } from "./project-seo-strategy.schema";
 import {
   seoLandingPagesSchema,
   seoSearchTypeSchema,
+  seoTrafficChannelSchema,
   seoWorkspaceLandingPagesSchema,
 } from "./project-seo-traffic.schema";
 
@@ -99,7 +100,7 @@ export const seoWorkspaceQuerySchema = z
     pageIds: z.array(seoIdSchema).min(1).max(SEO_MAX_PAGES).optional(),
     from: seoDateSchema.optional(),
     to: seoDateSchema.optional(),
-    channel: z.enum(["all", "organic"]).optional(),
+    channel: seoTrafficChannelSchema.optional(),
     /** Search Console rows of this search type. Absent reads web search. */
     searchType: seoSearchTypeSchema.optional(),
   })
@@ -421,7 +422,7 @@ export const seoMetricSchema = z
     from: seoDateSchema,
     to: seoDateSchema,
     timeZone: z.string(),
-    channel: z.enum(["all", "organic"]),
+    channel: seoTrafficChannelSchema,
     observedAt: dateTimeSchema,
     coverage: z.enum(["complete", "partial", "unavailable"]),
     points: z.array(
@@ -697,7 +698,7 @@ export const nativeSeoMetricsSchema = z
     provider: z.enum(["ga4", "search_console"]),
     propertyId: z.string().min(1).max(500),
     pageUrls: z.array(seoUrlSchema).min(1).max(SEO_MAX_PAGES),
-    channel: z.enum(["all", "organic"]),
+    channel: seoTrafficChannelSchema,
     /** Search Console search type. Absent on web search reads and on older observations. */
     searchType: seoSearchTypeSchema.optional(),
     from: seoDateSchema,

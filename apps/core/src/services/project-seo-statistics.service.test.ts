@@ -862,6 +862,16 @@ describe("Search Console query rows", () => {
     expect(workspace.metrics[0]).toMatchObject({ searchType: "discover" });
   });
 
+  it("refuses the AI Assistant channel for Search Console before any read", async () => {
+    await expect(
+      syncProjectSeoStatistics(actor, {
+        ...gscInput,
+        channel: "ai_assistant",
+      }),
+    ).rejects.toThrow();
+    expect(state.reads).toHaveLength(0);
+  });
+
   it("refuses a search type for Google Analytics before any read", async () => {
     await expect(
       syncProjectSeoStatistics(actor, { ...input, searchType: "image" }),

@@ -41001,7 +41001,8 @@ export const ProjectSeoMetricSchema = {
             type: 'string',
             enum: [
                 'all',
-                'organic'
+                'organic',
+                'ai_assistant'
             ]
         },
         observedAt: {
@@ -41347,7 +41348,8 @@ export const ProjectSeoLandingPagesSchema = {
         channel: {
             type: 'string',
             enum: [
-                'organic'
+                'organic',
+                'ai_assistant'
             ]
         },
         rows: {
@@ -42954,7 +42956,8 @@ export const SyncProjectSeoStatisticsRequestSchema = {
             type: 'string',
             enum: [
                 'all',
-                'organic'
+                'organic',
+                'ai_assistant'
             ],
             default: 'all'
         },
@@ -43458,7 +43461,8 @@ export const SendSeoAuditChatRequestSchema = {
                     type: 'string',
                     enum: [
                         'all',
-                        'organic'
+                        'organic',
+                        'ai_assistant'
                     ]
                 },
                 searchType: {

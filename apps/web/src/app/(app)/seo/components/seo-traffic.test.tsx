@@ -200,3 +200,33 @@ describe("SEO Traffic key events", () => {
     ).toBeNull();
   });
 });
+
+describe("SEO Traffic AI assistant channel", () => {
+  it("reads AI assistant traffic when that channel is chosen and names its key events", async () => {
+    const user = userEvent.setup();
+    const workspace = twoPageWorkspace();
+    workspace.metrics.push({ ...seoTestMetric(), source: "ga4" });
+    workspace.landingPages = {
+      ...landingPages([{ pageUrl: "https://example.com/", keyEvents: 1 }]),
+      channel: "ai_assistant",
+    };
+    renderTraffic(workspace);
+    expect(
+      within(topPagesTable()).getByRole("columnheader", {
+        name: "Key events (AI assistants)",
+      }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("combobox", { name: "Traffic" }));
+    await user.click(
+      screen.getByRole("option", {
+        name: "AI assistants (ChatGPT, Gemini, Copilot)",
+      }),
+    );
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining("channel=ai_assistant"),
+        expect.anything(),
+      ),
+    );
+  });
+});

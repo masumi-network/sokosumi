@@ -30,6 +30,7 @@ import {
   seoDefaultMetric,
   seoReportedPeriod,
 } from "./seo-statistics-model";
+import { seoChannelLabel } from "./seo-traffic-model";
 import { SeoTrendChart } from "./seo-trend-chart";
 import { useSeoConnectionStatus } from "./use-seo-connection";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -236,11 +237,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
             {/* Search Console only counts Google search, so its channel says nothing. */}
             {active.source === "search_console"
               ? null
-              : ` · ${t(
-                  active.channel === "organic"
-                    ? "statistics.channelOrganic"
-                    : "statistics.channelAll",
-                )}`}
+              : ` · ${t(seoChannelLabel(active.channel))}`}
             {" · "}
             {t("overview.synced")} <SeoDate value={active.observedAt} />
           </>

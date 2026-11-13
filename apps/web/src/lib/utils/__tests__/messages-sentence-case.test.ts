@@ -84,6 +84,10 @@ const PROPER_WORDS = new Set([
   "Claude",
   "Eve",
   "YouTube",
+  // AI assistants that GA4 counts in its AI Assistant channel.
+  "ChatGPT",
+  "Gemini",
+  "Copilot",
   "Slack",
   "Notion",
   "Linear",

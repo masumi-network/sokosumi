@@ -79,6 +79,7 @@ import { SeoEmpty, SeoPageLink } from "./seo-shared";
 import { SeoStatisticsDialog } from "./seo-statistics-dialog";
 import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { SeoTraffic } from "./seo-traffic";
+import { seoChannelLabel } from "./seo-traffic-model";
 import { useSeoWorkspace } from "./use-seo-workspace";
 
 /** A load faster than this shows no skeleton at all. */
@@ -462,11 +463,7 @@ export function SeoWorkspace({
             {t("scopeFilters")}
             {model.filters.channel ? (
               <span className="text-muted-foreground">
-                {t(
-                  model.filters.channel === "organic"
-                    ? "statistics.channelOrganic"
-                    : "statistics.channelAll",
-                )}
+                {t(seoChannelLabel(model.filters.channel))}
               </span>
             ) : null}
             <ChevronDown

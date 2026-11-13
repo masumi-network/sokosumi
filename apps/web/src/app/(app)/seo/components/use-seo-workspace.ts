@@ -40,7 +40,7 @@ import {
   type SeoStatisticsProvider,
   seoStatisticsPeriod,
 } from "./seo-statistics-model";
-import { SEO_SEARCH_TYPES } from "./seo-traffic-model";
+import { SEO_SEARCH_TYPES, SEO_TRAFFIC_CHANNELS } from "./seo-traffic-model";
 
 /** The form of a day in the period filter, as Core reads it. */
 const SEO_DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -107,7 +107,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     scopeId: parseAsString,
     from: parseAsString,
     to: parseAsString,
-    channel: parseAsStringLiteral(["all", "organic"]),
+    channel: parseAsStringLiteral(SEO_TRAFFIC_CHANNELS),
     searchType: parseAsStringLiteral(SEO_SEARCH_TYPES),
   });
   const query = new URLSearchParams();

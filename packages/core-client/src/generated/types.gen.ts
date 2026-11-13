@@ -10837,7 +10837,7 @@ export type ProjectSeoMetric = {
     from: string;
     to: string;
     timeZone: string;
-    channel: 'all' | 'organic';
+    channel: 'all' | 'organic' | 'ai_assistant';
     observedAt: Date;
     coverage: 'complete' | 'partial' | 'unavailable';
     points: Array<{
@@ -10906,7 +10906,7 @@ export type ProjectSeoSearchBreakdown = {
 };
 
 export type ProjectSeoLandingPages = {
-    channel: 'organic';
+    channel: 'organic' | 'ai_assistant';
     rows: Array<{
         pageUrl: string;
         sessions: number;
@@ -11203,7 +11203,7 @@ export type SyncProjectSeoStatisticsRequest = {
     expectedScopeVersion?: number;
     from: string;
     to: string;
-    channel?: 'all' | 'organic';
+    channel?: 'all' | 'organic' | 'ai_assistant';
     searchType?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
 };
 
@@ -11310,7 +11310,7 @@ export type SendSeoAuditChatRequest = {
         pageIds?: Array<string>;
         from?: string;
         to?: string;
-        channel?: 'all' | 'organic';
+        channel?: 'all' | 'organic' | 'ai_assistant';
         searchType?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
     };
 };
@@ -71953,7 +71953,7 @@ export type GetProjectSeoWorkspaceData = {
         pageIds?: Array<string>;
         from?: string;
         to?: string;
-        channel?: 'all' | 'organic';
+        channel?: 'all' | 'organic' | 'ai_assistant';
         searchType?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
     };
     url: '/projects/{id}/seo';
@@ -74160,7 +74160,7 @@ export type GetSeoAuditWorkspaceData = {
         pageIds?: Array<string>;
         from?: string;
         to?: string;
-        channel?: 'all' | 'organic';
+        channel?: 'all' | 'organic' | 'ai_assistant';
         searchType?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
     };
     url: '/seo/audits/{id}';

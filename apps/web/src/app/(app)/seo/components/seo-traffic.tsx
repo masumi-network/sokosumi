@@ -60,6 +60,10 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
   const source = model.data.searchQueries;
   const rows = source ? topPages(source.rows) : [];
   const keyEvents = seoKeyEvents(model.data.landingPages);
+  const keyEventsLabel =
+    keyEvents?.channel === "ai_assistant"
+      ? "traffic.keyEventsAiAssistant"
+      : "traffic.keyEvents";
   // One page's totals are on the Performance card; its listed-query sums would only disagree with them.
   if (!source || rows.length < MIN_PAGES_FOR_SELECTIONS) return null;
   const rate = (value: number | null, percent = false) =>
@@ -110,7 +114,7 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
               </TableHead>
               {keyEvents ? (
                 <TableHead className="text-right">
-                  {t("traffic.keyEvents")}
+                  {t(keyEventsLabel)}
                 </TableHead>
               ) : null}
               <TableHead>{t("pages.topQuery")}</TableHead>
@@ -155,7 +159,7 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
                 {keyEvents ? (
                   <TableCell
                     className="text-right tabular-nums"
-                    data-label={t("traffic.keyEvents")}
+                    data-label={t(keyEventsLabel)}
                   >
                     {rate(keyEvents.byPage.get(row.pageUrl) ?? null)}
                   </TableCell>

@@ -20,6 +20,7 @@ import {
   seoDatePreset,
   seoStatisticsPeriod,
 } from "./seo-statistics-model";
+import { seoTrafficChannel } from "./seo-traffic-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** The tabs that dates narrow, and what each one needs before a date has anything to narrow. */
@@ -278,13 +279,17 @@ export function SeoScopeBar({
             value={filters.channel ?? "any"}
             onValueChange={(value) => {
               void setFilters({
-                channel: value === "all" || value === "organic" ? value : null,
+                channel: seoTrafficChannel(value),
               });
             }}
             options={[
               { value: "any", label: t("statistics.channelAny") },
               { value: "all", label: t("statistics.channelAll") },
               { value: "organic", label: t("statistics.channelOrganic") },
+              {
+                value: "ai_assistant",
+                label: t("statistics.channelAiAssistant"),
+              },
             ]}
           />
         </div>

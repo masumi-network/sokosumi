@@ -1,6 +1,6 @@
 import type { SeoLandingPages } from "@/schemas/project-seo-traffic.schema";
 import {
-  GA4_ORGANIC_CHANNEL_GROUP,
+  GA4_CHANNEL_GROUPS,
   ga4ChannelGroupFilter,
   ga4ReportSchema,
   type NativeStatisticsQuery,
@@ -18,8 +18,13 @@ function landingPath(url: string): string {
   return `${parsed.pathname}${parsed.search}`;
 }
 
+/** Landing rows follow an AI Assistant read; every other read counts organic search. */
+function landingChannel(query: NativeStatisticsQuery) {
+  return query.channel === "ai_assistant" ? "ai_assistant" : "organic";
+}
+
 /**
- * Organic sessions and key events of sessions that started on a selected page.
+ * Sessions and key events of one channel for sessions that started on a selected page.
  * The filter is on the landing page, so a key event later in the session counts
  * for the page the visitor came in on. A landing URL with extra query
  * parameters (for example a tracking tag) is a different row and is not read.
@@ -42,7 +47,7 @@ export function ga4LandingPageArguments(
               inListFilter: { values: paths, caseSensitive: true },
             },
           },
-          ga4ChannelGroupFilter(GA4_ORGANIC_CHANNEL_GROUP),
+          ga4ChannelGroupFilter(GA4_CHANNEL_GROUPS[landingChannel(query)]),
         ],
       },
     },
@@ -87,5 +92,5 @@ export function normalizeGa4LandingPages(
       keyEvents: row.metricValues[1].value,
     };
   });
-  return { channel: "organic", rows };
+  return { channel: landingChannel(query), rows };
 }

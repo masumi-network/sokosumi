@@ -9,7 +9,10 @@ import {
   seoDateSchema,
   seoIdSchema,
 } from "./project-seo.schema";
-import { seoSearchTypeSchema } from "./project-seo-traffic.schema";
+import {
+  seoSearchTypeSchema,
+  seoTrafficChannelSchema,
+} from "./project-seo-traffic.schema";
 
 export const seoStatisticsProviderQuerySchema = z.object({
   provider: z.enum(SEO_STATS_PROVIDERS),
@@ -23,7 +26,7 @@ export const syncProjectSeoStatisticsSchema = z
     expectedScopeVersion: z.number().int().positive().optional(),
     from: seoDateSchema,
     to: seoDateSchema,
-    channel: z.enum(["all", "organic"]).default("all"),
+    channel: seoTrafficChannelSchema.default("all"),
     searchType: seoSearchTypeSchema.default("web"),
   })
   .strict()
@@ -31,6 +34,10 @@ export const syncProjectSeoStatisticsSchema = z
     (input) =>
       input.searchType === "web" || input.provider === "search_console",
     "Only Search Console reads a search type",
+  )
+  .refine(
+    (input) => input.channel !== "ai_assistant" || input.provider === "ga4",
+    "Only Google Analytics reads the AI Assistant channel",
   )
   .refine(
     (input) => !(input.pageIds && input.scopeId),

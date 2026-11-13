@@ -90,4 +90,14 @@ describe("GA4 key events per landing page", () => {
       }),
     ).toThrow("different landing page grouping");
   });
+
+  it("reads the AI Assistant channel group when the sync reads AI assistant traffic", () => {
+    const aiQuery = { ...query, channel: "ai_assistant" as const };
+    expect(JSON.stringify(ga4LandingPageArguments(aiQuery))).toContain(
+      '"value":"AI Assistant"',
+    );
+    expect(
+      normalizeGa4LandingPages(aiQuery, report([["/", "4", "1"]])).channel,
+    ).toBe("ai_assistant");
+  });
 });

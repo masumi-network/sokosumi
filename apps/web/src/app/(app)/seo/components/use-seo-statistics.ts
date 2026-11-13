@@ -18,6 +18,7 @@ import {
   seoMatchingProperty,
   seoStatisticsPeriod,
 } from "./seo-statistics-model";
+import type { SeoTrafficChannel } from "./seo-traffic-model";
 import { useSeoConnectionStatus } from "./use-seo-connection";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -66,11 +67,13 @@ export function useSeoStatistics(
   const savedHere = savedSeoStatistics(workspace.metrics, provider);
   // No choice for the reader: Search Console counts Google search only, and for Google Analytics
   // an SEO audit reads organic search. A source that is saved keeps its channel, so the new
-  // numbers show in the same view.
-  const channel: "all" | "organic" =
+  // numbers show in the same view. AI assistant traffic in view is read as such.
+  const channel: SeoTrafficChannel =
     provider === "search_console"
       ? "organic"
-      : (savedHere?.channel ?? "organic");
+      : model.filters.channel === "ai_assistant"
+        ? "ai_assistant"
+        : (savedHere?.channel ?? "organic");
   const properties = useQuery<ProjectSeoStatisticsProperties>({
     queryKey: [
       "seo-properties",

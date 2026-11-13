@@ -11820,7 +11820,9 @@
         "readsAll": "Lee los últimos {days} días de todo el tráfico del sitio.",
         "channelAny": "Todos los segmentos medidos",
         "connectTitle": "Configurar estadísticas",
-        "connectFirst": "Conecta primero {provider}. Después sincronizas aquí sus estadísticas."
+        "connectFirst": "Conecta primero {provider}. Después sincronizas aquí sus estadísticas.",
+        "channelAiAssistant": "Asistentes de IA (ChatGPT, Gemini, Copilot)",
+        "readsAiAssistant": "Lee los últimos {days} días de visitas desde asistentes de IA como ChatGPT, Gemini y Copilot."
       },
       "metrics": {
         "page_views": "Vistas de página",
@@ -12349,7 +12351,8 @@
           "googleNews": "Google Noticias"
         },
         "keyEvents": "Eventos clave (orgánico)",
-        "noKeyEvents": "Google Analytics no registró eventos clave para estas páginas. Configura eventos clave allí para ver las conversiones aquí."
+        "noKeyEvents": "Google Analytics no registró eventos clave para estas páginas. Configura eventos clave allí para ver las conversiones aquí.",
+        "keyEventsAiAssistant": "Eventos clave (asistentes de IA)"
       },
       "export": {
         "csv": "Descargar CSV",
