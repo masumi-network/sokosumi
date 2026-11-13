@@ -251,12 +251,16 @@ export async function listAssets(
   return { assets, nextCursor };
 }
 
+export interface StudioBatchAssetView extends AssetView {
+  batchBrief: string;
+}
+
 export async function listStudioBatchAssets(options: {
   projectId: string;
   workspaceId: string;
   userId: string;
   batchId: string;
-}): Promise<AssetView[]> {
+}): Promise<StudioBatchAssetView[]> {
   await requireProjectAccess(options);
   const { projectId, workspaceId, batchId } = options;
   const image = {
@@ -277,6 +281,7 @@ export async function listStudioBatchAssets(options: {
     },
     take: MAX_STUDIO_BATCH_IMAGES + 1,
     select: {
+      prompt: true,
       asset: { select: assetSelect },
       batchRefinements: {
         where: readyRevision,
@@ -287,12 +292,12 @@ export async function listStudioBatchAssets(options: {
     },
   });
   return slots
-    .flatMap(({ asset, batchRefinements }) => {
+    .flatMap(({ prompt, asset, batchRefinements }) => {
       const latest = batchRefinements[0]?.asset ?? asset;
       return latest &&
         latest.mediaType === ProjectImageMediaType.IMAGE &&
         latest.projectId === projectId
-        ? [toAssetView(latest)]
+        ? [{ ...toAssetView(latest), batchBrief: prompt }]
         : [];
     })
     .sort(
@@ -420,6 +425,9 @@ export interface JobView {
   kind: string;
   model: string;
   prompt: string;
+  templateId?: string;
+  creativeDirection?: string;
+  variationIndex?: number;
   /** The provider input this job asked for, so a retry can ask for the same. */
   settings: unknown;
   /** A video job's own settings. Null for an image job. */
@@ -493,6 +501,9 @@ export async function getJob(options: {
       chargedCents: true,
       transactionId: true,
       asset: { select: { id: true } },
+      templateId: true,
+      creativeDirection: true,
+      variationIndex: true,
     },
   });
   return job ? toJobView(job) : null;
@@ -529,6 +540,9 @@ export async function listJobs(
       chargedCents: true,
       transactionId: true,
       asset: { select: { id: true } },
+      templateId: true,
+      creativeDirection: true,
+      variationIndex: true,
     },
   });
   return jobs.map(toJobView);
@@ -541,6 +555,9 @@ export function toJobView(job: {
   kind: string;
   model: string;
   prompt: string;
+  templateId?: string | null;
+  creativeDirection?: string | null;
+  variationIndex?: number | null;
   settings: unknown;
   referenceAssetIds: string[];
   referenceFileIds?: string[];
@@ -565,6 +582,13 @@ export function toJobView(job: {
     kind: job.kind,
     model: job.model,
     prompt: job.prompt,
+    ...(job.templateId ? { templateId: job.templateId } : {}),
+    ...(job.creativeDirection
+      ? { creativeDirection: job.creativeDirection }
+      : {}),
+    ...(job.variationIndex != null
+      ? { variationIndex: job.variationIndex }
+      : {}),
     ...productView(job),
     ...splitVideoSettings(
       job.kind === "TEXT_TO_VIDEO" || job.kind === "IMAGE_TO_VIDEO",

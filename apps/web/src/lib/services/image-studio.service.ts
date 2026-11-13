@@ -8,6 +8,7 @@ import type {
   ProjectImageStudioState,
   SaveStudioBrandCopy,
   SaveStudioBrandLook,
+  SaveStudioPairwisePick,
   SocialPostMediaRef,
   StudioProductCatalog,
   StudioProductImport,
@@ -89,6 +90,23 @@ export const imageStudioService = {
 
   async listBatchAssets(projectId: string, batchId: string) {
     return (await coreClient.listStudioBatchAssets(projectId, batchId)).data;
+  },
+
+  async getComparePair(projectId: string, batchId: string) {
+    return (await coreClient.getStudioComparePair(projectId, batchId)).data;
+  },
+
+  async savePairwisePick(
+    projectId: string,
+    batchId: string,
+    input: SaveStudioPairwisePick,
+  ) {
+    return (await coreClient.saveStudioPairwisePick(projectId, batchId, input))
+      .data;
+  },
+
+  async getModelScoreboard(projectId: string) {
+    return (await coreClient.getStudioModelScoreboard(projectId)).data;
   },
 
   async saveBrandCopy(projectId: string, input: SaveStudioBrandCopy) {

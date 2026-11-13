@@ -3,20 +3,29 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 
 import {
+  getStudioComparePair,
+  getStudioModelScoreboard,
   prepareStudioAssetSocialMedia,
+  saveStudioPairwisePick,
   startImageGeneration,
   writeStudioAssetCaption,
 } from "./action";
 
 const {
   createJob,
+  getComparePairMock,
+  getModelScoreboardMock,
   getSocialMediaMock,
   toCoreApiActionErrorMock,
+  savePairwisePickMock,
   writeCaptionMock,
 } = vi.hoisted(() => ({
   createJob: vi.fn(),
+  getComparePairMock: vi.fn(),
+  getModelScoreboardMock: vi.fn(),
   getSocialMediaMock: vi.fn(),
   toCoreApiActionErrorMock: vi.fn(),
+  savePairwisePickMock: vi.fn(),
   writeCaptionMock: vi.fn(),
 }));
 
@@ -42,6 +51,9 @@ vi.mock("@/lib/clients/core.client", async () => {
 vi.mock("@/lib/services/image-studio.service", () => ({
   imageStudioService: {
     createJob,
+    getComparePair: getComparePairMock,
+    getModelScoreboard: getModelScoreboardMock,
+    savePairwisePick: savePairwisePickMock,
     cancelJob: vi.fn(),
     getSocialMedia: getSocialMediaMock,
     writeCaption: writeCaptionMock,
@@ -50,6 +62,74 @@ vi.mock("@/lib/services/image-studio.service", () => ({
 
 beforeEach(() => {
   vi.resetAllMocks();
+});
+
+describe("Studio pairwise actions", () => {
+  it("returns the next pair, including the exhausted state", async () => {
+    getComparePairMock.mockResolvedValue({ pair: null });
+
+    await expect(
+      getStudioComparePair({ projectId: "project-1", batchId: "batch-1" }),
+    ).resolves.toEqual({ ok: true, value: { pair: null } });
+    expect(getComparePairMock).toHaveBeenCalledWith("project-1", "batch-1");
+  });
+
+  it.each(["A", "B", "TIE", "BOTH_BAD"] as const)(
+    "forwards the displayed %s choice for Core to canonicalize",
+    async (outcome) => {
+      const pick = { assetId: "asset-b", otherAssetId: "asset-a", outcome };
+      savePairwisePickMock.mockResolvedValue({ id: "pick-1", ...pick });
+
+      await expect(
+        saveStudioPairwisePick({
+          projectId: "project-1",
+          batchId: "batch-1",
+          ...pick,
+        }),
+      ).resolves.toEqual({ ok: true, value: { id: "pick-1", ...pick } });
+      expect(savePairwisePickMock).toHaveBeenCalledWith(
+        "project-1",
+        "batch-1",
+        pick,
+      );
+    },
+  );
+
+  it("returns the project scoreboard without changing its scores", async () => {
+    const scoreboard = { models: [], minimumComparisons: 10 };
+    getModelScoreboardMock.mockResolvedValue(scoreboard);
+
+    await expect(
+      getStudioModelScoreboard({ projectId: "project-1" }),
+    ).resolves.toEqual({ ok: true, value: scoreboard });
+    expect(getModelScoreboardMock).toHaveBeenCalledWith("project-1");
+  });
+
+  it.each(["pair", "pick", "scoreboard"])(
+    "returns a recoverable Core error for the %s action",
+    async (operation) => {
+      const failure = new Error("No project access");
+      const mapped = { code: "FORBIDDEN", message: "No project access" };
+      toCoreApiActionErrorMock.mockReturnValue(mapped);
+      getComparePairMock.mockRejectedValue(failure);
+      savePairwisePickMock.mockRejectedValue(failure);
+      getModelScoreboardMock.mockRejectedValue(failure);
+
+      const input = { projectId: "project-1", batchId: "batch-1" };
+      const result =
+        operation === "pair"
+          ? await getStudioComparePair(input)
+          : operation === "scoreboard"
+            ? await getStudioModelScoreboard(input)
+            : await saveStudioPairwisePick({
+                ...input,
+                assetId: "asset-a",
+                otherAssetId: "asset-b",
+                outcome: "TIE",
+              });
+      expect(result).toEqual({ ok: false, error: mapped });
+    },
+  );
 });
 
 const MEDIA = {
@@ -122,6 +202,26 @@ const REQUEST = {
 } satisfies Parameters<typeof startImageGeneration>[0];
 
 describe("starting image generation", () => {
+  it("forwards prompt metadata including the first variation", async () => {
+    createJob.mockResolvedValue({ id: "job-1" });
+
+    await startImageGeneration({
+      ...REQUEST,
+      templateId: "social-post",
+      creativeDirection: "lifestyle",
+      variationIndex: 0,
+    });
+
+    expect(createJob).toHaveBeenCalledWith(
+      "project-1",
+      expect.objectContaining({
+        templateId: "social-post",
+        creativeDirection: "lifestyle",
+        variationIndex: 0,
+      }),
+    );
+  });
+
   it("preserves the request identity and returns the accepted job", async () => {
     const job = { id: "job-1" };
     createJob.mockResolvedValue(job);

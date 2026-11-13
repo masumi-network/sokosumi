@@ -21923,6 +21923,17 @@ export const ProjectImageJobSchema = {
         prompt: {
             type: 'string'
         },
+        templateId: {
+            type: 'string'
+        },
+        creativeDirection: {
+            type: 'string'
+        },
+        variationIndex: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2147483647
+        },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
         },
@@ -39340,6 +39351,140 @@ export const ProjectImageSessionSchema = {
     ]
 } as const;
 
+export const StudioCompareStateSchema = {
+    type: 'object',
+    properties: {
+        pair: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioComparePair'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'pair'
+    ]
+} as const;
+
+export const StudioComparePairSchema = {
+    type: 'object',
+    properties: {
+        a: {
+            $ref: '#/components/schemas/ProjectImageAsset'
+        },
+        b: {
+            $ref: '#/components/schemas/ProjectImageAsset'
+        }
+    },
+    required: [
+        'a',
+        'b'
+    ]
+} as const;
+
+export const StudioPairwisePickSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SaveStudioPairwisePick'
+        },
+        {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'id'
+            ]
+        }
+    ]
+} as const;
+
+export const StudioPairOutcomeSchema = {
+    type: 'string',
+    enum: [
+        'A',
+        'B',
+        'TIE',
+        'BOTH_BAD'
+    ]
+} as const;
+
+export const SaveStudioPairwisePickSchema = {
+    type: 'object',
+    properties: {
+        assetId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        otherAssetId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        outcome: {
+            $ref: '#/components/schemas/StudioPairOutcome'
+        }
+    },
+    required: [
+        'assetId',
+        'otherAssetId',
+        'outcome'
+    ]
+} as const;
+
+export const StudioModelScoreboardSchema = {
+    type: 'object',
+    properties: {
+        models: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    model: {
+                        type: 'string'
+                    },
+                    comparisons: {
+                        type: 'integer',
+                        exclusiveMinimum: 0
+                    },
+                    winRate: {
+                        type: 'number',
+                        minimum: 0,
+                        maximum: 1
+                    },
+                    elo: {
+                        type: 'number'
+                    },
+                    provisional: {
+                        type: 'boolean'
+                    }
+                },
+                required: [
+                    'model',
+                    'comparisons',
+                    'winRate',
+                    'elo',
+                    'provisional'
+                ]
+            }
+        },
+        minimumComparisons: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'models',
+        'minimumComparisons'
+    ]
+} as const;
+
 export const StudioBrandKitSchema = {
     type: 'object',
     properties: {
@@ -39750,6 +39895,21 @@ export const CreateProjectImageJobRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 4000
+        },
+        templateId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        creativeDirection: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        variationIndex: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2147483647
         },
         product: {
             $ref: '#/components/schemas/StudioProductIdentity'

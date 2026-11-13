@@ -69,12 +69,14 @@ import {
   STUDIO_COLUMN_MOBILE_SHELL_CLASS,
   STUDIO_COMPOSER_GUTTER_CLASS,
 } from "./studio-classes";
+import { StudioCompare } from "./studio-compare";
 import { StudioComposer } from "./studio-composer";
 import { StudioCreativeStart } from "./studio-creative-start";
 import { StudioFailedSubmission } from "./studio-failed-submission";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
+import { StudioModelScoreboard } from "./studio-model-scoreboard";
 import { StudioProjectToolbar } from "./studio-project-toolbar";
 import { StudioTemplateCanvas } from "./studio-template-canvas";
 import type { StudioBrief } from "./studio-templates";
@@ -188,6 +190,11 @@ export function ImageStudio({
   const isApple = useIsApplePlatform();
   const searchParams = useSearchParams();
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
+  const [comparing, setComparing] = useState<{
+    projectId: string;
+    batchId: string;
+    returnFocus: HTMLElement | null;
+  } | null>(null);
   /**
    * Open on the version the URL names.
    *
@@ -374,6 +381,19 @@ export function ImageStudio({
     referenceProjectIds.size > 1
       ? null
       : ([...referenceProjectIds][0] ?? activeProjectId);
+
+  function compareBatch(asset: StudioAsset) {
+    if (!asset.batchId) return;
+    const returnFocus = document.querySelector<HTMLButtonElement>(
+      `[data-asset-id="${CSS.escape(asset.id)}"] > button`,
+    );
+    setViewing(null);
+    setComparing({
+      projectId: asset.projectId,
+      batchId: asset.batchId,
+      returnFocus,
+    });
+  }
 
   function archiveLimitFor(assets: StudioAsset[]) {
     if (assets.length > MAX_ARCHIVE_IMAGES)
@@ -641,6 +661,13 @@ export function ImageStudio({
       // references from the project the generation runs in.
       projectId: source.projectId,
       prompt: source.prompt,
+      ...(job?.templateId ? { templateId: job.templateId } : {}),
+      ...(job?.creativeDirection
+        ? { creativeDirection: job.creativeDirection }
+        : {}),
+      ...(job?.variationIndex !== undefined
+        ? { variationIndex: job.variationIndex }
+        : {}),
       modelId: modelIdForRepeat(catalog, source.model) ?? "",
       modelLabel: source.model,
       // A re-roll is a fresh draw of the same brief: no seed, or the model
@@ -695,6 +722,7 @@ export function ImageStudio({
     );
     setTarget((current) => ({
       ...current,
+      templateId: template.id,
       placementRatios: undefined,
       settings: { ...current.settings, aspectRatio: template.aspectRatio },
     }));
@@ -711,6 +739,9 @@ export function ImageStudio({
     product: StudioProduct,
     photo: StudioProductPhoto | null,
   ) {
+    if (!prompt.trim()) {
+      setTarget((current) => ({ ...current, templateId: undefined }));
+    }
     setBatchProducts([]);
     setDraftProduct({ id: product.id, name: product.name });
     const previousPhotoId = catalogPhotoRef.current;
@@ -735,6 +766,9 @@ export function ImageStudio({
   }
 
   function useProductBatch(products: StudioBatchProduct[]) {
+    if (!prompt.trim()) {
+      setTarget((current) => ({ ...current, templateId: undefined }));
+    }
     const previousDetails = productDetailsRef.current;
     productDetailsRef.current = null;
     catalogPhotoRef.current = null;
@@ -761,6 +795,7 @@ export function ImageStudio({
     setPrompt(asset.prompt);
     setTarget((current) => ({
       ...current,
+      templateId: undefined,
       creativeDirection: undefined,
       placementRatios: undefined,
       settings: { ...current.settings, ...settingsOf(asset), seed: null },
@@ -1059,6 +1094,7 @@ export function ImageStudio({
         onPromptChange={(value) => {
           setTemplateUndo(null);
           setPrompt(value);
+          setTarget((current) => ({ ...current, templateId: undefined }));
         }}
         prompt={prompt}
         promptRef={promptRef}
@@ -1096,6 +1132,9 @@ export function ImageStudio({
         onPromptChange={(value) => {
           setTemplateUndo(null);
           setPrompt(value);
+          if (!prompt.trim() || !value.trim()) {
+            setTarget((current) => ({ ...current, templateId: undefined }));
+          }
         }}
         onTargetChange={(update) => {
           setTemplateUndo(null);
@@ -1143,6 +1182,11 @@ export function ImageStudio({
             else openAssistant(assistant?.asset ?? null);
           }}
         >
+          <StudioModelScoreboard
+            catalog={catalog}
+            key={`scores:${activeProjectId}`}
+            projectId={activeProjectId}
+          />
           <StudioWebsiteTools
             key={activeProjectId}
             canUseProduct={!uploadingPhoto}
@@ -1208,6 +1252,7 @@ export function ImageStudio({
               catalog={catalog}
               labels={labels}
               onCancelJob={readOnly ? undefined : handleCancelJob}
+              onCompare={readOnly ? undefined : compareBatch}
               onOpen={(assetId) => {
                 selectAsset(assetId);
                 setViewing({ mode: "single" });
@@ -1252,6 +1297,7 @@ export function ImageStudio({
                       setTemplateUndo(null);
                       setPrompt(request.prompt);
                       setTarget({
+                        templateId: request.templateId,
                         modelIds: [request.modelId],
                         settings: request.settings,
                         useProductCutout: request.useProductCutout,
@@ -1412,6 +1458,9 @@ export function ImageStudio({
               : undefined
           }
           onClose={() => setViewing(null)}
+          onCompare={
+            !readOnly && lightboxAssets.length === 1 ? compareBatch : undefined
+          }
           onDownloadBatch={handleDownloadBatch}
           downloadingBatch={downloadingAds}
           headlineForAsset={headlineForAsset}
@@ -1439,6 +1488,7 @@ export function ImageStudio({
                   setPrompt("");
                   setTarget((current) => ({
                     ...current,
+                    templateId: undefined,
                     creativeDirection: undefined,
                     placementRatios: undefined,
                     settings: { ...settingsOf(asset), seed: null },
@@ -1505,6 +1555,23 @@ export function ImageStudio({
             }));
           }}
           siblings={state.assets}
+        />
+      ) : null}
+      {comparing ? (
+        <StudioCompare
+          batchId={comparing.batchId}
+          catalog={catalog}
+          key={`${comparing.projectId}:${comparing.batchId}`}
+          labels={labels}
+          onClose={() => setComparing(null)}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            const target = comparing.returnFocus?.isConnected
+              ? comparing.returnFocus
+              : promptRef.current;
+            target?.focus();
+          }}
+          projectId={comparing.projectId}
         />
       ) : null}
     </div>
