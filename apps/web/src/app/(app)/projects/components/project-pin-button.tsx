@@ -40,9 +40,10 @@ export function ProjectPinButton({
   const queryClient = useContext(QueryClientContext);
   const [isPending, startTransition] = useTransition();
   // Committed state, not `useOptimistic`. An optimistic value is discarded
-  // when the transition ends and falls back to `isPinned` — which on the
-  // projects list comes from the server-rendered card's `starredAt` and is
-  // never refreshed, so a Pin flipped blue and snapped straight back to grey.
+  // when the transition ends and falls back to `isPinned`. When that prop
+  // was still the value from before the write (a server-rendered `starredAt`
+  // that nothing refreshed), a Pin flipped blue and snapped straight back to
+  // grey.
   const [pinned, setPinned] = useState(isPinned);
   // Whatever the server last told us. When that changes — a navigation, a
   // refresh, a refetched Pin list — it wins over what this button remembers.

@@ -124,6 +124,7 @@ export function ThreadPanel({
   onCancelEdit,
   onSaveEdit,
   isSavingEdit = false,
+  savingMessageIds,
   pendingQuote = null,
   onClearPendingQuote,
   onSetPendingQuote,
@@ -182,6 +183,8 @@ export function ThreadPanel({
   onCancelEdit?: () => void;
   onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
+  /** Messages whose change Core has not answered yet. */
+  savingMessageIds?: ReadonlySet<string>;
   pendingQuote?: PendingRoomQuote | null;
   onClearPendingQuote?: () => void;
   onSetPendingQuote?: (quote: PendingRoomQuote) => void;
@@ -257,6 +260,7 @@ export function ThreadPanel({
       onCancelEdit,
       onSaveEdit,
       isSavingEdit: isSavingEdit && isEditing,
+      isSaving: savingMessageIds?.has(messageId) ?? false,
     };
   }
 

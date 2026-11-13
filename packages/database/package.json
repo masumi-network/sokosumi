@@ -42,7 +42,7 @@
   "scripts": {
     "prisma:generate": "pnpm exec prisma generate --no-hints",
     "prisma:migrate:dev": "pnpm exec prisma migrate dev",
-    "prisma:migrate:deploy": "pnpm exec prisma migrate deploy",
+    "prisma:migrate:deploy": "tsx scripts/migrate-deploy.ts",
     "prisma:migrate:reset": "pnpm exec prisma migrate reset",
     "prisma:check-drift": "pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma --script --exit-code",
     "prisma:studio": "pnpm exec prisma studio",

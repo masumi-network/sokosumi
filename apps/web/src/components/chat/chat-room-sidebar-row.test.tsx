@@ -1,12 +1,14 @@
 import type { ChatRoom } from "@sokosumi/core-client";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { ForesightManager } from "js.foresight";
 import {
   cloneElement,
   createContext,
   isValidElement,
   type ReactElement,
   type ReactNode,
+  type Ref,
   useContext,
   useState,
 } from "react";
@@ -49,16 +51,24 @@ vi.mock("next/link", () => ({
     children,
     href,
     className,
+    ref,
     tabIndex,
     title,
   }: {
     children: ReactNode;
     href: string;
     className?: string;
+    ref?: Ref<HTMLAnchorElement>;
     tabIndex?: number;
     title?: string;
   }) => (
-    <a href={href} className={className} tabIndex={tabIndex} title={title}>
+    <a
+      href={href}
+      className={className}
+      ref={ref}
+      tabIndex={tabIndex}
+      title={title}
+    >
       {children}
     </a>
   ),
@@ -524,6 +534,34 @@ describe("ChatRoomSidebarRow unread threads", () => {
     );
 
     expect(document.querySelector('[data-slot="room-thread-rows"]')).toBeNull();
+  });
+
+  it("watches the room link for an approach, but not the open room or rows being reordered", () => {
+    const watched = () =>
+      ForesightManager.instance.registeredElements.has(
+        screen.getByRole("link", { name: /general/ }),
+      );
+    const row = (reorderHandle?: ReactNode, isActive = false) => (
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={isActive}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+        reorderHandle={reorderHandle}
+      />
+    );
+    const view = render(row());
+    expect(watched()).toBe(true);
+
+    view.rerender(row(<button type="button">Move</button>));
+    expect(watched()).toBe(false);
+
+    view.rerender(row());
+    expect(watched()).toBe(true);
+    view.rerender(row(undefined, true));
+    expect(watched()).toBe(false);
   });
 
   it("lists nothing under a room with no unread thread", () => {
@@ -1380,7 +1418,7 @@ describe("ChatRoomSidebarRow leave menu", () => {
     expect(toast.success).toHaveBeenCalledWith("You left general.");
     expect(notifyMock).toHaveBeenCalledWith({ removedRoomId: "room-1" });
     expect(replaceMock).toHaveBeenCalledWith(CHAT_CHATS_LIST_PATH);
-    expect(refreshMock).toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 });
 

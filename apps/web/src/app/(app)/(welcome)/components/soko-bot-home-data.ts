@@ -1,8 +1,13 @@
-import type {
-  ChatCatchUpItem,
-  ChatRoom,
-  TaskListItem,
+import {
+  type ChatCatchUpItem,
+  type ChatRoom,
+  type SokoBotState,
+  SokoBotStatus,
+  type TaskListItem,
 } from "@sokosumi/core-client";
+import type { NeedsYouLead } from "@/app/projects/components/needs-you-panel-list";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
+import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 
 type TeamTask = Pick<
   TaskListItem,
@@ -27,6 +32,35 @@ export function findSokoBotDirectRoom(
         room.sokoBotMembers[0]?.id === sokoBotId,
     ) ?? null
   );
+}
+
+/**
+ * Home's Needs you row for a bot in error. A failed chat reply in a room the
+ * reader belongs to opens that reply, Direct or channel alike; anything else
+ * (scheduled or event work, a room they cannot open) says the bot could not
+ * finish its work and opens the bot's page, which lists its turns.
+ */
+export function sokoBotFailureLead(
+  bot: { name: string; status: SokoBotStatus },
+  lastFailure: SokoBotState["lastFailure"] | null,
+  t: (
+    key: "failedReply" | "failedWork" | "openChat" | "openBot",
+    values?: { name: string },
+  ) => string,
+): NeedsYouLead | undefined {
+  if (bot.status !== SokoBotStatus.ERROR) return undefined;
+  const name = { name: bot.name };
+  return lastFailure?.roomId && lastFailure.messageId
+    ? {
+        title: t("failedReply", name),
+        detail: t("openChat"),
+        href: chatRoomMessageHref(lastFailure.roomId, lastFailure.messageId),
+      }
+    : {
+        title: t("failedWork", name),
+        detail: t("openBot", name),
+        href: SOKO_BOT_ROUTE,
+      };
 }
 
 /** A Task the team moved in the last day, as one row of the home. */

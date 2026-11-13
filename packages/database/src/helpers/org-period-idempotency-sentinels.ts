@@ -187,7 +187,7 @@ async function listLeftoverMemberPeriodRows(
   `;
 }
 
-export async function collectOrgPeriodSentinelSpecs(
+async function collectOrgPeriodSentinelSpecs(
   prisma: PrismaClient | Prisma.TransactionClient,
   params: { debug?: SentinelDebugLog; organizationId?: string } = {},
 ): Promise<{
@@ -256,7 +256,7 @@ export async function collectOrgPeriodSentinelSpecs(
   };
 }
 
-export async function listExistingOrgPeriodFingerprints(
+async function listExistingOrgPeriodFingerprints(
   prisma: PrismaClient | Prisma.TransactionClient,
   referenceIds: readonly OrgPeriodIdempotencyReferenceId[],
 ): Promise<Set<OrgPeriodIdempotencyReferenceId>> {

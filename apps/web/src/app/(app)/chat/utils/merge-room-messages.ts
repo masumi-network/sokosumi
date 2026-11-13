@@ -1,4 +1,5 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
+import { isStaleSokoBotReply } from "@sokosumi/utils";
 import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
 import {
   isFailedMentionThoughtShell,
@@ -139,6 +140,14 @@ export function mergeRoomMessages(
     // message, so keep the existing object when nothing in it changed.
     const existingById = byId.get(message.id);
     if (existingById != null && isSameMessage(existingById, message)) {
+      continue;
+    }
+    // A delayed older copy of a Soko Bot reply (`isStaleSokoBotReply`) would
+    // hide its Try again or a fresh Retry's answer until the next refresh.
+    if (
+      existingById != null &&
+      isStaleSokoBotReply(existingById.metadata, message.metadata)
+    ) {
       continue;
     }
     byId.set(message.id, message);

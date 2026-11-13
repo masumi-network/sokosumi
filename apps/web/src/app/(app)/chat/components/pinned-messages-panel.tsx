@@ -96,7 +96,11 @@ export function PinnedMessagesPanel({
   onJump,
   onUnpin,
 }: PinnedMessagesPanelProps) {
-  const [items, setItems] = useState<ChatRoomPinnedMessageListItem[]>([]);
+  const [loadedItems, setItems] = useState<ChatRoomPinnedMessageListItem[]>([]);
+  const [unpinningIds, setUnpinningIds] = useState<readonly string[]>([]);
+  const items = loadedItems.filter(
+    (item) => !unpinningIds.includes(item.messageId),
+  );
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
@@ -202,15 +206,22 @@ export function PinnedMessagesPanel({
               className="text-muted-foreground relative z-[1] size-10 md:size-8 shrink-0"
               aria-label={labels.unpin}
               onClick={() => {
-                void (async () => {
-                  const removed = await onUnpin(item.messageId);
-                  if (!removed) {
-                    return;
-                  }
-                  setItems((current) =>
-                    current.filter((pin) => pin.messageId !== item.messageId),
-                  );
-                })();
+                // The row leaves at once and comes back if the write is refused.
+                setUnpinningIds((current) => [...current, item.messageId]);
+                void onUnpin(item.messageId)
+                  .catch(() => false)
+                  .then((removed) => {
+                    if (removed) {
+                      setItems((current) =>
+                        current.filter(
+                          (pin) => pin.messageId !== item.messageId,
+                        ),
+                      );
+                    }
+                    setUnpinningIds((current) =>
+                      current.filter((id) => id !== item.messageId),
+                    );
+                  });
               }}
             >
               <PinOff className="size-4" />

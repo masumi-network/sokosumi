@@ -371,7 +371,8 @@ describe("useRoomTyping", () => {
     });
 
     // Second entry while the first authorize is still pending.
-    act(() => {
+    // Async: the shared authorize starts a microtask after it is asked for.
+    await act(async () => {
       connectedHandler()?.();
     });
 
