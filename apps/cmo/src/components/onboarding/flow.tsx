@@ -14,7 +14,7 @@ import { subscribeOffer } from "../app/paused";
 import { hostOf } from "../brand-profile";
 import { Logo } from "../logo";
 import { StartOver } from "../start-over";
-import { topUpOffer } from "../top-up";
+import { skipOffer, topUpOffer } from "../top-up";
 import { type AnswerInput, type OnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
 import { CheckoutStep } from "./checkout-step";
@@ -205,6 +205,13 @@ export function OnboardingFlow({
     setOverview(await actions.answerBrandQuestion(input));
   };
   const topUp = topUpOffer(overview, actions.startTopUp);
+  // A tester continues without a subscription; the refresh moves the
+  // wizard on once Core counts his Tester credits.
+  const skip = skipOffer(overview, async () => {
+    const { error } = await actions.skipSubscription();
+    if (!error) await refresh();
+    return error;
+  });
   // A Cuso hired with Starter credits can run out before his plan: the
   // monthly plans, cheapest first, as in the app (Polar lets him switch).
   const subscribe = subscribeOffer(overview, () =>
@@ -270,6 +277,7 @@ export function OnboardingFlow({
             }}
             topUp={topUp}
             subscribe={subscribe}
+            skip={skip}
           />
         ) : step === "brand" ? (
           <BrandStep
@@ -297,6 +305,7 @@ export function OnboardingFlow({
             }}
             topUp={topUp}
             subscribe={subscribe}
+            skip={skip}
           />
         ) : step === "plan" ? (
           <PlanStep
@@ -325,12 +334,14 @@ export function OnboardingFlow({
             }
             topUp={topUp}
             subscribe={subscribe}
+            skip={skip}
           />
         ) : step === "checkout" ? (
           <CheckoutStep
             plans={plans}
             phase={position.step === "checkout" ? position.phase : "choosing"}
             onCheckout={actions.startPlanCheckout}
+            skip={skip}
             onShowPlans={() => {
               setConfirming(false);
               // The person pressed Launch to get to Polar on some device.

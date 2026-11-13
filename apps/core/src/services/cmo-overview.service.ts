@@ -12,6 +12,7 @@ import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
   type CmoBilling,
   isCmoSubscribed,
+  maySkipCmoSubscription,
   readCmoBilling,
 } from "@/services/cmo-billing.service";
 import { cmoBrandMedia } from "@/services/cmo-brand-media.service";
@@ -172,6 +173,8 @@ export interface CmoOverview {
     availableCredits: number;
     /** This member may change the plan and open the portal. */
     viewerCanManage: boolean;
+    /** This person is a tester who may continue without a subscription now. */
+    maySkipSubscription: boolean;
   };
   /** Real post counts by status from Project Social; no invented metrics. */
   posts: Record<string, number>;
@@ -298,21 +301,23 @@ export async function getCmoOverview(
   // Up next is what is carried out: the approved version's calendar.
   const running = approved ? planOf(approved) : strategy;
   const web = getWebAppBaseUrl().replace(/\/+$/, "");
-  const [credits, viewerCanApprove, billing] = await Promise.all([
-    buildCreditsPayload({
-      userId,
-      organizationId: payer.organizationId,
-      referenceId: payer.referenceId,
-      projectId: cuso.projectId,
-      tx: prisma,
-    }),
-    mayApproveMarketingStrategy(userId, {
-      id: cuso.workspaceId,
-      userId: null,
-      organizationId: payer.organizationId,
-    }),
-    readCmoBilling(cuso.projectId),
-  ]);
+  const [credits, viewerCanApprove, billing, maySkipSubscription] =
+    await Promise.all([
+      buildCreditsPayload({
+        userId,
+        organizationId: payer.organizationId,
+        referenceId: payer.referenceId,
+        projectId: cuso.projectId,
+        tx: prisma,
+      }),
+      mayApproveMarketingStrategy(userId, {
+        id: cuso.workspaceId,
+        userId: null,
+        organizationId: payer.organizationId,
+      }),
+      readCmoBilling(cuso.projectId),
+      maySkipCmoSubscription(userId, cuso.projectId),
+    ]);
   const subscribed = await isCmoSubscribed(cuso);
   const mediaOf = (plan: typeof strategy) =>
     cmoCalendarMedia({
@@ -435,6 +440,7 @@ export async function getCmoOverview(
       availableCredits: credits.spendable,
       // Owners and admins, as for approving the strategy (ADR 0061).
       viewerCanManage: viewerCanApprove,
+      maySkipSubscription,
     },
     posts: Object.fromEntries(
       postGroups.map((group) => [group.status, group._count._all]),

@@ -4,6 +4,7 @@ CREATE TYPE "PolarSubscriptionKind" AS ENUM ('CMO');
 -- AlterEnum
 ALTER TYPE "CreditBucketReferenceType" ADD VALUE 'POLAR_SUBSCRIPTION_MONTH';
 ALTER TYPE "CreditBucketReferenceType" ADD VALUE 'PROJECT_TOP_UP';
+ALTER TYPE "CreditBucketReferenceType" ADD VALUE 'CMO_TESTER_CREDITS';
 
 -- CreateTable
 CREATE TABLE "polar_subscription" (

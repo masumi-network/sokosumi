@@ -448,6 +448,7 @@ const TOP_UP_TITLE_BY_SOURCE: Record<string, string> = {
   FREE: "Free credits",
   POLAR_SUBSCRIPTION_MONTH: "CMO plan credits",
   PROJECT_TOP_UP: "Project top-up",
+  CMO_TESTER_CREDITS: "CMO tester credits",
 };
 
 /**

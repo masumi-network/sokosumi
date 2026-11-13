@@ -10,6 +10,7 @@ import {
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
+import { isOnEmailAllowlist } from "@/helpers/email-allowlist";
 import { getUserWorkspace } from "@/helpers/user-workspaces";
 import prisma from "@/lib/db/prisma";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
@@ -551,16 +552,7 @@ async function requireNoUnpaidCuso(userId: string): Promise<void> {
  * else in CMO stays open to whoever already works with a Cuso.
  */
 export async function mayHireCuso(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { email: true },
-  });
-  const email = user?.email.trim().toLowerCase();
-  if (!email) return false;
-  const domain = email.slice(email.lastIndexOf("@"));
-  return getEnv().CMO_HIRE_ALLOWLIST.some(
-    (entry) => entry === email || entry === domain,
-  );
+  return await isOnEmailAllowlist(userId, getEnv().CMO_HIRE_ALLOWLIST);
 }
 
 /**

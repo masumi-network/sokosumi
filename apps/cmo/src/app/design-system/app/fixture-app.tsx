@@ -10,6 +10,7 @@ const actions: CmoAppActions = {
   // The same data every time, so the app's polling never changes the screen.
   loadState: async () => ({ overview, messages }),
   sendMessage: async () => {},
+  skipSubscription: async () => ({ error: null }),
   loadPieceText: async (id) =>
     overview.strategy?.calendar.find((entry) => entry.id === id)?.draft ?? null,
   approveStrategy: async () => overview,

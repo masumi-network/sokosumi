@@ -54,6 +54,7 @@ import {
   setAdCampaignStatus,
   skipBrandQuestions,
   skippedSteps,
+  skipSubscription,
   startOver,
   startPlanCheckout,
   startTopUp,
@@ -316,6 +317,7 @@ export async function Home({ searchParams, view }: HomeProps) {
           startPlanCheckout: startPlanCheckout.bind(null, projectId),
           startOver: startOver.bind(null, projectId),
           startTopUp: startTopUp.bind(null, projectId),
+          skipSubscription: skipSubscription.bind(null, projectId),
           signOut,
         }}
       />
@@ -353,6 +355,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         loadAdCampaigns: loadAdCampaigns.bind(null, projectId),
         startOver: startOver.bind(null, projectId),
         startTopUp: startTopUp.bind(null, projectId),
+        skipSubscription: skipSubscription.bind(null, projectId),
         // Outside hiring the monthly plans, cheapest first; Polar's checkout
         // lets the person switch.
         subscribe: startPlanCheckout.bind(null, projectId, "month"),

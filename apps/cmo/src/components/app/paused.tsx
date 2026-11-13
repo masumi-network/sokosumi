@@ -3,7 +3,12 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
 import { AGENT_NAME } from "../../lib/agent";
-import { type StartTopUp, TopUpButton } from "../top-up";
+import {
+  type SkipSubscription,
+  SkipSubscriptionButton,
+  type StartTopUp,
+  TopUpButton,
+} from "../top-up";
 import { type OpenPortal, PortalButton } from "./subscription-card";
 
 /** Why Cuso is paused, as the way out: a plan to buy or a payment to fix. */
@@ -36,12 +41,15 @@ export function PausedBanner({
   billing,
   subscribe,
   openPortal,
+  skip = null,
 }: {
   pause: CmoPause;
   billing: CmoOverview["billing"];
   /** Starts the CMO plan checkout. */
   subscribe: StartTopUp;
   openPortal: OpenPortal;
+  /** Continues without a subscription, for a tester Core allows it. */
+  skip?: SkipSubscription | null;
 }) {
   return (
     <div className="banner" role="status">
@@ -52,6 +60,7 @@ export function PausedBanner({
           <span className="muted">He starts again once a plan is paid.</span>
           <span className="sp" />
           <TopUpButton startTopUp={subscribe} label="Subscribe" />
+          {skip ? <SkipSubscriptionButton skip={skip} /> : null}
         </>
       ) : (
         <>

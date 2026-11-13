@@ -7,6 +7,7 @@ import { useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { CusoAvatar } from "../cuso";
 import { money } from "../strategy-core";
+import { type SkipSubscription, SkipSubscriptionButton } from "../top-up";
 import type { CheckoutPhase } from "./step";
 
 type Interval = CmoSubscriptionPlan["interval"];
@@ -32,6 +33,8 @@ interface CheckoutStepProps {
   ) => Promise<{ url: string | null; error: string | null }>;
   /** Back from the confirming state to the plans. */
   onShowPlans: () => void;
+  /** Continues without a subscription, for a tester Core allows it. */
+  skip?: SkipSubscription | null;
 }
 
 /**
@@ -45,6 +48,7 @@ export function CheckoutStep({
   phase,
   onCheckout,
   onShowPlans,
+  skip = null,
 }: CheckoutStepProps) {
   const [interval, setInterval] = useState<Interval>("month");
   const [picked, setPicked] = useState<string | null>(null);
@@ -170,6 +174,7 @@ export function CheckoutStep({
           <p className="ob-small muted">
             You pay on Polar's checkout page, where you can still switch plans.
           </p>
+          {skip ? <SkipSubscriptionButton skip={skip} /> : null}
         </>
       )}
     </section>

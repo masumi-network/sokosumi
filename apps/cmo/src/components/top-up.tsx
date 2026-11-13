@@ -68,9 +68,12 @@ export function TopUpButton({
 export function OutOfCredits({
   topUp,
   subscribe = null,
+  skip = null,
 }: {
   topUp: StartTopUp | null;
   subscribe?: StartTopUp | null;
+  /** Without a top-up: a tester continues without a subscription. */
+  skip?: SkipSubscription | null;
 }) {
   const offer = topUp ?? subscribe;
   return (
@@ -89,6 +92,48 @@ export function OutOfCredits({
           className="button button-secondary button-small"
           label={topUp ? "Top up" : "Subscribe"}
         />
+      ) : null}
+      {!topUp && skip ? <SkipSubscriptionButton skip={skip} /> : null}
+    </>
+  );
+}
+
+/** Continues a Cuso without a subscription; a refusal comes back as text. */
+export type SkipSubscription = () => Promise<string | null>;
+
+/**
+ * The skip for this Cuso, or null: Core says whether this person, a tester,
+ * may continue him without a subscription now (ADR 0068).
+ */
+export function skipOffer(
+  overview: Pick<CmoOverview, "billing">,
+  skip: SkipSubscription,
+): SkipSubscription | null {
+  return overview.billing.maySkipSubscription ? skip : null;
+}
+
+/** The testers' quiet way past the subscription. */
+export function SkipSubscriptionButton({ skip }: { skip: SkipSubscription }) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <>
+      <button
+        type="button"
+        className="button button-ghost button-small"
+        disabled={pending}
+        onClick={() =>
+          startTransition(async () => {
+            setError(await skip());
+          })
+        }
+      >
+        {pending ? "Continuing…" : "Continue without a subscription (testers)"}
+      </button>
+      {error ? (
+        <span className="note" role="alert">
+          {error}
+        </span>
       ) : null}
     </>
   );

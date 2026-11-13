@@ -87,6 +87,7 @@ export function cmoBilling(
     availableCredits: 40,
     viewerCanManage: true,
     hiredWithStarterCredits: false,
+    maySkipSubscription: false,
     ...patch,
   };
 }

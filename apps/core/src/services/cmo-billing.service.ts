@@ -1,21 +1,29 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import { cmoMayExecute, getSokoBotVersion } from "@sokosumi/soko-bot";
+import { getEnv } from "@/config/env";
+import { isOnEmailAllowlist } from "@/helpers/email-allowlist";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
 import { getCmoCatalog } from "@/services/cmo-catalog.service";
 import {
+  CmoConflictError,
   CmoForbiddenError,
+  CmoNotFoundError,
   type Cuso,
+  type CusoTarget,
   cmoBusinessNameFromUrl,
   cmoPayer,
   findCusoForBot,
   LIVE_CUSO_WHERE,
+  requireCuso,
 } from "@/services/cmo-cuso.service";
 import {
   approvedMarketingStrategy,
   mayApproveMarketingStrategy,
 } from "@/services/marketing-strategy.service";
 
+/** Starter credits are FREE buckets, told apart only by this note. */
 const STARTER_CREDITS_NOTE = "CMO.xyz starter credits";
 
 /** Names the grant after the hire's Project, so each hire got it once. */
@@ -24,17 +32,37 @@ function starterCreditsNote(projectId: string): string {
 }
 
 /**
+ * Starter credits (by their note) or Tester credits (by their type), of all
+ * Projects or one: what a Cuso works on without a CMO subscription. The gate,
+ * free hiring, the unpaid-Cuso rule and the hiring steps all read both
+ * through this.
+ */
+function cusoFreeCreditsWhere(
+  projectId?: string,
+): Prisma.CreditBucketWhereInput {
+  return {
+    OR: [
+      {
+        referenceType: CreditBucketReferenceType.FREE,
+        referenceNote: projectId
+          ? starterCreditsNote(projectId)
+          : { startsWith: STARTER_CREDITS_NOTE },
+      },
+      {
+        referenceType: CreditBucketReferenceType.CMO_TESTER_CREDITS,
+        ...(projectId && { projectId }),
+      },
+    ],
+  };
+}
+
+/**
  * A Cuso's Project that never had a CMO subscription (any status, ended or
- * not) and was not hired with Starter credits: nobody paid for him yet.
+ * not) and never got Starter or Tester credits: nobody paid for him yet.
  */
 const UNPAID_CUSO_PROJECT_WHERE = {
   polarSubscriptions: { none: {} },
-  creditBuckets: {
-    none: {
-      referenceType: CreditBucketReferenceType.FREE,
-      referenceNote: { startsWith: STARTER_CREDITS_NOTE },
-    },
-  },
+  creditBuckets: { none: cusoFreeCreditsWhere() },
 } satisfies Prisma.ProjectWhereInput;
 
 /** An unpaid Cuso's Project whose strategy is not approved yet (Launch). */
@@ -81,7 +109,27 @@ export async function isCmoSubscribed(
 ): Promise<boolean> {
   const { projectId } = cuso;
   if (await isEvalCusoProject(projectId)) return true;
-  const [subscription, freeHiring, starterBuckets] = await Promise.all([
+  const [paid, freeHiring] = await Promise.all([
+    cmoPaidFor(projectId, now, db),
+    db.project.findFirst({
+      where: { id: projectId, ...FREE_HIRING_PROJECT_WHERE },
+      select: { id: true },
+    }),
+  ]);
+  return paid.subscribed || paid.freeCreditsLeft || freeHiring !== null;
+}
+
+/**
+ * What pays for the Cuso: an active CMO subscription (a scheduled cancel
+ * counts until the period ends; past due and ended do not), and Starter or
+ * Tester credits not used up.
+ */
+async function cmoPaidFor(
+  projectId: string,
+  now: Date,
+  db: Pick<Prisma.TransactionClient, "polarSubscription" | "creditBucket">,
+): Promise<{ subscribed: boolean; freeCreditsLeft: boolean }> {
+  const [subscription, freeBuckets] = await Promise.all([
     db.polarSubscription.findFirst({
       where: {
         projectId,
@@ -91,28 +139,121 @@ export async function isCmoSubscribed(
       },
       select: { id: true },
     }),
-    db.project.findFirst({
-      where: { id: projectId, ...FREE_HIRING_PROJECT_WHERE },
-      select: { id: true },
-    }),
     db.creditBucket.findMany({
       where: {
-        referenceType: CreditBucketReferenceType.FREE,
-        referenceNote: starterCreditsNote(projectId),
-        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        AND: [
+          cusoFreeCreditsWhere(projectId),
+          { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+        ],
       },
       select: { amount: true, consumptions: { select: { amount: true } } },
     }),
   ]);
-  return (
-    subscription !== null ||
-    freeHiring !== null ||
-    starterBuckets.some(
+  return {
+    subscribed: subscription !== null,
+    freeCreditsLeft: freeBuckets.some(
       (bucket) =>
         bucket.consumptions.reduce((spent, c) => spent + c.amount, 0n) <
         bucket.amount,
-    )
+    ),
+  };
+}
+
+/** What a tester's skip gives a Cuso, as a hire before CMO plans got. */
+export const CMO_TESTER_CREDITS = 10_000;
+
+/**
+ * Whether this person may continue the Cuso without a subscription: on
+ * `CMO_SUBSCRIPTION_SKIP_ALLOWLIST`, while nothing pays for him (no active
+ * subscription, no Starter or Tester credits left).
+ */
+export async function maySkipCmoSubscription(
+  userId: string,
+  projectId: string,
+  now: Date = new Date(),
+): Promise<boolean> {
+  if (
+    !(await isOnEmailAllowlist(
+      userId,
+      getEnv().CMO_SUBSCRIPTION_SKIP_ALLOWLIST,
+    ))
+  ) {
+    return false;
+  }
+  const paid = await cmoPaidFor(projectId, now, prisma);
+  return !paid.subscribed && !paid.freeCreditsLeft;
+}
+
+/**
+ * A tester continues the Cuso without a subscription: his Project gets
+ * Tester credits, which the gate, free hiring, the ending's write-off and
+ * the hiring steps treat as Starter credits. Repeatable once they are used
+ * up; refused while a subscription or such credits pay for him.
+ */
+export async function skipCmoSubscription(input: CusoTarget): Promise<void> {
+  const cuso = await requireCuso(input);
+  if (
+    !(await isOnEmailAllowlist(
+      input.userId,
+      getEnv().CMO_SUBSCRIPTION_SKIP_ALLOWLIST,
+    ))
+  ) {
+    throw new CmoForbiddenError(
+      "Only testers may continue without a subscription",
+    );
+  }
+  const { organizationId } = await cmoPayer(cuso);
+  const granted = await grantCmoTesterCredits({
+    projectId: cuso.projectId,
+    organizationId,
+  });
+  if (granted === "not_live") {
+    throw new CmoNotFoundError("Cuso is not hired yet");
+  }
+  if (granted === "paid") {
+    throw new CmoConflictError(
+      "This Cuso can work already: a subscription or credits pay for him",
+    );
+  }
+}
+
+/**
+ * Gives a Cuso's Project Tester credits, while he is live and nothing pays
+ * for him yet: main's Starter credit grant, now with its own type and a fresh
+ * reference per grant, so it repeats once they are used up. They are Project
+ * credits that never expire and end with the Cuso (ADR 0067).
+ *
+ * Like `writeOffUnlessLiveCuso`, the liveness check is a write to Cuso's
+ * row, inside a Serializable transaction: Start over's archive and a second
+ * grant (a double click) both write it, so whichever comes second fails on
+ * the row and runs again, then sees the Cuso ended or the credits granted.
+ */
+export async function grantCmoTesterCredits(input: {
+  projectId: string;
+  organizationId: string;
+}): Promise<"granted" | "not_live" | "paid"> {
+  const { freeCreditAdminService } = await import(
+    "@/services/free-credit-admin.service"
   );
+  return await serializableTransaction(async (tx) => {
+    const { count } = await tx.sokoBot.updateMany({
+      where: { ...LIVE_CUSO_WHERE, projectId: input.projectId },
+      data: { updatedAt: new Date() },
+    });
+    if (count === 0) return "not_live";
+    const paid = await cmoPaidFor(input.projectId, new Date(), tx);
+    if (paid.subscribed || paid.freeCreditsLeft) return "paid";
+    await freeCreditAdminService.grantFreeCredits({
+      target: { targetType: "organization", targetId: input.organizationId },
+      projectId: input.projectId,
+      credits: CMO_TESTER_CREDITS,
+      ttlDays: null,
+      referenceNote: "CMO tester credits",
+      referenceType: CreditBucketReferenceType.CMO_TESTER_CREDITS,
+      tx,
+    });
+    return "granted";
+  }, "The credits raced another write to this Cuso");
 }
 
 /**
@@ -150,8 +291,9 @@ export interface CmoBilling {
   /** The tier a scheduled downgrade moves to at the next period. */
   pendingTier: string | null;
   /**
-   * Hired before CMO plans (ADR 0068): his Project was granted Starter
-   * credits, spent or not, so his hiring ends without a checkout.
+   * His Project was granted Starter credits (hired before CMO plans) or
+   * Tester credits (a tester's skip), spent or not, so his hiring ends
+   * without a checkout (ADR 0068).
    */
   hiredWithStarterCredits: boolean;
 }
@@ -183,10 +325,7 @@ export async function readCmoBilling(projectId: string): Promise<CmoBilling> {
       },
     }),
     prisma.creditBucket.findFirst({
-      where: {
-        referenceType: CreditBucketReferenceType.FREE,
-        referenceNote: starterCreditsNote(projectId),
-      },
+      where: cusoFreeCreditsWhere(projectId),
       select: { id: true },
     }),
   ]);

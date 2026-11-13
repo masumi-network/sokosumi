@@ -44382,6 +44382,10 @@ export const CmoOverviewSchema = {
                 hiredWithStarterCredits: {
                     type: 'boolean',
                     description: 'Hired before CMO plans: this Cuso was granted Starter credits, so his hiring ends without a checkout.'
+                },
+                maySkipSubscription: {
+                    type: 'boolean',
+                    description: 'The caller is on CMO_SUBSCRIPTION_SKIP_ALLOWLIST and nothing pays for this Cuso (no active CMO subscription, no Starter or Tester credits left): CMO offers to continue without a subscription.'
                 }
             },
             required: [
@@ -44393,7 +44397,8 @@ export const CmoOverviewSchema = {
                 'pendingTier',
                 'availableCredits',
                 'viewerCanManage',
-                'hiredWithStarterCredits'
+                'hiredWithStarterCredits',
+                'maySkipSubscription'
             ],
             description: 'Cuso\'s CMO plan, read from his Project\'s CMO subscription that has not ended; the plan fields are null without one.'
         },
@@ -51951,7 +51956,7 @@ export const TransactionHistoryTopUpItemSchema = {
                 'string',
                 'null'
             ],
-            description: '`CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE, POLAR_SUBSCRIPTION_MONTH, PROJECT_TOP_UP). Null when no bucket records one.',
+            description: '`CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE, POLAR_SUBSCRIPTION_MONTH, PROJECT_TOP_UP, CMO_TESTER_CREDITS). Null when no bucket records one.',
             example: 'STRIPE_TOPUP'
         },
         refundedJobId: {

@@ -35,7 +35,7 @@ import { BusinessMark } from "../business-mark";
 import { CusoAvatar } from "../cuso";
 import { MarketingToday } from "../marketing-today";
 import { SubmitButton } from "../submit-button";
-import type { StartTopUp } from "../top-up";
+import type { SkipSubscription, StartTopUp } from "../top-up";
 import { type Answer, QuestionCard, useAnswers } from "./questions";
 import { Refusal } from "./refusal";
 import { SidePanel, Tile } from "./tiles";
@@ -205,6 +205,8 @@ interface BrandStepProps {
   topUp?: StartTopUp | null;
   /** The plan checkout, set when Cuso is paused without a CMO plan. */
   subscribe?: StartTopUp | null;
+  /** Continues without a subscription, for a tester Core allows it. */
+  skip?: SkipSubscription | null;
 }
 
 /** What Cuso learned, as the founder's brand: a promise, six tiles, a side panel. */
@@ -218,6 +220,7 @@ export function BrandStep({
   ahead,
   topUp = null,
   subscribe = null,
+  skip = null,
 }: BrandStepProps) {
   const brain = overview.brandBrain as BrandBrain;
   const profile = brandProfile(brain);
@@ -349,7 +352,12 @@ export function BrandStep({
         </div>
       </div>
       {refusal ? (
-        <Refusal text={refusal} topUp={topUp} subscribe={subscribe} />
+        <Refusal
+          text={refusal}
+          topUp={topUp}
+          subscribe={subscribe}
+          skip={skip}
+        />
       ) : null}
 
       <div className="panel ob-brand-panel">

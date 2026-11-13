@@ -186,6 +186,14 @@ describe("CMO hire allowlist", () => {
     vi.stubEnv("CMO_HIRE_ALLOWLIST", value);
     expect(validateEnv().CMO_HIRE_ALLOWLIST).toEqual(entries);
   });
+
+  it("parses the subscription skip allowlist the same way", () => {
+    vi.stubEnv("CMO_SUBSCRIPTION_SKIP_ALLOWLIST", " Tester@Acme.io , @QA.io,");
+    expect(validateEnv().CMO_SUBSCRIPTION_SKIP_ALLOWLIST).toEqual([
+      "tester@acme.io",
+      "@qa.io",
+    ]);
+  });
 });
 
 describe("Turnstile deployment configuration", () => {

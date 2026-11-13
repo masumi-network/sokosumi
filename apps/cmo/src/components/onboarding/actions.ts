@@ -84,6 +84,8 @@ export interface OnboardingAccountActions {
   startOver: () => Promise<string | null>;
   /** Starts the checkout for a Project top-up of this Cuso. */
   startTopUp: StartTopUp;
+  /** A tester continues without a subscription; a refusal comes back as text. */
+  skipSubscription: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -133,6 +135,7 @@ export function inertOnboardingActions(
     startPlanCheckout: unavailable,
     startOver: async () => null,
     startTopUp: unavailable,
+    skipSubscription: async () => ({ error: null }),
     signOut: async () => {},
   };
 }

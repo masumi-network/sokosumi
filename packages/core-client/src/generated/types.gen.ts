@@ -11638,6 +11638,10 @@ export type CmoOverview = {
          * Hired before CMO plans: this Cuso was granted Starter credits, so his hiring ends without a checkout.
          */
         hiredWithStarterCredits: boolean;
+        /**
+         * The caller is on CMO_SUBSCRIPTION_SKIP_ALLOWLIST and nothing pays for this Cuso (no active CMO subscription, no Starter or Tester credits left): CMO offers to continue without a subscription.
+         */
+        maySkipSubscription: boolean;
     };
     posts: {
         draft: number;
@@ -13684,7 +13688,7 @@ export type TransactionHistoryTopUpItem = {
     owner: TransactionHistoryOwner | null;
     kind: 'topUp';
     /**
-     * `CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE, POLAR_SUBSCRIPTION_MONTH, PROJECT_TOP_UP). Null when no bucket records one.
+     * `CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE, POLAR_SUBSCRIPTION_MONTH, PROJECT_TOP_UP, CMO_TESTER_CREDITS). Null when no bucket records one.
      */
     bucketSource: string | null;
     /**
@@ -77502,6 +77506,98 @@ export type StartCmoOverForProjectResponses = {
 };
 
 export type StartCmoOverForProjectResponse = StartCmoOverForProjectResponses[keyof StartCmoOverForProjectResponses];
+
+export type SkipCmoSubscriptionForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/skip-subscription';
+};
+
+export type SkipCmoSubscriptionForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The caller is not on the skip allowlist
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * A subscription or credits already pay for this Cuso, or another write raced this one
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SkipCmoSubscriptionForProjectError = SkipCmoSubscriptionForProjectErrors[keyof SkipCmoSubscriptionForProjectErrors];
+
+export type SkipCmoSubscriptionForProjectResponses = {
+    /**
+     * Tester credits granted; reload the overview
+     */
+    200: {
+        data: {
+            skipped: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SkipCmoSubscriptionForProjectResponse = SkipCmoSubscriptionForProjectResponses[keyof SkipCmoSubscriptionForProjectResponses];
 
 export type SetCmoAdBudgetForProjectData = {
     body?: CmoAdBudgetRequest;

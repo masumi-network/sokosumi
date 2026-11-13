@@ -14,7 +14,7 @@ import { hostOf } from "../brand-profile";
 import { CusoAvatar } from "../cuso";
 import { CusoClip } from "../cuso-clip";
 import { SubmitButton } from "../submit-button";
-import type { StartTopUp } from "../top-up";
+import type { SkipSubscription, StartTopUp } from "../top-up";
 import { brandTiles, tileSource } from "./brand-step";
 import {
   Checklist,
@@ -60,6 +60,8 @@ interface SiteStepProps {
   topUp?: StartTopUp | null;
   /** The plan checkout, set when Cuso is paused without a CMO plan. */
   subscribe?: StartTopUp | null;
+  /** Continues without a subscription, for a tester Core allows it. */
+  skip?: SkipSubscription | null;
 }
 
 /**
@@ -80,6 +82,7 @@ export function SiteStep({
   onReply,
   topUp = null,
   subscribe = null,
+  skip = null,
 }: SiteStepProps) {
   const brain = overview.brandBrain;
   const work = overview.work?.kind === "research" ? overview.work : null;
@@ -242,7 +245,12 @@ export function SiteStep({
           <div className="card card-focus ob-says">
             <CusoAvatar pose="needs-you" size={96} />
             {noCredits ? (
-              <Refusal text="credits" topUp={topUp} subscribe={subscribe} />
+              <Refusal
+                text="credits"
+                topUp={topUp}
+                subscribe={subscribe}
+                skip={skip}
+              />
             ) : (
               <p className="ob-value">
                 {found && found.saved > 0
@@ -254,6 +262,7 @@ export function SiteStep({
               onRetry={onRetry}
               topUp={topUp}
               subscribe={subscribe}
+              skip={skip}
             />
           </div>
         ) : asked ? (

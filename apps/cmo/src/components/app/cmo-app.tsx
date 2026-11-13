@@ -22,7 +22,7 @@ import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
 import { CusoAvatar, type Pose } from "../cuso";
 import { StatusText } from "../status";
-import { type StartTopUp, TopUpButton, topUpOffer } from "../top-up";
+import { type StartTopUp, skipOffer, TopUpButton, topUpOffer } from "../top-up";
 import { CalendarPage } from "./calendar-page";
 import {
   BrandBrainCard,
@@ -100,6 +100,8 @@ export interface CmoAppActions extends AdActions {
   startTopUp: StartTopUp;
   /** Starts the CMO plan checkout, for a paused Cuso or from Settings. */
   subscribe: StartTopUp;
+  /** A tester continues without a subscription; a refusal comes back as text. */
+  skipSubscription: () => Promise<{ error: string | null }>;
   /** Owners and admins: another tier of the interval, and Polar's portal. */
   changePlan: ChangePlan;
   openPortal: OpenPortal;
@@ -285,6 +287,13 @@ export function CmoApp({
   };
 
   const topUp = topUpOffer(overview, actions.startTopUp);
+  // A tester continues without a subscription; the overview then shows him
+  // working on his Tester credits.
+  const skip = skipOffer(overview, async () => {
+    const { error } = await actions.skipSubscription();
+    if (!error) await refresh();
+    return error;
+  });
   const cardActions: CardActions = {
     approve: async () => setOverview(await actions.approveStrategy()),
     revert: async (id) => setOverview(await actions.revertUpdate(id)),
@@ -415,6 +424,7 @@ export function CmoApp({
             billing={overview.billing}
             subscribe={actions.subscribe}
             openPortal={actions.openPortal}
+            skip={skip}
           />
         ) : outOfCredits ? (
           <OutOfCreditsBanner topUp={topUp} />

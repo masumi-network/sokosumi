@@ -77,6 +77,7 @@ function render(overview: CmoOverview, actions: Partial<CmoAppActions>) {
         actions={{
           loadState: async () => ({ overview, messages: [] }),
           sendMessage: async () => {},
+          skipSubscription: async () => ({ error: null }),
           loadPieceText: async () => null,
           approveStrategy: same,
           setAdBudget: result,

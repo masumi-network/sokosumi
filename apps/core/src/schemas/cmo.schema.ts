@@ -428,6 +428,11 @@ export const cmoOverviewSchema = z
           .describe(
             "Hired before CMO plans: this Cuso was granted Starter credits, so his hiring ends without a checkout.",
           ),
+        maySkipSubscription: z
+          .boolean()
+          .describe(
+            "The caller is on CMO_SUBSCRIPTION_SKIP_ALLOWLIST and nothing pays for this Cuso (no active CMO subscription, no Starter or Tester credits left): CMO offers to continue without a subscription.",
+          ),
       })
       .describe(
         "Cuso's CMO plan, read from his Project's CMO subscription that has not ended; the plan fields are null without one.",

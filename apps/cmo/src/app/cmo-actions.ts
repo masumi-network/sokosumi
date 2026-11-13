@@ -42,6 +42,7 @@ import {
   revertCmoUpdateForProject,
   setCmoAdBudgetForProject,
   setCmoAdCampaignStatusForProject,
+  skipCmoSubscriptionForProject,
   startCmoOnboarding,
   startCmoOverForProject,
   startCmoPlanCheckoutForProject,
@@ -919,6 +920,26 @@ export async function startTopUp(
     };
   }
   return { url: data.data.url, error: null };
+}
+
+/**
+ * A tester continues this Cuso without a subscription: Core gives his Project
+ * Tester credits. A refusal comes back as text.
+ */
+export async function skipSubscription(projectId: string): Promise<{
+  error: string | null;
+}> {
+  const core = await requireCore();
+  const { data, error } = await skipCmoSubscriptionForProject({
+    ...core,
+    path: { projectId },
+  });
+  if (!data) {
+    return {
+      error: errorText(error, "Could not continue without a subscription"),
+    };
+  }
+  return { error: null };
 }
 
 /**

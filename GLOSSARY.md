@@ -122,6 +122,10 @@ _Avoid_: Onboarding, CMO onboarding (both collide with Identity onboarding)
 The 10,000 credits each Hiring Cuso granted before CMO subscriptions; no hire grants them any more ([ADR 0068](docs/adr/0068-cmo-sells-its-plans-through-polar.md)). They are Project credits of his Project, never expire, and are written off when he stops being live ([ADR 0067](docs/adr/0067-cuso-starter-credits-are-project-credits.md)).
 _Avoid_: Free credits (that is any admin grant), Cuso's credits (the Project's work spends them, not only Cuso), welcome credits
 
+**Tester credits**:
+The 10,000 credits a person on Core's `CMO_SUBSCRIPTION_SKIP_ALLOWLIST` gives a Cuso in place of a CMO subscription, again once they are used up. They behave like Starter credits: Project credits of his Project that never expire, open the subscription gate while unspent, and are written off when he stops being live.
+_Avoid_: Trial credits (CMO has no trial), free credits, skip credits
+
 **CMO plan**:
 One of the three tiers CMO sells, monthly or yearly: a price and the credits it grants each month.
 _Avoid_: Subscription plan (that is Sokosumi's seat-based plan), tier, package

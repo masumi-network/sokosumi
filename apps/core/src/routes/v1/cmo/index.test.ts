@@ -161,6 +161,7 @@ function overview() {
       availableCredits: 12,
       viewerCanManage: false,
       hiredWithStarterCredits: false,
+      maySkipSubscription: false,
     },
     posts: { DRAFT: 3, SCHEDULED: 1, PUBLISHING: 1, MISSED: 1 },
   };
@@ -384,6 +385,7 @@ describe("CMO routes", () => {
       availableCredits: 12,
       viewerCanManage: false,
       hiredWithStarterCredits: false,
+      maySkipSubscription: false,
     });
   });
 
@@ -477,6 +479,7 @@ describe("CMO routes", () => {
       availableCredits: 12,
       viewerCanManage: false,
       hiredWithStarterCredits: false,
+      maySkipSubscription: false,
     });
   });
 
@@ -508,6 +511,7 @@ describe("CMO routes", () => {
       availableCredits: 25_000,
       viewerCanManage: true,
       hiredWithStarterCredits: false,
+      maySkipSubscription: false,
     });
   });
 

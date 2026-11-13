@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   creditBucketFindFirst,
+  creditBucketFindMany,
   cusoFind,
+  envOverrides,
   polarSubscriptionFindFirst,
   resetCmoServiceMocks,
   seedStrategy,
@@ -76,7 +78,11 @@ vi.mock("@/config/env", async (importOriginal) =>
 const listPolarProducts = vi.hoisted(() => vi.fn());
 vi.mock("@/clients/polar.client", () => ({ listPolarProducts }));
 
-import { cmoExecutionRefusal, readCmoBilling } from "./cmo-billing.service";
+import {
+  cmoExecutionRefusal,
+  maySkipCmoSubscription,
+  readCmoBilling,
+} from "./cmo-billing.service";
 
 beforeEach(resetCmoServiceMocks);
 
@@ -202,10 +208,55 @@ describe("readCmoBilling", () => {
     expect(creditBucketFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          referenceType: "FREE",
-          referenceNote: "CMO.xyz starter credits (project project-1)",
+          OR: [
+            {
+              referenceType: "FREE",
+              referenceNote: "CMO.xyz starter credits (project project-1)",
+            },
+            { referenceType: "CMO_TESTER_CREDITS", projectId: "project-1" },
+          ],
         },
       }),
     );
+  });
+});
+
+describe("maySkipCmoSubscription", () => {
+  /** 10^10 ledger units are one credit. */
+  const CREDIT = 10_000_000_000n;
+
+  beforeEach(() => {
+    // The fixture's person is lena@harborbikes.com.
+    envOverrides.CMO_SUBSCRIPTION_SKIP_ALLOWLIST = ["@harborbikes.com"];
+  });
+
+  it("lets a tester skip while nothing pays for the Cuso", async () => {
+    expect(await maySkipCmoSubscription("user-1", "project-1")).toBe(true);
+  });
+
+  it("refuses a person who is not on the list, and everyone while it is empty", async () => {
+    envOverrides.CMO_SUBSCRIPTION_SKIP_ALLOWLIST = ["@acme.io"];
+    expect(await maySkipCmoSubscription("user-1", "project-1")).toBe(false);
+    envOverrides.CMO_SUBSCRIPTION_SKIP_ALLOWLIST = [];
+    expect(await maySkipCmoSubscription("user-1", "project-1")).toBe(false);
+  });
+
+  it("refuses while an active subscription pays for him", async () => {
+    polarSubscriptionFindFirst.mockResolvedValue({ id: "sub-1" });
+    expect(await maySkipCmoSubscription("user-1", "project-1")).toBe(false);
+  });
+
+  it("refuses while Starter or Tester credits are left, and allows it once they are spent", async () => {
+    creditBucketFindMany.mockResolvedValue([
+      { amount: 10_000n * CREDIT, consumptions: [{ amount: 4_000n * CREDIT }] },
+    ]);
+    expect(await maySkipCmoSubscription("user-1", "project-1")).toBe(false);
+    creditBucketFindMany.mockResolvedValue([
+      {
+        amount: 10_000n * CREDIT,
+        consumptions: [{ amount: 10_000n * CREDIT }],
+      },
+    ]);
+    expect(await maySkipCmoSubscription("user-1", "project-1")).toBe(true);
   });
 });

@@ -16,6 +16,18 @@ const minimumBuildSchema = z.preprocess(
  * Environment variables schema for Core API
  * This ensures the app isn't built with invalid env vars.
  */
+
+/** Full emails and `@domain` entries, comma-separated; unset or empty is none. */
+const emailAllowlistSchema = z
+  .string()
+  .default("")
+  .transform((value) =>
+    value
+      .split(",")
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean),
+  );
+
 const baseEnvSchema = z.object({
   NETWORK: z.enum(["Preprod", "Mainnet"]).default("Preprod"),
 
@@ -95,15 +107,10 @@ const baseEnvSchema = z.object({
 
   // Who may hire Cuso while CMO is invite-only: full emails and `@domain`
   // entries, comma-separated. Unset or empty means nobody may hire.
-  CMO_HIRE_ALLOWLIST: z
-    .string()
-    .default("")
-    .transform((value) =>
-      value
-        .split(",")
-        .map((entry) => entry.trim().toLowerCase())
-        .filter(Boolean),
-    ),
+  CMO_HIRE_ALLOWLIST: emailAllowlistSchema,
+  // Testers who may continue a Cuso without a CMO subscription (ADR 0068),
+  // in the same form. Unset or empty means nobody.
+  CMO_SUBSCRIPTION_SKIP_ALLOWLIST: emailAllowlistSchema,
 
   // CMO's OAuth client id: only its tokens may write through `/v1/cmo/**`
   // (ADR 0066). Unset refuses every such write.

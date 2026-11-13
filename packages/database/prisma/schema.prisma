@@ -1626,6 +1626,9 @@ enum CreditBucketReferenceType {
   POLAR_SUBSCRIPTION_MONTH
   // A Project top-up bought through Polar; referenceId "<Polar order id>:0" (ADR 0068).
   PROJECT_TOP_UP
+  // Tester credits: a skip-listed tester continued a Cuso without a CMO
+  // subscription; a fresh referenceId per grant, like FREE (ADR 0068).
+  CMO_TESTER_CREDITS
 }
 
 /// A Cuso's CMO subscription at Polar (ADR 0068). Its credits are Project
