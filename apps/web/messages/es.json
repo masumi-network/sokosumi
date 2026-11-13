@@ -281,7 +281,7 @@
           "confirm": "Confirmar",
           "cancel": "Cancelar",
           "success": "Invitación cancelada correctamente",
-          "error": "No se pudo cancelar la invitación",
+          "error": "No se pudo cancelar la invitación para {email}. Sigue pendiente.",
           "Errors": {
             "unauthorizedAction": "Iniciar sesión"
           }
@@ -402,7 +402,8 @@
             },
             "Error": {
               "share": "No se pudo actualizar el acceso compartido",
-              "copyLink": "No se pudo copiar el enlace"
+              "copyLink": "No se pudo copiar el enlace",
+              "searchIndexing": "No se guardó la indexación en buscadores. Se restableció la configuración anterior."
             },
             "Errors": {
               "unauthenticated": "Debes iniciar sesión.",
@@ -1738,6 +1739,7 @@
         "feedbackUseful": "Útil",
         "feedbackNotUseful": "No útil",
         "feedbackThanks": "Gracias, anotado.",
+        "feedbackError": "No se pudo guardar tu valoración.",
         "approvals": "{count, plural, one {# aprobación pendiente} other {# aprobaciones pendientes}}",
         "review": "Revisar en la página del asistente",
         "task": "Task",
@@ -2034,7 +2036,8 @@
           },
           "Error": {
             "share": "Failed to update task sharing",
-            "copyLink": "Failed to copy public link"
+            "copyLink": "Failed to copy public link",
+            "searchIndexing": "No se guardó la indexación en buscadores. Se restableció la configuración anterior."
           },
           "Errors": {
             "unauthenticated": "Inicia sesión para gestionar cómo se comparte la tarea",
@@ -2127,6 +2130,7 @@
         "noStatusMatches": "Ningún estado coincide",
         "untitledTask": "Tarea sin título",
         "saveError": "No se pudo guardar la tarea",
+        "createError": "No se pudo crear «{name}». Tus datos siguen en el formulario.",
         "back": "Atrás",
         "uploadFile": "Subir archivo",
         "uploadFileError": "No se pudo subir el archivo",
@@ -9182,7 +9186,9 @@
         "removeConfirmTitle": "¿Quitar a {name} de este canal?",
         "removeConfirmDescription": "{name} ya no verá este canal ni sus mensajes.",
         "removeSuccess": "Se quitó a {name} del canal.",
-        "undo": "Deshacer"
+        "removeError": "No se pudo quitar a {name} del canal.",
+        "undo": "Deshacer",
+        "undoError": "No se pudo volver a añadir a {name} al canal."
       },
       "AddMembers": {
         "title": "Añadir miembros",
@@ -9567,7 +9573,7 @@
       "GoogleSheet": {
         "button": "Vincular Google Sheet",
         "dialogTitle": "Vincular una hoja de Google",
-        "dialogDescription": "Pega el enlace de la hoja. En Google Sheets, en Compartir → Acceso general, elige «Cualquier persona con el enlace». Sokosumi guarda aquí una copia y la actualiza cada hora.",
+        "dialogDescription": "Pega el enlace de la hoja. En Google Sheets, en Compartir → Acceso general, elige «Cualquier persona con el enlace». Sokosumi guarda aquí el PDF de Google y lo actualiza cada hora.",
         "linkLabel": "Enlace de Google Sheets",
         "link": "Vincular",
         "linking": "Vinculando…",
@@ -9702,7 +9708,7 @@
         "bulkDeleteDescriptionSkipsTaskFiles": "Se eliminan para todos en este espacio de archivos. Los archivos de tareas se quedan con su tarea. No se puede deshacer.",
         "bulkDeleteCancel": "Cancelar",
         "bulkDeleted": "{count, plural, one {# archivo eliminado} other {# archivos eliminados}}",
-        "bulkDeletePartial": "{deleted} eliminados, {failed} fallaron y siguen seleccionados",
+        "bulkDeletePartial": "{deleted} eliminados. No se {failed, plural, one {pudo eliminar # archivo} other {pudieron eliminar # archivos}}. Inténtalo de nuevo.",
         "detailLoading": "Cargando archivo",
         "detailProcessing": "Procesamiento",
         "detailCategory": "Categoría",
@@ -9767,7 +9773,8 @@
         "collectionSaved": "Se guardó «{name}»",
         "collectionUpdated": "Se actualizó «{name}»",
         "collectionSaveFailed": "No se pudo guardar esa colección.",
-        "collectionDeleteFailed": "No se pudo eliminar esa colección.",
+        "collectionRenameFailed": "No se pudo cambiar el nombre de «{name}». El nuevo nombre no se guardó.",
+        "collectionDeleteFailed": "No se pudo eliminar «{name}». La colección vuelve a estar en su lugar.",
         "collectionsUnavailable": "No se pudieron cargar las colecciones.",
         "labelsUnavailable": "No se pudieron cargar las categorías ni las etiquetas.",
         "collectionActions": "Acciones para {name}",
@@ -9942,6 +9949,8 @@
         },
         "Settings": {
           "titleLabel": "Título",
+          "welcomeLabel": "Nota de bienvenida",
+          "welcomeHint": "Se muestra en la página de bienvenida al abrir la sala. Se mantienen los saltos de línea.",
           "logoLabel": "Logo",
           "noLogo": "Sin logo",
           "logoHint": "Una imagen de esta sala, junto al título.",
@@ -10742,7 +10751,10 @@
         "csv": "Comprueba las comillas y los separadores del archivo CSV.",
         "csvHeaders": "Asigna un encabezado no vacío a cada columna del CSV.",
         "csvWidth": "Todas las filas del CSV deben tener el mismo número de columnas.",
-        "layout": "El diseño de columnas no se guardó y se restableció. {reason}"
+        "layout": "El diseño de columnas no se guardó y se restableció. {reason}",
+        "archiveRows": "{count, plural, one {No se pudo archivar # fila. Vuelve a estar en la tabla.} other {No se pudieron archivar # filas. Vuelven a estar en la tabla.}} {reason}",
+        "restoreRows": "{count, plural, one {No se pudo restaurar # fila. Vuelve a estar en las filas archivadas.} other {No se pudieron restaurar # filas. Vuelven a estar en las filas archivadas.}} {reason}",
+        "cellNotSaved": "Tu valor no se guardó. Vuelve a estar en el editor. {reason}"
       },
       "reorderColumn": "Reordenar {column}. Arrastra o pulsa las flechas izquierda y derecha.",
       "reorderRow": "Reordenar fila. Arrastra o pulsa las flechas arriba y abajo.",
@@ -11094,6 +11106,7 @@
         "linkCopied": "Enlace copiado",
         "archive": "Archivar contacto",
         "archived": "{name} archivado",
+        "archiveFailed": "No se pudo archivar a {name}. El contacto vuelve a estar en tu lista.",
         "changeStage": "Etapa: {stage}. Cambiar etapa",
         "changeLists": "Cambiar listas",
         "addToList": "Añadir a una lista",
@@ -11101,6 +11114,8 @@
         "noManualLists": "Todavía no hay listas.",
         "newList": "Nueva lista…",
         "newListAddFailed": "{list} está creada, pero {name} aún no está en ella.",
+        "addToListFailed": "No se pudo añadir a {name} a {list}. El contacto vuelve a estar fuera de la lista.",
+        "removeFromListFailed": "No se pudo quitar a {name} de {list}. El contacto vuelve a estar en la lista.",
         "empty": "Añadir…",
         "location": "Ubicación",
         "nextStepTitle": "Próximo paso",
@@ -11403,8 +11418,6 @@
       "signOut": "Cerrar sesión",
       "empty": "Todavía no hay nada en esta sala de datos.",
       "indexLabel": "Contenido",
-      "pickFile": "Elige un archivo para abrirlo.",
-      "new": "Nuevo",
       "download": "Descargar",
       "watermarkNote": "Las páginas e imágenes que abres llevan tu correo y la hora.",
       "downloadToOpen": "Este archivo no se puede mostrar aquí. Descárgalo para abrirlo.",
@@ -11416,7 +11429,11 @@
       "awaitingAnswer": "Esperando respuesta",
       "askLabel": "Pregunta sobre este documento",
       "ask": "Preguntar",
-      "askFailed": "No se pudo enviar tu pregunta. Inténtalo de nuevo."
+      "askFailed": "No se pudo enviar tu pregunta. Inténtalo de nuevo.",
+      "welcome": "Bienvenida",
+      "welcomeTitle": "Te damos la bienvenida a {title}",
+      "contents": "{files, plural, one {# documento} other {# documentos}}{folders, plural, =0 {} one { en # carpeta} other { en # carpetas}}",
+      "openFirst": "Abrir {name}"
     }
   },
   "NotFound": {

@@ -4,9 +4,10 @@ import { Download, ExternalLink, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { DriveSpreadsheet } from "@/app/drive/components/drive-spreadsheet";
+import { GoogleSheetBar } from "@/app/drive/components/google-sheet-bar";
 import { CapTableFileView } from "@/components/cap-table/cap-table-view";
 import Markdown from "@/components/markdown";
+import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
 import { TeamFileView } from "@/components/team/team-view";
 import { Button } from "@/components/ui/button";
 import { isCapTableFileName } from "@/lib/cap-table-file";
@@ -232,17 +233,14 @@ export function DriveFilePreview({
         {actions}
       </div>
 
+      <GoogleSheetBar resourceId={resourceId} store={store} />
+
       {isTeam ? (
         <TeamFileView url={source} />
       ) : isCapTable ? (
         <CapTableFileView url={source} />
       ) : sheet ? (
-        <DriveSpreadsheet
-          resourceId={resourceId}
-          store={store}
-          url={source}
-          kind={sheet}
-        />
+        <SpreadsheetFileView url={source} kind={sheet} />
       ) : rendersAsImage(type) ? (
         // Not `next/image`: the bytes come from an authorized route with a
         // per-request check, not from an optimizable public asset.
