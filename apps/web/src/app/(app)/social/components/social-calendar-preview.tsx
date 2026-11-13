@@ -71,6 +71,7 @@ export function SocialCalendarPreviewProvider({
     post: SocialPost;
     connections: ProjectSocialConnection[];
     queueSlots?: SocialQueueSlot[];
+    readOnly: boolean;
   } | null>(null);
 
   async function show(projectId: string, postId: string, trigger: HTMLElement) {
@@ -171,6 +172,7 @@ export function SocialCalendarPreviewProvider({
           queueSlots={target.queueSlots}
           posts={[target.post]}
           projectId={target.post.projectId}
+          readOnly={target.readOnly}
           selectedPostId={target.post.id}
           previewOnly
           returnFocus={() => triggerRef.current?.focus({ preventScroll: true })}

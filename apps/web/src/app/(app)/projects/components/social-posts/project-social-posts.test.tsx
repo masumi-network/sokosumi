@@ -252,6 +252,8 @@ const MESSAGES: Record<string, string> = {
   "composer.unknownHandle": "Unknown X account",
   "composer.scheduledAt": "Scheduled time",
   "composer.saveDraft": "Save draft",
+  "toasts.draftTimeNotKept":
+    "Draft saved without its time. Edit it to pick the time again.",
   "composer.keptOnDraft":
     "Save draft keeps this time. Connect an account to schedule it.",
   plannedFor: "Planned for {date}",
@@ -4144,6 +4146,62 @@ describe("ProjectSocialPosts", () => {
     expect(publishProjectSocialPost).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      "fails",
+      () =>
+        vi.mocked(updateProjectSocialPost).mockResolvedValueOnce({
+          ok: false,
+          error: { code: "INTERNAL_ERROR", message: "Core down" },
+        }),
+    ],
+    [
+      "rejects",
+      () =>
+        vi
+          .mocked(updateProjectSocialPost)
+          .mockRejectedValueOnce(new Error("network")),
+    ],
+  ])(
+    "saves a timed draft once when its time %s, so Save draft never makes a copy",
+    async (_outcome, failTime) => {
+      freezeClock();
+      failTime();
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = screen.getByRole("dialog");
+      await user.type(within(dialog).getByLabelText("Text"), "Fresh");
+      await pickInAnHour(user, dialog);
+      await user.click(
+        within(dialog).getByRole("button", { name: "Save draft" }),
+      );
+
+      // The draft exists: the composer closes and lists it, and says its
+      // time is missing, so there is no Save draft left to press twice.
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+      expect(createProjectSocialPost).toHaveBeenCalledTimes(1);
+      expect(updateProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({ postId: "post-new" }),
+      );
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Draft saved without its time. Edit it to pick the time again.",
+      );
+      expect(toastSuccessMock).toHaveBeenCalledWith("Draft saved.");
+      expect(screen.getByTestId("social-post-post-new")).toBeInTheDocument();
+      expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+    },
+  );
+
   it("shows a draft's kept time and restores it when scheduling", async () => {
     const user = userEvent.setup();
     const keptAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
@@ -4889,6 +4947,30 @@ describe("ProjectSocialPosts", () => {
         socialConnectionId: "connection-1",
       });
       expect(toastSuccessMock).toHaveBeenCalledWith("Added to the queue.");
+    },
+  );
+
+  it.each([false, true])(
+    "offers Retry in a shared preview only off a CMO Project (readOnly %s)",
+    (readOnly) => {
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[FAILED_POST]}
+          projectId={PROJECT_ID}
+          readOnly={readOnly}
+          selectedPostId={FAILED_POST.id}
+          previewOnly
+        />,
+      );
+      const dialog = screen.getByRole("dialog");
+      expect(
+        within(dialog).queryByRole("button", { name: "Retry" }) !== null,
+      ).toBe(!readOnly);
+      expect(
+        within(dialog).queryByRole("button", { name: /^Post actions/ }) !==
+          null,
+      ).toBe(!readOnly);
     },
   );
 

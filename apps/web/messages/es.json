@@ -2892,7 +2892,8 @@
           "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}",
           "duplicated": "Borrador creado.",
           "queued": "{count, plural, one {Añadida a la cola.} other {# publicaciones añadidas a la cola.}}",
-          "approved": "Publicación aprobada."
+          "approved": "Publicación aprobada.",
+          "draftTimeNotKept": "Borrador guardado sin su hora. Edítalo para volver a elegir la hora."
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
         "needsReconnectLink": "Volver a conectar la cuenta",

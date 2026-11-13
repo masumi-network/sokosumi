@@ -13945,6 +13945,10 @@ export type WorkspaceCalendarSource = {
 export type WorkspaceSocialPost = {
     post: SocialPost;
     projectName: string;
+    /**
+     * The post's Project is a CMO Project, so its posts are read-only outside CMO (ADR 0066).
+     */
+    projectCmo: boolean;
 };
 
 export type CalendarIdentityLabels = Array<CalendarIdentityLabel>;

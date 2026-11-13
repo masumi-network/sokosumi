@@ -15,6 +15,7 @@ import {
   listWorkspaceSocialPostsQuerySchema,
   workspaceSocialPostSchema,
 } from "@/schemas/social-post.schema";
+import { cmoProjectIds } from "@/services/cmo-cuso.service";
 import { listWorkspaceSocialPosts } from "@/services/social-posts.service";
 
 import {
@@ -58,13 +59,14 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         cursor,
         limit,
       });
-      const projects = await prisma.project.findMany({
-        where: {
-          workspaceId,
-          id: { in: [...new Set(posts.map((post) => post.projectId))] },
-        },
-        select: { id: true, name: true },
-      });
+      const projectIds = [...new Set(posts.map((post) => post.projectId))];
+      const [projects, cmoProjects] = await Promise.all([
+        prisma.project.findMany({
+          where: { workspaceId, id: { in: projectIds } },
+          select: { id: true, name: true },
+        }),
+        cmoProjectIds(projectIds),
+      ]);
       const names = new Map(
         projects.map((project) => [project.id, project.name]),
       );
@@ -74,6 +76,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
           posts.map((post) => ({
             post: presentSocialPost(post, userContext.coworkerId),
             projectName: names.get(post.projectId) ?? "",
+            projectCmo: cmoProjects.has(post.projectId),
           })),
         ),
         pagination,

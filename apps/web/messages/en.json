@@ -2892,7 +2892,8 @@
           "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}",
           "duplicated": "Draft created.",
           "queued": "{count, plural, one {Added to the queue.} other {# posts added to the queue.}}",
-          "approved": "Post approved."
+          "approved": "Post approved.",
+          "draftTimeNotKept": "Draft saved without its time. Edit it to pick the time again."
         },
         "needsReconnect": "Account needs reconnecting",
         "needsReconnectLink": "Reconnect the account",

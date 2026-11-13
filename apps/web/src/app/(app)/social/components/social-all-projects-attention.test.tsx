@@ -50,6 +50,7 @@ describe("SocialAllProjectsAttention", () => {
     const user = userEvent.setup();
     setup([
       {
+        projectCmo: false,
         projectName: "Spring bakery launch",
         post: post({
           id: "failed",
@@ -64,6 +65,7 @@ describe("SocialAllProjectsAttention", () => {
         }),
       },
       {
+        projectCmo: false,
         projectName: "Autumn menu",
         post: post({
           id: "approval",
@@ -96,6 +98,7 @@ describe("SocialAllProjectsAttention", () => {
   it("offers Open, not Retry, on a post that cannot be retried", () => {
     setup([
       {
+        projectCmo: false,
         projectName: "Spring bakery launch",
         post: post({ status: "MISSED", canPublishNow: false }),
       },
@@ -109,6 +112,28 @@ describe("SocialAllProjectsAttention", () => {
     expect(screen.queryByRole("button", { name: /^Retry/ })).toBeNull();
   });
 
+  it("offers only Open on a CMO Project's posts", () => {
+    setup([
+      {
+        projectCmo: true,
+        projectName: "Managed by CMO",
+        post: post({ id: "cmo-failed" }),
+      },
+      {
+        projectCmo: true,
+        projectName: "Managed by CMO",
+        post: post({ id: "cmo-approval", status: "NEEDS_APPROVAL" }),
+      },
+    ]);
+
+    expect(
+      screen.getAllByRole("button", { name: "Open: post in Managed by CMO" }),
+    ).toHaveLength(2);
+    expect(
+      screen.queryByRole("button", { name: /^(Retry|Review)/ }),
+    ).toBeNull();
+  });
+
   it("says when nothing needs attention, and when the list is cut short", () => {
     const { unmount } = setup([]);
     expect(
@@ -116,7 +141,16 @@ describe("SocialAllProjectsAttention", () => {
     ).toBeVisible();
     unmount();
 
-    setup([{ projectName: "Spring bakery launch", post: post({}) }], true);
+    setup(
+      [
+        {
+          projectCmo: false,
+          projectName: "Spring bakery launch",
+          post: post({}),
+        },
+      ],
+      true,
+    );
     expect(
       screen.getByText(
         "Showing the latest 1. Choose a project to see all of its posts.",

@@ -49,7 +49,7 @@ export function SocialAllProjectsAttention({
         className="space-y-2"
         data-testid="social-all-attention"
       >
-        {items.map(({ post, projectName }) => {
+        {items.map(({ post, projectName, projectCmo }) => {
           const approval = post.status === "NEEDS_APPROVAL";
           const reason = post.needsAttentionReason
             ? socialPostQuoteAttentionCopy(post.needsAttentionReason, t)
@@ -65,13 +65,18 @@ export function SocialAllProjectsAttention({
             post.lastAttempt?.finishedAt ??
             post.lastAttemptAt ??
             post.scheduledAt;
+          // CMO writes a CMO Project's posts: they open read-only here too.
           const retry =
-            !approval && post.canPublishNow && isProviderEnabled(post.provider);
-          const label = approval
-            ? tSocial("review")
-            : retry
-              ? t("actions.retry")
-              : tSocial("open");
+            !projectCmo &&
+            !approval &&
+            post.canPublishNow &&
+            isProviderEnabled(post.provider);
+          const label =
+            approval && !projectCmo
+              ? tSocial("review")
+              : retry
+                ? t("actions.retry")
+                : tSocial("open");
           return (
             <li
               className="bg-background border-border flex flex-wrap items-start gap-3 rounded-lg border p-3"

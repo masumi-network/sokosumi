@@ -52752,11 +52752,16 @@ export const WorkspaceSocialPostSchema = {
         },
         projectName: {
             type: 'string'
+        },
+        projectCmo: {
+            type: 'boolean',
+            description: 'The post\'s Project is a CMO Project, so its posts are read-only outside CMO (ADR 0066).'
         }
     },
     required: [
         'post',
-        'projectName'
+        'projectName',
+        'projectCmo'
     ]
 } as const;
 

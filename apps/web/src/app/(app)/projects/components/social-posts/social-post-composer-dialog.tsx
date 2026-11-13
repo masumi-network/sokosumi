@@ -1118,10 +1118,12 @@ export function SocialPostComposerDialog({
           postId: draft.value.id,
           ...keptTime,
           revision: draft.value.revision,
-        });
-        // Keep the saved draft visible when its time could not be kept.
-        if (!timed.ok) handleSaved(draft.value);
-        return timed;
+        }).catch(() => null);
+        if (timed?.ok) return timed;
+        // The draft exists, so it counts as saved: Save draft again would
+        // make a second copy. Say the time is missing; Edit sets it again.
+        toast.error(t("toasts.draftTimeNotKept"));
+        return draft;
       });
       if (created === 0) return;
       rememberCreateAccounts();

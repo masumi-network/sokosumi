@@ -2892,7 +2892,8 @@
           "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}",
           "duplicated": "Entwurf erstellt.",
           "queued": "{count, plural, one {Zur Warteschlange hinzugefügt.} other {# Beiträge zur Warteschlange hinzugefügt.}}",
-          "approved": "Beitrag genehmigt."
+          "approved": "Beitrag genehmigt.",
+          "draftTimeNotKept": "Entwurf ohne seine Zeit gespeichert. Bearbeite ihn, um die Zeit erneut zu wählen."
         },
         "needsReconnect": "Konto muss neu verbunden werden",
         "needsReconnectLink": "Konto erneut verbinden",

@@ -8,11 +8,13 @@ import type { WorkspaceContext } from "@/middleware/workspace";
 import mountListWorkspaceSocialPosts from "./get.js";
 
 const {
+  cmoProjectIdsMock,
   listWorkspaceSocialPostsMock,
   projectFindManyMock,
   requireAuthorizedUserContextMock,
   requireCoworkerCapabilityMock,
 } = vi.hoisted(() => ({
+  cmoProjectIdsMock: vi.fn(),
   listWorkspaceSocialPostsMock: vi.fn(),
   projectFindManyMock: vi.fn(),
   requireAuthorizedUserContextMock: vi.fn(),
@@ -21,6 +23,9 @@ const {
 
 vi.mock("@/services/social-posts.service", () => ({
   listWorkspaceSocialPosts: listWorkspaceSocialPostsMock,
+}));
+vi.mock("@/services/cmo-cuso.service", () => ({
+  cmoProjectIds: cmoProjectIdsMock,
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: { project: { findMany: projectFindManyMock } },
@@ -128,6 +133,7 @@ describe("GET /workspaces/social-posts", () => {
     projectFindManyMock.mockResolvedValue([
       { id: PROJECT_ID, name: "Spring launch" },
     ]);
+    cmoProjectIdsMock.mockResolvedValue(new Set());
     requireAuthorizedUserContextMock.mockResolvedValue({
       userId: USER_ID,
       organizationId: null,
@@ -144,6 +150,7 @@ describe("GET /workspaces/social-posts", () => {
     expect(body.data).toEqual([
       expect.objectContaining({
         projectName: "Spring launch",
+        projectCmo: false,
         post: expect.objectContaining({
           id: failedPost.id,
           status: "FAILED",
@@ -162,6 +169,17 @@ describe("GET /workspaces/social-posts", () => {
       where: { workspaceId: WORKSPACE_ID, id: { in: [PROJECT_ID] } },
       select: { id: true, name: true },
     });
+  });
+
+  it("marks a CMO Project's posts so the list keeps them read-only", async () => {
+    cmoProjectIdsMock.mockResolvedValue(new Set([PROJECT_ID]));
+
+    const response = await createApp().request("http://localhost/social-posts");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0].projectCmo).toBe(true);
+    expect(cmoProjectIdsMock).toHaveBeenCalledWith([PROJECT_ID]);
   });
 
   it("keeps publish now human-only for a Coworker", async () => {
