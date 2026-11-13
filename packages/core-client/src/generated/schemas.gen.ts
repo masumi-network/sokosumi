@@ -42649,12 +42649,50 @@ export const ProjectSeoMonitorRuleSchema = {
             minLength: 1,
             maxLength: 100
         },
+        intervalDays: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    minimum: 2,
+                    maximum: 365
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'A Run every N days from anchorAt, else null'
+        },
+        anchorAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'First Run of an intervalDays rule, else null'
+        },
         endsMode: {
             type: 'string',
             enum: [
                 'AFTER',
-                'NEVER'
+                'NEVER',
+                'ON'
             ]
+        },
+        endsOn: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Last possible Run when endsMode is ON, else null'
         },
         targetRunCount: {
             anyOf: [

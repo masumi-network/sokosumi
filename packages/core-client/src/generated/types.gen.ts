@@ -11138,7 +11138,19 @@ export type ProjectSeoMonitor = {
 export type ProjectSeoMonitorRule = {
     expr: string;
     timezone: string;
-    endsMode: 'AFTER' | 'NEVER';
+    /**
+     * A Run every N days from anchorAt, else null
+     */
+    intervalDays?: number | null;
+    /**
+     * First Run of an intervalDays rule, else null
+     */
+    anchorAt?: Date | null;
+    endsMode: 'AFTER' | 'NEVER' | 'ON';
+    /**
+     * Last possible Run when endsMode is ON, else null
+     */
+    endsOn?: Date | null;
     /**
      * Total Runs when endsMode is AFTER, else null
      */

@@ -4399,6 +4399,16 @@ const projectSeoAnalysisSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const projectSeoMonitorRuleSchemaResponseTransformer = (data: any) => {
+    if (data.anchorAt) {
+        data.anchorAt = new Date(data.anchorAt);
+    }
+    if (data.endsOn) {
+        data.endsOn = new Date(data.endsOn);
+    }
+    return data;
+};
+
 const projectSeoMonitorLastRunSchemaResponseTransformer = (data: any) => {
     data.at = new Date(data.at);
     return data;
@@ -4415,6 +4425,7 @@ const projectSeoMonitorSchemaResponseTransformer = (data: any) => {
     if (data.nextRunAt) {
         data.nextRunAt = new Date(data.nextRunAt);
     }
+    data.rule = projectSeoMonitorRuleSchemaResponseTransformer(data.rule);
     if (data.lastRun) {
         data.lastRun = projectSeoMonitorLastRunSchemaResponseTransformer(data.lastRun);
     }
