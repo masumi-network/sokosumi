@@ -19,8 +19,8 @@ import type { CmoCheckoutMetadata } from "@/services/cmo-subscription.service";
  * grant reads (`cmoCheckoutMetadataSchema`).
  *
  * shortcut: two checkouts opened before either is paid can both be paid;
- * the second subscription is then reported and gets no row
- * (`cmo_subscription_project_live_key`). Refund it by hand in Polar.
+ * the second subscription is then revoked at Polar, reported and gets no
+ * row (`cmo_subscription_project_live_key`). Refund it by hand in Polar.
  */
 export async function startCmoPlanCheckout(
   input: CusoTarget & {

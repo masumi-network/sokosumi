@@ -5,7 +5,10 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 import { err, ok, type Result } from "neverthrow";
 import { z } from "zod";
 
-import type { PolarWebhookEvent } from "@/clients/polar.client";
+import {
+  type PolarWebhookEvent,
+  revokePolarSubscription,
+} from "@/clients/polar.client";
 import { writeOffCreditBucketsById } from "@/helpers/cuso-project-credits";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
@@ -69,6 +72,12 @@ type CmoSubscriptionRow = {
   organizationId: string;
 };
 
+/** Why an event can make no row: reported with what else it knows. */
+interface UnusableEvent {
+  issue: string;
+  extra?: Record<string, unknown>;
+}
+
 interface CmoPlanOfProduct {
   credits: number;
   interval: "month" | "year";
@@ -120,7 +129,7 @@ function planOfProduct(
  */
 async function upsertCmoSubscription(
   source: SubscriptionSource,
-): Promise<Result<CmoSubscriptionRow, string>> {
+): Promise<Result<CmoSubscriptionRow, UnusableEvent>> {
   const { eventAt, plan, subscription } = source;
   const where = { polarSubscriptionId: subscription.id };
   const state = {
@@ -156,19 +165,21 @@ async function upsertCmoSubscription(
   if (stored) return ok(stored);
 
   const metadata = cmoCheckoutMetadataSchema.safeParse(source.metadata);
-  if (!metadata.success) return err("no CMO checkout metadata");
+  if (!metadata.success) return err({ issue: "no CMO checkout metadata" });
   const { organizationId, projectId } = metadata.data;
   if (
     source.externalCustomerId &&
     source.externalCustomerId !== organizationId
   ) {
-    return err("the Polar customer is not the organization of the checkout");
+    return err({
+      issue: "the Polar customer is not the organization of the checkout",
+    });
   }
   const project = await prisma.project.findFirst({
     where: { id: projectId, workspace: { organizationId } },
     select: { id: true },
   });
-  if (!project) return err("unknown organization or Project");
+  if (!project) return err({ issue: "unknown organization or Project" });
 
   try {
     return ok(
@@ -183,7 +194,17 @@ async function upsertCmoSubscription(
     // Project already has a subscription that has not ended.
     const raced = await applyToStoredRow();
     if (raced) return ok(raced);
-    return err("the Project already has a CMO subscription that has not ended");
+    // A second paid subscription for the Project would be charged without
+    // credits: Polar ends it now, and an operator refunds it.
+    const live = await prisma.cmoSubscription.findFirst({
+      where: { projectId, endedAt: null },
+      select: { polarSubscriptionId: true },
+    });
+    await revokePolarSubscription(subscription.id);
+    return err({
+      issue: "a second CMO subscription for the Project, revoked at Polar",
+      extra: { livePolarSubscriptionId: live?.polarSubscriptionId },
+    });
   }
 }
 
@@ -219,7 +240,12 @@ export async function handlePolarSubscriptionEvent(
     revoked: event.type === "subscription.revoked",
     subscription,
   });
-  if (row.isErr()) reportUnusableEvent(event, row.error, extra);
+  if (row.isErr()) {
+    reportUnusableEvent(event, row.error.issue, {
+      ...extra,
+      ...row.error.extra,
+    });
+  }
 }
 
 /**
@@ -267,7 +293,10 @@ export async function handlePolarOrderPaid(
     subscription,
   });
   if (upserted.isErr()) {
-    reportUnusableEvent(event, upserted.error, extra);
+    reportUnusableEvent(event, upserted.error.issue, {
+      ...extra,
+      ...upserted.error.extra,
+    });
     return;
   }
   const row = upserted.value;
@@ -406,7 +435,10 @@ export async function handlePolarPlanChangePaid(
     subscription,
   });
   if (upserted.isErr()) {
-    reportUnusableEvent(event, upserted.error, extra);
+    reportUnusableEvent(event, upserted.error.issue, {
+      ...extra,
+      ...upserted.error.extra,
+    });
     return;
   }
   const row = upserted.value;

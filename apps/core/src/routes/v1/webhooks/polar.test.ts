@@ -11,12 +11,14 @@ import router from "./index";
 const CENTS_PER_CREDIT = 10_000_000_000n;
 
 const m = vi.hoisted(() => ({
+  revokePolarSubscription: vi.fn(),
   verifyPolarWebhook: vi.fn(),
   captureMessage: vi.fn(),
   prisma: {
     $transaction: vi.fn(),
     cmoSubscription: {
       create: vi.fn(),
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
       updateMany: vi.fn(),
     },
@@ -27,6 +29,7 @@ const m = vi.hoisted(() => ({
 }));
 
 vi.mock("@/clients/polar.client", () => ({
+  revokePolarSubscription: m.revokePolarSubscription,
   verifyPolarWebhook: m.verifyPolarWebhook,
 }));
 vi.mock("@/lib/auth", () => ({
@@ -476,18 +479,59 @@ describe("POST /v1/webhooks/polar", () => {
       expect(m.prisma.cmoSubscription.create).not.toHaveBeenCalled();
     });
 
-    it("reports a second live subscription for one Project and acknowledges it", async () => {
+    it.each([
+      [
+        "subscription.created",
+        subscriptionEvent("subscription.created", "2026-11-13T10:00:03.000Z"),
+      ],
+      ["order.paid", orderPaid()],
+    ])(
+      "%s of a second live subscription for one Project revokes it at Polar and grants nothing",
+      async (_type, event) => {
+        m.prisma.cmoSubscription.create.mockRejectedValue(
+          Object.assign(new Error("Unique constraint failed"), {
+            code: "P2002",
+          }),
+        );
+        m.prisma.cmoSubscription.findFirst.mockResolvedValue({
+          polarSubscriptionId: "sub_0",
+        });
+        m.verifyPolarWebhook.mockResolvedValue(event);
+
+        const response = await post();
+
+        expect(response.status).toBe(200);
+        expect(m.revokePolarSubscription).toHaveBeenCalledExactlyOnceWith(
+          "sub_1",
+        );
+        expect(m.captureMessage).toHaveBeenCalledExactlyOnceWith(
+          expect.stringContaining("second"),
+          expect.objectContaining({
+            extra: expect.objectContaining({
+              polarSubscriptionId: "sub_1",
+              livePolarSubscriptionId: "sub_0",
+            }),
+          }),
+        );
+        expect(m.prisma.transaction.create).not.toHaveBeenCalled();
+      },
+    );
+
+    it("leaves the subscription to Polar's retry when the revoke fails", async () => {
       m.prisma.cmoSubscription.create.mockRejectedValue(
         Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
       );
+      m.prisma.cmoSubscription.findFirst.mockResolvedValue({
+        polarSubscriptionId: "sub_0",
+      });
+      m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));
       m.verifyPolarWebhook.mockResolvedValue(
         subscriptionEvent("subscription.created", "2026-11-13T10:00:03.000Z"),
       );
 
       const response = await post();
 
-      expect(response.status).toBe(200);
-      expect(m.captureMessage).toHaveBeenCalledTimes(1);
+      expect(response.status).toBe(500);
     });
   });
 });
