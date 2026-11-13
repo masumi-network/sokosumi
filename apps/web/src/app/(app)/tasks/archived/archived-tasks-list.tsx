@@ -2,6 +2,7 @@
 
 import type { TaskStatus } from "@sokosumi/core-client";
 import { Archive } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -22,9 +23,20 @@ export interface ArchivedTaskRow {
   identifier: string | null;
   name: string;
   status: TaskStatus;
+  /** Project name; null when the Task has none. */
+  project: string | null;
+  /** Archive date, already formatted for the viewer. */
+  archivedOn: string | null;
 }
 
-export function ArchivedTasksList({ tasks }: { tasks: ArchivedTaskRow[] }) {
+export function ArchivedTasksList({
+  tasks,
+  query,
+}: {
+  tasks: ArchivedTaskRow[];
+  /** The search that produced `tasks`, if any. */
+  query?: string;
+}) {
   const t = useTranslations("App.Tasks.Archived");
   const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
   const router = useRouter();
@@ -66,7 +78,7 @@ export function ArchivedTasksList({ tasks }: { tasks: ArchivedTaskRow[] }) {
         <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
           <Archive className="text-muted-foreground size-6" aria-hidden />
           <p className="text-muted-foreground max-w-sm text-sm text-pretty">
-            {t("empty")}
+            {query ? t("noMatches", { query }) : t("empty")}
           </p>
         </div>
       ) : (
@@ -83,15 +95,31 @@ export function ArchivedTasksList({ tasks }: { tasks: ArchivedTaskRow[] }) {
                   "flex items-center gap-3 px-3 py-2",
                 )}
               >
-                <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
-                  <span className="truncate text-sm font-medium">
-                    {task.name}
-                  </span>
-                  <TaskStatusBadge
-                    status={task.status}
-                    label={tStatus(task.status)}
-                    className="w-fit rounded-sm"
-                  />
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+                    <Link
+                      href={`/tasks/archived/${task.id}`}
+                      className="flex min-w-0 items-baseline gap-2 text-sm font-medium hover:underline"
+                    >
+                      {task.identifier ? (
+                        <span className="text-muted-foreground shrink-0 tabular-nums">
+                          {task.identifier}
+                        </span>
+                      ) : null}
+                      <span className="truncate">{task.name}</span>
+                    </Link>
+                    <TaskStatusBadge
+                      status={task.status}
+                      label={tStatus(task.status)}
+                      className="w-fit rounded-sm"
+                    />
+                  </div>
+                  <p className="text-muted-foreground truncate text-xs">
+                    {task.project ?? t("noProject")}
+                    {task.archivedOn
+                      ? ` · ${t("archivedOn", { date: task.archivedOn })}`
+                      : null}
+                  </p>
                 </div>
                 <Button
                   size="sm"

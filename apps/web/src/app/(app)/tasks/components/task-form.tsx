@@ -90,6 +90,7 @@ import {
   TaskContextAttachmentsField,
   type TaskContextAttachmentsSelection,
 } from "./task-context-attachments";
+import { TaskCreateProgress } from "./task-create-progress";
 import { TaskCreatedCelebration } from "./task-created-celebration";
 import { TaskDraftTags } from "./task-draft-tags";
 import { TaskFormModalHeaderStart } from "./task-form-modal";
@@ -1426,6 +1427,15 @@ export function TaskForm({
             onOpenChange={setIsCreateProjectModalOpen}
             initialName={createProjectQuery}
             onCreated={handleProjectCreated}
+          />
+        ) : null}
+
+        {showTaskStep && mode === "create" ? (
+          <TaskCreateProgress
+            active={isSubmitting}
+            needsName={!name.trim()}
+            tagsReady={Boolean(draftTags.tagSuggestionReceipt)}
+            isCopy={isCopy}
           />
         ) : null}
 

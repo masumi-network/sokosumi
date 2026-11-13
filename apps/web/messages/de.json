@@ -1777,7 +1777,13 @@
         "restoreNamed": "{name} wiederherstellen",
         "restored": "{name} ist wieder auf dem Board",
         "open": "Öffnen",
-        "restoreError": "Die Aufgabe konnte nicht wiederhergestellt werden. Versuche es erneut."
+        "restoreError": "Die Aufgabe konnte nicht wiederhergestellt werden. Versuche es erneut.",
+        "searchLabel": "Archivierte Aufgaben durchsuchen",
+        "searchPlaceholder": "Nach Name suchen",
+        "noMatches": "Keine archivierten Aufgaben passen zu „{query}“.",
+        "noProject": "Kein Projekt",
+        "archivedOn": "Archiviert am {date}",
+        "readOnly": "Archivierte Aufgaben sind schreibgeschützt. Stelle diese wieder her, um sie zu bearbeiten oder auszuführen."
       },
       "NotFound": {
         "title": "Diese Aufgabe ist nicht da",
@@ -2170,7 +2176,15 @@
         "close": "Schließen",
         "privateLabel": "Privat",
         "privateDescription": "Für andere Workspace-Mitglieder ausgeblendet. Weiterhin sichtbar für dich, deinen Soko Bot und den zugewiesenen Coworker.",
-        "privateOtherPeopleHint": "Private Aufgaben können nicht an andere Personen gehen. Schalte Privat aus, um ein Teammitglied zuzuweisen."
+        "privateOtherPeopleHint": "Private Aufgaben können nicht an andere Personen gehen. Schalte Privat aus, um ein Teammitglied zuzuweisen.",
+        "Progress": {
+          "title": "Aufgabe wird erstellt…",
+          "naming": "Name aus deinen Angaben ableiten",
+          "tagging": "Tags vorschlagen",
+          "tagsReady": "Tags vorgeschlagen",
+          "saving": "Aufgabe speichern",
+          "keepOpen": "Lass dieses Fenster offen, bis „Aufgabe erstellt“ erscheint."
+        }
       },
       "EditTask": {
         "title": "Task bearbeiten",

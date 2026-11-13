@@ -1777,7 +1777,13 @@
         "restoreNamed": "Restore {name}",
         "restored": "{name} is back on the board",
         "open": "Open",
-        "restoreError": "Couldn't restore this task. Try again."
+        "restoreError": "Couldn't restore this task. Try again.",
+        "searchLabel": "Search archived tasks",
+        "searchPlaceholder": "Search by name",
+        "noMatches": "No archived tasks match “{query}”.",
+        "noProject": "No project",
+        "archivedOn": "Archived {date}",
+        "readOnly": "Archived tasks are read-only. Restore this one to edit or run it."
       },
       "NotFound": {
         "title": "This task isn’t here",
@@ -2170,7 +2176,15 @@
         "close": "Close",
         "privateLabel": "Private",
         "privateDescription": "Hidden from other workspace members. Still visible to you, your Soko Bot, and the assigned coworker.",
-        "privateOtherPeopleHint": "Private tasks cannot go to other people. Turn Private off to assign a teammate."
+        "privateOtherPeopleHint": "Private tasks cannot go to other people. Turn Private off to assign a teammate.",
+        "Progress": {
+          "title": "Creating your task…",
+          "naming": "Name it from your details",
+          "tagging": "Suggest tags",
+          "tagsReady": "Tags suggested",
+          "saving": "Save the task",
+          "keepOpen": "Keep this open until it says Task created."
+        }
       },
       "EditTask": {
         "title": "Edit task",

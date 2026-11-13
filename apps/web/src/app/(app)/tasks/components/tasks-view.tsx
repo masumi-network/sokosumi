@@ -29,7 +29,6 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
-import { NewTaskButton } from "@/app/components/new-task-button.client";
 import { loadMoreTasksColumn, loadMoreTasksList } from "@/app/tasks/actions";
 import {
   KANBAN_COLUMNS,
@@ -830,14 +829,6 @@ export function TasksView({
     shownItems.length === 0 &&
     isTaskPaginationInSync &&
     hasClearableTasksFilters(routeFilters, activeOrganizationId);
-  // A board with nothing on it gets the list's empty state and its New task
-  // button, not five "No tasks" columns.
-  const showEmptyBoard =
-    viewMode === "board" &&
-    shownItems.length === 0 &&
-    isTaskPaginationInSync &&
-    !showFilteredEmpty &&
-    Object.values(columnHiddenById).every((count) => !count);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
   const handleClearFilters = () => {
@@ -901,13 +892,6 @@ export function TasksView({
                       {tTasks("Filters.clear")}
                     </Button>
                   }
-                />
-              </div>
-            ) : showEmptyBoard ? (
-              <div className="bg-card-background flex flex-1 items-center justify-center rounded-xl">
-                <EmptyState
-                  description={labels.listPlaceholder}
-                  action={<NewTaskButton />}
                 />
               </div>
             ) : isMounted ? (
