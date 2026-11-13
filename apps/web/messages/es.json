@@ -12377,7 +12377,8 @@
         "cancelBrandTerms": "Cancelar",
         "brandSaved": "Términos de marca guardados",
         "noQueryData": "Este tipo de búsqueda no tiene datos de consultas",
-        "noQueryDataBody": "Para Discover y Google News no se leen consultas. Los clics y las impresiones de este tipo aparecen arriba."
+        "noQueryDataBody": "Para Discover y Google News no se leen consultas. Los clics y las impresiones de este tipo aparecen arriba.",
+        "keyEventsNotRead": "No leído: comparte una ruta de página de destino con otra página seleccionada"
       },
       "export": {
         "csv": "Descargar CSV",

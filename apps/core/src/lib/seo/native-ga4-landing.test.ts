@@ -182,7 +182,25 @@ describe("GA4 key events per landing page", () => {
       ],
     });
     expect(plan.query.pageUrls).toEqual(["https://example.com/shop?ref=nav"]);
+    expect(plan.skippedUrls).toEqual([
+      "https://example.com/",
+      "https://blog.example.com/",
+    ]);
     expect(plan.note).toBe(GA4_SHARED_LANDING_PATH_NOTE);
-    expect(ga4LandingPlan(query)).toEqual({ query, note: null });
+    expect(ga4LandingPlan(query)).toEqual({
+      query,
+      skippedUrls: [],
+      note: null,
+    });
+    // The left-out pages stay named in the stored read, apart from pages without sessions.
+    const landing = normalizeGa4LandingPages(
+      plan.query,
+      report([["/shop?ref=nav", "4", "1"]]),
+      plan.skippedUrls,
+    );
+    expect(landing.skippedUrls).toEqual(plan.skippedUrls);
+    expect(
+      normalizeGa4LandingPages(query, report([["/", "4", "1"]])),
+    ).not.toHaveProperty("skippedUrls");
   });
 });

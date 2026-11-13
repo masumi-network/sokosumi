@@ -188,6 +188,22 @@ describe("SEO Traffic key events", () => {
     expect(topPagesTable()).toHaveTextContent(/Key events \(organic\) Jan 1/);
   });
 
+  it("says a page left out of the landing read was not read", () => {
+    const workspace = twoPageWorkspace();
+    workspace.landingPages = {
+      ...landingPages([{ pageUrl: "https://example.com/shop", keyEvents: 3 }]),
+      skippedUrls: ["https://example.com/"],
+    };
+    renderTraffic(workspace);
+    const table = within(topPagesTable());
+    const home = table.getByRole("row", { name: /example\.com\/(?!shop)/ });
+    expect(within(home).getAllByRole("cell").at(-2)).toHaveTextContent(
+      "Not read: shares a landing path with another selected page",
+    );
+    const shop = table.getByRole("row", { name: /example\.com\/shop/ });
+    expect(within(shop).getAllByRole("cell").at(-2)).toHaveTextContent("3");
+  });
+
   it("says when Google Analytics recorded no key events and shows no column without a read", () => {
     const workspace = twoPageWorkspace();
     workspace.landingPages = landingPages([

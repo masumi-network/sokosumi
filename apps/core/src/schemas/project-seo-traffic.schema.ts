@@ -70,6 +70,11 @@ export const seoLandingPagesSchema = z
       .optional(),
     /** AI Assistant reads only: GA4 had more rows than the read kept, so page sums are a floor. */
     truncated: z.boolean().optional(),
+    /** Selected pages left out of the read: another selected page on another host has the same path. */
+    skippedUrls: z
+      .array(z.string().url().max(2048))
+      .max(SEO_LANDING_PAGE_ROW_LIMIT)
+      .optional(),
   })
   .strict();
 export type SeoLandingPages = z.infer<typeof seoLandingPagesSchema>;

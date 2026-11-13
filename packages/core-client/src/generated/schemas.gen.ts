@@ -41437,6 +41437,15 @@ export const ProjectSeoLandingPagesSchema = {
         truncated: {
             type: 'boolean'
         },
+        skippedUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 2048,
+                format: 'uri'
+            },
+            maxItems: 10
+        },
         observationId: {
             type: 'string',
             format: 'uuid'

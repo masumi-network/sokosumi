@@ -74,6 +74,8 @@ export function seoKeyEvents(landing: ProjectSeoWorkspace["landingPages"]) {
     // The landing read can cover another period than the Search Console rows beside it.
     period: { from: landing.from, to: landing.to },
     byPage: new Map(landing.rows.map((row) => [row.pageUrl, row.keyEvents])),
+    // Pages left out of the read: their cell says why, not "none".
+    skipped: new Set(landing.skippedUrls ?? []),
     // An empty AI Assistant read is no channel data; the AI assistants section says so.
     none:
       landing.rows.length > 0 &&

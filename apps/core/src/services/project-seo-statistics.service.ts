@@ -412,6 +412,7 @@ export async function syncProjectSeoStatistics(
             ),
             ["metricHeaders"],
           ),
+          landingPlan.skippedUrls,
         )
       : null;
   // One URL Inspection per page. A page Google did not answer for is left out, never guessed.

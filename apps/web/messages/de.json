@@ -12377,7 +12377,8 @@
         "cancelBrandTerms": "Abbrechen",
         "brandSaved": "Markenbegriffe gespeichert",
         "noQueryData": "Für diesen Suchtyp gibt es keine Suchanfragen",
-        "noQueryDataBody": "Für Discover und Google News werden keine Suchanfragen gelesen. Klicks und Impressionen für diesen Typ stehen oben."
+        "noQueryDataBody": "Für Discover und Google News werden keine Suchanfragen gelesen. Klicks und Impressionen für diesen Typ stehen oben.",
+        "keyEventsNotRead": "Nicht gelesen: teilt einen Landingpage-Pfad mit einer anderen ausgewählten Seite"
       },
       "export": {
         "csv": "CSV herunterladen",

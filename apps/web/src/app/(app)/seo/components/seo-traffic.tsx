@@ -169,7 +169,9 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
                     className="text-right tabular-nums"
                     data-label={t(keyEventsLabel)}
                   >
-                    {rate(keyEvents.byPage.get(row.pageUrl) ?? null)}
+                    {keyEvents.skipped.has(row.pageUrl)
+                      ? t("traffic.keyEventsNotRead")
+                      : rate(keyEvents.byPage.get(row.pageUrl) ?? null)}
                   </TableCell>
                 ) : null}
                 <TableCell

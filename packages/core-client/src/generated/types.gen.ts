@@ -10921,6 +10921,7 @@ export type ProjectSeoLandingPages = {
         keyEvents: number;
     }>;
     truncated?: boolean;
+    skippedUrls?: Array<string>;
     observationId: string;
     propertyId: string;
     from: string;

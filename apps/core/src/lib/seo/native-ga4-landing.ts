@@ -39,15 +39,16 @@ export function ga4LandingPlan(query: NativeStatisticsQuery) {
     urls.add(url);
     urlsByPath.set(landingPath(url), urls);
   }
-  const pageUrls = query.pageUrls.filter(
-    (url) => urlsByPath.get(landingPath(url))?.size === 1,
-  );
+  const shared = (url: string) =>
+    (urlsByPath.get(landingPath(url))?.size ?? 0) > 1;
+  const skippedUrls = query.pageUrls.filter(shared);
   return {
-    query: { ...query, pageUrls },
-    note:
-      pageUrls.length < query.pageUrls.length
-        ? GA4_SHARED_LANDING_PATH_NOTE
-        : null,
+    query: {
+      ...query,
+      pageUrls: query.pageUrls.filter((url) => !shared(url)),
+    },
+    skippedUrls,
+    note: skippedUrls.length ? GA4_SHARED_LANDING_PATH_NOTE : null,
   };
 }
 
@@ -105,6 +106,7 @@ export function ga4LandingPageArguments(
 export function normalizeGa4LandingPages(
   query: NativeStatisticsQuery,
   input: unknown,
+  skippedUrls: string[] = [],
 ): SeoLandingPages {
   const report = ga4ReportSchema.parse(input);
   const dimensions = landingDimensions(query);
@@ -150,10 +152,14 @@ export function normalizeGa4LandingPages(
     totals.set(row.pageUrl, total);
   }
   const rows = [...totals].map(([pageUrl, total]) => ({ pageUrl, ...total }));
-  if (landingChannel(query) === "organic") return { channel: "organic", rows };
+  // A left-out page shows "not read", never the "no sessions" of a page without a row.
+  const skipped = skippedUrls.length ? { skippedUrls } : {};
+  if (landingChannel(query) === "organic")
+    return { channel: "organic", rows, ...skipped };
   return {
     channel: "ai_assistant",
     rows,
+    ...skipped,
     sources: sources
       .filter((row) => row.source)
       .sort((a, b) => b.sessions - a.sessions),

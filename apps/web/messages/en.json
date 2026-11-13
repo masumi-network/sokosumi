@@ -12377,7 +12377,8 @@
         "cancelBrandTerms": "Cancel",
         "brandSaved": "Brand terms saved",
         "noQueryData": "This search type has no query data",
-        "noQueryDataBody": "Query rows are not read for Discover and Google News. Clicks and impressions for this type show above."
+        "noQueryDataBody": "Query rows are not read for Discover and Google News. Clicks and impressions for this type show above.",
+        "keyEventsNotRead": "Not read: shares a landing path with another selected page"
       },
       "export": {
         "csv": "Download CSV",
