@@ -163,12 +163,12 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     expect(analysis.taskId).not.toBeNull();
   });
 
-  it("bounds a one-page full audit by its 48-credit page ceiling", async () => {
-    await setBalance(47n);
+  it("bounds a one-page full audit by its 50-credit page ceiling", async () => {
+    await setBalance(49n);
     await expect(
       requestProjectSeoAnalysis(actor, fullAudit()),
     ).rejects.toMatchObject({ status: 422 });
-    await setBalance(48n);
+    await setBalance(50n);
     expect(
       (await requestProjectSeoAnalysis(actor, fullAudit())).taskId,
     ).not.toBeNull();
