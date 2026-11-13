@@ -209,14 +209,29 @@ function ga4(daily: boolean) {
     metadata: { timeZone: "Europe/Oslo" },
   };
 }
+function landing(path: string) {
+  return {
+    dimensionHeaders: [{ name: "landingPagePlusQueryString" }],
+    metricHeaders: [{ name: "sessions" }, { name: "keyEvents" }],
+    rows: [
+      {
+        dimensionValues: [{ value: path }],
+        metricValues: [{ value: "5" }, { value: "2" }],
+      },
+    ],
+  };
+}
 function answer(slug: string, args: Record<string, unknown>) {
+  const dimensions = (args.dimensions ?? []) as Array<{ name: string }>;
   const data = slug.endsWith("SUMMARIES")
     ? {
         accountSummaries: [
           { propertySummaries: [{ property: "properties/123" }] },
         ],
       }
-    : ga4(Array.isArray(args.dimensions) && args.dimensions.length > 0);
+    : dimensions[0]?.name === "landingPagePlusQueryString"
+      ? landing("/a")
+      : ga4(dimensions.length > 0);
   return { successful: true, data: JSON.stringify(data) };
 }
 afterEach(() => {
@@ -251,8 +266,8 @@ describe("native statistics collection boundary", () => {
       source: "ga4",
       pageIds: [state.pageId],
     });
-    // Totals, days, and the totals before. Google reported only Jan 1, so the earlier window is 1 day.
-    expect(state.reads).toHaveLength(4);
+    // Totals, days, landing pages, and the totals before. Google reported only Jan 1, so the earlier window is 1 day.
+    expect(state.reads).toHaveLength(5);
     expect(state.reads[1].args.limit).toBe(400);
     expect(state.reads.map((read) => read.args.dateRanges).at(-1)).toEqual([
       { startDate: "2025-12-31", endDate: "2025-12-31" },
@@ -265,6 +280,44 @@ describe("native statistics collection boundary", () => {
       previous: { from: "2025-12-31", to: "2025-12-31", value: 6 },
     });
   });
+  it("stores organic key events per landing page and hands them to the workspace", async () => {
+    const workspace = await syncProjectSeoStatistics(actor, input);
+    const read = state.reads.find((item) =>
+      JSON.stringify(item.args.dimensions ?? []).includes("landingPage"),
+    );
+    expect(JSON.stringify(read?.args.dimensionFilter)).toContain(
+      "Organic Search",
+    );
+    const payload = state.observations[0].payload as { notes: string[] };
+    expect(payload).toMatchObject({
+      landingPages: {
+        channel: "organic",
+        rows: [{ pageUrl: state.pageUrl, sessions: 5, keyEvents: 2 }],
+      },
+    });
+    expect(workspace.landingPages?.rows).toEqual([
+      { pageUrl: state.pageUrl, sessions: 5, keyEvents: 2 },
+    ]);
+  });
+
+  it("keeps the totals and says so when the landing page read fails", async () => {
+    state.answer = (slug, args) =>
+      JSON.stringify(args.dimensions ?? []).includes("landingPage")
+        ? { successful: false, error: "quota" }
+        : answer(slug, args);
+    await syncProjectSeoStatistics(actor, input);
+    const payload = state.observations[0].payload as {
+      landingPages?: unknown;
+      notes: string[];
+      metrics: Array<{ value: number | null }>;
+    };
+    expect(payload.landingPages).toBeUndefined();
+    expect(payload.metrics[0].value).toBe(6);
+    expect(payload.notes.join(" ")).toContain(
+      "key events per landing page were unavailable",
+    );
+  });
+
   it("rejects a changed page-group version before any toolkit read", async () => {
     await expect(
       syncProjectSeoStatistics(actor, {

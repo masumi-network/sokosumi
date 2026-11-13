@@ -1,6 +1,12 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
@@ -102,5 +108,95 @@ describe("SEO Traffic search type", () => {
         }),
       ),
     );
+  });
+});
+
+/** Two pages with Search Console rows each: the Top pages table shows. */
+function twoPageWorkspace() {
+  const workspace = seoTestWorkspace();
+  const home = workspace.pages[0];
+  const shop = {
+    ...home,
+    id: "8f9d3c55-2f5d-4c55-9e43-7d1a5a0c2b61",
+    url: "https://example.com/shop",
+    relationship: "related" as const,
+    relatedToPageId: home.id,
+  };
+  workspace.pages.push(shop);
+  workspace.scope.pageIds = [home.id, shop.id];
+  const row = (pageUrl: string, query: string) => ({
+    id: `${pageUrl}:${query}`,
+    query,
+    pageUrl,
+    clicks: 3,
+    impressions: 40,
+    ctr: 0.075,
+    averagePosition: 4,
+  });
+  workspace.metrics = [seoTestMetric()];
+  workspace.searchQueries = {
+    observationId: "c6b8a2c4-5b8e-4f0e-9a51-1f2f8a3f7c11",
+    propertyId: "sc-domain:example.com",
+    from: "2026-01-01",
+    to: "2026-01-02",
+    timeZone: "UTC",
+    observedAt: new Date("2026-01-03T00:00:00Z"),
+    rowLimit: 250,
+    truncated: false,
+    rows: [row(home.url, "example"), row(shop.url, "example shop")],
+  };
+  return workspace;
+}
+function landingPages(rows: Array<{ pageUrl: string; keyEvents: number }>) {
+  return {
+    channel: "organic" as const,
+    observationId: "0b6f6a3e-1c55-4b1a-9a43-1f3d2c4b5a69",
+    propertyId: "properties/123",
+    from: "2026-01-01",
+    to: "2026-01-02",
+    observedAt: new Date("2026-01-03T00:00:00Z"),
+    rows: rows.map((row) => ({ ...row, sessions: 9 })),
+  };
+}
+function topPagesTable() {
+  const section = screen
+    .getByRole("heading", { name: "Top pages" })
+    .closest("section");
+  if (!section) throw new Error("Top pages section missing");
+  return section;
+}
+
+describe("SEO Traffic key events", () => {
+  it("shows organic key events per page beside the clicks", () => {
+    const workspace = twoPageWorkspace();
+    workspace.landingPages = landingPages([
+      { pageUrl: "https://example.com/shop", keyEvents: 3 },
+    ]);
+    renderTraffic(workspace);
+    const table = within(topPagesTable());
+    expect(
+      table.getByRole("columnheader", { name: "Key events (organic)" }),
+    ).toBeVisible();
+    const shop = table.getByRole("row", { name: /example\.com\/shop/ });
+    expect(within(shop).getAllByRole("cell").at(-2)).toHaveTextContent("3");
+    expect(topPagesTable()).not.toHaveTextContent("recorded no key events");
+  });
+
+  it("says when Google Analytics recorded no key events and shows no column without a read", () => {
+    const workspace = twoPageWorkspace();
+    workspace.landingPages = landingPages([
+      { pageUrl: "https://example.com/shop", keyEvents: 0 },
+    ]);
+    renderTraffic(workspace);
+    expect(topPagesTable()).toHaveTextContent(
+      "Google Analytics recorded no key events for these pages.",
+    );
+    cleanup();
+    renderTraffic(twoPageWorkspace());
+    expect(
+      within(topPagesTable()).queryByRole("columnheader", {
+        name: "Key events (organic)",
+      }),
+    ).toBeNull();
   });
 });

@@ -15,6 +15,8 @@ export interface SeoMetricsProjection {
   timeline: ProjectSeoWorkspace["timeline"];
   searchSources: SearchEvidenceSource[];
   indexSources: Array<{ at: Date; pages: SeoIndexedPage[] }>;
+  /** Organic key events per landing page from the newest Google Analytics sync in view. */
+  landingPages: ProjectSeoWorkspace["landingPages"];
   /** The newest sync of each property, period and view wins; older ones only add timeline rows. */
   seenGroups: Set<string>;
 }
@@ -74,6 +76,16 @@ export function projectSeoMetricsRow(
     data.channel,
     searchType,
   ]);
+  // Rows come newest first, so the first landing read is the newest one.
+  if (data.landingPages && !out.landingPages)
+    out.landingPages = {
+      ...data.landingPages,
+      observationId: row.id,
+      propertyId: data.propertyId,
+      from: data.from,
+      to: data.to,
+      observedAt: row.observedAt.toISOString(),
+    };
   if (out.seenGroups.has(group)) return;
   out.seenGroups.add(group);
   for (const metric of data.metrics)

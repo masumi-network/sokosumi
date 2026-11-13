@@ -58,7 +58,7 @@ const valueSchema = z
   .union([z.string().regex(/^\d+(?:\.\d+)?$/), z.number()])
   .transform(Number)
   .pipe(z.number().finite().nonnegative());
-const ga4ReportSchema = z.object({
+export const ga4ReportSchema = z.object({
   dimensionHeaders: z.array(z.object({ name: z.string() })).default([]),
   metricHeaders: z.array(z.object({ name: z.string() })),
   rows: z
@@ -170,6 +170,18 @@ export function bindSeoToolArguments(
   return arguments_;
 }
 
+/** The GA4 default channel group of organic search sessions. */
+export const GA4_ORGANIC_CHANNEL_GROUP = "Organic Search";
+/** Sessions of one GA4 default channel group, matched exactly. */
+export function ga4ChannelGroupFilter(group: string) {
+  return {
+    filter: {
+      fieldName: "sessionDefaultChannelGroup",
+      stringFilter: { matchType: "EXACT", value: group, caseSensitive: true },
+    },
+  };
+}
+
 export function ga4StatisticsArguments(
   query: NativeStatisticsQuery,
   daily: boolean,
@@ -194,16 +206,7 @@ export function ga4StatisticsArguments(
             andGroup: {
               expressions: [
                 pageFilter,
-                {
-                  filter: {
-                    fieldName: "sessionDefaultChannelGroup",
-                    stringFilter: {
-                      matchType: "EXACT",
-                      value: "Organic Search",
-                      caseSensitive: true,
-                    },
-                  },
-                },
+                ga4ChannelGroupFilter(GA4_ORGANIC_CHANNEL_GROUP),
               ],
             },
           }

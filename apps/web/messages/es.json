@@ -12347,7 +12347,9 @@
           "news": "Pestaña Noticias",
           "discover": "Discover",
           "googleNews": "Google Noticias"
-        }
+        },
+        "keyEvents": "Eventos clave (orgánico)",
+        "noKeyEvents": "Google Analytics no registró eventos clave para estas páginas. Configura eventos clave allí para ver las conversiones aquí."
       },
       "export": {
         "csv": "Descargar CSV",

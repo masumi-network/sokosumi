@@ -4342,6 +4342,11 @@ const projectSeoSearchQueriesSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const projectSeoLandingPagesSchemaResponseTransformer = (data: any) => {
+    data.observedAt = new Date(data.observedAt);
+    return data;
+};
+
 const projectSeoIndexedPageSchemaResponseTransformer = (data: any) => {
     if (data.lastCrawlTime) {
         data.lastCrawlTime = new Date(data.lastCrawlTime);
@@ -4418,6 +4423,9 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
     data.metrics = data.metrics.map((item: any) => projectSeoMetricSchemaResponseTransformer(item));
     if (data.searchQueries) {
         data.searchQueries = projectSeoSearchQueriesSchemaResponseTransformer(data.searchQueries);
+    }
+    if (data.landingPages) {
+        data.landingPages = projectSeoLandingPagesSchemaResponseTransformer(data.landingPages);
     }
     if (data.indexStatus) {
         data.indexStatus = projectSeoIndexStatusSchemaResponseTransformer(data.indexStatus);

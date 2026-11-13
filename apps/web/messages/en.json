@@ -12347,7 +12347,9 @@
           "news": "News tab",
           "discover": "Discover",
           "googleNews": "Google News"
-        }
+        },
+        "keyEvents": "Key events (organic)",
+        "noKeyEvents": "Google Analytics recorded no key events for these pages. Set up key events there to see conversions here."
       },
       "export": {
         "csv": "Download CSV",

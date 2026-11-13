@@ -27,7 +27,10 @@ import {
   savedSeoKeyword,
   seoKeywordIdentity,
 } from "./project-seo-keyword-rows";
-import { projectSeoMetricsRow } from "./project-seo-metrics-projection";
+import {
+  projectSeoMetricsRow,
+  type SeoMetricsProjection,
+} from "./project-seo-metrics-projection";
 import {
   projectSearchEvidence,
   type SearchEvidenceSource,
@@ -188,6 +191,14 @@ export function projectSeoProjection(
   let strategy: ProjectSeoWorkspace["strategy"] = null;
   const searchSources: SearchEvidenceSource[] = [];
   const indexSources: Array<{ at: Date; pages: SeoIndexedPage[] }> = [];
+  const metricRows: SeoMetricsProjection = {
+    metrics,
+    timeline,
+    searchSources,
+    indexSources,
+    seenGroups: seenMetricGroups,
+    landingPages: null,
+  };
   for (const row of input.observations) {
     if (!overlaps(row.pageIds)) continue;
     if (row.kind === "page_change") {
@@ -207,13 +218,7 @@ export function projectSeoProjection(
       continue;
     }
     if (row.kind === "metrics") {
-      projectSeoMetricsRow(row, query, selectedUrls, {
-        metrics,
-        timeline,
-        searchSources,
-        indexSources,
-        seenGroups: seenMetricGroups,
-      });
+      projectSeoMetricsRow(row, query, selectedUrls, metricRows);
       continue;
     }
     const parsed = publicSeoPayloadSchema.safeParse(row.payload);
@@ -671,6 +676,7 @@ export function projectSeoProjection(
     actions,
     metrics,
     searchQueries: search.searchQueries,
+    landingPages: metricRows.landingPages,
     indexStatus: newestIndexStatus(indexSources, selectedUrls),
     strategy,
     metricsStatus: !metrics.length

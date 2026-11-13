@@ -10677,6 +10677,7 @@ export type ProjectSeoWorkspace = {
     metricsStatus: 'not_connected' | 'available' | 'partial' | 'unavailable';
     metrics: Array<ProjectSeoMetric>;
     searchQueries: ProjectSeoSearchQueries | null;
+    landingPages?: ProjectSeoLandingPages | null;
     indexStatus?: ProjectSeoIndexStatus | null;
     strategy?: ProjectSeoStrategy | null;
     serpHistory?: Array<ProjectSeoSerpSeries>;
@@ -10902,6 +10903,20 @@ export type ProjectSeoSearchBreakdown = {
         ctr: number;
         averagePosition: number;
     }>;
+};
+
+export type ProjectSeoLandingPages = {
+    channel: 'organic';
+    rows: Array<{
+        pageUrl: string;
+        sessions: number;
+        keyEvents: number;
+    }>;
+    observationId: string;
+    propertyId: string;
+    from: string;
+    to: string;
+    observedAt: Date;
 };
 
 export type ProjectSeoIndexStatus = {

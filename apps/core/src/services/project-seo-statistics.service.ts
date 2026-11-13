@@ -13,6 +13,11 @@ import {
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import {
+  GA4_LANDING_PAGES_UNAVAILABLE_NOTE,
+  ga4LandingPageArguments,
+  normalizeGa4LandingPages,
+} from "@/lib/seo/native-ga4-landing";
+import {
   type GscBreakdownDimension,
   gscBreakdownArguments,
   normalizeGscBreakdown,
@@ -390,6 +395,17 @@ export async function syncProjectSeoStatistics(
           ),
         )
       : null;
+  // Organic key events per landing page. Google Analytics only.
+  const collectLandingPages = async () =>
+    input.provider === "ga4"
+      ? normalizeGa4LandingPages(
+          query,
+          unwrapNativeStatistics(
+            await read(integration, tool, ga4LandingPageArguments(query)),
+            ["metricHeaders"],
+          ),
+        )
+      : null;
   // One URL Inspection per page. A page Google did not answer for is left out, never guessed.
   const collectIndexedPages = async () => {
     if (input.provider !== "search_console") return null;
@@ -452,6 +468,7 @@ export async function syncProjectSeoStatistics(
     byCountry,
     byDevice,
     indexed,
+    landing,
   ] = await Promise.allSettled([
     collect(false),
     dailyRead,
@@ -461,6 +478,7 @@ export async function syncProjectSeoStatistics(
     collectBreakdown("country"),
     collectBreakdown("device"),
     collectIndexedPages(),
+    collectLandingPages(),
   ]);
   if (period.status === "rejected" && daily.status === "rejected") {
     await recordSeoConnectionFailure(actor, input.provider, integration);
@@ -486,6 +504,11 @@ export async function syncProjectSeoStatistics(
           value: before.value,
         };
     }
+  if (input.provider === "ga4") {
+    if (landing.status === "fulfilled" && landing.value)
+      metrics.landingPages = landing.value;
+    else metrics.notes.push(GA4_LANDING_PAGES_UNAVAILABLE_NOTE);
+  }
   if (input.provider === "search_console") {
     if (queries.status === "fulfilled" && queries.value) {
       metrics.queries = queries.value;

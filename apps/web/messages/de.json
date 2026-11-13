@@ -12347,7 +12347,9 @@
           "news": "News-Tab",
           "discover": "Discover",
           "googleNews": "Google News"
-        }
+        },
+        "keyEvents": "Schlüsselereignisse (organisch)",
+        "noKeyEvents": "Google Analytics hat für diese Seiten keine Schlüsselereignisse erfasst. Richte dort Schlüsselereignisse ein, um Conversions hier zu sehen."
       },
       "export": {
         "csv": "CSV herunterladen",

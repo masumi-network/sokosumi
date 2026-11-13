@@ -40082,6 +40082,16 @@ export const ProjectSeoWorkspaceSchema = {
                 }
             ]
         },
+        landingPages: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoLandingPages'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         indexStatus: {
             anyOf: [
                 {
@@ -41327,6 +41337,74 @@ export const ProjectSeoSearchBreakdownSchema = {
         'rowLimit',
         'truncated',
         'rows'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ProjectSeoLandingPagesSchema = {
+    type: 'object',
+    properties: {
+        channel: {
+            type: 'string',
+            enum: [
+                'organic'
+            ]
+        },
+        rows: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageUrl: {
+                        type: 'string',
+                        maxLength: 2048,
+                        format: 'uri'
+                    },
+                    sessions: {
+                        type: 'number',
+                        minimum: 0
+                    },
+                    keyEvents: {
+                        type: 'number',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'pageUrl',
+                    'sessions',
+                    'keyEvents'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 10
+        },
+        observationId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        propertyId: {
+            type: 'string'
+        },
+        from: {
+            type: 'string'
+        },
+        to: {
+            type: 'string'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'channel',
+        'rows',
+        'observationId',
+        'propertyId',
+        'from',
+        'to',
+        'observedAt'
     ],
     additionalProperties: false
 } as const;

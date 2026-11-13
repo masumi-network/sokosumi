@@ -15,7 +15,11 @@ import {
   seoShareOfVoiceSchema,
 } from "./project-seo-rankings.schema";
 import { seoStrategySchema } from "./project-seo-strategy.schema";
-import { seoSearchTypeSchema } from "./project-seo-traffic.schema";
+import {
+  seoLandingPagesSchema,
+  seoSearchTypeSchema,
+  seoWorkspaceLandingPagesSchema,
+} from "./project-seo-traffic.schema";
 
 export const SEO_MAX_PAGES = 10;
 export const SEO_MAX_KEYWORDS = 20;
@@ -657,6 +661,10 @@ export const projectSeoWorkspaceSchema = z
     ]),
     metrics: z.array(seoMetricSchema),
     searchQueries: z.union([seoSearchQueriesSchema, z.null()]),
+    /** Organic key events per landing page from the newest Google Analytics sync in view. */
+    landingPages: z
+      .union([seoWorkspaceLandingPagesSchema, z.null()])
+      .optional(),
     /** Google's index verdict per page from the newest Search Console sync that inspected them. */
     indexStatus: z.union([seoIndexStatusSchema, z.null()]).optional(),
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
@@ -731,6 +739,8 @@ export const nativeSeoMetricsSchema = z
     /** Search Console totals by country and by device. Absent when the read failed. */
     countries: seoSearchBreakdownSchema.optional(),
     devices: seoSearchBreakdownSchema.optional(),
+    /** Google Analytics organic key events per selected landing page. Absent when the read failed or on older observations. */
+    landingPages: seoLandingPagesSchema.optional(),
     /** URL Inspection results for the selected pages Google answered for. Absent when none answered. */
     indexedPages: z.array(seoIndexedPageSchema).max(SEO_MAX_PAGES).optional(),
   })

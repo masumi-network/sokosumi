@@ -26,6 +26,7 @@ import {
   SeoSection,
 } from "./seo-shared";
 import { seoQueryPeriod } from "./seo-statistics-model";
+import { seoKeyEvents } from "./seo-traffic-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** What Google measured for the selected pages: totals and trend, the searches behind them, and each page's share. */
@@ -58,6 +59,7 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
   const format = useFormatter();
   const source = model.data.searchQueries;
   const rows = source ? topPages(source.rows) : [];
+  const keyEvents = seoKeyEvents(model.data.landingPages);
   // One page's totals are on the Performance card; its listed-query sums would only disagree with them.
   if (!source || rows.length < MIN_PAGES_FOR_SELECTIONS) return null;
   const rate = (value: number | null, percent = false) =>
@@ -84,6 +86,7 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
           {source.truncated
             ? ` · ${t("queries.truncated", { count: source.rowLimit })}`
             : null}
+          {keyEvents?.none ? ` · ${t("traffic.noKeyEvents")}` : null}
         </>
       }
     >
@@ -105,6 +108,11 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
               <TableHead className="text-right">
                 {t("pages.queryCount")}
               </TableHead>
+              {keyEvents ? (
+                <TableHead className="text-right">
+                  {t("traffic.keyEvents")}
+                </TableHead>
+              ) : null}
               <TableHead>{t("pages.topQuery")}</TableHead>
             </TableRow>
           </TableHeader>
@@ -144,6 +152,14 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
                 >
                   {format.number(row.queries)}
                 </TableCell>
+                {keyEvents ? (
+                  <TableCell
+                    className="text-right tabular-nums"
+                    data-label={t("traffic.keyEvents")}
+                  >
+                    {rate(keyEvents.byPage.get(row.pageUrl) ?? null)}
+                  </TableCell>
+                ) : null}
                 <TableCell
                   className="min-w-40 whitespace-normal break-words"
                   data-label={t("pages.topQuery")}
