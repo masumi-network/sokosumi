@@ -9,7 +9,7 @@ Spec: `.scratch/cmo-polar/spec.md` (SOKD-204), stories 11, 34, 45 to 47.
 **Status:** ready-for-agent
 
 - [ ] The check takes the Project. Active counts, a scheduled cancel counts until the period ends, past due and ended do not.
-- [ ] A Cuso in free hiring passes; a Cuso at the `checkout` step without a subscription does not.
+- [ ] A Cuso in free hiring passes; a Cuso whose strategy is approved and who has no subscription does not.
 - [ ] A Cuso with unspent Starter credits passes without a subscription; with them used up he does not.
 - [ ] Pool credits alone never pass the check.
 - [ ] Every consumer of the check follows it: execution, the execution refusal, the overview, production and Cuso's context packet.
