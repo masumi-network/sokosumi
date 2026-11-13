@@ -26,6 +26,8 @@ export function SeoCsvButton({
     <Button
       variant="ghost"
       size="sm"
+      // A quiet line under its list: the icon stands on the text edge of the list.
+      className="text-muted-foreground -ms-2.5"
       aria-label={t("export.csvLabel", { table: title })}
       onClick={() => {
         const { header, rows } = table();
@@ -43,8 +45,7 @@ export function SeoCsvButton({
       }}
     >
       <Download className="size-4" />
-      {/* A phone shows the icon alone: the word squeezed the title beside it. The label still names it. */}
-      <span className="max-sm:sr-only">{t("export.csv")}</span>
+      {t("export.csv")}
     </Button>
   );
 }

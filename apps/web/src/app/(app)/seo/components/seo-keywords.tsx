@@ -228,23 +228,12 @@ export function SeoKeywords({
           }
           strong={summary.read > 0}
           actions={
-            checked.length || model.data.availableActions.canEdit ? (
-              <div className="flex flex-wrap gap-2">
-                {checked.length ? (
-                  <SeoCsvButton
-                    name="keywords"
-                    title={t("keywords.title")}
-                    table={() => seoKeywordsExport(checked, t)}
-                  />
-                ) : null}
-                {model.data.availableActions.canEdit ? (
-                  <SeoAddButton
-                    label={t("keywords.addButton")}
-                    lead={!rows.length}
-                    onClick={() => model.setDialog("keyword")}
-                  />
-                ) : null}
-              </div>
+            model.data.availableActions.canEdit ? (
+              <SeoAddButton
+                label={t("keywords.addButton")}
+                lead={!rows.length}
+                onClick={() => model.setDialog("keyword")}
+              />
             ) : null
           }
         >
@@ -679,6 +668,16 @@ export function SeoKeywords({
               expanded={expanded}
               onToggle={() => setExpanded((open) => !open)}
             />
+          ) : null}
+          {/* Under the keyword list itself, before the strategy: the export holds the checked keywords only. */}
+          {checked.length ? (
+            <div className="px-2">
+              <SeoCsvButton
+                name="keywords"
+                title={t("keywords.title")}
+                table={() => seoKeywordsExport(checked, t)}
+              />
+            </div>
           ) : null}
           <SeoStrategyFold
             model={model}

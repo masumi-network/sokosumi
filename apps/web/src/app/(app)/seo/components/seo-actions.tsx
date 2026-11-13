@@ -4,7 +4,7 @@ import type { ProjectSeoAction } from "@sokosumi/core-client";
 import { ArrowUpRight, ClipboardPlus, Play, Plug, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
@@ -265,7 +265,6 @@ function ActionGroup({
   severity,
   primary,
   named,
-  buttons,
 }: {
   title: string;
   /** What the group is; absent where the section title says enough. */
@@ -277,33 +276,16 @@ function ActionGroup({
   primary: ProjectSeoAction | undefined;
   /** The other group has actions too: only then a group needs its name. */
   named: boolean;
-  /** Buttons on the title line of the group, as on the other lists. */
-  buttons?: ReactNode;
 }) {
   if (!actions.length) return null;
   return (
     <div className="space-y-2">
-      {named || help || buttons ? (
-        <div className="flex items-start justify-between gap-2 px-2">
-          <div className="min-w-0 flex-1">
-            {named ? (
-              // Beside the button the title takes its height, so both share a middle line.
-              <h3 className={cn("text-sm font-semibold", buttons && "py-1.5")}>
-                {title}
-              </h3>
-            ) : null}
-            {help ? (
-              <p
-                className={cn(
-                  "text-muted-foreground text-sm",
-                  buttons && !named && "py-1.5",
-                )}
-              >
-                {help}
-              </p>
-            ) : null}
-          </div>
-          {buttons}
+      {named || help ? (
+        <div className="px-2">
+          {named ? <h3 className="text-sm font-semibold">{title}</h3> : null}
+          {help ? (
+            <p className="text-muted-foreground text-sm">{help}</p>
+          ) : null}
         </div>
       ) : null}
       <ul role="list" className={SEO_ROW_LIST_CLASS}>
@@ -364,13 +346,11 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
         title={t("actions.title")}
         description={tracked ? t("actions.help") : undefined}
         titleHidden={!tracked}
+        foot={overview.actions.length ? csv : undefined}
       >
         {overview.actions.length ? (
           <div className="space-y-5">
             <ActionGroup
-              // The export of all actions stands on the title line of the first group, as on Keywords: the
-              // section's own title line can be hidden.
-              buttons={fixes.length ? csv : undefined}
               title={t("actions.fixesTitle")}
               // Alone under "Actions", a list of fixes needs no line; suggestions keep theirs: it says they promise no traffic.
               help={grouped ? t("actions.fixesHelp") : undefined}
@@ -381,7 +361,6 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
               named={grouped || strategyFollows}
             />
             <ActionGroup
-              buttons={fixes.length ? undefined : csv}
               title={t("actions.opportunitiesTitle")}
               help={t("actions.opportunitiesHelp")}
               actions={opportunities}

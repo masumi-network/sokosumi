@@ -125,14 +125,14 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
   return (
     <SeoSection
       title={t("queries.title")}
-      actions={
+      foot={
         rows.length ? (
           <SeoCsvButton
             name="search-queries"
             title={t("queries.title")}
             table={() => seoQueriesExport(rows, t)}
           />
-        ) : null
+        ) : undefined
       }
     >
       {source && (!sameSync || source.truncated) ? (

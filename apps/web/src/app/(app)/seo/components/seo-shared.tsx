@@ -128,6 +128,7 @@ export function SeoSection({
   description,
   children,
   actions,
+  foot,
   strong = false,
   titleHidden = false,
 }: {
@@ -135,6 +136,8 @@ export function SeoSection({
   description?: ReactNode;
   children: ReactNode;
   actions?: ReactNode;
+  /** A quiet control under the list, such as its export: the title line keeps the actions on the list itself. */
+  foot?: ReactNode;
   /** The title is the result of the list, not its name: it reads as the loudest line. */
   strong?: boolean;
   /** The chosen tab already says this title: it stays for screen readers only. */
@@ -165,6 +168,7 @@ export function SeoSection({
         ) : null}
       </div>
       {children}
+      {foot ? <div className="px-2">{foot}</div> : null}
     </section>
   );
 }

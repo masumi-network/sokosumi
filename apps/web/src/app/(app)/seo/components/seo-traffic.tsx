@@ -75,7 +75,7 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
   return (
     <SeoSection
       title={t("pages.topPages")}
-      actions={
+      foot={
         <SeoCsvButton
           name="top-pages"
           title={t("pages.topPages")}
