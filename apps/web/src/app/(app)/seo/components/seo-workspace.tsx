@@ -191,7 +191,8 @@ export function SeoWorkspace({
       </p>
     );
   const { canRequestAnalysis } = model.data.availableActions;
-  // The filled button of every tab while a check can start. The setup card is on the Agent tab only; there its own check step leads.
+  // The run of every tab, in the secondary look: the step of the tab wears the fill. The setup card is on the Agent tab only;
+  // there its own check step leads.
   const runAudit =
     model.filters.tab === "agent" && setup ? null : seoRunAction(model.data);
   // While the pages load or the dates are wrong, no dialog opens.

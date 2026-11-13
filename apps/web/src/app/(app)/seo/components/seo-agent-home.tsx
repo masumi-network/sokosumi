@@ -28,7 +28,7 @@ import { seoOverviewModel } from "./seo-overview-model";
 import { seoRarelyShown } from "./seo-performance-model";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
-import { seoCheckRunning, seoRunLeads, seoSetup } from "./seo-setup-model";
+import { seoCheckRunning, seoSetup } from "./seo-setup-model";
 import {
   SEO_ROW_LIST_CLASS,
   SeoDate,
@@ -112,10 +112,9 @@ function SeoAgentPanel({
   const [showAllSteps, setShowAllSteps] = useState(false);
   const visibleSteps = seoFoldCount(steps.length, SEO_AGENT_VISIBLE_STEPS);
   const shown = showAllSteps ? steps : steps.slice(0, visibleSteps);
-  // The first proposal with its own button is the lead step: an action shows as a card. It carries the fill
-  // only while the checks card's run does not.
+  // The first proposal with its own button is the lead step: an action shows as a card. It carries the one
+  // brand fill of the tab (owner, after pass 59); the run keeps the secondary look.
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
-  const runLeads = seoRunLeads(model.data);
   const primary = setup?.next
     ? -1
     : shown.findIndex((step) =>
@@ -168,8 +167,8 @@ function SeoAgentPanel({
         banner={t("agent.statisticsMissing")}
         step={statisticsStep}
         model={model}
-        // The banner carries the filled button only where no step and no run button does.
-        first={primary === -1 && !runLeads}
+        // The banner carries the filled button only where no step does.
+        first={primary === -1}
         refresh={() => {
           void autopilot.refresh();
         }}
@@ -211,7 +210,7 @@ function SeoAgentPanel({
         key={`${step.kind}:${"provider" in step ? step.provider : ""}`}
         step={step}
         model={model}
-        first={index === primary && !runLeads}
+        first={index === primary}
         refresh={() => {
           void autopilot.refresh();
         }}
@@ -356,7 +355,7 @@ function SeoAgentPanel({
           {upkeep}
           {primary === -1 ? null : (
             // The checks card over the tabs can push the steps below the first screen, on a wide screen too, and
-            // the filled run over the card is not the next step. The last row of the card is the way to the first step: a row
+            // the run over the card is not the next step. The last row of the card is the way to the first step: a row
             // control with a line over it, as wide as the card, like the "more fixes" row of the list.
             <div className="-mx-4 -mb-4 border-t">
               <Button

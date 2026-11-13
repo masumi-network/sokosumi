@@ -105,15 +105,6 @@ function seoRunReady(workspace: ProjectSeoWorkspace) {
 }
 
 /**
- * The run of the checks card is the filled button of every tab whenever a check can start (owner call,
- * 2026-11-13): a new check is the focus of the page. A step, a fix or a connection keeps the fill only while no
- * check can start.
- */
-export function seoRunLeads(workspace: ProjectSeoWorkspace) {
-  return seoRunReady(workspace);
-}
-
-/**
  * The run of the checks card: the widest check this workspace can run on its pages.
  * A full audit needs paid search data and pages on one host. Null where the reader can run no check at all.
  */

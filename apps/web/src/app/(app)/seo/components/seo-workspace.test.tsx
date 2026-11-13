@@ -5090,7 +5090,7 @@ describe("SEO workspace integration", () => {
     expect(requests[1].idempotencyKey).not.toBe(requests[0].idempotencyKey);
   });
 
-  it("keeps the fill on the run while a check can start, with the first step's reasons in its details", async () => {
+  it("keeps the run in the secondary look while the step wears the fill, with its reasons in its details", async () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     const observedAt = new Date("2026-01-03T12:00:00Z");
@@ -5169,9 +5169,8 @@ describe("SEO workspace integration", () => {
     const create = await screen.findByRole("button", {
       name: "Create draft task",
     });
-    // A new check is the focus of every tab (owner call, 2026-11-13): the step waits outlined, and the
-    // run is raised in the secondary look, not the brand fill (owner call, later the same day).
-    expect(create).not.toHaveClass("bg-primary");
+    // The step wears the brand fill (owner, after pass 59); the run is raised in the secondary look.
+    expect(create).toHaveClass("bg-primary");
     const run = screen.getByRole("button", { name: "Run full audit" });
     expect(run).toHaveClass("bg-quaternary");
     expect(run).not.toHaveClass("bg-primary");
@@ -5189,10 +5188,10 @@ describe("SEO workspace integration", () => {
     expect(await screen.findByText("The title is missing")).not.toBeVisible();
     expect(
       screen.getByRole("button", { name: "Create draft task" }),
-    ).not.toHaveClass("bg-primary");
+    ).toHaveClass("bg-primary");
   });
 
-  it("gives the fill back to the lead fix while no check can start", async () => {
+  it("gives the fill to the lead fix, also while no check can start", async () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     workspace.availableActions = {
@@ -5542,7 +5541,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=actions");
     expect(
       screen.getByRole("button", { name: "Create draft task" }),
-    ).not.toHaveClass("bg-primary");
+    ).toHaveClass("bg-primary");
     await user.dblClick(
       screen.getByRole("button", { name: "Create draft task" }),
     );
@@ -5603,8 +5602,7 @@ describe("SEO workspace integration", () => {
       name: "Create draft task",
     });
     expect(creates).toHaveLength(2);
-    for (const create of creates)
-      expect(create).toHaveClass("border-control-border");
+    for (const create of creates) expect(create).toHaveClass("bg-primary");
     served = {
       ...workspace,
       actions: [

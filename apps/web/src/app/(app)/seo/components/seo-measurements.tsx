@@ -14,7 +14,6 @@ import {
   seoShownValue,
   seoWeekOverWeek,
 } from "./seo-performance-model";
-import { seoRunLeads } from "./seo-setup-model";
 import {
   SEO_CHOSEN_CLASS,
   SeoDate,
@@ -453,12 +452,11 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
           </p>
           {canSync ? (
             <Button
-              // The one waiting action of the tab is its filled button: only once the read says that an account
-              // is missing or must connect again, and only where the run of the checks card is not the filled one.
+              // The one waiting action of the tab is its filled button, once the read says that an account is
+              // missing or must connect again.
               variant={
-                (connection === "not_connected" ||
-                  connection === "needs_reconnect") &&
-                !seoRunLeads(workspace)
+                connection === "not_connected" ||
+                connection === "needs_reconnect"
                   ? "primary"
                   : "outline"
               }

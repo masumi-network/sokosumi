@@ -12,7 +12,6 @@ import { SeoActionCardHead } from "./seo-card-head";
 import { SeoCsvButton } from "./seo-csv-button";
 import { seoActionsExport } from "./seo-export-model";
 import { type SeoIssueSeverity, seoOverviewModel } from "./seo-overview-model";
-import { seoRunLeads } from "./seo-setup-model";
 import {
   SEO_ROW_LIST_CLASS,
   SeoActionName,
@@ -241,9 +240,9 @@ export function SeoActionCard({
           ) : model.data.availableActions.canEdit ? (
             <Button
               size="sm"
-              // One look on every card: the button does the same thing on each. The run holds the one fill while a
-              // check can start.
-              variant={seoRunLeads(model.data) ? "outline" : "primary"}
+              // The step's own commit wears the one brand fill, on every card alike (owner, after pass 59). The run
+              // keeps the secondary look.
+              variant="primary"
               loading={model.pending}
               onClick={() => {
                 void model.createActionTask(action);
@@ -313,7 +312,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   const opportunities = overview.actions.filter(
     (action) => action.kind === "opportunity",
   );
-  // The first action that still waits opens as a card. Its button is filled only while no check can start.
+  // The first action that still waits opens as a card, with the one filled button of the tab.
   const primary = [...fixes, ...opportunities].find(
     (action) => action.status === "recommended",
   );
