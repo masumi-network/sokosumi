@@ -2,6 +2,7 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import {
   changePolarSubscriptionPlan,
+  clearPolarPendingPlanChange,
   createPolarCustomerPortalUrl,
 } from "@/clients/polar.client";
 import { isFirstPartyAppUrl } from "@/config/cors-allow-origin";
@@ -55,11 +56,12 @@ function refuse(message: string, kind: "not_active" | "not_allowed"): never {
  * Moves the Cuso to the tier of his interval. More credits is an upgrade: it
  * applies now and Polar charges the prorated difference (the paid order
  * grants the extra credits). Fewer is a downgrade: Polar applies it at the
- * next renewal and the overview shows it as pending until then.
+ * next renewal and the overview shows it as pending until then. The current
+ * tier while a downgrade is pending keeps the plan: Polar drops the downgrade.
  */
 export async function changeCmoPlan(
   input: CusoTarget & { tier: string },
-): Promise<{ change: "upgrade" | "downgrade" }> {
+): Promise<{ change: "upgrade" | "downgrade" | "kept" }> {
   const { cuso } = await requireBillingManager(input);
   const subscription = await prisma.cmoSubscription.findFirst({
     where: { projectId: cuso.projectId, endedAt: null },
@@ -69,6 +71,7 @@ export async function changeCmoPlan(
       interval: true,
       status: true,
       cancelAtPeriodEnd: true,
+      pendingPolarProductId: true,
     },
   });
   if (!subscription) refuse("This Cuso has no CMO subscription", "not_active");
@@ -102,7 +105,24 @@ export async function changeCmoPlan(
     );
   }
   if (target.productId === current.productId) {
-    refuse("This Cuso is on that plan already", "not_allowed");
+    if (!subscription.pendingPolarProductId) {
+      refuse("This Cuso is on that plan already", "not_allowed");
+    }
+    const cleared = await clearPolarPendingPlanChange(
+      subscription.polarSubscriptionId,
+    );
+    if (cleared.isErr()) {
+      refuse(
+        "Polar cannot change this subscription right now. Try again later",
+        "not_allowed",
+      );
+    }
+    // Polar's own subscription.updated follows; the overview need not wait.
+    await prisma.cmoSubscription.update({
+      where: { polarSubscriptionId: subscription.polarSubscriptionId },
+      data: { pendingPolarProductId: null },
+    });
+    return { change: "kept" };
   }
   const upgrade = target.credits > current.credits;
   const changed = await changePolarSubscriptionPlan({

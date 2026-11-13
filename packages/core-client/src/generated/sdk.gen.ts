@@ -5729,7 +5729,7 @@ export const retryCmoOnboardingForProject = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Moves this Cuso's CMO subscription to another tier of the same interval. An upgrade applies at once: Polar charges the prorated difference and the extra credits for the rest of the month follow its payment. A downgrade applies at the next renewal and shows as the pending tier until then. The organization's owners and admins only.
+ * Moves this Cuso's CMO subscription to another tier of the same interval. An upgrade applies at once: Polar charges the prorated difference and the extra credits for the rest of the month follow its payment. A downgrade applies at the next renewal and shows as the pending tier until then. The current tier while a downgrade is pending keeps the plan: the pending downgrade is cleared (`kept`). The organization's owners and admins only.
  */
 export const changeCmoPlanForProject = <ThrowOnError extends boolean = false>(options: Options<ChangeCmoPlanForProjectData, ThrowOnError>): RequestResult<ChangeCmoPlanForProjectResponses, ChangeCmoPlanForProjectErrors, ThrowOnError> => (options.client ?? client).post<ChangeCmoPlanForProjectResponses, ChangeCmoPlanForProjectErrors, ThrowOnError>({
     responseTransformer: changeCmoPlanForProjectResponseTransformer,

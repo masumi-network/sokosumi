@@ -920,12 +920,16 @@ export async function startTopUp(
 
 /**
  * Moves this Cuso to another tier of his interval (owners and admins). An
- * upgrade applies at once; a downgrade at the next renewal.
+ * upgrade applies at once; a downgrade at the next renewal. His current tier
+ * while a downgrade is pending keeps the plan.
  */
 export async function changePlan(
   projectId: string,
   tier: string,
-): Promise<{ change: "upgrade" | "downgrade" | null; error: string | null }> {
+): Promise<{
+  change: "upgrade" | "downgrade" | "kept" | null;
+  error: string | null;
+}> {
   const core = await requireCore();
   const { data, error } = await changeCmoPlanForProject({
     ...core,

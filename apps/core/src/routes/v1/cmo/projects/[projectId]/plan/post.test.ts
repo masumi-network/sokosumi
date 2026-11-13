@@ -17,10 +17,11 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const m = vi.hoisted(() => ({
   changePolarSubscriptionPlan: vi.fn(),
+  clearPolarPendingPlanChange: vi.fn(),
   createPolarCustomerPortalUrl: vi.fn(),
   listPolarProducts: vi.fn(),
   prisma: {
-    cmoSubscription: { findFirst: vi.fn() },
+    cmoSubscription: { findFirst: vi.fn(), update: vi.fn() },
     member: { findFirst: vi.fn() },
     project: { findUnique: vi.fn() },
     sokoBot: { findFirst: vi.fn() },
@@ -30,6 +31,7 @@ const m = vi.hoisted(() => ({
 
 vi.mock("@/clients/polar.client", () => ({
   changePolarSubscriptionPlan: m.changePolarSubscriptionPlan,
+  clearPolarPendingPlanChange: m.clearPolarPendingPlanChange,
   createPolarCustomerPortalUrl: m.createPolarCustomerPortalUrl,
   listPolarProducts: m.listPolarProducts,
 }));
@@ -80,6 +82,7 @@ const SUBSCRIPTION = {
   interval: "month",
   status: "active",
   cancelAtPeriodEnd: false,
+  pendingPolarProductId: null,
 };
 
 // Loading the routes takes seconds on a busy machine.
@@ -134,6 +137,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   m.listPolarProducts.mockResolvedValue(PRODUCTS);
   m.changePolarSubscriptionPlan.mockResolvedValue(ok(undefined));
+  m.clearPolarPendingPlanChange.mockResolvedValue(ok(undefined));
   m.createPolarCustomerPortalUrl.mockResolvedValue(PORTAL_URL);
   m.prisma.project.findUnique.mockResolvedValue({
     id: PROJECT_ID,
@@ -196,6 +200,61 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
     });
   });
 
+  describe("keeping the plan while a downgrade is pending", () => {
+    beforeEach(() => {
+      m.prisma.cmoSubscription.findFirst.mockResolvedValue({
+        ...SUBSCRIPTION,
+        pendingPolarProductId: "prod_starter_month",
+      });
+    });
+
+    it("clears the pending change at Polar and on the subscription", async () => {
+      const response = await changePlan("growth");
+
+      expect(response.status).toBe(200);
+      expect((await response.json()).data).toEqual({ change: "kept" });
+      expect(m.clearPolarPendingPlanChange).toHaveBeenCalledExactlyOnceWith(
+        "sub_1",
+      );
+      expect(m.changePolarSubscriptionPlan).not.toHaveBeenCalled();
+      expect(m.prisma.cmoSubscription.update).toHaveBeenCalledExactlyOnceWith({
+        where: { polarSubscriptionId: "sub_1" },
+        data: { pendingPolarProductId: null },
+      });
+    });
+
+    it("leaves the subscription as it was when Polar refuses", async () => {
+      m.clearPolarPendingPlanChange.mockResolvedValue(err("not_changeable"));
+
+      const response = await changePlan("growth");
+
+      expect(response.status).toBe(409);
+      expect((await response.json()).kind).toBe(
+        "subscription_change_not_allowed",
+      );
+      expect(m.prisma.cmoSubscription.update).not.toHaveBeenCalled();
+    });
+
+    it("is for owners and admins only", async () => {
+      callerIs("member");
+
+      const response = await changePlan("growth");
+
+      expect(response.status).toBe(403);
+      expect(m.clearPolarPendingPlanChange).not.toHaveBeenCalled();
+      expect(m.prisma.cmoSubscription.update).not.toHaveBeenCalled();
+    });
+
+    it("answers 503 without Polar configuration", async () => {
+      m.clearPolarPendingPlanChange.mockRejectedValue(
+        serviceUnavailable("Polar is not configured"),
+      );
+
+      expect((await changePlan("growth")).status).toBe(503);
+      expect(m.prisma.cmoSubscription.update).not.toHaveBeenCalled();
+    });
+  });
+
   it.each([
     [
       "the current tier",
@@ -238,6 +297,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
     expect(body.kind).toBe(kind);
     expect(body.message).toContain(reason);
     expect(m.changePolarSubscriptionPlan).not.toHaveBeenCalled();
+    expect(m.clearPolarPendingPlanChange).not.toHaveBeenCalled();
   });
 
   it("refuses a tier of the other interval", async () => {

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   changePolarSubscriptionPlan,
+  clearPolarPendingPlanChange,
   createPolarCheckout,
   createPolarCustomerPortalUrl,
   listPolarProducts,
@@ -282,6 +283,28 @@ describe("plan changes and the customer portal", () => {
     });
 
     expect(result._unsafeUnwrapErr()).toBe("payment_failed");
+  });
+
+  it("clears a scheduled change and nothing else", async () => {
+    const fetchMock = polarAnswers([200, {}]);
+
+    await clearPolarPendingPlanChange("sub_1").catch(() => undefined);
+
+    expect(await requests(fetchMock)).toEqual([
+      {
+        method: "PATCH",
+        path: "/v1/subscriptions/sub_1",
+        body: { pending_update: null },
+      },
+    ]);
+  });
+
+  it("says so when Polar will not clear the scheduled change", async () => {
+    polarAnswers([409, { error: "SubscriptionLocked", detail: "locked" }]);
+
+    const result = await clearPolarPendingPlanChange("sub_1");
+
+    expect(result._unsafeUnwrapErr()).toBe("not_changeable");
   });
 
   it("opens a portal session for the organization as Polar's customer", async () => {

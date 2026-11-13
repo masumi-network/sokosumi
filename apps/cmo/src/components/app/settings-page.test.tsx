@@ -115,10 +115,15 @@ describe("Settings: changing the plan and the billing portal", () => {
     expect(text).not.toContain("$1,000 a month");
   });
 
-  it("shows a pending downgrade", () => {
-    expect(settings({ ...owner, pendingTier: "starter" })).toContain(
-      "Moves to Starter on 13 January 2027.",
-    );
+  it("shows a pending downgrade and the way to keep the plan", () => {
+    const text = settings({ ...owner, pendingTier: "starter" });
+
+    expect(text).toContain("Moves to Starter on 13 January 2027.");
+    expect(text).toContain("Keep my plan");
+  });
+
+  it("offers no Keep my plan without a pending downgrade", () => {
+    expect(settings(owner)).not.toContain("Keep my plan");
   });
 
   it("keeps the portal but no plan change while past due or cancelled", () => {
@@ -143,6 +148,7 @@ describe("Settings: changing the plan and the billing portal", () => {
     expect(text).toContain("Growth");
     expect(text).not.toContain("Move to");
     expect(text).not.toContain("Moves to Starter");
+    expect(text).not.toContain("Keep my plan");
     expect(text).not.toContain("Manage billing");
   });
 });
