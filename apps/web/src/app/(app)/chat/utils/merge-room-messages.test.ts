@@ -105,6 +105,90 @@ describe("applyFullChatRoomMessageEvent", () => {
     expect(next.map((row) => row.id)).toEqual(["m1"]);
   });
 
+  describe("a Soko Bot reply's delayed copies", () => {
+    const reply = (metadata: Record<string, unknown>) => ({
+      ...sokoBotMessage("reply_1", "2026-07-01T10:00:01.000Z", ""),
+      metadata: { mention_id: "mention_1", ...metadata },
+    });
+    const thinking = (attemptAt: number) =>
+      reply({
+        streaming: true,
+        reasoning: [],
+        soko_bot: { attempt_at: attemptAt },
+      });
+    const failed = (attemptAt: number) =>
+      reply({ mention_failed: true, soko_bot: { attempt_at: attemptAt } });
+    const answered = (attemptAt: number) => ({
+      ...reply({ soko_bot: { attempt_at: attemptAt } }),
+      content: "Three invoices are due.",
+    });
+    const update = (current: ChatRoomMessage, message: ChatRoomMessage) =>
+      applyFullChatRoomMessageEvent([current], {
+        eventType: "update",
+        message,
+      })[0];
+
+    it("keeps the failed card when Thinking read before the failure lands after it", () => {
+      expect(update(failed(1000), thinking(1000))?.metadata).toEqual(
+        failed(1000).metadata,
+      );
+    });
+    it("keeps a fresh Retry's answer when the old failed card lands after it", () => {
+      const shown = update(answered(2000), failed(1000));
+      expect(shown?.content).toBe("Three invoices are due.");
+    });
+    it("keeps a fresh Retry's Thinking when the old failed card lands after it", () => {
+      expect(update(thinking(2000), failed(1000))?.metadata).toEqual(
+        thinking(2000).metadata,
+      );
+    });
+    it("lets a fresh Retry's Thinking replace the failed card", () => {
+      expect(update(failed(1000), thinking(2000))?.metadata).toEqual(
+        thinking(2000).metadata,
+      );
+    });
+    it("lets the attempt's answer replace its Thinking", () => {
+      expect(update(thinking(2000), answered(2000))?.content).toBe(
+        "Three invoices are due.",
+      );
+    });
+    it("shows a fresh Retry's answer through every delayed old copy", () => {
+      // Review 6's ordering, as the room receives it: the old turn's progress
+      // and failed card arrive late, around the fresh attempt's copies.
+      const oldProgress = {
+        ...thinking(1000),
+        metadata: {
+          ...thinking(1000).metadata,
+          reasoning: [{ type: "reasoning", text: "Checking invoices" }],
+        },
+      };
+      let shown: ChatRoomMessage[] = [failed(1000)];
+      for (const copy of [
+        thinking(2000),
+        oldProgress,
+        failed(1000),
+        answered(2000),
+        oldProgress,
+        failed(1000),
+      ]) {
+        shown = applyFullChatRoomMessageEvent(shown, {
+          eventType: "update",
+          message: copy,
+        });
+      }
+      expect(shown).toHaveLength(1);
+      expect(shown[0]?.content).toBe("Three invoices are due.");
+      // A poll page read before the answer cannot take it back either.
+      shown = mergeRoomMessages(shown, [thinking(2000)]);
+      expect(shown[0]?.content).toBe("Three invoices are due.");
+    });
+    it("orders nothing it cannot place", () => {
+      // Replies written before Core carried the attempt keep last-wins.
+      const legacy = reply({ streaming: true });
+      expect(update(failed(1000), legacy)?.metadata).toEqual(legacy.metadata);
+    });
+  });
+
   it("keeps the viewer's unread reply count when a broadcast event replaces the parent", () => {
     const parent = {
       ...message("m1", "2026-07-01T10:00:00.000Z", "hello"),

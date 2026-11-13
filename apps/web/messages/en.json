@@ -897,7 +897,7 @@
         "IDLE": "Idle",
         "RUNNING": "Running",
         "PAUSED": "Paused",
-        "ERROR": "Error"
+        "ERROR": "Couldn't reply"
       },
       "TurnStatus": {
         "QUEUED": "Queued",
@@ -1724,7 +1724,11 @@
             "catchUp": "Catch me up",
             "teamWins": "What did we finish?",
             "planTomorrow": "Plan tomorrow"
-          }
+          },
+          "failedReply": "{name} couldn't finish its last reply",
+          "openChat": "Open the chat",
+          "failedWork": "{name} couldn't finish what it was working on",
+          "openBot": "Open {name}'s page"
         }
       },
       "SokoBot": {
@@ -5347,7 +5351,6 @@
         "SokoBot": {
           "fallbackName": "Soko Bot",
           "workingNow": "Working now",
-          "needsAttention": "Needs attention",
           "activeAgo": "Active {time}",
           "ready": "Ready",
           "team": "Your team's Soko Bots"
@@ -8871,8 +8874,10 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "failed": "Failed to reply",
-        "retry": "Retry"
+        "failed": "{name} couldn't reply",
+        "failedBody": "The reply stopped before it finished.",
+        "failedSaved": "The reply stopped before it finished. Your message is saved.",
+        "retry": "Try again"
       },
       "Outbound": {
         "sending": "Sending",
@@ -10286,6 +10291,7 @@
       },
       "Console": {
         "tagline": "Your personal project manager. It delegates work, follows up, and keeps you posted — talk to it in chat.",
+        "lastTurnFailed": "{name} couldn't finish its last reply.",
         "lastActivity": "last active {time}",
         "adminView": "Admin view",
         "openChat": "Open chat",
