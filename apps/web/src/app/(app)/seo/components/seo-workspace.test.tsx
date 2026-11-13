@@ -5087,7 +5087,7 @@ describe("SEO workspace integration", () => {
     expect(requests[1].idempotencyKey).not.toBe(requests[0].idempotencyKey);
   });
 
-  it("gives the filled button to the first step once a result waits, with the step's reasons in its details", async () => {
+  it("keeps the fill on the run while a check can start, with the first step's reasons in its details", async () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     const observedAt = new Date("2026-01-03T12:00:00Z");
@@ -5166,10 +5166,10 @@ describe("SEO workspace integration", () => {
     const create = await screen.findByRole("button", {
       name: "Create draft task",
     });
-    expect(create).toHaveClass("bg-primary");
-    // The run button stays usable; it only gives up the filled style.
+    // A new check is the focus of every tab (owner call, 2026-11-13): the step waits outlined.
+    expect(create).not.toHaveClass("bg-primary");
     const run = screen.getByRole("button", { name: "Run full audit" });
-    expect(run).not.toHaveClass("bg-primary");
+    expect(run).toHaveClass("bg-primary");
     expect(run).not.toHaveAttribute("aria-disabled");
     // The position result leads the Agent tab.
     expect(screen.getByTestId("seo-summary-keywords")).toHaveTextContent(
@@ -5179,9 +5179,66 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByText("Reason and evidence"));
     expect(screen.getByText("The title is missing")).toBeVisible();
     expect(screen.getByText("A descriptive search result")).toBeVisible();
-    // The Actions tab is the full list of the same cards: the reasons stay closed, and its first card has the filled button.
+    // The Actions tab is the full list of the same cards: the reasons stay closed, and the run keeps the fill.
     await user.click(screen.getByRole("tab", { name: "Actions" }));
     expect(await screen.findByText("The title is missing")).not.toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Create draft task" }),
+    ).not.toHaveClass("bg-primary");
+  });
+
+  it("gives the fill back to the lead fix while no check can start", async () => {
+    const user = userEvent.setup();
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    workspace.availableActions = {
+      ...workspace.availableActions,
+      canRequestAnalysis: false,
+    };
+    workspace.observations.push({
+      id: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
+      kind: "audit_full",
+      source: "seo_coworker",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["mobile", "desktop"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 12, skipped: 0, failed: 0 },
+    });
+    workspace.actions.push({
+      id: "action-row",
+      observationId: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
+      pageUrl: "https://example.com/",
+      findingIds: [],
+      title: "Fix the page title",
+      why: "The title is missing",
+      effort: "low",
+      expectedEffect: "A descriptive search result",
+      edit: null,
+      taskId: null,
+      status: "recommended",
+      kind: "fix",
+      evidence: [],
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    // The run cannot start, so it is no filled button: the tab's own next step is.
+    expect(
+      await screen.findByRole("button", { name: "Create draft task" }),
+    ).toHaveClass("bg-primary");
+    expect(
+      screen.getByRole("button", { name: "Run full audit" }),
+    ).not.toHaveClass("bg-primary");
+    await user.click(screen.getByRole("tab", { name: "Actions" }));
+    await screen.findByText("The title is missing");
     expect(
       screen.getByRole("button", { name: "Create draft task" }),
     ).toHaveClass("bg-primary");
@@ -5449,7 +5506,7 @@ describe("SEO workspace integration", () => {
       evidence: [],
     } as const;
     workspace.actions.push(
-      // An action with a Task comes first in the list; the filled button goes to the one that still waits.
+      // An action with a Task comes first in the list; the card opens on the one that still waits.
       {
         ...waiting,
         id: "action-with-task",
@@ -5474,7 +5531,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=actions");
     expect(
       screen.getByRole("button", { name: "Create draft task" }),
-    ).toHaveClass("bg-primary");
+    ).not.toHaveClass("bg-primary");
     await user.dblClick(
       screen.getByRole("button", { name: "Create draft task" }),
     );
@@ -5526,7 +5583,7 @@ describe("SEO workspace integration", () => {
     expect(
       screen.getAllByRole("button", { name: "Create draft task" }),
     ).toHaveLength(1);
-    // A card that a press opens has the same filled button: the button does the same thing on each card.
+    // A card that a press opens has the same button: the button does the same thing on each card.
     const second = screen
       .getByRole("heading", { name: /^Write a description/ })
       .closest("article");
@@ -5535,7 +5592,8 @@ describe("SEO workspace integration", () => {
       name: "Create draft task",
     });
     expect(creates).toHaveLength(2);
-    for (const create of creates) expect(create).toHaveClass("bg-primary");
+    for (const create of creates)
+      expect(create).toHaveClass("border-control-border");
     served = {
       ...workspace,
       actions: [
@@ -5548,14 +5606,14 @@ describe("SEO workspace integration", () => {
       ],
     };
     await user.click(creates[0]);
-    // The Task exists: the filled button moves to the next action, and its card opens to show it.
+    // The Task exists: the next action leads, and its card opens to show its button.
     const next = screen
       .getByRole("heading", { name: /^Write a description/ })
       .closest("article");
     await waitFor(() =>
       expect(
         within(next!).getByRole("button", { name: "Create draft task" }),
-      ).toHaveClass("bg-primary"),
+      ).toBeVisible(),
     );
   });
 

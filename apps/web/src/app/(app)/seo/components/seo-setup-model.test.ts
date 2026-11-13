@@ -32,34 +32,6 @@ describe("SEO header run action", () => {
     workspace.scope.pageIds = [];
     expect(seoRunAction(workspace)).toBeNull();
   });
-
-  it("leads until a recommended action waits, and stays ready then", () => {
-    const workspace = seoTestWorkspace();
-    expect(seoRunAction(workspace)).toMatchObject({ ready: true, leads: true });
-    const action = {
-      id: "action-row",
-      observationId: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
-      pageUrl: "https://example.com/",
-      findingIds: [],
-      title: "Fix the page title",
-      why: "The title is missing",
-      effort: "low",
-      expectedEffect: "A descriptive search result",
-      edit: null,
-      taskId: null,
-      status: "recommended",
-      kind: "fix",
-      evidence: [],
-    } as const;
-    workspace.actions.push({ ...action, evidence: [], findingIds: [] });
-    expect(seoRunAction(workspace)).toMatchObject({
-      ready: true,
-      leads: false,
-    });
-    // An action with a Task is under way: the next check leads again.
-    workspace.actions[0].status = "task_created";
-    expect(seoRunAction(workspace)?.leads).toBe(true);
-  });
 });
 
 describe("SEO first-run setup", () => {

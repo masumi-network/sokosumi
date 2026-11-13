@@ -343,7 +343,7 @@ describe("SEO audit first run", () => {
       name: copy.overview.manageConnections,
     });
     expect(setUp).toHaveLength(1);
-    // A check can start and no action waits, so the run is the filled one: the view keeps one. Its arrow, which
+    // A check can start, so the run is the filled one: the view keeps one. Its arrow, which
     // schedules the follow-up, is part of the same control.
     expect(setUp[0]).not.toHaveClass("bg-primary");
     const arrow = screen.getByRole("button", { name: copy.monitor.create });

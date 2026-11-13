@@ -3,7 +3,6 @@ import {
   defaultFullAuditSeconds,
   type SeoAnalysisKind,
 } from "./seo-form-model";
-import { seoOverviewModel } from "./seo-overview-model";
 
 /**
  * done: finished. next: the one step that carries the primary button.
@@ -106,19 +105,16 @@ function seoRunReady(workspace: ProjectSeoWorkspace) {
 }
 
 /**
- * The header's run button is filled: a check can start and no result waits for the reader.
- * A recommended action from the last check comes first. On the Agent and Actions tabs its own
- * button is the filled one; on the other tabs the header stays the same, so no button is filled there.
+ * The run of the checks card is the filled button of every tab whenever a check can start (owner call,
+ * 2026-11-13): a new check is the focus of the page. A step, a fix or a connection keeps the fill only while no
+ * check can start.
  */
 export function seoRunLeads(workspace: ProjectSeoWorkspace) {
-  return (
-    seoRunReady(workspace) &&
-    !seoOverviewModel(workspace).recommendedActions.length
-  );
+  return seoRunReady(workspace);
 }
 
 /**
- * The header's run button: the widest check this workspace can run on its pages.
+ * The run of the checks card: the widest check this workspace can run on its pages.
  * A full audit needs paid search data and pages on one host. Null where the reader can run no check at all.
  */
 export function seoRunAction(workspace: ProjectSeoWorkspace) {
@@ -141,7 +137,6 @@ export function seoRunAction(workspace: ProjectSeoWorkspace) {
         : "runPageCheck",
     running,
     ready: seoRunReady(workspace),
-    leads: seoRunLeads(workspace),
   } as const satisfies { kind: SeoAnalysisKind; [key: string]: unknown };
 }
 

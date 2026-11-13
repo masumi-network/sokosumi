@@ -454,7 +454,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
           {canSync ? (
             <Button
               // The one waiting action of the tab is its filled button: only once the read says that an account
-              // is missing or must connect again, and only where the header's run button is not the filled one.
+              // is missing or must connect again, and only where the run of the checks card is not the filled one.
               variant={
                 (connection === "not_connected" ||
                   connection === "needs_reconnect") &&

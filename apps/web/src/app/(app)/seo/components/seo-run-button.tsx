@@ -39,7 +39,7 @@ export function SeoRunButton({
   unavailable: boolean;
 }) {
   const t = useTranslations("App.Seo");
-  const variant = ready && run.leads ? "primary" : "outline";
+  const variant = ready ? "primary" : "outline";
   const schedule = model.data.availableActions.canCreateMonitor === true;
   return (
     <div className="flex">

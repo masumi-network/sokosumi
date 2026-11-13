@@ -112,19 +112,19 @@ function SeoAgentPanel({
   const [showAllSteps, setShowAllSteps] = useState(false);
   const visibleSteps = seoFoldCount(steps.length, SEO_AGENT_VISIBLE_STEPS);
   const shown = showAllSteps ? steps : steps.slice(0, visibleSteps);
-  // The first proposal with its own button carries the one primary action,
-  // unless a setup step or the header's run button holds it.
+  // The first proposal with its own button is the lead step: an action shows as a card. It carries the fill
+  // only while the checks card's run does not.
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
-  const primary =
-    setup?.next || seoRunLeads(model.data)
-      ? -1
-      : shown.findIndex((step) =>
-          step.kind === "competitors"
-            ? canEdit && (canRequestAnalysis || !step.available)
-            : step.kind === "strategy"
-              ? false
-              : step.kind !== "action" || (canEdit && !step.action.taskId),
-        );
+  const runLeads = seoRunLeads(model.data);
+  const primary = setup?.next
+    ? -1
+    : shown.findIndex((step) =>
+        step.kind === "competitors"
+          ? canEdit && (canRequestAnalysis || !step.available)
+          : step.kind === "strategy"
+            ? false
+            : step.kind !== "action" || (canEdit && !step.action.taskId),
+      );
   const periodId = useId();
   const numbers = seoSummary(model.data);
   // The headline carries the severities, so the Agent tab needs no issues tile.
@@ -169,7 +169,7 @@ function SeoAgentPanel({
         step={statisticsStep}
         model={model}
         // The banner carries the filled button only where no step and no run button does.
-        first={primary === -1 && !seoRunLeads(model.data)}
+        first={primary === -1 && !runLeads}
         refresh={() => {
           void autopilot.refresh();
         }}
@@ -211,7 +211,7 @@ function SeoAgentPanel({
         key={`${step.kind}:${"provider" in step ? step.provider : ""}`}
         step={step}
         model={model}
-        first={index === primary}
+        first={index === primary && !runLeads}
         refresh={() => {
           void autopilot.refresh();
         }}
