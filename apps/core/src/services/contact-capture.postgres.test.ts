@@ -1238,6 +1238,104 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       await service().captureWorkspace(xWorkspaceId, () => true);
       expect(mocks.runIntegrationTool).not.toHaveBeenCalled();
     });
+
+    it("reads followers a page a day, and after one full walk stops at the first page with nothing new", async () => {
+      const pagedOrganizationId = randomUUID();
+      const pagedWorkspaceId = randomUUID();
+      await prisma.organization.create({
+        data: {
+          id: pagedOrganizationId,
+          name: "Capture X pages",
+          slug: `capture-x-pages-${pagedOrganizationId}`,
+          members: { create: { userId: alice, role: "member" } },
+        },
+      });
+      await prisma.workspace.create({
+        data: { id: pagedWorkspaceId, organizationId: pagedOrganizationId },
+      });
+      await addBot(pagedWorkspaceId, ["twitter"]);
+      const ada = person("1001", "Ada Byron", "adab", "Writes code");
+      const bo = person("1002", "Bo Chen", "boc", "Designs things");
+      const cy = person("1004", "Cy Dorn", "cyd", "Teaches maths");
+      // Newest first, as X lists them.
+      let pages: Record<string, { people: unknown[]; next: string | null }> = {
+        first: { people: [ada], next: "p2" },
+        p2: { people: [bo], next: "p3" },
+        p3: { people: [cy], next: null },
+      };
+      const followerCalls: (string | null)[] = [];
+      mocks.runIntegrationTool.mockImplementation(
+        async (...args: unknown[]) => {
+          const tool = args[1] as string;
+          if (tool === "TWITTER_USER_LOOKUP_ME")
+            return { data: user("100", "Alice Owner", "alice") };
+          if (tool === "TWITTER_GET_RECENT_DM_EVENTS")
+            return { data: [], meta: { result_count: 0 } };
+          if (tool !== "TWITTER_FOLLOWERS_BY_USER_ID")
+            throw new Error(`unexpected tool ${tool}`);
+          const token =
+            (args[2] as { pagination_token?: string }).pagination_token ?? null;
+          followerCalls.push(token);
+          const page = pages[token ?? "first"];
+          return {
+            data: page.people,
+            ...(page.next ? { meta: { next_token: page.next } } : {}),
+          };
+        },
+      );
+      // Contact channels are stamped by the database clock, so this one runs
+      // on real time.
+      const start = Date.now();
+      const day = 24 * 60 * 60 * 1000;
+      let clock = new Date(start);
+      const capture = (xFollowPages = 1) =>
+        new ContactCaptureService({
+          now: () => clock,
+          sleep: async () => undefined,
+          limits: {
+            backfillDays: 30,
+            pagesPerIntegration: 20,
+            enrichmentWorkspaces: 0,
+            embeddingsPerWorkspace: 0,
+            companiesPerWorkspace: 0,
+            xFollowPages,
+          },
+        }).captureWorkspace(pagedWorkspaceId, () => true);
+
+      await capture();
+      expect(followerCalls).toEqual([null]);
+      // Later the same day: the unfinished walk waits for tomorrow.
+      clock = new Date(start + 15 * 60 * 1000);
+      await capture();
+      expect(followerCalls).toEqual([null]);
+      clock = new Date(start + day);
+      await capture();
+      clock = new Date(start + 2 * day);
+      await capture();
+      expect(followerCalls).toEqual([null, "p2", "p3"]);
+
+      // The walk is complete. Kim followed since: the first page holds her and
+      // Ada, the second only Bo, known before this walk; the third is not read.
+      pages = {
+        ...pages,
+        first: {
+          people: [person("1003", "Kim Park", "kimp", "Runs a studio"), ada],
+          next: "p2",
+        },
+      };
+      clock = new Date(start + 3 * day);
+      await capture(3);
+      expect(followerCalls).toEqual([null, "p2", "p3", null, "p2"]);
+      const names = (await contactsOf(pagedWorkspaceId)).map(
+        (contact) => contact.name,
+      );
+      expect(names.sort()).toEqual([
+        "Ada Byron",
+        "Bo Chen",
+        "Cy Dorn",
+        "Kim Park",
+      ]);
+    });
   });
 
   describe("guards", () => {

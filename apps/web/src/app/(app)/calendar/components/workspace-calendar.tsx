@@ -144,6 +144,7 @@ import { SocialPostMoveDialog } from "./social-post-move-dialog";
 import { SocialStatusSummary } from "./social-status-summary";
 import { SourceMarker } from "./source-marker";
 import { useRunChanges } from "./use-run-changes";
+import { useUrlTimezone } from "./use-url-timezone";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
 type CalendarView = (typeof CALENDAR_VIEWS)[number];
@@ -228,6 +229,7 @@ interface WorkspaceCalendarProps {
     from: Date;
     to: Date;
   };
+  renderedTimezone?: string;
   coworkers?: CalendarCoworker[];
   lockedProjectId?: string;
   workspaceId?: string | null;
@@ -1032,6 +1034,7 @@ export function WorkspaceCalendar({
   sources = [],
   pagination = null,
   range,
+  renderedTimezone,
   coworkers = [],
   lockedProjectId,
   workspaceId = null,
@@ -1212,11 +1215,7 @@ export function WorkspaceCalendar({
     </>
   );
 
-  useMountEffect(() => {
-    if (!isValidTimezone(state.timezone)) {
-      void setState({ timezone: timeZone }, { shallow: false });
-    }
-  });
+  useUrlTimezone(state.timezone, timeZone, renderedTimezone, setState);
 
   useEffect(() => {
     if (isMobile && state.view === null && !socialOnly) {
