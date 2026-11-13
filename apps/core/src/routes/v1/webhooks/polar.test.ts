@@ -466,6 +466,21 @@ describe("POST /v1/webhooks/polar", () => {
       ).toEqual(new Date("2026-11-13T10:00:02.000Z"));
     });
 
+    it("reports a subscription whose Polar customer has no external id and records nothing", async () => {
+      const event = subscriptionEvent(
+        "subscription.created",
+        "2026-11-13T10:00:03.000Z",
+        { customer: { id: "cus_1", external_id: null } },
+      );
+      m.verifyPolarWebhook.mockResolvedValue(event);
+
+      const response = await post();
+
+      expect(response.status).toBe(200);
+      expect(m.captureMessage).toHaveBeenCalledTimes(1);
+      expect(m.prisma.cmoSubscription.create).not.toHaveBeenCalled();
+    });
+
     it("reports a subscription for an unknown Project to Sentry and acknowledges it", async () => {
       m.prisma.project.findFirst.mockResolvedValue(null);
       m.verifyPolarWebhook.mockResolvedValue(

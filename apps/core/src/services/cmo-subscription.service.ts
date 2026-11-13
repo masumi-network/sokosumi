@@ -167,10 +167,8 @@ async function upsertCmoSubscription(
   const metadata = cmoCheckoutMetadataSchema.safeParse(source.metadata);
   if (!metadata.success) return err({ issue: "no CMO checkout metadata" });
   const { organizationId, projectId } = metadata.data;
-  if (
-    source.externalCustomerId &&
-    source.externalCustomerId !== organizationId
-  ) {
+  // The organization is Polar's customer by its external id.
+  if (source.externalCustomerId !== organizationId) {
     return err({
       issue: "the Polar customer is not the organization of the checkout",
     });
