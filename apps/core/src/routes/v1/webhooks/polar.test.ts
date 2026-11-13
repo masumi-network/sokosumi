@@ -280,6 +280,40 @@ describe("POST /v1/webhooks/polar", () => {
       });
     });
 
+    it("starts a renewed yearly plan's twelve months again with the renewal order", async () => {
+      m.prisma.cmoSubscription.findUnique.mockResolvedValue(ROW);
+      m.verifyPolarWebhook.mockResolvedValue(
+        orderPaid({
+          id: "order_2",
+          billing_reason: "subscription_cycle",
+          metadata: {},
+          subscription: {
+            ...SUBSCRIPTION,
+            recurring_interval: "year",
+            current_period_start: "2027-11-13T10:00:00.000Z",
+            current_period_end: "2028-11-13T10:00:00.000Z",
+          },
+        }),
+      );
+
+      const response = await post();
+
+      expect(response.status).toBe(200);
+      expect(grant().sourceCreditBucket.create).toMatchObject({
+        amount: 25_000n * CENTS_PER_CREDIT,
+        expiresAt: new Date("2027-12-13T10:00:00.000Z"),
+        referenceId: "order_2:0",
+      });
+      expect(m.prisma.cmoSubscription.updateMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: {
+            lastPaidAt: new Date("2026-11-13T10:00:05.000Z"),
+            lastPaidOrderId: "order_2",
+          },
+        }),
+      );
+    });
+
     it("takes the Project from the stored subscription before the order's metadata", async () => {
       const storedProjectId = "0190a000-0000-7000-8000-000000000002";
       m.prisma.cmoSubscription.findUnique.mockResolvedValue({

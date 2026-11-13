@@ -134,6 +134,10 @@
       "schedule": "*/10 * * * *"
     },
     {
+      "path": "/sync/cmo-yearly-grants",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/sync/soko-bot-turns",
       "schedule": "* * * * *"
     },
