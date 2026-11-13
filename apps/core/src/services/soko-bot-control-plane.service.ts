@@ -621,6 +621,11 @@ export class SokoBotControlPlane {
   private async startRuntimeWithAcceptanceRetry(
     input: Parameters<SokoBotRuntime["createSession"]>[0],
   ) {
+    // TEMPORARY SOKD-188 verification fault, reverted before merge: fail the
+    // runtime start for one disposable preprod test bot only.
+    if (input.sokoBotId === "01a1d238-d234-752a-b9fb-8196e3f71de9") {
+      throw new Error("SOKD-188 temporary verification fault");
+    }
     try {
       return await this.runtime.createSession(input);
     } catch (error) {
