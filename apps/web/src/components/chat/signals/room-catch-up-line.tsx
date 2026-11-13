@@ -70,7 +70,7 @@ export function RoomCatchUpLine({
   return (
     <div
       data-testid="room-catch-up-line"
-      className="text-muted-foreground mb-1.5 flex min-w-0 items-center gap-2 px-1 text-sm"
+      className="pointer-events-auto text-muted-foreground mb-1.5 flex min-w-0 items-center gap-2 rounded-lg bg-background px-1 text-sm"
     >
       <Sunrise className="size-4 shrink-0" aria-hidden />
       <p className="min-w-0 flex-1 truncate">

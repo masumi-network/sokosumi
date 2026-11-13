@@ -281,7 +281,7 @@
           "confirm": "Confirm",
           "cancel": "Cancel",
           "success": "Invitation canceled successfully",
-          "error": "Failed to cancel invitation",
+          "error": "Could not cancel the invitation for {email}. It is still pending.",
           "Errors": {
             "unauthorizedAction": "Log in"
           }
@@ -418,7 +418,8 @@
             },
             "Error": {
               "share": "Failed to update share",
-              "copyLink": "Failed to copy link"
+              "copyLink": "Failed to copy link",
+              "searchIndexing": "Search indexing was not saved. It is back to its earlier setting."
             },
             "Errors": {
               "unauthenticated": "You must be logged in.",
@@ -896,7 +897,7 @@
         "IDLE": "Idle",
         "RUNNING": "Running",
         "PAUSED": "Paused",
-        "ERROR": "Error"
+        "ERROR": "Couldn't reply"
       },
       "TurnStatus": {
         "QUEUED": "Queued",
@@ -1723,7 +1724,11 @@
             "catchUp": "Catch me up",
             "teamWins": "What did we finish?",
             "planTomorrow": "Plan tomorrow"
-          }
+          },
+          "failedReply": "{name} couldn't finish its last reply",
+          "openChat": "Open the chat",
+          "failedWork": "{name} couldn't finish what it was working on",
+          "openBot": "Open {name}'s page"
         }
       },
       "SokoBot": {
@@ -2036,7 +2041,8 @@
           },
           "Error": {
             "share": "Failed to update task sharing",
-            "copyLink": "Failed to copy public link"
+            "copyLink": "Failed to copy public link",
+            "searchIndexing": "Search indexing was not saved. It is back to its earlier setting."
           },
           "Errors": {
             "unauthenticated": "Please log in to manage task sharing",
@@ -2982,7 +2988,11 @@
             "videoRequired": "TikTok needs a video."
           },
           "x": {
-            "more": "Show more"
+            "more": "Show more",
+            "images": "{count, plural, one {# image} other {# images}}",
+            "image": "Image {index} of {count}",
+            "previousImage": "Previous image",
+            "nextImage": "Next image"
           }
         },
         "statistics": {
@@ -4369,6 +4379,7 @@
       "reroll": "Re-roll",
       "reusePrompt": "Reuse prompt",
       "download": "Download",
+      "moreActions": "More actions",
       "previewAd": "Preview ad",
       "previewAdDescription": "Preview an Instagram or Facebook feed ad, or a vertical Reel.",
       "approvedHeadline": "Approved headline",
@@ -4443,7 +4454,6 @@
       "model": "Model",
       "aspectRatio": "Frame",
       "adPlacements": "Ad placements",
-      "placementHelp": "Choose one or more ad placements, or pick a single custom frame below.",
       "creativeDirection": "Creative direction",
       "adGallery": "Ad gallery",
       "groupByProduct": "Group by product",
@@ -4567,7 +4577,8 @@
       "creditsCharged": "Added up from each model's own published price, at 1 credit per cent and no markup on it. This is the charge, not an approximation of one: the same figure is taken when the image is delivered. A generation that fails costs nothing.",
       "creditsUnderivable": "At least one of these models cannot be priced per image for the frame it would run at, so this batch cannot be totalled.",
       "creditsNoFigure": "No figure",
-      "failedNoCharge": "Nothing was charged for it.",
+      "failedAfterModel": "failed",
+      "failedNoCharge": "not charged",
       "failedBodyUnreported": "The model did not return an image, and this generation is too old to say why.",
       "FailureReasons": {
         "provider_rejected": "The image provider refused this request.",
@@ -5345,7 +5356,6 @@
         "SokoBot": {
           "fallbackName": "Soko Bot",
           "workingNow": "Working now",
-          "needsAttention": "Needs attention",
           "activeAgo": "Active {time}",
           "ready": "Ready",
           "team": "Your team's Soko Bots"
@@ -8869,8 +8879,10 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "failed": "Failed to reply",
-        "retry": "Retry"
+        "failed": "{name} couldn't reply",
+        "failedBody": "The reply stopped before it finished.",
+        "failedSaved": "The reply stopped before it finished. Your message is saved.",
+        "retry": "Try again"
       },
       "Outbound": {
         "sending": "Sending",
@@ -9043,7 +9055,9 @@
         "messageRequired": "Message is required.",
         "roomRequired": "Room is required.",
         "pinError": "Could not pin message.",
-        "unpinError": "Could not unpin message."
+        "unpinError": "Could not unpin message.",
+        "statePinned": "The message is pinned.",
+        "stateUnpinned": "The message is not pinned."
       },
       "SavedMessages": {
         "save": "Save for later",
@@ -9073,12 +9087,18 @@
       "Unfurl": {
         "openLink": "Open link preview: {title}",
         "imageAlt": "Preview image for {title}",
-        "remove": "Remove link preview: {title}"
+        "remove": "Remove link preview: {title}",
+        "removeError": "Could not remove the link preview. Try again.",
+        "restored": "The link preview is back on the message."
       },
       "Message": {
         "delete": "Delete",
         "deleteConfirm": "Delete this message? Others will see that it was deleted.",
+        "deleteNoteTitle": "Delete this note?",
+        "deleteNoteConfirm": "It's removed for good. Only you could see it.",
         "deleted": "This message was deleted",
+        "deleteError": "Could not delete the message. Try again.",
+        "restored": "The message is back in the conversation.",
         "showMore": "Show more",
         "showLess": "Show less"
       },
@@ -9088,7 +9108,9 @@
         "composerAria": "Edit message. Use Save or Cancel to finish. On a keyboard, Enter saves, Escape cancels, and Shift+Enter adds a new line.",
         "edited": "Edited",
         "editedAt": "Edited {when}",
-        "save": "Save"
+        "save": "Save",
+        "saveError": "Could not save the edit. Try again.",
+        "restored": "The message shows its earlier text again."
       },
       "Copy": {
         "action": "Copy text",
@@ -9176,7 +9198,9 @@
         "removeConfirmTitle": "Remove {name} from this channel?",
         "removeConfirmDescription": "{name} will no longer see this channel or its messages.",
         "removeSuccess": "Removed {name} from the channel.",
-        "undo": "Undo"
+        "removeError": "Could not remove {name} from the channel.",
+        "undo": "Undo",
+        "undoError": "Could not put {name} back in the channel."
       },
       "AddMembers": {
         "title": "Add members",
@@ -9458,7 +9482,7 @@
         "Decisions": {
           "open": "Decisions",
           "title": "Decisions",
-          "empty": "No decisions here yet. Messages like \"Decided: we launch Monday\" collect here.",
+          "empty": "No decisions here yet. We find them in channels and in chats with other people who allow it. Notes to yourself are never tagged.",
           "loadOlder": "Load older",
           "note": "We find these for you. If one is wrong, open its message and click the × on the tag.",
           "description": "Decisions found in your chats, newest first, including ones you already read.",
@@ -9696,7 +9720,7 @@
         "bulkDeleteDescriptionSkipsTaskFiles": "They are removed for everyone in this Files workspace. Files from tasks stay with their task. This can't be undone.",
         "bulkDeleteCancel": "Cancel",
         "bulkDeleted": "{count, plural, one {Deleted # file} other {Deleted # files}}",
-        "bulkDeletePartial": "{deleted} deleted, {failed} failed and stay selected",
+        "bulkDeletePartial": "{deleted} deleted. Could not delete {failed, plural, one {# file} other {# files}}. Try again.",
         "detailLoading": "Loading file",
         "detailProcessing": "Processing",
         "detailCategory": "Category",
@@ -9761,7 +9785,8 @@
         "collectionSaved": "Saved “{name}”",
         "collectionUpdated": "Updated “{name}”",
         "collectionSaveFailed": "That collection could not be saved.",
-        "collectionDeleteFailed": "That collection could not be deleted.",
+        "collectionRenameFailed": "Could not rename “{name}”. The new name was not saved.",
+        "collectionDeleteFailed": "Could not delete “{name}”. The collection is back in its place.",
         "collectionsUnavailable": "Collections could not be loaded.",
         "labelsUnavailable": "Categories and tags could not be loaded.",
         "collectionActions": "Actions for {name}",
@@ -10273,6 +10298,7 @@
       },
       "Console": {
         "tagline": "Your personal project manager. It delegates work, follows up, and keeps you posted — talk to it in chat.",
+        "lastTurnFailed": "{name} couldn't finish its last reply.",
         "lastActivity": "last active {time}",
         "adminView": "Admin view",
         "openChat": "Open chat",
@@ -10738,7 +10764,10 @@
         "csv": "Check the quotes and separators in the CSV file.",
         "csvHeaders": "Give every CSV column a non-empty header.",
         "csvWidth": "Every CSV row must have the same number of columns.",
-        "layout": "Column layout wasn't saved and was reset. {reason}"
+        "layout": "Column layout wasn't saved and was reset. {reason}",
+        "archiveRows": "{count, plural, one {Could not archive # row. It is back in the table.} other {Could not archive # rows. They are back in the table.}} {reason}",
+        "restoreRows": "{count, plural, one {Could not restore # row. It is back in archived rows.} other {Could not restore # rows. They are back in archived rows.}} {reason}",
+        "cellNotSaved": "Your value was not saved. It is back in the editor. {reason}"
       },
       "reorderColumn": "Reorder {column}. Drag, or press the left and right arrow keys.",
       "reorderRow": "Reorder row. Drag, or press the up and down arrow keys.",
@@ -11090,6 +11119,7 @@
         "linkCopied": "Link copied",
         "archive": "Archive contact",
         "archived": "{name} archived",
+        "archiveFailed": "Could not archive {name}. The contact is back in your list.",
         "changeStage": "Stage: {stage}. Change stage",
         "changeLists": "Change lists",
         "addToList": "Add to a list",
@@ -11097,6 +11127,8 @@
         "noManualLists": "No lists yet.",
         "newList": "New list…",
         "newListAddFailed": "{list} is ready, but {name} isn't on it yet.",
+        "addToListFailed": "Could not add {name} to {list}. The contact is off the list again.",
+        "removeFromListFailed": "Could not take {name} off {list}. The contact is back on the list.",
         "empty": "Add…",
         "location": "Location",
         "nextStepTitle": "Next step",

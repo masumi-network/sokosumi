@@ -2257,6 +2257,34 @@ export const AdminSokoBotVersionMigrationRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const RestyleSokoBotAvatarsResultSchema = {
+    type: 'object',
+    properties: {
+        restyled: {
+            type: 'integer'
+        },
+        remaining: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'restyled',
+        'remaining'
+    ]
+} as const;
+
+export const RestyleSokoBotAvatarsRequestSchema = {
+    type: 'object',
+    properties: {
+        limit: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 10,
+            default: 6
+        }
+    }
+} as const;
+
 export const AdminSokoBotChatRoomSchema = {
     type: 'object',
     properties: {
@@ -38775,8 +38803,8 @@ export const CreateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 10,
-            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+            maxItems: 20,
+            description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
         },
         threadParts: {
             type: 'array',
@@ -38792,8 +38820,8 @@ export const CreateSocialPostRequestSchema = {
                         items: {
                             $ref: '#/components/schemas/SocialPostMediaRef'
                         },
-                        maxItems: 10,
-                        description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+                        maxItems: 20,
+                        description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
                     }
                 },
                 required: [
@@ -38902,8 +38930,8 @@ export const UpdateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 10,
-            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+            maxItems: 20,
+            description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
         },
         threadParts: {
             type: 'array',
@@ -38919,8 +38947,8 @@ export const UpdateSocialPostRequestSchema = {
                         items: {
                             $ref: '#/components/schemas/SocialPostMediaRef'
                         },
-                        maxItems: 10,
-                        description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+                        maxItems: 20,
+                        description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
                     }
                 },
                 required: [
@@ -47023,6 +47051,32 @@ export const SokoBotStateSchema = {
             items: {
                 $ref: '#/components/schemas/SharedSokoBotSummary'
             }
+        },
+        lastFailure: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                roomId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uuid'
+                },
+                messageId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'roomId',
+                'messageId'
+            ]
         }
     },
     required: [

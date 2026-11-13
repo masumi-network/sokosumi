@@ -247,6 +247,7 @@ function renderRow({
   onRemoveOutbound,
   onJumpToQuotedMessage,
   onSendToSelf,
+  isSelfDirect,
   showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
@@ -254,6 +255,7 @@ function renderRow({
   onCancelEdit,
   onSaveEdit,
   isSavingEdit = false,
+  isSaving,
   coworkersById = new Map(),
   usersById,
   isPinned,
@@ -276,6 +278,7 @@ function renderRow({
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   onJumpToQuotedMessage?: (messageId: string) => void;
   onSendToSelf?: (message: ChatRoomMessage) => void;
+  isSelfDirect?: boolean;
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
   editDraft?: string;
@@ -283,6 +286,7 @@ function renderRow({
   onCancelEdit?: () => void;
   onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
+  isSaving?: boolean;
   coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, { id: string; name: string }>;
 } = {}) {
@@ -305,6 +309,7 @@ function renderRow({
       onRemoveOutbound={onRemoveOutbound}
       onJumpToQuotedMessage={onJumpToQuotedMessage}
       onSendToSelf={onSendToSelf}
+      isSelfDirect={isSelfDirect}
       showOutboundSentTick={showOutboundSentTick}
       isEditing={isEditing}
       editDraft={editDraft}
@@ -312,6 +317,7 @@ function renderRow({
       onCancelEdit={onCancelEdit}
       onSaveEdit={onSaveEdit}
       isSavingEdit={isSavingEdit}
+      isSaving={isSaving}
       isContinuation={isContinuation}
       isFirstOfDay={isFirstOfDay}
       isPinned={isPinned}
@@ -526,6 +532,17 @@ describe("ChatMessageRow", () => {
     expect(article).toHaveClass("mt-0");
     expect(article).not.toHaveClass("mt-2");
     expect(article).not.toHaveClass("mt-3");
+  });
+
+  it("marks the row as saving only while a change waits for Core", () => {
+    renderRow({ isSaving: true });
+    expect(screen.getByRole("article")).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("article")).toHaveClass("opacity-60");
+
+    cleanup();
+    renderRow();
+    expect(screen.getByRole("article")).not.toHaveAttribute("aria-busy");
+    expect(screen.getByRole("article")).not.toHaveClass("opacity-60");
   });
 
   it("exposes message id for quote jump targets", () => {
@@ -2625,6 +2642,35 @@ describe("ChatMessageRow", () => {
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
+  it("asks to delete a private note in the Self Direct", async () => {
+    const user = userEvent.setup();
+
+    renderRow({
+      currentUserId: "user-1",
+      onDelete: vi.fn(),
+      onQuote: vi.fn(),
+      isSelfDirect: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Message.delete",
+      }),
+    );
+
+    const confirmDialog = await screen.findByRole("alertdialog");
+    expect(
+      within(confirmDialog).getByText("Message.deleteNoteTitle"),
+    ).toBeInTheDocument();
+    expect(
+      within(confirmDialog).getByText("Message.deleteNoteConfirm"),
+    ).toBeInTheDocument();
+    expect(
+      within(confirmDialog).queryByText("Message.deleteConfirm"),
+    ).not.toBeInTheDocument();
+  });
+
   it("cancels delete without calling onDelete", async () => {
     const user = userEvent.setup();
     const onDelete = vi.fn();
@@ -3219,7 +3265,7 @@ describe("ChatMessageRow coworker Thought", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows failed caption on the coworker shell with no elapsed clock", () => {
+  it("says a coworker couldn't reply, with no elapsed clock", () => {
     renderRow({
       message: coworkerMessage({
         content: "",
@@ -3230,15 +3276,14 @@ describe("ChatMessageRow coworker Thought", () => {
       }),
     });
 
-    expect(screen.getByTestId("coworker-thought-sparkle")).toHaveTextContent(
-      "MentionStatus.failed",
-    );
+    const card = screen.getByTestId("coworker-mention-failed");
+    expect(card).toHaveTextContent("MentionStatus.failed");
+    // No source message on the shell: nothing proves the message was kept.
+    expect(card).toHaveTextContent("MentionStatus.failedBody");
+    expect(card).not.toHaveTextContent("MentionStatus.failedSaved");
     expect(screen.queryByTestId("live-stream-elapsed")).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("coworker-thought-trace"),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByTestId("coworker-mention-failed"),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("coworker-mention-retry"),
@@ -3264,7 +3309,7 @@ describe("ChatMessageRow coworker Thought", () => {
     expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
   });
 
-  it("shows Failed to reply on a failed Soko Bot shell", () => {
+  it("says a Soko Bot couldn't reply and the message is saved", () => {
     renderRow({
       message: sokoBotMessage({
         content: "",
@@ -3277,9 +3322,10 @@ describe("ChatMessageRow coworker Thought", () => {
       }),
     });
 
-    expect(screen.getByTestId("coworker-thought-sparkle")).toHaveTextContent(
-      "MentionStatus.failed",
-    );
+    const card = screen.getByTestId("coworker-mention-failed");
+    expect(card).toHaveAttribute("role", "status");
+    expect(card).toHaveTextContent("MentionStatus.failed");
+    expect(card).toHaveTextContent("MentionStatus.failedSaved");
   });
 
   it("shows Retry on a failed mention shell for the mentioner", async () => {
@@ -3296,7 +3342,7 @@ describe("ChatMessageRow coworker Thought", () => {
 
     renderRow({ message, onRetryMention });
 
-    expect(screen.getByTestId("coworker-thought-sparkle")).toHaveTextContent(
+    expect(screen.getByTestId("coworker-mention-failed")).toHaveTextContent(
       "MentionStatus.failed",
     );
     await user.click(screen.getByTestId("coworker-mention-retry"));

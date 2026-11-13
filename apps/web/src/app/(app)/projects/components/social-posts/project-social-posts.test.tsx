@@ -210,14 +210,13 @@ const MESSAGES: Record<string, string> = {
   "composer.media.drop": "Drop files to attach",
   "composer.media.upload": "Upload",
   "composer.media.remove": "Remove {name}",
-  "composer.media.hint": "Up to 4 images, or one GIF, or one video.",
   "composer.media.unsupported": "Use a JPG, PNG, WebP, GIF, or MP4 file.",
   "composer.media.alreadyAttached": "That file is already attached.",
   "composer.media.uploadDuplicate":
     "A file with this name already exists in the Drive. Rename it and try again.",
   "composer.media.uploadFailed": "The upload failed. Try again.",
   "composer.media.errors.too_many_images":
-    "X allows at most 4 images per post.",
+    "{provider} allows at most {max} images per post.",
   "composer.media.errors.too_many_gifs": "X allows one GIF per post.",
   "composer.media.errors.too_many_videos": "X allows one video per post.",
   "composer.media.errors.mixed_media":
@@ -5141,6 +5140,96 @@ describe("ProjectSocialPosts", () => {
     ).toHaveLength(2);
   });
 
+  it.each(["publish", "schedule"] as const)(
+    "attaches twenty X images, rejects the twenty-first, and sends all twenty to %s",
+    async (action) => {
+      freezeClock();
+      for (let index = 0; index < 20; index++) {
+        uploadDriveFileMock.mockResolvedValueOnce({
+          pathname: `drive/users/user_1/photo-${index}.png`,
+          fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/user_1/photo-${index}.png`,
+        });
+      }
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = screen.getByRole("dialog");
+      const input = dialog.querySelector('input[type="file"]');
+      expect(input).not.toBeNull();
+      const dataTransfer = new DataTransfer();
+      for (let index = 0; index < 21; index++) {
+        dataTransfer.items.add(
+          new File(["photo"], `photo-${index}.png`, { type: "image/png" }),
+        );
+      }
+      await act(async () => {
+        fireEvent.change(input as HTMLInputElement, {
+          target: { files: dataTransfer.files },
+        });
+      });
+
+      await waitFor(() => {
+        expect(uploadDriveFileMock).toHaveBeenCalledTimes(20);
+        expect(toastErrorMock).toHaveBeenCalledWith(
+          "X allows at most 20 images per post.",
+        );
+      });
+      expect(
+        within(dialog).getByTestId("social-post-media").querySelectorAll("img"),
+      ).toHaveLength(20);
+      const carousel = within(dialog).getByTestId(
+        "social-post-preview-media-carousel",
+      );
+      const carouselItems = within(carousel).getAllByTestId(
+        "social-post-preview-carousel-item",
+      );
+      expect(carouselItems).toHaveLength(20);
+      for (const [index, item] of carouselItems.entries()) {
+        expect(within(item).getByRole("img")).toHaveAttribute(
+          "alt",
+          `photo-${index}.png`,
+        );
+      }
+      expect(
+        within(dialog).queryByTestId("social-post-preview-media-grid"),
+      ).not.toBeInTheDocument();
+      expect(
+        within(dialog).queryByTestId("social-post-preview-media-overflow"),
+      ).not.toBeInTheDocument();
+
+      if (action === "schedule") await pickInAnHour(user, dialog);
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: action === "schedule" ? /^Schedule/ : "Post now",
+        }),
+      );
+
+      await waitFor(() => {
+        expect(createProjectSocialPost).toHaveBeenCalledWith(
+          expect.objectContaining({
+            media: Array.from({ length: 20 }, (_, index) =>
+              expect.objectContaining({
+                pathname: `drive/users/user_1/photo-${index}.png`,
+              }),
+            ),
+            ...(action === "schedule"
+              ? { scheduledAt: IN_AN_HOUR.toISOString() }
+              : {}),
+          }),
+        );
+        if (action === "publish")
+          expect(publishProjectSocialPost).toHaveBeenCalled();
+      });
+    },
+  );
+
   it("attaches a pasted image and a dropped image", async () => {
     uploadDriveFileMock
       .mockResolvedValueOnce({
@@ -8796,5 +8885,261 @@ describe("ProjectSocialPosts", () => {
       vi.mocked(updateProjectSocialPost).mock.invocationCallOrder[0],
     );
     expect(scheduleProjectSocialPost).toHaveBeenCalledTimes(1);
+  });
+
+  /** A write that stays open until the test answers it. */
+  function holdOpen<T>(write: (...args: never[]) => Promise<T>) {
+    let answer: (value: T) => void = () => {};
+    vi.mocked(write).mockReturnValueOnce(
+      new Promise<T>((resolve) => {
+        answer = resolve;
+      }),
+    );
+    return (value: T) => act(async () => answer(value));
+  }
+
+  it("takes a dismissed post off the list before the answer and puts it back when the write fails", async () => {
+    const user = userEvent.setup();
+    const answer = holdOpen(cancelProjectSocialPost);
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[FAILED_POST]}
+        projectId={PROJECT_ID}
+      />,
+      // The tab the reader is on, so a failed write can lead back to it.
+      "?tab=attention",
+    );
+
+    await openRowMenu(user, "post-failed");
+    await user.click(screen.getByRole("menuitem", { name: "Dismiss" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Dismiss",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByTestId("social-post-post-failed")).toBeNull(),
+    );
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+
+    await answer({
+      ok: false,
+      error: { code: "INTERNAL", message: "Core is down" },
+    } as Awaited<ReturnType<typeof cancelProjectSocialPost>>);
+    expect(await screen.findByTestId("social-post-post-failed")).toBeVisible();
+    expect(toastErrorMock).toHaveBeenCalledWith("Core is down");
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a composer the reader opened meanwhile when a dismiss ends in a conflict", async () => {
+    const user = userEvent.setup();
+    const answer = holdOpen(cancelProjectSocialPost);
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[FAILED_POST]}
+        projectId={PROJECT_ID}
+      />,
+      "?tab=attention",
+    );
+
+    await openRowMenu(user, "post-failed");
+    await user.click(screen.getByRole("menuitem", { name: "Dismiss" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Dismiss",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    await user.type(
+      within(screen.getByRole("dialog")).getByLabelText("Text"),
+      "Half written",
+    );
+
+    await answer({
+      ok: false,
+      error: {
+        kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+        message: "Conflict copy can change freely",
+      },
+    } as Awaited<ReturnType<typeof cancelProjectSocialPost>>);
+
+    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(
+      within(screen.getByRole("dialog")).getByLabelText("Text"),
+    ).toHaveValue("Half written");
+  });
+
+  it("approves two posts one after the other without waiting for the first answer", async () => {
+    const user = userEvent.setup();
+    const first = buildPost({
+      id: "approve-1",
+      status: "NEEDS_APPROVAL",
+      canApprove: true,
+    });
+    const second = buildPost({
+      id: "approve-2",
+      status: "NEEDS_APPROVAL",
+      canApprove: true,
+    });
+    const answerFirst = holdOpen(approveProjectSocialPost);
+    const answerSecond = holdOpen(approveProjectSocialPost);
+    const { rerender } = render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[first, second]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const firstRow = screen.getByTestId("social-post-approve-1");
+    await user.click(within(firstRow).getByRole("button", { name: "Approve" }));
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId("social-post-approve-1")).queryByRole(
+          "button",
+          { name: "Approve" },
+        ),
+      ).toBeNull(),
+    );
+    await user.click(
+      within(screen.getByTestId("social-post-approve-2")).getByRole("button", {
+        name: "Approve",
+      }),
+    );
+    expect(approveProjectSocialPost).toHaveBeenCalledTimes(2);
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+
+    const firstApproved = {
+      ...first,
+      status: "DRAFT" as const,
+      canApprove: false,
+      revision: 1,
+    };
+    await answerFirst({ ok: true, value: firstApproved });
+    // The first answer brings a server list that still has the second post
+    // waiting for approval. Its Approve must not come back.
+    rerender(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[firstApproved, second]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    expect(
+      within(screen.getByTestId("social-post-approve-2")).queryByRole(
+        "button",
+        { name: "Approve" },
+      ),
+    ).toBeNull();
+    await answerSecond({
+      ok: true,
+      value: { ...second, status: "DRAFT", canApprove: false, revision: 1 },
+    });
+    expect(toastSuccessMock).toHaveBeenCalledTimes(2);
+
+    // Once answered, a post follows the server list again.
+    rerender(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[firstApproved, { ...second, revision: 2 }]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    expect(
+      within(screen.getByTestId("social-post-approve-2")).getByRole("button", {
+        name: "Approve",
+      }),
+    ).toBeVisible();
+  });
+
+  it("follows an approved post to the calendar when Core schedules it after all", async () => {
+    const user = userEvent.setup();
+    // No time here, so the post shows as a draft until Core answers.
+    const post = buildPost({
+      id: "approve-1",
+      status: "NEEDS_APPROVAL",
+      scheduledAt: null,
+      canApprove: true,
+    });
+    const answer = holdOpen(approveProjectSocialPost);
+    render(
+      <ProjectSocialPosts
+        calendar={<p>Calendar entries</p>}
+        connections={[buildConnection()]}
+        posts={[post]}
+        projectId={PROJECT_ID}
+      />,
+      "?tab=drafts",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+    expect(screen.queryByText("Calendar entries")).toBeNull();
+
+    await answer({
+      ok: true,
+      value: {
+        ...post,
+        status: "SCHEDULED",
+        scheduledAt: new Date("2026-12-01T10:00:00.000Z"),
+        canApprove: false,
+        revision: 1,
+      },
+    });
+    expect(await screen.findByText("Calendar entries")).toBeVisible();
+  });
+
+  it("takes the quote warning off a post before the Remove quote answer", async () => {
+    const user = userEvent.setup();
+    const reason = "The quoted post was cancelled";
+    const post = buildPost({
+      id: "failed-quote",
+      status: "FAILED",
+      quotedPostId: "original-post",
+      needsAttentionReason: reason,
+      canEdit: true,
+      canPublishNow: false,
+      canSchedule: false,
+    });
+    const answer = holdOpen(updateProjectSocialPost);
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[post]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    const row = screen.getByTestId("social-post-failed-quote");
+    expect(within(row).getByText(reason)).toBeVisible();
+    await user.click(within(row).getByRole("button", { name: "Remove quote" }));
+
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId("social-post-failed-quote")).queryByText(
+          reason,
+        ),
+      ).toBeNull(),
+    );
+    expect(
+      within(screen.getByTestId("social-post-failed-quote")).queryByRole(
+        "button",
+        { name: "Remove quote" },
+      ),
+    ).toBeNull();
+
+    await answer({
+      ok: false,
+      error: { code: "INTERNAL", message: "Core is down" },
+    } as Awaited<ReturnType<typeof updateProjectSocialPost>>);
+    expect(
+      within(await screen.findByTestId("social-post-failed-quote")).getByText(
+        reason,
+      ),
+    ).toBeVisible();
   });
 });

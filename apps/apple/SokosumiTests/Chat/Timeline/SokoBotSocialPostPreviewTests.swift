@@ -206,8 +206,8 @@
         #expect(videoRecorder.loads == [.driveFile(id: "f7", scope: .personal, organizationId: nil, download: false)])
       }
 
-      /// Four pictures sit in web's 2×2 grid row by row, so VoiceOver and the keyboard reach them in the post's order.
-      @Test func fourPicturesAreReadRowByRow() async throws {
+      /// Four pictures sit in X's carousel in the post's order, so VoiceOver and the keyboard reach every one in turn.
+      @Test func fourPicturesAreReadInOrder() async throws {
         let names = ["p1.png", "p2.png", "p3.png", "p4.png"]
         let card = Self.card(
           "7d1f0c2a-0000-4000-8000-000000000046", title: "Four", text: "Four pictures",

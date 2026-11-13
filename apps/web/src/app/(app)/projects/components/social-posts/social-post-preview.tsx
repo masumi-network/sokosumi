@@ -26,6 +26,7 @@ import {
   accountHandle,
   accountName,
   PreviewAvatar,
+  PreviewMediaCarousel,
   PreviewMediaGrid,
   PreviewMediaItem,
   PreviewRichText,
@@ -297,11 +298,19 @@ function XPreview({
             ) : null}
           </p>
         ) : null}
-        <PreviewMediaGrid
-          compact={compact}
-          media={media}
-          className={cn("mt-3 rounded-2xl border", embedded && "col-span-2")}
-        />
+        {media.length > 1 ? (
+          <PreviewMediaCarousel
+            compact={compact}
+            media={media}
+            className={cn("mt-3", embedded ? "col-span-2 -me-3" : "-me-4")}
+          />
+        ) : (
+          <PreviewMediaGrid
+            compact={compact}
+            media={media}
+            className={cn("mt-3 rounded-2xl border", embedded && "col-span-2")}
+          />
+        )}
         {quotedPost ? (
           <div
             className="mt-3"

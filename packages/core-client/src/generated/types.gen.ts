@@ -541,6 +541,15 @@ export type AdminSokoBotVersionMigrationRequest = {
     notifyOwners?: boolean;
 };
 
+export type RestyleSokoBotAvatarsResult = {
+    restyled: number;
+    remaining: number;
+};
+
+export type RestyleSokoBotAvatarsRequest = {
+    limit?: number;
+};
+
 export type AdminSokoBotChatRoom = {
     id: string;
     isOwnerRoom: boolean;
@@ -10357,7 +10366,7 @@ export type CreateSocialPostRequest = {
      */
     firstComment?: string;
     /**
-     * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
+     * Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.
      */
     media?: Array<SocialPostMediaRef>;
     /**
@@ -10366,7 +10375,7 @@ export type CreateSocialPostRequest = {
     threadParts?: Array<{
         text: string;
         /**
-         * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
+         * Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.
          */
         media?: Array<SocialPostMediaRef>;
     }>;
@@ -10399,7 +10408,7 @@ export type UpdateSocialPostRequest = {
      */
     firstComment?: string;
     /**
-     * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
+     * Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.
      */
     media?: Array<SocialPostMediaRef>;
     /**
@@ -10408,7 +10417,7 @@ export type UpdateSocialPostRequest = {
     threadParts?: Array<{
         text: string;
         /**
-         * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
+         * Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.
          */
         media?: Array<SocialPostMediaRef>;
     }>;
@@ -12136,6 +12145,10 @@ export type SokoBotState = {
         updatedAt: Date;
     } | null;
     sharedBots?: Array<SharedSokoBotSummary>;
+    lastFailure?: {
+        roomId: string | null;
+        messageId: string | null;
+    } | null;
 };
 
 export type SharedSokoBotSummary = {
@@ -16421,6 +16434,94 @@ export type MigrateAdminSokoBotVersionsResponses = {
 };
 
 export type MigrateAdminSokoBotVersionsResponse = MigrateAdminSokoBotVersionsResponses[keyof MigrateAdminSokoBotVersionsResponses];
+
+export type RestyleAdminSokoBotAvatarsData = {
+    body?: RestyleSokoBotAvatarsRequest;
+    path?: never;
+    query?: never;
+    url: '/admin/soko-bots/avatars/restyle';
+};
+
+export type RestyleAdminSokoBotAvatarsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RestyleAdminSokoBotAvatarsError = RestyleAdminSokoBotAvatarsErrors[keyof RestyleAdminSokoBotAvatarsErrors];
+
+export type RestyleAdminSokoBotAvatarsResponses = {
+    /**
+     * How many avatars were redrawn and how many are left
+     */
+    200: {
+        data: RestyleSokoBotAvatarsResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RestyleAdminSokoBotAvatarsResponse = RestyleAdminSokoBotAvatarsResponses[keyof RestyleAdminSokoBotAvatarsResponses];
 
 export type ListAdminSokoBotChatsData = {
     body?: never;

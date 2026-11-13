@@ -281,7 +281,7 @@
           "confirm": "Confirmar",
           "cancel": "Cancelar",
           "success": "Invitación cancelada correctamente",
-          "error": "No se pudo cancelar la invitación",
+          "error": "No se pudo cancelar la invitación para {email}. Sigue pendiente.",
           "Errors": {
             "unauthorizedAction": "Iniciar sesión"
           }
@@ -402,7 +402,8 @@
             },
             "Error": {
               "share": "No se pudo actualizar el acceso compartido",
-              "copyLink": "No se pudo copiar el enlace"
+              "copyLink": "No se pudo copiar el enlace",
+              "searchIndexing": "No se guardó la indexación en buscadores. Se restableció la configuración anterior."
             },
             "Errors": {
               "unauthenticated": "Debes iniciar sesión.",
@@ -896,7 +897,7 @@
         "IDLE": "Inactivo",
         "RUNNING": "En marcha",
         "PAUSED": "Pausado",
-        "ERROR": "Error"
+        "ERROR": "No pudo responder"
       },
       "TurnStatus": {
         "QUEUED": "En cola",
@@ -1723,7 +1724,11 @@
             "catchUp": "Ponme al día",
             "teamWins": "¿Qué terminamos?",
             "planTomorrow": "Planificar mañana"
-          }
+          },
+          "failedReply": "{name} no pudo terminar su última respuesta",
+          "openChat": "Abrir el chat",
+          "failedWork": "{name} no pudo terminar lo que estaba haciendo",
+          "openBot": "Abrir la página de {name}"
         }
       },
       "SokoBot": {
@@ -2035,7 +2040,8 @@
           },
           "Error": {
             "share": "Failed to update task sharing",
-            "copyLink": "Failed to copy public link"
+            "copyLink": "Failed to copy public link",
+            "searchIndexing": "No se guardó la indexación en buscadores. Se restableció la configuración anterior."
           },
           "Errors": {
             "unauthenticated": "Inicia sesión para gestionar cómo se comparte la tarea",
@@ -2982,7 +2988,11 @@
             "videoRequired": "TikTok necesita un video."
           },
           "x": {
-            "more": "Mostrar más"
+            "more": "Mostrar más",
+            "images": "{count, plural, one {# imagen} other {# imágenes}}",
+            "image": "Imagen {index} de {count}",
+            "previousImage": "Imagen anterior",
+            "nextImage": "Imagen siguiente"
           }
         },
         "statistics": {
@@ -4369,6 +4379,7 @@
       "reroll": "Repetir",
       "reusePrompt": "Reutilizar prompt",
       "download": "Descargar",
+      "moreActions": "Más acciones",
       "previewAd": "Vista previa del anuncio",
       "previewAdDescription": "Previsualiza un anuncio en el feed de Instagram o Facebook, o como reel vertical.",
       "approvedHeadline": "Titular aprobado",
@@ -4443,7 +4454,6 @@
       "model": "Modelo",
       "aspectRatio": "Encuadre",
       "adPlacements": "Ubicaciones de anuncios",
-      "placementHelp": "Elige una o más ubicaciones o selecciona abajo una sola proporción personalizada.",
       "creativeDirection": "Dirección creativa",
       "adGallery": "Galería de anuncios",
       "groupByProduct": "Agrupar por producto",
@@ -4567,7 +4577,8 @@
       "creditsCharged": "Sumado a partir del precio publicado de cada modelo, a 1 crédito por céntimo y sin recargo. Es el cobro, no una aproximación: se toma la misma cifra cuando se entrega la imagen. Una generación que falla no cuesta nada.",
       "creditsUnderivable": "Al menos uno de estos modelos no puede tasarse por imagen para el encuadre elegido, así que este lote no se puede sumar.",
       "creditsNoFigure": "Sin cifra",
-      "failedNoCharge": "No se cobró nada por ella.",
+      "failedAfterModel": "falló",
+      "failedNoCharge": "sin cargo",
       "failedBodyUnreported": "El modelo no devolvió ninguna imagen, y esta generación es demasiado antigua para decir por qué.",
       "FailureReasons": {
         "provider_rejected": "El proveedor de imágenes rechazó esta solicitud.",
@@ -5345,7 +5356,6 @@
         "SokoBot": {
           "fallbackName": "Soko Bot",
           "workingNow": "Trabajando ahora",
-          "needsAttention": "Requiere atención",
           "activeAgo": "Activo {time}",
           "ready": "Listo",
           "team": "Los Soko Bots de tu equipo"
@@ -8869,7 +8879,9 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "failed": "No se pudo responder",
+        "failed": "{name} no pudo responder",
+        "failedBody": "La respuesta se detuvo antes de terminar.",
+        "failedSaved": "La respuesta se detuvo antes de terminar. Tu mensaje está guardado.",
         "retry": "Reintentar"
       },
       "Outbound": {
@@ -9043,7 +9055,9 @@
         "messageRequired": "El mensaje es obligatorio.",
         "roomRequired": "La sala es obligatoria.",
         "pinError": "No se pudo fijar el mensaje.",
-        "unpinError": "No se pudo desfijar el mensaje."
+        "unpinError": "No se pudo desfijar el mensaje.",
+        "statePinned": "El mensaje está fijado.",
+        "stateUnpinned": "El mensaje no está fijado."
       },
       "SavedMessages": {
         "save": "Guardar para después",
@@ -9073,12 +9087,18 @@
       "Unfurl": {
         "openLink": "Abrir vista previa del enlace: {title}",
         "imageAlt": "Imagen de vista previa de {title}",
-        "remove": "Quitar vista previa del enlace: {title}"
+        "remove": "Quitar vista previa del enlace: {title}",
+        "removeError": "No se pudo quitar la vista previa del enlace. Inténtalo de nuevo.",
+        "restored": "La vista previa del enlace vuelve a estar en el mensaje."
       },
       "Message": {
         "delete": "Eliminar",
         "deleteConfirm": "¿Eliminar este mensaje? Los demás verán que fue eliminado.",
+        "deleteNoteTitle": "¿Eliminar esta nota?",
+        "deleteNoteConfirm": "Se elimina para siempre. Solo tú podías verla.",
         "deleted": "Este mensaje fue eliminado",
+        "deleteError": "No se pudo eliminar el mensaje. Inténtalo de nuevo.",
+        "restored": "El mensaje vuelve a estar en la conversación.",
         "showMore": "Mostrar más",
         "showLess": "Mostrar menos"
       },
@@ -9108,7 +9128,9 @@
         "composerAria": "Editar mensaje. Usa Guardar o Cancelar para terminar. Con teclado: Intro guarda, Escape cancela y Mayús+Intro añade una nueva línea.",
         "edited": "Editado",
         "editedAt": "Editado {when}",
-        "save": "Guardar"
+        "save": "Guardar",
+        "saveError": "No se pudo guardar el cambio. Inténtalo de nuevo.",
+        "restored": "El mensaje vuelve a mostrar su texto anterior."
       },
       "Browse": {
         "trigger": "Explorar canales",
@@ -9176,7 +9198,9 @@
         "removeConfirmTitle": "¿Quitar a {name} de este canal?",
         "removeConfirmDescription": "{name} ya no verá este canal ni sus mensajes.",
         "removeSuccess": "Se quitó a {name} del canal.",
-        "undo": "Deshacer"
+        "removeError": "No se pudo quitar a {name} del canal.",
+        "undo": "Deshacer",
+        "undoError": "No se pudo volver a añadir a {name} al canal."
       },
       "AddMembers": {
         "title": "Añadir miembros",
@@ -9458,7 +9482,7 @@
         "Decisions": {
           "open": "Decisiones",
           "title": "Decisiones",
-          "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
+          "empty": "Aún no hay decisiones aquí. Las encontramos en canales y en chats con otras personas que lo permiten. Las notas para ti mismo nunca se etiquetan.",
           "loadOlder": "Cargar anteriores",
           "note": "Las encontramos por ti. Si una es incorrecta, abre su mensaje y haz clic en la × de la etiqueta.",
           "description": "Decisiones encontradas en tus chats, las más recientes primero, también las que ya leíste.",
@@ -9696,7 +9720,7 @@
         "bulkDeleteDescriptionSkipsTaskFiles": "Se eliminan para todos en este espacio de archivos. Los archivos de tareas se quedan con su tarea. No se puede deshacer.",
         "bulkDeleteCancel": "Cancelar",
         "bulkDeleted": "{count, plural, one {# archivo eliminado} other {# archivos eliminados}}",
-        "bulkDeletePartial": "{deleted} eliminados, {failed} fallaron y siguen seleccionados",
+        "bulkDeletePartial": "{deleted} eliminados. No se {failed, plural, one {pudo eliminar # archivo} other {pudieron eliminar # archivos}}. Inténtalo de nuevo.",
         "detailLoading": "Cargando archivo",
         "detailProcessing": "Procesamiento",
         "detailCategory": "Categoría",
@@ -9761,7 +9785,8 @@
         "collectionSaved": "Se guardó «{name}»",
         "collectionUpdated": "Se actualizó «{name}»",
         "collectionSaveFailed": "No se pudo guardar esa colección.",
-        "collectionDeleteFailed": "No se pudo eliminar esa colección.",
+        "collectionRenameFailed": "No se pudo cambiar el nombre de «{name}». El nuevo nombre no se guardó.",
+        "collectionDeleteFailed": "No se pudo eliminar «{name}». La colección vuelve a estar en su lugar.",
         "collectionsUnavailable": "No se pudieron cargar las colecciones.",
         "labelsUnavailable": "No se pudieron cargar las categorías ni las etiquetas.",
         "collectionActions": "Acciones para {name}",
@@ -10273,6 +10298,7 @@
       },
       "Console": {
         "tagline": "Tu gestor de proyectos personal. Delega trabajo, hace seguimiento y te mantiene al día — háblale en el chat.",
+        "lastTurnFailed": "{name} no pudo terminar su última respuesta.",
         "lastActivity": "última actividad {time}",
         "adminView": "Vista de administrador",
         "openChat": "Abrir chat",
@@ -10738,7 +10764,10 @@
         "csv": "Comprueba las comillas y los separadores del archivo CSV.",
         "csvHeaders": "Asigna un encabezado no vacío a cada columna del CSV.",
         "csvWidth": "Todas las filas del CSV deben tener el mismo número de columnas.",
-        "layout": "El diseño de columnas no se guardó y se restableció. {reason}"
+        "layout": "El diseño de columnas no se guardó y se restableció. {reason}",
+        "archiveRows": "{count, plural, one {No se pudo archivar # fila. Vuelve a estar en la tabla.} other {No se pudieron archivar # filas. Vuelven a estar en la tabla.}} {reason}",
+        "restoreRows": "{count, plural, one {No se pudo restaurar # fila. Vuelve a estar en las filas archivadas.} other {No se pudieron restaurar # filas. Vuelven a estar en las filas archivadas.}} {reason}",
+        "cellNotSaved": "Tu valor no se guardó. Vuelve a estar en el editor. {reason}"
       },
       "reorderColumn": "Reordenar {column}. Arrastra o pulsa las flechas izquierda y derecha.",
       "reorderRow": "Reordenar fila. Arrastra o pulsa las flechas arriba y abajo.",
@@ -11090,6 +11119,7 @@
         "linkCopied": "Enlace copiado",
         "archive": "Archivar contacto",
         "archived": "{name} archivado",
+        "archiveFailed": "No se pudo archivar a {name}. El contacto vuelve a estar en tu lista.",
         "changeStage": "Etapa: {stage}. Cambiar etapa",
         "changeLists": "Cambiar listas",
         "addToList": "Añadir a una lista",
@@ -11097,6 +11127,8 @@
         "noManualLists": "Todavía no hay listas.",
         "newList": "Nueva lista…",
         "newListAddFailed": "{list} está creada, pero {name} aún no está en ella.",
+        "addToListFailed": "No se pudo añadir a {name} a {list}. El contacto vuelve a estar fuera de la lista.",
+        "removeFromListFailed": "No se pudo quitar a {name} de {list}. El contacto vuelve a estar en la lista.",
         "empty": "Añadir…",
         "location": "Ubicación",
         "nextStepTitle": "Próximo paso",

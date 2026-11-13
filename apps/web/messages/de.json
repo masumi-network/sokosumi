@@ -281,7 +281,7 @@
           "confirm": "Bestätigen",
           "cancel": "Abbrechen",
           "success": "Einladung erfolgreich abgebrochen",
-          "error": "Einladung konnte nicht abgebrochen werden",
+          "error": "Die Einladung für {email} konnte nicht abgebrochen werden. Sie ist weiterhin ausstehend.",
           "Errors": {
             "unauthorizedAction": "Anmelden"
           }
@@ -402,7 +402,8 @@
             },
             "Error": {
               "share": "Freigabe konnte nicht aktualisiert werden",
-              "copyLink": "Link konnte nicht kopiert werden"
+              "copyLink": "Link konnte nicht kopiert werden",
+              "searchIndexing": "Die Suchindexierung wurde nicht gespeichert. Die vorherige Einstellung gilt wieder."
             },
             "Errors": {
               "unauthenticated": "Du musst angemeldet sein.",
@@ -896,7 +897,7 @@
         "IDLE": "Bereit",
         "RUNNING": "Aktiv",
         "PAUSED": "Pausiert",
-        "ERROR": "Fehler"
+        "ERROR": "Konnte nicht antworten"
       },
       "TurnStatus": {
         "QUEUED": "Wartend",
@@ -1723,7 +1724,11 @@
             "catchUp": "Bring mich auf den Stand",
             "teamWins": "Was haben wir geschafft?",
             "planTomorrow": "Morgen planen"
-          }
+          },
+          "failedReply": "{name} konnte die letzte Antwort nicht abschließen",
+          "openChat": "Chat öffnen",
+          "failedWork": "{name} konnte die letzte Arbeit nicht abschließen",
+          "openBot": "Seite von {name} öffnen"
         }
       },
       "SokoBot": {
@@ -2035,7 +2040,8 @@
           },
           "Error": {
             "share": "Failed to update task sharing",
-            "copyLink": "Failed to copy public link"
+            "copyLink": "Failed to copy public link",
+            "searchIndexing": "Die Suchindexierung wurde nicht gespeichert. Die vorherige Einstellung gilt wieder."
           },
           "Errors": {
             "unauthenticated": "Melde dich an, um die Freigabe der Aufgabe zu verwalten",
@@ -2982,7 +2988,11 @@
             "videoRequired": "TikTok braucht ein Video."
           },
           "x": {
-            "more": "Mehr anzeigen"
+            "more": "Mehr anzeigen",
+            "images": "{count, plural, one {# Bild} other {# Bilder}}",
+            "image": "Bild {index} von {count}",
+            "previousImage": "Vorheriges Bild",
+            "nextImage": "Nächstes Bild"
           }
         },
         "statistics": {
@@ -4369,6 +4379,7 @@
       "reroll": "Neu würfeln",
       "reusePrompt": "Prompt wiederverwenden",
       "download": "Herunterladen",
+      "moreActions": "Weitere Aktionen",
       "previewAd": "Anzeige ansehen",
       "previewAdDescription": "Sieh dir eine Anzeige im Instagram- oder Facebook-Feed oder als vertikales Reel an.",
       "approvedHeadline": "Freigegebene Überschrift",
@@ -4443,7 +4454,6 @@
       "model": "Modell",
       "aspectRatio": "Format",
       "adPlacements": "Anzeigenplatzierungen",
-      "placementHelp": "Wähle eine oder mehrere Platzierungen oder unten ein einzelnes eigenes Seitenverhältnis.",
       "creativeDirection": "Kreative Ausrichtung",
       "adGallery": "Anzeigengalerie",
       "groupByProduct": "Nach Produkt gruppieren",
@@ -4567,7 +4577,8 @@
       "creditsCharged": "Summiert aus dem veröffentlichten Preis jedes Modells, 1 Credit pro Cent und ohne Aufschlag. Das ist die Abbuchung, keine Schätzung: derselbe Betrag wird bei der Lieferung des Bildes genommen. Eine fehlgeschlagene Generierung kostet nichts.",
       "creditsUnderivable": "Mindestens eines dieser Modelle lässt sich für das gewählte Format nicht pro Bild bepreisen, deshalb kann dieser Stapel nicht summiert werden.",
       "creditsNoFigure": "Kein Betrag",
-      "failedNoCharge": "Dafür wurde nichts berechnet.",
+      "failedAfterModel": "fehlgeschlagen",
+      "failedNoCharge": "nicht berechnet",
       "failedBodyUnreported": "Das Modell hat kein Bild zurückgegeben, und diese Generierung ist zu alt, um den Grund zu nennen.",
       "FailureReasons": {
         "provider_rejected": "Der Bildanbieter hat diese Anfrage abgelehnt.",
@@ -5345,7 +5356,6 @@
         "SokoBot": {
           "fallbackName": "Soko Bot",
           "workingNow": "Arbeitet gerade",
-          "needsAttention": "Braucht Aufmerksamkeit",
           "activeAgo": "Aktiv {time}",
           "ready": "Bereit",
           "team": "Soko Bots deines Teams"
@@ -8869,7 +8879,9 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "failed": "Antwort fehlgeschlagen",
+        "failed": "{name} konnte nicht antworten",
+        "failedBody": "Die Antwort brach ab, bevor sie fertig war.",
+        "failedSaved": "Die Antwort brach ab, bevor sie fertig war. Deine Nachricht ist gespeichert.",
         "retry": "Erneut versuchen"
       },
       "Outbound": {
@@ -9043,7 +9055,9 @@
         "messageRequired": "Nachricht ist erforderlich.",
         "roomRequired": "Raum ist erforderlich.",
         "pinError": "Nachricht konnte nicht angeheftet werden.",
-        "unpinError": "Nachricht konnte nicht gelöst werden."
+        "unpinError": "Nachricht konnte nicht gelöst werden.",
+        "statePinned": "Die Nachricht ist angeheftet.",
+        "stateUnpinned": "Die Nachricht ist nicht angeheftet."
       },
       "SavedMessages": {
         "save": "Für später speichern",
@@ -9073,12 +9087,18 @@
       "Unfurl": {
         "openLink": "Linkvorschau öffnen: {title}",
         "imageAlt": "Vorschaubild für {title}",
-        "remove": "Linkvorschau entfernen: {title}"
+        "remove": "Linkvorschau entfernen: {title}",
+        "removeError": "Die Linkvorschau konnte nicht entfernt werden. Versuche es erneut.",
+        "restored": "Die Linkvorschau ist wieder an der Nachricht."
       },
       "Message": {
         "delete": "Löschen",
         "deleteConfirm": "Diese Nachricht löschen? Andere sehen, dass sie gelöscht wurde.",
+        "deleteNoteTitle": "Diese Notiz löschen?",
+        "deleteNoteConfirm": "Sie wird endgültig entfernt. Nur du konntest sie sehen.",
         "deleted": "Diese Nachricht wurde gelöscht",
+        "deleteError": "Die Nachricht konnte nicht gelöscht werden. Versuche es erneut.",
+        "restored": "Die Nachricht ist wieder in der Unterhaltung.",
         "showMore": "Mehr anzeigen",
         "showLess": "Weniger anzeigen"
       },
@@ -9108,7 +9128,9 @@
         "composerAria": "Nachricht bearbeiten. Zum Abschluss Speichern oder Abbrechen wählen. Mit Tastatur: Enter speichert, Escape bricht ab, Umschalt+Enter fügt eine neue Zeile hinzu.",
         "edited": "Bearbeitet",
         "editedAt": "Bearbeitet {when}",
-        "save": "Speichern"
+        "save": "Speichern",
+        "saveError": "Die Änderung konnte nicht gespeichert werden. Versuche es erneut.",
+        "restored": "Die Nachricht zeigt wieder ihren früheren Text."
       },
       "Browse": {
         "trigger": "Kanäle durchsuchen",
@@ -9176,7 +9198,9 @@
         "removeConfirmTitle": "{name} aus diesem Kanal entfernen?",
         "removeConfirmDescription": "{name} sieht diesen Kanal und seine Nachrichten dann nicht mehr.",
         "removeSuccess": "{name} aus dem Kanal entfernt.",
-        "undo": "Rückgängig"
+        "removeError": "{name} konnte nicht aus dem Kanal entfernt werden.",
+        "undo": "Rückgängig",
+        "undoError": "{name} konnte nicht wieder zum Kanal hinzugefügt werden."
       },
       "AddMembers": {
         "title": "Mitglieder hinzufügen",
@@ -9458,7 +9482,7 @@
         "Decisions": {
           "open": "Entscheidungen",
           "title": "Entscheidungen",
-          "empty": "Noch keine Entscheidungen. Nachrichten wie „Entschieden: Wir starten Montag“ landen hier.",
+          "empty": "Hier gibt es noch keine Entscheidungen. Wir finden sie in Kanälen und in Chats mit anderen Personen, die das erlauben. Notizen an dich selbst werden nie markiert.",
           "loadOlder": "Ältere laden",
           "note": "Wir finden sie für dich. Ist eine falsch, öffne ihre Nachricht und klicke auf das × am Tag.",
           "description": "Entscheidungen aus deinen Chats, die neuesten zuerst, auch bereits gelesene.",
@@ -9696,7 +9720,7 @@
         "bulkDeleteDescriptionSkipsTaskFiles": "Sie werden für alle in diesem Dateibereich entfernt. Dateien aus Tasks bleiben bei ihrem Task. Das kann nicht rückgängig gemacht werden.",
         "bulkDeleteCancel": "Abbrechen",
         "bulkDeleted": "{count, plural, one {# Datei gelöscht} other {# Dateien gelöscht}}",
-        "bulkDeletePartial": "{deleted} gelöscht, {failed} fehlgeschlagen und weiterhin ausgewählt",
+        "bulkDeletePartial": "{deleted} gelöscht. {failed, plural, one {# Datei konnte} other {# Dateien konnten}} nicht gelöscht werden. Versuche es erneut.",
         "detailLoading": "Datei wird geladen",
         "detailProcessing": "Verarbeitung",
         "detailCategory": "Kategorie",
@@ -9761,7 +9785,8 @@
         "collectionSaved": "„{name}“ gespeichert",
         "collectionUpdated": "„{name}“ aktualisiert",
         "collectionSaveFailed": "Diese Sammlung konnte nicht gespeichert werden.",
-        "collectionDeleteFailed": "Diese Sammlung konnte nicht gelöscht werden.",
+        "collectionRenameFailed": "„{name}“ konnte nicht umbenannt werden. Der neue Name wurde nicht gespeichert.",
+        "collectionDeleteFailed": "„{name}“ konnte nicht gelöscht werden. Die Sammlung ist wieder an ihrem Platz.",
         "collectionsUnavailable": "Sammlungen konnten nicht geladen werden.",
         "labelsUnavailable": "Kategorien und Tags konnten nicht geladen werden.",
         "collectionActions": "Aktionen für {name}",
@@ -10273,6 +10298,7 @@
       },
       "Console": {
         "tagline": "Dein persönlicher Projektmanager. Delegiert Arbeit, hakt nach und hält dich auf dem Laufenden — sprich im Chat mit ihm.",
+        "lastTurnFailed": "{name} konnte die letzte Antwort nicht fertigstellen.",
         "lastActivity": "zuletzt aktiv {time}",
         "adminView": "Admin-Ansicht",
         "openChat": "Chat öffnen",
@@ -10738,7 +10764,10 @@
         "csv": "Prüfe die Anführungszeichen und Trennzeichen in der CSV-Datei.",
         "csvHeaders": "Gib jeder CSV-Spalte eine nicht leere Überschrift.",
         "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben.",
-        "layout": "Das Spaltenlayout wurde nicht gespeichert und zurückgesetzt. {reason}"
+        "layout": "Das Spaltenlayout wurde nicht gespeichert und zurückgesetzt. {reason}",
+        "archiveRows": "{count, plural, one {# Zeile konnte nicht archiviert werden. Sie ist wieder in der Tabelle.} other {# Zeilen konnten nicht archiviert werden. Sie sind wieder in der Tabelle.}} {reason}",
+        "restoreRows": "{count, plural, one {# Zeile konnte nicht wiederhergestellt werden. Sie ist wieder unter den archivierten Zeilen.} other {# Zeilen konnten nicht wiederhergestellt werden. Sie sind wieder unter den archivierten Zeilen.}} {reason}",
+        "cellNotSaved": "Dein Wert wurde nicht gespeichert. Er steht wieder im Editor. {reason}"
       },
       "reorderColumn": "{column} verschieben. Ziehen oder Pfeiltasten nach links und rechts drücken.",
       "reorderRow": "Zeile verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
@@ -11090,6 +11119,7 @@
         "linkCopied": "Link kopiert",
         "archive": "Kontakt archivieren",
         "archived": "{name} archiviert",
+        "archiveFailed": "{name} konnte nicht archiviert werden. Der Kontakt ist wieder in deiner Liste.",
         "changeStage": "Phase: {stage}. Phase ändern",
         "changeLists": "Listen ändern",
         "addToList": "Zu einer Liste hinzufügen",
@@ -11097,6 +11127,8 @@
         "noManualLists": "Noch keine Listen.",
         "newList": "Neue Liste…",
         "newListAddFailed": "{list} ist angelegt, aber {name} steht noch nicht darauf.",
+        "addToListFailed": "{name} konnte nicht zu {list} hinzugefügt werden. Der Kontakt steht wieder nicht auf der Liste.",
+        "removeFromListFailed": "{name} konnte nicht von {list} entfernt werden. Der Kontakt steht wieder auf der Liste.",
         "empty": "Hinzufügen…",
         "location": "Ort",
         "nextStepTitle": "Nächster Schritt",
