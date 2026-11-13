@@ -1,9 +1,6 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 
-import {
-  type PolarWebhookEvent,
-  verifyPolarWebhook,
-} from "@/clients/polar.client";
+import { verifyPolarWebhook } from "@/clients/polar.client";
 import { forbidden, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { accepted, ok } from "@/helpers/response";
@@ -13,21 +10,9 @@ import {
   handlePolarOrderRefunded,
   handlePolarPlanChangePaid,
   handlePolarSubscriptionEvent,
+  isCmoSubscriptionEvent,
 } from "@/services/cmo-subscription.service";
 import { handlePolarTopUpPaid } from "@/services/cmo-top-up.service";
-
-/** The Polar events Core acts on; every other type is acknowledged with 202. */
-const HANDLED_EVENT_TYPES = new Set<PolarWebhookEvent["type"]>([
-  "order.paid",
-  "order.refunded",
-  "subscription.created",
-  "subscription.active",
-  "subscription.updated",
-  "subscription.canceled",
-  "subscription.uncanceled",
-  "subscription.past_due",
-  "subscription.revoked",
-]);
 
 const receivedSchema = z.object({ received: z.boolean() });
 
@@ -68,33 +53,23 @@ app.openapi(route, async (c) => {
     return accepted(c, { received: true });
   }
   const event = verified.value;
-  if (!HANDLED_EVENT_TYPES.has(event.type)) {
+  // The Polar events Core acts on; every other type is acknowledged with 202.
+  if (event.type === "order.paid") {
+    // A one-time purchase is a Project top-up; a plan change has its own
+    // grant; every other order is a plan's month.
+    if (event.data.billing_reason === "purchase") {
+      await handlePolarTopUpPaid(event);
+    } else if (event.data.billing_reason === "subscription_update") {
+      await handlePolarPlanChangePaid(event);
+    } else {
+      await handlePolarOrderPaid(event);
+    }
+  } else if (event.type === "order.refunded") {
+    await handlePolarOrderRefunded(event);
+  } else if (isCmoSubscriptionEvent(event)) {
+    await handlePolarSubscriptionEvent(event);
+  } else {
     return accepted(c, { received: true });
-  }
-  switch (event.type) {
-    case "order.paid":
-      // A one-time purchase is a Project top-up; a plan change has its own
-      // grant; every other order is a plan's month.
-      if (event.data.billing_reason === "purchase") {
-        await handlePolarTopUpPaid(event);
-      } else if (event.data.billing_reason === "subscription_update") {
-        await handlePolarPlanChangePaid(event);
-      } else {
-        await handlePolarOrderPaid(event);
-      }
-      break;
-    case "order.refunded":
-      await handlePolarOrderRefunded(event);
-      break;
-    case "subscription.created":
-    case "subscription.active":
-    case "subscription.updated":
-    case "subscription.canceled":
-    case "subscription.uncanceled":
-    case "subscription.past_due":
-    case "subscription.revoked":
-      await handlePolarSubscriptionEvent(event);
-      break;
   }
   return ok(c, { received: true });
 });

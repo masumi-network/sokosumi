@@ -24,19 +24,26 @@ type OrderRefundedEvent = Extract<
   PolarWebhookEvent,
   { type: "order.refunded" }
 >;
+/** The subscription events that write a Cuso's CMO subscription. */
+const SUBSCRIPTION_EVENT_TYPES = [
+  "subscription.created",
+  "subscription.active",
+  "subscription.updated",
+  "subscription.canceled",
+  "subscription.uncanceled",
+  "subscription.past_due",
+  "subscription.revoked",
+] as const satisfies PolarWebhookEvent["type"][];
 type SubscriptionEvent = Extract<
   PolarWebhookEvent,
-  {
-    type:
-      | "subscription.created"
-      | "subscription.active"
-      | "subscription.updated"
-      | "subscription.canceled"
-      | "subscription.uncanceled"
-      | "subscription.past_due"
-      | "subscription.revoked";
-  }
+  { type: (typeof SUBSCRIPTION_EVENT_TYPES)[number] }
 >;
+
+export function isCmoSubscriptionEvent(
+  event: PolarWebhookEvent,
+): event is SubscriptionEvent {
+  return (SUBSCRIPTION_EVENT_TYPES as readonly string[]).includes(event.type);
+}
 type PolarSubscription = SubscriptionEvent["data"];
 /** The subscription state an order carries too. */
 type SubscriptionState = Pick<
