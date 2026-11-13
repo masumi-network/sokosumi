@@ -58,6 +58,7 @@ const ROW = {
   id: "0190a000-0000-7000-8000-0000000000aa",
   projectId: PROJECT_ID,
   organizationId: ORGANIZATION_ID,
+  endedAt: null,
 };
 const PLAN_PRODUCT = {
   id: "prod_growth_month",
@@ -649,14 +650,14 @@ describe("POST /v1/webhooks/polar", () => {
         expect(m.revokePolarSubscription).toHaveBeenCalledExactlyOnceWith(
           "sub_1",
         );
-        expect(m.prisma.cmoSubscription.create.mock.calls[0]?.[0].data).toEqual(
-          expect.objectContaining({
-            polarSubscriptionId: "sub_1",
-            projectId: PROJECT_ID,
+        expect(m.prisma.cmoSubscription.updateMany).toHaveBeenLastCalledWith({
+          where: { id: ROW.id, endedAt: null },
+          data: {
             status: "canceled",
             endedAt: expect.any(Date),
-          }),
-        );
+            polarEventAt: expect.any(Date),
+          },
+        });
         expect(m.captureMessage).toHaveBeenCalledExactlyOnceWith(
           expect.stringContaining("Cuso has ended"),
           expect.anything(),
@@ -665,8 +666,45 @@ describe("POST /v1/webhooks/polar", () => {
       },
     );
 
+    it("checks the Cuso only after it wrote the subscription, so an ending that missed the row sees it", async () => {
+      m.verifyPolarWebhook.mockResolvedValue(
+        subscriptionEvent("subscription.created", "2026-11-13T10:00:03.000Z"),
+      );
+
+      await post();
+
+      expect(
+        m.prisma.cmoSubscription.create.mock.invocationCallOrder[0] ?? 0,
+      ).toBeLessThan(
+        m.prisma.sokoBot.findFirst.mock.invocationCallOrder[0] ?? 0,
+      );
+      expect(m.revokePolarSubscription).not.toHaveBeenCalled();
+    });
+
+    it("revokes a stored subscription whose Cuso ended without it", async () => {
+      m.prisma.cmoSubscription.findUnique.mockResolvedValue({
+        ...ROW,
+        endedAt: null,
+      });
+      m.prisma.sokoBot.findFirst.mockResolvedValue(null);
+      m.verifyPolarWebhook.mockResolvedValue(
+        subscriptionEvent("subscription.updated", "2026-11-13T10:00:03.000Z"),
+      );
+
+      const response = await post();
+
+      expect(response.status).toBe(200);
+      expect(m.revokePolarSubscription).toHaveBeenCalledExactlyOnceWith(
+        "sub_1",
+      );
+    });
+
     it("records a subscription that Polar already ended for an ended Cuso without revoking it", async () => {
       m.prisma.sokoBot.findFirst.mockResolvedValue(null);
+      m.prisma.cmoSubscription.create.mockImplementation(async ({ data }) => ({
+        ...ROW,
+        endedAt: data.endedAt,
+      }));
       m.verifyPolarWebhook.mockResolvedValue(
         subscriptionEvent("subscription.revoked", "2026-11-13T10:00:03.000Z", {
           status: "canceled",

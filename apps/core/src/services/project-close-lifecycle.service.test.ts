@@ -49,9 +49,13 @@ const { archiveProjectSokoBotsMock, publishMentionStatusesMock } = vi.hoisted(
 vi.mock("@/services/project-soko-bots-close.service", () => ({
   archiveProjectSokoBotsForClose: archiveProjectSokoBotsMock,
 }));
-const revokeSubscriptionMock = vi.hoisted(() => vi.fn());
+const { revokeSubscriptionMock, revokeLeftByEndingMock } = vi.hoisted(() => ({
+  revokeSubscriptionMock: vi.fn(),
+  revokeLeftByEndingMock: vi.fn(),
+}));
 vi.mock("@/services/cmo-subscription-end.service", () => ({
   revokeProjectCusoSubscription: revokeSubscriptionMock,
+  revokeSubscriptionsLeftByEnding: revokeLeftByEndingMock,
 }));
 vi.mock("@/helpers/chat-room-mention-status", () => ({
   publishChatRoomMentionStatuses: publishMentionStatusesMock,
@@ -200,6 +204,11 @@ describe("project close lifecycle", () => {
     expect(revokeSubscriptionMock.mock.invocationCallOrder[0]).toBeLessThan(
       archiveProjectSokoBotsMock.mock.invocationCallOrder[0] ?? 0,
     );
+    // A first subscription created while the close ran is revoked after it.
+    expect(revokeLeftByEndingMock).toHaveBeenCalledExactlyOnceWith(PROJECT_ID);
+    expect(
+      archiveProjectSokoBotsMock.mock.invocationCallOrder[0] ?? 0,
+    ).toBeLessThan(revokeLeftByEndingMock.mock.invocationCallOrder[0] ?? 0);
 
     archiveProjectSokoBotsMock.mockClear();
     revokeSubscriptionMock.mockRejectedValueOnce(new Error("polar refused"));

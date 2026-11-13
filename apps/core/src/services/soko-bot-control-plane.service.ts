@@ -120,6 +120,7 @@ import type {
 import {
   revokeCusoSubscription,
   revokeCusoSubscriptionIfLeavingCmo,
+  revokeSubscriptionsLeftByEnding,
 } from "@/services/cmo-subscription-end.service";
 import { isNewsletterDraftAvailable } from "@/services/newsletter-draft.service";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
@@ -3433,6 +3434,7 @@ export class SokoBotControlPlane {
       if (updated.count === 0)
         throw new SokoBotNotFoundError("Soko Bot not found");
     }, "Soko Bot version changed concurrently");
+    await revokeSubscriptionsLeftByEnding(bot.projectId);
   }
 
   /**
@@ -4183,6 +4185,7 @@ export class SokoBotControlPlane {
             },
           });
         }, "Soko Bot version changed concurrently");
+        await revokeSubscriptionsLeftByEnding(bot.projectId);
       } catch (error) {
         await recordFailure(error);
         throw error;
@@ -4681,6 +4684,7 @@ export class SokoBotControlPlane {
       });
       return { activeTurn, mentionMessageIds };
     }, "Soko Bot archive collided with active work");
+    await revokeSubscriptionsLeftByEnding(candidate?.projectId ?? null);
     if (!archived) return;
     await publishChatRoomMentionStatuses(archived.mentionMessageIds);
     if (!archived.activeTurn) return;

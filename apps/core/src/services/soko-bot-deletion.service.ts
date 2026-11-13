@@ -18,7 +18,10 @@ import {
 } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { revokeCusoSubscription } from "@/services/cmo-subscription-end.service";
+import {
+  revokeCusoSubscription,
+  revokeSubscriptionsLeftByEnding,
+} from "@/services/cmo-subscription-end.service";
 import { revokeSokoBotIntegrationAccounts } from "@/services/soko-bot-integrations.service";
 
 /**
@@ -126,7 +129,7 @@ export async function deleteSokoBot(
   // credentials that had already been withdrawn.
   const live = await prisma.sokoBot.findFirst({
     where: { id: sokoBotId, deletedAt: null },
-    select: { id: true },
+    select: { id: true, projectId: true },
   });
   if (!live) throw notFound("Soko Bot not found");
 
@@ -293,6 +296,7 @@ export async function deleteSokoBot(
       integrations,
     };
   }, "Soko Bot deletion collided with active work");
+  await revokeSubscriptionsLeftByEnding(live.projectId);
   const revocation = await revokeSokoBotIntegrationAccounts(
     sokoBotId,
     deleted.integrations,

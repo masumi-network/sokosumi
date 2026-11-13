@@ -162,6 +162,7 @@ const { revokeSubscriptionMock, revokeSubscriptionIfLeavingCmoMock } =
 vi.mock("@/services/cmo-subscription-end.service", () => ({
   revokeCusoSubscription: revokeSubscriptionMock,
   revokeCusoSubscriptionIfLeavingCmo: revokeSubscriptionIfLeavingCmoMock,
+  revokeSubscriptionsLeftByEnding: vi.fn(),
 }));
 vi.mock("@/helpers/chat-room-mention-status", () => ({
   failOpenChatRoomMentions: failOpenMentionsMock,

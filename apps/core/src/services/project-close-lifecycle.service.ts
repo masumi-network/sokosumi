@@ -11,7 +11,10 @@ import type {
   ProjectCloseStatus,
 } from "@/schemas/project-close.schema";
 
-import { revokeProjectCusoSubscription } from "@/services/cmo-subscription-end.service";
+import {
+  revokeProjectCusoSubscription,
+  revokeSubscriptionsLeftByEnding,
+} from "@/services/cmo-subscription-end.service";
 import { retireProjectSocialConnectionsForClose } from "@/services/project-social-connections.service";
 import { archiveProjectSokoBotsForClose } from "@/services/project-soko-bots-close.service";
 
@@ -298,6 +301,7 @@ export async function requestProjectClose(
 
     return await mapStatus(tx, operation, updated.projectRevision);
   }, "Project changed during close request");
+  await revokeSubscriptionsLeftByEnding(scope.projectId);
   if (mentionMessageIds.length > 0) {
     await publishChatRoomMentionStatuses(mentionMessageIds);
   }

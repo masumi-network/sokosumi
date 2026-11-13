@@ -21,6 +21,7 @@ import {
   revokeCusoSubscriptionIfLeavingCmo,
   revokeOrganizationCusoSubscriptions,
   revokeProjectCusoSubscription,
+  revokeSubscriptionsLeftByEnding,
 } from "./cmo-subscription-end.service";
 
 const BOT_ID = "0190a000-0000-7000-8000-0000000000b0";
@@ -146,5 +147,49 @@ describe("revokeOrganizationCusoSubscriptions", () => {
       ["sub_1"],
       ["sub_2"],
     ]);
+  });
+});
+
+describe("revokeSubscriptionsLeftByEnding", () => {
+  it("revokes a subscription the Project kept after its Cuso ended", async () => {
+    await revokeSubscriptionsLeftByEnding(PROJECT_ID);
+
+    expect(m.prisma.cmoSubscription.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          endedAt: null,
+          projectId: PROJECT_ID,
+          project: {
+            sokoBots: {
+              none: expect.objectContaining({
+                archivedAt: null,
+                deletedAt: null,
+              }),
+            },
+          },
+        },
+      }),
+    );
+    expect(m.revokePolarSubscription).toHaveBeenCalledExactlyOnceWith("sub_1");
+  });
+
+  it("reports and does not throw when Polar fails, since the Cuso has already ended", async () => {
+    const failure = new Error("polar is down");
+    m.revokePolarSubscription.mockRejectedValue(failure);
+
+    await expect(
+      revokeSubscriptionsLeftByEnding(PROJECT_ID),
+    ).resolves.toBeUndefined();
+
+    expect(m.captureException).toHaveBeenCalledWith(
+      failure,
+      expect.any(Object),
+    );
+  });
+
+  it("looks for nothing without a Project", async () => {
+    await revokeSubscriptionsLeftByEnding(null);
+
+    expect(m.prisma.cmoSubscription.findMany).not.toHaveBeenCalled();
   });
 });

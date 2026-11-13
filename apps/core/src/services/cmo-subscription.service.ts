@@ -73,11 +73,17 @@ export type CmoCheckoutMetadata = z.infer<typeof cmoCheckoutMetadataSchema>;
 /** Polar statuses after which a subscription never bills again. */
 const ENDED_STATUSES = new Set(["canceled", "unpaid", "incomplete_expired"]);
 
-const ROW_SELECT = { id: true, projectId: true, organizationId: true } as const;
+const ROW_SELECT = {
+  id: true,
+  projectId: true,
+  organizationId: true,
+  endedAt: true,
+} as const;
 type CmoSubscriptionRow = {
   id: string;
   projectId: string;
   organizationId: string;
+  endedAt: Date | null;
 };
 
 /** Why an event can make no row: reported with what else it knows. */
@@ -165,6 +171,41 @@ export async function resolveCheckoutTarget(
 async function upsertCmoSubscription(
   source: SubscriptionSource,
 ): Promise<Result<CmoSubscriptionRow, UnusableEvent>> {
+  const row = await writeCmoSubscriptionRow(source);
+  if (row.isErr()) return row;
+  return await endIfCusoEnded(row.value, source.subscription.id);
+}
+
+/**
+ * A subscription whose Project has no live Cuso: a checkout paid, or first
+ * delivered, after he ended, which his ending found no row to revoke, so
+ * Polar would go on charging. Revoked here and recorded ended. The row is
+ * written before this check, and an ending archives before it revokes what
+ * the Project still holds (`revokeSubscriptionsLeftByEnding`): of the two,
+ * whichever checks second sees the other's write.
+ */
+async function endIfCusoEnded(
+  row: CmoSubscriptionRow,
+  polarSubscriptionId: string,
+): Promise<Result<CmoSubscriptionRow, UnusableEvent>> {
+  if (row.endedAt) return ok(row);
+  const cuso = await prisma.sokoBot.findFirst({
+    where: { ...LIVE_CUSO_WHERE, projectId: row.projectId },
+    select: { id: true },
+  });
+  if (cuso) return ok(row);
+  await revokePolarSubscription(polarSubscriptionId);
+  const endedAt = new Date();
+  await prisma.cmoSubscription.updateMany({
+    where: { id: row.id, endedAt: null },
+    data: { status: "canceled", endedAt, polarEventAt: endedAt },
+  });
+  return err({ issue: "the Cuso has ended; the subscription is revoked" });
+}
+
+async function writeCmoSubscriptionRow(
+  source: SubscriptionSource,
+): Promise<Result<CmoSubscriptionRow, UnusableEvent>> {
   const { eventAt, plan, subscription } = source;
   const where = { polarSubscriptionId: subscription.id };
   const state = {
@@ -205,37 +246,6 @@ async function upsertCmoSubscription(
   );
   if (target.isErr()) return err(target.error);
   const { organizationId, projectId } = target.value;
-
-  // A checkout paid, or first delivered, after its Cuso ended: the ending
-  // found no row to revoke, so Polar would go on charging. Revoked here and
-  // kept as ended, so later deliveries change nothing.
-  const cuso = await prisma.sokoBot.findFirst({
-    where: { ...LIVE_CUSO_WHERE, projectId },
-    select: { id: true },
-  });
-  if (!cuso) {
-    const revokedAt = new Date();
-    if (!state.endedAt) await revokePolarSubscription(subscription.id);
-    try {
-      await prisma.cmoSubscription.create({
-        data: {
-          ...state,
-          ...(!state.endedAt && {
-            status: "canceled",
-            endedAt: revokedAt,
-            polarEventAt: revokedAt,
-          }),
-          ...where,
-          organizationId,
-          projectId,
-        },
-      });
-    } catch (error) {
-      // Another delivery of the same subscription recorded it first.
-      if (!isPrismaUniqueViolation(error)) throw error;
-    }
-    return err({ issue: "the Cuso has ended; the subscription is revoked" });
-  }
 
   try {
     return ok(

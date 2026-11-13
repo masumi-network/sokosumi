@@ -80,3 +80,25 @@ export async function revokeOrganizationCusoSubscriptions(
 ): Promise<void> {
   await revokeSubscriptions({ organizationId });
 }
+
+/**
+ * After an ending's transaction: revokes a subscription the Project still
+ * holds without a live Cuso. A first subscription webhook can create its row
+ * after the ending's revoke above found none. It writes its row before it
+ * checks the Cuso, and the ending archived him before this looks: whichever
+ * of the two looks second sees the other, and revokes. The Cuso has ended by
+ * now, so a failure is reported (inside `revokeSubscriptions`) and not thrown.
+ */
+export async function revokeSubscriptionsLeftByEnding(
+  projectId: string | null,
+): Promise<void> {
+  if (!projectId) return;
+  try {
+    await revokeSubscriptions({
+      projectId,
+      project: { sokoBots: { none: LIVE_CUSO_WHERE } },
+    });
+  } catch (error) {
+    if (!(error instanceof HTTPException)) throw error;
+  }
+}
