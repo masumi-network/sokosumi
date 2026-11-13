@@ -58,6 +58,7 @@ export async function syncCmoYearlyGrants(
       status: "active",
       endedAt: null,
       lastPaidOrderId: { not: null },
+      lastPaidOrderRefundedAt: null,
       currentPeriodEnd: { gt: now },
     },
     select: {

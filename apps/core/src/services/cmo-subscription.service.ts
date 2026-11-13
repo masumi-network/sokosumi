@@ -292,7 +292,11 @@ export async function handlePolarOrderPaid(
           id: row.id,
           OR: [{ lastPaidAt: null }, { lastPaidAt: { lt: paidAt } }],
         },
-        data: { lastPaidOrderId: order.id, lastPaidAt: paidAt },
+        data: {
+          lastPaidOrderId: order.id,
+          lastPaidAt: paidAt,
+          lastPaidOrderRefundedAt: null,
+        },
       });
     },
   );
@@ -425,7 +429,8 @@ export async function handlePolarPlanChangePaid(
  * `order.refunded`: writes off what is left of every bucket the order granted
  * (a yearly order grants one per month), so the refund and the balance agree.
  * Credits already spent stay spent. Polar sends it for a partial refund too;
- * the rest goes all the same.
+ * the rest goes all the same. A refunded last paid order is marked on its
+ * subscription, so a yearly plan grants no more months of it.
  */
 export async function handlePolarOrderRefunded(
   event: OrderRefundedEvent,
@@ -450,6 +455,12 @@ export async function handlePolarOrderRefunded(
       buckets.map((bucket) => bucket.id),
       tx,
     );
+    // A refund does not cancel at Polar (an operator who refunds cancels
+    // there if wanted), so the yearly grant job must stop granting the order.
+    await tx.cmoSubscription.updateMany({
+      where: { lastPaidOrderId: order.id, lastPaidOrderRefundedAt: null },
+      data: { lastPaidOrderRefundedAt: new Date(event.timestamp) },
+    });
     return buckets.length > 0;
   }, "The refund raced another write to the same credits");
   if (!granted) {

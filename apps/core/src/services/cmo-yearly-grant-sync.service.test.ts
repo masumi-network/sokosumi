@@ -65,6 +65,7 @@ const SUBSCRIPTION = {
   currentPeriodEnd: new Date("2027-01-31T10:00:00.000Z"),
   cancelAtPeriodEnd: false,
   lastPaidOrderId: "order_y1",
+  lastPaidOrderRefundedAt: null,
   endedAt: null,
 };
 

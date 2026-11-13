@@ -18,12 +18,17 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import type { EnvVariables } from "@/lib/hono";
+import { syncCmoYearlyGrants } from "@/services/cmo-yearly-grant-sync.service";
 
 import router from "./index";
 
-const m = vi.hoisted(() => ({ verifyPolarWebhook: vi.fn() }));
+const m = vi.hoisted(() => ({
+  listPolarProducts: vi.fn(),
+  verifyPolarWebhook: vi.fn(),
+}));
 
 vi.mock("@/clients/polar.client", () => ({
+  listPolarProducts: m.listPolarProducts,
   verifyPolarWebhook: m.verifyPolarWebhook,
 }));
 vi.mock("@/lib/auth", () => ({
@@ -99,13 +104,15 @@ async function consumed(bucketId: string): Promise<bigint[]> {
 
 /** Delivers the refund of one order; each call takes its own connection. */
 async function refund(orderId: string): Promise<number> {
-  m.verifyPolarWebhook.mockResolvedValueOnce(
-    ok({
-      type: "order.refunded",
-      timestamp: "2026-11-20T09:00:00.000Z",
-      data: { id: orderId, metadata: {} },
-    }),
-  );
+  return await deliver({
+    type: "order.refunded",
+    timestamp: "2026-11-20T09:00:00.000Z",
+    data: { id: orderId, metadata: {} },
+  });
+}
+
+async function deliver(event: unknown): Promise<number> {
+  m.verifyPolarWebhook.mockResolvedValueOnce(ok(event));
   const app = new OpenAPIHono<EnvVariables>();
   app.use("*", async (c, next) => {
     c.set("requestId", "polar_refund_postgres_test");
@@ -130,6 +137,7 @@ describe.skipIf(!db)("order.refunded against PostgreSQL", () => {
 
   afterAll(async () => {
     if (!db) return;
+    await db.cmoSubscription.deleteMany({ where: { projectId: PROJECT } });
     // Buckets and consumptions go with their transactions.
     await db.transaction.deleteMany({
       where: { organizationId: ORGANIZATION },
@@ -202,5 +210,105 @@ describe.skipIf(!db)("order.refunded against PostgreSQL", () => {
 
   it("acknowledges a refund for an order that granted nothing", async () => {
     expect(await refund(`order-${randomUUID()}`)).toBe(200);
+  });
+
+  describe("a refunded yearly order", () => {
+    const SUBSCRIPTION_ID = `sub-${randomUUID()}`;
+    const ORDER = `order-${randomUUID()}`;
+    const DAY = 24 * 60 * 60 * 1000;
+    // Paid 40 days ago: the job is due to grant month 1.
+    const PERIOD_START = new Date(Date.now() - 40 * DAY);
+    const PERIOD_END = new Date(PERIOD_START.getTime() + 365 * DAY);
+    const PRODUCT = {
+      id: "prod_growth_year",
+      name: "Growth yearly",
+      is_recurring: true,
+      recurring_interval: "year",
+      recurring_interval_count: 1,
+      metadata: { kind: "plan", tier: "growth", credits: "25000" },
+      prices: [
+        {
+          amount_type: "fixed",
+          is_archived: false,
+          price_amount: 100,
+          price_currency: "usd",
+        },
+      ],
+    };
+
+    async function row() {
+      return await database().cmoSubscription.findUniqueOrThrow({
+        where: { polarSubscriptionId: SUBSCRIPTION_ID },
+        select: { lastPaidOrderId: true, lastPaidOrderRefundedAt: true },
+      });
+    }
+
+    beforeAll(async () => {
+      if (!db) return;
+      m.listPolarProducts.mockResolvedValue([PRODUCT]);
+      await db.cmoSubscription.create({
+        data: {
+          projectId: PROJECT,
+          organizationId: ORGANIZATION,
+          polarSubscriptionId: SUBSCRIPTION_ID,
+          polarProductId: PRODUCT.id,
+          tier: "growth",
+          interval: "year",
+          status: "active",
+          currentPeriodStart: PERIOD_START,
+          currentPeriodEnd: PERIOD_END,
+          lastPaidOrderId: ORDER,
+          lastPaidAt: PERIOD_START,
+          polarEventAt: PERIOD_START,
+        },
+      });
+      await grantMonth(ORDER, 0);
+    });
+
+    it("marks the subscription and grants no later month of it", async () => {
+      expect(await refund(ORDER)).toBe(200);
+
+      expect((await row()).lastPaidOrderRefundedAt).not.toBeNull();
+      await syncCmoYearlyGrants(() => true);
+      expect(
+        await database().creditBucket.count({
+          where: { referenceId: `${ORDER}:1` },
+        }),
+      ).toBe(0);
+    });
+
+    it("clears the mark when the next order is paid", async () => {
+      const next = `order-${randomUUID()}`;
+      const status = await deliver({
+        type: "order.paid",
+        timestamp: new Date().toISOString(),
+        data: {
+          id: next,
+          billing_reason: "subscription_cycle",
+          metadata: {},
+          items: [],
+          customer: { id: "cus_1", external_id: ORGANIZATION },
+          product: PRODUCT,
+          subscription: {
+            id: SUBSCRIPTION_ID,
+            status: "active",
+            product_id: PRODUCT.id,
+            recurring_interval: "year",
+            current_period_start: PERIOD_END.toISOString(),
+            current_period_end: new Date(
+              PERIOD_END.getTime() + 365 * DAY,
+            ).toISOString(),
+            cancel_at_period_end: false,
+            ended_at: null,
+          },
+        },
+      });
+
+      expect(status).toBe(200);
+      expect(await row()).toEqual({
+        lastPaidOrderId: next,
+        lastPaidOrderRefundedAt: null,
+      });
+    });
   });
 });

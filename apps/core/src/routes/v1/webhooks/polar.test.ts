@@ -238,6 +238,7 @@ describe("POST /v1/webhooks/polar", () => {
         expect.objectContaining({
           data: {
             lastPaidAt: new Date("2026-11-13T10:00:05.000Z"),
+            lastPaidOrderRefundedAt: null,
             lastPaidOrderId: "order_1",
           },
         }),
@@ -292,6 +293,7 @@ describe("POST /v1/webhooks/polar", () => {
         expect.objectContaining({
           data: {
             lastPaidAt: new Date("2026-11-13T10:00:05.000Z"),
+            lastPaidOrderRefundedAt: null,
             lastPaidOrderId: "order_2",
           },
         }),
