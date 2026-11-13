@@ -1,10 +1,6 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import {
-  SEO_MAP_MIN_RADIUS,
-  seoKeywordMap,
-  seoNearestPoint,
-} from "./seo-keyword-map-model";
+import { seoKeywordMap, seoNearestPoint } from "./seo-keyword-map-model";
 import { keywordGroups } from "./seo-keyword-rows-model";
 
 type Keyword = ProjectSeoWorkspace["keywords"][number];
@@ -156,9 +152,7 @@ describe("SEO keyword map", () => {
     );
     const [top, far] = map?.points ?? [];
     expect(top.gain).toEqual({ top10: 0, top3: 0 });
-    expect(top.radius).toBe(SEO_MAP_MIN_RADIUS);
     expect(far.gain).toEqual({ top10: 1, top3: 53 });
-    expect(far.radius).toBeGreaterThan(top.radius);
   });
 
   it("finds the dot under the pointer and none away from every dot", () => {

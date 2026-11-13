@@ -11573,11 +11573,11 @@
         "nextFixes": "{count, plural, one {Nächster Schritt: # Korrektur} other {Nächster Schritt: # Korrekturen}}",
         "searchKeywords": "Keywords filtern",
         "map": {
-          "title": "Reichweite und Schwierigkeit",
+          "title": "Keyword-Chancen",
+          "subtitle": "Suchen im Monat gegen die Schwierigkeit. Oben links ist am besten.",
           "checked": "Ihre Keywords",
           "idea": "Idee",
           "hint": "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Keywords.",
-          "best": "Beste Chancen",
           "easier": "Leichter",
           "harder": "Schwerer",
           "axis": "Schwierigkeit",
@@ -11586,7 +11586,6 @@
           "top3": "{clicks, plural, =0 {Top 3: keine zusätzlichen Klicks} one {Top 3: +# Klick im Monat} other {Top 3: +# Klicks im Monat}}",
           "gain": "Zusätzliche Klicks in den Top 3",
           "table": "Als Tabelle anzeigen",
-          "note": "Höher: mehr Suchanfragen. Weiter links: leichter in die Top 10. Ein größerer Punkt: mehr zusätzliche Klicks auf Platz 3.",
           "source": "Klicks sind Schätzungen aus den monatlichen Suchanfragen und dem Klickanteil je Google-Platz (Advanced Web Ranking, Juli 2026). Die Schwierigkeit stammt von DataForSEO."
         },
         "historyShow": "Verlauf",

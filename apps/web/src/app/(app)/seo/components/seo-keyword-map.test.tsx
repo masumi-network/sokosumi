@@ -71,7 +71,7 @@ describe("SEO keyword map", () => {
         clicks: { now: 0, top10: 41, top3: 301, top1: 969 },
       }),
     ]);
-    const map = screen.getByRole("group", { name: "Reach and difficulty" });
+    const map = screen.getByRole("group", { name: "Keyword opportunities" });
     expect(screen.queryByTestId("seo-keyword-card")).toBeNull();
     map.focus();
     await user.keyboard("{ArrowRight}");

@@ -11573,11 +11573,11 @@
         "nextFixes": "{count, plural, one {Next step: # fix} other {Next step: # fixes}}",
         "searchKeywords": "Filter keywords",
         "map": {
-          "title": "Reach and difficulty",
+          "title": "Keyword opportunities",
+          "subtitle": "Monthly searches against how hard it is to rank. Top left is best.",
           "checked": "Your keywords",
           "idea": "Idea",
           "hint": "Use the left and right arrow keys to move between keywords.",
-          "best": "Best chances",
           "easier": "Easier",
           "harder": "Harder",
           "axis": "Difficulty",
@@ -11586,7 +11586,6 @@
           "top3": "{clicks, plural, =0 {Top 3: no extra clicks} one {Top 3: +# click a month} other {Top 3: +# clicks a month}}",
           "gain": "Extra clicks at top 3",
           "table": "Show as a table",
-          "note": "Higher: more searches. Further left: easier to reach the top 10. A bigger dot: more extra clicks at place 3.",
           "source": "Clicks are estimates from monthly searches and the share of clicks per Google place (Advanced Web Ranking, July 2026). Difficulty comes from DataForSEO."
         },
         "historyShow": "History",

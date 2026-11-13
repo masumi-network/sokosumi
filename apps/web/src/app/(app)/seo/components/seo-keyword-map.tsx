@@ -10,6 +10,7 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 import {
+  SEO_MAP_RADIUS,
   type SeoKeywordPoint,
   seoKeywordMap,
   seoNearestPoint,
@@ -19,7 +20,6 @@ import { SeoFoldSummary } from "./seo-shared";
 
 /** How far from a dot, in px, the pointer still picks it. */
 const POINTER_REACH = 16;
-const X_TICKS = [0, 50, 100];
 /** From this dot on, the dots come in together: a map of many keywords does not keep the reader waiting. */
 const DOT_STAGGER_MAX = 12;
 
@@ -36,6 +36,7 @@ export function SeoKeywordMap({
   const t = useTranslations("App.Seo.keywords");
   const format = useFormatter();
   const hintId = useId();
+  const subtitleId = useId();
   // By keyword, so a refetch that reorders the dots keeps the card on its keyword.
   const [activeId, setActiveId] = useState<string | null>(null);
   // The keyboard keeps its keyword when the mouse leaves the map.
@@ -98,14 +99,16 @@ export function SeoKeywordMap({
       ),
     );
   }
-  // Big dots first, so a small dot is never under a big one.
-  const drawn = points
-    .map((point, index) => ({ point, index }))
-    .toSorted((left, right) => right.point.radius - left.point.radius);
   return (
     <figure className="min-w-0 space-y-3">
       <figcaption className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <span className="text-sm font-medium">{t("map.title")}</span>
+        {/* One line says how to read the map: no note under it, no label inside it. */}
+        <span className="min-w-0">
+          <span className="block text-sm font-medium">{t("map.title")}</span>
+          <span id={subtitleId} className="text-muted-foreground block text-xs">
+            {t("map.subtitle")}
+          </span>
+        </span>
         {/* Identity by fill, not by color alone: filled for a keyword of yours, a ring for an idea. A map of
             one kind needs no legend. */}
         <span
@@ -131,7 +134,7 @@ export function SeoKeywordMap({
       <div
         role="group"
         aria-label={t("map.title")}
-        aria-describedby={hintId}
+        aria-describedby={`${subtitleId} ${hintId}`}
         tabIndex={0}
         className="focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
         onBlur={() => setActive(null)}
@@ -188,19 +191,15 @@ export function SeoKeywordMap({
                 />
               ))}
             </svg>
-            <span
-              aria-hidden
-              className="text-muted-foreground pointer-events-none absolute top-1 left-2 text-xs"
-            >
-              {t("map.best")}
-            </span>
-            {drawn.map(({ point, index }) => (
+            {points.map((point, index) => (
               <span
                 key={point.group.lead.id}
                 aria-hidden
                 data-testid="seo-keyword-dot"
                 className={cn(
                   "ring-background pop-in stagger-delay pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition-colors duration-150 motion-reduce:transition-none",
+                  // The picked dot sits over a neighbour it touches.
+                  index === active && "z-[1]",
                   point.checked
                     ? index === active
                       ? "bg-foreground"
@@ -216,8 +215,8 @@ export function SeoKeywordMap({
                   {
                     left: `${point.x}%`,
                     top: `${point.y}%`,
-                    width: point.radius * 2,
-                    height: point.radius * 2,
+                    width: SEO_MAP_RADIUS * 2,
+                    height: SEO_MAP_RADIUS * 2,
                     // The dots come in one by one, by their place in the list, not by size.
                     "--stagger-index": Math.min(index, DOT_STAGGER_MAX),
                     "--stagger-step": "30ms",
@@ -250,31 +249,13 @@ export function SeoKeywordMap({
           <span />
           <div
             aria-hidden
-            className="text-muted-foreground relative h-4 text-xs tabular-nums"
+            className="text-muted-foreground flex justify-between text-xs"
           >
-            {X_TICKS.map((tick) => (
-              <span
-                key={tick}
-                className="absolute whitespace-nowrap"
-                style={
-                  tick === 0
-                    ? { left: 0 }
-                    : tick === 100
-                      ? { right: 0 }
-                      : { left: "50%", transform: "translateX(-50%)" }
-                }
-              >
-                {tick === 0
-                  ? t("map.easier")
-                  : tick === 100
-                    ? t("map.harder")
-                    : t("map.axis")}
-              </span>
-            ))}
+            <span>{t("map.easier")}</span>
+            <span>{t("map.harder")}</span>
           </div>
         </div>
       </div>
-      <p className="text-muted-foreground text-xs">{t("map.note")}</p>
       <details className="text-sm">
         <SeoFoldSummary className="text-muted-foreground py-3 text-xs">
           {t("map.table")}
