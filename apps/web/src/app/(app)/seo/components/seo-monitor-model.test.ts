@@ -46,7 +46,7 @@ describe("SEO monitor card model", () => {
     ).toBe("noPages");
   });
 
-  it("hides an empty card only when a page notice already gives the reason", () => {
+  it("hides an empty card where the reader cannot make a monitor", () => {
     const empty = { ...actions({}), monitors: [] };
     expect(seoMonitorCardHidden(empty as never)).toBe(false);
     expect(
@@ -55,10 +55,18 @@ describe("SEO monitor card model", () => {
         monitors: [],
       } as never),
     ).toBe(true);
-    // Checks can start, so no page notice explains why schedules cannot.
+    // Checks can start but schedules cannot: the card's one button could not work.
     expect(
       seoMonitorCardHidden({
         ...actions({ canCreateMonitor: false }),
+        monitors: [],
+      } as never),
+    ).toBe(true);
+    // No pages yet: the card shows, and its note says to add pages first.
+    expect(
+      seoMonitorCardHidden({
+        ...actions({}),
+        scope: { pageIds: [] },
         monitors: [],
       } as never),
     ).toBe(false);

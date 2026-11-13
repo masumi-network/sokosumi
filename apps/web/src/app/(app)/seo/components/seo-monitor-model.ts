@@ -40,8 +40,8 @@ export function seoMonitorBlock(
 }
 
 /**
- * The card with no monitor stays hidden only when a notice of the page already gives its reason: a reader who can
- * only view, or a workspace where no check can start. One notice says it once.
+ * The card with no monitor shows only where the reader can make one, now or after adding pages: a card whose one
+ * button cannot work is clutter. A monitor that exists always shows, with its commands or the reason they are gone.
  */
 export function seoMonitorCardHidden(
   workspace: Pick<
@@ -51,10 +51,7 @@ export function seoMonitorCardHidden(
 ): boolean {
   if (workspace.monitors.length) return false;
   const block = seoMonitorBlock(workspace);
-  return (
-    block === "readOnly" ||
-    (block === "service" && !workspace.availableActions.canRequestAnalysis)
-  );
+  return block === "readOnly" || block === "service";
 }
 
 /** Scheduled Runs still to come. Null for a monitor that runs until someone stops it. */

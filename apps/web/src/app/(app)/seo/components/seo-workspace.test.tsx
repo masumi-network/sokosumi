@@ -3530,14 +3530,8 @@ describe("SEO workspace integration", () => {
       ).toBeNull();
       view.unmount();
       renderWorkspace(workspace, "", true);
-      // The card stays and says why no schedule can be made here.
-      const card = screen.getByTestId("seo-automation");
-      expect(
-        within(card).getByText(messages.App.Seo.monitor.blocked.service),
-      ).toBeVisible();
-      expect(
-        within(card).getByRole("button", { name: "Schedule checks" }),
-      ).toBeDisabled();
+      // No schedule can be made here: the card, whose one button could not work, stays away.
+      expect(screen.queryByTestId("seo-automation")).toBeNull();
     },
   );
 

@@ -11896,7 +11896,7 @@
         "created": "SEO monitoring scheduled",
         "next": "Next run",
         "manage": "Manage task schedule",
-        "offBody": "Off. The agent can check these pages on a schedule and save each result here. Nothing runs until you schedule it.",
+        "offBody": "Off. The agent can check these pages on a schedule and save each result here.",
         "createAnother": "Schedule another check",
         "capPerRun": "Each run uses up to {calls} data requests. Runs continue until someone stops them. Model and runtime charges can also apply.",
         "blocked": {

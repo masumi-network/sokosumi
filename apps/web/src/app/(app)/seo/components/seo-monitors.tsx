@@ -11,7 +11,7 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /**
  * Scheduled checks on the agent's home. Each monitor shows its plan, its last result and what changed, with its
- * commands in place. When no monitor can be made, the card says why, unless a notice of the page already says it.
+ * commands in place. With no monitor, the card shows only where the reader can make one.
  */
 export function SeoAutomation({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo.monitor");
