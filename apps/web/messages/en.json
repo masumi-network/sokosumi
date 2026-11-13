@@ -10741,6 +10741,8 @@
         "csvHeaders": "Give every CSV column a non-empty header.",
         "csvWidth": "Every CSV row must have the same number of columns.",
         "layout": "Column layout wasn't saved and was reset. {reason}",
+        "archiveRows": "{count, plural, one {Could not archive # row. It is back in the table.} other {Could not archive # rows. They are back in the table.}} {reason}",
+        "restoreRows": "{count, plural, one {Could not restore # row. It is back in archived rows.} other {Could not restore # rows. They are back in archived rows.}} {reason}",
         "cellNotSaved": "Your value was not saved. It is back in the editor. {reason}"
       },
       "reorderColumn": "Reorder {column}. Drag, or press the left and right arrow keys.",
