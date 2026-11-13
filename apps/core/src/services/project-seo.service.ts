@@ -328,6 +328,7 @@ async function loadSeoWorkspaceObservations(
     historyLimited:
       evidence.length >= SEO_WORKSPACE_EVIDENCE_LIMIT ||
       metrics.length >= SEO_WORKSPACE_METRICS_LIMIT,
+    evidenceLimited: evidence.length >= SEO_WORKSPACE_EVIDENCE_LIMIT,
   };
 }
 
@@ -342,7 +343,7 @@ export async function getProjectSeoWorkspace(
   const [
     pages,
     scopes,
-    { observations, historyLimited },
+    { observations, historyLimited, evidenceLimited },
     keywords,
     competitors,
     analyses,
@@ -434,6 +435,7 @@ export async function getProjectSeoWorkspace(
     scopes,
     observations,
     historyLimited,
+    evidenceLimited,
     keywords,
     competitors,
     analyses,

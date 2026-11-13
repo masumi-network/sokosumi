@@ -1247,27 +1247,44 @@ describe.skipIf(!enabled)(
             observedAt: new Date(Date.UTC(2026, 9, 1, 0, from + index)),
           })),
         });
+      const syncs = (from: number, count: number) =>
+        prisma.projectSeoObservation.createMany({
+          data: Array.from({ length: count }, (_, index) => ({
+            projectId,
+            ownerId: userId,
+            visibility: "PRIVATE" as const,
+            source: "ga4",
+            kind: "metrics",
+            sourceKey: `history-split-sync:${from + index}`,
+            pageIds: [page.id],
+            artifactHash: `history-split-sync:${from + index}`,
+            payload: metrics([page.url]),
+            observedAt: new Date(Date.UTC(2026, 10, 1, 0, from + index)),
+          })),
+        });
       await audits(0, 60);
-      await prisma.projectSeoObservation.createMany({
-        data: Array.from({ length: 40 }, (_, index) => ({
-          projectId,
-          ownerId: userId,
-          visibility: "PRIVATE",
-          source: "ga4",
-          kind: "metrics",
-          sourceKey: `history-split-sync:${index}`,
-          pageIds: [page.id],
-          artifactHash: `history-split-sync:${index}`,
-          payload: metrics([page.url]),
-          observedAt: new Date(Date.UTC(2026, 10, 1, 0, index)),
-        })),
-      });
+      await syncs(0, 40);
       const history = async () =>
         (await getProjectSeoWorkspace(actor, { pageId: page.id })).history;
       // 100 rows in all, but neither load reached its own cap of 100.
-      expect(await history()).toEqual({ limit: 100, limited: false });
+      expect(await history()).toEqual({
+        limit: 100,
+        limited: false,
+        evidenceLimited: false,
+      });
+      // 100 syncs cut the syncs only: every check still loads.
+      await syncs(40, 60);
+      expect(await history()).toEqual({
+        limit: 100,
+        limited: true,
+        evidenceLimited: false,
+      });
       await audits(60, 40);
-      expect(await history()).toEqual({ limit: 100, limited: true });
+      expect(await history()).toEqual({
+        limit: 100,
+        limited: true,
+        evidenceLimited: true,
+      });
     });
 
     it("keeps the newest saved brand terms, even a list saved before", async () => {

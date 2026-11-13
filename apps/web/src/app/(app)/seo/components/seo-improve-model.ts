@@ -167,9 +167,9 @@ export function seoAuditGaps(
       coverage.checked + coverage.skipped + coverage.failed > 0 ||
       coverage.modules !== undefined,
   );
-  // A date filter or a cut history can hide a check: no check in view is then no proof of none.
+  // A date filter or a cut of the checks can hide a check: no check in view is then no proof of none.
   const partView = Boolean(
-    data.scope.from || data.scope.to || data.history.limited,
+    data.scope.from || data.scope.to || data.history.evidenceLimited,
   );
   if (!newest) {
     if (!partView) gaps.push({ message: "noCheck", fix: check });

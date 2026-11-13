@@ -120,7 +120,7 @@ export function seoTestWorkspace(): ProjectSeoWorkspace {
     timeline: [],
     analyses: [],
     monitors: [],
-    history: { limit: 200, limited: false },
+    history: { limit: 200, limited: false, evidenceLimited: false },
     availableActions: {
       canEdit: true,
       canRequestAnalysis: true,

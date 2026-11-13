@@ -620,8 +620,12 @@ export const projectSeoWorkspaceSchema = z
     scopes: z.array(seoScopeSchema),
     observations: z.array(seoObservationSchema),
     history: z.object({
+      /** The row cap of each load: the checks and page changes, and the syncs apart. */
       limit: z.number().int().positive(),
+      /** One of the two loads reached its cap. */
       limited: z.boolean(),
+      /** The checks and page changes load reached its cap: an older check can be cut. */
+      evidenceLimited: z.boolean(),
     }),
     keywords: z.array(seoKeywordSchema),
     competitors: z.array(seoCompetitorSchema),

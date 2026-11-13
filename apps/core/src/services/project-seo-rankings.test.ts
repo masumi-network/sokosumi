@@ -71,6 +71,7 @@ function input(pageUrls = [SEO_TEST_PAGE]): Input {
     scopes: [],
     observations: [],
     historyLimited: false,
+    evidenceLimited: false,
     keywords: [],
     competitors: [],
     analyses: [],

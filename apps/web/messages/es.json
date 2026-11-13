@@ -11941,7 +11941,7 @@
         "recorded": "Cambio de página registrado",
         "invalid": "Elige una fecha válida y al menos una página."
       },
-      "historyLimited": "Se muestran las últimas {limit} comprobaciones y sincronizaciones de estas páginas. El historial anterior no se incluye.",
+      "historyLimited": "Se muestran las últimas {limit} comprobaciones y las últimas {limit} sincronizaciones de estas páginas. El historial anterior no se incluye.",
       "audits": {
         "create": "Crear auditoría",
         "saved": "Auditorías guardadas",
@@ -12464,7 +12464,7 @@
           "modulesNotRequested": "Comprobaciones opcionales no solicitadas en la última comprobación: {names}.",
           "modulesFailed": "Comprobaciones opcionales no disponibles en la última comprobación: {names}.",
           "paidOff": "Los volúmenes de búsqueda y las posiciones actuales necesitan datos de búsqueda de pago, que están desactivados para estas páginas.",
-          "historyLimited": "Solo se cargan las últimas {limit} comprobaciones y sincronizaciones. El historial anterior no se incluye."
+          "historyLimited": "Solo se cargan las últimas {limit} comprobaciones y las últimas {limit} sincronizaciones. El historial anterior no se incluye."
         },
         "fix": {
           "connect_search_console": "Conectar Search Console",

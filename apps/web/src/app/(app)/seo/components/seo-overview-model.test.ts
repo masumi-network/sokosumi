@@ -370,11 +370,18 @@ describe("seoPageSummaries", () => {
     const cut = {
       ...base,
       observations: [],
-      history: { ...base.history, limited: true },
+      history: { ...base.history, limited: true, evidenceLimited: true },
     };
     expect(seoPageSummaries(cut).has(SEO_TEST_PAGE)).toBe(false);
     expect(
       seoPageSummaries({ ...cut, history: base.history }).get(SEO_TEST_PAGE),
+    ).toEqual({ issues: 0, checkedAt: null, checkId: null, incomplete: false });
+    // A cut of the syncs only hides no check, so the page still says it has none.
+    expect(
+      seoPageSummaries({
+        ...cut,
+        history: { ...base.history, limited: true },
+      }).get(SEO_TEST_PAGE),
     ).toEqual({ issues: 0, checkedAt: null, checkId: null, incomplete: false });
   });
 });

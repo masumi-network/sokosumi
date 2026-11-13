@@ -32,7 +32,7 @@ function workspaceFixture(): ProjectSeoWorkspace {
     ],
     scopes: [],
     observations: [],
-    history: { limit: 100, limited: false },
+    history: { limit: 100, limited: false, evidenceLimited: false },
     keywords: [],
     competitors: [],
     findings: [],

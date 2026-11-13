@@ -10669,6 +10669,7 @@ export type ProjectSeoWorkspace = {
     history: {
         limit: number;
         limited: boolean;
+        evidenceLimited: boolean;
     };
     keywords: Array<ProjectSeoKeyword>;
     competitors: Array<ProjectSeoCompetitor>;

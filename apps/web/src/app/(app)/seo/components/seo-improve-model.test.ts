@@ -79,11 +79,18 @@ describe("seoAuditGaps", () => {
     const dated = seoTestWorkspace();
     dated.scope = { ...dated.scope, from: "2026-01-01" };
     const cut = seoTestWorkspace();
-    cut.history = { limit: 200, limited: true };
+    cut.history = { limit: 200, limited: true, evidenceLimited: true };
     for (const workspace of [dated, cut])
       expect(seoAuditGaps(workspace).map((gap) => gap.message)).not.toContain(
         "noCheck",
       );
+    // A cut of the syncs only hides no check.
+    const syncsCut = seoTestWorkspace();
+    syncsCut.observations = [];
+    syncsCut.history = { limit: 200, limited: true, evidenceLimited: false };
+    expect(seoAuditGaps(syncsCut).map((gap) => gap.message)).toContain(
+      "noCheck",
+    );
   });
 
   it("names a sync that read nothing, not the empty statistics of a new audit", () => {
@@ -243,7 +250,7 @@ describe("seoAuditGaps", () => {
       },
     ];
     workspace.availableActions.canUsePaidSearchData = false;
-    workspace.history = { limit: 200, limited: true };
+    workspace.history = { limit: 200, limited: true, evidenceLimited: true };
     expect(seoAuditGaps(workspace)).toEqual([
       { message: "noAnalytics", fix: "connect_ga4" },
       { message: "queryRows", fix: "sync" },

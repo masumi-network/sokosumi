@@ -11941,7 +11941,7 @@
         "recorded": "Page change recorded",
         "invalid": "Choose a valid date and at least one page."
       },
-      "historyLimited": "Showing the latest {limit} checks and syncs for these pages. Earlier history is not included.",
+      "historyLimited": "Showing the latest {limit} checks and the latest {limit} syncs for these pages. Earlier history is not included.",
       "audits": {
         "create": "Create audit",
         "saved": "Saved audits",
@@ -12464,7 +12464,7 @@
           "modulesNotRequested": "Optional checks not requested in the last check: {names}.",
           "modulesFailed": "Optional checks unavailable in the last check: {names}.",
           "paidOff": "Search volumes and live ranks need paid search data, which is off for these pages.",
-          "historyLimited": "Only the latest {limit} checks and syncs are loaded. Earlier history is not included."
+          "historyLimited": "Only the latest {limit} checks and the latest {limit} syncs are loaded. Earlier history is not included."
         },
         "fix": {
           "connect_search_console": "Connect Search Console",

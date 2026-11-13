@@ -40026,11 +40026,15 @@ export const ProjectSeoWorkspaceSchema = {
                 },
                 limited: {
                     type: 'boolean'
+                },
+                evidenceLimited: {
+                    type: 'boolean'
                 }
             },
             required: [
                 'limit',
-                'limited'
+                'limited',
+                'evidenceLimited'
             ]
         },
         keywords: {

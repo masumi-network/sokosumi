@@ -193,7 +193,8 @@ export function seoPageSummaries(workspace: ProjectSeoWorkspace) {
           (coverage.modules?.failed ?? 0) > 0) &&
         pageIds.includes(page.id),
     );
-    if (!check && workspace.history.limited) continue;
+    // Only a cut of the checks can hide this page's check; a cut of the syncs cannot.
+    if (!check && workspace.history.evidenceLimited) continue;
     summaries.set(page.id, {
       issues: issues.filter((finding) => finding.pageUrl === page.url).length,
       checkedAt: check?.observedAt ?? null,

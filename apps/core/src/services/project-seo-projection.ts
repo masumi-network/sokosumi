@@ -66,6 +66,8 @@ interface ProjectionInput {
   observations: ProjectSeoObservation[];
   /** True when the evidence or the metrics load reached its own row cap. */
   historyLimited: boolean;
+  /** True when the evidence load (checks and page changes) reached its row cap: an older check can be cut. */
+  evidenceLimited: boolean;
   keywords: ProjectSeoKeyword[];
   competitors: ProjectSeoCompetitor[];
   analyses: ProjectSeoAnalysis[];
@@ -671,6 +673,7 @@ export function projectSeoProjection(
     history: {
       limit: SEO_RESULT_LIMIT,
       limited: input.historyLimited,
+      evidenceLimited: input.evidenceLimited,
     },
     keywords,
     competitors,

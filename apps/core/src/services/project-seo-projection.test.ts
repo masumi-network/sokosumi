@@ -49,6 +49,7 @@ function fixture(): Input {
     scopes: [],
     observations: [],
     historyLimited: false,
+    evidenceLimited: false,
     keywords: [],
     competitors: [],
     analyses: [],

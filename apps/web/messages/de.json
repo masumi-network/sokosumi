@@ -11941,7 +11941,7 @@
         "recorded": "Seitenänderung vermerkt",
         "invalid": "Wähle ein gültiges Datum und mindestens eine Seite."
       },
-      "historyLimited": "Es werden die neuesten {limit} Prüfungen und Synchronisierungen für diese Seiten gezeigt. Ältere Einträge fehlen.",
+      "historyLimited": "Es werden die neuesten {limit} Prüfungen und die neuesten {limit} Synchronisierungen für diese Seiten gezeigt. Ältere Einträge fehlen.",
       "audits": {
         "create": "Audit erstellen",
         "saved": "Gespeicherte Audits",
@@ -12464,7 +12464,7 @@
           "modulesNotRequested": "Optionale Prüfungen, die bei der letzten Prüfung nicht angefordert wurden: {names}.",
           "modulesFailed": "Optionale Prüfungen, die bei der letzten Prüfung nicht verfügbar waren: {names}.",
           "paidOff": "Suchvolumen und aktuelle Rankings brauchen bezahlte Suchdaten, die für diese Seiten aus sind.",
-          "historyLimited": "Nur die neuesten {limit} Prüfungen und Synchronisierungen sind geladen. Ältere Einträge fehlen."
+          "historyLimited": "Nur die neuesten {limit} Prüfungen und die neuesten {limit} Synchronisierungen sind geladen. Ältere Einträge fehlen."
         },
         "fix": {
           "connect_search_console": "Search Console verbinden",
