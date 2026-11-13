@@ -11894,7 +11894,6 @@
         "created": "Seguimiento SEO programado",
         "next": "Próxima ejecución",
         "manage": "Gestionar plan de tareas",
-        "offBody": "Desactivadas. El agente puede comprobar estas páginas según un plan y guardar cada resultado aquí.",
         "createAnother": "Programar otra revisión",
         "capPerRun": "Cada ejecución usa hasta {calls} solicitudes de datos. Las ejecuciones siguen hasta que alguien las detenga. También pueden aplicarse cargos de modelo y ejecución.",
         "blocked": {

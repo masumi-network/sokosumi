@@ -76,7 +76,7 @@ function monitor(patch: Partial<ProjectSeoMonitor> = {}): ProjectSeoMonitor {
 function Panel({ workspace }: { workspace: ProjectSeoWorkspace }) {
   return <SeoAutomation model={useSeoWorkspace(workspace)} />;
 }
-function renderCard(workspace: ProjectSeoWorkspace) {
+function mountCard(workspace: ProjectSeoWorkspace) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => Response.json(workspace)),
@@ -98,6 +98,9 @@ function renderCard(workspace: ProjectSeoWorkspace) {
       </NextIntlClientProvider>
     </QueryClientProvider>,
   );
+}
+function renderCard(workspace: ProjectSeoWorkspace) {
+  mountCard(workspace);
   return screen.getByTestId("seo-automation");
 }
 function withMonitors(...monitors: ProjectSeoMonitor[]) {
@@ -115,6 +118,14 @@ afterEach(() => {
 });
 
 describe("SEO monitor card", () => {
+  it("shows no card before the first monitor, where a schedule can be made: the run's arrow makes it", () => {
+    const workspace = withMonitors();
+    expect(workspace.availableActions.canCreateMonitor).toBe(true);
+    mountCard(workspace);
+    expect(screen.queryByTestId("seo-automation")).toBeNull();
+    expect(screen.queryByRole("heading", { name: t.title })).toBeNull();
+  });
+
   it("shows the plan in words, the last run, the runs left, and keeps the create button", () => {
     const card = renderCard(withMonitors(monitor()));
     expect(

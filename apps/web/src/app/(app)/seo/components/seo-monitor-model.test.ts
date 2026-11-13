@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { TaskScheduleEndsMode } from "@/lib/types/task-schedule";
 import {
   seoMonitorBlock,
-  seoMonitorCardHidden,
   seoMonitorChangeSummary,
   seoMonitorPagesDiffer,
   seoMonitorPlan,
@@ -44,41 +43,6 @@ describe("SEO monitor card model", () => {
     expect(
       seoMonitorBlock({ ...actions({}), scope: { pageIds: [] } } as never),
     ).toBe("noPages");
-  });
-
-  it("hides an empty card where the reader cannot make a monitor", () => {
-    const empty = { ...actions({}), monitors: [] };
-    expect(seoMonitorCardHidden(empty as never)).toBe(false);
-    expect(
-      seoMonitorCardHidden({
-        ...actions({ canEdit: false }),
-        monitors: [],
-      } as never),
-    ).toBe(true);
-    // Checks can start but schedules cannot: the card's one button could not work.
-    expect(
-      seoMonitorCardHidden({
-        ...actions({ canCreateMonitor: false }),
-        monitors: [],
-      } as never),
-    ).toBe(true);
-    // No pages yet: the card shows, and its note says to add pages first.
-    expect(
-      seoMonitorCardHidden({
-        ...actions({}),
-        scope: { pageIds: [] },
-        monitors: [],
-      } as never),
-    ).toBe(false);
-    const paused = actions({ canCreateMonitor: false });
-    paused.availableActions.canRequestAnalysis = false;
-    expect(seoMonitorCardHidden({ ...paused, monitors: [] } as never)).toBe(
-      true,
-    );
-    // A monitor that exists always shows, with its commands or the reason they are gone.
-    expect(seoMonitorCardHidden({ ...paused, monitors: [{}] } as never)).toBe(
-      false,
-    );
   });
 
   it("counts the scheduled runs left, none for an ended monitor and no count for one that runs until stopped", () => {

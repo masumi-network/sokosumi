@@ -3589,7 +3589,7 @@ describe("SEO workspace integration", () => {
       ).toBeNull();
       view.unmount();
       renderWorkspace(workspace, "", true);
-      // No schedule can be made here: the card, whose one button could not work, stays away.
+      // No schedule exists here, so the schedule card stays away.
       expect(screen.queryByTestId("seo-automation")).toBeNull();
     },
   );

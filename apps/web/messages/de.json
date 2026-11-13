@@ -11894,7 +11894,6 @@
         "created": "SEO-Monitoring geplant",
         "next": "Nächster Durchlauf",
         "manage": "Aufgabenplan verwalten",
-        "offBody": "Aus. Der Agent kann diese Seiten nach Plan prüfen und jedes Ergebnis hier speichern.",
         "createAnother": "Weitere Prüfung planen",
         "capPerRun": "Jeder Durchlauf nutzt bis zu {calls} Datenanfragen. Die Durchläufe gehen weiter, bis jemand sie stoppt. Modell- und Laufzeitkosten können ebenfalls anfallen.",
         "blocked": {

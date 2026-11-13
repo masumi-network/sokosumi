@@ -450,10 +450,7 @@ function SeoAgentPanel({
           ) : null}
         </div>
       )}
-      {/* During setup a schedule is not the next step: show only one that exists. */}
-      {setup && !model.data.monitors.length ? null : (
-        <SeoAutomation model={model} />
-      )}
+      <SeoAutomation model={model} />
     </section>
   );
 }
