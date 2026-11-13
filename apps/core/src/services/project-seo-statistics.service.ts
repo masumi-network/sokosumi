@@ -395,6 +395,7 @@ export async function syncProjectSeoStatistics(
             ),
             ["rows"],
           ),
+          query.searchType,
         )
       : null;
   // Organic key events per landing page. Google Analytics only.

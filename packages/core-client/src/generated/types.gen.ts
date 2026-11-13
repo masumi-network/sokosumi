@@ -10902,7 +10902,7 @@ export type ProjectSeoSearchBreakdown = {
         clicks: number;
         impressions: number;
         ctr: number;
-        averagePosition: number;
+        averagePosition: number | null;
     }>;
 };
 

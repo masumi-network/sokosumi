@@ -41324,7 +41324,10 @@ export const ProjectSeoSearchBreakdownSchema = {
                         maximum: 1
                     },
                     averagePosition: {
-                        type: 'number',
+                        type: [
+                            'number',
+                            'null'
+                        ],
                         minimum: 1
                     }
                 },

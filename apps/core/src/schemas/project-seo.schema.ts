@@ -500,7 +500,8 @@ export const seoSearchBreakdownSchema = z
             clicks: z.number().finite().nonnegative(),
             impressions: z.number().finite().nonnegative(),
             ctr: z.number().finite().min(0).max(1),
-            averagePosition: z.number().finite().min(1),
+            // Null: a Discover or Google News row came without a position.
+            averagePosition: z.number().finite().min(1).nullable(),
           })
           .strict(),
       )

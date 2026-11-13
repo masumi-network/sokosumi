@@ -49,4 +49,17 @@ describe("normalizeGscBreakdown", () => {
       }),
     ).toThrow("different grouping");
   });
+
+  it("reads a Discover row without a position and refuses a web row without one", () => {
+    const { position: _position, ...feedRow } = row("mobile");
+    const result = normalizeGscBreakdown(
+      "device",
+      { rows: [feedRow] },
+      "discover",
+    );
+    expect(result.rows[0].averagePosition).toBeNull();
+    expect(() =>
+      normalizeGscBreakdown("device", { rows: [feedRow] }, "web"),
+    ).toThrow();
+  });
 });

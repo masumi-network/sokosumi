@@ -183,10 +183,12 @@ function BreakdownTable({
                 className="text-right tabular-nums max-sm:col-span-1!"
                 data-label={t("queries.position")}
               >
-                {format.number(row.averagePosition, {
-                  minimumFractionDigits: 1,
-                  maximumFractionDigits: 1,
-                })}
+                {row.averagePosition === null
+                  ? t("none")
+                  : format.number(row.averagePosition, {
+                      minimumFractionDigits: 1,
+                      maximumFractionDigits: 1,
+                    })}
               </TableCell>
             </TableRow>
           ))}

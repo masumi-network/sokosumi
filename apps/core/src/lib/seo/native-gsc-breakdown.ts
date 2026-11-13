@@ -6,6 +6,10 @@ import {
   type SeoSearchBreakdown,
   seoSearchBreakdownSchema,
 } from "@/schemas/project-seo.schema";
+import {
+  type SeoSearchType,
+  seoSearchTypeHasQueries,
+} from "@/schemas/project-seo-traffic.schema";
 import { gscNumberSchema } from "./native-gsc-queries";
 import {
   gscSearchAnalyticsArguments,
@@ -14,20 +18,24 @@ import {
 
 export type GscBreakdownDimension = "country" | "device";
 const GSC_DEVICES = new Set(["desktop", "mobile", "tablet"]);
-const reportSchema = z.object({
-  rows: z
-    .array(
-      z.object({
-        keys: z.array(z.string()),
-        clicks: gscNumberSchema,
-        impressions: gscNumberSchema,
-        ctr: gscNumberSchema,
-        position: gscNumberSchema,
-      }),
-    )
-    .max(SEO_BREAKDOWN_ROW_LIMIT)
-    .default([]),
-});
+const rowFields = {
+  keys: z.array(z.string()),
+  clicks: gscNumberSchema,
+  impressions: gscNumberSchema,
+  ctr: gscNumberSchema,
+};
+function reportOf<Row extends z.ZodTypeAny>(row: Row) {
+  return z.object({
+    rows: z.array(row).max(SEO_BREAKDOWN_ROW_LIMIT).default([]),
+  });
+}
+const reportSchema = reportOf(
+  z.object({ ...rowFields, position: gscNumberSchema }),
+);
+/** Discover and Google News rows may come without a position, as in the totals read. */
+const feedReportSchema = reportOf(
+  z.object({ ...rowFields, position: gscNumberSchema.optional() }),
+);
 
 /**
  * Same pages, dates and search type as the totals, grouped by one dimension.
@@ -66,8 +74,12 @@ function deviceKey(code: string): string {
 export function normalizeGscBreakdown(
   dimension: GscBreakdownDimension,
   input: unknown,
+  searchType?: SeoSearchType,
 ): SeoSearchBreakdown {
-  const report = reportSchema.parse(input);
+  // Discover and Google News are the feed types: the ones without query rows.
+  const report = (
+    seoSearchTypeHasQueries(searchType) ? reportSchema : feedReportSchema
+  ).parse(input);
   const seen = new Set<string>();
   const rows = report.rows.map((row) => {
     if (row.keys.length !== 1)
@@ -84,7 +96,7 @@ export function normalizeGscBreakdown(
       clicks: row.clicks,
       impressions: row.impressions,
       ctr: row.ctr,
-      averagePosition: row.position,
+      averagePosition: row.position ?? null,
     };
   });
   return seoSearchBreakdownSchema.parse({
