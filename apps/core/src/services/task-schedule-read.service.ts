@@ -144,6 +144,8 @@ export type ScheduleWithAssigneeVendor = Prisma.TaskScheduleGetPayload<{
 /** A schedule as its reader gets it: with whether they may change it. */
 export type TaskScheduleView = Omit<ScheduleWithAssigneeVendor, "assignee"> & {
   canWrite: boolean;
+  /** The reader is the owner user. Only the owner runs an SEO monitor now. */
+  readerIsOwner: boolean;
 };
 
 export function toTaskScheduleView(
@@ -153,6 +155,7 @@ export function toTaskScheduleView(
   return {
     ...schedule,
     canWrite: canWriteTaskSchedule(reader, { ...schedule, assignee }),
+    readerIsOwner: reader.kind === "user" && reader.userId === schedule.ownerId,
   };
 }
 
@@ -346,7 +349,9 @@ export function mapTaskSchedule(schedule: TaskScheduleView) {
     canRunNow:
       schedule.canWrite &&
       schedule.state !== TaskScheduleState.ENDED &&
-      hasReadableSeoMonitorPlan(schedule.description),
+      hasReadableSeoMonitorPlan(schedule.description) &&
+      (schedule.readerIsOwner ||
+        !isSeoMonitorDescription(schedule.description)),
     // An SEO monitor is edited in the SEO workspace: this editor would send its blueprint too.
     canEditPlan:
       schedule.canWrite &&

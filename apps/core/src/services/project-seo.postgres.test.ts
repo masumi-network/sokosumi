@@ -814,6 +814,8 @@ describe.skipIf(!enabled)(
       expect(await worse()).toBe(1);
       // A second file of the same Run counts once: the change still compares against the Run before.
       await result(againTaskId, "2026-11-03T10:00:00.000Z", "fired");
+      // A late result of the oldest Run keeps that Run's place: the pair stays the two newest Runs.
+      await result(scheduled!.id, "2026-11-04T09:00:00.000Z", "pass");
 
       const workspace = await getProjectSeoWorkspace(actor, {
         pageId: page.id,
@@ -828,7 +830,7 @@ describe.skipIf(!enabled)(
       });
       expect(
         workspace.runs?.filter((run) => run.monitorId === monitor.id),
-      ).toHaveLength(4); // Each stored result is one history entry: three Runs, one with two files.
+      ).toHaveLength(5); // Each stored result is one history entry: three Runs, two of them with two files.
     });
 
     it("uses configured protocol authority instead of imported-file provenance or the source Task assignee", async () => {

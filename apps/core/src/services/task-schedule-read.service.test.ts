@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { TaskScheduleState, TaskVisibility } from "@sokosumi/database";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -89,6 +90,12 @@ describe("Task Schedule read projection", () => {
     const projected = mapTaskSchedule(toTaskScheduleView(owner, raw));
     expect(projected.canRunNow).toBe(true);
     expect(projected.canEditPlan).toBe(false);
+    // Another member may write the public monitor but not add a Run billed to its owner.
+    const member = { kind: "user" as const, userId: randomUUID() };
+    expect(mapTaskSchedule(toTaskScheduleView(member, raw))).toMatchObject({
+      canWrite: true,
+      canRunNow: false,
+    });
     const mapped = taskScheduleSchema.parse(projected);
     expect(mapped).toMatchObject({
       canWrite: true,

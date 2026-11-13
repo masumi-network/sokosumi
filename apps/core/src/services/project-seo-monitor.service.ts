@@ -265,7 +265,7 @@ export async function listProjectSeoMonitors(
   }
   const monitors = found.slice(0, SEO_MONITOR_LIST_LIMIT);
   const runs = await readSeoMonitorRuns(
-    actor.workspaceId,
+    actor,
     monitors.map((monitor) => monitor.id),
   );
   return monitors.map((monitor) => ({

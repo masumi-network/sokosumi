@@ -1,6 +1,7 @@
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
 import { SEO_MONITOR_MARKER } from "@/lib/seo/monitor-plan";
+import type { SeoActor } from "@/schemas/project-seo.schema";
 import type {
   SeoMonitorChange,
   SeoMonitorLastRun,
@@ -10,65 +11,66 @@ import {
   compareSeoMonitorRuns,
   type SeoMonitorRunResult,
 } from "./project-seo-monitor-change";
+import { seoOwnerWhere } from "./project-seo-store";
 
 /** Newest Tasks of a monitor searched for its two newest results. Older results do not feed the change. */
 const SEO_MONITOR_RECENT_RUNS = 10;
 /** Observation kinds that hold no check result. */
 const NON_RESULT_KINDS = ["metrics", "page_change"];
 
-function lastRunStatus(
+export function lastRunStatus(
   taskStatus: string,
   analysisStatus: string | undefined,
 ): SeoMonitorLastRun["status"] {
-  if (
-    analysisStatus === "requested" ||
-    analysisStatus === "running" ||
-    analysisStatus === "completed" ||
-    analysisStatus === "failed"
-  )
+  // Only the import moves the analysis past "requested": a Task that failed without a file must not read as waiting.
+  if (analysisStatus === "completed" || analysisStatus === "failed")
     return analysisStatus;
-  if (taskStatus === "COMPLETED") return "completed";
-  return taskStatus === "FAILED" || taskStatus === "CANCELED"
-    ? "failed"
-    : "running";
+  if (taskStatus === "FAILED" || taskStatus === "CANCELED") return "failed";
+  if (analysisStatus === "requested" || analysisStatus === "running")
+    return analysisStatus;
+  return taskStatus === "COMPLETED" ? "completed" : "running";
 }
 
 /** Result rows read to find the newest result of each Task. A Task imports few files. */
 const SEO_MONITOR_RESULT_ROWS = 50;
 
 /**
- * The newest readable result of each of the two newest Tasks with a result, newest first. One Task with two
- * imported files counts once, so the workspace and the notification compare the same pair of Runs.
+ * The newest readable result of each of the two newest Tasks with a result, newest Task first. Tasks are in the
+ * order given (newest created first), so a late result keeps its Run's place. One Task with two imported files
+ * counts once. The workspace and the notification therefore compare the same pair of Runs. The owner filter keeps
+ * the read on the owner's observation index.
  */
 export async function newestSeoMonitorResults(
+  owner: Pick<SeoActor, "owner">,
   taskIds: string[],
-  before?: Date,
 ): Promise<SeoMonitorRunResult[]> {
   if (!taskIds.length) return [];
   const rows = await prisma.projectSeoObservation.findMany({
     where: {
+      ...seoOwnerWhere(owner),
       sourceTaskId: { in: taskIds },
       ownerId: null,
       kind: { notIn: NON_RESULT_KINDS },
-      ...(before ? { observedAt: { lt: before } } : {}),
     },
     orderBy: [{ observedAt: "desc" }, { id: "desc" }],
     take: SEO_MONITOR_RESULT_ROWS,
     select: { id: true, sourceTaskId: true },
   });
-  const seen = new Set<string | null>();
-  const ids = rows
-    .filter((row) => !seen.has(row.sourceTaskId) && seen.add(row.sourceTaskId))
-    .slice(0, 2)
-    .map((row) => row.id);
+  const newestOfTask = new Map<string, string>();
+  for (const row of rows)
+    if (row.sourceTaskId && !newestOfTask.has(row.sourceTaskId))
+      newestOfTask.set(row.sourceTaskId, row.id);
+  const ids = taskIds
+    .flatMap((taskId) => newestOfTask.get(taskId) ?? [])
+    .slice(0, 2);
   const results = await prisma.projectSeoObservation.findMany({
     where: { id: { in: ids } },
-    orderBy: [{ observedAt: "desc" }, { id: "desc" }],
-    select: { observedAt: true, payload: true },
+    select: { id: true, observedAt: true, payload: true },
   });
-  return results.flatMap((row) => {
-    const parsed = publicSeoPayloadSchema.safeParse(row.payload);
-    return parsed.success
+  return ids.flatMap((id) => {
+    const row = results.find((item) => item.id === id);
+    const parsed = publicSeoPayloadSchema.safeParse(row?.payload);
+    return row && parsed.success
       ? [{ observedAt: row.observedAt, payload: parsed.data }]
       : [];
   });
@@ -76,7 +78,7 @@ export async function newestSeoMonitorResults(
 
 /** Per monitor: its newest Run and what its newest result changed against the result before. */
 export async function readSeoMonitorRuns(
-  workspaceId: string,
+  actor: Pick<SeoActor, "owner" | "workspaceId">,
   monitorIds: string[],
 ): Promise<
   Map<
@@ -87,7 +89,7 @@ export async function readSeoMonitorRuns(
   const entries = await Promise.all(
     monitorIds.map(async (monitorId) => {
       const tasks = await prisma.task.findMany({
-        where: { scheduleId: monitorId, workspaceId },
+        where: { scheduleId: monitorId, workspaceId: actor.workspaceId },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: SEO_MONITOR_RECENT_RUNS,
         select: { id: true, status: true, createdAt: true },
@@ -100,7 +102,10 @@ export async function readSeoMonitorRuns(
               select: { status: true },
             })
           : null,
-        newestSeoMonitorResults(tasks.map((task) => task.id)),
+        newestSeoMonitorResults(
+          actor,
+          tasks.map((task) => task.id),
+        ),
       ]);
       const [latest, previous] = results;
       return [

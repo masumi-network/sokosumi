@@ -3,7 +3,11 @@ import { NotificationKind } from "@sokosumi/database";
 import { createNotification } from "@/helpers/notifications";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
-import { isSeoMonitorDescription } from "@/lib/seo/monitor-plan";
+import {
+  parseSeoMonitorPlan,
+  type SeoMonitorPlan,
+} from "@/lib/seo/monitor-plan";
+import type { SeoActor } from "@/schemas/project-seo.schema";
 
 import {
   compareSeoMonitorRuns,
@@ -32,16 +36,27 @@ export async function notifySeoMonitorWorse(
       createdAt: true,
       workspaceId: true,
       scheduleId: true,
-      schedule: { select: { ownerId: true, description: true } },
+      schedule: {
+        select: { ownerId: true, description: true, projectId: true },
+      },
     },
   });
   const ownerId = task?.schedule?.ownerId;
-  if (
-    !task?.scheduleId ||
-    !ownerId ||
-    !isSeoMonitorDescription(task.schedule?.description ?? null)
-  )
+  if (!task?.scheduleId || !ownerId) return;
+  let plan: SeoMonitorPlan | null;
+  try {
+    plan = parseSeoMonitorPlan(task.schedule?.description ?? null);
+  } catch {
     return;
+  }
+  const projectId = task.schedule?.projectId;
+  if (!plan || (plan.version === 1 && !projectId)) return;
+  const owner: Pick<SeoActor, "owner"> = {
+    owner:
+      plan.version === 2
+        ? { kind: "audit", id: plan.auditId }
+        : { kind: "project", id: projectId! },
+  };
   const row = await prisma.projectSeoObservation.findUnique({
     where: { id: observationId },
     select: { observedAt: true, payload: true },
@@ -61,8 +76,8 @@ export async function notifySeoMonitorWorse(
     select: { id: true },
   });
   const [previous] = await newestSeoMonitorResults(
+    owner,
     earlier.map((item) => item.id),
-    row.observedAt,
   );
   if (!previous) return;
   const change = compareSeoMonitorRuns(previous, {
