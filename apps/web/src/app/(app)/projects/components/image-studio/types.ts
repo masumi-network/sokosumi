@@ -225,6 +225,7 @@ export interface StudioLabels {
   reroll: string;
   reusePrompt: string;
   download: string;
+  moreActions: string;
   compare: string;
   version: string;
   generating: string;
