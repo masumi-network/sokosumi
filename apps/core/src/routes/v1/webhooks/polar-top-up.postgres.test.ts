@@ -14,6 +14,7 @@ import { randomUUID } from "node:crypto";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { creditBucketRepository } from "@sokosumi/database/repositories";
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { ok } from "neverthrow";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -40,6 +41,7 @@ const db = enabled && url ? createPrismaClient(url) : null;
 const ORGANIZATION = `org-${randomUUID()}`;
 const WORKSPACE = randomUUID();
 const PROJECT = randomUUID();
+const SUBSCRIPTION_ID = `sub-${randomUUID()}`;
 
 /** 10^10 ledger units are one credit. */
 const CREDIT = 10_000_000_000n;
@@ -88,7 +90,7 @@ function planPaid(orderId: string) {
         metadata: { kind: "plan", tier: "growth", credits: "25000" },
       },
       subscription: {
-        id: `sub-${randomUUID()}`,
+        id: SUBSCRIPTION_ID,
         status: "active",
         product_id: "prod_growth_month",
         recurring_interval: "month",
@@ -139,6 +141,31 @@ describe.skipIf(!db)("Project top-ups against PostgreSQL", () => {
     await db.$executeRaw`INSERT INTO "organization" ("id", "name", "slug", "createdAt") VALUES (${ORGANIZATION}, 'Polar Org', ${ORGANIZATION}, NOW())`;
     await db.$executeRaw`INSERT INTO "workspace" ("id", "createdAt", "updatedAt", "userId", "organizationId") VALUES (${WORKSPACE}::uuid, NOW(), NOW(), NULL, ${ORGANIZATION})`;
     await db.$executeRaw`INSERT INTO "project" ("id", "createdAt", "updatedAt", "workspaceId", "name") VALUES (${PROJECT}::uuid, NOW(), NOW(), ${WORKSPACE}::uuid, 'Cuso project')`;
+    // A live Cuso: credits are granted only to his Project.
+    await db.sokoBot.create({
+      data: {
+        workspaceId: WORKSPACE,
+        projectId: PROJECT,
+        userId: null,
+        versionId: CMO_SOKO_BOT_VERSION_IDS[0],
+        name: "Cuso",
+      },
+    });
+    // A top-up is granted only while the Cuso's subscription has not ended.
+    await db.cmoSubscription.create({
+      data: {
+        projectId: PROJECT,
+        organizationId: ORGANIZATION,
+        polarSubscriptionId: SUBSCRIPTION_ID,
+        polarProductId: "prod_growth_month",
+        tier: "growth",
+        interval: "month",
+        status: "active",
+        currentPeriodStart: new Date(Date.now() - DAY_MS),
+        currentPeriodEnd: new Date(Date.now() + 29 * DAY_MS),
+        polarEventAt: new Date(Date.now() - DAY_MS),
+      },
+    });
   });
 
   afterAll(async () => {

@@ -16,6 +16,7 @@ const m = vi.hoisted(() => ({
   prisma: {
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
+    cmoSubscription: { updateMany: vi.fn() },
     creditBucket: { findMany: vi.fn() },
     transaction: { create: vi.fn() },
   },

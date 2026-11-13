@@ -1641,25 +1641,28 @@ model CmoSubscription {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  polarSubscriptionId   String
-  polarProductId        String
-  tier                  String
+  polarSubscriptionId     String
+  polarProductId          String
+  tier                    String
   /// "month" or "year".
-  interval              String
+  interval                String
   /// Polar's subscription status, as sent.
-  status                String
-  currentPeriodStart    DateTime
-  currentPeriodEnd      DateTime
-  cancelAtPeriodEnd     Boolean   @default(false)
+  status                  String
+  currentPeriodStart      DateTime
+  currentPeriodEnd        DateTime
+  cancelAtPeriodEnd       Boolean   @default(false)
   /// The product a scheduled downgrade moves to at the next period.
-  pendingPolarProductId String?
-  lastPaidOrderId       String?
-  lastPaidAt            DateTime?
+  pendingPolarProductId   String?
+  lastPaidOrderId         String?
+  lastPaidAt              DateTime?
+  /// Set when Polar refunded the last paid order: a yearly plan grants no
+  /// more months of it. A later paid order clears it.
+  lastPaidOrderRefundedAt DateTime?
   /// Set once Polar ended the subscription; frees the Project for a new one.
-  endedAt               DateTime?
+  endedAt                 DateTime?
   /// Timestamp of the newest Polar event applied. Polar does not order its
   /// deliveries, so a payload older than this is skipped.
-  polarEventAt          DateTime
+  polarEventAt            DateTime
 
   @@unique([polarSubscriptionId])
   @@unique([projectId], map: "cmo_subscription_project_live_key", where: { endedAt: null })

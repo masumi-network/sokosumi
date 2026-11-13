@@ -14,6 +14,7 @@ const m = vi.hoisted(() => ({
   verifyPolarWebhook: vi.fn(),
   captureMessage: vi.fn(),
   prisma: {
+    $queryRaw: vi.fn(),
     $transaction: vi.fn(),
     cmoSubscription: {
       create: vi.fn(),
@@ -21,6 +22,7 @@ const m = vi.hoisted(() => ({
       updateMany: vi.fn(),
     },
     project: { findFirst: vi.fn() },
+    sokoBot: { findFirst: vi.fn() },
     task: { findMany: vi.fn() },
     transaction: { create: vi.fn() },
   },
@@ -90,6 +92,16 @@ function post() {
 beforeEach(() => {
   vi.resetAllMocks();
   m.prisma.$transaction.mockImplementation((run) => run(m.prisma));
+  // The grant's locked subscription row, live, and its live Cuso.
+  m.prisma.$queryRaw.mockResolvedValue([
+    {
+      projectId: PROJECT_ID,
+      endedAt: null,
+      lastPaidOrderId: null,
+      lastPaidOrderRefundedAt: null,
+    },
+  ]);
+  m.prisma.sokoBot.findFirst.mockResolvedValue({ id: "bot_1" });
   m.prisma.project.findFirst.mockResolvedValue({ id: PROJECT_ID });
   m.prisma.task.findMany.mockResolvedValue([]);
   m.prisma.transaction.create.mockResolvedValue({ id: "tx_1" });
@@ -146,9 +158,23 @@ describe("POST /v1/webhooks/polar: order.paid for a Project top-up", () => {
     expect(m.prisma.cmoSubscription.updateMany).not.toHaveBeenCalled();
   });
 
+  it("grants nothing and reports a top-up for a Cuso without a live subscription", async () => {
+    m.prisma.$queryRaw.mockResolvedValue([]);
+    m.verifyPolarWebhook.mockResolvedValue(topUpPaid());
+
+    const response = await post();
+
+    expect(response.status).toBe(200);
+    expect(m.prisma.transaction.create).not.toHaveBeenCalled();
+    expect(m.captureMessage).toHaveBeenCalledTimes(1);
+  });
+
   it("answers 200 and grants nothing more when the order is delivered again", async () => {
     m.prisma.transaction.create.mockRejectedValue(
-      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+      Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: { target: ["referenceId", "referenceType"] },
+      }),
     );
     m.verifyPolarWebhook.mockResolvedValue(topUpPaid());
 

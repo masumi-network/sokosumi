@@ -20,6 +20,7 @@ const m = vi.hoisted(() => ({
   verifyPolarWebhook: vi.fn(),
   captureMessage: vi.fn(),
   prisma: {
+    $queryRaw: vi.fn(),
     $transaction: vi.fn(),
     cmoSubscription: {
       create: vi.fn(),
@@ -27,6 +28,7 @@ const m = vi.hoisted(() => ({
       updateMany: vi.fn(),
     },
     project: { findFirst: vi.fn() },
+    sokoBot: { findFirst: vi.fn() },
     task: { findMany: vi.fn() },
     transaction: { create: vi.fn() },
   },
@@ -78,12 +80,14 @@ const SUBSCRIPTION = {
 function upgradePaid(
   timestamp = "2026-12-28T22:00:00.000Z",
   subscription: Record<string, unknown> = {},
+  createdAt = timestamp,
 ) {
   return ok({
     type: "order.paid",
     timestamp,
     data: {
       id: "order_3",
+      created_at: createdAt,
       billing_reason: "subscription_update",
       metadata: {},
       customer: { id: "cus_1", external_id: ORGANIZATION_ID },
@@ -154,6 +158,16 @@ function post() {
 beforeEach(() => {
   vi.resetAllMocks();
   m.prisma.$transaction.mockImplementation((run) => run(m.prisma));
+  // The grant's locked subscription row, live, and its live Cuso.
+  m.prisma.$queryRaw.mockResolvedValue([
+    {
+      projectId: PROJECT_ID,
+      endedAt: null,
+      lastPaidOrderId: null,
+      lastPaidOrderRefundedAt: null,
+    },
+  ]);
+  m.prisma.sokoBot.findFirst.mockResolvedValue({ id: "bot_1" });
   m.prisma.cmoSubscription.updateMany.mockResolvedValue({ count: 1 });
   m.prisma.cmoSubscription.findUnique.mockResolvedValue(ROW);
   m.prisma.task.findMany.mockResolvedValue([]);
@@ -182,10 +196,24 @@ describe("POST /v1/webhooks/polar: a paid upgrade", () => {
     ]);
   });
 
+  it("counts the month left from when the order was made, not when it was delivered", async () => {
+    m.verifyPolarWebhook.mockResolvedValue(
+      // Delivered a week after Polar invoiced it halfway through the month.
+      upgradePaid("2027-01-04T22:00:00.000Z", {}, "2026-12-28T22:00:00.000Z"),
+    );
+
+    await post();
+
+    expect(grants()[0]?.amount).toBe(12_500n * CENTS_PER_CREDIT);
+  });
+
   it("grants once per order: a redelivery ends on the bucket's key", async () => {
     m.verifyPolarWebhook.mockResolvedValue(upgradePaid());
     m.prisma.transaction.create.mockRejectedValue(
-      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+      Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: { target: ["referenceId", "referenceType"] },
+      }),
     );
 
     const response = await post();
