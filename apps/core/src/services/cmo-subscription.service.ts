@@ -205,7 +205,14 @@ export async function handlePolarOrderPaid(
   event: OrderPaidEvent,
 ): Promise<void> {
   const order = event.data;
-  if (order.billing_reason !== "subscription_create") return;
+  // A yearly renewal grants its month 0 as the first order does; the yearly
+  // grant job counts months 1 to 11 from this order.
+  const isYearlyRenewal =
+    order.billing_reason === "subscription_cycle" &&
+    order.subscription?.recurring_interval === "year";
+  if (order.billing_reason !== "subscription_create" && !isYearlyRenewal) {
+    return;
+  }
   const extra = {
     polarOrderId: order.id,
     polarSubscriptionId: order.subscription?.id,

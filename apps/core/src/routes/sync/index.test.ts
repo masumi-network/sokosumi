@@ -22,6 +22,7 @@ const {
   purgeExpiredTaskX402PaymentHeadersMock,
   purgeExpiredVerificationsMock,
   syncProjectClosesMock,
+  syncCmoYearlyGrantsMock,
   releaseDueTaskSchedulesMock,
   releaseDueRunAtsMock,
 } = vi.hoisted(() => ({
@@ -30,6 +31,7 @@ const {
   acquireLockMock: vi.fn(),
   syncCardanoV2RailReadinessMock: vi.fn(),
   syncCalendarInvalidationsMock: vi.fn(),
+  syncCmoYearlyGrantsMock: vi.fn(),
   syncEnterpriseContractRenewalMock: vi.fn(),
   syncFreeSubscriptionRenewalMock: vi.fn(),
   releaseLockMock: vi.fn(),
@@ -156,6 +158,10 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+vi.mock("@/services/cmo-yearly-grant-sync.service", () => ({
+  syncCmoYearlyGrants: syncCmoYearlyGrantsMock,
+}));
+
 vi.mock("@/services/free-subscription-sync.service", () => ({
   freeSubscriptionSyncService: {
     renewLocalFreeSubscriptions: syncFreeSubscriptionRenewalMock,
@@ -275,6 +281,11 @@ describe("sync routes", () => {
     });
     syncSourceImportMock.mockResolvedValue(3);
     syncFreeSubscriptionRenewalMock.mockResolvedValue(undefined);
+    syncCmoYearlyGrantsMock.mockResolvedValue({
+      errors: 0,
+      granted: 0,
+      stoppedEarly: false,
+    });
     syncEnterpriseContractRenewalMock.mockResolvedValue({
       catchUpGranted: 0,
       completedContracts: 0,
@@ -639,6 +650,22 @@ describe("sync routes", () => {
     expect(prismaTransactionMock.mock.calls[0]?.[1]).toEqual({
       isolationLevel: "Serializable",
     });
+  });
+
+  it("returns 200 and starts the CMO yearly grants sync exactly once in background", async () => {
+    const app = createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/cmo-yearly-grants",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith("cmo-yearly-grants-sync");
+
+    await flushMicrotasks();
+    expect(syncCmoYearlyGrantsMock).toHaveBeenCalledTimes(1);
+    expect(syncCmoYearlyGrantsMock).toHaveBeenCalledWith(expect.any(Function));
   });
 
   it("returns 200 and starts free-subscription renewal sync exactly once in background", async () => {

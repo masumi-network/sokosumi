@@ -1,0 +1,157 @@
+import * as Sentry from "@sentry/node";
+import { CreditBucketReferenceType } from "@sokosumi/database";
+import { getNextMonthlyPeriodEnd } from "@sokosumi/database/helpers";
+import { convertCreditsToCents } from "@sokosumi/utils";
+
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import prisma from "@/lib/db/prisma";
+import { getCmoCatalog } from "@/services/cmo-catalog.service";
+import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
+
+/**
+ * A yearly CMO plan is paid once a year and granted month by month (ADR 0068).
+ * The paid order grants month 0; this job grants months 1 to 11.
+ */
+
+const LOG_PREFIX = "[sync/cmo-yearly-grants]";
+
+/** The last month a yearly order pays for. */
+const LAST_MONTH_INDEX = 11;
+
+export interface CmoYearlyGrantSyncResult {
+  errors: number;
+  granted: number;
+  stoppedEarly: boolean;
+}
+
+/** The month of the paid year that `now` falls in, and when it ends. */
+function monthOfPaidYear(
+  periodStart: Date,
+  now: Date,
+): { expiresAt: Date; index: number } {
+  let index = 0;
+  let expiresAt = getNextMonthlyPeriodEnd(periodStart, periodStart);
+  while (expiresAt <= now && index < LAST_MONTH_INDEX) {
+    index += 1;
+    expiresAt = getNextMonthlyPeriodEnd(expiresAt, periodStart);
+  }
+  return { expiresAt, index };
+}
+
+/**
+ * Grants the running month to each active yearly CMO subscription that does
+ * not have it yet. A month that passed without a run is not granted later: it
+ * would have expired already. The grant rides on the bucket's unique key
+ * (last paid order id and month index), so a repeated or raced run ends there.
+ */
+export async function syncCmoYearlyGrants(
+  shouldContinue: () => boolean,
+): Promise<CmoYearlyGrantSyncResult> {
+  const now = new Date();
+  // Past due and ended subscriptions are not `active`; one with a scheduled
+  // cancel is, until its paid year ends.
+  const subscriptions = await prisma.cmoSubscription.findMany({
+    where: {
+      interval: "year",
+      status: "active",
+      endedAt: null,
+      lastPaidOrderId: { not: null },
+      currentPeriodEnd: { gt: now },
+    },
+    select: {
+      id: true,
+      projectId: true,
+      organizationId: true,
+      polarProductId: true,
+      currentPeriodStart: true,
+      lastPaidOrderId: true,
+    },
+  });
+  const due = subscriptions.flatMap((subscription) => {
+    const month = monthOfPaidYear(subscription.currentPeriodStart, now);
+    // Month 0 came with the paid order.
+    if (month.index === 0) return [];
+    const referenceId = `${subscription.lastPaidOrderId}:${month.index}`;
+    return [{ ...subscription, expiresAt: month.expiresAt, referenceId }];
+  });
+  const result = { errors: 0, granted: 0, stoppedEarly: false };
+  if (due.length === 0) return result;
+
+  const referenceType = CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH;
+  const granted = new Set(
+    (
+      await prisma.creditBucket.findMany({
+        where: {
+          referenceType,
+          referenceId: { in: due.map((grant) => grant.referenceId) },
+        },
+        select: { referenceId: true },
+      })
+    ).map((bucket) => bucket.referenceId),
+  );
+  const missing = due.filter((grant) => !granted.has(grant.referenceId));
+  if (missing.length === 0) return result;
+
+  const { plans } = await getCmoCatalog();
+  for (const grant of missing) {
+    if (!shouldContinue()) {
+      result.stoppedEarly = true;
+      break;
+    }
+    // The amount is the tier the subscription is on now, not the one paid for.
+    const plan = plans.find((plan) => plan.productId === grant.polarProductId);
+    if (!plan) {
+      Sentry.captureMessage("CMO yearly grant skipped: unknown plan product", {
+        level: "error",
+        tags: { error_type: "cmo_yearly_grant_skipped" },
+        extra: {
+          cmoSubscriptionId: grant.id,
+          polarProductId: grant.polarProductId,
+        },
+      });
+      result.errors += 1;
+      continue;
+    }
+    const { organizationId, projectId } = grant;
+    const amount = convertCreditsToCents(plan.credits);
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.transaction.create({
+          data: {
+            amount,
+            organizationId,
+            userId: null,
+            sourceCreditBucket: {
+              create: {
+                amount,
+                expiresAt: grant.expiresAt,
+                organizationId,
+                projectId,
+                referenceId: grant.referenceId,
+                referenceNote: plan.name,
+                referenceType,
+                userId: null,
+              },
+            },
+          },
+        });
+        await markOutOfCreditsTasksAsToppedUp({
+          organizationId,
+          projectId,
+          tx,
+          userId: null,
+        });
+      });
+      result.granted += 1;
+    } catch (error) {
+      // Granted by a concurrent run.
+      if (isPrismaUniqueViolation(error)) continue;
+      result.errors += 1;
+      console.error(
+        `${LOG_PREFIX} Failed to grant ${grant.referenceId} to CMO subscription ${grant.id}:`,
+        error,
+      );
+    }
+  }
+  return result;
+}
