@@ -81,6 +81,7 @@ import {
   prepareSocialPostMedia,
   requirePreparedSocialPostProvider,
 } from "@/services/social-post-media-preparation.service";
+import { recordSocialStudioAdEvents } from "@/services/social-studio-events.service";
 import { resolveXSubscriptionType } from "@/services/x-subscription-tier.service";
 
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
@@ -1143,10 +1144,27 @@ export async function createSocialPost(
 ): Promise<SocialPostSummary> {
   if (tx === prisma) input = await prepareSocialPostMutationMedia(input);
   if ((input.scheduledAt || input.quotedPostId) && tx === prisma) {
-    return serializableTransaction(
+    const post = await serializableTransaction(
       (tx) => createSocialPost(input, tx),
       "Project changed while scheduling a Social post",
     );
+    await recordSocialStudioAdEvents({
+      ...input,
+      postId: post.id,
+      type: "attached_to_post",
+      media: post.media,
+      threadParts: post.threadParts,
+    });
+    if (post.status === "SCHEDULED") {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "scheduled",
+        media: post.media,
+        threadParts: post.threadParts,
+      });
+    }
+    return post;
   }
   if (input.coworkerId && input.sokoBotId) {
     throw badRequest(
@@ -1242,7 +1260,17 @@ export async function createSocialPost(
     },
     include: socialPostInclude,
   });
-  return mapSocialPost(post);
+  const summary = mapSocialPost(post);
+  if (tx === prisma) {
+    await recordSocialStudioAdEvents({
+      ...input,
+      postId: summary.id,
+      type: "attached_to_post",
+      media: summary.media,
+      threadParts: summary.threadParts,
+    });
+  }
+  return summary;
 }
 
 export async function updateSocialPost(
@@ -1251,10 +1279,35 @@ export async function updateSocialPost(
 ): Promise<SocialPostSummary> {
   if (tx === prisma) {
     input = await prepareSocialPostMutationMedia(input);
-    return serializableTransaction(
+    const previous =
+      input.media !== undefined || input.threadParts !== undefined
+        ? await getSocialPost(input).catch(() => undefined)
+        : undefined;
+    const post = await serializableTransaction(
       (tx) => updateSocialPost(input, tx),
       "Project changed while editing a Social post",
     );
+    if (previous) {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "attached_to_post",
+        media: post.media,
+        threadParts: post.threadParts,
+        previousMedia: previous.media,
+        previousThreadParts: previous.threadParts,
+      });
+    }
+    if (input.scheduledAt && post.status === "SCHEDULED") {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "scheduled",
+        media: post.media,
+        threadParts: post.threadParts,
+      });
+    }
+    return post;
   }
   await requireScopedProject(input, { client: tx });
   const post = await requireScopedPost(input, tx);
@@ -1515,10 +1568,35 @@ export async function scheduleSocialPost(
 ): Promise<SocialPostSummary> {
   if (tx === prisma) {
     input = await prepareSocialPostMutationMedia(input);
-    return serializableTransaction(
+    const previous =
+      input.media !== undefined
+        ? await getSocialPost(input).catch(() => undefined)
+        : undefined;
+    const post = await serializableTransaction(
       (tx) => scheduleSocialPost(input, tx),
       "Project changed while scheduling a Social post",
     );
+    if (previous) {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "attached_to_post",
+        media: post.media,
+        threadParts: post.threadParts,
+        previousMedia: previous.media,
+        previousThreadParts: previous.threadParts,
+      });
+    }
+    if (post.status === "SCHEDULED") {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "scheduled",
+        media: post.media,
+        threadParts: post.threadParts,
+      });
+    }
+    return post;
   }
   await requireLockedOpenProject(tx, input, {
     closedMessage: PROJECT_CLOSED_MESSAGE,
@@ -1692,10 +1770,20 @@ export async function approveSocialPost(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
   if (tx === prisma) {
-    return serializableTransaction(
+    const post = await serializableTransaction(
       (tx) => approveSocialPost(input, tx),
       "Project changed while approving a Social post",
     );
+    if (post.status === "SCHEDULED") {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "scheduled",
+        media: post.media,
+        threadParts: post.threadParts,
+      });
+    }
+    return post;
   }
   await requireLockedOpenProject(tx, input, {
     closedMessage: PROJECT_CLOSED_MESSAGE,

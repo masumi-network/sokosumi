@@ -1,5 +1,6 @@
 "use client";
 
+import type { StudioAssetRating } from "@sokosumi/core-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { StudioAsset, StudioJob, StudioState } from "./types";
@@ -48,6 +49,10 @@ export interface StudioStateHook {
   loadOlder: () => Promise<void>;
   hasOlder: boolean;
   isRefreshing: boolean;
+  sort: "newest" | "best";
+  setSort: (sort: "newest" | "best") => void;
+  updateRating: (assetId: string, rating: StudioAssetRating) => void;
+  removeAsset: (assetId: string) => void;
   /** A code the page maps to a localized message, never a display string. */
   error: StudioErrorCode | null;
 }
@@ -66,6 +71,12 @@ export function useStudioState(options: {
 }): StudioStateHook {
   const { projectId, initialState, initialSelectedAssetId } = options;
   const [state, setState] = useState<StudioState>(initialState);
+  const [sort, setSort] = useState<"newest" | "best">("newest");
+  const sortRef = useRef(sort);
+  sortRef.current = sort;
+  const loadedSortRef = useRef<"newest" | "best">("newest");
+  const removedAssetIds = useRef(new Set<string>());
+  const mutationRevision = useRef(0);
   const [error, setError] = useState<StudioErrorCode | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selection, setSelection] = useState<Selection>(() =>
@@ -92,6 +103,8 @@ export function useStudioState(options: {
     ? openingSelection(initialState, initialSelectedAssetId)
     : selection;
   if (switching) {
+    removedAssetIds.current.clear();
+    loadedSortRef.current = "newest";
     setShownProjectId(projectId);
     setState(initialState);
     setSelection(shownSelection);
@@ -127,7 +140,13 @@ export function useStudioState(options: {
    * URL twice.
    */
   const applyState = useCallback(
-    (next: StudioState) => {
+    (payload: StudioState, replacePage = false) => {
+      const next = {
+        ...payload,
+        assets: payload.assets.filter(
+          (asset) => !removedAssetIds.current.has(asset.id),
+        ),
+      };
       const previous = stateRef.current;
       const current = selectionRef.current;
 
@@ -136,9 +155,9 @@ export function useStudioState(options: {
       // Older pages already loaded are not in `next`. Keeping them means
       // "load older" is not undone by the next poll.
       const returned = new Set(next.assets.map((asset) => asset.id));
-      const keptOlder = previous.assets.filter(
-        (asset) => !returned.has(asset.id),
-      );
+      const keptOlder = replacePage
+        ? []
+        : previous.assets.filter((asset) => !returned.has(asset.id));
 
       let selected: string | null = null;
       if (arrived.length > 0) {
@@ -184,19 +203,31 @@ export function useStudioState(options: {
   const refresh = useCallback(async () => {
     if (!projectId) return;
     setIsRefreshing(true);
+    const requestedSort = sortRef.current;
+    const requestedRevision = mutationRevision.current;
     try {
       // The selection is pinned into the request so a version older than the
       // newest page is still returned, and the preview does not empty out at
       // image 101.
       const selected = selectionRef.current.assetId;
-      const query = selected ? `?assetId=${encodeURIComponent(selected)}` : "";
-      const response = await fetch(`${stateUrl(projectId)}${query}`, {
-        credentials: "same-origin",
-        cache: "no-store",
-      });
+      const query = new URLSearchParams();
+      if (requestedSort === "best") query.set("sort", "best");
+      if (selected) query.set("assetId", selected);
+      const response = await fetch(
+        `${stateUrl(projectId)}${query.size ? `?${query}` : ""}`,
+        {
+          credentials: "same-origin",
+          cache: "no-store",
+        },
+      );
       // Abandoned: the reader has moved to another project since this went
       // out. Neither its rows nor its failure belongs to what is on screen.
-      if (projectId !== shownProjectIdRef.current) return;
+      if (
+        projectId !== shownProjectIdRef.current ||
+        requestedSort !== sortRef.current ||
+        requestedRevision !== mutationRevision.current
+      )
+        return;
       if (!response.ok) {
         // A code, not a sentence: the page owns the wording so German and
         // Spanish readers do not get an English string on a translated page.
@@ -206,14 +237,28 @@ export function useStudioState(options: {
         return;
       }
       const next = (await response.json()) as StudioState;
-      if (projectId !== shownProjectIdRef.current) return;
+      if (
+        projectId !== shownProjectIdRef.current ||
+        requestedSort !== sortRef.current ||
+        requestedRevision !== mutationRevision.current
+      )
+        return;
       setError(null);
-      applyState(next);
+      applyState(next, loadedSortRef.current !== requestedSort);
+      loadedSortRef.current = requestedSort;
     } catch {
-      if (projectId !== shownProjectIdRef.current) return;
+      if (
+        projectId !== shownProjectIdRef.current ||
+        requestedSort !== sortRef.current
+      )
+        return;
       setError("refresh_failed");
     } finally {
-      if (projectId === shownProjectIdRef.current) setIsRefreshing(false);
+      if (
+        projectId === shownProjectIdRef.current &&
+        requestedSort === sortRef.current
+      )
+        setIsRefreshing(false);
     }
   }, [projectId, applyState]);
 
@@ -242,6 +287,9 @@ export function useStudioState(options: {
     // Through the ref rather than through a dependency: the ref always holds
     // the project on screen, so this cannot page the previous project's
     // history into the current project's gallery.
+    const requestedSort = sortRef.current;
+    if (requestedSort !== loadedSortRef.current) return;
+    const requestedRevision = mutationRevision.current;
     const cursor = stateRef.current.nextCursor;
     if (!cursor) return;
     setIsRefreshing(true);
@@ -251,6 +299,7 @@ export function useStudioState(options: {
       const query = new URLSearchParams({
         before: new Date(cursor.createdAt as unknown as string).toISOString(),
         beforeId: cursor.id,
+        ...(requestedSort === "best" ? { sort: requestedSort } : {}),
       });
       const response = await fetch(
         `${stateUrl(projectId)}?${query.toString()}`,
@@ -260,26 +309,78 @@ export function useStudioState(options: {
       const older = (await response.json()) as StudioState;
       // Same rule as the refresh: an older page of the project the reader has
       // left is not older history of the one they are looking at.
-      if (projectId !== shownProjectIdRef.current) return;
+      if (
+        projectId !== shownProjectIdRef.current ||
+        requestedSort !== sortRef.current ||
+        requestedRevision !== mutationRevision.current
+      )
+        return;
       const previous = stateRef.current;
       const known = new Set(previous.assets.map((asset) => asset.id));
       const merged = {
         ...previous,
         assets: [
           ...previous.assets,
-          ...older.assets.filter((asset) => !known.has(asset.id)),
+          ...older.assets.filter(
+            (asset) =>
+              !known.has(asset.id) && !removedAssetIds.current.has(asset.id),
+          ),
         ],
         nextCursor: older.nextCursor,
       };
       stateRef.current = merged;
       setState(merged);
     } catch {
-      if (projectId !== shownProjectIdRef.current) return;
+      if (
+        projectId !== shownProjectIdRef.current ||
+        requestedSort !== sortRef.current
+      )
+        return;
       setError("load_older_failed");
     } finally {
-      if (projectId === shownProjectIdRef.current) setIsRefreshing(false);
+      if (
+        projectId === shownProjectIdRef.current &&
+        requestedSort === sortRef.current
+      )
+        setIsRefreshing(false);
     }
   }, [projectId]);
+
+  const updateRating = useCallback(
+    (assetId: string, rating: StudioAssetRating) => {
+      mutationRevision.current += 1;
+      const next = {
+        ...stateRef.current,
+        assets: stateRef.current.assets.map((asset) =>
+          asset.id === assetId ? { ...asset, ...rating } : asset,
+        ),
+      };
+      stateRef.current = next;
+      setState(next);
+    },
+    [],
+  );
+
+  const removeAsset = useCallback((assetId: string) => {
+    mutationRevision.current += 1;
+    removedAssetIds.current.add(assetId);
+    const next = {
+      ...stateRef.current,
+      assets: stateRef.current.assets.filter((asset) => asset.id !== assetId),
+    };
+    stateRef.current = next;
+    setState(next);
+  }, []);
+
+  const changeSort = useCallback(
+    (nextSort: "newest" | "best") => {
+      if (nextSort === sortRef.current) return;
+      sortRef.current = nextSort;
+      setSort(nextSort);
+      void refresh();
+    },
+    [refresh],
+  );
 
   const selectAsset = useCallback(
     (assetId: string) => {
@@ -294,6 +395,10 @@ export function useStudioState(options: {
     null;
 
   return {
+    sort,
+    setSort: changeSort,
+    updateRating,
+    removeAsset,
     state: shownState,
     selectedAsset,
     selectAsset,

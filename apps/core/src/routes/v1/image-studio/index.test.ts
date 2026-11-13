@@ -103,8 +103,34 @@ describe("workspace Studio router", () => {
       };
       expect(mocks.requireWorkspaceAccess).toHaveBeenCalledWith(scope);
       expect(mocks.reconcileWorkspaceJobs).toHaveBeenCalledWith("workspace-a");
-      expect(mocks.listAssets).toHaveBeenCalledWith({ ...scope, limit: 100 });
+      expect(mocks.listAssets).toHaveBeenCalledWith({
+        ...scope,
+        limit: 100,
+        sort: "newest",
+      });
       expect(mocks.listJobs).toHaveBeenCalledWith({ ...scope, limit: 50 });
     },
   );
+
+  it("passes Best first and the ranked cursor to the asset listing", async () => {
+    mocks.resolveWorkspace.mockResolvedValue({
+      id: "workspace-a",
+      userId: "user-a",
+      organizationId: null,
+    });
+    const beforeId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const before = "2026-11-12T00:00:00.000Z";
+    const response = await createApp(null).request(
+      `/v1/image-studio/state?sort=best&before=${before}&beforeId=${beforeId}`,
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.listAssets).toHaveBeenCalledWith({
+      projectId: null,
+      workspaceId: "workspace-a",
+      userId: "user-a",
+      limit: 100,
+      sort: "best",
+      before: { createdAt: new Date(before), id: beforeId },
+    });
+  });
 });

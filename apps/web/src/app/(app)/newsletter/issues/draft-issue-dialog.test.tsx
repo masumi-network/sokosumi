@@ -23,6 +23,12 @@ import { DraftIssueButton } from "./draft-issue-dialog";
 
 const COPY = en.App.Projects.Newsletter.Issues;
 const IMAGE: ProjectImageAsset = {
+  myThumb: null,
+  myReasons: [],
+  myComment: null,
+  thumbsUp: 0,
+  thumbsDown: 0,
+  score: 0.5,
   id: "66666666-6666-4666-8666-666666666666",
   projectId: NEWSLETTER_PROJECT_ID,
   projectName: "Launch",

@@ -21790,6 +21790,55 @@ export const ProjectImageAssetSchema = {
         },
         contentPath: {
             type: 'string'
+        },
+        myThumb: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        -1
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        myReasons: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'off-brand',
+                    'bad text',
+                    'wrong product',
+                    'ugly',
+                    'great'
+                ]
+            }
+        },
+        myComment: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        thumbsUp: {
+            type: 'integer',
+            minimum: 0
+        },
+        thumbsDown: {
+            type: 'integer',
+            minimum: 0
+        },
+        score: {
+            type: 'number'
         }
     },
     required: [
@@ -21810,7 +21859,13 @@ export const ProjectImageAssetSchema = {
         'createdAt',
         'jobId',
         'settings',
-        'contentPath'
+        'contentPath',
+        'myThumb',
+        'myReasons',
+        'myComment',
+        'thumbsUp',
+        'thumbsDown',
+        'score'
     ]
 } as const;
 
@@ -21922,6 +21977,17 @@ export const ProjectImageJobSchema = {
         },
         prompt: {
             type: 'string'
+        },
+        templateId: {
+            type: 'string'
+        },
+        creativeDirection: {
+            type: 'string'
+        },
+        variationIndex: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2147483647
         },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
@@ -39751,6 +39817,21 @@ export const CreateProjectImageJobRequestSchema = {
             minLength: 1,
             maxLength: 4000
         },
+        templateId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        creativeDirection: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        variationIndex: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2147483647
+        },
         product: {
             $ref: '#/components/schemas/StudioProductIdentity'
         },
@@ -39935,6 +40016,133 @@ export const StudioAdPlacementRatioSchema = {
         '4:5',
         '9:16',
         '16:9'
+    ]
+} as const;
+
+export const RecordStudioAssetEventSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'viewed_lightbox'
+            ]
+        }
+    },
+    required: [
+        'type'
+    ]
+} as const;
+
+export const StudioAssetRatingSchema = {
+    type: 'object',
+    properties: {
+        myThumb: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        -1
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        myReasons: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'off-brand',
+                    'bad text',
+                    'wrong product',
+                    'ugly',
+                    'great'
+                ]
+            }
+        },
+        myComment: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        thumbsUp: {
+            type: 'integer',
+            minimum: 0
+        },
+        thumbsDown: {
+            type: 'integer',
+            minimum: 0
+        },
+        score: {
+            type: 'number'
+        }
+    },
+    required: [
+        'myThumb',
+        'myReasons',
+        'myComment',
+        'thumbsUp',
+        'thumbsDown',
+        'score'
+    ]
+} as const;
+
+export const SetStudioAssetFeedbackSchema = {
+    type: 'object',
+    properties: {
+        thumb: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        -1
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        reasons: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'off-brand',
+                    'bad text',
+                    'wrong product',
+                    'ugly',
+                    'great'
+                ]
+            },
+            maxItems: 5
+        },
+        comment: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500
+        }
+    },
+    required: [
+        'thumb'
     ]
 } as const;
 

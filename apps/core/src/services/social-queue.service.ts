@@ -12,6 +12,7 @@ import {
   type SocialPostSummary,
   scheduleSocialPost,
 } from "@/services/social-posts.service";
+import { recordSocialStudioAdEvents } from "@/services/social-studio-events.service";
 
 const QUEUE_OCCUPIED_STATUSES = [
   "SCHEDULED",
@@ -160,7 +161,7 @@ export async function queueSocialPost(
   input: QueueSocialPostInput,
 ): Promise<SocialPostSummary> {
   input = await prepareSocialPostMutationMedia(input);
-  return serializableTransaction(async (tx) => {
+  const result = await serializableTransaction(async (tx) => {
     const post = await getSocialPost(input, tx);
     const socialConnectionId =
       input.socialConnectionId ?? post.socialConnection?.id;
@@ -171,7 +172,7 @@ export async function queueSocialPost(
       { ...input, socialConnectionId },
       tx,
     );
-    return scheduleSocialPost(
+    const scheduled = await scheduleSocialPost(
       {
         ...input,
         scheduledAt: next.scheduledAt,
@@ -179,5 +180,28 @@ export async function queueSocialPost(
       },
       tx,
     );
+    return { post: scheduled, previous: post };
   }, "The queue was modified, reload and retry");
+  const { post, previous } = result;
+  if (input.media !== undefined) {
+    await recordSocialStudioAdEvents({
+      ...input,
+      postId: post.id,
+      type: "attached_to_post",
+      media: post.media,
+      threadParts: post.threadParts,
+      previousMedia: previous.media,
+      previousThreadParts: previous.threadParts,
+    });
+  }
+  if (post.status === "SCHEDULED") {
+    await recordSocialStudioAdEvents({
+      ...input,
+      postId: post.id,
+      type: "scheduled",
+      media: post.media,
+      threadParts: post.threadParts,
+    });
+  }
+  return post;
 }

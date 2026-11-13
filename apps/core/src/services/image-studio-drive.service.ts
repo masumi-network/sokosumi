@@ -12,6 +12,7 @@ import {
   reserveDriveUploadResource,
 } from "@/services/file-catalog.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
+import { recordStudioAdEvent } from "@/services/image-studio-events.service";
 
 /**
  * Where every studio image and video lands in Files: one folder per Drive,
@@ -222,6 +223,7 @@ export async function ensureStudioAssetDriveFile(input: {
  * name is keyed by the job, so a later attach reuses this file.
  */
 export async function publishStudioAssetToFiles(input: {
+  assetId: string;
   jobId: string;
   workspaceId: string;
   organizationId: string | null;
@@ -231,10 +233,19 @@ export async function publishStudioAssetToFiles(input: {
   contentType: string;
 }): Promise<void> {
   try {
-    await writeStudioDriveFile({
+    const file = await writeStudioDriveFile({
       ...input,
       name: studioAssetFileName(input.prompt, input.jobId, input.contentType),
     });
+    if (file) {
+      await recordStudioAdEvent({
+        workspaceId: input.workspaceId,
+        assetId: input.assetId,
+        userId: input.userId,
+        type: "copied_to_files",
+        meta: { pathname: file.pathname },
+      });
+    }
   } catch (error) {
     console.warn("[image-studio] could not add the asset to Files", {
       jobId: input.jobId,

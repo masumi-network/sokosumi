@@ -85,6 +85,9 @@ describe("POST /projects/{id}/image-studio/jobs", () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             prompt: "A red vase",
+            templateId: "social-post",
+            creativeDirection: "lifestyle",
+            variationIndex: 0,
             referenceFileIds: [PHOTO_ID],
             idempotencyKey: "generation-intent-a",
           }),
@@ -105,6 +108,9 @@ describe("POST /projects/{id}/image-studio/jobs", () => {
           projectId: PROJECT_ID,
           workspaceId: "workspace-a",
           userId: "user-a",
+          templateId: "social-post",
+          creativeDirection: "lifestyle",
+          variationIndex: 0,
           referenceFileIds: [PHOTO_ID],
           referenceFileActor: {
             userId: "user-a",
@@ -114,6 +120,27 @@ describe("POST /projects/{id}/image-studio/jobs", () => {
           idempotencyKey: "generation-intent-a",
         }),
       );
+    },
+  );
+
+  it.each([-1, 0.5, 2147483648])(
+    "rejects invalid variation index %s",
+    async (variationIndex) => {
+      const response = await createApp().request(
+        `/${PROJECT_ID}/image-studio/jobs`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: "A red vase",
+            variationIndex,
+            idempotencyKey: "generation-intent-a",
+          }),
+        },
+      );
+
+      expect(response.status).toBe(422);
+      expect(createImageJobMock).not.toHaveBeenCalled();
     },
   );
 });

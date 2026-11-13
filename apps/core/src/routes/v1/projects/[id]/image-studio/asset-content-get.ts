@@ -13,6 +13,7 @@ import {
 } from "@/schemas/project-image-studio.schema";
 import { openAssetStream } from "@/services/image-studio-assets.service";
 import { renderStudioAssetPng } from "@/services/image-studio-brand-export.service";
+import { recordStudioAdEvent } from "@/services/image-studio-events.service";
 
 /**
  * The only way to read a stored image.
@@ -76,6 +77,9 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     const query = c.req.valid("query");
     if (query.logo || query.placement) {
       const bytes = await renderStudioAssetPng(scope, query);
+      if (query.download) {
+        await recordStudioAdEvent({ ...scope, type: "downloaded" });
+      }
       const placement = query.placement
         ? `-${query.placement.replace(":", "x")}`
         : "";
@@ -92,6 +96,9 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       ...scope,
       range: c.req.header("range"),
     });
+    if (query.download) {
+      await recordStudioAdEvent({ ...scope, type: "downloaded" });
+    }
 
     return c.body(result.stream, result.contentRange ? 206 : 200, {
       "content-type": result.contentType,
