@@ -31,14 +31,10 @@ import {
   Loader2,
   LucideSquareMousePointer,
   MessageSquareShare,
-  OctagonMinus,
   Pencil,
   Repeat,
   RotateCcw,
   SquareArrowRightExit,
-  SquareMinus,
-  SquareMousePointer,
-  SquarePlus,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -84,13 +80,16 @@ import { cn } from "@/lib/utils";
 import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 import type { TaskMutationErrorKind } from "@/lib/utils/task-mutation-error-kinds";
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
-import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
-import {
-  TaskForm,
-  type TaskFormInitialDesignMdAttachment,
-  type TaskFormLabels,
-} from "./task-form";
+import type { TaskPickerTask } from "./task-detail-api-types";
+import { buildNewTaskFormLabels } from "./task-detail-new-task-labels";
+import { useOptimisticTaskStatus } from "./task-detail-optimistic";
+import { useOptimisticTaskLinks } from "./task-detail-optimistic-links";
+import { TaskForm, type TaskFormInitialDesignMdAttachment } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
+import {
+  buildCreateRelatedOptions,
+  buildTaskPickerOptions,
+} from "./task-link-action-options";
 import { getTaskLinkRelationIcon } from "./task-link-relation-icon";
 import {
   type TaskLinkActionOption,
@@ -176,7 +175,7 @@ interface TaskDetailActionsProps {
 export function TaskDetailActions({
   taskId,
   share,
-  status,
+  status: savedStatus,
   taskVisibility = "PUBLIC",
   jobsCount,
   taskLinks,
@@ -207,6 +206,9 @@ export function TaskDetailActions({
   const router = useRouter();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const isMobile = useIsMobile();
+  const [status, showStatus, isStatusChanging] =
+    useOptimisticTaskStatus(savedStatus);
+  const [, showLinkChange] = useOptimisticTaskLinks();
   const [isStatusPending, startStatusTransition] = useTransition();
   const [isLinkPending, startLinkTransition] = useTransition();
   const [isParentRemovalPending, startParentRemovalTransition] =
@@ -233,9 +235,6 @@ export function TaskDetailActions({
     useState<TaskStatus | null>(null);
   const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
   const [reopenComment, setReopenComment] = useState("");
-  const [pendingLinkTaskId, setPendingLinkTaskId] = useState<string | null>(
-    null,
-  );
   const [pendingRemoveLinkId, setPendingRemoveLinkId] = useState<string | null>(
     null,
   );
@@ -373,51 +372,7 @@ export function TaskDetailActions({
     () => buildCreateRelatedOptions(tDetailActions),
     [tDetailActions],
   );
-  const createTaskLabels: TaskFormLabels = {
-    details: tNewTask("details"),
-    detailsDescription: tNewTask("detailsDescription"),
-    name: tNewTask("name"),
-    namePlaceholder: tNewTask("namePlaceholder"),
-    descriptionPlaceholder: tNewTask("descriptionPlaceholder"),
-    projectLabel: tNewTask("projectLabel"),
-    projectNone: tNewTask("projectNone"),
-    projectSearchPlaceholder: tNewTask("projectSearchPlaceholder"),
-    projectEmptyResults: tNewTask("projectEmptyResults"),
-    coworker: tNewTask("coworker"),
-    unassigned: tNewTask("unassigned"),
-    unavailableAssignee: tNewTask("unavailableAssignee"),
-    changeCoworker: tNewTask("changeCoworker"),
-    noCoworkerMatches: tNewTask("noCoworkerMatches"),
-    status: tNewTask("status"),
-    statusDescription: tNewTask("statusDescription"),
-    statusDraft: tNewTask("statusDraft"),
-    changeStatus: tNewTask("changeStatus"),
-    noStatusMatches: tNewTask("noStatusMatches"),
-    statusQueued: tNewTask("statusQueued"),
-    statusReady: tNewTask("statusReady"),
-    untitledTask: tNewTask("untitledTask"),
-    saveError: tNewTask("saveError"),
-    back: tNewTask("back"),
-    uploadFile: tNewTask("uploadFile"),
-    uploadFileError: tNewTask("uploadFileError"),
-    uploadingFile: getTaskAttachmentUploadLabelTemplate(
-      tNewTask,
-      "uploadingFile",
-    ),
-    uploadingFiles: getTaskAttachmentUploadLabelTemplate(
-      tNewTask,
-      "uploadingFiles",
-    ),
-    removeAttachment: tNewTask("removeAttachment"),
-    submit: tNewTask("createTask"),
-    createTask: tNewTask("createTask"),
-    scheduleTask: tNewTask("scheduleTask"),
-    openRunAt: tNewTask("openRunAt"),
-    cancel: tNewTask("cancel"),
-    ctrl: tNewTask("ctrl"),
-    privateLabel: tNewTask("privateLabel"),
-    privateDescription: tNewTask("privateDescription"),
-  };
+  const createTaskLabels = buildNewTaskFormLabels(tNewTask);
 
   /**
    * A rejected status write is a state, not a crash: a stale status list gets
@@ -445,6 +400,7 @@ export function TaskDetailActions({
     setPendingStatusTarget(action.target);
 
     startStatusTransition(async () => {
+      showStatus(action.target);
       try {
         const result = await setTaskStatusFromDrag({
           taskId,
@@ -474,6 +430,7 @@ export function TaskDetailActions({
     setPendingStatusTarget(TaskStatus.READY);
 
     startStatusTransition(async () => {
+      showStatus(TaskStatus.READY);
       try {
         const result = await setTaskStatusFromDrag({
           taskId,
@@ -535,25 +492,40 @@ export function TaskDetailActions({
 
   const handleSelectLinkableTask = (
     option: TaskLinkActionOption,
-    relatedTaskId: string,
+    relatedTask: TaskPickerTask,
   ) => {
-    setPendingLinkTaskId(relatedTaskId);
+    // Closed outside the transition: a state change inside it would wait for
+    // the answer.
+    setIsTaskPickerOpen(false);
+    setSelectedTaskPickerOption(null);
+
+    // Core refuses a second link to the same task, so that pick shows nothing.
+    const isNewPeer = taskLinks.every(
+      (link) => link.peerTask.id !== relatedTask.id,
+    );
 
     startLinkTransition(async () => {
+      // A new parent takes the place of the one the task has.
+      if (isNewPeer && option.relation === TaskLinkRelation.CHILD) {
+        for (const link of parentLinks) {
+          showLinkChange({ hidePeerTaskId: link.peerTask.id });
+        }
+      }
+      if (isNewPeer) {
+        showLinkChange({
+          add: { ...relatedTask, identifier: null, relation: option.relation },
+        });
+      }
       try {
         await createTaskLink({
           taskId,
-          relatedTaskId,
+          relatedTaskId: relatedTask.id,
           relation: option.relation,
         });
-        setIsTaskPickerOpen(false);
-        setSelectedTaskPickerOption(null);
         toast.success(tDetailActions("linkTaskSuccess"));
       } catch (error) {
         console.error("Failed to create task link", error);
         toast.error(tDetailActions("linkTaskError"));
-      } finally {
-        setPendingLinkTaskId(null);
       }
     });
   };
@@ -562,6 +534,9 @@ export function TaskDetailActions({
     if (parentLinks.length === 0) return;
 
     startParentRemovalTransition(async () => {
+      for (const link of parentLinks) {
+        showLinkChange({ hidePeerTaskId: link.peerTask.id });
+      }
       try {
         for (const link of parentLinks) {
           await deleteTaskLink({
@@ -581,6 +556,7 @@ export function TaskDetailActions({
     setPendingRemoveLinkId(link.id);
 
     startRemoveRelatedTransition(async () => {
+      showLinkChange({ hidePeerTaskId: link.peerTask.id });
       try {
         await deleteTaskLink({
           taskId,
@@ -596,8 +572,11 @@ export function TaskDetailActions({
     });
   };
 
+  // The gates above follow a status that Core has not confirmed yet, so
+  // nothing here acts on it while a status write is open, here or in the panel.
   const actionsDisabled =
     isStatusPending ||
+    isStatusChanging ||
     isLinkPending ||
     isParentRemovalPending ||
     isRemoveRelatedPending;
@@ -1099,13 +1078,11 @@ export function TaskDetailActions({
         onOpenChange={(open) => {
           setIsTaskPickerOpen(open);
           if (!open) {
-            setPendingLinkTaskId(null);
             setSelectedTaskPickerOption(null);
           }
         }}
         selectedOption={selectedTaskPickerOption}
         isLinkPending={isLinkPending}
-        pendingLinkTaskId={pendingLinkTaskId}
         onSelectTask={handleSelectLinkableTask}
       />
 
@@ -1284,72 +1261,4 @@ function getTaskStatusActions(
   }
 
   return [];
-}
-
-function buildTaskPickerOptions(
-  tDetailActions: ReturnType<typeof useTranslations>,
-): TaskLinkActionOption[] {
-  return [
-    {
-      id: "related",
-      label: tDetailActions("relations.related"),
-      relation: TaskLinkRelation.RELATED,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.RELATED),
-    },
-    {
-      id: "subtask",
-      label: tDetailActions("relations.subtask"),
-      relation: TaskLinkRelation.CHILD,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.PARENT),
-    },
-    {
-      id: "blocks",
-      label: tDetailActions("relations.blocks"),
-      relation: TaskLinkRelation.BLOCKS,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.BLOCKS),
-    },
-    {
-      id: "blocked-by",
-      label: tDetailActions("relations.blockedBy"),
-      relation: TaskLinkRelation.BLOCKED_BY,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.BLOCKED_BY),
-    },
-    {
-      id: "duplicate",
-      label: tDetailActions("relations.duplicate"),
-      relation: TaskLinkRelation.DUPLICATE,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.DUPLICATE),
-    },
-  ];
-}
-
-function buildCreateRelatedOptions(
-  tDetailActions: ReturnType<typeof useTranslations>,
-): TaskLinkActionOption[] {
-  return [
-    {
-      id: "related",
-      label: tDetailActions("relations.related"),
-      relation: TaskLinkRelation.RELATED,
-      icon: SquareMousePointer,
-    },
-    {
-      id: "add-subtask",
-      label: tDetailActions("relations.addSubtask"),
-      relation: TaskLinkRelation.PARENT,
-      icon: SquarePlus,
-    },
-    {
-      id: "blocks",
-      label: tDetailActions("relations.blocks"),
-      relation: TaskLinkRelation.BLOCKS,
-      icon: OctagonMinus,
-    },
-    {
-      id: "blocked-by",
-      label: tDetailActions("relations.blockedBy"),
-      relation: TaskLinkRelation.BLOCKED_BY,
-      icon: SquareMinus,
-    },
-  ];
 }

@@ -1,10 +1,13 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
+
+/** History loads one screen before the reader reaches where it is missing. */
+const LOAD_AHEAD = "100% 0px";
 
 export type TranscriptBoundaryStatus = "idle" | "loading" | "failed";
 
@@ -21,7 +24,8 @@ interface TranscriptBoundaryRowProps {
  * Where the transcript has history missing: above the oldest loaded range,
  * or between two ranges a jump left apart. Loads the next page of missing
  * rows on tap, and on its own once it scrolls into view, so reading toward a
- * gap fills it without hunting for a button. A failed load stays on the row
+ * gap fills it without hunting for a button. "Into view" starts one screen
+ * early, so the rows are there before the reader is. A failed load stays on the row
  * with a retry and stops the auto-load until the reader asks again.
  */
 export function TranscriptBoundaryRow({
@@ -32,10 +36,18 @@ export function TranscriptBoundaryRow({
 }: TranscriptBoundaryRowProps) {
   const t = useTranslations("App.Channels");
   const rowRef = useRef<HTMLDivElement | null>(null);
+  // The transcript keeps this row in place while the reader scrolls, also
+  // after its page has landed. It is then idle and in view again, with the
+  // same cursor. So it asks on its own once per cursor; a tap asks again.
+  const [askedFor, setAskedFor] = useState<string | null>(null);
   useLoadWhenVisible(rowRef, {
-    armed: status === "idle",
+    armed: status === "idle" && askedFor !== cursorMessageId,
     boundaryKey: cursorMessageId,
-    onVisible: () => onLoad(cursorMessageId),
+    onVisible: () => {
+      setAskedFor(cursorMessageId);
+      onLoad(cursorMessageId);
+    },
+    ahead: LOAD_AHEAD,
   });
 
   const isLoading = status === "loading";

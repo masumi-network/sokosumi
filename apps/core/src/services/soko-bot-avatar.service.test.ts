@@ -111,6 +111,18 @@ describe("Soko Bot avatar pool", () => {
     expect(billed()).toBe(0);
   });
 
+  it("no longer offers an avatar drawn before the brand palette", async () => {
+    getEnvMock.mockReturnValue({});
+    store.seed({ background: "gently muted sage green" });
+    const onBrand = store.seed();
+
+    const avatars = await topUpAvailableAvatars(6, {
+      requestedByUserId: "user-1",
+    });
+
+    expect(avatars.map((one) => one.id)).toEqual([onBrand.id]);
+  });
+
   it("buys one image, not six, when storing them is broken", async () => {
     // The image model bills for an image whether or not we store it. With a
     // broken blob token the pool never fills, so an ungated run would buy six

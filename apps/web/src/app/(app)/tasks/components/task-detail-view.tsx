@@ -6,7 +6,6 @@ import {
   type SubscriptionPlanName,
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import {
@@ -18,6 +17,7 @@ import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
 import { mapVisibleTaskLinks } from "@/app/tasks/components/task-detail-api-types";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
+import { TaskParentLine } from "@/app/tasks/components/task-detail-optimistic-links";
 import { TaskFiles } from "@/app/tasks/components/task-files";
 import { TaskFromSchedule } from "@/app/tasks/components/task-from-schedule";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
@@ -163,21 +163,12 @@ export async function TaskDetailView({
               parentLink={
                 <>
                   {parentTask ? (
-                    <p className="text-muted-foreground text-sm">
-                      <Link
-                        href={taskLinkHref(
-                          {
-                            id: parentTask.id,
-                            identifier: parentTask.identifier,
-                            name: parentTask.name,
-                          },
-                          relatedTaskHrefBasePath,
-                        )}
-                        className="text-foreground underline underline-offset-4"
-                      >
-                        {t("clonedFrom", { name: parentTask.name })}
-                      </Link>
-                    </p>
+                    <TaskParentLine
+                      parent={parentTask}
+                      href={taskLinkHref(parentTask, relatedTaskHrefBasePath)}
+                    >
+                      {t("clonedFrom", { name: parentTask.name })}
+                    </TaskParentLine>
                   ) : null}
                 </>
               }
