@@ -73,3 +73,10 @@ export async function revokeProjectCusoSubscription(
 ): Promise<void> {
   await revokeSubscriptions({ projectId, project: { workspaceId } });
 }
+
+/** For an organization deletion, which deletes every Project of it. */
+export async function revokeOrganizationCusoSubscriptions(
+  organizationId: string,
+): Promise<void> {
+  await revokeSubscriptions({ organizationId });
+}

@@ -19,6 +19,7 @@ import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import {
   revokeCusoSubscription,
   revokeCusoSubscriptionIfLeavingCmo,
+  revokeOrganizationCusoSubscriptions,
   revokeProjectCusoSubscription,
 } from "./cmo-subscription-end.service";
 
@@ -124,5 +125,26 @@ describe("revokeProjectCusoSubscription", () => {
       }),
     );
     expect(m.revokePolarSubscription).toHaveBeenCalledExactlyOnceWith("sub_1");
+  });
+});
+
+describe("revokeOrganizationCusoSubscriptions", () => {
+  it("revokes every non-ended subscription of the organization", async () => {
+    m.prisma.cmoSubscription.findMany.mockResolvedValue([
+      { id: "row_1", polarSubscriptionId: "sub_1" },
+      { id: "row_2", polarSubscriptionId: "sub_2" },
+    ]);
+
+    await revokeOrganizationCusoSubscriptions("org_1");
+
+    expect(m.prisma.cmoSubscription.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { endedAt: null, organizationId: "org_1" },
+      }),
+    );
+    expect(m.revokePolarSubscription.mock.calls).toEqual([
+      ["sub_1"],
+      ["sub_2"],
+    ]);
   });
 });

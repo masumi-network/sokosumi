@@ -1,3 +1,4 @@
+import { HTTPException } from "hono/http-exception";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAuthOrganizationPlugin } from "./auth-organization";
 
@@ -11,6 +12,8 @@ const mocks = vi.hoisted(() => {
     guardOrganizationCreate: vi.fn((organization) => organization),
     listExitRoomIds: vi.fn(),
     prepareOrganizationForDeletion: vi.fn(),
+    evaluateOrganizationDeletion: vi.fn(),
+    revokeOrganizationCusoSubscriptions: vi.fn(),
     prisma: {
       $transaction: vi.fn(async (callback: (tx: unknown) => unknown) =>
         callback({ tx: true }),
@@ -66,6 +69,14 @@ vi.mock("@/helpers/design-md-metadata-auth", () => ({
 vi.mock("@/helpers/organization-deletion", () => ({
   prepareOrganizationForDeletion: mocks.prepareOrganizationForDeletion,
 }));
+vi.mock("@/helpers/deletion-evaluate", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/deletion-evaluate")>()),
+  evaluateOrganizationDeletion: mocks.evaluateOrganizationDeletion,
+}));
+vi.mock("@/services/cmo-subscription-end.service", () => ({
+  revokeOrganizationCusoSubscriptions:
+    mocks.revokeOrganizationCusoSubscriptions,
+}));
 vi.mock("@/helpers/stripe-customer-delete", () => ({
   deleteStripeCustomerBestEffort: vi.fn(),
 }));
@@ -106,6 +117,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.waitUntilPromises.length = 0;
   mocks.createOrganizationCustomer.mockResolvedValue({ id: "cus_org_1" });
+  mocks.evaluateOrganizationDeletion.mockResolvedValue({ blockers: [] });
 });
 
 afterEach(async () => {
@@ -281,4 +293,51 @@ it("refuses a deletion the organization is not ready for", async () => {
     "user-1",
     mocks.prisma,
   );
+});
+
+describe("organization deletion and CMO subscriptions", () => {
+  beforeEach(() => {
+    mocks.prepareOrganizationForDeletion.mockResolvedValue(null);
+    mocks.revokeOrganizationCusoSubscriptions.mockResolvedValue(undefined);
+  });
+
+  it("revokes the organization's CMO subscriptions at Polar before deleting it", async () => {
+    await hooks().beforeDeleteOrganization({
+      organization: { id: "org-1" },
+      user,
+    });
+
+    expect(
+      mocks.revokeOrganizationCusoSubscriptions,
+    ).toHaveBeenCalledExactlyOnceWith("org-1");
+    expect(
+      mocks.revokeOrganizationCusoSubscriptions.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      mocks.prepareOrganizationForDeletion.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("deletes nothing when Polar refuses the revoke", async () => {
+    mocks.revokeOrganizationCusoSubscriptions.mockRejectedValue(
+      new HTTPException(503, {
+        message: "The subscription could not be ended.",
+      }),
+    );
+
+    await expect(
+      hooks().beforeDeleteOrganization({ organization: { id: "org-1" }, user }),
+    ).rejects.toMatchObject({ statusCode: 503 });
+    expect(mocks.prepareOrganizationForDeletion).not.toHaveBeenCalled();
+  });
+
+  it("revokes nothing when the deletion is refused anyway", async () => {
+    mocks.evaluateOrganizationDeletion.mockResolvedValue({
+      blockers: ["ORGANIZATION_HAS_ADDITIONAL_MEMBERS"],
+    });
+
+    await expect(
+      hooks().beforeDeleteOrganization({ organization: { id: "org-1" }, user }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(mocks.revokeOrganizationCusoSubscriptions).not.toHaveBeenCalled();
+  });
 });
