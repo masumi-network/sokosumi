@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { conflict, unprocessableEntity } from "@/helpers/error";
+import { toLocalDateKey } from "@/helpers/task-schedule";
 import {
   requestSeoAnalysisSchema,
   SEO_MAX_MONITOR_RUNS,
@@ -115,14 +116,16 @@ export function seoMonitorDescriptionWithRule(
     throw conflict(
       "An SEO monitor edit changes only when it runs. Create a new monitor for other pages or checks.",
     );
-  if (rule.intervalDays != null || rule.endsOn != null)
-    throw unprocessableEntity(
-      "An SEO monitor runs daily, weekly or monthly and ends after a count or when stopped",
-    );
+  // The step goes to the schema as sent, so a step of 1 is refused here: the schedule's columns would keep it
+  // while the packet could not, and every Run would then fail the release guard.
+  const every = rule.intervalDays != null;
   const parsed = seoMonitorRuleSchema.safeParse({
     expr: rule.expr,
     timezone: rule.timezone,
+    intervalDays: rule.intervalDays ?? null,
+    anchorAt: every ? (rule.anchorAt ?? null) : null,
     endsMode: rule.endsMode,
+    endsOn: rule.endsOn ?? null,
     targetRunCount: rule.targetRunCount ?? null,
   });
   if (!parsed.success)
@@ -185,14 +188,18 @@ export function seoMonitorDescriptionForUser(
       audit_full: "SEO audits",
     } as const;
     const repeat = seoMonitorRepeat(plan.rule.expr);
-    const cadence = repeat
-      ? `${repeat[0]!.toUpperCase()}${repeat.slice(1)}`
-      : "Scheduled";
+    const cadence = plan.rule.intervalDays
+      ? `Every ${plan.rule.intervalDays} days:`
+      : repeat
+        ? `${repeat[0]!.toUpperCase()}${repeat.slice(1)}`
+        : "Scheduled";
     const count = plan.analysis.pageIds?.length ?? 0;
     const ends =
-      plan.rule.targetRunCount === null
-        ? "Runs until someone stops it."
-        : `Ends after ${plan.rule.targetRunCount} scheduled runs.`;
+      plan.rule.targetRunCount !== null
+        ? `Ends after ${plan.rule.targetRunCount} scheduled runs.`
+        : plan.rule.endsOn
+          ? `Ends on ${toLocalDateKey(new Date(plan.rule.endsOn), plan.rule.timezone)}.`
+          : "Runs until someone stops it.";
     return `${cadence} ${checks[plan.analysis.kind]} for ${count} saved ${count === 1 ? "page" : "pages"}. ${ends} Time zone: ${plan.rule.timezone}.`;
   } catch {
     return "SEO monitor. Review its saved plan before the next scheduled run.";

@@ -148,19 +148,63 @@ describe("SEO monitor rule edits", () => {
     ).toThrow(expect.objectContaining({ status: 409 }));
   });
 
+  it("accepts the repeats of a Sokosumi schedule at one time of day", () => {
+    const edit = (patch: object) =>
+      seoMonitorDescriptionWithRule(legacy, {
+        expectedRevision: 0,
+        rule: rule(patch) as never,
+      });
+    // Weekdays, a custom day rule, an end date, and every N days from an anchor.
+    for (const expr of [
+      "0 9 * * 1-5",
+      "0 9 * 6 *",
+      "0 9 1 * MON",
+      "0 09 * * *",
+    ])
+      expect(parseSeoMonitorPlan(edit({ expr }))?.rule.expr).toBe(expr);
+    const ends = edit({ endsMode: "ON", endsOn: "2027-01-01T00:00:00.000Z" });
+    expect(parseSeoMonitorPlan(ends)?.rule).toMatchObject({
+      endsMode: "ON",
+      endsOn: "2027-01-01T00:00:00.000Z",
+      targetRunCount: null,
+    });
+    expect(seoMonitorDescriptionForUser(ends)).toContain("Ends on 2027-01-01.");
+    // The dialog stores the end of the local day; west of UTC that is the next UTC date.
+    const west = edit({
+      timezone: "America/New_York",
+      endsMode: "ON",
+      endsOn: "2027-01-02T04:59:59.999Z",
+    });
+    expect(seoMonitorDescriptionForUser(west)).toContain("Ends on 2027-01-01.");
+    const every = edit({
+      expr: "0 9 * * *",
+      intervalDays: 3,
+      anchorAt: "2027-01-01T08:00:00.000Z",
+    });
+    expect(parseSeoMonitorPlan(every)?.rule).toMatchObject({
+      intervalDays: 3,
+      anchorAt: "2027-01-01T08:00:00.000Z",
+    });
+    expect(seoMonitorDescriptionForUser(every)).toMatch(/^Every 3 days: /);
+  });
+
   it("refuses rules an SEO monitor may not hold", () => {
     for (const patch of [
+      // More than one Run a day: each Run is a paid check.
       { expr: "*/15 * * * *" },
-      { expr: "0 9 1 * MON" },
-      { expr: "0 9 * 6 *" },
-      { expr: "0 9 * * MON,MON" },
+      { expr: "0 */2 * * *" },
+      { expr: "0 9,17 * * *" },
       { expr: "0 24 * * *" },
       { timezone: "Mars/Olympus" },
       { endsMode: "AFTER", targetRunCount: null },
       { endsMode: "AFTER", targetRunCount: 32 },
       { endsMode: "NEVER", targetRunCount: 3 },
-      { endsMode: "ON", endsOn: "2027-01-01T00:00:00.000Z" },
-      { intervalDays: 2, anchorAt: "2027-01-01T00:00:00.000Z" },
+      { endsMode: "ON" },
+      { endsMode: "NEVER", endsOn: "2027-01-01T00:00:00.000Z" },
+      { intervalDays: 3 },
+      { intervalDays: 366, anchorAt: "2027-01-01T00:00:00.000Z" },
+      // The columns would keep a step of 1 that the packet drops: every Run would fail the guard.
+      { intervalDays: 1, anchorAt: "2027-01-01T00:00:00.000Z" },
     ])
       expect(() =>
         seoMonitorDescriptionWithRule(legacy, {

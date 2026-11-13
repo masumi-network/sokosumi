@@ -635,6 +635,56 @@ describe.skipIf(!enabled)(
           ),
         ),
       ).rejects.toMatchObject({ status: 403 });
+      // The step and the end date are part of the approved rule too.
+      for (const tampered of [
+        { intervalDays: 2 },
+        { endsOn: new Date("2030-01-01T00:00:00.000Z") },
+      ])
+        await expect(
+          prisma.$transaction((tx) =>
+            releaseSeoMonitorRun(tx, { ...schedule, ...tampered }, runs[0].id),
+          ),
+        ).rejects.toMatchObject({ status: 403 });
+      // Every N days up to a date, as the schedule dialog writes it: the guard lets its Runs start.
+      const day = 86_400_000;
+      const every = await createProjectSeoMonitor(vars, actor, {
+        ...input,
+        operationId: randomUUID(),
+        rule: {
+          expr: "0 9 * * *",
+          timezone: "UTC",
+          intervalDays: 3,
+          anchorAt: new Date(Date.now() + day).toISOString(),
+          endsMode: "ON",
+          endsOn: new Date(Date.now() + 30 * day).toISOString(),
+          targetRunCount: null,
+        },
+      });
+      const everySchedule = await prisma.taskSchedule.findUniqueOrThrow({
+        where: { id: every.id },
+      });
+      expect(everySchedule).toMatchObject({ intervalDays: 3, endsMode: "ON" });
+      const everyRun = await prisma.taskScheduleRun.findFirstOrThrow({
+        where: { scheduleId: every.id, state: "PLANNED" },
+      });
+      // The anchor sets the days of an every-N-days rule: a moved anchor is a changed rule.
+      await expect(
+        prisma.$transaction((tx) =>
+          releaseSeoMonitorRun(
+            tx,
+            {
+              ...everySchedule,
+              anchorAt: new Date(everySchedule.anchorAt.getTime() + day),
+            },
+            everyRun.id,
+          ),
+        ),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(
+        await prisma.$transaction((tx) =>
+          releaseSeoMonitorRun(tx, everySchedule, everyRun.id),
+        ),
+      ).toBeTruthy();
       expect(
         (await changeTaskScheduleState(vars, monitor.id, "pause")).state,
       ).toBe("PAUSED");

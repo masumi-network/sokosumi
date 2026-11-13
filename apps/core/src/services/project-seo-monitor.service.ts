@@ -145,9 +145,13 @@ export async function releaseSeoMonitorRun(
     schedule.assigneeUserId ||
     schedule.expr !== packet.rule.expr ||
     schedule.timezone !== packet.rule.timezone ||
-    schedule.intervalDays ||
+    (schedule.intervalDays ?? null) !== (packet.rule.intervalDays ?? null) ||
+    // A rule without a step keeps the anchor the schedule wrote; only an every-N-days rule runs from it.
+    (packet.rule.anchorAt != null &&
+      schedule.anchorAt.getTime() !== Date.parse(packet.rule.anchorAt)) ||
     schedule.endsMode !== packet.rule.endsMode ||
-    schedule.endsOn ||
+    (schedule.endsOn?.getTime() ?? null) !==
+      (packet.rule.endsOn == null ? null : Date.parse(packet.rule.endsOn)) ||
     schedule.targetRunCount !== packet.rule.targetRunCount
   )
     throw forbidden(
