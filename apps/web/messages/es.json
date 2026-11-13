@@ -12617,7 +12617,7 @@
           },
           "35": {
             "title": "Conversiones orgánicas por página de destino",
-            "missing": "No se muestran los ingresos por página de destino, y los eventos clave solo se muestran cuando están configurados en Google Analytics."
+            "missing": "No se muestran los ingresos por página de destino. Los eventos clave solo se muestran en la tabla Páginas principales, que necesita filas de consultas de Search Console y 2 o más páginas, y solo cuando están configurados en Google Analytics."
           },
           "36": {
             "title": "Impacto antes y después por acción",

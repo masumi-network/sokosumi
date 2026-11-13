@@ -12617,7 +12617,7 @@
           },
           "35": {
             "title": "Organische Conversions pro Landingpage",
-            "missing": "Der Umsatz pro Landingpage zeigt sich nicht, und Schlüsselereignisse zeigen sich erst, wenn sie in Google Analytics eingerichtet sind."
+            "missing": "Der Umsatz pro Landingpage zeigt sich nicht. Schlüsselereignisse zeigen sich nur in der Tabelle Top-Seiten, die Search-Console-Suchanfragen und 2 oder mehr Seiten braucht, und erst, wenn sie in Google Analytics eingerichtet sind."
           },
           "36": {
             "title": "Wirkung vorher und nachher pro Aktion",

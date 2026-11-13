@@ -12617,7 +12617,7 @@
           },
           "35": {
             "title": "Organic conversions per landing page",
-            "missing": "Revenue per landing page does not show, and key events show only after they are set up in Google Analytics."
+            "missing": "Revenue per landing page does not show. Key events show only in the Top pages table, which needs Search Console query rows and 2 or more pages, and only after they are set up in Google Analytics."
           },
           "36": {
             "title": "Before and after impact per action",

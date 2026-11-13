@@ -390,7 +390,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     title: "Organic conversions per landing page",
     status: "partial",
     missing:
-      "Revenue per landing page does not show, and key events show only after they are set up in Google Analytics.",
+      "Revenue per landing page does not show. Key events show only in the Top pages table, which needs Search Console query rows and 2 or more pages, and only after they are set up in Google Analytics.",
     unlocks: ["ga4", "ga4_key_events", DEV],
   },
   {
