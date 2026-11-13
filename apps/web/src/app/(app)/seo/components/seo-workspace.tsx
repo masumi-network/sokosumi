@@ -400,12 +400,7 @@ export function SeoWorkspace({
         }}
         className="gap-4"
       >
-        <SeoRuns
-          model={model}
-          dateFields={dateFields}
-          dates={controls.dates}
-          shown={runsRow}
-        />
+        <SeoRuns model={model} shown={runsRow} />
         <div
           ref={tabBar}
           // On a phone the tabs fill the row; a fifth tab still scrolls, without a scroll track. The room above

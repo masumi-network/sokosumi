@@ -1061,6 +1061,7 @@ describe("SEO workspace integration", () => {
     workspace.runs = [
       run("2026-11-12T13:00:00Z", 5),
       run("2026-11-10T09:00:00Z", 6),
+      run("2026-10-28T08:00:00Z", 7),
     ];
     vi.stubGlobal(
       "fetch",
@@ -1072,31 +1073,57 @@ describe("SEO workspace integration", () => {
       within(runs)
         .getAllByRole("button", { pressed: undefined })
         .map((button) => button.textContent),
-    ).toEqual(["Nov 106 issues", "Nov 125 issues", "Other dates"]);
+    ).toEqual([
+      "Oct 287 issues",
+      "Nov 106 issues",
+      "Nov 125 issues",
+      "Other dates",
+    ]);
     // The timeline holds the one date filter: the header and the filter block have none.
     expect(screen.queryByRole("button", { name: "Filter by date" })).toBeNull();
     const dates = within(runs).getByRole("button", { name: "Other dates" });
     await user.click(dates);
-    const from = screen.getByLabelText("Activity from");
-    expect(from).toHaveFocus();
-    // The stop stays on the line while its fields are open, so the days do not move.
-    expect(dates).toBeVisible();
-    // The fields open under the timeline, over the tabs.
+    // A calendar under the stop, on the month of the first check, with the days of a check marked in words too.
+    const calendar = await screen.findByRole("dialog");
+    expect(within(calendar).getByText("October 2026")).toBeVisible();
+    within(calendar).getByRole("button", {
+      name: /October 28th, 2026, Day with a check/,
+    });
     expect(
-      runs.compareDocumentPosition(from) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("tablist").compareDocumentPosition(from) &
-        Node.DOCUMENT_POSITION_PRECEDING,
-    ).toBeTruthy();
-    // A tab that dates do not narrow keeps the stop's place, out of reach.
+      within(calendar).getByRole("button", { name: /October 29th, 2026$/ }),
+    ).toBeEnabled();
+    // Two presses set the range and close the calendar; the line says what is in view, with the way back.
+    await user.click(
+      within(calendar).getByRole("button", { name: /October 28th, 2026/ }),
+    );
+    await user.click(
+      within(calendar).getByRole("button", { name: /October 30th, 2026/ }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(await screen.findByText(/Showing Oct 28.+30\./)).toBeVisible();
+    expect(dates).toHaveAttribute("data-active", "true");
+    // Open again on a set range, a press starts a new range: it does not stretch the old one and close.
+    await user.click(dates);
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: /October 31st, 2026/,
+      }),
+    );
+    expect(await screen.findByText(/Showing Oct 31\./)).toBeVisible();
+    expect(screen.getByRole("dialog")).toBeVisible();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await user.click(screen.getByRole("button", { name: "Show the latest" }));
+    await waitFor(() => expect(screen.queryByText(/Showing/)).toBeNull());
+    expect(dates).toHaveAttribute("data-active", "false");
+    // The stop stands on every tab, also where dates narrow nothing.
     await user.click(screen.getByRole("tab", { name: "Agent" }));
     expect(
-      within(screen.getByRole("group", { name: "Checks" })).queryByRole(
+      within(screen.getByRole("group", { name: "Checks" })).getByRole(
         "button",
         { name: "Other dates" },
       ),
-    ).toBeNull();
+    ).toBeEnabled();
   });
 
   it("keeps the page in view while another day loads, without a jump back to the first read", async () => {

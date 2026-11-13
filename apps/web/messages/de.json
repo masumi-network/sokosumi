@@ -12047,7 +12047,10 @@
         "earlier": "Ältere Prüfung ({day}).",
         "latest": "Neueste zeigen",
         "inRange": "im Zeitraum",
-        "dates": "Andere Tage"
+        "dates": "Andere Tage",
+        "checkDay": "Tag mit Prüfung",
+        "shown": "Zeitraum {range}.",
+        "shownUntil": "Zeitraum bis {day}."
       },
       "filterDates": "Nach Datum filtern",
       "syncNow": "Jetzt synchronisieren",

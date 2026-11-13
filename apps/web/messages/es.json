@@ -12047,7 +12047,10 @@
         "earlier": "Comprobación anterior ({day}).",
         "latest": "Ver la más reciente",
         "inRange": "en el rango de fechas",
-        "dates": "Otras fechas"
+        "dates": "Otras fechas",
+        "checkDay": "Día con comprobación",
+        "shown": "Mostrando {range}.",
+        "shownUntil": "Mostrando hasta {day}."
       },
       "filterDates": "Filtrar por fecha",
       "syncNow": "Sincronizar ahora",

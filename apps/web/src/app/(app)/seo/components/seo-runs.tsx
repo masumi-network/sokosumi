@@ -4,12 +4,8 @@ import { CalendarRange, Loader2 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { SeoRunCalendar } from "./seo-run-calendar";
 import { seoRunDays } from "./seo-runs-model";
-import {
-  SeoDateFields,
-  seoRevealDates,
-  type useSeoDateFields,
-} from "./seo-scope-bar";
 import { seoRunProgress } from "./seo-setup-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -20,33 +16,28 @@ const STOP_CLASS =
 const LINE_CLASS = "absolute top-[7px] h-0 border-t";
 /** The way to the date stop: dots in the muted text colour. Dots in the line colour did not show on the dark page. */
 const DOTTED_CLASS = "border-muted-foreground border-dotted";
-/** A day and the date stop share the look: muted, bright on hover and while pressed or open. */
+/** A day and the date stop share the look: muted, bright on hover and while pressed, open or in use. */
 const STOP_BUTTON_CLASS =
-  "group text-muted-foreground hover:text-foreground aria-pressed:text-foreground data-[open=true]:text-foreground focus-visible:ring-ring press relative flex min-h-10 flex-col items-center rounded-sm px-2 transition-colors outline-none focus-visible:ring-2 aria-pressed:font-medium";
+  "group text-muted-foreground hover:text-foreground aria-pressed:text-foreground data-[state=open]:text-foreground data-[active=true]:text-foreground data-[active=true]:font-medium focus-visible:ring-ring press relative flex min-h-10 flex-col items-center rounded-sm px-2 transition-colors outline-none focus-visible:ring-2 aria-pressed:font-medium";
 
 /**
  * The runs of the site over the tabs as a timeline: one stop per day with its result, oldest on the left and
  * the newest on the right, a check in flight after it. A press shows the page as it was on that day. The last
- * stop opens the date fields under the line: both choose the time the page shows. A tab that dates do not narrow
- * keeps the stop's place empty, so the days stand at the same place on every tab.
+ * stop opens a calendar of the days with a check: both choose the time the page shows. It stands on every tab, so
+ * the days stand at the same place on each.
  */
 export function SeoRuns({
   model,
-  dateFields,
-  dates,
   shown,
 }: {
   model: SeoWorkspaceModel;
   /** The workspace decides once whether the row shows: it holds the date filter then. */
   shown: boolean;
-  dateFields: ReturnType<typeof useSeoDateFields>;
-  /** The tab in view has data that dates narrow. */
-  dates: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
   const now = useNow({ updateInterval: MINUTE_MS });
-  const { days, picked } = seoRunDays(model.data, model.filters);
+  const { days, picked, checkDays } = seoRunDays(model.data, model.filters);
   const progress = seoRunProgress(model.data, now);
   // The way back unmounts with its line: focus moves to the newest entry.
   const newestRef = useRef<HTMLButtonElement>(null);
@@ -76,9 +67,27 @@ export function SeoRuns({
     // The day of the filter: a run late in the evening west of UTC is on the next day.
     format.dateTime(at, { month: "short", day: "numeric", timeZone: "UTC" });
   const inView = days.find((entry) => entry.selected);
-  // Open fields keep their stop, also where the tab in view has nothing that dates narrow.
-  const datesStop = dates || dateFields.open;
   const stops = days.toReversed();
+  const { from, to } = model.filters;
+  // A range the reader set in the calendar: no one check is in view then.
+  const ranged = Boolean(from || (to && !picked));
+  const utcDay = (day: string) => new Date(`${day}T00:00:00Z`);
+  // A day the URL holds in another form narrows nothing: the note says so, with the way back.
+  const badDates =
+    model.invalidDates ||
+    [from, to].some((day) => day && Number.isNaN(utcDay(day).getTime()));
+  const latest = (
+    <button
+      type="button"
+      className="text-foreground focus-visible:ring-ring hit-area rounded-sm underline underline-offset-4 outline-none focus-visible:ring-2"
+      onClick={() => {
+        newestRef.current?.focus();
+        void model.setFilters({ from: null, to: null });
+      }}
+    >
+      {t("runs.latest")}
+    </button>
+  );
   return (
     // Room above and under the line: it reads as its own row over the tabs, not as part of them.
     <div className="space-y-2 pt-1">
@@ -101,18 +110,17 @@ export function SeoRuns({
                   className={cn(LINE_CLASS, "border-border right-1/2 left-0")}
                 />
               ) : null}
-              {index < stops.length - 1 || running || datesStop ? (
-                <span
-                  aria-hidden
-                  className={cn(
-                    LINE_CLASS,
-                    "border-border right-0 left-1/2",
-                    // Dashed to the check in flight: it is not done. Dotted to the date stop: it is no check.
-                    index === stops.length - 1 &&
-                      (running ? "border-dashed" : DOTTED_CLASS),
-                  )}
-                />
-              ) : null}
+              {/* The line runs on to the next stop: a later day, the check in flight or the date stop. */}
+              <span
+                aria-hidden
+                className={cn(
+                  LINE_CLASS,
+                  "border-border right-0 left-1/2",
+                  // Dashed to the check in flight: it is not done. Dotted to the date stop: it is no check.
+                  index === stops.length - 1 &&
+                    (running ? "border-dashed" : DOTTED_CLASS),
+                )}
+              />
               <button
                 ref={entry.newest ? newestRef : undefined}
                 type="button"
@@ -162,12 +170,10 @@ export function SeoRuns({
                   )}
                 />
               ) : null}
-              {datesStop ? (
-                <span
-                  aria-hidden
-                  className={cn(LINE_CLASS, "right-0 left-1/2", DOTTED_CLASS)}
-                />
-              ) : null}
+              <span
+                aria-hidden
+                className={cn(LINE_CLASS, "right-0 left-1/2", DOTTED_CLASS)}
+              />
               <span className="relative flex min-h-10 flex-col items-center px-2">
                 <Loader2
                   aria-hidden
@@ -184,60 +190,57 @@ export function SeoRuns({
               </span>
             </li>
           ) : null}
-          {/* Hidden, not removed, where dates narrow nothing: the days keep their place. */}
-          <li
-            aria-hidden={!datesStop}
-            className={cn(STOP_CLASS, !datesStop && "invisible")}
-          >
+          <li className={STOP_CLASS}>
             {stops.length || running ? (
               <span
                 aria-hidden
                 className={cn(LINE_CLASS, "right-1/2 left-0", DOTTED_CLASS)}
               />
             ) : null}
-            <button
-              type="button"
-              disabled={!datesStop}
-              data-open={dateFields.open}
-              className={STOP_BUTTON_CLASS}
-              onClick={() => seoRevealDates(dateFields)}
-            >
-              <CalendarRange
-                aria-hidden
-                // On the line in place of a dot; the page colour cuts the line around it.
-                className="bg-background -mt-[3px] mb-[3px] size-4"
-              />
-              {t("runs.dates")}
-            </button>
+            <SeoRunCalendar model={model} checkDays={checkDays}>
+              <button
+                type="button"
+                data-active={ranged}
+                className={STOP_BUTTON_CLASS}
+              >
+                <CalendarRange
+                  aria-hidden
+                  // On the line in place of a dot; the page colour cuts the line around it.
+                  className="bg-background -mt-[3px] mb-[3px] size-4"
+                />
+                {t("runs.dates")}
+              </button>
+            </SeoRunCalendar>
           </li>
         </ol>
       </div>
-      {/* There, empty or not, while the date fields are closed: a pick of a day moves nothing under the line.
-          An earlier check in view says so, with the way back, and fades in. */}
-      {picked || !dateFields.open ? (
-        <p className="text-muted-foreground min-h-5 text-sm">
-          {picked && inView ? (
-            <span className="content-in">
-              {t("runs.earlier", { day: dayOf(inView.at) })}{" "}
-              <button
-                type="button"
-                className="text-foreground focus-visible:ring-ring hit-area rounded-sm underline underline-offset-4 outline-none focus-visible:ring-2"
-                onClick={() => {
-                  newestRef.current?.focus();
-                  void model.setFilters({ from: null, to: null });
-                }}
-              >
-                {t("runs.latest")}
-              </button>
-            </span>
-          ) : null}
-        </p>
-      ) : null}
-      {dateFields.open ? (
-        <div className="content-rise flex flex-wrap items-end gap-3">
-          <SeoDateFields model={model} dateFields={dateFields} />
-        </div>
-      ) : null}
+      {/* Always there, empty or not: a pick of a day or a range moves nothing under the line. An earlier check or
+          a range in view says so, with the way back, and fades in. */}
+      <p className="text-muted-foreground min-h-5 text-sm">
+        {badDates ? (
+          // The status line of the workspace reads it out: no alert of its own.
+          <span className="text-destructive">
+            {t("invalidDates")} {latest}
+          </span>
+        ) : picked && inView ? (
+          <span className="content-in">
+            {t("runs.earlier", { day: dayOf(inView.at) })} {latest}
+          </span>
+        ) : ranged ? (
+          <span className="content-in">
+            {from
+              ? t("runs.shown", {
+                  range: format.dateTimeRange(
+                    utcDay(from),
+                    to ? utcDay(to) : now,
+                    { month: "short", day: "numeric", timeZone: "UTC" },
+                  ),
+                })
+              : t("runs.shownUntil", { day: dayOf(utcDay(to ?? "")) })}{" "}
+            {latest}
+          </span>
+        ) : null}
+      </p>
     </div>
   );
 }

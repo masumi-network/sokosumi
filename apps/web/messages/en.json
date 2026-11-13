@@ -12047,7 +12047,10 @@
         "earlier": "Earlier check ({day}).",
         "latest": "Show the latest",
         "inRange": "in the date range",
-        "dates": "Other dates"
+        "dates": "Other dates",
+        "checkDay": "Day with a check",
+        "shown": "Showing {range}.",
+        "shownUntil": "Showing up to {day}."
       },
       "filterDates": "Filter by date",
       "syncNow": "Sync now",

@@ -15,7 +15,7 @@ import { browser } from "react-dom";
  * relative string is localized to match the rest of the UI. Falls back to
  * English for any locale without a mapping.
  */
-const DATE_FNS_LOCALES: Record<string, Locale> = {
+export const DATE_FNS_LOCALES: Record<string, Locale> = {
   de,
   en: enUS,
   es,
