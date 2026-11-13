@@ -3,12 +3,7 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
-import {
-  type Dispatch,
-  type SetStateAction,
-  useState,
-  useTransition,
-} from "react";
+import { type Dispatch, type SetStateAction, useState } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import {
@@ -58,8 +53,8 @@ export function useRoomMessageMutations({
     draft: string;
     inThread: boolean;
   } | null>(null);
-  const [isSavingEdit, startSavingEditTransition] = useTransition();
   const [openUnfurlRemovals] = useState(() => new Set<string>());
+  const [openEditSaves] = useState(() => new Set<string>());
   const [pinWrites] = useState(
     () =>
       new Map<
@@ -72,8 +67,15 @@ export function useRoomMessageMutations({
   const [savingMessageIds, setSavingMessageIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
+  // A pin and an edit can be open on one message: the mark stays until the
+  // last of them answers.
+  const [openSavesByMessage] = useState(() => new Map<string, number>());
 
   function setMessageSaving(messageId: string, saving: boolean) {
+    const open = (openSavesByMessage.get(messageId) ?? 0) + (saving ? 1 : -1);
+    if (open > 0) openSavesByMessage.set(messageId, open);
+    else openSavesByMessage.delete(messageId);
+    if (!saving && open > 0) return;
     setSavingMessageIds((current) => {
       if (current.has(messageId) === saving) return current;
       const next = new Set(current);
@@ -223,11 +225,13 @@ export function useRoomMessageMutations({
   }
 
   function handleStartEdit(message: ChatRoomMessage, inThread: boolean) {
+    // The row shows a text Core does not have yet. A second edit on top of
+    // it could put that text back as if it were saved.
+    if (openEditSaves.has(message.id)) return;
     setEditSession({ messageId: message.id, draft: message.content, inThread });
   }
 
   function handleCancelEdit() {
-    if (isSavingEdit) return;
     setEditSession(null);
   }
 
@@ -237,8 +241,10 @@ export function useRoomMessageMutations({
 
   function handleSaveEdit(contentOverride?: string) {
     const roomId = getSelectedRoomId();
-    if (!roomId || !editSession || isSavingEdit) return;
+    if (!roomId || !editSession) return;
     const { messageId, draft } = editSession;
+    // Two saves in one tick both see the session open.
+    if (openEditSaves.has(messageId)) return;
     // Prefer live editor text (Enter can fire before React flushes onChange).
     const raw = contentOverride ?? draft;
     const content = raw.trim();
@@ -253,30 +259,58 @@ export function useRoomMessageMutations({
       return;
     }
 
-    // Keep controlled draft in sync with what we submit so a failed save still
-    // shows the text the user actually confirmed (not a stale parent draft).
-    if (contentOverride !== undefined && contentOverride !== draft) {
-      setEditSession((current) =>
-        current?.messageId === messageId
-          ? { ...current, draft: contentOverride }
-          : current,
-      );
-    }
-
-    startSavingEditTransition(async () => {
-      const result = await editRoomMessageAction(roomId, messageId, content);
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
-      }
-      if (!isStillSelectedRoom(roomId)) {
-        return;
-      }
-      mergeUpdatedMessage(result.value);
-      setEditSession((current) =>
-        current?.messageId === messageId ? null : current,
-      );
+    // The editor closes and the row shows the new text at once. A refused
+    // save puts the old text back where the row still carries this edit. The
+    // toast offers the editor again with the text the user confirmed: it does
+    // not open by itself, because it would take the focus from what the user
+    // types by then.
+    const { inThread } = editSession;
+    const editedAt = new Date();
+    let before: Pick<ChatRoomMessage, "content" | "editedAt"> | null = null;
+    patchMessage(messageId, (row) => {
+      before ??= { content: row.content, editedAt: row.editedAt };
+      return { ...row, content, editedAt };
     });
+    setEditSession(null);
+    openEditSaves.add(messageId);
+    setMessageSaving(messageId, true);
+    void editRoomMessageAction(roomId, messageId, content)
+      .catch(() => null)
+      .then((result) => {
+        openEditSaves.delete(messageId);
+        setMessageSaving(messageId, false);
+        if (!result?.ok) {
+          // A newer edit, or Core's own update for this one before a lost
+          // answer, keeps the row's text: then the toast does not say the
+          // earlier text is back. flushSync runs the updaters now, so the
+          // flag holds what they found.
+          let restored = false;
+          flushSync(() => {
+            patchMessage(messageId, (row) => {
+              if (row.editedAt !== editedAt || !before) return row;
+              restored = true;
+              return { ...row, ...before };
+            });
+          });
+          toast.error(result?.error.message ?? t("Edit.saveError"), {
+            description: restored ? t("Edit.restored") : undefined,
+            action: {
+              label: t("Edit.action"),
+              onClick: () => {
+                if (openEditSaves.has(messageId)) return;
+                setEditSession(
+                  (current) => current ?? { messageId, draft: raw, inThread },
+                );
+              },
+            },
+          });
+          return;
+        }
+        if (!isStillSelectedRoom(roomId)) {
+          return;
+        }
+        mergeUpdatedMessage(result.value);
+      });
   }
 
   /** Changes one message in the room list, the open thread and its parent. */
@@ -426,7 +460,8 @@ export function useRoomMessageMutations({
     setPinnedListGeneration,
     editSession,
     setEditSession,
-    isSavingEdit,
+    // The editor closes when a save starts, so no editor waits on one.
+    isSavingEdit: false,
     savingMessageIds,
     applyPinnedMutation,
     handlePinMessage,
