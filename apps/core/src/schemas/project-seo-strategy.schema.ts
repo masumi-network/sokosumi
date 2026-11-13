@@ -5,7 +5,9 @@ import { dateTimeSchema } from "@/helpers/datetime";
 /** The longest text field of a stored strategy. */
 export const SEO_STRATEGY_TEXT_MAX_LENGTH = 20_000;
 const text = z.string().max(SEO_STRATEGY_TEXT_MAX_LENGTH);
-const label = z.string().max(100);
+/** The longest label of a stored strategy: a reach, a kind, a topic word. */
+export const SEO_STRATEGY_LABEL_MAX_LENGTH = 100;
+const label = z.string().max(SEO_STRATEGY_LABEL_MAX_LENGTH);
 const url = z.string().max(4096);
 const count = z.number().finite().nullable();
 /** The SEO bot writes at most 1500 characters. One character can be 2 UTF-16 units, which is what the check counts. */
@@ -27,6 +29,10 @@ export const SEO_KEYWORD_REACH_ROWS_MAX = 10;
 export const SEO_RIVAL_HOSTS_MAX = 3;
 /** At most this many keyword rows per competing product; the SEO bot reads at most 100. */
 export const SEO_RIVAL_ROWS_MAX = 100;
+/** At most this many topic words of the site; Core cuts the rest at import. */
+export const SEO_TOPIC_WORDS_MAX = 50;
+/** A host name has at most 253 characters (DNS). */
+const SEO_HOST_MAX_LENGTH = 253;
 
 /** The reach of each feature's best search that no keyword group holds (SEO bot ticket 76). */
 export const seoFeatureReachSchema = z
@@ -46,28 +52,27 @@ export const seoFeatureReachSchema = z
   .max(SEO_KEYWORD_REACH_ROWS_MAX)
   .optional();
 /** The organic keywords of each competing product, most searches first (SEO bot ticket 76). */
+export const seoRivalHostSchema = z.object({
+  host: z.string().min(1).max(SEO_HOST_MAX_LENGTH),
+  /** The keywords the host ranks for in the vendor's database; the rows are the first of them. */
+  total: count,
+  /** The site's topic words the rows were matched against; none when the site has too few keyword rows. */
+  topicWords: z.array(label).max(SEO_TOPIC_WORDS_MAX),
+  rows: z
+    .array(
+      z.object({
+        keyword: text,
+        volume: count,
+        position: count,
+        url: url.nullable(),
+        /** The keyword holds a topic word of the site. A host with other products ranks for their keywords too. */
+        topic: z.boolean(),
+      }),
+    )
+    .max(SEO_RIVAL_ROWS_MAX),
+});
 export const seoRivalKeywordsSchema = z
-  .array(
-    z.object({
-      host: z.string().min(1).max(253),
-      /** The keywords the host ranks for in the vendor's database; the rows are the first of them. */
-      total: count,
-      /** The site's topic words the rows were matched against; none when the site has too few keyword rows. */
-      topicWords: z.array(label).max(50),
-      rows: z
-        .array(
-          z.object({
-            keyword: text,
-            volume: count,
-            position: count,
-            url: url.nullable(),
-            /** The keyword holds a topic word of the site. A host with other products ranks for their keywords too. */
-            topic: z.boolean(),
-          }),
-        )
-        .max(SEO_RIVAL_ROWS_MAX),
-    }),
-  )
+  .array(seoRivalHostSchema)
   .max(SEO_RIVAL_HOSTS_MAX)
   .optional();
 /** Searches the product's users make before they need it, as article ideas (SEO bot ticket 76). They convert low. */

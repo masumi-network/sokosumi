@@ -1,10 +1,14 @@
 import { z } from "@hono/zod-openapi";
 
 import {
+  SEO_RIVAL_HOSTS_MAX,
+  SEO_RIVAL_ROWS_MAX,
+  SEO_STRATEGY_LABEL_MAX_LENGTH,
+  SEO_TOPIC_WORDS_MAX,
   type SeoKeywordReach,
   seoArticleIdeasSchema,
   seoFeatureReachSchema,
-  seoRivalKeywordsSchema,
+  seoRivalHostSchema,
 } from "@/schemas/project-seo-strategy.schema";
 
 // The keyword reach sections of a site report (SEO bot ticket 76): the reach of each feature's best search, the
@@ -25,22 +29,21 @@ const featureReach = z.object({
     }),
   ),
 });
-const rivalKeywords = z.array(
-  z.object({
-    host: z.string(),
-    total: count,
-    rows: z
-      .array(
-        z.object({
-          keyword: z.string(),
-          volume: count,
-          position: count,
-          url: z.string().nullable(),
-        }),
-      )
-      .nullable(),
-  }),
-);
+// Each host is read alone: a host Core cannot read is dropped, not the other hosts.
+const rivalHost = z.object({
+  host: z.string(),
+  total: count,
+  rows: z
+    .array(
+      z.object({
+        keyword: z.string(),
+        volume: count,
+        position: count,
+        url: z.string().nullable(),
+      }),
+    )
+    .nullable(),
+});
 const articleIdeas = z.object({
   ideas: z.array(
     z.object({
@@ -57,25 +60,17 @@ const articleIdeas = z.object({
     }),
   ),
 });
-// The site's keyword rows as the SEO bot reads them for its topic words (related-topics.ts `siteRows`).
-const pageRows = z.array(
-  z.object({
-    header: z
-      .object({
-        focusKeywords: z
-          .array(z.object({ keyword: z.string(), volume: count.optional() }))
-          .optional(),
-      })
-      .optional(),
-    keywordOpportunities: z
-      .object({
-        list: z
-          .array(z.object({ keyword: z.string(), volume: count.optional() }))
-          .optional(),
-      })
-      .nullish(),
-  }),
-);
+// The site's keyword rows as the SEO bot reads them for its topic words (related-topics.ts `siteRows`). Each page and
+// each row is read alone: a row Core cannot read does not count, and the other rows still give the topic words.
+const sitePage = z.object({
+  header: z
+    .object({ focusKeywords: z.array(z.unknown()).optional() })
+    .optional(),
+  keywordOpportunities: z
+    .object({ list: z.array(z.unknown()).optional() })
+    .nullish(),
+});
+const siteRow = z.object({ keyword: z.string(), volume: count.optional() });
 
 /** The share of the site's keyword rows a word must be in to be a topic word (SEO bot rival-keywords.ts). */
 const TOPIC_SHARE = 0.5;
@@ -134,18 +129,26 @@ const words = (keyword: string) =>
  * word in at least half of the site's keyword rows (5 or more rows, once per keyword), no filler, no number alone.
  */
 export function seoTopicWords(pages: unknown): string[] {
-  const parsed = pageRows.safeParse(pages);
-  if (!parsed.success) return [];
+  if (!Array.isArray(pages)) return [];
   const keywords = new Map<string, string>();
-  for (const page of parsed.data)
-    for (const row of [
-      ...(page.header?.focusKeywords ?? []),
-      ...(page.keywordOpportunities?.list ?? []),
+  for (const raw of pages) {
+    const page = sitePage.safeParse(raw);
+    if (!page.success) continue;
+    for (const rawRow of [
+      ...(page.data.header?.focusKeywords ?? []),
+      ...(page.data.keywordOpportunities?.list ?? []),
     ]) {
-      const key = row.keyword.toLowerCase().trim().replace(/\s+/g, " ");
-      if (row.volume != null && !keywords.has(key))
-        keywords.set(key, row.keyword);
+      const row = siteRow.safeParse(rawRow);
+      if (!row.success || row.data.volume == null) continue;
+      // The SEO bot's normKeyword, without its cut of mark runs longer than 30 (a vendor keyword holds none).
+      const key = row.data.keyword
+        .normalize("NFC")
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, " ");
+      if (!keywords.has(key)) keywords.set(key, row.data.keyword);
     }
+  }
   if (keywords.size < MIN_TOPIC_ROWS) return [];
   const counts = new Map<string, number>();
   for (const keyword of keywords.values())
@@ -158,6 +161,31 @@ export function seoTopicWords(pages: unknown): string[] {
     .map(([word]) => word);
 }
 
+/** A competing product's rows with their topic marks; a host whose read failed or that Core cannot keep gives none. */
+function rivalRows(
+  raw: unknown,
+  topic: string[],
+  webAddress: (value: string) => string | null,
+) {
+  const host = rivalHost.safeParse(raw);
+  if (!host.success || !host.data.rows?.length) return [];
+  const kept = seoRivalHostSchema.safeParse({
+    host: host.data.host,
+    total: host.data.total,
+    topicWords: topic,
+    // The SEO bot sends the rows with most searches first; past the cap Core keeps those.
+    rows: host.data.rows.slice(0, SEO_RIVAL_ROWS_MAX).map(({ url, ...row }) => {
+      const own = words(row.keyword);
+      return {
+        ...row,
+        url: url === null ? null : webAddress(url),
+        topic: topic.some((word) => own.has(word)),
+      };
+    }),
+  });
+  return kept.success ? [kept.data] : [];
+}
+
 /**
  * The keyword reach sections of a site report that Core keeps with the strategy. A section without rows, and a host
  * whose read failed, give nothing. `webAddress` checks a competing page's link as the strategy targets are checked.
@@ -168,8 +196,16 @@ export function publicSeoKeywordReach(
 ): SeoKeywordReach {
   const reach = featureReach.safeParse(raw.featureReach);
   const ideas = articleIdeas.safeParse(raw.articleIdeas);
-  const rivals = rivalKeywords.safeParse(raw.rivalKeywords);
-  const topic = rivals.success ? seoTopicWords(raw.pages) : [];
+  const hosts = Array.isArray(raw.rivalKeywords) ? raw.rivalKeywords : [];
+  // Topic words come most rows first, so the cut keeps the strongest. A word longer than a stored label is not kept.
+  const topic = hosts.length
+    ? seoTopicWords(raw.pages)
+        .filter((word) => word.length <= SEO_STRATEGY_LABEL_MAX_LENGTH)
+        .slice(0, SEO_TOPIC_WORDS_MAX)
+    : [];
+  const rivalKeywords = hosts
+    .flatMap((host) => rivalRows(host, topic, webAddress))
+    .slice(0, SEO_RIVAL_HOSTS_MAX);
   // Each section is checked against its caps alone: one that does not fit drops that section only.
   const kept = {
     featureReach: seoFeatureReachSchema.safeParse(
@@ -177,29 +213,6 @@ export function publicSeoKeywordReach(
     ),
     articleIdeas: seoArticleIdeasSchema.safeParse(
       ideas.success && ideas.data.ideas.length ? ideas.data.ideas : undefined,
-    ),
-    rivalKeywords: seoRivalKeywordsSchema.safeParse(
-      rivals.success
-        ? rivals.data.flatMap(({ host, total, rows }) =>
-            rows?.length
-              ? [
-                  {
-                    host,
-                    total,
-                    topicWords: topic,
-                    rows: rows.map(({ url, ...row }) => {
-                      const own = words(row.keyword);
-                      return {
-                        ...row,
-                        url: url === null ? null : webAddress(url),
-                        topic: topic.some((word) => own.has(word)),
-                      };
-                    }),
-                  },
-                ]
-              : [],
-          )
-        : undefined,
     ),
   };
   return {
@@ -209,8 +222,6 @@ export function publicSeoKeywordReach(
     ...(kept.articleIdeas.success && kept.articleIdeas.data
       ? { articleIdeas: kept.articleIdeas.data }
       : {}),
-    ...(kept.rivalKeywords.success && kept.rivalKeywords.data?.length
-      ? { rivalKeywords: kept.rivalKeywords.data }
-      : {}),
+    ...(rivalKeywords.length ? { rivalKeywords } : {}),
   };
 }

@@ -146,7 +146,7 @@ describe("keyword reach sections of a site report", () => {
     ]);
   });
 
-  it("drops a section it cannot read or that passes its caps, never the strategy or another section", () => {
+  it("drops a section it cannot read or that exceeds its caps, never the strategy or another section", () => {
     const strategy = imported({
       featureReach: { rows: [{ ...reachRow, volume: "50" }] },
       articleIdeas: { ideas: Array.from({ length: 11 }, () => idea) },
@@ -160,6 +160,43 @@ describe("keyword reach sections of a site report", () => {
       topicWords: [],
       rows: [{ keyword: "clipboard manager", topic: false }],
     });
+    // A host Core cannot read is dropped alone; rows past the cap are cut, the first ones kept.
+    const hosts = imported({
+      rivalKeywords: [
+        { ...rival("fiplab.com", ["clipboard manager"]), host: "" },
+        rival(
+          "coco.test",
+          Array.from({ length: 101 }, (_, i) => `keyword ${i}`),
+        ),
+        rival("ok.test", ["battery app"]),
+      ],
+    })?.rivalKeywords;
+    expect(hosts?.map((host) => [host.host, host.rows.length])).toEqual([
+      ["coco.test", 100],
+      ["ok.test", 1],
+    ]);
+    expect(hosts?.[0]?.rows.at(-1)?.keyword).toBe("keyword 99");
+    // More topic words than Core keeps, and one longer than a label, cut the words, not the host.
+    const many = [
+      "x".repeat(101),
+      ...Array.from({ length: 51 }, (_, i) => `w${i}`),
+    ].join(" ");
+    const wide = imported({
+      pages: siteStrategyReport().pages.map((page) => ({
+        ...page,
+        header: {
+          ...page.header,
+          focusKeywords: Array.from({ length: 5 }, (_, i) => ({
+            ...page.header.focusKeywords[0],
+            keyword: `${many} r${i}`,
+            volume: 10,
+          })),
+        },
+      })),
+      rivalKeywords: [rival("ok.test", ["w0 app"])],
+    })?.rivalKeywords?.[0];
+    expect(wide?.topicWords).toHaveLength(50);
+    expect(wide?.rows[0]?.topic).toBe(true);
     // Empty sections and a Report from before them give nothing.
     const empty = imported({
       featureReach: { rows: [], note: "no Market" },
@@ -219,5 +256,28 @@ describe("keyword reach sections of a site report", () => {
       ),
     ).toEqual([]);
     expect(seoTopicWords("not pages")).toEqual([]);
+    // One keyword in two Unicode forms counts once (4 rows, too few); a row Core cannot read does not count.
+    expect(
+      seoTopicWords(
+        pages([
+          "caf\u00e9 app",
+          "cafe\u0301 app",
+          "caf\u00e9 x",
+          "tea y",
+          "tea z",
+        ]),
+      ),
+    ).toEqual([]);
+    const [page] = pages(SITE_KEYWORDS);
+    expect(
+      seoTopicWords([
+        {
+          ...page,
+          header: {
+            focusKeywords: [...page.header.focusKeywords, { keyword: 5 }],
+          },
+        },
+      ]),
+    ).toEqual(["macbook", "battery"]);
   });
 });
