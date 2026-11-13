@@ -47,7 +47,7 @@ class RecordingResizeObserver implements ResizeObserver {
   observe(target: Element) {
     resizeObservations.push({
       target,
-      callback: () => this.callback([], this),
+      callback: () => this.callback([{ target } as ResizeObserverEntry], this),
     });
   }
   unobserve() {}
@@ -204,7 +204,10 @@ beforeAll(() => {
         const list = this.querySelector<HTMLElement>(
           `[${CHAT_MESSAGE_LIST_ATTRIBUTE}] > div`,
         );
-        return Number.parseFloat(list?.style.height ?? "0") || 0;
+        return (
+          (Number.parseFloat(list?.style.height ?? "0") || 0) +
+          (Number.parseFloat(this.style.scrollPaddingBottom) || 0)
+        );
       },
     },
   });
@@ -247,16 +250,22 @@ function Harness({
   list = CHAT_MESSAGE_LIST_ROOM,
   initialPosition,
   onPositionChange,
+  bottomInset = 0,
 }: {
   rows: readonly RoomTranscriptRenderRow[];
   handle: React.Ref<TranscriptViewportHandle>;
   list?: string;
   initialPosition?: TranscriptPosition;
   onPositionChange?: (position: TranscriptPosition) => void;
+  bottomInset?: number;
 }) {
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   return (
-    <div ref={setScroller} data-testid="scroller" style={{ overflowY: "auto" }}>
+    <div
+      ref={setScroller}
+      data-testid="scroller"
+      style={{ overflowY: "auto", scrollPaddingBottom: bottomInset }}
+    >
       <div {...{ [CHAT_MESSAGE_LIST_ATTRIBUTE]: list }}>
         <TranscriptViewport
           ref={handle}
@@ -350,6 +359,7 @@ afterEach(() => {
   document.body.innerHTML = "";
   resizeObservations.length = 0;
   viewportHeight = VIEWPORT_HEIGHT;
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
@@ -499,6 +509,50 @@ describe("TranscriptViewport", () => {
     expect(handle.current?.scrollToMessage("msg-999")).toBe(false);
   });
 
+  it("centers a quoted message above the overlay once its virtual row mounts", async () => {
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, "scrollIntoView");
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container } = render(
+      <Harness rows={rows(500)} handle={handle} bottomInset={180} />,
+    );
+    await settle(container);
+    expect(mountedIds(container)).not.toContain("msg-025");
+
+    act(() => {
+      expect(handle.current?.scrollToMessage("msg-025")).toBe(true);
+    });
+    await settle(container);
+
+    const target = container.querySelector('[data-message-id="msg-025"]');
+    expect(target).toBeTruthy();
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: "center",
+      behavior: "smooth",
+    });
+    expect(scrollIntoView.mock.instances.at(-1)).toBe(target);
+  });
+
+  it("keeps thread quote jumps on the virtualizer when there is no overlay", async () => {
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, "scrollIntoView");
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container } = render(
+      <Harness
+        rows={rows(500)}
+        handle={handle}
+        list={CHAT_MESSAGE_LIST_THREAD}
+      />,
+    );
+    await settle(container);
+
+    act(() => {
+      expect(handle.current?.scrollToMessage("msg-025")).toBe(true);
+    });
+    await settle(container);
+
+    expect(mountedIds(container)).toContain("msg-025");
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+
   it("marks the thread copy, not the room's, when the list is thread", async () => {
     const handle = createRef<TranscriptViewportHandle>();
     const room = document.createElement("div");
@@ -554,6 +608,11 @@ describe("TranscriptViewport", () => {
     if (!control) {
       throw new Error("expected the jump control");
     }
+    expect(control.parentElement).toHaveClass(
+      "bottom-[calc(var(--room-composer-h,0px)+var(--spacing)*3)]",
+      "pointer-events-none",
+    );
+    expect(control).toHaveClass("pointer-events-auto");
 
     fireEvent.click(control);
     await settle(container);
@@ -620,6 +679,87 @@ describe("TranscriptViewport", () => {
     const ids = mountedIds(container);
     expect(ids).toContain("msg-067");
     expect(ids).not.toContain("msg-000");
+  });
+
+  it.each([
+    { distance: 0, held: false, follows: true },
+    { distance: 100, held: false, follows: true },
+    { distance: 250, held: false, follows: false },
+    { distance: 0, held: true, follows: true },
+    { distance: 50, held: true, follows: false },
+  ])(
+    "follows streaming growth from $distance px with held=$held: $follows",
+    async ({ distance, held, follows }) => {
+      const handle = createRef<TranscriptViewportHandle>();
+      const { container } = render(
+        <Harness rows={rows(100)} handle={handle} bottomInset={180} />,
+      );
+      await settle(container);
+      const scroller = scrollerOf(container);
+      act(() => {
+        if (held) handle.current?.suppressStickToBottom();
+        scrollToTopOffset(
+          scroller,
+          scroller.scrollHeight - viewportHeight - distance,
+        );
+      });
+      await settle(container);
+      const before = scroller.scrollTop;
+      const lastRow = container.querySelector<HTMLElement>(
+        '[data-message-id="msg-099"]',
+      )?.parentElement;
+      if (!lastRow) throw new Error("expected the streaming row");
+      Object.defineProperty(lastRow, "offsetHeight", {
+        configurable: true,
+        value: ROW_HEIGHT + 40,
+      });
+      act(() => {
+        for (const { target, callback } of resizeObservations) {
+          if (target === lastRow) callback();
+        }
+      });
+      await settle(container);
+
+      expect(scroller.scrollTop).toBe(before + (follows ? 40 : 0));
+      expect(distanceFromEnd(scroller)).toBe(distance + (follows ? 0 : 40));
+    },
+  );
+
+  it("updates growth following when overlay padding grows without a scroller resize", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container, rerender } = render(
+      <Harness rows={rows(100)} handle={handle} bottomInset={180} />,
+    );
+    await settle(container);
+    const scroller = scrollerOf(container);
+    act(() => {
+      scrollToTopOffset(scroller, scroller.scrollHeight - viewportHeight - 100);
+    });
+    await settle(container);
+    rerender(<Harness rows={rows(100)} handle={handle} bottomInset={400} />);
+    act(() => {
+      for (const { target, callback } of resizeObservations) {
+        if (target === scroller.firstElementChild) callback();
+      }
+    });
+    const before = scroller.scrollTop;
+    const lastRow = container.querySelector<HTMLElement>(
+      '[data-message-id="msg-099"]',
+    )?.parentElement;
+    if (!lastRow) throw new Error("expected the streaming row");
+    Object.defineProperty(lastRow, "offsetHeight", {
+      configurable: true,
+      value: ROW_HEIGHT + 40,
+    });
+    act(() => {
+      for (const { target, callback } of resizeObservations) {
+        if (target === lastRow) callback();
+      }
+    });
+    await settle(container);
+
+    expect(scroller.scrollTop).toBe(before);
+    expect(distanceFromEnd(scroller)).toBe(360);
   });
 
   it("keeps the live edge in view when the scroller shrinks under a growing composer", async () => {
@@ -863,6 +1003,57 @@ describe("TranscriptViewport", () => {
     expect(anchor?.getBoundingClientRect().top).toBe(-17);
     expect(onPositionChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ anchorId: "msg-050", offset: 17 }),
+    );
+  });
+
+  it("places the unread anchor within the viewport above the composer", async () => {
+    const { container } = render(
+      <Harness
+        rows={rows(100)}
+        handle={createRef<TranscriptViewportHandle>()}
+        bottomInset={180}
+        initialPosition={{
+          anchorId: "msg-050",
+          anchorCreatedAt: message(50).createdAt.getTime(),
+          offset: 0,
+          viewportShare: 1 / 3,
+          atLiveEdge: false,
+          visibleMessageIds: [],
+        }}
+      />,
+    );
+    await settle(container);
+
+    const anchor = container.querySelector('[data-message-id="msg-050"]');
+    expect(anchor?.getBoundingClientRect().top).toBe(140);
+  });
+
+  it("excludes messages underneath the composer from the saved visible rows", async () => {
+    const onPositionChange = vi.fn();
+    const { container } = render(
+      <Harness
+        rows={rows(100)}
+        handle={createRef<TranscriptViewportHandle>()}
+        bottomInset={200}
+        initialPosition={{
+          anchorId: "msg-050",
+          anchorCreatedAt: message(50).createdAt.getTime(),
+          offset: 0,
+          atLiveEdge: false,
+          visibleMessageIds: [],
+        }}
+        onPositionChange={onPositionChange}
+      />,
+    );
+    await settle(container);
+
+    expect(onPositionChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        visibleMessageIds: Array.from(
+          { length: 10 },
+          (_, index) => message(50 + index).id,
+        ),
+      }),
     );
   });
 

@@ -119,7 +119,7 @@ const socialPostMediaRequestSchema = z
   .max(SOCIAL_POST_MEDIA_MAX)
   .openapi({
     description:
-      "Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.",
+      "Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.",
   });
 
 const socialPostThreadPartRequestSchema = z.object({

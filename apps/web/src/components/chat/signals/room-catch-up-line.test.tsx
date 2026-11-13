@@ -74,7 +74,11 @@ describe("RoomCatchUpLine", () => {
 
   it("writes the summary of what was unread when the room opened, not after it was read", async () => {
     renderLine();
-    await screen.findByTestId("room-catch-up-line");
+    expect(await screen.findByTestId("room-catch-up-line")).toHaveClass(
+      "pointer-events-auto",
+      "rounded-lg",
+      "bg-background",
+    );
 
     core.roomRead = true;
     fireEvent.click(screen.getByTestId("room-summary-trigger"));

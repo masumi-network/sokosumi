@@ -74,7 +74,8 @@ Project social accounts are available for X, YouTube, LinkedIn, Instagram, and
 Facebook. TikTok remains Coming soon. Connect accounts from the Project’s **Social**
 page. The same connection supports reconnection, replacement, and disconnection. Publishing
 and scheduling work on every connected provider: the composer and the API
-apply the chosen account's rules (text limits, up to four images or one video,
+apply the chosen account's rules (text limits, per-provider image limits including
+up to 20 images on X, or one GIF or one video where supported,
 Instagram needs media, YouTube needs a video, LinkedIn and YouTube
 need text). Each provider's auth config must carry its publishing scope before
 posts can go out; publishing fails with a clear permission error until then.
