@@ -31,14 +31,11 @@ export function lastRunStatus(
   return taskStatus === "COMPLETED" ? "completed" : "running";
 }
 
-/** Result rows read per Task to find its newest result. A Task imports few files. */
-const SEO_MONITOR_RESULT_ROWS_PER_TASK = 5;
-
 /**
  * Per group of Tasks (newest created first): the newest readable result of each of the two newest Tasks with a
  * result, newest Task first. A late result keeps its Run's place, and one Task with two imported files counts once,
  * so the workspace and the notification compare the same pair of Runs. All groups share one id read and one payload
- * read; the owner filter keeps them on the owner's observation index.
+ * read. The id read has no row limit: a shared limit would let one Task's many files push out other Tasks' results.
  */
 async function newestResultsOfTaskGroups(
   owner: Pick<SeoActor, "owner">,
@@ -54,7 +51,6 @@ async function newestResultsOfTaskGroups(
       kind: { notIn: NON_RESULT_KINDS },
     },
     orderBy: [{ observedAt: "desc" }, { id: "desc" }],
-    take: taskIds.length * SEO_MONITOR_RESULT_ROWS_PER_TASK,
     select: { id: true, sourceTaskId: true },
   });
   const newestOfTask = new Map<string, string>();

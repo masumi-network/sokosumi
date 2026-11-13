@@ -39,6 +39,7 @@ import {
   notifySeoMonitorWorse,
   SEO_MONITOR_WORSE_MESSAGE_KEY,
 } from "./project-seo-monitor-notify";
+import { newestSeoMonitorResults } from "./project-seo-monitor-runs";
 import {
   createProjectSeoActionTask,
   requestProjectSeoAnalysis,
@@ -657,7 +658,7 @@ describe.skipIf(!enabled)(
           idempotencyKey: "monitor-ux-analysis",
         }),
       });
-      // A sibling monitor of the same owner, with one Run and no result, for the batched read below.
+      // A sibling monitor of the same owner, with one Run, for the batched read below.
       const sibling = await createProjectSeoMonitor(vars, actor, {
         operationId: randomUUID(),
         rule: {
@@ -676,7 +677,7 @@ describe.skipIf(!enabled)(
           idempotencyKey: "monitor-ux-sibling",
         }),
       });
-      await runTaskScheduleNow(vars, sibling.id, {
+      const siblingRun = await runTaskScheduleNow(vars, sibling.id, {
         expectedRevision: sibling.revision,
       });
       // Another member of the workspace may read the monitor but not add Runs billed to its owner.
@@ -860,6 +861,13 @@ describe.skipIf(!enabled)(
       // A late result of the oldest Run keeps that Run's place: the pair stays the two newest Runs.
       await result(scheduled!.id, "2026-11-04T09:00:00.000Z", "pass");
 
+      // The sibling's one failed result must not pair with this monitor's passed results.
+      await result(
+        siblingRun.run.releasedTaskId!,
+        "2026-11-05T09:00:00.000Z",
+        "fired",
+      );
+
       const workspace = await getProjectSeoWorkspace(actor, {
         pageId: page.id,
       });
@@ -871,6 +879,7 @@ describe.skipIf(!enabled)(
         lastRun: { taskId: ranAgain.run.releasedTaskId },
         change: { comparable: true, newFailureCount: 1, fixedCount: 0 },
       });
+      // Each stored result is one history entry: three Runs, two of them with two files.
       expect(
         workspace.runs?.filter((run) => run.monitorId === monitor.id),
       ).toHaveLength(5);
@@ -890,7 +899,18 @@ describe.skipIf(!enabled)(
               })
             ).scheduleId,
           ).toBe(other.id);
-      } // Each stored result is one history entry: three Runs, two of them with two files.
+      }
+      // A Run with many files keeps the Run before it in the pair: the result read has no shared row limit.
+      for (let minute = 10; minute < 20; minute++)
+        await result(againTaskId, `2026-11-03T10:${minute}:00.000Z`, "fired");
+      const pair = await newestSeoMonitorResults(actor, [
+        againTaskId,
+        ranNow.run.releasedTaskId!,
+      ]);
+      expect(pair.map((item) => item.observedAt.toISOString())).toEqual([
+        "2026-11-03T10:19:00.000Z",
+        "2026-11-02T09:00:00.000Z",
+      ]);
     });
 
     it("uses configured protocol authority instead of imported-file provenance or the source Task assignee", async () => {
