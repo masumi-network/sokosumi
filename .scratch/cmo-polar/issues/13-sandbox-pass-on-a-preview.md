@@ -8,15 +8,15 @@ Spec: `.scratch/cmo-polar/spec.md` (SOKD-204), "Testing Decisions".
 
 **Status:** ready-for-human
 
-- [ ] A new hire runs free, reaches the checkout, pays a monthly plan, and Cuso works with the month's credits.
-- [ ] A second hire by the same person without paying the first is refused.
+- [x] A new hire runs free, reaches the checkout, pays a monthly plan, and Cuso works with the month's credits.
+- [x] A second hire by the same person without paying the first is refused.
 - [ ] A yearly plan grants one month at purchase.
-- [ ] An upgrade charges the prorated difference and grants the prorated credits; a downgrade shows as pending.
+- [x] An upgrade charges the prorated difference and grants the prorated credits; a downgrade shows as pending.
 - [ ] "Keep my plan" on a pending downgrade clears it at Polar, and the next renewal keeps the current tier and its credits.
-- [ ] A cancel in the portal shows the end date and can be undone.
+- [x] A cancel in the portal shows the end date and can be undone.
 - [ ] A failed renewal pauses Cuso; a successful retry resumes him and grants the month.
 - [ ] A top-up lands on the Cuso's Project with a 12-month expiry.
-- [ ] A refund in Polar's dashboard writes off the rest of that order's credits.
-- [ ] Start over on a subscribed Cuso ends the subscription at Polar.
+- [x] A refund in Polar's dashboard writes off the rest of that order's credits.
+- [x] Start over on a subscribed Cuso ends the subscription at Polar.
 - [ ] An existing Cuso with Starter credits works without a subscription.
 - [ ] The PR's Evidence holds a screenshot or log line per scenario.
