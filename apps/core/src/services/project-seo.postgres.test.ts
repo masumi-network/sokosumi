@@ -1228,6 +1228,16 @@ describe.skipIf(!enabled)(
         pageId: page.id,
       });
       expect(workspace.brandTerms).toEqual(["Acme", "ACME Shop"]);
+      const settings = () =>
+        prisma.projectSeoObservation.findMany({
+          where: { projectId, kind: "settings" },
+          select: { id: true },
+        });
+      // Only the newest list is kept, and saving it again writes nothing.
+      const [kept] = await settings();
+      expect(await settings()).toHaveLength(1);
+      await saveProjectSeoBrandTerms(actor, { terms: ["Acme", "ACME Shop"] });
+      expect(await settings()).toEqual([kept]);
       // A settings row covers no page: it is never read as audit evidence.
       expect(
         workspace.observations.some((row) => row.kind === "settings"),

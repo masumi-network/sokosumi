@@ -30,7 +30,16 @@ export function uniqueSeoBrandTerms(terms: string[]): string[] {
   });
 }
 
-/** Saves the whole brand term list as a new settings row. The newest row is the current list. */
+function seoSettingsWhere(actor: SeoActor) {
+  return { ...seoOwnerWhere(actor), kind: SEO_SETTINGS_KIND, ownerId: null };
+}
+const NEWEST_FIRST = [{ createdAt: "desc" as const }, { id: "desc" as const }];
+
+/**
+ * Saves the whole brand term list. The same list as the current one writes nothing.
+ * A new list replaces the old rows: nothing reads settings history, so only the
+ * newest row is kept.
+ */
 export async function saveProjectSeoBrandTerms(
   actor: SeoActor,
   raw: unknown,
@@ -43,23 +52,33 @@ export async function saveProjectSeoBrandTerms(
     brandTerms: uniqueSeoBrandTerms(input.terms),
     recordedBy: actor.userId,
   });
+  // The terms alone decide the hash: the same list saved by someone else is no change.
+  const artifactHash = sha256(JSON.stringify(payload.brandTerms));
   return serializableTransaction(async (tx) => {
     await requireLockedSeoOwner(tx, actor);
     await hooks.authorize?.(tx);
+    const newest = await tx.projectSeoObservation.findFirst({
+      where: seoSettingsWhere(actor),
+      orderBy: NEWEST_FIRST,
+    });
+    if (newest?.artifactHash === artifactHash)
+      return commitSeoMutation(tx, newest, hooks);
     const data: Prisma.InputJsonObject = payload;
-    const now = new Date();
     const result = await tx.projectSeoObservation.create({
       data: {
         ...seoOwnerData(actor),
         kind: SEO_SETTINGS_KIND,
         source: "user",
-        // Saving A, then B, then A again must make A current, so every save is a new row.
+        // Saving A, then B, then A again must make A current, so every change is a new row.
         sourceKey: `settings:${randomUUID()}`,
         pageIds: [],
-        artifactHash: sha256(JSON.stringify(payload)),
+        artifactHash,
         payload: data,
-        observedAt: now,
+        observedAt: new Date(),
       },
+    });
+    await tx.projectSeoObservation.deleteMany({
+      where: { ...seoSettingsWhere(actor), id: { not: result.id } },
     });
     return commitSeoMutation(tx, result, hooks);
   }, "The brand terms changed. Please retry.");
@@ -70,8 +89,8 @@ export async function loadSeoBrandTerms(
   actor: SeoActor,
 ): Promise<string[] | undefined> {
   const row = await prisma.projectSeoObservation.findFirst({
-    where: { ...seoOwnerWhere(actor), kind: SEO_SETTINGS_KIND, ownerId: null },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    where: seoSettingsWhere(actor),
+    orderBy: NEWEST_FIRST,
   });
   if (!row) return undefined;
   const parsed = seoSettingsPayloadSchema.safeParse(row.payload);
