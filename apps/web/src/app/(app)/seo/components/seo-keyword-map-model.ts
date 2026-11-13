@@ -2,6 +2,8 @@ import type { SeoKeywordGroup } from "./seo-keyword-rows-model";
 
 /** Below this many keywords with both numbers, a map shows no pattern: the list says it all. */
 const MIN_POINTS = 2;
+/** The lines between two decades of searches on a zoomed map. */
+const SEO_MAP_MINOR_STEPS = [2, 5];
 /** Dot radius in px: one size for every keyword. The map asks one question, searches against difficulty. */
 export const SEO_MAP_RADIUS = 5;
 
@@ -61,6 +63,16 @@ export function seoKeywordMap(groups: {
       value: 10 ** (low + index),
       y: 100 - (index / (high - low)) * 100,
     })),
+    // 2 and 5 times each decade: lines for a zoomed map, where a decade fills more than the frame.
+    minorTicks: Array.from({ length: high - low }, (_, index) =>
+      SEO_MAP_MINOR_STEPS.map((step) => {
+        const value = step * 10 ** (low + index);
+        return {
+          value,
+          y: 100 - ((Math.log10(value) - low) / (high - low)) * 100,
+        };
+      }),
+    ).flat(),
   };
 }
 

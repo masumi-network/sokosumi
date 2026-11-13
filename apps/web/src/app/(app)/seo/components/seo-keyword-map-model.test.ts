@@ -107,6 +107,11 @@ describe("SEO keyword map", () => {
       ]),
     );
     expect(map?.ticks.map((tick) => tick.value)).toEqual([100, 1000, 10_000]);
+    // Between the decades, 2 and 5 times: the lines of a zoomed map, at their log place.
+    expect(map?.minorTicks.map((tick) => tick.value)).toEqual([
+      200, 500, 2000, 5000,
+    ]);
+    expect(map?.minorTicks[0]?.y).toBeCloseTo(100 - (Math.log10(2) / 2) * 100);
     expect(
       map?.points.map((point) => [
         point.group.lead.keyword,

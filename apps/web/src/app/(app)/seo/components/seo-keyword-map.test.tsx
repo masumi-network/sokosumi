@@ -99,6 +99,29 @@ describe("SEO keyword map", () => {
     ]);
   });
 
+  it("zooms in with the button or the + key, and the reset shows the whole map again", async () => {
+    const user = userEvent.setup();
+    renderMap([
+      row({ keyword: "a", volume: 100, difficulty: 10 }),
+      row({ keyword: "b", volume: 1000, difficulty: 20 }),
+    ]);
+    const zoomOut = screen.getByRole("button", { name: "Zoom out" });
+    // The whole map is the widest view: no way further out, and no reset.
+    expect(zoomOut).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Show the whole map" }),
+    ).toBeNull();
+    screen.getByRole("group", { name: "Keyword opportunities" }).focus();
+    await user.keyboard("+");
+    expect(zoomOut).toBeEnabled();
+    await user.click(
+      screen.getByRole("button", { name: "Show the whole map" }),
+    );
+    expect(zoomOut).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Zoom in" }));
+    expect(zoomOut).toBeEnabled();
+  });
+
   it("is not there without difficulty, as for a check from before it", () => {
     const { container } = renderMap([
       row({ volume: 1000 }),

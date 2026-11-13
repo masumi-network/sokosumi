@@ -84,13 +84,8 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
           />
         </div>
       </div>
-      {/* The site against its confirmed competitors over the tracked keywords: no use on the list of ideas. */}
-      {section === "ideas" ? null : (
-        <SeoShareOfVoice shareOfVoice={model.data.shareOfVoice} />
-      )}
-      <SeoKeywords model={model} section={section} />
-      {/* After the list, the map of the list in view: which keywords are worth the work. Each row says its
-          difficulty in a word, so the list leads. The competitors list has no use for the map. */}
+      {/* Over the list, the map of the list in view: which keywords are worth the work, at one look (owner,
+          after pass 59). The competitors list has no use for the map. */}
       {section === "competitors" ? null : (
         <SeoKeywordMap
           groups={
@@ -100,6 +95,11 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
           }
         />
       )}
+      {/* The site against its confirmed competitors over the tracked keywords: no use on the list of ideas. */}
+      {section === "ideas" ? null : (
+        <SeoShareOfVoice shareOfVoice={model.data.shareOfVoice} />
+      )}
+      <SeoKeywords model={model} section={section} />
       <div className={seoSectionClass(section === "competitors")}>
         <SeoCompetitors model={model} />
       </div>

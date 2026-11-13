@@ -1,5 +1,6 @@
 "use client";
 
+import { Maximize2, Minus, Plus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import {
   type CSSProperties,
@@ -8,6 +9,7 @@ import {
   useId,
   useState,
 } from "react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   SEO_MAP_RADIUS,
@@ -15,18 +17,39 @@ import {
   seoKeywordMap,
   seoNearestPoint,
 } from "./seo-keyword-map-model";
-import type { SeoKeywordGroup } from "./seo-keyword-rows-model";
+import { SEO_MAP_MAX_ZOOM, useSeoMapZoom } from "./seo-keyword-map-zoom";
+import {
+  SEO_DIFFICULTY_HARD_FROM,
+  SEO_DIFFICULTY_MEDIUM_FROM,
+  type SeoKeywordGroup,
+} from "./seo-keyword-rows-model";
 import { SeoFoldSummary } from "./seo-shared";
 
 /** How far from a dot, in px, the pointer still picks it. */
 const POINTER_REACH = 16;
 /** From this dot on, the dots come in together: a map of many keywords does not keep the reader waiting. */
 const DOT_STAGGER_MAX = 12;
+/** Room in px between the frame and the outer dots, so no dot is cut at an edge. */
+const PAD = 12;
+/** From this zoom on, the lines at 2 and 5 times a decade show: a decade then fills most of the frame. */
+const MINOR_FROM = 2;
+/** The plot height: one class for the axis column and the frame, so the labels stand on their lines. */
+const PLOT_HEIGHT = "h-64 sm:h-80";
+/** The three bands of the Difficulty column, with the place of their word on the axis. */
+const BANDS = [
+  { band: "easy", middle: SEO_DIFFICULTY_MEDIUM_FROM / 2 },
+  {
+    band: "medium",
+    middle: (SEO_DIFFICULTY_MEDIUM_FROM + SEO_DIFFICULTY_HARD_FROM) / 2,
+  },
+  { band: "hard", middle: (SEO_DIFFICULTY_HARD_FROM + 100) / 2 },
+] as const;
 
 /**
  * Searches a month against keyword difficulty: a keyword high and to the left is worth the most work.
  * The pointer or the arrow keys pick a keyword and a card gives its numbers; the table under it gives
- * every number without a pointer.
+ * every number without a pointer. The map pans and zooms (drag, pinch, the buttons, or + and - keys), so a
+ * cluster of easy keywords pulls apart.
  */
 export function SeoKeywordMap({
   groups,
@@ -37,13 +60,29 @@ export function SeoKeywordMap({
   const format = useFormatter();
   const hintId = useId();
   const subtitleId = useId();
+  const { frame, size, transform, zoomBy } = useSeoMapZoom();
   // By keyword, so a refetch that reorders the dots keeps the card on its keyword.
   const [activeId, setActiveId] = useState<string | null>(null);
   // The keyboard keeps its keyword when the mouse leaves the map.
   const [keyed, setKeyed] = useState(false);
   const map = seoKeywordMap(groups);
   if (!map) return null;
-  const { points, ticks } = map;
+  const { points, ticks, minorTicks } = map;
+  const { k, x: panX, y: panY } = transform;
+  const measured = size.width > 0 && size.height > 0;
+  // Map units, 0 to 100, to px of the zoomed frame.
+  const toX = (value: number) =>
+    (PAD + (value / 100) * (size.width - 2 * PAD)) * k + panX;
+  const toY = (value: number) =>
+    (PAD + (value / 100) * (size.height - 2 * PAD)) * k + panY;
+  const inX = (px: number) => px >= 0 && px <= size.width;
+  const inY = (px: number) => px >= 0 && px <= size.height;
+  const lines = [
+    ...ticks.map((tick) => ({ ...tick, minor: false })),
+    ...(k >= MINOR_FROM
+      ? minorTicks.map((tick) => ({ ...tick, minor: true }))
+      : []),
+  ].filter((tick) => !measured || inY(toY(tick.y)));
   const found = points.findIndex((point) => point.group.lead.id === activeId);
   const active = found < 0 ? null : found;
   const setActive = (index: number | null) =>
@@ -56,7 +95,7 @@ export function SeoKeywordMap({
       : point.checked && point.group.reads.length
         ? t("notFound")
         : null;
-  const lines = (point: SeoKeywordPoint) => [
+  const details = (point: SeoKeywordPoint) => [
     // Said in words too: the ring of an idea is not the only sign.
     ...(point.checked ? [] : [t("map.idea")]),
     `${format.number(point.volume)} ${t("volumeUnit", { count: point.volume })}`,
@@ -74,20 +113,31 @@ export function SeoKeywordMap({
     setKeyed(false);
     const box = event.currentTarget.getBoundingClientRect();
     if (!box.width || !box.height) return;
+    const inner = { width: box.width - 2 * PAD, height: box.height - 2 * PAD };
+    // The pointer back in map units: the zoom undone, then the padding.
     setActive(
       seoNearestPoint(
         points,
         {
-          x: ((event.clientX - box.left) / box.width) * 100,
-          y: ((event.clientY - box.top) / box.height) * 100,
+          x:
+            (((event.clientX - box.left - panX) / k - PAD) / inner.width) * 100,
+          y:
+            (((event.clientY - box.top - panY) / k - PAD) / inner.height) * 100,
         },
-        box,
+        { width: inner.width * k, height: inner.height * k },
         POINTER_REACH,
       ),
     );
   }
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Escape") return setActive(null);
+    // Ctrl or Cmd with + or - is the zoom of the page: keep it for readers who need it.
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    const factor = { "+": 2, "=": 2, "-": 0.5, "0": null }[event.key];
+    if (factor !== undefined) {
+      event.preventDefault();
+      return zoomBy(factor);
+    }
     const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
     if (step === undefined) return;
     event.preventDefault();
@@ -99,28 +149,57 @@ export function SeoKeywordMap({
       ),
     );
   }
+  const zoomButton = "size-10 md:size-8";
   return (
-    <figure className="min-w-0 space-y-3">
-      <figcaption className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+    <figure className="bg-card-background min-w-0 space-y-4 rounded-xl p-4 sm:p-5">
+      <figcaption className="flex items-start justify-between gap-4">
         {/* One line says how to read the map: no note under it, no label inside it. */}
-        <span className="min-w-0">
-          <span className="block text-sm font-medium">{t("map.title")}</span>
-          <span id={subtitleId} className="text-muted-foreground block text-xs">
+        <span className="min-w-0 space-y-1">
+          <span className="block font-semibold">{t("map.title")}</span>
+          <span id={subtitleId} className="text-muted-foreground block text-sm">
             {t("map.subtitle")}
           </span>
         </span>
-        {/* Identity by fill, not by color alone: filled for a keyword of yours, a ring for an idea. A map of
-            one kind needs no legend. */}
-        <span
-          aria-hidden
-          className={cn(
-            "text-muted-foreground flex gap-4 text-xs",
-            !(
-              points.some((point) => point.checked) &&
-              points.some((point) => !point.checked)
-            ) && "hidden",
-          )}
-        >
+        {/* The zoom stands beside the title, not over the dots. */}
+        <span className="flex shrink-0 gap-1">
+          {k > 1 ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={zoomButton}
+              aria-label={t("map.zoomReset")}
+              onClick={() => zoomBy(null)}
+            >
+              <Maximize2 />
+            </Button>
+          ) : null}
+          <Button
+            variant="outline"
+            size="icon"
+            className={zoomButton}
+            aria-label={t("map.zoomOut")}
+            disabled={k <= 1}
+            onClick={() => zoomBy(0.5)}
+          >
+            <Minus />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className={zoomButton}
+            aria-label={t("map.zoomIn")}
+            disabled={k >= SEO_MAP_MAX_ZOOM}
+            onClick={() => zoomBy(2)}
+          >
+            <Plus />
+          </Button>
+        </span>
+      </figcaption>
+      {/* Identity by fill, not by color alone: filled for a keyword of yours, a ring for an idea. A map of
+          one kind needs no legend. */}
+      {points.some((point) => point.checked) &&
+      points.some((point) => !point.checked) ? (
+        <p aria-hidden className="text-muted-foreground flex gap-4 text-xs">
           <span className="flex items-center gap-1.5">
             <span className="bg-chart-5 size-2.5 rounded-full" />
             {t("map.checked")}
@@ -129,8 +208,8 @@ export function SeoKeywordMap({
             <span className="border-chart-5 size-2.5 rounded-full border-2" />
             {t("ideas.short")}
           </span>
-        </span>
-      </figcaption>
+        </p>
+      ) : null}
       <div
         role="group"
         aria-label={t("map.title")}
@@ -145,27 +224,36 @@ export function SeoKeywordMap({
         </span>
         <p className="sr-only" role="status">
           {focus
-            ? `${focus.group.lead.keyword}: ${format.list(lines(focus))}`
+            ? `${focus.group.lead.keyword}: ${format.list(details(focus))}`
             : null}
         </p>
         <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2">
           <div
             aria-hidden
-            className="text-muted-foreground relative h-56 min-w-8 text-right text-xs tabular-nums"
+            className={cn(
+              "text-muted-foreground relative min-w-8 overflow-hidden text-right text-xs tabular-nums",
+              PLOT_HEIGHT,
+            )}
           >
-            {ticks.map((tick) => (
+            {lines.map((tick) => (
               <span
                 key={tick.value}
                 className="absolute right-0 -translate-y-1/2"
-                style={{ top: `${tick.y}%` }}
+                style={{
+                  top: measured ? toY(tick.y) : `${tick.y}%`,
+                }}
               >
                 {count(tick.value)}
               </span>
             ))}
           </div>
           <div
+            ref={frame}
             data-testid="seo-keyword-map"
-            className="relative h-56 touch-pan-y"
+            className={cn(
+              "relative cursor-grab overflow-hidden rounded-md active:cursor-grabbing",
+              PLOT_HEIGHT,
+            )}
             onPointerMove={pick}
             onPointerDown={pick}
             onPointerLeave={(event) => {
@@ -173,72 +261,97 @@ export function SeoKeywordMap({
               if (event.pointerType === "mouse" && !keyed) setActive(null);
             }}
           >
-            <svg
-              aria-hidden
-              className="absolute inset-0 size-full overflow-visible"
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-            >
-              {ticks.map((tick) => (
-                <line
-                  key={tick.value}
-                  className="stroke-border"
-                  vectorEffect="non-scaling-stroke"
-                  x1={0}
-                  x2={100}
-                  y1={tick.y}
-                  y2={tick.y}
-                />
-              ))}
-            </svg>
-            {points.map((point, index) => (
-              <span
-                key={point.group.lead.id}
+            {measured ? (
+              <svg
                 aria-hidden
-                data-testid="seo-keyword-dot"
-                className={cn(
-                  "ring-background pop-in stagger-delay pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition-colors duration-150 motion-reduce:transition-none",
-                  // The picked dot sits over a neighbour it touches.
-                  index === active && "z-[1]",
-                  point.checked
-                    ? index === active
-                      ? "bg-foreground"
-                      : "bg-chart-5"
-                    : cn(
-                        "bg-background border-2",
-                        index === active
-                          ? "border-foreground"
-                          : "border-chart-5",
-                      ),
+                className="absolute inset-0 size-full"
+                viewBox={`0 0 ${size.width} ${size.height}`}
+              >
+                {lines.map((tick) => (
+                  <line
+                    key={tick.value}
+                    className="stroke-border"
+                    strokeDasharray={tick.minor ? "2 4" : undefined}
+                    x1={0}
+                    x2={size.width}
+                    y1={toY(tick.y)}
+                    y2={toY(tick.y)}
+                  />
+                ))}
+                {/* Where Easy turns Medium and Medium turns Hard: the words of the Difficulty column. */}
+                {[SEO_DIFFICULTY_MEDIUM_FROM, SEO_DIFFICULTY_HARD_FROM].map(
+                  (edge) => (
+                    <line
+                      key={edge}
+                      className="stroke-border"
+                      strokeDasharray="2 4"
+                      x1={toX(edge)}
+                      x2={toX(edge)}
+                      y1={0}
+                      y2={size.height}
+                    />
+                  ),
                 )}
-                style={
-                  {
-                    left: `${point.x}%`,
-                    top: `${point.y}%`,
-                    width: SEO_MAP_RADIUS * 2,
-                    height: SEO_MAP_RADIUS * 2,
-                    // The dots come in one by one, by their place in the list, not by size.
-                    "--stagger-index": Math.min(index, DOT_STAGGER_MAX),
-                    "--stagger-step": "30ms",
-                  } as CSSProperties
-                }
-              />
-            ))}
+              </svg>
+            ) : null}
+            {points.map((point, index) => {
+              const left = measured ? toX(point.x) : `${point.x}%`;
+              const top = measured ? toY(point.y) : `${point.y}%`;
+              return (
+                <span
+                  key={point.group.lead.id}
+                  aria-hidden
+                  data-testid="seo-keyword-dot"
+                  className={cn(
+                    "ring-background pop-in stagger-delay pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition-colors duration-150 motion-reduce:transition-none",
+                    // The picked dot sits over a neighbour it touches.
+                    index === active && "z-[1]",
+                    point.checked
+                      ? index === active
+                        ? "bg-foreground"
+                        : "bg-chart-5"
+                      : cn(
+                          "bg-background border-2",
+                          index === active
+                            ? "border-foreground"
+                            : "border-chart-5",
+                        ),
+                  )}
+                  style={
+                    {
+                      left,
+                      top,
+                      width: SEO_MAP_RADIUS * 2,
+                      height: SEO_MAP_RADIUS * 2,
+                      // The dots come in one by one, by their place in the list, not by size.
+                      "--stagger-index": Math.min(index, DOT_STAGGER_MAX),
+                      "--stagger-step": "30ms",
+                    } as CSSProperties
+                  }
+                />
+              );
+            })}
             {focus ? (
               <div
                 aria-hidden
                 data-testid="seo-keyword-card"
                 className="bg-popover text-popover-foreground pointer-events-none absolute z-10 w-max max-w-[min(14rem,100%)] rounded-md border px-3 py-2 text-xs shadow-md"
-                // In the other half of the map from the dot, inside the plot: it never covers the dot or leaves the screen.
+                // In the other half of the frame from the dot: it never covers the dot or leaves the screen.
                 style={{
-                  ...(focus.x > 50 ? { left: 0 } : { right: 0 }),
-                  ...(focus.y < 50 ? { bottom: 0 } : { top: 0 }),
+                  ...((measured ? toX(focus.x) / size.width : focus.x / 100) >
+                  0.5
+                    ? { left: 8 }
+                    : { right: 8 }),
+                  ...((measured ? toY(focus.y) / size.height : focus.y / 100) <
+                  0.5
+                    ? { bottom: 8 }
+                    : { top: 8 }),
                 }}
               >
                 <p className="font-medium break-words">
                   {focus.group.lead.keyword}
                 </p>
-                {lines(focus).map((line) => (
+                {details(focus).map((line) => (
                   <p key={line} className="text-muted-foreground tabular-nums">
                     {line}
                   </p>
@@ -247,17 +360,28 @@ export function SeoKeywordMap({
             ) : null}
           </div>
           <span />
+          {/* The bands of the Difficulty column under the frame, so the axis reads in the list's own words. */}
           <div
             aria-hidden
-            className="text-muted-foreground flex justify-between text-xs"
+            className="text-muted-foreground relative h-4 overflow-hidden text-xs"
           >
-            <span>{t("map.easier")}</span>
-            <span>{t("map.harder")}</span>
+            {BANDS.map(({ band, middle }) => {
+              const at = measured ? toX(middle) : null;
+              return at === null || inX(at) ? (
+                <span
+                  key={band}
+                  className="absolute -translate-x-1/2 whitespace-nowrap"
+                  style={{ left: at ?? `${middle}%` }}
+                >
+                  {t(`difficulty.${band}`)}
+                </span>
+              ) : null;
+            })}
           </div>
         </div>
       </div>
       <details className="text-sm">
-        <SeoFoldSummary className="text-muted-foreground py-3 text-xs">
+        <SeoFoldSummary className="text-muted-foreground py-1 text-xs">
           {t("map.table")}
         </SeoFoldSummary>
         <p className="text-muted-foreground pt-2 text-xs">{t("map.source")}</p>
