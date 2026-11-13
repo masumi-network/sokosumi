@@ -73,12 +73,12 @@ export function useSeoMapZoom() {
       control.current = null;
     };
   }, []);
-  /** Zoom in or out around the middle; null shows the whole map again. */
-  const zoomBy = useCallback((factor: number | null) => {
+  /** Zoom in or out around a point of the frame (its middle by default); null shows the whole map again. */
+  const zoomBy = useCallback((factor: number | null, at?: [number, number]) => {
     if (!control.current) return;
     const { behavior, element } = control.current;
     if (factor === null) behavior.transform(select(element), zoomIdentity);
-    else behavior.scaleBy(select(element), factor);
+    else behavior.scaleBy(select(element), factor, at);
   }, []);
   return { frame, size, transform, zoomBy };
 }

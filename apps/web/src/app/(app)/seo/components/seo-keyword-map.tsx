@@ -77,6 +77,34 @@ export function SeoKeywordMap({
     (PAD + (value / 100) * (size.height - 2 * PAD)) * k + panY;
   const inX = (px: number) => px >= 0 && px <= size.width;
   const inY = (px: number) => px >= 0 && px <= size.height;
+  // The buttons and keys zoom around the middle of the dots, so a zoom in keeps them in view.
+  const middleOf = (
+    values: number[],
+    to: (value: number) => number,
+    max: number,
+  ) =>
+    Math.min(
+      Math.max(to((Math.min(...values) + Math.max(...values)) / 2), 0),
+      max,
+    );
+  const zoomAt = (factor: number | null) =>
+    zoomBy(
+      factor,
+      measured
+        ? [
+            middleOf(
+              points.map((point) => point.x),
+              toX,
+              size.width,
+            ),
+            middleOf(
+              points.map((point) => point.y),
+              toY,
+              size.height,
+            ),
+          ]
+        : undefined,
+    );
   const lines = [
     ...ticks.map((tick) => ({ ...tick, minor: false })),
     ...(k >= MINOR_FROM
@@ -136,7 +164,7 @@ export function SeoKeywordMap({
     const factor = { "+": 2, "=": 2, "-": 0.5, "0": null }[event.key];
     if (factor !== undefined) {
       event.preventDefault();
-      return zoomBy(factor);
+      return zoomAt(factor);
     }
     const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
     if (step === undefined) return;
@@ -168,7 +196,7 @@ export function SeoKeywordMap({
               size="icon"
               className={zoomButton}
               aria-label={t("map.zoomReset")}
-              onClick={() => zoomBy(null)}
+              onClick={() => zoomAt(null)}
             >
               <Maximize2 />
             </Button>
@@ -179,7 +207,7 @@ export function SeoKeywordMap({
             className={zoomButton}
             aria-label={t("map.zoomOut")}
             disabled={k <= 1}
-            onClick={() => zoomBy(0.5)}
+            onClick={() => zoomAt(0.5)}
           >
             <Minus />
           </Button>
@@ -189,7 +217,7 @@ export function SeoKeywordMap({
             className={zoomButton}
             aria-label={t("map.zoomIn")}
             disabled={k >= SEO_MAP_MAX_ZOOM}
-            onClick={() => zoomBy(2)}
+            onClick={() => zoomAt(2)}
           >
             <Plus />
           </Button>
