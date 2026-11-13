@@ -4,11 +4,15 @@ import { getExtensionFromUrl } from "@sokosumi/utils";
 import { Download, ExternalLink, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import {
   contentUrl,
   effectiveType,
 } from "@/app/drive/components/drive-file-preview";
+import { GoogleSheetBar } from "@/app/drive/components/google-sheet-bar";
+import { CapTableFileView } from "@/components/cap-table/cap-table-view";
+import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
 import { TeamFileView } from "@/components/team/team-view";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +25,8 @@ import {
 import { DocumentViewer } from "@/components/ui/document-viewer";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
+import { isCapTableFileName } from "@/lib/cap-table-file";
+import { spreadsheetKind } from "@/lib/spreadsheet-file";
 import { isTeamFileName } from "@/lib/team-file";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import type { FileStore } from "@/lib/utils/file-search.client";
@@ -56,13 +62,17 @@ export function DriveFileViewer({
   store: FileStore;
   onClose: () => void;
 }) {
+  // A refreshed Google Sheet rewrites the bytes at the same address.
+  const [version, setVersion] = useState(0);
   if (!file) return null;
 
   const url = contentUrl({ resourceId: file.id, store });
   const type = effectiveType(file.mimeType, file.displayName);
   const kind = classifyFilePreview(url, file.displayName, type);
+  const sheet = spreadsheetKind(type, file.displayName);
 
-  if (isTeamFileName(file.displayName)) {
+  const capTable = isCapTableFileName(file.displayName);
+  if (isTeamFileName(file.displayName) || capTable || sheet) {
     return (
       <Dialog
         open
@@ -80,7 +90,13 @@ export function DriveFileViewer({
           <DialogDescription className="sr-only">
             {file.displayName}
           </DialogDescription>
-          <TeamFileView url={url} />
+          {capTable ? (
+            <CapTableFileView url={url} />
+          ) : sheet ? (
+            <SpreadsheetFileView url={url} kind={sheet} />
+          ) : (
+            <TeamFileView url={url} />
+          )}
         </DialogContent>
       </Dialog>
     );
@@ -105,10 +121,17 @@ export function DriveFileViewer({
         onOpenChange={(open) => {
           if (!open) onClose();
         }}
-        url={url}
+        url={version ? `${url}&v=${version}` : url}
         fileName={file.displayName}
         kind={kind.documentKind}
         mediaType={type}
+        banner={
+          <GoogleSheetBar
+            resourceId={file.id}
+            store={store}
+            onRefreshed={() => setVersion((value) => value + 1)}
+          />
+        }
       />
     );
   }

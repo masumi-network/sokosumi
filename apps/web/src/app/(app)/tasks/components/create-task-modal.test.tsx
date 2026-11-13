@@ -9,19 +9,24 @@ import {
 } from "./create-task-modal";
 import { getStoredTasksReturnPath } from "./task-navigation";
 
-const { taskFormPropsSpy, routerReplaceMock, loadCreateTaskModalDataMock } =
-  vi.hoisted(() => ({
-    taskFormPropsSpy: vi.fn(),
-    routerReplaceMock: vi.fn(),
-    loadCreateTaskModalDataMock: vi.fn(),
-  }));
+const {
+  taskFormPropsSpy,
+  routerReplaceMock,
+  routerRefreshMock,
+  loadCreateTaskModalDataMock,
+} = vi.hoisted(() => ({
+  taskFormPropsSpy: vi.fn(),
+  routerRefreshMock: vi.fn(),
+  routerReplaceMock: vi.fn(),
+  loadCreateTaskModalDataMock: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/calendar",
   useRouter: () => ({
     push: vi.fn(),
     replace: routerReplaceMock,
-    refresh: vi.fn(),
+    refresh: routerRefreshMock,
     prefetch: vi.fn(),
   }),
 }));
@@ -139,6 +144,22 @@ describe("CreateTaskModal", () => {
       "/tasks?projectId=project-1&status=READY",
     );
     window.history.replaceState({}, "", "/");
+  });
+
+  it("reports the created task without a second page render", () => {
+    const onTaskCreated = vi.fn();
+    render(
+      <CreateTaskModalProvider initialOpen onTaskCreated={onTaskCreated}>
+        <CreateTaskModal coworkerOptions={[]} projectOptions={[]} />
+      </CreateTaskModalProvider>,
+    );
+    const props = taskFormPropsSpy.mock.calls.at(-1)?.[0] as {
+      onCreated: (taskId: string) => void;
+    };
+    act(() => props.onCreated("task-new"));
+
+    expect(onTaskCreated).toHaveBeenCalledWith("task-new");
+    expect(routerRefreshMock).not.toHaveBeenCalled();
   });
 
   it("leaves the project unselected for an unfiltered Calendar", async () => {

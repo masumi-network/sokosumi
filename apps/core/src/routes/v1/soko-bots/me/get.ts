@@ -15,6 +15,7 @@ import {
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { sokoBotStateSchema } from "@/schemas/soko-bot-scope.schema";
 import {
+  getSokoBotLastFailure,
   getSokoBotState,
   listSharedSokoBots,
 } from "@/services/soko-bot-state.service";
@@ -74,11 +75,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const sharedBots = isUserAuthContext(authContext)
       ? await listSharedSokoBots(auth.userId, workspace.workspaceId)
       : undefined;
+    // Home links a failed bot to what failed; only a member reads it.
+    const lastFailure =
+      isUserAuthContext(authContext) && bot?.status === "ERROR"
+        ? await getSokoBotLastFailure(bot.id, auth.userId)
+        : undefined;
     return ok(
       c,
       sokoBotStateSchema.parse({
         sokoBot: mapBot(bot),
         ...(sharedBots ? { sharedBots } : {}),
+        ...(lastFailure !== undefined ? { lastFailure } : {}),
       }),
     );
   });

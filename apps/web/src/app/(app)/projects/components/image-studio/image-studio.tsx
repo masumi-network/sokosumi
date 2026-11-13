@@ -14,7 +14,6 @@ import {
   ChevronDown,
   Columns2,
   Download,
-  MessageSquare,
   X,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -82,6 +81,7 @@ import { StudioFailedSubmission } from "./studio-failed-submission";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
+import { StudioProjectToolbar } from "./studio-project-toolbar";
 import { StudioTemplateCanvas } from "./studio-template-canvas";
 import type { StudioBrief } from "./studio-templates";
 import {
@@ -1140,11 +1140,14 @@ export function ImageStudio({
       ) : null}
       {problem ? <Notice closeLabel={labels.close}>{problem}</Notice> : null}
       {activeProjectId && !readOnly ? (
-        <div
-          className={cn(
-            "flex flex-wrap justify-end gap-2 pt-2",
-            STUDIO_COMPOSER_GUTTER_CLASS,
-          )}
+        <StudioProjectToolbar
+          assistantControls={assistant ? "studio-assistant-panel" : undefined}
+          assistantOpen={assistantOpen}
+          assistantTriggerRef={assistantTriggerRef}
+          onAssistantToggle={() => {
+            if (assistantOpen) closeAssistant();
+            else openAssistant(assistant?.asset ?? null);
+          }}
         >
           <StudioWebsiteTools
             key={activeProjectId}
@@ -1157,22 +1160,7 @@ export function ImageStudio({
             projectId={activeProjectId}
             websiteUrl={websiteUrl}
           />
-          <Button
-            aria-controls={assistant ? "studio-assistant-panel" : undefined}
-            aria-expanded={assistantOpen}
-            onClick={() => {
-              if (assistantOpen) closeAssistant();
-              else openAssistant(assistant?.asset ?? null);
-            }}
-            ref={assistantTriggerRef}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <MessageSquare aria-hidden />
-            {t("Assistant.title")}
-          </Button>
-        </div>
+        </StudioProjectToolbar>
       ) : null}
 
       <div

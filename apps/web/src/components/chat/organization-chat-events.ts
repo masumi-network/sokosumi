@@ -1,8 +1,17 @@
 import type { ChatRoom } from "@sokosumi/core-client";
 import type { ChatRoomCollection } from "@sokosumi/utils";
 
-import { roomAttentionAfterRead } from "./room-attention";
-import { applyRoomReadOverlays, rememberRoomRead } from "./room-read-overlay";
+import {
+  roomAttentionAfterRead,
+  roomAttentionAfterReads,
+  roomUnreadReads,
+} from "./room-attention";
+import {
+  applyRoomReadOverlays,
+  beginRoomAttentionChange,
+  rememberRoomRead,
+  settleRoomAttentionChange,
+} from "./room-read-overlay";
 
 export const ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT =
   "organization-chat-rooms-changed";
@@ -38,8 +47,11 @@ interface OrganizationChatRoomsChangedHandlers {
   onRemoved: (roomId: string) => void;
   /** Left out, a room handed over whole changes nothing here. */
   onRoom?: (room: ChatRoom) => void;
-  /** Absent `collections` means every collection. */
-  onInvalidated?: (collections?: readonly ChatRoomCollection[]) => void;
+  /** Absent `collections` means every collection. `roomId` is the room Core named. */
+  onInvalidated?: (
+    collections?: readonly ChatRoomCollection[],
+    roomId?: string | null,
+  ) => void;
 }
 
 /** What a rooms-changed event asks of a surface holding a copy of the rooms. */
@@ -59,7 +71,7 @@ export function subscribeOrganizationChatRoomsChanged({
       onRoom?.(detail.room);
       return;
     }
-    onInvalidated?.(detail?.collections);
+    onInvalidated?.(detail?.collections, detail?.roomId);
   };
 
   window.addEventListener(
@@ -115,6 +127,43 @@ export function subscribeOrganizationChatRoomRead(
       ORGANIZATION_CHAT_ROOM_READ_EVENT,
       handleRoomRead,
     );
+  };
+}
+
+function dispatchRoomRead(room: ChatRoom): void {
+  window.dispatchEvent(
+    new CustomEvent(ORGANIZATION_CHAT_ROOM_READ_EVENT, {
+      detail: { room, roomId: room.id },
+    }),
+  );
+}
+
+/**
+ * Shows a Mark all as read at once: each room with something unread takes
+ * its read attention now, on every surface that lists it. The returned call
+ * settles them when Core has answered. A refusal puts a room back, unless a
+ * newer read of that room has replaced this one.
+ */
+export function beginRoomsRead(
+  rooms: readonly ChatRoom[],
+): (ok: boolean) => void {
+  const pending = rooms.flatMap((room) => {
+    const reads = roomUnreadReads(room);
+    if (!reads.readRoom && !reads.lookThreads) return [];
+    const shown = roomAttentionAfterReads(
+      applyRoomReadOverlays([room])[0],
+      reads,
+    );
+    const token = beginRoomAttentionChange(shown, room);
+    dispatchRoomRead(shown);
+    return [{ room, shown, token }];
+  });
+  return (ok) => {
+    for (const { room, shown, token } of pending) {
+      if (settleRoomAttentionChange(room.id, token, ok ? shown : null) && !ok) {
+        dispatchRoomRead(applyRoomReadOverlays([room])[0]);
+      }
+    }
   };
 }
 
