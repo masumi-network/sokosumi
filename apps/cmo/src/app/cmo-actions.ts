@@ -54,7 +54,6 @@ import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AGENT_NAME } from "../lib/agent";
-import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import { coreForCurrentUser } from "../lib/core";
 import { INVITE_ONLY_NOTE, INVITE_ONLY_TITLE } from "../lib/invite-only";
@@ -162,8 +161,8 @@ export interface OnboardFormState {
   /** Where Cuso goes: an organization's id, or "" for a new organization. */
   organizationId?: string;
   errors: { websiteUrl?: string; form?: string };
-  /** Out of credits: where to top up before starting again. */
-  topUpUrl?: string;
+  /** Refused for an unpaid Cuso: where to continue with him instead. */
+  unpaidCuso?: { href: string; businessName: string };
 }
 
 /** What the start form says for each refusal Core declares, by its kind. */
@@ -211,13 +210,22 @@ export async function onboard(
       error && typeof error === "object" && "kind" in error
         ? String(error.kind)
         : undefined;
-    if (kind === CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE) {
+    const unpaid =
+      kind === CORE_API_ERROR_KINDS.CMO_UNPAID_CUSO &&
+      error &&
+      "unpaidCuso" in error
+        ? error.unpaidCuso
+        : undefined;
+    if (unpaid) {
       return {
         ...result,
         errors: {
-          form: "That organization is out of credits. Top up on Sokosumi, then press Start again.",
+          form: `Your ${AGENT_NAME} for ${unpaid.businessName} is not subscribed yet. Subscribe there, or start him over, before you hire another.`,
         },
-        topUpUrl: `${readSokosumiAppBaseUrl()}/billing`,
+        unpaidCuso: {
+          href: `/?project=${encodeURIComponent(unpaid.projectId)}`,
+          businessName: unpaid.businessName,
+        },
       };
     }
     const refusal = kind ? HIRE_REFUSALS[kind as CoreApiErrorKind] : undefined;

@@ -25,11 +25,15 @@ import type { SettledTurnStatus } from "@/services/soko-bot-turn-progress.servic
  * bot's Cuso, who pays for him, and starts and reads his turns.
  */
 
-/** A CMO refusal; `kind` is the stable error kind CMO matches on, if any. */
+/**
+ * A CMO refusal; `kind` is the stable error kind CMO matches on, if any, and
+ * `extensions` the data its response carries beside it.
+ */
 export class CmoError extends Error {
   constructor(
     message: string,
     readonly kind?: CoreApiErrorKind,
+    readonly extensions?: Record<string, unknown>,
   ) {
     super(message);
   }

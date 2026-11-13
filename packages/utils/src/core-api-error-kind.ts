@@ -15,6 +15,8 @@ export const CORE_API_ERROR_KINDS = {
   CMO_CLIENT_REQUIRED: "cmo_client_required",
   /** The Project has a live Cuso, so only CMO changes it (ADR 0066). */
   CMO_PROJECT_READ_ONLY: "cmo_project_read_only",
+  /** The person already hired a Cuso nobody paid for; `unpaidCuso` names him. */
+  CMO_UNPAID_CUSO: "cmo_unpaid_cuso",
   CONCURRENCY_CONFLICT: "concurrency_conflict",
   /** A channel being added already belongs to another contact; `existingContactId` names it. */
   CONTACT_CHANNEL_TAKEN: "contact_channel_taken",

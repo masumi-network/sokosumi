@@ -95,7 +95,9 @@ export async function requireOverview(target: CusoTarget) {
 
 export function rethrow(error: unknown): never {
   const kind =
-    error instanceof CmoError && error.kind ? { kind: error.kind } : undefined;
+    error instanceof CmoError && error.kind
+      ? { kind: error.kind, extensions: error.extensions }
+      : undefined;
   if (error instanceof CmoNotFoundError) throw notFound(error.message, kind);
   if (error instanceof CmoConflictError) throw conflict(error.message, kind);
   if (error instanceof CmoForbiddenError) throw forbidden(error.message, kind);

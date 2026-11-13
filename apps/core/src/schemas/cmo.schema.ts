@@ -7,6 +7,7 @@ import {
 } from "@sokosumi/soko-bot";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { errorResponseWithExtensionsSchema } from "@/helpers/error";
 import { marketingStrategyVersionSchema } from "@/schemas/marketing-strategy.schema";
 import { CMO_ONBOARDING_STEPS } from "@/services/cmo-overview.service";
 
@@ -27,6 +28,22 @@ export const cmoOnboardingRequestSchema = z
       ),
   })
   .openapi("CmoOnboardingRequest");
+
+/** A refused hire; `unpaidCuso` comes with `kind: cmo_unpaid_cuso`. */
+export const cmoOnboardingConflictSchema = errorResponseWithExtensionsSchema(
+  {
+    unpaidCuso: z
+      .object({
+        projectId: z.string().uuid(),
+        businessName: z.string(),
+      })
+      .optional()
+      .describe(
+        "The person's live Cuso that nobody paid for yet, to continue there instead.",
+      ),
+  },
+  "CmoOnboardingConflictError",
+);
 
 /** One Cuso of the caller's, as CMO's Cuso picker lists him. */
 export const cmoCusoSchema = z

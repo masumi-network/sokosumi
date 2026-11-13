@@ -129,16 +129,11 @@ export function Onboarding({
             {errors.form ? (
               <p className="alert" role="alert" tabIndex={-1}>
                 {errors.form}
-                {state.topUpUrl ? (
+                {state.unpaidCuso ? (
                   <>
                     {" "}
-                    <a
-                      className="ob-link"
-                      href={state.topUpUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Top up
+                    <a className="ob-link" href={state.unpaidCuso.href}>
+                      Open {state.unpaidCuso.businessName}
                     </a>
                   </>
                 ) : null}

@@ -46591,6 +46591,79 @@ export const CmoProductionSchema = {
     description: 'After approval Cuso makes the whole month at once: how many of its pieces are made.'
 } as const;
 
+export const CmoOnboardingConflictErrorSchema = {
+    type: 'object',
+    properties: {
+        error: {
+            type: 'string',
+            example: 'Unauthorized'
+        },
+        message: {
+            type: 'string',
+            example: 'Authentication required'
+        },
+        kind: {
+            type: 'string',
+            example: 'organization_not_found'
+        },
+        retryAfterSeconds: {
+            type: 'integer',
+            minimum: 0,
+            example: 7
+        },
+        unpaidCuso: {
+            type: 'object',
+            properties: {
+                projectId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                businessName: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'projectId',
+                'businessName'
+            ],
+            description: 'The person\'s live Cuso that nobody paid for yet, to continue there instead.'
+        },
+        meta: {
+            type: 'object',
+            properties: {
+                timestamp: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                requestId: {
+                    type: 'string',
+                    example: '5091b3ea-994f-4417-8e04-2efc05dd8673'
+                },
+                path: {
+                    type: 'string',
+                    example: '/v1/agents'
+                },
+                method: {
+                    type: 'string',
+                    example: 'GET'
+                }
+            },
+            required: [
+                'timestamp',
+                'requestId',
+                'path',
+                'method'
+            ]
+        }
+    },
+    required: [
+        'error',
+        'message',
+        'meta'
+    ]
+} as const;
+
 export const CmoOnboardingRequestSchema = {
     type: 'object',
     properties: {
