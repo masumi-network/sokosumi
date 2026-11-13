@@ -44,10 +44,16 @@ export type SeoAiOverviewMark =
   | "not_checked";
 
 export type SeoSerpMarker =
-  | { date: Date; device: Series["device"]; suspect: true }
   | {
       date: Date;
       device: Series["device"];
+      observationId: string;
+      suspect: true;
+    }
+  | {
+      date: Date;
+      device: Series["device"];
+      observationId: string;
       suspect: false;
       aiOverview: SeoAiOverviewMark;
       featured: "owned" | "other" | "none";
@@ -93,8 +99,9 @@ export function seoSerpMarkers(
     .flatMap((series) =>
       series.points.map((point): SeoSerpMarker => {
         const date = new Date(point.observedAt);
+        const { observationId } = point;
         if (point.suspect)
-          return { date, device: series.device, suspect: true };
+          return { date, device: series.device, observationId, suspect: true };
         const types = new Set(point.itemTypes);
         const ai = point.aiOverview;
         const checked = point.pages.flatMap((index) => {
@@ -104,6 +111,7 @@ export function seoSerpMarkers(
         return {
           date,
           device: series.device,
+          observationId,
           suspect: false,
           aiOverview: !ai
             ? "not_checked"

@@ -117,6 +117,7 @@ describe("seoSerpMarkers", () => {
     expect(mark).toEqual({
       date: new Date("2026-10-01T08:00:00Z"),
       device: "desktop",
+      observationId: "observation",
       suspect: true,
     });
   });

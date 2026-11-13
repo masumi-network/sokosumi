@@ -1627,4 +1627,44 @@ describe("Search Console queries", () => {
       .closest("table");
     expect(within(marks!).getAllByRole("row")).toHaveLength(2);
   });
+
+  it("keeps two checks read at the same time apart in the SERP marks", async () => {
+    const user = userEvent.setup();
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const workspace = seoTestWorkspace();
+    workspace.keywords.push(seoTestKeyword());
+    const check = (observationId: string, shown: boolean | null) => ({
+      observedAt: new Date("2026-10-08T08:00:00Z"),
+      observationId,
+      pages: [0],
+      itemTypes: ["organic"],
+      aiOverview:
+        shown === null
+          ? null
+          : { shown, asyncLoaded: true, citedDomains: [], pageCited: false },
+      featured: null,
+      paaOwned: false,
+      suspect: false,
+    });
+    workspace.serpHistory = [
+      {
+        keyword: "battery app",
+        device: "desktop",
+        countryCode: "US",
+        languageCode: "en",
+        pageUrls: ["https://example.com/"],
+        points: [check("observation-a", true), check("observation-b", null)],
+      },
+    ];
+    renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "History" }));
+    const marks = screen
+      .getByRole("columnheader", { name: "AI Overview" })
+      .closest("table");
+    expect(within(marks!).getAllByRole("row")).toHaveLength(3);
+    expect(
+      errors.mock.calls.filter((call) => String(call[0]).includes("same key")),
+    ).toEqual([]);
+    errors.mockRestore();
+  });
 });

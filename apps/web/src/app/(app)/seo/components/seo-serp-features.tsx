@@ -45,7 +45,8 @@ export function SeoSerpFeatures({ marks }: { marks: SeoSerpMarker[] }) {
           <tbody className="text-muted-foreground">
             {marks.map((mark) => (
               <tr
-                key={`${mark.date.toISOString()}:${mark.device}`}
+                // Two checks can share a time; a check reads each device once.
+                key={`${mark.observationId}:${mark.device}`}
                 className="border-t align-top"
               >
                 <th scope="row" className="py-1 pe-3 text-left font-normal">
