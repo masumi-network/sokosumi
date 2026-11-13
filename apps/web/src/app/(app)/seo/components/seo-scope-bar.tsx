@@ -201,28 +201,32 @@ export function SeoDateFields({
   const t = useTranslations("App.Seo");
   const { filters, setFilters } = model;
   const preset = seoDatePreset(filters);
+  // Core does not narrow saved traffic statistics by date, so a quick period there would change nothing.
+  const presets = filters.tab !== "traffic";
   return (
     <>
-      <div
-        role="group"
-        aria-label={t("datePresets.label")}
-        className="flex flex-wrap gap-1"
-      >
-        {SEO_DATE_PRESET_DAYS.map((days) => (
-          <Button
-            key={days}
-            size="sm"
-            variant={preset === days ? "secondary" : "ghost"}
-            aria-pressed={preset === days}
-            onClick={() => {
-              dateFields.reveal();
-              void setFilters(seoStatisticsPeriod(days));
-            }}
-          >
-            {t("datePresets.days", { count: days })}
-          </Button>
-        ))}
-      </div>
+      {presets ? (
+        <div
+          role="group"
+          aria-label={t("datePresets.label")}
+          className="flex flex-wrap gap-1"
+        >
+          {SEO_DATE_PRESET_DAYS.map((days) => (
+            <Button
+              key={days}
+              size="sm"
+              variant={preset === days ? "secondary" : "ghost"}
+              aria-pressed={preset === days}
+              onClick={() => {
+                dateFields.reveal();
+                void setFilters(seoStatisticsPeriod(days));
+              }}
+            >
+              {t("datePresets.days", { count: days })}
+            </Button>
+          ))}
+        </div>
+      ) : null}
       <PerformanceDateRange
         idPrefix="seo-period"
         from={filters.from ?? ""}

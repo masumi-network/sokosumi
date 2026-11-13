@@ -1047,6 +1047,21 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
   });
 
+  it("offers quick periods where dates narrow the view, not on Traffic", () => {
+    const workspace = seoTestWorkspace();
+    workspace.metrics = [seoTestMetric()];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    const traffic = renderWorkspace(workspace, "?tab=traffic&from=2026-01-01");
+    expect(screen.getByLabelText("Activity from")).toBeVisible();
+    expect(screen.queryByRole("group", { name: "Quick periods" })).toBeNull();
+    traffic.unmount();
+    renderWorkspace(workspace, "?tab=health&from=2026-01-01");
+    expect(screen.getByRole("group", { name: "Quick periods" })).toBeVisible();
+  });
+
   it("puts the runs on a timeline, newest on the right, with the date filter at its end", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
