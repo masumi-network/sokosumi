@@ -42,7 +42,7 @@ const vars = {
   },
   workspaceContext: { workspaceId, userId, organizationId: null },
 };
-let pageId: string;
+let pageId: string, secondPageId: string;
 // 20 SERP calls at most 5 cents each, plus 50%: up to 150 credits.
 const rankings = () =>
   requestSeoAnalysisSchema.parse({
@@ -124,6 +124,12 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
         relationship: "primary",
       })
     ).id;
+    secondPageId = (
+      await addProjectSeoPage(actor, {
+        url: "https://example.test/credits/second",
+        relationship: "related",
+      })
+    ).id;
   });
   beforeEach(() => setBalance(0n));
   afterAll(async () => {
@@ -167,6 +173,25 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     ).not.toBeNull();
   });
 
+  it("bounds a multi-page full audit by its default USD 3 limit, 450 credits", async () => {
+    const twoPages = () => ({
+      ...fullAudit(),
+      pageIds: [pageId, secondPageId],
+    });
+    await setBalance(449n);
+    await expect(
+      requestProjectSeoAnalysis(actor, twoPages()),
+    ).rejects.toMatchObject({
+      status: 422,
+      message:
+        "Not enough credits. This check costs up to 450 credits and the balance is 449.",
+    });
+    await setBalance(450n);
+    expect(
+      (await requestProjectSeoAnalysis(actor, twoPages())).taskId,
+    ).not.toBeNull();
+  });
+
   it("checks a monitor's first Run when it is made, but never holds a scheduled Run", async () => {
     const input = {
       operationId: randomUUID(),
@@ -192,5 +217,118 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
       releaseSeoMonitorRun(tx, schedule, run.id),
     );
     expect(task?.id).toBeDefined();
+  });
+});
+
+describe.skipIf(!enabled)("SEO credit ceiling of a Project's check", () => {
+  const memberId = randomUUID(),
+    organizationId = randomUUID(),
+    orgWorkspaceId = randomUUID(),
+    projectId = randomUUID(),
+    orgVendorId = randomUUID(),
+    orgCoworkerId = randomUUID();
+  const projectActor: SeoActor = {
+    owner: { kind: "project", id: projectId },
+    userId: memberId,
+    workspaceId: orgWorkspaceId,
+    organizationId,
+  };
+  let projectPageId: string;
+  async function setProjectCredits(credits: bigint) {
+    await prisma.creditBucket.deleteMany({ where: { organizationId } });
+    const topUp = await prisma.transaction.create({
+      data: { amount: credits * CREDIT, organizationId },
+      select: { id: true },
+    });
+    await prisma.creditBucket.create({
+      data: {
+        amount: credits * CREDIT,
+        organizationId,
+        projectId,
+        sourceTransactionId: topUp.id,
+      },
+    });
+  }
+
+  beforeAll(async () => {
+    env.SEO_ANALYSIS_DISPATCH_ENABLED = true;
+    env.SEO_ANALYSIS_EXECUTOR = {
+      coworkerId: orgCoworkerId,
+      workspaceId: orgWorkspaceId,
+      ownerId: memberId,
+      organizationId,
+      canUsePaidSearchData: true,
+      canSchedule: true,
+    };
+    await prisma.user.create({
+      data: {
+        id: memberId,
+        name: "SEO Project member",
+        email: `${memberId}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    await prisma.organization.create({
+      data: {
+        id: organizationId,
+        name: "SEO credit organization",
+        slug: organizationId,
+        workspace: { create: { id: orgWorkspaceId } },
+        members: {
+          create: [
+            { userId: memberId, role: "member", seatAssignedAt: new Date() },
+          ],
+        },
+      },
+    });
+    await prisma.project.create({
+      data: { id: projectId, workspaceId: orgWorkspaceId, name: "Credits" },
+    });
+    await prisma.vendor.create({
+      data: { id: orgVendorId, slug: orgVendorId, name: "SEO Project vendor" },
+    });
+    await prisma.coworker.create({
+      data: {
+        id: orgCoworkerId,
+        slug: orgCoworkerId,
+        name: "SEO Project checks",
+        vendorId: orgVendorId,
+        isWhitelisted: true,
+        capabilities: ["tasks"],
+      },
+    });
+    projectPageId = (
+      await addProjectSeoPage(projectActor, {
+        url: "https://example.test/project-credits",
+        relationship: "primary",
+      })
+    ).id;
+  });
+  afterAll(async () => {
+    env.SEO_ANALYSIS_EXECUTOR = previousExecutor;
+    env.SEO_ANALYSIS_DISPATCH_ENABLED = previousDispatch;
+    await prisma.task.deleteMany({ where: { workspaceId: orgWorkspaceId } });
+    await prisma.creditBucket.deleteMany({ where: { organizationId } });
+    await prisma.transaction.deleteMany({ where: { organizationId } });
+    await prisma.project.deleteMany({ where: { id: projectId } });
+    await prisma.organization.delete({ where: { id: organizationId } });
+    await prisma.user.delete({ where: { id: memberId } });
+    await prisma.coworker.deleteMany({ where: { vendorId: orgVendorId } });
+    await prisma.vendor.delete({ where: { id: orgVendorId } });
+  });
+
+  it("counts the Project's own credits, which the charge spends first", async () => {
+    const check = () => ({ ...rankings(), pageIds: [projectPageId] });
+    await setProjectCredits(149n);
+    await expect(
+      requestProjectSeoAnalysis(projectActor, check()),
+    ).rejects.toMatchObject({ status: 422 });
+    // The Organization pool is empty: only the Project's credits can cover this check.
+    await setProjectCredits(150n);
+    expect(
+      (await requestProjectSeoAnalysis(projectActor, check())).taskId,
+    ).not.toBeNull();
   });
 });
