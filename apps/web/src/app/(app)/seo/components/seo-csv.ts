@@ -6,22 +6,33 @@ export type SeoCsvCell = string | number | null;
  * leading spaces and in the fullwidth forms (U+FF1D, U+FF0B, U+FF0D, U+FF20) that some spreadsheets fold.
  */
 const FORMULA_START = /^\s*[=+\-@\uFF1D\uFF0B\uFF0D\uFF20]|^[\t\r]/;
-/** A field with one of these needs quotes (RFC 4180 section 2). */
-const NEEDS_QUOTES = /[",\r\n]/;
+/** Excel in these languages splits a CSV line at ";" and reads "," as the decimal sign. */
+const SEMICOLON_LOCALES = new Set(["de", "es"]);
+/** A field with one of these, or with the list separator, needs quotes (RFC 4180 section 2). */
+const NEEDS_QUOTES = /["\r\n]/;
 
-function cell(value: SeoCsvCell) {
+function cell(value: SeoCsvCell, separator: string, decimal: string) {
   if (value === null) return "";
   if (typeof value === "number")
-    return Number.isFinite(value) ? String(value) : "";
+    return Number.isFinite(value) ? String(value).replace(".", decimal) : "";
   // Text only: a negative number is a number, not a formula.
   const text = FORMULA_START.test(value) ? `'${value}` : value;
-  return NEEDS_QUOTES.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+  return NEEDS_QUOTES.test(text) || text.includes(separator)
+    ? `"${text.replaceAll('"', '""')}"`
+    : text;
 }
 
-/** RFC 4180 text: a header row, then one line per row, CRLF line ends. */
+/**
+ * RFC 4180 text: a header row, then one line per row, CRLF line ends. For a German or Spanish locale the
+ * list separator is ";" and numbers use a decimal comma, so Excel there opens the file in columns.
+ */
 export function seoCsv(
   header: readonly string[],
   rows: readonly (readonly SeoCsvCell[])[],
+  locale = "en",
 ) {
-  return `${[header, ...rows].map((row) => row.map(cell).join(",")).join("\r\n")}\r\n`;
+  const semicolon = SEMICOLON_LOCALES.has(locale.split("-")[0] ?? "");
+  const separator = semicolon ? ";" : ",";
+  const decimal = semicolon ? "," : ".";
+  return `${[header, ...rows].map((row) => row.map((value) => cell(value, separator, decimal)).join(separator)).join("\r\n")}\r\n`;
 }

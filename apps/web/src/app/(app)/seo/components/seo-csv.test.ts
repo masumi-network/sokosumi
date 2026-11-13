@@ -8,6 +8,21 @@ describe("seoCsv", () => {
     ).toBe('query\r\n"a,b"\r\n"say ""hi"""\r\n"two\nlines"\r\n"cr\rhere"\r\n');
   });
 
+  it("uses a semicolon and a decimal comma for German and Spanish Excel", () => {
+    const rows = [
+      ["a;b", 1.5],
+      ["a,b", -2],
+      [null, 3],
+    ] as const;
+    for (const locale of ["de", "es", "de-AT"])
+      expect(seoCsv(["query", "value"], rows, locale)).toBe(
+        'query;value\r\n"a;b";1,5\r\na,b;-2\r\n;3\r\n',
+      );
+    expect(seoCsv(["query", "value"], rows, "en")).toBe(
+      'query,value\r\na;b,1.5\r\n"a,b",-2\r\n,3\r\n',
+    );
+  });
+
   it("neutralises text that a spreadsheet would run as a formula", () => {
     expect(
       seoCsv(

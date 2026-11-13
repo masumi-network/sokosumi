@@ -1,7 +1,7 @@
 "use client";
 
 import { Download } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { seoCsv } from "./seo-csv";
 import type { SeoExport } from "./seo-export-model";
@@ -21,6 +21,7 @@ export function SeoCsvButton({
   table: () => SeoExport;
 }) {
   const t = useTranslations("App.Seo");
+  const locale = useLocale();
   return (
     <Button
       variant="ghost"
@@ -29,7 +30,7 @@ export function SeoCsvButton({
       onClick={() => {
         const { header, rows } = table();
         const url = URL.createObjectURL(
-          new Blob([UTF8_BOM, seoCsv(header, rows)], {
+          new Blob([UTF8_BOM, seoCsv(header, rows, locale)], {
             type: "text/csv;charset=utf-8",
           }),
         );
