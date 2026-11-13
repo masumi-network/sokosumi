@@ -12372,7 +12372,7 @@
         "editBrandTerms": "Markenbegriffe bearbeiten",
         "addBrandTerms": "Markenbegriffe hinzufügen",
         "brandTerms": "Markenbegriffe",
-        "brandTermsHelp": "Ein Begriff pro Zeile. Eine Suchanfrage, die einen Begriff als ganze Wörter enthält, zählt als Markenanfrage. Groß- und Kleinschreibung und Akzente spielen keine Rolle.",
+        "brandTermsHelp": "Ein Begriff pro Zeile. Eine Suchanfrage, die einen Begriff als ganze Wörter enthält, zählt als Markenanfrage. Auf Chinesisch, Japanisch, Koreanisch oder Thai zählt jede Suchanfrage, die den Begriff enthält. Groß- und Kleinschreibung und lateinische Akzente spielen keine Rolle.",
         "saveBrandTerms": "Markenbegriffe speichern",
         "cancelBrandTerms": "Abbrechen",
         "brandSaved": "Markenbegriffe gespeichert",

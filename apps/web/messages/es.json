@@ -12372,7 +12372,7 @@
         "editBrandTerms": "Editar términos de marca",
         "addBrandTerms": "Añadir términos de marca",
         "brandTerms": "Términos de marca",
-        "brandTermsHelp": "Un término por línea. Una consulta que contiene un término como palabras completas cuenta como de marca. Las mayúsculas y los acentos no importan.",
+        "brandTermsHelp": "Un término por línea. Una consulta que contiene un término como palabras completas cuenta como de marca. En chino, japonés, coreano o tailandés, cuenta cualquier consulta que contenga el término. Las mayúsculas y los acentos latinos no importan.",
         "saveBrandTerms": "Guardar términos de marca",
         "cancelBrandTerms": "Cancelar",
         "brandSaved": "Términos de marca guardados",

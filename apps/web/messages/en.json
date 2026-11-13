@@ -12372,7 +12372,7 @@
         "editBrandTerms": "Edit brand terms",
         "addBrandTerms": "Add brand terms",
         "brandTerms": "Brand terms",
-        "brandTermsHelp": "One term per line. A query that holds a term as whole words counts as branded. Case and accents do not matter.",
+        "brandTermsHelp": "One term per line. A query that holds a term as whole words counts as branded. In Chinese, Japanese, Korean or Thai, a query that contains the term counts. Case and Latin accents do not matter.",
         "saveBrandTerms": "Save brand terms",
         "cancelBrandTerms": "Cancel",
         "brandSaved": "Brand terms saved",
