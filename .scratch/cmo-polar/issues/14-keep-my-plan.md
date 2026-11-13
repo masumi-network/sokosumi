@@ -6,14 +6,14 @@ Spec: `.scratch/cmo-polar/spec.md` (SOKD-204), stories 26 and 27. Decisions: `do
 
 **Blocked by:** 10 The subscription gate and existing Cusos, 11 Change plan and open the portal
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Polar's current docs and the installed SDK are checked for a way to clear a scheduled plan change; the finding is in the report.
-- [ ] Choosing the current tier while a downgrade is pending clears the pending change at Polar and the pending tier on the subscription row.
-- [ ] Choosing the current tier with nothing pending is still refused with the same reason.
-- [ ] Only owners and admins may do it; the route answers 503 without Polar configuration.
-- [ ] Settings shows "Keep my plan" beside the pending-downgrade notice, only when the viewer may manage billing.
-- [ ] Grants after the kept plan use the current tier, not the cleared downgrade.
-- [ ] The core client snapshot is regenerated.
-- [ ] Route-level tests cover clearing a pending downgrade, the unchanged refusal when nothing is pending, and the role check; a component test covers Settings.
-- [ ] If Polar cannot clear a scheduled change: the refusal stays, Settings says plainly that a pending downgrade cannot be undone, and the report names it as a follow-up.
+- [x] Polar's current docs and the installed SDK are checked for a way to clear a scheduled plan change; the finding is in the report.
+- [x] Choosing the current tier while a downgrade is pending clears the pending change at Polar and the pending tier on the subscription row.
+- [x] Choosing the current tier with nothing pending is still refused with the same reason.
+- [x] Only owners and admins may do it; the route answers 503 without Polar configuration.
+- [x] Settings shows "Keep my plan" beside the pending-downgrade notice, only when the viewer may manage billing.
+- [x] Grants after the kept plan use the current tier, not the cleared downgrade.
+- [x] The core client snapshot is regenerated.
+- [x] Route-level tests cover clearing a pending downgrade, the unchanged refusal when nothing is pending, and the role check; a component test covers Settings.
+- [x] If Polar cannot clear a scheduled change: the refusal stays, Settings says plainly that a pending downgrade cannot be undone, and the report names it as a follow-up. (not applicable: Polar supports clearing, see the t14 report)
