@@ -13,6 +13,7 @@ import type { SeoCommand } from "@/lib/actions/seo/types";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
 import type { SeoOwner } from "@/lib/seo/owner";
 import { seoServiceNoRedirect } from "@/lib/services/seo.service";
+import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -55,6 +56,24 @@ export const mutateSeo = withSession<
       case "create_monitor":
         await seoServiceNoRedirect.createMonitor(owner, command.body);
         break;
+      // A monitor is a Task Schedule: Core checks the same access and revision as on the schedule page.
+      case "monitor_state":
+        await taskScheduleService.changeScheduleState(
+          command.monitorId,
+          command.action,
+        );
+        break;
+      case "monitor_run_now":
+        await taskScheduleService.runNow(command.monitorId, {
+          expectedRevision: command.expectedRevision,
+        });
+        break;
+      case "monitor_update":
+        await taskScheduleService.updateSchedule(command.monitorId, {
+          expectedRevision: command.expectedRevision,
+          rule: command.rule,
+        });
+        break;
       case "request_analysis":
         await seoServiceNoRedirect.requestAnalysis(owner, command.body);
         break;
@@ -76,10 +95,11 @@ export const mutateSeo = withSession<
     revalidatePath("/seo");
     if (
       command.kind === "create_action_task" ||
-      command.kind === "request_analysis"
+      command.kind === "request_analysis" ||
+      command.kind === "monitor_run_now"
     )
       revalidatePath("/tasks");
-    if (command.kind === "create_monitor") revalidatePath("/schedules");
+    if (command.kind.includes("monitor")) revalidatePath("/schedules");
     return toActionResult(ok(null));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));

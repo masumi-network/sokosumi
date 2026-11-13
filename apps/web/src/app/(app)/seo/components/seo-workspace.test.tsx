@@ -3321,10 +3321,14 @@ describe("SEO workspace integration", () => {
       }),
     );
     const dialog = screen.getByRole("dialog");
-    // The schedule opens on the weekly slot, named by its day and time.
+    // The schedule opens weekly on Mondays at 09:00, with SEO repeats only.
     expect(
-      within(dialog).getByRole("combobox", { name: "Frequency" }),
-    ).toHaveTextContent("Mondays at 09:00");
+      within(dialog).getByRole("button", { name: "Weekly" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(within(dialog).queryByRole("button", { name: "Custom" })).toBeNull();
+    expect(
+      within(dialog).queryByRole("button", { name: "Every few days" }),
+    ).toBeNull();
     await user.click(
       within(dialog).getByRole("combobox", { name: "Check type" }),
     );
@@ -3347,12 +3351,17 @@ describe("SEO workspace integration", () => {
       within(dialog).getByLabelText("Maximum data requests"),
       "2",
     );
-    await user.clear(within(dialog).getByLabelText("Number of runs"));
+    // No weekday is no rule: the form refuses to save.
+    await user.click(within(dialog).getByRole("button", { name: "Monday" }));
     const monitorForm = dialog.querySelector("form");
     if (!monitorForm) throw new Error("Missing monitor form");
     fireEvent.submit(monitorForm);
     expect(mutate).not.toHaveBeenCalled();
-    await user.type(within(dialog).getByLabelText("Number of runs"), "2");
+    await user.click(within(dialog).getByRole("button", { name: "Monday" }));
+    fireEvent.change(
+      within(dialog).getByLabelText("Ends", { selector: "input" }),
+      { target: { value: "2" } },
+    );
     await user.click(
       within(dialog).getByRole("button", { name: "Schedule checks" }),
     );
@@ -3363,9 +3372,12 @@ describe("SEO workspace integration", () => {
         kind: "create_monitor",
         body: {
           operationId: expect.any(String),
-          cadence: "weekly",
-          timeZone: expect.any(String),
-          targetRunCount: 2,
+          rule: {
+            expr: "0 9 * * MON",
+            timezone: expect.any(String),
+            endsMode: "AFTER",
+            targetRunCount: 2,
+          },
           analysis: expect.objectContaining({
             kind: "rankings",
             scopeId: workspace.scope.id,
@@ -3407,11 +3419,14 @@ describe("SEO workspace integration", () => {
       ).toBeNull();
       view.unmount();
       renderWorkspace(workspace, "", true);
-      // A schedule the workspace cannot make shows nothing: no notice and no button.
-      expect(screen.queryByTestId("seo-automation")).toBeNull();
+      // The card stays and says why no schedule can be made here.
+      const card = screen.getByTestId("seo-automation");
       expect(
-        screen.queryByRole("button", { name: "Let the agent check weekly" }),
-      ).toBeNull();
+        within(card).getByText(messages.App.Seo.monitor.blocked.service),
+      ).toBeVisible();
+      expect(
+        within(card).getByRole("button", { name: "Schedule checks" }),
+      ).toBeDisabled();
     },
   );
 

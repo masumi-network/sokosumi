@@ -11806,18 +11806,74 @@
         "unavailable": "Scheduled checks are unavailable here. Return to the audit.",
         "title": "Scheduled checks",
         "create": "Schedule checks",
-        "description": "Repeat a focused check for a fixed number of runs. Review the market, pages and per-run budget before saving.",
-        "cadence": "Frequency",
-        "daily": "Daily at 09:00",
-        "weekly": "Mondays at 09:00",
-        "runs": "Number of runs",
-        "timeZone": "Time zone",
+        "description": "Repeat a focused check on a schedule. Review the market, pages and per-run budget before saving.",
         "cap": "Up to {runs} runs and {calls} data requests in total. Model and runtime charges can also apply.",
         "created": "SEO monitoring scheduled",
         "next": "Next run",
         "manage": "Manage task schedule",
-        "offBody": "Off. The agent can check these pages every week and save each result here. Nothing runs until you schedule it.",
-        "agentWeekly": "Let the agent check weekly"
+        "offBody": "Off. The agent can check these pages on a schedule and save each result here. Nothing runs until you schedule it.",
+        "createAnother": "Schedule another check",
+        "capPerRun": "Each run uses up to {calls} data requests. Runs continue until someone stops them. Model and runtime charges can also apply.",
+        "blocked": {
+          "readOnly": "You can see these checks. Only an editor can schedule or change them.",
+          "service": "Scheduled checks are unavailable in this workspace.",
+          "noPages": "Select at least one page to schedule checks."
+        },
+        "last": "Last run",
+        "lastStatus": {
+          "requested": "Requested",
+          "running": "Running",
+          "completed": "Completed",
+          "failed": "Failed"
+        },
+        "noRunYet": "No run yet",
+        "pausedNext": "Paused. No run is planned.",
+        "left": "Runs left",
+        "leftCount": "{count, plural, =0 {None} one {# run} other {# runs}}",
+        "leftUntilStopped": "Until someone stops it",
+        "pagesDiffer": "The selected page group changed after this check was scheduled. It still checks its {count, plural, one {# saved page} other {# saved pages}}. Schedule a new check for the current pages.",
+        "runNow": "Run now",
+        "pause": "Pause",
+        "resume": "Resume",
+        "edit": "Edit schedule",
+        "end": "End",
+        "endTitle": "End this scheduled check?",
+        "endBody": "No more runs start. Saved results stay. You cannot restart an ended check.",
+        "endConfirm": "End check",
+        "saveRule": "Save schedule",
+        "cancel": "Cancel",
+        "belowReleased": "This check already ran {count, plural, one {# time} other {# times}}. Choose a higher count, or let it run until someone stops it.",
+        "done": {
+          "update": "Schedule saved",
+          "pause": "Scheduled check paused",
+          "resume": "Scheduled check resumed",
+          "end": "Scheduled check ended",
+          "runNow": "Check requested"
+        },
+        "change": {
+          "none": "No earlier result to compare yet.",
+          "notComparable": "The last two results used another market or rule set, so they are not compared.",
+          "same": "No change since the last run.",
+          "summary": "Since the last run: {parts}",
+          "newFailures": "{count, plural, one {# new failure} other {# new failures}}",
+          "fixed": "{count} fixed",
+          "drops": "{count, plural, one {# ranking drop} other {# ranking drops}}",
+          "rises": "{count, plural, one {# ranking gain} other {# ranking gains}}",
+          "newFailuresTitle": "Now failing",
+          "fixedTitle": "Fixed",
+          "movesTitle": "Ranking moves",
+          "move": "{keyword}: position {from} → {to}",
+          "band": "A ranking move counts only when it is larger than normal search noise: 2 places in the top 3, 5 in the top 10, 7 in the top 20."
+        },
+        "plan": {
+          "daily": "every day at {time}",
+          "weekly": "every {days} at {time}",
+          "monthly": "on day {day} of each month at {time}",
+          "other": "on its saved schedule",
+          "sentence": "{check} for {pages, plural, one {# saved page} other {# saved pages}}, {when} ({zone}).",
+          "untilStopped": "Runs until someone stops it.",
+          "endsAfter": "{count, plural, one {Ends after # scheduled run.} other {Ends after # scheduled runs.}}"
+        }
       },
       "pageChange": {
         "title": "Record a change",
@@ -12053,7 +12109,8 @@
         "dates": "Other dates",
         "checkDay": "Day with a check",
         "shown": "Showing {range}.",
-        "shownUntil": "Showing up to {day}."
+        "shownUntil": "Showing up to {day}.",
+        "scheduled": "Scheduled"
       },
       "filterDates": "Filter by date",
       "syncNow": "Sync now",
@@ -12470,7 +12527,8 @@
         "scheduleOccurrenceChangedByMember": "A teammate changed an occurrence of {taskName}",
         "assigned": "You were assigned {taskName}",
         "participantAdded": "You were added to {taskName} as a participant",
-        "followUp": "{taskName} is still waiting for you"
+        "followUp": "{taskName} is still waiting for you",
+        "seoMonitorWorse": "{taskName}: the newest scheduled SEO result got worse ({newFailures, plural, one {# new failure} other {# new failures}}, {drops, plural, one {# ranking drop} other {# ranking drops}})"
       },
       "Billing": {
         "lowBalance": "Your credits are running low: {credits} left",

@@ -148,6 +148,11 @@ export function SeoRuns({
                     {t("pages.issues", { count: entry.issues })}
                   </span>
                 )}
+                {entry.scheduled ? (
+                  <span className="text-muted-foreground text-xs font-normal">
+                    {t("runs.scheduled")}
+                  </span>
+                ) : null}
               </button>
             </li>
           ))}

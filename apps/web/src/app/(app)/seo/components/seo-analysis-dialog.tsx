@@ -2,6 +2,7 @@
 
 import { CalendarClock, ChevronDown, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { TaskScheduleWhen } from "@/app/tasks/components/task-schedule-when";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -32,6 +33,7 @@ import {
   SEO_MAX_PROVIDER_CALLS,
   seoAnalysisMaxCredits,
 } from "./seo-form-model";
+import { SEO_MONITOR_ENDS, SEO_MONITOR_REPEATS } from "./seo-monitor-model";
 import { useSeoAnalysisForm } from "./use-seo-analysis";
 import { useSeoAnalysisMarket } from "./use-seo-analysis-market";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -324,48 +326,28 @@ export function SeoAnalysisDialog({
           </div>
           {monitor ? (
             <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <SeoField id="seo-monitor-cadence" label={t("monitor.cadence")}>
-                  <SeoSelect
-                    id="seo-monitor-cadence"
-                    name="cadence"
-                    defaultValue="weekly"
-                    options={[
-                      { value: "daily", label: t("monitor.daily") },
-                      { value: "weekly", label: t("monitor.weekly") },
-                    ]}
-                  />
-                </SeoField>
-                <SeoField id="seo-monitor-runs" label={t("monitor.runs")}>
-                  <Input
-                    id="seo-monitor-runs"
-                    name="targetRunCount"
-                    type="number"
-                    min="1"
-                    max={SEO_MAX_MONITOR_RUNS}
-                    value={form.runCount}
-                    onChange={(event) => form.setRunCount(event.target.value)}
-                    required
-                  />
-                </SeoField>
-              </div>
-              <SeoField id="seo-monitor-zone" label={t("monitor.timeZone")}>
-                <Input
-                  id="seo-monitor-zone"
-                  name="timeZone"
-                  value={form.timeZone}
-                  onChange={(event) => form.setTimeZone(event.target.value)}
-                  maxLength={100}
-                  required
-                />
-              </SeoField>
+              <TaskScheduleWhen
+                value={form.when}
+                onChange={form.setWhen}
+                repeats={SEO_MONITOR_REPEATS}
+                endsModes={SEO_MONITOR_ENDS}
+                maxRunCount={SEO_MAX_MONITOR_RUNS}
+              />
               <p className="text-muted-foreground text-sm">
-                {t("monitor.cap", {
-                  runs: Number(form.runCount) || 0,
-                  calls: Number.isFinite(form.totalProviderCalls)
-                    ? form.totalProviderCalls
-                    : 0,
-                })}
+                {form.rule?.targetRunCount
+                  ? t("monitor.cap", {
+                      runs: form.rule.targetRunCount,
+                      calls:
+                        form.rule.targetRunCount *
+                        (Number.isFinite(form.runProviderCalls)
+                          ? form.runProviderCalls
+                          : 0),
+                    })
+                  : t("monitor.capPerRun", {
+                      calls: Number.isFinite(form.runProviderCalls)
+                        ? form.runProviderCalls
+                        : 0,
+                    })}
               </p>
             </div>
           ) : null}
@@ -404,6 +386,7 @@ export function SeoAnalysisDialog({
               disabled={
                 noService ||
                 model.pending ||
+                (monitor && !form.rule) ||
                 !form.workspace.scope.pageIds.length ||
                 form.workspace.scope.pageIds.length > SEO_MAX_PAGES
               }

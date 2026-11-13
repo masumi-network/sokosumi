@@ -11806,18 +11806,74 @@
         "unavailable": "Las comprobaciones programadas no están disponibles aquí. Vuelve a la auditoría.",
         "title": "Comprobaciones programadas",
         "create": "Programar revisiones",
-        "description": "Repite una revisión concreta durante un número fijo de ejecuciones. Revisa el mercado, las páginas y el presupuesto por ejecución antes de guardar.",
-        "cadence": "Frecuencia",
-        "daily": "Cada día a las 09:00",
-        "weekly": "Los lunes a las 09:00",
-        "runs": "Número de ejecuciones",
-        "timeZone": "Zona horaria",
+        "description": "Repite una revisión concreta según un plan. Revisa el mercado, las páginas y el presupuesto por ejecución antes de guardar.",
         "cap": "Hasta {runs} ejecuciones y {calls} solicitudes de datos en total. También pueden aplicarse cargos de modelo y ejecución.",
         "created": "Seguimiento SEO programado",
         "next": "Próxima ejecución",
         "manage": "Gestionar plan de tareas",
-        "offBody": "Desactivadas. El agente puede comprobar estas páginas cada semana y guardar cada resultado aquí. Nada se ejecuta hasta que lo programes.",
-        "agentWeekly": "Que el agente compruebe cada semana"
+        "offBody": "Desactivadas. El agente puede comprobar estas páginas según un plan y guardar cada resultado aquí. Nada se ejecuta hasta que lo programes.",
+        "createAnother": "Programar otra revisión",
+        "capPerRun": "Cada ejecución usa hasta {calls} solicitudes de datos. Las ejecuciones siguen hasta que alguien las detenga. También pueden aplicarse cargos de modelo y ejecución.",
+        "blocked": {
+          "readOnly": "Puedes ver estas revisiones. Solo un editor puede programarlas o cambiarlas.",
+          "service": "Las revisiones programadas no están disponibles en este espacio de trabajo.",
+          "noPages": "Selecciona al menos una página para programar revisiones."
+        },
+        "last": "Última ejecución",
+        "lastStatus": {
+          "requested": "Solicitada",
+          "running": "En curso",
+          "completed": "Completada",
+          "failed": "Fallida"
+        },
+        "noRunYet": "Aún no hay ejecuciones",
+        "pausedNext": "En pausa. No hay ejecución prevista.",
+        "left": "Ejecuciones restantes",
+        "leftCount": "{count, plural, =0 {Ninguna} one {# ejecución} other {# ejecuciones}}",
+        "leftUntilStopped": "Hasta que alguien la detenga",
+        "pagesDiffer": "El grupo de páginas seleccionado cambió después de programar esta revisión. Sigue revisando sus {count, plural, one {# página guardada} other {# páginas guardadas}}. Programa una revisión nueva para las páginas actuales.",
+        "runNow": "Ejecutar ahora",
+        "pause": "Pausar",
+        "resume": "Reanudar",
+        "edit": "Editar plan",
+        "end": "Finalizar",
+        "endTitle": "¿Finalizar esta revisión programada?",
+        "endBody": "No se inician más ejecuciones. Los resultados guardados se conservan. No puedes reiniciar una revisión finalizada.",
+        "endConfirm": "Finalizar revisión",
+        "saveRule": "Guardar plan",
+        "cancel": "Cancelar",
+        "belowReleased": "Esta revisión ya se ejecutó {count, plural, one {# vez} other {# veces}}. Elige un número mayor o deja que siga hasta que alguien la detenga.",
+        "done": {
+          "update": "Plan guardado",
+          "pause": "Revisión programada en pausa",
+          "resume": "Revisión programada reanudada",
+          "end": "Revisión programada finalizada",
+          "runNow": "Revisión solicitada"
+        },
+        "change": {
+          "none": "Aún no hay un resultado anterior para comparar.",
+          "notComparable": "Los dos últimos resultados usaron otro mercado u otro conjunto de reglas, así que no se comparan.",
+          "same": "Sin cambios desde la última ejecución.",
+          "summary": "Desde la última ejecución: {parts}",
+          "newFailures": "{count, plural, one {# fallo nuevo} other {# fallos nuevos}}",
+          "fixed": "{count} corregidos",
+          "drops": "{count, plural, one {# caída de posición} other {# caídas de posición}}",
+          "rises": "{count, plural, one {# subida de posición} other {# subidas de posición}}",
+          "newFailuresTitle": "Ahora fallan",
+          "fixedTitle": "Corregidos",
+          "movesTitle": "Cambios de posición",
+          "move": "{keyword}: posición {from} → {to}",
+          "band": "Un cambio de posición cuenta solo si supera el ruido normal de búsqueda: 2 puestos en el top 3, 5 en el top 10, 7 en el top 20."
+        },
+        "plan": {
+          "daily": "cada día a las {time}",
+          "weekly": "cada {days} a las {time}",
+          "monthly": "el día {day} de cada mes a las {time}",
+          "other": "según su plan guardado",
+          "sentence": "{check} de {pages, plural, one {# página guardada} other {# páginas guardadas}}, {when} ({zone}).",
+          "untilStopped": "Se ejecuta hasta que alguien la detenga.",
+          "endsAfter": "{count, plural, one {Termina tras # ejecución programada.} other {Termina tras # ejecuciones programadas.}}"
+        }
       },
       "pageChange": {
         "title": "Registrar un cambio",
@@ -12053,7 +12109,8 @@
         "dates": "Otras fechas",
         "checkDay": "Día con comprobación",
         "shown": "Mostrando {range}.",
-        "shownUntil": "Mostrando hasta {day}."
+        "shownUntil": "Mostrando hasta {day}.",
+        "scheduled": "Programada"
       },
       "filterDates": "Filtrar por fecha",
       "syncNow": "Sincronizar ahora",
@@ -12470,7 +12527,8 @@
         "scheduleOccurrenceChangedByMember": "Un miembro del equipo cambió una ocurrencia de {taskName}",
         "assigned": "Se te asignó {taskName}",
         "participantAdded": "Te añadieron a {taskName} como participante",
-        "followUp": "{taskName} sigue esperándote"
+        "followUp": "{taskName} sigue esperándote",
+        "seoMonitorWorse": "{taskName}: el último resultado SEO programado empeoró ({newFailures, plural, one {# fallo nuevo} other {# fallos nuevos}}, {drops, plural, one {# caída de posición} other {# caídas de posición}})"
       },
       "Billing": {
         "lowBalance": "Tus créditos se están agotando: quedan {credits}",

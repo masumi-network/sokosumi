@@ -118,13 +118,6 @@ export function seoAnalysisRequirements(
   };
 }
 
-export function seoMonitorRunCount(form: FormData) {
-  const count = Number(formText(form, "targetRunCount"));
-  if (!Number.isInteger(count) || count < 1 || count > SEO_MAX_MONITOR_RUNS)
-    throw new Error("Invalid SEO monitor run count");
-  return count;
-}
-
 /** The first page of the selection: the page a default (a market, a statistics property) is read from. */
 export function seoScopePage(
   workspace: Pick<ProjectSeoWorkspace, "pages" | "scope">,
@@ -154,7 +147,7 @@ export function editSeoCommand(
   form: FormData,
   workspace: ProjectSeoWorkspace,
   originalKeyword?: ProjectSeoKeyword | null,
-): SeoCommand {
+): Extract<SeoCommand, { body: unknown }> {
   if (kind === "page") {
     const related = formText(form, "relatedToPageId");
     const relatedToPageId = related === SEO_NO_RELATED_PAGE ? "" : related;

@@ -14,6 +14,8 @@ export interface SeoRunDay {
   /** The newest check of the day that tested page rules: the check the page shows when this day is picked. */
   check: string | null;
   selected: boolean;
+  /** A monitor started a check of the day. */
+  scheduled: boolean;
   /** Inside a range of days the reader set: a range with a start marks no one run. */
   inRange: boolean;
   newest: boolean;
@@ -44,9 +46,11 @@ export function seoRunDays(
         issues: null,
         check: null,
         selected: false,
+        scheduled: false,
         inRange: false,
         newest: days.size === 0,
       });
+    if (run.monitorId) days.get(day)!.scheduled = true;
     // The newest check of the day that tested rules gives the count, or none where it read only some pages.
     if (rule && !counted.has(day)) {
       counted.add(day);

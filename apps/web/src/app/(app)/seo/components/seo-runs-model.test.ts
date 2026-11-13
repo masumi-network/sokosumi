@@ -11,6 +11,23 @@ const run = (observedAt: string, issues: number, kind = "audit_full") => ({
 const none = { from: null, to: null };
 
 describe("SEO runs of a site", () => {
+  it("marks a day scheduled when a monitor started one of its checks", () => {
+    const { days } = seoRunDays(
+      {
+        runs: [
+          { ...run("2026-11-12T09:00:00Z", 2), monitorId: "monitor-1" },
+          run("2026-11-12T13:00:00Z", 1),
+          { ...run("2026-11-11T09:00:00Z", 3), monitorId: null },
+        ],
+      },
+      none,
+    );
+    expect(days.map(({ day, scheduled }) => ({ day, scheduled }))).toEqual([
+      { day: "2026-11-12", scheduled: true },
+      { day: "2026-11-11", scheduled: false },
+    ]);
+  });
+
   it("shows one entry per day, newest first, with the result of the newest check that tested rules", () => {
     const { days, picked } = seoRunDays(
       {

@@ -11806,18 +11806,74 @@
         "unavailable": "Geplante Prüfungen sind hier nicht verfügbar. Kehre zum Audit zurück.",
         "title": "Geplante Prüfungen",
         "create": "Prüfungen planen",
-        "description": "Wiederhole eine gezielte Prüfung für eine feste Anzahl von Durchläufen. Prüfe Markt, Seiten und Budget pro Durchlauf vor dem Speichern.",
-        "cadence": "Häufigkeit",
-        "daily": "Täglich um 09:00",
-        "weekly": "Montags um 09:00",
-        "runs": "Anzahl der Durchläufe",
-        "timeZone": "Zeitzone",
+        "description": "Wiederhole eine gezielte Prüfung nach Plan. Prüfe Markt, Seiten und Budget pro Durchlauf vor dem Speichern.",
         "cap": "Bis zu {runs} Durchläufe und insgesamt {calls} Datenanfragen. Modell- und Laufzeitkosten können ebenfalls anfallen.",
         "created": "SEO-Monitoring geplant",
         "next": "Nächster Durchlauf",
         "manage": "Aufgabenplan verwalten",
-        "offBody": "Aus. Der Agent kann diese Seiten jede Woche prüfen und jedes Ergebnis hier speichern. Nichts läuft, bevor du es planst.",
-        "agentWeekly": "Agent wöchentlich prüfen lassen"
+        "offBody": "Aus. Der Agent kann diese Seiten nach Plan prüfen und jedes Ergebnis hier speichern. Nichts läuft, bevor du es planst.",
+        "createAnother": "Weitere Prüfung planen",
+        "capPerRun": "Jeder Durchlauf nutzt bis zu {calls} Datenanfragen. Die Durchläufe gehen weiter, bis jemand sie stoppt. Modell- und Laufzeitkosten können ebenfalls anfallen.",
+        "blocked": {
+          "readOnly": "Du siehst diese Prüfungen. Nur Bearbeiter können sie planen oder ändern.",
+          "service": "Geplante Prüfungen sind in diesem Workspace nicht verfügbar.",
+          "noPages": "Wähle mindestens eine Seite, um Prüfungen zu planen."
+        },
+        "last": "Letzter Durchlauf",
+        "lastStatus": {
+          "requested": "Angefragt",
+          "running": "Läuft",
+          "completed": "Abgeschlossen",
+          "failed": "Fehlgeschlagen"
+        },
+        "noRunYet": "Noch kein Durchlauf",
+        "pausedNext": "Pausiert. Kein Durchlauf geplant.",
+        "left": "Verbleibende Durchläufe",
+        "leftCount": "{count, plural, =0 {Keine} one {# Durchlauf} other {# Durchläufe}}",
+        "leftUntilStopped": "Bis jemand sie stoppt",
+        "pagesDiffer": "Die gewählte Seitengruppe hat sich geändert, nachdem diese Prüfung geplant wurde. Sie prüft weiter ihre {count, plural, one {# gespeicherte Seite} other {# gespeicherten Seiten}}. Plane eine neue Prüfung für die aktuellen Seiten.",
+        "runNow": "Jetzt ausführen",
+        "pause": "Pausieren",
+        "resume": "Fortsetzen",
+        "edit": "Plan bearbeiten",
+        "end": "Beenden",
+        "endTitle": "Diese geplante Prüfung beenden?",
+        "endBody": "Es starten keine weiteren Durchläufe. Gespeicherte Ergebnisse bleiben. Eine beendete Prüfung kannst du nicht neu starten.",
+        "endConfirm": "Prüfung beenden",
+        "saveRule": "Plan speichern",
+        "cancel": "Abbrechen",
+        "belowReleased": "Diese Prüfung lief schon {count, plural, one {# Mal} other {# Mal}}. Wähle eine höhere Anzahl oder lass sie laufen, bis jemand sie stoppt.",
+        "done": {
+          "update": "Plan gespeichert",
+          "pause": "Geplante Prüfung pausiert",
+          "resume": "Geplante Prüfung fortgesetzt",
+          "end": "Geplante Prüfung beendet",
+          "runNow": "Prüfung angefragt"
+        },
+        "change": {
+          "none": "Noch kein früheres Ergebnis zum Vergleich.",
+          "notComparable": "Die letzten zwei Ergebnisse nutzten einen anderen Markt oder ein anderes Regelwerk. Sie werden nicht verglichen.",
+          "same": "Keine Änderung seit dem letzten Durchlauf.",
+          "summary": "Seit dem letzten Durchlauf: {parts}",
+          "newFailures": "{count, plural, one {# neuer Fehler} other {# neue Fehler}}",
+          "fixed": "{count} behoben",
+          "drops": "{count, plural, one {# Ranking-Verlust} other {# Ranking-Verluste}}",
+          "rises": "{count, plural, one {# Ranking-Gewinn} other {# Ranking-Gewinne}}",
+          "newFailuresTitle": "Jetzt fehlerhaft",
+          "fixedTitle": "Behoben",
+          "movesTitle": "Ranking-Bewegungen",
+          "move": "{keyword}: Position {from} → {to}",
+          "band": "Eine Ranking-Bewegung zählt nur, wenn sie größer als das normale Suchrauschen ist: 2 Plätze in den Top 3, 5 in den Top 10, 7 in den Top 20."
+        },
+        "plan": {
+          "daily": "jeden Tag um {time}",
+          "weekly": "jeden {days} um {time}",
+          "monthly": "am {day}. jedes Monats um {time}",
+          "other": "nach seinem gespeicherten Plan",
+          "sentence": "{check} für {pages, plural, one {# gespeicherte Seite} other {# gespeicherte Seiten}}, {when} ({zone}).",
+          "untilStopped": "Läuft, bis jemand sie stoppt.",
+          "endsAfter": "{count, plural, one {Endet nach # geplantem Durchlauf.} other {Endet nach # geplanten Durchläufen.}}"
+        }
       },
       "pageChange": {
         "title": "Änderung vermerken",
@@ -12053,7 +12109,8 @@
         "dates": "Andere Tage",
         "checkDay": "Tag mit Prüfung",
         "shown": "Zeitraum {range}.",
-        "shownUntil": "Zeitraum bis {day}."
+        "shownUntil": "Zeitraum bis {day}.",
+        "scheduled": "Geplant"
       },
       "filterDates": "Nach Datum filtern",
       "syncNow": "Jetzt synchronisieren",
@@ -12470,7 +12527,8 @@
         "scheduleOccurrenceChangedByMember": "Ein Teammitglied hat einen Termin von {taskName} geändert",
         "assigned": "Dir wurde {taskName} zugewiesen",
         "participantAdded": "Du wurdest als Teilnehmer zu {taskName} hinzugefügt",
-        "followUp": "{taskName} wartet weiterhin auf dich"
+        "followUp": "{taskName} wartet weiterhin auf dich",
+        "seoMonitorWorse": "{taskName}: Das neueste geplante SEO-Ergebnis ist schlechter ({newFailures, plural, one {# neuer Fehler} other {# neue Fehler}}, {drops, plural, one {# Ranking-Verlust} other {# Ranking-Verluste}})"
       },
       "Billing": {
         "lowBalance": "Deine Credits werden knapp: noch {credits}",

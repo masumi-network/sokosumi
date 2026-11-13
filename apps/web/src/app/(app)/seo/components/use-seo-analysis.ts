@@ -7,16 +7,14 @@ import {
   allowedSeoAnalysisKinds,
   analysisSeoBody,
   defaultFullAuditSeconds,
-  formText,
   SEO_ANALYSIS_MODULES,
   SEO_DEFAULT_FULL_AUDIT_USD,
-  SEO_DEFAULT_MONITOR_RUNS,
   SEO_DEFAULT_PROVIDER_CALLS,
   SEO_DEVICES,
   type SeoDevice,
   seoAnalysisRequirements,
-  seoMonitorRunCount,
 } from "./seo-form-model";
+import { seoMonitorRuleOf, seoMonitorWhen } from "./seo-monitor-model";
 import { seoCheckBlocking, seoRunAction } from "./seo-setup-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -28,13 +26,14 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
     model.data.availableActions.canUsePaidSearchData === true;
   const kinds = allowedSeoAnalysisKinds(canUsePaidSearchData, monitor);
   const modules = canUsePaidSearchData ? chosenModules : ["page.inspect"];
-  const [runCount, setRunCount] = useState(String(SEO_DEFAULT_MONITOR_RUNS));
   const [providerCalls, setProviderCalls] = useState(
     String(SEO_DEFAULT_PROVIDER_CALLS),
   );
-  const [timeZone, setTimeZone] = useState(
-    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+  // A new monitor starts weekly on Mondays at 09:00 in the reader's time zone.
+  const [when, setWhen] = useState(() =>
+    seoMonitorWhen(null, Intl.DateTimeFormat().resolvedOptions().timeZone),
   );
+  const rule = seoMonitorRuleOf(when);
   function toggleModule(module: string, checked: boolean) {
     if (!canUsePaidSearchData) return;
     if (!SEO_ANALYSIS_MODULES.some((value) => value === module)) return;
@@ -87,13 +86,9 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
       if (monitor) {
         if (body.kind === "audit_full")
           throw new Error("Monitoring supports focused checks only");
-        const cadence = formText(form, "cadence");
-        if (cadence !== "daily" && cadence !== "weekly")
-          throw new Error("Invalid cadence");
+        if (!rule) throw new Error("Invalid SEO monitor rule");
         const request: Omit<CreateProjectSeoMonitorRequest, "operationId"> = {
-          cadence,
-          timeZone: formText(form, "timeZone"),
-          targetRunCount: seoMonitorRunCount(form),
+          rule,
           analysis: {
             ...body,
             idempotencyKey: model.operationKey(
@@ -151,12 +146,11 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
     modules,
     toggleModule,
     ...requirements,
-    runCount,
-    setRunCount,
+    when,
+    setWhen,
+    rule,
     providerCalls,
     setProviderCalls,
-    timeZone,
-    setTimeZone,
     optionsOpen,
     setOptionsOpen,
     devices,
@@ -165,8 +159,7 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
     setUsd,
     seconds,
     setSeconds,
-    totalProviderCalls:
-      Number(runCount) *
-      (requirements.usesPaidData ? Number(providerCalls) : 0),
+    /** Data requests per run: a monitor that runs until stopped has no total. */
+    runProviderCalls: requirements.usesPaidData ? Number(providerCalls) : 0,
   };
 }
