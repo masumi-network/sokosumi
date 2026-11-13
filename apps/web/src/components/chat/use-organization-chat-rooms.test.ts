@@ -1,9 +1,14 @@
 import type { ChatRoom, ChatRoomInvitation } from "@sokosumi/core-client";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import { setAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
+import {
+  noteChatReadThrottled,
+  resetChatReadThrottleForTests,
+} from "@/lib/chat/chat-read-throttle";
 import {
   emptyListResult,
+  getRoomMock,
   listPendingMock,
   listRoomsMock,
   makeRoom,
@@ -772,5 +777,432 @@ describe("authoritative sidebar refresh", () => {
     );
     await act(async () => invalidateWhileAwayAndReturn());
     expect(result.current.roomRows[0]?.unreadCount).toBe(1);
+  });
+});
+
+/** A message event as the control channel hands it over: Core names the room. */
+function messageIn(roomId: string) {
+  window.dispatchEvent(
+    new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
+      detail: { collections: ["active"], roomId },
+    }),
+  );
+}
+
+describe("a message event that names its room", () => {
+  beforeEach(() => {
+    resetOrganizationChatListMocks();
+    clearRoomReadOverlays();
+    hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    resetChatReadThrottleForTests();
+    act(() => setAblyConnectionHealthy(false));
+    clearMembershipVisibleRoomsSnapshot();
+    vi.restoreAllMocks();
+  });
+
+  async function mountListed(...ids: string[]) {
+    const rooms = ids.map((id) => channel(id));
+    listRoomsMock.mockResolvedValue(emptyListResult(rooms));
+    const mounted = mount({ rooms });
+    await act(async () => undefined);
+    listRoomsMock.mockClear();
+    return mounted;
+  }
+
+  it("reads that room alone and leaves the other rows as they were", async () => {
+    const { result } = await mountListed("room-a", "room-b");
+    const untouched = result.current.roomRows[1];
+    getRoomMock.mockResolvedValue(channel("room-a", { unreadCount: 2 }));
+
+    await act(async () => messageIn("room-a"));
+
+    expect(getRoomMock).toHaveBeenCalledExactlyOnceWith("room-a");
+    expect(listRoomsMock).not.toHaveBeenCalled();
+    expect(result.current.roomRows.map((room) => room.unreadCount)).toEqual([
+      2, 0,
+    ]);
+    expect(result.current.roomRows[1]).toBe(untouched);
+
+    // The next event reads its own room only, not the one already read.
+    getRoomMock.mockClear();
+    await act(async () => messageIn("room-b"));
+    expect(getRoomMock).toHaveBeenCalledExactlyOnceWith("room-b");
+  });
+
+  it("reads the whole list for a room it does not list yet", async () => {
+    const { result } = await mountListed("room-a");
+    listRoomsMock.mockResolvedValue(
+      emptyListResult([channel("room-a"), channel("room-new")]),
+    );
+
+    await act(async () => messageIn("room-new"));
+
+    expect(getRoomMock).not.toHaveBeenCalled();
+    expect(result.current.roomRows.map((room) => room.id)).toEqual([
+      "room-a",
+      "room-new",
+    ]);
+  });
+
+  it("reads the whole list when the reader can no longer open the room", async () => {
+    const { result } = await mountListed("room-a", "room-b");
+    getRoomMock.mockResolvedValue("gone");
+    listRoomsMock.mockResolvedValue(emptyListResult([channel("room-b")]));
+
+    await act(async () => messageIn("room-a"));
+
+    expect(getRoomMock).toHaveBeenCalledExactlyOnceWith("room-a");
+    expect(result.current.roomRows.map((room) => room.id)).toEqual(["room-b"]);
+  });
+
+  it("reads the whole list when an event naming no room is waiting with it", async () => {
+    await mountListed("room-a", "room-b");
+    const first = Promise.withResolvers<ChatRoom>();
+    getRoomMock.mockReturnValueOnce(first.promise);
+
+    // Both wait behind the read in flight, and one of them names no room.
+    await act(async () => {
+      messageIn("room-a");
+      messageIn("room-b");
+      window.dispatchEvent(
+        new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
+          detail: { collections: ["active"] },
+        }),
+      );
+    });
+    await act(async () => first.resolve(channel("room-a")));
+
+    expect(getRoomMock).toHaveBeenCalledTimes(1);
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads the whole list once more rooms are stale than it reads singly", async () => {
+    await mountListed("room-a", "room-b", "room-c", "room-d", "room-e");
+    const first = Promise.withResolvers<ChatRoom>();
+    getRoomMock.mockReturnValueOnce(first.promise);
+
+    // The first read is in flight; four more rooms queue behind it.
+    await act(async () => {
+      messageIn("room-a");
+      for (const id of ["room-b", "room-c", "room-d", "room-e"]) messageIn(id);
+    });
+    expect(listRoomsMock).not.toHaveBeenCalled();
+    await act(async () => first.resolve(channel("room-a")));
+
+    expect(getRoomMock).toHaveBeenCalledTimes(1);
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a room read when the reader read it while the room was being fetched", async () => {
+    const { result } = await mountListed("room-a");
+    const pending = Promise.withResolvers<ChatRoom>();
+    getRoomMock.mockReturnValue(pending.promise);
+
+    await act(async () => messageIn("room-a"));
+    act(() => rememberRoomRead(channel("room-a", { unreadCount: 0 })));
+    await act(async () =>
+      pending.resolve(channel("room-a", { unreadCount: 3 })),
+    );
+
+    expect(result.current.roomRows[0]?.unreadCount).toBe(0);
+  });
+
+  it("drops a room read that a newer copy of the room overtook", async () => {
+    const { result } = await mountListed("room-a");
+    const pending = Promise.withResolvers<ChatRoom>();
+    getRoomMock.mockReturnValue(pending.promise);
+
+    await act(async () => messageIn("room-a"));
+    act(() =>
+      result.current.upsertRoomToTop(channel("room-a", { name: "Renamed" })),
+    );
+    await act(async () => pending.resolve(channel("room-a", { name: "Old" })));
+
+    expect(result.current.roomRows[0]?.name).toBe("Renamed");
+  });
+
+  it("reads as many stale rooms singly as the limit allows, in one pass", async () => {
+    const { result } = await mountListed(
+      "room-a",
+      "room-b",
+      "room-c",
+      "room-d",
+    );
+    const first = Promise.withResolvers<ChatRoom>();
+    getRoomMock.mockReturnValueOnce(first.promise);
+    getRoomMock.mockImplementation(async (id: string) =>
+      channel(id, { unreadCount: 5 }),
+    );
+
+    await act(async () => {
+      messageIn("room-a");
+      messageIn("room-b");
+      messageIn("room-c");
+      messageIn("room-d");
+    });
+    await act(async () => first.resolve(channel("room-a")));
+
+    expect(listRoomsMock).not.toHaveBeenCalled();
+    expect(result.current.roomRows.map((room) => room.unreadCount)).toEqual([
+      0, 5, 5, 5,
+    ]);
+  });
+
+  it("keeps the workspace logo and website, which Core loads for the list only", async () => {
+    const listed = channel("room-a", {
+      organizationLogo: "logo.png",
+      organizationWebsiteUrl: "https://acme.test",
+    });
+    listRoomsMock.mockResolvedValue(emptyListResult([listed]));
+    const { result } = mount({ rooms: [listed] });
+    await act(async () => undefined);
+    getRoomMock.mockResolvedValue(channel("room-a", { unreadCount: 1 }));
+
+    await act(async () => messageIn("room-a"));
+
+    expect(result.current.roomRows[0]).toMatchObject({
+      unreadCount: 1,
+      organizationLogo: "logo.png",
+      organizationWebsiteUrl: "https://acme.test",
+    });
+  });
+
+  it("reads the whole list on recovery even while a named room waits", async () => {
+    act(() => setAblyConnectionHealthy(true));
+    await mountListed("room-a", "room-b");
+    const first = Promise.withResolvers<ChatRoom>();
+    getRoomMock.mockReturnValueOnce(first.promise);
+
+    // Room B and the recovery read both wait behind the read in flight.
+    await act(async () => {
+      messageIn("room-a");
+      messageIn("room-b");
+    });
+    act(() => setAblyConnectionHealthy(false));
+    act(() => setAblyConnectionHealthy(true));
+    await act(async () => first.resolve(channel("room-a")));
+
+    expect(getRoomMock).toHaveBeenCalledTimes(1);
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads the whole list for a new workspace, whatever the last one left waiting", async () => {
+    const rooms = [channel("room-a"), channel("room-b")];
+    listRoomsMock.mockResolvedValue(emptyListResult(rooms));
+    const { rerender } = mount({ rooms, organizationId: "org-1" });
+    await act(async () => undefined);
+    listRoomsMock.mockClear();
+    getRoomMock.mockReturnValueOnce(new Promise(() => {}));
+
+    await act(async () => {
+      messageIn("room-a");
+      messageIn("room-b");
+    });
+    await act(async () =>
+      rerender({ rooms, archivedRooms: NO_ROOMS, organizationId: "org-2" }),
+    );
+
+    expect(getRoomMock).toHaveBeenCalledTimes(1);
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits out a throttle instead of asking for the whole list inside it", async () => {
+    vi.useFakeTimers();
+    // Healthy, so the only timer left is a minute out: the read at the end
+    // of the window has to be the one this asked for.
+    act(() => setAblyConnectionHealthy(true));
+    await mountListed("room-a");
+    getRoomMock.mockImplementation(async () => {
+      noteChatReadThrottled(30);
+      return null;
+    });
+
+    await act(async () => messageIn("room-a"));
+    expect(listRoomsMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(45_000);
+    });
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies the fallback list read after a change made during the room read", async () => {
+    const { result } = await mountListed("room-a");
+    const pending = Promise.withResolvers<ChatRoom | "gone">();
+    getRoomMock.mockReturnValue(pending.promise);
+    listRoomsMock.mockResolvedValue(
+      emptyListResult([channel("room-a", { unreadCount: 4 })]),
+    );
+
+    await act(async () => messageIn("room-a"));
+    act(() => result.current.upsertRoomToTop(channel("room-c")));
+    await act(async () => pending.resolve("gone"));
+
+    expect(
+      result.current.roomRows.find((room) => room.id === "room-a")?.unreadCount,
+    ).toBe(4);
+  });
+
+  it("reads the whole list when the browser comes back online while a named room waits", async () => {
+    await mountListed("room-a", "room-b");
+    const first = Promise.withResolvers<ChatRoom>();
+    getRoomMock.mockReturnValueOnce(first.promise);
+
+    await act(async () => {
+      messageIn("room-a");
+      messageIn("room-b");
+      window.dispatchEvent(new Event("online"));
+    });
+    await act(async () => first.resolve(channel("room-a")));
+
+    expect(getRoomMock).toHaveBeenCalledTimes(1);
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("still owes the whole list after a whole-list read failed", async () => {
+    await mountListed("room-a");
+    listRoomsMock.mockResolvedValueOnce({ ok: false });
+
+    await act(async () => messageIn("room-unlisted"));
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+    await act(async () => messageIn("room-a"));
+
+    expect(getRoomMock).not.toHaveBeenCalled();
+    expect(listRoomsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads the whole list after a room read was dropped", async () => {
+    const { result } = await mountListed("room-a");
+    const pending = Promise.withResolvers<ChatRoom>();
+    getRoomMock.mockReturnValueOnce(pending.promise);
+
+    await act(async () => messageIn("room-a"));
+    act(() => result.current.upsertRoomToTop(channel("room-c")));
+    await act(async () => pending.resolve(channel("room-a")));
+    await act(async () => messageIn("room-c"));
+
+    expect(getRoomMock).toHaveBeenCalledTimes(1);
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not follow a failed room read with a list read that would fail too", async () => {
+    await mountListed("room-a");
+    getRoomMock.mockResolvedValueOnce(null);
+
+    await act(async () => messageIn("room-a"));
+    expect(listRoomsMock).not.toHaveBeenCalled();
+
+    // The list is owed, so the next event reads it and not the room.
+    await act(async () => messageIn("room-a"));
+    expect(getRoomMock).toHaveBeenCalledTimes(1);
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a whole-list read that started earlier still land", async () => {
+    const { result } = await mountListed("room-a");
+    const earlier = beginRoomAttentionRefresh();
+    getRoomMock.mockResolvedValue(channel("room-a"));
+
+    await act(async () => messageIn("room-a"));
+    act(() =>
+      result.current.replaceAllRooms(
+        [channel("room-a"), channel("room-b")],
+        earlier,
+      ),
+    );
+
+    expect(result.current.roomRows.map((room) => room.id)).toEqual([
+      "room-a",
+      "room-b",
+    ]);
+  });
+
+  it("reads the whole list when one of several rooms is gone", async () => {
+    await mountListed("room-a", "room-b", "room-c");
+    const first = Promise.withResolvers<ChatRoom>();
+    getRoomMock.mockReturnValueOnce(first.promise);
+    getRoomMock.mockImplementation(async (id: string) =>
+      id === "room-b" ? "gone" : channel(id),
+    );
+
+    await act(async () => {
+      messageIn("room-a");
+      messageIn("room-b");
+      messageIn("room-c");
+    });
+    await act(async () => first.resolve(channel("room-a")));
+
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("owes the whole list again after an earlier list read put an older row back", async () => {
+    const { result } = await mountListed("room-a");
+    const earlier = beginRoomAttentionRefresh();
+    getRoomMock.mockResolvedValue(channel("room-a"));
+
+    await act(async () => messageIn("room-a"));
+    act(() => result.current.replaceAllRooms([channel("room-a")], earlier));
+    getRoomMock.mockClear();
+    await act(async () => messageIn("room-a"));
+
+    expect(getRoomMock).not.toHaveBeenCalled();
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("still owes the whole list when its answer was dropped", async () => {
+    const { result } = await mountListed("room-a");
+    const pending = Promise.withResolvers<ReturnType<typeof emptyListResult>>();
+    listRoomsMock.mockReturnValueOnce(pending.promise);
+
+    await act(async () => messageIn("room-unlisted"));
+    act(() => result.current.upsertRoomToTop(channel("room-c")));
+    await act(async () =>
+      pending.resolve(emptyListResult([channel("room-a")])),
+    );
+    await act(async () => messageIn("room-a"));
+
+    expect(getRoomMock).not.toHaveBeenCalled();
+    expect(listRoomsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("owes the whole list when the room left the rows during its read", async () => {
+    const rooms = [channel("room-a"), channel("room-b")];
+    listRoomsMock.mockResolvedValue(emptyListResult(rooms));
+    const { rerender } = mount({ rooms });
+    await act(async () => undefined);
+    listRoomsMock.mockClear();
+    const pending = Promise.withResolvers<ChatRoom>();
+    getRoomMock.mockReturnValueOnce(pending.promise);
+
+    await act(async () => messageIn("room-a"));
+    // New server props without the room: no revision moves.
+    await act(async () =>
+      rerender({ rooms: [channel("room-b")], archivedRooms: NO_ROOMS }),
+    );
+    await act(async () => pending.resolve(channel("room-a")));
+    await act(async () => messageIn("room-b"));
+
+    expect(getRoomMock).toHaveBeenCalledTimes(1);
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("still reads the whole list once per recovery interval", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    await mountListed("room-a");
+    getRoomMock.mockResolvedValue(channel("room-a"));
+
+    await act(async () => messageIn("room-a"));
+    expect(listRoomsMock).not.toHaveBeenCalled();
+
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => messageIn("room-a"));
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => messageIn("room-a"));
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
   });
 });

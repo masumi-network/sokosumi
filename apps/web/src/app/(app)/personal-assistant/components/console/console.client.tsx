@@ -122,6 +122,10 @@ function ScheduleRow({
         (entry) => entry.key === schedule.systemKey,
       )
     : undefined;
+  // A schedule being deleted leaves the list at once and comes back when
+  // the delete fails.
+  const [removed, setRemoved] = useState(false);
+  if (removed) return null;
   return (
     <li className="space-y-1.5 px-3 py-3">
       <div className="flex items-start justify-between gap-2">
@@ -146,6 +150,7 @@ function ScheduleRow({
             scheduleId={schedule.id}
             enabled={schedule.enabled}
             deletable={!schedule.systemKey}
+            onRemovedChange={setRemoved}
           />
         )}
       </div>
