@@ -12375,7 +12375,9 @@
         "brandTermsHelp": "One term per line. A query that holds a term as whole words counts as branded. Case and accents do not matter.",
         "saveBrandTerms": "Save brand terms",
         "cancelBrandTerms": "Cancel",
-        "brandSaved": "Brand terms saved"
+        "brandSaved": "Brand terms saved",
+        "noQueryData": "This search type has no query data",
+        "noQueryDataBody": "Query rows are not read for Discover and Google News. Clicks and impressions for this type show above."
       },
       "export": {
         "csv": "Download CSV",

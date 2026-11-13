@@ -96,8 +96,12 @@ describe("SEO Traffic search type", () => {
     const workspace = seoTestWorkspace();
     workspace.metrics = [{ ...seoTestMetric(), searchType: "discover" }];
     renderTraffic(workspace, "&searchType=discover");
-    // The totals card and the empty query table each offer the same refresh.
-    await user.click(screen.getAllByRole("button", { name: "Sync now" })[0]);
+    // Discover syncs no query rows, so the query table says that instead of asking for a sync.
+    expect(
+      screen.getByText("This search type has no query data"),
+    ).toBeVisible();
+    expect(screen.queryByText("No query rows saved yet")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Sync now" }));
     await waitFor(() =>
       expect(mutate).toHaveBeenCalledWith(
         expect.objectContaining({

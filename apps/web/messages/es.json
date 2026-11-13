@@ -12375,7 +12375,9 @@
         "brandTermsHelp": "Un término por línea. Una consulta que contiene un término como palabras completas cuenta como de marca. Las mayúsculas y los acentos no importan.",
         "saveBrandTerms": "Guardar términos de marca",
         "cancelBrandTerms": "Cancelar",
-        "brandSaved": "Términos de marca guardados"
+        "brandSaved": "Términos de marca guardados",
+        "noQueryData": "Este tipo de búsqueda no tiene datos de consultas",
+        "noQueryDataBody": "Para Discover y Google News no se leen consultas. Los clics y las impresiones de este tipo aparecen arriba."
       },
       "export": {
         "csv": "Descargar CSV",

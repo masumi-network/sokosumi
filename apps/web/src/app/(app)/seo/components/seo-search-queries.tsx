@@ -38,6 +38,7 @@ import {
   SeoSection,
 } from "./seo-shared";
 import { savedSeoStatistics, seoQueryPeriod } from "./seo-statistics-model";
+import { seoSearchTypeHasQueries } from "./seo-traffic-model";
 import { useSearchConsoleConnected } from "./use-seo-connection";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -104,7 +105,8 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
   );
   const canSync = model.data.availableActions.canSyncMetrics;
   // Only the empty card asks: a connected account with nothing synced is not "not connected".
-  const connected = useSearchConsoleConnected(!source && !saved);
+  const hasQueries = seoSearchTypeHasQueries(model.filters.searchType);
+  const connected = useSearchConsoleConnected(hasQueries && !source && !saved);
   const empty = saved ? "notLoaded" : connected ? "notSynced" : "notConnected";
   const [brandView, setBrandView] = useState<SeoBrandView>("all");
   const rows = sortQueryRows(
@@ -154,7 +156,12 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
           onView={setBrandView}
         />
       ) : null}
-      {!source ? (
+      {!source && !hasQueries ? (
+        <SeoEmpty
+          title={t("traffic.noQueryData")}
+          body={t("traffic.noQueryDataBody")}
+        />
+      ) : !source ? (
         <SeoEmpty
           title={t(`queries.${empty}`)}
           body={t(`queries.${empty}Body`)}

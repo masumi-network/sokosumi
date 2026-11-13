@@ -12375,7 +12375,9 @@
         "brandTermsHelp": "Ein Begriff pro Zeile. Eine Suchanfrage, die einen Begriff als ganze Wörter enthält, zählt als Markenanfrage. Groß- und Kleinschreibung und Akzente spielen keine Rolle.",
         "saveBrandTerms": "Markenbegriffe speichern",
         "cancelBrandTerms": "Abbrechen",
-        "brandSaved": "Markenbegriffe gespeichert"
+        "brandSaved": "Markenbegriffe gespeichert",
+        "noQueryData": "Für diesen Suchtyp gibt es keine Suchanfragen",
+        "noQueryDataBody": "Für Discover und Google News werden keine Suchanfragen gelesen. Klicks und Impressionen für diesen Typ stehen oben."
       },
       "export": {
         "csv": "CSV herunterladen",

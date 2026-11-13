@@ -42,6 +42,14 @@ export function seoSearchType(value: string): SeoSearchType | null {
     : null;
 }
 
+/**
+ * Discover and Google News sync no query rows: the same rule as Core's seoSearchTypeHasQueries.
+ * Without a chosen type the view is web search.
+ */
+export function seoSearchTypeHasQueries(type: SeoSearchType | null): boolean {
+  return type !== "discover" && type !== "googleNews";
+}
+
 /** The search type choice matters once Search Console data exists; a chosen type always shows, so it can be cleared. */
 export function seoSearchTypeShown({
   data,
