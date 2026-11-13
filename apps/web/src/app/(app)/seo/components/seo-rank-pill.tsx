@@ -22,7 +22,9 @@ export function seoRankBand(position: number) {
  */
 const BAND_CLASS: Record<ReturnType<typeof seoRankBand>, string> = {
   top3: "bg-chart-3 text-primary-foreground",
-  page1: "bg-muted text-foreground",
+  // A hovered table row has the accent fill: in light mode the muted fill equals it and the ring shows, in dark
+  // mode the ring equals it and the fill shows. The pill stays a pill on every row.
+  page1: "bg-muted text-foreground ring-1 ring-quaternary ring-inset",
   rest: "text-muted-foreground",
 };
 
