@@ -9,7 +9,7 @@ type Point = Series["points"][number];
 const point = (day: string, patch: Partial<Point> = {}): Point => ({
   observedAt: new Date(`2026-10-${day}T08:00:00Z`),
   observationId: "observation",
-  onlyPageUrl: "https://example.com/",
+  pages: [0],
   itemTypes: ["organic"],
   aiOverview: null,
   featured: null,
@@ -22,6 +22,7 @@ const series = (patch: Partial<Series>, points: Point[]): Series => ({
   device: "desktop",
   countryCode: "US",
   languageCode: "en",
+  pageUrls: ["https://example.com/"],
   points,
   ...patch,
 });
@@ -51,25 +52,33 @@ describe("seoSerpMarkers", () => {
     ).toEqual(["undetermined", "cited", "shown", "absent", "not_checked"]);
   });
 
-  it("says the row's page is cited only when the check read that page alone", () => {
-    const cited = (onlyPageUrl: string | null, pageUrl: string | null) =>
+  it("reads a citation for the row's page only from a check that read it", () => {
+    const pageUrls = ["https://example.com/", "https://example.com/pricing"];
+    const home = "https://example.com/#top";
+    const mark = (
+      pages: number[],
+      pageCited: boolean | null,
+      pageUrl: string | null,
+    ) =>
       seoSerpMarkers(
         [
-          series({}, [
-            point("01", { onlyPageUrl, aiOverview: ai(true, true) }),
+          series({ pageUrls }, [
+            point("01", { pages, aiOverview: ai(true, pageCited) }),
           ]),
         ],
         [seoTestKeyword({ pageUrl })],
-      ).map((mark) => (mark.suspect ? "suspect" : mark.aiOverview));
-    expect(cited("https://example.com/", "https://example.com/#top")).toEqual([
-      "cited",
-    ]);
-    // A check of several pages names none of them.
-    expect(cited(null, "https://example.com/")).toEqual(["cited_checked"]);
-    expect(
-      cited("https://example.com/pricing", "https://example.com/"),
-    ).toEqual(["cited_checked"]);
-    expect(cited("https://example.com/", null)).toEqual(["cited_checked"]);
+      ).map((item) => (item.suspect ? "suspect" : item.aiOverview));
+    expect(mark([0], true, home)).toEqual(["cited"]);
+    // The check read the row's page with another: a citation names neither.
+    expect(mark([0, 1], true, home)).toEqual(["cited_checked"]);
+    expect(mark([0, 1], false, home)).toEqual(["shown"]);
+    expect(mark([0, 1], null, home)).toEqual(["undetermined"]);
+    // A check of another page says nothing about the row's page.
+    expect(mark([1], false, home)).toEqual(["other_page"]);
+    expect(mark([1], true, home)).toEqual(["other_page"]);
+    expect(mark([1], null, home)).toEqual(["other_page"]);
+    // A row without a page reads the check's pages together.
+    expect(mark([0], true, null)).toEqual(["cited_checked"]);
   });
 
   it("reads the featured snippet, People also ask and other features of a check", () => {

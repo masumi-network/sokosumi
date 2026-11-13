@@ -1476,7 +1476,7 @@ describe("Search Console queries", () => {
     const check = (day: string, aiOverview: { shown: boolean } | null) => ({
       observedAt: new Date(`${day}T08:00:00Z`),
       observationId: "observation-1",
-      onlyPageUrl: "https://example.com/",
+      pages: [0],
       itemTypes: ["organic", "video"],
       aiOverview: aiOverview && {
         ...aiOverview,
@@ -1494,6 +1494,7 @@ describe("Search Console queries", () => {
         device: "desktop",
         countryCode: "US",
         languageCode: "en",
+        pageUrls: ["https://example.com/"],
         points: [
           check("2026-10-01", null),
           check("2026-10-08", { shown: false }),
@@ -1599,11 +1600,12 @@ describe("Search Console queries", () => {
         device: "desktop",
         countryCode: "US",
         languageCode: "en",
+        pageUrls: ["https://example.com/"],
         points: [
           {
             observedAt: new Date("2026-10-08T08:00:00Z"),
             observationId: "observation-old",
-            onlyPageUrl: "https://example.com/",
+            pages: [0],
             itemTypes: ["organic"],
             aiOverview: null,
             featured: null,

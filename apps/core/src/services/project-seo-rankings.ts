@@ -160,14 +160,19 @@ function serpHistory(sources: Source[]): SerpSeries[] {
         device: read.device,
         countryCode: data.countryCode,
         languageCode: data.languageCode,
+        pageUrls: [],
         points: [],
+      };
+      const page = (url: string) => {
+        const key = normalizeSeoUrl(url);
+        const index = entry.pageUrls.indexOf(key);
+        return index < 0 ? entry.pageUrls.push(key) - 1 : index;
       };
       entry.points.push({
         observedAt: read.observedAt,
         observationId: row.id,
-        // The bot reads a citation against every page of the Run: only a one-page Run names the cited page.
-        onlyPageUrl:
-          data.pageUrls.length === 1 ? normalizeSeoUrl(data.pageUrls[0]) : null,
+        // The bot reads a citation against every page of the Run together: the point names them all.
+        pages: [...new Set(data.pageUrls.map(page))],
         itemTypes: read.itemTypes,
         aiOverview: read.aiOverview,
         featured: read.featured,

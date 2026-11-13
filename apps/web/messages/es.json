@@ -11575,7 +11575,8 @@
             "absent": "Ninguno",
             "not_checked": "AI Overview no comprobado",
             "undetermined": "Cita no determinada",
-            "cited_checked": "Cita una página comprobada"
+            "cited_checked": "Cita una página comprobada",
+            "other_page": "Comprobado para otra página"
           },
           "snippet": {
             "owned": "El sitio de la página",

@@ -11575,7 +11575,8 @@
             "absent": "Keine",
             "not_checked": "KI-Übersicht nicht geprüft",
             "undetermined": "Zitierung nicht ermittelt",
-            "cited_checked": "Zitiert eine geprüfte Seite"
+            "cited_checked": "Zitiert eine geprüfte Seite",
+            "other_page": "Für eine andere Seite geprüft"
           },
           "snippet": {
             "owned": "Website der Seite",

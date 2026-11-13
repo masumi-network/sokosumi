@@ -41684,6 +41684,12 @@ export const ProjectSeoSerpSeriesSchema = {
         languageCode: {
             type: 'string'
         },
+        pageUrls: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
         points: {
             type: 'array',
             items: {
@@ -41697,6 +41703,7 @@ export const ProjectSeoSerpSeriesSchema = {
         'device',
         'countryCode',
         'languageCode',
+        'pageUrls',
         'points'
     ]
 } as const;
@@ -41712,11 +41719,12 @@ export const ProjectSeoSerpPointSchema = {
         observationId: {
             type: 'string'
         },
-        onlyPageUrl: {
-            type: [
-                'string',
-                'null'
-            ]
+        pages: {
+            type: 'array',
+            items: {
+                type: 'integer',
+                minimum: 0
+            }
         },
         itemTypes: {
             type: 'array',
@@ -41795,7 +41803,7 @@ export const ProjectSeoSerpPointSchema = {
     required: [
         'observedAt',
         'observationId',
-        'onlyPageUrl',
+        'pages',
         'itemTypes',
         'aiOverview',
         'featured',

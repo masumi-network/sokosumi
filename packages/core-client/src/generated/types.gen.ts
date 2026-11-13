@@ -10965,13 +10965,14 @@ export type ProjectSeoSerpSeries = {
     device: 'mobile' | 'desktop';
     countryCode: string;
     languageCode: string;
+    pageUrls: Array<string>;
     points: Array<ProjectSeoSerpPoint>;
 };
 
 export type ProjectSeoSerpPoint = {
     observedAt: Date;
     observationId: string;
-    onlyPageUrl: string | null;
+    pages: Array<number>;
     itemTypes: Array<string>;
     aiOverview: {
         shown: boolean;

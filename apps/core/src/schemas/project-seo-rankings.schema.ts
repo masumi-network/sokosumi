@@ -31,10 +31,10 @@ export const seoSerpPointSchema = z
     observedAt: dateTimeSchema,
     observationId: z.string(),
     /**
-     * The page of the check when it read exactly one page, normalized; null for a check of several pages.
-     * `pageCited`, `pageOwned` and `paaOwned` speak of the checked pages, so only a one-page check names the page.
+     * The pages the check read, as indices into the series' `pageUrls`. `pageCited`, `pageOwned` and `paaOwned`
+     * speak of these pages together, never of one of them.
      */
-    onlyPageUrl: z.string().nullable(),
+    pages: z.array(z.number().int().nonnegative()),
     itemTypes: z.array(z.string()),
     aiOverview: z.union([
       z.object({
@@ -65,6 +65,8 @@ export const seoSerpSeriesSchema = z
     device,
     countryCode: z.string(),
     languageCode: z.string(),
+    /** The distinct pages the series' checks read, normalized. A point names its pages by index. */
+    pageUrls: z.array(z.string()),
     points: z.array(seoSerpPointSchema).max(SEO_RANK_HISTORY_POINTS),
   })
   .openapi("ProjectSeoSerpSeries");

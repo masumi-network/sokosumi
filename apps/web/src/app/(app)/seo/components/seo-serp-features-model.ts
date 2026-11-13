@@ -31,11 +31,13 @@ const NOT_COUNTED = new Set([
  * AI Overview shows, no reference matches the page by URL and a Google-wrapped reference has no known domain or a
  * domain on the page's host (not determined).
  * "cited" names the row's page: the check read that page alone. A check of several pages cites one of them
- * ("cited_checked"), and the read does not say which.
+ * ("cited_checked"), and the read does not say which. "other_page": the check did not read the row's page, so
+ * its citation says nothing about it. A row without a page reads the check's pages together.
  */
 export type SeoAiOverviewMark =
   | "cited"
   | "cited_checked"
+  | "other_page"
   | "shown"
   | "undetermined"
   | "absent"
@@ -95,6 +97,10 @@ export function seoSerpMarkers(
           return { date, device: series.device, suspect: true };
         const types = new Set(point.itemTypes);
         const ai = point.aiOverview;
+        const checked = point.pages.flatMap((index) => {
+          const url = series.pageUrls[index];
+          return url === undefined ? [] : [pageKey(url)];
+        });
         return {
           date,
           device: series.device,
@@ -103,14 +109,15 @@ export function seoSerpMarkers(
             ? "not_checked"
             : !ai.shown
               ? "absent"
-              : ai.pageCited === null
-                ? "undetermined"
-                : !ai.pageCited
-                  ? "shown"
-                  : point.onlyPageUrl !== null &&
-                      pageKey(point.onlyPageUrl) === page
-                    ? "cited"
-                    : "cited_checked",
+              : page !== null && !checked.includes(page)
+                ? "other_page"
+                : ai.pageCited === null
+                  ? "undetermined"
+                  : !ai.pageCited
+                    ? "shown"
+                    : page !== null && checked.length === 1
+                      ? "cited"
+                      : "cited_checked",
           featured: !point.featured
             ? "none"
             : point.featured.pageOwned
