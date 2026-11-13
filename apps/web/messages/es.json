@@ -11464,7 +11464,10 @@
         "periodWorse": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora peor",
         "periodSame": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, sin cambio",
         "changeMarker": "Cambio registrado el {day}: {changes}",
-        "points": "{value} p. p."
+        "points": "{value} p. p.",
+        "googleUpdate": "Google: {name}, del {from} al {to}",
+        "googleUpdateDay": "Google: {name}, {day}",
+        "googleUpdatesAsOf": "Actualizaciones de Google conocidas hasta el {day}"
       },
       "keywords": {
         "title": "Palabras clave",

@@ -57,8 +57,19 @@ export function SeoTrendChart({
     });
   const value = (point: { value: number | null }) =>
     point.value === null ? unavailable : formatValue(point.value);
-  const changeOn = (date: string) =>
-    model.changes.find((change) => change.date === date)?.labels;
+  const fullDay = (date: string) =>
+    format.dateTime(new Date(`${date}T12:00:00Z`), {
+      dateStyle: "medium",
+      timeZone: "UTC",
+    });
+  // A day carries the recorded changes and the Google updates that run on it.
+  const changeOn = (date: string) => {
+    const labels = [
+      ...(model.changes.find((change) => change.date === date)?.labels ?? []),
+      ...model.updatesOn(date),
+    ];
+    return labels.length ? labels : undefined;
+  };
   const readout = (index: number | null) => {
     const point = index === null ? undefined : model.points[index];
     if (!point) return null;
@@ -169,6 +180,18 @@ export function SeoTrendChart({
               viewBox="0 0 100 100"
               preserveAspectRatio="none"
             >
+              {/* Google updates lie behind the grid and the data. */}
+              {model.updates.map((update) => (
+                <rect
+                  key={`update:${update.name}`}
+                  data-testid="seo-trend-update"
+                  className="fill-quinary"
+                  x={update.x}
+                  width={update.width}
+                  y={0}
+                  height={100}
+                />
+              ))}
               {model.ticks.map((tick) => (
                 <line
                   key={tick.value}
@@ -306,6 +329,31 @@ export function SeoTrendChart({
               </span>
             </li>
           ))}
+        </ul>
+      ) : null}
+      {model.updatesAsOf ? (
+        <ul className="text-muted-foreground space-y-0.5 text-xs">
+          {model.updates.map((update) => (
+            <li key={update.name} className="flex gap-2">
+              <span
+                aria-hidden
+                className="bg-quinary border-border mt-0.5 size-3 shrink-0 rounded-xs border"
+              />
+              <span>
+                {update.last && update.last !== update.first
+                  ? t("googleUpdate", {
+                      name: update.name,
+                      from: fullDay(update.first),
+                      to: fullDay(update.last),
+                    })
+                  : t("googleUpdateDay", {
+                      name: update.name,
+                      day: fullDay(update.first),
+                    })}
+              </span>
+            </li>
+          ))}
+          <li>{t("googleUpdatesAsOf", { day: fullDay(model.updatesAsOf) })}</li>
         </ul>
       ) : null}
       {model.inverted ? (

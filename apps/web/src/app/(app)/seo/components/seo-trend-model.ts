@@ -1,4 +1,9 @@
 import type { ProjectSeoMetric } from "@sokosumi/core-client";
+import {
+  GOOGLE_EVENTS,
+  GOOGLE_EVENTS_AS_OF,
+  type GoogleEvent,
+} from "@sokosumi/utils";
 
 const TICK_INTERVALS = 3;
 const DAY_MS = 86_400_000;
@@ -39,6 +44,8 @@ export function seoTrendModel(
    * between them. A read without a value still breaks the line.
    */
   joinReads = false,
+  /** Google updates and data anomalies; the ones outside the plotted days are left out. */
+  events: readonly GoogleEvent[] = GOOGLE_EVENTS,
 ) {
   const inverted = unit === "position";
   // Older saved syncs stored position 0 for days without impressions.
@@ -101,6 +108,36 @@ export function seoTrendModel(
               ? ((day - first) / span) * 100
               : 50,
     }));
+  // The left and right edge of one day on the plot: a day band for bars, half a day around the point for a line.
+  const edges = (day: number): [number, number] =>
+    bars
+      ? [(day - first) * band, (day - first + 1) * band]
+      : span > 0
+        ? [
+            ((day - first - 0.5) / span) * 100,
+            ((day - first + 0.5) / span) * 100,
+          ]
+        : [0, 100];
+  const clip = (x: number) => Math.min(Math.max(x, 0), 100);
+  const last = first + span;
+  // A lasting change (no last day) is a step on its first day.
+  const updates = points.length
+    ? events.flatMap((event) => {
+        const from = Math.max(dayNumber(event.first), first);
+        const to = Math.min(dayNumber(event.last ?? event.first), last);
+        if (from > to) return [];
+        const x = clip(edges(from)[0]);
+        return [
+          {
+            name: event.name,
+            first: event.first,
+            last: event.last,
+            x,
+            width: clip(edges(to)[1]) - x,
+          },
+        ];
+      })
+    : [];
   const runs: number[][] = [];
   plotted.forEach((point, index) => {
     if (point.y === null) return;
@@ -120,6 +157,23 @@ export function seoTrendModel(
   return {
     points: plotted,
     changes,
+    updates,
+    /** The names of the updates that run on a plotted day. */
+    updatesOn: (date: string) =>
+      updates
+        .filter(
+          (update) =>
+            update.first <= date && (update.last ?? update.first) >= date,
+        )
+        .map((update) => update.name),
+    /**
+     * The last day the table of updates covers, where the reader needs it: beside a band, or under a chart
+     * that runs past that day and so can miss an update.
+     */
+    updatesAsOf:
+      updates.length > 0 || (points.at(-1)?.date ?? "") > GOOGLE_EVENTS_AS_OF
+        ? GOOGLE_EVENTS_AS_OF
+        : null,
     lines: runs.filter((run) => run.length > 1),
     dots: runs.filter((run) => run.length === 1).map(([index]) => index),
     ticks: ticks.map((value) => ({ value, y: y(value) })),

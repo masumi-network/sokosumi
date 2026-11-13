@@ -138,3 +138,71 @@ describe("change markers", () => {
     expect(model.changes[0].x).toBe(10);
   });
 });
+
+describe("seoTrendModel Google update bands", () => {
+  const event = (first: string, last: string | null) => ({
+    name: `${first} update`,
+    kind: "core update" as const,
+    first,
+    last,
+    touches: "rankings",
+    clicks: true,
+    sources: [],
+  });
+  // 2026-10-10 to 2026-10-14: five days.
+  const five = days([1, 2, 3, 4, 5]);
+
+  it("places a band on the day bands of a count chart, cut at the plotted days", () => {
+    const model = seoTrendModel(five, "count", [], false, [
+      event("2026-10-11", "2026-10-12"),
+      event("2026-10-01", "2026-10-10"),
+      event("2026-10-14", "2026-10-30"),
+    ]);
+    expect(
+      model.updates.map(({ x, width }) => [x, width].map(Math.round)),
+    ).toEqual([
+      [20, 40],
+      [0, 20],
+      [80, 20],
+    ]);
+  });
+
+  it("spans half a day around each point of a line chart", () => {
+    const model = seoTrendModel(five, "position", [], false, [
+      event("2026-10-12", "2026-10-12"),
+    ]);
+    expect(model.updates).toEqual([
+      expect.objectContaining({ x: 37.5, width: 25 }),
+    ]);
+  });
+
+  it("drops events outside the plotted days and draws a lasting change on its first day", () => {
+    const model = seoTrendModel(five, "count", [], false, [
+      event("2026-09-01", "2026-10-09"),
+      event("2026-10-15", "2026-10-20"),
+      event("2026-10-13", null),
+      event("2026-10-15", null),
+    ]);
+    expect(model.updates).toEqual([
+      expect.objectContaining({ first: "2026-10-13", x: 60, width: 20 }),
+    ]);
+  });
+
+  it("draws no band without points", () => {
+    expect(
+      seoTrendModel([], "count", [], false, [event("2026-10-11", "2026-10-12")])
+        .updates,
+    ).toEqual([]);
+  });
+});
+
+describe("seoTrendModel updatesAsOf", () => {
+  it("names the end of the update table only beside a band or past that end", () => {
+    const old = [{ date: "2026-01-02", value: 1 }];
+    expect(seoTrendModel(old, "count", [], false, []).updatesAsOf).toBeNull();
+    const late = [{ date: "2026-11-01", value: 1 }];
+    expect(seoTrendModel(late, "count", [], false, []).updatesAsOf).toMatch(
+      /^\d{4}-\d{2}-\d{2}$/,
+    );
+  });
+});

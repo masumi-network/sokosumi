@@ -458,6 +458,12 @@ export {
   seoCreditsForCents,
   seoMaxCredits,
 } from "./seo-credits.js";
+export {
+  GOOGLE_EVENTS,
+  GOOGLE_EVENTS_AS_OF,
+  type GoogleEvent,
+  type GoogleEventKind,
+} from "./seo-google-events.js";
 export { normalizeSeoQuery } from "./seo-query.js";
 export {
   SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
