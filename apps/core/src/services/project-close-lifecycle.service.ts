@@ -11,6 +11,7 @@ import type {
   ProjectCloseStatus,
 } from "@/schemas/project-close.schema";
 
+import { revokeProjectCusoSubscription } from "@/services/cmo-subscription-end.service";
 import { retireProjectSocialConnectionsForClose } from "@/services/project-social-connections.service";
 import { archiveProjectSokoBotsForClose } from "@/services/project-soko-bots-close.service";
 
@@ -188,6 +189,9 @@ export async function requestProjectClose(
   scope: ProjectCloseScope,
   input: ProjectCloseRequest,
 ): Promise<ProjectCloseStatus> {
+  // The close archives Cuso with the Project's other bots, so Polar stops
+  // charging first (ADR 0068). A failure throws and nothing closes.
+  await revokeProjectCusoSubscription(scope.projectId, scope.workspaceId);
   let mentionMessageIds: string[] = [];
   const status = await serializableTransaction(async (tx) => {
     mentionMessageIds = [];

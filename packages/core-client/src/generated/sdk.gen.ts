@@ -5707,7 +5707,7 @@ export const retryCmoOnboardingForProject = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Archives the Project's Cuso and cancels his unsent posts, so the caller can hire Cuso for another website.
+ * Archives the Project's Cuso and cancels his unsent posts, so the caller can hire Cuso for another website. A subscribed Cuso's CMO subscription ends first, at once and without a refund, and his Project credits are written off.
  */
 export const startCmoOverForProject = <ThrowOnError extends boolean = false>(options: Options<StartCmoOverForProjectData, ThrowOnError>): RequestResult<StartCmoOverForProjectResponses, StartCmoOverForProjectErrors, ThrowOnError> => (options.client ?? client).post<StartCmoOverForProjectResponses, StartCmoOverForProjectErrors, ThrowOnError>({
     responseTransformer: startCmoOverForProjectResponseTransformer,

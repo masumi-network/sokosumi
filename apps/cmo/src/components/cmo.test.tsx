@@ -688,6 +688,7 @@ describe("start over", () => {
         className="button"
         label="Use another website"
         startOver={async () => null}
+        subscribed={false}
       />,
     );
     expect(html).toContain("Use another website");

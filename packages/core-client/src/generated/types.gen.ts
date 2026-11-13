@@ -77009,6 +77009,21 @@ export type StartCmoOverForProjectErrors = {
             method: string;
         };
     };
+    /**
+     * His subscription could not be ended at Polar; nothing was changed
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type StartCmoOverForProjectError = StartCmoOverForProjectErrors[keyof StartCmoOverForProjectErrors];

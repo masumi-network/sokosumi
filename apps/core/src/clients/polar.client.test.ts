@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createPolarCheckout,
   listPolarProducts,
+  revokePolarSubscription,
   verifyPolarWebhook,
 } from "./polar.client";
 
@@ -134,6 +135,61 @@ describe("createPolarCheckout", () => {
       return_url: "https://cmo.xyz/?project=project_1",
       allow_discount_codes: false,
       allow_trial: false,
+    });
+  });
+});
+
+describe("revokePolarSubscription", () => {
+  /** Polar's answer to the one request the SDK sends; nothing leaves the test. */
+  function polarAnswers(status: number, body: unknown) {
+    const fetchMock = vi.fn(
+      async (..._request: Parameters<typeof fetch>) =>
+        new Response(JSON.stringify(body), {
+          status,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("asks Polar to revoke that subscription", async () => {
+    const fetchMock = polarAnswers(200, {});
+
+    await revokePolarSubscription("sub_1").catch(() => undefined);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [input, init] = fetchMock.mock.calls[0] ?? [];
+    const request = input instanceof Request ? input : null;
+    expect(request?.url ?? String(input)).toContain("/v1/subscriptions/sub_1");
+    expect(request?.method ?? init?.method).toBe("DELETE");
+  });
+
+  it("counts a subscription Polar already ended as done", async () => {
+    polarAnswers(403, {
+      error: "AlreadyCanceledSubscription",
+      detail:
+        "This subscription is already canceled or will be at the end of the period.",
+    });
+
+    await expect(revokePolarSubscription("sub_1")).resolves.toBeUndefined();
+  });
+
+  it("fails when Polar fails", async () => {
+    polarAnswers(500, { error: "InternalServerError", detail: "boom" });
+
+    await expect(revokePolarSubscription("sub_1")).rejects.toThrow();
+  });
+
+  it("answers 503 without configuration", async () => {
+    m.polar = { POLAR_ACCESS_TOKEN: undefined };
+
+    await expect(revokePolarSubscription("sub_1")).rejects.toMatchObject({
+      status: 503,
     });
   });
 });

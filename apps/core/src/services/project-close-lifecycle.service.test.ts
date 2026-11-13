@@ -48,6 +48,10 @@ const { archiveProjectSokoBotsMock, publishMentionStatusesMock } = vi.hoisted(
 vi.mock("@/services/project-soko-bots-close.service", () => ({
   archiveProjectSokoBotsForClose: archiveProjectSokoBotsMock,
 }));
+const revokeSubscriptionMock = vi.hoisted(() => vi.fn());
+vi.mock("@/services/cmo-subscription-end.service", () => ({
+  revokeProjectCusoSubscription: revokeSubscriptionMock,
+}));
 vi.mock("@/helpers/chat-room-mention-status", () => ({
   publishChatRoomMentionStatuses: publishMentionStatusesMock,
 }));
@@ -160,6 +164,46 @@ describe("project close lifecycle", () => {
     serializableTransactionMock.mockImplementation(async (callback) =>
       callback(transactionClient()),
     );
+  });
+
+  it("ends the Project's CMO subscription at Polar before it closes, and closes nothing when Polar refuses", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      projectRevision: 4,
+      closingAt: null,
+      closedAt: null,
+      closeOperation: null,
+    });
+    projectUpdateMock.mockResolvedValue({ projectRevision: 5 });
+    projectCloseOperationCreateMock.mockImplementation(async ({ data }) => ({
+      ...operation,
+      ...data,
+      state: ProjectCloseOperationState.CLOSING,
+      attempts: 0,
+      failureSummary: null,
+    }));
+    const close = () =>
+      requestProjectClose(scope, {
+        operationId: CLOSE_ID,
+        expectedProjectRevision: 4,
+      });
+
+    await close();
+
+    expect(revokeSubscriptionMock).toHaveBeenCalledExactlyOnceWith(
+      PROJECT_ID,
+      WORKSPACE_ID,
+    );
+    expect(revokeSubscriptionMock.mock.invocationCallOrder[0]).toBeLessThan(
+      archiveProjectSokoBotsMock.mock.invocationCallOrder[0] ?? 0,
+    );
+
+    archiveProjectSokoBotsMock.mockClear();
+    revokeSubscriptionMock.mockRejectedValueOnce(new Error("polar refused"));
+
+    await expect(close()).rejects.toThrow("polar refused");
+
+    expect(archiveProjectSokoBotsMock).not.toHaveBeenCalled();
   });
 
   it("freezes one cutoff and creates an idempotent close operation", async () => {

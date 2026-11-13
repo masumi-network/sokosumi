@@ -12,6 +12,8 @@ import { ThemeToggle } from "./theme-toggle";
 interface AccountMenuProps {
   label: string;
   startOver?: () => Promise<string | null>;
+  /** With `startOver`: this Cuso has a subscription that starting over ends. */
+  subscribed?: boolean;
   signOut?: (() => Promise<void>) | undefined;
   /** False where the Cuso picker has its own link (the app's sidebar). */
   cusoPicker?: boolean;
@@ -24,6 +26,7 @@ interface AccountMenuProps {
 export function AccountMenu({
   label,
   startOver,
+  subscribed = false,
   signOut,
   cusoPicker = true,
 }: AccountMenuProps) {
@@ -75,7 +78,11 @@ export function AccountMenu({
             </a>
           ) : null}
           {startOver ? (
-            <StartOver className="ob-who-item" startOver={startOver} />
+            <StartOver
+              className="ob-who-item"
+              startOver={startOver}
+              subscribed={subscribed}
+            />
           ) : null}
           {signOut ? (
             <form action={signOut}>

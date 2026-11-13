@@ -5,14 +5,20 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 import { z } from "zod";
 
 import type { PolarWebhookEvent } from "@/clients/polar.client";
+import { writeOffCreditBucketsById } from "@/helpers/cuso-project-credits";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import { cmoProductMetadataSchema } from "@/services/cmo-catalog.service";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 
 /** What Polar's events do to a Cuso's CMO subscription and its credits (ADR 0068). */
 
 type OrderPaidEvent = Extract<PolarWebhookEvent, { type: "order.paid" }>;
+type OrderRefundedEvent = Extract<
+  PolarWebhookEvent,
+  { type: "order.refunded" }
+>;
 type SubscriptionEvent = Extract<
   PolarWebhookEvent,
   {
@@ -282,5 +288,45 @@ export async function handlePolarOrderPaid(
     // The bucket of this order and month exists: granted by an earlier or a
     // concurrent delivery.
     if (!isPrismaUniqueViolation(error)) throw error;
+  }
+}
+
+/**
+ * `order.refunded`: writes off what is left of every bucket the order granted
+ * (a yearly order grants one per month), so the refund and the balance agree.
+ * Credits already spent stay spent. Polar sends it for a partial refund too;
+ * the rest goes all the same.
+ */
+export async function handlePolarOrderRefunded(
+  event: OrderRefundedEvent,
+): Promise<void> {
+  const order = event.data;
+  // Serializable: of two deliveries at the same time one fails, then runs
+  // again and finds nothing left.
+  const granted = await serializableTransaction(async (tx) => {
+    const buckets = await tx.creditBucket.findMany({
+      where: {
+        referenceId: { startsWith: `${order.id}:` },
+        referenceType: {
+          in: [
+            CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH,
+            CreditBucketReferenceType.PROJECT_TOP_UP,
+          ],
+        },
+      },
+      select: { id: true },
+    });
+    await writeOffCreditBucketsById(
+      buckets.map((bucket) => bucket.id),
+      tx,
+    );
+    return buckets.length > 0;
+  }, "The refund raced another write to the same credits");
+  if (!granted) {
+    reportUnusableEvent(event, "the refunded order granted no credits", {
+      polarOrderId: order.id,
+      polarSubscriptionId: order.subscription_id,
+      metadata: order.metadata,
+    });
   }
 }

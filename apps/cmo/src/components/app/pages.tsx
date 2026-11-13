@@ -8,6 +8,7 @@ import { AGENT_NAME } from "../../lib/agent";
 import type { BrandBrain } from "../../lib/brand-sections";
 import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
 import type { CusoMessage } from "../../lib/chat-messages";
+import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import { strategyApproved } from "../../lib/strategy";
 import {
   type AdActions,
@@ -509,6 +510,7 @@ export function SettingsPage({
         <StartOver
           className="button button-secondary button-small"
           startOver={startOver}
+          subscribed={cusoSubscribed(overview)}
         />
       </section>
       <section className="card">
