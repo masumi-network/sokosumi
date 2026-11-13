@@ -13,6 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SeoCsvButton } from "./seo-csv-button";
+import { seoQueriesExport } from "./seo-export-model";
 import { SeoField, SeoSelect } from "./seo-form-fields";
 import {
   hiddenImpressions,
@@ -113,7 +115,18 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
       .map((keyword) => normalizeQuery(keyword.keyword)),
   );
   return (
-    <SeoSection title={t("queries.title")}>
+    <SeoSection
+      title={t("queries.title")}
+      actions={
+        rows.length ? (
+          <SeoCsvButton
+            name="search-queries"
+            title={t("queries.title")}
+            table={() => seoQueriesExport(rows, t)}
+          />
+        ) : null
+      }
+    >
       {source && (!sameSync || source.truncated) ? (
         <p className="text-muted-foreground px-2 pb-3 text-xs">
           {sameSync ? null : (

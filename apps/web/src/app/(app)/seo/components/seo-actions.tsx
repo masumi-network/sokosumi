@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { SeoActionCardHead } from "./seo-card-head";
+import { SeoCsvButton } from "./seo-csv-button";
+import { seoActionsExport } from "./seo-export-model";
 import { type SeoIssueSeverity, seoOverviewModel } from "./seo-overview-model";
 import {
   SEO_ROW_LIST_CLASS,
@@ -357,6 +359,14 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
               primary={primary}
               named={grouped || strategyFollows}
             />
+            {/* Under the list: the title row can be hidden, and the button would go with it. */}
+            <div className="flex justify-end">
+              <SeoCsvButton
+                name="actions"
+                title={t("actions.title")}
+                table={() => seoActionsExport(overview.actions, t)}
+              />
+            </div>
           </div>
         ) : (
           <SeoEmpty

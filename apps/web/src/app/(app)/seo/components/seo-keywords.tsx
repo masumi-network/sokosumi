@@ -15,7 +15,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SeoCsvButton } from "./seo-csv-button";
 import { seoDaySpan } from "./seo-day-span";
+import { seoKeywordsExport } from "./seo-export-model";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
 import { SeoKeywordHistory } from "./seo-keyword-history";
 import { SeoKeywordIdeas } from "./seo-keyword-ideas";
@@ -225,12 +227,23 @@ export function SeoKeywords({
           }
           strong={summary.read > 0}
           actions={
-            model.data.availableActions.canEdit ? (
-              <SeoAddButton
-                label={t("keywords.addButton")}
-                lead={!rows.length}
-                onClick={() => model.setDialog("keyword")}
-              />
+            checked.length || model.data.availableActions.canEdit ? (
+              <div className="flex flex-wrap gap-2">
+                {checked.length ? (
+                  <SeoCsvButton
+                    name="keywords"
+                    title={t("keywords.title")}
+                    table={() => seoKeywordsExport(checked, t)}
+                  />
+                ) : null}
+                {model.data.availableActions.canEdit ? (
+                  <SeoAddButton
+                    label={t("keywords.addButton")}
+                    lead={!rows.length}
+                    onClick={() => model.setDialog("keyword")}
+                  />
+                ) : null}
+              </div>
             ) : null
           }
         >

@@ -12334,6 +12334,17 @@
         "aMonth": "pro Monat",
         "depth": "{same, select, yes {Gelesene Ergebnisse pro Keyword: {max}} other {Gelesene Ergebnisse pro Keyword: {min} bis {max}}}"
       },
+      "export": {
+        "csv": "CSV herunterladen",
+        "action": "Aktion",
+        "kind": "Art",
+        "status": "Status",
+        "csvLabel": "{table} als CSV herunterladen"
+      },
+      "datePresets": {
+        "label": "Schnellauswahl",
+        "days": "Letzte {count} Tage"
+      },
       "shareOfVoice": {
         "title": "Share of Voice",
         "description": "Geschätzter Anteil an organischen Klicks über die verfolgten Keywords in der Woche vom {week}, aus {count, plural, one {# Keyword-Abruf} other {# Keyword-Abrufen}}. Jedes Keyword zählt gleich.",

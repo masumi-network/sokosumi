@@ -12334,6 +12334,17 @@
         "aMonth": "al mes",
         "depth": "{same, select, yes {Resultados leídos por palabra clave: {max}} other {Resultados leídos por palabra clave: {min} a {max}}}"
       },
+      "export": {
+        "csv": "Descargar CSV",
+        "action": "Acción",
+        "kind": "Tipo",
+        "status": "Estado",
+        "csvLabel": "Descargar {table} como CSV"
+      },
+      "datePresets": {
+        "label": "Periodos rápidos",
+        "days": "Últimos {count} días"
+      },
       "shareOfVoice": {
         "title": "Cuota de voz",
         "description": "Cuota estimada de clics orgánicos en las palabras clave seguidas en la semana del {week}, a partir de {count, plural, one {# lectura de palabra clave} other {# lecturas de palabras clave}}. Cada palabra clave cuenta igual.",

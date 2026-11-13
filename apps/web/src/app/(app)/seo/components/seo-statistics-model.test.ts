@@ -9,6 +9,7 @@ import {
   savedSeoStatistics,
   seoChangeMarkers,
   seoCoverageIsNews,
+  seoDatePreset,
   seoDefaultMetric,
   seoMatchingProperty,
   seoQueryPeriod,
@@ -260,5 +261,29 @@ describe("seoChangeMarkers", () => {
     expect(seoChangeMarkers(timeline, "not_determined")).toEqual([
       { date: "2026-10-05", label: "New title" },
     ]);
+  });
+});
+
+describe("seoDatePreset", () => {
+  const now = new Date("2026-11-13T10:00:00Z");
+
+  it("names the quick choice a period is, ending yesterday", () => {
+    expect(seoDatePreset({ from: "2026-10-16", to: "2026-11-12" }, now)).toBe(
+      28,
+    );
+    expect(seoDatePreset({ from: "2026-11-06", to: "2026-11-12" }, now)).toBe(
+      7,
+    );
+  });
+
+  it("gives null for a typed period, an open end, or a quick choice of an earlier day", () => {
+    expect(seoDatePreset({ from: "2026-10-15", to: "2026-11-12" }, now)).toBe(
+      null,
+    );
+    expect(seoDatePreset({ from: "2026-11-06", to: null }, now)).toBe(null);
+    // Chosen yesterday: today it covers other days, so no button shows it as chosen.
+    expect(seoDatePreset({ from: "2026-11-05", to: "2026-11-11" }, now)).toBe(
+      null,
+    );
   });
 });

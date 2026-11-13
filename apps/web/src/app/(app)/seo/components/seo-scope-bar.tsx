@@ -15,6 +15,11 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { SeoSelect } from "./seo-form-fields";
+import {
+  SEO_DATE_PRESET_DAYS,
+  seoDatePreset,
+  seoStatisticsPeriod,
+} from "./seo-statistics-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** The tabs that dates narrow, and what each one needs before a date has anything to narrow. */
@@ -195,8 +200,29 @@ export function SeoDateFields({
 }) {
   const t = useTranslations("App.Seo");
   const { filters, setFilters } = model;
+  const preset = seoDatePreset(filters);
   return (
     <>
+      <div
+        role="group"
+        aria-label={t("datePresets.label")}
+        className="flex flex-wrap gap-1"
+      >
+        {SEO_DATE_PRESET_DAYS.map((days) => (
+          <Button
+            key={days}
+            size="sm"
+            variant={preset === days ? "secondary" : "ghost"}
+            aria-pressed={preset === days}
+            onClick={() => {
+              dateFields.reveal();
+              void setFilters(seoStatisticsPeriod(days));
+            }}
+          >
+            {t("datePresets.days", { count: days })}
+          </Button>
+        ))}
+      </div>
       <PerformanceDateRange
         idPrefix="seo-period"
         from={filters.from ?? ""}

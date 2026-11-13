@@ -12334,6 +12334,17 @@
         "aMonth": "a month",
         "depth": "{same, select, yes {Results read per keyword: {max}} other {Results read per keyword: {min} to {max}}}"
       },
+      "export": {
+        "csv": "Download CSV",
+        "action": "Action",
+        "kind": "Type",
+        "status": "Status",
+        "csvLabel": "Download {table} as CSV"
+      },
+      "datePresets": {
+        "label": "Quick periods",
+        "days": "Last {count} days"
+      },
       "shareOfVoice": {
         "title": "Share of voice",
         "description": "Estimated share of organic clicks over the tracked keywords in the week of {week}, from {count, plural, one {# keyword read} other {# keyword reads}}. Each keyword counts the same.",

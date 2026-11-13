@@ -125,6 +125,25 @@ export function seoMatchingProperty(
   return tied ? "" : best;
 }
 
+/**
+ * The quick choices of the date filter, in days. Each ends yesterday, as a sync does. No "same period last
+ * year": a sync reads 90 days and compares them with the 90 days before, so no year-old day is saved.
+ */
+export const SEO_DATE_PRESET_DAYS = [7, 28, 90] as const;
+
+/** The quick choice a period is, or null for a period the reader typed. */
+export function seoDatePreset(
+  period: { from: string | null; to: string | null },
+  now = new Date(),
+) {
+  return (
+    SEO_DATE_PRESET_DAYS.find((days) => {
+      const preset = seoStatisticsPeriod(days, now);
+      return preset.from === period.from && preset.to === period.to;
+    }) ?? null
+  );
+}
+
 export function seoStatisticsPeriod(days: number, now = new Date()) {
   const until = new Date(now);
   until.setUTCDate(until.getUTCDate() - 1);

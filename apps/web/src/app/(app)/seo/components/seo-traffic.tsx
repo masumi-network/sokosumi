@@ -11,6 +11,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SeoBreakdown } from "./seo-breakdown";
+import { SeoCsvButton } from "./seo-csv-button";
+import { seoTopPagesExport } from "./seo-export-model";
 import { SeoQueryFilter } from "./seo-keywords";
 import { SeoMeasurements } from "./seo-measurements";
 import { MIN_PAGES_FOR_SELECTIONS } from "./seo-pages";
@@ -61,6 +63,13 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
   return (
     <SeoSection
       title={t("pages.topPages")}
+      actions={
+        <SeoCsvButton
+          name="top-pages"
+          title={t("pages.topPages")}
+          table={() => seoTopPagesExport(rows, t)}
+        />
+      }
       description={
         <>
           {t("pages.topPagesHelp")} ·{" "}
