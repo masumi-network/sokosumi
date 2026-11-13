@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 
+import { useOptimisticTaskStatus } from "./task-detail-optimistic";
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { TaskStatusPicker } from "./task-status-picker";
 
@@ -47,18 +48,16 @@ export function TaskMetadataStatusField({
 }: TaskMetadataStatusFieldProps) {
   const router = useRouter();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
-  const [currentStatus, setCurrentStatus] = useState(status);
+  const [currentStatus, showStatus, isStatusChanging] =
+    useOptimisticTaskStatus(status);
   const [isPending, startTransition] = useTransition();
-  const [pendingStatus, setPendingStatus] = useState<TaskStatus | null>(null);
   const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
   const [reopenComment, setReopenComment] = useState("");
 
   function applyStatusChange(desiredStatus: TaskStatus, comment?: string) {
-    const previousStatus = currentStatus;
-    setPendingStatus(desiredStatus);
-    setCurrentStatus(desiredStatus);
-
     startTransition(async () => {
+      // Shown here and in the header menu until the write has its answer.
+      showStatus(desiredStatus);
       try {
         const result = await setTaskStatusFromDrag({
           taskId,
@@ -66,7 +65,6 @@ export function TaskMetadataStatusField({
           comment,
         });
         if (!result.ok) {
-          setCurrentStatus(previousStatus);
           if (
             result.error.kind === CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE
           ) {
@@ -82,10 +80,7 @@ export function TaskMetadataStatusField({
         toast.success(labels.updateStatusSuccess);
       } catch (error) {
         console.error("Failed to update task status", error);
-        setCurrentStatus(previousStatus);
         toast.error(labels.updateStatusError);
-      } finally {
-        setPendingStatus(null);
       }
     });
   }
@@ -114,22 +109,21 @@ export function TaskMetadataStatusField({
     setReopenComment("");
   }
 
-  const displayStatus =
-    isPending && pendingStatus ? pendingStatus : currentStatus;
-
   return (
     <>
       <TaskStatusPicker
-        value={displayStatus}
+        value={currentStatus}
         options={selectableStatuses}
         labels={{
           statusLabels: labels.statusLabels,
-          ariaLabel: `${labels.status}: ${labels.statusLabels[displayStatus]}`,
+          ariaLabel: `${labels.status}: ${labels.statusLabels[currentStatus]}`,
           searchPlaceholder: labels.changeStatus,
           noResults: labels.noStatusMatches,
         }}
         onSelect={handleStatusSelect}
-        isPending={isPending}
+        // Also while the header menu changes the status: a pick now would
+        // be judged against a status Core has not confirmed.
+        isPending={isPending || isStatusChanging}
         openShortcutKey="s"
         align="start"
         variant="row"
@@ -154,7 +148,7 @@ export function TaskMetadataStatusField({
         comment={reopenComment}
         onCommentChange={setReopenComment}
         onConfirm={handleReopenConfirm}
-        isPending={isPending && pendingStatus === TaskStatus.READY}
+        isPending={isPending && currentStatus === TaskStatus.READY}
       />
     </>
   );

@@ -34,3 +34,15 @@ export const topUpSokoBotAvatarsRequestSchema = z.object({
 export const claimSokoBotAvatarRequestSchema = z
   .object({ avatarId: z.string().uuid() })
   .openapi("ClaimSokoBotAvatarRequest");
+
+export const restyleSokoBotAvatarsRequestSchema = z
+  .object({ limit: z.number().int().min(1).max(10).default(6) })
+  .openapi("RestyleSokoBotAvatarsRequest");
+
+export const restyleSokoBotAvatarsResultSchema = z
+  .object({
+    restyled: z.number().int(),
+    /** Bots still on an avatar from before the brand palette. */
+    remaining: z.number().int(),
+  })
+  .openapi("RestyleSokoBotAvatarsResult");

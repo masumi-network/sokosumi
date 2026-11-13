@@ -641,7 +641,7 @@ describe("waitForAuthSession", () => {
     });
   });
 
-  it("asks once the cookie has had a moment, and returns the session", async () => {
+  it("asks at once, without a fixed wait first, and returns the session", async () => {
     const getSession = vi.fn().mockResolvedValue({ userId: "user_1" });
     const logWarning = vi.fn();
 
@@ -650,8 +650,8 @@ describe("waitForAuthSession", () => {
       getSession,
       logWarning,
     });
-    await vi.advanceTimersByTimeAsync(199);
-    expect(getSession).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(getSession).toHaveBeenCalledOnce();
 
     await expect(settle(wait)).resolves.toEqual({ userId: "user_1" });
     expect(getSession).toHaveBeenCalledTimes(1);

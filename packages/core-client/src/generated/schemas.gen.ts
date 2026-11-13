@@ -2257,6 +2257,34 @@ export const AdminSokoBotVersionMigrationRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const RestyleSokoBotAvatarsResultSchema = {
+    type: 'object',
+    properties: {
+        restyled: {
+            type: 'integer'
+        },
+        remaining: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'restyled',
+        'remaining'
+    ]
+} as const;
+
+export const RestyleSokoBotAvatarsRequestSchema = {
+    type: 'object',
+    properties: {
+        limit: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 10,
+            default: 6
+        }
+    }
+} as const;
+
 export const AdminSokoBotChatRoomSchema = {
     type: 'object',
     properties: {
@@ -16901,6 +16929,16 @@ export const DataRoomSchema = {
                 }
             ]
         },
+        welcomeNote: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         logoFileId: {
             anyOf: [
                 {
@@ -16949,6 +16987,7 @@ export const DataRoomSchema = {
         'storage',
         'token',
         'title',
+        'welcomeNote',
         'logoFileId',
         'allowedDomains',
         'expiresAt',
@@ -17189,9 +17228,6 @@ export const DataRoomTreeRowSchema = {
                     type: 'null'
                 }
             ]
-        },
-        isNew: {
-            type: 'boolean'
         }
     },
     required: [
@@ -17203,8 +17239,7 @@ export const DataRoomTreeRowSchema = {
         'resourceId',
         'sizeBytes',
         'mimeType',
-        'updatedAt',
-        'isNew'
+        'updatedAt'
     ]
 } as const;
 
@@ -17248,6 +17283,17 @@ export const UpdateDataRoomRequestSchema = {
                 {
                     type: 'string',
                     maxLength: 200
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        welcomeNote: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 5000
                 },
                 {
                     type: 'null'
@@ -17821,12 +17867,12 @@ export const DriveGoogleSheetSchema = {
         },
         pathname: {
             type: 'string',
-            example: 'drive/organizations/org_123/Finance/Model.xlsx',
+            example: 'drive/organizations/org_123/Finance/Model.pdf',
             description: 'The copy\'s Blob pathname'
         },
         name: {
             type: 'string',
-            example: 'Model.xlsx'
+            example: 'Model.pdf'
         },
         url: {
             type: 'string',
@@ -41517,6 +41563,16 @@ export const DataRoomViewSchema = {
         title: {
             type: 'string'
         },
+        welcomeNote: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         hasLogo: {
             type: 'boolean'
         },
@@ -41565,6 +41621,7 @@ export const DataRoomViewSchema = {
     required: [
         'state',
         'title',
+        'welcomeNote',
         'hasLogo',
         'allowDownload',
         'watermark',

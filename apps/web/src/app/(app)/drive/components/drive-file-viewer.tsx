@@ -4,13 +4,15 @@ import { getExtensionFromUrl } from "@sokosumi/utils";
 import { Download, ExternalLink, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import {
   contentUrl,
   effectiveType,
 } from "@/app/drive/components/drive-file-preview";
-import { DriveSpreadsheet } from "@/app/drive/components/drive-spreadsheet";
+import { GoogleSheetBar } from "@/app/drive/components/google-sheet-bar";
 import { CapTableFileView } from "@/components/cap-table/cap-table-view";
+import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
 import { TeamFileView } from "@/components/team/team-view";
 import { Button } from "@/components/ui/button";
 import {
@@ -60,6 +62,8 @@ export function DriveFileViewer({
   store: FileStore;
   onClose: () => void;
 }) {
+  // A refreshed Google Sheet rewrites the bytes at the same address.
+  const [version, setVersion] = useState(0);
   if (!file) return null;
 
   const url = contentUrl({ resourceId: file.id, store });
@@ -89,12 +93,7 @@ export function DriveFileViewer({
           {capTable ? (
             <CapTableFileView url={url} />
           ) : sheet ? (
-            <DriveSpreadsheet
-              resourceId={file.id}
-              store={store}
-              url={url}
-              kind={sheet}
-            />
+            <SpreadsheetFileView url={url} kind={sheet} />
           ) : (
             <TeamFileView url={url} />
           )}
@@ -122,10 +121,17 @@ export function DriveFileViewer({
         onOpenChange={(open) => {
           if (!open) onClose();
         }}
-        url={url}
+        url={version ? `${url}&v=${version}` : url}
         fileName={file.displayName}
         kind={kind.documentKind}
         mediaType={type}
+        banner={
+          <GoogleSheetBar
+            resourceId={file.id}
+            store={store}
+            onRefreshed={() => setVersion((value) => value + 1)}
+          />
+        }
       />
     );
   }

@@ -19,6 +19,7 @@ const EXPORT_TIMEOUT_MS = 30_000;
 const DUE_BATCH = 25;
 const XLSX_TYPE =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const PDF_TYPE = "application/pdf";
 
 /** Why a sheet could not be read: shown to the people whose file it is. */
 export type GoogleSheetError = "not_shared" | "too_large" | "failed";
@@ -68,7 +69,7 @@ function exportedName(disposition: string | null): string {
       // Fall through to the plain name.
     }
   }
-  return disposition?.match(/filename="([^"]+)"/i)?.[1] ?? "Google Sheet.xlsx";
+  return disposition?.match(/filename="([^"]+)"/i)?.[1] ?? "";
 }
 
 /**
@@ -87,23 +88,22 @@ async function workbookHash(bytes: Buffer): Promise<string> {
   return hash.digest("hex");
 }
 
-/** The sheet as an .xlsx, which Google serves only when the link is shared. */
-export async function exportGoogleSheet(spreadsheetId: string): Promise<{
-  name: string;
-  bytes: Buffer;
-  contentHash: string;
-}> {
+/**
+ * One export of the sheet. Google serves it only when the link is shared; a
+ * sheet that is not answers with a sign-in page, not a 403.
+ */
+async function fetchExport(
+  spreadsheetId: string,
+  query: string,
+  type: string,
+): Promise<Response> {
   const response = await fetch(
-    `${googleSheetUrl(spreadsheetId)}/export?format=xlsx`,
+    `${googleSheetUrl(spreadsheetId)}/export?${query}`,
     { signal: AbortSignal.timeout(EXPORT_TIMEOUT_MS) },
   ).catch(() => {
     throw new GoogleSheetExportError("failed");
   });
-  // A sheet that is not shared answers with a sign-in page, not a 403.
-  if (
-    !response.ok ||
-    !response.headers.get("content-type")?.startsWith(XLSX_TYPE)
-  ) {
+  if (!response.ok || !response.headers.get("content-type")?.startsWith(type)) {
     await response.body?.cancel();
     throw new GoogleSheetExportError(
       response.status >= 500 ? "failed" : "not_shared",
@@ -115,20 +115,59 @@ export async function exportGoogleSheet(spreadsheetId: string): Promise<{
     await response.body?.cancel();
     throw new GoogleSheetExportError("too_large");
   }
+  return response;
+}
+
+async function exportBytes(response: Response): Promise<Buffer> {
   const bytes = Buffer.from(await response.arrayBuffer());
   if (bytes.byteLength > FILE_UPLOAD_MAX_SIZE_BYTES)
     throw new GoogleSheetExportError("too_large");
-  const name = exportedName(response.headers.get("content-disposition"));
+  return bytes;
+}
+
+/**
+ * The sheet's title and a hash of what it holds, read from the .xlsx export:
+ * Google's PDF is stamped with the time it was made, so only the workbook
+ * shows whether anything changed.
+ */
+export async function readGoogleSheet(
+  spreadsheetId: string,
+): Promise<{ title: string; contentHash: string }> {
+  const response = await fetchExport(spreadsheetId, "format=xlsx", XLSX_TYPE);
+  const title = exportedName(response.headers.get("content-disposition"))
+    .replace(/\.xlsx$/i, "")
+    .trim();
   return {
-    name: name.toLowerCase().endsWith(".xlsx") ? name : `${name}.xlsx`,
-    bytes,
-    contentHash: await workbookHash(bytes),
+    title: title || "Google Sheet",
+    contentHash: await workbookHash(await exportBytes(response)),
   };
+}
+
+/** Google's own render of every tab, charts included, laid out for reading. */
+const PDF_LAYOUT = new URLSearchParams({
+  format: "pdf",
+  size: "A4",
+  portrait: "false",
+  fitw: "true",
+  gridlines: "false",
+  printtitle: "false",
+  sheetnames: "false",
+  pagenum: "UNDEFINED",
+  top_margin: "0.4",
+  bottom_margin: "0.4",
+  left_margin: "0.4",
+  right_margin: "0.4",
+}).toString();
+
+export async function renderGoogleSheet(
+  spreadsheetId: string,
+): Promise<Buffer> {
+  return exportBytes(await fetchExport(spreadsheetId, PDF_LAYOUT, PDF_TYPE));
 }
 
 export class GoogleSheetNameTakenError extends Error {}
 
-/** Copies the sheet into a Drive folder and keeps it refreshed. */
+/** Saves Google's PDF of the sheet into a Drive folder and keeps it current. */
 export async function linkGoogleSheet(input: {
   workspaceId: string;
   organizationId: string | null;
@@ -136,8 +175,8 @@ export async function linkGoogleSheet(input: {
   folder: string;
   spreadsheetId: string;
 }): Promise<GoogleSheetLink> {
-  const sheet = await exportGoogleSheet(input.spreadsheetId);
-  const name = clampDriveFileName(sheet.name);
+  const sheet = await readGoogleSheet(input.spreadsheetId);
+  const name = clampDriveFileName(`${sheet.title}.pdf`);
   const pathname = ownerDrivePathname({ ...input, name });
   if ((await driveExists(pathname)) || (await driveHasAny(`${pathname}/`)))
     throw new GoogleSheetNameTakenError(name);
@@ -146,8 +185,8 @@ export async function linkGoogleSheet(input: {
     ...input,
     pathname,
     name,
-    bytes: sheet.bytes,
-    contentType: XLSX_TYPE,
+    bytes: await renderGoogleSheet(input.spreadsheetId),
+    contentType: PDF_TYPE,
   });
   if (!file) throw new GoogleSheetExportError("failed");
 
@@ -237,7 +276,7 @@ async function refresh(row: LinkRow): Promise<GoogleSheetLink> {
   let contentHash = row.contentHash;
   let lastError: GoogleSheetError | null = null;
   try {
-    const sheet = await exportGoogleSheet(row.spreadsheetId);
+    const sheet = await readGoogleSheet(row.spreadsheetId);
     if (sheet.contentHash !== row.contentHash) {
       // Deleted or moved while Google answered: writing would bring it back.
       const current = await prisma.fileResource.findFirst({
@@ -255,8 +294,8 @@ async function refresh(row: LinkRow): Promise<GoogleSheetLink> {
         userId: ownerUserId,
         pathname: resource.sourceId,
         name: resource.displayName,
-        bytes: sheet.bytes,
-        contentType: XLSX_TYPE,
+        bytes: await renderGoogleSheet(row.spreadsheetId),
+        contentType: PDF_TYPE,
       });
       if (!file) throw new GoogleSheetExportError("failed");
       contentHash = sheet.contentHash;

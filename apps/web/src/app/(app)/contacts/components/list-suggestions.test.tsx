@@ -1,6 +1,6 @@
 import type { ContactList, ContactSuggestion } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -76,6 +76,57 @@ describe("ListSuggestions", () => {
     await user.click(screen.getByRole("button", { name: "Add Mara Lind" }));
     expect(service.addSuggestions).toHaveBeenCalledWith("list-1", ["s-1"]);
     expect(screen.queryByText("Mara Lind")).toBeNull();
+  });
+
+  it("takes a suggestion away before Core answers", async () => {
+    service.suggestions.mockResolvedValue([mara]);
+    service.dismissSuggestions.mockReturnValueOnce(new Promise(() => {}));
+    const user = userEvent.setup();
+    renderSuggestions();
+    await screen.findByText("Mara Lind");
+    await user.click(screen.getByRole("button", { name: "Dismiss Mara Lind" }));
+    expect(service.dismissSuggestions).toHaveBeenCalledWith("list-1", ["s-1"]);
+    expect(screen.queryByText("Mara Lind")).toBeNull();
+  });
+
+  it("brings a suggestion back when the save fails", async () => {
+    service.suggestions.mockResolvedValue([mara]);
+    let fail = (_: unknown) => {};
+    service.addSuggestions.mockReturnValueOnce(
+      new Promise((_, reject) => void (fail = reject)),
+    );
+    const user = userEvent.setup();
+    renderSuggestions();
+    await screen.findByText("Mara Lind");
+    await user.click(screen.getByRole("button", { name: "Add Mara Lind" }));
+    expect(screen.queryByText("Mara Lind")).toBeNull();
+    fail({ message: "No access" });
+    expect(await screen.findByText("Mara Lind")).toBeTruthy();
+    expect(service.suggestions).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a handled suggestion away when a reload brought it back", async () => {
+    const ben = { ...mara, id: "s-2", name: "Ben Ode" };
+    service.suggestions.mockResolvedValue([mara, ben]);
+    let fail = (_: unknown) => {};
+    let finish = () => {};
+    service.addSuggestions.mockReturnValueOnce(
+      new Promise((_, reject) => void (fail = reject)),
+    );
+    service.dismissSuggestions.mockReturnValueOnce(
+      new Promise<void>((resolve) => void (finish = resolve)),
+    );
+    const user = userEvent.setup();
+    renderSuggestions();
+    await screen.findByText("Mara Lind");
+    await user.click(screen.getByRole("button", { name: "Add Mara Lind" }));
+    await user.click(screen.getByRole("button", { name: "Dismiss Ben Ode" }));
+    // Mara's failed add reloads the list while Core still suggests Ben.
+    fail({ message: "No access" });
+    expect(await screen.findByText("Ben Ode")).toBeTruthy();
+    finish();
+    await waitFor(() => expect(screen.queryByText("Ben Ode")).toBeNull());
+    expect(screen.getByText("Mara Lind")).toBeTruthy();
   });
 
   it("finds people with the list's description and the chosen size", async () => {
