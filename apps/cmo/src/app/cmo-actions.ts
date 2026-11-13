@@ -165,6 +165,8 @@ export interface OnboardFormState {
   /** Where Cuso goes: an organization's id, or "" for a new organization. */
   organizationId?: string;
   errors: { websiteUrl?: string; form?: string };
+  /** Refused for an unpaid Cuso: where to continue with him instead. */
+  unpaidCuso?: { href: string; businessName: string };
 }
 
 /** What the start form says for each refusal Core declares, by its kind. */
@@ -212,11 +214,21 @@ export async function onboard(
       error && typeof error === "object" && "kind" in error
         ? String(error.kind)
         : undefined;
-    if (kind === CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE) {
+    const unpaid =
+      kind === CORE_API_ERROR_KINDS.CMO_UNPAID_CUSO &&
+      error &&
+      "unpaidCuso" in error
+        ? error.unpaidCuso
+        : undefined;
+    if (unpaid) {
       return {
         ...result,
         errors: {
-          form: "That organization is out of credits. Choose another organization or a new one.",
+          form: `Your ${AGENT_NAME} for ${unpaid.businessName} is not subscribed yet. Subscribe there, or start him over, before you hire another.`,
+        },
+        unpaidCuso: {
+          href: `/?project=${encodeURIComponent(unpaid.projectId)}`,
+          businessName: unpaid.businessName,
         },
       };
     }

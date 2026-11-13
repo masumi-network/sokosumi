@@ -64,6 +64,7 @@ vi.mock("@/services/cmo-overview.service", async (importOriginal) => {
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
 import {
+  CmoConflictError,
   CmoForbiddenError,
   CmoNotFoundError,
 } from "@/services/cmo-cuso.service";
@@ -309,6 +310,27 @@ describe("CMO routes", () => {
     });
     expect(response.status).toBe(status);
     expect((await response.json()).kind).toBe(kind);
+  });
+
+  it("names the unpaid Cuso when a second unpaid hire is refused", async () => {
+    const unpaidCuso = { projectId: PROJECT_ID, businessName: "old.io" };
+    hireMock.mockRejectedValue(
+      new CmoConflictError(
+        "Your Cuso for old.io is not subscribed yet.",
+        CORE_API_ERROR_KINDS.CMO_UNPAID_CUSO,
+        { unpaidCuso },
+      ),
+    );
+    const response = await createApp().request("/onboarding", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ websiteUrl: "https://acme.io" }),
+    });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      kind: CORE_API_ERROR_KINDS.CMO_UNPAID_CUSO,
+      unpaidCuso,
+    });
   });
 
   it("returns the overview of the Cuso of the Project the path names, as CMO reads it", async () => {

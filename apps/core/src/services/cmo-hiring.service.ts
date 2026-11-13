@@ -19,14 +19,10 @@ import {
   type CmoSectionHeadline,
   parseBrandBrain,
 } from "@/services/brand-brain.service";
-import {
-  CMO_STARTER_CREDITS,
-  grantCmoStarterCredits,
-} from "@/services/cmo-billing.service";
+import { findUnpaidCusoHiredBy } from "@/services/cmo-billing.service";
 import { captureCmoHomepage } from "@/services/cmo-brand-media.service";
 import { learnCmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import {
-  CMO_OUT_OF_CREDITS,
   CmoConflictError,
   CmoForbiddenError,
   type CmoLearningState,
@@ -516,29 +512,37 @@ async function existingOrganizationWorkspace(input: {
   return getUserWorkspace(userId, { organizationId });
 }
 
-/** The hirer's first turn can spend the starter credits from a successful hire. */
-async function requireHirerFunding(
+/**
+ * A hire costs the organization nothing (free hiring, ADR 0068), so only the
+ * hirer's Seat is checked.
+ */
+async function requireHirerSeat(
   userId: string,
   organizationId: string,
 ): Promise<void> {
-  const { requireMemberTurnFunding, SokoBotBillingAccessError } = await import(
+  const { requireMemberSeat, SokoBotBillingAccessError } = await import(
     "@/services/soko-bot-billing.service"
   );
   try {
-    await requireMemberTurnFunding(userId, organizationId, CMO_STARTER_CREDITS);
+    await requireMemberSeat(userId, organizationId);
   } catch (error) {
     if (!(error instanceof SokoBotBillingAccessError)) throw error;
-    if (error.reason === "seat") {
-      throw new CmoForbiddenError(
-        "You need a Seat in that organization to hire Cuso",
-        CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED,
-      );
-    }
-    throw new CmoConflictError(
-      CMO_OUT_OF_CREDITS,
-      CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE,
+    throw new CmoForbiddenError(
+      "You need a Seat in that organization to hire Cuso",
+      CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED,
     );
   }
+}
+
+/** One unpaid Cuso per person (ADR 0068): the refusal names him for CMO's link. */
+async function requireNoUnpaidCuso(userId: string): Promise<void> {
+  const unpaid = await findUnpaidCusoHiredBy(userId);
+  if (!unpaid) return;
+  throw new CmoConflictError(
+    `Your Cuso for ${unpaid.businessName} is not subscribed yet. Subscribe or start him over before you hire another.`,
+    CORE_API_ERROR_KINDS.CMO_UNPAID_CUSO,
+    { unpaidCuso: unpaid },
+  );
 }
 
 /**
@@ -562,8 +566,9 @@ export async function mayHireCuso(userId: string): Promise<boolean> {
 /**
  * Hires Cuso (ADR 0065): into a new organization named after the business,
  * or into `organizationId`, one the person belongs to. Either way a new
- * marketing Project gets Cuso as its shared bot (ADR 0061), his organization
- * gets starter credits, and his first turn starts. Hiring never hands back a
+ * marketing Project gets Cuso as its shared bot (ADR 0061) and his first
+ * turn starts, free until his strategy is approved (ADR 0068). A person with
+ * an unpaid Cuso is refused another (409). Hiring never hands back a
  * Cuso the person already works with; a Project that has one refuses a
  * second (409).
  */
@@ -576,13 +581,14 @@ export async function startCmoOnboarding(input: {
   // one; the start form submits once. Add a per-person lock if duplicates
   // show up.
 
-  // Before anything exists: each hire grants starter credits (ADR 0065).
+  // Before anything exists: each hire's research and plan are free.
   if (!(await mayHireCuso(input.userId))) {
     throw new CmoForbiddenError(
       "CMO is invite-only for now",
       CORE_API_ERROR_KINDS.CMO_HIRE_NOT_ALLOWED,
     );
   }
+  await requireNoUnpaidCuso(input.userId);
   // Organization names take 2 to 50 characters.
   const businessName = cmoBusinessNameFromUrl(input.websiteUrl)
     .slice(0, 50)
@@ -595,9 +601,7 @@ export async function startCmoOnboarding(input: {
     : await newOrganizationWorkspace({ ...input, businessName });
   const organizationId = workspace.organizationId;
   if (!organizationId) throw new Error("Cuso's workspace has no organization");
-  // Check Seat and spendable credits before creating a Project, including
-  // the starter credits the organization receives when the hire succeeds.
-  await requireHirerFunding(input.userId, organizationId);
+  await requireHirerSeat(input.userId, organizationId);
 
   const project = await prisma.project.create({
     data: {
@@ -624,7 +628,6 @@ export async function startCmoOnboarding(input: {
     sharedRoomId = bot.sharedRoomId;
     const cuso = await findCusoForBot(bot.id);
     if (!cuso) throw new Error("Cuso was not created");
-    await grantCmoStarterCredits({ projectId: project.id, organizationId });
     created = cuso;
   } catch (error) {
     // No stray Project, Cuso or room: deleting the Project cascades to his
@@ -667,7 +670,7 @@ export async function startCmoOnboarding(input: {
     }),
   );
 
-  // A turn that cannot start (no credits yet) leaves the hire ready:
+  // A turn that cannot start (no Seat, Cuso busy) leaves the hire ready:
   // the learning card offers Try again and says why when it fails again.
   await startCmoTurn(created, input.userId, {
     clientTurnId: `${ONBOARDING_TURN_PREFIX}${created.sokoBotId}`,

@@ -129,6 +129,14 @@ export function Onboarding({
             {errors.form ? (
               <p className="alert" role="alert" tabIndex={-1}>
                 {errors.form}
+                {state.unpaidCuso ? (
+                  <>
+                    {" "}
+                    <a className="ob-link" href={state.unpaidCuso.href}>
+                      Open {state.unpaidCuso.businessName}
+                    </a>
+                  </>
+                ) : null}
               </p>
             ) : null}
             <div className="field">

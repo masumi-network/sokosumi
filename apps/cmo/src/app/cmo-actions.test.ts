@@ -203,14 +203,23 @@ describe("onboard", () => {
     });
   });
 
-  it("says the organization is out of credits without sending the person to Sokosumi", async () => {
+  it("links to the unpaid Cuso when Core refuses a second unpaid hire", async () => {
     startCmoOnboarding.mockResolvedValue({
-      error: { message: "You're out of credits", kind: "insufficient_balance" },
+      error: {
+        message: "Your Cuso for old.io is not subscribed yet.",
+        kind: "cmo_unpaid_cuso",
+        unpaidCuso: {
+          projectId: "0196a000-0000-7000-8000-000000000001",
+          businessName: "old.io",
+        },
+      },
     });
     const state = await onboard(EMPTY, form("acme.io", "org-team"));
-    expect(state.errors.form).toContain("out of credits");
-    expect(state.errors.form).not.toContain("Sokosumi");
-    expect(state).not.toHaveProperty("topUpUrl");
+    expect(state.errors.form).toContain("old.io");
+    expect(state.unpaidCuso).toEqual({
+      href: "/?project=0196a000-0000-7000-8000-000000000001",
+      businessName: "old.io",
+    });
     // The choice stays for the next try.
     expect(state.organizationId).toBe("org-team");
   });
@@ -226,6 +235,7 @@ describe("onboard", () => {
     });
     const state = await onboard(EMPTY, form("acme.io", "org-team"));
     expect(state.errors.form).toContain(words);
+    expect(state.unpaidCuso).toBeUndefined();
   });
 
   it("says so when Core refuses for another reason, keeping the answers", async () => {

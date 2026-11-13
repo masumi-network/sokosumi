@@ -12044,6 +12044,26 @@ export type CmoProduction = {
     } | null;
 };
 
+export type CmoOnboardingConflictError = {
+    error: string;
+    message: string;
+    kind?: string;
+    retryAfterSeconds?: number;
+    /**
+     * The person's live Cuso that nobody paid for yet, to continue there instead.
+     */
+    unpaidCuso?: {
+        projectId: string;
+        businessName: string;
+    };
+    meta: {
+        timestamp: Date;
+        requestId: string;
+        path: string;
+        method: string;
+    };
+};
+
 export type CmoOnboardingRequest = {
     /**
      * The business's website, which names the new Project.
@@ -75583,20 +75603,9 @@ export type StartCmoOnboardingErrors = {
         };
     };
     /**
-     * Conflict - The organization is out of credits (insufficient_balance)
+     * Conflict - The person already hired a Cuso nobody paid for (cmo_unpaid_cuso); `unpaidCuso` names him
      */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
+    409: CmoOnboardingConflictError;
 };
 
 export type StartCmoOnboardingError = StartCmoOnboardingErrors[keyof StartCmoOnboardingErrors];
