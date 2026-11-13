@@ -16,10 +16,12 @@ import {
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ChevronDown,
   ChevronRight,
   Copy,
   Download,
   FileSpreadsheet,
+  FileUp,
   Folder,
   FolderInput,
   FolderPlus,
@@ -53,6 +55,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
+import { RoomFileDropZone } from "@/app/chat/components/room-file-drop-zone";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { DriveAllFilesPanel } from "@/app/drive/components/drive-all-files-panel";
@@ -147,7 +150,12 @@ import {
   isDuplicateResourceError,
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
-import { planDriveFolderUpload } from "@/lib/utils/drive-folder-upload";
+import {
+  type DriveUploadEntry,
+  driveDropEntries,
+  driveUploadEntries,
+  planDriveFolderUpload,
+} from "@/lib/utils/drive-folder-upload";
 import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
 import {
   type FileStore,
@@ -878,77 +886,49 @@ function DrivePageWorkspace({
     };
   }, [activeOrganizationId]);
 
-  async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    setUploading(true);
-    setUploadProgress(0);
-
-    try {
-      await uploadDriveFile(file, {
-        ...driveStore,
-        ...(currentFolder ? { folder: currentFolder } : {}),
-        onUploadProgress: (progress) => {
-          setUploadProgress(progress.percentage);
-        },
-      });
-
-      await refreshDriveItems();
-    } catch (err) {
-      if (isDriveFileUploadDuplicate(err)) {
-        toast.error(t("uploadDuplicateError"));
-      } else {
-        console.error("Failed to upload file", err);
-        toast.error(t("uploadError"));
-      }
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
-      event.target.value = "";
-    }
-  }
-
   /**
-   * Upload every file of a picked folder, subfolders included, into the
-   * current folder. One file at a time, like Upload, so a big folder does not
-   * open hundreds of requests at once.
+   * Upload picked or dropped files into the current folder, folders with
+   * their subfolders. One file at a time, so a big folder does not open
+   * hundreds of requests at once.
    */
-  async function handleFolderUpload(
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) {
-    const input = event.target;
-    const plan = planDriveFolderUpload(
-      Array.from(input.files ?? []),
-      currentFolder,
-    );
-    input.value = "";
+  async function uploadEntries(entries: DriveUploadEntry[]) {
+    const plan = planDriveFolderUpload(entries, currentFolder);
+    let notUploaded = plan.skipped.length;
     if (plan.uploads.length === 0) {
-      toast.error(t("folderUploadNothing"));
+      if (notUploaded > 0) {
+        toast.error(t("uploadError"), {
+          description: t("folderUploadSkipped", { count: notUploaded }),
+        });
+      } else {
+        toast.error(t("folderUploadNothing"));
+      }
       return;
     }
 
     setUploading(true);
     setUploadProgress(0);
     let uploaded = 0;
-    let notUploaded = plan.skipped.length;
+    let duplicate = false;
+    const total = plan.uploads.length;
     try {
       for (const [index, { file, folder }] of plan.uploads.entries()) {
         try {
-          await uploadDriveFile(file, { ...driveStore, folder });
+          await uploadDriveFile(file, {
+            ...driveStore,
+            ...(folder ? { folder } : {}),
+            onUploadProgress: (progress) => {
+              setUploadProgress(
+                Math.round((index * 100 + progress.percentage) / total),
+              );
+            },
+          });
           uploaded += 1;
         } catch (err) {
           // A same-named file already there is kept; anything else is logged.
-          if (!isDriveFileUploadDuplicate(err)) {
-            console.error("Failed to upload file from folder", err);
-          }
+          if (isDriveFileUploadDuplicate(err)) duplicate = true;
+          else console.error("Failed to upload file", err);
           notUploaded += 1;
         }
-        setUploadProgress(
-          Math.round(((index + 1) / plan.uploads.length) * 100),
-        );
       }
       await refreshDriveItems();
       if (uploaded > 0 && plan.rootFolder) applyFolderFacet(plan.rootFolder);
@@ -957,23 +937,34 @@ function DrivePageWorkspace({
       setUploadProgress(0);
     }
 
-    if (uploaded > 0) {
+    const skippedNote =
+      notUploaded > 0
+        ? { description: t("folderUploadSkipped", { count: notUploaded }) }
+        : undefined;
+    if (uploaded === 0) {
+      if (entries.length === 1 && duplicate) {
+        toast.error(t("uploadDuplicateError"));
+      } else {
+        toast.error(t("uploadError"), skippedNote);
+      }
+    } else if (plan.rootFolder) {
       toast.success(
         t("folderUploaded", {
           count: uploaded,
           folder: plan.rootFolder.split("/").at(-1) ?? "",
         }),
-        notUploaded > 0
-          ? {
-              description: t("folderUploadSkipped", { count: notUploaded }),
-            }
-          : undefined,
+        skippedNote,
       );
-    } else {
-      toast.error(t("uploadError"), {
-        description: t("folderUploadSkipped", { count: notUploaded }),
-      });
+    } else if (entries.length > 1) {
+      // One loose file shows up in the list; no toast needed.
+      toast.success(t("filesUploaded", { count: uploaded }), skippedNote);
     }
+  }
+
+  function handlePickedFiles(event: React.ChangeEvent<HTMLInputElement>) {
+    const entries = driveUploadEntries(event.target.files ?? []);
+    event.target.value = "";
+    void uploadEntries(entries);
   }
 
   async function handleRename(item: DriveItem, newName: string) {
@@ -1851,17 +1842,48 @@ function DrivePageWorkspace({
                   <FileSpreadsheet className="size-4" aria-hidden />
                   {t("GoogleSheet.button")}
                 </Button>
-                <Button
-                  type="button"
+                {/* One Upload: files or a whole folder. A file input picks
+                    one or the other, never both, so the menu asks first.
+                    Dropping either on the list works too. */}
+                <DropdownMenu>
+                  {/* A real button: a label over a hidden input never gets
+                      keyboard focus, so Tab skipped Upload. */}
+                  <DropdownMenuTrigger asChild disabled={uploading}>
+                    <Button
+                      type="button"
+                      disabled={uploading}
+                      size="sm"
+                      className="gap-1.5"
+                    >
+                      <Upload className="size-4" aria-hidden />
+                      {uploading
+                        ? t("uploadingProgress", { progress: uploadProgress })
+                        : t("uploadButton")}
+                      <ChevronDown className="size-4" aria-hidden />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={openFilePicker}>
+                      <FileUp className="size-4" aria-hidden />
+                      {t("uploadFilesOption")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => folderInputRef.current?.click()}
+                    >
+                      <FolderUp className="size-4" aria-hidden />
+                      {t("uploadFolderOption")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Input
+                  id="file-upload"
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handlePickedFiles}
                   disabled={uploading}
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={() => folderInputRef.current?.click()}
-                >
-                  <FolderUp className="size-4" aria-hidden />
-                  {t("uploadFolderButton")}
-                </Button>
+                />
                 {/* `webkitdirectory` is not in React's input types, but every
                     current browser reads it and hands back the files with
                     `webkitRelativePath` set. */}
@@ -1870,31 +1892,9 @@ function DrivePageWorkspace({
                   type="file"
                   multiple
                   className="hidden"
-                  onChange={handleFolderUpload}
+                  onChange={handlePickedFiles}
                   disabled={uploading}
                   {...{ webkitdirectory: "" }}
-                />
-                {/* A real button: a label over a hidden input never gets
-                    keyboard focus, so Tab skipped Upload. */}
-                <Button
-                  type="button"
-                  disabled={uploading}
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={openFilePicker}
-                >
-                  <Upload className="size-4" aria-hidden />
-                  {uploading
-                    ? t("uploadingProgress", { progress: uploadProgress })
-                    : t("uploadButton")}
-                </Button>
-                <Input
-                  id="file-upload"
-                  ref={fileInputRef}
-                  type="file"
-                  className="hidden"
-                  onChange={handleUpload}
-                  disabled={uploading}
                 />
               </div>
             )}
@@ -2393,25 +2393,39 @@ function DrivePageWorkspace({
        * menu, which is the only place they ever lived outside the grid.
        */}
       {isWorkspaceView && !isTasksView ? (
-        <DriveAllFilesPanel
-          store={allFilesStore}
-          viewMode={layoutMode}
-          isMobile={isMobile}
-          // Global search's "See all files" arrives with the query already
-          // typed; dropping it made the reader type it a second time.
-          initialQuery={searchParams.get("q") ?? ""}
-          initialFolder={folderParam}
-          onFolderChange={applyFolderFacet}
-          folderActions={folderActions}
-          virtualFolder={{
-            label: t("tasksFolder"),
-            onOpen: navigateToTasksRoot,
+        <RoomFileDropZone
+          // Always on, even mid-upload: off, the browser would open the
+          // dropped file in place of Files.
+          enabled
+          onDropTransfer={(dataTransfer) => {
+            if (uploading) return;
+            driveDropEntries(dataTransfer).then(uploadEntries, (err) => {
+              console.error("Failed to read dropped files", err);
+              toast.error(t("uploadError"));
+            });
           }}
-          dataRoomPaths={dataRoomsQuery.data?.map((room) => room.folderPath)}
-          reloadToken={catalogReloadToken}
-          onShareFile={setShareItem}
-          onMoveFiles={openMoveFilesDialog}
-        />
+          label={t("dropToUpload")}
+        >
+          <DriveAllFilesPanel
+            store={allFilesStore}
+            viewMode={layoutMode}
+            isMobile={isMobile}
+            // Global search's "See all files" arrives with the query already
+            // typed; dropping it made the reader type it a second time.
+            initialQuery={searchParams.get("q") ?? ""}
+            initialFolder={folderParam}
+            onFolderChange={applyFolderFacet}
+            folderActions={folderActions}
+            virtualFolder={{
+              label: t("tasksFolder"),
+              onOpen: navigateToTasksRoot,
+            }}
+            dataRoomPaths={dataRoomsQuery.data?.map((room) => room.folderPath)}
+            reloadToken={catalogReloadToken}
+            onShareFile={setShareItem}
+            onMoveFiles={openMoveFilesDialog}
+          />
+        </RoomFileDropZone>
       ) : null}
 
       <DriveShareDialog

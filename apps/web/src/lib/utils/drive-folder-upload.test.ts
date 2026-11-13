@@ -2,15 +2,15 @@ import { FILE_UPLOAD_MAX_SIZE_BYTES } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import {
   DRIVE_FOLDER_UPLOAD_MAX_FILES,
+  driveDropEntries,
   planDriveFolderUpload,
 } from "./drive-folder-upload";
 
-function picked(path: string, type = "text/plain", size = 3): File {
+function picked(path: string, type = "text/plain", size = 3) {
   const name = path.split("/").at(-1) ?? path;
   const file = new File(["x"], name, { type });
-  Object.defineProperty(file, "webkitRelativePath", { value: path });
   Object.defineProperty(file, "size", { value: size });
-  return file;
+  return { file, path };
 }
 
 describe("planDriveFolderUpload", () => {
@@ -29,6 +29,24 @@ describe("planDriveFolderUpload", () => {
       ["logo.png", "Clients/Launch/assets"],
     ]);
     expect(plan.skipped).toEqual([]);
+  });
+
+  it("puts loose files in the open folder and opens no folder", () => {
+    const plan = planDriveFolderUpload(
+      [picked("a.txt"), picked("b.txt")],
+      "Clients",
+    );
+    expect(plan.rootFolder).toBe("");
+    expect(plan.uploads.map((u) => u.folder)).toEqual(["Clients", "Clients"]);
+  });
+
+  it("opens no folder when several folders come at once", () => {
+    const plan = planDriveFolderUpload(
+      [picked("One/a.txt"), picked("Two/b.txt")],
+      "",
+    );
+    expect(plan.rootFolder).toBe("");
+    expect(plan.uploads.map((u) => u.folder)).toEqual(["One", "Two"]);
   });
 
   it("starts at the root when no folder is open", () => {
@@ -69,5 +87,59 @@ describe("planDriveFolderUpload", () => {
 
     expect(plan.uploads).toHaveLength(DRIVE_FOLDER_UPLOAD_MAX_FILES);
     expect(plan.skipped.map((s) => s.reason)).toEqual(["limit", "limit"]);
+  });
+});
+
+/** Just enough of the File and Directory Entries API for a drop. */
+function fileEntry(fullPath: string) {
+  const file = new File(["x"], fullPath.split("/").at(-1)!, {
+    type: "text/plain",
+  });
+  return {
+    isFile: true,
+    isDirectory: false,
+    fullPath,
+    file: (resolve: (f: File) => void) => resolve(file),
+  };
+}
+
+function dirEntry(fullPath: string, children: unknown[]) {
+  return {
+    isFile: false,
+    isDirectory: true,
+    fullPath,
+    createReader: () => {
+      // Two batches, then empty, like Chrome past 100 entries.
+      const batches = [children.slice(0, 1), children.slice(1), []];
+      return {
+        readEntries: (resolve: (e: unknown[]) => void) =>
+          resolve(batches.shift() ?? []),
+      };
+    },
+  };
+}
+
+describe("driveDropEntries", () => {
+  it("reads dropped folders recursively, keeping their paths", async () => {
+    const tree = dirEntry("/Launch", [
+      fileEntry("/Launch/brief.txt"),
+      dirEntry("/Launch/assets", [fileEntry("/Launch/assets/notes.txt")]),
+    ]);
+    const loose = fileEntry("/todo.txt");
+    const dataTransfer = {
+      items: [tree, loose].map((entry) => ({
+        kind: "file",
+        webkitGetAsEntry: () => entry,
+      })),
+      files: [],
+    } as unknown as DataTransfer;
+
+    const entries = await driveDropEntries(dataTransfer);
+
+    expect(entries.map((e) => [e.path, e.file.name])).toEqual([
+      ["Launch/brief.txt", "brief.txt"],
+      ["Launch/assets/notes.txt", "notes.txt"],
+      ["todo.txt", "todo.txt"],
+    ]);
   });
 });

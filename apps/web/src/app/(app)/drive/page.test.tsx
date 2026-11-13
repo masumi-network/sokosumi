@@ -2026,11 +2026,17 @@ describe("one catalog, not two", () => {
     await waitFor(() => {
       expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
+    // One Upload, offering files or a folder (the menu renders flat here).
+    const header = within(screen.getByTestId("files-desktop-header"));
     expect(
-      within(screen.getByTestId("files-desktop-header")).getByRole("button", {
-        name: "uploadFolderButton",
-      }),
-    ).toBeVisible();
+      header.getAllByRole("button", { name: "uploadButton" }),
+    ).toHaveLength(1);
+    expect(
+      header.getByRole("button", { name: "uploadFilesOption" }),
+    ).toBeInTheDocument();
+    expect(
+      header.getByRole("button", { name: "uploadFolderOption" }),
+    ).toBeInTheDocument();
 
     const picked = [
       "Launch/brief.txt",
@@ -2063,6 +2069,65 @@ describe("one catalog, not two", () => {
     ).toEqual([
       ["brief.txt", "Clients/Launch"],
       ["notes.txt", "Clients/Launch/assets"],
+    ]);
+  });
+
+  it("uploads a folder dropped on the list, keeping its subfolders", async () => {
+    searchParams = new URLSearchParams("view=workspace");
+    listDriveItemsMock.mockResolvedValue([]);
+    uploadDriveFileMock.mockReset();
+    uploadDriveFileMock.mockResolvedValue({ pathname: "a", fileUrl: null });
+    vi.mocked(toast.success).mockClear();
+
+    renderDrive();
+    const list = await screen.findByTestId("drive-all-files");
+
+    const fileEntry = (fullPath: string) => ({
+      isFile: true,
+      isDirectory: false,
+      fullPath,
+      file: (resolve: (f: File) => void) =>
+        resolve(
+          new File(["x"], fullPath.split("/").at(-1)!, { type: "text/plain" }),
+        ),
+    });
+    const dirEntry = (fullPath: string, children: unknown[]) => ({
+      isFile: false,
+      isDirectory: true,
+      fullPath,
+      createReader: () => {
+        const batches = [children, []];
+        return {
+          readEntries: (resolve: (e: unknown[]) => void) =>
+            resolve(batches.shift() ?? []),
+        };
+      },
+    });
+    const folder = dirEntry("/Launch", [
+      fileEntry("/Launch/brief.txt"),
+      dirEntry("/Launch/assets", [fileEntry("/Launch/assets/notes.txt")]),
+    ]);
+    await act(async () => {
+      fireEvent.drop(list, {
+        dataTransfer: {
+          types: ["Files"],
+          files: [],
+          items: [{ kind: "file", webkitGetAsEntry: () => folder }],
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith("folderUploaded", undefined);
+    });
+    expect(
+      uploadDriveFileMock.mock.calls.map(([file, options]) => [
+        (file as File).name,
+        (options as { folder: string }).folder,
+      ]),
+    ).toEqual([
+      ["brief.txt", "Launch"],
+      ["notes.txt", "Launch/assets"],
     ]);
   });
 });

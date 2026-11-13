@@ -14,16 +14,73 @@ export interface DriveFolderUploadItem {
   folder: string;
 }
 
+/** A picked or dropped file and its path inside what was picked. */
+export interface DriveUploadEntry {
+  file: File;
+  /** `Launch/assets/logo.png` for a folder, just `logo.png` for a file. */
+  path: string;
+}
+
 export interface DriveFolderUploadPlan {
-  /** Top folder the upload creates, e.g. `Projects/Launch`. */
+  /**
+   * The one folder the upload creates, e.g. `Projects/Launch`; empty for
+   * loose files or several folders at once.
+   */
   rootFolder: string;
   uploads: DriveFolderUploadItem[];
   skipped: { path: string; reason: DriveFolderUploadSkipReason }[];
 }
 
+/** Picker files with their folder path (`webkitdirectory` sets it). */
+export function driveUploadEntries(files: Iterable<File>): DriveUploadEntry[] {
+  return Array.from(files, (file) => ({
+    file,
+    path: file.webkitRelativePath || file.name,
+  }));
+}
+
 /**
- * Turn the files of a `webkitdirectory` pick into one upload per file,
- * each into its subfolder under `baseFolder`.
+ * Every file in a drop, folders read recursively. The entries are taken
+ * before the first await, while the browser still exposes them.
+ */
+export async function driveDropEntries(
+  dataTransfer: DataTransfer,
+): Promise<DriveUploadEntry[]> {
+  const roots = Array.from(dataTransfer.items ?? [])
+    .filter((item) => item.kind === "file")
+    .map((item) => item.webkitGetAsEntry?.() ?? item.getAsFile());
+  // No entries API: take the dropped files as they are.
+  if (roots.length === 0) return driveUploadEntries(dataTransfer.files ?? []);
+
+  const entries: DriveUploadEntry[] = [];
+  async function walk(entry: FileSystemEntry | File | null): Promise<void> {
+    if (!entry) return;
+    if (entry instanceof File) {
+      entries.push({ file: entry, path: entry.name });
+    } else if (entry.isFile) {
+      const file = await new Promise<File>((resolve, reject) =>
+        (entry as FileSystemFileEntry).file(resolve, reject),
+      );
+      entries.push({ file, path: entry.fullPath.replace(/^\//, "") });
+    } else if (entry.isDirectory) {
+      const reader = (entry as FileSystemDirectoryEntry).createReader();
+      // readEntries hands back one batch per call (100 in Chrome) until empty.
+      for (;;) {
+        const batch = await new Promise<FileSystemEntry[]>((resolve, reject) =>
+          reader.readEntries(resolve, reject),
+        );
+        if (batch.length === 0) break;
+        for (const child of batch) await walk(child);
+      }
+    }
+  }
+  for (const root of roots) await walk(root);
+  return entries;
+}
+
+/**
+ * Turn picked or dropped files into one upload per file, each into its
+ * subfolder under `baseFolder`.
  *
  * Files folders are paths, so uploading `a/b/c.txt` into `a/b` creates both
  * folders, and an existing folder of the same name is merged into. Hidden
@@ -31,7 +88,7 @@ export interface DriveFolderUploadPlan {
  * (type, size) are skipped up front instead of failing one by one.
  */
 export function planDriveFolderUpload(
-  files: readonly File[],
+  entries: readonly DriveUploadEntry[],
   baseFolder: string,
 ): DriveFolderUploadPlan {
   const plan: DriveFolderUploadPlan = {
@@ -40,13 +97,15 @@ export function planDriveFolderUpload(
     skipped: [],
   };
   const base = baseFolder.split("/").filter(Boolean);
+  // One folder picked or dropped: the upload opens it. Anything mixed stays put.
+  const tops = new Set(
+    entries.map(({ path }) => (path.includes("/") ? path.split("/")[0] : "")),
+  );
+  const [top] = tops;
+  if (tops.size === 1 && top) plan.rootFolder = [...base, top].join("/");
 
-  for (const file of files) {
-    const path = file.webkitRelativePath || file.name;
+  for (const { file, path } of entries) {
     const segments = path.split("/").filter(Boolean);
-    if (!plan.rootFolder && segments.length > 1) {
-      plan.rootFolder = [...base, segments[0]].join("/");
-    }
 
     // Hidden files are noise (.DS_Store, .git/); nobody needs them listed.
     if (segments.some((s) => s.startsWith("."))) continue;
