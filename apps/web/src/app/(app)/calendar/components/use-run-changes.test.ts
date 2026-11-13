@@ -1,0 +1,204 @@
+import type { WorkspaceCalendarItem } from "@sokosumi/core-client";
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { ChangeableRun } from "./run-change";
+import { applyRunChange, useRunChanges } from "./use-run-changes";
+
+const { changeRunMock, reportFailureMock, toastSuccessMock } = vi.hoisted(
+  () => ({
+    changeRunMock: vi.fn(),
+    reportFailureMock: vi.fn(),
+    toastSuccessMock: vi.fn(),
+  }),
+);
+
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+}));
+vi.mock("sonner", () => ({ toast: { success: toastSuccessMock } }));
+vi.mock("./run-change", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./run-change")>()),
+  changeRun: changeRunMock,
+  useReportRunChangeFailure: () => reportFailureMock,
+}));
+
+const RULE_TIME = new Date("2030-01-02T09:00:00.000Z");
+
+function run(id: string, scheduledAt: Date) {
+  return {
+    id,
+    kind: "RUN",
+    scheduledAt,
+    originalScheduledAt: RULE_TIME,
+  } as WorkspaceCalendarItem;
+}
+
+describe("applyRunChange", () => {
+  it("puts a restored Run back at the rule's time and leaves the others", () => {
+    const moved = run("moved", new Date("2030-01-03T10:30:00.000Z"));
+    const other = run("other", new Date("2030-01-05T10:30:00.000Z"));
+
+    const [restored, untouched] = applyRunChange([moved, other], {
+      runId: "moved",
+      action: "restore",
+    });
+
+    expect(restored.scheduledAt).toEqual(RULE_TIME);
+    expect(untouched).toBe(other);
+  });
+
+  it("puts a moved Run at its new time and leaves the others", () => {
+    const moving = run("moving", RULE_TIME);
+    const other = run("other", RULE_TIME);
+    const scheduledAt = new Date("2030-01-04T08:15:00.000Z");
+
+    const [moved, untouched] = applyRunChange([moving, other], {
+      runId: "moving",
+      action: "move",
+      scheduledAt,
+    });
+
+    expect(moved.scheduledAt).toEqual(scheduledAt);
+    expect(untouched).toBe(other);
+  });
+
+  it("takes only the skipped Run away", () => {
+    const skipped = run("skipped", RULE_TIME);
+    const other = run("other", RULE_TIME);
+
+    expect(
+      applyRunChange([skipped, other], { runId: "skipped", action: "skip" }),
+    ).toEqual([other]);
+  });
+});
+
+describe("useRunChanges", () => {
+  const READ_REVISION = 3;
+  const changeable = (id: string, scheduleRevision = READ_REVISION) =>
+    ({
+      ...run(id, RULE_TIME),
+      scheduleId: "schedule-1",
+      scheduleRevision,
+    }) as ChangeableRun;
+  const sentRevisions = () =>
+    changeRunMock.mock.calls.map(([item]) => item.scheduleRevision);
+  let answerFirst: (result: unknown) => void;
+
+  beforeEach(() => {
+    changeRunMock.mockReset();
+    reportFailureMock.mockReset();
+    toastSuccessMock.mockReset();
+    changeRunMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answerFirst = resolve;
+      }),
+    );
+    changeRunMock.mockResolvedValue({ ok: true, value: { revision: 5 } });
+  });
+
+  async function skipTwo() {
+    const first = changeable("first");
+    const second = changeable("second");
+    const { result } = renderHook(() => useRunChanges([first, second]));
+    await act(async () => {
+      result.current[1](first, { action: "skip" });
+      result.current[1](second, { action: "skip" });
+    });
+    return result;
+  }
+
+  it("shows a moved Run at its new time before Core answers, and sends the move", async () => {
+    const moving = changeable("moving");
+    const scheduledAt = new Date("2030-01-04T08:15:00.000Z");
+    const { result } = renderHook(() => useRunChanges([moving]));
+
+    await act(async () => {
+      result.current[1](moving, { action: "move", scheduledAt });
+    });
+
+    expect(result.current[0][0].scheduledAt).toEqual(scheduledAt);
+    expect(changeRunMock).toHaveBeenCalledWith(moving, {
+      action: "move",
+      scheduledAt,
+    });
+
+    await act(async () =>
+      answerFirst({
+        ok: false,
+        error: { kind: "invalid_time", message: "no" },
+      }),
+    );
+    expect(result.current[0][0].scheduledAt).toEqual(RULE_TIME);
+    expect(reportFailureMock).toHaveBeenCalledWith("invalid_time");
+  });
+
+  it("holds a second change on a schedule and sends it the revision the first one left", async () => {
+    const result = await skipTwo();
+
+    expect(result.current[0]).toEqual([]);
+    expect(sentRevisions()).toEqual([READ_REVISION]);
+
+    await act(async () => answerFirst({ ok: true, value: { revision: 4 } }));
+    expect(sentRevisions()).toEqual([READ_REVISION, 4]);
+  });
+
+  it("offers Undo once a skip is accepted and moves the Run back with the revision the skip left", async () => {
+    const skipped = changeable("skipped");
+    const { result } = renderHook(() => useRunChanges([skipped]));
+    await act(async () => {
+      result.current[1](skipped, { action: "skip" });
+    });
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+
+    await act(async () => answerFirst({ ok: true, value: { revision: 7 } }));
+    const [, options] = toastSuccessMock.mock.calls[0] as [
+      string,
+      { action: { onClick: () => void } },
+    ];
+    await act(async () => options.action.onClick());
+
+    expect(changeRunMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: "skipped", scheduleRevision: 7 }),
+      { action: "move", scheduledAt: RULE_TIME },
+    );
+  });
+
+  it("sends the second change the read revision when Core refused the first", async () => {
+    await skipTwo();
+
+    await act(async () =>
+      answerFirst({ ok: false, error: { kind: "failed", message: "no" } }),
+    );
+    expect(reportFailureMock).toHaveBeenCalledWith("failed");
+    expect(sentRevisions()).toEqual([READ_REVISION, READ_REVISION]);
+  });
+
+  it("sends the newer of the entry's revision and the last one it knows", async () => {
+    const result = await skipTwo();
+    await act(async () => answerFirst({ ok: true, value: { revision: 4 } }));
+
+    // Fresh entries, read after a change made elsewhere.
+    await act(async () =>
+      result.current[1](changeable("fresh", 9), { action: "skip" }),
+    );
+    // Entries not yet replaced after the last answer (revision 5).
+    await act(async () =>
+      result.current[1](changeable("old"), { action: "skip" }),
+    );
+
+    expect(sentRevisions()).toEqual([READ_REVISION, 4, 9, 5]);
+  });
+
+  it("still sends the next change when the failure report of one threw", async () => {
+    reportFailureMock.mockImplementation(() => {
+      throw new Error("toast failed");
+    });
+    await skipTwo();
+
+    await act(async () =>
+      answerFirst({ ok: false, error: { kind: "failed", message: "no" } }),
+    );
+    expect(changeRunMock).toHaveBeenCalledTimes(2);
+  });
+});

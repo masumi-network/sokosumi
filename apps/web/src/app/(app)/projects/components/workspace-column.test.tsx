@@ -164,6 +164,22 @@ describe("NeedsYouPanel", () => {
     expect(within(row).getByTestId("project-avatar")).toBeInTheDocument();
   });
 
+  it("takes a row's project from a project read still in flight", async () => {
+    render(
+      await NeedsYouPanel({
+        feed: Promise.resolve([notification("n1", project.id)]),
+        projects: Promise.resolve({
+          [project.id]: { name: "Launch", logo: null },
+        }),
+      }),
+    );
+
+    expect(screen.getByTestId("workspace-needs-you-row")).toHaveTextContent(
+      "Launch",
+    );
+    expect(getProjectByIdMock).not.toHaveBeenCalled();
+  });
+
   it("says nothing waits when the view is empty", async () => {
     render(await NeedsYouPanel({ feed: Promise.resolve([]), projects: {} }));
 

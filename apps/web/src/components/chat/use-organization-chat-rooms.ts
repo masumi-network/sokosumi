@@ -8,8 +8,12 @@ import type {
 import type { ChatRoomCollection } from "@sokosumi/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
+import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
 import { withPinnedOrder } from "./chat-room-activity-sort";
-import { fetchSidebarRoomCollection } from "./fetch-sidebar-room-collection";
+import {
+  fetchSidebarRoom,
+  fetchSidebarRoomCollection,
+} from "./fetch-sidebar-room-collection";
 import {
   getLatestMembershipVisibleRoomsSnapshot,
   publishMembershipVisibleRooms,
@@ -26,7 +30,16 @@ import {
   reconcileRoomAttention,
   rememberRoomRead,
 } from "./room-read-overlay";
-import { useChatRefreshScheduler } from "./use-chat-refresh-scheduler";
+import {
+  CHAT_HEALTHY_REFRESH_MS,
+  useChatRefreshScheduler,
+} from "./use-chat-refresh-scheduler";
+
+/**
+ * Most rooms one active read fetches singly. Past this the whole list is one
+ * request and the single reads are several.
+ */
+const MAX_SINGLE_ROOM_READS = 3;
 
 /** Poll cadence per collection while the Ably connection is unavailable. */
 const ORGANIZATION_CHAT_FALLBACK_MS = 15_000;
@@ -77,6 +90,7 @@ export function useOrganizationChatRooms({
 }: UseOrganizationChatRoomsOptions) {
   const hasOrganization = Boolean(organizationId);
   const latestAppliedRefreshRef = useRef(0);
+  const latestRoomSwapRef = useRef(0);
   const latestArchivedRefreshRef = useRef(0);
   const latestInvitationsRefreshRef = useRef(0);
   const [roomRows, setRoomRows] = useState(() => {
@@ -160,25 +174,140 @@ export function useOrganizationChatRooms({
     setRoomRows((current) => withPinnedOrder(current, order));
   }, []);
 
-  /** Replace the whole live list with a freshly fetched one. */
+  /**
+   * Replace the whole live list with a freshly fetched one. False when a
+   * newer change to the list overtook the read and it was dropped.
+   *
+   * Either way the list can now be behind something: a dropped read never
+   * landed, and one that started before a one-room read puts that room's
+   * older copy back. Both leave the whole list owed.
+   */
   const replaceAllRooms = useCallback(
-    (rooms: ChatRoom[], requestRevision: number) => {
-      if (requestRevision < latestAppliedRefreshRef.current) return;
+    (rooms: ChatRoom[], requestRevision: number): boolean => {
+      if (requestRevision < latestAppliedRefreshRef.current) {
+        staleActiveRef.current.wholeList = true;
+        return false;
+      }
+      if (requestRevision < latestRoomSwapRef.current) {
+        staleActiveRef.current.wholeList = true;
+      }
       latestAppliedRefreshRef.current = requestRevision;
       setRoomRows(reconcileRoomAttention(rooms, requestRevision));
+      return true;
     },
     [],
   );
 
+  /**
+   * Swap listed rooms for fresh copies of themselves, by the same attention
+   * rule as a whole-list read. A room no longer listed is left out. False
+   * when a newer change to the list overtook the read and it was dropped.
+   *
+   * It leaves the list's own revision where it was. A whole-list read that
+   * started earlier (a failed pin reorder reloading, say) still has rows this
+   * one did not read, so it must land; `replaceAllRooms` then owes a newer
+   * list for the room this one swapped.
+   */
+  const replaceListedRooms = useCallback(
+    (fresh: ChatRoom[], requestRevision: number): boolean => {
+      if (requestRevision < latestAppliedRefreshRef.current) return false;
+      latestRoomSwapRef.current = requestRevision;
+      const freshById = new Map(
+        reconcileRoomAttention(fresh, requestRevision).map((room) => [
+          room.id,
+          room,
+        ]),
+      );
+      setRoomRows((current) =>
+        current.map((row) => {
+          const room = freshById.get(row.id);
+          // Core loads the workspace logo and website for the list only.
+          return room
+            ? {
+                ...room,
+                organizationLogo: row.organizationLogo,
+                organizationWebsiteUrl: row.organizationWebsiteUrl,
+              }
+            : row;
+        }),
+      );
+      return true;
+    },
+    [],
+  );
+
+  /**
+   * What the next active read has to fetch. A message event names its room,
+   * and a listed room can be read alone (the list is every room the reader
+   * holds, up to fifty pages of it). Anything else needs the whole list: a
+   * room not listed yet, an event naming none, and the reads that exist to
+   * find a lost event: mount, a workspace or user switch, recovery and coming
+   * back online. Those ask for the whole list below, because a room named
+   * while one of them waits would otherwise turn it into a one-room read.
+   *
+   * Every read re-arms the recovery timer, so in a busy workspace the timer
+   * never fires. The whole list is still read once per recovery interval:
+   * that read is what finds a room whose event was lost.
+   */
+  const staleActiveRef = useRef({ rooms: new Set<string>(), wholeList: false });
+  const wholeListReadAtRef = useRef(0);
+  const roomRowsRef = useRef(roomRows);
+  roomRowsRef.current = roomRows;
+  const requestActiveRef = useRef(() => {});
+
   /** Each collection recovers on its own; a failed read keeps the last rows. */
   const refreshActive = useCallback(
     async (isCurrent: () => boolean) => {
-      const requestRevision = beginRoomAttentionRefresh();
+      const stale = staleActiveRef.current;
+      const roomIds = stale.wholeList ? [] : [...stale.rooms];
+      staleActiveRef.current = { rooms: new Set(), wholeList: false };
+      let requestRevision = beginRoomAttentionRefresh();
+      if (
+        roomIds.length > 0 &&
+        roomIds.length <= MAX_SINGLE_ROOM_READS &&
+        Date.now() - wholeListReadAtRef.current < CHAT_HEALTHY_REFRESH_MS
+      ) {
+        const fresh = await Promise.all(roomIds.map(fetchSidebarRoom));
+        if (!isCurrent()) return;
+        const answered = fresh.filter((room) => room !== null);
+        if (answered.length < fresh.length) {
+          // A read that failed says nothing about the room, and the list
+          // would fail the same way. It stays owed, as a failed list read
+          // does. A throttle is the one failure with an end, so that waits
+          // out the window like any other read.
+          staleActiveRef.current.wholeList = true;
+          if (chatReadThrottleResumeInMs() > 0) requestActiveRef.current();
+          return;
+        }
+        const rooms = answered.filter((room) => room !== "gone");
+        if (rooms.length === answered.length) {
+          // A dropped answer leaves its room stale with nothing to say so.
+          // The next read of any kind then takes the whole list.
+          // So does an answer for a room that left the rows meanwhile.
+          const listed = rooms.every((room) =>
+            roomRowsRef.current.some((row) => row.id === room.id),
+          );
+          if (!replaceListedRooms(rooms, requestRevision) || !listed) {
+            staleActiveRef.current.wholeList = true;
+          }
+          return;
+        }
+        // A room the reader can no longer open has left the list. The list
+        // read starts now, so a change made during the room reads predates it.
+        requestRevision = beginRoomAttentionRefresh();
+      }
+      const wholeListReadAt = Date.now();
       const page = await fetchSidebarRoomCollection("active");
-      if (!isCurrent() || !page) return;
+      if (!isCurrent()) return;
+      if (!page) {
+        // Whatever asked for the whole list is still owed it.
+        staleActiveRef.current.wholeList = true;
+        return;
+      }
+      wholeListReadAtRef.current = wholeListReadAt;
       replaceAllRooms(page.rooms, requestRevision);
     },
-    [replaceAllRooms],
+    [replaceAllRooms, replaceListedRooms],
   );
   const refreshArchived = useCallback(async (isCurrent: () => boolean) => {
     const requestRevision = beginRoomAttentionRefresh();
@@ -211,6 +340,21 @@ export function useOrganizationChatRooms({
   // earlier visits and other tabs.
   const healthy = useAblyConnectionHealthy();
   const scope = paintOnly ? null : `${organizationId ?? ""}:${currentUserId}`;
+  // Rooms are only ever named while a read is in flight or waiting out a
+  // throttle, so the read these three ask for starts after they have run.
+  // `scope` is the trigger: a new one starts with nothing known.
+  useEffect(() => {
+    staleActiveRef.current = { rooms: new Set(), wholeList: true };
+    const onOnline = () => {
+      staleActiveRef.current.wholeList = true;
+    };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [scope]);
+  // `healthy` is the trigger: either flip can have lost an event.
+  useEffect(() => {
+    staleActiveRef.current.wholeList = true;
+  }, [healthy]);
   const requestActive = useChatRefreshScheduler({
     key: scope && `${scope}:active`,
     refresh: refreshActive,
@@ -219,6 +363,7 @@ export function useOrganizationChatRooms({
     refreshOnMount: true,
     refreshOnRecovery: true,
   });
+  requestActiveRef.current = requestActive;
   // Archived rooms carry no unread state and arrive with the page, so they
   // skip the mount read; archive and restore events still ask for them.
   const requestArchived = useChatRefreshScheduler({
@@ -237,11 +382,18 @@ export function useOrganizationChatRooms({
     refreshOnRecovery: true,
   });
   const requestCollections = useCallback(
-    (collections?: readonly ChatRoomCollection[]) => {
+    (collections?: readonly ChatRoomCollection[], roomId?: string | null) => {
       const wanted = new Set<ChatRoomCollection>(
         collections ?? ["active", "archived", "invitations"],
       );
-      if (wanted.has("active")) requestActive();
+      if (wanted.has("active")) {
+        if (roomId && roomRowsRef.current.some((row) => row.id === roomId)) {
+          staleActiveRef.current.rooms.add(roomId);
+        } else {
+          staleActiveRef.current.wholeList = true;
+        }
+        requestActive();
+      }
       if (wanted.has("archived")) requestArchived();
       if (wanted.has("invitations")) requestInvitations();
     },

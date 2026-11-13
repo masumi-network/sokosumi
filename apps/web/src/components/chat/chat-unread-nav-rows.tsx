@@ -19,7 +19,10 @@ import {
   NeedsYouPill,
   RowCountMark,
 } from "@/components/chat/mention-count-pill";
-import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
+import {
+  beginRoomsRead,
+  notifyOrganizationChatRoomsChanged,
+} from "@/components/chat/organization-chat-events";
 import {
   resolveUnreadThreadsAttention,
   roomUnreadReads,
@@ -158,14 +161,20 @@ export function ChatMarkAllReadButton({
   const t = useTranslations("App.Channels.UnreadNav");
   const [isMarking, startMarking] = useTransition();
   const markAllTargets = markAllReadTargets(rooms);
-  if (!unreadOnly || markAllTargets.length === 0) {
+  // The rooms read at once, so the button stays for the write: it holds the
+  // spinner and the focus.
+  if (!unreadOnly || (markAllTargets.length === 0 && !isMarking)) {
     return null;
   }
 
   function handleMarkAllRead() {
+    const settle = beginRoomsRead(rooms);
     startMarking(async () => {
-      const result = await markAllChatUnreadReadAction(markAllTargets);
-      if (!result.ok) {
+      const result = await markAllChatUnreadReadAction(markAllTargets).catch(
+        () => null,
+      );
+      settle(result?.ok === true);
+      if (!result?.ok) {
         toast.error(t("markAllReadError"));
       }
       // What Core holds now, part-read or not, is what the rooms show next.

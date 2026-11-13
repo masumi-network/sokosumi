@@ -152,6 +152,7 @@ import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import { MessageClampToggle } from "./message-clamp-toggle";
 import { MessageEditComposer } from "./message-edit-composer";
 import { participantDirectKey } from "./open-direct-with-participant";
+import { OutboundPendingSpinner } from "./outbound-pending-spinner";
 import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
@@ -1914,50 +1915,6 @@ const MESSAGE_LEFT_RAIL_CLASS =
   "flex w-8 min-w-8 max-w-8 shrink-0 justify-center overflow-visible pt-0.5";
 
 /**
- * Quiet dual-arc ring for classic outbound pending. Slow spin; static under
- * prefers-reduced-motion. Not the coworker Drive grid / thinking orb.
- */
-function OutboundPendingSpinner({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      fill="none"
-      aria-hidden
-      className={cn(
-        "text-muted-foreground animate-outbound-pending-spin motion-reduce:animate-none",
-        className,
-      )}
-      data-testid="outbound-delivery-pending-spinner"
-    >
-      {/* Faint track — stays put under reduced motion so the mark still reads. */}
-      <circle
-        cx="8"
-        cy="8"
-        r="5.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        opacity={0.28}
-      />
-      {/* Leading arc */}
-      <path
-        d="M8 2.5a5.5 5.5 0 0 1 4.76 2.75"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      {/* Trailing arc (opposite, softer) */}
-      <path
-        d="M8 13.5a5.5 5.5 0 0 1-4.76-2.75"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        opacity={0.45}
-      />
-    </svg>
-  );
-}
-
-/**
  * Timestamp slot for classic outbound:
  * - Header (`reserveHeaderWidth`): pending before delay = wall-clock; after =
  *   spinner; confirm may show check; settled = wall-clock.
@@ -2437,6 +2394,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onCancelEdit,
   onSaveEdit,
   isSavingEdit = false,
+  isSaving = false,
   mentions = {},
   channels = [],
   showThreadButton = true,
@@ -2484,6 +2442,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   /** Optional content uses the live editor value (avoids stale draft on Enter). */
   onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
+  /** Shows a change Core has not answered yet (a pin, an edit). */
+  isSaving?: boolean;
   mentions?: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
   channels?: readonly ComposerChannelOption[];
   showThreadButton?: boolean;
@@ -2753,6 +2713,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
       id={`message-${message.id}`}
       data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
+      aria-busy={isSaving || undefined}
       className={cn(
         // Landed mark: a left rail plus a wash, drawn on ::before/::after under
         // the content (`isolate` scopes their z-index -1 to the row). Nothing
@@ -2766,6 +2727,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         // has somewhere to put eight buttons.
         "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md px-2 transition-colors hover:bg-accent",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
+        isSaving && "opacity-60",
         isContinuation
           ? "min-h-0 py-0.5"
           : isFirstOfDay

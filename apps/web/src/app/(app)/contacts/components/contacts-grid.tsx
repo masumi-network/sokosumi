@@ -17,6 +17,7 @@ import {
   isFollowUpDue,
   nearestImportanceLevel,
   primaryEmail,
+  searchMatchRange,
   sortChannels,
 } from "@/app/contacts/contacts-view";
 import { ColumnResizeHandle } from "@/components/data-grid/column-resize-handle";
@@ -150,6 +151,24 @@ interface Props {
   loadingMore: boolean;
   onLoadMore: () => void;
   footer: ReactNode;
+  /** The search typed in the toolbar; its match in a location is marked. */
+  search?: string;
+}
+
+/** `text` with the part `search` matched marked, so a row says why it is there. */
+function MarkedMatch({ text, search }: { text: string; search: string }) {
+  const range = searchMatchRange(text, search);
+  if (!range) return text;
+  const [start, end] = range;
+  return (
+    <>
+      {text.slice(0, start)}
+      <mark className="bg-muted text-foreground rounded-sm">
+        {text.slice(start, end)}
+      </mark>
+      {text.slice(end)}
+    </>
+  );
 }
 
 export function ContactsGrid({
@@ -167,6 +186,7 @@ export function ContactsGrid({
   loadingMore,
   onLoadMore,
   footer,
+  search = "",
 }: Props) {
   const t = useTranslations("App.Contacts");
   const format = useFormatter();
@@ -364,13 +384,24 @@ export function ContactsGrid({
           ) : null,
         };
       case "role":
-      case "location":
         return {
-          text: contact[column] ?? "",
-          edit: textEdit(contact, column),
+          text: contact.role ?? "",
+          edit: textEdit(contact, "role"),
           node: (
             <span data-fit className="text-muted-foreground truncate">
-              {contact[column]}
+              {contact.role}
+            </span>
+          ),
+        };
+      case "location":
+        return {
+          text: contact.location ?? "",
+          edit: textEdit(contact, "location"),
+          node: (
+            <span data-fit className="text-muted-foreground truncate">
+              {contact.location ? (
+                <MarkedMatch text={contact.location} search={search} />
+              ) : null}
             </span>
           ),
         };
@@ -445,7 +476,8 @@ export function ContactsGrid({
         const types = [...new Set(channels.map((channel) => channel.type))];
         return {
           text: channels.map(channelLabel).join(", "),
-          node: (
+          // An image needs a name: with no other channels, show the dash.
+          node: types.length ? (
             <span
               data-fit
               role="img"
@@ -458,6 +490,8 @@ export function ContactsGrid({
                 <ChannelIcon key={type} type={type} />
               ))}
             </span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
           ),
         };
       }
