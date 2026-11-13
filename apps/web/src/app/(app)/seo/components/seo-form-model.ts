@@ -48,14 +48,9 @@ export const SEO_ANALYSIS_MODULES = [
   "keyword.refresh",
   "links.refresh",
 ] as const;
-export function allowedSeoAnalysisKinds(
-  paidSearchData: boolean,
-  monitor = false,
-) {
+export function allowedSeoAnalysisKinds(paidSearchData: boolean) {
   return SEO_ANALYSIS_KINDS.filter(
-    (kind) =>
-      (!monitor || kind !== "audit_full") &&
-      (paidSearchData || kind === "page_check" || kind === "audit_lite"),
+    (kind) => paidSearchData || kind === "page_check" || kind === "audit_lite",
   );
 }
 export const SEO_MAX_MONITOR_RUNS = 31;

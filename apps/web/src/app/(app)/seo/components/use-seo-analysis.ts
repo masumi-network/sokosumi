@@ -27,7 +27,7 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
   const [chosenModules, setModules] = useState<string[]>(["page.inspect"]);
   const canUsePaidSearchData =
     model.data.availableActions.canUsePaidSearchData === true;
-  const kinds = allowedSeoAnalysisKinds(canUsePaidSearchData, monitor);
+  const kinds = allowedSeoAnalysisKinds(canUsePaidSearchData);
   const modules = canUsePaidSearchData ? chosenModules : ["page.inspect"];
   const [competitorUrls, setCompetitorUrls] = useState(() =>
     workspace.competitors
@@ -51,11 +51,15 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
   }
   // Every opener gets the widest check these pages allow, unless it names one.
   const [chosenKind, setKind] = useState<string>(
-    () => model.analysisKind ?? seoRunAction(model.data)?.kind ?? "page_check",
+    () =>
+      model.analysisKind ??
+      seoRunAction(model.data)?.kind ??
+      // While a check runs there is no run action: a schedule still repeats the widest check.
+      (kinds.includes("audit_full") ? "audit_full" : "page_check"),
   );
-  // The check starts on its defaults: the fields show when the reader asks, or when a value is refused.
-  // A schedule has more to decide, so its fields are open.
-  const [optionsOpen, setOptionsOpen] = useState(monitor);
+  // The check and the schedule start on their defaults: the fields show when the reader asks, or when a value is
+  // refused. A schedule decides only when it runs.
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [devices, setDevices] = useState<readonly SeoDevice[]>(SEO_DEVICES);
   function toggleDevice(device: SeoDevice, checked: boolean) {
     setDevices((previous) =>
@@ -86,8 +90,6 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
         availableActions: model.data.availableActions,
       });
       if (monitor) {
-        if (body.kind === "audit_full")
-          throw new Error("Monitoring supports focused checks only");
         if (!rule) throw new Error("Invalid SEO monitor rule");
         const request: Omit<CreateProjectSeoMonitorRequest, "operationId"> = {
           rule,

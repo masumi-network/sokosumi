@@ -11793,11 +11793,8 @@
         "devices": "Geräte",
         "mobile": "Mobil",
         "desktop": "Desktop",
-        "cost": "Daten-, Modell- und Laufzeitnutzung können Kosten verursachen.",
         "htmlOnly": "Liest den HTML-Code der ausgewählten Seiten. Diese Prüfung verwendet keine kostenpflichtigen Suchdaten und keine Modellaufrufe.",
-        "htmlCost": "Seitenabrufe, Sandbox und Speicher können weiterhin Plattformkosten verursachen.",
-        "maxCredits": "Bis zu {credits, plural, =1 {# Credit} other {# Credits}}. Eine fehlgeschlagene Prüfung kostet nichts.",
-        "maxCreditsPerRun": "Bis zu {credits, plural, =1 {# Credit} other {# Credits}} pro Durchlauf. Ein fehlgeschlagener Durchlauf kostet nichts.",
+        "maxCredits": "Bis zu {credits, plural, =1 {# Credit} other {# Credits}}",
         "htmlService": "Dieser Prüfdienst unterstützt HTML-Seitenprüfungen. Suchdaten und vollständige Audits sind hier nicht verfügbar.",
         "submit": "Prüfung starten",
         "queued": "Prüfung angefragt",
@@ -11819,7 +11816,11 @@
           "links_refresh": "Backlink-Übersicht"
         },
         "budgetTooLow": "Wähle weniger Keywords und Wettbewerberseiten.",
-        "scopeTooLarge": "Wähle für diese Prüfung eine einzelne Seite oder eine Gruppe mit bis zu {count} Seiten."
+        "scopeTooLarge": "Wähle für diese Prüfung eine einzelne Seite oder eine Gruppe mit bis zu {count} Seiten.",
+        "price": "Preis",
+        "pricePerRun": "Preis pro Durchlauf",
+        "failedCheckFree": "Eine fehlgeschlagene Prüfung kostet nichts.",
+        "failedRunFree": "Ein fehlgeschlagener Durchlauf kostet nichts."
       },
       "statistics": {
         "title": "Statistiken synchronisieren",
@@ -11886,13 +11887,11 @@
         "unavailable": "Geplante Prüfungen sind hier nicht verfügbar. Kehre zum Audit zurück.",
         "title": "Geplante Prüfungen",
         "create": "Prüfungen planen",
-        "description": "Wiederhole eine gezielte Prüfung nach Plan. Prüfe Markt, Seiten und Budget pro Durchlauf vor dem Speichern.",
-        "cap": "Bis zu {runs, plural, one {# geplanter Durchlauf} other {# geplante Durchläufe}}. Jedes „Jetzt ausführen“ fügt einen Durchlauf hinzu.",
+        "description": "Der Agent wiederholt diese Prüfung nach Plan. Du kannst sie jederzeit pausieren oder beenden.",
         "created": "SEO-Monitoring geplant",
         "next": "Nächster Durchlauf",
         "manage": "Aufgabenplan verwalten",
         "createAnother": "Weitere Prüfung planen",
-        "capPerRun": "Die Durchläufe gehen weiter, bis jemand sie stoppt.",
         "blocked": {
           "readOnly": "Du siehst diese Prüfungen. Nur Bearbeiter können sie planen oder ändern.",
           "service": "Geplante Prüfungen sind in diesem Workspace nicht verfügbar.",

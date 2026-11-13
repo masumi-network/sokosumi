@@ -3333,7 +3333,7 @@ describe("SEO workspace integration", () => {
       within(dialog).getByRole("combobox", { name: "Check type" }),
     );
     await user.click(screen.getByRole("option", { name: "Audit lite" }));
-    const price = /^Up to \d+ credits?\. /;
+    const price = /^Up to \d+ credits?$/;
     expect(within(dialog).queryByText(price)).toBeNull();
     await user.click(within(dialog).getByLabelText("Backlink overview"));
     expect(within(dialog).getByText(price)).toBeVisible();
@@ -3480,11 +3480,13 @@ describe("SEO workspace integration", () => {
     );
     await user.click(within(dialog).getByRole("button", { name: "Weekly" }));
     await user.click(
+      within(dialog).getByRole("button", { name: "Change options" }),
+    );
+    await user.click(
       within(dialog).getByRole("combobox", { name: "Check type" }),
     );
-    expect(
-      screen.queryByRole("option", { name: "Full audit" }),
-    ).not.toBeInTheDocument();
+    // A schedule can repeat the full audit too.
+    expect(screen.getByRole("option", { name: "Full audit" })).toBeVisible();
     await user.click(screen.getByRole("option", { name: "Keyword positions" }));
     await user.click(
       within(dialog).getByRole("combobox", { name: "Search country" }),
@@ -3608,7 +3610,10 @@ describe("SEO workspace integration", () => {
       }),
     );
     const dialog = screen.getByRole("dialog");
-    // The schedule form opens with a page check: the follow-up of an audit.
+    // The schedule form opens with a page check: the follow-up of an audit. Its fields are folded.
+    await user.click(
+      within(dialog).getByRole("button", { name: "Change options" }),
+    );
     expect(
       within(dialog).getByRole("combobox", { name: "Check type" }),
     ).toHaveTextContent(messages.App.Seo.analysis.page_check);

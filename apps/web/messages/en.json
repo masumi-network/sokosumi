@@ -11793,11 +11793,8 @@
         "devices": "Devices",
         "mobile": "Mobile",
         "desktop": "Desktop",
-        "cost": "Data, model and runtime usage can incur charges.",
         "htmlOnly": "Reads the selected pages’ HTML. This check uses no paid search data or model calls.",
-        "htmlCost": "Public page fetching, sandbox and storage can still incur platform charges.",
-        "maxCredits": "Up to {credits, plural, =1 {# credit} other {# credits}}. A failed check costs nothing.",
-        "maxCreditsPerRun": "Up to {credits, plural, =1 {# credit} other {# credits}} per run. A failed run costs nothing.",
+        "maxCredits": "Up to {credits, plural, =1 {# credit} other {# credits}}",
         "htmlService": "This check service supports HTML page checks. Search data and full audits are unavailable here.",
         "submit": "Start check",
         "queued": "Check requested",
@@ -11819,7 +11816,11 @@
           "links_refresh": "Backlink overview"
         },
         "budgetTooLow": "Select fewer keywords and competitor pages.",
-        "scopeTooLarge": "Choose a single page or a group with up to {count} pages for this check."
+        "scopeTooLarge": "Choose a single page or a group with up to {count} pages for this check.",
+        "price": "Price",
+        "pricePerRun": "Price per run",
+        "failedCheckFree": "A failed check costs nothing.",
+        "failedRunFree": "A failed run costs nothing."
       },
       "statistics": {
         "title": "Sync statistics",
@@ -11886,13 +11887,11 @@
         "unavailable": "Scheduled checks are unavailable here. Return to the audit.",
         "title": "Scheduled checks",
         "create": "Schedule checks",
-        "description": "Repeat a focused check on a schedule. Review the market, pages and per-run budget before saving.",
-        "cap": "Up to {runs, plural, one {# scheduled run} other {# scheduled runs}}. Each Run now adds one more run.",
+        "description": "The agent repeats this check on a schedule. You can pause or end it at any time.",
         "created": "SEO monitoring scheduled",
         "next": "Next run",
         "manage": "Manage task schedule",
         "createAnother": "Schedule another check",
-        "capPerRun": "Runs continue until someone stops them.",
         "blocked": {
           "readOnly": "You can see these checks. Only an editor can schedule or change them.",
           "service": "Scheduled checks are unavailable in this workspace.",

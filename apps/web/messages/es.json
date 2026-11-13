@@ -11793,11 +11793,8 @@
         "devices": "Dispositivos",
         "mobile": "Móvil",
         "desktop": "Ordenador",
-        "cost": "El uso de datos, modelos y ejecución puede generar cargos.",
         "htmlOnly": "Lee el HTML de las páginas seleccionadas. Esta comprobación no usa datos de búsqueda de pago ni llamadas a modelos.",
-        "htmlCost": "La lectura de páginas, el entorno de ejecución y el almacenamiento aún pueden generar cargos de plataforma.",
-        "maxCredits": "Hasta {credits, plural, =1 {# crédito} other {# créditos}}. Una revisión fallida no cuesta nada.",
-        "maxCreditsPerRun": "Hasta {credits, plural, =1 {# crédito} other {# créditos}} por ejecución. Una ejecución fallida no cuesta nada.",
+        "maxCredits": "Hasta {credits, plural, =1 {# crédito} other {# créditos}}",
         "htmlService": "Este servicio admite comprobaciones de páginas HTML. Los datos de búsqueda y las auditorías completas no están disponibles aquí.",
         "submit": "Iniciar comprobación",
         "queued": "Comprobación solicitada",
@@ -11819,7 +11816,11 @@
           "links_refresh": "Resumen de enlaces entrantes"
         },
         "budgetTooLow": "Selecciona menos palabras clave y páginas competidoras.",
-        "scopeTooLarge": "Para esta revisión, elige una página o un grupo de hasta {count} páginas."
+        "scopeTooLarge": "Para esta revisión, elige una página o un grupo de hasta {count} páginas.",
+        "price": "Precio",
+        "pricePerRun": "Precio por ejecución",
+        "failedCheckFree": "Una revisión fallida no cuesta nada.",
+        "failedRunFree": "Una ejecución fallida no cuesta nada."
       },
       "statistics": {
         "title": "Sincronizar estadísticas",
@@ -11886,13 +11887,11 @@
         "unavailable": "Las comprobaciones programadas no están disponibles aquí. Vuelve a la auditoría.",
         "title": "Comprobaciones programadas",
         "create": "Programar revisiones",
-        "description": "Repite una revisión concreta según un plan. Revisa el mercado, las páginas y el presupuesto por ejecución antes de guardar.",
-        "cap": "Hasta {runs, plural, one {# ejecución programada} other {# ejecuciones programadas}}. Cada «Ejecutar ahora» añade una ejecución más.",
+        "description": "El agente repite esta revisión según un plan. Puedes pausarla o terminarla en cualquier momento.",
         "created": "Seguimiento SEO programado",
         "next": "Próxima ejecución",
         "manage": "Gestionar plan de tareas",
         "createAnother": "Programar otra revisión",
-        "capPerRun": "Las ejecuciones siguen hasta que alguien las detenga.",
         "blocked": {
           "readOnly": "Puedes ver estas revisiones. Solo un editor puede programarlas o cambiarlas.",
           "service": "Las revisiones programadas no están disponibles en este espacio de trabajo.",

@@ -71,7 +71,7 @@ export function SeoAnalysisDialog({
         if (!open && !model.pending) model.setDialog(null);
       }}
     >
-      <DialogContent className="max-h-dvh overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-dvh overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {t(monitor ? "monitor.create" : "analysis.title")}
@@ -81,7 +81,7 @@ export function SeoAnalysisDialog({
           </DialogDescription>
         </DialogHeader>
         <form
-          className="space-y-4"
+          className="space-y-5"
           // A closed field the browser refuses cannot take focus: open the fields so its message shows.
           onInvalidCapture={() => form.setOptionsOpen(true)}
           onSubmit={(event) => {
@@ -89,36 +89,35 @@ export function SeoAnalysisDialog({
             void form.submit(new FormData(event.currentTarget));
           }}
         >
-          {monitor ? null : (
-            <>
-              <SeoAnalysisSummary
-                kind={form.kind}
-                pages={form.workspace.scope.pageIds.length}
-                scopeName={form.workspace.scope.name}
-                countryCode={market.countryCode}
-                languageCode={market.languageCode}
-                devices={form.devices}
-                keywords={form.wantsKeywords ? market.keywords : null}
+          {/* What runs, in one card; its fields open from the card only when the reader wants to change one. */}
+          <div className="bg-muted space-y-2 rounded-lg p-4">
+            <SeoAnalysisSummary
+              kind={form.kind}
+              pages={form.workspace.scope.pageIds.length}
+              scopeName={form.workspace.scope.name}
+              countryCode={market.countryCode}
+              languageCode={market.languageCode}
+              devices={form.devices}
+              keywords={form.wantsKeywords ? market.keywords : null}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground -ml-2"
+              aria-expanded={form.optionsOpen}
+              aria-controls={OPTIONS_ID}
+              onClick={() => form.setOptionsOpen((open) => !open)}
+            >
+              <ChevronDown
+                className={cn(
+                  "transition-transform duration-150 ease-out motion-reduce:transition-none",
+                  form.optionsOpen && "rotate-180",
+                )}
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="-ml-2"
-                aria-expanded={form.optionsOpen}
-                aria-controls={OPTIONS_ID}
-                onClick={() => form.setOptionsOpen((open) => !open)}
-              >
-                <ChevronDown
-                  className={cn(
-                    "transition-transform duration-150 ease-out motion-reduce:transition-none",
-                    form.optionsOpen && "rotate-180",
-                  )}
-                />
-                {t("analysis.options")}
-              </Button>
-            </>
-          )}
+              {t("analysis.options")}
+            </Button>
+          </div>
           {/* What limits or stops the check shows with the fields closed too: it explains the button. */}
           {form.serviceAvailable && !form.canUsePaidSearchData ? (
             <p role="status" className="text-muted-foreground text-sm">
@@ -168,14 +167,6 @@ export function SeoAnalysisDialog({
               </fieldset>
             ) : form.kind === "audit_lite" ? (
               <input type="hidden" name="analyses" value="page.inspect" />
-            ) : null}
-            {monitor ? (
-              <p className="text-muted-foreground text-sm">
-                {t("pages.count", {
-                  count: form.workspace.scope.pageIds.length,
-                })}
-                : {form.workspace.scope.name}
-              </p>
             ) : null}
             <div className="grid gap-3 sm:grid-cols-2">
               <SeoField id="seo-analysis-country" label={t("analysis.country")}>
@@ -280,11 +271,6 @@ export function SeoAnalysisDialog({
                   {t("monitor.onceADay")}
                 </p>
               ) : null}
-              <p className="text-muted-foreground text-sm">
-                {form.rule?.targetRunCount
-                  ? t("monitor.cap", { runs: form.rule.targetRunCount })
-                  : t("monitor.capPerRun")}
-              </p>
             </div>
           ) : null}
           {noService ? (
@@ -298,20 +284,30 @@ export function SeoAnalysisDialog({
               </p>
             </div>
           ) : null}
-          <p className="text-muted-foreground text-sm">
-            {maxCredits
-              ? t(
-                  monitor ? "analysis.maxCreditsPerRun" : "analysis.maxCredits",
-                  {
-                    credits: maxCredits,
-                  },
-                )
-              : t(form.usesPaidData ? "analysis.cost" : "analysis.htmlCost")}
-          </p>
+          {/* The one figure the reader decides on: the price in credits, the same ceiling Core checks. */}
+          {maxCredits ? (
+            <div className="flex items-baseline justify-between gap-4 border-t pt-4">
+              <span className="text-muted-foreground text-sm">
+                {t(monitor ? "analysis.pricePerRun" : "analysis.price")}
+              </span>
+              <span className="text-right">
+                <span className="block font-semibold">
+                  {t("analysis.maxCredits", { credits: maxCredits })}
+                </span>
+                <span className="text-muted-foreground block text-xs">
+                  {t(
+                    monitor
+                      ? "analysis.failedRunFree"
+                      : "analysis.failedCheckFree",
+                  )}
+                </span>
+              </span>
+            </div>
+          ) : null}
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               disabled={model.pending}
               onClick={() => model.setDialog(null)}
             >
