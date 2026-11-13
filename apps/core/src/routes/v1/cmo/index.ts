@@ -22,6 +22,8 @@ import mountApproveCmoMarketingStrategyForProject from "./projects/[projectId]/m
 import mountConnectCmoMeasurementForProject from "./projects/[projectId]/measurement/[provider]/connect/post.js";
 import mountFinalizeCmoMeasurementForProject from "./projects/[projectId]/measurement/[provider]/finalize/post.js";
 import mountRetryCmoOnboardingForProject from "./projects/[projectId]/onboarding/retry/post.js";
+import mountChangeCmoPlanForProject from "./projects/[projectId]/plan/post.js";
+import mountOpenCmoCustomerPortalForProject from "./projects/[projectId]/portal/post.js";
 import mountFinalizeCmoSocialConnectionForProject from "./projects/[projectId]/social-connections/finalize/post.js";
 import mountInitiateCmoSocialConnectionForProject from "./projects/[projectId]/social-connections/initiate/post.js";
 import mountStartCmoOverForProject from "./projects/[projectId]/start-over/post.js";
@@ -56,6 +58,8 @@ mountGetCmoOverviewForProject(app);
 mountConnectCmoMeasurementForProject(app);
 mountFinalizeCmoMeasurementForProject(app);
 mountRetryCmoOnboardingForProject(app);
+mountChangeCmoPlanForProject(app);
+mountOpenCmoCustomerPortalForProject(app);
 mountStartCmoOverForProject(app);
 mountSetCmoAdBudgetForProject(app);
 mountApplyCmoPlanAnswersForProject(app);
