@@ -3,12 +3,12 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getNow, getTimeZone, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
 import { ChatLanding } from "@/app/chat/components/landing/chat-landing";
 import { ChatLandingMobile } from "@/app/chat/components/landing/chat-landing.mobile";
 import { resolveLandingGreetingName } from "@/app/chat/components/landing/landing-content";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
+import type { NeedsYouLead } from "@/app/projects/components/needs-you-panel-list";
 import {
   NeedsYouPanel,
   panelFeed,
@@ -34,6 +34,7 @@ import {
   findSokoBotDirectRoom,
   SOKO_BOT_HOME_TASK_LIMIT,
   type SokoBotHomeChat,
+  sokoBotFailureLead,
   toImportantChats,
   toTeamDay,
 } from "./components/soko-bot-home-data";
@@ -126,26 +127,29 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   // What waits on the reader, as the quiet list under either welcome. One
   // promise of the rendered panel, so the two breakpoint compositions share
   // its reads instead of each loading the rows and their projects again.
-  const needsYou = (
+  const needsYouFeed = panelFeed(
+    notificationService.listNeedsYou(WORKSPACE_COLUMN_ROWS),
+  );
+  // The workspace's first page of projects, read next to the rows, so a
+  // row's project is usually known without its own read after them.
+  const needsYouProjects = projectService
+    .listProjects({ limit: PROJECTS_PAGE_LIMIT })
+    .then(({ projects }) =>
+      Object.fromEntries(
+        projects.map((project) => [
+          project.id,
+          { name: project.name, logo: project.logo },
+        ]),
+      ),
+    )
+    .catch(() => ({}));
+  const needsYouPanel = (lead?: NeedsYouLead) => (
     <Suspense fallback={null}>
       {NeedsYouPanel({
-        feed: panelFeed(
-          notificationService.listNeedsYou(WORKSPACE_COLUMN_ROWS),
-        ),
-        // The workspace's first page of projects, read next to the rows, so
-        // a row's project is usually known without its own read after them.
-        projects: projectService
-          .listProjects({ limit: PROJECTS_PAGE_LIMIT })
-          .then(({ projects }) =>
-            Object.fromEntries(
-              projects.map((project) => [
-                project.id,
-                { name: project.name, logo: project.logo },
-              ]),
-            ),
-          )
-          .catch(() => ({})),
+        feed: needsYouFeed,
+        projects: needsYouProjects,
         quiet: true,
+        lead,
       })}
     </Suspense>
   );
@@ -156,8 +160,10 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     (rows) => ({ rows }),
     (error: unknown) => ({ error }),
   );
-  const [sokoBot, summary] = await Promise.all([
-    sokoBotService.getMine().catch(() => null),
+  const [{ sokoBot, lastFailure }, summary] = await Promise.all([
+    sokoBotService
+      .getMineWithLastFailure()
+      .catch(() => ({ sokoBot: null, lastFailure: null })),
     // Window is session-derived in Core (`max(Session.updatedAt)`). No stamp.
     taskService.getActivitySummary({ scope }),
   ]);
@@ -177,6 +183,17 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
         })
         .catch(() => ({ tasks: [] })),
     ]);
+    // A failed bot waits on the reader too: the sidebar and the bot's page
+    // say so, and Home said "Nothing waits on you".
+    const tHome = await getTranslations("App.Chat.Landing.SokoBotHome");
+    const failedLead = sokoBotFailureLead(
+      {
+        name: sokoBot.name?.trim() || tHome("defaultName"),
+        status: sokoBot.status,
+      },
+      lastFailure,
+      tHome,
+    );
     return (
       <>
         {landingNotice}
@@ -194,11 +211,12 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           teamTasks={toTeamDay(recent.tasks, new Date())}
           chats={chats}
           myDay={myDay}
-          needsYou={needsYou}
+          needsYou={needsYouPanel(failedLead)}
         />
       </>
     );
   }
+  const needsYou = needsYouPanel();
 
   const coworkersResult = await coworkersRead;
   if ("error" in coworkersResult) {
