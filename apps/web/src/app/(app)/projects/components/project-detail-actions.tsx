@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils";
 
 import {
   type ProjectHideLabels,
+  type ProjectMenuChange,
   useProjectMenuActions,
 } from "./use-project-menu-actions";
 
@@ -75,6 +76,8 @@ interface ProjectDetailActionsProps {
   labels: ProjectDetailActionsLabels;
   /** Restyles the "More actions" button, as the project card does. */
   triggerClassName?: string;
+  /** Lets the card show a Pin, Hide or Show before Core answers. */
+  onChanging?: (change: ProjectMenuChange) => void;
 }
 
 /**
@@ -91,14 +94,16 @@ export function ProjectDetailActions({
   readOnly = false,
   labels,
   triggerClassName,
+  onChanging,
 }: ProjectDetailActionsProps) {
   const router = useRouter();
-  // Both callers read the Pin and Hide on the server, so a refresh redraws
-  // the menu and re-sorts or moves a card on the Projects list.
+  // Both callers read the Pin and Hide on the server. The actions revalidate,
+  // so their answer redraws the menu and re-sorts or moves a card on the
+  // Projects list.
   const projectActions = useProjectMenuActions({
     labels: labels.hide,
     pinError: labels.pin?.error,
-    onChange: () => router.refresh(),
+    onChanging,
   });
   // Hiding unpins, so a Hidden project offers no Pin; a closing one keeps
   // only Unpin, as the header's Pin button does.

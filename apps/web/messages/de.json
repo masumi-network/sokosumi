@@ -1738,6 +1738,7 @@
         "feedbackUseful": "Nützlich",
         "feedbackNotUseful": "Nicht nützlich",
         "feedbackThanks": "Danke, notiert.",
+        "feedbackError": "Deine Bewertung konnte nicht gespeichert werden.",
         "approvals": "{count, plural, one {# Freigabe wartet} other {# Freigaben warten}}",
         "review": "Auf der Assistenten-Seite prüfen",
         "task": "Task",
@@ -2127,6 +2128,7 @@
         "noStatusMatches": "Kein Status passt",
         "untitledTask": "Unbenannte Aufgabe",
         "saveError": "Die Aufgabe konnte nicht gespeichert werden",
+        "createError": "„{name}“ konnte nicht erstellt werden. Deine Eingaben sind noch im Formular.",
         "back": "Zurück",
         "uploadFile": "Datei hochladen",
         "uploadFileError": "Datei konnte nicht hochgeladen werden",
@@ -9174,7 +9176,9 @@
         "removeConfirmTitle": "{name} aus diesem Kanal entfernen?",
         "removeConfirmDescription": "{name} sieht diesen Kanal und seine Nachrichten dann nicht mehr.",
         "removeSuccess": "{name} aus dem Kanal entfernt.",
-        "undo": "Rückgängig"
+        "removeError": "{name} konnte nicht aus dem Kanal entfernt werden.",
+        "undo": "Rückgängig",
+        "undoError": "{name} konnte nicht wieder zum Kanal hinzugefügt werden."
       },
       "AddMembers": {
         "title": "Mitglieder hinzufügen",
@@ -9559,7 +9563,7 @@
       "GoogleSheet": {
         "button": "Google Sheet verknüpfen",
         "dialogTitle": "Google Sheet verknüpfen",
-        "dialogDescription": "Füge den Link zum Sheet ein. Stelle in Google Sheets unter Teilen → Allgemeiner Zugriff „Jeder, der über den Link verfügt“ ein. Sokosumi speichert hier eine Kopie und aktualisiert sie stündlich.",
+        "dialogDescription": "Füge den Link zum Sheet ein. Stelle in Google Sheets unter Teilen → Allgemeiner Zugriff „Jeder, der über den Link verfügt“ ein. Sokosumi speichert hier das PDF von Google und aktualisiert es stündlich.",
         "linkLabel": "Google-Sheets-Link",
         "link": "Verknüpfen",
         "linking": "Wird verknüpft…",
@@ -9934,6 +9938,8 @@
         },
         "Settings": {
           "titleLabel": "Titel",
+          "welcomeLabel": "Willkommensnotiz",
+          "welcomeHint": "Erscheint auf der Willkommensseite, wenn jemand den Datenraum öffnet. Zeilenumbrüche bleiben erhalten.",
           "logoLabel": "Logo",
           "noLogo": "Kein Logo",
           "logoHint": "Ein Bild aus diesem Raum, neben dem Titel.",
@@ -10734,7 +10740,10 @@
         "csv": "Prüfe die Anführungszeichen und Trennzeichen in der CSV-Datei.",
         "csvHeaders": "Gib jeder CSV-Spalte eine nicht leere Überschrift.",
         "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben.",
-        "layout": "Das Spaltenlayout wurde nicht gespeichert und zurückgesetzt. {reason}"
+        "layout": "Das Spaltenlayout wurde nicht gespeichert und zurückgesetzt. {reason}",
+        "archiveRows": "{count, plural, one {# Zeile konnte nicht archiviert werden. Sie ist wieder in der Tabelle.} other {# Zeilen konnten nicht archiviert werden. Sie sind wieder in der Tabelle.}} {reason}",
+        "restoreRows": "{count, plural, one {# Zeile konnte nicht wiederhergestellt werden. Sie ist wieder unter den archivierten Zeilen.} other {# Zeilen konnten nicht wiederhergestellt werden. Sie sind wieder unter den archivierten Zeilen.}} {reason}",
+        "cellNotSaved": "Dein Wert wurde nicht gespeichert. Er steht wieder im Editor. {reason}"
       },
       "reorderColumn": "{column} verschieben. Ziehen oder Pfeiltasten nach links und rechts drücken.",
       "reorderRow": "Zeile verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
@@ -11094,6 +11103,8 @@
         "noManualLists": "Noch keine Listen.",
         "newList": "Neue Liste…",
         "newListAddFailed": "{list} ist angelegt, aber {name} steht noch nicht darauf.",
+        "addToListFailed": "{name} konnte nicht zu {list} hinzugefügt werden. Der Kontakt steht wieder nicht auf der Liste.",
+        "removeFromListFailed": "{name} konnte nicht von {list} entfernt werden. Der Kontakt steht wieder auf der Liste.",
         "empty": "Hinzufügen…",
         "location": "Ort",
         "nextStepTitle": "Nächster Schritt",
@@ -11396,8 +11407,6 @@
       "signOut": "Abmelden",
       "empty": "In diesem Datenraum liegt noch nichts.",
       "indexLabel": "Inhalt",
-      "pickFile": "Wähle eine Datei, um sie zu öffnen.",
-      "new": "Neu",
       "download": "Herunterladen",
       "watermarkNote": "Geöffnete Seiten und Bilder tragen deine E-Mail und die Uhrzeit.",
       "downloadToOpen": "Diese Datei kann hier nicht angezeigt werden. Lade sie herunter, um sie zu öffnen.",
@@ -11409,7 +11418,11 @@
       "awaitingAnswer": "Wartet auf eine Antwort",
       "askLabel": "Frage zu diesem Dokument stellen",
       "ask": "Fragen",
-      "askFailed": "Deine Frage konnte nicht gesendet werden. Versuch es noch einmal."
+      "askFailed": "Deine Frage konnte nicht gesendet werden. Versuch es noch einmal.",
+      "welcome": "Willkommen",
+      "welcomeTitle": "Willkommen im Datenraum {title}",
+      "contents": "{files, plural, one {# Dokument} other {# Dokumente}}{folders, plural, =0 {} one { in # Ordner} other { in # Ordnern}}",
+      "openFirst": "{name} öffnen"
     }
   },
   "NotFound": {
