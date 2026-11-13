@@ -12697,6 +12697,7 @@
           "word": "„{word}“",
           "noTopic": "Kein Keyword enthält ein Wort deines Themas ({words}).",
           "other": "{count, plural, one {# Keyword enthält} other {# Keywords enthalten}} keines dieser Wörter: andere Produkte der Website oder Produktnamen",
+          "otherOne": "{count, plural, one {# Keyword enthält} other {# Keywords enthalten}} dieses Wort nicht: andere Produkte der Website oder Produktnamen",
           "more": "{count} weitere im Website-Bericht"
         },
         "ideas": {

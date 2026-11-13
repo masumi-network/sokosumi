@@ -158,6 +158,12 @@ describe("SEO keyword reach sections", () => {
       ),
     ).toBeTruthy();
     expect(within(rivals).getByText("aldente")).toBeTruthy();
+    // One topic word: the other rows' line names "this word", as the site report does (SEO bot B211).
+    expect(
+      within(rivals).getByText(
+        "1 keyword does not have this word: other products of the site, or product names",
+      ),
+    ).toBeTruthy();
   });
 
   it("shows nothing for an audit without the sections", () => {

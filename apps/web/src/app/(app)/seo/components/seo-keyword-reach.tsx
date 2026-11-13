@@ -146,9 +146,12 @@ function RivalHostRows({ host }: { host: RivalHost }) {
         <details>
           <SeoFoldSummary className="text-muted-foreground py-1">
             <span className="min-w-0 break-words">
-              {t("rivals.other", {
-                count: lists.other.length + lists.otherMore,
-              })}
+              {t(
+                host.topicWords.length === 1
+                  ? "rivals.otherOne"
+                  : "rivals.other",
+                { count: lists.other.length + lists.otherMore },
+              )}
             </span>
           </SeoFoldSummary>
           <RivalRows rows={lists.other} more={lists.otherMore} />

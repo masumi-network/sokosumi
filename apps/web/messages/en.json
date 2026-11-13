@@ -12697,6 +12697,7 @@
           "word": "“{word}”",
           "noTopic": "No keyword has a word of your topic ({words}).",
           "other": "{count, plural, one {# keyword has} other {# keywords have}} none of these words: other products of the site, or product names",
+          "otherOne": "{count, plural, one {# keyword does} other {# keywords do}} not have this word: other products of the site, or product names",
           "more": "{count} more in the site report"
         },
         "ideas": {
