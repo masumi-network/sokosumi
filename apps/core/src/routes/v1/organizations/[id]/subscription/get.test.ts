@@ -160,6 +160,40 @@ describe("GET /organizations/{id}/subscription", () => {
     );
   });
 
+  it("prefers a Stripe-backed in-period row over a free row", async () => {
+    subscriptionFindManyMock.mockResolvedValue([
+      {
+        id: "sub_free",
+        plan: "free",
+        status: "active",
+        stripeSubscriptionId: null,
+        cancelAtPeriodEnd: false,
+        periodStart: new Date("2025-01-01T00:00:00.000Z"),
+        periodEnd: new Date("2025-02-01T00:00:00.000Z"),
+        seats: 1,
+      },
+      {
+        id: "sub_paid",
+        plan: "pro",
+        status: "active",
+        stripeSubscriptionId: "sub_stripe",
+        cancelAtPeriodEnd: false,
+        periodStart: new Date("2025-01-01T00:00:00.000Z"),
+        periodEnd: new Date("2025-02-01T00:00:00.000Z"),
+        seats: 5,
+      },
+    ]);
+
+    const response = await createApp().request(
+      "http://localhost/org_1/subscription",
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.subscription.plan).toBe("pro");
+    expect(subscriptionFindFirstMock).not.toHaveBeenCalled();
+  });
+
   it("returns null when the organization has no active subscription", async () => {
     subscriptionFindFirstMock.mockResolvedValue(null);
 
