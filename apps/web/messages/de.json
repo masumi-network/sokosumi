@@ -11716,6 +11716,7 @@
         "htmlOnly": "Liest den HTML-Code der ausgewählten Seiten. Diese Prüfung verwendet keine kostenpflichtigen Suchdaten und keine Modellaufrufe.",
         "htmlCost": "Seitenabrufe, Sandbox und Speicher können weiterhin Plattformkosten verursachen.",
         "maxCredits": "Bis zu {credits, plural, =1 {# Credit} other {# Credits}}: die DataForSEO-Kosten dieser Prüfung plus 50 %. Eine fehlgeschlagene Prüfung kostet nichts.",
+        "maxCreditsPerRun": "Bis zu {credits, plural, =1 {# Credit} other {# Credits}} pro Lauf: die DataForSEO-Kosten jedes Laufs plus 50 %. Ein fehlgeschlagener Lauf kostet nichts.",
         "htmlService": "Dieser Prüfdienst unterstützt HTML-Seitenprüfungen. Suchdaten und vollständige Audits sind hier nicht verfügbar.",
         "submit": "Prüfung starten",
         "queued": "Prüfung angefragt",

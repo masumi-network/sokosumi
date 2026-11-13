@@ -11716,6 +11716,7 @@
         "htmlOnly": "Reads the selected pages’ HTML. This check uses no paid search data or model calls.",
         "htmlCost": "Public page fetching, sandbox and storage can still incur platform charges.",
         "maxCredits": "Up to {credits, plural, =1 {# credit} other {# credits}}: the DataForSEO cost of this check plus 50%. A failed check costs nothing.",
+        "maxCreditsPerRun": "Up to {credits, plural, =1 {# credit} other {# credits}} per run: the DataForSEO cost of each run plus 50%. A failed run costs nothing.",
         "htmlService": "This check service supports HTML page checks. Search data and full audits are unavailable here.",
         "submit": "Start check",
         "queued": "Check requested",

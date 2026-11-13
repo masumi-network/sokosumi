@@ -80,10 +80,18 @@ function workspace() {
   });
   return data;
 }
-function DialogHarness({ workspace }: { workspace: ProjectSeoWorkspace }) {
-  return <SeoAnalysisDialog model={useSeoWorkspace(workspace)} />;
+function DialogHarness({
+  workspace,
+  monitor,
+}: {
+  workspace: ProjectSeoWorkspace;
+  monitor?: boolean;
+}) {
+  return (
+    <SeoAnalysisDialog model={useSeoWorkspace(workspace)} monitor={monitor} />
+  );
 }
-function showDialog(data: ProjectSeoWorkspace) {
+function showDialog(data: ProjectSeoWorkspace, monitor = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -101,7 +109,7 @@ function showDialog(data: ProjectSeoWorkspace) {
         messages={messages}
       >
         <NuqsTestingAdapter hasMemory>
-          <DialogHarness workspace={data} />
+          <DialogHarness workspace={data} monitor={monitor} />
         </NuqsTestingAdapter>
       </NextIntlClientProvider>
     </QueryClientProvider>,
@@ -214,6 +222,22 @@ describe("SEO check credits", () => {
         messages.App.Seo.notEnoughCredits,
       ),
     );
+  });
+});
+
+describe("SEO monitor credits", () => {
+  it("says the ceiling is per run, since each run is charged on its own", async () => {
+    const user = userEvent.setup(),
+      dialog = showDialog(workspace(), true);
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Check type" }),
+    );
+    await user.click(screen.getByRole("option", { name: "Keyword positions" }));
+    expect(
+      within(dialog).getByText(
+        /^Up to 150 credits per run: the DataForSEO cost of each run/,
+      ),
+    ).toBeVisible();
   });
 });
 

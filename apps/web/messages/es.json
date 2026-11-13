@@ -11716,6 +11716,7 @@
         "htmlOnly": "Lee el HTML de las páginas seleccionadas. Esta comprobación no usa datos de búsqueda de pago ni llamadas a modelos.",
         "htmlCost": "La lectura de páginas, el entorno de ejecución y el almacenamiento aún pueden generar cargos de plataforma.",
         "maxCredits": "Hasta {credits, plural, =1 {# crédito} other {# créditos}}: el coste de DataForSEO de esta revisión más un 50 %. Una revisión fallida no cuesta nada.",
+        "maxCreditsPerRun": "Hasta {credits, plural, =1 {# crédito} other {# créditos}} por ejecución: el coste de DataForSEO de cada ejecución más un 50 %. Una ejecución fallida no cuesta nada.",
         "htmlService": "Este servicio admite comprobaciones de páginas HTML. Los datos de búsqueda y las auditorías completas no están disponibles aquí.",
         "submit": "Iniciar comprobación",
         "queued": "Comprobación solicitada",

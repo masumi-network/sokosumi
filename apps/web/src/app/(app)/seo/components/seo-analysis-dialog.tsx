@@ -382,7 +382,12 @@ export function SeoAnalysisDialog({
           ) : null}
           <p className="text-muted-foreground text-sm">
             {maxCredits
-              ? t("analysis.maxCredits", { credits: maxCredits })
+              ? t(
+                  monitor ? "analysis.maxCreditsPerRun" : "analysis.maxCredits",
+                  {
+                    credits: maxCredits,
+                  },
+                )
               : t(form.usesPaidData ? "analysis.cost" : "analysis.htmlCost")}
           </p>
           <DialogFooter>
