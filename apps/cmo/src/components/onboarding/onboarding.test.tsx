@@ -223,8 +223,7 @@ describe("The plan, read-only", () => {
     );
     expect(html).toContain("Do you ship every month?");
     expect(html).toContain("Every quarter");
-    expect(html).toContain("Pace:");
-    expect(html).toContain("about one a day");
+    expect(html).toContain("About <b>2 posts a week</b>");
     expect(html).toContain("€200 a month for ads");
     for (const live of [
       "Ask for a change",

@@ -1,7 +1,6 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
 import { type BrandSectionKey, brandProfile } from "../../lib/brand-sections";
-import { planWeeks } from "../../lib/calendar";
 import { channelKey } from "../../lib/channels";
 import type { SkippedStep } from "../../lib/skipped-steps";
 import { strategyApproved } from "../../lib/strategy";
@@ -25,7 +24,7 @@ export const STAGES: { id: StageId; label: string }[] = [
   { id: "research", label: "Research" },
   { id: "brand", label: "Brand check" },
   { id: "plan", label: "Plan" },
-  { id: "briefing", label: "Briefing" },
+  { id: "briefing", label: "Check the plan" },
   { id: "golive", label: "Go live" },
   { id: "month", label: "Your month" },
 ];
@@ -135,7 +134,10 @@ export function adEntries(strategy: Strategy): Entry[] {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-/** The briefing's steps for this plan: Ads only when the plan has ads. */
+/**
+ * The briefing's steps for this plan: Ads only when the plan has a budget
+ * and ad pieces. A $0 budget is a no already given, never asked again.
+ */
 export function briefSteps(
   overview: CmoOverview,
 ): ("plan" | "week" | "checks" | "ads")[] {
@@ -145,7 +147,9 @@ export function briefSteps(
     "plan",
     "week",
     ...((strategy.questions ?? []).length > 0 ? (["checks"] as const) : []),
-    ...(strategy.ads && adEntries(strategy).length > 0
+    ...(strategy.ads &&
+    strategy.ads.monthly > 0 &&
+    adEntries(strategy).length > 0
       ? (["ads"] as const)
       : []),
   ];
@@ -199,23 +203,81 @@ export function briefAsks(overview: CmoOverview, local: BriefLocal): Ask[] {
     return running && local.slow !== "stuck" ? [] : [{ kind: "plan-retry" }];
   }
 
-  const approve: Ask = {
-    kind: "approve",
-    canApprove: overview.viewerCanApprove,
-  };
   if (stage === "briefing") {
-    // The next question waits until a change lands.
-    if (strategyRunning(overview)) return [];
-    // Approval is Go live's question; it counts here as the one after.
-    const left = briefingLeft(overview, local);
-    return planUnfitted(overview) ? left : [...left, approve];
+    // The next question waits until a change lands. Approval is Go live's.
+    return strategyRunning(overview) ? [] : briefingLeft(overview, local);
   }
 
   if (stage === "golive") {
     if (strategyApproved(overview)) return [{ kind: "connect" }];
-    return strategyRunning(overview) ? [] : [approve];
+    return strategyRunning(overview)
+      ? []
+      : [{ kind: "approve", canApprove: overview.viewerCanApprove }];
   }
   return [];
+}
+
+/** A key per ask, so the chat knows when it moved on. */
+export function askKey(ask: Ask): string {
+  return "id" in ask ? `${ask.kind}:${ask.id}` : ask.kind;
+}
+
+/**
+ * Every question of the current stage, answered or not, in the order the
+ * chat asks them: the brand questions and the check, or the briefing's
+ * steps and checks. One list, so the count never resets.
+ */
+function stageQueue(overview: CmoOverview, local: BriefLocal): Ask[] {
+  const stage = briefStage(overview, local);
+  const brain = overview.brandBrain;
+  if (brain && (stage === "research" || stage === "brand")) {
+    const questions = local.skipped.includes("questions")
+      ? []
+      : (brain.questions ?? []);
+    return [
+      ...questions.map((question, index) => ({
+        kind: "brand-question" as const,
+        id: question.id,
+        index,
+        total: questions.length,
+      })),
+      ...(stage === "brand" ? [{ kind: "brand-check" as const }] : []),
+    ];
+  }
+  if (stage === "briefing" && !overview.approvedStrategy) {
+    const questions = overview.strategy?.questions ?? [];
+    return [
+      { kind: "briefing-plan" },
+      { kind: "briefing-week" },
+      ...questions.map((question, index) => ({
+        kind: "plan-question" as const,
+        id: question.id,
+        index,
+        total: questions.length,
+      })),
+      ...(briefSteps(overview).includes("ads")
+        ? [{ kind: "briefing-ads" as const }]
+        : []),
+    ];
+  }
+  return [];
+}
+
+/**
+ * Where the asked question sits in its stage: "3 of 6". The dock and the
+ * tab title read this one count. Null for a question that stands alone.
+ */
+export function askProgress(
+  overview: CmoOverview,
+  local: BriefLocal,
+  ask: Ask | null,
+): { at: number; of: number } | null {
+  if (!ask) return null;
+  const queue = stageQueue(overview, local);
+  const at = queue.findIndex((candidate) => askKey(candidate) === askKey(ask));
+  return at === -1 || queue.length < 2
+    ? null
+    : { at: at + 1, of: queue.length };
 }
 
 /**
@@ -282,36 +344,42 @@ export function workingStatus(
   }
   const work = overview.work;
   if (work?.kind === "strategy" && work.status === "running" && work.change) {
+    // One job at a time: the change, not what Cuso's turn calls itself.
     return {
       count: "",
       title:
         work.change === "fix"
           ? "Fixing your Brand Brain"
           : "Changing your plan",
-      now,
+      now: "",
       foot: "Your next question waits until this lands.",
     };
   }
   if (stage === "plan" || (stage === "brand" && strategyRunning(overview))) {
-    const pieces = overview.strategy?.calendar.length ?? 0;
+    // The page counts the pieces as they land; the dock says what it means.
     return {
-      count: pieces > 0 ? `${pieces} pieces so far` : "",
+      count: "",
       title: "Writing your plan",
       now: "",
-      foot: "I'll ask when your briefing is ready.",
+      foot: `${CLOSE_TAB} I'll ask when it's ready.`,
     };
   }
   // The six groups on the page show the progress; the bar names the read.
   const groups = researchGroups(overview) ?? [];
   const slow = local.slow !== "none";
+  // Every group in: Cuso is wrapping up, and the last page read is old news.
+  const finishing =
+    groups.length > 0 && groups.every((group) => group.state === "done");
   return {
     count: "",
     title: slow
       ? "Taking longer than usual"
-      : groups.length > 0
-        ? `Reading ${groups.length} places around your site`
-        : "Reading your site",
-    now,
+      : finishing
+        ? "Almost done reading"
+        : groups.length > 0
+          ? `Reading ${groups.length} places around your site`
+          : "Reading your site",
+    now: finishing ? "" : now,
     foot: slow
       ? "Everything I've read is saved. You can still close this tab."
       : CLOSE_TAB,
@@ -338,11 +406,49 @@ export function brandFixPending(
   return key && fix ? { section: key, note: fix.note } : null;
 }
 
+/** The pieces the plan makes: every entry but a skipped one. */
+export function pieces(calendar: Entry[]): Entry[] {
+  return calendar.filter((entry) => entry.status !== "skipped");
+}
+
+/** How many pieces the plan makes; every count on screen reads this one. */
+export function pieceCount(calendar: Entry[]): number {
+  return pieces(calendar).length;
+}
+
+const DAY_MS = 86_400_000;
+const dayOf = (date: string) => new Date(`${date}T00:00:00Z`).getTime();
+const isoDay = (time: number) => new Date(time).toISOString().slice(0, 10);
+
+/**
+ * The plan's weeks, seven days each from its first piece: a plan that starts
+ * on a Saturday has a full week one, and four weeks of plan are four weeks
+ * (the app's calendar keeps Monday weeks).
+ */
+export function briefWeeks(
+  calendar: Entry[],
+): { start: string; days: string[] }[] {
+  const dates = pieces(calendar)
+    .map((entry) => entry.date)
+    .sort();
+  const first = dates[0];
+  const last = dates.at(-1);
+  if (!first || !last) return [];
+  const weeks: { start: string; days: string[] }[] = [];
+  for (let at = dayOf(first); at <= dayOf(last); at += 7 * DAY_MS) {
+    const days = Array.from({ length: 7 }, (_, index) =>
+      isoDay(at + index * DAY_MS),
+    );
+    weeks.push({ start: days[0] as string, days });
+  }
+  return weeks;
+}
+
 /** The plan's first week of pieces, in date and time order. */
 export function weekOne(calendar: Entry[]): Entry[] {
-  const days = new Set(planWeeks(calendar)[0]?.days ?? []);
-  return calendar
-    .filter((entry) => days.has(entry.date) && entry.status !== "skipped")
+  const days = new Set(briefWeeks(calendar)[0]?.days ?? []);
+  return pieces(calendar)
+    .filter((entry) => days.has(entry.date))
     .sort((a, b) =>
       `${a.date} ${a.time ?? ""}`.localeCompare(`${b.date} ${b.time ?? ""}`),
     );
@@ -350,13 +456,9 @@ export function weekOne(calendar: Entry[]): Entry[] {
 
 /** Which week of the plan a date falls in, from 1; null without one. */
 export function adWeek(strategy: Strategy, date: string | undefined) {
-  const start = planWeeks(strategy.calendar)[0]?.start;
+  const start = briefWeeks(strategy.calendar)[0]?.start;
   if (!date || !start) return null;
-  const days =
-    (new Date(`${date}T00:00:00Z`).getTime() -
-      new Date(`${start}T00:00:00Z`).getTime()) /
-    86_400_000;
-  return Math.floor(days / 7) + 1;
+  return Math.floor((dayOf(date) - dayOf(start)) / (7 * DAY_MS)) + 1;
 }
 
 /**

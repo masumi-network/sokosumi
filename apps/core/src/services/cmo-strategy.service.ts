@@ -138,7 +138,7 @@ export async function setCmoAdBudget(
       projectId: cuso.projectId,
       authorUserId: input.userId,
       authorTurnId: started.turnId,
-      plan: {
+      plan: withoutUnpaidAds({
         ...strategy,
         // This version is the budget's patch: nothing struck through yet.
         changes: [],
@@ -151,10 +151,28 @@ export async function setCmoAdBudget(
           currency,
           setByOwner: true,
         },
-      },
+      }),
     },
   });
   return started;
+}
+
+/**
+ * A plan with no ad budget has no ad pieces: a $0 budget can never start
+ * one. A patch can only replace entries, so Cuso's "leave the ads out" once
+ * kept one; Core skips them itself.
+ */
+function withoutUnpaidAds<T extends MarketingStrategyPlan>(plan: T): T {
+  if (!plan.ads || plan.ads.monthly > 0) return plan;
+  return {
+    ...plan,
+    calendar: plan.calendar.map((entry) =>
+      (entry.channel === "google_ads" || entry.channel === "meta_ads") &&
+      entry.status !== "skipped"
+        ? { ...entry, status: "skipped" as const }
+        : entry,
+    ),
+  };
 }
 
 /** Cuso's newest strategy turn, whatever its state. */
@@ -512,24 +530,21 @@ function seasonLines(span: { start: string; end: string }): string[] {
 }
 
 /**
- * Each Brand Brain section the owner said is wrong, as one line: a fix they
- * wrote on the section, or a no to one of Cuso's questions.
+ * Each Brand Brain section the owner said is wrong: a fix they wrote on the
+ * section, and every no to one of Cuso's questions, named by the question
+ * itself. A bare "True instead: Not true: …" once read as the opposite.
  */
 function correctionLines(brain: BrandBrain): string[] {
-  const fixes = brandBrainOpenFixes(brain);
-  const fixed = new Set(fixes.map((fix) => fix.section));
   return [
-    ...fixes.map((fix) =>
+    ...brandBrainOpenFixes(brain).map((fix) =>
       fix.section
-        ? `- ${fix.section}: you wrote "${brain.profile[fix.section]?.answer ?? ""}". True instead: ${fix.note}`
+        ? `- ${fix.section}: you wrote "${brain.profile[fix.section]?.answer ?? ""}". The owner's correction: ${fix.note}`
         : `- No one section, in the owner's words: ${fix.note} Rewrite every section this correction changes, and only those.`,
     ),
-    ...brandBrainCorrections(brain)
-      .filter((question) => !fixed.has(question.section))
-      .map(
-        (question) =>
-          `- ${question.section}: you wrote "${question.statement}". ${question.note ? `True instead: ${question.note}` : 'The owner says this is not true: say the opposite plainly, never "unconfirmed" or "unclear".'}`,
-      ),
+    ...brandBrainCorrections(brain).map(
+      (question) =>
+        `- ${question.section}: you asked "${question.question}" and the owner said no${question.note ? `. True instead: ${question.note}` : `, so this is false: "${question.statement}". Say the opposite plainly, never "unconfirmed" or "unclear".`}`,
+    ),
   ];
 }
 
@@ -867,6 +882,7 @@ export async function saveCmoStrategy(
       );
     }
   }
+  stored = withoutUnpaidAds(stored);
   if (own) {
     return db.marketingStrategy.update({
       where: { id: own.id },

@@ -13,7 +13,7 @@ import {
   brandProfile,
   sourceHost,
 } from "../../lib/brand-sections";
-import { channelLabel, formatDay, planWeeks } from "../../lib/calendar";
+import { channelLabel, formatDay } from "../../lib/calendar";
 import { channelKey } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { joinNames } from "../../lib/names";
@@ -34,6 +34,9 @@ import {
   adWeek,
   type BriefLocal,
   brandFixPending,
+  briefWeeks,
+  pieceCount,
+  pieces,
   questionEntry,
   STAGES,
   type StageId,
@@ -120,41 +123,43 @@ function Result({
   );
 }
 
-/** Every page Cuso read and every section he saved so far, while he reads. */
-function ResearchDetail({ overview }: { overview: CmoOverview }) {
+/** Every page Cuso read so far, behind "Pages I read". */
+function PagesRead({ overview }: { overview: CmoOverview }) {
   const work = overview.work?.kind === "research" ? overview.work : null;
   if (!work) return <p className="muted">Nothing read yet.</p>;
   return (
-    <div className="brief-detail-cols">
-      <div>
-        <h3 className="brief-detail-head">What I read</h3>
-        <ol className="brief-steps">
-          {work.steps.map((step) => (
-            <li key={step.id} className={step.status}>
-              {step.url ? (
-                <a href={step.url} target="_blank" rel="noreferrer">
-                  {step.label}
-                </a>
-              ) : (
-                step.label
-              )}
-            </li>
-          ))}
-        </ol>
-      </div>
-      <div>
-        <h3 className="brief-detail-head">
-          Sections saved, {work.sectionsSaved} of {work.sectionsTotal}
-        </h3>
-        <ul className="brief-steps">
-          {work.sections.map((section) => (
-            <li key={section.key} className="done">
-              <b>{BRAND_SECTIONS[section.key].title}</b> {section.headline}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+    <ol className="brief-steps">
+      {work.steps.map((step) => (
+        <li key={step.id} className={step.status}>
+          {step.url ? (
+            <a href={step.url} target="_blank" rel="noreferrer">
+              {step.label}
+            </a>
+          ) : (
+            step.label
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** The sections Cuso saved so far, one row each as it lands. */
+function SectionsLanding({ work }: { work: NonNullable<CmoOverview["work"]> }) {
+  if (work.sections.length === 0) return null;
+  return (
+    <section className="card brief-result" aria-label="What I saved so far">
+      <p className="brief-result-head num">
+        {work.sectionsSaved} of {work.sectionsTotal} saved
+      </p>
+      <ul className="brief-steps" aria-live="polite">
+        {work.sections.map((section) => (
+          <li key={section.key} className="done">
+            <b>{BRAND_SECTIONS[section.key].title}</b> {section.headline}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -202,9 +207,7 @@ function SectionResult({
   const title = BRAND_SECTIONS[section].title;
   return (
     <Result
-      label={
-        fixing ? `${title} · being fixed` : `${title} · from your Brand Brain`
-      }
+      label={fixing ? `${title} · being fixed` : title}
       source={sectionSource(brain, section, overview.websiteUrl)}
     >
       <p className="brief-line">
@@ -264,16 +267,18 @@ function BrandCheckResult({ overview }: { overview: CmoOverview }) {
   );
 }
 
-/** The plan as Core saves it: the plan part, then the calendar, then a check. */
+/**
+ * The plan as Core saves it: the plan part, then the calendar. The pieces
+ * show by week as they are written, so the longest wait shows its progress.
+ */
 function PlanWriting({ overview }: { overview: CmoOverview }) {
   const strategy = overview.strategy;
   const running =
     overview.work?.kind === "strategy" && overview.work.status === "running";
-  const pieces = strategy?.calendar.length ?? 0;
-  const goal = strategy ? outcomeLine(strategy) : "";
+  const made = strategy ? pieces(strategy.calendar) : [];
   return (
     <>
-      <section className="card brief-result" aria-label="Your briefing">
+      <section className="card brief-result" aria-label="Your plan">
         <Checklist
           items={[
             {
@@ -281,18 +286,55 @@ function PlanWriting({ overview }: { overview: CmoOverview }) {
               state: strategy ? "done" : running ? "working" : "next",
             },
             {
-              label: "Four weeks, day by day",
+              label:
+                made.length > 0
+                  ? `Four weeks, day by day: ${made.length} pieces so far`
+                  : "Four weeks, day by day",
               state: !strategy ? "next" : running ? "working" : "done",
-            },
-            {
-              label: "A last check",
-              state: strategy && pieces > 0 && !running ? "done" : "next",
             },
           ]}
         />
       </section>
-      {goal ? <Goal strategy={strategy as Strategy} /> : null}
+      {made.length > 0 ? <WeekTitles calendar={made} /> : null}
     </>
+  );
+}
+
+/**
+ * The pieces' titles in each week's row: while the plan is written, or the
+ * weeks after week one (`from` 1), so week one never shows twice.
+ */
+function WeekTitles({
+  calendar,
+  from = 0,
+}: {
+  calendar: Entry[];
+  from?: number;
+}) {
+  return (
+    <ol className="brief-weeks" aria-live="polite">
+      {briefWeeks(calendar).map((week, index) => {
+        if (index < from) return null;
+        const titles = calendar
+          .filter((entry) => week.days.includes(entry.date))
+          .sort((a, b) => a.date.localeCompare(b.date));
+        return titles.length > 0 ? (
+          <li key={week.start}>
+            <p className="brief-result-head">Week {index + 1}</p>
+            <ul>
+              {titles.map((entry) => (
+                <li key={entry.id}>
+                  <ChannelIcon
+                    channel={channelKey(entry.channel) ?? entry.channel}
+                  />
+                  {entry.title}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ) : null;
+      })}
+    </ol>
   );
 }
 
@@ -312,34 +354,16 @@ function Goal({ strategy }: { strategy: Strategy }) {
 }
 
 /**
- * The plan's moves: each funnel stage's job, its reason and the Brand Brain
- * sections it rests on, each of which opens that section in place. A plan
- * saved before Core sent reasons shows the stage's first play instead.
+ * The plan's moves: each funnel stage's job and its reason. A plan saved
+ * before Core sent reasons shows the stage's first play instead.
  */
-function Moves({
-  overview,
-  strategy,
-}: {
-  overview: CmoOverview;
-  strategy: Strategy;
-}) {
-  const [shown, setShown] = useState<string | null>(null);
-  const id = useId();
+function Moves({ strategy }: { strategy: Strategy }) {
   const stages = (strategy.funnel ?? []).slice(0, 3);
   if (stages.length === 0) return null;
-  // Core does not check basedOn: only a section the Brand Brain saved is a source.
-  const profile = overview.brandBrain ? brandProfile(overview.brandBrain) : {};
   return (
     <ol className="brief-moves">
       {stages.map((stage, index) => {
         const play = stage.plays?.[0];
-        const sections = (stage.basedOn ?? []).filter(
-          (section) => profile[section],
-        );
-        const cardId = `${id}-${stage.stage}`;
-        const open = sections.find(
-          (section) => shown === `${stage.stage}:${section}`,
-        );
         return (
           <li key={stage.stage}>
             <span className="brief-move-n num">{index + 1}</span>
@@ -353,30 +377,6 @@ function Moves({
                   {play.cadence ? `, ${play.cadence}` : ""}
                 </p>
               ) : null}
-              {sections.length > 0 ? (
-                <p className="brief-move-sources">
-                  {sections.map((section) => {
-                    const key = `${stage.stage}:${section}`;
-                    return (
-                      <button
-                        key={section}
-                        type="button"
-                        className="brief-source brief-source-link"
-                        aria-expanded={shown === key}
-                        aria-controls={cardId}
-                        onClick={() => setShown(shown === key ? null : key)}
-                      >
-                        Brand Brain · {BRAND_SECTIONS[section].title}
-                      </button>
-                    );
-                  })}
-                </p>
-              ) : null}
-              <div id={cardId}>
-                {open ? (
-                  <SectionResult overview={overview} section={open} />
-                ) : null}
-              </div>
             </div>
           </li>
         );
@@ -436,12 +436,10 @@ function WeekList({
   );
 }
 
-/** The month as one table: each network's pieces per week. */
+/** The month as one table: each network's pieces per week of the plan. */
 function MonthTable({ strategy }: { strategy: Strategy }) {
-  const calendar = strategy.calendar.filter(
-    (entry) => entry.status !== "skipped",
-  );
-  const weeks = planWeeks(calendar).slice(0, 4);
+  const calendar = pieces(strategy.calendar);
+  const weeks = briefWeeks(calendar);
   const channels = [...new Set(calendar.map((entry) => entry.channel))];
   const count = (channel: string | null, week: { days: string[] }) =>
     calendar.filter(
@@ -454,10 +452,17 @@ function MonthTable({ strategy }: { strategy: Strategy }) {
       <caption className="ob-sr">Your month, in one table</caption>
       <thead>
         <tr>
+          <td />
+          <th scope="colgroup" colSpan={weeks.length} className="num">
+            Week
+          </th>
+        </tr>
+        <tr>
           <th scope="col">Channel</th>
           {weeks.map((week, index) => (
             <th key={week.start} scope="col" className="num">
-              Wk {index + 1}
+              <span className="ob-sr">Week </span>
+              {index + 1}
             </th>
           ))}
         </tr>
@@ -476,7 +481,7 @@ function MonthTable({ strategy }: { strategy: Strategy }) {
       </tbody>
       <tfoot>
         <tr>
-          <th scope="row">{calendar.length} pieces</th>
+          <th scope="row">{pieceCount(calendar)} pieces</th>
           {weeks.map((week) => (
             <td key={week.start} className="num">
               {count(null, week)}
@@ -758,7 +763,7 @@ function StageReview({
       return strategy ? (
         <>
           <Goal strategy={strategy} />
-          <Moves overview={overview} strategy={strategy} />
+          <Moves strategy={strategy} />
           <SeeMore label="The whole strategy">
             <PlanPanel overview={overview} strategy={strategy} />
           </SeeMore>
@@ -871,26 +876,12 @@ export function BriefMain({
                 </ul>
               ) : null}
             </Result>
-          ) : (
-            <div className="card brief-result ob-skeleton" aria-hidden="true">
-              <span />
-              <span />
-            </div>
-          )
-        ) : ask?.kind === "research-retry" && work ? (
-          <p className="brief-saved num">
-            {work.sectionsSaved} of {work.sectionsTotal} sections saved
-          </p>
+          ) : null
         ) : null}
+        {work ? <SectionsLanding work={work} /> : null}
         {work && work.steps.length > 0 ? (
-          <SeeMore
-            label={
-              ask?.kind === "research-retry"
-                ? "Pages read"
-                : `All ${work.steps.length} ${work.steps.length === 1 ? "page" : "pages"}`
-            }
-          >
-            <ResearchDetail overview={overview} />
+          <SeeMore label="Pages I read">
+            <PagesRead overview={overview} />
           </SeeMore>
         ) : null}
       </>
@@ -948,9 +939,12 @@ export function BriefMain({
     const step = briefingStep(ask);
     const patched = new Set((strategy.patched ?? []).map((item) => item.id));
     const week = weekOne(strategy.calendar);
-    const weekRange = week[0]
-      ? `${formatDay(week[0].date, { day: "numeric" })} to ${formatDay(week.at(-1)?.date ?? week[0].date, SHORT)}`
-      : "";
+    const weeks = briefWeeks(strategy.calendar);
+    const days = weeks[0]?.days ?? [];
+    const weekRange =
+      days[0] && days[6]
+        ? `${formatDay(days[0], { day: "numeric" })} to ${formatDay(days[6], SHORT)}`
+        : "";
     const changing =
       overview.work?.kind === "strategy" && overview.work.status === "running";
     const weekView = (title: string, pick: boolean) => (
@@ -978,7 +972,7 @@ export function BriefMain({
         ) : step === "plan" ? (
           <>
             <Goal strategy={strategy} />
-            <Moves overview={overview} strategy={strategy} />
+            <Moves strategy={strategy} />
             <SeeMore label="The whole strategy">
               <PlanReview
                 overview={overview}
@@ -989,8 +983,21 @@ export function BriefMain({
           </>
         ) : step === "week" ? (
           <>
+            <p className="brief-lede">
+              Your month: {pieceCount(strategy.calendar)} pieces over{" "}
+              {weeks.length} {weeks.length === 1 ? "week" : "weeks"}. Here's
+              week one to check. I write them all after you approve.
+            </p>
             {weekView(`Week one · ${weekRange}`, true)}
-            <SeeMore label="Weeks 2 to 4">{monthDetail}</SeeMore>
+            {weeks.length > 1 ? (
+              <SeeMore
+                label={
+                  weeks.length > 2 ? `Weeks 2 to ${weeks.length}` : "Week 2"
+                }
+              >
+                <WeekTitles calendar={pieces(strategy.calendar)} from={1} />
+              </SeeMore>
+            ) : null}
           </>
         ) : question ? (
           <>

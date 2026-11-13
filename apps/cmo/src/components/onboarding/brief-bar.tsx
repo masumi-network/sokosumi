@@ -269,7 +269,7 @@ function StageSheet({
   );
 }
 
-/** The right of a sheet row: Viewing, Now, a check, a green dot, or nothing. */
+/** The right of a sheet row: Viewing, Now, a check, Cuso on it, or nothing. */
 function SheetMark({ mark, viewed }: { mark: StageMark; viewed: boolean }) {
   if (viewed) return <span className="brief-sheet-state">Viewing</span>;
   switch (mark.state) {
@@ -290,7 +290,7 @@ function SheetMark({ mark, viewed }: { mark: StageMark; viewed: boolean }) {
       return (
         <span className="brief-sheet-state">
           <span className="dot live" aria-hidden="true" />
-          <span className="ob-sr">{STATE_WORDS.background}</span>
+          {AGENT_NAME} is on it
         </span>
       );
     default:

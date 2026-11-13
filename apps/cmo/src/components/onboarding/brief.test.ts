@@ -10,10 +10,13 @@ import {
   work,
 } from "../../test-fixtures/onboarding";
 import {
+  askProgress,
   type BriefLocal,
   briefAsks,
   briefStage,
   briefSteps,
+  briefWeeks,
+  pieceCount,
   questionEntry,
   stageMarks,
   weekOne,
@@ -242,16 +245,16 @@ describe("briefAsks", () => {
       ],
     };
     const overview = draft({ strategy: plan });
+    // Approval is Go live's question: the briefing's asks end before it.
     expect(kinds(briefAsks(overview, local()))).toEqual([
       "briefing-plan",
       "briefing-week",
       "plan-question",
       "briefing-ads",
-      "approve",
     ]);
     expect(
       kinds(briefAsks(overview, local({ briefed: ["plan", "pace"] }))),
-    ).toEqual(["plan-question", "briefing-ads", "approve"]);
+    ).toEqual(["plan-question", "briefing-ads"]);
     expect(briefSteps(overview)).toEqual(["plan", "week", "checks", "ads"]);
   });
 
@@ -295,6 +298,39 @@ describe("briefAsks", () => {
   it("skips the ads step for a plan without ads", () => {
     expect(briefSteps(draft())).toEqual(["plan", "week"]);
     expect(kinds(briefAsks(draft(), briefed))).toEqual(["approve"]);
+  });
+
+  it("never asks to spend $0 on ads: a plan with no budget has no ads step (B5)", () => {
+    const noBudget = {
+      ...strategy,
+      ads: {
+        monthly: 0,
+        currency: "USD",
+        expect: "",
+        without: "",
+        setByOwner: false,
+      },
+      calendar: [
+        ...strategy.calendar,
+        {
+          id: "meta",
+          date: "2026-10-08",
+          channel: "meta_ads",
+          title: "Try it free",
+          format: "image",
+          status: "idea" as const,
+        },
+      ],
+    };
+    expect(briefSteps(draft({ strategy: noBudget }))).toEqual(["plan", "week"]);
+    expect(
+      kinds(
+        briefAsks(
+          draft({ strategy: noBudget }),
+          local({ briefed: ["plan", "pace"] }),
+        ),
+      ),
+    ).toEqual(["approve"]);
   });
 
   it("holds the briefing while a patch or the whole plan runs", () => {
@@ -377,15 +413,38 @@ describe("workingStatus", () => {
     );
   });
 
-  it("counts the pieces while the plan writes", () => {
+  it("leaves the piece count to the page while the plan writes", () => {
     const status = workingStatus(
       draft({ work: work("strategy", { steps: [] }) }),
       local(),
     );
     expect(status.title).toBe("Writing your plan");
-    expect(status.count).toBe("3 pieces so far");
+    expect(status.count).toBe("");
     expect(status.now).toBe("");
-    expect(status.foot).toBe("I'll ask when your briefing is ready.");
+    expect(status.foot).toBe(
+      "You can close this tab. I'll ask when it's ready.",
+    );
+  });
+
+  it("stops naming a page once every group of the read is in (B6)", () => {
+    const status = workingStatus(
+      reading({
+        research: research(6),
+        work: work("research", { sectionsSaved: 16 }),
+      }),
+      local(),
+    );
+    expect(status.title).toBe("Almost done reading");
+    expect(status.now).toBe("");
+  });
+
+  it("names only the change while one lands, not a second job", () => {
+    const status = workingStatus(
+      draft({ work: work("strategy", { change: "fix" }) }),
+      local(),
+    );
+    expect(status.title).toBe("Fixing your Brand Brain");
+    expect(status.now).toBe("");
   });
 
   it("says a change is landing and the next question waits for it", () => {
@@ -419,6 +478,89 @@ describe("workingStatus", () => {
   });
 });
 
+describe("askProgress (one counter, B7)", () => {
+  const plan = {
+    ...strategy,
+    ads: {
+      monthly: 300,
+      currency: "USD",
+      expect: "Sign-ups",
+      without: "Posts only",
+      setByOwner: false,
+    },
+    calendar: [
+      ...strategy.calendar,
+      {
+        id: "ad",
+        date: "2026-10-13",
+        channel: "google_ads",
+        title: "AI coworkers",
+        format: "ad",
+        status: "idea" as const,
+      },
+    ],
+    questions: [
+      { id: "pq1", question: "Ship monthly?", statement: "They ship." },
+      { id: "pq2", question: "Quote Lena?", statement: "Lena is quoted." },
+      { id: "pq3", question: "Run in Berlin?", statement: "Berlin only." },
+    ],
+  };
+  const progress = (overview: ReturnType<typeof draft>, at: BriefLocal) =>
+    askProgress(overview, at, briefAsks(overview, at)[0] ?? null);
+
+  it("counts every question of the stage, steps and checks alike, and never resets", () => {
+    const overview = draft({ strategy: plan });
+    expect(progress(overview, local())).toEqual({ at: 1, of: 6 });
+    expect(progress(overview, local({ briefed: ["plan"] }))).toEqual({
+      at: 2,
+      of: 6,
+    });
+    expect(progress(overview, local({ briefed: ["plan", "pace"] }))).toEqual({
+      at: 3,
+      of: 6,
+    });
+    const oneAnswered = draft({
+      strategy: {
+        ...plan,
+        questions: [
+          { ...plan.questions[0]!, answer: "yes" as const },
+          ...plan.questions.slice(1),
+        ],
+      },
+    });
+    expect(progress(oneAnswered, local({ briefed: ["plan", "pace"] }))).toEqual(
+      { at: 4, of: 6 },
+    );
+    // Later on the checks moves on to the ads, still out of six.
+    expect(
+      progress(overview, local({ briefed: ["plan", "pace", "checks"] })),
+    ).toEqual({ at: 6, of: 6 });
+  });
+
+  it("counts the brand questions and the brand check as one stage", () => {
+    expect(progress(asking(), local())).toEqual({ at: 1, of: 3 });
+    const first = brainQuestions(asking());
+    expect(
+      progress(
+        asking({
+          brandBrain: {
+            ...asking().brandBrain!,
+            questions: [{ ...first[0]!, answer: "yes" }, first[1]!],
+          },
+        }),
+        local(),
+      ),
+    ).toEqual({ at: 2, of: 3 });
+  });
+
+  it("leaves the count off a question that stands alone", () => {
+    expect(progress(draft(), briefed)).toBeNull();
+  });
+});
+
+const brainQuestions = (overview: ReturnType<typeof asking>) =>
+  overview.brandBrain?.questions ?? [];
+
 describe("questionEntry", () => {
   const ask = (entryIds?: string[]) => ({
     id: "pq",
@@ -443,5 +585,49 @@ describe("weekOne", () => {
       "a",
       "b",
     ]);
+  });
+
+  it("is seven days from the plan's first piece, not a one-day stub (B4)", () => {
+    // A plan that starts on a Saturday: Monday weeks gave "14 to 14 Nov".
+    const calendar = Array.from({ length: 28 }, (_, index) => ({
+      ...strategy.calendar[0]!,
+      id: `p${index}`,
+      date: `2026-${index < 17 ? "11" : "12"}-${String(index < 17 ? 14 + index : index - 16).padStart(2, "0")}`,
+    }));
+    expect(weekOne(calendar).map((entry) => entry.date)).toEqual([
+      "2026-11-14",
+      "2026-11-15",
+      "2026-11-16",
+      "2026-11-17",
+      "2026-11-18",
+      "2026-11-19",
+      "2026-11-20",
+    ]);
+    // Four weeks of plan are four weeks, not five calendar weeks.
+    expect(briefWeeks(calendar).map((week) => week.start)).toEqual([
+      "2026-11-14",
+      "2026-11-21",
+      "2026-11-28",
+      "2026-12-05",
+    ]);
+  });
+
+  it("leaves skipped pieces out", () => {
+    const calendar = [
+      ...strategy.calendar,
+      { ...strategy.calendar[0]!, id: "gone", status: "skipped" as const },
+    ];
+    expect(weekOne(calendar).map((entry) => entry.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("pieceCount (B3)", () => {
+  it("counts the pieces the plan makes: a skipped one is not one", () => {
+    expect(
+      pieceCount([
+        ...strategy.calendar,
+        { ...strategy.calendar[0]!, id: "gone", status: "skipped" as const },
+      ]),
+    ).toBe(3);
   });
 });
