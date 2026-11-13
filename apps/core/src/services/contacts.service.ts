@@ -1166,12 +1166,70 @@ export async function findDuplicateContacts(
   });
 }
 
+/**
+ * Values one contact query may bind (Postgres allows 65535), leaving room for
+ * the filter's other parameters. Id and value lists count against it together.
+ */
+const MAX_FILTER_IDS = 50_000;
+
+/**
+ * Contacts whose location holds `search`, ignoring case and accents, so
+ * "zurich" finds "Zürich". Prisma's `contains` cannot unaccent, so plain
+ * matches stay a column predicate and only places that need the accents
+ * folded are looked up: as their distinct spellings, not one id per contact.
+ */
+async function locationSearchWhere(
+  workspaceId: string,
+  search: string,
+): Promise<Prisma.ContactWhereInput> {
+  const pattern = literalSubstringPattern(search);
+  const rows = await prisma.$queryRaw<{ location: string }[]>(PrismaRaw.sql`
+    SELECT DISTINCT "location" FROM "contact"
+    WHERE "workspaceId" = ${workspaceId}::uuid
+      AND "mergedIntoId" IS NULL
+      AND unaccent("location") ILIKE unaccent(${pattern}) ESCAPE '\\'
+      AND "location" NOT ILIKE ${pattern} ESCAPE '\\'
+    LIMIT ${MAX_FILTER_IDS + 1}`);
+  const plain: Prisma.ContactWhereInput = {
+    location: { contains: search, mode: "insensitive" },
+  };
+  if (!rows.length) return plain;
+  return { OR: [plain, { location: { in: rows.map((row) => row.location) } }] };
+}
+
+/** How many list values (`in`, `notIn`) a where binds, at any depth. */
+export function boundListValues(where: unknown): number {
+  if (Array.isArray(where))
+    return where.reduce((total, item) => total + boundListValues(item), 0);
+  if (!where || typeof where !== "object") return 0;
+  return Object.entries(where).reduce(
+    (total, [key, value]) =>
+      total +
+      ((key === "in" || key === "notIn") && Array.isArray(value)
+        ? value.length
+        : boundListValues(value)),
+    0,
+  );
+}
+
+/**
+ * Refuses a composed contact query whose lists would overflow Postgres's
+ * bound parameters, instead of failing in the driver or answering less.
+ */
+export function assertFilterBudget<Where>(where: Where): Where {
+  if (boundListValues(where) > MAX_FILTER_IDS)
+    throw unprocessableEntity(
+      "This search matches too many places or people at once; add more letters or a filter",
+    );
+  return where;
+}
+
 /** The query a contact filter stands for, as seen by `actor`. */
-export function contactFilterWhere(
+export async function contactFilterWhere(
   actor: ContactActor,
   filter: ContactFilter,
   now: Date = new Date(),
-): Prisma.ContactWhereInput[] {
+): Promise<Prisma.ContactWhereInput[]> {
   const days = (count: number) => new Date(now.getTime() - count * 86_400_000);
   const and: Prisma.ContactWhereInput[] = [];
   if (filter.search) {
@@ -1185,6 +1243,7 @@ export function contactFilterWhere(
             some: { value: { contains: search, mode: "insensitive" } },
           },
         },
+        await locationSearchWhere(actor.workspaceId, search),
       ],
     });
   }
@@ -1267,18 +1326,15 @@ export async function contactFilterWhereResolved(
   filter: ContactFilter,
   options: { archived?: boolean } = {},
 ): Promise<Prisma.ContactWhereInput[]> {
-  const and = contactFilterWhere(actor, filter);
+  const and = await contactFilterWhere(actor, filter);
   const company = await companiesWhere(
     actor.workspaceId,
     filter.company ? [filter.company] : [],
     options.archived,
   );
   if (company) and.push(company);
-  return and;
+  return assertFilterBudget(and);
 }
-
-/** Ids a filter may carry as bound parameters (Postgres allows 65535). */
-const MAX_COMPANY_MEMBERS = 50_000;
 
 /**
  * The people at every one of these companies, as one predicate (several
@@ -1298,7 +1354,7 @@ async function companiesWhere(
     ids = kept ? members.filter((id) => kept.has(id)) : members;
   }
   if (ids === null) return null;
-  if (ids.length > MAX_COMPANY_MEMBERS)
+  if (ids.length > MAX_FILTER_IDS)
     throw unprocessableEntity(
       `That company has ${ids.length} contacts; filter by organization instead`,
     );
@@ -1338,7 +1394,7 @@ export async function contactListWhere(
     "filter" | "listId" | "company" | "archived"
   >,
 ): Promise<Prisma.ContactWhereInput> {
-  const and = contactFilterWhere(actor, options.filter);
+  const and = await contactFilterWhere(actor, options.filter);
   const companies = [options.filter.company, options.company];
   if (options.listId) {
     const list = await prisma.contactList.findFirst({
@@ -1347,7 +1403,7 @@ export async function contactListWhere(
     if (!list) throw notFound("List not found");
     const smart = parseSmartFilter(list.smartFilter);
     if (smart) {
-      and.push(...contactFilterWhere(actor, smart));
+      and.push(...(await contactFilterWhere(actor, smart)));
       companies.push(smart.company);
     } else and.push({ listMemberships: { some: { listId: list.id } } });
   }
@@ -1357,12 +1413,12 @@ export async function contactListWhere(
     options.archived,
   );
   if (company) and.push(company);
-  return {
+  return assertFilterBudget({
     workspaceId: actor.workspaceId,
     mergedIntoId: null,
     archivedAt: options.archived ? { not: null } : null,
     AND: and,
-  };
+  });
 }
 
 function contactOrderBy(

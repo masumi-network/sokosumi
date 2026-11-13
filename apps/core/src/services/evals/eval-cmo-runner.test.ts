@@ -1,9 +1,53 @@
 import type { MarketingStrategyPlan } from "@sokosumi/soko-bot";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/db/prisma", () => ({ default: {} }));
+const prisma = vi.hoisted(() => {
+  const ok = () => vi.fn().mockResolvedValue({});
+  return {
+    project: { update: ok() },
+    marketingStrategy: { deleteMany: ok() },
+    brandBrain: { deleteMany: ok(), create: ok() },
+    socialComment: {
+      deleteMany: ok(),
+      create: vi.fn().mockResolvedValue({ id: "comment-1" }),
+    },
+    socialPost: { create: vi.fn().mockResolvedValue({ id: "post-1" }) },
+  };
+});
+vi.mock("@/lib/db/prisma", () => ({ default: prisma }));
+vi.mock("@/services/cmo-cuso.service", () => ({
+  findCusoForBot: vi.fn().mockResolvedValue({ id: "cuso-1" }),
+}));
 
-import { commentChecks, monthPlanFromTomorrow } from "./eval-cmo-runner";
+import {
+  commentChecks,
+  monthPlanFromTomorrow,
+  prepareCmoComments,
+} from "./eval-cmo-runner";
+import type { EvalLaneRecord } from "./eval-lanes.service";
+
+describe("prepareCmoComments", () => {
+  it("publishes the comment post with exactly one creator: the lane's Cuso", async () => {
+    const lane = {
+      lane: 1,
+      userId: "user-1",
+      workspaceId: "workspace-1",
+      cusoBotId: "cuso-bot-1",
+      cusoProjectId: "project-1",
+    } as EvalLaneRecord;
+    await prepareCmoComments(lane);
+    const { data } = prisma.socialPost.create.mock.calls[0]?.[0] as {
+      data: Record<string, unknown>;
+    };
+    const creators = [
+      "creatorUserId",
+      "creatorCoworkerId",
+      "creatorSokoBotId",
+    ].filter((key) => data[key] != null);
+    expect(creators).toEqual(["creatorSokoBotId"]);
+    expect(data.creatorSokoBotId).toBe("cuso-bot-1");
+  });
+});
 
 describe("commentChecks", () => {
   const ids = {

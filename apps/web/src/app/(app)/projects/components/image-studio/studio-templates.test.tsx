@@ -239,6 +239,9 @@ describe("starting from a template", () => {
     mount();
     fireEvent.click(screen.getByRole("button", { name: "brandKit" }));
     const tone = await screen.findByLabelText("BrandKit.tone");
+    // The kit commits before the load transition ends. Until then the form
+    // is disabled and Save Look returns early.
+    await waitFor(() => expect(tone).toBeEnabled());
     fireEvent.change(tone, { target: { value: "Clear and warm" } });
     fireEvent.click(screen.getByRole("button", { name: "BrandKit.editLook" }));
     const colors = screen.getByLabelText("BrandKit.colors");
@@ -254,7 +257,11 @@ describe("starting from a template", () => {
     expect(screen.getByText("#23453c")).toBeInTheDocument();
     expect(screen.getByText("Georgia")).toBeInTheDocument();
     expect(tone).toHaveValue("Clear and warm");
-    fireEvent.click(screen.getByRole("button", { name: "BrandKit.resetLook" }));
+    // The saved text commits before the look transition ends, and a busy
+    // button drops the click: wait for Reset to go idle first.
+    const reset = screen.getByRole("button", { name: "BrandKit.resetLook" });
+    await waitFor(() => expect(reset).not.toHaveAttribute("aria-busy"));
+    fireEvent.click(reset);
     await screen.findByText("BrandKit.lookReset");
     expect(screen.getByText("#a33421")).toBeInTheDocument();
     expect(tone).toHaveValue("Clear and warm");

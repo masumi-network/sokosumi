@@ -8,7 +8,11 @@ import { projectService } from "@/lib/services/project.service";
 import { getNotificationHref } from "@/lib/utils/notification-href";
 import { formatNotificationTimeLabel } from "@/lib/utils/notification-time-label";
 
-import { type ColumnProject, NeedsYouPanelList } from "./needs-you-panel-list";
+import {
+  type ColumnProject,
+  type NeedsYouLead,
+  NeedsYouPanelList,
+} from "./needs-you-panel-list";
 import { WorkspaceColumnPanel } from "./workspace-column-panel";
 import {
   WorkspaceColumnProjectAvatar,
@@ -129,19 +133,26 @@ export async function NeedsYouPanel({
   feed,
   projects,
   quiet = false,
+  lead,
 }: {
   feed: PanelFeed<NotificationItem>;
-  projects: WorkspaceColumnProps["projects"];
+  /** A read still in flight is awaited next to the feed, not after it. */
+  projects:
+    | WorkspaceColumnProps["projects"]
+    | Promise<WorkspaceColumnProps["projects"]>;
   /** Home's quiet list instead of the column's panel. */
   quiet?: boolean;
+  /** A row above the notifications, such as your bot's failed reply. */
+  lead?: NeedsYouLead;
 }) {
-  const [notifications, t, timeLabel] = await Promise.all([
+  const [notifications, t, timeLabel, gridProjects] = await Promise.all([
     feed,
     getTranslations("App.Projects.column.needsYou"),
     loadTimeLabel(),
+    projects,
   ]);
   const rows = notifications ?? [];
-  const projectByNotificationId = await resolveRowProjects(rows, projects);
+  const projectByNotificationId = await resolveRowProjects(rows, gridProjects);
 
   return (
     <NeedsYouPanelList
@@ -156,6 +167,7 @@ export async function NeedsYouPanel({
         showAll: t("showAll"),
       }}
       quiet={quiet}
+      lead={lead}
     />
   );
 }
