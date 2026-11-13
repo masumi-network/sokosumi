@@ -152,8 +152,9 @@ describe.skipIf(!db)("Project top-ups against PostgreSQL", () => {
       },
     });
     // A top-up is granted only while the Cuso's subscription has not ended.
-    await db.cmoSubscription.create({
+    await db.polarSubscription.create({
       data: {
+        kind: "CMO",
         projectId: PROJECT,
         organizationId: ORGANIZATION,
         polarSubscriptionId: SUBSCRIPTION_ID,

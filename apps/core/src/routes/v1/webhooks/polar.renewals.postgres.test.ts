@@ -70,6 +70,7 @@ const PRODUCT = {
   metadata: { kind: "plan", tier: "growth", credits: "25000" },
 };
 const CHECKOUT_METADATA = {
+  kind: "plan",
   projectId: PROJECT,
   organizationId: ORGANIZATION,
   userId: "user-not-read",
@@ -147,7 +148,7 @@ async function bucketsOf(orderId: string) {
 
 async function subscriptionRow(polarSubscriptionId: string) {
   if (!db) throw new Error("Missing integration database");
-  return await db.cmoSubscription.findUnique({
+  return await db.polarSubscription.findUnique({
     where: { polarSubscriptionId },
     select: {
       status: true,

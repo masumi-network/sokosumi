@@ -19,9 +19,9 @@ import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
  * is offered the checkout again.
  */
 async function revokeSubscriptions(
-  where: Prisma.CmoSubscriptionWhereInput,
+  where: Prisma.PolarSubscriptionWhereInput,
 ): Promise<void> {
-  const subscriptions = await prisma.cmoSubscription.findMany({
+  const subscriptions = await prisma.polarSubscription.findMany({
     where: { endedAt: null, ...where },
     select: { id: true, polarSubscriptionId: true },
   });
@@ -43,7 +43,7 @@ async function revokeSubscriptions(
     // Recorded now, not on `subscription.revoked`: the Project is free for a
     // new subscription at once, and a late older payload cannot revive it.
     const endedAt = new Date();
-    await prisma.cmoSubscription.updateMany({
+    await prisma.polarSubscription.updateMany({
       where: { id: subscription.id, endedAt: null },
       data: { status: "canceled", endedAt, polarEventAt: endedAt },
     });

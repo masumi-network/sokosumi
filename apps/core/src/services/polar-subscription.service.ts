@@ -1,5 +1,9 @@
 import * as Sentry from "@sentry/node";
-import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
+import {
+  CreditBucketReferenceType,
+  PolarSubscriptionKind,
+  type Prisma,
+} from "@sokosumi/database";
 import { getNextMonthlyPeriodEnd } from "@sokosumi/database/helpers";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { err, ok, type Result } from "neverthrow";
@@ -14,9 +18,9 @@ import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { cmoProductMetadataSchema } from "@/services/cmo-catalog.service";
-import { grantCmoCredits } from "@/services/cmo-credit-grant.service";
 import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
-import { monthOfPaidYear } from "@/services/cmo-yearly-grant-sync.service";
+import { grantPolarCredits } from "@/services/polar-credit-grant.service";
+import { monthOfPaidYear } from "@/services/polar-yearly-grant-sync.service";
 
 /** What Polar's events do to a Cuso's CMO subscription and its credits (ADR 0068). */
 
@@ -40,7 +44,7 @@ type SubscriptionEvent = Extract<
   { type: (typeof SUBSCRIPTION_EVENT_TYPES)[number] }
 >;
 
-export function isCmoSubscriptionEvent(
+export function isPolarSubscriptionEvent(
   event: PolarWebhookEvent,
 ): event is SubscriptionEvent {
   return (SUBSCRIPTION_EVENT_TYPES as readonly string[]).includes(event.type);
@@ -79,12 +83,32 @@ const ROW_SELECT = {
   organizationId: true,
   endedAt: true,
 } as const;
-type CmoSubscriptionRow = {
+type PolarSubscriptionRow = {
   id: string;
   projectId: string;
   organizationId: string;
   endedAt: Date | null;
 };
+
+/**
+ * What a subscription pays for, from its checkout's metadata `kind`. Every
+ * checkout Core starts is CMO's: a plan checkout makes a CMO subscription.
+ */
+const subscriptionKindSchema = z
+  .object({ kind: z.literal("plan") })
+  .transform(() => PolarSubscriptionKind.CMO);
+
+/** The row as CMO's paths use it: a CMO subscription names its Project. */
+function cmoRow(row: {
+  id: string;
+  projectId: string | null;
+  organizationId: string;
+  endedAt: Date | null;
+}): Result<PolarSubscriptionRow, UnusableEvent> {
+  const { projectId } = row;
+  if (!projectId) return err({ issue: "the subscription names no Project" });
+  return ok({ ...row, projectId });
+}
 
 /** Why an event can make no row: reported with what else it knows. */
 interface UnusableEvent {
@@ -168,10 +192,10 @@ export async function resolveCheckoutTarget(
  * or the reason no row can exist (an error to report). Polar does not order
  * its deliveries, so a payload older than the stored state changes nothing.
  */
-async function upsertCmoSubscription(
+async function upsertPolarSubscription(
   source: SubscriptionSource,
-): Promise<Result<CmoSubscriptionRow, UnusableEvent>> {
-  const row = await writeCmoSubscriptionRow(source);
+): Promise<Result<PolarSubscriptionRow, UnusableEvent>> {
+  const row = await writePolarSubscriptionRow(source);
   if (row.isErr()) return row;
   return await endIfCusoEnded(row.value, source.subscription.id);
 }
@@ -185,9 +209,9 @@ async function upsertCmoSubscription(
  * whichever checks second sees the other's write.
  */
 async function endIfCusoEnded(
-  row: CmoSubscriptionRow,
+  row: PolarSubscriptionRow,
   polarSubscriptionId: string,
-): Promise<Result<CmoSubscriptionRow, UnusableEvent>> {
+): Promise<Result<PolarSubscriptionRow, UnusableEvent>> {
   if (row.endedAt) return ok(row);
   const cuso = await prisma.sokoBot.findFirst({
     where: { ...LIVE_CUSO_WHERE, projectId: row.projectId },
@@ -196,16 +220,16 @@ async function endIfCusoEnded(
   if (cuso) return ok(row);
   await revokePolarSubscription(polarSubscriptionId);
   const endedAt = new Date();
-  await prisma.cmoSubscription.updateMany({
+  await prisma.polarSubscription.updateMany({
     where: { id: row.id, endedAt: null },
     data: { status: "canceled", endedAt, polarEventAt: endedAt },
   });
   return err({ issue: "the Cuso has ended; the subscription is revoked" });
 }
 
-async function writeCmoSubscriptionRow(
+async function writePolarSubscriptionRow(
   source: SubscriptionSource,
-): Promise<Result<CmoSubscriptionRow, UnusableEvent>> {
+): Promise<Result<PolarSubscriptionRow, UnusableEvent>> {
   const { eventAt, plan, subscription } = source;
   const where = { polarSubscriptionId: subscription.id };
   const state = {
@@ -227,18 +251,18 @@ async function writeCmoSubscriptionRow(
     }),
   };
   async function applyToStoredRow() {
-    await prisma.cmoSubscription.updateMany({
+    await prisma.polarSubscription.updateMany({
       where: { ...where, polarEventAt: { lte: eventAt } },
       data: state,
     });
-    return await prisma.cmoSubscription.findUnique({
+    return await prisma.polarSubscription.findUnique({
       where,
       select: ROW_SELECT,
     });
   }
 
   const stored = await applyToStoredRow();
-  if (stored) return ok(stored);
+  if (stored) return cmoRow(stored);
 
   const target = await resolveCheckoutTarget(
     source.metadata,
@@ -246,11 +270,19 @@ async function writeCmoSubscriptionRow(
   );
   if (target.isErr()) return err(target.error);
   const { organizationId, projectId } = target.value;
+  const kind = subscriptionKindSchema.safeParse(source.metadata);
+  if (!kind.success) return err({ issue: "the checkout is not a CMO plan's" });
 
   try {
-    return ok(
-      await prisma.cmoSubscription.create({
-        data: { ...state, ...where, organizationId, projectId },
+    return cmoRow(
+      await prisma.polarSubscription.create({
+        data: {
+          ...state,
+          ...where,
+          kind: kind.data,
+          organizationId,
+          projectId,
+        },
         select: ROW_SELECT,
       }),
     );
@@ -259,10 +291,10 @@ async function writeCmoSubscriptionRow(
     // Either another delivery created this subscription's row first, or the
     // Project already has a subscription that has not ended.
     const raced = await applyToStoredRow();
-    if (raced) return ok(raced);
+    if (raced) return cmoRow(raced);
     // A second paid subscription for the Project would be charged without
     // credits: Polar ends it now, and an operator refunds it.
-    const live = await prisma.cmoSubscription.findFirst({
+    const live = await prisma.polarSubscription.findFirst({
       where: { projectId, endedAt: null },
       select: { polarSubscriptionId: true },
     });
@@ -283,7 +315,7 @@ async function writeCmoSubscriptionRow(
 export async function handlePolarSubscriptionEvent(
   event: SubscriptionEvent,
 ): Promise<void> {
-  const issue = await writeCmoSubscription(event.data, {
+  const issue = await writePolarSubscription(event.data, {
     eventAt: new Date(event.timestamp),
     revoked: event.type === "subscription.revoked",
   });
@@ -296,10 +328,10 @@ export async function handlePolarSubscriptionEvent(
  * own modification time is the event time: that webhook's timestamp is not
  * older, so it still applies, and nothing newer goes backwards.
  */
-export async function recordCmoSubscriptionChange(
+export async function recordPolarSubscriptionChange(
   subscription: PolarSubscription,
 ): Promise<void> {
-  const issue = await writeCmoSubscription(subscription, {
+  const issue = await writePolarSubscription(subscription, {
     eventAt: new Date(subscription.modified_at ?? subscription.created_at),
   });
   if (issue) {
@@ -311,7 +343,7 @@ export async function recordCmoSubscriptionChange(
 }
 
 /** The row from a Polar subscription, or why it can make none. */
-async function writeCmoSubscription(
+async function writePolarSubscription(
   subscription: PolarSubscription,
   options: { eventAt: Date; revoked?: boolean },
 ): Promise<UnusableEvent | null> {
@@ -325,7 +357,7 @@ async function writeCmoSubscription(
     subscription.recurring_interval,
   );
   if (!plan) return { issue: "the product is not a CMO plan", extra };
-  const row = await upsertCmoSubscription({
+  const row = await upsertPolarSubscription({
     eventAt: options.eventAt,
     externalCustomerId: subscription.customer.external_id,
     metadata: subscription.metadata,
@@ -377,7 +409,7 @@ export async function handlePolarOrderPaid(
   }
   // An order has no paid date of its own: the event's timestamp stands in.
   const paidAt = new Date(event.timestamp);
-  const upserted = await upsertCmoSubscription({
+  const upserted = await upsertPolarSubscription({
     eventAt: paidAt,
     externalCustomerId: order.customer.external_id,
     metadata: order.metadata,
@@ -402,7 +434,7 @@ export async function handlePolarOrderPaid(
   const monthStart = new Date(
     billed?.start_timestamp ?? subscription.current_period_start,
   );
-  const granted = await grantCmoCredits(
+  const granted = await grantPolarCredits(
     {
       amount,
       // One month after the grant month starts; a monthly plan's month is
@@ -415,8 +447,8 @@ export async function handlePolarOrderPaid(
       projectId: row.projectId,
       referenceId: `${order.id}:0`,
       referenceNote: product.name,
-      referenceType: CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH,
-      subscription: { cmoSubscriptionId: row.id },
+      referenceType: CreditBucketReferenceType.POLAR_SUBSCRIPTION_MONTH,
+      subscription: { subscriptionRowId: row.id },
     },
     (tx) => recordLastPaidOrder(tx, null),
   );
@@ -424,7 +456,7 @@ export async function handlePolarOrderPaid(
   if (granted === "refunded") {
     // Polar refunded it before its payment arrived: still the last paid
     // order, marked refunded, so a yearly plan grants no month of it.
-    const refunded = await prisma.cmoPolarOrder.findUnique({
+    const refunded = await prisma.polarOrder.findUnique({
       where: { polarOrderId: order.id },
       select: { refundedAt: true },
     });
@@ -435,7 +467,7 @@ export async function handlePolarOrderPaid(
     client: Prisma.TransactionClient,
     refundedAt: Date | null,
   ): Promise<void> {
-    await client.cmoSubscription.updateMany({
+    await client.polarSubscription.updateMany({
       where: {
         id: row.id,
         OR: [{ lastPaidAt: null }, { lastPaidAt: { lt: paidAt } }],
@@ -497,7 +529,7 @@ export async function handlePolarPlanChangePaid(
     return;
   }
   const paidAt = new Date(event.timestamp);
-  const upserted = await upsertCmoSubscription({
+  const upserted = await upsertPolarSubscription({
     eventAt: paidAt,
     externalCustomerId: order.customer.external_id,
     metadata: order.metadata,
@@ -530,15 +562,15 @@ export async function handlePolarPlanChangePaid(
       Math.min(Math.max(left, 0), 1),
   );
   if (credits <= 0) return;
-  const granted = await grantCmoCredits({
+  const granted = await grantPolarCredits({
     amount: convertCreditsToCents(credits),
     expiresAt: month.expiresAt,
     organizationId: row.organizationId,
     projectId: row.projectId,
     referenceId: `${order.id}:0`,
     referenceNote: product.name,
-    referenceType: CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH,
-    subscription: { cmoSubscriptionId: row.id },
+    referenceType: CreditBucketReferenceType.POLAR_SUBSCRIPTION_MONTH,
+    subscription: { subscriptionRowId: row.id },
   });
   if (granted === "not_live") reportNotLive(event, extra);
 }
@@ -559,18 +591,18 @@ export async function handlePolarOrderRefunded(
   // Serializable: of two deliveries at the same time one fails, then runs
   // again and finds nothing left.
   await serializableTransaction(async (tx) => {
-    // The row every grant of this order writes first (`grantCmoCredits`).
+    // The row every grant of this order writes first (`grantPolarCredits`).
     await tx.$executeRaw`
-      INSERT INTO "cmo_polar_order" ("polarOrderId", "refundedAt")
+      INSERT INTO "polar_order" ("polarOrderId", "refundedAt")
       VALUES (${order.id}, ${new Date(event.timestamp)})
       ON CONFLICT ("polarOrderId") DO UPDATE
-      SET "refundedAt" = COALESCE("cmo_polar_order"."refundedAt", EXCLUDED."refundedAt")`;
+      SET "refundedAt" = COALESCE("polar_order"."refundedAt", EXCLUDED."refundedAt")`;
     const buckets = await tx.creditBucket.findMany({
       where: {
         referenceId: { startsWith: `${order.id}:` },
         referenceType: {
           in: [
-            CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH,
+            CreditBucketReferenceType.POLAR_SUBSCRIPTION_MONTH,
             CreditBucketReferenceType.PROJECT_TOP_UP,
           ],
         },
@@ -583,7 +615,7 @@ export async function handlePolarOrderRefunded(
     );
     // A refund does not cancel at Polar (an operator who refunds cancels
     // there if wanted), so the yearly grant job must stop granting the order.
-    await tx.cmoSubscription.updateMany({
+    await tx.polarSubscription.updateMany({
       where: { lastPaidOrderId: order.id, lastPaidOrderRefundedAt: null },
       data: { lastPaidOrderRefundedAt: new Date(event.timestamp) },
     });

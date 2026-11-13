@@ -21,7 +21,7 @@ const m = vi.hoisted(() => ({
   prisma: {
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
-    cmoSubscription: {
+    polarSubscription: {
       create: vi.fn(),
       findUnique: vi.fn(),
       updateMany: vi.fn(),
@@ -118,7 +118,7 @@ function grants() {
 
 /** The state the handler wrote to the stored subscription row. */
 function storedState() {
-  return m.prisma.cmoSubscription.updateMany.mock.calls[0]?.[0];
+  return m.prisma.polarSubscription.updateMany.mock.calls[0]?.[0];
 }
 
 function post() {
@@ -154,8 +154,8 @@ beforeEach(() => {
     },
   ]);
   m.prisma.sokoBot.findFirst.mockResolvedValue({ id: "bot_1" });
-  m.prisma.cmoSubscription.updateMany.mockResolvedValue({ count: 1 });
-  m.prisma.cmoSubscription.findUnique.mockResolvedValue(ROW);
+  m.prisma.polarSubscription.updateMany.mockResolvedValue({ count: 1 });
+  m.prisma.polarSubscription.findUnique.mockResolvedValue(ROW);
   m.prisma.task.findMany.mockResolvedValue([]);
   m.prisma.transaction.create.mockResolvedValue({ id: "tx_1" });
 });
@@ -176,7 +176,7 @@ describe("POST /v1/webhooks/polar after the first payment", () => {
           projectId: PROJECT_ID,
           referenceId: "order_2:0",
           referenceNote: "Growth",
-          referenceType: "CMO_SUBSCRIPTION_MONTH",
+          referenceType: "POLAR_SUBSCRIPTION_MONTH",
           userId: null,
         },
       ]);
@@ -270,7 +270,7 @@ describe("POST /v1/webhooks/polar after the first payment", () => {
         },
       ]);
       expect(storedState().data.status).toBe("active");
-      expect(m.prisma.cmoSubscription.updateMany).toHaveBeenLastCalledWith(
+      expect(m.prisma.polarSubscription.updateMany).toHaveBeenLastCalledWith(
         expect.objectContaining({
           data: {
             lastPaidAt: new Date("2026-12-15T08:00:00.000Z"),
@@ -377,7 +377,7 @@ describe("POST /v1/webhooks/polar after the first payment", () => {
 
     it("leaves a row that ticket 08's revoke already ended as it is", async () => {
       // The ending path set polarEventAt to now, newer than Polar's event.
-      m.prisma.cmoSubscription.updateMany.mockResolvedValue({ count: 0 });
+      m.prisma.polarSubscription.updateMany.mockResolvedValue({ count: 0 });
       m.verifyPolarWebhook.mockResolvedValue(
         subscriptionEvent("subscription.revoked", "2027-01-13T10:00:02.000Z", {
           status: "canceled",
@@ -389,7 +389,7 @@ describe("POST /v1/webhooks/polar after the first payment", () => {
 
       expect(response.status).toBe(200);
       expect(m.captureMessage).not.toHaveBeenCalled();
-      expect(m.prisma.cmoSubscription.create).not.toHaveBeenCalled();
+      expect(m.prisma.polarSubscription.create).not.toHaveBeenCalled();
       expect(grants()).toEqual([]);
     });
   });

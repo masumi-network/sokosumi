@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { syncCmoYearlyGrants } from "./cmo-yearly-grant-sync.service";
+import { syncPolarYearlyGrants } from "./polar-yearly-grant-sync.service";
 
 /** Credits are stored as cents, base 10^10 (apps/core/AGENTS.md). */
 const CENTS_PER_CREDIT = 10_000_000_000n;
@@ -11,7 +11,7 @@ const m = vi.hoisted(() => ({
   prisma: {
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
-    cmoSubscription: { findMany: vi.fn() },
+    polarSubscription: { findMany: vi.fn() },
     creditBucket: { findMany: vi.fn() },
     sokoBot: { findFirst: vi.fn() },
     task: { findMany: vi.fn() },
@@ -104,7 +104,7 @@ function matches(row: Record<string, unknown>, where: Record<string, unknown>) {
 }
 
 function sync() {
-  return syncCmoYearlyGrants(() => true);
+  return syncPolarYearlyGrants(() => true);
 }
 
 beforeEach(() => {
@@ -122,7 +122,7 @@ beforeEach(() => {
     subscriptions.filter((row) => row.id === id),
   );
   m.prisma.sokoBot.findFirst.mockResolvedValue({ id: "bot_1" });
-  m.prisma.cmoSubscription.findMany.mockImplementation(async ({ where }) =>
+  m.prisma.polarSubscription.findMany.mockImplementation(async ({ where }) =>
     subscriptions.filter((row) => matches(row, where)),
   );
   m.prisma.creditBucket.findMany.mockImplementation(async ({ where }) =>
@@ -152,7 +152,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("syncCmoYearlyGrants", () => {
+describe("syncPolarYearlyGrants", () => {
   it("grants the second month as Project credits once it has begun", async () => {
     vi.setSystemTime(new Date("2026-02-28T10:00:00.000Z"));
 
@@ -172,7 +172,7 @@ describe("syncCmoYearlyGrants", () => {
           projectId: PROJECT_ID,
           referenceId: "order_y1:1",
           referenceNote: "Growth yearly",
-          referenceType: "CMO_SUBSCRIPTION_MONTH",
+          referenceType: "POLAR_SUBSCRIPTION_MONTH",
           userId: null,
         },
       },
@@ -268,7 +268,7 @@ describe("syncCmoYearlyGrants", () => {
       [{ ...SUBSCRIPTION, lastPaidOrderRefundedAt: new Date() }],
     ];
     m.prisma.$queryRaw.mockImplementation(async (sql: string[]) =>
-      sql.join("?").includes('"cmo_subscription"') ? locked.shift() : [],
+      sql.join("?").includes('"polar_subscription"') ? locked.shift() : [],
     );
 
     expect(await sync()).toEqual({
@@ -296,7 +296,7 @@ describe("syncCmoYearlyGrants", () => {
     );
     expect(queries).toContainEqual(
       expect.stringMatching(
-        /^\s*UPDATE "cmo_subscription"\s+SET "updatedAt" = "updatedAt"/,
+        /^\s*UPDATE "polar_subscription"\s+SET "updatedAt" = "updatedAt"/,
       ),
     );
   });
@@ -433,7 +433,7 @@ describe("syncCmoYearlyGrants", () => {
   it("stops between grants when the run is told to", async () => {
     vi.setSystemTime(new Date("2026-02-28T10:00:00.000Z"));
 
-    expect(await syncCmoYearlyGrants(() => false)).toEqual({
+    expect(await syncPolarYearlyGrants(() => false)).toEqual({
       errors: 0,
       granted: 0,
       stoppedEarly: true,

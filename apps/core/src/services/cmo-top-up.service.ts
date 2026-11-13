@@ -9,12 +9,12 @@ import {
   getCmoCatalog,
 } from "@/services/cmo-catalog.service";
 import { startCmoCheckout } from "@/services/cmo-checkout.service";
-import { grantCmoCredits } from "@/services/cmo-credit-grant.service";
 import { CmoConflictError, type CusoTarget } from "@/services/cmo-cuso.service";
+import { grantPolarCredits } from "@/services/polar-credit-grant.service";
 import {
   reportUnusableEvent,
   resolveCheckoutTarget,
-} from "@/services/cmo-subscription.service";
+} from "@/services/polar-subscription.service";
 
 /** Project top-ups: credits a member buys for one subscribed Cuso (ADR 0068). */
 
@@ -27,7 +27,7 @@ export async function startCmoTopUpCheckout(
   input: CusoTarget & { returnUrl: string },
 ): Promise<{ url: string }> {
   return await startCmoCheckout(input, "top-up", async (cuso) => {
-    const subscription = await prisma.cmoSubscription.findFirst({
+    const subscription = await prisma.polarSubscription.findFirst({
       where: { projectId: cuso.projectId, status: "active", endedAt: null },
       select: { id: true },
     });
@@ -80,7 +80,7 @@ export async function handlePolarTopUpPaid(
   // An order has no paid date of its own: the event's timestamp stands in.
   const expiresAt = new Date(event.timestamp);
   expiresAt.setUTCFullYear(expiresAt.getUTCFullYear() + 1);
-  const granted = await grantCmoCredits({
+  const granted = await grantPolarCredits({
     amount,
     expiresAt,
     organizationId,

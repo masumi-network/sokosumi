@@ -16,7 +16,7 @@ const m = vi.hoisted(() => ({
   createPolarCheckout: vi.fn(),
   listPolarProducts: vi.fn(),
   prisma: {
-    cmoSubscription: { findFirst: vi.fn() },
+    polarSubscription: { findFirst: vi.fn() },
     member: { findFirst: vi.fn() },
     project: { findUnique: vi.fn() },
     sokoBot: { findFirst: vi.fn() },
@@ -144,7 +144,7 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
     m.prisma.workspace.findUnique.mockResolvedValue({
       organizationId: "org-1",
     });
-    m.prisma.cmoSubscription.findFirst.mockResolvedValue(null);
+    m.prisma.polarSubscription.findFirst.mockResolvedValue(null);
   });
 
   it("answers Polar's checkout for the interval's three plans, for any member", async () => {
@@ -195,13 +195,13 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
   });
 
   it("refuses a Cuso whose subscription has not ended", async () => {
-    m.prisma.cmoSubscription.findFirst.mockResolvedValue({ id: "sub-row-1" });
+    m.prisma.polarSubscription.findFirst.mockResolvedValue({ id: "sub-row-1" });
     const response = await startCheckout({
       interval: "month",
       returnUrl: RETURN_URL,
     });
     expect(response.status).toBe(409);
-    expect(m.prisma.cmoSubscription.findFirst).toHaveBeenCalledWith(
+    expect(m.prisma.polarSubscription.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { projectId: PROJECT_ID, endedAt: null },
       }),

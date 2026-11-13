@@ -10,7 +10,7 @@ import {
   cmoPayer,
   requireCuso,
 } from "@/services/cmo-cuso.service";
-import type { CmoCheckoutMetadata } from "@/services/cmo-subscription.service";
+import type { CmoCheckoutMetadata } from "@/services/polar-subscription.service";
 
 /**
  * Starts Polar's hosted checkout for a Cuso (ADR 0068), a plan or a top-up:
@@ -51,7 +51,7 @@ export async function startCmoCheckout(
  *
  * shortcut: two checkouts opened before either is paid can both be paid;
  * the second subscription is then revoked at Polar, reported and gets no
- * row (`cmo_subscription_project_live_key`). Refund it by hand in Polar.
+ * row (`polar_subscription_project_live_key`). Refund it by hand in Polar.
  */
 export async function startCmoPlanCheckout(
   input: CusoTarget & {
@@ -61,7 +61,7 @@ export async function startCmoPlanCheckout(
   },
 ): Promise<{ url: string }> {
   return await startCmoCheckout(input, "plan", async (cuso) => {
-    const subscription = await prisma.cmoSubscription.findFirst({
+    const subscription = await prisma.polarSubscription.findFirst({
       where: { projectId: cuso.projectId, endedAt: null },
       select: { id: true },
     });

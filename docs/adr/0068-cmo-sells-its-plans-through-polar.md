@@ -32,4 +32,5 @@ Sokosumi bills organizations through Stripe: a seat-based plan and top-ups into 
 - ADR 0067's "they never expire" holds only for Starter credits. Project credits now also come with an expiry: a month for a plan's grant, 12 months for a top-up.
 - The Organization credit pool still pays a Project's charges after his Project credits. CMO no longer advertises it.
 - Billing columns, enum values and the webhook path are Stripe-named today. Polar needs its own or provider-neutral ones.
+- The records that mirror Polar are provider-level and shared: `PolarSubscription` (with a `kind`, `CMO` its only value today, and an optional Project that CMO's paths require), `PolarOrder` and the `POLAR_SUBSCRIPTION_MONTH` credit buckets, handled by the `polar-*` services. Polar may later carry Sokosumi's subscriptions too. CMO's catalog, the gate and CMO's routes keep their CMO names.
 - Embedding the checkout in CMO is a follow-up.

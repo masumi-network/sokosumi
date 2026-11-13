@@ -17,9 +17,9 @@ import {
   cmoPayer,
   requireCuso,
 } from "@/services/cmo-cuso.service";
-import { recordCmoSubscriptionChange } from "@/services/cmo-subscription.service";
-import { grantStartedCmoYearlyMonths } from "@/services/cmo-yearly-grant-sync.service";
 import { mayApproveMarketingStrategy } from "@/services/marketing-strategy.service";
+import { recordPolarSubscriptionChange } from "@/services/polar-subscription.service";
+import { grantStartedPolarYearlyMonths } from "@/services/polar-yearly-grant-sync.service";
 
 /**
  * What owners and admins do with a Cuso's CMO subscription from CMO's
@@ -61,7 +61,7 @@ function refuse(message: string, kind: "not_active" | "not_allowed"): never {
  * next renewal and the overview shows it as pending until then. The current
  * tier while a downgrade is pending keeps the plan: Polar drops the downgrade.
  */
-export async function changeCmoPlan(
+export async function changePolarPlan(
   input: CusoTarget & { tier: string },
 ): Promise<{ change: "upgrade" | "downgrade" | "kept" }> {
   const { cuso } = await requireBillingManager(input);
@@ -69,7 +69,7 @@ export async function changeCmoPlan(
   try {
     return await changeClaimedPlan(cuso, input.tier);
   } finally {
-    await prisma.cmoSubscription.updateMany({
+    await prisma.polarSubscription.updateMany({
       where: { projectId: cuso.projectId, planChangeClaimedAt: claimedAt },
       data: { planChangeClaimedAt: null },
     });
@@ -87,7 +87,7 @@ const PLAN_CHANGE_CLAIM_MS = 60_000;
  */
 async function claimPlanChange(projectId: string): Promise<Date> {
   const claimedAt = new Date();
-  const claimed = await prisma.cmoSubscription.updateMany({
+  const claimed = await prisma.polarSubscription.updateMany({
     where: {
       projectId,
       endedAt: null,
@@ -103,7 +103,7 @@ async function claimPlanChange(projectId: string): Promise<Date> {
     data: { planChangeClaimedAt: claimedAt },
   });
   if (claimed.count > 0) return claimedAt;
-  const subscription = await prisma.cmoSubscription.findFirst({
+  const subscription = await prisma.polarSubscription.findFirst({
     where: { projectId, endedAt: null },
     select: { id: true },
   });
@@ -118,7 +118,7 @@ async function changeClaimedPlan(
   cuso: Cuso,
   tier: string,
 ): Promise<{ change: "upgrade" | "downgrade" | "kept" }> {
-  const subscription = await prisma.cmoSubscription.findFirst({
+  const subscription = await prisma.polarSubscription.findFirst({
     where: { projectId: cuso.projectId, endedAt: null },
     select: {
       id: true,
@@ -178,14 +178,14 @@ async function changeClaimedPlan(
       );
     }
     // Polar's own subscription.updated follows; the overview need not wait.
-    await recordCmoSubscriptionChange(cleared.value);
+    await recordPolarSubscriptionChange(cleared.value);
     return { change: "kept" };
   }
   const upgrade = target.credits > current.credits;
   const { lastPaidOrderId } = subscription;
   if (upgrade && subscription.interval === "year" && lastPaidOrderId) {
-    await grantStartedCmoYearlyMonths(
-      { ...subscription, lastPaidOrderId },
+    await grantStartedPolarYearlyMonths(
+      { ...subscription, projectId: cuso.projectId, lastPaidOrderId },
       current,
     );
   }
@@ -208,12 +208,12 @@ async function changeClaimedPlan(
   }
   // The tier (or the pending tier) shows at once; the upgrade's extra
   // credits still come only with Polar's paid order.
-  await recordCmoSubscriptionChange(changed.value);
+  await recordPolarSubscriptionChange(changed.value);
   return { change: upgrade ? "upgrade" : "downgrade" };
 }
 
 /** A Polar customer portal link for the Cuso's organization. */
-export async function openCmoCustomerPortal(
+export async function openPolarCustomerPortal(
   input: CusoTarget & { returnUrl: string },
 ): Promise<{ url: string }> {
   if (!isFirstPartyAppUrl(input.returnUrl)) {

@@ -3,7 +3,7 @@
  * their upgrade from the same old tier (ADR 0068).
  *
  *   RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… \
- *     pnpm --filter core test src/services/cmo-plan-change.postgres.test.ts
+ *     pnpm --filter core test src/services/polar-plan-change.postgres.test.ts
  *
  * A change claims the subscription row with one conditional write before it
  * reads the tier, and releases it once Polar answered and the new tier is
@@ -25,7 +25,7 @@ import {
   vi,
 } from "vitest";
 
-import { changeCmoPlan } from "./cmo-plan-change.service";
+import { changePolarPlan } from "./polar-plan-change.service";
 
 const m = vi.hoisted(() => ({
   changePolarSubscriptionPlan: vi.fn(),
@@ -119,7 +119,7 @@ function database() {
 }
 
 function change(tier: string) {
-  return changeCmoPlan({
+  return changePolarPlan({
     userId: "user-1",
     projectId: PROJECT,
     tier,
@@ -147,9 +147,10 @@ describe.skipIf(!db)("two plan changes for one Cuso", () => {
   beforeEach(async () => {
     if (!db) return;
     m.changePolarSubscriptionPlan.mockReset();
-    await db.cmoSubscription.deleteMany({ where: { projectId: PROJECT } });
-    await db.cmoSubscription.create({
+    await db.polarSubscription.deleteMany({ where: { projectId: PROJECT } });
+    await db.polarSubscription.create({
       data: {
+        kind: "CMO",
         projectId: PROJECT,
         organizationId: ORGANIZATION,
         polarSubscriptionId: SUBSCRIPTION,
@@ -166,7 +167,7 @@ describe.skipIf(!db)("two plan changes for one Cuso", () => {
 
   afterAll(async () => {
     if (!db) return;
-    await db.cmoSubscription.deleteMany({ where: { projectId: PROJECT } });
+    await db.polarSubscription.deleteMany({ where: { projectId: PROJECT } });
     await db.sokoBot.deleteMany({ where: { workspaceId: WORKSPACE } });
     await db.$executeRaw`DELETE FROM "project" WHERE "id" = ${PROJECT}::uuid`;
     await db.$executeRaw`DELETE FROM "workspace" WHERE "id" = ${WORKSPACE}::uuid`;
@@ -194,7 +195,7 @@ describe.skipIf(!db)("two plan changes for one Cuso", () => {
 
     await expect(first).resolves.toEqual({ change: "upgrade" });
     expect(m.changePolarSubscriptionPlan).toHaveBeenCalledTimes(1);
-    const row = await database().cmoSubscription.findUniqueOrThrow({
+    const row = await database().polarSubscription.findUniqueOrThrow({
       where: { polarSubscriptionId: SUBSCRIPTION },
       select: { tier: true, planChangeClaimedAt: true },
     });

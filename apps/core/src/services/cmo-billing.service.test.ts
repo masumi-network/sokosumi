@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  cmoSubscriptionFindFirst,
   creditBucketFindFirst,
   cusoFind,
+  polarSubscriptionFindFirst,
   resetCmoServiceMocks,
   seedStrategy,
   strategy,
@@ -113,7 +113,7 @@ describe("strategy approval → execution gate", () => {
 
   it("executes once approved and subscribed, with no per-post approval", async () => {
     cusoFind.mockResolvedValue(workspace(new Date()));
-    cmoSubscriptionFindFirst.mockResolvedValue({ id: "subscription-1" });
+    polarSubscriptionFindFirst.mockResolvedValue({ id: "subscription-1" });
     expect(
       await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
     ).toBeNull();
@@ -142,7 +142,7 @@ describe("readCmoBilling", () => {
       pendingTier: null,
       hiredWithStarterCredits: false,
     });
-    expect(cmoSubscriptionFindFirst).toHaveBeenCalledWith(
+    expect(polarSubscriptionFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { projectId: "project-1", endedAt: null },
       }),
@@ -151,7 +151,7 @@ describe("readCmoBilling", () => {
   });
 
   it("reads the plan from the Project's subscription that has not ended", async () => {
-    cmoSubscriptionFindFirst.mockResolvedValue({
+    polarSubscriptionFindFirst.mockResolvedValue({
       ...row,
       interval: "year",
       status: "past_due",
@@ -169,7 +169,7 @@ describe("readCmoBilling", () => {
   });
 
   it("names the tier a scheduled downgrade moves to", async () => {
-    cmoSubscriptionFindFirst.mockResolvedValue({
+    polarSubscriptionFindFirst.mockResolvedValue({
       ...row,
       pendingPolarProductId: "prod_starter_month",
     });

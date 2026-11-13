@@ -832,7 +832,7 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
         VALUES (
           'txhist-cmo-bucket', NOW(), NOW(), ${25_000n * CREDIT}, 'tx-cmo-grant', ${ORGANIZATION_ID},
           ${organizationProjectId}::uuid, 'order_1:0',
-          'CMO_SUBSCRIPTION_MONTH'::"CreditBucketReferenceType", 'Growth'
+          'POLAR_SUBSCRIPTION_MONTH'::"CreditBucketReferenceType", 'Growth'
         )
       `;
       await tx.$executeRaw`
@@ -867,7 +867,7 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
           "tx-cmo-grant",
           "topUp",
           organizationProjectId,
-          "CMO_SUBSCRIPTION_MONTH",
+          "POLAR_SUBSCRIPTION_MONTH",
         ],
       ]);
       expect(rows.map((row) => mapTransactionHistoryRow(row))[1]).toMatchObject(

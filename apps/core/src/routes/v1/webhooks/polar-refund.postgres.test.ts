@@ -19,7 +19,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import type { EnvVariables } from "@/lib/hono";
-import { syncCmoYearlyGrants } from "@/services/cmo-yearly-grant-sync.service";
+import { syncPolarYearlyGrants } from "@/services/polar-yearly-grant-sync.service";
 
 import router from "./index";
 
@@ -73,7 +73,7 @@ async function grantMonth(
           organizationId: ORGANIZATION,
           projectId: PROJECT,
           referenceId: `${orderId}:${monthIndex}`,
-          referenceType: "CMO_SUBSCRIPTION_MONTH",
+          referenceType: "POLAR_SUBSCRIPTION_MONTH",
         },
       },
     },
@@ -148,7 +148,7 @@ describe.skipIf(!db)("order.refunded against PostgreSQL", () => {
 
   afterAll(async () => {
     if (!db) return;
-    await db.cmoSubscription.deleteMany({ where: { projectId: PROJECT } });
+    await db.polarSubscription.deleteMany({ where: { projectId: PROJECT } });
     // Buckets and consumptions go with their transactions.
     await db.transaction.deleteMany({
       where: { organizationId: ORGANIZATION },
@@ -248,7 +248,7 @@ describe.skipIf(!db)("order.refunded against PostgreSQL", () => {
     };
 
     async function row() {
-      return await database().cmoSubscription.findUniqueOrThrow({
+      return await database().polarSubscription.findUniqueOrThrow({
         where: { polarSubscriptionId: SUBSCRIPTION_ID },
         select: { lastPaidOrderId: true, lastPaidOrderRefundedAt: true },
       });
@@ -257,8 +257,9 @@ describe.skipIf(!db)("order.refunded against PostgreSQL", () => {
     beforeAll(async () => {
       if (!db) return;
       m.listPolarProducts.mockResolvedValue([PRODUCT]);
-      await db.cmoSubscription.create({
+      await db.polarSubscription.create({
         data: {
+          kind: "CMO",
           projectId: PROJECT,
           organizationId: ORGANIZATION,
           polarSubscriptionId: SUBSCRIPTION_ID,
@@ -280,7 +281,7 @@ describe.skipIf(!db)("order.refunded against PostgreSQL", () => {
       expect(await refund(ORDER)).toBe(200);
 
       expect((await row()).lastPaidOrderRefundedAt).not.toBeNull();
-      await syncCmoYearlyGrants(() => true);
+      await syncPolarYearlyGrants(() => true);
       expect(
         await database().creditBucket.count({
           where: { referenceId: `${ORDER}:1` },

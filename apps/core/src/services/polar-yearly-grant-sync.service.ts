@@ -5,19 +5,19 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 import { getCmoCatalog } from "@/services/cmo-catalog.service";
-import { grantCmoCredits } from "@/services/cmo-credit-grant.service";
+import { grantPolarCredits } from "@/services/polar-credit-grant.service";
 
 /**
  * A yearly CMO plan is paid once a year and granted month by month (ADR 0068).
  * The paid order grants month 0; this job grants months 1 to 11.
  */
 
-const LOG_PREFIX = "[sync/cmo-yearly-grants]";
+const LOG_PREFIX = "[sync/polar-yearly-grants]";
 
 /** The last month a yearly order pays for. */
 const LAST_MONTH_INDEX = 11;
 
-export interface CmoYearlyGrantSyncResult {
+export interface PolarYearlyGrantSyncResult {
   errors: number;
   granted: number;
   stoppedEarly: boolean;
@@ -70,7 +70,7 @@ function startedMonths(
  * the prorated rest, where this job would grant the whole month at the new
  * tier. A month granted already ends on the bucket's unique key.
  */
-export async function grantStartedCmoYearlyMonths(
+export async function grantStartedPolarYearlyMonths(
   subscription: {
     id: string;
     projectId: string;
@@ -86,15 +86,15 @@ export async function grantStartedCmoYearlyMonths(
     paidOrderId,
     new Date(),
   )) {
-    await grantCmoCredits({
+    await grantPolarCredits({
       amount: convertCreditsToCents(plan.credits),
       expiresAt: month.expiresAt,
       organizationId: subscription.organizationId,
       projectId: subscription.projectId,
       referenceId: month.referenceId,
       referenceNote: plan.name,
-      referenceType: CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH,
-      subscription: { cmoSubscriptionId: subscription.id, paidOrderId },
+      referenceType: CreditBucketReferenceType.POLAR_SUBSCRIPTION_MONTH,
+      subscription: { subscriptionRowId: subscription.id, paidOrderId },
     });
   }
 }
@@ -107,13 +107,13 @@ export async function grantStartedCmoYearlyMonths(
  * unique key (last paid order id and month index), so a repeated or raced
  * run ends there.
  */
-export async function syncCmoYearlyGrants(
+export async function syncPolarYearlyGrants(
   shouldContinue: () => boolean,
-): Promise<CmoYearlyGrantSyncResult> {
+): Promise<PolarYearlyGrantSyncResult> {
   const now = new Date();
   // Past due and ended subscriptions are not `active`; one with a scheduled
   // cancel is, until its paid year ends.
-  const subscriptions = await prisma.cmoSubscription.findMany({
+  const subscriptions = await prisma.polarSubscription.findMany({
     where: {
       interval: "year",
       status: "active",
@@ -132,16 +132,16 @@ export async function syncCmoYearlyGrants(
     },
   });
   const due = subscriptions.flatMap((subscription) => {
-    const paidOrderId = subscription.lastPaidOrderId;
-    if (!paidOrderId) return [];
+    const { lastPaidOrderId: paidOrderId, projectId } = subscription;
+    if (!paidOrderId || !projectId) return [];
     return startedMonths(subscription.currentPeriodStart, paidOrderId, now).map(
-      (month) => ({ ...subscription, ...month, paidOrderId }),
+      (month) => ({ ...subscription, ...month, paidOrderId, projectId }),
     );
   });
   const result = { errors: 0, granted: 0, stoppedEarly: false };
   if (due.length === 0) return result;
 
-  const referenceType = CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH;
+  const referenceType = CreditBucketReferenceType.POLAR_SUBSCRIPTION_MONTH;
   const granted = new Set(
     (
       await prisma.creditBucket.findMany({
@@ -167,9 +167,9 @@ export async function syncCmoYearlyGrants(
     if (!plan) {
       Sentry.captureMessage("CMO yearly grant skipped: unknown plan product", {
         level: "error",
-        tags: { error_type: "cmo_yearly_grant_skipped" },
+        tags: { error_type: "polar_yearly_grant_skipped" },
         extra: {
-          cmoSubscriptionId: grant.id,
+          subscriptionRowId: grant.id,
           polarProductId: grant.polarProductId,
         },
       });
@@ -177,7 +177,7 @@ export async function syncCmoYearlyGrants(
       continue;
     }
     try {
-      const granted = await grantCmoCredits({
+      const granted = await grantPolarCredits({
         amount: convertCreditsToCents(plan.credits),
         expiresAt: grant.expiresAt,
         organizationId: grant.organizationId,
@@ -186,7 +186,7 @@ export async function syncCmoYearlyGrants(
         referenceNote: plan.name,
         referenceType,
         subscription: {
-          cmoSubscriptionId: grant.id,
+          subscriptionRowId: grant.id,
           paidOrderId: grant.paidOrderId,
         },
       });

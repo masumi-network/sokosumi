@@ -21,7 +21,7 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import {
   revokeCusoSubscription,
   revokeSubscriptionsLeftByEnding,
-} from "@/services/cmo-subscription-end.service";
+} from "@/services/polar-subscription-end.service";
 import { revokeSokoBotIntegrationAccounts } from "@/services/soko-bot-integrations.service";
 
 /**

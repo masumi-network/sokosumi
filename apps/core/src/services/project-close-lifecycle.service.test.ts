@@ -53,7 +53,7 @@ const { revokeSubscriptionMock, revokeLeftByEndingMock } = vi.hoisted(() => ({
   revokeSubscriptionMock: vi.fn(),
   revokeLeftByEndingMock: vi.fn(),
 }));
-vi.mock("@/services/cmo-subscription-end.service", () => ({
+vi.mock("@/services/polar-subscription-end.service", () => ({
   revokeProjectCusoSubscription: revokeSubscriptionMock,
   revokeSubscriptionsLeftByEnding: revokeLeftByEndingMock,
 }));

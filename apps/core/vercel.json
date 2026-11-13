@@ -134,7 +134,7 @@
       "schedule": "*/10 * * * *"
     },
     {
-      "path": "/sync/cmo-yearly-grants",
+      "path": "/sync/polar-yearly-grants",
       "schedule": "*/5 * * * *"
     },
     {

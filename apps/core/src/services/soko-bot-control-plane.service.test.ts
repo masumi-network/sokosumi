@@ -159,7 +159,7 @@ const { revokeSubscriptionMock, revokeSubscriptionIfLeavingCmoMock } =
     revokeSubscriptionMock: vi.fn(),
     revokeSubscriptionIfLeavingCmoMock: vi.fn(),
   }));
-vi.mock("@/services/cmo-subscription-end.service", () => ({
+vi.mock("@/services/polar-subscription-end.service", () => ({
   revokeCusoSubscription: revokeSubscriptionMock,
   revokeCusoSubscriptionIfLeavingCmo: revokeSubscriptionIfLeavingCmoMock,
   revokeSubscriptionsLeftByEnding: vi.fn(),

@@ -5,14 +5,14 @@ import { forbidden, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { accepted, ok } from "@/helpers/response";
 import { defaultValidationHook } from "@/lib/hono";
+import { handlePolarTopUpPaid } from "@/services/cmo-top-up.service";
 import {
   handlePolarOrderPaid,
   handlePolarOrderRefunded,
   handlePolarPlanChangePaid,
   handlePolarSubscriptionEvent,
-  isCmoSubscriptionEvent,
-} from "@/services/cmo-subscription.service";
-import { handlePolarTopUpPaid } from "@/services/cmo-top-up.service";
+  isPolarSubscriptionEvent,
+} from "@/services/polar-subscription.service";
 
 const receivedSchema = z.object({ received: z.boolean() });
 
@@ -66,7 +66,7 @@ app.openapi(route, async (c) => {
     }
   } else if (event.type === "order.refunded") {
     await handlePolarOrderRefunded(event);
-  } else if (isCmoSubscriptionEvent(event)) {
+  } else if (isPolarSubscriptionEvent(event)) {
     await handlePolarSubscriptionEvent(event);
   } else {
     return accepted(c, { received: true });

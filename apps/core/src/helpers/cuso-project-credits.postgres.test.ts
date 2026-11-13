@@ -94,7 +94,7 @@ describe.skipIf(!db)("writeOffProjectCredits against PostgreSQL", () => {
   it("writes off plan grants, top-ups and Starter credits, and keeps the pool", async () => {
     if (!db) throw new Error("Missing integration database");
     const plan = await grant(
-      CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH,
+      CreditBucketReferenceType.POLAR_SUBSCRIPTION_MONTH,
       25_000n,
       PROJECT,
     );

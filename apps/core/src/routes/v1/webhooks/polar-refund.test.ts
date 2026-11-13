@@ -17,7 +17,7 @@ const m = vi.hoisted(() => ({
     $executeRaw: vi.fn(),
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
-    cmoSubscription: { updateMany: vi.fn() },
+    polarSubscription: { updateMany: vi.fn() },
     creditBucket: { findMany: vi.fn() },
     transaction: { create: vi.fn() },
   },
@@ -112,7 +112,7 @@ describe("POST /v1/webhooks/polar on order.refunded", () => {
     expect(m.prisma.creditBucket.findMany).toHaveBeenCalledExactlyOnceWith({
       where: {
         referenceId: { startsWith: "order_1:" },
-        referenceType: { in: ["CMO_SUBSCRIPTION_MONTH", "PROJECT_TOP_UP"] },
+        referenceType: { in: ["POLAR_SUBSCRIPTION_MONTH", "PROJECT_TOP_UP"] },
       },
       select: { id: true },
     });
@@ -173,9 +173,7 @@ describe("POST /v1/webhooks/polar on order.refunded", () => {
 
     expect(response.status).toBe(200);
     const [sql, ...values] = m.prisma.$executeRaw.mock.calls[0] ?? [];
-    expect((sql as string[]).join("?")).toMatch(
-      /INSERT INTO "cmo_polar_order"/,
-    );
+    expect((sql as string[]).join("?")).toMatch(/INSERT INTO "polar_order"/);
     expect(values).toEqual(["order_1", new Date("2026-11-20T09:00:00.000Z")]);
     expect(m.prisma.$queryRaw).not.toHaveBeenCalled();
     expect(writeOffs()).toEqual([]);

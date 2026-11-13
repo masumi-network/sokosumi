@@ -17,8 +17,8 @@ const m = vi.hoisted(() => ({
   prisma: {
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
-    cmoPolarOrder: { findUnique: vi.fn() },
-    cmoSubscription: {
+    polarOrder: { findUnique: vi.fn() },
+    polarSubscription: {
       create: vi.fn(),
       findFirst: vi.fn(),
       findUnique: vi.fn(),
@@ -50,6 +50,7 @@ const BODY = JSON.stringify({ type: "order.paid", data: { id: "order_1" } });
 const ORGANIZATION_ID = "org_1";
 const PROJECT_ID = "0190a000-0000-7000-8000-000000000001";
 const METADATA = {
+  kind: "plan",
   projectId: PROJECT_ID,
   organizationId: ORGANIZATION_ID,
   userId: "user_1",
@@ -149,9 +150,9 @@ beforeEach(() => {
     },
   ]);
   m.prisma.sokoBot.findFirst.mockResolvedValue({ id: "bot_1" });
-  m.prisma.cmoSubscription.updateMany.mockResolvedValue({ count: 0 });
-  m.prisma.cmoSubscription.findUnique.mockResolvedValue(null);
-  m.prisma.cmoSubscription.create.mockResolvedValue(ROW);
+  m.prisma.polarSubscription.updateMany.mockResolvedValue({ count: 0 });
+  m.prisma.polarSubscription.findUnique.mockResolvedValue(null);
+  m.prisma.polarSubscription.create.mockResolvedValue(ROW);
   m.prisma.project.findFirst.mockResolvedValue({ id: PROJECT_ID });
   m.prisma.task.findMany.mockResolvedValue([]);
   m.prisma.transaction.create.mockResolvedValue({ id: "tx_1" });
@@ -225,7 +226,7 @@ describe("POST /v1/webhooks/polar", () => {
             projectId: PROJECT_ID,
             referenceId: "order_1:0",
             referenceNote: "Growth",
-            referenceType: "CMO_SUBSCRIPTION_MONTH",
+            referenceType: "POLAR_SUBSCRIPTION_MONTH",
             userId: null,
           },
         },
@@ -237,21 +238,24 @@ describe("POST /v1/webhooks/polar", () => {
 
       await post();
 
-      expect(m.prisma.cmoSubscription.create.mock.calls[0]?.[0].data).toEqual({
-        cancelAtPeriodEnd: false,
-        currentPeriodEnd: new Date("2026-12-13T10:00:00.000Z"),
-        currentPeriodStart: new Date("2026-11-13T10:00:00.000Z"),
-        endedAt: null,
-        interval: "month",
-        organizationId: ORGANIZATION_ID,
-        polarEventAt: new Date("2026-11-13T10:00:05.000Z"),
-        polarProductId: "prod_growth_month",
-        polarSubscriptionId: "sub_1",
-        projectId: PROJECT_ID,
-        status: "active",
-        tier: "growth",
-      });
-      expect(m.prisma.cmoSubscription.updateMany).toHaveBeenLastCalledWith(
+      expect(m.prisma.polarSubscription.create.mock.calls[0]?.[0].data).toEqual(
+        {
+          cancelAtPeriodEnd: false,
+          currentPeriodEnd: new Date("2026-12-13T10:00:00.000Z"),
+          currentPeriodStart: new Date("2026-11-13T10:00:00.000Z"),
+          endedAt: null,
+          interval: "month",
+          kind: "CMO",
+          organizationId: ORGANIZATION_ID,
+          polarEventAt: new Date("2026-11-13T10:00:05.000Z"),
+          polarProductId: "prod_growth_month",
+          polarSubscriptionId: "sub_1",
+          projectId: PROJECT_ID,
+          status: "active",
+          tier: "growth",
+        },
+      );
+      expect(m.prisma.polarSubscription.updateMany).toHaveBeenLastCalledWith(
         expect.objectContaining({
           data: {
             lastPaidAt: new Date("2026-11-13T10:00:05.000Z"),
@@ -283,7 +287,7 @@ describe("POST /v1/webhooks/polar", () => {
     });
 
     it("starts a renewed yearly plan's twelve months again with the renewal order", async () => {
-      m.prisma.cmoSubscription.findUnique.mockResolvedValue(ROW);
+      m.prisma.polarSubscription.findUnique.mockResolvedValue(ROW);
       m.verifyPolarWebhook.mockResolvedValue(
         orderPaid({
           id: "order_2",
@@ -306,7 +310,7 @@ describe("POST /v1/webhooks/polar", () => {
         expiresAt: new Date("2027-12-13T10:00:00.000Z"),
         referenceId: "order_2:0",
       });
-      expect(m.prisma.cmoSubscription.updateMany).toHaveBeenLastCalledWith(
+      expect(m.prisma.polarSubscription.updateMany).toHaveBeenLastCalledWith(
         expect.objectContaining({
           data: {
             lastPaidAt: new Date("2026-11-13T10:00:05.000Z"),
@@ -319,9 +323,9 @@ describe("POST /v1/webhooks/polar", () => {
 
     it("grants nothing for an order Polar refunded before its payment arrived", async () => {
       const refundedAt = new Date("2026-11-13T10:00:01.000Z");
-      m.prisma.cmoPolarOrder.findUnique.mockResolvedValue({ refundedAt });
+      m.prisma.polarOrder.findUnique.mockResolvedValue({ refundedAt });
       m.prisma.$queryRaw.mockImplementation(async (sql: string[]) =>
-        sql.join("?").includes("cmo_polar_order")
+        sql.join("?").includes("polar_order")
           ? [{ refundedAt }]
           : [
               {
@@ -338,7 +342,7 @@ describe("POST /v1/webhooks/polar", () => {
       expect(response.status).toBe(200);
       expect(m.prisma.transaction.create).not.toHaveBeenCalled();
       // Still the last paid order, marked refunded: a yearly plan grants no month of it.
-      expect(m.prisma.cmoSubscription.updateMany).toHaveBeenLastCalledWith(
+      expect(m.prisma.polarSubscription.updateMany).toHaveBeenLastCalledWith(
         expect.objectContaining({
           data: {
             lastPaidAt: new Date("2026-11-13T10:00:05.000Z"),
@@ -352,7 +356,7 @@ describe("POST /v1/webhooks/polar", () => {
 
     it("takes the Project from the stored subscription before the order's metadata", async () => {
       const storedProjectId = "0190a000-0000-7000-8000-000000000002";
-      m.prisma.cmoSubscription.findUnique.mockResolvedValue({
+      m.prisma.polarSubscription.findUnique.mockResolvedValue({
         ...ROW,
         projectId: storedProjectId,
       });
@@ -360,12 +364,12 @@ describe("POST /v1/webhooks/polar", () => {
 
       await post();
 
-      expect(m.prisma.cmoSubscription.create).not.toHaveBeenCalled();
+      expect(m.prisma.polarSubscription.create).not.toHaveBeenCalled();
       expect(grant().sourceCreditBucket.create.projectId).toBe(storedProjectId);
     });
 
     it("answers 200 and grants nothing more when the order is delivered again", async () => {
-      m.prisma.cmoSubscription.findUnique.mockResolvedValue(ROW);
+      m.prisma.polarSubscription.findUnique.mockResolvedValue(ROW);
       m.prisma.transaction.create.mockRejectedValue(
         Object.assign(new Error("Unique constraint failed"), {
           code: "P2002",
@@ -381,7 +385,7 @@ describe("POST /v1/webhooks/polar", () => {
     });
 
     it("grants nothing and reports a payment for a subscription that has ended", async () => {
-      m.prisma.cmoSubscription.findUnique.mockResolvedValue(ROW);
+      m.prisma.polarSubscription.findUnique.mockResolvedValue(ROW);
       m.prisma.$queryRaw.mockResolvedValue([
         {
           projectId: PROJECT_ID,
@@ -403,7 +407,7 @@ describe("POST /v1/webhooks/polar", () => {
     });
 
     it("grants nothing and reports a payment for a Cuso no longer live", async () => {
-      m.prisma.cmoSubscription.findUnique.mockResolvedValue(ROW);
+      m.prisma.polarSubscription.findUnique.mockResolvedValue(ROW);
       m.prisma.sokoBot.findFirst.mockResolvedValue(null);
       m.verifyPolarWebhook.mockResolvedValue(orderPaid());
 
@@ -415,7 +419,7 @@ describe("POST /v1/webhooks/polar", () => {
     });
 
     it("answers 500 for a unique violation on any other key, so Polar delivers again", async () => {
-      m.prisma.cmoSubscription.findUnique.mockResolvedValue(ROW);
+      m.prisma.polarSubscription.findUnique.mockResolvedValue(ROW);
       m.prisma.transaction.create.mockRejectedValue(
         Object.assign(new Error("Unique constraint failed"), {
           code: "P2002",
@@ -459,7 +463,7 @@ describe("POST /v1/webhooks/polar", () => {
 
         expect(response.status).toBe(200);
         expect(m.captureMessage).toHaveBeenCalledTimes(1);
-        expect(m.prisma.cmoSubscription.create).not.toHaveBeenCalled();
+        expect(m.prisma.polarSubscription.create).not.toHaveBeenCalled();
         expect(m.prisma.transaction.create).not.toHaveBeenCalled();
       },
     );
@@ -507,26 +511,29 @@ describe("POST /v1/webhooks/polar", () => {
       const response = await post();
 
       expect(response.status).toBe(200);
-      expect(m.prisma.cmoSubscription.create.mock.calls[0]?.[0].data).toEqual({
-        cancelAtPeriodEnd: true,
-        currentPeriodEnd: new Date("2026-12-13T10:00:00.000Z"),
-        currentPeriodStart: new Date("2026-11-13T10:00:00.000Z"),
-        endedAt: null,
-        interval: "month",
-        organizationId: ORGANIZATION_ID,
-        pendingPolarProductId: "prod_starter_month",
-        polarEventAt: new Date("2026-11-13T10:00:03.000Z"),
-        polarProductId: "prod_growth_month",
-        polarSubscriptionId: "sub_1",
-        projectId: PROJECT_ID,
-        status: "active",
-        tier: "growth",
-      });
+      expect(m.prisma.polarSubscription.create.mock.calls[0]?.[0].data).toEqual(
+        {
+          cancelAtPeriodEnd: true,
+          currentPeriodEnd: new Date("2026-12-13T10:00:00.000Z"),
+          currentPeriodStart: new Date("2026-11-13T10:00:00.000Z"),
+          endedAt: null,
+          interval: "month",
+          kind: "CMO",
+          organizationId: ORGANIZATION_ID,
+          pendingPolarProductId: "prod_starter_month",
+          polarEventAt: new Date("2026-11-13T10:00:03.000Z"),
+          polarProductId: "prod_growth_month",
+          polarSubscriptionId: "sub_1",
+          projectId: PROJECT_ID,
+          status: "active",
+          tier: "growth",
+        },
+      );
       expect(m.prisma.transaction.create).not.toHaveBeenCalled();
     });
 
     it("writes a stored subscription only when the payload is not older than its state", async () => {
-      m.prisma.cmoSubscription.findUnique.mockResolvedValue(ROW);
+      m.prisma.polarSubscription.findUnique.mockResolvedValue(ROW);
       m.verifyPolarWebhook.mockResolvedValue(
         subscriptionEvent("subscription.updated", "2026-11-13T10:00:03.000Z", {
           status: "past_due",
@@ -536,7 +543,7 @@ describe("POST /v1/webhooks/polar", () => {
       const response = await post();
 
       expect(response.status).toBe(200);
-      expect(m.prisma.cmoSubscription.updateMany).toHaveBeenCalledWith({
+      expect(m.prisma.polarSubscription.updateMany).toHaveBeenCalledWith({
         where: {
           polarSubscriptionId: "sub_1",
           polarEventAt: { lte: new Date("2026-11-13T10:00:03.000Z") },
@@ -547,7 +554,7 @@ describe("POST /v1/webhooks/polar", () => {
           status: "past_due",
         }),
       });
-      expect(m.prisma.cmoSubscription.create).not.toHaveBeenCalled();
+      expect(m.prisma.polarSubscription.create).not.toHaveBeenCalled();
     });
 
     it("marks a subscription ended when Polar's status says so", async () => {
@@ -561,7 +568,7 @@ describe("POST /v1/webhooks/polar", () => {
       await post();
 
       expect(
-        m.prisma.cmoSubscription.create.mock.calls[0]?.[0].data.endedAt,
+        m.prisma.polarSubscription.create.mock.calls[0]?.[0].data.endedAt,
       ).toEqual(new Date("2026-11-13T10:00:02.000Z"));
     });
 
@@ -577,7 +584,24 @@ describe("POST /v1/webhooks/polar", () => {
 
       expect(response.status).toBe(200);
       expect(m.captureMessage).toHaveBeenCalledTimes(1);
-      expect(m.prisma.cmoSubscription.create).not.toHaveBeenCalled();
+      expect(m.prisma.polarSubscription.create).not.toHaveBeenCalled();
+    });
+
+    it("records no subscription whose checkout was not a CMO plan's", async () => {
+      m.verifyPolarWebhook.mockResolvedValue(
+        subscriptionEvent("subscription.created", "2026-11-13T10:00:03.000Z", {
+          metadata: { ...METADATA, kind: "top-up" },
+        }),
+      );
+
+      const response = await post();
+
+      expect(response.status).toBe(200);
+      expect(m.captureMessage).toHaveBeenCalledExactlyOnceWith(
+        expect.stringContaining("not a CMO plan"),
+        expect.anything(),
+      );
+      expect(m.prisma.polarSubscription.create).not.toHaveBeenCalled();
     });
 
     it("reports a subscription for an unknown Project to Sentry and acknowledges it", async () => {
@@ -590,7 +614,7 @@ describe("POST /v1/webhooks/polar", () => {
 
       expect(response.status).toBe(200);
       expect(m.captureMessage).toHaveBeenCalledTimes(1);
-      expect(m.prisma.cmoSubscription.create).not.toHaveBeenCalled();
+      expect(m.prisma.polarSubscription.create).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -602,12 +626,12 @@ describe("POST /v1/webhooks/polar", () => {
     ])(
       "%s of a second live subscription for one Project revokes it at Polar and grants nothing",
       async (_type, event) => {
-        m.prisma.cmoSubscription.create.mockRejectedValue(
+        m.prisma.polarSubscription.create.mockRejectedValue(
           Object.assign(new Error("Unique constraint failed"), {
             code: "P2002",
           }),
         );
-        m.prisma.cmoSubscription.findFirst.mockResolvedValue({
+        m.prisma.polarSubscription.findFirst.mockResolvedValue({
           polarSubscriptionId: "sub_0",
         });
         m.verifyPolarWebhook.mockResolvedValue(event);
@@ -650,7 +674,7 @@ describe("POST /v1/webhooks/polar", () => {
         expect(m.revokePolarSubscription).toHaveBeenCalledExactlyOnceWith(
           "sub_1",
         );
-        expect(m.prisma.cmoSubscription.updateMany).toHaveBeenLastCalledWith({
+        expect(m.prisma.polarSubscription.updateMany).toHaveBeenLastCalledWith({
           where: { id: ROW.id, endedAt: null },
           data: {
             status: "canceled",
@@ -674,7 +698,7 @@ describe("POST /v1/webhooks/polar", () => {
       await post();
 
       expect(
-        m.prisma.cmoSubscription.create.mock.invocationCallOrder[0] ?? 0,
+        m.prisma.polarSubscription.create.mock.invocationCallOrder[0] ?? 0,
       ).toBeLessThan(
         m.prisma.sokoBot.findFirst.mock.invocationCallOrder[0] ?? 0,
       );
@@ -682,7 +706,7 @@ describe("POST /v1/webhooks/polar", () => {
     });
 
     it("revokes a stored subscription whose Cuso ended without it", async () => {
-      m.prisma.cmoSubscription.findUnique.mockResolvedValue({
+      m.prisma.polarSubscription.findUnique.mockResolvedValue({
         ...ROW,
         endedAt: null,
       });
@@ -701,10 +725,12 @@ describe("POST /v1/webhooks/polar", () => {
 
     it("records a subscription that Polar already ended for an ended Cuso without revoking it", async () => {
       m.prisma.sokoBot.findFirst.mockResolvedValue(null);
-      m.prisma.cmoSubscription.create.mockImplementation(async ({ data }) => ({
-        ...ROW,
-        endedAt: data.endedAt,
-      }));
+      m.prisma.polarSubscription.create.mockImplementation(
+        async ({ data }) => ({
+          ...ROW,
+          endedAt: data.endedAt,
+        }),
+      );
       m.verifyPolarWebhook.mockResolvedValue(
         subscriptionEvent("subscription.revoked", "2026-11-13T10:00:03.000Z", {
           status: "canceled",
@@ -717,15 +743,15 @@ describe("POST /v1/webhooks/polar", () => {
       expect(response.status).toBe(200);
       expect(m.revokePolarSubscription).not.toHaveBeenCalled();
       expect(
-        m.prisma.cmoSubscription.create.mock.calls[0]?.[0].data.endedAt,
+        m.prisma.polarSubscription.create.mock.calls[0]?.[0].data.endedAt,
       ).toEqual(new Date("2026-11-13T10:00:02.000Z"));
     });
 
     it("leaves the subscription to Polar's retry when the revoke fails", async () => {
-      m.prisma.cmoSubscription.create.mockRejectedValue(
+      m.prisma.polarSubscription.create.mockRejectedValue(
         Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
       );
-      m.prisma.cmoSubscription.findFirst.mockResolvedValue({
+      m.prisma.polarSubscription.findFirst.mockResolvedValue({
         polarSubscriptionId: "sub_0",
       });
       m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));

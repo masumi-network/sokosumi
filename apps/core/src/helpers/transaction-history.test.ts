@@ -289,7 +289,7 @@ describe("mapTransactionHistoryRow refund rows", () => {
     expect(
       map(
         refundRow({
-          topUpSource: "CMO_SUBSCRIPTION_MONTH",
+          topUpSource: "POLAR_SUBSCRIPTION_MONTH",
           topUpNote: "Growth",
           projectId: "01960001-0001-7001-8001-000000000042",
         }),

@@ -54,7 +54,7 @@ vi.mock("@/lib/db/prisma", () => ({
         },
       }),
     },
-    cmoSubscription: { findFirst: m.subscription },
+    polarSubscription: { findFirst: m.subscription },
   },
 }));
 

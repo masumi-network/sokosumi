@@ -73,7 +73,7 @@ vi.mock("@/helpers/deletion-evaluate", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/helpers/deletion-evaluate")>()),
   evaluateOrganizationDeletion: mocks.evaluateOrganizationDeletion,
 }));
-vi.mock("@/services/cmo-subscription-end.service", () => ({
+vi.mock("@/services/polar-subscription-end.service", () => ({
   revokeOrganizationCusoSubscriptions:
     mocks.revokeOrganizationCusoSubscriptions,
 }));

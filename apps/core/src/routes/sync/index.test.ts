@@ -22,7 +22,7 @@ const {
   purgeExpiredTaskX402PaymentHeadersMock,
   purgeExpiredVerificationsMock,
   syncProjectClosesMock,
-  syncCmoYearlyGrantsMock,
+  syncPolarYearlyGrantsMock,
   releaseDueTaskSchedulesMock,
   releaseDueRunAtsMock,
 } = vi.hoisted(() => ({
@@ -31,7 +31,7 @@ const {
   acquireLockMock: vi.fn(),
   syncCardanoV2RailReadinessMock: vi.fn(),
   syncCalendarInvalidationsMock: vi.fn(),
-  syncCmoYearlyGrantsMock: vi.fn(),
+  syncPolarYearlyGrantsMock: vi.fn(),
   syncEnterpriseContractRenewalMock: vi.fn(),
   syncFreeSubscriptionRenewalMock: vi.fn(),
   releaseLockMock: vi.fn(),
@@ -158,8 +158,8 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("@/services/cmo-yearly-grant-sync.service", () => ({
-  syncCmoYearlyGrants: syncCmoYearlyGrantsMock,
+vi.mock("@/services/polar-yearly-grant-sync.service", () => ({
+  syncPolarYearlyGrants: syncPolarYearlyGrantsMock,
 }));
 
 vi.mock("@/services/free-subscription-sync.service", () => ({
@@ -281,7 +281,7 @@ describe("sync routes", () => {
     });
     syncSourceImportMock.mockResolvedValue(3);
     syncFreeSubscriptionRenewalMock.mockResolvedValue(undefined);
-    syncCmoYearlyGrantsMock.mockResolvedValue({
+    syncPolarYearlyGrantsMock.mockResolvedValue({
       errors: 0,
       granted: 0,
       stoppedEarly: false,
@@ -656,16 +656,18 @@ describe("sync routes", () => {
     const app = createApp();
 
     const response = await app.request(
-      "http://localhost/sync/cmo-yearly-grants",
+      "http://localhost/sync/polar-yearly-grants",
       { headers: { Authorization: "Bearer test-cron-secret" } },
     );
 
     expect(response.status).toBe(200);
-    expect(acquireLockMock).toHaveBeenCalledWith("cmo-yearly-grants-sync");
+    expect(acquireLockMock).toHaveBeenCalledWith("polar-yearly-grants-sync");
 
     await flushMicrotasks();
-    expect(syncCmoYearlyGrantsMock).toHaveBeenCalledTimes(1);
-    expect(syncCmoYearlyGrantsMock).toHaveBeenCalledWith(expect.any(Function));
+    expect(syncPolarYearlyGrantsMock).toHaveBeenCalledTimes(1);
+    expect(syncPolarYearlyGrantsMock).toHaveBeenCalledWith(
+      expect.any(Function),
+    );
   });
 
   it("returns 200 and starts free-subscription renewal sync exactly once in background", async () => {

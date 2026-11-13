@@ -37,11 +37,11 @@ const optInPostgresFiles = [
   "src/routes/v1/webhooks/polar-refund.postgres.test.ts",
   "src/routes/v1/webhooks/polar.renewals.postgres.test.ts",
   "src/routes/v1/webhooks/polar-top-up.postgres.test.ts",
-  "src/services/cmo-credit-grant.postgres.test.ts",
+  "src/services/polar-credit-grant.postgres.test.ts",
   "src/services/cmo-free-hiring.postgres.test.ts",
-  "src/services/cmo-plan-change.postgres.test.ts",
-  "src/services/cmo-subscription-end.postgres.test.ts",
-  "src/services/cmo-yearly-grant-sync.postgres.test.ts",
+  "src/services/polar-plan-change.postgres.test.ts",
+  "src/services/polar-subscription-end.postgres.test.ts",
+  "src/services/polar-yearly-grant-sync.postgres.test.ts",
 ];
 
 const optInIntegrationFiles = [

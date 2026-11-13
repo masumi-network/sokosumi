@@ -3,7 +3,7 @@
  * ending never leaves an active subscription on an ended Cuso (ADR 0068).
  *
  *   RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… \
- *     pnpm --filter core test src/services/cmo-subscription-end.postgres.test.ts
+ *     pnpm --filter core test src/services/polar-subscription-end.postgres.test.ts
  *
  * An ending revokes what it finds, archives the Cuso, then revokes what the
  * Project still holds. The webhook writes the subscription before it checks
@@ -22,11 +22,11 @@ import {
   it,
   vi,
 } from "vitest";
-import { handlePolarSubscriptionEvent } from "./cmo-subscription.service";
+import { handlePolarSubscriptionEvent } from "./polar-subscription.service";
 import {
   revokeCusoSubscription,
   revokeSubscriptionsLeftByEnding,
-} from "./cmo-subscription-end.service";
+} from "./polar-subscription-end.service";
 
 const m = vi.hoisted(() => ({ revokePolarSubscription: vi.fn() }));
 
@@ -93,6 +93,7 @@ function subscriptionCreated(cuso: Awaited<ReturnType<typeof hiredCuso>>) {
       pending_update: null,
       customer: { id: "cus_1", external_id: ORGANIZATION },
       metadata: {
+        kind: "plan",
         projectId: cuso.projectId,
         organizationId: ORGANIZATION,
         userId: "user_1",
@@ -110,7 +111,7 @@ async function archive(botId: string) {
 }
 
 async function stored(polarSubscriptionId: string) {
-  return await database().cmoSubscription.findUnique({
+  return await database().polarSubscription.findUnique({
     where: { polarSubscriptionId },
     select: { status: true, endedAt: true },
   });
@@ -131,7 +132,7 @@ describe.skipIf(!db)(
 
     afterAll(async () => {
       if (!db) return;
-      await db.cmoSubscription.deleteMany({
+      await db.polarSubscription.deleteMany({
         where: { organizationId: ORGANIZATION },
       });
       await db.sokoBot.deleteMany({ where: { workspaceId: WORKSPACE } });

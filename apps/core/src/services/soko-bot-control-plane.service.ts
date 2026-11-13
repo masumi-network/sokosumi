@@ -117,12 +117,12 @@ import type {
   SokoBotTurnStartResult,
   StartSokoBotTurnInput,
 } from "@/lib/soko-bot/turn-start";
+import { isNewsletterDraftAvailable } from "@/services/newsletter-draft.service";
 import {
   revokeCusoSubscription,
   revokeCusoSubscriptionIfLeavingCmo,
   revokeSubscriptionsLeftByEnding,
-} from "@/services/cmo-subscription-end.service";
-import { isNewsletterDraftAvailable } from "@/services/newsletter-draft.service";
+} from "@/services/polar-subscription-end.service";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { claimAvatar } from "@/services/soko-bot-avatar.service";
 import {

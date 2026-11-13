@@ -16,7 +16,7 @@ const m = vi.hoisted(() => ({
   prisma: {
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
-    cmoSubscription: {
+    polarSubscription: {
       create: vi.fn(),
       findUnique: vi.fn(),
       updateMany: vi.fn(),
@@ -136,7 +136,7 @@ describe("POST /v1/webhooks/polar: order.paid for a Project top-up", () => {
 
   it("grants nothing for a top-up Polar refunded before its payment arrived", async () => {
     m.prisma.$queryRaw.mockImplementation(async (sql: string[]) =>
-      sql.join("?").includes("cmo_polar_order")
+      sql.join("?").includes("polar_order")
         ? [{ refundedAt: new Date("2026-11-13T10:00:01.000Z") }]
         : [
             {
@@ -174,8 +174,8 @@ describe("POST /v1/webhooks/polar: order.paid for a Project top-up", () => {
 
     await post();
 
-    expect(m.prisma.cmoSubscription.create).not.toHaveBeenCalled();
-    expect(m.prisma.cmoSubscription.updateMany).not.toHaveBeenCalled();
+    expect(m.prisma.polarSubscription.create).not.toHaveBeenCalled();
+    expect(m.prisma.polarSubscription.updateMany).not.toHaveBeenCalled();
   });
 
   it("grants nothing and reports a top-up for a Cuso without a live subscription", async () => {

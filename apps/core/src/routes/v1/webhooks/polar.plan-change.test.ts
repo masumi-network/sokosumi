@@ -22,7 +22,7 @@ const m = vi.hoisted(() => ({
   prisma: {
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
-    cmoSubscription: {
+    polarSubscription: {
       create: vi.fn(),
       findUnique: vi.fn(),
       updateMany: vi.fn(),
@@ -130,7 +130,7 @@ function grants() {
 
 /** Every write to the stored subscription row. */
 function rowWrites() {
-  return m.prisma.cmoSubscription.updateMany.mock.calls.map(
+  return m.prisma.polarSubscription.updateMany.mock.calls.map(
     ([args]) => args.data,
   );
 }
@@ -168,8 +168,8 @@ beforeEach(() => {
     },
   ]);
   m.prisma.sokoBot.findFirst.mockResolvedValue({ id: "bot_1" });
-  m.prisma.cmoSubscription.updateMany.mockResolvedValue({ count: 1 });
-  m.prisma.cmoSubscription.findUnique.mockResolvedValue(ROW);
+  m.prisma.polarSubscription.updateMany.mockResolvedValue({ count: 1 });
+  m.prisma.polarSubscription.findUnique.mockResolvedValue(ROW);
   m.prisma.task.findMany.mockResolvedValue([]);
   m.prisma.transaction.create.mockResolvedValue({ id: "tx_1" });
 });
@@ -190,7 +190,7 @@ describe("POST /v1/webhooks/polar: a paid upgrade", () => {
         projectId: PROJECT_ID,
         referenceId: "order_3:0",
         referenceNote: "Scale",
-        referenceType: "CMO_SUBSCRIPTION_MONTH",
+        referenceType: "POLAR_SUBSCRIPTION_MONTH",
         userId: null,
       },
     ]);

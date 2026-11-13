@@ -10,7 +10,7 @@ import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
  * a top-up pack. The plan grant, the top-up and the yearly grant job share it;
  * only the reference type and the expiry differ.
  */
-export interface CmoCreditGrant {
+export interface PolarCreditGrant {
   amount: bigint;
   expiresAt: Date;
   organizationId: string;
@@ -25,11 +25,11 @@ export interface CmoCreditGrant {
    * Project's subscription that has not ended.
    */
   subscription:
-    | { cmoSubscriptionId: string; paidOrderId?: string }
+    | { subscriptionRowId: string; paidOrderId?: string }
     | { projectId: string };
 }
 
-export type CmoGrantOutcome =
+export type PolarGrantOutcome =
   | "granted"
   | "already_granted"
   | "not_live"
@@ -43,10 +43,10 @@ export type CmoGrantOutcome =
  * order or a Cuso no longer live gets nothing (`not_live`), nor does an order
  * Polar refunded before its payment arrived (`refunded`).
  */
-export async function grantCmoCredits(
-  grant: CmoCreditGrant,
+export async function grantPolarCredits(
+  grant: PolarCreditGrant,
   alsoWrite?: (tx: Prisma.TransactionClient) => Promise<void>,
-): Promise<CmoGrantOutcome> {
+): Promise<PolarGrantOutcome> {
   const { amount, organizationId, projectId } = grant;
   try {
     return await prisma.$transaction(async (tx) => {
@@ -98,7 +98,7 @@ async function isOrderRefunded(
 ): Promise<boolean> {
   const polarOrderId = referenceId.slice(0, referenceId.lastIndexOf(":"));
   const rows = await tx.$queryRaw<{ refundedAt: Date | null }[]>`
-    INSERT INTO "cmo_polar_order" ("polarOrderId") VALUES (${polarOrderId})
+    INSERT INTO "polar_order" ("polarOrderId") VALUES (${polarOrderId})
     ON CONFLICT ("polarOrderId") DO UPDATE SET "polarOrderId" = EXCLUDED."polarOrderId"
     RETURNING "refundedAt"`;
   return Boolean(rows[0]?.refundedAt);
@@ -115,17 +115,17 @@ async function isOrderRefunded(
  */
 async function lockLiveSubscription(
   tx: Prisma.TransactionClient,
-  grant: CmoCreditGrant,
+  grant: PolarCreditGrant,
 ): Promise<boolean> {
   const { subscription } = grant;
   const rows =
-    "cmoSubscriptionId" in subscription
+    "subscriptionRowId" in subscription
       ? await tx.$queryRaw<LockedSubscription[]>`
-          UPDATE "cmo_subscription" SET "updatedAt" = "updatedAt"
-          WHERE "id" = ${subscription.cmoSubscriptionId}::uuid
+          UPDATE "polar_subscription" SET "updatedAt" = "updatedAt"
+          WHERE "id" = ${subscription.subscriptionRowId}::uuid
           RETURNING "endedAt", "lastPaidOrderId", "lastPaidOrderRefundedAt"`
       : await tx.$queryRaw<LockedSubscription[]>`
-          UPDATE "cmo_subscription" SET "updatedAt" = "updatedAt"
+          UPDATE "polar_subscription" SET "updatedAt" = "updatedAt"
           WHERE "projectId" = ${subscription.projectId}::uuid AND "endedAt" IS NULL
           RETURNING "endedAt", "lastPaidOrderId", "lastPaidOrderRefundedAt"`;
   const row = rows[0];

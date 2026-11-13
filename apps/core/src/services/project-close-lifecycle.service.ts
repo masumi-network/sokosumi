@@ -14,7 +14,7 @@ import type {
 import {
   revokeProjectCusoSubscription,
   revokeSubscriptionsLeftByEnding,
-} from "@/services/cmo-subscription-end.service";
+} from "@/services/polar-subscription-end.service";
 import { retireProjectSocialConnectionsForClose } from "@/services/project-social-connections.service";
 import { archiveProjectSokoBotsForClose } from "@/services/project-soko-bots-close.service";
 

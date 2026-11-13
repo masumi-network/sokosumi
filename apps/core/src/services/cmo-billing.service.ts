@@ -28,7 +28,7 @@ function starterCreditsNote(projectId: string): string {
  * not) and was not hired with Starter credits: nobody paid for him yet.
  */
 const UNPAID_CUSO_PROJECT_WHERE = {
-  cmoSubscriptions: { none: {} },
+  polarSubscriptions: { none: {} },
   creditBuckets: {
     none: {
       referenceType: CreditBucketReferenceType.FREE,
@@ -76,13 +76,13 @@ export async function isCmoSubscribed(
   now: Date = new Date(),
   db: Pick<
     Prisma.TransactionClient,
-    "cmoSubscription" | "project" | "creditBucket"
+    "polarSubscription" | "project" | "creditBucket"
   > = prisma,
 ): Promise<boolean> {
   const { projectId } = cuso;
   if (await isEvalCusoProject(projectId)) return true;
   const [subscription, freeHiring, starterBuckets] = await Promise.all([
-    db.cmoSubscription.findFirst({
+    db.polarSubscription.findFirst({
       where: {
         projectId,
         endedAt: null,
@@ -171,7 +171,7 @@ async function cmoPlanTier(productId: string): Promise<string | null> {
 
 export async function readCmoBilling(projectId: string): Promise<CmoBilling> {
   const [subscription, starter] = await Promise.all([
-    prisma.cmoSubscription.findFirst({
+    prisma.polarSubscription.findFirst({
       where: { projectId, endedAt: null },
       select: {
         tier: true,

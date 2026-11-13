@@ -143,8 +143,9 @@ async function subscribe(
   } = {},
 ): Promise<void> {
   const now = new Date();
-  await prisma.cmoSubscription.create({
+  await prisma.polarSubscription.create({
     data: {
+      kind: "CMO",
       projectId: cuso.projectId,
       organizationId: cuso.organizationId,
       polarSubscriptionId: `sub_${randomUUID()}`,

@@ -23,7 +23,7 @@ const m = vi.hoisted(() => ({
   prisma: {
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
-    cmoSubscription: {
+    polarSubscription: {
       findFirst: vi.fn(),
       findUnique: vi.fn(),
       updateMany: vi.fn(),
@@ -123,7 +123,7 @@ function isClaimWrite(args: { data: Record<string, unknown> }) {
 
 /** Every write to the stored subscription row, with its newest-state guard. */
 function rowWrites() {
-  return m.prisma.cmoSubscription.updateMany.mock.calls
+  return m.prisma.polarSubscription.updateMany.mock.calls
     .map(([args]) => args)
     .filter((args) => !isClaimWrite(args));
 }
@@ -184,7 +184,7 @@ beforeEach(() => {
   m.listPolarProducts.mockResolvedValue(PRODUCTS);
   m.changePolarSubscriptionPlan.mockResolvedValue(ok(polarSubscription()));
   m.clearPolarPendingPlanChange.mockResolvedValue(ok(polarSubscription()));
-  m.prisma.cmoSubscription.findUnique.mockResolvedValue({
+  m.prisma.polarSubscription.findUnique.mockResolvedValue({
     id: "row-1",
     projectId: PROJECT_ID,
     organizationId: "org-1",
@@ -208,9 +208,9 @@ beforeEach(() => {
     },
   });
   m.prisma.workspace.findUnique.mockResolvedValue({ organizationId: "org-1" });
-  m.prisma.cmoSubscription.findFirst.mockResolvedValue(SUBSCRIPTION);
+  m.prisma.polarSubscription.findFirst.mockResolvedValue(SUBSCRIPTION);
   claimed = false;
-  m.prisma.cmoSubscription.updateMany.mockImplementation(async (args) => {
+  m.prisma.polarSubscription.updateMany.mockImplementation(async (args) => {
     if (!isClaimWrite(args)) return { count: 1 };
     if (args.data.planChangeClaimedAt === null) {
       claimed = false;
@@ -236,7 +236,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
   });
 
   it("refuses a second change while the first is still at Polar, then reads the tier the first left", async () => {
-    m.prisma.cmoSubscription.findFirst.mockResolvedValue({
+    m.prisma.polarSubscription.findFirst.mockResolvedValue({
       ...SUBSCRIPTION,
       polarProductId: "prod_starter_month",
     });
@@ -261,7 +261,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
     answer(ok(polarSubscription()));
     expect((await first).status).toBe(200);
     // The first change left Growth; the next change counts its credits from it.
-    m.prisma.cmoSubscription.findFirst.mockResolvedValue({
+    m.prisma.polarSubscription.findFirst.mockResolvedValue({
       ...SUBSCRIPTION,
       polarProductId: "prod_growth_month",
     });
@@ -354,7 +354,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
   });
 
   it("moves a yearly plan only within the yearly plans", async () => {
-    m.prisma.cmoSubscription.findFirst.mockResolvedValue({
+    m.prisma.polarSubscription.findFirst.mockResolvedValue({
       ...SUBSCRIPTION,
       polarProductId: "prod_growth_year",
       interval: "year",
@@ -373,7 +373,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
     const DAY = 86_400_000;
     // Month 1 of the paid year began ten days ago; the grant job has not run.
     const periodStart = new Date(Date.now() - 40 * DAY);
-    m.prisma.cmoSubscription.findFirst.mockResolvedValue({
+    m.prisma.polarSubscription.findFirst.mockResolvedValue({
       ...SUBSCRIPTION,
       id: "row-1",
       projectId: PROJECT_ID,
@@ -385,7 +385,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
     });
     m.prisma.$transaction.mockImplementation((run) => run(m.prisma));
     m.prisma.$queryRaw.mockImplementation(async (sql: string[]) =>
-      sql.join("?").includes('"cmo_subscription"')
+      sql.join("?").includes('"polar_subscription"')
         ? [
             {
               endedAt: null,
@@ -410,7 +410,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
     ).toMatchObject({
       amount: 25_000n * 10_000_000_000n,
       referenceId: "order_y1:1",
-      referenceType: "CMO_SUBSCRIPTION_MONTH",
+      referenceType: "POLAR_SUBSCRIPTION_MONTH",
     });
     expect(
       m.prisma.transaction.create.mock.invocationCallOrder[0],
@@ -421,7 +421,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
 
   describe("keeping the plan while a downgrade is pending", () => {
     beforeEach(() => {
-      m.prisma.cmoSubscription.findFirst.mockResolvedValue({
+      m.prisma.polarSubscription.findFirst.mockResolvedValue({
         ...SUBSCRIPTION,
         pendingPolarProductId: "prod_starter_month",
       });
@@ -512,7 +512,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
       "Undo the cancel",
     ],
   ])("refuses %s with a reason", async (_, tier, row, kind, reason) => {
-    m.prisma.cmoSubscription.findFirst.mockResolvedValue({
+    m.prisma.polarSubscription.findFirst.mockResolvedValue({
       ...SUBSCRIPTION,
       ...row,
     });
@@ -562,7 +562,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
   });
 
   it("refuses a Cuso without a subscription", async () => {
-    m.prisma.cmoSubscription.findFirst.mockResolvedValue(null);
+    m.prisma.polarSubscription.findFirst.mockResolvedValue(null);
 
     const response = await changePlan("scale");
 

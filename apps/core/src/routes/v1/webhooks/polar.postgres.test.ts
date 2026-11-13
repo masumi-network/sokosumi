@@ -56,6 +56,7 @@ const SUBSCRIPTION = {
 };
 const CHECKOUT = {
   metadata: {
+    kind: "plan",
     projectId: PROJECT,
     organizationId: ORGANIZATION,
     userId: "user-not-read",
@@ -161,7 +162,7 @@ describe.skipIf(!db)("POST /v1/webhooks/polar against PostgreSQL", () => {
       },
     ]);
     expect(
-      await db?.cmoSubscription.findMany({
+      await db?.polarSubscription.findMany({
         where: { projectId: PROJECT },
         select: { polarSubscriptionId: true, lastPaidOrderId: true },
       }),
@@ -190,7 +191,7 @@ describe.skipIf(!db)("POST /v1/webhooks/polar against PostgreSQL", () => {
     ).toBe(200);
 
     expect(
-      await db?.cmoSubscription.findUnique({
+      await db?.polarSubscription.findUnique({
         where: { polarSubscriptionId: SUBSCRIPTION_ID },
         select: { status: true, polarEventAt: true },
       }),

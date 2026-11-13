@@ -140,7 +140,7 @@ model Organization {
   // Credit Buckets
   creditBuckets CreditBucket[]
 
-  cmoSubscriptions CmoSubscription[]
+  polarSubscriptions PolarSubscription[]
 
   enterpriseContracts EnterpriseContract[]
 
@@ -524,7 +524,7 @@ model Project {
 
   creditBuckets CreditBucket[]
 
-  cmoSubscriptions CmoSubscription[]
+  polarSubscriptions PolarSubscription[]
 
   fileLinks FileProjectLink[]
 
@@ -1622,21 +1622,32 @@ enum CreditBucketReferenceType {
   ENTERPRISE_TOP_UP
   SIGNUP_BONUS
   FREE
-  // One month of a CMO subscription's credits; referenceId "<Polar order id>:<month index>" (ADR 0068).
-  CMO_SUBSCRIPTION_MONTH
+  // One month of a Polar subscription's credits; referenceId "<Polar order id>:<month index>" (ADR 0068).
+  POLAR_SUBSCRIPTION_MONTH
   // A Project top-up bought through Polar; referenceId "<Polar order id>:0" (ADR 0068).
   PROJECT_TOP_UP
 }
 
 /// A Cuso's CMO subscription at Polar (ADR 0068). Its credits are Project
 /// credits of `project`; Sokosumi's Stripe plan stays in `Subscription`.
-model CmoSubscription {
+/// What a Polar subscription pays for.
+enum PolarSubscriptionKind {
+  /// A Cuso's CMO plan; the subscription names his Project.
+  CMO
+}
+
+/// A subscription at Polar as Core last saw it. Provider-level: CMO's plans
+/// are its only kind today (ADR 0068).
+model PolarSubscription {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  projectId String  @db.Uuid
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kind PolarSubscriptionKind
+
+  /// The Project a CMO subscription pays for.
+  projectId String?  @db.Uuid
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -1668,23 +1679,23 @@ model CmoSubscription {
   planChangeClaimedAt     DateTime?
 
   @@unique([polarSubscriptionId])
-  @@unique([projectId], map: "cmo_subscription_project_live_key", where: { endedAt: null })
+  @@unique([projectId], map: "polar_subscription_project_live_key", where: { endedAt: null })
   @@index([projectId])
   @@index([organizationId])
-  @@map("cmo_subscription")
+  @@map("polar_subscription")
 }
 
-/// A Polar order a CMO grant or refund has touched. A grant and a refund of
+/// A Polar order a grant or refund has touched. A grant and a refund of
 /// one order both write this row first, so whichever comes second sees the
 /// other: a refund delivered before its payment keeps that payment from
 /// granting.
-model CmoPolarOrder {
+model PolarOrder {
   polarOrderId String    @id
   createdAt    DateTime  @default(now())
   /// Set once Polar refunded the order; nothing grants from it after.
   refundedAt   DateTime?
 
-  @@map("cmo_polar_order")
+  @@map("polar_order")
 }
 
 model CreditConsumption {

@@ -3,7 +3,7 @@
  * never leave credits on an ended Cuso's Project (ADR 0068).
  *
  *   RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… \
- *     pnpm --filter core test src/services/cmo-credit-grant.postgres.test.ts
+ *     pnpm --filter core test src/services/polar-credit-grant.postgres.test.ts
  *
  * An ending revokes (writes the subscription row) before its transaction
  * archives the Cuso and writes off his Project's credits. The grant locks the
@@ -19,8 +19,8 @@ import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { writeOffProjectCredits } from "@/helpers/cuso-project-credits";
-import { grantCmoCredits } from "./cmo-credit-grant.service";
-import { handlePolarOrderRefunded } from "./cmo-subscription.service";
+import { grantPolarCredits } from "./polar-credit-grant.service";
+import { handlePolarOrderRefunded } from "./polar-subscription.service";
 
 const url = process.env.DATABASE_URL;
 const enabled =
@@ -54,8 +54,9 @@ async function subscribedCuso() {
     },
     select: { id: true },
   });
-  const row = await database().cmoSubscription.create({
+  const row = await database().polarSubscription.create({
     data: {
+      kind: "CMO",
       projectId,
       organizationId: ORGANIZATION,
       polarSubscriptionId: `sub-${randomUUID()}`,
@@ -80,15 +81,15 @@ function grantFor(cuso: { projectId: string; subscriptionId: string }) {
     projectId: cuso.projectId,
     referenceId: `order-${randomUUID()}:0`,
     referenceNote: "Growth",
-    referenceType: CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH,
-    subscription: { cmoSubscriptionId: cuso.subscriptionId },
+    referenceType: CreditBucketReferenceType.POLAR_SUBSCRIPTION_MONTH,
+    subscription: { subscriptionRowId: cuso.subscriptionId },
   };
 }
 
 /** The revoke's write of the row, as `revokeSubscriptions` does it. */
 async function revoke(subscriptionId: string) {
   const endedAt = new Date();
-  await database().cmoSubscription.updateMany({
+  await database().polarSubscription.updateMany({
     where: { id: subscriptionId, endedAt: null },
     data: { status: "canceled", endedAt, polarEventAt: endedAt },
   });
@@ -148,13 +149,13 @@ describe.skipIf(!db)("a CMO grant racing a Cuso ending", () => {
     // The revoke holds the row while the payment arrives.
     const ending = database().$transaction(async (tx) => {
       const endedAt = new Date();
-      await tx.cmoSubscription.update({
+      await tx.polarSubscription.update({
         where: { id: cuso.subscriptionId },
         data: { status: "canceled", endedAt, polarEventAt: endedAt },
       });
       await held;
     });
-    const granted = grantCmoCredits(grantFor(cuso));
+    const granted = grantPolarCredits(grantFor(cuso));
     release();
     await ending;
     await endCuso(cuso);
@@ -178,7 +179,7 @@ describe.skipIf(!db)("a CMO grant racing a Cuso ending", () => {
       locked = resolve;
     });
     // The grant holds the row while the Cuso is ended.
-    const granted = grantCmoCredits(grantFor(cuso), async () => {
+    const granted = grantPolarCredits(grantFor(cuso), async () => {
       locked();
       await held;
     });
@@ -198,7 +199,7 @@ describe.skipIf(!db)("a CMO grant racing a Cuso ending", () => {
       data: { archivedAt: new Date() },
     });
 
-    expect(await grantCmoCredits(grantFor(cuso))).toBe("not_live");
+    expect(await grantPolarCredits(grantFor(cuso))).toBe("not_live");
   });
 
   /**
@@ -211,7 +212,7 @@ describe.skipIf(!db)("a CMO grant racing a Cuso ending", () => {
     async function yearlyCuso() {
       const cuso = await subscribedCuso();
       const orderId = `order-${randomUUID()}`;
-      await database().cmoSubscription.update({
+      await database().polarSubscription.update({
         where: { id: cuso.subscriptionId },
         data: {
           interval: "year",
@@ -227,7 +228,7 @@ describe.skipIf(!db)("a CMO grant racing a Cuso ending", () => {
         ...grantFor(cuso),
         referenceId: `${cuso.orderId}:1`,
         subscription: {
-          cmoSubscriptionId: cuso.subscriptionId,
+          subscriptionRowId: cuso.subscriptionId,
           paidOrderId: cuso.orderId,
         },
       };
@@ -252,7 +253,7 @@ describe.skipIf(!db)("a CMO grant racing a Cuso ending", () => {
         locked = resolve;
       });
       // The grant holds the row while the refund takes its snapshot.
-      const granted = grantCmoCredits(monthGrant(cuso), async () => {
+      const granted = grantPolarCredits(monthGrant(cuso), async () => {
         locked();
         await held;
       });
@@ -274,13 +275,13 @@ describe.skipIf(!db)("a CMO grant racing a Cuso ending", () => {
       });
       // The refund's write of the row, held while the month is due.
       const refunding = database().$transaction(async (tx) => {
-        await tx.cmoSubscription.update({
+        await tx.polarSubscription.update({
           where: { id: cuso.subscriptionId },
           data: { lastPaidOrderRefundedAt: new Date() },
         });
         await held;
       });
-      const granted = grantCmoCredits(monthGrant(cuso));
+      const granted = grantPolarCredits(monthGrant(cuso));
       release();
       await refunding;
 

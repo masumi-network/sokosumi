@@ -446,7 +446,7 @@ const TOP_UP_TITLE_BY_SOURCE: Record<string, string> = {
   ENTERPRISE_TOP_UP: "Enterprise top up",
   SIGNUP_BONUS: "Signup bonus",
   FREE: "Free credits",
-  CMO_SUBSCRIPTION_MONTH: "CMO plan credits",
+  POLAR_SUBSCRIPTION_MONTH: "CMO plan credits",
   PROJECT_TOP_UP: "Project top-up",
 };
 

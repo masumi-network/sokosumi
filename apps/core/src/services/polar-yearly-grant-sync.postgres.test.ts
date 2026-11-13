@@ -3,7 +3,7 @@
  * year that no run granted are granted by the next run, once.
  *
  *   RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… \
- *     pnpm --filter core test src/services/cmo-yearly-grant-sync.postgres.test.ts
+ *     pnpm --filter core test src/services/polar-yearly-grant-sync.postgres.test.ts
  *
  * The job's tests use a Prisma fake; this runs its query, the grant's row
  * lock and the bucket key on PostgreSQL. Fixtures are committed and deleted
@@ -15,7 +15,7 @@ import { getNextMonthlyPeriodEnd } from "@sokosumi/database/helpers";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { syncCmoYearlyGrants } from "./cmo-yearly-grant-sync.service";
+import { syncPolarYearlyGrants } from "./polar-yearly-grant-sync.service";
 
 const m = vi.hoisted(() => ({ listPolarProducts: vi.fn() }));
 
@@ -75,8 +75,9 @@ describe.skipIf(!db)("the yearly grant job against PostgreSQL", () => {
         name: "Cuso",
       },
     });
-    await db.cmoSubscription.create({
+    await db.polarSubscription.create({
       data: {
+        kind: "CMO",
         projectId: PROJECT,
         organizationId: ORGANIZATION,
         polarSubscriptionId: `sub-${randomUUID()}`,
@@ -107,7 +108,7 @@ describe.skipIf(!db)("the yearly grant job against PostgreSQL", () => {
 
   it("grants every started month no run granted, then nothing more", async () => {
     const before = new Date();
-    await syncCmoYearlyGrants(() => true);
+    await syncPolarYearlyGrants(() => true);
     const after = new Date();
 
     // Other files' rows may share the database: count this order's buckets.
@@ -133,7 +134,7 @@ describe.skipIf(!db)("the yearly grant job against PostgreSQL", () => {
     // Month 3 runs: its own end, after now.
     expect(buckets[2]?.expiresAt?.getTime()).toBeGreaterThan(after.getTime());
 
-    await syncCmoYearlyGrants(() => true);
+    await syncPolarYearlyGrants(() => true);
     expect(
       await database().creditBucket.count({
         where: { referenceId: { startsWith: `${ORDER}:` } },

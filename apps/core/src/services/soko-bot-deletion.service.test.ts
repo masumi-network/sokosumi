@@ -61,7 +61,7 @@ vi.mock("@/helpers/cuso-project-credits", () => ({
   forfeitCusoProjectCredits: forfeitMock,
 }));
 
-vi.mock("@/services/cmo-subscription-end.service", () => ({
+vi.mock("@/services/polar-subscription-end.service", () => ({
   revokeCusoSubscription: revokeSubscriptionMock,
   revokeSubscriptionsLeftByEnding: vi.fn(),
 }));

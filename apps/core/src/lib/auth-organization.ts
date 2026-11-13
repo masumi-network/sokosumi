@@ -30,7 +30,7 @@ import {
 import { prepareOrganizationForDeletion } from "@/helpers/organization-deletion";
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import prisma from "@/lib/db/prisma";
-import { revokeOrganizationCusoSubscriptions } from "@/services/cmo-subscription-end.service";
+import { revokeOrganizationCusoSubscriptions } from "@/services/polar-subscription-end.service";
 import { disconnectLeaverSokoBotIntegrationsBestEffort } from "@/services/soko-bot-integration-leaver.service";
 
 async function ensureWorkspaceForCreatedOrganization(organization: {

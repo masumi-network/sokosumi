@@ -5,7 +5,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { rethrow } from "@/routes/v1/cmo/helpers";
 import { cmoProjectParamsSchema } from "@/schemas/cmo.schema";
-import { openCmoCustomerPortal } from "@/services/cmo-plan-change.service";
+import { openPolarCustomerPortal } from "@/services/polar-plan-change.service";
 
 const route = createRoute({
   method: "post",
@@ -43,7 +43,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId } = c.req.valid("param");
-    const portal = await openCmoCustomerPortal({
+    const portal = await openPolarCustomerPortal({
       userId,
       projectId,
       ...c.req.valid("json"),

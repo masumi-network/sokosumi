@@ -50,7 +50,7 @@ export const creditBucketFindFirst = vi.fn();
 /** The gate's Starter credits read: none unless a test grants them. */
 export const creditBucketFindMany = vi.fn();
 /** The Project's CMO subscription that has not ended: none unless a test seeds one. */
-export const cmoSubscriptionFindFirst = vi.fn();
+export const polarSubscriptionFindFirst = vi.fn();
 export const grantFreeCredits = vi.fn();
 export const getUserWorkspace = vi.fn();
 export const messageUpsert = vi.fn();
@@ -253,7 +253,7 @@ const client = {
     findFirst: creditBucketFindFirst,
     findMany: creditBucketFindMany,
   },
-  cmoSubscription: { findFirst: cmoSubscriptionFindFirst },
+  polarSubscription: { findFirst: polarSubscriptionFindFirst },
   subscription: {
     findFirst: subscriptionFindFirst,
     create: subscriptionCreate,
@@ -380,7 +380,7 @@ export function resetCmoServiceMocks(): void {
   }
   envOverrides.CMO_HIRE_ALLOWLIST = ["lena@harborbikes.com"];
   expireTurn.mockResolvedValue(true);
-  cmoSubscriptionFindFirst.mockResolvedValue(null);
+  polarSubscriptionFindFirst.mockResolvedValue(null);
   creditBucketFindFirst.mockResolvedValue(null);
   creditBucketFindMany.mockResolvedValue([]);
   projectFindFirst.mockResolvedValue(null);
