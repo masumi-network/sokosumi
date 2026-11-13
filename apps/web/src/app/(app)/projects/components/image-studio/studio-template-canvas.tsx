@@ -187,7 +187,6 @@ export function StudioTemplateCanvas({
         onPointerUp={handlePointerUp}
         ref={canvasRef}
       >
-        {/* On phones, crop into the same arrangement to leave space between cards. */}
         <div
           className="absolute top-0 left-0 flex"
           data-studio-row=""
