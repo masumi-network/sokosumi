@@ -11095,6 +11095,7 @@
         "linkCopied": "Link kopiert",
         "archive": "Kontakt archivieren",
         "archived": "{name} archiviert",
+        "archiveFailed": "{name} konnte nicht archiviert werden. Der Kontakt ist wieder in deiner Liste.",
         "changeStage": "Phase: {stage}. Phase ändern",
         "changeLists": "Listen ändern",
         "addToList": "Zu einer Liste hinzufügen",
