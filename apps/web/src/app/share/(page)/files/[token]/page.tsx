@@ -11,7 +11,9 @@ import {
   readDriveShare,
 } from "@/lib/services/drive-share.server";
 import { formatBytes } from "@/lib/utils/format-bytes";
+import { SharedFolderDownloadAllButton } from "./download-all-button";
 import { SharedFilesPasswordForm } from "./password-form";
+import { downloadHref } from "./share-download";
 
 export const instant = false;
 
@@ -38,11 +40,6 @@ export async function generateMetadata({
   };
 }
 
-function downloadHref(token: string, path?: string): string {
-  const base = `/share/files/${encodeURIComponent(token)}/download`;
-  return path ? `${base}?path=${encodeURIComponent(path)}` : base;
-}
-
 export default async function SharedFilesPage({
   params,
 }: SharedFilesPageProps) {
@@ -64,6 +61,14 @@ export default async function SharedFilesPage({
               {share.kind === "folder" ? t("sharedFolder") : t("sharedFile")}
             </p>
           </div>
+          {share.kind === "folder" && share.items && share.items.length > 1 ? (
+            <SharedFolderDownloadAllButton
+              token={token}
+              name={share.name}
+              paths={share.items.map((item) => item.path)}
+              label={t("downloadAll")}
+            />
+          ) : null}
         </header>
 
         {share.locked ? (

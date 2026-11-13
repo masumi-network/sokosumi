@@ -11400,6 +11400,7 @@
       "open": "Öffnen",
       "download": "Herunterladen",
       "downloadFile": "{name} herunterladen",
+      "downloadAll": "Alle herunterladen",
       "truncated": "Es werden die ersten 2.000 Dateien dieses Ordners angezeigt.",
       "emptyFolder": "Dieser Ordner ist leer.",
       "errors": {

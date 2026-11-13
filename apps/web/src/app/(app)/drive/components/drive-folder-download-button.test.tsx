@@ -21,10 +21,8 @@ vi.mock("@/lib/files-archive", async (importOriginal) => ({
   ...archive,
 }));
 
-import {
-  DriveFolderDownloadButton,
-  FOLDER_ARCHIVE_MAX_FILES,
-} from "./drive-folder-download-button";
+import { FOLDER_ARCHIVE_MAX_FILES } from "@/lib/files-archive";
+import { DriveFolderDownloadButton } from "./drive-folder-download-button";
 
 const store = { scope: "org" as const, organizationId: "org_1" };
 const file = (name: string) => ({

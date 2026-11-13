@@ -1,5 +1,7 @@
 export const MAX_ARCHIVE_FILES = 50;
 export const MAX_ARCHIVE_BYTES = 200 * 1024 * 1024;
+/** Above the Task cap: a folder is often a whole delivery. Bytes stay capped by the shared budget. */
+export const FOLDER_ARCHIVE_MAX_FILES = 200;
 
 export interface ArchiveFile {
   name: string;

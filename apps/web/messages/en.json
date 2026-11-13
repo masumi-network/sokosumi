@@ -11400,6 +11400,7 @@
       "open": "Open",
       "download": "Download",
       "downloadFile": "Download {name}",
+      "downloadAll": "Download all",
       "truncated": "Showing the first 2,000 files of this folder.",
       "emptyFolder": "This folder is empty.",
       "errors": {
