@@ -90,6 +90,7 @@ model ProjectSeoObservation {
   @@unique([auditId, sourceKey])
   @@index([projectId, ownerId, observedAt])
   @@index([auditId, ownerId, observedAt])
+  @@index([sourceTaskId])
   @@map("project_seo_observation")
 }
 
