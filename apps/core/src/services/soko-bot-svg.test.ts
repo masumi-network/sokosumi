@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { unsafeSvgReason } from "./soko-bot-runtime.service";
+import { unsafeSvgReason } from "./soko-bot-svg";
 
 const card = `<?xml version="1.0"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
