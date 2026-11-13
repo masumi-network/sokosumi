@@ -18,6 +18,8 @@ const MINUTE_MS = 60_000;
 const STOP_CLASS =
   "relative flex min-w-24 flex-1 flex-col items-center pt-0.5 text-center";
 const LINE_CLASS = "absolute top-[7px] h-0 border-t";
+/** The way to the date stop: dots in the muted text colour. Dots in the line colour did not show on the dark page. */
+const DOTTED_CLASS = "border-muted-foreground border-dotted";
 /** A day and the date stop share the look: muted, bright on hover and while pressed or open. */
 const STOP_BUTTON_CLASS =
   "group text-muted-foreground hover:text-foreground aria-pressed:text-foreground data-[open=true]:text-foreground focus-visible:ring-ring press relative flex min-h-10 flex-col items-center rounded-sm px-2 transition-colors outline-none focus-visible:ring-2 aria-pressed:font-medium";
@@ -107,7 +109,7 @@ export function SeoRuns({
                     "border-border right-0 left-1/2",
                     // Dashed to the check in flight: it is not done. Dotted to the date stop: it is no check.
                     index === stops.length - 1 &&
-                      (running ? "border-dashed" : "border-dotted"),
+                      (running ? "border-dashed" : DOTTED_CLASS),
                   )}
                 />
               ) : null}
@@ -163,10 +165,7 @@ export function SeoRuns({
               {datesStop ? (
                 <span
                   aria-hidden
-                  className={cn(
-                    LINE_CLASS,
-                    "border-border right-0 left-1/2 border-dotted",
-                  )}
+                  className={cn(LINE_CLASS, "right-0 left-1/2", DOTTED_CLASS)}
                 />
               ) : null}
               <span className="relative flex min-h-10 flex-col items-center px-2">
@@ -193,10 +192,7 @@ export function SeoRuns({
             {stops.length || running ? (
               <span
                 aria-hidden
-                className={cn(
-                  LINE_CLASS,
-                  "border-border right-1/2 left-0 border-dotted",
-                )}
+                className={cn(LINE_CLASS, "right-1/2 left-0", DOTTED_CLASS)}
               />
             ) : null}
             <button
