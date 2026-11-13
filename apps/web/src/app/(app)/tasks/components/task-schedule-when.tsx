@@ -339,6 +339,8 @@ interface TaskScheduleWhenProps {
   endsModes?: readonly TaskScheduleEndsMode[];
   /** The highest run count the "after" choice accepts. */
   maxRunCount?: number;
+  /** More room between the rows, for a form that has little else in it. */
+  className?: string;
 }
 
 const ENDS_MODES = [
@@ -361,6 +363,7 @@ export function TaskScheduleWhen({
   showEnds = true,
   endsModes = ENDS_MODES,
   maxRunCount,
+  className,
 }: TaskScheduleWhenProps) {
   const t = useTranslations("App.Tasks.Schedules.Dialog.When");
   const formatter = useFormatter();
@@ -380,7 +383,7 @@ export function TaskScheduleWhen({
   const cronInvalid = cronRejected && !cronLegacy;
 
   return (
-    <div className="space-y-3">
+    <div className={cn("space-y-3", className)}>
       <Row label={t("repeat")}>
         {repeats.map((repeat) => (
           <button

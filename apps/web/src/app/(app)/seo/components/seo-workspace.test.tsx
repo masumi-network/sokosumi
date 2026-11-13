@@ -3474,16 +3474,12 @@ describe("SEO workspace integration", () => {
     expect(
       within(dialog).getByRole("button", { name: "Weekly" }),
     ).toHaveAttribute("aria-pressed", "true");
-    // The Sokosumi repeats are all there, but a cron that runs more than once a day says why it cannot save.
-    await user.click(within(dialog).getByRole("button", { name: "Custom" }));
-    await user.type(
-      within(dialog).getByPlaceholderText("0 9 * * MON"),
-      "*/15 * * * *",
-    );
-    expect(within(dialog).getByRole("alert")).toHaveTextContent(
-      messages.App.Seo.monitor.onceADay,
-    );
-    await user.click(within(dialog).getByRole("button", { name: "Weekly" }));
+    // Weekly or monthly is the whole choice: no daily, weekday, day-count or cron repeat (owner, after pass 59).
+    for (const name of ["Daily", "Weekdays", "Every few days", "Custom"])
+      expect(within(dialog).queryByRole("button", { name })).toBeNull();
+    expect(
+      within(dialog).getByRole("button", { name: "Monthly" }),
+    ).toHaveAttribute("aria-pressed", "false");
     await user.click(
       within(dialog).getByRole("button", { name: "Change options" }),
     );

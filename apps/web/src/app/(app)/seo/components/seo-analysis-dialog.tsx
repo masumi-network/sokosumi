@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { TaskScheduleEndsMode } from "@/lib/types/task-schedule";
 import { cn } from "@/lib/utils";
 import { seoDefaultMarket } from "./seo-analysis-market-model";
 import {
@@ -39,6 +40,13 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const OPTIONS_ID = "seo-analysis-options";
 
+/** The repeats of a new schedule of checks. */
+const SEO_MONITOR_REPEATS = ["weekly", "monthly"] as const;
+/** The ends of a new schedule: after its runs (the default), or never. */
+const SEO_MONITOR_ENDS = [
+  TaskScheduleEndsMode.AFTER,
+  TaskScheduleEndsMode.NEVER,
+] as const;
 export function SeoAnalysisDialog({
   model,
   monitor = false,
@@ -89,7 +97,7 @@ export function SeoAnalysisDialog({
           </DialogDescription>
         </DialogHeader>
         <form
-          className="space-y-5"
+          className="space-y-6"
           // A closed field the browser refuses cannot take focus: open the fields so its message shows.
           onInvalidCapture={() => form.setOptionsOpen(true)}
           onSubmit={(event) => {
@@ -98,7 +106,7 @@ export function SeoAnalysisDialog({
           }}
         >
           {/* What runs, in one card; its fields open from the card only when the reader wants to change one. */}
-          <div className="bg-muted space-y-1 rounded-lg px-4 pt-3 pb-1">
+          <div className="bg-muted space-y-2 rounded-lg px-4 pt-4 pb-2">
             <SeoAnalysisSummary
               kind={form.kind}
               pages={form.workspace.scope.pageIds.length}
@@ -277,6 +285,12 @@ export function SeoAnalysisDialog({
                 value={form.when}
                 onChange={form.setWhen}
                 maxRunCount={SEO_MAX_MONITOR_RUNS}
+                // A site changes by the week: weekly or monthly is the whole choice, and a schedule ends after
+                // its runs or never. Every day, weekdays, a day count, a cron and an end date added choices
+                // a site owner does not need (owner, after pass 59).
+                repeats={SEO_MONITOR_REPEATS}
+                endsModes={SEO_MONITOR_ENDS}
+                className="space-y-5"
               />
               {form.tooOften ? (
                 <p role="alert" className="text-destructive text-xs">
