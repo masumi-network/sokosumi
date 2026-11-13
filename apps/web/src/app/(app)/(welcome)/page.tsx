@@ -101,11 +101,12 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   if (!isWorkspaceReady(access?.gate)) {
     redirect(WORKSPACE_GATE_PATH);
   }
-  const sokoBot = await sokoBotService.getMine().catch(() => null);
-  const notice =
-    (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
-  const landingNotice = <ChatLandingNotice notice={notice} />;
-  const userId = session?.user.id;
+  // In an org the day is the team's; in a personal workspace, the user's.
+  // In an org the greeting talks about the team, so count the whole
+  // workspace rather than only the caller's own tasks.
+  const scope = activeOrganizationId ? "workspace" : "owned";
+  // The reads below need the gate, not the bot, so each one starts before the
+  // bot read answers instead of one Core round trip after it.
   // The reader's Tasks due today or overdue, by their own calendar day. One
   // rendered promise shared by both compositions, like Needs you below.
   const today = dayInTimeZone(now, timeZone);
@@ -132,13 +133,26 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       })}
     </Suspense>
   );
+  // Only the coworker welcome shows coworkers. The read settles here, so a
+  // failure on the bot home, which never reads it, is not an unhandled
+  // rejection.
+  const coworkersRead = coworkerService.listCoworkers("chat").then(
+    (rows) => ({ rows }),
+    (error: unknown) => ({ error }),
+  );
+  const [sokoBot, summary] = await Promise.all([
+    sokoBotService.getMine().catch(() => null),
+    // Window is session-derived in Core (`max(Session.updatedAt)`). No stamp.
+    taskService.getActivitySummary({ scope }),
+  ]);
+  const notice =
+    (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
+  const landingNotice = <ChatLandingNotice notice={notice} />;
+  const userId = session?.user.id;
 
   if (sokoBot && userId) {
-    // In an org the day is the team's; in a personal workspace, the user's.
-    const scope = activeOrganizationId ? "workspace" : "owned";
-    const [{ roomId, chats }, summary, recent] = await Promise.all([
+    const [{ roomId, chats }, recent] = await Promise.all([
       loadSokoBotChats(sokoBot.id),
-      taskService.getActivitySummary({ scope }),
       taskService
         .listTasks({
           scope,
@@ -170,16 +184,11 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     );
   }
 
-  const [coworkerRows, summary] = await Promise.all([
-    coworkerService.listCoworkers("chat"),
-    // Window is session-derived in Core (`max(Session.updatedAt)`). No stamp.
-    taskService.getActivitySummary({
-      // In an org the greeting talks about the team, so count the whole
-      // workspace rather than only the caller's own tasks.
-      scope: activeOrganizationId ? "workspace" : "owned",
-    }),
-  ]);
-  const coworkers = coworkerRows.map(mapDbCoworkerToChatCoworker);
+  const coworkersResult = await coworkersRead;
+  if ("error" in coworkersResult) {
+    throw coworkersResult.error;
+  }
+  const coworkers = coworkersResult.rows.map(mapDbCoworkerToChatCoworker);
   const greetingName = resolveLandingGreetingName(session?.user.name);
 
   return (
