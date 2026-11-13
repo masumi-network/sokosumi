@@ -1800,7 +1800,19 @@
         "restoreNamed": "Restaurar {name}",
         "restored": "{name} ha vuelto al tablero",
         "open": "Abrir",
-        "restoreError": "No se pudo restaurar la tarea. Inténtalo de nuevo."
+        "restoreError": "No se pudo restaurar la tarea. Inténtalo de nuevo.",
+        "searchLabel": "Buscar tareas archivadas",
+        "searchPlaceholder": "Buscar por nombre",
+        "noMatches": "Ninguna tarea archivada coincide con «{query}».",
+        "noProject": "Sin proyecto",
+        "archivedOn": "Archivada el {date}",
+        "readOnly": "Las tareas archivadas son de solo lectura. Restaura esta para editarla o ejecutarla."
+      },
+      "NotFound": {
+        "title": "Esta tarea no está aquí",
+        "description": "Puede que se haya archivado o eliminado, o que pertenezca a otro espacio de trabajo. Las tareas archivadas se pueden restaurar.",
+        "archived": "Tareas archivadas",
+        "back": "Volver a las tareas"
       },
       "Columns": {
         "backlog": "Pendiente",
@@ -2185,7 +2197,15 @@
         "close": "Cerrar",
         "privateLabel": "Privada",
         "privateDescription": "Oculta para el resto de miembros del workspace. Sigue visible para ti, tu Soko Bot y el coworker asignado.",
-        "privateOtherPeopleHint": "Las tareas privadas no pueden asignarse a otras personas. Desactiva Privada para asignar a un compañero."
+        "privateOtherPeopleHint": "Las tareas privadas no pueden asignarse a otras personas. Desactiva Privada para asignar a un compañero.",
+        "Progress": {
+          "title": "Creando tu tarea…",
+          "naming": "Ponerle nombre a partir de tus detalles",
+          "tagging": "Sugerir etiquetas",
+          "tagsReady": "Etiquetas sugeridas",
+          "saving": "Guardar la tarea",
+          "keepOpen": "Mantén esto abierto hasta que diga Tarea creada."
+        }
       },
       "EditTask": {
         "title": "Editar Task",

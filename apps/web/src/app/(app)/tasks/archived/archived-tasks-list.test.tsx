@@ -34,8 +34,22 @@ vi.mock("@/lib/services/task.client", () => ({
 }));
 
 const tasks = [
-  { id: "t1", identifier: "SOK-7", name: "Plan launch", status: "DRAFT" },
-  { id: "t2", identifier: null, name: "Write recap", status: "COMPLETED" },
+  {
+    id: "t1",
+    identifier: "SOK-7",
+    name: "Plan launch",
+    status: "DRAFT",
+    project: "Launch",
+    archivedOn: "Nov 4, 2026",
+  },
+  {
+    id: "t2",
+    identifier: null,
+    name: "Write recap",
+    status: "COMPLETED",
+    project: null,
+    archivedOn: null,
+  },
 ] as const;
 
 describe("ArchivedTasksList", () => {
@@ -77,6 +91,22 @@ describe("ArchivedTasksList", () => {
   it("explains the empty list", () => {
     render(<ArchivedTasksList tasks={[]} />);
     expect(screen.getByText("empty")).toBeTruthy();
+  });
+
+  it("names the search that matched nothing", () => {
+    render(<ArchivedTasksList tasks={[]} query="recap" />);
+    expect(screen.getByText("noMatches")).toBeTruthy();
+  });
+
+  it("tells same-named rows apart and opens one read-only", () => {
+    render(<ArchivedTasksList tasks={[...tasks]} />);
+
+    expect(screen.getByText("SOK-7")).toBeTruthy();
+    expect(screen.getByText("Launch · archivedOn")).toBeTruthy();
+    expect(screen.getByText("noProject")).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "SOK-7 Plan launch" }),
+    ).toHaveAttribute("href", "/tasks/archived/t1");
   });
 
   it("restores a second Task while the first restore is still open", async () => {
