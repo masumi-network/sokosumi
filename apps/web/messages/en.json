@@ -4449,7 +4449,6 @@
       "model": "Model",
       "aspectRatio": "Frame",
       "adPlacements": "Ad placements",
-      "placementHelp": "Choose one or more ad placements, or pick a single custom frame below.",
       "creativeDirection": "Creative direction",
       "adGallery": "Ad gallery",
       "groupByProduct": "Group by product",
