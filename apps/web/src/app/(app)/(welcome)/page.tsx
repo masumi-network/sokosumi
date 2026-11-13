@@ -3,12 +3,15 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getNow, getTimeZone, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
 import { ChatLanding } from "@/app/chat/components/landing/chat-landing";
 import { ChatLandingMobile } from "@/app/chat/components/landing/chat-landing.mobile";
 import { resolveLandingGreetingName } from "@/app/chat/components/landing/landing-content";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
+import {
+  getPrivateCachedMembershipVisibleRooms,
+  type PrivateChatListCacheArgs,
+} from "@/app/components/private-sidebar-cache";
 import {
   NeedsYouPanel,
   panelFeed,
@@ -57,9 +60,12 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 async function loadSokoBotChats(
   sokoBotId: string,
+  cacheArgs: PrivateChatListCacheArgs,
 ): Promise<{ roomId: string | null; chats: SokoBotHomeChat[] }> {
   const [{ rooms }, important, tChannels] = await Promise.all([
-    chatRoomService.listRooms().catch(() => ({ rooms: [] })),
+    // The sidebar's private-cache slice, so the load reads rooms from Core
+    // once for both. It soft-fails to no rooms, as this read did.
+    getPrivateCachedMembershipVisibleRooms(cacheArgs),
     chatRoomService.listImportantMessages().catch(() => []),
     getTranslations("App.Channels"),
   ]);
@@ -168,7 +174,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
 
   if (sokoBot && userId) {
     const [{ roomId, chats }, recent] = await Promise.all([
-      loadSokoBotChats(sokoBot.id),
+      loadSokoBotChats(sokoBot.id, { userId, activeOrganizationId }),
       taskService
         .listTasks({
           scope,
