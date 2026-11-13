@@ -1,6 +1,12 @@
 import {
   SEO_CAPABILITIES,
+  SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE,
+  SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE,
+  SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE,
+  SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE,
+  SEO_STATISTICS_QUERY_FAILED_NOTE,
   SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE,
+  SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE,
 } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import messages from "../../../../../messages/en.json";
@@ -81,6 +87,42 @@ describe("seoAuditGaps", () => {
       null,
       null,
       null,
+    ]);
+  });
+
+  it("skips the routine Search Console note and names the Analytics notes", () => {
+    const workspace = seoTestWorkspace();
+    workspace.metrics = [
+      {
+        ...seoTestMetric(),
+        notes: [SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE],
+      },
+      {
+        ...seoTestMetric(),
+        id: "ga4:sessions",
+        key: "sessions",
+        source: "ga4",
+        propertyId: "properties/1",
+        channel: "organic",
+        notes: [
+          SEO_STATISTICS_QUERY_FAILED_NOTE,
+          SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE,
+          SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE,
+          SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE,
+          SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE,
+        ],
+      },
+    ];
+    expect(
+      seoAuditGaps(workspace)
+        .filter((gap) => gap.fix === "sync")
+        .map((gap) => gap.message),
+    ).toEqual([
+      "queryFailed",
+      "analyticsTimeZone",
+      "analyticsNoAggregate",
+      "analyticsThresholding",
+      "analyticsTruncated",
     ]);
   });
 

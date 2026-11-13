@@ -3,12 +3,17 @@ import {
   SEO_CAPABILITIES,
   SEO_CAPABILITY_GROUPS,
   SEO_CAPABILITY_UNLOCKS,
+  SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE,
+  SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE,
+  SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE,
+  SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE,
   SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
   SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
   SEO_STATISTICS_NO_AGGREGATE_NOTE,
   SEO_STATISTICS_QUERY_FAILED_NOTE,
   SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE,
+  SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE,
   type SeoCapability,
   type SeoCapabilityUnlock,
 } from "@sokosumi/utils";
@@ -51,6 +56,10 @@ export type SeoAuditGap = {
     | "keywordSeries"
     | "breakdown"
     | "indexStatus"
+    | "analyticsTimeZone"
+    | "analyticsNoAggregate"
+    | "analyticsThresholding"
+    | "analyticsTruncated"
     | "note"
     | "queriesTruncated"
     | "noCheck"
@@ -76,6 +85,10 @@ const KNOWN_NOTES = new Map<string, SeoAuditGap["message"]>([
   [SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE, "keywordSeries"],
   [SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE, "breakdown"],
   [SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE, "indexStatus"],
+  [SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE, "analyticsTimeZone"],
+  [SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE, "analyticsNoAggregate"],
+  [SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE, "analyticsThresholding"],
+  [SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE, "analyticsTruncated"],
 ]);
 
 /** Which Google sources the saved statistics of these pages come from. */
@@ -117,6 +130,8 @@ export function seoAuditGaps(data: ProjectSeoWorkspace): SeoAuditGap[] {
   const notes = new Set(
     latestSeoMeasurements(data.metrics).flatMap((metric) => metric.notes),
   );
+  // Every Search Console sync stores this note: it is no gap.
+  notes.delete(SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE);
   for (const note of notes) {
     const known = KNOWN_NOTES.get(note);
     gaps.push(

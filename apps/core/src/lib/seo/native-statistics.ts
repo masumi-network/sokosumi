@@ -1,7 +1,12 @@
 import { z } from "@hono/zod-openapi";
 import {
+  SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE,
+  SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE,
+  SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE,
+  SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE,
   SEO_STATISTICS_NO_AGGREGATE_NOTE,
   SEO_STATISTICS_QUERY_FAILED_NOTE,
+  SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE,
 } from "@sokosumi/utils";
 
 import type { NativeSeoMetrics } from "@/schemas/project-seo.schema";
@@ -362,14 +367,9 @@ export function normalizeGa4Statistics(
   const notes: string[] = [];
   if (periodInput === null || dailyInput === null)
     notes.push(SEO_STATISTICS_QUERY_FAILED_NOTE);
-  if (!zones.length)
-    notes.push(
-      "The Analytics property time zone was not returned; period comparisons are limited.",
-    );
+  if (!zones.length) notes.push(SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE);
   if (!period.rows.length)
-    notes.push(
-      "Analytics returned no aggregate row. Missing measurements are unavailable, not zero.",
-    );
+    notes.push(SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE);
   if (
     [period, daily].some(
       (report) =>
@@ -377,9 +377,9 @@ export function normalizeGa4Statistics(
         report.metadata?.dataLossFromOtherRow,
     )
   )
-    notes.push("Analytics reported thresholding or data loss.");
+    notes.push(SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE);
   if ((daily.rowCount ?? daily.rows.length) > daily.rows.length)
-    notes.push("The daily Analytics result was truncated.");
+    notes.push(SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE);
   const coverage =
     !period.rows.length && !daily.rows.length
       ? "unavailable"
@@ -436,9 +436,7 @@ export function normalizeGscStatistics(
     throw new Error("Search Console returned a different period or grouping");
   if (new Set(daily.rows.map((row) => row.keys[0])).size !== daily.rows.length)
     throw new Error("Search Console returned duplicate dates");
-  const notes = [
-    "Search Console final data can omit recent dates and privacy-filtered observations.",
-  ];
+  const notes = [SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE];
   if (periodInput === null || dailyInput === null)
     notes.push(SEO_STATISTICS_QUERY_FAILED_NOTE);
   if (!period.rows.length) notes.push(SEO_STATISTICS_NO_AGGREGATE_NOTE);

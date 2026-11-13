@@ -25,6 +25,23 @@ export const SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE =
 export const SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE =
   "Google's index status was unavailable for one or more pages in this sync. Other measurements are kept.";
 
+/**
+ * Every Search Console sync stores this routine note. It names a property of the source, not a gap of one
+ * sync, so the web does not list it as missing data.
+ */
+export const SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE =
+  "Search Console final data can omit recent dates and privacy-filtered observations.";
+
+/** Notes of a Google Analytics sync. */
+export const SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE =
+  "The Analytics property time zone was not returned; period comparisons are limited.";
+export const SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE =
+  "Analytics returned no aggregate row. Missing measurements are unavailable, not zero.";
+export const SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE =
+  "Analytics reported thresholding or data loss.";
+export const SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE =
+  "The daily Analytics result was truncated.";
+
 const SEO_STATISTICS_LOSS_NOTES = [
   SEO_STATISTICS_QUERY_FAILED_NOTE,
   SEO_STATISTICS_NO_AGGREGATE_NOTE,
