@@ -41852,6 +41852,9 @@ export const ProjectSeoMonitorSchema = {
         maxProviderCalls: {
             type: 'integer'
         },
+        isOwner: {
+            type: 'boolean'
+        },
         lastRun: {
             anyOf: [
                 {
@@ -41889,6 +41892,7 @@ export const ProjectSeoMonitorSchema = {
         'devices',
         'kind',
         'maxProviderCalls',
+        'isOwner',
         'lastRun',
         'change'
     ]

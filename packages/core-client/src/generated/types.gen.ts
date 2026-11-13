@@ -10996,6 +10996,7 @@ export type ProjectSeoMonitor = {
     devices: Array<'mobile' | 'desktop'>;
     kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
     maxProviderCalls: number;
+    isOwner: boolean;
     lastRun: ProjectSeoMonitorLastRun | null;
     change: ProjectSeoMonitorChange | null;
 };
