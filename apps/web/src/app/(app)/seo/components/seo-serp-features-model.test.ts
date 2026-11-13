@@ -9,7 +9,7 @@ type Point = Series["points"][number];
 const point = (day: string, patch: Partial<Point> = {}): Point => ({
   observedAt: new Date(`2026-10-${day}T08:00:00Z`),
   observationId: "observation",
-  pageUrls: ["https://example.com/"],
+  onlyPageUrl: "https://example.com/",
   itemTypes: ["organic"],
   aiOverview: null,
   featured: null,
@@ -52,24 +52,24 @@ describe("seoSerpMarkers", () => {
   });
 
   it("says the row's page is cited only when the check read that page alone", () => {
-    const cited = (pageUrls: string[], pageUrl: string | null) =>
+    const cited = (onlyPageUrl: string | null, pageUrl: string | null) =>
       seoSerpMarkers(
-        [series({}, [point("01", { pageUrls, aiOverview: ai(true, true) })])],
+        [
+          series({}, [
+            point("01", { onlyPageUrl, aiOverview: ai(true, true) }),
+          ]),
+        ],
         [seoTestKeyword({ pageUrl })],
       ).map((mark) => (mark.suspect ? "suspect" : mark.aiOverview));
-    expect(cited(["https://example.com/"], "https://example.com/#top")).toEqual(
-      ["cited"],
-    );
+    expect(cited("https://example.com/", "https://example.com/#top")).toEqual([
+      "cited",
+    ]);
+    // A check of several pages names none of them.
+    expect(cited(null, "https://example.com/")).toEqual(["cited_checked"]);
     expect(
-      cited(
-        ["https://example.com/", "https://example.com/pricing"],
-        "https://example.com/",
-      ),
+      cited("https://example.com/pricing", "https://example.com/"),
     ).toEqual(["cited_checked"]);
-    expect(
-      cited(["https://example.com/pricing"], "https://example.com/"),
-    ).toEqual(["cited_checked"]);
-    expect(cited(["https://example.com/"], null)).toEqual(["cited_checked"]);
+    expect(cited("https://example.com/", null)).toEqual(["cited_checked"]);
   });
 
   it("reads the featured snippet, People also ask and other features of a check", () => {

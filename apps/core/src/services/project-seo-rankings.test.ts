@@ -260,17 +260,18 @@ describe("SERP feature history", () => {
     ]);
   });
 
-  it("names the pages of the check a citation speaks of", () => {
-    const raw = result(1, [{ position: 2 }], serps(1, [{}]));
+  it("names the page a citation speaks of only for a check of one page", () => {
+    const check = (day: number, pageUrls: string[]) => ({
+      ...result(day, [{ position: 2 }], serps(day, [{}])),
+      pageUrls,
+    });
     const { serpHistory } = workspaceOf([
-      {
-        ...raw,
-        pageUrls: [`${SEO_TEST_PAGE}#top`, SEO_TEST_SECOND_PAGE],
-      },
+      check(2, [SEO_TEST_PAGE, SEO_TEST_SECOND_PAGE]),
+      check(1, [`${SEO_TEST_PAGE}#top`]),
     ]);
-    expect(serpHistory?.[0].points[0].pageUrls).toEqual([
+    expect(serpHistory?.[0].points.map((point) => point.onlyPageUrl)).toEqual([
       SEO_TEST_PAGE,
-      SEO_TEST_SECOND_PAGE,
+      null,
     ]);
   });
 

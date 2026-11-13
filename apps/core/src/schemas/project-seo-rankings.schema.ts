@@ -30,8 +30,11 @@ export const seoSerpPointSchema = z
   .object({
     observedAt: dateTimeSchema,
     observationId: z.string(),
-    /** The pages of the check, normalized. `pageCited`, `pageOwned` and `paaOwned` speak of these pages. */
-    pageUrls: z.array(z.string()),
+    /**
+     * The page of the check when it read exactly one page, normalized; null for a check of several pages.
+     * `pageCited`, `pageOwned` and `paaOwned` speak of the checked pages, so only a one-page check names the page.
+     */
+    onlyPageUrl: z.string().nullable(),
     itemTypes: z.array(z.string()),
     aiOverview: z.union([
       z.object({

@@ -41712,11 +41712,11 @@ export const ProjectSeoSerpPointSchema = {
         observationId: {
             type: 'string'
         },
-        pageUrls: {
-            type: 'array',
-            items: {
-                type: 'string'
-            }
+        onlyPageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
         },
         itemTypes: {
             type: 'array',
@@ -41795,7 +41795,7 @@ export const ProjectSeoSerpPointSchema = {
     required: [
         'observedAt',
         'observationId',
-        'pageUrls',
+        'onlyPageUrl',
         'itemTypes',
         'aiOverview',
         'featured',

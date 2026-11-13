@@ -106,8 +106,8 @@ export function seoSerpMarkers(
                 ? "undetermined"
                 : !ai.pageCited
                   ? "shown"
-                  : point.pageUrls.length === 1 &&
-                      pageKey(point.pageUrls[0]) === page
+                  : point.onlyPageUrl !== null &&
+                      pageKey(point.onlyPageUrl) === page
                     ? "cited"
                     : "cited_checked",
           featured: !point.featured

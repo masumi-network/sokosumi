@@ -1476,7 +1476,7 @@ describe("Search Console queries", () => {
     const check = (day: string, aiOverview: { shown: boolean } | null) => ({
       observedAt: new Date(`${day}T08:00:00Z`),
       observationId: "observation-1",
-      pageUrls: ["https://example.com/"],
+      onlyPageUrl: "https://example.com/",
       itemTypes: ["organic", "video"],
       aiOverview: aiOverview && {
         ...aiOverview,
@@ -1603,7 +1603,7 @@ describe("Search Console queries", () => {
           {
             observedAt: new Date("2026-10-08T08:00:00Z"),
             observationId: "observation-old",
-            pageUrls: ["https://example.com/"],
+            onlyPageUrl: "https://example.com/",
             itemTypes: ["organic"],
             aiOverview: null,
             featured: null,

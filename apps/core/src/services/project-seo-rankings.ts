@@ -165,8 +165,9 @@ function serpHistory(sources: Source[]): SerpSeries[] {
       entry.points.push({
         observedAt: read.observedAt,
         observationId: row.id,
-        // The bot reads a citation against every page of the Run, so the point names them.
-        pageUrls: data.pageUrls.map(normalizeSeoUrl),
+        // The bot reads a citation against every page of the Run: only a one-page Run names the cited page.
+        onlyPageUrl:
+          data.pageUrls.length === 1 ? normalizeSeoUrl(data.pageUrls[0]) : null,
         itemTypes: read.itemTypes,
         aiOverview: read.aiOverview,
         featured: read.featured,

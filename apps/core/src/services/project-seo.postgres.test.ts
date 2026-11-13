@@ -1486,9 +1486,9 @@ describe.skipIf(!enabled)(
       expect(
         workspace.serpHistory?.map((series) => [
           series.keyword,
-          series.points.map((point) => point.pageUrls),
+          series.points.map((point) => point.onlyPageUrl),
         ]),
-      ).toEqual([["example", [[page.url]]]]);
+      ).toEqual([["example", [page.url]]]);
       expect(workspace.shareOfVoice?.weeks).toHaveLength(1);
     });
 
