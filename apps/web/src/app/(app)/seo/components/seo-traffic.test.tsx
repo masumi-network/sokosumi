@@ -180,6 +180,8 @@ describe("SEO Traffic key events", () => {
     const shop = table.getByRole("row", { name: /example\.com\/shop/ });
     expect(within(shop).getAllByRole("cell").at(-2)).toHaveTextContent("3");
     expect(topPagesTable()).not.toHaveTextContent("recorded no key events");
+    // The key events read names its own period beside the Search Console one.
+    expect(topPagesTable()).toHaveTextContent(/Key events \(organic\) Jan 1/);
   });
 
   it("says when Google Analytics recorded no key events and shows no column without a read", () => {

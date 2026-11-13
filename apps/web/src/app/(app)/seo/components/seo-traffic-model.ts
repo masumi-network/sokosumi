@@ -63,6 +63,8 @@ export function seoKeyEvents(landing: ProjectSeoWorkspace["landingPages"]) {
   if (!landing) return null;
   return {
     channel: landing.channel,
+    // The landing read can cover another period than the Search Console rows beside it.
+    period: { from: landing.from, to: landing.to },
     byPage: new Map(landing.rows.map((row) => [row.pageUrl, row.keyEvents])),
     // An empty AI Assistant read is no channel data; the AI assistants section says so.
     none:

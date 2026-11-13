@@ -92,6 +92,12 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
           {source.truncated
             ? ` · ${t("queries.truncated", { count: source.rowLimit })}`
             : null}
+          {keyEvents ? (
+            <>
+              {" · "}
+              {t(keyEventsLabel)} <SeoPeriod {...keyEvents.period} />
+            </>
+          ) : null}
           {keyEvents?.none ? ` · ${t("traffic.noKeyEvents")}` : null}
         </>
       }
