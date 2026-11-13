@@ -355,7 +355,7 @@ describe("WorkspaceCalendar editing", () => {
     vi.clearAllMocks();
     changeTaskScheduleRunMock.mockResolvedValue({
       ok: true,
-      value: { scheduleId: "schedule-1", runId: "run-1" },
+      value: { scheduleId: "schedule-1", runId: "run-1", revision: 4 },
     });
     getWorkspaceCalendarMock.mockResolvedValue({
       data: [],
@@ -928,6 +928,33 @@ describe("WorkspaceCalendar editing", () => {
       }),
     );
     expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("takes a skipped Run off the Calendar before the answer and puts it back when Core refuses", async () => {
+    let refuse: (result: unknown) => void = () => {};
+    changeTaskScheduleRunMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        refuse = resolve;
+      }),
+    );
+    const user = userEvent.setup();
+    renderCalendar();
+    const eventName = { name: "Prepare release notes, Release planning" };
+
+    await openEventMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "event.skipRun" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", eventName)).not.toBeInTheDocument(),
+    );
+
+    await act(async () =>
+      refuse({ ok: false, error: { kind: "failed", message: "refused" } }),
+    );
+    expect(screen.getAllByRole("button", eventName).length).toBeGreaterThan(0);
+    expect(toastErrorMock).toHaveBeenCalled();
+    // A refused skip offers no Undo.
+    expect(toastSuccessMock).not.toHaveBeenCalled();
   });
 
   it.each([

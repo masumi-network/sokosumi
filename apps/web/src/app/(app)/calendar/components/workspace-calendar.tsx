@@ -142,6 +142,7 @@ import {
 import { SocialPostMoveDialog } from "./social-post-move-dialog";
 import { SocialStatusSummary } from "./social-status-summary";
 import { SourceMarker } from "./source-marker";
+import { useRunChanges } from "./use-run-changes";
 import { useUrlTimezone } from "./use-url-timezone";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
@@ -1067,6 +1068,7 @@ export function WorkspaceCalendar({
         }
       : queryState;
   const [loadedItems, setLoadedItems] = useState(items);
+  const [shownItems, changeShownRun] = useRunChanges(loadedItems);
   const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
   const [loadMoreError, setLoadMoreError] = useState(false);
   const [isLoadingRuns, setIsLoadingRuns] = useState(false);
@@ -1270,7 +1272,7 @@ export function WorkspaceCalendar({
     );
   }
 
-  const visibleItems = loadedItems
+  const visibleItems = shownItems
     .filter((item) => isVisible(item))
     .sort(
       (left, right) => left.scheduledAt.getTime() - right.scheduledAt.getTime(),
@@ -1285,7 +1287,7 @@ export function WorkspaceCalendar({
     number
   >();
   if (socialOnly) {
-    for (const item of loadedItems) {
+    for (const item of shownItems) {
       if (
         item.kind === "socialPost" &&
         isSocialPostStatus(item.status) &&
@@ -1369,43 +1371,10 @@ export function WorkspaceCalendar({
     openCreateDialog(`${getCalendarDayKey(date)}T12:00`);
   }
 
-  const reportRunChangeFailure = useReportRunChangeFailure();
-
-  async function handleRunChange(
-    item: ChangeableRun,
-    change: Parameters<typeof changeRun>[1],
-  ) {
-    try {
-      const result = await changeRun(item, change);
-      if (!result.ok) {
-        reportRunChangeFailure(result.error.kind);
-        return;
-      }
-      // A skipped Run leaves the calendar, so its Undo lives here: it moves
-      // the Run back to its time before the skip, a moved Run included
-      // (Restore would reset it to the rule's time). The skip bumped the
-      // schedule's revision by one.
-      if (change.action === "skip") {
-        toast.success(t("event.runSkipped", { name: item.taskName }), {
-          action: {
-            label: t("event.undo"),
-            onClick: () =>
-              void handleRunChange(
-                { ...item, scheduleRevision: item.scheduleRevision + 1 },
-                { action: "move", scheduledAt: item.scheduledAt },
-              ),
-          },
-        });
-      }
-    } catch {
-      reportRunChangeFailure("failed");
-    }
-  }
-
   const runHandlers: RunHandlers = {
     onMoveRun: setMovingRun,
-    onRestoreRun: (item) => void handleRunChange(item, { action: "restore" }),
-    onSkipRun: (item) => void handleRunChange(item, { action: "skip" }),
+    onRestoreRun: (item) => changeShownRun(item, "restore"),
+    onSkipRun: (item) => changeShownRun(item, "skip"),
     onOpen: (path) => {
       // A task opened here offers Back to this view, period and filters.
       if (path.startsWith("/tasks/")) {
