@@ -120,7 +120,7 @@ describe("hiddenImpressions", () => {
       listed: 1,
       hidden: 34,
     });
-    expect(hiddenImpressions(workspace, undefined)).toBeNull();
+    expect(hiddenImpressions(workspace, null)).toBeNull();
   });
 
   it("returns null when rows add up to more than the total", () => {
