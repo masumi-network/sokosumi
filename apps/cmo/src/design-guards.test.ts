@@ -382,3 +382,21 @@ describe("visual system", () => {
     });
   });
 });
+
+describe("layers", () => {
+  /** The z-index a CSS file gives one exact selector, or NaN. */
+  const layer = (rel: string, selector: string) => {
+    const text = FILES.find((file) => file.rel === rel)?.text ?? "";
+    const at = text.indexOf(`${selector} {`);
+    const block = at < 0 ? "" : text.slice(at, text.indexOf("}", at));
+    return Number(block.match(/z-index:\s*(\d+)/)?.[1]);
+  };
+
+  it("opens the account menu above Brief me's sticky stage bar and its sheet", () => {
+    const brief = "components/onboarding/brief.css";
+    const header = layer(brief, ".brief .brief-top");
+    expect(header).toBeGreaterThan(layer(brief, ".brief-stages"));
+    expect(header).toBeGreaterThan(layer(brief, ".brief-sheet"));
+    expect(header).toBeGreaterThan(layer(brief, ".brief-bar"));
+  });
+});
