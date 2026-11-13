@@ -1143,6 +1143,11 @@
       "description": "CMO gestiona este proyecto, así que los cambios se hacen en CMO. Aquí puedes consultarlo.",
       "open": "Abrir en CMO",
       "newTab": "(se abre en una pestaña nueva)"
+    },
+    "FilesArchive": {
+      "failed": "No se pudieron descargar los archivos. Inténtalo de nuevo o ábrelos uno a uno.",
+      "partial": "Se descargaron {included} de {total} archivos. No incluidos: {names}{more, plural, =0 {} one { y # más} other { y # más}}. Ábrelos uno a uno.",
+      "empty": "Aún no hay archivos para descargar."
     }
   },
   "Join": {
@@ -1905,9 +1910,7 @@
         "expand": "Expandir",
         "collapse": "Contraer",
         "downloadAll": {
-          "button": "Descargar todo",
-          "failed": "No se pudieron descargar los archivos. Inténtalo de nuevo o ábrelos uno a uno.",
-          "partial": "Se descargaron {included} de {total} archivos. No incluidos: {names}{more, plural, =0 {} one { y # más} other { y # más}}. Ábrelos uno a uno."
+          "button": "Descargar todo"
         },
         "actorCoworker": "Coworker",
         "actorUser": "Usuario",
@@ -9541,6 +9544,13 @@
       "myDrive": "Mis archivos",
       "uploadButton": "Subir",
       "uploadingProgress": "{progress}%",
+      "uploadFilesOption": "Archivos",
+      "uploadFolderOption": "Carpeta",
+      "filesUploaded": "{count, plural, one {# archivo subido} other {# archivos subidos}}",
+      "dropToUpload": "Suelta archivos o carpetas para subirlos",
+      "folderUploaded": "{count, plural, one {Se subió # archivo a {folder}} other {Se subieron # archivos a {folder}}}",
+      "folderUploadSkipped": "{count, plural, one {# archivo no se subió. Archivos omite tipos no compatibles, archivos de más de 100 MB, nombres que ya están en la carpeta y todo lo que pase de 500 archivos.} other {# archivos no se subieron. Archivos omite tipos no compatibles, archivos de más de 100 MB, nombres que ya están en la carpeta y todo lo que pase de 500 archivos.}}",
+      "folderUploadNothing": "Esta carpeta no tiene archivos que se puedan subir.",
       "emptyTitle": "Aún no hay archivos",
       "emptyDescription": "Sube tu primer archivo para comenzar",
       "searchPlaceholder": "Buscar archivos...",
@@ -9629,6 +9639,9 @@
       "deleteFolderError": "Error al eliminar carpeta",
       "moveFolderError": "Error al mover carpeta",
       "moveFolderAction": "Mover carpeta",
+      "downloadFolderButton": "Descargar",
+      "downloadFolderAction": "Descargar {name} como zip",
+      "downloadFolderRoomsLeftOut": "Las salas de datos no están en el zip: {names}. Sus archivos siguen siendo privados para las personas con acceso.",
       "moveFileError": "Error al mover archivo",
       "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "Aún no hay archivos de tareas",
@@ -11401,6 +11414,7 @@
       "open": "Abrir",
       "download": "Descargar",
       "downloadFile": "Descargar {name}",
+      "downloadAll": "Descargar todo",
       "truncated": "Se muestran los primeros 2.000 archivos de esta carpeta.",
       "emptyFolder": "Esta carpeta está vacía.",
       "errors": {

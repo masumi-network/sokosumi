@@ -5,13 +5,17 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 
+import { APP_MAIN_MOBILE_PT_CLASS } from "@/app/components/app-shell-safe-area";
 import { Button } from "@/components/ui/button";
 import {
   DRIVE_SHARE_UNLOCK_COOKIE,
   readDriveShare,
 } from "@/lib/services/drive-share.server";
+import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
+import { SharedFolderDownloadAllButton } from "./download-all-button";
 import { SharedFilesPasswordForm } from "./password-form";
+import { downloadHref } from "./share-download";
 
 export const instant = false;
 
@@ -38,11 +42,6 @@ export async function generateMetadata({
   };
 }
 
-function downloadHref(token: string, path?: string): string {
-  const base = `/share/files/${encodeURIComponent(token)}/download`;
-  return path ? `${base}?path=${encodeURIComponent(path)}` : base;
-}
-
 export default async function SharedFilesPage({
   params,
 }: SharedFilesPageProps) {
@@ -52,7 +51,13 @@ export default async function SharedFilesPage({
   const Icon = share.kind === "folder" ? Folder : File;
 
   return (
-    <div className="container mx-auto flex justify-center p-4 md:px-8 md:py-10">
+    <div
+      className={cn(
+        // Clears the fixed mobile header, as on shared Tasks.
+        "container mx-auto flex justify-center p-4 md:px-8 md:py-10",
+        APP_MAIN_MOBILE_PT_CLASS,
+      )}
+    >
       <section className="bg-card-background w-full max-w-2xl rounded-xl border p-5 md:p-6">
         <header className="mb-5 flex min-w-0 items-center gap-3">
           <span className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg">
@@ -64,6 +69,14 @@ export default async function SharedFilesPage({
               {share.kind === "folder" ? t("sharedFolder") : t("sharedFile")}
             </p>
           </div>
+          {share.kind === "folder" && share.items && share.items.length > 1 ? (
+            <SharedFolderDownloadAllButton
+              token={token}
+              name={share.name}
+              paths={share.items.map((item) => item.path)}
+              label={t("downloadAll")}
+            />
+          ) : null}
         </header>
 
         {share.locked ? (

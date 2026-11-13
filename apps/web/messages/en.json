@@ -1143,6 +1143,11 @@
       "description": "CMO runs this Project, so changes happen in CMO. Here you can read it.",
       "open": "Open in CMO",
       "newTab": "(opens in a new tab)"
+    },
+    "FilesArchive": {
+      "failed": "Couldn't download the files. Try again, or open them one by one.",
+      "partial": "Downloaded {included} of {total} files. Not included: {names}{more, plural, =0 {} one { and # more} other { and # more}}. Open them one by one.",
+      "empty": "There are no files to download yet."
     }
   },
   "Join": {
@@ -1906,9 +1911,7 @@
         "expand": "Expand",
         "collapse": "Show less",
         "downloadAll": {
-          "button": "Download all",
-          "failed": "Couldn't download the files. Try again, or open them one by one.",
-          "partial": "Downloaded {included} of {total} files. Not included: {names}{more, plural, =0 {} one { and # more} other { and # more}}. Open them one by one."
+          "button": "Download all"
         },
         "actorCoworker": "Coworker",
         "actorUser": "User",
@@ -9541,6 +9544,13 @@
       "myDrive": "My files",
       "uploadButton": "Upload",
       "uploadingProgress": "{progress}%",
+      "uploadFilesOption": "Files",
+      "uploadFolderOption": "Folder",
+      "filesUploaded": "{count, plural, one {Uploaded # file} other {Uploaded # files}}",
+      "dropToUpload": "Drop files or folders to upload",
+      "folderUploaded": "{count, plural, one {Uploaded # file to {folder}} other {Uploaded # files to {folder}}}",
+      "folderUploadSkipped": "{count, plural, one {# file was not uploaded. Files skips unsupported types, files over 100 MB, names already in the folder and anything past 500 files.} other {# files were not uploaded. Files skips unsupported types, files over 100 MB, names already in the folder and anything past 500 files.}}",
+      "folderUploadNothing": "This folder has no files that can be uploaded.",
       "emptyTitle": "No files yet",
       "emptyDescription": "Upload your first file to get started",
       "searchPlaceholder": "Search files...",
@@ -9629,6 +9639,9 @@
       "deleteFolderError": "Failed to delete folder",
       "moveFolderError": "Failed to move folder",
       "moveFolderAction": "Move folder",
+      "downloadFolderButton": "Download",
+      "downloadFolderAction": "Download {name} as a zip",
+      "downloadFolderRoomsLeftOut": "Data rooms are not in the zip: {names}. Their files stay private to the people let in.",
       "moveFileError": "Failed to move file",
       "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "No task files yet",
@@ -11401,6 +11414,7 @@
       "open": "Open",
       "download": "Download",
       "downloadFile": "Download {name}",
+      "downloadAll": "Download all",
       "truncated": "Showing the first 2,000 files of this folder.",
       "emptyFolder": "This folder is empty.",
       "errors": {
