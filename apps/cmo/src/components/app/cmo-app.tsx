@@ -40,6 +40,7 @@ import {
   ResultsPage,
   SettingsPage,
 } from "./pages";
+import { cmoPause, PausedBanner } from "./paused";
 import { initial, Sidebar, VIEWS } from "./sidebar";
 import { StrategyPage } from "./strategy-page";
 import { type ChangePlan, type OpenPortal } from "./subscription-card";
@@ -97,6 +98,8 @@ export interface CmoAppActions extends AdActions {
   startOver: () => Promise<string | null>;
   /** Starts the checkout for a Project top-up of this Cuso. */
   startTopUp: StartTopUp;
+  /** Starts the CMO plan checkout, for a paused Cuso or from Settings. */
+  subscribe: StartTopUp;
   /** Owners and admins: another tier of the interval, and Polar's portal. */
   changePlan: ChangePlan;
   openPortal: OpenPortal;
@@ -320,6 +323,7 @@ export function CmoApp({
   const status = cusoStatus(overview);
   const outOfCredits =
     strategyApproved(overview) && overview.billing.availableCredits <= 0;
+  const pause = strategyApproved(overview) ? cmoPause(overview) : null;
   const upNextCount = overview.upNext.length;
 
   return (
@@ -397,7 +401,16 @@ export function CmoApp({
           ) : null}
         </div>
 
-        {outOfCredits ? <OutOfCreditsBanner topUp={topUp} /> : null}
+        {pause ? (
+          <PausedBanner
+            pause={pause}
+            billing={overview.billing}
+            subscribe={actions.subscribe}
+            openPortal={actions.openPortal}
+          />
+        ) : outOfCredits ? (
+          <OutOfCreditsBanner topUp={topUp} />
+        ) : null}
 
         {view === "chat" ? (
           <>
@@ -549,6 +562,7 @@ export function CmoApp({
                   plans={plans}
                   changePlan={actions.changePlan}
                   openPortal={actions.openPortal}
+                  subscribe={actions.subscribe}
                 />
               )}
             </div>

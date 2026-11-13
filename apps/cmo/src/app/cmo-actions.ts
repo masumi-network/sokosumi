@@ -871,7 +871,8 @@ export async function connectMeasurement(
 export async function startPlanCheckout(
   projectId: string,
   interval: CmoSubscriptionPlan["interval"],
-  tier: string,
+  /** The plan Polar opens on; without one, the cheapest. */
+  tier?: string,
 ): Promise<{ url: string | null; error: string | null }> {
   const core = await requireCore();
   const { data, error } = await startCmoPlanCheckoutForProject({

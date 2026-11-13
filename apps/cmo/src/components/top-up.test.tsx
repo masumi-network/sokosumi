@@ -82,6 +82,26 @@ describe("the paused Up next", () => {
     expect(html).not.toContain("Top up");
   });
 
+  it("marks his work paused without a paid CMO plan, credits or not", () => {
+    const upNextItems = [
+      {
+        id: "entry-1",
+        date: "2026-11-14",
+        channel: "linkedin",
+        title: "Launch post",
+        status: "planned",
+      },
+    ];
+    const working = upNext({ upNext: upNextItems }, startTopUp);
+    const paused = upNext(
+      { upNext: upNextItems, subscriptionActive: false },
+      startTopUp,
+    );
+    expect(working).not.toContain(">Paused<");
+    expect(paused).toContain(">Paused<");
+    expect(paused).not.toContain("Top up");
+  });
+
   it("offers none while credits are left", () => {
     const html = upNext({}, startTopUp);
     expect(html).not.toContain("Top up");
@@ -131,6 +151,7 @@ describe("Settings", () => {
         plans={[]}
         changePlan={async () => ({ change: null, error: null })}
         openPortal={async () => ({ url: null, error: null })}
+        subscribe={startTopUp}
       />,
     );
 

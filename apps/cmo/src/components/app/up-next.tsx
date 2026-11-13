@@ -84,7 +84,9 @@ export function UpNext({
   topUp,
 }: UpNextProps) {
   const working = overview.botStatus === "RUNNING";
-  const paused = overview.billing.availableCredits <= 0;
+  // Out of credits, or paused without a paid CMO plan (the banner says why).
+  const paused =
+    overview.billing.availableCredits <= 0 || !overview.subscriptionActive;
   const runningToday = overview.upNext.filter((item) => item.date === today);
   const comingUp = overview.upNext.filter((item) => item.date !== today);
   const making =
@@ -108,7 +110,7 @@ export function UpNext({
       </div>
       <div className="ub">
         <MonthProduction production={overview.production} />
-        {paused && topUp ? (
+        {overview.billing.availableCredits <= 0 && topUp ? (
           <section className="ugroup">
             <span className="label">Paused: out of credits</span>
             <TopUpButton startTopUp={topUp} />
