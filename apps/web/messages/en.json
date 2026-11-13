@@ -12410,7 +12410,7 @@
           "analyticsThresholding": "Google Analytics reported thresholding or data loss in the last sync. Some values are left out.",
           "analyticsTruncated": "Google Analytics cut the daily values in the last sync. Some days are left out.",
           "keywordRowsCut": "Search Console kept only the first {count} daily keyword rows in the last sync. Some days can be missing.",
-          "keywordsLeftOut": "Daily positions were not read in the last sync for {count, plural, one {# tracked keyword} other {# tracked keywords}}: {names}.",
+          "keywordsLeftOut": "Daily positions were not read in the last sync for {count, plural, one {# tracked keyword} other {# tracked keywords}}{shown, plural, =0 {.} other {: {names}{more, plural, =0 {.} other { and # more.}}}}",
           "note": "Note of the last sync: {note}",
           "queriesTruncated": "Search Console lists only the top {count} search rows. Rarer searches are left out.",
           "noCheck": "No check has run on these pages yet.",

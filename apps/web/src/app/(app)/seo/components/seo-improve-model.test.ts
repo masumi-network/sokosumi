@@ -13,12 +13,14 @@ import {
   seoStatisticsKeywordsLeftOutNote,
   seoStatisticsQueryRowsCutNote,
 } from "@sokosumi/utils";
+import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 import de from "../../../../../messages/de.json";
 import messages from "../../../../../messages/en.json";
 import es from "../../../../../messages/es.json";
 import {
   seoAuditGaps,
+  seoAuditGapValues,
   seoCapabilityGroups,
   seoUnlockSteps,
   seoViewNarrowed,
@@ -316,6 +318,41 @@ describe("Item 38", () => {
 });
 
 describe("Improve messages", () => {
+  it("say how many left-out keywords a cut note did not name, and drop an empty list", () => {
+    const say = (
+      locale: string,
+      source: typeof messages,
+      names: string[],
+      count: number,
+    ) =>
+      createTranslator({
+        locale,
+        messages: source,
+        namespace: "App.Seo.improve.gaps",
+      })(
+        "keywordsLeftOut",
+        seoAuditGapValues(
+          { message: "keywordsLeftOut", names, count, fix: null },
+          (list) => list.join(", "),
+        ),
+      );
+    const cases = [
+      [
+        "en",
+        messages,
+        "for 5 tracked keywords: a, b and 3 more.",
+        "for 1 tracked keyword.",
+      ],
+      ["de", de, "Keywords: a, b und 3 weitere.", "Keyword."],
+      ["es", es, "seguidas: a, b y 3 más.", "seguida."],
+    ] as const;
+    for (const [locale, source, cut, empty] of cases) {
+      expect(say(locale, source, ["a", "b"], 5)).toContain(cut);
+      expect(say(locale, source, [], 1).endsWith(empty)).toBe(true);
+      expect(say(locale, source, ["a", "b"], 2)).toMatch(/: a, b\.$/);
+    }
+  });
+
   it("start each button's accessible name with its visible text (WCAG 2.5.3)", () => {
     for (const { App } of [messages, de, es]) {
       const seo = App.Seo;

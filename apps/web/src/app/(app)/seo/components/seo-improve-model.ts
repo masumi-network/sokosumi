@@ -60,6 +60,26 @@ export type SeoAuditGap = {
 };
 
 /**
+ * The values of one gap's message. `list` joins names in the reader's language. A cut note names fewer
+ * keywords than it counts, so `more` says how many it left out; `shown` 0 leaves the list out.
+ */
+export function seoAuditGapValues(
+  gap: SeoAuditGap,
+  list: (names: string[]) => string,
+) {
+  const names = gap.names ?? [];
+  const count = gap.count ?? 0;
+  return {
+    note: gap.note ?? "",
+    count,
+    limit: count,
+    names: list(names),
+    shown: names.length,
+    more: Math.max(0, count - names.length),
+  };
+}
+
+/**
  * Whether a filter narrows the statistics Core returns: a sync counts only for its exact page group and
  * channel, and Search Console stores "organic" only. A narrowed view can lack a connected source's data.
  */

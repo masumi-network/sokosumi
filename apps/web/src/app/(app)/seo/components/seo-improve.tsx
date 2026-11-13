@@ -11,6 +11,7 @@ import {
   type SeoAuditGapFix,
   type SeoCapabilityFilter,
   seoAuditGaps,
+  seoAuditGapValues,
   seoCapabilityGroups,
   seoUnlockSteps,
   seoViewNarrowed,
@@ -165,12 +166,10 @@ export function SeoImprove({ model }: { model: SeoWorkspaceModel }) {
                 className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"
               >
                 <p className="min-w-0 flex-1">
-                  {t(`gaps.${gap.message}`, {
-                    note: gap.note ?? "",
-                    count: gap.count ?? 0,
-                    limit: gap.count ?? 0,
-                    names: format.list(gap.names ?? []),
-                  })}
+                  {t(
+                    `gaps.${gap.message}`,
+                    seoAuditGapValues(gap, (names) => format.list(names)),
+                  )}
                 </p>
                 {gap.fix ? (
                   <FixButton
