@@ -15,10 +15,13 @@ import {
 import { getNewsletterTabs, newsletterHref } from "../../newsletter-tabs";
 import { IssueDeliveryOutcome } from "../issue-delivery-status";
 import { NewsletterIssueEditor } from "../issue-editor";
+import { IssueHeader } from "../issue-header";
 import { NewsletterIssuePreview } from "../issue-preview";
 import { loadIssueEditorSearchParams } from "../search-params";
 
 export const instant = false;
+
+export { generateNewsletterMetadata as generateMetadata } from "@/app/newsletter/newsletter-project";
 
 export default async function NewsletterIssuePage({
   params,
@@ -80,6 +83,11 @@ export default async function NewsletterIssuePage({
       {project.cmo ? (
         // CMO writes and sends a CMO Project's issues; here they are read.
         <div className="min-w-0 space-y-4">
+          <IssueHeader
+            issue={issue}
+            newsletterSlug={newsletter.publicSlug}
+            recipients={analytics?.totals.sent}
+          />
           <IssueDeliveryOutcome issue={issue} projectId={project.id} />
           <NewsletterIssuePreview
             projectId={project.id}

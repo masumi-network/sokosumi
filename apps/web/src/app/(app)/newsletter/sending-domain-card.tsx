@@ -15,7 +15,6 @@ import {
   Clock,
   ExternalLink,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
   createElement,
@@ -229,7 +228,6 @@ function AddDomainForm({
   projectId: string;
 }) {
   const t = useTranslations("App.Projects.Newsletter.SendingDomain");
-  const router = useRouter();
   const [fromAddress, setFromAddress] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -248,7 +246,6 @@ function AddDomainForm({
         return;
       }
       toast.success(t("added"));
-      router.refresh();
     } catch {
       setError(t("errors.generic"));
     } finally {
@@ -319,7 +316,6 @@ function ConnectedDomain({
 }: ConnectedDomainProps) {
   const t = useTranslations("App.Projects.Newsletter.SendingDomain");
   const format = useFormatter();
-  const router = useRouter();
   const [checking, setChecking] = useState(false);
   const [hasChecked, setHasChecked] = useState(false);
   const [recordsOverride, setRecordsOverride] = useState<boolean | null>(null);
@@ -391,7 +387,6 @@ function ConnectedDomain({
         setRecordsOverride(true);
         toast.info(t("checked", requiredRecordCounts(result.value.dnsRecords)));
       }
-      router.refresh();
     } catch {
       toast.error(t("errors.generic"));
     } finally {
@@ -613,7 +608,6 @@ function WarmupPausedNotice({
 }) {
   const t = useTranslations("App.Projects.Newsletter.SendingDomain");
   const format = useFormatter();
-  const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
@@ -627,7 +621,6 @@ function WarmupPausedNotice({
         return;
       }
       toast.success(t("warmup.resumed"));
-      router.refresh();
     } catch {
       setError(t("errors.generic"));
     } finally {
@@ -775,7 +768,6 @@ function DiscoveryStatus({
 
 function CloudflareOption({ projectId }: { projectId: string }) {
   const t = useTranslations("App.Projects.Newsletter.SendingDomain");
-  const router = useRouter();
   const [apiToken, setApiToken] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -795,7 +787,6 @@ function CloudflareOption({ projectId }: { projectId: string }) {
       }
       setApiToken("");
       toast.success(t("cloudflare.success"));
-      router.refresh();
     } catch {
       setError(t("errors.generic"));
     } finally {
@@ -1085,7 +1076,6 @@ function RemoveDomainButton({
   projectId: string;
 }) {
   const t = useTranslations("App.Projects.Newsletter.SendingDomain");
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -1101,7 +1091,6 @@ function RemoveDomainButton({
       }
       setOpen(false);
       toast.success(t("remove.success"));
-      router.refresh();
     } catch {
       setError(t("errors.generic"));
     } finally {
