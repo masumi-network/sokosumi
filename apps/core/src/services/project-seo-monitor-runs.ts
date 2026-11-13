@@ -31,20 +31,21 @@ export function lastRunStatus(
   return taskStatus === "COMPLETED" ? "completed" : "running";
 }
 
-/** Result rows read to find the newest result of each Task. A Task imports few files. */
-const SEO_MONITOR_RESULT_ROWS = 50;
+/** Result rows read per Task to find its newest result. A Task imports few files. */
+const SEO_MONITOR_RESULT_ROWS_PER_TASK = 5;
 
 /**
- * The newest readable result of each of the two newest Tasks with a result, newest Task first. Tasks are in the
- * order given (newest created first), so a late result keeps its Run's place. One Task with two imported files
- * counts once. The workspace and the notification therefore compare the same pair of Runs. The owner filter keeps
- * the read on the owner's observation index.
+ * Per group of Tasks (newest created first): the newest readable result of each of the two newest Tasks with a
+ * result, newest Task first. A late result keeps its Run's place, and one Task with two imported files counts once,
+ * so the workspace and the notification compare the same pair of Runs. All groups share one id read and one payload
+ * read; the owner filter keeps them on the owner's observation index.
  */
-export async function newestSeoMonitorResults(
+async function newestResultsOfTaskGroups(
   owner: Pick<SeoActor, "owner">,
-  taskIds: string[],
-): Promise<SeoMonitorRunResult[]> {
-  if (!taskIds.length) return [];
+  groups: string[][],
+): Promise<SeoMonitorRunResult[][]> {
+  const taskIds = groups.flat();
+  if (!taskIds.length) return groups.map(() => []);
   const rows = await prisma.projectSeoObservation.findMany({
     where: {
       ...seoOwnerWhere(owner),
@@ -53,30 +54,48 @@ export async function newestSeoMonitorResults(
       kind: { notIn: NON_RESULT_KINDS },
     },
     orderBy: [{ observedAt: "desc" }, { id: "desc" }],
-    take: SEO_MONITOR_RESULT_ROWS,
+    take: taskIds.length * SEO_MONITOR_RESULT_ROWS_PER_TASK,
     select: { id: true, sourceTaskId: true },
   });
   const newestOfTask = new Map<string, string>();
   for (const row of rows)
     if (row.sourceTaskId && !newestOfTask.has(row.sourceTaskId))
       newestOfTask.set(row.sourceTaskId, row.id);
-  const ids = taskIds
-    .flatMap((taskId) => newestOfTask.get(taskId) ?? [])
-    .slice(0, 2);
-  const results = await prisma.projectSeoObservation.findMany({
-    where: { id: { in: ids } },
-    select: { id: true, observedAt: true, payload: true },
-  });
-  return ids.flatMap((id) => {
-    const row = results.find((item) => item.id === id);
-    const parsed = publicSeoPayloadSchema.safeParse(row?.payload);
-    return row && parsed.success
-      ? [{ observedAt: row.observedAt, payload: parsed.data }]
-      : [];
-  });
+  const groupIds = groups.map((group) =>
+    group.flatMap((taskId) => newestOfTask.get(taskId) ?? []).slice(0, 2),
+  );
+  const ids = groupIds.flat();
+  const results = ids.length
+    ? await prisma.projectSeoObservation.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, observedAt: true, payload: true },
+      })
+    : [];
+  const byId = new Map(results.map((row) => [row.id, row]));
+  return groupIds.map((group) =>
+    group.flatMap((id) => {
+      const row = byId.get(id);
+      const parsed = publicSeoPayloadSchema.safeParse(row?.payload);
+      return row && parsed.success
+        ? [{ observedAt: row.observedAt, payload: parsed.data }]
+        : [];
+    }),
+  );
 }
 
-/** Per monitor: its newest Run and what its newest result changed against the result before. */
+/** The two newest results of one group of Tasks, as above. */
+export async function newestSeoMonitorResults(
+  owner: Pick<SeoActor, "owner">,
+  taskIds: string[],
+): Promise<SeoMonitorRunResult[]> {
+  const [results] = await newestResultsOfTaskGroups(owner, [taskIds]);
+  return results;
+}
+
+/**
+ * Per monitor: its newest Run and what its newest result changed against the result before. One indexed Task read
+ * per monitor; the analysis status, result ids and payloads are one read each for all monitors.
+ */
 export async function readSeoMonitorRuns(
   actor: Pick<SeoActor, "owner" | "workspaceId">,
   monitorIds: string[],
@@ -86,45 +105,55 @@ export async function readSeoMonitorRuns(
     { lastRun: SeoMonitorLastRun | null; change: SeoMonitorChange | null }
   >
 > {
-  const entries = await Promise.all(
-    monitorIds.map(async (monitorId) => {
-      const tasks = await prisma.task.findMany({
+  const tasksOf = await Promise.all(
+    monitorIds.map((monitorId) =>
+      prisma.task.findMany({
         where: { scheduleId: monitorId, workspaceId: actor.workspaceId },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: SEO_MONITOR_RECENT_RUNS,
         select: { id: true, status: true, createdAt: true },
-      });
-      const newest = tasks[0];
-      const [analysis, results] = await Promise.all([
-        newest
-          ? prisma.projectSeoAnalysis.findUnique({
-              where: { taskId: newest.id },
-              select: { status: true },
-            })
-          : null,
-        newestSeoMonitorResults(
-          actor,
-          tasks.map((task) => task.id),
-        ),
-      ]);
-      const [latest, previous] = results;
+      }),
+    ),
+  );
+  const newestIds = tasksOf.flatMap((tasks) => tasks[0]?.id ?? []);
+  const [analyses, results] = await Promise.all([
+    newestIds.length
+      ? prisma.projectSeoAnalysis.findMany({
+          where: { taskId: { in: newestIds } },
+          select: { taskId: true, status: true },
+        })
+      : [],
+    newestResultsOfTaskGroups(
+      actor,
+      tasksOf.map((tasks) => tasks.map((task) => task.id)),
+    ),
+  ]);
+  const analysisStatus = new Map(
+    analyses.map((analysis) => [analysis.taskId, analysis.status]),
+  );
+  return new Map(
+    monitorIds.map((monitorId, index) => {
+      const newest = tasksOf[index][0];
+      const [latest, previous] = results[index];
       return [
         monitorId,
         {
           lastRun: newest
             ? {
                 at: newest.createdAt.toISOString(),
-                status: lastRunStatus(newest.status, analysis?.status),
+                status: lastRunStatus(
+                  newest.status,
+                  analysisStatus.get(newest.id),
+                ),
                 taskId: newest.id,
               }
             : null,
           change:
             latest && previous ? compareSeoMonitorRuns(previous, latest) : null,
         },
-      ] as const;
+      ];
     }),
   );
-  return new Map(entries);
 }
 
 /** Which SEO monitor made each of these Tasks. Tasks of other schedules and one-off checks are absent. */

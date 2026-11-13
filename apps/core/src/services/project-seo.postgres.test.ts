@@ -657,6 +657,28 @@ describe.skipIf(!enabled)(
           idempotencyKey: "monitor-ux-analysis",
         }),
       });
+      // A sibling monitor of the same owner, with one Run and no result, for the batched read below.
+      const sibling = await createProjectSeoMonitor(vars, actor, {
+        operationId: randomUUID(),
+        rule: {
+          expr: "0 9 * * *",
+          timezone: "UTC",
+          endsMode: "AFTER",
+          targetRunCount: 2,
+        },
+        analysis: requestSeoAnalysisSchema.parse({
+          kind: "page_check",
+          pageIds: [page.id],
+          countryCode: "US",
+          languageCode: "en",
+          devices: ["desktop"],
+          coworkerId,
+          idempotencyKey: "monitor-ux-sibling",
+        }),
+      });
+      await runTaskScheduleNow(vars, sibling.id, {
+        expectedRevision: sibling.revision,
+      });
       // Another member of the workspace may read the monitor but not add Runs billed to its owner.
       const memberVars = {
         ...vars,
@@ -830,7 +852,24 @@ describe.skipIf(!enabled)(
       });
       expect(
         workspace.runs?.filter((run) => run.monitorId === monitor.id),
-      ).toHaveLength(5); // Each stored result is one history entry: three Runs, two of them with two files.
+      ).toHaveLength(5);
+      // The batched read keeps each monitor's own Runs: other monitors of this owner show their own last Run and
+      // no change from this monitor's results.
+      const others = workspace.monitors.filter(
+        (item) => item.id !== monitor.id,
+      );
+      expect(others.map((item) => item.id)).toContain(sibling.id);
+      for (const other of others) {
+        expect(other.change).toBeNull();
+        if (other.lastRun?.taskId)
+          expect(
+            (
+              await prisma.task.findUniqueOrThrow({
+                where: { id: other.lastRun.taskId },
+              })
+            ).scheduleId,
+          ).toBe(other.id);
+      } // Each stored result is one history entry: three Runs, two of them with two files.
     });
 
     it("uses configured protocol authority instead of imported-file provenance or the source Task assignee", async () => {
