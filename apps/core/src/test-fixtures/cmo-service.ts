@@ -373,6 +373,7 @@ export function resetCmoServiceMocks(): void {
   // The person asking is on the hire allowlist unless a test says otherwise.
   userFindUnique.mockResolvedValue({
     email: "lena@harborbikes.com",
+    emailVerified: true,
     preferredOrganizationId: "org-1",
   });
   for (const key of Object.keys(envOverrides)) {

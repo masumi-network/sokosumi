@@ -100,7 +100,11 @@ beforeEach(() => {
   m.allowlist = ["@qa.io"];
   m.buckets = [];
   m.member = true;
-  m.prisma.user.findUnique.mockResolvedValue({ email: "Tester@QA.io" });
+  // On the list by its @qa.io domain, and verified.
+  m.prisma.user.findUnique.mockResolvedValue({
+    email: "Tester@QA.io",
+    emailVerified: true,
+  });
   m.prisma.workspace.findUnique.mockResolvedValue({ organizationId: "org-1" });
   m.prisma.sokoBot.findFirst.mockResolvedValue({
     id: "bot-1",
@@ -131,7 +135,7 @@ beforeEach(() => {
 });
 
 describe("POST /v1/cmo/projects/{projectId}/skip-subscription", () => {
-  it("gives a tester's Cuso 10,000 Tester credits", async () => {
+  it("gives a verified tester on a domain entry 10,000 Tester credits", async () => {
     const response = await skip();
 
     expect(response.status).toBe(200);
@@ -154,6 +158,27 @@ describe("POST /v1/cmo/projects/{projectId}/skip-subscription", () => {
       200, 409,
     ]);
     expect(m.grantFreeCredits).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives a verified tester on a full-email entry his Tester credits", async () => {
+    m.allowlist = ["tester@qa.io"];
+
+    expect((await skip()).status).toBe(200);
+    expect(m.grantFreeCredits).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a person on the list whose email is not verified", async () => {
+    // Anyone can register an unverified address at a listed domain.
+    m.prisma.user.findUnique.mockResolvedValue({
+      email: "Tester@QA.io",
+      emailVerified: false,
+    });
+
+    const response = await skip();
+
+    expect(response.status).toBe(403);
+    expect((await response.json()).message).toContain("verified email");
+    expect(m.grantFreeCredits).not.toHaveBeenCalled();
   });
 
   it("refuses a person who is not on the skip allowlist", async () => {

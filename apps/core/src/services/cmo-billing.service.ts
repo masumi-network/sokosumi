@@ -155,6 +155,8 @@ export async function maySkipCmoSubscription(
     !(await isOnEmailAllowlist(
       userId,
       getEnv().CMO_SUBSCRIPTION_SKIP_ALLOWLIST,
+      // The grant is free credits again and again: a verified address only.
+      { requireVerifiedEmail: true },
     ))
   ) {
     return false;
@@ -175,10 +177,11 @@ export async function skipCmoSubscription(input: CusoTarget): Promise<void> {
     !(await isOnEmailAllowlist(
       input.userId,
       getEnv().CMO_SUBSCRIPTION_SKIP_ALLOWLIST,
+      { requireVerifiedEmail: true },
     ))
   ) {
     throw new CmoForbiddenError(
-      "Only testers may continue without a subscription",
+      "Only testers with a verified email may continue without a subscription",
     );
   }
   const { organizationId } = await cmoPayer(cuso);

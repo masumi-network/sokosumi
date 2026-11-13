@@ -119,7 +119,7 @@ CMO's flow after identity onboarding, from the start form (website, main goal, a
 _Avoid_: Onboarding, CMO onboarding (both collide with Identity onboarding)
 
 **Tester credits**:
-The 10,000 credits a person on Core's `CMO_SUBSCRIPTION_SKIP_ALLOWLIST` gives a Cuso in place of a CMO subscription, again once they are used up; the credits each Hiring Cuso granted before CMO subscriptions are Tester credits now ([ADR 0068](docs/adr/0068-cmo-sells-its-plans-through-polar.md)). They are Project credits of his Project with their own credit bucket type, never expire, keep him working while unspent, end his hiring without a checkout, and are written off when he stops being live ([ADR 0067](docs/adr/0067-cuso-starter-credits-are-project-credits.md)).
+The 10,000 credits a person whose verified email is on Core's `CMO_SUBSCRIPTION_SKIP_ALLOWLIST` gives a Cuso in place of a CMO subscription, again once they are used up; the credits each Hiring Cuso granted before CMO subscriptions are Tester credits now ([ADR 0068](docs/adr/0068-cmo-sells-its-plans-through-polar.md)). They are Project credits of his Project with their own credit bucket type, never expire, keep him working while unspent, end his hiring without a checkout, and are written off when he stops being live ([ADR 0067](docs/adr/0067-cuso-starter-credits-are-project-credits.md)).
 _Avoid_: Starter credits (the former name), trial credits (CMO has no trial), free credits (that is any admin grant), skip credits
 
 **CMO plan**:

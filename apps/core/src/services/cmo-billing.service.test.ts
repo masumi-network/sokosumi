@@ -8,6 +8,7 @@ import {
   resetCmoServiceMocks,
   seedStrategy,
   strategy,
+  userFindUnique,
 } from "@/test-fixtures/cmo-service";
 
 vi.mock(
@@ -222,6 +223,14 @@ describe("maySkipCmoSubscription", () => {
 
   it("lets a tester skip while nothing pays for the Cuso", async () => {
     expect(await maySkipCmoSubscription("user-1", "project-1")).toBe(true);
+  });
+
+  it("refuses a person on the list whose email is not verified", async () => {
+    userFindUnique.mockResolvedValue({
+      email: "lena@harborbikes.com",
+      emailVerified: false,
+    });
+    expect(await maySkipCmoSubscription("user-1", "project-1")).toBe(false);
   });
 
   it("refuses a person who is not on the list, and everyone while it is empty", async () => {
