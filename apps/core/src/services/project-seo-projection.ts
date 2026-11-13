@@ -99,6 +99,20 @@ function checkIdentity(
   );
 }
 
+/** One issue across checks: a later check that finds the same row again replaces it, also under a newer rulebook. */
+function issueIdentity(
+  source: PublicSeoPayload,
+  check: { pageUrl: string; rowId: string; device: string | null },
+) {
+  return key(
+    normalizeSeoUrl(check.pageUrl),
+    check.rowId,
+    check.device,
+    source.countryCode,
+    source.languageCode,
+  );
+}
+
 function verifiedAction(
   input: ProjectionInput,
   source: PublicSeoPayload,
@@ -331,13 +345,14 @@ export function projectSeoProjection(
     for (const item of data.findings) {
       if (!selectedUrls.has(normalizeSeoUrl(item.pageUrl))) continue;
       const identity = checkIdentity(data, item);
+      const issue = issueIdentity(data, item);
       if (
-        seenFindings.has(identity) ||
+        seenFindings.has(issue) ||
         (latestChecked.has(identity) &&
           latestChecked.get(identity)?.id !== row.id)
       )
         continue;
-      seenFindings.add(identity);
+      seenFindings.add(issue);
       findings.push({
         ...item,
         id: `${row.id}:${item.id}`,
@@ -431,7 +446,7 @@ export function projectSeoProjection(
         link && taskStatus && !DEAD_TASK_STATUSES.has(taskStatus),
       );
       const identities = fixed.flatMap((finding) =>
-        finding ? [checkIdentity(data, finding)] : [],
+        finding ? [issueIdentity(data, finding)] : [],
       );
       /** A later check read the same row on the same device and it passes. */
       const passedLater = (identity: string, device: string | null) => {
@@ -447,7 +462,7 @@ export function projectSeoProjection(
         fixed.every(
           (finding) =>
             finding &&
-            (proposed.has(checkIdentity(data, finding)) ||
+            (proposed.has(issueIdentity(data, finding)) ||
               passedLater(checkIdentity(data, finding), finding.device)),
         )
       )

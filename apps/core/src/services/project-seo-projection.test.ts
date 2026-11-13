@@ -773,6 +773,29 @@ describe("stored SEO workspace projections", () => {
     );
   });
 
+  it("shows one issue and one fix when a later check under a newer rulebook finds the issue again", () => {
+    const { input, original } = actionFixture();
+    input.actionTasks = [];
+    const latest = observation(
+      input,
+      {
+        ...parsePublicSeoArtifact(legacyReport()),
+        rulebookVersion: "newer-rulebook",
+      },
+      "2026-11-04T12:00:00Z",
+    );
+    input.observations = [latest, original];
+    const result = projectSeoProjection(input);
+    expect(result.actions.length).toBeGreaterThan(0);
+    expect(
+      new Set(result.actions.map((action) => action.observationId)),
+    ).toEqual(new Set([latest.id]));
+    expect(result.findings.length).toBeGreaterThan(0);
+    expect(new Set(result.findings.map((item) => item.observationId))).toEqual(
+      new Set([latest.id]),
+    );
+  });
+
   it("lets only a live fix of a later check replace a recommendation, and only for each of its findings", () => {
     const { input, original } = actionFixture();
     const [link] = input.actionTasks;
