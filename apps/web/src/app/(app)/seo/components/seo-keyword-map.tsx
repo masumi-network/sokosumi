@@ -106,8 +106,18 @@ export function SeoKeywordMap({
     <figure className="min-w-0 space-y-3">
       <figcaption className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <span className="text-sm font-medium">{t("map.title")}</span>
-        {/* Identity by fill, not by color alone: filled for a keyword of yours, a ring for an idea. */}
-        <span aria-hidden className="text-muted-foreground flex gap-4 text-xs">
+        {/* Identity by fill, not by color alone: filled for a keyword of yours, a ring for an idea. A map of
+            one kind needs no legend. */}
+        <span
+          aria-hidden
+          className={cn(
+            "text-muted-foreground flex gap-4 text-xs",
+            !(
+              points.some((point) => point.checked) &&
+              points.some((point) => !point.checked)
+            ) && "hidden",
+          )}
+        >
           <span className="flex items-center gap-1.5">
             <span className="bg-chart-5 size-2.5 rounded-full" />
             {t("map.checked")}
@@ -269,6 +279,7 @@ export function SeoKeywordMap({
         <SeoFoldSummary className="text-muted-foreground py-3 text-xs">
           {t("map.table")}
         </SeoFoldSummary>
+        <p className="text-muted-foreground pt-2 text-xs">{t("map.source")}</p>
         <div className="max-h-64 overflow-auto pt-2">
           <table className="w-full text-xs">
             <thead className="text-muted-foreground text-left">

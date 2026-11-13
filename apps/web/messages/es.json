@@ -11586,7 +11586,8 @@
           "top3": "{clicks, plural, =0 {Top 3: sin clics adicionales} one {Top 3: +# clic al mes} other {Top 3: +# clics al mes}}",
           "gain": "Clics adicionales en el top 3",
           "table": "Mostrar como tabla",
-          "note": "Más arriba: más búsquedas. Más a la izquierda: más fácil llegar al top 10. Un punto más grande: más clics adicionales en el puesto 3. La mayoría de los clics va al top 3. Los clics son estimaciones a partir de las búsquedas mensuales y la cuota de clics de cada puesto de Google (Advanced Web Ranking, julio de 2026). La dificultad viene de DataForSEO."
+          "note": "Más arriba: más búsquedas. Más a la izquierda: más fácil llegar al top 10. Un punto más grande: más clics adicionales en el puesto 3.",
+          "source": "Los clics son estimaciones a partir de las búsquedas mensuales y la cuota de clics de cada puesto de Google (Advanced Web Ranking, julio de 2026). La dificultad viene de DataForSEO."
         },
         "historyShow": "Historial",
         "historyPaidTitle": "Posiciones en comprobaciones de pago",
