@@ -7,6 +7,7 @@ import {
   RoomMessageComposer,
 } from "@/components/chat/room-message-composer";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { resolveComposerEnterAction } from "@/lib/utils/composer-wysiwyg-input-rules";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import type { SeoChatPrompt } from "./seo-chat-prompts";
@@ -19,31 +20,48 @@ const IME_KEY_CODE = 229;
 function SeoPromptChips({
   prompts,
   onPick,
+  hidden,
 }: {
   prompts: readonly SeoChatPrompt[];
   onPick: (question: string) => void;
+  /** The reader types: the chips fade out and their row closes; an empty field brings them back. */
+  hidden: boolean;
 }) {
   const t = useTranslations("App.Seo");
   if (!prompts.length) return null;
   return (
-    // A new set rises in, so the change after an answer is seen.
+    // The row closes from its full height to none: a grid row animates where a height cannot.
     <div
-      key={prompts.join()}
-      role="group"
-      aria-label={t("chat.suggestions")}
-      className="content-rise flex flex-wrap gap-2 px-4 pt-3"
+      inert={hidden}
+      aria-hidden={hidden || undefined}
+      className={cn(
+        "grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-[opacity]",
+        hidden ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr]",
+      )}
     >
-      {prompts.map((prompt) => (
-        <button
-          key={prompt}
-          type="button"
-          // A quiet pill. On a phone an invisible band widens the hit area to 40px.
-          className="border-border text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring press relative inline-flex min-h-7 max-w-full items-center rounded-full border px-2.5 py-0.5 text-start text-xs transition-colors outline-none focus-visible:ring-2 max-sm:min-h-8 max-sm:before:absolute max-sm:before:inset-x-0 max-sm:before:-inset-y-1 max-sm:before:content-['']"
-          onClick={() => onPick(t(`agent.prompts.${prompt}`))}
+      {/* No padding on the clip: padding would keep a band open. The chips keep room for their ring and their
+          phone hit band inside it. */}
+      <div className="min-h-0 overflow-hidden">
+        {/* A new set rises in, so the change after an answer is seen. */}
+        <div
+          key={prompts.join()}
+          role="group"
+          aria-label={t("chat.suggestions")}
+          className="content-rise flex flex-wrap gap-2 px-4 pt-3 pb-1"
         >
-          {t(`agent.prompts.${prompt}`)}
-        </button>
-      ))}
+          {prompts.map((prompt) => (
+            <button
+              key={prompt}
+              type="button"
+              // A quiet pill. On a phone an invisible band widens the hit area to 40px.
+              className="border-border text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring press relative inline-flex min-h-7 max-w-full items-center rounded-full border px-2.5 py-0.5 text-start text-xs transition-colors outline-none focus-visible:ring-2 max-sm:min-h-8 max-sm:before:absolute max-sm:before:inset-x-0 max-sm:before:-inset-y-1 max-sm:before:content-['']"
+              onClick={() => onPick(t(`agent.prompts.${prompt}`))}
+            >
+              {t(`agent.prompts.${prompt}`)}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -82,22 +100,21 @@ export function SeoChatComposer({
         onRemoveAttachment={() => {}}
         removeAttachmentLabel={(name) => name}
         aboveEditor={
-          value ? null : (
-            <SeoPromptChips
-              prompts={prompts}
-              onPick={(question) => {
-                const field = document.getElementById(inputId);
-                if (!(field instanceof HTMLTextAreaElement)) return;
-                onChange(question);
-                // Focus inside the tap, so a phone opens its keyboard; the pressed chip goes with the empty field.
-                field.focus();
-                // The reader can change the question before sending it: the caret waits at its end, once the value is in.
-                requestAnimationFrame(() =>
-                  field.setSelectionRange(question.length, question.length),
-                );
-              }}
-            />
-          )
+          <SeoPromptChips
+            hidden={Boolean(value)}
+            prompts={prompts}
+            onPick={(question) => {
+              const field = document.getElementById(inputId);
+              if (!(field instanceof HTMLTextAreaElement)) return;
+              onChange(question);
+              // Focus inside the tap, so a phone opens its keyboard; the pressed chip goes with the empty field.
+              field.focus();
+              // The reader can change the question before sending it: the caret waits at its end, once the value is in.
+              requestAnimationFrame(() =>
+                field.setSelectionRange(question.length, question.length),
+              );
+            }}
+          />
         }
         isSending={busy}
         sendDisabled={!value.trim()}
