@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { cmoStrategyVersion } from "../../test-fixtures/cmo";
 import {
   asking,
-  brain,
   draft,
   reading,
   research,
@@ -15,7 +14,6 @@ import {
   briefAsks,
   briefStage,
   briefSteps,
-  meanwhile,
   questionEntry,
   stageMarks,
   weekOne,
@@ -156,8 +154,6 @@ describe("stageMarks", () => {
       "next",
       "next",
     ]);
-    expect(marks[3]?.who).toBe("Cuso · writing");
-    expect(marks[2]?.who).toBe("You");
   });
 
   it("marks a plan written before the brand check as done", () => {
@@ -171,20 +167,6 @@ describe("stageMarks", () => {
       "next",
       "next",
     ]);
-  });
-
-  it("says Cuso stopped when the read failed, and is waiting when he asked in words", () => {
-    const failed = reading({ work: work("research", { status: "failed" }) });
-    expect(stageMarks(failed, local())[1]?.who).toBe("Cuso · stopped");
-    expect(stageMarks(failed, local({ askedInWords: true }))[1]?.who).toBe(
-      "Cuso · waiting",
-    );
-  });
-
-  it("says Cuso is finishing the read while he asks his brand questions", () => {
-    expect(
-      stageMarks(asking({ work: work("research") }), local())[1]?.who,
-    ).toBe("Cuso · finishing");
   });
 });
 
@@ -372,13 +354,13 @@ describe("briefAsks", () => {
 });
 
 describe("workingStatus", () => {
-  it("counts the research groups and names the page being read", () => {
+  it("names the read and the page, and leaves the count to the groups", () => {
     const status = workingStatus(reading({ research: research(3) }), local());
     expect(status).toEqual({
-      count: "3 of 6 groups",
-      title: "Reading your site and 6 places around it",
+      count: "",
+      title: "Reading 6 places around your site",
       now: "Now: Reading acme.io/pricing",
-      foot: "Nothing needs you. You can close this tab.",
+      foot: "You can close this tab.",
     });
   });
 
@@ -402,9 +384,8 @@ describe("workingStatus", () => {
     );
     expect(status.title).toBe("Writing your plan");
     expect(status.count).toBe("3 pieces so far");
-    expect(status.foot).toBe(
-      "Nothing needs you. I'll open the chat when your briefing is ready.",
-    );
+    expect(status.now).toBe("");
+    expect(status.foot).toBe("I'll ask when your briefing is ready.");
   });
 
   it("says a change is landing and the next question waits for it", () => {
@@ -416,7 +397,7 @@ describe("workingStatus", () => {
     expect(status.foot).toBe("Your next question waits until this lands.");
   });
 
-  it("counts the pieces made once live, never a time", () => {
+  it("says the month goes on once live, with no count", () => {
     const status = workingStatus(
       draft({
         ...approved,
@@ -433,66 +414,8 @@ describe("workingStatus", () => {
       }),
       local({ launched: true }),
     );
-    expect(status.count).toBe("22 of 60 written");
-    expect(status.title).toBe(
-      "Onboarding is done. I keep making your month in the background.",
-    );
-  });
-});
-
-describe("meanwhile", () => {
-  it("says what Cuso does while the chat asks", () => {
-    expect(meanwhile(asking({ work: work("research") }))).toBe(
-      "Meanwhile Cuso is wrapping up the research",
-    );
-    expect(meanwhile(asking({ work: work("strategy") }))).toBe(
-      "Meanwhile Cuso is writing your plan",
-    );
-    expect(
-      meanwhile(asking({ work: work("strategy", { change: "fix" }) })),
-    ).toBe("Meanwhile Cuso is fixing your Brand Brain");
-    expect(meanwhile(asking())).toBeNull();
-  });
-
-  it("says a fix waits its turn while the plan writes", () => {
-    expect(
-      meanwhile(
-        asking({
-          work: work("strategy"),
-          brandBrain: {
-            ...brain,
-            profile: {
-              customers: {
-                answer: "Teams",
-                findings: [],
-                openQuestions: [],
-                fix: { note: "Agencies too", at: "2026-10-05", fixed: false },
-              },
-            },
-          },
-        }),
-      ),
-    ).toBe(
-      "Meanwhile Cuso is writing your plan · the fix waits its turn, then joins it",
-    );
-  });
-});
-
-describe("meanwhile with a general fix", () => {
-  it("says a general fix waits its turn while the plan writes", () => {
-    expect(
-      meanwhile(
-        asking({
-          work: work("strategy"),
-          brandBrain: {
-            ...brain,
-            fix: { note: "Agencies too", at: "2026-11-13", fixed: false },
-          },
-        }),
-      ),
-    ).toBe(
-      "Meanwhile Cuso is writing your plan · the fix waits its turn, then joins it",
-    );
+    expect(status.count).toBe("");
+    expect(status.title).toBe("I keep making your month.");
   });
 });
 

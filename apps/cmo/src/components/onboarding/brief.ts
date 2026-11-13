@@ -1,6 +1,5 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
-import { AGENT_NAME } from "../../lib/agent";
 import { type BrandSectionKey, brandProfile } from "../../lib/brand-sections";
 import { planWeeks } from "../../lib/calendar";
 import { channelKey } from "../../lib/channels";
@@ -21,14 +20,14 @@ export type StageId =
   | "golive"
   | "month";
 
-export const STAGES: { id: StageId; label: string; who: "You" | "Cuso" }[] = [
-  { id: "website", label: "Website", who: "You" },
-  { id: "research", label: "Research", who: "Cuso" },
-  { id: "brand", label: "Brand check", who: "You" },
-  { id: "plan", label: "Plan", who: "Cuso" },
-  { id: "briefing", label: "Briefing", who: "You" },
-  { id: "golive", label: "Go live", who: "You" },
-  { id: "month", label: "Your month", who: "Cuso" },
+export const STAGES: { id: StageId; label: string }[] = [
+  { id: "website", label: "Website" },
+  { id: "research", label: "Research" },
+  { id: "brand", label: "Brand check" },
+  { id: "plan", label: "Plan" },
+  { id: "briefing", label: "Briefing" },
+  { id: "golive", label: "Go live" },
+  { id: "month", label: "Your month" },
 ];
 
 /** The bar before the hire: the website is the stage, the rest is to come. */
@@ -36,20 +35,8 @@ export function websiteMarks(): StageMark[] {
   return STAGES.map((stage, index) => ({
     ...stage,
     state: index === 0 ? "now" : "next",
-    who: stage.who,
   }));
 }
-
-/** What "Next" says on a phone, for each stage. */
-export const NEXT_LINE: Record<StageId, string> = {
-  website: "Next: I read your site",
-  research: "Next: a few questions",
-  brand: "Next: your briefing",
-  plan: "Next: your briefing",
-  briefing: "Next: go live",
-  golive: "Next: your month",
-  month: "",
-};
 
 /** A briefing step the person went past on this device (Core keeps no record). */
 export type BriefDone = "plan" | "pace" | "ads" | "checks";
@@ -92,8 +79,6 @@ export interface StageMark {
   label: string;
   /** done: ink. now: Iris. background: dashed, Cuso works on it behind. */
   state: "done" | "now" | "background" | "next";
-  /** Who acts, under the label. */
-  who: string;
 }
 
 /** The seven stages as the bar draws them. */
@@ -111,42 +96,16 @@ export function stageMarks(
     !planBehind &&
     (overview.strategy?.calendar.length ?? 0) > 0;
   return STAGES.map((candidate, index) => {
-    if (index < at) return { ...candidate, state: "done", who: "done" };
-    if (index === at) {
-      return {
-        ...candidate,
-        state: "now",
-        who: nowWho(overview, local, stage),
-      };
-    }
+    if (index < at) return { ...candidate, state: "done" };
+    if (index === at) return { ...candidate, state: "now" };
     if (candidate.id === "plan" && planWritten) {
-      return { ...candidate, state: "done", who: "done" };
+      return { ...candidate, state: "done" };
     }
     if (candidate.id === "plan" && planBehind) {
-      return {
-        ...candidate,
-        state: "background",
-        who: `${AGENT_NAME} · writing`,
-      };
+      return { ...candidate, state: "background" };
     }
-    return { ...candidate, state: "next", who: candidate.who };
+    return { ...candidate, state: "next" };
   });
-}
-
-function nowWho(
-  overview: CmoOverview,
-  local: BriefLocal,
-  stage: StageId,
-): string {
-  if (stage !== "research") {
-    return STAGES.find((candidate) => candidate.id === stage)?.who ?? "";
-  }
-  if (researching(overview)) {
-    return overview.brandBrain ? `${AGENT_NAME} · finishing` : AGENT_NAME;
-  }
-  return local.askedInWords
-    ? `${AGENT_NAME} · waiting`
-    : `${AGENT_NAME} · stopped`;
 }
 
 /** One thing the chat asks. */
@@ -304,7 +263,7 @@ export interface WorkingStatus {
   foot: string;
 }
 
-const CLOSE_TAB = "Nothing needs you. You can close this tab.";
+const CLOSE_TAB = "You can close this tab.";
 
 export function workingStatus(
   overview: CmoOverview,
@@ -314,10 +273,9 @@ export function workingStatus(
   const live = liveLine(overview);
   const now = live ? `Now: ${live.label}` : "";
   if (stage === "month") {
-    const { written, total } = overview.production;
     return {
-      count: total > 0 ? `${written} of ${total} written` : "",
-      title: `Onboarding is done. I keep making your month in the background.`,
+      count: "",
+      title: "I keep making your month.",
       now: "",
       foot: "",
     };
@@ -339,19 +297,19 @@ export function workingStatus(
     return {
       count: pieces > 0 ? `${pieces} pieces so far` : "",
       title: "Writing your plan",
-      now,
-      foot: "Nothing needs you. I'll open the chat when your briefing is ready.",
+      now: "",
+      foot: "I'll ask when your briefing is ready.",
     };
   }
+  // The six groups on the page show the progress; the bar names the read.
   const groups = researchGroups(overview) ?? [];
-  const done = groups.filter((group) => group.state === "done").length;
   const slow = local.slow !== "none";
   return {
-    count: groups.length > 0 ? `${done} of ${groups.length} groups` : "",
+    count: "",
     title: slow
       ? "Taking longer than usual"
       : groups.length > 0
-        ? `Reading your site and ${groups.length} places around it`
+        ? `Reading ${groups.length} places around your site`
         : "Reading your site",
     now,
     foot: slow
@@ -378,25 +336,6 @@ export function brandFixPending(
   );
   const fix = key ? profile[key]?.fix : undefined;
   return key && fix ? { section: key, note: fix.note } : null;
-}
-
-/** What Cuso does while the chat asks; null when he is idle. */
-export function meanwhile(overview: CmoOverview): string | null {
-  const work = overview.work;
-  if (work?.status !== "running") return null;
-  if (work.kind === "research") {
-    return `Meanwhile ${AGENT_NAME} is wrapping up the research`;
-  }
-  if (work.change === "fix") {
-    return `Meanwhile ${AGENT_NAME} is fixing your Brand Brain`;
-  }
-  if (work.change === "patch") {
-    return `Meanwhile ${AGENT_NAME} is changing your plan`;
-  }
-  const fixWaits = brandFixPending(overview) !== null;
-  return fixWaits
-    ? `Meanwhile ${AGENT_NAME} is writing your plan · the fix waits its turn, then joins it`
-    : `Meanwhile ${AGENT_NAME} is writing your plan`;
 }
 
 /** The plan's first week of pieces, in date and time order. */
