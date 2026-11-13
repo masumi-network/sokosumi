@@ -54,7 +54,8 @@ struct VoiceAttachmentPlayer: View {
     .frame(maxWidth: 384, alignment: .leading)
     .overlay(RoundedRectangle(cornerRadius: 8).stroke(.secondary.opacity(0.25)))
     .help(attachment.filename)
-    .task(id: attachment.url) { await loadWaveform() }
+    // The waveform waits for the first Play: history rows nobody plays download nothing.
+    .task(id: player != nil) { await loadWaveform() }
     .task(id: playing) { await followPlayback() }
     .onDisappear { player?.pause() }
   }
@@ -102,6 +103,10 @@ struct VoiceAttachmentPlayer: View {
   }
 
   private func togglePlay() {
+    #if os(iOS)
+      // Voice plays with the silent switch on, like other media apps.
+      try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
+    #endif
     let player = player ?? AVPlayer(url: attachment.url)
     self.player = player
     if playing {
@@ -141,9 +146,17 @@ struct VoiceAttachmentPlayer: View {
     }
   }
 
-  /// AVAssetReader reads only local files, so the waveform downloads the file once.
+  /// Recorded voice is at most two minutes (about 1 MB); longer or larger audio keeps the plain track.
+  private nonisolated static let waveformMaxBytes = 3 * 1024 * 1024
+  private nonisolated static let waveformMaxSeconds = 600.0
+  /// AVAssetReader's lowest rate. Reading keeps one peak per 8 samples (1 kHz), so ten minutes is 600 000 floats.
+  private nonisolated static let waveformSampleRate = 8000
+  private nonisolated static let waveformDecimation = 8
+
+  /// AVAssetReader reads only local files, so the waveform downloads the file once, under a byte cap.
   private func loadWaveform() async {
-    guard attachment.playsNatively, peaks.isEmpty, let file = try? await AttachmentDownload.fetch(attachment.url) else { return }
+    guard player != nil, attachment.playsNatively, peaks.isEmpty,
+          let file = try? await AttachmentDownload.fetch(attachment.url, maxBytes: Self.waveformMaxBytes) else { return }
     defer { try? FileManager.default.removeItem(at: file) }
     guard let decoded = await Self.decode(file), !Task.isCancelled else { return }
     peaks = VoiceWaveform.peaks(decoded.samples)
@@ -152,31 +165,41 @@ struct VoiceAttachmentPlayer: View {
     }
   }
 
-  /// Mono float PCM at the file's own rate. Checked against a Chrome Opus-in-MP4 recording.
+  /// Mono peaks at 1 kHz from PCM resampled to 8 kHz, only for files up to ten minutes.
+  /// Checked against a Chrome Opus-in-MP4 recording.
   @concurrent private nonisolated static func decode(_ file: URL) async -> (samples: [Float], duration: Double)? {
     let asset = AVURLAsset(url: file)
     guard let track = try? await asset.loadTracks(withMediaType: .audio).first,
-          let length = try? await asset.load(.duration),
+          let length = try? await asset.load(.duration), length.seconds.isFinite, length.seconds <= waveformMaxSeconds,
           let reader = try? AVAssetReader(asset: asset) else { return nil }
     let output = AVAssetReaderTrackOutput(track: track, outputSettings: [
       AVFormatIDKey: kAudioFormatLinearPCM,
+      AVSampleRateKey: waveformSampleRate,
       AVLinearPCMBitDepthKey: 32,
       AVLinearPCMIsFloatKey: true,
       AVLinearPCMIsBigEndianKey: false,
       AVLinearPCMIsNonInterleaved: false,
-      AVNumberOfChannelsKey: 1,
+      AVNumberOfChannelsKey: 1
     ])
     reader.add(output)
     guard reader.startReading() else { return nil }
+    let limit = Int(waveformMaxSeconds) * waveformSampleRate / waveformDecimation
     var samples: [Float] = []
     while let buffer = output.copyNextSampleBuffer(), let block = CMSampleBufferGetDataBuffer(buffer) {
       let size = CMBlockBufferGetDataLength(block)
       var chunk = [Float](repeating: 0, count: size / MemoryLayout<Float>.size)
       CMBlockBufferCopyDataBytes(block, atOffset: 0, dataLength: size, destination: &chunk)
-      samples += chunk
+      for start in stride(from: 0, to: chunk.count, by: waveformDecimation) {
+        samples.append(chunk[start ..< min(start + waveformDecimation, chunk.count)].reduce(0) { max($0, abs($1)) })
+      }
+      // A container that understates its duration still stops here.
+      guard samples.count <= limit else {
+        reader.cancelReading()
+        return nil
+      }
     }
     guard reader.status == .completed, !samples.isEmpty else { return nil }
-    return (samples, length.seconds.isFinite ? length.seconds : 0)
+    return (samples, length.seconds)
   }
 
   private static func clock(_ seconds: Double) -> String {

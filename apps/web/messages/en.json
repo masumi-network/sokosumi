@@ -904,7 +904,8 @@
       "editTranscript": "Edit transcript",
       "transcriptHint": "Type what was said. It is saved in this message, so everyone in this conversation can read and search it. Leave it empty to remove the transcript.",
       "cancel": "Cancel",
-      "save": "Save"
+      "save": "Save",
+      "transcriptNotSaved": "The transcript was not saved. Try again in a moment, or shorten it if the message is too long."
     },
     "SokoBot": {
       "BotStatus": {

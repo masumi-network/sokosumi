@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  readAtMost,
   setVoiceTranscript,
   splitVoiceTranscript,
   voiceWaveformPeaks,
@@ -57,5 +58,35 @@ describe("voiceWaveformPeaks", () => {
   it("returns nothing for no samples and zeros for silence", () => {
     expect(voiceWaveformPeaks(new Float32Array(), 4)).toEqual([]);
     expect(voiceWaveformPeaks(new Float32Array(8), 2)).toEqual([0, 0]);
+  });
+});
+
+describe("readAtMost", () => {
+  function chunked(...sizes: number[]) {
+    // A streamed body with no content-length, like a chunked response.
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          for (const size of sizes) controller.enqueue(new Uint8Array(size));
+          controller.close();
+        },
+      }),
+    );
+  }
+
+  it("reads a body within the cap", async () => {
+    const bytes = await readAtMost(chunked(2, 3), 5);
+    expect(bytes?.byteLength).toBe(5);
+  });
+
+  it("stops past the cap without a content-length", async () => {
+    expect(await readAtMost(chunked(4, 4), 5)).toBeNull();
+  });
+
+  it("refuses an announced length over the cap", async () => {
+    const response = new Response(new Uint8Array(1), {
+      headers: { "content-length": "99" },
+    });
+    expect(await readAtMost(response, 5)).toBeNull();
   });
 });

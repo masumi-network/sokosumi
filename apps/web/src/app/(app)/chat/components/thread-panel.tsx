@@ -171,7 +171,7 @@ export function ThreadPanel({
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
   openingDirectParticipantKey?: string | null;
   onStartEdit?: (message: ChatRoomMessage) => void;
-  onSaveTranscript?: (message: ChatRoomMessage, transcript: string) => void;
+  onSaveTranscript?: (message: ChatRoomMessage, transcript: string) => boolean;
   onDelete?: (message: ChatRoomMessage) => void;
   onRemoveUnfurl?: (message: ChatRoomMessage, url: string) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;

@@ -896,7 +896,8 @@
       "editTranscript": "Transkript bearbeiten",
       "transcriptHint": "Schreibe auf, was gesagt wurde. Es wird in dieser Nachricht gespeichert, sodass alle in dieser Unterhaltung es lesen und durchsuchen können. Lass das Feld leer, um das Transkript zu entfernen.",
       "cancel": "Abbrechen",
-      "save": "Speichern"
+      "save": "Speichern",
+      "transcriptNotSaved": "Das Transkript wurde nicht gespeichert. Versuche es gleich noch einmal oder kürze es, falls die Nachricht zu lang ist."
     },
     "UserCombobox": {
       "placeholder": "Select a user",

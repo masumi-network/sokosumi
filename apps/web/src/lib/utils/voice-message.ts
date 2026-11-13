@@ -62,3 +62,38 @@ export function voiceWaveformPeaks(
   const loudest = Math.max(...peaks);
   return loudest > 0 ? peaks.map((peak) => peak / loudest) : peaks;
 }
+
+/**
+ * The body, or null once it passes `maxBytes`. Counts while streaming, so a
+ * missing or wrong `content-length` cannot make the page read more.
+ */
+export async function readAtMost(
+  response: Response,
+  maxBytes: number,
+): Promise<ArrayBuffer | null> {
+  if (Number(response.headers.get("content-length") ?? 0) > maxBytes) {
+    await response.body?.cancel();
+    return null;
+  }
+  const reader = response.body?.getReader();
+  if (!reader) return null;
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes.buffer;
+}

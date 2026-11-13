@@ -42,17 +42,21 @@ describe("VoicePlayer", () => {
       getChannelData: () => new Float32Array(80).fill(0.5),
     });
     render(<VoicePlayer url={url()} fileName="Voice.m4a" />);
+    // Unplayed history downloads nothing.
+    expect(fetch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "play Voice.m4a" }));
 
     await waitFor(() =>
       expect(screen.getAllByTestId("voice-player-bar")).toHaveLength(40),
     );
+    // Decoded length stands in until the media reports its own.
     expect(screen.getByRole("slider")).toHaveAttribute("aria-valuemax", "4");
-    expect(screen.getByText("0:04")).toBeInTheDocument();
   });
 
   it("shows a plain track, no bars, when the file cannot be decoded", async () => {
     decodeAudioData.mockRejectedValue(new Error("unsupported"));
     render(<VoicePlayer url={url()} fileName="Voice.weba" />);
+    fireEvent.click(screen.getByRole("button", { name: "play Voice.weba" }));
 
     await waitFor(() => expect(decodeAudioData).toHaveBeenCalled());
     expect(screen.queryByTestId("voice-player-bar")).not.toBeInTheDocument();
@@ -87,7 +91,7 @@ describe("VoicePlayer", () => {
       screen.queryByRole("button", { name: "editTranscript" }),
     ).not.toBeInTheDocument();
 
-    const onSave = vi.fn();
+    const onSave = vi.fn(() => true);
     rerender(
       <VoicePlayer
         url={url()}
@@ -102,5 +106,23 @@ describe("VoicePlayer", () => {
     fireEvent.change(box, { target: { value: "Hi team, ship Friday" } });
     fireEvent.click(screen.getByRole("button", { name: "save" }));
     expect(onSave).toHaveBeenCalledWith("Hi team, ship Friday");
+  });
+
+  it("keeps the dialog and the text when the save was not sent", () => {
+    decodeAudioData.mockRejectedValue(new Error("skip"));
+    const onSave = vi.fn(() => false);
+    render(
+      <VoicePlayer url={url()} fileName="Voice.m4a" onSaveTranscript={onSave} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "addTranscript" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "transcript" }), {
+      target: { value: "Draft" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("transcriptNotSaved");
+    expect(screen.getByRole("textbox", { name: "transcript" })).toHaveValue(
+      "Draft",
+    );
   });
 });

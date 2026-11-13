@@ -249,15 +249,18 @@ export function useRoomMessageMutations({
     }
   }
 
-  /** Writes a voice message's transcript into its content, as an edit. */
+  /**
+   * Writes a voice message's transcript into its content, as an edit. False
+   * when nothing was sent (an edit of this message still saving, or too long).
+   */
   function handleSaveTranscript(
     message: ChatRoomMessage,
     transcript: string,
     inThread: boolean,
-  ) {
+  ): boolean {
     const content = setVoiceTranscript(message.content, transcript);
-    if (content === message.content) return;
-    saveMessageContent(message.id, content, inThread);
+    if (content === message.content) return true;
+    return saveMessageContent(message.id, content, inThread);
   }
 
   /** Saves new content optimistically; false when nothing was sent. */

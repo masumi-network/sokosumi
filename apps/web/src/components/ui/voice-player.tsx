@@ -2,7 +2,7 @@
 
 import { Download, Pause, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,11 +16,19 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { stripForcedDownloadParam } from "@/lib/utils/file-preview";
-import { voiceWaveformPeaks } from "@/lib/utils/voice-message";
+import { readAtMost, voiceWaveformPeaks } from "@/lib/utils/voice-message";
 
 const WAVEFORM_BARS = 40;
-/** Larger files (long music) keep the plain track instead of a download to draw one. */
-const WAVEFORM_MAX_BYTES = 10 * 1024 * 1024;
+/** Recorded voice is at most two minutes (about 1 MB); bigger audio keeps the plain track. */
+const WAVEFORM_MAX_BYTES = 3 * 1024 * 1024;
+const WAVEFORM_MAX_SECONDS = 600;
+/**
+ * decodeAudioData resamples to the context's rate. 3 kHz (the lowest the
+ * spec allows) is plenty for 40 bars and keeps ten minutes near 7 MB.
+ * ponytail: a pathological low-bitrate 3 MB file can still decode to about
+ * an hour (~45 MB) before the duration check; stream-decode if that matters.
+ */
+const WAVEFORM_SAMPLE_RATE = 3000;
 const PLAYBACK_RATES = [1, 1.5, 2] as const;
 const SEEK_STEP_S = 5;
 
@@ -35,14 +43,16 @@ const waveforms = new Map<string, Promise<Waveform | null>>();
 async function decodeWaveform(src: string): Promise<Waveform | null> {
   try {
     const response = await fetch(src);
-    const size = Number(response.headers.get("content-length"));
-    if (!response.ok || size > WAVEFORM_MAX_BYTES) {
-      await response.body?.cancel();
-      return null;
-    }
-    const audio = await new OfflineAudioContext(1, 1, 44_100).decodeAudioData(
-      await response.arrayBuffer(),
-    );
+    const bytes = response.ok
+      ? await readAtMost(response, WAVEFORM_MAX_BYTES)
+      : null;
+    if (!bytes) return null;
+    const audio = await new OfflineAudioContext(
+      1,
+      1,
+      WAVEFORM_SAMPLE_RATE,
+    ).decodeAudioData(bytes);
+    if (audio.duration > WAVEFORM_MAX_SECONDS) return null;
     return {
       peaks: voiceWaveformPeaks(audio.getChannelData(0), WAVEFORM_BARS),
       duration: audio.duration,
@@ -53,9 +63,11 @@ async function decodeWaveform(src: string): Promise<Waveform | null> {
   }
 }
 
-function useWaveform(src: string): Waveform | null {
+/** Decodes only once `enabled` (after the first Play), so unplayed history downloads nothing. */
+function useWaveform(src: string, enabled: boolean): Waveform | null {
   const [waveform, setWaveform] = useState<Waveform | null>(null);
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     let pending = waveforms.get(src);
     if (!pending) {
@@ -68,7 +80,7 @@ function useWaveform(src: string): Waveform | null {
     return () => {
       cancelled = true;
     };
-  }, [src]);
+  }, [src, enabled]);
   return waveform;
 }
 
@@ -83,7 +95,8 @@ export interface VoicePlayerProps {
   className?: string;
   transcript?: string | null;
   /** Set when the viewer may change the message; saves the new transcript. */
-  onSaveTranscript?: (transcript: string) => void;
+  /** False when the save was not sent; the dialog stays open with the text. */
+  onSaveTranscript?: (transcript: string) => boolean;
 }
 
 /**
@@ -101,12 +114,15 @@ export function VoicePlayer({
   const t = useTranslations("Components.VoicePlayer");
   const src = stripForcedDownloadParam(url);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const waveform = useWaveform(src);
+  const [started, setStarted] = useState(false);
+  const waveform = useWaveform(src, started);
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
   const [mediaDuration, setMediaDuration] = useState(0);
   const [rate, setRate] = useState<(typeof PLAYBACK_RATES)[number]>(1);
   const [editing, setEditing] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const errorId = useId();
 
   // Recorded WebM reports Infinity until fully read; the decoded length is exact.
   const duration =
@@ -125,6 +141,7 @@ export function VoicePlayer({
   function togglePlay() {
     const audio = audioRef.current;
     if (!audio) return;
+    setStarted(true);
     if (audio.paused) void audio.play().catch(() => setPlaying(false));
     else audio.pause();
   }
@@ -139,8 +156,16 @@ export function VoicePlayer({
   function saveTranscript(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = new FormData(event.currentTarget).get("transcript");
-    onSaveTranscript?.(typeof text === "string" ? text : "");
+    if (onSaveTranscript?.(typeof text === "string" ? text : "") === false) {
+      setSaveFailed(true);
+      return;
+    }
     setEditing(false);
+  }
+
+  function openEditor(open: boolean) {
+    setEditing(open);
+    setSaveFailed(false);
   }
 
   return (
@@ -281,13 +306,13 @@ export function VoicePlayer({
           variant="link"
           size="sm"
           className="text-muted-foreground h-auto self-start p-0 text-xs"
-          onClick={() => setEditing(true)}
+          onClick={() => openEditor(true)}
         >
           {transcript ? t("editTranscript") : t("addTranscript")}
         </Button>
       ) : null}
       {onSaveTranscript ? (
-        <Dialog open={editing} onOpenChange={setEditing}>
+        <Dialog open={editing} onOpenChange={openEditor}>
           <DialogContent>
             <form onSubmit={saveTranscript} className="flex flex-col gap-4">
               <DialogHeader>
@@ -302,12 +327,19 @@ export function VoicePlayer({
                 defaultValue={transcript ?? ""}
                 rows={6}
                 autoFocus
+                aria-invalid={saveFailed || undefined}
+                aria-describedby={saveFailed ? errorId : undefined}
               />
+              {saveFailed ? (
+                <p id={errorId} role="alert" className="text-destructive text-sm">
+                  {t("transcriptNotSaved")}
+                </p>
+              ) : null}
               <DialogFooter>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setEditing(false)}
+                  onClick={() => openEditor(false)}
                 >
                   {t("cancel")}
                 </Button>

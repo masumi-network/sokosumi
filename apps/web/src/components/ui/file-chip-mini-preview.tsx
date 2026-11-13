@@ -41,7 +41,7 @@ interface FileChipMiniPreviewFrameProps extends FileChipMiniPreviewProps {
   onOpenImage: () => void;
   /** Audio only: the message's transcript, shown under the player. */
   transcript?: string | null;
-  onSaveTranscript?: (transcript: string) => void;
+  onSaveTranscript?: (transcript: string) => boolean;
 }
 
 const previewTriggerClassName =

@@ -700,7 +700,7 @@ export function ChannelMessageText({
 }: {
   content: string;
   /** Set when the viewer may edit the message: saves a voice transcript. */
-  onSaveTranscript?: (transcript: string) => void;
+  onSaveTranscript?: (transcript: string) => boolean;
   enableMermaid?: boolean;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
@@ -845,7 +845,7 @@ function ChannelMessageBody({
   trailing,
 }: {
   messageId: string;
-  onSaveTranscript?: (transcript: string) => void;
+  onSaveTranscript?: (transcript: string) => boolean;
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
@@ -2434,7 +2434,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onPin?: (message: ChatRoomMessage) => void;
   onStartEdit?: (message: ChatRoomMessage) => void;
   /** Saves a voice message's transcript; offered where `onStartEdit` is. */
-  onSaveTranscript?: (message: ChatRoomMessage, transcript: string) => void;
+  onSaveTranscript?: (message: ChatRoomMessage, transcript: string) => boolean;
   onDelete?: (message: ChatRoomMessage) => void;
   onRemoveUnfurl?: (message: ChatRoomMessage, url: string) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
