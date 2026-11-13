@@ -1,12 +1,7 @@
 "use client";
 
 import type { TableColumn } from "@sokosumi/core-client";
-import {
-  createDataTableSchema,
-  parseTableCsv,
-  tableInsertRowSchema,
-  validateTableValues,
-} from "@sokosumi/utils";
+import { createDataTableSchema, parseTableCsv } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -30,9 +25,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
-import { tableImportBatches } from "./table-import";
+import { tableImportBatches, tableInsertRows } from "./table-import";
 import { isTableRejection } from "./table-mutations";
-import { parseTableInput, tableError } from "./table-value";
+import { tableError } from "./table-value";
 
 export const TABLE_TYPES: TableColumn["type"][] = [
   "text",
@@ -83,11 +78,14 @@ export function TableCreateDialog({
   } | null>(null);
   async function handleCsv(file: File | undefined) {
     if (!file) return;
+    if (file.size > 5000000) setError(t("csvLimit"));
+    else handleRows(await file.text(), ",", file.name);
+  }
+  function handleRows(text: string, delimiter: "," | "\t", name: string) {
     try {
-      if (file.size > 5000000) throw new Error(t("csvLimit"));
-      const rows = parseTableCsv(await file.text());
+      const rows = parseTableCsv(text, { delimiter });
       setCsv(rows);
-      setCsvName(file.name);
+      setCsvName(name);
       setColumns(
         rows[0].map((name) => ({
           id: crypto.randomUUID(),
@@ -117,28 +115,12 @@ export function TableCreateDialog({
               options: [],
             },
           ];
-      const rows = csv.slice(1).map((row, index) => {
-        try {
-          const parsed = tableInsertRowSchema.parse({
-            // A Last updated column fills itself, so its CSV cells are dropped.
-            values: Object.fromEntries(
-              definitions.flatMap((column, i) =>
-                column.type === "last_updated"
-                  ? []
-                  : [[column.id, parseTableInput(column, row[i])]],
-              ),
-            ),
-          });
-          validateTableValues(
-            definitions.map((column) => ({ ...column, description: "" })),
-            parsed.values,
-            parsed.evidence,
-          );
-          return parsed;
-        } catch (error) {
-          throw new Error(`${t("row")} ${index + 2}: ${tableError(error, t)}`);
-        }
-      });
+      const rows = tableInsertRows(
+        definitions,
+        csv.slice(1),
+        (index, error) =>
+          new Error(`${t("row")} ${index + 2}: ${tableError(error, t)}`),
+      );
       const payload = createDataTableSchema.parse({
         key: current.key,
         title,
@@ -274,6 +256,24 @@ export function TableCreateDialog({
               </span>
             </div>
             <p className="text-muted-foreground text-sm">{t("csvLimit")}</p>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="table-paste">{t("pasteCells")}</Label>
+            {/* Spreadsheets copy cells as tab-separated text. Pasting fills
+            the same mapping and preview a CSV file does. */}
+            <Textarea
+              id="table-paste"
+              className="min-h-20 font-mono"
+              placeholder={t("pastePlaceholder")}
+              disabled={pending || !!attempt}
+              onChange={(event) => {
+                if (event.target.value.trim())
+                  handleRows(event.target.value, "\t", "");
+              }}
+            />
+            <p className="text-muted-foreground text-sm">
+              {t("pasteCellsHint")}
+            </p>
           </div>
           {columns.length > 0 && (
             <div className="grid gap-3">

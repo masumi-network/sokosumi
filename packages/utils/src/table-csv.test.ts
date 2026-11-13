@@ -2,6 +2,16 @@ import { describe, expect, it } from "vitest";
 import { encodeTableCsv, parseTableCsv } from "./table-csv";
 
 describe("table CSV", () => {
+  it("reads spreadsheet clipboard text with tabs", () =>
+    expect(
+      parseTableCsv('Name\tNotes\r\nAcme, Inc.\t5" screen\nB\t"two\nlines"\n', {
+        delimiter: "\t",
+      }),
+    ).toEqual([
+      ["Name", "Notes"],
+      ["Acme, Inc.", '5" screen'],
+      ["B", "two\nlines"],
+    ]));
   it("reads BOM, CRLF, escaped quotes and embedded newlines", () =>
     expect(
       parseTableCsv('\uFEFFName,Notes\r\n"A, B","Said ""yes""\nNext line"\r\n'),

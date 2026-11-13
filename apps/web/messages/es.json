@@ -10760,7 +10760,8 @@
         "layout": "El diseño de columnas no se guardó y se restableció. {reason}",
         "archiveRows": "{count, plural, one {No se pudo archivar # fila. Vuelve a estar en la tabla.} other {No se pudieron archivar # filas. Vuelven a estar en la tabla.}} {reason}",
         "restoreRows": "{count, plural, one {No se pudo restaurar # fila. Vuelve a estar en las filas archivadas.} other {No se pudieron restaurar # filas. Vuelven a estar en las filas archivadas.}} {reason}",
-        "cellNotSaved": "Tu valor no se guardó. Vuelve a estar en el editor. {reason}"
+        "cellNotSaved": "Tu valor no se guardó. Vuelve a estar en el editor. {reason}",
+        "pasteWidth": "Las celdas pegadas tienen más columnas de las que tiene la tabla desde aquí. Pega menos columnas o empieza más a la izquierda."
       },
       "reorderColumn": "Reordenar {column}. Arrastra o pulsa las flechas izquierda y derecha.",
       "reorderRow": "Reordenar fila. Arrastra o pulsa las flechas arriba y abajo.",
@@ -10785,7 +10786,15 @@
       "matchingRows": "{count, plural, one {# fila coincide} other {# filas coinciden}}",
       "contactsName": "Contactos",
       "contactsPinned": "Fijado",
-      "contactsCount": "{count, plural, =1 {1 contacto} other {# contactos}}"
+      "contactsCount": "{count, plural, =1 {1 contacto} other {# contactos}}",
+      "pasteRows": "Pegar filas",
+      "pasteRowsDescription": "Copia celdas en Excel, Google Sheets o Numbers y pégalas aquí. Cada línea se convierte en una fila nueva al final de la tabla y rellena las columnas visibles desde la izquierda o desde la celda donde pegaste.",
+      "pasteCells": "Pegar celdas de una hoja de cálculo",
+      "pastePlaceholder": "Pega aquí las celdas copiadas",
+      "pasteCellsHint": "Funciona como un archivo CSV: la primera fila contiene los nombres de las columnas.",
+      "pasteHeaderSkipped": "La primera fila repite los nombres de las columnas, así que se omite.",
+      "pastePreview": "{count, plural, one {Se añadirá # fila} other {Se añadirán # filas}}. Todos los valores se comprueban antes de añadirlos.",
+      "addPastedRows": "{count, plural, =0 {Añadir filas} one {Añadir # fila} other {Añadir # filas}}"
     },
     "ProjectScope": {
       "clearSearch": "Borrar búsqueda",

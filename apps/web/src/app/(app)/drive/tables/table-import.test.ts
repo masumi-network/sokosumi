@@ -1,6 +1,11 @@
 import { tableInsertRowSchema } from "@sokosumi/utils";
 import { expect, it } from "vitest";
-import { tableImportBatches } from "./table-import";
+import {
+  isPastedRange,
+  pastedTableRows,
+  tableImportBatches,
+  tableInsertRows,
+} from "./table-import";
 
 it("bounds serialized UTF-8, JSON escaping and row count with deterministic keys", () => {
   const values = {
@@ -33,4 +38,47 @@ it("rejects an individually oversized request before creation", () => {
       }),
     ]),
   ).toThrow("1 MB");
+});
+
+const columns = [
+  { id: "00000000-0000-4000-8000-000000000001", name: "Company", type: "text" },
+  { id: "00000000-0000-4000-8000-000000000002", name: "Seats", type: "number" },
+] as const;
+
+it("lays pasted spreadsheet cells onto the columns and skips a header row", () => {
+  expect(
+    pastedTableRows([...columns], "company\tSeats\r\nAcme, Inc.\t3\nGlobex\n"),
+  ).toEqual({ rows: [["Acme, Inc.", "3"], ["Globex"]], header: true });
+  expect(pastedTableRows([...columns], "Acme\t3\n").header).toBe(false);
+  expect(() => pastedTableRows([...columns], "a\tb\tc")).toThrow(
+    "Pasted cells are wider than the table",
+  );
+});
+it("parses text rows into insert rows and names the failing row", () => {
+  expect(
+    tableInsertRows([...columns], [["Globex"]], () => new Error()),
+  ).toEqual([
+    {
+      values: { [columns[0].id]: "Globex", [columns[1].id]: null },
+      evidence: {},
+    },
+  ]);
+  expect(() =>
+    tableInsertRows(
+      [...columns],
+      [
+        ["Acme", "3"],
+        ["Globex", "many"],
+      ],
+      (index) => new Error(`row ${index}`),
+    ),
+  ).toThrow("row 1");
+});
+it("treats only multi-cell clipboard text as a range", () => {
+  expect(isPastedRange("Acme\n", { type: "text" })).toBe(false);
+  expect(isPastedRange("Acme\tAcme Ltd", { type: "text" })).toBe(true);
+  expect(isPastedRange("Acme\nGlobex", { type: "text" })).toBe(true);
+  expect(isPastedRange("line one\nline two", { type: "long_text" })).toBe(
+    false,
+  );
 });

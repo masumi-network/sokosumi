@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
+import { isPastedRange } from "./table-import";
 import { type CellWrap, cellWrap } from "./table-layout";
 import { isTableRejection } from "./table-mutations";
 import {
@@ -42,6 +43,8 @@ interface Props extends GridCellProps {
   onEditingChange?: (editing: boolean) => void;
   /** Filters the grid by one tag of a `multiple_select` cell. */
   onTagClick?: (tag: string) => void;
+  /** Takes a paste of more than one spreadsheet cell, which adds rows. */
+  onPasteRows?: (text: string) => void;
 }
 
 /** Types where a typed character replaces the value, as in a spreadsheet. */
@@ -94,6 +97,7 @@ export function TableCell({
   onHistory,
   onEditingChange,
   onTagClick,
+  onPasteRows,
 }: Props) {
   const t = useTranslations("App.Tables");
   const format = useFormatter();
@@ -234,8 +238,10 @@ export function TableCell({
   function handlePaste(event: ClipboardEvent<HTMLTableCellElement>) {
     if (event.target !== event.currentTarget || disabled || editing) return;
     event.preventDefault();
+    const text = event.clipboardData.getData("text/plain");
+    if (onPasteRows && isPastedRange(text, column)) return onPasteRows(text);
     // A row copied from a spreadsheet ends in a newline; the value does not.
-    commit(event.clipboardData.getData("text/plain").replace(/\r?\n$/, ""));
+    commit(text.replace(/\r?\n$/, ""));
   }
   function handleEditorKeyDown(event: KeyboardEvent) {
     if (event.nativeEvent.isComposing || event.keyCode === 229) return;

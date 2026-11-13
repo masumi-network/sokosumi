@@ -13,6 +13,7 @@ const INPUT_ERRORS = {
   "Unclosed CSV quote": "errors.csv",
   "CSV needs non-empty column headers": "errors.csvHeaders",
   "CSV rows have different column counts": "errors.csvWidth",
+  "Pasted cells are wider than the table": "errors.pasteWidth",
   "Invalid number": "errors.number",
   "Use true or false": "errors.checkbox",
   "Unknown option": "errors.option",

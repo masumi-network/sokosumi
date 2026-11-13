@@ -1,7 +1,14 @@
-/** Bounded RFC 4180 CSV, including escaped quotes and embedded newlines. */
+/**
+ * Bounded RFC 4180 CSV, including escaped quotes and embedded newlines. A tab
+ * `delimiter` reads what spreadsheets put on the clipboard, which quotes the
+ * same way, but leaves a quote inside a cell (`5" screen`) as it is.
+ */
 export function readCsvRows(
   text: string,
-  { maxRows = 10_000 }: { maxRows?: number } = {},
+  {
+    maxRows = 10_000,
+    delimiter = ",",
+  }: { maxRows?: number; delimiter?: "," | "\t" } = {},
 ): string[][] {
   if (text.length > 5_000_000) throw new Error("CSV exceeds 5 MB");
   const rows: string[][] = [];
@@ -37,10 +44,10 @@ export function readCsvRows(
       } else field += char;
       continue;
     }
-    if (char === '"') {
+    if (char === '"' && (delimiter === "," || (!field && !closed))) {
       if (field || closed) throw new Error("Unexpected CSV quote");
       quoted = true;
-    } else if (char === ",") pushField();
+    } else if (char === delimiter) pushField();
     else if (char === "\n" || char === "\r") {
       if (char === "\r" && input[index + 1] === "\n") index++;
       // A blank line carries no field at all, so it is a line separator and
@@ -61,7 +68,7 @@ export function readCsvRows(
 /** CSV as a table: named headers, and every row as wide as the header. */
 export function parseTableCsv(
   text: string,
-  options: { maxRows?: number } = {},
+  options: Parameters<typeof readCsvRows>[1] = {},
 ): string[][] {
   const rows = readCsvRows(text, options);
   if (!rows.length || rows[0].some((header) => !header.trim()))

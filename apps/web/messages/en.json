@@ -10760,7 +10760,8 @@
         "layout": "Column layout wasn't saved and was reset. {reason}",
         "archiveRows": "{count, plural, one {Could not archive # row. It is back in the table.} other {Could not archive # rows. They are back in the table.}} {reason}",
         "restoreRows": "{count, plural, one {Could not restore # row. It is back in archived rows.} other {Could not restore # rows. They are back in archived rows.}} {reason}",
-        "cellNotSaved": "Your value was not saved. It is back in the editor. {reason}"
+        "cellNotSaved": "Your value was not saved. It is back in the editor. {reason}",
+        "pasteWidth": "The pasted cells have more columns than the table has from here. Paste fewer columns or start further left."
       },
       "reorderColumn": "Reorder {column}. Drag, or press the left and right arrow keys.",
       "reorderRow": "Reorder row. Drag, or press the up and down arrow keys.",
@@ -10785,7 +10786,15 @@
       "matchingRows": "{count, plural, one {# row matches} other {# rows match}}",
       "contactsName": "Contacts",
       "contactsPinned": "Pinned",
-      "contactsCount": "{count, plural, =1 {1 contact} other {# contacts}}"
+      "contactsCount": "{count, plural, =1 {1 contact} other {# contacts}}",
+      "pasteRows": "Paste rows",
+      "pasteRowsDescription": "Copy cells in Excel, Google Sheets or Numbers and paste them here. Each line becomes a new row at the end of the table, filling the visible columns from the left, or from the cell you pasted into.",
+      "pasteCells": "Paste cells from a spreadsheet",
+      "pastePlaceholder": "Paste copied cells here",
+      "pasteCellsHint": "Works like a CSV file: the first row holds the column names.",
+      "pasteHeaderSkipped": "The first row repeats the column names, so it is left out.",
+      "pastePreview": "{count, plural, one {# row will be added} other {# rows will be added}}. All values are checked before adding.",
+      "addPastedRows": "{count, plural, =0 {Add rows} one {Add # row} other {Add # rows}}"
     },
     "ProjectScope": {
       "clearSearch": "Clear search",

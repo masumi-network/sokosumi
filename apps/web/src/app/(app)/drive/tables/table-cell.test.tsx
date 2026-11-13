@@ -299,6 +299,16 @@ describe("table cell selection", () => {
     });
     await waitFor(() => expect(save).toHaveBeenCalledWith(1, "Pasted"));
   });
+  it("hands a pasted range of cells to onPasteRows instead of saving it", () => {
+    const save = vi.fn();
+    const pasteRows = vi.fn();
+    renderCell({ active: true, onSave: save, onPasteRows: pasteRows });
+    fireEvent.paste(gridCell(), {
+      clipboardData: { getData: () => "Acme\t3\nGlobex\t5\n" },
+    });
+    expect(pasteRows).toHaveBeenCalledWith("Acme\t3\nGlobex\t5\n");
+    expect(save).not.toHaveBeenCalled();
+  });
   it("shows a pasted value that fails validation like a typed one", async () => {
     const save = vi.fn();
     const score = { ...column, name: "Score", type: "number" as const };

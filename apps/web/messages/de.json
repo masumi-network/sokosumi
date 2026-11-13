@@ -10760,7 +10760,8 @@
         "layout": "Das Spaltenlayout wurde nicht gespeichert und zurückgesetzt. {reason}",
         "archiveRows": "{count, plural, one {# Zeile konnte nicht archiviert werden. Sie ist wieder in der Tabelle.} other {# Zeilen konnten nicht archiviert werden. Sie sind wieder in der Tabelle.}} {reason}",
         "restoreRows": "{count, plural, one {# Zeile konnte nicht wiederhergestellt werden. Sie ist wieder unter den archivierten Zeilen.} other {# Zeilen konnten nicht wiederhergestellt werden. Sie sind wieder unter den archivierten Zeilen.}} {reason}",
-        "cellNotSaved": "Dein Wert wurde nicht gespeichert. Er steht wieder im Editor. {reason}"
+        "cellNotSaved": "Dein Wert wurde nicht gespeichert. Er steht wieder im Editor. {reason}",
+        "pasteWidth": "Die eingefügten Zellen haben mehr Spalten, als die Tabelle ab hier hat. Füge weniger Spalten ein oder beginne weiter links."
       },
       "reorderColumn": "{column} verschieben. Ziehen oder Pfeiltasten nach links und rechts drücken.",
       "reorderRow": "Zeile verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
@@ -10785,7 +10786,15 @@
       "matchingRows": "{count, plural, one {# Zeile passt} other {# Zeilen passen}}",
       "contactsName": "Kontakte",
       "contactsPinned": "Angeheftet",
-      "contactsCount": "{count, plural, =1 {1 Kontakt} other {# Kontakte}}"
+      "contactsCount": "{count, plural, =1 {1 Kontakt} other {# Kontakte}}",
+      "pasteRows": "Zeilen einfügen",
+      "pasteRowsDescription": "Kopiere Zellen in Excel, Google Sheets oder Numbers und füge sie hier ein. Jede Zeile wird als neue Zeile am Ende der Tabelle angelegt und füllt die sichtbaren Spalten von links oder ab der Zelle, in die du eingefügt hast.",
+      "pasteCells": "Zellen aus einer Tabellenkalkulation einfügen",
+      "pastePlaceholder": "Kopierte Zellen hier einfügen",
+      "pasteCellsHint": "Funktioniert wie eine CSV-Datei: Die erste Zeile enthält die Spaltennamen.",
+      "pasteHeaderSkipped": "Die erste Zeile wiederholt die Spaltennamen und wird ausgelassen.",
+      "pastePreview": "{count, plural, one {# Zeile wird hinzugefügt} other {# Zeilen werden hinzugefügt}}. Alle Werte werden vor dem Hinzufügen geprüft.",
+      "addPastedRows": "{count, plural, =0 {Zeilen hinzufügen} one {# Zeile hinzufügen} other {# Zeilen hinzufügen}}"
     },
     "ProjectScope": {
       "clearSearch": "Suche löschen",

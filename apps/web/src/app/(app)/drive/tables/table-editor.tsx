@@ -24,6 +24,7 @@ import { encodeTableCsv } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  ClipboardPaste,
   Clock,
   GripVertical,
   ListFilter,
@@ -101,6 +102,7 @@ import { TableCell, TableUpdatedCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
 import { cellWrap, columnWidth } from "./table-layout";
 import { createTableMutations, isTableRejection } from "./table-mutations";
+import { TablePasteDialog } from "./table-paste-dialog";
 import { archivePatch, hideRows, saveArchive } from "./table-row-archive";
 import {
   parseTableInput,
@@ -342,6 +344,12 @@ function TableWorkspace({
   const [dialog, setDialog] = useState<
     "views" | "history" | "enrich" | "rename" | "archive" | null
   >(null);
+  // Cells pasted from a spreadsheet, laid onto the visible columns from
+  // `columnId` (the first one from the toolbar).
+  const [paste, setPaste] = useState<{
+    text: string;
+    columnId?: string;
+  } | null>(null);
   const [historyCursor, setHistoryCursor] = useState<string>();
   const [historyCell, setHistoryCell] = useState<{
     rowId?: string;
@@ -951,6 +959,16 @@ function TableWorkspace({
           size="sm"
           variant="outline"
           className={EDITOR_TOOLBAR_CONTROL}
+          disabled={pending || !!table.archivedAt}
+          onClick={() => setPaste({ text: "" })}
+        >
+          <ClipboardPaste aria-hidden className="size-4" />
+          {t("pasteRows")}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className={EDITOR_TOOLBAR_CONTROL}
           disabled={!!table.archivedAt}
           onClick={() => setColumn("new")}
         >
@@ -1411,6 +1429,9 @@ function TableWorkspace({
                               handleCell(row, column, version, value)
                             }
                             onTagClick={(tag) => handleTagClick(column, tag)}
+                            onPasteRows={(text) =>
+                              setPaste({ text, columnId: column.id })
+                            }
                             onHistory={() => {
                               setHistoryCursor(undefined);
                               setHistoryCell({
@@ -1484,6 +1505,22 @@ function TableWorkspace({
           </div>
         </div>
       </div>
+      {paste && (
+        <TablePasteDialog
+          tableId={table.id}
+          columns={columns
+            .slice(
+              Math.max(
+                0,
+                columns.findIndex((column) => column.id === paste.columnId),
+              ),
+            )
+            .filter((column) => column.type !== "last_updated")}
+          text={paste.text}
+          onClose={() => setPaste(null)}
+          onAdded={refresh}
+        />
+      )}
       {column && (
         <TableColumnDialog
           table={table}
