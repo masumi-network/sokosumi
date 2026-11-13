@@ -127,6 +127,8 @@ describe.skipIf(!enabled)("Native SEO trusted executor with PostgreSQL", () => {
     env.SEO_ANALYSIS_EXECUTOR = previousExecutor;
     env.SEO_ANALYSIS_DISPATCH_ENABLED = previousDispatch;
     await prisma.task.deleteMany({ where: { workspaceId } });
+    await prisma.creditBucket.deleteMany({ where: { userId } });
+    await prisma.transaction.deleteMany({ where: { userId } });
     await prisma.workspace.delete({ where: { id: workspaceId } });
     await prisma.user.delete({ where: { id: userId } });
     await prisma.coworker.deleteMany({ where: { vendorId } });
@@ -226,6 +228,15 @@ describe.skipIf(!enabled)("Native SEO trusted executor with PostgreSQL", () => {
     }
     expect(await counts()).toEqual(before);
     env.SEO_ANALYSIS_EXECUTOR = { ...trusted, canUsePaidSearchData: true };
+    // A paid check needs a balance that covers its ceiling (seo-credit-gate.postgres.test.ts).
+    const credits = 10_000n * 10n ** 10n;
+    const topUp = await prisma.transaction.create({
+      data: { amount: credits, userId },
+      select: { id: true },
+    });
+    await prisma.creditBucket.create({
+      data: { amount: credits, userId, sourceTransactionId: topUp.id },
+    });
     try {
       expect(
         (await getProjectSeoWorkspace(actor)).availableActions

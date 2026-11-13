@@ -7,6 +7,10 @@ import {
   requireSeoAnalysisDispatch,
   requireSeoAnalysisExecutor,
 } from "@/lib/seo/analysis-dispatch";
+import {
+  requireSeoAnalysisBalance,
+  seoAnalysisMaxCredits,
+} from "@/lib/seo/analysis-price";
 import { seoVisibilityFor } from "@/lib/seo/data-visibility";
 import { searchOpportunities } from "@/lib/seo/search-opportunities";
 import type {
@@ -215,6 +219,7 @@ export async function requestProjectSeoAnalysisInTransaction(
       "The page group changed. Reload it before requesting an analysis.",
     );
   validateSeoAnalysis(input, pageUrls);
+  const projectId = await requireSeoTaskProject(actor, tx);
   const initialRequest: Prisma.InputJsonObject = {
     pageUrls,
     countryCode: input.countryCode,
@@ -235,6 +240,18 @@ export async function requestProjectSeoAnalysisInTransaction(
     },
   });
   const packet = seoTaskPacket(input, pageUrls, analysis.id);
+  // A monitor checks its first Run when it is made. A refused scheduled Run would roll back its release and hold the
+  // schedule, so a later short balance pauses that Run's Task at completion instead (OUT_OF_CREDITS).
+  if (!requireScheduledExecutor)
+    await requireSeoAnalysisBalance(
+      tx,
+      {
+        userId: actor.userId,
+        organizationId: actor.organizationId,
+        projectId,
+      },
+      seoAnalysisMaxCredits(input, pageUrls.length),
+    );
   const task = await createTaskForActor(
     {
       actor: actor.sokoBotId
@@ -243,7 +260,7 @@ export async function requestProjectSeoAnalysisInTransaction(
       ownerId: actor.userId,
       organizationId: actor.organizationId,
       workspaceId: actor.workspaceId,
-      projectId: await requireSeoTaskProject(actor, tx),
+      projectId,
       name: `SEO ${input.kind.replaceAll("_", " ")}`,
       description: `${input.kind === "audit_full" ? "seo_audit" : "seo_job"}: ${JSON.stringify(packet)}`,
       assigneeId: coworkerId,

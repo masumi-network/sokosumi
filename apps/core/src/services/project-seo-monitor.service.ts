@@ -8,6 +8,10 @@ import {
   requireSeoAnalysisExecutor,
 } from "@/lib/seo/analysis-dispatch";
 import {
+  requireSeoAnalysisBalance,
+  seoAnalysisMaxCredits,
+} from "@/lib/seo/analysis-price";
+import {
   parseSeoMonitorPlan,
   SEO_MONITOR_CRON,
   SEO_MONITOR_MARKER,
@@ -68,6 +72,15 @@ export async function createProjectSeoMonitor(
   validateSeoAnalysis(preparedAnalysis, pageUrls);
   // Each Run sends this packet with its own Analysis id, a UUID of the same length: refuse it now, not at every Run.
   seoTaskPacket(preparedAnalysis, pageUrls, crypto.randomUUID());
+  await requireSeoAnalysisBalance(
+    prisma,
+    {
+      userId: actor.userId,
+      organizationId: actor.organizationId,
+      projectId: owner.projectId,
+    },
+    seoAnalysisMaxCredits(preparedAnalysis, pageUrls.length),
+  );
   const analysis = requestSeoAnalysisSchema.parse({
     ...preparedAnalysis,
     coworkerId: executor.coworkerId,

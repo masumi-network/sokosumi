@@ -449,6 +449,15 @@ export {
   isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
+export {
+  SEO_DEFAULT_FULL_AUDIT_USD,
+  SEO_MARKUP_PERCENT,
+  SEO_MAX_CALL_CENTS,
+  SEO_PAGE_CEILING_CENTS,
+  type SeoCreditCeilingInput,
+  seoCreditsForCents,
+  seoMaxCredits,
+} from "./seo-credits.js";
 export { normalizeSeoQuery } from "./seo-query.js";
 export {
   SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
