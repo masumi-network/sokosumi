@@ -127,14 +127,7 @@ describe("RoomMessageComposer docked content", () => {
       "bg-background",
       "[clip-path:inset(0_round_calc(var(--radius)+4px))]",
     );
-    const footer = container.querySelector("[data-room-composer-footer]");
-    expect(footer?.parentElement).toBe(card?.parentElement);
-    expect(footer).toHaveClass(
-      "absolute",
-      "top-full",
-      "inset-x-0",
-      "bg-background",
-      "pointer-events-none",
-    );
+    expect(container.querySelector("[data-room-composer-footer]")).toBeNull();
+    expect(container.querySelector(".top-full.bg-background")).toBeNull();
   });
 });

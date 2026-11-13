@@ -125,8 +125,33 @@ export function RoomShellLayout({
       if (!wrapper || !composerSlot || !scroller) return;
 
       let composerHeight = 0;
+      let observedCard: Element | null = null;
       const measure = () => {
         const nextHeight = composerSlot.offsetHeight;
+        const slotBounds = composerSlot.getBoundingClientRect();
+        const card = composerSlot.querySelector(
+          "[data-room-composer-mention-anchor]",
+        );
+        if (card !== observedCard) {
+          if (observedCard) observer.unobserve(observedCard);
+          if (card) observer.observe(card);
+          observedCard = card;
+        }
+        const cardBounds = (card ?? composerSlot).getBoundingClientRect();
+        const cardTop = cardBounds.top - slotBounds.top;
+        // Fade only below the card's middle, even with a tall tray above it.
+        wrapper.style.setProperty(
+          "--room-composer-fade-start",
+          `${Math.round(cardTop + cardBounds.height / 2)}px`,
+        );
+        wrapper.style.setProperty(
+          "--room-composer-fade-end",
+          `${Math.round(cardTop + cardBounds.height)}px`,
+        );
+        wrapper.style.setProperty(
+          "--room-scrollbar-w",
+          `${scroller.offsetWidth - scroller.clientWidth}px`,
+        );
         if (nextHeight === composerHeight) return;
         // Read before changing the padding: growing drafts must keep latest
         // pinned without pulling a reader away from older messages.
@@ -139,10 +164,11 @@ export function RoomShellLayout({
           scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight;
         }
       };
+      const observer = new ResizeObserver(measure);
       // Ref attachment runs before paint, including in the Instant shell.
       measure();
-      const observer = new ResizeObserver(measure);
       observer.observe(composerSlot);
+      observer.observe(scroller);
       return () => observer.disconnect();
     },
     [composerRef, listRef],
@@ -167,7 +193,7 @@ export function RoomShellLayout({
           ref={listScrollerRef}
           className={cn(
             ROOM_SHELL_SCROLLER_CLASSNAME,
-            "[scroll-padding-bottom:var(--room-composer-h,0px)]",
+            "relative z-0 [scroll-padding-bottom:var(--room-composer-h,0px)]",
           )}
         >
           <div
@@ -181,6 +207,16 @@ export function RoomShellLayout({
             {listContent}
           </div>
         </div>
+        {/* A full-width overlay fades row backgrounds too, without masking the scrollbar. */}
+        <div
+          aria-hidden
+          data-room-composer-fade
+          className="pointer-events-none absolute start-0 end-[var(--room-scrollbar-w,0px)] bottom-0 z-0 h-[var(--room-composer-h,0px)]"
+          style={{
+            backgroundImage:
+              "linear-gradient(to bottom, transparent var(--room-composer-fade-start,50%), var(--background) var(--room-composer-fade-end,100%))",
+          }}
+        />
         <div
           ref={composerRef}
           className={cn(

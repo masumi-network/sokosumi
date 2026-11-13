@@ -37,9 +37,7 @@ describe("RoomMessageComposer safe-area padding", () => {
 
     const form = container.querySelector("form");
     expect(form?.className).toContain(CHAT_MOBILE_COMPOSER_SAFE_AREA_PB);
-    expect(
-      container.querySelector("[data-room-composer-footer]")?.className,
-    ).toContain(CHAT_MOBILE_COMPOSER_SAFE_AREA_PB);
+    expect(container.querySelector("[data-room-composer-footer]")).toBeNull();
 
     await user.click(screen.getByLabelText("message"));
 
@@ -66,8 +64,6 @@ describe("RoomMessageComposer safe-area padding", () => {
     expect(container.querySelector("form")?.className).not.toContain(
       CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
     );
-    expect(
-      container.querySelector("[data-room-composer-footer]")?.className,
-    ).not.toContain(CHAT_MOBILE_COMPOSER_SAFE_AREA_PB);
+    expect(container.querySelector("[data-room-composer-footer]")).toBeNull();
   });
 });

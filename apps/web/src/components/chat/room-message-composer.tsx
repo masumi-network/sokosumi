@@ -151,16 +151,6 @@ export function RoomMessageComposer({
       {typingLine}
       <div className="pointer-events-auto contents">{aboveCard}</div>
       <div className="relative w-full">
-        {withSafeAreaPadding ? (
-          <div
-            aria-hidden
-            data-room-composer-footer
-            className={cn(
-              "pointer-events-none absolute inset-x-0 top-full -z-10 bg-background",
-              safeAreaPaddingClassName,
-            )}
-          />
-        ) : null}
         {/* scroll-margin on the shell, not the overflow:auto editor. Chromium
             uses editor scroll-margin during mouse selection and jumps long drafts. */}
         {/* WebKit needs an explicit rounded clip for corner hit testing. */}
