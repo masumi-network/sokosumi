@@ -343,12 +343,13 @@ describe("SEO audit first run", () => {
       name: copy.overview.manageConnections,
     });
     expect(setUp).toHaveLength(1);
-    // A check can start, so the run is the filled one: the view keeps one. Its arrow, which
-    // schedules the follow-up, is part of the same control.
+    // A check can start, so the run is the raised one, in the secondary look (owner call, 2026-11-13):
+    // the view has no brand fill. Its arrow, which schedules the follow-up, is part of the same control.
     expect(setUp[0]).not.toHaveClass("bg-primary");
     const arrow = screen.getByRole("button", { name: copy.monitor.create });
+    expect(document.querySelectorAll("button.bg-primary")).toHaveLength(0);
     expect(
-      [...document.querySelectorAll("button.bg-primary")]
+      [...document.querySelectorAll("button.bg-quaternary")]
         .filter((button) => button !== arrow)
         .map((button) => button.textContent),
     ).toEqual([copy.runFullAudit]);

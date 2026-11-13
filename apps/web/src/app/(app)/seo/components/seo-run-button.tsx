@@ -18,9 +18,15 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 const SEO_MONITOR_PRESETS: readonly SeoMonitorPreset[] = ["weekly", "monthly"];
 
 /**
- * The run of the page: the one filled button of the tab, on the title line of the checks. Its arrow schedules the
- * follow-up: a page check every week or every month, in the schedule form, where the reader reviews it before it
- * is saved. The arrow shows only where a schedule can be made.
+ * The secondary button, one surface up: in dark its own fill is the card's colour, in light only one step off, so
+ * on the checks card it would read as bare text. The owner chose the secondary look over the brand fill (2026-11-13).
+ */
+const SECONDARY_ON_CARD_CLASS = "bg-quaternary hover:bg-tertiary";
+
+/**
+ * The run of the page, on the title line of the checks. Its arrow schedules the follow-up: a page check every week
+ * or every month, in the schedule form, where the reader reviews it before it is saved. The arrow shows only where a
+ * schedule can be made.
  */
 export function SeoRunButton({
   model,
@@ -39,7 +45,7 @@ export function SeoRunButton({
   unavailable: boolean;
 }) {
   const t = useTranslations("App.Seo");
-  const variant = ready ? "primary" : "outline";
+  const variant = ready ? "secondary" : "outline";
   const schedule = model.data.availableActions.canCreateMonitor === true;
   return (
     <div className="flex">
@@ -51,6 +57,7 @@ export function SeoRunButton({
         aria-describedby={describedBy}
         className={cn(
           "aria-disabled:pointer-events-none aria-disabled:opacity-50 max-sm:flex-1",
+          variant === "secondary" && SECONDARY_ON_CARD_CLASS,
           schedule && "rounded-e-none",
         )}
         onClick={() => {
@@ -71,10 +78,12 @@ export function SeoRunButton({
               size="sm"
               variant={variant}
               title={t("monitor.create")}
-              // The line between the halves: a cut in the page colour through the fill, or the border of the outline.
+              // The line between the halves: a cut in the card colour through the fill, or the border of the outline.
               className={cn(
                 "rounded-s-none border-s px-2 max-md:min-w-10",
-                variant === "primary" ? "border-s-background" : "-ms-px",
+                variant === "secondary"
+                  ? cn(SECONDARY_ON_CARD_CLASS, "border-s-card-background")
+                  : "-ms-px",
               )}
             >
               <ChevronDown className="size-4" />

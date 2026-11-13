@@ -4106,7 +4106,7 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByRole("tab", { name: "Rankings" }));
     expect(
       await screen.findByRole("button", { name: "Run full audit" }),
-    ).toHaveClass("bg-primary");
+    ).toHaveClass("bg-quaternary");
     cleanup();
     workspace.observations.push({
       id: "first-check",
@@ -5166,10 +5166,12 @@ describe("SEO workspace integration", () => {
     const create = await screen.findByRole("button", {
       name: "Create draft task",
     });
-    // A new check is the focus of every tab (owner call, 2026-11-13): the step waits outlined.
+    // A new check is the focus of every tab (owner call, 2026-11-13): the step waits outlined, and the
+    // run is raised in the secondary look, not the brand fill (owner call, later the same day).
     expect(create).not.toHaveClass("bg-primary");
     const run = screen.getByRole("button", { name: "Run full audit" });
-    expect(run).toHaveClass("bg-primary");
+    expect(run).toHaveClass("bg-quaternary");
+    expect(run).not.toHaveClass("bg-primary");
     expect(run).not.toHaveAttribute("aria-disabled");
     // The position result leads the Agent tab.
     expect(screen.getByTestId("seo-summary-keywords")).toHaveTextContent(
