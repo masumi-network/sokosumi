@@ -14,7 +14,10 @@ import {
   parsePublicSeoArtifact,
   publicSeoPayloadSchema,
 } from "./project-seo-report";
-import { SEO_SERPS_NOT_READ } from "./project-seo-report-serps";
+import {
+  SEO_ALERT_ROWS_NOT_READ,
+  SEO_SERPS_NOT_READ,
+} from "./project-seo-report-serps";
 import { SEO_STRATEGY_NOT_IMPORTED } from "./project-seo-strategy";
 
 describe("public SEO report trust boundary", () => {
@@ -604,23 +607,41 @@ describe("SERP reads of a focused result", () => {
     expect(parsed.keywords).toHaveLength(1);
   });
 
-  it("drops unreadable SERP details with a note and keeps the paid positions", () => {
-    for (const serps of [
-      [serpRead({ aiOverview: { shown: true } })],
-      [serpRead({ top: [{ rank: 0, domain: "a.test" }] })],
-      [serpRead({ device: "tablet" })],
-      "not a list",
+  it("drops an unreadable SERP read with a note and keeps the readable ones and the paid positions", () => {
+    for (const bad of [
+      serpRead({ aiOverview: { shown: true } }),
+      serpRead({ top: [{ rank: 0, domain: "a.test" }] }),
+      // Out of scope, but unreadable: it is dropped before the scope check sees it.
+      serpRead({ device: "tablet", keyword: "unrequested" }),
     ]) {
-      const parsed = parsePublicSeoArtifact({
+      const raw = {
         ...focusedRankingsReport(),
-        serps,
-        alertRows: [42],
-      });
-      expect(parsed.serps).toBeUndefined();
-      expect(parsed.alertRows).toBeUndefined();
+        serps: [bad, serpRead({ device: "desktop" })],
+      };
+      const parsed = parsePublicSeoArtifact(raw);
+      expect(parsed.serps).toEqual([serpRead({ device: "desktop" })]);
       expect(parsed.notes).toEqual([SEO_SERPS_NOT_READ]);
       expect(parsed.keywords[0]).toMatchObject({ position: 2 });
+      expect(() =>
+        assertSeoArtifactMatchesRequest(raw, parsed, rankingsRequest),
+      ).not.toThrow();
     }
+    const notList = parsePublicSeoArtifact({
+      ...focusedRankingsReport(),
+      serps: "not a list",
+    });
+    expect(notList.serps).toBeUndefined();
+    expect(notList.notes).toEqual([SEO_SERPS_NOT_READ]);
+  });
+
+  it("drops unreadable alert rows with their own note", () => {
+    const parsed = parsePublicSeoArtifact({
+      ...focusedRankingsReport(),
+      alertRows: [42],
+    });
+    expect(parsed.alertRows).toBeUndefined();
+    expect(parsed.serps).toHaveLength(1);
+    expect(parsed.notes).toEqual([SEO_ALERT_ROWS_NOT_READ]);
   });
 
   it("keeps an AI Overview citation that the read could not determine", () => {

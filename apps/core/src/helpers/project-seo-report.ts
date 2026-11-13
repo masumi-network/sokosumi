@@ -584,10 +584,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
         notRequestedNames: result.coverage.skipped,
         failedNames: result.coverage.failed,
       }),
-      notes: [
-        ...result.gaps.map((gap) => gap.reason),
-        ...(serp.note ? [serp.note] : []),
-      ],
+      notes: [...result.gaps.map((gap) => gap.reason), ...serp.notes],
       serps: serp.serps,
       alertRows: serp.alertRows,
     });

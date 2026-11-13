@@ -53,25 +53,39 @@ export const seoSerpReadsSchema = z.array(seoSerpReadSchema).max(SERP_READS);
 export const seoAlertRowsSchema = z.array(shortText).max(LIST_ITEMS);
 
 export const SEO_SERPS_NOT_READ =
-  "The SERP details of this check are not readable: its SERP features and share of voice are left out.";
+  "Some SERP details of this check are not readable: they are left out of SERP features and share of voice.";
+export const SEO_ALERT_ROWS_NOT_READ =
+  "The monitor alert rows of this check are not readable: they are left out.";
 
 /**
- * The optional SERP fields of a focused result. A value Core cannot read is dropped, the SERP details with a
- * note: the paid positions of the same result must still import.
+ * The optional SERP fields of a focused result. A value Core cannot read is dropped with a note: the paid
+ * positions and the readable SERP reads of the same result must still import.
  */
 export function focusedSerpFields(raw: Record<string, unknown>): {
   serps?: SeoSerpRead[];
   alertRows?: string[];
-  note?: string;
+  notes: string[];
 } {
-  const serps =
-    raw.serps === undefined
+  const notes: string[] = [];
+  let serps: SeoSerpRead[] | undefined;
+  if (raw.serps !== undefined && !Array.isArray(raw.serps))
+    notes.push(SEO_SERPS_NOT_READ);
+  else if (Array.isArray(raw.serps)) {
+    // Each SERP read stands alone: one bad entry drops itself, not the others.
+    serps = raw.serps.slice(0, SERP_READS).flatMap((entry) => {
+      const parsed = seoSerpReadSchema.safeParse(entry);
+      return parsed.success ? [parsed.data] : [];
+    });
+    if (serps.length < raw.serps.length) notes.push(SEO_SERPS_NOT_READ);
+  }
+  const alertRows =
+    raw.alertRows === undefined
       ? undefined
-      : seoSerpReadsSchema.safeParse(raw.serps);
-  const alertRows = seoAlertRowsSchema.safeParse(raw.alertRows);
+      : seoAlertRowsSchema.safeParse(raw.alertRows);
+  if (alertRows && !alertRows.success) notes.push(SEO_ALERT_ROWS_NOT_READ);
   return {
-    ...(serps?.success ? { serps: serps.data } : {}),
-    ...(alertRows.success ? { alertRows: alertRows.data } : {}),
-    ...(serps && !serps.success ? { note: SEO_SERPS_NOT_READ } : {}),
+    ...(serps ? { serps } : {}),
+    ...(alertRows?.success ? { alertRows: alertRows.data } : {}),
+    notes,
   };
 }
