@@ -594,7 +594,7 @@ describe("SEO competitor baselines", () => {
       "Last position check Feb 3, 2026",
     );
     cleanup();
-    // The runs row over the tabs names both days: the line names the results alone, and still opens them.
+    // The runs row over the tabs names both days: the list has no date line. Keywords keeps the one link.
     workspace.competitors[0].observedAt = new Date("2026-01-03T12:00:00Z");
     const run = (observationId: string, observedAt: string) => ({
       observationId,
@@ -608,9 +608,12 @@ describe("SEO competitor baselines", () => {
       run("first-check", "2026-01-03T12:00:00Z"),
     ];
     renderWorkspace(workspace);
+    // The list is there; only its date line is not.
+    expect(screen.getAllByRole("row").length).toBeGreaterThan(1);
     expect(
-      screen.getByRole("link", { name: "View the position checks" }),
-    ).toHaveAttribute("href", "/tasks/second-check-task");
+      screen.queryByRole("link", { name: "View the position checks" }),
+    ).toBeNull();
+    expect(screen.queryByText(/^Position checks/)).toBeNull();
     cleanup();
     // Without results to open the words would be no link: the line keeps its dates.
     const tasked = workspace.observations;

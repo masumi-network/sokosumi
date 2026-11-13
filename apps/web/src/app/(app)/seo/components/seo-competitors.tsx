@@ -73,8 +73,8 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
     value ? format.dateTime(new Date(value), { dateStyle: "medium" }) : "";
   const oldest = dated.at(-1)?.observedAt ?? null;
   const firstDay = day(oldest);
-  // Where the runs row over the tabs names these days, the line names the results alone. Without results to
-  // open, the words would be no link: the line keeps its dates.
+  // Where the runs row over the tabs names these days, the list needs no date line: Keywords, one switch away,
+  // keeps the one link to the position checks. Without results to open, the line keeps its dates.
   const namedDays = model.data.observations.find(
     (item) => item.id === newest?.observationId,
   )?.sourceTaskId
@@ -132,19 +132,15 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
         ) : null
       }
     >
-      {newest?.observedAt ? (
+      {newest?.observedAt && !namedDays ? (
         // The date opens the results of the newest check. It stands under the title, at the place and in the
-        // size of the meta line on Keywords, so the line holds its place when the switch changes the list.
+        // size of the meta line on Keywords.
         <p className="text-muted-foreground px-2 pb-1 text-sm">
           <SeoSource
             workspace={model.data}
             observationId={newest.observationId}
-            named={Boolean(namedDays)}
           >
-            {namedDays ? (
-              // The runs row over the tabs names these days.
-              t("keywords.checks", { count: namedDays })
-            ) : firstDay === day(newest.observedAt) ? (
+            {firstDay === day(newest.observedAt) ? (
               <>
                 {t("keywords.readOn")} <SeoDate day value={newest.observedAt} />
               </>
