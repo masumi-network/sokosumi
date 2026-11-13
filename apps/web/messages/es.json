@@ -9094,6 +9094,8 @@
       "Message": {
         "delete": "Eliminar",
         "deleteConfirm": "¿Eliminar este mensaje? Los demás verán que fue eliminado.",
+        "deleteNoteTitle": "¿Eliminar esta nota?",
+        "deleteNoteConfirm": "Se elimina para siempre. Solo tú podías verla.",
         "deleted": "Este mensaje fue eliminado",
         "deleteError": "No se pudo eliminar el mensaje. Inténtalo de nuevo.",
         "restored": "El mensaje vuelve a estar en la conversación.",
@@ -9480,7 +9482,7 @@
         "Decisions": {
           "open": "Decisiones",
           "title": "Decisiones",
-          "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
+          "empty": "Aún no hay decisiones aquí. Las encontramos en canales y en chats con otras personas que lo permiten. Las notas para ti mismo nunca se etiquetan.",
           "loadOlder": "Cargar anteriores",
           "note": "Las encontramos por ti. Si una es incorrecta, abre su mensaje y haz clic en la × de la etiqueta.",
           "description": "Decisiones encontradas en tus chats, las más recientes primero, también las que ya leíste.",
