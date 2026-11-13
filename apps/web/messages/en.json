@@ -2859,7 +2859,8 @@
           "pickAccount": "Pick an account to post to.",
           "tooLong": "Text length is over the limit.",
           "addToQueue": "Add to queue",
-          "queueEmptyHint": "Add queue times in accounts."
+          "queueEmptyHint": "Add queue times in accounts.",
+          "keptOnDraft": "Save draft keeps this time. Connect an account to schedule it."
         },
         "cancelDialog": {
           "title": "Cancel this post?",
@@ -3240,7 +3241,8 @@
           "failed": "The post it quotes failed to publish",
           "cancelled": "The quoted post was cancelled",
           "waiting": "Waiting for the quoted post"
-        }
+        },
+        "plannedFor": "Planned for {date}"
       },
       "Detail": {
         "back": "Back to projects",
@@ -5267,10 +5269,6 @@
         "title": "Choose a project",
         "body": "Then connect accounts."
       },
-      "attentionNeedProject": {
-        "title": "Needs attention",
-        "body": "Choose a project to see posts that failed or were missed."
-      },
       "draftsNeedProject": {
         "title": "Drafts",
         "body": "Choose a project to see and finish its drafts."
@@ -5283,6 +5281,15 @@
       "statisticsNeedProject": {
         "title": "Choose a project to see performance",
         "body": "Account performance belongs to a project. Choose one to evaluate its connected accounts and published content."
+      },
+      "attentionAll": {
+        "label": "Posts that need attention in every project",
+        "empty": "Nothing needs attention in any project.",
+        "waitingApproval": "Waiting for approval",
+        "review": "Review",
+        "open": "Open",
+        "actionFor": "{action}: post in {project}",
+        "more": "Showing the latest {count}. Choose a project to see all of its posts."
       }
     },
     "Error": {

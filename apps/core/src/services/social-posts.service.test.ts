@@ -1591,6 +1591,25 @@ describe("social posts service", () => {
     expect(socialPostFindManyMock).not.toHaveBeenCalled();
   });
 
+  it("lists every Project's posts in the workspace, and only that workspace", async () => {
+    const { listWorkspaceSocialPosts } = await loadService();
+
+    await listWorkspaceSocialPosts({
+      workspaceId: WORKSPACE_ID,
+      statuses: ["FAILED", "MISSED", "NEEDS_APPROVAL"],
+    });
+
+    const where = {
+      workspaceId: WORKSPACE_ID,
+      status: { in: ["FAILED", "MISSED", "NEEDS_APPROVAL"] },
+    };
+    expect(socialPostFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where }),
+    );
+    expect(socialPostCountMock).toHaveBeenCalledWith({ where });
+    expect(projectFindFirstMock).not.toHaveBeenCalled();
+  });
+
   it("lists a bounded page with derived capability flags", async () => {
     const { listSocialPosts } = await loadService();
 

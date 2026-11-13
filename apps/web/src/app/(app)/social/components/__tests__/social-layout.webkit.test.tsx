@@ -96,6 +96,7 @@ describe("Social tabs layout", () => {
                       +<span className="sr-only md:not-sr-only">New post</span>
                     </Button>
                   }
+                  attention={<p>Needs attention</p>}
                   calendar={<p>Calendar</p>}
                   workspaceId="workspace-1"
                 />

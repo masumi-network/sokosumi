@@ -2859,7 +2859,8 @@
           "pickAccount": "Elige una cuenta en la que publicar.",
           "tooLong": "La longitud del texto supera el límite.",
           "addToQueue": "Añadir a la cola",
-          "queueEmptyHint": "Añade horarios en Cuentas."
+          "queueEmptyHint": "Añade horarios en Cuentas.",
+          "keptOnDraft": "Guardar borrador conserva esta hora. Conecta una cuenta para programarlo."
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
@@ -3240,7 +3241,8 @@
           "failed": "No se pudo publicar la publicación citada",
           "cancelled": "La publicación citada se canceló",
           "waiting": "Esperando a la publicación citada"
-        }
+        },
+        "plannedFor": "Previsto para {date}"
       },
       "Detail": {
         "back": "Volver a proyectos",
@@ -5267,10 +5269,6 @@
         "title": "Elige un proyecto",
         "body": "Luego conecta cuentas."
       },
-      "attentionNeedProject": {
-        "title": "Requiere atención",
-        "body": "Elige un proyecto para ver las publicaciones que fallaron o se omitieron."
-      },
       "draftsNeedProject": {
         "title": "Borradores",
         "body": "Elige un proyecto para ver y terminar sus borradores."
@@ -5283,6 +5281,15 @@
       "statisticsNeedProject": {
         "title": "Elige un proyecto para ver el rendimiento",
         "body": "El rendimiento de las cuentas pertenece a un proyecto. Elige uno para evaluar sus cuentas conectadas y su contenido publicado."
+      },
+      "attentionAll": {
+        "label": "Publicaciones que requieren atención en todos los proyectos",
+        "empty": "Nada requiere atención en ningún proyecto.",
+        "waitingApproval": "Esperando aprobación",
+        "review": "Revisar",
+        "open": "Abrir",
+        "actionFor": "{action}: publicación en {project}",
+        "more": "Se muestran las {count} más recientes. Elige un proyecto para ver todas sus publicaciones."
       }
     },
     "Error": {

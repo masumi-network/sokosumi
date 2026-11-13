@@ -52744,6 +52744,22 @@ export const WorkspaceCalendarSourceSchema = {
     ]
 } as const;
 
+export const WorkspaceSocialPostSchema = {
+    type: 'object',
+    properties: {
+        post: {
+            $ref: '#/components/schemas/SocialPost'
+        },
+        projectName: {
+            type: 'string'
+        }
+    },
+    required: [
+        'post',
+        'projectName'
+    ]
+} as const;
+
 export const CalendarIdentityLabelsSchema = {
     type: 'array',
     items: {

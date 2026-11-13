@@ -13,6 +13,7 @@ const coreClientMock = {
   getProjectsByIdContextMd: vi.fn(),
   getProjectsByIdSocialConnections: vi.fn(),
   getProjectsByIdSocialPosts: vi.fn(),
+  getWorkspacesSocialPosts: vi.fn(),
   getProjectsByIdSocialPostsStatistics: vi.fn(),
   getProjectsByIdSocialQueueSlots: vi.fn(),
   getProjectsByIdSocialConnectionsStatistics: vi.fn(),
@@ -697,6 +698,25 @@ describe("project.service", () => {
           limit: 20,
         },
       );
+    });
+
+    it("lists every project's posts for the given statuses", async () => {
+      coreClientMock.getWorkspacesSocialPosts.mockResolvedValue({
+        data: [{ post, projectName: "Launch plan" }],
+        meta: { pagination: { nextCursor: "more" } },
+      });
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.listWorkspaceSocialPosts(["FAILED", "NEEDS_APPROVAL"]),
+      ).resolves.toEqual({
+        items: [{ post, projectName: "Launch plan" }],
+        hasMore: true,
+      });
+      expect(coreClientMock.getWorkspacesSocialPosts).toHaveBeenCalledWith({
+        status: "FAILED,NEEDS_APPROVAL",
+        limit: 50,
+      });
     });
 
     it("reads a single social post", async () => {

@@ -2859,7 +2859,8 @@
           "pickAccount": "Wähle ein Konto, auf dem gepostet wird.",
           "tooLong": "Die Textlänge überschreitet das Limit.",
           "addToQueue": "Zur Warteschlange",
-          "queueEmptyHint": "Zeiten unter Konten hinzufügen."
+          "queueEmptyHint": "Zeiten unter Konten hinzufügen.",
+          "keptOnDraft": "Entwurf speichern behält diese Zeit. Verbinde ein Konto, um ihn zu planen."
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
@@ -3240,7 +3241,8 @@
           "failed": "Der zitierte Beitrag konnte nicht veröffentlicht werden",
           "cancelled": "Der zitierte Beitrag wurde abgesagt",
           "waiting": "Wartet auf den zitierten Beitrag"
-        }
+        },
+        "plannedFor": "Geplant für {date}"
       },
       "Detail": {
         "back": "Zurück zu Projekten",
@@ -5267,10 +5269,6 @@
         "title": "Wähle ein Projekt",
         "body": "Dann verbinde Konten."
       },
-      "attentionNeedProject": {
-        "title": "Braucht Aufmerksamkeit",
-        "body": "Wähle ein Projekt, um fehlgeschlagene oder verpasste Beiträge zu sehen."
-      },
       "draftsNeedProject": {
         "title": "Entwürfe",
         "body": "Wähle ein Projekt, um seine Entwürfe anzusehen und fertigzustellen."
@@ -5283,6 +5281,15 @@
       "statisticsNeedProject": {
         "title": "Wähle ein Projekt, um die Leistung zu sehen",
         "body": "Die Kontoleistung gehört zu einem Projekt. Wähle eines, um seine verbundenen Konten und veröffentlichten Inhalte zu bewerten."
+      },
+      "attentionAll": {
+        "label": "Beiträge, die in allen Projekten Aufmerksamkeit brauchen",
+        "empty": "In keinem Projekt braucht etwas Aufmerksamkeit.",
+        "waitingApproval": "Wartet auf Freigabe",
+        "review": "Prüfen",
+        "open": "Öffnen",
+        "actionFor": "{action}: Beitrag in {project}",
+        "more": "Die neuesten {count} werden angezeigt. Wähle ein Projekt, um alle seine Beiträge zu sehen."
       }
     },
     "Error": {

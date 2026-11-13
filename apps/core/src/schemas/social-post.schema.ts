@@ -462,3 +462,13 @@ export const listSocialPostsQuerySchema = cursorPaginationQuerySchema.extend({
       example: "DRAFT,SCHEDULED",
     }),
 });
+
+export const listWorkspaceSocialPostsQuerySchema =
+  listSocialPostsQuerySchema.pick({ cursor: true, limit: true, status: true });
+
+export const workspaceSocialPostSchema = z
+  .object({
+    post: socialPostSchema,
+    projectName: z.string(),
+  })
+  .openapi("WorkspaceSocialPost");

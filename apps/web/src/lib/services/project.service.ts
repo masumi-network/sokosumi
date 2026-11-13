@@ -36,6 +36,7 @@ import type {
   StarredProject,
   TaskListItem,
   UpdateSocialPostRequest,
+  WorkspaceSocialPost,
 } from "@sokosumi/core-client";
 import type { CoreApiPagination } from "@/lib/clients/core.client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
@@ -372,6 +373,20 @@ export const projectService = (() => {
     return {
       posts: result.data,
       nextCursor: result.meta?.pagination?.nextCursor ?? null,
+    };
+  }
+
+  /** Posts of every Project in the active workspace, newest change first. */
+  async function listWorkspaceSocialPosts(
+    statuses: readonly SocialPostStatus[],
+  ): Promise<{ items: WorkspaceSocialPost[]; hasMore: boolean }> {
+    const result = await coreClient.getWorkspacesSocialPosts({
+      status: statuses.join(","),
+      limit: 50,
+    });
+    return {
+      items: result.data,
+      hasMore: Boolean(result.meta?.pagination?.nextCursor),
     };
   }
 
@@ -758,6 +773,7 @@ export const projectService = (() => {
     retryProjectClose,
     cancelProjectCloseOwedWork,
     listSocialPosts,
+    listWorkspaceSocialPosts,
     listSocialPostStatistics,
     listSocialAccountStatistics,
     refreshSocialAccountStatistics,

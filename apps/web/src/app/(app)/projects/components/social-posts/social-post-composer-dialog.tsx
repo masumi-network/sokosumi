@@ -409,7 +409,7 @@ export function SocialPostComposerDialog({
   const [scheduledAt, setScheduledAt] = useState<string | null>(() => {
     if (post?.scheduledAt) {
       if (
-        (post.status === "FAILED" || post.status === "MISSED") &&
+        post.status !== "SCHEDULED" &&
         post.scheduledAt.getTime() <=
           Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS
       ) {
@@ -1053,6 +1053,13 @@ export function SocialPostComposerDialog({
     connections.length > 0 &&
     selectedConnections.length === 0;
 
+  // No account to schedule with: say that Save draft keeps the time.
+  const keepsTimeOnDraft =
+    !isScheduleOnly &&
+    primaryAction === "schedule" &&
+    scheduledAtValid &&
+    enabledConnections.length === 0;
+
   function runPrimary(): void {
     if (primaryAction === "schedule") void handleSchedule();
     else if (primaryAction === "publish") void handlePublishNow();
@@ -1061,6 +1068,13 @@ export function SocialPostComposerDialog({
 
   async function handleSaveDraft(): Promise<void> {
     if (!canSave) return;
+    // A draft keeps the time picked for it. Only Schedule makes it go out.
+    const keptTime =
+      scheduledAtValid &&
+      scheduledDate &&
+      (mode.kind === "create" || mode.post.status === "DRAFT")
+        ? { scheduledAt: scheduledDate.toISOString(), timezone: viewerTimezone }
+        : null;
     setPending("save");
     try {
       if (mode.kind === "edit") {
@@ -1073,6 +1087,7 @@ export function SocialPostComposerDialog({
           ...threadPayload,
           ...quotePayload,
           socialConnectionId: connectionIds[0] ?? null,
+          ...keptTime,
           revision: revisionRef.current,
         });
         if (!result.ok) {
@@ -1085,8 +1100,10 @@ export function SocialPostComposerDialog({
         return;
       }
 
-      const created = await createForEachAccount((socialConnectionId) =>
-        createProjectSocialPost({
+      const created = await createForEachAccount(async (socialConnectionId) => {
+        // A time on create schedules, so the draft is saved first and gets
+        // its time after, staying a draft.
+        const draft = await createProjectSocialPost({
           projectId,
           text: textFor(socialConnectionId).trim(),
           ...(trimmedFirstComment ? { firstComment: trimmedFirstComment } : {}),
@@ -1094,8 +1111,18 @@ export function SocialPostComposerDialog({
           ...threadPayload,
           ...quotePayload,
           socialConnectionId,
-        }),
-      );
+        });
+        if (!draft.ok || !keptTime) return draft;
+        const timed = await updateProjectSocialPost({
+          projectId,
+          postId: draft.value.id,
+          ...keptTime,
+          revision: draft.value.revision,
+        });
+        // Keep the saved draft visible when its time could not be kept.
+        if (!timed.ok) handleSaved(draft.value);
+        return timed;
+      });
       if (created === 0) return;
       rememberCreateAccounts();
       toast.success(t("toasts.created", { count: created }));
@@ -1413,6 +1440,8 @@ export function SocialPostComposerDialog({
     <p className="text-destructive">{t("composer.scheduledAtTooSoon")}</p>
   ) : needsAccount ? (
     <p>{t("composer.pickAccount")}</p>
+  ) : keepsTimeOnDraft ? (
+    <p data-testid="social-post-kept-on-draft">{t("composer.keptOnDraft")}</p>
   ) : overFirstComment ? (
     <p
       className="text-destructive"
