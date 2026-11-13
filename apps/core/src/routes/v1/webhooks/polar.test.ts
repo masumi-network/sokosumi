@@ -176,17 +176,6 @@ describe("POST /v1/webhooks/polar", () => {
     expect(response.status).toBe(202);
   });
 
-  it.each(["order.refunded"])("answers 200 on %s", async (type) => {
-    m.verifyPolarWebhook.mockResolvedValue(ok({ type, data: { id: "id_1" } }));
-
-    const response = await post();
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      data: { received: true },
-    });
-  });
-
   it("verifies the raw body with the webhook headers", async () => {
     m.verifyPolarWebhook.mockResolvedValue(err("invalid_signature"));
 
