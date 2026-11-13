@@ -342,42 +342,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           quote,
         );
 
-        // A thread reply goes to every coworker already part of the thread —
-        // as a sender or a mention target — without requiring a fresh @mention.
-        let threadCoworkerIds: string[] = [];
-        let threadSokoBotIds: string[] = [];
-        if (parentMessageId) {
-          const threadMessages = await tx.chatRoomMessage.findMany({
-            where: {
-              roomId: room.id,
-              OR: [{ id: parentMessageId }, { parentMessageId }],
-            },
-            select: {
-              senderCoworkerId: true,
-              senderSokoBotId: true,
-              mentionsAsSource: {
-                select: { coworkerId: true, sokoBotId: true },
-              },
-            },
-          });
-          threadCoworkerIds = threadMessages.flatMap((threadMessage) => [
-            ...(threadMessage.senderCoworkerId
-              ? [threadMessage.senderCoworkerId]
-              : []),
-            ...threadMessage.mentionsAsSource.flatMap((mention) =>
-              mention.coworkerId ? [mention.coworkerId] : [],
-            ),
-          ]);
-          threadSokoBotIds = threadMessages.flatMap((threadMessage) => [
-            ...(threadMessage.senderSokoBotId
-              ? [threadMessage.senderSokoBotId]
-              : []),
-            ...threadMessage.mentionsAsSource.flatMap((mention) =>
-              mention.sokoBotId ? [mention.sokoBotId] : [],
-            ),
-          ]);
-        }
-
+        // A thread reply reaches a coworker or assistant only when it names
+        // them: one that was part of the thread answered questions meant for
+        // someone else.
         const mentionedCoworkerIds = skipCoworkerMentions
           ? []
           : resolveMentionedCoworkerIds({
@@ -385,7 +352,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               explicitCoworkerIds: [
                 ...(body.mentionedCoworkerIds ?? []),
                 ...directCoworkerIds,
-                ...threadCoworkerIds,
               ],
               roomCoworkers: room.coworkerMembers.map(({ coworker }) => ({
                 id: coworker.id,
@@ -398,7 +364,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           explicitSokoBotIds: [
             ...(body.mentionedSokoBotIds ?? []),
             ...directSokoBotIds,
-            ...threadSokoBotIds,
           ],
           roomSokoBots: room.sokoBotMembers.map(({ sokoBot }) => ({
             id: sokoBot.id,

@@ -224,7 +224,7 @@ it("F4: definitive cell rejection does not leave the cell retry-locked", async (
         .getAllByRole("alert")
         .map((item) => item.textContent)
         .join(" "),
-    ).toContain("errors.forbidden"),
+    ).toContain("errors.cellNotSaved"),
   );
   expect(cell).not.toBeDisabled();
   expect(screen.getByRole("button", { name: "retry" })).toBeInTheDocument();
@@ -909,7 +909,8 @@ it("F3: a cell error wraps instead of painting across the next column", async ()
   fireEvent.blur(cell);
   const alert = await screen.findByRole("alert");
   expect(alert.className).toContain("whitespace-normal");
-  expect(cell.closest("td")?.className).not.toContain("whitespace-nowrap");
+  // The editor leaves while the save runs, so `cell` is a detached node now.
+  expect(alert.closest("td")?.className).not.toContain("whitespace-nowrap");
 });
 
 it("F4: value cells and the row checkbox align to the top of an uneven row", () => {
