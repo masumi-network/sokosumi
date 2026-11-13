@@ -12451,6 +12451,8 @@
           "analyticsNoAggregate": "Google Analytics no devolvió totales en la última sincronización.",
           "analyticsThresholding": "Google Analytics aplicó umbrales o perdió datos en la última sincronización. Faltan algunos valores.",
           "analyticsTruncated": "Google Analytics recortó los valores diarios en la última sincronización. Faltan algunos días.",
+          "analyticsLandingPages": "Los eventos clave por página de destino de Google Analytics no estaban disponibles en la última sincronización.",
+          "analyticsSharedLandingPath": "En la última sincronización no se leyeron los eventos clave por página de destino de las páginas que comparten una ruta en distintos hosts.",
           "keywordRowsCut": "Search Console solo conservó las primeras {count} filas diarias de palabras clave en la última sincronización. Pueden faltar algunos días.",
           "keywordsLeftOut": "En la última sincronización no se leyeron las posiciones diarias de {count, plural, one {# palabra clave seguida} other {# palabras clave seguidas}}{shown, plural, =0 {.} other {: {names}{more, plural, =0 {.} other { y # más.}}}}",
           "note": "Nota de la última sincronización: {note}",

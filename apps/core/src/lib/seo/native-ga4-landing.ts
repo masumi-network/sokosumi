@@ -9,9 +9,6 @@ import {
   type NativeStatisticsQuery,
 } from "./native-statistics";
 
-/** The landing page read failed. Totals are separate reads, so this note does not mark lost data. */
-export const GA4_LANDING_PAGES_UNAVAILABLE_NOTE =
-  "Google Analytics key events per landing page were unavailable for this sync. Other measurements are kept.";
 const LANDING_DIMENSION = "landingPagePlusQueryString";
 /** Inside the AI Assistant channel, the session source names the assistant (chatgpt.com, perplexity.ai and others). */
 const SOURCE_DIMENSION = "sessionSource";
@@ -23,14 +20,10 @@ function landingPath(url: string): string {
   return `${parsed.pathname}${parsed.search}`;
 }
 
-/** Pages that share a path on different hosts are left out of the landing read. */
-export const GA4_SHARED_LANDING_PATH_NOTE =
-  "Key events per landing page were not read for pages that share a path on different hosts: Google Analytics names a landing page by its path only.";
-
 /**
  * The pages a landing read can tell apart. GA4's landing dimension carries no host, so
  * "https://example.com/" and "https://blog.example.com/" are one row there. Those pages
- * are left out with a note, never given one page's numbers.
+ * are left out, never given one page's numbers; the sync names them with a note.
  */
 export function ga4LandingPlan(query: NativeStatisticsQuery) {
   const urlsByPath = new Map<string, Set<string>>();
@@ -48,7 +41,6 @@ export function ga4LandingPlan(query: NativeStatisticsQuery) {
       pageUrls: query.pageUrls.filter((url) => !shared(url)),
     },
     skippedUrls,
-    note: skippedUrls.length ? GA4_SHARED_LANDING_PATH_NOTE : null,
   };
 }
 

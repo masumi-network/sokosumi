@@ -1,5 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import {
+  SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
+  SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE,
   SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
   SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
@@ -13,7 +15,6 @@ import {
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import {
-  GA4_LANDING_PAGES_UNAVAILABLE_NOTE,
   ga4LandingPageArguments,
   ga4LandingPlan,
   normalizeGa4LandingPages,
@@ -514,11 +515,14 @@ export async function syncProjectSeoStatistics(
         };
     }
   if (landingPlan) {
-    if (landingPlan.note) metrics.notes.push(landingPlan.note);
+    if (landingPlan.skippedUrls.length)
+      metrics.notes.push(SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE);
     if (landing.status === "fulfilled" && landing.value)
       metrics.landingPages = landing.value;
     else if (landingPlan.query.pageUrls.length)
-      metrics.notes.push(GA4_LANDING_PAGES_UNAVAILABLE_NOTE);
+      metrics.notes.push(
+        SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
+      );
   }
   if (input.provider === "search_console") {
     if (queries.status === "fulfilled" && queries.value) {

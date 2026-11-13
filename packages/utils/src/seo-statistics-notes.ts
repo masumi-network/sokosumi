@@ -42,6 +42,13 @@ export const SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE =
 export const SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE =
   "The daily Analytics result was truncated.";
 
+/** The landing page read failed. Totals are separate reads, so this note does not mark lost data. */
+export const SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE =
+  "Google Analytics key events per landing page were unavailable for this sync. Other measurements are kept.";
+/** Pages that share a path on different hosts are left out of the landing read. */
+export const SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE =
+  "Key events per landing page were not read for pages that share a path on different hosts: Google Analytics names a landing page by its path only.";
+
 /** Every Search Console sync with query rows stores this routine note: Google never lists anonymized queries. */
 export const SEO_STATISTICS_QUERY_ROWS_ANONYMIZED_NOTE =
   "Query rows omit anonymized queries, so they can add up to less than the page totals.";
@@ -112,6 +119,8 @@ export type SeoStatisticsNoteGap =
   | "analyticsNoAggregate"
   | "analyticsThresholding"
   | "analyticsTruncated"
+  | "analyticsLandingPages"
+  | "analyticsSharedLandingPath"
   | "keywordRowsCut"
   | "keywordsLeftOut";
 
@@ -148,6 +157,14 @@ const FIXED_NOTES = new Map<string, SeoStatisticsNoteReading>([
   [SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE, gap("analyticsNoAggregate")],
   [SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE, gap("analyticsThresholding")],
   [SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE, gap("analyticsTruncated")],
+  [
+    SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
+    gap("analyticsLandingPages"),
+  ],
+  [
+    SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE,
+    gap("analyticsSharedLandingPath"),
+  ],
 ]);
 
 /** The fixed notes of the catalog. A builder's notes are read by readSeoStatisticsNote. */

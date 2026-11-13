@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  GA4_SHARED_LANDING_PATH_NOTE,
   ga4LandingPageArguments,
   ga4LandingPlan,
   normalizeGa4LandingPages,
@@ -172,7 +171,7 @@ describe("GA4 key events per landing page", () => {
     ).toBe(true);
   });
 
-  it("leaves out pages that share a path on another host, with a note", () => {
+  it("leaves out pages that share a path on another host", () => {
     const plan = ga4LandingPlan({
       ...query,
       pageUrls: [
@@ -186,11 +185,9 @@ describe("GA4 key events per landing page", () => {
       "https://example.com/",
       "https://blog.example.com/",
     ]);
-    expect(plan.note).toBe(GA4_SHARED_LANDING_PATH_NOTE);
     expect(ga4LandingPlan(query)).toEqual({
       query,
       skippedUrls: [],
-      note: null,
     });
     // The left-out pages stay named in the stored read, apart from pages without sessions.
     const landing = normalizeGa4LandingPages(
