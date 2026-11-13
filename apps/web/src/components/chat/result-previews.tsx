@@ -45,9 +45,14 @@ import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/so
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { TaskCard } from "@/app/tasks/components/task-card";
 import { TaskProjectSelect } from "@/app/tasks/components/task-project-select";
+import { taskScheduleZoneName } from "@/app/tasks/utils/task-schedule-view";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
+import {
+  computeScheduleTitleInfo,
+  formatScheduleTitle,
+} from "@/components/schedules/format";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -121,6 +126,7 @@ export function ResultPreviewCard({
   const t = useTranslations("Components.ChatResults");
   const format = useFormatter();
   const tTaskStatus = useTranslations("App.Tasks.Filters.statusOptions");
+  const tSchedule = useTranslations("App.Tasks.Schedule");
   if (result.state !== "available" || !icons[result.kind])
     return (
       <div className="bg-card-background text-muted-foreground flex max-w-xl items-center gap-2 rounded-lg border p-3 text-sm">
@@ -128,6 +134,20 @@ export function ResultPreviewCard({
         {t("unavailable")}
       </div>
     );
+  // "Weekly (Monday, 9:00 AM)", not "0 9 * * 1". Only a bot follow-up's cron
+  // is its whole rule: a Task schedule keeps an every-N-days step outside the
+  // cron, so its cron alone would read as daily. Unnamed shapes stay raw.
+  const recurrenceInfo =
+    result.kind === "bot_schedule" && result.recurrence
+      ? computeScheduleTitleInfo(
+          { cron: result.recurrence, timezone: result.timezone ?? "UTC" },
+          format,
+        )
+      : null;
+  const recurrence =
+    recurrenceInfo && recurrenceInfo.key !== "custom"
+      ? formatScheduleTitle(recurrenceInfo, tSchedule)
+      : null;
   if (result.kind === "project_selection")
     return <ChatProjectSelection result={result} source={source} />;
   if (result.decision)
@@ -350,15 +370,19 @@ export function ResultPreviewCard({
                         : undefined,
                     )}
                   </time>
-                  {result.timezone ? ` · ${result.timezone}` : ""}
+                  {result.timezone
+                    ? ` · ${taskScheduleZoneName(result.timezone)}`
+                    : ""}
                 </dd>
               </div>
             ) : null}
             {result.recurrence ? (
               <div className="contents">
                 <dt className="text-muted-foreground">{t("recurrence")}</dt>
-                <dd className="font-mono wrap-break-word">
-                  {result.recurrence}
+                <dd
+                  className={cn("wrap-break-word", !recurrence && "font-mono")}
+                >
+                  {recurrence ?? result.recurrence}
                 </dd>
               </div>
             ) : null}

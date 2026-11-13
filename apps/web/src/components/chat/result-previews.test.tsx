@@ -96,6 +96,41 @@ describe("chat result cards", () => {
     expect(html).toContain('href="/tasks/task"');
     expect(html).toContain("recorded");
   });
+  it("names a bot follow-up's recurrence and zone in words, not cron", () => {
+    const followUp = {
+      ...task,
+      kind: "bot_schedule" as const,
+      title: "Freelance invoice reminder",
+      status: "ACTIVE",
+      question: null,
+      timezone: "America/Los_Angeles",
+      recurrence: "0 9 * * 1",
+    };
+    const html = renderToStaticMarkup(
+      <ResultPreviewCard result={followUp} onDecisionResolved={() => {}} />,
+    );
+    expect(html).toContain("option.weeklyWithWeekdayTime");
+    expect(html).toContain(" · Los Angeles");
+    expect(html).not.toContain("0 9 * * 1");
+    expect(html).not.toContain("· America/Los_Angeles");
+
+    // A shape the labels cannot name stays readable as the rule itself.
+    const custom = renderToStaticMarkup(
+      <ResultPreviewCard
+        result={{ ...followUp, recurrence: "*/15 9-17 * * 1-5" }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+    expect(custom).toContain("*/15 9-17 * * 1-5");
+    // A Task schedule's cron leaves out its every-N-days step: kept as is.
+    const taskSchedule = renderToStaticMarkup(
+      <ResultPreviewCard
+        result={{ ...followUp, kind: "task_schedule" }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+    expect(taskSchedule).toContain("0 9 * * 1");
+  });
   it("shows a hired Agent's Job as status, labelled input and a job link", () => {
     const html = renderToStaticMarkup(
       <ResultPreviewCard
