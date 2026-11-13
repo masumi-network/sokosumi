@@ -124,6 +124,7 @@ import {
   type ChangeableRun,
   changeRun,
   isChangeableRun,
+  isMovedRun,
   isTaskEntry,
   useReportRunChangeFailure,
 } from "./run-change";
@@ -350,14 +351,6 @@ function isShowingToday(
 
 function isDraggableCalendarEntry(item: WorkspaceCalendarEntry) {
   return isChangeableRun(item) || isChangeableSocialPost(item);
-}
-
-/** A moved Run is planned at a time other than the rule's. */
-function isMovedRun(item: WorkspaceCalendarItem): boolean {
-  return (
-    item.originalScheduledAt !== null &&
-    item.originalScheduledAt.getTime() !== item.scheduledAt.getTime()
-  );
 }
 
 interface RunHandlers {
@@ -1373,8 +1366,8 @@ export function WorkspaceCalendar({
 
   const runHandlers: RunHandlers = {
     onMoveRun: setMovingRun,
-    onRestoreRun: (item) => changeShownRun(item, "restore"),
-    onSkipRun: (item) => changeShownRun(item, "skip"),
+    onRestoreRun: (item) => changeShownRun(item, { action: "restore" }),
+    onSkipRun: (item) => changeShownRun(item, { action: "skip" }),
     onOpen: (path) => {
       // A task opened here offers Back to this view, period and filters.
       if (path.startsWith("/tasks/")) {
@@ -1833,6 +1826,9 @@ export function WorkspaceCalendar({
           item={movingRun}
           timeZone={timeZone}
           onClose={() => setMovingRun(null)}
+          onMove={(scheduledAt) =>
+            changeShownRun(movingRun, { action: "move", scheduledAt })
+          }
         />
       ) : null}
     </div>

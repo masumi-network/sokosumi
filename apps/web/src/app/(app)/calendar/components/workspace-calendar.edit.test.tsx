@@ -888,6 +888,30 @@ describe("WorkspaceCalendar editing", () => {
     expect(refreshMock).not.toHaveBeenCalled();
   });
 
+  it("closes the move dialog before Core answers the move", async () => {
+    let answer: (result: unknown) => void = () => {};
+    changeTaskScheduleRunMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    const user = userEvent.setup();
+    renderCalendar();
+
+    await openEventMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "event.moveRun" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "runMove.confirm" }),
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(changeTaskScheduleRunMock).toHaveBeenCalledOnce();
+    await act(async () => answer({ ok: true, value: { revision: 4 } }));
+  });
+
   it("closes the move dialog and refreshes when the Run changed meanwhile", async () => {
     changeTaskScheduleRunMock.mockResolvedValue({
       ok: false,
@@ -906,10 +930,32 @@ describe("WorkspaceCalendar editing", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
-    expect(toastErrorMock).toHaveBeenCalledWith("event.runStale", {
-      duration: Infinity,
-    });
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith("event.runStale", {
+        duration: Infinity,
+      }),
+    );
     expect(refreshMock).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the move dialog open on a past time and sends nothing", async () => {
+    const user = userEvent.setup();
+    renderCalendar();
+
+    await openEventMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "event.moveRun" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("runMove.label"), {
+      target: { value: "2001-01-04T08:15" },
+    });
+    await user.click(
+      within(dialog).getByRole("button", { name: "runMove.confirm" }),
+    );
+
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "event.runInvalidTime",
+    );
+    expect(changeTaskScheduleRunMock).not.toHaveBeenCalled();
   });
 
   it("skips a planned Run from its event menu", async () => {
