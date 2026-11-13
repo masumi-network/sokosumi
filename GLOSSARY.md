@@ -115,12 +115,24 @@ CMO's list of every Cuso a person can work with, across their organizations, wit
 _Avoid_: Workspace switcher (that is Sokosumi's), Cuso switcher, Business picker
 
 **Hiring Cuso**:
-CMO's flow after identity onboarding, from the start form (website, main goal, and a new or an existing organization) until the person finishes it and CMO opens on the chat. Every hire creates a new Project. It reuses what identity onboarding already learned instead of asking again.
+CMO's flow after identity onboarding, from the start form (website, main goal, and a new or an existing organization) until the person finishes it and CMO opens on the chat. Its last step is the checkout for a CMO plan. Every hire creates a new Project. It reuses what identity onboarding already learned instead of asking again.
 _Avoid_: Onboarding, CMO onboarding (both collide with Identity onboarding)
 
 **Starter credits**:
-The 10,000 credits each Hiring Cuso grants. They are Project credits of his Project, never expire, and are written off when he stops being live ([ADR 0067](docs/adr/0067-cuso-starter-credits-are-project-credits.md)).
+The 10,000 credits each Hiring Cuso granted before CMO subscriptions; no hire grants them any more ([ADR 0068](docs/adr/0068-cmo-sells-its-plans-through-polar.md)). They are Project credits of his Project, never expire, and are written off when he stops being live ([ADR 0067](docs/adr/0067-cuso-starter-credits-are-project-credits.md)).
 _Avoid_: Free credits (that is any admin grant), Cuso's credits (the Project's work spends them, not only Cuso), welcome credits
+
+**CMO plan**:
+One of the three tiers CMO sells, monthly or yearly: a price and the credits it grants each month.
+_Avoid_: Subscription plan (that is Sokosumi's seat-based plan), tier, package
+
+**CMO subscription**:
+One Cuso's paid CMO plan, bought through Polar. Its monthly grant is Project credits of his Project that expire at the end of the month; without an active one Cuso is paused.
+_Avoid_: Subscription (alone, that is the organization's Stripe plan), CMO hire, membership
+
+**Project top-up**:
+A one-time purchase of Project credits for one subscribed Cuso's Project, bought through Polar. They expire 12 months after purchase.
+_Avoid_: Top-up (alone, that is a Stripe purchase into the Organization credit pool), credit pack, refill
 
 **Marketing strategy**:
 A Project's marketing plan: one sentence (who, positioned as, how they find you, the offer), its funnel, channel mix and pace. Each rewrite is a new version; the Workspace's owners or admins approve one, and only that one is carried out. Its social entries are the Project's Social posts; its other pieces show on the Calendar under Marketing.
@@ -449,7 +461,7 @@ Credits owned by an Organization. Free period grant is the free monthly amount (
 _Avoid_: Org balance (ambiguous with Stripe), member credits, seat credits (that reads as a private per-member grant), scaling the free 250 by member count
 
 **Project credits**:
-Organization credits only a charge for one Project may spend, drawn before the Organization credit pool. Seats still gate them. Left out of the organization's balance. Starter credits are the only kind so far.
+Organization credits only a charge for one Project may spend, drawn before the Organization credit pool. Seats still gate them. Left out of the organization's balance. They come from a CMO subscription's monthly grant, a Project top-up, or Starter credits.
 _Avoid_: Project balance (it also includes the pool), project budget, project wallet
 
 **Personal credits**:
