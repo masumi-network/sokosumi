@@ -53,6 +53,8 @@ const PROPER_PHRASES = [
   "Google Domains",
   // The Google News app and site, a Search Console search type.
   "Google News",
+  // Google's search feature; replaceAll also covers "AI Overviews".
+  "AI Overview",
   // Example organization name in a placeholder.
   "My Organization",
   // Example brands in the Ads and Newsletter no-project backdrops.
