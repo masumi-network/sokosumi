@@ -52,7 +52,7 @@ export function SeoRunButton({
         aria-disabled={!ready || undefined}
         aria-describedby={describedBy}
         className={cn(
-          "aria-disabled:pointer-events-none aria-disabled:opacity-50 max-sm:flex-1",
+          "aria-disabled:pointer-events-none aria-disabled:opacity-50",
           variant === "secondary" && SECONDARY_ON_CARD_CLASS,
           schedule && "rounded-e-none",
         )}

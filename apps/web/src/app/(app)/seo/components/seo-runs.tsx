@@ -95,7 +95,10 @@ export function SeoRuns({
     </button>
   );
   return (
-    // On a phone the run moves under the line, full width: the title line has no room for it there.
+    // The run stays on the title line on a phone too, so the card is short and the first step of the tab shows on
+    // the first screen (owner, after pass 59). The date control is its icon alone there, so the run fits beside the
+    // title. The title keeps its own width: where a long run label leaves it no room (German, Spanish), the run wraps
+    // to a row of its own.
     <section className={cn(HOLDER_CLASS, "flex flex-wrap items-center gap-2")}>
       {/* The date controls form one group, the run apart from it; the group adds no box of its own. */}
       <div
@@ -104,7 +107,7 @@ export function SeoRuns({
         className="contents"
       >
         {/* Centred, not on the baseline: the date control is an icon and a word, so a baseline sets it low. */}
-        <div className="order-1 flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1.5 sm:flex-initial">
+        <div className="order-1 flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1.5 max-sm:min-w-fit sm:flex-initial">
           {/* Under the audit name, the h2 of the page. */}
           <h3 id={titleId} className="text-sm font-semibold">
             {t("runs.label")}
@@ -122,7 +125,7 @@ export function SeoRuns({
                 className="text-muted-foreground hover:text-foreground data-[state=open]:text-foreground data-[active=true]:text-foreground focus-visible:ring-ring hit-area inline-flex items-center gap-1 rounded-sm text-xs transition-colors outline-none focus-visible:ring-2"
               >
                 <CalendarRange aria-hidden className="size-3.5" />
-                {t("runs.dates")}
+                <span className="max-sm:sr-only">{t("runs.dates")}</span>
               </button>
             </SeoRunCalendar>
           ) : null}
@@ -160,14 +163,14 @@ export function SeoRuns({
           <div
             // A fill without an outline: the checks card around it is the one frame. More room over the dots than
             // under the dates, so the line does not sit on the top edge.
-            className="bg-background order-3 basis-full rounded-lg px-2 pt-5 pb-3"
+            className="bg-background order-3 basis-full rounded-lg px-2 pt-5 pb-3 max-sm:pt-2 max-sm:pb-1"
           >
             <ol
               ref={line}
               role="list"
               // On a phone the line scrolls sideways in itself, without a scroll track. The days come in from the oldest.
               // The margin over it gives the dots room under the top edge of the box (owner: "margin top").
-              className="app-scrollbar stagger -mx-1 mt-2 -mb-1 flex min-w-0 flex-1 overflow-x-auto p-1 text-sm max-sm:[scrollbar-width:none]"
+              className="app-scrollbar stagger -mx-1 mt-2 -mb-1 flex max-sm:mt-1 min-w-0 flex-1 overflow-x-auto p-1 text-sm max-sm:[scrollbar-width:none]"
             >
               {stops.map((entry, index) => (
                 <li key={entry.day} className={STOP_CLASS}>
@@ -303,11 +306,7 @@ export function SeoRuns({
           </div>
         ) : null}
       </div>
-      {runButton ? (
-        <div className="order-2 ms-auto max-sm:order-4 max-sm:basis-full max-sm:[&>div]:w-full">
-          {runButton}
-        </div>
-      ) : null}
+      {runButton ? <div className="order-2 ms-auto">{runButton}</div> : null}
     </section>
   );
 }
