@@ -112,7 +112,8 @@ export function SeoImproveDialog({ model }: { model: SeoWorkspaceModel }) {
                     key={`${gap.message}:${gap.note ?? ""}`}
                     className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"
                   >
-                    <p className="min-w-0 flex-1">
+                    {/* The text keeps a readable width: on a phone the fix wraps below it. */}
+                    <p className="min-w-48 flex-1">
                       {t(
                         `gaps.${gap.message}`,
                         seoAuditGapValues(gap, (names) => format.list(names)),
