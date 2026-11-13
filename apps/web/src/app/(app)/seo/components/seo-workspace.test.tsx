@@ -1116,6 +1116,27 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByRole("button", { name: "Show the latest" }));
     await waitFor(() => expect(screen.queryByText(/Showing/)).toBeNull());
     expect(dates).toHaveAttribute("data-active", "false");
+    // "Other dates" stands apart from the line of checks: on it, it read as a check still to come.
+    expect(
+      within(within(runs).getByRole("list")).queryByRole("button", {
+        name: "Other dates",
+      }),
+    ).toBeNull();
+    // With no range, the calendar boxes the day the page shows: a picked check, not the newest and not today.
+    await user.click(within(runs).getByRole("button", { name: /^Nov 10/ }));
+    await user.click(dates);
+    const picked = await screen.findByRole("dialog");
+    expect(
+      within(picked)
+        .getByRole("button", { name: /November 10th, 2026, Day with a check/ })
+        .closest("td"),
+    ).toHaveClass("bg-accent");
+    expect(
+      within(picked)
+        .getByRole("button", { name: /November 12th, 2026, Day with a check/ })
+        .closest("td"),
+    ).not.toHaveClass("bg-accent");
+    await user.keyboard("{Escape}");
     // The stop stands on every tab, also where dates narrow nothing.
     await user.click(screen.getByRole("tab", { name: "Agent" }));
     expect(
@@ -1124,6 +1145,49 @@ describe("SEO workspace integration", () => {
         { name: "Other dates" },
       ),
     ).toBeEnabled();
+  });
+
+  it("boxes in the calendar the day the line of checks marks", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.metrics = [seoTestMetric()];
+    const run = (observedAt: string, issues: number) => ({
+      observationId: crypto.randomUUID(),
+      kind: "audit_full",
+      observedAt: new Date(observedAt),
+      issues,
+      seconds: 600,
+    });
+    workspace.runs = [
+      run("2026-11-12T13:00:00Z", 5),
+      run("2026-11-10T09:00:00Z", 6),
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    const boxed = async (search: string) => {
+      const view = renderWorkspace(workspace, search);
+      await user.click(
+        within(screen.getByRole("group", { name: "Checks" })).getByRole(
+          "button",
+          { name: "Other dates" },
+        ),
+      );
+      const calendar = await screen.findByRole("dialog");
+      const days = within(calendar)
+        .getAllByRole("gridcell")
+        .filter((cell) => cell.classList.contains("bg-accent"))
+        .map((cell) => cell.textContent);
+      view.unmount();
+      return days;
+    };
+    // No filter: the newest check.
+    expect(await boxed("?tab=traffic")).toEqual(["12"]);
+    // An end on a day with no check: the line marks the check before it, and so does the calendar.
+    expect(await boxed("?tab=traffic&to=2026-11-11")).toEqual(["10"]);
+    // A broken date: no one day is in view. (A range shows as the calendar's own selection.)
+    expect(await boxed("?tab=traffic&to=2026-13-45")).toEqual([]);
   });
 
   it.each([

@@ -14,17 +14,15 @@ const MINUTE_MS = 60_000;
 const STOP_CLASS =
   "relative flex min-w-24 flex-1 flex-col items-center pt-0.5 text-center";
 const LINE_CLASS = "absolute top-[7px] h-0 border-t";
-/** The way to the date stop: dots in the muted text colour. Dots in the line colour did not show on the dark page. */
-const DOTTED_CLASS = "border-muted-foreground border-dotted";
-/** A day and the date stop share the look: muted, bright on hover and while pressed, open or in use. */
+/** A day and "Other dates" share the look: muted, bright on hover and while pressed, open or in use. */
 const STOP_BUTTON_CLASS =
   "group text-muted-foreground hover:text-foreground aria-pressed:text-foreground data-[state=open]:text-foreground data-[active=true]:text-foreground data-[active=true]:font-medium focus-visible:ring-ring press relative flex min-h-10 flex-col items-center rounded-sm px-2 transition-colors outline-none focus-visible:ring-2 aria-pressed:font-medium";
 
 /**
  * The runs of the site over the tabs as a timeline: one stop per day with its result, oldest on the left and
- * the newest on the right, a check in flight after it. A press shows the page as it was on that day. The last
- * stop opens a calendar of the days with a check: both choose the time the page shows. It stands on every tab, so
- * the days stand at the same place on each.
+ * the newest on the right, a check in flight after it. A press shows the page as it was on that day. "Other
+ * dates" at the end of the row, apart from the line, opens a calendar of the days with a check: both choose the time
+ * the page shows. It stands on every tab, so the days stand at the same place on each.
  */
 export function SeoRuns({
   model,
@@ -44,7 +42,7 @@ export function SeoRuns({
   const line = useRef<HTMLOListElement>(null);
   const pickedDay = picked ? model.filters.to : null;
   const running = Boolean(progress);
-  // On a phone the line scrolls sideways: its right end starts in view, with the newest day and the date stop.
+  // On a phone the line scrolls sideways: its right end starts in view, with the newest day.
   useEffect(() => {
     const bar = line.current;
     if (bar && days.length) bar.scrollLeft = bar.scrollWidth;
@@ -106,22 +104,23 @@ export function SeoRuns({
                   className={cn(LINE_CLASS, "border-border right-1/2 left-0")}
                 />
               ) : null}
-              {/* The line runs on to the next stop: a later day, the check in flight or the date stop. */}
-              <span
-                aria-hidden
-                className={cn(
-                  LINE_CLASS,
-                  "border-border right-0 left-1/2",
-                  // Dashed to the check in flight: it is not done. Dotted to the date stop: it is no check.
-                  index === stops.length - 1 &&
-                    (running ? "border-dashed" : DOTTED_CLASS),
-                )}
-              />
+              {/* The line runs on to a later day or to the check in flight, dashed there: it is not done. It ends at
+                  the newest check: a line on to "Other dates" read as a check still to come. */}
+              {index < stops.length - 1 || running ? (
+                <span
+                  aria-hidden
+                  className={cn(
+                    LINE_CLASS,
+                    "border-border right-0 left-1/2",
+                    index === stops.length - 1 && "border-dashed",
+                  )}
+                />
+              ) : null}
               <button
                 ref={entry.newest ? newestRef : undefined}
                 type="button"
                 aria-pressed={entry.selected}
-                // The run in view is bright with a filled dot; the others are muted.
+                // The run in view is bright with a bright neutral dot; the others are muted. No accent: it is a fill only.
                 className={STOP_BUTTON_CLASS}
                 onClick={() => {
                   void model.setFilters({
@@ -135,11 +134,9 @@ export function SeoRuns({
                   className={cn(
                     // The ring in the page colour cuts the line around the dot.
                     "ring-background mb-1.5 size-2.5 rounded-full ring-4 transition-colors duration-150 motion-reduce:transition-none",
-                    entry.selected
-                      ? "bg-primary"
-                      : entry.inRange
-                        ? "bg-primary opacity-60"
-                        : "bg-muted-foreground group-hover:bg-foreground",
+                    entry.selected || entry.inRange
+                      ? "bg-foreground"
+                      : "bg-muted-foreground group-hover:bg-foreground",
                   )}
                 />
                 <time dateTime={entry.day}>{dayOf(entry.at)}</time>
@@ -166,10 +163,6 @@ export function SeoRuns({
                   )}
                 />
               ) : null}
-              <span
-                aria-hidden
-                className={cn(LINE_CLASS, "right-0 left-1/2", DOTTED_CLASS)}
-              />
               <span className="relative flex min-h-10 flex-col items-center px-2">
                 <Loader2
                   aria-hidden
@@ -186,29 +179,28 @@ export function SeoRuns({
               </span>
             </li>
           ) : null}
-          <li className={STOP_CLASS}>
-            {stops.length || running ? (
-              <span
-                aria-hidden
-                className={cn(LINE_CLASS, "right-1/2 left-0", DOTTED_CLASS)}
-              />
-            ) : null}
-            <SeoRunCalendar model={model} checkDays={checkDays}>
-              <button
-                type="button"
-                data-active={ranged}
-                className={STOP_BUTTON_CLASS}
-              >
-                <CalendarRange
-                  aria-hidden
-                  // On the line in place of a dot; the page colour cuts the line around it.
-                  className="bg-background -mt-[3px] mb-[3px] size-4"
-                />
-                {t("runs.dates")}
-              </button>
-            </SeoRunCalendar>
-          </li>
         </ol>
+        {/* Apart from the line and outside its scroll: always in view, a control, not a day. Its icon and word
+            stand on the height of the dots and the days. */}
+        <div className="shrink-0 pt-0.5 text-sm">
+          <SeoRunCalendar
+            model={model}
+            checkDays={checkDays}
+            shownDay={model.invalidDates || from ? undefined : inView?.day}
+          >
+            <button
+              type="button"
+              data-active={ranged}
+              className={STOP_BUTTON_CLASS}
+            >
+              <CalendarRange
+                aria-hidden
+                className="-mt-[3px] mb-[3px] size-4"
+              />
+              {t("runs.dates")}
+            </button>
+          </SeoRunCalendar>
+        </div>
       </div>
       {/* Always there, empty or not: a pick of a day or a range moves nothing under the line. An earlier check or
           a range in view says so, with the way back, and fades in. */}

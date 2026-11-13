@@ -71,7 +71,7 @@ export function seoRunDays(
     days: all.filter((entry, index) => index < SEO_RUN_DAYS || entry.selected),
     /** The end date is the pick of an older run, not a date the reader set in the date fields. */
     picked: Boolean(selected && !selected.newest && selected.day === to),
-    /** Every day with a check, newest first: the calendar of the date stop marks them. */
+    /** Every day with a check, newest first: the calendar under "Other dates" marks them. */
     checkDays: all.map((entry) => entry.day),
   };
 }
