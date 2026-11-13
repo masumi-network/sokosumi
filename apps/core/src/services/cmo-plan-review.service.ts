@@ -168,8 +168,14 @@ export function cmoPlanProblemsSince(
 ): string[] {
   const problems = cmoPlanProblems(strategy);
   if (!before || before.calendar.length === 0) return problems;
-  const had = new Set(cmoPlanProblems(before));
-  return problems.filter((problem) => !had.has(problem));
+  // A calendar already short of the month's totals stays short by any
+  // count: adding one piece must not demand the other twelve.
+  const rule = (problem: string) =>
+    /^calendar (has|uses) /.test(problem)
+      ? problem.replace(/\d+/g, "#")
+      : problem;
+  const had = new Set(cmoPlanProblems(before).map(rule));
+  return problems.filter((problem) => !had.has(rule(problem)));
 }
 
 const COMPARISON_TITLE = /\b(vs\.?|versus|alternatives?)\b/i;

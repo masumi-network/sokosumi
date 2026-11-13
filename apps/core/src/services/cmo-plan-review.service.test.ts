@@ -239,6 +239,16 @@ describe("cmoPlanProblemsSince", () => {
     expect(cmoPlanProblemsSince(changed, thin)).toEqual([]);
   });
 
+  it("does not ask a short calendar for a full month after one piece more", () => {
+    const longer = {
+      ...thin,
+      calendar: [...thin.calendar, entry("c", "seo", "article")],
+    };
+    expect(cmoPlanProblemsSince(longer, thin).join("\n")).not.toMatch(
+      /^calendar (has|uses) /m,
+    );
+  });
+
   it("names what the change broke", () => {
     expect(cmoPlanProblemsSince({ ...thin, mix: [] }, thin)).toEqual([
       "mix is empty; give two to four approaches.",
