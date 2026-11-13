@@ -16,9 +16,9 @@ export function SeoDifficultyCell({
   const band = seoDifficultyBand(difficulty);
   return (
     <TableCell
-      className="whitespace-nowrap"
-      // No word, no meaning on a phone row: the label names the empty value, as the volume cell does.
-      data-label={band ? undefined : t("keywords.difficulty.title")}
+      // No difficulty is a blank, not "Not available" on most rows; a phone row, which has no column head,
+      // leaves the cell out.
+      className={cn("whitespace-nowrap", !band && "max-sm:hidden")}
     >
       {band ? (
         // A hard keyword is no reason to look at the row: "Easy" and "Medium" stay bright. A phone row has no
@@ -31,9 +31,7 @@ export function SeoDifficultyCell({
             {t(`keywords.difficulty.phrase.${band}`)}
           </span>
         </p>
-      ) : (
-        <span className="text-muted-foreground">{t("none")}</span>
-      )}
+      ) : null}
     </TableCell>
   );
 }
