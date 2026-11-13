@@ -1,5 +1,5 @@
 import { AnimatePresence } from "motion/react";
-import type { ReactNode, Ref, RefObject } from "react";
+import { type ReactNode, type Ref, type RefObject, useCallback } from "react";
 
 import { CHAT_MESSAGE_LIST_ROOM } from "@/app/chat/chat-message-list";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
@@ -118,6 +118,35 @@ export function RoomShellLayout({
 }: RoomShellLayoutProps): React.ReactElement {
   const { mainRef, sectionRef, panelRef, listRef, composerRef } =
     useRoomPanelSlide();
+  const attachOverlay = useCallback(
+    (wrapper: HTMLDivElement | null) => {
+      const composerSlot = composerRef.current;
+      const scroller = listRef.current?.parentElement;
+      if (!wrapper || !composerSlot || !scroller) return;
+
+      let composerHeight = 0;
+      const measure = () => {
+        const nextHeight = composerSlot.offsetHeight;
+        if (nextHeight === composerHeight) return;
+        // Read before changing the padding: growing drafts must keep latest
+        // pinned without pulling a reader away from older messages.
+        const wasAtBottom =
+          scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop <=
+          4;
+        composerHeight = nextHeight;
+        wrapper.style.setProperty("--room-composer-h", `${nextHeight}px`);
+        if (wasAtBottom) {
+          scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight;
+        }
+      };
+      // Ref attachment runs before paint, including in the Instant shell.
+      measure();
+      const observer = new ResizeObserver(measure);
+      observer.observe(composerSlot);
+      return () => observer.disconnect();
+    },
+    [composerRef, listRef],
+  );
   const header =
     desktopHeader != null ? (
       <header className={ROOM_SHELL_DESKTOP_HEADER_CLASSNAME}>
@@ -130,23 +159,37 @@ export function RoomShellLayout({
   const columnBody = (
     <>
       {header}
-      <div ref={listScrollerRef} className={ROOM_SHELL_SCROLLER_CLASSNAME}>
-        <div
-          ref={listRef}
-          // Scopes the jump-highlight spotlight in globals.css to this list,
-          // and names it so a lookup can tell it from the thread's copy of the
-          // same message ids.
-          data-chat-message-list={CHAT_MESSAGE_LIST_ROOM}
-          className={ROOM_MESSAGE_LIST_CONTENT_CLASSNAME}
-        >
-          {listContent}
-        </div>
-      </div>
       <div
-        ref={composerRef}
-        className={cn("shrink-0", ROOM_CONTENT_COLUMN_CLASSNAME)}
+        ref={attachOverlay}
+        className="relative flex min-h-0 flex-1 flex-col"
       >
-        {composer}
+        <div
+          ref={listScrollerRef}
+          className={cn(
+            ROOM_SHELL_SCROLLER_CLASSNAME,
+            "[scroll-padding-bottom:var(--room-composer-h,0px)]",
+          )}
+        >
+          <div
+            ref={listRef}
+            // Scopes the jump-highlight spotlight in globals.css to this list,
+            // and names it so a lookup can tell it from the thread's copy of the
+            // same message ids.
+            data-chat-message-list={CHAT_MESSAGE_LIST_ROOM}
+            className={ROOM_MESSAGE_LIST_CONTENT_CLASSNAME}
+          >
+            {listContent}
+          </div>
+        </div>
+        <div
+          ref={composerRef}
+          className={cn(
+            "pointer-events-none absolute inset-x-0 bottom-0 z-10",
+            ROOM_CONTENT_COLUMN_CLASSNAME,
+          )}
+        >
+          {composer}
+        </div>
       </div>
     </>
   );
