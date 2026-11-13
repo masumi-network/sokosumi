@@ -11558,6 +11558,7 @@
         },
         "ideas": {
           "title": "{count, plural, one {# Keyword-Idee} other {# Keyword-Ideen}}",
+          "why": "Warum es gelistet ist",
           "source": {
             "gap": "Von Wettbewerbern",
             "opportunity": "Verwandte Suche"

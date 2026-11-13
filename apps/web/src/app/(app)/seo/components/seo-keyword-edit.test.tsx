@@ -798,7 +798,11 @@ describe("Keywords after a check", () => {
     ).toBeVisible();
     expect(screen.getByText("idea 9")).toBeVisible();
     expect(screen.queryByText("idea 10")).toBeNull();
-    expect(screen.getAllByText("From competitors")).toHaveLength(5);
+    // The reason of each idea waits behind its info button: ten rows in view, ten buttons, no reason line.
+    expect(
+      screen.getAllByRole("button", { name: "Why it is listed" }),
+    ).toHaveLength(10);
+    expect(screen.queryByText("From competitors")).toBeNull();
     const more = screen.getByRole("button", { name: "Show 2 more ideas" });
     await user.click(more);
     expect(screen.getByText("idea 11")).toBeVisible();
@@ -806,7 +810,8 @@ describe("Keywords after a check", () => {
     expect(screen.getByRole("button", { name: "Show less" })).toHaveFocus();
   });
 
-  it("shows the reason of an idea only when it tells the ideas in view apart", () => {
+  it("shows the reason of an idea only when it tells the ideas in view apart", async () => {
+    const user = userEvent.setup();
     const { workspace } = savedKeywordWorkspace();
     const idea = (
       index: number,
@@ -828,14 +833,26 @@ describe("Keywords after a check", () => {
     workspace.keywords = [idea(0, "opportunity"), idea(1, "opportunity")];
     const { unmount } = renderWorkspace(workspace);
     expect(screen.getByText("idea 1")).toBeVisible();
-    expect(screen.queryByText("Related search")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Why it is listed" }),
+    ).toBeNull();
     unmount();
     workspace.keywords[1] = idea(1, "gap");
     renderWorkspace(workspace);
-    // The reason is a line under the keyword, not a column of its own.
+    // The reason is no column of its own: a click on the info button opens it under the keyword.
     expect(screen.getAllByRole("columnheader")).toHaveLength(3);
+    expect(screen.queryByText("From competitors")).toBeNull();
+    const [first, second] = screen.getAllByRole("button", {
+      name: "Why it is listed",
+    });
+    await user.click(second);
+    expect(second).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("From competitors")).toBeVisible();
-    expect(screen.getByText("Related search")).toBeVisible();
+    // One row opens, not every row.
+    expect(first).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("Related search")).toBeNull();
+    await user.click(second);
+    expect(screen.queryByText("From competitors")).toBeNull();
   });
 
   it('says "and its page" over the ideas only when an idea in view names a page', () => {

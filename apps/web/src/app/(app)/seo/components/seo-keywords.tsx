@@ -19,7 +19,10 @@ import { SeoCsvButton } from "./seo-csv-button";
 import { seoDaySpan } from "./seo-day-span";
 import { seoKeywordsExport } from "./seo-export-model";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
-import { SeoDifficultyCell } from "./seo-keyword-difficulty";
+import {
+  SEO_DIFFICULTY_COLUMN_CLASS,
+  SeoDifficultyCell,
+} from "./seo-keyword-difficulty";
 import { SeoKeywordHistory } from "./seo-keyword-history";
 import { SeoKeywordIdeas } from "./seo-keyword-ideas";
 import { SeoKeywordReach } from "./seo-keyword-reach";
@@ -317,7 +320,9 @@ export function SeoKeywords({
                       </TableHead>
                     ) : null}
                     {shown.difficulty ? (
-                      <TableHead>{t("keywords.difficulty.title")}</TableHead>
+                      <TableHead className={SEO_DIFFICULTY_COLUMN_CLASS}>
+                        {t("keywords.difficulty.title")}
+                      </TableHead>
                     ) : null}
                     {shown.conversion ? (
                       <TableHead>{t("keywords.conversion.title")}</TableHead>

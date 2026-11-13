@@ -1,7 +1,8 @@
 "use client";
 
+import { Info } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import {
@@ -13,7 +14,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
-import { SeoDifficultyCell } from "./seo-keyword-difficulty";
+import {
+  SEO_DIFFICULTY_COLUMN_CLASS,
+  SeoDifficultyCell,
+} from "./seo-keyword-difficulty";
 import {
   SEO_IDEA_SOURCES,
   type SeoKeywordGroup,
@@ -99,7 +103,9 @@ export function SeoKeywordIdeas({
                 </TableHead>
               ) : null}
               {shown.difficulty ? (
-                <TableHead>{t("keywords.difficulty.title")}</TableHead>
+                <TableHead className={SEO_DIFFICULTY_COLUMN_CLASS}>
+                  {t("keywords.difficulty.title")}
+                </TableHead>
               ) : null}
               {shown.conversion ? (
                 <TableHead>{t("keywords.conversion.title")}</TableHead>
@@ -114,20 +120,16 @@ export function SeoKeywordIdeas({
               ({ lead, volume, sources, conversion, feature, difficulty }) => (
                 <TableRow key={lead.id}>
                   <TableCell className="min-w-48 whitespace-normal">
-                    <p className="font-medium break-words">
-                      <bdi>{lead.keyword}</bdi>
-                    </p>
-                    {/* The reason is a quiet line under the keyword, not a column of tags: the tags made each row two lines high. */}
                     {shown.why ? (
-                      <p className="text-muted-foreground text-xs">
-                        {reasonsOf(sources).map((source, index) => (
-                          <span key={source}>
-                            {index ? " · " : null}
-                            <span>{t(`keywords.ideas.source.${source}`)}</span>
-                          </span>
-                        ))}
+                      <SeoIdeaReason
+                        keyword={lead.keyword}
+                        reasons={reasonsOf(sources)}
+                      />
+                    ) : (
+                      <p className="font-medium break-words">
+                        <bdi>{lead.keyword}</bdi>
                       </p>
-                    ) : null}
+                    )}
                     {manyMarkets ? (
                       <p className="text-muted-foreground text-xs">
                         {seoMarketName(
@@ -209,5 +211,49 @@ export function SeoKeywordIdeas({
         />
       ) : null}
     </SeoSection>
+  );
+}
+
+/**
+ * The keyword with a small info button: a click opens why the idea is listed under it, a second click closes it.
+ * A line on every row made the list busy (owner, 2026-11-13).
+ */
+function SeoIdeaReason({
+  keyword,
+  reasons,
+}: {
+  keyword: string;
+  reasons: (typeof SEO_IDEA_SOURCES)[number][];
+}) {
+  const t = useTranslations("App.Seo");
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <>
+      <p className="flex items-center gap-1 font-medium break-words">
+        <bdi>{keyword}</bdi>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={id}
+          aria-label={t("keywords.ideas.why")}
+          onClick={() => setOpen((value) => !value)}
+          // 32 px to hit around a 14 px icon, pulled back so the row keeps its height.
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring -my-2 inline-flex size-8 shrink-0 items-center justify-center rounded-md focus-visible:ring-2 focus-visible:outline-none"
+        >
+          <Info className="size-3.5" aria-hidden />
+        </button>
+      </p>
+      {open ? (
+        <p id={id} className="text-muted-foreground text-xs">
+          {reasons.map((source, index) => (
+            <span key={source}>
+              {index ? " · " : null}
+              <span>{t(`keywords.ideas.source.${source}`)}</span>
+            </span>
+          ))}
+        </p>
+      ) : null}
+    </>
   );
 }
