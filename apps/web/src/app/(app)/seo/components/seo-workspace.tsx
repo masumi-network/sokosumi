@@ -6,6 +6,7 @@ import {
   CalendarClock,
   ChartLine,
   ChevronDown,
+  ChevronLeft,
   Eye,
   HeartPulse,
   Info,
@@ -224,8 +225,11 @@ export function SeoWorkspace({
         <div className="min-w-0 space-y-1 max-sm:contents max-sm:space-y-0">
           <Link
             href={seoIndexHref(model.data.projectId ?? null)}
-            className="text-muted-foreground text-sm underline underline-offset-4 max-sm:col-span-2 max-sm:justify-self-start"
+            // A way back, not a link in a sentence: a chevron and quiet words, no underline. The chevron hangs
+            // left, so the words start where the title starts.
+            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area -ms-1 inline-flex w-fit max-sm:mb-1.5 items-center gap-0.5 rounded-sm text-sm transition-colors outline-none focus-visible:ring-2 max-sm:col-span-2 max-sm:justify-self-start"
           >
+            <ChevronLeft aria-hidden className="size-4" />
             {t("audits.all")}
           </Link>
           {model.data.auditName ? (
