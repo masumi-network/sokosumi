@@ -321,8 +321,11 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                       <TableCell
                         className={cn(
                           "text-right tabular-nums",
-                          // A measured 0 stays, in the quiet colour: the sites with links stand out of the column.
-                          row.referringDomains === 0 && "text-muted-foreground",
+                          // A measured 0 stays on a desktop, in the quiet colour: the sites with links stand out of
+                          // the column. A phone row drops it: "Linking sites 0" on most rows was the most read text.
+                          // Important: the compact phone row sets every value cell to flex with a stronger rule.
+                          row.referringDomains === 0 &&
+                            "text-muted-foreground max-sm:hidden!",
                         )}
                         // A phone row has no column head: the short name keeps both values on one line.
                         data-label={t("competitors.domainsShort")}

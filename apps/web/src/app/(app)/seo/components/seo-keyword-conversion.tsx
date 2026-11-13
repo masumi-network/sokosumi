@@ -16,14 +16,19 @@ export function SeoConversionCell({
       // An estimate the check did not make shows nothing: the cell is empty on a desktop, and a phone row hides
       // an empty cell. "Not available" was a line without information, on one viewport only.
       className="whitespace-normal"
-      // The level does not name itself: "High" needs its label on a phone too.
-      data-label={t("keywords.conversion.title")}
     >
       {conversion ? (
         <>
-          {/* A low chance is no reason to look at the row: "Medium" and "High" stay bright. */}
+          {/* A low chance is no reason to look at the row: "Medium" and "High" stay bright. The level does not
+              name itself, and a phone row has no column head: there it is one phrase, "Low chance to convert".
+              A label before each value repeated "Chance to convert" on every row. */}
           <p className={cn(conversion === "low" && "text-muted-foreground")}>
-            {t(`keywords.conversion.${conversion}`)}
+            <span className="max-sm:hidden">
+              {t(`keywords.conversion.${conversion}`)}
+            </span>
+            <span className="sm:hidden">
+              {t(`keywords.conversion.phrase.${conversion}`)}
+            </span>
           </p>
           {feature ? (
             // A phone row is a name line and one values line: the feature would add a third.

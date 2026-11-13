@@ -11546,6 +11546,11 @@
         "conversion": {
           "title": "Chance to convert",
           "feature": "Feature: <feature></feature>",
+          "phrase": {
+            "low": "Low chance to convert",
+            "medium": "Medium chance to convert",
+            "high": "High chance to convert"
+          },
           "note": "Chance to convert is the check's estimate, from what the searcher looks for and how well your product fits. It is not a measured rate.",
           "high": "High",
           "medium": "Medium",

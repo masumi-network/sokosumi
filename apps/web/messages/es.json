@@ -11546,6 +11546,11 @@
         "conversion": {
           "title": "Probabilidad de conversión",
           "feature": "Función: <feature></feature>",
+          "phrase": {
+            "low": "Probabilidad de conversión baja",
+            "medium": "Probabilidad de conversión media",
+            "high": "Probabilidad de conversión alta"
+          },
           "note": "La probabilidad de conversión es una estimación de la comprobación: según lo que busca la persona y lo bien que encaja tu producto. No es una tasa medida.",
           "high": "Alta",
           "medium": "Media",

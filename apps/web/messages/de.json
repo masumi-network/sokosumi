@@ -11546,6 +11546,11 @@
         "conversion": {
           "title": "Conversion-Chance",
           "feature": "Funktion: <feature></feature>",
+          "phrase": {
+            "low": "Niedrige Conversion-Chance",
+            "medium": "Mittlere Conversion-Chance",
+            "high": "Hohe Conversion-Chance"
+          },
           "note": "Die Conversion-Chance ist eine Schätzung der Prüfung: danach, was die suchende Person will und wie gut dein Produkt dazu passt. Sie ist keine gemessene Rate.",
           "high": "Hoch",
           "medium": "Mittel",
