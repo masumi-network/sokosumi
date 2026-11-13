@@ -87,6 +87,74 @@ describe("sidebar collection GET requests", () => {
     });
   });
 
+  it("sends reads asked for together as one request, each with its own answer", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    const room = {
+      id: "room-1",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      starredAt: null,
+      mutedAt: null,
+      userMembers: [],
+    };
+    const envelope = (data: unknown[]) => ({
+      data,
+      meta: {
+        timestamp,
+        requestId: "request-1",
+        pagination: { nextCursor: null },
+      },
+    });
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            active: envelope([room]),
+            invitations: envelope([
+              { id: "invite-1", createdAt: timestamp, expiresAt: timestamp },
+            ]),
+          },
+        }),
+        { headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    const [active, alsoActive, invitations] = await Promise.all([
+      fetchSidebarRoomCollection("active"),
+      fetchSidebarRoomCollection("active"),
+      fetchSidebarRoomCollection("invitations"),
+    ]);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "/api/chat/rooms?collections=active,invitations",
+    );
+    expect(active?.rooms[0]).toMatchObject({
+      id: "room-1",
+      updatedAt: new Date(timestamp),
+    });
+    expect(alsoActive?.rooms[0]).not.toBe(active?.rooms[0]);
+    expect(invitations?.[0]).toMatchObject({
+      id: "invite-1",
+      createdAt: new Date(timestamp),
+    });
+  });
+
+  it("answers null for a collection the batch left out", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ data: { active: null } }), {
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const [active, invitations] = await Promise.all([
+      fetchSidebarRoomCollection("active"),
+      fetchSidebarRoomCollection("invitations"),
+    ]);
+    expect(active).toBeNull();
+    expect(invitations).toBeNull();
+  });
+
   it("restores invitation dates", async () => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockResolvedValue(
