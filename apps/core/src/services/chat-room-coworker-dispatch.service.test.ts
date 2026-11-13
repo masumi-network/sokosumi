@@ -130,6 +130,15 @@ vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: vi.fn().mockResolvedValue(undefined),
 }));
 
+const { personalAgentOwnerOfMock } = vi.hoisted(() => ({
+  personalAgentOwnerOfMock: vi.fn(),
+}));
+vi.mock("@/services/buzz-bridge.service", () => ({
+  PERSONAL_AGENT_REFUSAL: "personalAgentRefusal",
+  PERSONAL_AGENT_REFUSAL_NOTICE: "personalAgentRefusalNotice",
+  personalAgentOwnerOf: personalAgentOwnerOfMock,
+}));
+
 vi.mock("@/lib/ably/publish", () => ({
   publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
 }));
@@ -244,6 +253,51 @@ beforeEach(() => {
     id: "cow_1",
     slug: "hannah",
     baseURL: "https://coworker.example",
+  });
+});
+
+describe("a mention of someone else's personal agent via Buzz", () => {
+  const buzzAgent = { baseURL: "buzz://relay.example", name: "Claude Code" };
+
+  it("posts the refusal and finishes the mention while it is still claimed", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention({ coworker: buzzAgent }));
+    updateManyMock.mockResolvedValue({ count: 1 });
+    personalAgentOwnerOfMock.mockResolvedValue({
+      userId: "owner",
+      name: "Olivia",
+    });
+    transactionUpdateManyMock.mockResolvedValue({ count: 1 });
+    createMock.mockResolvedValue({ id: "refusal" });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(transactionUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: MENTION_ID, status: "sent" },
+      data: { status: "responded" },
+    });
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          content:
+            "I'm Olivia's personal agent via Buzz, so I only answer Olivia.",
+        }),
+      }),
+    );
+  });
+
+  it("posts nothing once the mention was cancelled meanwhile", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention({ coworker: buzzAgent }));
+    updateManyMock.mockResolvedValue({ count: 1 });
+    personalAgentOwnerOfMock.mockResolvedValue({
+      userId: "owner",
+      name: "Olivia",
+    });
+    // Failed by a deletion or removal after it was claimed.
+    transactionUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(createMock).not.toHaveBeenCalled();
   });
 });
 

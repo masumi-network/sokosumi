@@ -158,32 +158,37 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       return;
     }
     if (!(await claimMentionForDispatch(mentionId))) return;
-    const owner = await personalAgentOwnerOf(mention.coworker.id);
-    let responseMessageId: string | undefined;
-    if (owner && mention.message.senderUserId !== owner.userId) {
-      const refusal = await prisma.chatRoomMessage.create({
+    const agent = mention.coworker;
+    const owner = await personalAgentOwnerOf(agent.id);
+    const refuse = owner && mention.message.senderUserId !== owner.userId;
+    // Finished only while still claimed: deleting the message or removing
+    // the agent meanwhile fails the mention, and then nothing is posted.
+    const responseMessageId = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.chatRoomMention.updateMany({
+        where: { id: mention.id, status: "sent" },
+        data: { status: "responded" },
+      });
+      if (claimed.count === 0 || !refuse || !owner) return undefined;
+      const refusal = await tx.chatRoomMessage.create({
         data: {
           roomId: mention.message.room.id,
           parentMessageId:
             mention.message.parentMessageId ?? mention.message.id,
-          senderCoworkerId: mention.coworker.id,
+          senderCoworkerId: agent.id,
           content: `I'm ${owner.name}'s personal agent via Buzz, so I only answer ${owner.name}.`,
           metadata: {
             [PERSONAL_AGENT_REFUSAL]: true,
             // What Sokosumi says on Buzz, where the agent cannot speak for itself.
-            [PERSONAL_AGENT_REFUSAL_NOTICE]: `${mention.coworker.name} only answers ${owner.name}: it is their personal agent via Buzz.`,
+            [PERSONAL_AGENT_REFUSAL_NOTICE]: `${agent.name} only answers ${owner.name}: it is their personal agent via Buzz.`,
           },
         },
         select: { id: true },
       });
-      responseMessageId = refusal.id;
-    }
-    await prisma.chatRoomMention.update({
-      where: { id: mention.id },
-      data: {
-        status: "responded",
-        ...(responseMessageId ? { responseMessageId } : {}),
-      },
+      await tx.chatRoomMention.update({
+        where: { id: mention.id },
+        data: { responseMessageId: refusal.id },
+      });
+      return refusal.id;
     });
     if (responseMessageId) {
       await publishChatRoomMessageRealtimeById(responseMessageId, "create");

@@ -283,6 +283,7 @@ async function tellRefusalOnBuzz(
       content: text,
       threadRootEventId: root?.eventId ?? null,
       mentionPubkeys: [],
+      messageId: message.id,
     }),
     config.operatorSecretKey,
   );
@@ -1944,6 +1945,7 @@ export async function reconcileMessage(
             content: await buzzContentOf(message.content),
             threadRootEventId,
             mentionPubkeys: await mentionPubkeysOf(message),
+            messageId: message.id,
           }),
         ),
         authorKey,
@@ -2107,6 +2109,12 @@ async function mentionPubkeysOf(message: {
   ];
   const pubkeys: string[] = [];
   for (const owner of owners) {
+    // A personal agent whose owner's account is gone has no key: not named.
+    if ("coworkerId" in owner && (await isPersonalAgent(owner.coworkerId))) {
+      const agent = await prisma.buzzIdentity.findUnique({ where: owner });
+      if (agent) pubkeys.push(...keysOf(agent));
+      continue;
+    }
     pubkeys.push(...keysOf(await ensureIdentity(owner)));
   }
   return pubkeys;

@@ -68,8 +68,14 @@ export function messageDraft(input: {
   threadRootEventId?: string | null;
   mentionPubkeys?: readonly string[];
   createdAt?: Date;
+  /**
+   * The Sokosumi message it carries: two messages alike, from one author in
+   * one second, would otherwise be one event to the relay.
+   */
+  messageId?: string;
 }): EventDraft {
   const tags: string[][] = [["h", input.channelId]];
+  if (input.messageId) tags.push(["sokosumi", input.messageId]);
   if (input.threadRootEventId) {
     tags.push(["e", input.threadRootEventId, "", "reply"]);
   }
