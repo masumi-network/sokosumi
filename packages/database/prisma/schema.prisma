@@ -1671,6 +1671,19 @@ model CmoSubscription {
   @@map("cmo_subscription")
 }
 
+/// A Polar order a CMO grant or refund has touched. A grant and a refund of
+/// one order both write this row first, so whichever comes second sees the
+/// other: a refund delivered before its payment keeps that payment from
+/// granting.
+model CmoPolarOrder {
+  polarOrderId String    @id
+  createdAt    DateTime  @default(now())
+  /// Set once Polar refunded the order; nothing grants from it after.
+  refundedAt   DateTime?
+
+  @@map("cmo_polar_order")
+}
+
 model CreditConsumption {
   id        String   @id @default(uuid(7))
   createdAt DateTime @default(now())

@@ -29,14 +29,19 @@ export interface CmoCreditGrant {
     | { projectId: string };
 }
 
-export type CmoGrantOutcome = "granted" | "already_granted" | "not_live";
+export type CmoGrantOutcome =
+  | "granted"
+  | "already_granted"
+  | "not_live"
+  | "refunded";
 
 /**
  * Grants the credits, with `alsoWrite` in the same transaction, and frees the
  * Project's tasks that waited for credits. The grant rides on the bucket's
  * unique key: a redelivered or raced payment ends there and grants nothing
  * more (`already_granted`). A subscription that has ended, a refunded paid
- * order or a Cuso no longer live gets nothing (`not_live`).
+ * order or a Cuso no longer live gets nothing (`not_live`), nor does an order
+ * Polar refunded before its payment arrived (`refunded`).
  */
 export async function grantCmoCredits(
   grant: CmoCreditGrant,
@@ -45,6 +50,7 @@ export async function grantCmoCredits(
   const { amount, organizationId, projectId } = grant;
   try {
     return await prisma.$transaction(async (tx) => {
+      if (await isOrderRefunded(tx, grant.referenceId)) return "refunded";
       if (!(await lockLiveSubscription(tx, grant))) return "not_live";
       await tx.transaction.create({
         data: {
@@ -78,6 +84,24 @@ export async function grantCmoCredits(
     if (!isCreditBucketReferenceUniqueConstraintError(error)) throw error;
     return "already_granted";
   }
+}
+
+/**
+ * Writes the order's row and says whether Polar refunded the order. A refund
+ * writes the same row first, so of the two whichever comes second sees the
+ * other: this grant waits for the refund and sees it, or the Serializable
+ * refund fails on the row this grant wrote and runs again, finding its bucket.
+ */
+async function isOrderRefunded(
+  tx: Prisma.TransactionClient,
+  referenceId: string,
+): Promise<boolean> {
+  const polarOrderId = referenceId.slice(0, referenceId.lastIndexOf(":"));
+  const rows = await tx.$queryRaw<{ refundedAt: Date | null }[]>`
+    INSERT INTO "cmo_polar_order" ("polarOrderId") VALUES (${polarOrderId})
+    ON CONFLICT ("polarOrderId") DO UPDATE SET "polarOrderId" = EXCLUDED."polarOrderId"
+    RETURNING "refundedAt"`;
+  return Boolean(rows[0]?.refundedAt);
 }
 
 /**

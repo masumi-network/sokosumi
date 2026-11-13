@@ -134,6 +134,26 @@ describe("POST /v1/webhooks/polar: order.paid for a Project top-up", () => {
     });
   });
 
+  it("grants nothing for a top-up Polar refunded before its payment arrived", async () => {
+    m.prisma.$queryRaw.mockImplementation(async (sql: string[]) =>
+      sql.join("?").includes("cmo_polar_order")
+        ? [{ refundedAt: new Date("2026-11-13T10:00:01.000Z") }]
+        : [
+            {
+              endedAt: null,
+              lastPaidOrderId: null,
+              lastPaidOrderRefundedAt: null,
+            },
+          ],
+    );
+    m.verifyPolarWebhook.mockResolvedValue(topUpPaid());
+
+    const response = await post();
+
+    expect(response.status).toBe(200);
+    expect(m.prisma.transaction.create).not.toHaveBeenCalled();
+  });
+
   it("looks for the Project in the organization that paid", async () => {
     m.verifyPolarWebhook.mockResolvedValue(topUpPaid());
 

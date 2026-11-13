@@ -321,5 +321,46 @@ describe.skipIf(!db)("order.refunded against PostgreSQL", () => {
         lastPaidOrderRefundedAt: null,
       });
     });
+
+    it("grants nothing for an order whose refund Polar delivered before its payment", async () => {
+      const refundedFirst = `order-${randomUUID()}`;
+      expect(await refund(refundedFirst)).toBe(200);
+
+      const status = await deliver({
+        type: "order.paid",
+        timestamp: new Date(Date.now() + 1000).toISOString(),
+        data: {
+          id: refundedFirst,
+          billing_reason: "subscription_cycle",
+          metadata: {},
+          items: [],
+          customer: { id: "cus_1", external_id: ORGANIZATION },
+          product: PRODUCT,
+          subscription: {
+            id: SUBSCRIPTION_ID,
+            status: "active",
+            product_id: PRODUCT.id,
+            recurring_interval: "year",
+            current_period_start: PERIOD_END.toISOString(),
+            current_period_end: new Date(
+              PERIOD_END.getTime() + 365 * DAY,
+            ).toISOString(),
+            cancel_at_period_end: false,
+            ended_at: null,
+          },
+        },
+      });
+
+      expect(status).toBe(200);
+      expect(
+        await database().creditBucket.count({
+          where: { referenceId: { startsWith: `${refundedFirst}:` } },
+        }),
+      ).toBe(0);
+      expect(await row()).toEqual({
+        lastPaidOrderId: refundedFirst,
+        lastPaidOrderRefundedAt: new Date("2026-11-20T09:00:00.000Z"),
+      });
+    });
   });
 });

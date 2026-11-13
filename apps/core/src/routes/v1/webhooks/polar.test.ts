@@ -17,6 +17,7 @@ const m = vi.hoisted(() => ({
   prisma: {
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
+    cmoPolarOrder: { findUnique: vi.fn() },
     cmoSubscription: {
       create: vi.fn(),
       findFirst: vi.fn(),
@@ -313,6 +314,39 @@ describe("POST /v1/webhooks/polar", () => {
           },
         }),
       );
+    });
+
+    it("grants nothing for an order Polar refunded before its payment arrived", async () => {
+      const refundedAt = new Date("2026-11-13T10:00:01.000Z");
+      m.prisma.cmoPolarOrder.findUnique.mockResolvedValue({ refundedAt });
+      m.prisma.$queryRaw.mockImplementation(async (sql: string[]) =>
+        sql.join("?").includes("cmo_polar_order")
+          ? [{ refundedAt }]
+          : [
+              {
+                endedAt: null,
+                lastPaidOrderId: null,
+                lastPaidOrderRefundedAt: null,
+              },
+            ],
+      );
+      m.verifyPolarWebhook.mockResolvedValue(orderPaid());
+
+      const response = await post();
+
+      expect(response.status).toBe(200);
+      expect(m.prisma.transaction.create).not.toHaveBeenCalled();
+      // Still the last paid order, marked refunded: a yearly plan grants no month of it.
+      expect(m.prisma.cmoSubscription.updateMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: {
+            lastPaidAt: new Date("2026-11-13T10:00:05.000Z"),
+            lastPaidOrderRefundedAt: refundedAt,
+            lastPaidOrderId: "order_1",
+          },
+        }),
+      );
+      expect(m.captureMessage).not.toHaveBeenCalled();
     });
 
     it("takes the Project from the stored subscription before the order's metadata", async () => {

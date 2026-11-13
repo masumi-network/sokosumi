@@ -263,11 +263,13 @@ describe("syncCmoYearlyGrants", () => {
 
   it("grants nothing when the subscription ended or its order was refunded after it was read", async () => {
     vi.setSystemTime(new Date("2026-02-28T10:00:00.000Z"));
-    m.prisma.$queryRaw
-      .mockResolvedValueOnce([{ ...SUBSCRIPTION, endedAt: new Date() }])
-      .mockResolvedValueOnce([
-        { ...SUBSCRIPTION, lastPaidOrderRefundedAt: new Date() },
-      ]);
+    const locked = [
+      [{ ...SUBSCRIPTION, endedAt: new Date() }],
+      [{ ...SUBSCRIPTION, lastPaidOrderRefundedAt: new Date() }],
+    ];
+    m.prisma.$queryRaw.mockImplementation(async (sql: string[]) =>
+      sql.join("?").includes('"cmo_subscription"') ? locked.shift() : [],
+    );
 
     expect(await sync()).toEqual({
       errors: 0,
@@ -289,9 +291,13 @@ describe("syncCmoYearlyGrants", () => {
 
     // A refund is Serializable: only a write of the row, not a lock, makes
     // its update fail when its snapshot predates the grant (coding conventions).
-    const lock = m.prisma.$queryRaw.mock.calls[0]?.[0] as string[];
-    expect(lock.join("?")).toMatch(
-      /^\s*UPDATE "cmo_subscription"\s+SET "updatedAt" = "updatedAt"/,
+    const queries = m.prisma.$queryRaw.mock.calls.map(([sql]) =>
+      (sql as string[]).join("?"),
+    );
+    expect(queries).toContainEqual(
+      expect.stringMatching(
+        /^\s*UPDATE "cmo_subscription"\s+SET "updatedAt" = "updatedAt"/,
+      ),
     );
   });
 

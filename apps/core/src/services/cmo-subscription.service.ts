@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { CreditBucketReferenceType } from "@sokosumi/database";
+import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import { getNextMonthlyPeriodEnd } from "@sokosumi/database/helpers";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { err, ok, type Result } from "neverthrow";
@@ -376,21 +376,35 @@ export async function handlePolarOrderPaid(
       referenceType: CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH,
       subscription: { cmoSubscriptionId: row.id },
     },
-    async (tx) => {
-      await tx.cmoSubscription.updateMany({
-        where: {
-          id: row.id,
-          OR: [{ lastPaidAt: null }, { lastPaidAt: { lt: paidAt } }],
-        },
-        data: {
-          lastPaidOrderId: order.id,
-          lastPaidAt: paidAt,
-          lastPaidOrderRefundedAt: null,
-        },
-      });
-    },
+    (tx) => recordLastPaidOrder(tx, null),
   );
   if (granted === "not_live") reportNotLive(event, extra);
+  if (granted === "refunded") {
+    // Polar refunded it before its payment arrived: still the last paid
+    // order, marked refunded, so a yearly plan grants no month of it.
+    const refunded = await prisma.cmoPolarOrder.findUnique({
+      where: { polarOrderId: order.id },
+      select: { refundedAt: true },
+    });
+    await recordLastPaidOrder(prisma, refunded?.refundedAt ?? paidAt);
+  }
+
+  async function recordLastPaidOrder(
+    client: Prisma.TransactionClient,
+    refundedAt: Date | null,
+  ): Promise<void> {
+    await client.cmoSubscription.updateMany({
+      where: {
+        id: row.id,
+        OR: [{ lastPaidAt: null }, { lastPaidAt: { lt: paidAt } }],
+      },
+      data: {
+        lastPaidOrderId: order.id,
+        lastPaidAt: paidAt,
+        lastPaidOrderRefundedAt: refundedAt,
+      },
+    });
+  }
 }
 
 /** A payment for a subscription that ended or a Cuso no longer live. */
@@ -492,7 +506,9 @@ export async function handlePolarPlanChangePaid(
  * (a yearly order grants one per month), so the refund and the balance agree.
  * Credits already spent stay spent. Polar sends it for a partial refund too;
  * the rest goes all the same. A refunded last paid order is marked on its
- * subscription, so a yearly plan grants no more months of it.
+ * subscription, so a yearly plan grants no more months of it. The refund is
+ * recorded by order first, so a payment Polar delivers after it grants
+ * nothing.
  */
 export async function handlePolarOrderRefunded(
   event: OrderRefundedEvent,
@@ -500,7 +516,13 @@ export async function handlePolarOrderRefunded(
   const order = event.data;
   // Serializable: of two deliveries at the same time one fails, then runs
   // again and finds nothing left.
-  const granted = await serializableTransaction(async (tx) => {
+  await serializableTransaction(async (tx) => {
+    // The row every grant of this order writes first (`grantCmoCredits`).
+    await tx.$executeRaw`
+      INSERT INTO "cmo_polar_order" ("polarOrderId", "refundedAt")
+      VALUES (${order.id}, ${new Date(event.timestamp)})
+      ON CONFLICT ("polarOrderId") DO UPDATE
+      SET "refundedAt" = COALESCE("cmo_polar_order"."refundedAt", EXCLUDED."refundedAt")`;
     const buckets = await tx.creditBucket.findMany({
       where: {
         referenceId: { startsWith: `${order.id}:` },
@@ -523,13 +545,5 @@ export async function handlePolarOrderRefunded(
       where: { lastPaidOrderId: order.id, lastPaidOrderRefundedAt: null },
       data: { lastPaidOrderRefundedAt: new Date(event.timestamp) },
     });
-    return buckets.length > 0;
   }, "The refund raced another write to the same credits");
-  if (!granted) {
-    reportUnusableEvent(event, "the refunded order granted no credits", {
-      polarOrderId: order.id,
-      polarSubscriptionId: order.subscription_id,
-      metadata: order.metadata,
-    });
-  }
 }
