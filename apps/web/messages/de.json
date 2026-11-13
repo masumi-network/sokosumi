@@ -12629,7 +12629,7 @@
           },
           "38": {
             "title": "Export und Zeitraum-Vorlagen",
-            "missing": "Es gibt keinen Vergleich mit demselben Zeitraum im Vorjahr. Die Tabellen Länder und Geräte, Mitbewerber und Keyword-Ideen haben keinen CSV-Download. Das CSV-Trennzeichen folgt der Sprache der App, nicht der Region des Computers."
+            "missing": "Es gibt keinen Vergleich mit demselben Zeitraum im Vorjahr. Die Tabellen Länder und Geräte, Mitbewerber, Keyword-Ideen und KI-Assistenten haben keinen CSV-Download. Das CSV-Trennzeichen folgt der Sprache der App, nicht der Region des Computers."
           },
           "39": {
             "title": "Verlauf der Zitate in KI-Übersichten",

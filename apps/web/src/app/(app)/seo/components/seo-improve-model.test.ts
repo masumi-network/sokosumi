@@ -305,6 +305,7 @@ describe("Item 38", () => {
         );
       });
     const names: Record<string, string> = {
+      "seo-ai-assistants.tsx": "AI assistants",
       "seo-breakdown.tsx": "countries and devices",
       "seo-competitors.tsx": "competitors",
       "seo-keyword-ideas.tsx": "keyword ideas",
