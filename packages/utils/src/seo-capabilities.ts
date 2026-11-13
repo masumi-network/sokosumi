@@ -139,7 +139,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
   {
     id: 5,
     group: "technical",
-    title: "Near-duplicate and thin pages",
+    title: "Near-duplicate pages",
     status: "partial",
     missing:
       "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
