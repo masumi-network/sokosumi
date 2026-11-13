@@ -116,10 +116,20 @@ function polarSubscription(patch: Record<string, unknown> = {}) {
   };
 }
 
+/** A plan change's claim on the row, or its release. */
+function isClaimWrite(args: { data: Record<string, unknown> }) {
+  return "planChangeClaimedAt" in args.data;
+}
+
 /** Every write to the stored subscription row, with its newest-state guard. */
 function rowWrites() {
-  return m.prisma.cmoSubscription.updateMany.mock.calls.map(([args]) => args);
+  return m.prisma.cmoSubscription.updateMany.mock.calls
+    .map(([args]) => args)
+    .filter((args) => !isClaimWrite(args));
 }
+
+/** Whether a plan change holds the row, as the claim's conditional write sees it. */
+let claimed = false;
 
 // Loading the routes takes seconds on a busy machine.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 60_000 });
@@ -199,6 +209,17 @@ beforeEach(() => {
   });
   m.prisma.workspace.findUnique.mockResolvedValue({ organizationId: "org-1" });
   m.prisma.cmoSubscription.findFirst.mockResolvedValue(SUBSCRIPTION);
+  claimed = false;
+  m.prisma.cmoSubscription.updateMany.mockImplementation(async (args) => {
+    if (!isClaimWrite(args)) return { count: 1 };
+    if (args.data.planChangeClaimedAt === null) {
+      claimed = false;
+      return { count: 1 };
+    }
+    if (claimed) return { count: 0 };
+    claimed = true;
+    return { count: 1 };
+  });
 });
 
 describe("POST /v1/cmo/projects/{projectId}/plan", () => {
@@ -212,6 +233,51 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
       productId: "prod_scale_month",
       upgradeFromCredits: 25_000,
     });
+  });
+
+  it("refuses a second change while the first is still at Polar, then reads the tier the first left", async () => {
+    m.prisma.cmoSubscription.findFirst.mockResolvedValue({
+      ...SUBSCRIPTION,
+      polarProductId: "prod_starter_month",
+    });
+    let answer = (_value: unknown) => {};
+    m.changePolarSubscriptionPlan.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const first = changePlan("growth");
+    await vi.waitFor(() =>
+      expect(m.changePolarSubscriptionPlan).toHaveBeenCalledTimes(1),
+    );
+
+    const second = await changePlan("scale");
+
+    expect(second.status).toBe(409);
+    expect((await second.json()).kind).toBe("subscription_change_not_allowed");
+    expect(m.changePolarSubscriptionPlan).toHaveBeenCalledTimes(1);
+
+    answer(ok(polarSubscription()));
+    expect((await first).status).toBe(200);
+    // The first change left Growth; the next change counts its credits from it.
+    m.prisma.cmoSubscription.findFirst.mockResolvedValue({
+      ...SUBSCRIPTION,
+      polarProductId: "prod_growth_month",
+    });
+    expect((await changePlan("scale")).status).toBe(200);
+    expect(m.changePolarSubscriptionPlan).toHaveBeenLastCalledWith({
+      polarSubscriptionId: "sub_1",
+      productId: "prod_scale_month",
+      upgradeFromCredits: 25_000,
+    });
+  });
+
+  it("releases the subscription when Polar refuses the change", async () => {
+    m.changePolarSubscriptionPlan.mockResolvedValueOnce(err("not_changeable"));
+
+    expect((await changePlan("scale")).status).toBe(409);
+    expect(claimed).toBe(false);
   });
 
   it("writes the upgraded tier onto the subscription before answering", async () => {
@@ -273,7 +339,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
 
     await changePlan("scale");
 
-    expect(m.prisma.cmoSubscription.updateMany).not.toHaveBeenCalled();
+    expect(rowWrites()).toEqual([]);
   });
 
   it("schedules a downgrade for the next period", async () => {
@@ -393,7 +459,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
       expect((await response.json()).kind).toBe(
         "subscription_change_not_allowed",
       );
-      expect(m.prisma.cmoSubscription.updateMany).not.toHaveBeenCalled();
+      expect(rowWrites()).toEqual([]);
     });
 
     it("is for owners and admins only", async () => {
@@ -403,7 +469,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
 
       expect(response.status).toBe(403);
       expect(m.clearPolarPendingPlanChange).not.toHaveBeenCalled();
-      expect(m.prisma.cmoSubscription.updateMany).not.toHaveBeenCalled();
+      expect(rowWrites()).toEqual([]);
     });
 
     it("answers 503 without Polar configuration", async () => {
@@ -412,7 +478,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
       );
 
       expect((await changePlan("growth")).status).toBe(503);
-      expect(m.prisma.cmoSubscription.updateMany).not.toHaveBeenCalled();
+      expect(rowWrites()).toEqual([]);
     });
   });
 

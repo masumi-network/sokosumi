@@ -1663,6 +1663,9 @@ model CmoSubscription {
   /// Timestamp of the newest Polar event applied. Polar does not order its
   /// deliveries, so a payload older than this is skipped.
   polarEventAt            DateTime
+  /// Set while a plan change is at Polar, so a second one waits for its
+  /// tier instead of counting an upgrade from the old one.
+  planChangeClaimedAt     DateTime?
 
   @@unique([polarSubscriptionId])
   @@unique([projectId], map: "cmo_subscription_project_live_key", where: { endedAt: null })

@@ -65,6 +65,59 @@ export async function changeCmoPlan(
   input: CusoTarget & { tier: string },
 ): Promise<{ change: "upgrade" | "downgrade" | "kept" }> {
   const { cuso } = await requireBillingManager(input);
+  const claimedAt = await claimPlanChange(cuso.projectId);
+  try {
+    return await changeClaimedPlan(cuso, input.tier);
+  } finally {
+    await prisma.cmoSubscription.updateMany({
+      where: { projectId: cuso.projectId, planChangeClaimedAt: claimedAt },
+      data: { planChangeClaimedAt: null },
+    });
+  }
+}
+
+/** A claim older than this belongs to a request that died: it is taken over. */
+const PLAN_CHANGE_CLAIM_MS = 60_000;
+
+/**
+ * Claims the Cuso's subscription for one plan change: two at once would both
+ * read the old tier, and the second would count its upgrade from it although
+ * Polar charges from the first one's tier. The claim is one conditional
+ * write; the change reads the tier after it.
+ */
+async function claimPlanChange(projectId: string): Promise<Date> {
+  const claimedAt = new Date();
+  const claimed = await prisma.cmoSubscription.updateMany({
+    where: {
+      projectId,
+      endedAt: null,
+      OR: [
+        { planChangeClaimedAt: null },
+        {
+          planChangeClaimedAt: {
+            lt: new Date(claimedAt.getTime() - PLAN_CHANGE_CLAIM_MS),
+          },
+        },
+      ],
+    },
+    data: { planChangeClaimedAt: claimedAt },
+  });
+  if (claimed.count > 0) return claimedAt;
+  const subscription = await prisma.cmoSubscription.findFirst({
+    where: { projectId, endedAt: null },
+    select: { id: true },
+  });
+  if (!subscription) refuse("This Cuso has no CMO subscription", "not_active");
+  refuse(
+    "Another plan change for this Cuso is still running. Try again in a moment",
+    "not_allowed",
+  );
+}
+
+async function changeClaimedPlan(
+  cuso: Cuso,
+  tier: string,
+): Promise<{ change: "upgrade" | "downgrade" | "kept" }> {
   const subscription = await prisma.cmoSubscription.findFirst({
     where: { projectId: cuso.projectId, endedAt: null },
     select: {
@@ -104,7 +157,7 @@ export async function changeCmoPlan(
     (plan) => plan.productId === subscription.polarProductId,
   );
   if (!current) throw serviceUnavailable("CMO plans are not set up");
-  const target = plans.find((plan) => plan.tier === input.tier);
+  const target = plans.find((plan) => plan.tier === tier);
   if (!target) {
     refuse(
       `The plan changes only to another plan billed ${subscription.interval === "year" ? "yearly" : "monthly"}`,
