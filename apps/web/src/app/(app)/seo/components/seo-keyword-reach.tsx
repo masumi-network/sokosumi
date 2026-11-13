@@ -126,11 +126,16 @@ function RivalKeywords({ hosts }: { hosts: RivalHost[] }) {
 
 function RivalHostRows({ host }: { host: RivalHost }) {
   const t = useTranslations("App.Seo.keywordReach");
+  const format = useFormatter();
   const lists = seoRivalLists(host);
-  const words = host.topicWords.map((word) => `"${word}"`).join(", ");
+  // A row is a topic row when it holds any of the words, so the list reads "a, b or c".
+  const words = format.list(
+    host.topicWords.map((word) => t("rivals.word", { word })),
+    { type: "disjunction" },
+  );
   return (
     <section className="space-y-1.5 pt-1">
-      <h4 className="font-medium break-all">{host.host}</h4>
+      <h3 className="font-medium break-all">{host.host}</h3>
       {host.topicWords.length && lists.topic.length ? (
         <p className="text-muted-foreground">{t("rivals.topic", { words })}</p>
       ) : null}
@@ -157,9 +162,10 @@ function RivalRows({ rows, more }: { rows: RivalHost["rows"]; more: number }) {
   if (!rows.length) return null;
   return (
     <ul role="list" className="space-y-1">
-      {rows.map((row) => (
+      {rows.map((row, index) => (
         <li
-          key={`${row.keyword}:${row.url ?? ""}`}
+          // Two rows can share a keyword when both links failed the import's check.
+          key={`${index}:${row.keyword}`}
           className="flex flex-wrap justify-between gap-x-3 break-words"
         >
           <span dir="auto" className="min-w-0">

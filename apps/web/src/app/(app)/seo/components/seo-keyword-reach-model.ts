@@ -48,11 +48,3 @@ export function seoFeatureSearches(row: {
 /** The message key of a reach word of the SEO bot; null for a word it has no key for (the word shows as it is). */
 export const seoReachKey = (reach: string) =>
   seoStrategyKey(SEO_STRATEGY_REACHES, reach);
-
-/** Whether the strategy holds any of the three keyword reach sections. */
-export const seoHasKeywordReach = (strategy: ProjectSeoStrategy | null) =>
-  Boolean(
-    strategy?.featureReach?.length ||
-      strategy?.rivalKeywords?.length ||
-      strategy?.articleIdeas?.length,
-  );

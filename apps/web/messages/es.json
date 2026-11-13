@@ -12676,8 +12676,8 @@
         "siteShare": "Cuota de tus páginas"
       },
       "keywordReach": {
-        "searches": "{count, number} búsquedas al mes",
-        "searchesBoth": "{count, number} búsquedas al mes ({suggested, number} en las sugerencias)",
+        "searches": "{count, plural, one {# búsqueda} other {# búsquedas}} al mes",
+        "searchesBoth": "{count, plural, one {# búsqueda} other {# búsquedas}} al mes ({suggested, number} en las sugerencias de keywords)",
         "position": "posición {position}",
         "reach": {
           "ranks": "Posiciona",
@@ -12694,6 +12694,7 @@
           "title": "Keywords de productos competidores",
           "help": "Las keywords para las que posiciona cada producto competidor, primero las de más búsquedas.",
           "topic": "Keywords con una palabra de tu tema ({words}):",
+          "word": "«{word}»",
           "other": "{count, plural, one {# keyword no tiene} other {# keywords no tienen}} ninguna de estas palabras: otros productos del sitio o nombres de productos",
           "more": "{count} más en el informe del sitio"
         },

@@ -12676,8 +12676,8 @@
         "siteShare": "Your pages' share"
       },
       "keywordReach": {
-        "searches": "{count, number} searches a month",
-        "searchesBoth": "{count, number} searches a month ({suggested, number} in the suggestions read)",
+        "searches": "{count, plural, one {# search} other {# searches}} a month",
+        "searchesBoth": "{count, plural, one {# search} other {# searches}} a month ({suggested, number} in keyword suggestions)",
         "position": "position {position}",
         "reach": {
           "ranks": "Ranks",
@@ -12694,12 +12694,13 @@
           "title": "Keywords of competing products",
           "help": "The keywords each competing product ranks for, most searches first.",
           "topic": "Keywords with a word of your topic ({words}):",
+          "word": "“{word}”",
           "other": "{count, plural, one {# keyword has} other {# keywords have}} none of these words: other products of the site, or product names",
           "more": "{count} more in the site report"
         },
         "ideas": {
           "title": "Article ideas",
-          "help": "Searches that your users make before they need the product. An article on them brings readers who can need it later."
+          "help": "Searches that your users make before they need the product. An article on them brings readers who may need it later."
         }
       }
     }

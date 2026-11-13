@@ -96,10 +96,13 @@ describe("SEO keyword reach sections", () => {
         },
       ],
       rivalKeywords: [
-        host([
-          row("battery health mac", true, 1300),
-          row("shortcut for clipboard", false, 5400),
-        ]),
+        host(
+          [
+            row("battery health mac", true, 1300),
+            row("shortcut for clipboard", false, 5400),
+          ],
+          ["macbook", "battery"],
+        ),
       ],
       articleIdeas: [
         {
@@ -118,13 +121,13 @@ describe("SEO keyword reach sections", () => {
     expect(reach.hasAttribute("open")).toBe(false);
     expect(
       within(reach).getByText(
-        "30 searches a month (50 in the suggestions read) · Reach not determined",
+        "30 searches a month (50 in keyword suggestions) · Reach not determined",
       ),
     ).toBeTruthy();
     const rivals = screen.getByTestId("seo-rival-keywords");
     expect(
       within(rivals).getByText(
-        'Keywords with a word of your topic ("battery"):',
+        "Keywords with a word of your topic (\u201cmacbook\u201d or \u201cbattery\u201d):",
       ),
     ).toBeTruthy();
     expect(within(rivals).getByText("battery health mac")).toBeTruthy();
