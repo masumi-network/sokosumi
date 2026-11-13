@@ -1,14 +1,17 @@
-export const MAX_TASK_ARCHIVE_FILES = 50;
-export const MAX_TASK_ARCHIVE_BYTES = 200 * 1024 * 1024;
+export const MAX_ARCHIVE_FILES = 50;
+export const MAX_ARCHIVE_BYTES = 200 * 1024 * 1024;
 
-export interface TaskArchiveFile {
+export interface ArchiveFile {
   name: string;
   fileUrl: string;
+  /** Folder inside the zip, `/`-separated; the root when absent. */
+  folder?: string;
 }
 
-export interface TaskFilesArchive {
+export interface FilesArchive {
   /** Null when no file could be added. */
   data: ArrayBuffer | null;
+  /** Names, with their folder when they have one. */
   included: string[];
   /** Names of files left out: failed to load, over the count or the size limit. */
   missing: string[];
@@ -33,18 +36,45 @@ export function safeFileName(name: string, fallback: string): string {
   return WINDOWS_RESERVED_NAME.test(safe) ? `_${safe}` : safe;
 }
 
-/** `Report.pdf`, `Report (2).pdf`: zip entries need distinct, path-free names. */
-export function uniqueArchiveName(name: string, taken: Set<string>): string {
+/** `Report.pdf`, `Report (2).pdf`: zip entries need distinct names within their folder. */
+export function uniqueArchiveName(
+  name: string,
+  taken: Set<string>,
+  folder = "",
+): string {
+  const prefix = folder ? `${folder}/` : "";
   const safe = safeFileName(name, "file");
   const dot = safe.lastIndexOf(".");
   const [base, ext] =
     dot > 0 ? [safe.slice(0, dot), safe.slice(dot)] : [safe, ""];
   let candidate = safe;
-  for (let n = 2; taken.has(candidate.toLowerCase()); n++) {
+  for (let n = 2; taken.has(`${prefix}${candidate}`.toLowerCase()); n++) {
     candidate = `${base} (${n})${ext}`;
   }
-  taken.add(candidate.toLowerCase());
-  return candidate;
+  taken.add(`${prefix}${candidate}`.toLowerCase());
+  return `${prefix}${candidate}`;
+}
+
+/** Each segment made safe on its own, so a folder can never climb out of the zip. */
+function safeFolderPath(folder: string): string {
+  return folder
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => safeFileName(segment, "folder"))
+    .join("/");
+}
+
+/** Saves zip bytes as `<name>.zip` through the browser's download. */
+export function saveZip(data: ArrayBuffer, name: string): void {
+  const url = URL.createObjectURL(
+    new Blob([data], { type: "application/zip" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${safeFileName(name, "files")}.zip`;
+  link.click();
+  // Allow the browser to begin saving before releasing the blob.
+  window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
 /**
@@ -76,11 +106,12 @@ export async function readWithinBudget(
   }
 }
 
-export async function createTaskFilesArchive(
-  files: TaskArchiveFile[],
+export async function createFilesArchive(
+  files: ArchiveFile[],
   signal?: AbortSignal,
-  maxBytes = MAX_TASK_ARCHIVE_BYTES,
-): Promise<TaskFilesArchive> {
+  maxBytes = MAX_ARCHIVE_BYTES,
+  maxFiles = MAX_ARCHIVE_FILES,
+): Promise<FilesArchive> {
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
   const taken = new Set<string>();
@@ -90,8 +121,9 @@ export async function createTaskFilesArchive(
 
   // One file at a time keeps memory and simultaneous requests bounded.
   for (const file of files) {
-    if (included.length >= MAX_TASK_ARCHIVE_FILES) {
-      missing.push(file.name);
+    const label = file.folder ? `${file.folder}/${file.name}` : file.name;
+    if (included.length >= maxFiles) {
+      missing.push(label);
       continue;
     }
     try {
@@ -102,15 +134,18 @@ export async function createTaskFilesArchive(
       if (!response.ok) throw new Error(`File returned ${response.status}`);
       const blob = await readWithinBudget(response, maxBytes - bytes);
       if (!blob) {
-        missing.push(file.name);
+        missing.push(label);
         continue;
       }
       bytes += blob.size;
-      zip.file(uniqueArchiveName(file.name, taken), blob);
-      included.push(file.name);
+      zip.file(
+        uniqueArchiveName(file.name, taken, safeFolderPath(file.folder ?? "")),
+        blob,
+      );
+      included.push(label);
     } catch (error) {
       if (signal?.aborted) throw error;
-      missing.push(file.name);
+      missing.push(label);
     }
   }
 

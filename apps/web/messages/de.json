@@ -1143,6 +1143,11 @@
       "description": "CMO führt dieses Projekt, deshalb änderst du es in CMO. Hier kannst du es lesen.",
       "open": "In CMO öffnen",
       "newTab": "(öffnet in einem neuen Tab)"
+    },
+    "FilesArchive": {
+      "failed": "Die Dateien konnten nicht heruntergeladen werden. Versuche es erneut oder öffne sie einzeln.",
+      "partial": "{included} von {total} Dateien heruntergeladen. Nicht enthalten: {names}{more, plural, =0 {} one { und # weitere} other { und # weitere}}. Öffne sie einzeln.",
+      "empty": "Es gibt noch keine Dateien zum Herunterladen."
     }
   },
   "Join": {
@@ -1905,9 +1910,7 @@
         "expand": "Ausklappen",
         "collapse": "Weniger anzeigen",
         "downloadAll": {
-          "button": "Alle herunterladen",
-          "failed": "Die Dateien konnten nicht heruntergeladen werden. Versuche es erneut oder öffne sie einzeln.",
-          "partial": "{included} von {total} Dateien heruntergeladen. Nicht enthalten: {names}{more, plural, =0 {} one { und # weitere} other { und # weitere}}. Öffne sie einzeln."
+          "button": "Alle herunterladen"
         },
         "actorCoworker": "Coworker",
         "actorUser": "Nutzer",
@@ -9622,6 +9625,8 @@
       "deleteFolderError": "Ordner konnte nicht gelöscht werden",
       "moveFolderError": "Ordner konnte nicht verschoben werden",
       "moveFolderAction": "Ordner verschieben",
+      "downloadFolderButton": "Herunterladen",
+      "downloadFolderAction": "{name} als ZIP herunterladen",
       "moveFileError": "Datei konnte nicht verschoben werden",
       "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "Noch keine Aufgabendateien",
