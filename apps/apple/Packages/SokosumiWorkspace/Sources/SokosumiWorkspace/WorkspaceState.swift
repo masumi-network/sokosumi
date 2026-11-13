@@ -128,8 +128,11 @@ public final class WorkspaceState: ObservableObject {
   private(set) var realtimeReadSync: Task<Void, Never>?
   private var realtimeReadSyncPending = false
   private var realtimeContinuation: AsyncStream<ResolvedRealtimeDelivery>.Continuation?
+  /// Injected clock and ids. Presence, typing and pin actions use these so a test can freeze time.
+  let now: () -> Date
+  let makeId: () -> String
   /// Org presence map and publisher bookkeeping (ADR 0003); see `WorkspaceState+Presence`.
-  public let presence = OrgPresence()
+  public let presence: OrgPresence
   var presenceTickTask: Task<Void, Never>?
   /// The self dot reads offline only after the socket was up once; before
   /// that a launch would flash offline while the first token mints.
@@ -161,7 +164,8 @@ public final class WorkspaceState: ObservableObject {
   /// Creates a workspace coordinator. The host app must inject its authenticated
   /// client provider; the default resolves no client. It also passes its realtime connection and OS notification
   /// adapter; without them the workspace stays HTTP-only and raises no banner. `now`, `makeId` and `sleep` are the
-  /// room and Thread transcripts' clock and ids; `sleep` also paces the sidebar recovery timer.
+  /// room and Thread transcripts' clock and ids; `sleep` also paces the sidebar recovery timer. The coordinator
+  /// keeps `now` and `makeId` and uses them for presence, typing and sidebar pin actions.
   public init(
     auth: AuthState,
     clientProvider: @escaping (AuthState) -> Client? = { _ in nil },
@@ -175,7 +179,10 @@ public final class WorkspaceState: ObservableObject {
     makeId: @escaping () -> String = { UUID().uuidString },
     sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
   ) {
+    self.now = now
+    self.makeId = makeId
     openRoom = OpenRoomSession(now: now, makeId: makeId, sleep: sleep)
+    presence = OrgPresence(now: now())
     sidebarRecovery = SidebarCollectionsRecovery(sleep: sleep)
     self.auth = auth
     self.clientProvider = clientProvider
@@ -552,7 +559,7 @@ public final class WorkspaceState: ObservableObject {
     }
     if wasVisible != readAttention.isVisible {
       // Web's visibilitychange: hidden publishes afk at once, visible counts as activity.
-      presence.setVisible(readAttention.isVisible, now: Date())
+      presence.setVisible(readAttention.isVisible, now: now())
       publishPresence(force: true)
       realtime?.setInFront(readAttention.isVisible)
     }
@@ -725,7 +732,7 @@ public final class WorkspaceState: ObservableObject {
     case let .presenceRoster(organizationId, members):
       applyPresenceRoster(organizationId: organizationId, members: members)
     case let .typing(roomId, signal):
-      applyTyping(roomId: roomId, signal: signal, now: Date())
+      applyTyping(roomId: roomId, signal: signal, now: now())
     case let .typingChannel(roomId, canPublish):
       applyTypingChannel(roomId: roomId, canPublish: canPublish)
     case let .roomRead(event):
@@ -835,7 +842,16 @@ public final class WorkspaceState: ObservableObject {
   public func performSidebarAction(_ action: ConversationSidebar.Action, roomId: String) async {
     do {
       try await request { _, client, slug in
-        try await sidebar.perform(action, roomId: roomId, client: client, organizationSlug: slug, clock: (now: Date(), makeId: UUID.init))
+        // `perform` takes a UUID token. The shared generator returns that UUID as a string,
+        // and only when the action actually runs.
+        let generator = makeId
+        try await sidebar.perform(action, roomId: roomId, client: client, organizationSlug: slug, clock: (now: now(), makeId: {
+          let id = generator()
+          guard let token = UUID(uuidString: id) else {
+            preconditionFailure("makeId returned \(id), which is not a UUID")
+          }
+          return token
+        }))
       }
     } catch ChatServiceError.unauthorized(_) {
       // The auth card takes over; the modal alert would double-surface.
@@ -848,7 +864,7 @@ public final class WorkspaceState: ObservableObject {
   public func reorderPinnedRooms(_ roomIds: [String]) async {
     do {
       try await request { _, client, slug in
-        try await sidebar.reorderPinned(roomIds, client: client, organizationSlug: slug, now: Date())
+        try await sidebar.reorderPinned(roomIds, client: client, organizationSlug: slug, now: now())
       }
     } catch ChatServiceError.unauthorized(_) {
       sidebar.clearActionError()

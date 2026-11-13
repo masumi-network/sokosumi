@@ -67,7 +67,8 @@ extension WorkspaceState {
         do { try await Task.sleep(for: .seconds(expiry.timeIntervalSince(now))) } catch { return }
         // A paused app may wake after several deadlines. Expire against the wake
         // time, not the old deadline, so stale typists disappear together.
-        self?.sweepTyping(now: Date())
+        guard let self else { return }
+        sweepTyping(now: self.now())
       }
     }
   }
