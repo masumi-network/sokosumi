@@ -40,6 +40,19 @@ import {
   seoStatisticsPeriod,
 } from "./seo-statistics-model";
 
+/** The form of a day in the period filter, as Core reads it. */
+const SEO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A real day of the calendar in the form of the filter: "2026-02-30" has the form and is no day. */
+function seoFilterDayValid(day: string) {
+  const date = new Date(`${day}T00:00:00Z`);
+  return (
+    SEO_DAY.test(day) &&
+    !Number.isNaN(date.getTime()) &&
+    date.toISOString().slice(0, 10) === day
+  );
+}
+
 const SEO_RUNNING_REFRESH_MS = 15_000;
 /** The filters that choose the time the page shows, not what it shows. */
 const DATE_PARAMS = ["from", "to"];
@@ -98,9 +111,10 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   for (const key of ["pageId", "scopeId", "from", "to", "channel"] as const) {
     if (filters[key]) query.set(key, filters[key]);
   }
-  const invalidDates = Boolean(
-    filters.from && filters.to && filters.from > filters.to,
-  );
+  // A day in another form, or an end before the start: Core refuses both, so the page reads nothing and says why.
+  const invalidDates =
+    [filters.from, filters.to].some((day) => day && !seoFilterDayValid(day)) ||
+    Boolean(filters.from && filters.to && filters.from > filters.to);
   const initialQuery = useRef(query.toString());
   const identity = JSON.stringify([
     session?.session.activeOrganizationId,

@@ -1126,6 +1126,45 @@ describe("SEO workspace integration", () => {
     ).toBeEnabled();
   });
 
+  it.each([
+    // A start alone runs to today.
+    ["?tab=traffic&from=2026-11-05", /Showing Nov 5\b/],
+    // An end on no day with a check is a range, not the pick of a check.
+    ["?tab=traffic&to=2026-11-11", /Showing up to Nov 11\./],
+    ["?tab=traffic&from=2026-11-12&to=2026-11-10", /end date on or after/],
+    // A day the URL holds in another form narrows nothing either.
+    ["?tab=traffic&from=soon", /end date on or after/],
+    // A string compare would let this pass: "2026-11-12" is not after "soon".
+    ["?tab=traffic&from=2026-11-12&to=soon", /end date on or after/],
+    // The form of a day, but no day: Core refuses it as well.
+    ["?tab=traffic&from=2026-02-30", /end date on or after/],
+  ])(
+    "says under the timeline which dates %s holds, with the way back",
+    (search, note) => {
+      const workspace = seoTestWorkspace();
+      workspace.metrics = [seoTestMetric()];
+      workspace.runs = ["2026-11-12T13:00:00Z", "2026-11-10T09:00:00Z"].map(
+        (observedAt) => ({
+          observationId: crypto.randomUUID(),
+          kind: "audit_full",
+          observedAt: new Date(observedAt),
+          issues: 5,
+          seconds: 600,
+        }),
+      );
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json(workspace)),
+      );
+      renderWorkspace(workspace, search);
+      expect(screen.getByText(note)).toBeVisible();
+      expect(screen.queryByText(/Earlier check/)).toBeNull();
+      expect(
+        screen.getByRole("button", { name: "Show the latest" }),
+      ).toBeVisible();
+    },
+  );
+
   it("keeps the page in view while another day loads, without a jump back to the first read", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();

@@ -72,10 +72,6 @@ export function SeoRuns({
   // A range the reader set in the calendar: no one check is in view then.
   const ranged = Boolean(from || (to && !picked));
   const utcDay = (day: string) => new Date(`${day}T00:00:00Z`);
-  // A day the URL holds in another form narrows nothing: the note says so, with the way back.
-  const badDates =
-    model.invalidDates ||
-    [from, to].some((day) => day && Number.isNaN(utcDay(day).getTime()));
   const latest = (
     <button
       type="button"
@@ -217,11 +213,9 @@ export function SeoRuns({
       {/* Always there, empty or not: a pick of a day or a range moves nothing under the line. An earlier check or
           a range in view says so, with the way back, and fades in. */}
       <p className="text-muted-foreground min-h-5 text-sm">
-        {badDates ? (
-          // The status line of the workspace reads it out: no alert of its own.
-          <span className="text-destructive">
-            {t("invalidDates")} {latest}
-          </span>
+        {model.invalidDates ? (
+          // The tab says why it is empty; the line gives the way back.
+          latest
         ) : picked && inView ? (
           <span className="content-in">
             {t("runs.earlier", { day: dayOf(inView.at) })} {latest}
