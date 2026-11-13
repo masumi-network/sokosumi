@@ -19,6 +19,28 @@ describe("seoCsv", () => {
     );
   });
 
+  it("neutralises a formula after leading spaces and in fullwidth signs", () => {
+    const cells = [
+      " =1+1",
+      "\u3000+1",
+      "\u00A0-1",
+      "\uFF1D1+1",
+      "\uFF0B1",
+      "\uFF0D1",
+      "\uFF20A1",
+    ];
+    expect(
+      seoCsv(
+        ["cell"],
+        cells.map((text) => [text]),
+      ),
+    ).toBe(`cell\r\n${cells.map((text) => `'${text}`).join("\r\n")}\r\n`);
+    // A sign inside the text is no formula.
+    expect(seoCsv(["cell"], [["a-b"], ["x = 1"]])).toBe(
+      "cell\r\na-b\r\nx = 1\r\n",
+    );
+  });
+
   it("keeps numbers, negative ones too, and writes a missing value as an empty cell", () => {
     expect(seoCsv(["a", "b", "c", "d"], [[-3.5, 0, null, Number.NaN]])).toBe(
       "a,b,c,d\r\n-3.5,0,,\r\n",

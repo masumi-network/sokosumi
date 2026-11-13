@@ -1,8 +1,11 @@
 /** One cell of an exported table. A missing value is an empty cell, never "null" or "0". */
 export type SeoCsvCell = string | number | null;
 
-/** A spreadsheet reads a text cell that starts with one of these as a formula (CSV injection). */
-const FORMULA_START = /^[=+\-@\t\r]/;
+/**
+ * A spreadsheet reads a text cell that starts with one of these as a formula (CSV injection), also after
+ * leading spaces and in the fullwidth forms (U+FF1D, U+FF0B, U+FF0D, U+FF20) that some spreadsheets fold.
+ */
+const FORMULA_START = /^\s*[=+\-@\uFF1D\uFF0B\uFF0D\uFF20]|^[\t\r]/;
 /** A field with one of these needs quotes (RFC 4180 section 2). */
 const NEEDS_QUOTES = /[",\r\n]/;
 
