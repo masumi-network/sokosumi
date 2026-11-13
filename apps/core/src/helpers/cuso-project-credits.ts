@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
 
@@ -69,6 +70,32 @@ export async function writeOffProjectCredits(
   projectId: string,
   tx: Prisma.TransactionClient,
 ): Promise<void> {
+  await writeOffCreditBuckets(
+    PrismaRaw.sql`cb."projectId" = ${projectId}::uuid`,
+    tx,
+  );
+}
+
+/**
+ * Writes off what is left of the given buckets, for a refunded Polar order
+ * (ADR 0068). A bucket that is spent or expired has nothing left and gets no
+ * row, so a second call writes nothing.
+ */
+export async function writeOffCreditBucketsById(
+  bucketIds: string[],
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  if (bucketIds.length === 0) return;
+  await writeOffCreditBuckets(
+    PrismaRaw.sql`cb.id IN (${PrismaRaw.join(bucketIds)})`,
+    tx,
+  );
+}
+
+async function writeOffCreditBuckets(
+  where: PrismaRaw.Sql,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
   const now = new Date();
   const buckets = await tx.$queryRaw<
     Array<{
@@ -77,7 +104,7 @@ export async function writeOffProjectCredits(
       userId: string | null;
       remaining: bigint;
     }>
-  >`
+  >(PrismaRaw.sql`
     SELECT
       cb.id,
       cb."organizationId",
@@ -85,11 +112,11 @@ export async function writeOffProjectCredits(
       (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining
     FROM credit_bucket cb
     LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
-    WHERE cb."projectId" = ${projectId}::uuid
+    WHERE ${where}
       AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
     GROUP BY cb.id, cb."organizationId", cb."userId", cb.amount
     HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
-  `;
+  `);
   // No note/type column on Transaction: a write-off reads as a plain spend.
   for (const bucket of buckets) {
     await tx.transaction.create({

@@ -10,6 +10,7 @@ import { accepted, ok } from "@/helpers/response";
 import { defaultValidationHook } from "@/lib/hono";
 import {
   handlePolarOrderPaid,
+  handlePolarOrderRefunded,
   handlePolarSubscriptionEvent,
 } from "@/services/cmo-subscription.service";
 
@@ -71,6 +72,9 @@ app.openapi(route, async (c) => {
   switch (event.type) {
     case "order.paid":
       await handlePolarOrderPaid(event);
+      break;
+    case "order.refunded":
+      await handlePolarOrderRefunded(event);
       break;
     case "subscription.created":
     case "subscription.active":
