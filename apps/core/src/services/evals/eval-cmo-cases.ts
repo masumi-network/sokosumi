@@ -143,8 +143,11 @@ export const CMO_EVAL_CASES = [
   ),
 ];
 
-/** The brand the replies case answers for, and the comments it answers. */
-export const CMO_COMMENT_BRAND = "cal.com";
+/** What a Cuso chat case finds in its lane, whatever case ran there before. */
+export type CmoChatSetup = "cmo-brand" | "cmo-new-client" | "cmo-comments";
+
+/** The brand Cuso's chat and replies cases run for, and the comments it answers. */
+export const CMO_CHAT_BRAND = "cal.com";
 
 export const CMO_EVAL_COMMENTS = [
   {

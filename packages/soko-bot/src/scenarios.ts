@@ -1012,7 +1012,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     intent:
       "A post Cuso drafts follows the Brand Brain's voice and avoids generic AI marketing copy.",
     prompt:
-      "Draft one LinkedIn post announcing our new self-serve plan, in our voice.",
+      "Draft one LinkedIn post about our Teams plan and its 14-day trial, in our voice.",
     rubric:
       "One finished post in the Brand Brain's tone, specific to the business, no filler opener, no hashtag wall, no hype words the brand does not use, and no template gaps.",
     expect: {
@@ -1030,7 +1030,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "One finished post in the brand's voice that makes the point without inventing figures: no percentage, multiple, time saved or customer count that the Brand Brain does not give. If the Brand Brain has such a figure it may use it. Asking the founder for a real number is also good. Filler and template gaps fail.",
     expect: {
-      routes: ["MANAGE_WORK", "DIRECT_RESPONSE"],
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "CLARIFY"],
       answerAvoids: `${CMO_PLACEHOLDER_PATTERN}|\\b\\d+(?:[.,]\\d+)?\\s?(?:%|percent|x\\b|×)|\\b\\d{2,}\\s+(?:customers|teams|companies)`,
     },
   },

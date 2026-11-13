@@ -28,13 +28,15 @@ import type {
   CaseStart,
 } from "./eval-case-runner";
 import {
-  CMO_COMMENT_BRAND,
+  CMO_CHAT_BRAND,
   CMO_EVAL_BRANDS,
   CMO_EVAL_COMMENTS,
+  type CmoChatSetup,
   type CmoEvalCase,
 } from "./eval-cmo-cases";
 import type { EvalLaneRecord } from "./eval-lanes.service";
 import brandBrains from "./fixtures/cmo-brand-brains.json";
+import monthPlans from "./fixtures/cmo-month-plans.json";
 
 /** Research reads a whole site; a plan is one long turn. */
 const CMO_TURN_TIMEOUT_MS = 45 * 60_000;
@@ -157,18 +159,44 @@ async function pointCusoAt(
 }
 
 /**
- * A published Instagram post with the eval comments under it, on the lane's
- * Cuso Project pointed at the comment brand. The post has no external id,
- * so collecting comments reads these and asks no network. Returns each
+ * The lane's Cuso Project as the chat brand, with its Brand Brain and its
+ * month as a draft; or, for a new client, a site that does not load and
+ * nothing learned.
+ */
+async function prepareCmoChat(lane: EvalLaneRecord, known: boolean) {
+  if (!known) {
+    await pointCusoAt(lane, { url: "https://acme-unknown.example" }, null);
+    return;
+  }
+  const brand = CMO_EVAL_BRANDS.find((b) => b.name === CMO_CHAT_BRAND);
+  if (!brand) throw new Error(`No CMO eval brand ${CMO_CHAT_BRAND}`);
+  const brain = (brandBrains as Record<string, unknown>)[CMO_CHAT_BRAND];
+  await pointCusoAt(lane, brand, brain ?? null);
+  const frozen = parseMarketingPlan(
+    (monthPlans as Record<string, unknown>)[CMO_CHAT_BRAND],
+  ) as MarketingStrategyPlan | null;
+  if (!frozen) return;
+  await prisma.marketingStrategy.create({
+    data: {
+      projectId: lane.cusoProjectId,
+      plan: monthPlanFromTomorrow(frozen, new Date()) as object,
+      authorSokoBotId: lane.cusoBotId,
+    },
+  });
+}
+
+/**
+ * Sets the lane up for a Cuso chat case. For the replies case: a published
+ * Instagram post with the eval comments under it. The post has no external
+ * id, so collecting comments reads these and asks no network. Returns each
  * comment's id by its key.
  */
-export async function prepareCmoComments(
+export async function prepareCmoChatCase(
   lane: EvalLaneRecord,
-): Promise<Record<string, string>> {
-  const brand = CMO_EVAL_BRANDS.find((b) => b.name === CMO_COMMENT_BRAND);
-  if (!brand) throw new Error(`No CMO eval brand ${CMO_COMMENT_BRAND}`);
-  const brain = (brandBrains as Record<string, unknown>)[CMO_COMMENT_BRAND];
-  await pointCusoAt(lane, brand, brain ?? null);
+  setup: CmoChatSetup,
+): Promise<{ comments?: Record<string, string> }> {
+  await prepareCmoChat(lane, setup !== "cmo-new-client");
+  if (setup !== "cmo-comments") return {};
   await prisma.socialComment.deleteMany({
     where: { projectId: lane.cusoProjectId },
   });
@@ -201,7 +229,7 @@ export async function prepareCmoComments(
     });
     ids[comment.key] = created.id;
   }
-  return ids;
+  return { comments: ids };
 }
 
 /**
