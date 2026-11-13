@@ -5,6 +5,7 @@ import { useLayoutEffect, useState } from "react";
 
 import { RoomMessageListSkeleton } from "@/app/chat/components/room-message-list-skeleton";
 import { RoomShellLayout } from "@/app/chat/components/room-shell-layout";
+import { RoomTypingLine } from "@/app/chat/components/room-typing-line";
 import { getFormatToolbarOpenPreference } from "@/app/chat/utils/format-toolbar-preference-storage";
 import { ComposerFormatToolbar } from "@/components/chat/composer-format-toolbar";
 import {
@@ -54,6 +55,7 @@ export function RoomOpenLoadingView(): React.ReactElement {
             withOuterPadding={false}
             withSafeAreaPadding
             className="px-3 md:px-5"
+            typingLine={<RoomTypingLine typistIds={[]} />}
             aboveEditor={
               formatToolbarOpen ? (
                 <ComposerFormatToolbar

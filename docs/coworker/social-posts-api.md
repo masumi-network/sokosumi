@@ -82,7 +82,7 @@ Each provider publishes through its own Composio tool sequence; the post's provi
 
 | Provider  | Text                                           | Media                               | Notes                                                                                                 |
 | --------- | ---------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| X         | ≤280                                           | 4 images / 1 GIF / 1 video          | Publishing already works.                                                                             |
+| X         | ≤280                                           | 20 images / 1 GIF / 1 video         | Publishing already works.                                                                             |
 | LinkedIn  | ≤3000, required                                | ≤4 images or 1 video                | Person author only.                                                                                   |
 | Facebook  | ≤63206                                         | ≤4 images or 1 video                | Posts to the connection's single managed Page.                                                        |
 | Instagram | ≤2200                                          | 1 image (JPEG) or 1 video, required | Business/Creator account linked to a Page.                                                            |

@@ -2988,7 +2988,11 @@
             "videoRequired": "TikTok braucht ein Video."
           },
           "x": {
-            "more": "Mehr anzeigen"
+            "more": "Mehr anzeigen",
+            "images": "{count, plural, one {# Bild} other {# Bilder}}",
+            "image": "Bild {index} von {count}",
+            "previousImage": "Vorheriges Bild",
+            "nextImage": "Nächstes Bild"
           }
         },
         "statistics": {
@@ -9090,6 +9094,8 @@
       "Message": {
         "delete": "Löschen",
         "deleteConfirm": "Diese Nachricht löschen? Andere sehen, dass sie gelöscht wurde.",
+        "deleteNoteTitle": "Diese Notiz löschen?",
+        "deleteNoteConfirm": "Sie wird endgültig entfernt. Nur du konntest sie sehen.",
         "deleted": "Diese Nachricht wurde gelöscht",
         "deleteError": "Die Nachricht konnte nicht gelöscht werden. Versuche es erneut.",
         "restored": "Die Nachricht ist wieder in der Unterhaltung.",
@@ -9476,7 +9482,7 @@
         "Decisions": {
           "open": "Entscheidungen",
           "title": "Entscheidungen",
-          "empty": "Noch keine Entscheidungen. Nachrichten wie „Entschieden: Wir starten Montag“ landen hier.",
+          "empty": "Hier gibt es noch keine Entscheidungen. Wir finden sie in Kanälen und in Chats mit anderen Personen, die das erlauben. Notizen an dich selbst werden nie markiert.",
           "loadOlder": "Ältere laden",
           "note": "Wir finden sie für dich. Ist eine falsch, öffne ihre Nachricht und klicke auf das × am Tag.",
           "description": "Entscheidungen aus deinen Chats, die neuesten zuerst, auch bereits gelesene.",
