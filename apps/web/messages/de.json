@@ -11784,12 +11784,6 @@
         "description": "Der Agent startet mit diesen Einstellungen. Vorhandene Ergebnisse bleiben währenddessen verfügbar.",
         "options": "Optionen ändern",
         "summary": {
-          "check": "Prüfung",
-          "pages": "Seiten",
-          "market": "Markt",
-          "keywords": "{count, plural, one {Keyword} other {Keywords}}",
-          "noKeyword": "Keines",
-          "agentKeywords": "Findet der Agent",
           "keywordCount": "{count} Keywords"
         },
         "kind": "Prüfungstyp",
@@ -11807,7 +11801,7 @@
         "desktop": "Desktop",
         "htmlOnly": "Liest den HTML-Code der ausgewählten Seiten. Diese Prüfung verwendet keine kostenpflichtigen Suchdaten und keine Modellaufrufe.",
         "maxCredits": "Bis zu {credits, plural, =1 {# Credit} other {# Credits}}",
-        "maxCreditsTotal": "Bis zu {credits, plural, =1 {# Credit} other {# Credits}} für {runs, plural, =1 {# Durchlauf} other {# Durchläufe}}",
+        "maxCreditsPerRun": "Bis zu {credits, plural, =1 {# Credit} other {# Credits}} pro Durchlauf",
         "htmlService": "Dieser Prüfdienst unterstützt HTML-Seitenprüfungen. Suchdaten und vollständige Audits sind hier nicht verfügbar.",
         "submit": "Prüfung starten",
         "queued": "Prüfung angefragt",
@@ -11829,11 +11823,7 @@
           "links_refresh": "Backlink-Übersicht"
         },
         "budgetTooLow": "Wähle weniger Keywords und Wettbewerberseiten.",
-        "scopeTooLarge": "Wähle für diese Prüfung eine einzelne Seite oder eine Gruppe mit bis zu {count} Seiten.",
-        "price": "Preis",
-        "pricePerRun": "Preis pro Durchlauf",
-        "failedCheckFree": "Eine fehlgeschlagene Prüfung kostet nichts.",
-        "failedRunFree": "Ein fehlgeschlagener Durchlauf kostet nichts."
+        "scopeTooLarge": "Wähle für diese Prüfung eine einzelne Seite oder eine Gruppe mit bis zu {count} Seiten."
       },
       "statistics": {
         "title": "Statistiken synchronisieren",

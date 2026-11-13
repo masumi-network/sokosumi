@@ -11784,12 +11784,6 @@
         "description": "The agent starts with these settings. Existing results remain available while it runs.",
         "options": "Change options",
         "summary": {
-          "check": "Check",
-          "pages": "Pages",
-          "market": "Market",
-          "keywords": "{count, plural, one {Keyword} other {Keywords}}",
-          "noKeyword": "None",
-          "agentKeywords": "Found by the agent",
           "keywordCount": "{count} keywords"
         },
         "kind": "Check type",
@@ -11807,7 +11801,7 @@
         "desktop": "Desktop",
         "htmlOnly": "Reads the selected pages’ HTML. This check uses no paid search data or model calls.",
         "maxCredits": "Up to {credits, plural, =1 {# credit} other {# credits}}",
-        "maxCreditsTotal": "Up to {credits, plural, =1 {# credit} other {# credits}} for {runs, plural, =1 {# run} other {# runs}}",
+        "maxCreditsPerRun": "Up to {credits, plural, =1 {# credit} other {# credits}} per run",
         "htmlService": "This check service supports HTML page checks. Search data and full audits are unavailable here.",
         "submit": "Start check",
         "queued": "Check requested",
@@ -11829,11 +11823,7 @@
           "links_refresh": "Backlink overview"
         },
         "budgetTooLow": "Select fewer keywords and competitor pages.",
-        "scopeTooLarge": "Choose a single page or a group with up to {count} pages for this check.",
-        "price": "Price",
-        "pricePerRun": "Price per run",
-        "failedCheckFree": "A failed check costs nothing.",
-        "failedRunFree": "A failed run costs nothing."
+        "scopeTooLarge": "Choose a single page or a group with up to {count} pages for this check."
       },
       "statistics": {
         "title": "Sync statistics",

@@ -138,11 +138,11 @@ describe("SEO check defaults", () => {
       dialog = showDialog(workspace());
     const summary = within(dialog).getByTestId("seo-analysis-summary");
     expect(within(summary).getByText("Full audit")).toBeVisible();
-    // The market of the saved keyword, by name, and the one keyword a full audit takes.
-    expect(
-      within(summary).getByText("Germany · German · Mobile and Desktop"),
-    ).toBeVisible();
-    expect(within(summary).getByText("Akku Zustand")).toBeVisible();
+    // One line: the market of the saved keyword, by name, and the one keyword a full audit takes. Both
+    // devices are the default and go unsaid.
+    expect(summary).toHaveTextContent(
+      "Full audit · All pages · Germany · German · Akku Zustand",
+    );
     // A one-page full audit shows the 50-credit ceiling Core checks before it starts.
     expect(within(dialog).getByText("Up to 50 credits")).toBeVisible();
     // No field asks for a choice until the reader wants one.
@@ -172,9 +172,8 @@ describe("SEO check defaults", () => {
       dialog = showDialog(data);
     const summary = within(dialog).getByTestId("seo-analysis-summary");
     // No saved keyword and a .com page: the market falls back to US English.
-    expect(
-      within(summary).getByText("United States · English · Mobile and Desktop"),
-    ).toBeVisible();
+    expect(summary).toHaveTextContent("United States · English");
+    expect(summary).not.toHaveTextContent("Mobile");
     const options = within(dialog).getByRole("button", {
       name: "Change options",
     });
@@ -187,9 +186,8 @@ describe("SEO check defaults", () => {
     await user.click(options);
     expect(options).toHaveAttribute("aria-expanded", "false");
     expect(within(summary).getByText("Keyword positions")).toBeVisible();
-    expect(
-      within(summary).getByText("United States · English · Desktop"),
-    ).toBeVisible();
+    // One device is a choice, so the line says it.
+    expect(summary).toHaveTextContent("United States · English · Desktop");
     // No limit shows, and no keyword means no paid request yet, so no price in credits.
     expect(within(dialog).queryByText(/data requests/)).toBeNull();
     expect(within(dialog).queryByText(/credits/)).toBeNull();
@@ -243,8 +241,9 @@ describe("SEO monitor credits", () => {
       within(dialog).getByRole("combobox", { name: "Check type" }),
     );
     await user.click(screen.getByRole("option", { name: "Keyword positions" }));
-    expect(within(dialog).getByText("Price per run")).toBeVisible();
-    expect(within(dialog).getByText("Up to 15 credits")).toBeVisible();
+    // The price once, per run, by the button: no label and no fine print.
+    expect(within(dialog).getByText("Up to 15 credits per run")).toBeVisible();
+    expect(within(dialog).queryByText(/costs nothing/)).toBeNull();
   });
 });
 

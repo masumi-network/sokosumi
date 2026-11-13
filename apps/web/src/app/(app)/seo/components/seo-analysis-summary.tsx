@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   formLines,
   type SeoAnalysisKind,
@@ -17,7 +17,11 @@ export type SeoAnalysisLimits =
   | { kind: "requests"; count: number }
   | { kind: "free" };
 
-/** What the check will do with the chosen values, in one block. The fields stay under "Change options". */
+/**
+ * What the check will do, in one line: "Full audit · All 2 pages · United States · English". A value the
+ * reader did not set is not said: both devices and no typed keyword are the defaults. The fields stay under
+ * "Change options".
+ */
 export function SeoAnalysisSummary({
   kind,
   pages,
@@ -41,53 +45,30 @@ export function SeoAnalysisSummary({
   keywords: string | null;
 }) {
   const t = useTranslations("App.Seo");
-  const format = useFormatter();
   const locale = useLocale();
-  const words = keywords === null ? null : formLines(keywords);
-  const rows: [label: string, value: string][] = [
-    [t("analysis.summary.check"), t(`analysis.${kind}`)],
-    [
-      t("analysis.summary.pages"),
-      allPages
-        ? t("allPagesCount", { count: pages })
-        : [t("pages.count", { count: pages }), scopeName]
-            .filter(Boolean)
-            .join(" · "),
-    ],
-    [
-      t("analysis.summary.market"),
-      [
-        seoMarketName(locale, countryCode, languageCode),
-        format.list(devices.map((device) => t(`analysis.${device}`))),
-      ]
-        .filter(Boolean)
-        .join(" · "),
-    ],
-  ];
-  if (words)
-    rows.push([
-      t("analysis.summary.keywords", { count: words.length }),
-      words.length > SHOWN_KEYWORDS
-        ? t("analysis.summary.keywordCount", { count: words.length })
-        : words.join(", ") ||
-          // A full audit without a target keyword finds its keywords itself.
-          t(
-            kind === "audit_full"
-              ? "analysis.summary.agentKeywords"
-              : "analysis.summary.noKeyword",
-          ),
-    ]);
+  const words = keywords === null ? [] : formLines(keywords);
+  const parts = [
+    t(`analysis.${kind}`),
+    allPages
+      ? t("allPagesCount", { count: pages })
+      : [t("pages.count", { count: pages }), scopeName]
+          .filter(Boolean)
+          .join(" · "),
+    seoMarketName(locale, countryCode, languageCode),
+    devices.length === 1 ? t(`analysis.${devices[0]}`) : null,
+    words.length > SHOWN_KEYWORDS
+      ? t("analysis.summary.keywordCount", { count: words.length })
+      : words.join(", ") || null,
+  ].filter((part): part is string => Boolean(part));
   return (
-    <dl
-      className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-sm"
-      data-testid="seo-analysis-summary"
-    >
-      {rows.map(([label, value]) => (
-        <div className="contents" key={label}>
-          <dt className="text-muted-foreground">{label}</dt>
-          <dd className="break-words">{value}</dd>
-        </div>
+    <p className="text-sm break-words" data-testid="seo-analysis-summary">
+      {parts.map((part, index) => (
+        // Static per render; two parts can share a text ("Desktop" as a keyword and a device).
+        <span key={index}>
+          {index ? <span className="text-muted-foreground"> · </span> : null}
+          <span>{part}</span>
+        </span>
       ))}
-    </dl>
+    </p>
   );
 }

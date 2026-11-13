@@ -64,8 +64,6 @@ export function SeoAnalysisDialog({
         ? { kind: "requests", count: form.providerCallsFor(market.keywords) }
         : { kind: "free" };
   const maxCredits = seoAnalysisMaxCredits(limits);
-  const runs =
-    form.rule?.endsMode === "AFTER" ? form.rule.targetRunCount : null;
   return (
     <Dialog
       open
@@ -85,7 +83,8 @@ export function SeoAnalysisDialog({
           <DialogTitle>
             {t(monitor ? "monitor.create" : "analysis.title")}
           </DialogTitle>
-          <DialogDescription>
+          {/* For screen readers: on screen the title and the one summary line say it. */}
+          <DialogDescription className="sr-only">
             {t(monitor ? "monitor.description" : "analysis.description")}
           </DialogDescription>
         </DialogHeader>
@@ -99,7 +98,7 @@ export function SeoAnalysisDialog({
           }}
         >
           {/* What runs, in one card; its fields open from the card only when the reader wants to change one. */}
-          <div className="bg-muted space-y-2 rounded-lg p-4">
+          <div className="bg-muted space-y-1 rounded-lg px-4 pt-3 pb-1">
             <SeoAnalysisSummary
               kind={form.kind}
               pages={form.workspace.scope.pageIds.length}
@@ -297,44 +296,18 @@ export function SeoAnalysisDialog({
               </p>
             </div>
           ) : null}
-          {/* The one figure the reader decides on: the price in credits, the same ceiling Core checks. */}
-          {maxCredits ? (
-            <dl className="flex items-baseline justify-between gap-4 border-t pt-4">
-              <dt className="text-muted-foreground text-sm">
-                {t(monitor ? "analysis.pricePerRun" : "analysis.price")}
-              </dt>
-              <dd className="text-right" aria-live="polite">
-                <span className="block font-semibold">
-                  {t("analysis.maxCredits", { credits: maxCredits })}
-                </span>
-                {/* A schedule that ends after a number of runs has a total: the reader need not multiply. */}
-                {monitor && runs ? (
-                  <span className="text-muted-foreground block text-xs">
-                    {t("analysis.maxCreditsTotal", {
-                      credits: maxCredits * runs,
-                      runs,
-                    })}
-                  </span>
-                ) : null}
-                <span className="text-muted-foreground block text-xs">
-                  {t(
-                    monitor
-                      ? "analysis.failedRunFree"
-                      : "analysis.failedCheckFree",
-                  )}
-                </span>
-              </dd>
-            </dl>
-          ) : null}
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={model.pending}
-              onClick={() => model.setDialog(null)}
-            >
-              {t(noService ? "analysis.returnToAudit" : "cancel")}
-            </Button>
+          <DialogFooter className="sm:items-center">
+            {/* The close button and Escape leave the form; a Cancel beside the submit said it twice. */}
+            {noService ? (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={model.pending}
+                onClick={() => model.setDialog(null)}
+              >
+                {t("analysis.returnToAudit")}
+              </Button>
+            ) : null}
             {/* The one commit of the dialog wears the one brand fill, as every Sokosumi form's submit. */}
             <Button
               type="submit"
@@ -350,6 +323,22 @@ export function SeoAnalysisDialog({
               {monitor ? <CalendarClock /> : <Play />}
               {t(monitor ? "monitor.create" : "analysis.submit")}
             </Button>
+            {/* The price once, by the one button it is for: no label, no total, no fine print. Last in the
+                markup so the reversed phone column puts it over the button; first in the row from sm. Always
+                mounted, so a price that appears is spoken. */}
+            <p
+              className="text-muted-foreground text-sm empty:hidden max-sm:text-center sm:order-first sm:mr-auto"
+              aria-live="polite"
+            >
+              {maxCredits
+                ? t(
+                    monitor
+                      ? "analysis.maxCreditsPerRun"
+                      : "analysis.maxCredits",
+                    { credits: maxCredits },
+                  )
+                : null}
+            </p>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -3468,8 +3468,6 @@ describe("SEO workspace integration", () => {
     // The schedule repeats the full audit, the check of the run button.
     const summary = within(within(dialog).getByTestId("seo-analysis-summary"));
     expect(summary.getByText("Full audit")).toBeVisible();
-    // Without a target keyword the full audit finds its keywords itself.
-    expect(summary.getByText("Found by the agent")).toBeVisible();
     // No page picked reads as the words of the page picker, not "1 page · Pages".
     expect(summary.getByText("All pages")).toBeVisible();
     // The schedule opens weekly on Mondays at 09:00.
@@ -3516,10 +3514,6 @@ describe("SEO workspace integration", () => {
       within(dialog).getByLabelText("Ends", { selector: "input" }),
       { target: { value: "2" } },
     );
-    // A schedule that ends after 2 runs says its total, so the reader need not multiply.
-    expect(
-      within(dialog).getByText(/^Up to [\d,]+ credits for 2 runs$/),
-    ).toBeVisible();
     await user.click(
       within(dialog).getByRole("button", { name: "Schedule checks" }),
     );

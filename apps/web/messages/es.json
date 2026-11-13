@@ -11784,12 +11784,6 @@
         "description": "El agente empieza con estos ajustes. Los resultados existentes siguen disponibles mientras se ejecuta.",
         "options": "Cambiar opciones",
         "summary": {
-          "check": "Comprobación",
-          "pages": "Páginas",
-          "market": "Mercado",
-          "keywords": "{count, plural, one {Palabra clave} other {Palabras clave}}",
-          "noKeyword": "Ninguna",
-          "agentKeywords": "Las elige el agente",
           "keywordCount": "{count} palabras clave"
         },
         "kind": "Tipo de comprobación",
@@ -11807,7 +11801,7 @@
         "desktop": "Ordenador",
         "htmlOnly": "Lee el HTML de las páginas seleccionadas. Esta comprobación no usa datos de búsqueda de pago ni llamadas a modelos.",
         "maxCredits": "Hasta {credits, plural, =1 {# crédito} other {# créditos}}",
-        "maxCreditsTotal": "Hasta {credits, plural, =1 {# crédito} other {# créditos}} por {runs, plural, =1 {# ejecución} other {# ejecuciones}}",
+        "maxCreditsPerRun": "Hasta {credits, plural, =1 {# crédito} other {# créditos}} por ejecución",
         "htmlService": "Este servicio admite comprobaciones de páginas HTML. Los datos de búsqueda y las auditorías completas no están disponibles aquí.",
         "submit": "Iniciar comprobación",
         "queued": "Comprobación solicitada",
@@ -11829,11 +11823,7 @@
           "links_refresh": "Resumen de enlaces entrantes"
         },
         "budgetTooLow": "Selecciona menos palabras clave y páginas competidoras.",
-        "scopeTooLarge": "Para esta revisión, elige una página o un grupo de hasta {count} páginas.",
-        "price": "Precio",
-        "pricePerRun": "Precio por ejecución",
-        "failedCheckFree": "Una revisión fallida no cuesta nada.",
-        "failedRunFree": "Una ejecución fallida no cuesta nada."
+        "scopeTooLarge": "Para esta revisión, elige una página o un grupo de hasta {count} páginas."
       },
       "statistics": {
         "title": "Sincronizar estadísticas",
