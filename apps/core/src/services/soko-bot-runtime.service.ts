@@ -5759,6 +5759,8 @@ export class SokoBotRuntimeService {
       /** The version saved is the approved one (pieces of the running plan). */
       approved: boolean;
       projectId: string;
+      /** A rhythm or production turn: it built on the approved version. */
+      executing: boolean;
       strategy: MarketingStrategyPlan | null;
       planSent: boolean;
     },
@@ -5772,18 +5774,22 @@ export class SokoBotRuntimeService {
     // a few more, so a late save still hears about a repeated title. Past
     // that the review stops, so a plan that cannot be fixed still ends.
     if (saves > 2 * CMO_PLAN_REVIEWS_PER_TURN) return null;
-    // The plan as it was before this turn touched it.
-    const before = await prisma.marketingStrategy.findFirst({
-      where: {
-        projectId: plan.projectId,
-        OR: [
-          { authorTurnId: null },
-          { authorTurnId: { not: authorized.turn.id } },
-        ],
-      },
-      orderBy: { createdAt: "desc" },
-      select: { plan: true },
-    });
+    // The plan this turn built on, as it was before the turn touched it.
+    const before =
+      (plan.executing
+        ? await approvedMarketingStrategy(plan.projectId)
+        : null) ??
+      (await prisma.marketingStrategy.findFirst({
+        where: {
+          projectId: plan.projectId,
+          OR: [
+            { authorTurnId: null },
+            { authorTurnId: { not: authorized.turn.id } },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        select: { plan: true },
+      }));
     const problems = cmoPlanProblemsSince(
       strategy,
       parseMarketingPlan(before?.plan),
@@ -5948,6 +5954,7 @@ export class SokoBotRuntimeService {
           const review = await this.reviewCmoPlan(authorized, input, {
             approved,
             projectId: saved.projectId,
+            executing,
             strategy: stored,
             planSent: sent.summary !== undefined,
           });

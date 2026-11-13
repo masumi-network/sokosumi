@@ -234,7 +234,7 @@ describe("cmoPlanProblemsSince", () => {
   });
 
   it("keeps quiet about what the owner's plan already had", () => {
-    const changed = { ...thin, calendar: thin.calendar.slice(0, 1) };
+    const changed = { ...thin, goals: ["More demos"] };
     expect(cmoPlanProblems(changed)).not.toEqual([]);
     expect(cmoPlanProblemsSince(changed, thin)).toEqual([]);
   });

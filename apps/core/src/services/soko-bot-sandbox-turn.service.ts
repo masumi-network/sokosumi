@@ -707,6 +707,28 @@ export async function failSandboxTurn(
   // A turn that was cancelled or expired meanwhile is settled elsewhere.
   await authorizeTurn(claims);
   const log = logFor(claims);
+  const recorded = new Set(
+    (
+      await prisma.sokoBotRuntimeEvent.findMany({
+        where: {
+          turnId: claims.turnId,
+          type: { in: ["turn.started", "turn.completed", "turn.failed"] },
+        },
+        select: { type: true },
+      })
+    ).map((event) => event.type),
+  );
+  // A runner that died after its answer reached Core changes nothing.
+  if (recorded.has("turn.completed") || recorded.has("turn.failed")) return;
+  // The drain skips everything before a turn's start, so a runner that died
+  // before starting has to be announced or its failure settles nothing.
+  if (!recorded.has("turn.started")) {
+    const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
+      where: { id: claims.turnId },
+      select: { userMessage: true },
+    });
+    await announceTurn(log, turn.userMessage).catch(() => undefined);
+  }
   await failTurn(log, error);
   await settleAndStop(log);
 }
