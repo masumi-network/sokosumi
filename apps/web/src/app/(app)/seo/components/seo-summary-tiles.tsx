@@ -6,6 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { HOLDER_ITEM_HOVER_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
+import { seoRunsDateCheck } from "./seo-runs-model";
 import { SEO_SEVERITY_MARK_CLASS, SeoDate, SeoSource } from "./seo-shared";
 import { seoSummary } from "./seo-summary-model";
 
@@ -135,11 +136,14 @@ function Tile({
  */
 export function SeoSummaryTiles({
   workspace,
+  filters,
   onOpenRankings,
   show,
 }: {
   workspace: ProjectSeoWorkspace;
   show: "health" | "rankings";
+  /** The time the page shows: where the runs row names the day of the tests, the tile does not. */
+  filters?: { from: string | null; to: string | null };
   /** Opens the Rankings tab; absent where the reader is on it. */
   onOpenRankings?: () => void;
 }) {
@@ -150,6 +154,11 @@ export function SeoSummaryTiles({
   const tests = show === "health" ? summary.tests : null;
   const keywords = show === "rankings" ? summary.keywords : null;
   const searches = show === "rankings" ? summary.searches : null;
+  const testsDated = !(
+    tests &&
+    filters &&
+    seoRunsDateCheck(workspace, filters, tests.observationId)
+  );
   if (!issues && !tests && !keywords && !searches) return null;
   return (
     <dl
@@ -286,20 +295,29 @@ export function SeoSummaryTiles({
               <span>{t("summary.testsAll")}</span>
             )}
             {/* The issues can come from older checks too; the tests are of this one. The date opens its results:
-                a page row of this check, under the tile, repeats no link to them. */}
-            <span>
-              {t("agent.lastCheckOn")}{" "}
-              {/* The date alone is the link: a link that broke into two underlined lines read as two links.
-                  It moves to the next line as one piece: a year alone on a line reads as a value. */}
-              <span className="whitespace-nowrap">
-                <SeoSource
-                  observationId={tests.observationId}
-                  workspace={workspace}
-                >
-                  <SeoDate day value={tests.observedAt} />
-                </SeoSource>
+                a page row of this check, under the tile, repeats no link to them. Where the runs row over the
+                tabs names the day, the link names the results alone. */}
+            {testsDated ? (
+              <span>
+                {t("agent.lastCheckOn")}{" "}
+                {/* The date alone is the link: a link that broke into two underlined lines read as two links.
+                    It moves to the next line as one piece: a year alone on a line reads as a value. */}
+                <span className="whitespace-nowrap">
+                  <SeoSource
+                    observationId={tests.observationId}
+                    workspace={workspace}
+                  >
+                    <SeoDate day value={tests.observedAt} />
+                  </SeoSource>
+                </span>
               </span>
-            </span>
+            ) : (
+              // "View results": the link says where it leads. A check without results to open shows nothing.
+              <SeoSource
+                observationId={tests.observationId}
+                workspace={workspace}
+              />
+            )}
           </span>
         </Tile>
       ) : null}

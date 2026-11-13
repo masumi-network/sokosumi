@@ -1228,6 +1228,60 @@ describe("SEO workspace integration", () => {
     ).toHaveAttribute("aria-disabled", "true");
   });
 
+  it("links the results of the tests without their day where the line of checks names it", async () => {
+    const workspace = seoTestWorkspace();
+    const check = {
+      ...seoTestObservation(workspace),
+      sourceTaskId: "task-tests",
+    };
+    workspace.observations = [check];
+    const at = new Date(check.observedAt);
+    const older = new Date(at.getTime() - 2 * 86_400_000);
+    workspace.runs = [
+      {
+        observationId: check.id,
+        kind: check.kind,
+        observedAt: at,
+        issues: 2,
+        seconds: 600,
+      },
+      {
+        observationId: crypto.randomUUID(),
+        kind: check.kind,
+        observedAt: older,
+        issues: 3,
+        seconds: 600,
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    const view = renderWorkspace(workspace, "?tab=health");
+    const tests = await screen.findByTestId("seo-summary-tests");
+    // The line over the tabs names the day of this check: the tile names its results alone, and opens them.
+    expect(within(tests).queryByText(/^Last check/)).toBeNull();
+    expect(
+      within(tests).getByRole("link", { name: "View results" }),
+    ).toHaveAttribute("href", `/tasks/${check.sourceTaskId}`);
+    view.unmount();
+    // A check without results to open: the tile names no link it cannot open.
+    workspace.observations = [{ ...check, sourceTaskId: null }];
+    const plain = renderWorkspace(workspace, "?tab=health");
+    const untasked = await screen.findByTestId("seo-summary-tests");
+    expect(within(untasked).queryByText(/View results|Last check/)).toBeNull();
+    plain.unmount();
+    workspace.observations = [check];
+    // An older day in view: the tile still shows another check, so it dates it.
+    renderWorkspace(
+      workspace,
+      `?tab=health&to=${older.toISOString().slice(0, 10)}`,
+    );
+    expect(await screen.findByTestId("seo-summary-tests")).toHaveTextContent(
+      /Last check/,
+    );
+  });
+
   it.each([
     // A start alone runs to today.
     ["?tab=traffic&from=2026-11-05", /Showing Nov 5\b/],

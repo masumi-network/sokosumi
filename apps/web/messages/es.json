@@ -11533,6 +11533,7 @@
         "addButton": "Añadir una palabra clave",
         "keywordAndPage": "Palabra clave y su página",
         "readOn": "Última comprobación de posiciones",
+        "checks": "{count, plural, one {Comprobación de posiciones} other {Comprobaciones de posiciones}}",
         "nextFixes": "{count, plural, one {Siguiente paso: # corrección} other {Siguiente paso: # correcciones}}",
         "searchKeywords": "Filtrar palabras clave",
         "map": {

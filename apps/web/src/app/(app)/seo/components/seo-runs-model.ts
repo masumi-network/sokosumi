@@ -107,10 +107,44 @@ export function seoRunsDateCheck(
   filters: { from: string | null; to: string | null },
   checkId: string | null,
 ) {
-  const { days } = seoRunDays(workspace, filters);
+  const { days, picked } = seoRunDays(workspace, filters);
+  const inView = days.find((entry) => entry.selected);
+  // An end the row did not set (a day without a check, or the newest day) is a range up to it, as on the row.
   return (
     checkId !== null &&
     days.length > 1 &&
-    days.find((entry) => entry.selected)?.check === checkId
+    inView?.check === checkId &&
+    (filters.to === null || picked)
   );
+}
+
+/**
+ * The position checks span every day of the runs row up to the day in view: the row names their days, so a line
+ * that names them says them twice. Gives the number of days it names for the words (1 or 2: one day, or more),
+ * 0 where the line keeps its dates: a span that starts later or ends on another day would read on the row as the
+ * checks of every day it shows, or of the day in view. A row of fewer than two days and a range (also an end the
+ * row did not set) name no one day in view. The days are UTC days, as on the row.
+ */
+export function seoRunsNameSpan(
+  workspace: Pick<ProjectSeoWorkspace, "runs">,
+  filters: { from: string | null; to: string | null },
+  /** The oldest and the newest position check; a time that is not known names no day. */
+  oldest: string | Date | null | undefined,
+  newest: string | Date | null | undefined,
+) {
+  const { days, picked } = seoRunDays(workspace, filters);
+  const inView = days.find((entry) => entry.selected);
+  const first = days.at(-1);
+  const day = (time: string | Date | null | undefined) =>
+    time == null ? null : new Date(time).toISOString().slice(0, 10);
+  if (
+    days.length < 2 ||
+    !inView ||
+    !first ||
+    (filters.to !== null && !picked) ||
+    day(newest) !== inView.day ||
+    day(oldest) !== first.day
+  )
+    return 0;
+  return inView.day === first.day ? 1 : 2;
 }

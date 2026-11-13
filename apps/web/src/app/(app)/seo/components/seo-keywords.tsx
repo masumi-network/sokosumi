@@ -33,6 +33,7 @@ import {
 import { seoOpenFixes, seoOverviewModel } from "./seo-overview-model";
 import { SeoRankPill } from "./seo-rank-pill";
 import { SeoRowMenu } from "./seo-row-menu";
+import { seoRunsNameSpan } from "./seo-runs-model";
 import {
   keywordSuggestions,
   keywordTrend,
@@ -157,6 +158,16 @@ export function SeoKeywords({
   const taskOf = (observationId: string | null) =>
     model.data.observations.find((item) => item.id === observationId)
       ?.sourceTaskId ?? null;
+  // Where the runs row over the tabs names the days of the checks, the line names the results alone. Without
+  // results to open, the words would be no link: the line keeps its dates.
+  const namedDays = taskOf(summary.newest?.observationId ?? null)
+    ? seoRunsNameSpan(
+        model.data,
+        model.filters,
+        summary.oldest?.observedAt ?? summary.newest?.observedAt,
+        summary.newest?.observedAt,
+      )
+    : 0;
   const hidden = [shown.volume ? null : t("keywords.volume")].filter(
     (label): label is string => label !== null,
   );
@@ -251,7 +262,10 @@ export function SeoKeywords({
                       workspace={model.data}
                       observationId={summary.newest.observationId}
                     >
-                      {checkDays ? (
+                      {namedDays ? (
+                        // The runs row over the tabs names these days.
+                        t("keywords.checks", { count: namedDays })
+                      ) : checkDays ? (
                         t("competitors.checkedBetween", checkDays)
                       ) : (
                         <>

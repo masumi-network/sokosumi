@@ -23,6 +23,7 @@ import { seoDaySpan } from "./seo-day-span";
 import { seoStrategyRows } from "./seo-places-model";
 import { SeoRankPill } from "./seo-rank-pill";
 import { SeoRowMenu } from "./seo-row-menu";
+import { seoRunsNameSpan } from "./seo-runs-model";
 import {
   SEO_COMPACT_ROWS_CLASS,
   SeoAddButton,
@@ -72,6 +73,18 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
     value ? format.dateTime(new Date(value), { dateStyle: "medium" }) : "";
   const oldest = dated.at(-1)?.observedAt ?? null;
   const firstDay = day(oldest);
+  // Where the runs row over the tabs names these days, the line names the results alone. Without results to
+  // open, the words would be no link: the line keeps its dates.
+  const namedDays = model.data.observations.find(
+    (item) => item.id === newest?.observationId,
+  )?.sourceTaskId
+    ? seoRunsNameSpan(
+        model.data,
+        model.filters,
+        oldest ?? newest?.observedAt,
+        newest?.observedAt,
+      )
+    : 0;
   // A column no row has measured only repeats "Not available"; name it once instead.
   const shown = {
     rank: all.some((row) => row.rank !== null),
@@ -127,7 +140,10 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
             workspace={model.data}
             observationId={newest.observationId}
           >
-            {firstDay === day(newest.observedAt) ? (
+            {namedDays ? (
+              // The runs row over the tabs names these days.
+              t("keywords.checks", { count: namedDays })
+            ) : firstDay === day(newest.observedAt) ? (
               <>
                 {t("keywords.readOn")} <SeoDate day value={newest.observedAt} />
               </>

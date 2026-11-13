@@ -593,6 +593,57 @@ describe("SEO competitor baselines", () => {
     expect(screen.getByText(/^Last position check/)).toHaveTextContent(
       "Last position check Feb 3, 2026",
     );
+    cleanup();
+    // The runs row over the tabs names both days: the line names the results alone, and still opens them.
+    workspace.competitors[0].observedAt = new Date("2026-01-03T12:00:00Z");
+    const run = (observationId: string, observedAt: string) => ({
+      observationId,
+      kind: "audit_full" as const,
+      observedAt: new Date(observedAt),
+      issues: 0,
+      seconds: 60,
+    });
+    workspace.runs = [
+      run("second-check", "2026-02-03T12:00:00Z"),
+      run("first-check", "2026-01-03T12:00:00Z"),
+    ];
+    renderWorkspace(workspace);
+    expect(
+      screen.getByRole("link", { name: /^Position checks ?, View results$/ }),
+    ).toHaveAttribute("href", "/tasks/second-check-task");
+    cleanup();
+    // Without results to open the words would be no link: the line keeps its dates.
+    const tasked = workspace.observations;
+    workspace.observations = tasked.map((item) => ({
+      ...item,
+      sourceTaskId: null,
+    }));
+    renderWorkspace(workspace);
+    expect(
+      screen.getByText("Position checks Jan 3 to Feb 3, 2026"),
+    ).toBeVisible();
+    cleanup();
+    workspace.observations = tasked;
+    // A newer check of the pages is in view: the positions are older than it, so the line keeps their days.
+    workspace.runs = [
+      run("page-check", "2026-02-10T12:00:00Z"),
+      run("second-check", "2026-02-03T12:00:00Z"),
+      run("first-check", "2026-01-03T12:00:00Z"),
+    ];
+    renderWorkspace(workspace);
+    expect(
+      screen.getByText("Position checks Jan 3 to Feb 3, 2026"),
+    ).toBeVisible();
+    cleanup();
+    // A day the row does not show keeps the dates.
+    workspace.runs = [
+      run("second-check", "2026-02-03T12:00:00Z"),
+      run("other-check", "2026-01-20T12:00:00Z"),
+    ];
+    renderWorkspace(workspace);
+    expect(
+      screen.getByText("Position checks Jan 3 to Feb 3, 2026"),
+    ).toBeVisible();
   });
 
   it("keeps the results link of your page when another check found the competitors", () => {

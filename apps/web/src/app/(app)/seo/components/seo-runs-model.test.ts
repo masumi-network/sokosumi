@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { seoRunChecks, seoRunDays, seoRunsDateCheck } from "./seo-runs-model";
+import {
+  seoRunChecks,
+  seoRunDays,
+  seoRunsDateCheck,
+  seoRunsNameSpan,
+} from "./seo-runs-model";
 
 const run = (observedAt: string, issues: number, kind = "audit_full") => ({
   observationId: observedAt,
@@ -173,6 +178,83 @@ describe("SEO runs of a site", () => {
         "2026-11-12T13:00:00Z",
       ),
     ).toBe(false);
+    // An end on a day without a check is a range up to it: the row names no check, so the date stays.
+    expect(
+      seoRunsDateCheck(
+        {
+          runs: [
+            run("2026-11-12T13:00:00Z", 5),
+            run("2026-11-10T13:00:00Z", 6),
+          ],
+        },
+        { from: null, to: "2026-11-11" },
+        "2026-11-10T13:00:00Z",
+      ),
+    ).toBe(false);
+  });
+
+  it("names the days of the position checks only where they span the row up to the day in view", () => {
+    const runs = [
+      run("2026-11-12T13:00:00Z", 5),
+      run("2026-11-11T13:00:00Z", 5),
+      run("2026-11-10T13:00:00Z", 6),
+    ];
+    const name = (
+      oldest: string | null,
+      newest: string | null,
+      filters: { from: string | null; to: string | null } = none,
+    ) => seoRunsNameSpan({ runs }, filters, oldest, newest);
+    // Every day of the row up to the newest: the row says them.
+    expect(name("2026-11-10T20:00:00Z", "2026-11-12T08:00:00Z")).toBe(2);
+    // A span that starts later, or ends before the day in view, keeps its dates.
+    expect(name("2026-11-11T20:00:00Z", "2026-11-12T08:00:00Z")).toBe(0);
+    expect(name("2026-11-10T20:00:00Z", "2026-11-11T08:00:00Z")).toBe(0);
+    // The oldest day picked: one day.
+    expect(
+      name("2026-11-10T20:00:00Z", "2026-11-10T21:00:00Z", {
+        from: null,
+        to: "2026-11-10",
+      }),
+    ).toBe(1);
+    // UTC days, as on the row: 23:30 UTC is still the day of the row.
+    expect(name("2026-11-10T23:30:00Z", "2026-11-12T23:30:00Z")).toBe(2);
+    // A range, an end on a day without a check, and an unknown time name no day.
+    expect(
+      name("2026-11-10T20:00:00Z", "2026-11-12T08:00:00Z", {
+        from: "2026-11-10",
+        to: null,
+      }),
+    ).toBe(0);
+    expect(
+      seoRunsNameSpan(
+        {
+          runs: [
+            run("2026-11-12T13:00:00Z", 5),
+            run("2026-11-10T13:00:00Z", 6),
+          ],
+        },
+        { from: null, to: "2026-11-11" },
+        "2026-11-10T20:00:00Z",
+        "2026-11-10T21:00:00Z",
+      ),
+    ).toBe(0);
+    expect(name(null, "2026-11-12T08:00:00Z")).toBe(0);
+    // An end on the newest day is a range the row shows as such: no one day in view.
+    expect(
+      name("2026-11-10T20:00:00Z", "2026-11-12T08:00:00Z", {
+        from: null,
+        to: "2026-11-12",
+      }),
+    ).toBe(0);
+    // One day on the row is no row.
+    expect(
+      seoRunsNameSpan(
+        { runs: [run("2026-11-12T13:00:00Z", 5)] },
+        none,
+        "2026-11-12T08:00:00Z",
+        "2026-11-12T09:00:00Z",
+      ),
+    ).toBe(0);
   });
 
   it("leaves out a day whose check read only some of the pages", () => {

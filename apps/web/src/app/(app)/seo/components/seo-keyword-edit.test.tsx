@@ -1356,6 +1356,36 @@ describe("Search Console queries", () => {
     // The line dates the check of the strategy too: the open strategy line does not say the day again.
     expect(screen.queryByText(/From the check of/)).toBeNull();
     unmount();
+    // The runs row over the tabs names both days: the line names the results alone.
+    const run = (observedAt: string) => ({
+      observationId: crypto.randomUUID(),
+      kind: "audit_full" as const,
+      observedAt: new Date(observedAt),
+      issues: 0,
+      seconds: 60,
+    });
+    workspace.runs = [run("2026-11-11T00:26:00Z"), run("2026-10-11T00:26:00Z")];
+    // Without results to open the words would be no link: the line keeps its dates.
+    const untasked = renderWorkspace(workspace);
+    expect(
+      screen.getByText("Position checks Oct 11 to Nov 11, 2026"),
+    ).toBeVisible();
+    untasked.unmount();
+    workspace.observations = [
+      {
+        ...seoTestObservation(workspace),
+        id: workspace.strategy.observationId,
+        sourceTaskId: "task-positions",
+      },
+    ];
+    const named = renderWorkspace(workspace);
+    expect(
+      screen.getByRole("link", { name: /^Position checks ?, View results$/ }),
+    ).toHaveAttribute("href", "/tasks/task-positions");
+    expect(screen.queryByText(/^Position checks Oct 11/)).toBeNull();
+    named.unmount();
+    workspace.runs = [];
+    workspace.observations = [];
     // A strategy of another check says its own day, also on the day of the list's check: the line is the
     // only link to the results of that check.
     const listCheck = workspace.strategy.observationId;
