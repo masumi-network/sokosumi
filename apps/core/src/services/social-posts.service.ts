@@ -481,6 +481,7 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     canCancel: CANCELABLE_STATUSES.includes(record.status),
     canPublishNow:
       providerEnabled &&
+      record.socialConnection !== null &&
       PUBLISH_NOW_STATUSES.includes(record.status) &&
       record.publishingThreadPartPosition == null &&
       quoteReady &&
