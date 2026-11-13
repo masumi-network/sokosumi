@@ -8,7 +8,6 @@ import type {
   Member,
   Organization,
 } from "@sokosumi/core-client";
-import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { Hash } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -30,17 +29,12 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
   type ChatComposeSokoBot,
-  deleteRoomMessageAction,
-  editRoomMessageAction,
   listRoomMessagesAction,
   listThreadMessagesAction,
-  pinRoomMessageAction,
-  removeRoomMessageUnfurlAction,
   retryRoomMentionAction,
   sendRoomMessageAction,
   sendRoomMessageToSelfAction,
   setMessageReactionAction,
-  unpinRoomMessageAction,
 } from "@/app/chat/actions";
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
@@ -66,6 +60,7 @@ import {
   TRANSCRIPT_SNAPSHOT_RETRIES,
   useRoomMessageJumps,
 } from "@/app/chat/hooks/use-room-message-jumps";
+import { useRoomMessageMutations } from "@/app/chat/hooks/use-room-message-mutations";
 import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
 import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
 import { useRoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
@@ -104,7 +99,6 @@ import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import {
   applyFullChatRoomMessageEvent,
   applyThreadUnreadReplyCounts,
-  keepKnownThreadUnreadReplyCount,
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
 } from "@/app/chat/utils/merge-room-messages";
@@ -123,10 +117,7 @@ import {
   shouldFlashOutboundSentCheck,
 } from "@/app/chat/utils/outbound-room-message";
 import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
-import {
-  applyReplySoftDeleteToParentIfUnchanged,
-  applyReplyToParentThreadPreview,
-} from "@/app/chat/utils/parent-thread-preview";
+import { applyReplyToParentThreadPreview } from "@/app/chat/utils/parent-thread-preview";
 import {
   mergeConfirmedReaction,
   overlayPendingReactions,
@@ -157,6 +148,10 @@ import {
 } from "@/app/chat/utils/room-transcript-ranges";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { isThreadUnreadEvent } from "@/app/chat/utils/thread-unread-event";
+import {
+  type UnreadDividerPlace,
+  unreadDividerIn,
+} from "@/app/chat/utils/unread-divider-place";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
 import {
@@ -214,7 +209,6 @@ import {
   buildRoomAllMentionRecord,
   type ChatParticipantHoverProfile,
   isMessageContinuation,
-  isRoomComposerContentOverLimit,
   membershipVisibleChannelLinks,
   membershipVisibleChannelOptions,
   mergeMembershipVisibleRooms,
@@ -414,29 +408,6 @@ function visibleRoomLocation(
       deferToRoute || optimisticQuery === "" ? NO_ROOM_SEARCH : jump,
     pendingMessageJump,
   };
-}
-
-/** Where the Unread divider sits; `at` keeps its place once its message goes. */
-interface UnreadDividerPlace {
-  id: string;
-  at: number | null;
-}
-
-/**
- * The divider an answer names: undefined when it names none (an older page)
- * or has not arrived, null for no Room unread or a failed read.
- */
-function unreadDividerIn(
-  page: RoomTranscriptPage | null | undefined,
-): UnreadDividerPlace | null | undefined {
-  if (page === undefined) return undefined;
-  const id = page ? page.firstUnreadMessageId : null;
-  if (id === undefined) return undefined;
-  if (!id) return null;
-  const createdAt = page?.messages.find(
-    (message) => message.id === id,
-  )?.createdAt;
-  return { id, at: createdAt == null ? null : new Date(createdAt).getTime() };
 }
 
 interface RetainedTranscriptBinding {
@@ -923,7 +894,6 @@ function RoomView({
     setThreadUnreadGeneration((generation) => generation + 1);
   }, []);
   const [pinnedOpen, setPinnedOpen] = useState(false);
-  const [pinnedListGeneration, setPinnedListGeneration] = useState(0);
   const [rosterOpen, setRosterOpen] = useState(false);
   const [threadOpenedFromList, setThreadOpenedFromList] = useState(false);
   const [threadParentMessage, setThreadParentMessage] =
@@ -939,16 +909,33 @@ function RoomView({
     useState<TranscriptBoundaryStatus>("idle");
   const [pendingThreadQuote, setPendingThreadQuote] =
     useState<PendingRoomQuote | null>(null);
-  // inThread: the open thread also shows its parent message, so only the
-  // surface that started the edit mounts the editor. Two editors steal focus
-  // from each other and the blurred one cancels the edit.
-  const [editSession, setEditSession] = useState<{
-    messageId: string;
-    draft: string;
-    inThread: boolean;
-  } | null>(null);
+  const {
+    pinnedListGeneration,
+    setPinnedListGeneration,
+    editSession,
+    setEditSession,
+    isSavingEdit,
+    savingMessageIds,
+    applyPinnedMutation,
+    handlePinMessage,
+    handleUnpinFromPanel,
+    handleStartEdit,
+    handleCancelEdit,
+    handleEditDraftChange,
+    handleSaveEdit,
+    handleRemoveUnfurl,
+    handleDeleteMessage,
+    mergeUpdatedMessage,
+  } = useRoomMessageMutations({
+    getSelectedRoomId: () => selectedRoom?.id,
+    isStillSelectedRoom,
+    messagesState,
+    setMessagesState,
+    setThreadMessages,
+    threadParentMessage,
+    setThreadParentMessage,
+  });
   const roomEditSession = editSession?.inThread ? null : editSession;
-  const [isSavingEdit, startSavingEditTransition] = useTransition();
   // Explicit flag (not useTransition): open must paint loading before any
   // await. mark-read used to run first with replies=[] + isLoading false →
   // "No replies yet" blink. Generation invalidates in-flight opens/closes.
@@ -1037,7 +1024,6 @@ function RoomView({
   // Classic outbound uses pending shells + a queue; composer stays unlocked.
   // Stream rooms still pass isCoworkerStreaming into isSending* props below.
   const [_isRetryingMention, startMentionRetryTransition] = useTransition();
-  const [_isDeleting, startDeleteTransition] = useTransition();
   // Pending reactions: the viewer's latest intent per message and emoji,
   // shown on top of confirmed rows until the request settles (ADR 0032).
   // Keyed by message id, so leaving the room hides them without clearing.
@@ -2029,38 +2015,6 @@ function RoomView({
     requestRefresh: refreshLatestRef.current,
   });
 
-  function mergeUpdatedMessage(updatedMessage: ChatRoomMessage) {
-    setMessagesState((current) => {
-      // Thread replies never belong in the room list (edit/delete/reaction).
-      if (!isTopLevelChatRoomMessage(updatedMessage)) {
-        return current.filter((message) => message.id !== updatedMessage.id);
-      }
-      return filterTopLevelChatRoomMessages(
-        current.map((message) =>
-          message.id === updatedMessage.id
-            ? keepKnownThreadUnreadReplyCount(message, updatedMessage)
-            : message,
-        ),
-      );
-    });
-    // Parent lives in threadParentMessage only — never in the replies list.
-    // Purge any prior leak (e.g. pre-fix Ably merge of the root).
-    if (isTopLevelChatRoomMessage(updatedMessage)) {
-      setThreadMessages((current) =>
-        current.filter((message) => message.id !== updatedMessage.id),
-      );
-    } else {
-      setThreadMessages((current) =>
-        current.map((message) =>
-          message.id === updatedMessage.id ? updatedMessage : message,
-        ),
-      );
-    }
-    setThreadParentMessage((current) =>
-      current?.id === updatedMessage.id ? updatedMessage : current,
-    );
-  }
-
   /** Only `emoji`'s entry moves; edits and other reactions stay (ADR 0032). */
   function mergeConfirmedReactionIntoState(
     messageId: string,
@@ -2195,35 +2149,6 @@ function RoomView({
       return;
     }
     openPinnedPanel();
-  }
-
-  function applyPinnedMutation(messageId: string, pinned: boolean) {
-    // Unloaded rows arrive with Core's pinnedAt. The local time stands in
-    // until the next read; only pinned-or-not is shown.
-    setMessagesState((current) =>
-      current.map((message) =>
-        message.id === messageId && (message.pinnedAt != null) !== pinned
-          ? { ...message, pinnedAt: pinned ? new Date() : null }
-          : message,
-      ),
-    );
-    setPinnedListGeneration((generation) => generation + 1);
-  }
-
-  async function handlePinMessage(message: ChatRoomMessage) {
-    const roomId = selectedRoom?.id;
-    if (!roomId) {
-      return;
-    }
-    const alreadyPinned = message.pinnedAt != null;
-    const result = alreadyPinned
-      ? await unpinRoomMessageAction(roomId, message.id)
-      : await pinRoomMessageAction(roomId, message.id);
-    if (!result.ok) {
-      toast.error(result.error.message);
-      return;
-    }
-    applyPinnedMutation(message.id, !alreadyPinned);
   }
 
   async function handleSendMessageToSelf(message: ChatRoomMessage) {
@@ -2607,130 +2532,6 @@ function RoomView({
         });
       }
     })();
-  }
-
-  function handleStartEdit(message: ChatRoomMessage, inThread: boolean) {
-    setEditSession({ messageId: message.id, draft: message.content, inThread });
-  }
-
-  function handleCancelEdit() {
-    if (isSavingEdit) return;
-    setEditSession(null);
-  }
-
-  function handleEditDraftChange(draft: string) {
-    setEditSession((current) => (current ? { ...current, draft } : current));
-  }
-
-  function handleSaveEdit(contentOverride?: string) {
-    if (!selectedRoom || !editSession || isSavingEdit) return;
-    const roomId = selectedRoom.id;
-    const { messageId, draft } = editSession;
-    // Prefer live editor text (Enter can fire before React flushes onChange).
-    const raw = contentOverride ?? draft;
-    const content = raw.trim();
-    if (!content) return;
-    if (isRoomComposerContentOverLimit(content)) {
-      toast.error(
-        t("composerTooLong", {
-          count: content.length,
-          max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
-        }),
-      );
-      return;
-    }
-
-    // Keep controlled draft in sync with what we submit so a failed save still
-    // shows the text the user actually confirmed (not a stale parent draft).
-    if (contentOverride !== undefined && contentOverride !== draft) {
-      setEditSession((current) =>
-        current?.messageId === messageId
-          ? { ...current, draft: contentOverride }
-          : current,
-      );
-    }
-
-    startSavingEditTransition(async () => {
-      const result = await editRoomMessageAction(roomId, messageId, content);
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
-      }
-      if (!isStillSelectedRoom(roomId)) {
-        return;
-      }
-      mergeUpdatedMessage(result.value);
-      setEditSession((current) =>
-        current?.messageId === messageId ? null : current,
-      );
-    });
-  }
-
-  function handleRemoveUnfurl(message: ChatRoomMessage, url: string) {
-    if (!selectedRoom) {
-      return;
-    }
-    const roomId = selectedRoom.id;
-    void (async () => {
-      const result = await removeRoomMessageUnfurlAction(
-        roomId,
-        message.id,
-        url,
-      );
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
-      }
-      if (!isStillSelectedRoom(roomId)) {
-        return;
-      }
-      mergeUpdatedMessage(result.value);
-    })();
-  }
-
-  function handleDeleteMessage(message: ChatRoomMessage) {
-    if (!selectedRoom) return;
-    const roomId = selectedRoom.id;
-    // Snapshot parent count before the request so a racing Ably parent
-    // update (server re-publish after reply soft-delete) is not double-applied.
-    const parentMessageId = message.parentMessageId;
-    const wasLiveReply = parentMessageId != null && message.deletedAt == null;
-    const parentCountBefore = wasLiveReply
-      ? threadParentMessage?.id === parentMessageId
-        ? threadParentMessage.threadReplyCount
-        : (messagesState.find((row) => row.id === parentMessageId)
-            ?.threadReplyCount ?? null)
-      : null;
-
-    startDeleteTransition(async () => {
-      const result = await deleteRoomMessageAction(roomId, message.id);
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
-      }
-      if (!isStillSelectedRoom(roomId)) {
-        return;
-      }
-      mergeUpdatedMessage(result.value);
-
-      if (
-        wasLiveReply &&
-        parentMessageId != null &&
-        parentCountBefore != null &&
-        result.value.deletedAt != null
-      ) {
-        const applyParent = (row: ChatRoomMessage) =>
-          applyReplySoftDeleteToParentIfUnchanged(
-            row,
-            parentMessageId,
-            parentCountBefore,
-          );
-        setMessagesState((current) => current.map(applyParent));
-        setThreadParentMessage((current) =>
-          current ? applyParent(current) : null,
-        );
-      }
-    });
   }
 
   const handleResolveMessageLink = useCallback(
@@ -3383,6 +3184,7 @@ function RoomView({
               isSavingEdit={
                 isSavingEdit && roomEditSession?.messageId === message.id
               }
+              isSaving={savingMessageIds.has(message.id)}
               showThreadButton={canOpenThread}
               isFirstOfDay={showDaySeparator}
               isContinuation={
@@ -3675,6 +3477,7 @@ function RoomView({
                 onCancelEdit={stableMessageHandlers.onCancelEdit}
                 onSaveEdit={stableMessageHandlers.onSaveEdit}
                 isSavingEdit={isSavingEdit}
+                savingMessageIds={savingMessageIds}
                 pendingQuote={pendingThreadQuote}
                 onClearPendingQuote={() => setPendingThreadQuote(null)}
                 onSetPendingQuote={setPendingThreadQuote}
@@ -3741,18 +3544,9 @@ function RoomView({
                   setPinnedOpen(false);
                 }}
                 onJump={handleJumpToMessage}
-                onUnpin={async (messageId) => {
-                  const result = await unpinRoomMessageAction(
-                    selectedRoom.id,
-                    messageId,
-                  );
-                  if (!result.ok) {
-                    toast.error(result.error.message);
-                    return false;
-                  }
-                  applyPinnedMutation(messageId, false);
-                  return true;
-                }}
+                onUnpin={(messageId) =>
+                  handleUnpinFromPanel(selectedRoom.id, messageId)
+                }
                 labels={{
                   title: t("PinnedMessages.title"),
                   close: t("PinnedMessages.close"),

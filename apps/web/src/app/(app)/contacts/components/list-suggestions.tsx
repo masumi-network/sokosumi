@@ -56,20 +56,29 @@ export function ListSuggestions({ list }: { list: ContactList }) {
 
   async function decide(action: "add" | "dismiss", ids: string[]) {
     setBusy((current) => [...current, ...ids]);
-    try {
-      if (action === "add") {
-        const { count } = await contactsService.addSuggestions(list.id, ids);
-        toast.success(t("added", { count, list: list.name }));
-        await refreshContacts(cache);
-      } else {
-        await contactsService.dismissSuggestions(list.id, ids);
-      }
+    // The rows leave at once; a failed save reloads what Core still suggests.
+    const hide = () =>
       cache.setQueryData<ContactSuggestion[]>(
         suggestionsKey(list.id),
         (current) => current?.filter((row) => !ids.includes(row.id)),
       );
+    // A load under way would bring them back.
+    void cache.cancelQueries({ queryKey: suggestionsKey(list.id) });
+    hide();
+    try {
+      if (action === "add") {
+        const { count } = await contactsService.addSuggestions(list.id, ids);
+        toast.success(t("added", { count, list: list.name }));
+        hide();
+        await refreshContacts(cache);
+      } else {
+        await contactsService.dismissSuggestions(list.id, ids);
+      }
+      // A reload during the save may have brought them back.
+      hide();
     } catch (error) {
       toast.error(coreErrorOf(error).message ?? t("decideFailed"));
+      await cache.invalidateQueries({ queryKey: suggestionsKey(list.id) });
     } finally {
       setBusy((current) => current.filter((id) => !ids.includes(id)));
     }

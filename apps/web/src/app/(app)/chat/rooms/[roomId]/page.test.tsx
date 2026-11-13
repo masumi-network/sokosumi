@@ -6,6 +6,12 @@ vi.mock("server-only", () => ({}));
 const getSessionMock = vi.fn();
 const getActiveOrganizationMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
+// The session's organization id; by default the one the organization read
+// resolves to, as it is in the app.
+const getActiveOrganizationIdMock = vi.fn(
+  async () =>
+    ((await getActiveOrganizationMock()) as { id: string } | null)?.id ?? null,
+);
 const getRoomMock = vi.fn();
 const loadRoomShellRosterMock = vi.fn();
 const listMessagesMock = vi.fn();
@@ -41,6 +47,7 @@ vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getActiveOrganization: (...args: unknown[]) =>
       getActiveOrganizationMock(...args),
+    getActiveOrganizationId: () => getActiveOrganizationIdMock(),
     getMyMemberInOrganization: (...args: unknown[]) =>
       getMyMemberInOrganizationMock(...args),
   },
@@ -146,6 +153,45 @@ describe("ChatRoomPage org deep-link guard", () => {
     // Roster + history start but are not awaited — shell returns with promises.
     loadRoomShellRosterMock.mockReturnValue(neverResolvingPromise());
     listMessagesMock.mockReturnValue(neverResolvingPromise());
+  });
+
+  it("reads the caller's membership before the organization read answers", async () => {
+    getMyMemberInOrganizationMock.mockResolvedValue({ role: "owner" });
+    let answerOrganization: (organization: unknown) => void = () => {};
+    const organization = { id: ORG_A, name: "Org A", slug: "org-a" };
+    getActiveOrganizationIdMock.mockResolvedValueOnce(ORG_A);
+    getActiveOrganizationMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answerOrganization = resolve;
+      }),
+    );
+    getRoomMock.mockResolvedValue(room({ organizationId: ORG_A }));
+
+    const open = ChatRoomPageContent({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    });
+    await vi.waitFor(() =>
+      expect(getMyMemberInOrganizationMock).toHaveBeenCalledWith(ORG_A),
+    );
+
+    answerOrganization(organization);
+    const props = roomsClientProps((await open) as ReactElement);
+    expect(props.isOrgOwnerOrAdmin).toBe(true);
+  });
+
+  it("drops the membership when Core no longer shows the organization", async () => {
+    getActiveOrganizationIdMock.mockResolvedValueOnce(ORG_A);
+    getActiveOrganizationMock.mockResolvedValueOnce(null);
+    getMyMemberInOrganizationMock.mockResolvedValue({ role: "owner" });
+    getRoomMock.mockResolvedValue(
+      room({ organizationId: null, kind: "direct" }),
+    );
+
+    const element = (await ChatRoomPageContent({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    })) as ReactElement;
+
+    expect(roomsClientProps(element).isOrgOwnerOrAdmin).toBe(false);
   });
 
   it("opens a room of another workspace as a Room visit", async () => {

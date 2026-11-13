@@ -997,7 +997,10 @@ describe("publishXPost with media", () => {
     return sharp(bytes, { raw: { width, height, channels } });
   }
 
-  it("steps JPEG quality down to fit 5 MB without shrinking pixels", async () => {
+  // 2800² noise → WebP → JPEG ladder is ~4s locally; CI load tips past 5s.
+  it("steps JPEG quality down to fit 5 MB without shrinking pixels", {
+    timeout: 15_000,
+  }, async () => {
     const webp = await noise(2800, 2800, 3).webp({ quality: 50 }).toBuffer();
     expect(webp.byteLength).toBeLessThan(X_IMAGE_MAX_BYTES);
     expect(
