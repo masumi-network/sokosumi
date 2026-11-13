@@ -25,7 +25,7 @@ const CHECK_DAY_CLASS =
 
 /** The day the page shows: the box today had before. */
 const IN_VIEW_CLASS = "bg-accent text-accent-foreground rounded-md";
-/** A day without a check: muted, so the days with a check are the bright choices. It still starts or ends a range. */
+/** A day without a check: muted, so the days with a check are the bright choices. Between two checks it still starts or ends a range. */
 const NO_CHECK_CLASS = "text-muted-foreground";
 
 /**
@@ -95,7 +95,11 @@ export function SeoRunCalendar({
           // A range start the URL holds before the first check opens on the first check: no check is before it.
           startMonth={checks.at(-1)}
           endMonth={today}
-          disabled={{ after: today }}
+          // A day before the first loaded check or after today shows no check: only the days between stay a choice.
+          disabled={[
+            { after: today },
+            ...(checks.length ? [{ before: checks[checks.length - 1] }] : []),
+          ]}
           modifiers={{
             check: checks,
             noCheck: (date) => !checked.has(formatDay(date, DAY_FORMAT)),

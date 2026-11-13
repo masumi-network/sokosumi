@@ -1107,6 +1107,10 @@ describe("SEO workspace integration", () => {
     expect(
       within(calendar).getByRole("button", { name: /October 29th, 2026$/ }),
     ).toBeEnabled();
+    // Before the first check no day can show a check: it is no choice.
+    expect(
+      within(calendar).getByRole("button", { name: /October 27th, 2026$/ }),
+    ).toBeDisabled();
     // Two presses set the range and close the calendar; the line says what is in view, with the way back.
     await user.click(
       within(calendar).getByRole("button", { name: /October 28th, 2026/ }),
