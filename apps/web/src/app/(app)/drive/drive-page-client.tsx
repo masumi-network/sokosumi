@@ -24,6 +24,7 @@ import {
   FolderInput,
   FolderPlus,
   Folders,
+  FolderUp,
   Link2,
   ListFilter,
   LockKeyhole,
@@ -146,6 +147,7 @@ import {
   isDuplicateResourceError,
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
+import { planDriveFolderUpload } from "@/lib/utils/drive-folder-upload";
 import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
 import {
   type FileStore,
@@ -909,6 +911,71 @@ function DrivePageWorkspace({
     }
   }
 
+  /**
+   * Upload every file of a picked folder, subfolders included, into the
+   * current folder. One file at a time, like Upload, so a big folder does not
+   * open hundreds of requests at once.
+   */
+  async function handleFolderUpload(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const input = event.target;
+    const plan = planDriveFolderUpload(
+      Array.from(input.files ?? []),
+      currentFolder,
+    );
+    input.value = "";
+    if (plan.uploads.length === 0) {
+      toast.error(t("folderUploadNothing"));
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+    let uploaded = 0;
+    let notUploaded = plan.skipped.length;
+    try {
+      for (const [index, { file, folder }] of plan.uploads.entries()) {
+        try {
+          await uploadDriveFile(file, { ...driveStore, folder });
+          uploaded += 1;
+        } catch (err) {
+          // A same-named file already there is kept; anything else is logged.
+          if (!isDriveFileUploadDuplicate(err)) {
+            console.error("Failed to upload file from folder", err);
+          }
+          notUploaded += 1;
+        }
+        setUploadProgress(
+          Math.round(((index + 1) / plan.uploads.length) * 100),
+        );
+      }
+      await refreshDriveItems();
+      if (uploaded > 0 && plan.rootFolder) applyFolderFacet(plan.rootFolder);
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
+
+    if (uploaded > 0) {
+      toast.success(
+        t("folderUploaded", {
+          count: uploaded,
+          folder: plan.rootFolder.split("/").at(-1) ?? "",
+        }),
+        notUploaded > 0
+          ? {
+              description: t("folderUploadSkipped", { count: notUploaded }),
+            }
+          : undefined,
+      );
+    } else {
+      toast.error(t("uploadError"), {
+        description: t("folderUploadSkipped", { count: notUploaded }),
+      });
+    }
+  }
+
   async function handleRename(item: DriveItem, newName: string) {
     if (!newName.trim()) {
       return;
@@ -1490,6 +1557,8 @@ function DrivePageWorkspace({
     fileInputRef.current?.click();
   }
 
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
   const driveTasksFilterLabels = {
     title: t("filterTitle"),
     searchPlaceholder: t("filterSearchPlaceholder"),
@@ -1782,6 +1851,29 @@ function DrivePageWorkspace({
                   <FileSpreadsheet className="size-4" aria-hidden />
                   {t("GoogleSheet.button")}
                 </Button>
+                <Button
+                  type="button"
+                  disabled={uploading}
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => folderInputRef.current?.click()}
+                >
+                  <FolderUp className="size-4" aria-hidden />
+                  {t("uploadFolderButton")}
+                </Button>
+                {/* `webkitdirectory` is not in React's input types, but every
+                    current browser reads it and hands back the files with
+                    `webkitRelativePath` set. */}
+                <Input
+                  ref={folderInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleFolderUpload}
+                  disabled={uploading}
+                  {...{ webkitdirectory: "" }}
+                />
                 {/* A real button: a label over a hidden input never gets
                     keyboard focus, so Tab skipped Upload. */}
                 <Button

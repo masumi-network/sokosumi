@@ -1,5 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { ReactNode } from "react";
@@ -332,16 +339,27 @@ vi.mock("@/components/ui/image-viewer", () => ({
   },
 }));
 
+const uploadDriveFileMock = vi.fn();
+
+vi.mock("@/lib/utils/drive-file-upload.client", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/lib/utils/drive-file-upload.client")
+  >()),
+  uploadDriveFile: (...args: unknown[]) => uploadDriveFileMock(...args),
+}));
+
 vi.mock("@/components/ui/document-viewer", () => ({
   DocumentViewer: ({ open, fileName }: { open: boolean; fileName: string }) =>
     open ? <div role="dialog" aria-label={fileName} /> : null,
 }));
 
+import { toast } from "sonner";
 import { DrivePageClient } from "@/app/drive/drive-page-client";
 import {
   type FilesViewMode,
   parseFilesViewModeCookieHeader,
 } from "@/lib/ui-preferences/files-view-mode";
+import { DriveFileUploadError } from "@/lib/utils/drive-file-upload.client";
 
 function createDriveQueryClient() {
   return new QueryClient({
@@ -1992,5 +2010,59 @@ describe("one catalog, not two", () => {
     expect(
       within(header).queryByPlaceholderText("searchPlaceholder"),
     ).toBeNull();
+  });
+
+  it("uploads a picked folder with its subfolders into the open folder", async () => {
+    searchParams = new URLSearchParams("view=workspace&folder=Clients");
+    listDriveItemsMock.mockResolvedValue([]);
+    uploadDriveFileMock.mockReset();
+    // The second file is already in Files; it is kept and counted as skipped.
+    uploadDriveFileMock
+      .mockResolvedValueOnce({ pathname: "a", fileUrl: null })
+      .mockRejectedValueOnce(new DriveFileUploadError("duplicate", "exists"));
+    vi.mocked(toast.success).mockClear();
+
+    const { container } = renderDrive();
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
+    });
+    expect(
+      within(screen.getByTestId("files-desktop-header")).getByRole("button", {
+        name: "uploadFolderButton",
+      }),
+    ).toBeVisible();
+
+    const picked = [
+      "Launch/brief.txt",
+      "Launch/assets/notes.txt",
+      "Launch/.DS_Store",
+    ].map((path) => {
+      const file = new File(["x"], path.split("/").at(-1)!, {
+        type: "text/plain",
+      });
+      Object.defineProperty(file, "webkitRelativePath", { value: path });
+      return file;
+    });
+    const input = container.querySelector<HTMLInputElement>(
+      "input[webkitdirectory]",
+    )!;
+    await act(async () => {
+      fireEvent.change(input, { target: { files: picked } });
+    });
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith("folderUploaded", {
+        description: "folderUploadSkipped",
+      });
+    });
+    expect(
+      uploadDriveFileMock.mock.calls.map(([file, options]) => [
+        (file as File).name,
+        (options as { folder: string }).folder,
+      ]),
+    ).toEqual([
+      ["brief.txt", "Clients/Launch"],
+      ["notes.txt", "Clients/Launch/assets"],
+    ]);
   });
 });
