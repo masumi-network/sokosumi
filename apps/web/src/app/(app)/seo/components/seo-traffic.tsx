@@ -31,7 +31,7 @@ export function SeoTraffic({ model }: { model: SeoWorkspaceModel }) {
   if (!model.data.metrics.length && !model.data.searchQueries)
     return <SeoMeasurements model={model} />;
   return (
-    <div className="space-y-6">
+    <div className="stagger space-y-6">
       <SeoMeasurements model={model} />
       <SeoQueryFilter
         model={model}

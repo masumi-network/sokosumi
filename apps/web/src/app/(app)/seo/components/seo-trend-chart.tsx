@@ -158,7 +158,8 @@ export function SeoTrendChart({
           >
             <svg
               aria-hidden
-              className="absolute inset-0 size-full overflow-visible"
+              // Drawn from the first day to the last when the chart mounts.
+              className="chart-wipe absolute inset-0 size-full overflow-visible"
               viewBox="0 0 100 100"
               preserveAspectRatio="none"
             >

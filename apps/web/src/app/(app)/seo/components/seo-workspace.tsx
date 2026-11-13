@@ -548,14 +548,14 @@ export function SeoWorkspace({
               model.updating && "opacity-60",
             )}
           >
-            {/* Each tab fades in when it opens. */}
-            <TabsContent value="agent" className="content-in">
+            {/* Each tab comes in part by part when it opens. */}
+            <TabsContent value="agent" className="stagger">
               <SeoAgentHome model={model} />
             </TabsContent>
-            <TabsContent value="traffic" className="content-in">
+            <TabsContent value="traffic" className="stagger">
               <SeoTraffic model={model} />
             </TabsContent>
-            <TabsContent value="rankings" className="content-in space-y-6">
+            <TabsContent value="rankings" className="stagger space-y-6">
               <SeoRankings model={model} />
             </TabsContent>
             <TabsContent value="health" className="content-in space-y-6">

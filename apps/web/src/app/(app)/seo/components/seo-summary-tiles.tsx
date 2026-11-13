@@ -30,7 +30,7 @@ type Part = { key: string; count: number; className: string };
 function Bar({ parts }: { parts: Part[] }) {
   const shown = parts.filter((part) => part.count > 0);
   return shown.length ? (
-    <span aria-hidden className="flex h-1.5 gap-0.5">
+    <span aria-hidden className="bar-grow stagger-delay flex h-1.5 gap-0.5">
       {shown.map((part) => (
         <span
           key={part.key}
@@ -152,7 +152,10 @@ export function SeoSummaryTiles({
   const searches = show === "rankings" ? summary.searches : null;
   if (!issues && !tests && !keywords && !searches) return null;
   return (
-    <dl className="grid grid-cols-2 gap-2" data-testid="seo-summary-tiles">
+    <dl
+      className="stagger grid grid-cols-2 gap-2"
+      data-testid="seo-summary-tiles"
+    >
       {issues ? (
         <Tile
           label={t("summary.issues")}

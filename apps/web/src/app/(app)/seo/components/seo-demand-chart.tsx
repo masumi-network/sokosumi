@@ -60,7 +60,11 @@ export function SeoDemandChart({
       </figcaption>
       <div>
         {/* A phone shows the three most searched keywords: five bars were one screen before the first step. */}
-        <ol role="list" className="max-sm:[&>li:nth-child(n+4)]:hidden">
+        <ol
+          role="list"
+          // The rows come in one by one, each bar growing from the axis after its row.
+          className="stagger max-sm:[&>li:nth-child(n+4)]:hidden [--stagger-step:50ms]"
+        >
           {demand.rows.map((row) => {
             const volume = format.number(row.volume);
             const position =
@@ -109,7 +113,7 @@ export function SeoDemandChart({
                     aria-hidden
                     data-testid="seo-demand-bar"
                     // A quiet neutral: the number after the bar is the bright part.
-                    className="bg-tertiary absolute inset-y-2 left-0 rounded-r-sm"
+                    className="bg-tertiary bar-grow stagger-delay absolute inset-y-2 left-0 rounded-r-sm"
                     style={{
                       width: `${Math.max(BAR_MIN_PERCENT, percent(row.volume))}%`,
                     }}

@@ -38,7 +38,7 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
     ? chosen
     : "keywords";
   return (
-    <div className="space-y-6">
+    <div className="stagger space-y-6">
       {/* The switch and the filter of its list share one line; on a phone the filter is the line under it. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {/* One control with three parts: three framed buttons read as three things. The look is the app's

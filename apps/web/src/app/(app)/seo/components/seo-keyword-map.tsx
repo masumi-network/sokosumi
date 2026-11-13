@@ -1,7 +1,13 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
-import { type KeyboardEvent, type PointerEvent, useId, useState } from "react";
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
+  useId,
+  useState,
+} from "react";
 import { cn } from "@/lib/utils";
 import {
   type SeoKeywordPoint,
@@ -14,6 +20,8 @@ import { SeoFoldSummary } from "./seo-shared";
 /** How far from a dot, in px, the pointer still picks it. */
 const POINTER_REACH = 16;
 const X_TICKS = [0, 50, 100];
+/** From this dot on, the dots come in together: a map of many keywords does not keep the reader waiting. */
+const DOT_STAGGER_MAX = 12;
 
 /**
  * Searches a month against keyword difficulty: a keyword high and to the left is worth the most work.
@@ -182,7 +190,7 @@ export function SeoKeywordMap({
                 aria-hidden
                 data-testid="seo-keyword-dot"
                 className={cn(
-                  "ring-background pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition-colors duration-150 motion-reduce:transition-none",
+                  "ring-background pop-in stagger-delay pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition-colors duration-150 motion-reduce:transition-none",
                   point.checked
                     ? index === active
                       ? "bg-foreground"
@@ -194,12 +202,17 @@ export function SeoKeywordMap({
                           : "border-chart-5",
                       ),
                 )}
-                style={{
-                  left: `${point.x}%`,
-                  top: `${point.y}%`,
-                  width: point.radius * 2,
-                  height: point.radius * 2,
-                }}
+                style={
+                  {
+                    left: `${point.x}%`,
+                    top: `${point.y}%`,
+                    width: point.radius * 2,
+                    height: point.radius * 2,
+                    // The dots come in one by one, by their place in the list, not by size.
+                    "--stagger-index": Math.min(index, DOT_STAGGER_MAX),
+                    "--stagger-step": "30ms",
+                  } as CSSProperties
+                }
               />
             ))}
             {focus ? (

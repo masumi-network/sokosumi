@@ -597,6 +597,8 @@ export function SeoActionName({
  */
 export const SEO_ROW_LIST_CLASS = cn(
   HOLDER_ITEM_CLASS,
+  // The rows come in one by one when the list mounts.
+  "stagger [--stagger-step:40ms]",
   "[&>li]:rounded-none [&>li]:border-0 [&>li+li]:border-t [&>li+li]:border-border [&>li:first-child]:rounded-t-lg [&>li:last-child]:rounded-b-lg",
   "[&>li>article]:rounded-none [&>li>article]:border-0 [&>li:first-child>article]:rounded-t-lg [&>li:last-child>article]:rounded-b-lg",
   "[&>li>button]:rounded-none [&>li>button]:border-0 [&>li:first-child>button]:rounded-t-lg [&>li:last-child>button]:rounded-b-lg",

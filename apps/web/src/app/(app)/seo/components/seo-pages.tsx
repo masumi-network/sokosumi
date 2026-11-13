@@ -124,7 +124,12 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
       >
         {model.data.pages.length ? (
           // One list, one row per page, in the look of the issue rows.
-          <ul className={cn(HOLDER_ITEM_CLASS, "divide-y")}>
+          <ul
+            className={cn(
+              HOLDER_ITEM_CLASS,
+              "stagger divide-y [--stagger-step:40ms]",
+            )}
+          >
             {model.data.pages.map((page) => {
               const parent = model.data.pages.find(
                 (candidate) => candidate.id === page.relatedToPageId,
