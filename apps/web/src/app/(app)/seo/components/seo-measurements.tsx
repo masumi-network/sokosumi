@@ -452,12 +452,12 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
           </p>
           {canSync ? (
             <Button
-              // The one waiting action of the tab is its filled button, once the read says that an account is
-              // missing or must connect again.
+              // A tinted button, not the brand fill, once the read says that an account is missing or must
+              // connect again: statistics are optional, and the brand fill stays for the agent's next step (owner).
               variant={
                 connection === "not_connected" ||
                 connection === "needs_reconnect"
-                  ? "primary"
+                  ? "secondary"
                   : "outline"
               }
               size="sm"
