@@ -20,6 +20,8 @@ export type SeoKeywordGroup = {
   lead: Keyword;
   /** One position read per device, mobile first; a read without a device stands alone. Empty for an idea. */
   reads: Keyword[];
+  /** Every row of the keyword on this page, newest first: its history reads all devices, not the newest check's. */
+  rows: Keyword[];
   volume: number | null;
   /** The best rank over the reads; null where the page is in none of the read results. */
   best: number | null;
@@ -95,6 +97,7 @@ export function keywordGroups(rows: Keyword[]) {
       // The tracked row carries the saved choice the row actions change.
       lead: group.find((row) => row.saved) ?? reads[0] ?? group[0],
       reads,
+      rows: group,
       volume: group.find((row) => row.volume !== null)?.volume ?? null,
       best,
       sources: [...new Set(group.map((row) => row.source))],

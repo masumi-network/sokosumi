@@ -21,7 +21,10 @@ const point = (
 });
 
 function row(device: Keyword["device"], history?: Point[]): Keyword {
-  return seoTestKeyword({ device, positionHistory: history });
+  return seoTestKeyword({
+    device,
+    positionHistory: history?.map((item) => ({ ...item, device })),
+  });
 }
 
 describe("seoRankHistory", () => {
@@ -65,6 +68,22 @@ describe("seoRankHistory", () => {
     expect(series.map((item) => [item.device, item.points.length])).toEqual([
       ["mobile", 1],
       ["desktop", 2],
+    ]);
+  });
+
+  it("keeps one series per device for rows of one device listed for two reasons", () => {
+    const series = seoRankHistory([
+      row("desktop", [point("2026-10-01T08:00:00Z", 9)]),
+      { ...row("desktop", [point("2026-10-08T08:00:00Z", 6)]), source: "gap" },
+    ]);
+    expect(series).toEqual([
+      {
+        device: "desktop",
+        points: [
+          { date: "2026-10-01", value: 9 },
+          { date: "2026-10-08", value: 6 },
+        ],
+      },
     ]);
   });
 });

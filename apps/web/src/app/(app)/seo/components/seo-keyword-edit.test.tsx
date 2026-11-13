@@ -1561,4 +1561,68 @@ describe("Search Console queries", () => {
       within(card!).getByText("rival.test").closest("li"),
     ).toHaveTextContent("30%0 pts");
   });
+
+  it("keeps the history of a device the newest check did not read", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const read = (day: string, position: number) => ({
+      observedAt: new Date(`${day}T08:00:00Z`),
+      observationId: "observation-old",
+      position,
+      positionStatus: "ranked" as const,
+      device: "desktop" as const,
+    });
+    // The newest check read mobile only; desktop's reads are from older checks.
+    workspace.keywords.push(
+      seoTestKeyword({
+        id: "mobile-now",
+        device: "mobile",
+        observationId: "observation-new",
+        observedAt: new Date("2026-10-15T08:00:00Z"),
+        positionHistory: [
+          {
+            ...read("2026-10-15", 3),
+            device: "mobile",
+            observationId: "observation-new",
+          },
+        ],
+      }),
+      seoTestKeyword({
+        id: "desktop-before",
+        observationId: "observation-old",
+        positionHistory: [read("2026-10-01", 9), read("2026-10-08", 4)],
+      }),
+    );
+    workspace.serpHistory = [
+      {
+        keyword: "battery app",
+        device: "desktop",
+        countryCode: "US",
+        languageCode: "en",
+        points: [
+          {
+            observedAt: new Date("2026-10-08T08:00:00Z"),
+            observationId: "observation-old",
+            pageUrls: ["https://example.com/"],
+            itemTypes: ["organic"],
+            aiOverview: null,
+            featured: null,
+            paaOwned: false,
+            suspect: false,
+          },
+        ],
+      },
+    ];
+    renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "History" }));
+    expect(
+      screen.getByRole("group", {
+        name: "Desktop: position in paid checks for “battery app”",
+      }),
+    ).toBeVisible();
+    const marks = screen
+      .getByRole("columnheader", { name: "AI Overview" })
+      .closest("table");
+    expect(within(marks!).getAllByRole("row")).toHaveLength(2);
+  });
 });
