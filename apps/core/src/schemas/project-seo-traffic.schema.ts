@@ -79,3 +79,20 @@ export const seoWorkspaceLandingPagesSchema = seoLandingPagesSchema
     observedAt: dateTimeSchema,
   })
   .openapi("ProjectSeoLandingPages");
+
+/** Owner-chosen words that name the brand. Search Console queries that contain one count as branded. */
+export const SEO_BRAND_TERM_LIMIT = 50;
+const brandTermSchema = z.string().trim().min(1).max(100);
+export const saveSeoBrandTermsSchema = z
+  .object({ terms: z.array(brandTermSchema).max(SEO_BRAND_TERM_LIMIT) })
+  .strict()
+  .openapi("SaveProjectSeoBrandTermsRequest");
+/** Stored as an immutable observation of kind "settings"; the newest one is current. */
+export const seoSettingsPayloadSchema = z
+  .object({
+    version: z.literal(1),
+    kind: z.literal("settings"),
+    brandTerms: z.array(brandTermSchema).max(SEO_BRAND_TERM_LIMIT),
+    recordedBy: z.string().min(1).max(128),
+  })
+  .strict();

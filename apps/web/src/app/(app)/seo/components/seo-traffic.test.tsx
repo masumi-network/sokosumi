@@ -278,3 +278,64 @@ describe("SEO Traffic AI assistants", () => {
     expect(screen.queryByText(/recorded no key events/)).toBeNull();
   });
 });
+
+describe("SEO Traffic branded split", () => {
+  function brandWorkspace(terms?: string[]) {
+    const workspace = twoPageWorkspace();
+    workspace.searchQueries?.rows.push({
+      id: "acme",
+      query: "Acmé shoes",
+      pageUrl: "https://example.com/",
+      clicks: 9,
+      impressions: 50,
+      ctr: 0.18,
+      averagePosition: 1.5,
+    });
+    if (terms) workspace.brandTerms = terms;
+    return workspace;
+  }
+  const queriesSection = () => {
+    const section = screen
+      .getByRole("heading", { name: "Search Console queries" })
+      .closest("section");
+    if (!section) throw new Error("Queries section missing");
+    return within(section);
+  };
+
+  it("lists branded or non-branded queries and gives the clicks on each side", async () => {
+    const user = userEvent.setup();
+    renderTraffic(brandWorkspace(["acme"]));
+    expect(screen.getByTestId("seo-brand-totals")).toHaveTextContent(
+      "Listed queries: 9 clicks branded, 6 clicks non-branded",
+    );
+    await user.click(screen.getByRole("button", { name: "Branded" }));
+    expect(queriesSection().getByText("Acmé shoes")).toBeVisible();
+    expect(queriesSection().queryByText("example shop")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Non-branded" }));
+    expect(queriesSection().queryByText("Acmé shoes")).toBeNull();
+    expect(queriesSection().getByText("example shop")).toBeVisible();
+  });
+
+  it("saves the brand terms the owner types, one per line", async () => {
+    const user = userEvent.setup();
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderTraffic(brandWorkspace());
+    expect(screen.queryByRole("group", { name: "Brand split" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Add brand terms" }));
+    await user.type(
+      screen.getByLabelText("Brand terms"),
+      "Acme{enter}acme shop",
+    );
+    await user.click(screen.getByRole("button", { name: "Save brand terms" }));
+    await waitFor(() =>
+      expect(mutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command: {
+            kind: "save_brand_terms",
+            body: { terms: ["Acme", "acme shop"] },
+          },
+        }),
+      ),
+    );
+  });
+});

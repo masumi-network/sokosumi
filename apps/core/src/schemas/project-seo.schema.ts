@@ -662,6 +662,8 @@ export const projectSeoWorkspaceSchema = z
     ]),
     metrics: z.array(seoMetricSchema),
     searchQueries: z.union([seoSearchQueriesSchema, z.null()]),
+    /** Owner-chosen brand terms that split Search Console queries. Absent before any was saved. */
+    brandTerms: z.array(z.string()).optional(),
     /** Organic key events per landing page from the newest Google Analytics sync in view. */
     landingPages: z
       .union([seoWorkspaceLandingPagesSchema, z.null()])

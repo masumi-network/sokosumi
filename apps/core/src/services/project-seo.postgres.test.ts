@@ -47,6 +47,7 @@ import {
   createProjectSeoActionTask,
   requestProjectSeoAnalysis,
 } from "./project-seo-operations.service";
+import { saveProjectSeoBrandTerms } from "./project-seo-settings.service";
 import {
   changeTaskScheduleState,
   runTaskScheduleNow,
@@ -1211,6 +1212,26 @@ describe.skipIf(!enabled)(
         await getProjectSeoWorkspace(actor, { pageId: page.id })
       ).observations.map((row) => row.id);
       expect(ids).toContain(audit.id);
+    });
+
+    it("keeps the newest saved brand terms, even a list saved before", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: "https://example.test/brand-terms",
+        relationship: "primary",
+      });
+      await saveProjectSeoBrandTerms(actor, {
+        terms: ["Acme", "acme", "ACME Shop"],
+      });
+      await saveProjectSeoBrandTerms(actor, { terms: ["Other"] });
+      await saveProjectSeoBrandTerms(actor, { terms: ["Acme", "ACME Shop"] });
+      const workspace = await getProjectSeoWorkspace(actor, {
+        pageId: page.id,
+      });
+      expect(workspace.brandTerms).toEqual(["Acme", "ACME Shop"]);
+      // A settings row covers no page: it is never read as audit evidence.
+      expect(
+        workspace.observations.some((row) => row.kind === "settings"),
+      ).toBe(false);
     });
 
     it("imports only ready owned artifacts, rechecks source authority after fetch and links each action once", async () => {

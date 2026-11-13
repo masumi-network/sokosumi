@@ -6,6 +6,7 @@ import type {
   ImportProjectSeoAuditRequest,
   RecordProjectSeoPageChangeRequest,
   RequestProjectSeoAnalysisRequest,
+  SaveProjectSeoBrandTermsRequest,
   SaveProjectSeoCompetitorRequest,
   SaveProjectSeoKeywordRequest,
   SyncProjectSeoStatisticsRequest,
@@ -24,6 +25,7 @@ export type SeoCommand =
     }
   | { kind: "import_audit"; body: ImportProjectSeoAuditRequest }
   | { kind: "record_page_change"; body: RecordProjectSeoPageChangeRequest }
+  | { kind: "save_brand_terms"; body: SaveProjectSeoBrandTermsRequest }
   | { kind: "create_monitor"; body: CreateProjectSeoMonitorRequest }
   | {
       kind: "monitor_state";

@@ -36,6 +36,7 @@ import {
   createProjectSeoActionTask,
   requestProjectSeoAnalysis,
 } from "@/services/project-seo-operations.service";
+import { createSeoBrandTermsRouter } from "./brand-terms";
 import { createSeoPageChangesRouter } from "./page-changes";
 import { createSeoStatisticsRouter } from "./statistics";
 
@@ -344,6 +345,7 @@ export function createSeoWorkspaceRouter(ownerKind: "project" | "audit") {
 
   app.route("/statistics", createSeoStatisticsRouter(ownerKind));
   app.route("/", createSeoPageChangesRouter(ownerKind));
+  app.route("/", createSeoBrandTermsRouter(ownerKind));
   return app;
 }
 export default createSeoWorkspaceRouter("project");

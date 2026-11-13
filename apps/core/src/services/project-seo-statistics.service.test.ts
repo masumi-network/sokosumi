@@ -79,6 +79,8 @@ vi.mock("@/lib/db/prisma", () => {
         state.observations.filter((row) =>
           where.ownerId === null ? !row.ownerId : Boolean(row.ownerId),
         ),
+      // No brand terms saved.
+      findFirst: async () => null,
       upsert: async ({ create }: { create: Record<string, unknown> }) => {
         const saved = {
           id: "44444444-4444-4444-8444-444444444444",

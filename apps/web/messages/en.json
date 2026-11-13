@@ -12361,7 +12361,21 @@
         "sessions": "Sessions",
         "keyEventsShort": "Key events",
         "noAiData": "No AI Assistant channel data",
-        "noAiDataBody": "Google Analytics reported no sessions in its AI Assistant channel for these pages in this period."
+        "noAiDataBody": "Google Analytics reported no sessions in its AI Assistant channel for these pages in this period.",
+        "brandSplit": "Brand split",
+        "brandViews": {
+          "all": "All queries",
+          "branded": "Branded",
+          "non_branded": "Non-branded"
+        },
+        "brandTotals": "Listed queries: {branded} clicks branded, {nonBranded} clicks non-branded",
+        "editBrandTerms": "Edit brand terms",
+        "addBrandTerms": "Add brand terms",
+        "brandTerms": "Brand terms",
+        "brandTermsHelp": "One term per line. A query that holds a term as whole words counts as branded. Case and accents do not matter.",
+        "saveBrandTerms": "Save brand terms",
+        "cancelBrandTerms": "Cancel",
+        "brandSaved": "Brand terms saved"
       },
       "export": {
         "csv": "Download CSV",

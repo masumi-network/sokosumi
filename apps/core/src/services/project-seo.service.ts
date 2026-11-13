@@ -28,6 +28,7 @@ import {
   SEO_RANK_HISTORY_OBSERVATIONS,
   withSeoRankings,
 } from "./project-seo-rankings";
+import { loadSeoBrandTerms } from "./project-seo-settings.service";
 import {
   canConfirmSeoCompetitor,
   canReadPrivateSeoMetrics,
@@ -295,6 +296,7 @@ async function loadSeoWorkspaceObservations(
   pageIds: string[],
   privateMetricsAllowed: boolean,
 ) {
+  // Settings rows cover no page, so the page filter keeps them out.
   const where = { ...seoOwnerWhere(actor), pageIds: { hasSome: pageIds } };
   const [evidence, metrics] = await Promise.all([
     prisma.projectSeoObservation.findMany({
@@ -340,6 +342,7 @@ export async function getProjectSeoWorkspace(
     actionTasks,
     monitors,
     rankSources,
+    brandTerms,
   ] = await Promise.all([
     prisma.projectSeoPage.findMany({
       where: seoOwnerWhere(actor),
@@ -382,6 +385,7 @@ export async function getProjectSeoWorkspace(
       orderBy: { observedAt: "desc" },
       take: SEO_RANK_HISTORY_OBSERVATIONS,
     }),
+    loadSeoBrandTerms(actor),
   ]);
   const taskIds = [
     ...new Set([
@@ -444,5 +448,6 @@ export async function getProjectSeoWorkspace(
         monitorOfTask.get(sourceTask.get(run.observationId) ?? "") ?? null,
     })),
   };
-  return withSeoRankings(monitored, rankSources);
+  const ranked = withSeoRankings(monitored, rankSources);
+  return brandTerms ? { ...ranked, brandTerms } : ranked;
 }

@@ -12361,7 +12361,21 @@
         "sessions": "Sesiones",
         "keyEventsShort": "Eventos clave",
         "noAiData": "Sin datos del canal «AI Assistant»",
-        "noAiDataBody": "Google Analytics no registró sesiones en su canal «AI Assistant» para estas páginas en este periodo."
+        "noAiDataBody": "Google Analytics no registró sesiones en su canal «AI Assistant» para estas páginas en este periodo.",
+        "brandSplit": "División por marca",
+        "brandViews": {
+          "all": "Todas las consultas",
+          "branded": "De marca",
+          "non_branded": "Sin marca"
+        },
+        "brandTotals": "Consultas listadas: {branded} clics de marca, {nonBranded} clics sin marca",
+        "editBrandTerms": "Editar términos de marca",
+        "addBrandTerms": "Añadir términos de marca",
+        "brandTerms": "Términos de marca",
+        "brandTermsHelp": "Un término por línea. Una consulta que contiene un término como palabras completas cuenta como de marca. Las mayúsculas y los acentos no importan.",
+        "saveBrandTerms": "Guardar términos de marca",
+        "cancelBrandTerms": "Cancelar",
+        "brandSaved": "Términos de marca guardados"
       },
       "export": {
         "csv": "Descargar CSV",

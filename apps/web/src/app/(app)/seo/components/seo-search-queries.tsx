@@ -13,6 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { type SeoBrandView, seoBrandRows } from "./seo-brand-model";
+import { SeoBrandSplit } from "./seo-brand-terms";
 import { SeoCsvButton } from "./seo-csv-button";
 import { seoQueriesExport } from "./seo-export-model";
 import { SeoField, SeoSelect } from "./seo-form-fields";
@@ -104,7 +106,11 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
   // Only the empty card asks: a connected account with nothing synced is not "not connected".
   const connected = useSearchConsoleConnected(!source && !saved);
   const empty = saved ? "notLoaded" : connected ? "notSynced" : "notConnected";
-  const rows = sortQueryRows(model.filteredQueries, sort);
+  const [brandView, setBrandView] = useState<SeoBrandView>("all");
+  const rows = sortQueryRows(
+    seoBrandRows(model.filteredQueries, model.data.brandTerms ?? [], brandView),
+    sort,
+  );
   const buckets = positionBuckets(rows);
   const hidden = hiddenImpressions(model.data);
   // With one page selected, every row is about that page; the URL only repeats.
@@ -139,6 +145,9 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
             ? `${sameSync ? "" : " · "}${t("queries.truncated", { count: source.rowLimit })}`
             : ""}
         </p>
+      ) : null}
+      {source ? (
+        <SeoBrandSplit model={model} view={brandView} onView={setBrandView} />
       ) : null}
       {!source ? (
         <SeoEmpty

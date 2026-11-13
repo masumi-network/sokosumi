@@ -10,6 +10,7 @@ import type {
   ImportProjectSeoAuditRequest,
   RecordProjectSeoPageChangeRequest,
   RequestProjectSeoAnalysisRequest,
+  SaveProjectSeoBrandTermsRequest,
   SaveProjectSeoCompetitorRequest,
   SaveProjectSeoKeywordRequest,
   SyncProjectSeoStatisticsRequest,
@@ -37,8 +38,10 @@ import {
   recordSeoAuditPageChange,
   requestProjectSeoAnalysis,
   requestSeoAuditAnalysis,
+  saveProjectSeoBrandTerms,
   saveProjectSeoCompetitor,
   saveProjectSeoKeyword,
+  saveSeoAuditBrandTerms,
   saveSeoAuditCompetitor,
   saveSeoAuditKeyword,
   syncProjectSeoStatistics,
@@ -228,6 +231,21 @@ export const seoServiceNoRedirect = {
           body,
         }),
       "Failed to record page change",
+    );
+    return response.data;
+  },
+  async saveBrandTerms(owner: SeoOwner, body: SaveProjectSeoBrandTermsRequest) {
+    const response = await executeCoreOperation(
+      createCoreGeneratedClient,
+      (client) =>
+        (owner.kind === "audit"
+          ? saveSeoAuditBrandTerms
+          : saveProjectSeoBrandTerms)({
+          client,
+          path: { id: owner.id },
+          body,
+        }),
+      "Failed to save brand terms",
     );
     return response.data;
   },

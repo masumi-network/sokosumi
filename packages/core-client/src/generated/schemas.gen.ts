@@ -40082,6 +40082,12 @@ export const ProjectSeoWorkspaceSchema = {
                 }
             ]
         },
+        brandTerms: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
         landingPages: {
             anyOf: [
                 {
@@ -43058,6 +43064,25 @@ export const RecordProjectSeoPageChangeRequestSchema = {
         'occurredAt',
         'title',
         'idempotencyKey'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SaveProjectSeoBrandTermsRequestSchema = {
+    type: 'object',
+    properties: {
+        terms: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 100
+            },
+            maxItems: 50
+        }
+    },
+    required: [
+        'terms'
     ],
     additionalProperties: false
 } as const;

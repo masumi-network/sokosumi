@@ -10677,6 +10677,7 @@ export type ProjectSeoWorkspace = {
     metricsStatus: 'not_connected' | 'available' | 'partial' | 'unavailable';
     metrics: Array<ProjectSeoMetric>;
     searchQueries: ProjectSeoSearchQueries | null;
+    brandTerms?: Array<string>;
     landingPages?: ProjectSeoLandingPages | null;
     indexStatus?: ProjectSeoIndexStatus | null;
     strategy?: ProjectSeoStrategy | null;
@@ -11220,6 +11221,10 @@ export type RecordProjectSeoPageChangeRequest = {
     title: string;
     note?: string;
     idempotencyKey: string;
+};
+
+export type SaveProjectSeoBrandTermsRequest = {
+    terms: Array<string>;
 };
 
 export type PatchProjectRequest = {
@@ -73532,6 +73537,117 @@ export type RecordProjectSeoPageChangeResponses = {
 
 export type RecordProjectSeoPageChangeResponse = RecordProjectSeoPageChangeResponses[keyof RecordProjectSeoPageChangeResponses];
 
+export type SaveProjectSeoBrandTermsData = {
+    body: SaveProjectSeoBrandTermsRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/brand-terms';
+};
+
+export type SaveProjectSeoBrandTermsErrors = {
+    /**
+     * Invalid brand terms
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflicting brand terms
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SaveProjectSeoBrandTermsError = SaveProjectSeoBrandTermsErrors[keyof SaveProjectSeoBrandTermsErrors];
+
+export type SaveProjectSeoBrandTermsResponses = {
+    /**
+     * Project SEO workspace
+     */
+    200: {
+        data: ProjectSeoWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SaveProjectSeoBrandTermsResponse = SaveProjectSeoBrandTermsResponses[keyof SaveProjectSeoBrandTermsResponses];
+
 export type ListSeoAuditsData = {
     body?: never;
     headers?: {
@@ -75738,6 +75854,117 @@ export type RecordSeoAuditPageChangeResponses = {
 };
 
 export type RecordSeoAuditPageChangeResponse = RecordSeoAuditPageChangeResponses[keyof RecordSeoAuditPageChangeResponses];
+
+export type SaveSeoAuditBrandTermsData = {
+    body: SaveProjectSeoBrandTermsRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/seo/audits/{id}/brand-terms';
+};
+
+export type SaveSeoAuditBrandTermsErrors = {
+    /**
+     * Invalid brand terms
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflicting brand terms
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SaveSeoAuditBrandTermsError = SaveSeoAuditBrandTermsErrors[keyof SaveSeoAuditBrandTermsErrors];
+
+export type SaveSeoAuditBrandTermsResponses = {
+    /**
+     * Project SEO workspace
+     */
+    200: {
+        data: ProjectSeoWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SaveSeoAuditBrandTermsResponse = SaveSeoAuditBrandTermsResponses[keyof SaveSeoAuditBrandTermsResponses];
 
 export type DisconnectSeoConnectionData = {
     body?: never;

@@ -83,6 +83,9 @@ export const mutateSeo = withSession<
       case "record_page_change":
         await seoServiceNoRedirect.recordPageChange(owner, command.body);
         break;
+      case "save_brand_terms":
+        await seoServiceNoRedirect.saveBrandTerms(owner, command.body);
+        break;
       case "create_monitor":
         await seoServiceNoRedirect.createMonitor(owner, command.body);
         break;
