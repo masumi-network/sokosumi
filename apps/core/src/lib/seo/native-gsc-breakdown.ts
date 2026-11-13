@@ -3,8 +3,10 @@ import countries from "i18n-iso-countries";
 
 import {
   SEO_BREAKDOWN_ROW_LIMIT,
+  type SeoPositionedSearchBreakdown,
   type SeoSearchBreakdown,
   type SeoSearchType,
+  seoPositionedSearchBreakdownSchema,
   seoSearchBreakdownSchema,
   seoSearchTypeHasQueries,
 } from "@/schemas/project-seo-traffic.schema";
@@ -66,6 +68,14 @@ function deviceKey(code: string): string {
 }
 
 /**
+ * A split as stored. Discover and Google News (the feed types, the ones
+ * without query rows) go under their own keys, as their rows can lack a position.
+ */
+export type GscBreakdown =
+  | { feed: false; split: SeoPositionedSearchBreakdown }
+  | { feed: true; split: SeoSearchBreakdown };
+
+/**
  * Validates one grouped response. A different grouping, an unreadable key or a
  * duplicate refuses the whole read. Rows keep Search Console's click order.
  */
@@ -73,11 +83,9 @@ export function normalizeGscBreakdown(
   dimension: GscBreakdownDimension,
   input: unknown,
   searchType?: SeoSearchType,
-): SeoSearchBreakdown {
-  // Discover and Google News are the feed types: the ones without query rows.
-  const report = (
-    seoSearchTypeHasQueries(searchType) ? reportSchema : feedReportSchema
-  ).parse(input);
+): GscBreakdown {
+  const feed = !seoSearchTypeHasQueries(searchType);
+  const report = (feed ? feedReportSchema : reportSchema).parse(input);
   const seen = new Set<string>();
   const rows = report.rows.map((row) => {
     if (row.keys.length !== 1)
@@ -97,9 +105,12 @@ export function normalizeGscBreakdown(
       averagePosition: row.position ?? null,
     };
   });
-  return seoSearchBreakdownSchema.parse({
+  const split = {
     rowLimit: SEO_BREAKDOWN_ROW_LIMIT,
     truncated: report.rows.length >= SEO_BREAKDOWN_ROW_LIMIT,
     rows,
-  });
+  };
+  return feed
+    ? { feed, split: seoSearchBreakdownSchema.parse(split) }
+    : { feed, split: seoPositionedSearchBreakdownSchema.parse(split) };
 }

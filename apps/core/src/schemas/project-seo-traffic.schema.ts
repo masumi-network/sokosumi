@@ -111,32 +111,48 @@ export const seoSettingsPayloadSchema = z
   })
   .strict();
 export const SEO_BREAKDOWN_ROW_LIMIT = 250;
+const breakdownPosition = z.number().finite().min(1);
 /**
  * Search Console totals for the same pages and period, grouped by one
  * dimension. A country key is ISO alpha-2, or Google's alpha-3 code when it
  * has no alpha-2 twin. A device key is desktop, mobile or tablet.
  */
-export const seoSearchBreakdownSchema = z
-  .object({
-    rowLimit: z.number().int().positive().max(SEO_BREAKDOWN_ROW_LIMIT),
-    truncated: z.boolean(),
-    rows: z
-      .array(
-        z
-          .object({
-            key: z.string().regex(/^(?:[A-Z]{2,3}|desktop|mobile|tablet)$/),
-            clicks: z.number().finite().nonnegative(),
-            impressions: z.number().finite().nonnegative(),
-            ctr: z.number().finite().min(0).max(1),
-            // Null: a Discover or Google News row came without a position.
-            averagePosition: z.number().finite().min(1).nullable(),
-          })
-          .strict(),
-      )
-      .max(SEO_BREAKDOWN_ROW_LIMIT),
-  })
-  .strict()
-  .openapi("ProjectSeoSearchBreakdown");
+function breakdownSchema<Position extends z.ZodTypeAny>(
+  averagePosition: Position,
+) {
+  return z
+    .object({
+      rowLimit: z.number().int().positive().max(SEO_BREAKDOWN_ROW_LIMIT),
+      truncated: z.boolean(),
+      rows: z
+        .array(
+          z
+            .object({
+              key: z.string().regex(/^(?:[A-Z]{2,3}|desktop|mobile|tablet)$/),
+              clicks: z.number().finite().nonnegative(),
+              impressions: z.number().finite().nonnegative(),
+              ctr: z.number().finite().min(0).max(1),
+              averagePosition,
+            })
+            .strict(),
+        )
+        .max(SEO_BREAKDOWN_ROW_LIMIT),
+    })
+    .strict();
+}
+/**
+ * A split of a search type with query rows: every row has a position. Builds
+ * from before Discover and Google News read these rows and need the position.
+ */
+export const seoPositionedSearchBreakdownSchema =
+  breakdownSchema(breakdownPosition);
+export type SeoPositionedSearchBreakdown = z.infer<
+  typeof seoPositionedSearchBreakdownSchema
+>;
+/** Any split. Null position: a Discover or Google News row came without one. */
+export const seoSearchBreakdownSchema = breakdownSchema(
+  breakdownPosition.nullable(),
+).openapi("ProjectSeoSearchBreakdown");
 export type SeoSearchBreakdown = z.infer<typeof seoSearchBreakdownSchema>;
 /** The newest Search Console country and device split in view, with where it came from. */
 export const seoWorkspaceSearchBreakdownSchema = z

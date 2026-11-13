@@ -17,6 +17,7 @@ import {
 import { seoStrategySchema } from "./project-seo-strategy.schema";
 import {
   seoLandingPagesSchema,
+  seoPositionedSearchBreakdownSchema,
   seoSearchBreakdownSchema,
   seoSearchTypeSchema,
   seoTrafficChannelSchema,
@@ -718,9 +719,16 @@ export const nativeSeoMetricsSchema = z
       .optional(),
     /** Daily positions of tracked keywords for the same pages and period. Absent when none were requested. */
     keywordSeries: seoKeywordSeriesSchema.optional(),
-    /** Search Console totals by country and by device. Absent when the read failed. */
-    countries: seoSearchBreakdownSchema.optional(),
-    devices: seoSearchBreakdownSchema.optional(),
+    /** Search Console totals by country and by device. Absent when the read failed or on Discover and Google News. */
+    countries: seoPositionedSearchBreakdownSchema.optional(),
+    devices: seoPositionedSearchBreakdownSchema.optional(),
+    /**
+     * The same split for Discover and Google News, where a row can come without a position.
+     * Kept apart so that a build from before these types skips the sync as unknown keys
+     * instead of failing the Traffic view on a null position.
+     */
+    feedCountries: seoSearchBreakdownSchema.optional(),
+    feedDevices: seoSearchBreakdownSchema.optional(),
     /** Google Analytics organic key events per selected landing page. Absent when the read failed or on older observations. */
     landingPages: seoLandingPagesSchema.optional(),
     /** URL Inspection results for the selected pages Google answered for. Absent when none answered. */

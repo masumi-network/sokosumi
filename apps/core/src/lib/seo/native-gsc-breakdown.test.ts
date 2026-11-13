@@ -14,7 +14,7 @@ describe("normalizeGscBreakdown", () => {
   it("stores countries as alpha-2 and keeps Google's code when none exists", () => {
     const result = normalizeGscBreakdown("country", {
       rows: [row("deu"), row("usa"), row("zzz")],
-    });
+    }).split;
     expect(result.rows.map((entry) => entry.key)).toEqual(["DE", "US", "ZZZ"]);
     expect(result.rows[0]).toEqual({
       key: "DE",
@@ -29,7 +29,7 @@ describe("normalizeGscBreakdown", () => {
   it("reads devices in any case", () => {
     const result = normalizeGscBreakdown("device", {
       rows: [row("MOBILE"), row("desktop")],
-    });
+    }).split;
     expect(result.rows.map((entry) => entry.key)).toEqual([
       "mobile",
       "desktop",
@@ -57,7 +57,8 @@ describe("normalizeGscBreakdown", () => {
       { rows: [feedRow] },
       "discover",
     );
-    expect(result.rows[0].averagePosition).toBeNull();
+    expect(result.feed).toBe(true);
+    expect(result.split.rows[0].averagePosition).toBeNull();
     expect(() =>
       normalizeGscBreakdown("device", { rows: [feedRow] }, "web"),
     ).toThrow();

@@ -539,10 +539,12 @@ export async function syncProjectSeoStatistics(
           );
       } else metrics.notes.push(SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE);
     }
-    if (byCountry.status === "fulfilled" && byCountry.value)
-      metrics.countries = byCountry.value;
-    if (byDevice.status === "fulfilled" && byDevice.value)
-      metrics.devices = byDevice.value;
+    const country = byCountry.status === "fulfilled" ? byCountry.value : null;
+    if (country?.feed) metrics.feedCountries = country.split;
+    else if (country) metrics.countries = country.split;
+    const device = byDevice.status === "fulfilled" ? byDevice.value : null;
+    if (device?.feed) metrics.feedDevices = device.split;
+    else if (device) metrics.devices = device.split;
     if (byCountry.status === "rejected" || byDevice.status === "rejected")
       metrics.notes.push(SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE);
     if (indexed.status === "fulfilled" && indexed.value?.length)

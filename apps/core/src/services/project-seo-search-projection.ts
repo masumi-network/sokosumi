@@ -22,6 +22,13 @@ function opportunitiesFor(source: SearchEvidenceSource) {
   });
 }
 
+/** The country and device split of a sync. Discover and Google News store it under the feed keys. */
+function splitOf(data: NativeSeoMetrics) {
+  const countries = data.countries ?? data.feedCountries;
+  const devices = data.devices ?? data.feedDevices;
+  return countries || devices ? { countries, devices } : null;
+}
+
 /**
  * Query rows come from the newest compatible Search Console sync. Opportunity IDs
  * hash query and page, so a linked Task stays attached across later syncs, scopes
@@ -60,9 +67,7 @@ export function projectSearchEvidence(
     });
   }
   // Discover and Google News sync a split but no query rows, so the split has its own source.
-  const split = sources.find(
-    (source) => source.data.countries || source.data.devices,
-  );
+  const split = sources.find((source) => splitOf(source.data));
   const searchBreakdown = split
     ? {
         observationId: split.row.id,
@@ -70,8 +75,7 @@ export function projectSearchEvidence(
         from: split.data.from,
         to: split.data.to,
         observedAt: split.row.observedAt.toISOString(),
-        countries: split.data.countries,
-        devices: split.data.devices,
+        ...splitOf(split.data),
       }
     : null;
   const current = sources.find((source) => source.data.queries);

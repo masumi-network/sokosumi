@@ -1190,7 +1190,7 @@ describe("stored SEO workspace projections", () => {
       ...(discover.payload as object),
       searchType: "discover",
       queries: undefined,
-      devices,
+      feedDevices: devices,
     } as never;
     input.observations = [discover];
     input.query = { searchType: "discover" };

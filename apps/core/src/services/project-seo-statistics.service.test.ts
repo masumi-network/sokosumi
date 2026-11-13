@@ -175,7 +175,9 @@ vi.mock(
   }),
 );
 
+import { z } from "@hono/zod-openapi";
 import { runSeoTool } from "@/lib/soko-bot/seo-tools";
+import { nativeSeoMetricsSchema } from "@/schemas/project-seo.schema";
 import { syncProjectSeoStatistics } from "./project-seo-statistics.service";
 
 const actor = {
@@ -862,6 +864,66 @@ describe("Search Console query rows", () => {
       "query rows were unavailable",
     );
     expect(workspace.metrics[0]).toMatchObject({ searchType: "discover" });
+  });
+
+  it("stores a Discover split under keys that an older build skips as unknown", async () => {
+    const current = gsc({ rows: [] });
+    const { position: _position, ...feedMetric } = metric;
+    state.answer = (slug, args) => {
+      const dimension = (args.dimensions as string[] | undefined)?.join();
+      if (dimension === "country")
+        return { rows: [{ keys: ["deu"], ...feedMetric }] };
+      if (dimension === "device")
+        return { rows: [{ keys: ["MOBILE"], ...feedMetric }] };
+      return current(slug, args);
+    };
+    const workspace = await syncProjectSeoStatistics(actor, {
+      ...gscInput,
+      searchType: "discover",
+    });
+    expect(workspace.searchBreakdown?.devices?.rows).toEqual([
+      { key: "mobile", ...feedMetric, averagePosition: null },
+    ]);
+    // The build before Discover (aae582000f) read countries and devices with a
+    // position on every row. Its projection skips a sync only when every issue
+    // is an unknown key, and fails the whole Traffic view on any other issue.
+    const baseRow = z
+      .object({
+        key: z.string(),
+        clicks: z.number(),
+        impressions: z.number(),
+        ctr: z.number(),
+        averagePosition: z.number().finite().min(1),
+      })
+      .strict();
+    const baseSplit = z
+      .object({
+        rowLimit: z.number(),
+        truncated: z.boolean(),
+        rows: z.array(baseRow),
+      })
+      .strict();
+    const {
+      searchType: _searchType,
+      feedCountries: _feedCountries,
+      feedDevices: _feedDevices,
+      landingPages: _landingPages,
+      ...baseShape
+    } = nativeSeoMetricsSchema.shape;
+    const base = z
+      .object({
+        ...baseShape,
+        countries: baseSplit.optional(),
+        devices: baseSplit.optional(),
+      })
+      .strict()
+      .safeParse(state.observations[0].payload);
+    expect(base.error?.issues).toEqual([
+      expect.objectContaining({
+        code: "unrecognized_keys",
+        keys: expect.arrayContaining(["feedCountries", "feedDevices"]),
+      }),
+    ]);
   });
 
   it("refuses the AI Assistant channel for Search Console before any read", async () => {
