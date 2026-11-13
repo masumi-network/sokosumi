@@ -12442,7 +12442,6 @@
         "copyFailed": "Could not copy the request.",
         "gaps": {
           "title": "What this audit could not see",
-          "none": "This audit has no known gap in its data.",
           "noSearchConsole": "No Search Console data: clicks, searches and Google's index state are not measured.",
           "noAnalytics": "No Google Analytics data: visits and key events are not measured.",
           "statisticsUnavailable": "The last statistics sync could not read the data.",
@@ -12471,8 +12470,8 @@
           "historyLimited": "Only the latest {limit} checks and the latest {limit} syncs are loaded. Earlier history is not included."
         },
         "fix": {
-          "connect_search_console": "Connect Search Console",
-          "connect_ga4": "Connect Google Analytics",
+          "connect_search_console": "Set up statistics",
+          "connect_ga4": "Set up statistics",
           "sync": "Sync statistics",
           "run_check": "Run a check"
         },

@@ -81,12 +81,18 @@ describe("What the agent cannot do yet", () => {
     expect(dialog.queryByText("Google update markers on charts")).toBeNull();
     expect(dialog.getByText("Full-site crawl")).toBeVisible();
     expect(dialog.getByText("Site migration check")).toBeVisible();
-    // Search Console is synced, Google Analytics is not: one gap, with its connection.
+    // Search Console is synced, Google Analytics is not: one gap, with the words of the Traffic tab's button.
     expect(dialog.getByText(/^No Google Analytics data/)).toBeVisible();
     expect(dialog.queryByText(/^No Search Console data/)).toBeNull();
     expect(
-      dialog.getByRole("button", { name: "Connect Google Analytics" }),
+      dialog.getByRole("button", {
+        name: "Set up statistics: Google Analytics",
+      }),
     ).toBeVisible();
+    // What the owner can change now leads the dialog.
+    expect(dialog.getAllByRole("heading", { level: 3 })[0]).toHaveTextContent(
+      "What this audit could not see",
+    );
   });
 
   it("copies a request for one item", async () => {

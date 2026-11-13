@@ -12442,7 +12442,6 @@
         "copyFailed": "No se pudo copiar la solicitud.",
         "gaps": {
           "title": "Lo que esta auditoría no pudo ver",
-          "none": "A esta auditoría no le faltan datos conocidos.",
           "noSearchConsole": "No hay datos de Search Console: no se miden los clics, las búsquedas ni el estado en el índice de Google.",
           "noAnalytics": "No hay datos de Google Analytics: no se miden las visitas ni los eventos clave.",
           "statisticsUnavailable": "La última sincronización de estadísticas no pudo leer los datos.",
@@ -12471,8 +12470,8 @@
           "historyLimited": "Solo se cargan las últimas {limit} comprobaciones y las últimas {limit} sincronizaciones. El historial anterior no se incluye."
         },
         "fix": {
-          "connect_search_console": "Conectar Search Console",
-          "connect_ga4": "Conectar Google Analytics",
+          "connect_search_console": "Configurar estadísticas",
+          "connect_ga4": "Configurar estadísticas",
           "sync": "Sincronizar estadísticas",
           "run_check": "Iniciar comprobación"
         },
