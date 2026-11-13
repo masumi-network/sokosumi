@@ -101,7 +101,7 @@ export const saveSeoBrandTermsSchema = z
   .object({ terms: z.array(savedBrandTermSchema).max(SEO_BRAND_TERM_LIMIT) })
   .strict()
   .openapi("SaveProjectSeoBrandTermsRequest");
-/** Stored as an immutable observation of kind "settings"; the newest one is current. */
+/** Stored as an observation of kind "settings". A changed list replaces the older rows, so one row is current. */
 export const seoSettingsPayloadSchema = z
   .object({
     version: z.literal(1),
