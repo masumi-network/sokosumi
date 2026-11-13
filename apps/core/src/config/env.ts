@@ -109,6 +109,12 @@ const baseEnvSchema = z.object({
   // (ADR 0066). Unset refuses every such write.
   CMO_OAUTH_CLIENT_ID: z.string().trim().min(1).optional(),
 
+  // Polar sells CMO plans and Project top-ups (ADR 0068). All three are needed;
+  // without them the Polar routes and the Polar webhook answer 503.
+  POLAR_ACCESS_TOKEN: z.string().min(1).optional(),
+  POLAR_WEBHOOK_SECRET: z.string().min(1).optional(),
+  POLAR_ENVIRONMENT: z.enum(["sandbox", "production"]).optional(),
+
   // Project newsletters use a separate sending domain from transactional email.
   NEWSLETTER_FROM_DOMAIN: z.hostname().optional(),
   RESEND_NEWSLETTER_WEBHOOK_SECRET: z.string().min(1).optional(),

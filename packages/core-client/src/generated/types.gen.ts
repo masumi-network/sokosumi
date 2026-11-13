@@ -93597,6 +93597,87 @@ export type PostWebhooksResendNewsletterResponses = {
 
 export type PostWebhooksResendNewsletterResponse = PostWebhooksResendNewsletterResponses[keyof PostWebhooksResendNewsletterResponses];
 
+export type PostWebhooksPolarData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/webhooks/polar';
+};
+
+export type PostWebhooksPolarErrors = {
+    /**
+     * Invalid webhook signature
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Polar is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostWebhooksPolarError = PostWebhooksPolarErrors[keyof PostWebhooksPolarErrors];
+
+export type PostWebhooksPolarResponses = {
+    /**
+     * Received
+     */
+    200: {
+        data: {
+            received: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+    /**
+     * Event type not handled
+     */
+    202: {
+        received: boolean;
+    };
+};
+
+export type PostWebhooksPolarResponse = PostWebhooksPolarResponses[keyof PostWebhooksPolarResponses];
+
 export type PostWorkspacesDesignMdAdhocData = {
     body?: AdHocDesignMdWrite;
     headers?: {
