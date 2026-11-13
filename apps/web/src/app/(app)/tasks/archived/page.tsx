@@ -7,6 +7,10 @@ import { BackToTasksButton } from "@/app/tasks/components/back-to-tasks-button";
 import { Input } from "@/components/ui/input";
 import { taskService } from "@/lib/services/task.service";
 
+import {
+  ARCHIVED_SEARCH_MAX_LENGTH,
+  readArchivedSearch,
+} from "./archived-search";
 import { ArchivedTasksList } from "./archived-tasks-list";
 
 // Blocks on the search and the archived list; there is no shell worth showing first.
@@ -27,8 +31,7 @@ export default async function ArchivedTasksPage({
   searchParams: Promise<{ q?: string | string[] }>;
 }) {
   await connection();
-  const { q: rawQuery } = await searchParams;
-  const query = (Array.isArray(rawQuery) ? rawQuery[0] : rawQuery)?.trim();
+  const query = readArchivedSearch((await searchParams).q);
   const [t, format, { tasks }] = await Promise.all([
     getTranslations("App.Tasks.Archived"),
     getFormatter(),
@@ -56,6 +59,7 @@ export default async function ArchivedTasksPage({
           type="search"
           name="q"
           defaultValue={query}
+          maxLength={ARCHIVED_SEARCH_MAX_LENGTH}
           placeholder={t("searchPlaceholder")}
           aria-label={t("searchLabel")}
           className="pl-9"

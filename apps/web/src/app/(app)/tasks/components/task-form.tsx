@@ -455,6 +455,11 @@ export function TaskForm({
 
   const [isRunAtModalOpen, setIsRunAtModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // The tag receipt this create sends. Submitting turns the suggestion hook
+  // off, which drops its receipt, so progress reads this snapshot instead.
+  const [submittedTagReceipt, setSubmittedTagReceipt] = useState<
+    string | undefined
+  >();
   const [createdTask, setCreatedTask] = useState<{
     id: string;
     identifier: string | null;
@@ -706,6 +711,8 @@ export function TaskForm({
       toast.error(tRunAt("notInFuture"));
       return;
     }
+    const tagSuggestionReceipt = draftTags.tagSuggestionReceipt;
+    setSubmittedTagReceipt(tagSuggestionReceipt);
     setIsSubmitting(true);
     // Set while a create is out: its failure names the Task that is not made.
     let createFailedMessage: string | null = null;
@@ -752,9 +759,7 @@ export function TaskForm({
             }) ?? labels.untitledTask,
         });
         const result = await createTaskHandler({
-          ...(draftTags.tagSuggestionReceipt
-            ? { tagSuggestionReceipt: draftTags.tagSuggestionReceipt }
-            : {}),
+          ...(tagSuggestionReceipt ? { tagSuggestionReceipt } : {}),
           ...(copyOfTaskId ? { copyOfTaskId } : {}),
           ...(trimmedName ? { name: trimmedName } : {}),
           description: trimmedDescription,
@@ -1434,7 +1439,7 @@ export function TaskForm({
           <TaskCreateProgress
             active={isSubmitting}
             needsName={!name.trim()}
-            tagsReady={Boolean(draftTags.tagSuggestionReceipt)}
+            tagsReady={Boolean(submittedTagReceipt)}
             isCopy={isCopy}
           />
         ) : null}
