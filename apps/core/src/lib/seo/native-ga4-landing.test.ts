@@ -91,13 +91,82 @@ describe("GA4 key events per landing page", () => {
     ).toThrow("different landing page grouping");
   });
 
-  it("reads the AI Assistant channel group when the sync reads AI assistant traffic", () => {
+  it("splits an AI Assistant read by assistant and adds each page up", () => {
     const aiQuery = { ...query, channel: "ai_assistant" as const };
-    expect(JSON.stringify(ga4LandingPageArguments(aiQuery))).toContain(
+    const args = ga4LandingPageArguments(aiQuery);
+    expect(args.dimensions).toEqual([
+      { name: "landingPagePlusQueryString" },
+      { name: "sessionSource" },
+    ]);
+    expect(JSON.stringify(args.dimensionFilter)).toContain(
       '"value":"AI Assistant"',
     );
+    const sourced = (rows: Array<[string, string, string, string]>) => ({
+      dimensionHeaders: [
+        { name: "landingPagePlusQueryString" },
+        { name: "sessionSource" },
+      ],
+      metricHeaders: [{ name: "sessions" }, { name: "keyEvents" }],
+      rows: rows.map(([path, source, sessions, keyEvents]) => ({
+        dimensionValues: [{ value: path }, { value: source }],
+        metricValues: [{ value: sessions }, { value: keyEvents }],
+      })),
+      rowCount: rows.length,
+    });
     expect(
-      normalizeGa4LandingPages(aiQuery, report([["/", "4", "1"]])).channel,
-    ).toBe("ai_assistant");
+      normalizeGa4LandingPages(
+        aiQuery,
+        sourced([
+          ["/", "perplexity.ai", "2", "0"],
+          ["/", "chatgpt.com", "5", "1"],
+          ["/shop?ref=nav", "chatgpt.com", "1", "1"],
+        ]),
+      ),
+    ).toEqual({
+      channel: "ai_assistant",
+      rows: [
+        { pageUrl: "https://example.com/", sessions: 7, keyEvents: 1 },
+        {
+          pageUrl: "https://example.com/shop?ref=nav",
+          sessions: 1,
+          keyEvents: 1,
+        },
+      ],
+      sources: [
+        {
+          pageUrl: "https://example.com/",
+          source: "chatgpt.com",
+          sessions: 5,
+          keyEvents: 1,
+        },
+        {
+          pageUrl: "https://example.com/",
+          source: "perplexity.ai",
+          sessions: 2,
+          keyEvents: 0,
+        },
+        {
+          pageUrl: "https://example.com/shop?ref=nav",
+          source: "chatgpt.com",
+          sessions: 1,
+          keyEvents: 1,
+        },
+      ],
+      truncated: false,
+    });
+    // No AI Assistant rows is no data, not a guess from a referrer list.
+    expect(normalizeGa4LandingPages(aiQuery, sourced([]))).toEqual({
+      channel: "ai_assistant",
+      rows: [],
+      sources: [],
+      truncated: false,
+    });
+    // A row cut by the limit makes the page sums a floor.
+    expect(
+      normalizeGa4LandingPages(aiQuery, {
+        ...sourced([["/", "chatgpt.com", "5", "1"]]),
+        rowCount: 300,
+      }).truncated,
+    ).toBe(true);
   });
 });

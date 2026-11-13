@@ -12352,7 +12352,16 @@
         },
         "keyEvents": "Schlüsselereignisse (organisch)",
         "noKeyEvents": "Google Analytics hat für diese Seiten keine Schlüsselereignisse erfasst. Richte dort Schlüsselereignisse ein, um Conversions hier zu sehen.",
-        "keyEventsAiAssistant": "Schlüsselereignisse (KI-Assistenten)"
+        "keyEventsAiAssistant": "Schlüsselereignisse (KI-Assistenten)",
+        "aiAssistants": "KI-Assistenten",
+        "aiAssistantsHelp": "Besuche im Google-Analytics-Kanal „AI Assistant“ (ChatGPT, Perplexity, Gemini, Copilot und andere) nach Einstiegsseite",
+        "aiAssistantsTruncated": "Nur die ersten Zeilen wurden behalten, die Summen können höher sein",
+        "assistant": "Assistent",
+        "landingPage": "Einstiegsseite",
+        "sessions": "Sitzungen",
+        "keyEventsShort": "Schlüsselereignisse",
+        "noAiData": "Keine Daten im Kanal „AI Assistant“",
+        "noAiDataBody": "Google Analytics hat in diesem Zeitraum für diese Seiten keine Sitzungen im Kanal „AI Assistant“ gemeldet."
       },
       "export": {
         "csv": "CSV herunterladen",

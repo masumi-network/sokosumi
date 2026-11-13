@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SeoAiAssistants } from "./seo-ai-assistants";
 import { SeoBreakdown } from "./seo-breakdown";
 import { SeoCsvButton } from "./seo-csv-button";
 import { seoTopPagesExport } from "./seo-export-model";
@@ -49,6 +50,7 @@ export function SeoTraffic({ model }: { model: SeoWorkspaceModel }) {
       />
       <SeoSearchQueries model={model} />
       <SeoTopPages model={model} />
+      <SeoAiAssistants model={model} />
       <SeoBreakdown model={model} />
     </div>
   );

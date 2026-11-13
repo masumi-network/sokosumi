@@ -41380,6 +41380,43 @@ export const ProjectSeoLandingPagesSchema = {
             },
             maxItems: 10
         },
+        sources: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageUrl: {
+                        type: 'string',
+                        maxLength: 2048,
+                        format: 'uri'
+                    },
+                    source: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 500
+                    },
+                    sessions: {
+                        type: 'number',
+                        minimum: 0
+                    },
+                    keyEvents: {
+                        type: 'number',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'pageUrl',
+                    'source',
+                    'sessions',
+                    'keyEvents'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 250
+        },
+        truncated: {
+            type: 'boolean'
+        },
         observationId: {
             type: 'string',
             format: 'uuid'

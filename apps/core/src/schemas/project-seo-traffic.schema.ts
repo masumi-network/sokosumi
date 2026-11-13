@@ -33,6 +33,8 @@ export function seoSearchTypeHasQueries(type: SeoSearchType = "web"): boolean {
 /** At most one landing row per selected page; equal to the page limit of a sync. */
 const SEO_LANDING_PAGE_ROW_LIMIT = 10;
 const landingCount = z.number().finite().nonnegative();
+/** Rows of an AI Assistant read: one per page and assistant. */
+export const SEO_AI_SOURCE_ROW_LIMIT = 250;
 /** Google Analytics sessions and key events of one channel, for sessions that started on each selected page. */
 export const seoLandingPagesSchema = z
   .object({
@@ -48,6 +50,22 @@ export const seoLandingPagesSchema = z
           .strict(),
       )
       .max(SEO_LANDING_PAGE_ROW_LIMIT),
+    /** AI Assistant reads only: each assistant (GA4 session source) per page, most sessions first. */
+    sources: z
+      .array(
+        z
+          .object({
+            pageUrl: z.string().url().max(2048),
+            source: z.string().min(1).max(500),
+            sessions: landingCount,
+            keyEvents: landingCount,
+          })
+          .strict(),
+      )
+      .max(SEO_AI_SOURCE_ROW_LIMIT)
+      .optional(),
+    /** AI Assistant reads only: GA4 had more rows than the read kept, so page sums are a floor. */
+    truncated: z.boolean().optional(),
   })
   .strict();
 export type SeoLandingPages = z.infer<typeof seoLandingPagesSchema>;

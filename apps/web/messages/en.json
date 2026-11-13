@@ -12352,7 +12352,16 @@
         },
         "keyEvents": "Key events (organic)",
         "noKeyEvents": "Google Analytics recorded no key events for these pages. Set up key events there to see conversions here.",
-        "keyEventsAiAssistant": "Key events (AI assistants)"
+        "keyEventsAiAssistant": "Key events (AI assistants)",
+        "aiAssistants": "AI assistants",
+        "aiAssistantsHelp": "Visits in Google Analytics' AI Assistant channel (ChatGPT, Perplexity, Gemini, Copilot and others) by the page they landed on",
+        "aiAssistantsTruncated": "Only the first rows were kept, so the totals can be higher",
+        "assistant": "Assistant",
+        "landingPage": "Landing page",
+        "sessions": "Sessions",
+        "keyEventsShort": "Key events",
+        "noAiData": "No AI Assistant channel data",
+        "noAiDataBody": "Google Analytics reported no sessions in its AI Assistant channel for these pages in this period."
       },
       "export": {
         "csv": "Download CSV",

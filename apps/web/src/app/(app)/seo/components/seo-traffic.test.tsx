@@ -230,3 +230,51 @@ describe("SEO Traffic AI assistant channel", () => {
     );
   });
 });
+
+describe("SEO Traffic AI assistants", () => {
+  it("names each assistant per landing page, or says the channel had no data", () => {
+    const workspace = seoTestWorkspace();
+    workspace.metrics = [
+      { ...seoTestMetric(), source: "ga4", channel: "ai_assistant" },
+    ];
+    workspace.landingPages = {
+      ...landingPages([{ pageUrl: "https://example.com/", keyEvents: 1 }]),
+      channel: "ai_assistant",
+      sources: [
+        {
+          pageUrl: "https://example.com/",
+          source: "chatgpt.com",
+          sessions: 5,
+          keyEvents: 1,
+        },
+        {
+          pageUrl: "https://example.com/",
+          source: "perplexity.ai",
+          sessions: 2,
+          keyEvents: 0,
+        },
+      ],
+      truncated: false,
+    };
+    renderTraffic(workspace, "&channel=ai_assistant");
+    const section = screen
+      .getByRole("heading", { name: "AI assistants" })
+      .closest("section");
+    if (!section) throw new Error("AI assistants section missing");
+    const chatgpt = within(section).getByRole("row", { name: /chatgpt\.com/ });
+    expect(chatgpt).toHaveTextContent("5");
+    expect(
+      within(section).getByRole("row", { name: /perplexity\.ai/ }),
+    ).toBeVisible();
+    cleanup();
+    workspace.landingPages = {
+      ...workspace.landingPages,
+      rows: [],
+      sources: [],
+    };
+    renderTraffic(workspace, "&channel=ai_assistant");
+    expect(screen.getByText("No AI Assistant channel data")).toBeVisible();
+    // An empty read is no key events claim either.
+    expect(screen.queryByText(/recorded no key events/)).toBeNull();
+  });
+});

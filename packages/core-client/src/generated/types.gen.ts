@@ -10912,6 +10912,13 @@ export type ProjectSeoLandingPages = {
         sessions: number;
         keyEvents: number;
     }>;
+    sources?: Array<{
+        pageUrl: string;
+        source: string;
+        sessions: number;
+        keyEvents: number;
+    }>;
+    truncated?: boolean;
     observationId: string;
     propertyId: string;
     from: string;
