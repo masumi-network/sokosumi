@@ -21,11 +21,8 @@
   width: 100%;
   max-width: 960px;
   margin: 0 auto;
-  /*
-   * The bar is sticky in the page's flow, so the page always scrolls clear
-   * of it; the bottom padding clears Cuso's half above its line, with room.
-   */
-  padding: 32px 32px 80px;
+  /* The dock is sticky in the page's flow, so the page scrolls clear of it. */
+  padding: 32px 32px 40px;
 }
 
 /* ── One result ── */
@@ -97,11 +94,6 @@
   margin: 0;
 }
 
-.brief-saved {
-  margin: 0;
-  color: var(--muted);
-}
-
 .brief-live {
   display: flex;
   align-items: center;
@@ -150,13 +142,6 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
-}
-
-.brief-detail-head {
-  margin: 0 0 8px;
-  font-size: 1rem;
-  line-height: 1.25rem;
-  font-weight: 600;
 }
 
 .brief-steps {
@@ -210,22 +195,6 @@
   min-width: 0;
 }
 
-.brief-move-sources {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  margin: 0;
-}
-
-.brief-source-link {
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: 0.6875rem;
-  cursor: pointer;
-}
-
 .brief-move-n {
   display: grid;
   place-items: center;
@@ -235,6 +204,43 @@
   border-radius: var(--radius-mark);
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+/* The month in one line, above week one. */
+.brief-lede {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+/* The pieces' titles, week by week, as the plan is written. */
+.brief-weeks {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.brief-weeks > li {
+  display: grid;
+  gap: 6px;
+}
+
+.brief-weeks ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.brief-weeks ul li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* How much of the month is written, under the count. */
@@ -326,10 +332,21 @@ button.brief-week-row:hover .brief-week-text b {
   font-weight: 400;
 }
 
-.brief-table thead th {
+.brief-table thead th,
+.brief-table thead td {
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 500;
+}
+
+/* "Week" over its numbers, one line under it. */
+.brief-table thead tr:first-child > * {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.brief-table .num {
+  text-align: right;
 }
 
 .brief-table tfoot th,
@@ -367,23 +384,28 @@ button.brief-week-row:hover .brief-week-text b {
 }
 
 .brief-bar-inner {
+  position: relative;
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr);
   grid-template-areas: "cuso body";
-  gap: 16px 24px;
+  gap: 12px 24px;
   width: 100%;
   max-width: 960px;
   margin: 0 auto;
-  padding: 16px 32px 20px;
+  padding: 12px 32px 16px;
 }
 
-/* Cuso sits on the bar's top line: half above it, half below. */
+/* Cuso sits inside the dock, so he never covers the page. */
 .brief-cuso {
   grid-area: cuso;
   align-self: start;
-  width: 96px;
-  height: 96px;
-  margin-top: -64px;
+  width: 64px;
+  height: 64px;
+}
+
+.brief-cuso .cuso-avatar {
+  transform: scale(0.6667);
+  transform-origin: top left;
 }
 
 .brief-bar-body {
@@ -491,10 +513,12 @@ button.brief-week-row:hover .brief-week-text b {
   overflow-y: auto;
 }
 
+/* One width for every question, so the answers never jump. */
 .brief-bubble {
   display: grid;
   gap: 10px;
   justify-self: start;
+  width: 100%;
   max-width: 640px;
   padding: 14px 16px;
   border: 1px solid var(--line);
@@ -863,21 +887,33 @@ button.brief-stage:not(:disabled):hover .brief-stage-label {
     line-height: 1.5rem;
   }
 
+  /* Cuso sits beside "needs you"; the question takes the full width. */
   .brief-bar-inner {
-    grid-template-columns: 64px minmax(0, 1fr);
-    gap: 10px 12px;
-    padding: 12px 16px 14px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "body";
+    padding: 10px 16px 14px;
   }
 
   .brief-cuso {
-    width: 64px;
-    height: 64px;
-    margin-top: -44px;
+    position: absolute;
+    top: 8px;
+    left: 16px;
+    width: 32px;
+    height: 32px;
   }
 
   .brief-cuso .cuso-avatar {
-    transform: scale(0.6667);
-    transform-origin: top left;
+    transform: scale(0.3333);
+  }
+
+  .brief-bar-body > .brief-state:first-child,
+  .brief-working > .brief-state:first-child {
+    min-height: 24px;
+    padding-left: 40px;
+  }
+
+  .brief-chat {
+    max-height: 45dvh;
   }
 
   .brief-stage-list {

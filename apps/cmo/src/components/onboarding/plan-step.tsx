@@ -10,6 +10,7 @@ import { CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
 import { money, PACES } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
+import { weekOne } from "./brief";
 import {
   type ConnectMeasurement,
   MonthPanel,
@@ -199,7 +200,7 @@ export function PlanAnswers({ overview }: { overview: CmoOverview }) {
         ))}
         {pace ? (
           <li>
-            Pace: <b>{pace.name}</b>, {pace.does.toLowerCase()}
+            About <b>{weekOne(strategy.calendar).length} posts a week</b>
           </li>
         ) : null}
         {ads ? (

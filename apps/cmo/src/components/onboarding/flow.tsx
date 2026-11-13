@@ -24,6 +24,8 @@ import { Logo } from "../logo";
 import type { AnswerInput, OnboardingActions } from "./actions";
 import {
   type Ask,
+  askKey,
+  askProgress,
   type BriefDone,
   type BriefLocal,
   briefAsks,
@@ -34,13 +36,7 @@ import {
   workingStatus,
 } from "./brief";
 import { type BarMode, BriefBar, StageBar } from "./brief-bar";
-import {
-  askCount,
-  askKey,
-  ChatAsk,
-  type ChatHandlers,
-  WelcomeBack,
-} from "./brief-chat";
+import { ChatAsk, type ChatHandlers, WelcomeBack } from "./brief-chat";
 import { BriefMain } from "./brief-main";
 import { researchGroups, USUAL_SECONDS } from "./live";
 import { connectedNetworks, strategySocialChannels } from "./networks";
@@ -52,6 +48,7 @@ const HIDDEN_POLL_MS = 20_000;
 /** How often the flow checks whether the person closed a connect window. */
 const POPUP_CHECK_MS = 500;
 const CONNECT_FAILED = "That connection didn't finish. Try again.";
+const FITTING = "Fitting your plan to your answers";
 
 /** Briefing steps done on this device; Core keeps no record of them. */
 function briefedKey(projectId: string) {
@@ -244,7 +241,7 @@ export function OnboardingFlow({
       ...new Set([...initial.current.local.briefed, ...readBriefed(projectId)]),
     ];
     setBriefed(loaded);
-    const waiting = briefAsks(initial.current.overview, {
+    const waitingThen = briefAsks(initial.current.overview, {
       ...initial.current.local,
       briefed: loaded,
     });
@@ -261,7 +258,7 @@ export function OnboardingFlow({
       welcome ??
       (initial.current.overview.work?.status !== "running" &&
         seenBefore.current !== stage);
-    setAway(movedOn && waiting.length >= 2);
+    setAway(movedOn && waitingThen.length >= 2);
   }, [projectId, welcome]);
 
   // A patch that landed (or never started) clears the change in words.
@@ -277,6 +274,9 @@ export function OnboardingFlow({
   const asks = briefAsks(overview, local);
   const ask: Ask | null = asks[0] ?? null;
   const key = ask ? askKey(ask) : null;
+  // One count: the dock's "3 of 6", and what is left of it everywhere else.
+  const progress = askProgress(overview, local, ask);
+  const waiting = progress ? progress.of - progress.at + 1 : asks.length;
   const folded = key !== null && foldedAt === key;
   // A refusal belongs to the question it answered.
   useEffect(() => {
@@ -288,10 +288,10 @@ export function OnboardingFlow({
   useEffect(() => {
     title.current ??= document.title;
     document.title =
-      asks.length > 0
-        ? `(${asks.length}) ${AGENT_NAME} needs you`
+      waiting > 0
+        ? `(${waiting}) ${AGENT_NAME} needs you`
         : (title.current ?? document.title);
-  }, [asks.length]);
+  }, [waiting]);
   useEffect(
     () => () => {
       if (title.current) document.title = title.current;
@@ -321,7 +321,7 @@ export function OnboardingFlow({
     return refused;
   };
   const applyPlan = async () => {
-    setChanging("Fitting your plan to your answers");
+    setChanging(FITTING);
     const refused = settle(await actions.applyPlanAnswers());
     if (refused) setChanging(null);
     return refused;
@@ -400,16 +400,27 @@ export function OnboardingFlow({
         answer,
         note,
       });
-      setOverview(next);
-      // All the nos become one patch once the last check is answered.
+      // All the nos become one patch once the last check is answered. It
+      // starts before the answers show, so no "Change the plan" flashes up
+      // and runs itself; a refusal leaves that ask to press.
       const open = (next.strategy?.questions ?? []).some(
         (question) => !question.answer,
       );
-      if (!open && planUnfitted(next)) setNotice(await applyPlan());
+      if (open || !planUnfitted(next)) {
+        setOverview(next);
+        return;
+      }
+      setChanging(FITTING);
+      const result = await actions.applyPlanAnswers();
+      setOverview(result.overview ?? next);
+      if (result.error) {
+        setChanging(null);
+        setNotice(result.error);
+      }
     },
     applyPlan,
     setAds: async (monthly, currency) => {
-      setChanging(monthly > 0 ? "Your ad budget" : "No ads");
+      setChanging(monthly > 0 ? "Setting your ad budget" : "Removing the ads");
       const refused = settle(await actions.setAdBudget(monthly, currency));
       if (refused) setChanging(null);
       else brief("ads");
@@ -435,7 +446,7 @@ export function OnboardingFlow({
   };
   const status = workingStatus(overview, local);
   if (changing && work?.kind === "strategy" && running && work.change) {
-    status.title = `Changing: ${changing}`;
+    status.title = changing;
   }
   const later = () => {
     if (!ask) return;
@@ -464,7 +475,7 @@ export function OnboardingFlow({
   } else if (folded) {
     mode = {
       kind: "folded",
-      waiting: asks.length,
+      waiting,
       onOpen: () => setFoldedAt(null),
     };
   } else if (away) {
@@ -476,14 +487,12 @@ export function OnboardingFlow({
         setAway(false);
         setFoldedAt(key);
       },
-      chat: (
-        <WelcomeBack waiting={asks.length} onStart={() => setAway(false)} />
-      ),
+      chat: <WelcomeBack waiting={waiting} onStart={() => setAway(false)} />,
     };
   } else {
     mode = {
       kind: "asking",
-      count: askCount(ask, overview),
+      count: progress ? `${progress.at} of ${progress.of}` : "",
       askKey: key ?? "",
       onLater: later,
       chat: (

@@ -162,6 +162,33 @@ describe("working", () => {
     expect(text()).not.toMatch(/\bmin\b/);
   });
 
+  it("shows each research section on the page as it lands, the pages behind a link", async () => {
+    await render(
+      reading({
+        research: research(2),
+        work: work("research", { startedAt: new Date(), sectionsSaved: 3 }),
+      }),
+    );
+    const saved = container.querySelector('[aria-label="What I saved so far"]');
+    expect(saved?.textContent).toContain("3 of 16 saved");
+    expect(saved?.querySelectorAll("li")).toHaveLength(3);
+    expect(container.querySelector(".ob-skeleton")).toBeNull();
+    expect(button("Pages I read")).toBeTruthy();
+  });
+
+  it("shows the pieces by week while the plan is written, and that the tab can close", async () => {
+    await render(
+      draft({ work: work("strategy", { steps: [], startedAt: new Date() }) }),
+    );
+    expect(text()).toContain("Four weeks, day by day: 3 pieces so far");
+    expect(container.querySelector(".brief-weeks")?.textContent).toContain(
+      "Launch day",
+    );
+    expect(text()).toContain(
+      "You can close this tab. I'll ask when it's ready.",
+    );
+  });
+
   it("marks the stage in the bar on top, and folds it into one row for a phone", async () => {
     await render(
       reading({ work: work("research", { startedAt: new Date() }) }),
@@ -447,7 +474,9 @@ describe("briefing", () => {
       actionsFor(overview, { answerPlanQuestion, setAdBudget }),
     );
 
-    expect(text()).toContain("Cuso needs you · 1 of 4");
+    // One counter for the whole stage, and the tab title reads it too.
+    expect(text()).toContain("Cuso needs you · 1 of 5");
+    expect(document.title).toBe("(5) Cuso needs you");
     expect(container.querySelector("[data-brief-question]")?.textContent).toBe(
       "Does this plan sound right?",
     );
@@ -458,13 +487,14 @@ describe("briefing", () => {
     ).toBe("Or say what to change");
     await press("Sounds right");
 
-    expect(text()).toContain("Cuso needs you · 2 of 4");
+    expect(text()).toContain("Cuso needs you · 2 of 5");
+    expect(document.title).toBe("(4) Cuso needs you");
     expect(container.querySelector("[data-brief-question]")?.textContent).toBe(
-      "2 pieces this week. Keep this pace?",
+      "About 2 posts a week. Keep that?",
     );
     await press("Keep 2");
 
-    expect(text()).toContain("Cuso needs you · 1 of 2");
+    expect(text()).toContain("Cuso needs you · 3 of 5");
     expect(
       container.querySelector<HTMLInputElement>("#brief-plan-question-note")
         ?.placeholder,
@@ -477,7 +507,7 @@ describe("briefing", () => {
     });
     // Later on the checks leaves them for now and moves on.
     await press("Later");
-    expect(text()).toContain("Cuso needs you · 4 of 4");
+    expect(text()).toContain("Cuso needs you · 5 of 5");
     expect(text()).toContain("Spend $300 a month on Google ads?");
     expect(text()).toContain("Paid to Google, on top of your plan.");
     expect(() => button("Change amount")).toThrow();
@@ -509,7 +539,7 @@ describe("briefing", () => {
     ).toBe("!Cuso needs youLater");
   });
 
-  it("grounds each move in its reason and the Brand Brain section it rests on", async () => {
+  it("grounds each move in its reason, with no source chips under it", async () => {
     const grounded = draft({
       strategy: {
         ...fullPlan,
@@ -549,13 +579,35 @@ describe("briefing", () => {
     expect(text()).toContain("Buyers trust what they see done.");
     // A move without a reason keeps its first play instead.
     expect(text()).toContain("Comparison articles");
-    // A section the Brand Brain never saved is no source.
-    expect(text()).not.toContain("Constraints and opportunities");
-    const source = button("Brand Brain · Target customers");
-    expect(source.getAttribute("aria-expanded")).toBe("false");
-    await act(async () => source.click());
-    expect(source.getAttribute("aria-expanded")).toBe("true");
-    expect(text()).toContain("Product teams of ten to fifty.");
+    expect(text()).not.toContain("Brand Brain · Target customers");
+  });
+
+  it("says week one is part of the whole month, in the plan's real numbers", async () => {
+    await render(draft({ strategy: fullPlan }), undefined, {
+      briefed: ["plan"],
+    });
+    expect(container.querySelector(".brief-lede")?.textContent).toBe(
+      "Your month: 4 pieces over 3 weeks. Here's week one to check. I write them all after you approve.",
+    );
+    expect(text()).toContain("Week one · 6 to 12 Oct");
+    // Week one shows once: the rest of the month sits behind its own link.
+    expect(button("Weeks 2 to 3")).toBeTruthy();
+  });
+
+  it("asks the pace on week one in posts a week, and hides More at the top pace", async () => {
+    await render(
+      draft({
+        strategy: {
+          ...fullPlan,
+          pace: { level: "all_in", why: "Fast", perWeek: 15 },
+        },
+      }),
+      undefined,
+      { briefed: ["plan"] },
+    );
+    expect(button("Keep 2")).toBeTruthy();
+    expect(button("Fewer")).toBeTruthy();
+    expect(() => button("More")).toThrow();
   });
 
   it("remembers the steps gone through on this device", async () => {
@@ -580,7 +632,7 @@ describe("briefing", () => {
     typeInto("#brief-plan-note", "Sign-ups before 1 Dec");
     await press("Send");
     expect(requestStrategy).toHaveBeenCalledWith("Sign-ups before 1 Dec", true);
-    expect(text()).toContain("Changing: Sign-ups before 1 Dec");
+    expect(text()).toContain("Changing your plan: “Sign-ups before 1 Dec”");
     expect(text()).toContain("Your next question waits until this lands.");
   });
 
@@ -652,16 +704,76 @@ describe("briefing", () => {
     expect(applyPlanAnswers).toHaveBeenCalled();
   });
 
+  it("goes straight into the change after the last no: no ask flashes up and runs itself (B8)", async () => {
+    const answered: Strategy = {
+      ...fullPlan,
+      questions: [
+        { ...firstCheck, answer: "yes" },
+        { ...secondCheck, answer: "no" },
+      ],
+    };
+    let land: (value: {
+      overview: CmoOverview | null;
+      error: string | null;
+    }) => void = () => {};
+    const applyPlanAnswers = vi.fn(
+      () =>
+        new Promise<{ overview: CmoOverview | null; error: string | null }>(
+          (resolve) => {
+            land = resolve;
+          },
+        ),
+    );
+    const overview = draft({
+      strategy: {
+        ...fullPlan,
+        questions: [{ ...firstCheck, answer: "yes" }, secondCheck],
+      },
+    });
+    await render(
+      overview,
+      actionsFor(overview, {
+        answerPlanQuestion: async () => draft({ strategy: answered }),
+        applyPlanAnswers,
+      }),
+      { briefed: ["plan", "pace"] },
+    );
+    await press("No");
+    // Cuso is fitting the plan; the old ask never showed in between.
+    expect(applyPlanAnswers).toHaveBeenCalled();
+    expect(text()).not.toContain("Change the plan");
+    await act(async () =>
+      land({
+        overview: draft({
+          strategy: answered,
+          work: work("strategy", { change: "patch", steps: [] }),
+        }),
+        error: null,
+      }),
+    );
+    expect(text()).not.toContain("Change the plan");
+    expect(text()).toContain("Fitting your plan to your answers");
+  });
+
   it("approves the month, and tells a member who cannot who does", async () => {
     const approveStrategy = vi.fn(async () =>
       draft({ ...cmoStrategyVersion(new Date()), strategy }),
     );
-    const overview = draft();
+    // A skipped piece is not made: the table and the question agree (B3).
+    const overview = draft({
+      strategy: {
+        ...strategy,
+        calendar: [
+          ...strategy.calendar,
+          { ...strategy.calendar[0]!, id: "gone", status: "skipped" },
+        ],
+      },
+    });
     await render(overview, actionsFor(overview, { approveStrategy }), {
       briefed: ["plan", "pace"],
     });
     expect(container.querySelector("table")).not.toBeNull();
-    // Approval is Go live's: Briefing is done.
+    // Approval is Go live's: Check the plan is done.
     expect(
       container.querySelector('.brief-stage-list [aria-current="step"]')
         ?.textContent,
@@ -669,6 +781,7 @@ describe("briefing", () => {
     expect(text()).toContain(
       "I start making all 3 pieces. Nothing posts until you connect.",
     );
+    expect(container.querySelector("tfoot th")?.textContent).toBe("3 pieces");
     expect(text()).not.toContain("When you approve");
     await press("Approve plan");
     expect(approveStrategy).toHaveBeenCalled();
@@ -872,7 +985,7 @@ describe("waiting and coming back", () => {
     await render(overview, actionsFor(overview, { retryLearning }));
     expect(text()).toContain("I stopped reading. Try again?");
     expect(text()).toContain("I keep the 9 sections I saved.");
-    expect(button("Pages read")).toBeTruthy();
+    expect(button("Pages I read")).toBeTruthy();
     await press("Try again");
     expect(retryLearning).toHaveBeenCalled();
   });
@@ -966,7 +1079,7 @@ describe("looking back along the bar", () => {
     for (const label of ["Website", "Research", "Brand check", "Plan"]) {
       expect(stageButton(label).disabled).toBe(false);
     }
-    const now = stageButton("Briefing");
+    const now = stageButton("Check the plan");
     expect(now.disabled).toBe(false);
     expect(now.getAttribute("aria-current")).toBe("step");
     for (const label of ["Go live", "Your month"]) {
@@ -979,7 +1092,7 @@ describe("looking back along the bar", () => {
     await render(draft({ strategy: fullPlan }));
     await act(async () => stageButton("Research").click());
 
-    expect(page()).toContain("Back to Briefing");
+    expect(page()).toContain("Back to Check the plan");
     expect(
       container.querySelector(
         '.brief-main [aria-label="What I learned about acme.io"]',
@@ -993,12 +1106,14 @@ describe("looking back along the bar", () => {
     expect(viewed.className).toContain("viewed");
     expect(viewed.textContent).toContain("viewing");
     // Progress stays where it is.
-    expect(stageButton("Briefing").getAttribute("aria-current")).toBe("step");
+    expect(stageButton("Check the plan").getAttribute("aria-current")).toBe(
+      "step",
+    );
     // The chat keeps asking the current question.
     expect(question()).toBe("Does this plan sound right?");
 
-    await press("Back to Briefing");
-    expect(page()).not.toContain("Back to Briefing");
+    await press("Back to Check the plan");
+    expect(page()).not.toContain("Back to Check the plan");
     expect(stageButton("Research").className).not.toContain("viewed");
   });
 
@@ -1007,12 +1122,12 @@ describe("looking back along the bar", () => {
       briefed: ["plan", "pace"],
     });
     await act(async () => stageButton("Plan").click());
-    expect(page()).toContain("Back to Briefing");
+    expect(page()).toContain("Back to Check the plan");
     expect(page()).toContain("Goal");
     expect(question()).toBe("Do you ship every month?");
 
-    await act(async () => stageButton("Briefing").click());
-    expect(page()).not.toContain("Back to Briefing");
+    await act(async () => stageButton("Check the plan").click());
+    expect(page()).not.toContain("Back to Check the plan");
   });
 
   it("shows the briefing's answers once it is done", async () => {
@@ -1025,7 +1140,7 @@ describe("looking back along the bar", () => {
     await render(answered, undefined, {
       briefed: ["plan", "pace", "checks", "ads"],
     });
-    await act(async () => stageButton("Briefing").click());
+    await act(async () => stageButton("Check the plan").click());
     expect(page()).toContain("Back to Go live");
     expect(page()).toContain("Your answers");
     expect(page()).toContain("Do you ship every month? Yes");
@@ -1060,7 +1175,7 @@ describe("looking back along the bar", () => {
     // Each row: the name, then Now, Viewing, a check, or nothing.
     expect(rows[1]?.textContent).toBe("Research");
     expect(rows[1]?.querySelector('[aria-label="Done"]')).not.toBeNull();
-    expect(rows[4]?.textContent).toBe("BriefingNow");
+    expect(rows[4]?.textContent).toBe("Check the planNow");
     expect(rows[5]?.textContent).toBe("Go live, not yet");
     expect(rows[5]?.querySelector("button")?.disabled).toBe(true);
     // Its title is only a label; the row on top closes it.
@@ -1068,7 +1183,7 @@ describe("looking back along the bar", () => {
 
     await act(async () => rows[1]?.querySelector("button")?.click());
     expect(container.querySelector('[role="dialog"]')).toBeNull();
-    expect(page()).toContain("Back to Briefing");
+    expect(page()).toContain("Back to Check the plan");
     expect(fold?.textContent).toBe("Researchviewing");
 
     // Esc closes it, and focus goes back to the step line.
@@ -1101,8 +1216,8 @@ describe("looking back along the bar", () => {
     const first = live[0];
     const last = live.at(-1);
     // The row on top of the sheet closes it; its name keeps what it shows.
-    expect(first?.textContent).toBe("Briefing5 of 7, close");
-    expect(last?.textContent).toContain("Briefing");
+    expect(first?.textContent).toBe("Check the plan5 of 7, close");
+    expect(last?.textContent).toContain("Check the plan");
     const tab = (shiftKey: boolean) =>
       act(async () => {
         document.activeElement?.dispatchEvent(

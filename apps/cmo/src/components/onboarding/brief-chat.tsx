@@ -17,7 +17,7 @@ import {
   type Ask,
   adEntries,
   type BriefDone,
-  briefSteps,
+  pieceCount,
   weekOne,
 } from "./brief";
 import { Refusal } from "./refusal";
@@ -511,7 +511,10 @@ function PlanNote({
       inputRef={draftRef}
       onSend={async (text) => {
         try {
-          const refused = await handlers.patch(text, text);
+          const refused = await handlers.patch(
+            text,
+            `Changing your plan: “${text}”`,
+          );
           onRefused(refused);
           if (!refused) setDraft("");
         } catch {
@@ -559,6 +562,10 @@ function paceNote(strategy: Strategy, step: -1 | 1): string | null {
   return `Change the pace to ${next.name} (${next.does.toLowerCase()}): add or drop only the calendar entries the new pace needs.`;
 }
 
+/**
+ * Posts a week, from week one in full. Fewer or More shows only when the
+ * plan can move that way: a button that can't be pressed is no answer.
+ */
 function BriefingWeek(props: ChatAskProps) {
   const { overview, handlers } = props;
   const strategy = overview.strategy as Strategy;
@@ -569,7 +576,7 @@ function BriefingWeek(props: ChatAskProps) {
   const more = paceNote(strategy, 1);
   return (
     <Bubble
-      question={`${week.length} ${week.length === 1 ? "piece" : "pieces"} this week. Keep this pace?`}
+      question={`About ${week.length} ${week.length === 1 ? "post" : "posts"} a week. Keep that?`}
     >
       <Answers>
         <Choice
@@ -578,22 +585,26 @@ function BriefingWeek(props: ChatAskProps) {
           disabled={pending !== null}
           onClick={() => handlers.brief("pace")}
         />
-        <Choice
-          label="Fewer"
-          busy={pending === "fewer"}
-          disabled={!fewer || pending !== null}
-          onClick={() =>
-            fewer && run("fewer", () => handlers.patch(fewer, "Fewer pieces"))
-          }
-        />
-        <Choice
-          label="More"
-          busy={pending === "more"}
-          disabled={!more || pending !== null}
-          onClick={() =>
-            more && run("more", () => handlers.patch(more, "More pieces"))
-          }
-        />
+        {fewer ? (
+          <Choice
+            label="Fewer"
+            busy={pending === "fewer"}
+            disabled={pending !== null}
+            onClick={() =>
+              run("fewer", () => handlers.patch(fewer, "Fewer posts a week"))
+            }
+          />
+        ) : null}
+        {more ? (
+          <Choice
+            label="More"
+            busy={pending === "more"}
+            disabled={pending !== null}
+            onClick={() =>
+              run("more", () => handlers.patch(more, "More posts a week"))
+            }
+          />
+        ) : null}
       </Answers>
       <PlanNote
         {...props}
@@ -743,7 +754,7 @@ function Approve(props: ChatAskProps & { canApprove: boolean }) {
   const { overview, handlers, canApprove } = props;
   const { pending, refusal, run } = useRun();
   const [noteRefusal, setNoteRefusal] = useState<string | null>(null);
-  const pieces = overview.strategy?.calendar.length ?? 0;
+  const pieces = pieceCount(overview.strategy?.calendar ?? []);
   if (!canApprove) {
     return (
       <Bubble
@@ -872,28 +883,4 @@ export function WelcomeBack({
       </Answers>
     </Bubble>
   );
-}
-
-/** The count beside "needs you": "2 of 4", only when more than one waits. */
-export function askCount(ask: Ask, overview: CmoOverview): string {
-  const total = briefSteps(overview).length;
-  const of = (at: number, all: number) => (all > 1 ? `${at} of ${all}` : "");
-  switch (ask.kind) {
-    case "brand-question":
-    case "plan-question":
-      return of(ask.index + 1, ask.total);
-    case "briefing-plan":
-      return of(1, total);
-    case "briefing-week":
-      return of(2, total);
-    case "briefing-ads":
-      return of(total, total);
-    default:
-      return "";
-  }
-}
-
-/** A key per ask, so the chat knows when it moved on. */
-export function askKey(ask: Ask): string {
-  return "id" in ask ? `${ask.kind}:${ask.id}` : ask.kind;
 }

@@ -231,14 +231,17 @@ export function BrandStep({
   return (
     <section className="ob-brand">
       <div className="ob-title-row">
-        <CusoAvatar pose="thinking" size={48} />
+        {/* In Brief me the dock's Cuso is the only one on screen. */}
+        {titled ? <CusoAvatar pose="thinking" size={48} /> : null}
         <div className="ob-title-copy">
           {titled ? (
-            <h1 className="ob-h1">Here's {site} as I see it.</h1>
+            <>
+              <h1 className="ob-h1">Here's {site} as I see it.</h1>
+              <p className="muted">
+                {AGENT_NAME} · tap any tile to see the source or fix it
+              </p>
+            </>
           ) : null}
-          <p className="muted">
-            {AGENT_NAME} · tap any tile to see the source or fix it
-          </p>
           {fixing ? (
             <p className="ob-small muted" aria-live="polite">
               <Loader2 size={12} className="spin" aria-hidden="true" /> Updating
