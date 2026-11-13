@@ -6897,6 +6897,210 @@ export const EvalTickSchema = {
     ]
 } as const;
 
+export const AdminAdEvalsDashboardSchema = {
+    type: 'object',
+    properties: {
+        leaderboard: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdEvalsLeaderboardRow'
+            }
+        },
+        agreement: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdEvalsAgreementRow'
+            }
+        },
+        minimumWorkspaces: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'leaderboard',
+        'agreement',
+        'minimumWorkspaces'
+    ]
+} as const;
+
+export const AdEvalsLeaderboardRowSchema = {
+    type: 'object',
+    properties: {
+        model: {
+            type: 'string'
+        },
+        template: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        aspect: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        workspaceCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        suppressed: {
+            type: 'boolean'
+        },
+        n: {
+            type: 'integer',
+            minimum: 0
+        },
+        thumbN: {
+            type: 'integer',
+            minimum: 0
+        },
+        pairwiseN: {
+            type: 'integer',
+            minimum: 0
+        },
+        judgeN: {
+            type: 'integer',
+            minimum: 0
+        },
+        thumbRate: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 1
+        },
+        pairwiseWinRate: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 1
+        },
+        judgeMean: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: 1,
+            maximum: 5
+        },
+        thumbRateCi: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                lower: {
+                    type: 'number'
+                },
+                upper: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'lower',
+                'upper'
+            ]
+        },
+        pairwiseWinRateCi: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                lower: {
+                    type: 'number'
+                },
+                upper: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'lower',
+                'upper'
+            ]
+        },
+        judgeMeanCi: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                lower: {
+                    type: 'number'
+                },
+                upper: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'lower',
+                'upper'
+            ]
+        }
+    },
+    required: [
+        'model',
+        'template',
+        'aspect',
+        'workspaceCount',
+        'suppressed',
+        'n',
+        'thumbN',
+        'pairwiseN',
+        'judgeN',
+        'thumbRate',
+        'pairwiseWinRate',
+        'judgeMean',
+        'thumbRateCi',
+        'pairwiseWinRateCi',
+        'judgeMeanCi'
+    ]
+} as const;
+
+export const AdEvalsAgreementRowSchema = {
+    type: 'object',
+    properties: {
+        criterion: {
+            type: 'string'
+        },
+        signal: {
+            type: 'string',
+            enum: [
+                'thumb',
+                'pairwise'
+            ]
+        },
+        rho: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: -1,
+            maximum: 1
+        },
+        n: {
+            type: 'integer',
+            minimum: 0
+        },
+        lowAgreement: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'criterion',
+        'signal',
+        'rho',
+        'n',
+        'lowAgreement'
+    ]
+} as const;
+
 export const AdminTaskListItemSchema = {
     type: 'object',
     properties: {
@@ -52530,6 +52734,56 @@ export const CreateVendorLogoUploadRequestSchema = {
         'filename',
         'contentType',
         'size'
+    ]
+} as const;
+
+export const WorkspaceAdDataConsentSchema = {
+    type: 'object',
+    properties: {
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        shareForImprovement: {
+            type: 'boolean'
+        },
+        allowTraining: {
+            type: 'boolean'
+        },
+        decidedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        policyVersion: {
+            type: 'string'
+        }
+    },
+    required: [
+        'workspaceId',
+        'shareForImprovement',
+        'allowTraining',
+        'decidedAt',
+        'policyVersion'
+    ]
+} as const;
+
+export const WorkspaceAdDataConsentWriteSchema = {
+    type: 'object',
+    properties: {
+        shareForImprovement: {
+            type: 'boolean'
+        },
+        allowTraining: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'shareForImprovement',
+        'allowTraining'
     ]
 } as const;
 

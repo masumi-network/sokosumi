@@ -5849,6 +5849,10 @@
           "evals": {
             "title": "Evals",
             "description": "Soko Bot and CMO evals, run daily on main: what got better or worse, PR by PR."
+          },
+          "adEvals": {
+            "title": "Ad evals",
+            "description": "Compare ad models, judge agreement and training exports."
           }
         }
       },
@@ -7320,6 +7324,53 @@
           "before": "Daily run of {when}"
         },
         "labLink": "Try one scenario on your own bot"
+      },
+      "AdEvals": {
+        "title": "Ad evals",
+        "description": "Model quality across consenting workspaces.",
+        "unknownTemplate": "Unspecified template",
+        "Leaderboard": {
+          "title": "Leaderboard",
+          "help": "95% confidence intervals. Scores need at least {minimum} workspaces; n counts ads.",
+          "empty": "No ad evaluations from consenting workspaces yet.",
+          "model": "Model",
+          "adType": "Template / aspect",
+          "thumbs": "👍 rate",
+          "pairwise": "Pairwise win rate",
+          "judge": "Judge mean",
+          "n": "n",
+          "workspaces": "Workspaces",
+          "suppressed": "Fewer than 5 workspaces"
+        },
+        "Agreement": {
+          "title": "Judge vs human",
+          "help": "Spearman correlation by criterion. Review values below 0.3.",
+          "empty": "No matched judge scores and human feedback yet.",
+          "criterion": "Criterion",
+          "signal": "Human signal",
+          "correlation": "Spearman ρ",
+          "n": "n",
+          "status": "Status",
+          "thumb": "Thumbs",
+          "pairwise": "Pairwise",
+          "low": "Low agreement",
+          "insufficient": "Not enough variation"
+        },
+        "Criteria": {
+          "brief_adherence": "Brief adherence",
+          "brand_fit": "Brand fit",
+          "composition": "Composition",
+          "text_quality": "Text quality",
+          "product_fidelity": "Product fidelity",
+          "ad_effectiveness": "Ad effectiveness",
+          "overall": "Overall"
+        },
+        "Export": {
+          "title": "Export",
+          "help": "Training opt-ins only. Brand text omitted; image links expire in 10 minutes.",
+          "download": "Download JSONL",
+          "error": "Failed to export ad data. Try again."
+        }
       }
     },
     "Billing": {
@@ -11349,6 +11400,19 @@
         "nobody": "Nobody yet",
         "more": "and {count} more"
       }
+    },
+    "AdDataConsent": {
+      "title": "Ad data",
+      "shareLabel": "Help improve Sokosumi",
+      "shareHelp": "Share ad data for internal model comparisons and judge calibration.",
+      "trainingLabel": "Allow training use",
+      "trainingHelp": "Allow dataset exports and model training; requires sharing above.",
+      "save": "Save preferences",
+      "saved": "Ad data preferences saved",
+      "saveError": "Failed to save preferences. Try again.",
+      "adminOnly": "Only workspace admins can change these preferences.",
+      "loadError": "Failed to load ad data preferences. Try again.",
+      "retry": "Try again"
     }
   },
   "Share": {

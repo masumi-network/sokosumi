@@ -1,5 +1,7 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
+import mountGetWorkspaceAdDataConsent from "./[id]/ad-data-consent/get.js";
+import mountPutWorkspaceAdDataConsent from "./[id]/ad-data-consent/put.js";
 import mountPostCalendarIdentityLabels from "./[id]/calendar/identity-labels/post.js";
 import mountGetWorkspaceById from "./[id]/get.js";
 import mountExportWorkspaceSocialAccountStatistics from "./[id]/social-connections/statistics/export/get.js";
@@ -11,6 +13,8 @@ import mountGetWorkspaceDesignMd from "./design-md/get.js";
 
 const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
 
+mountGetWorkspaceAdDataConsent(app);
+mountPutWorkspaceAdDataConsent(app);
 mountPostWorkspaceDesignMdAdHoc(app);
 mountGetWorkspaceDesignMd(app);
 mountGetActiveWorkspaceCalendar(app);

@@ -5670,6 +5670,10 @@
           "evals": {
             "title": "Evals",
             "description": "Soko Bot and CMO evals, run daily on main: what got better or worse, PR by PR."
+          },
+          "adEvals": {
+            "title": "Evaluaciones de anuncios",
+            "description": "Compara modelos de anuncios, concordancia del evaluador y exportaciones para entrenamiento."
           }
         }
       },
@@ -7284,6 +7288,53 @@
           "before": "Daily run of {when}"
         },
         "labLink": "Try one scenario on your own bot"
+      },
+      "AdEvals": {
+        "title": "Evaluaciones de anuncios",
+        "description": "Calidad de modelos en espacios que han dado su consentimiento.",
+        "unknownTemplate": "Plantilla sin especificar",
+        "Leaderboard": {
+          "title": "Clasificación",
+          "help": "Intervalos de confianza del 95 %. Se requieren al menos {minimum} espacios; n cuenta anuncios.",
+          "empty": "Aún no hay evaluaciones de anuncios de espacios con consentimiento.",
+          "model": "Modelo",
+          "adType": "Plantilla / proporción",
+          "thumbs": "Tasa de 👍",
+          "pairwise": "Tasa de victorias por pares",
+          "judge": "Media del evaluador",
+          "n": "n",
+          "workspaces": "Espacios",
+          "suppressed": "Menos de 5 espacios"
+        },
+        "Agreement": {
+          "title": "Evaluador frente a personas",
+          "help": "Correlación de Spearman por criterio. Revisar valores inferiores a 0,3.",
+          "empty": "Aún no hay puntuaciones del evaluador con opiniones humanas correspondientes.",
+          "criterion": "Criterio",
+          "signal": "Señal humana",
+          "correlation": "Spearman ρ",
+          "n": "n",
+          "status": "Estado",
+          "thumb": "Valoraciones",
+          "pairwise": "Comparaciones por pares",
+          "low": "Poca concordancia",
+          "insufficient": "Variación insuficiente"
+        },
+        "Criteria": {
+          "brief_adherence": "Fidelidad al encargo",
+          "brand_fit": "Afinidad con la marca",
+          "composition": "Composición",
+          "text_quality": "Calidad del texto",
+          "product_fidelity": "Fidelidad al producto",
+          "ad_effectiveness": "Eficacia del anuncio",
+          "overall": "General"
+        },
+        "Export": {
+          "title": "Exportación",
+          "help": "Solo con permiso de entrenamiento. Se omite el texto de marca; los enlaces caducan en 10 minutos.",
+          "download": "Descargar JSONL",
+          "error": "No se pudieron exportar los datos de anuncios. Inténtalo de nuevo."
+        }
       }
     },
     "Billing": {
@@ -11349,6 +11400,19 @@
         "nobody": "Nadie todavía",
         "more": "y {count} más"
       }
+    },
+    "AdDataConsent": {
+      "title": "Datos de anuncios",
+      "shareLabel": "Ayudar a mejorar Sokosumi",
+      "shareHelp": "Comparte datos de anuncios para comparar modelos y calibrar la evaluación interna.",
+      "trainingLabel": "Permitir el uso para entrenamiento",
+      "trainingHelp": "Permite exportar datos y entrenar modelos; requiere compartir los datos arriba.",
+      "save": "Guardar preferencias",
+      "saved": "Preferencias de datos de anuncios guardadas",
+      "saveError": "No se pudieron guardar las preferencias. Inténtalo de nuevo.",
+      "adminOnly": "Solo los administradores del espacio pueden cambiar estas preferencias.",
+      "loadError": "No se pudieron cargar las preferencias de datos de anuncios. Inténtalo de nuevo.",
+      "retry": "Reintentar"
     }
   },
   "Share": {

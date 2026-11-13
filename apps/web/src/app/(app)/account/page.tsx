@@ -8,6 +8,7 @@ import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { type ReactNode, Suspense } from "react";
+import { AdDataConsentSettings } from "@/components/ad-data-consent/ad-data-consent-settings";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import DefaultLoading from "@/components/default-loading";
@@ -116,7 +117,7 @@ async function AccountPageContent() {
   return (
     <div className="content-in min-h-full w-full">
       <BillingPortalErrorToast generalMessage={tBilling("Errors.general")} />
-      <div className={cn(HOLDER_CLASS, "p-3")}>
+      <div className={cn(HOLDER_CLASS, "space-y-6 p-3")}>
         <AccountSettings
           accounts={accountsResult.isOk() ? accountsResult.value : []}
           billingDetails={billingDetails}
@@ -153,6 +154,9 @@ async function AccountPageContent() {
           }
           initialTimeFormat={initialTimeFormat}
         />
+        {workspaceAccess?.hasPersonalWorkspace ? (
+          <AdDataConsentSettings organizationId={null} />
+        ) : null}
       </div>
     </div>
   );

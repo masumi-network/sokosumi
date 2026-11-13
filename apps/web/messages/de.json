@@ -5670,6 +5670,10 @@
           "evals": {
             "title": "Evals",
             "description": "Soko Bot and CMO evals, run daily on main: what got better or worse, PR by PR."
+          },
+          "adEvals": {
+            "title": "Anzeigenbewertungen",
+            "description": "Anzeigenmodelle, Bewertungsübereinstimmung und Trainingsexporte vergleichen."
           }
         }
       },
@@ -7284,6 +7288,53 @@
           "before": "Daily run of {when}"
         },
         "labLink": "Try one scenario on your own bot"
+      },
+      "AdEvals": {
+        "title": "Anzeigenbewertungen",
+        "description": "Modellqualität in Workspaces mit Datenfreigabe.",
+        "unknownTemplate": "Keine Vorlage angegeben",
+        "Leaderboard": {
+          "title": "Rangliste",
+          "help": "95-%-Konfidenzintervalle. Werte erfordern mindestens {minimum} Workspaces; n zählt Anzeigen.",
+          "empty": "Noch keine Anzeigenbewertungen aus Workspaces mit Datenfreigabe.",
+          "model": "Modell",
+          "adType": "Vorlage / Seitenverhältnis",
+          "thumbs": "👍-Rate",
+          "pairwise": "Paarweise Gewinnrate",
+          "judge": "KI-Mittelwert",
+          "n": "n",
+          "workspaces": "Workspaces",
+          "suppressed": "Weniger als 5 Workspaces"
+        },
+        "Agreement": {
+          "title": "KI- und menschliche Bewertung",
+          "help": "Spearman-Korrelation je Kriterium. Werte unter 0,3 prüfen.",
+          "empty": "Noch keine zugehörigen KI-Bewertungen und menschlichen Rückmeldungen.",
+          "criterion": "Kriterium",
+          "signal": "Menschliches Signal",
+          "correlation": "Spearman ρ",
+          "n": "n",
+          "status": "Status",
+          "thumb": "Daumenbewertungen",
+          "pairwise": "Paarvergleich",
+          "low": "Geringe Übereinstimmung",
+          "insufficient": "Zu wenig Variation"
+        },
+        "Criteria": {
+          "brief_adherence": "Einhaltung des Briefings",
+          "brand_fit": "Markenpassung",
+          "composition": "Komposition",
+          "text_quality": "Textqualität",
+          "product_fidelity": "Produkttreue",
+          "ad_effectiveness": "Werbewirkung",
+          "overall": "Gesamt"
+        },
+        "Export": {
+          "title": "Export",
+          "help": "Nur mit Trainingsfreigabe. Markentext entfällt; Bildlinks laufen nach 10 Minuten ab.",
+          "download": "JSONL herunterladen",
+          "error": "Anzeigendaten konnten nicht exportiert werden. Erneut versuchen."
+        }
       }
     },
     "Billing": {
@@ -11349,6 +11400,19 @@
         "nobody": "Noch niemand",
         "more": "und {count} weitere"
       }
+    },
+    "AdDataConsent": {
+      "title": "Anzeigendaten",
+      "shareLabel": "Sokosumi verbessern helfen",
+      "shareHelp": "Anzeigendaten für interne Modellvergleiche und die Kalibrierung der KI-Bewertung teilen.",
+      "trainingLabel": "Nutzung für Training erlauben",
+      "trainingHelp": "Datenexporte und Modelltraining erlauben; erfordert die obige Freigabe.",
+      "save": "Einstellungen speichern",
+      "saved": "Einstellungen für Anzeigendaten gespeichert",
+      "saveError": "Einstellungen konnten nicht gespeichert werden. Erneut versuchen.",
+      "adminOnly": "Nur Workspace-Admins können diese Einstellungen ändern.",
+      "loadError": "Einstellungen für Anzeigendaten konnten nicht geladen werden. Erneut versuchen.",
+      "retry": "Erneut versuchen"
     }
   },
   "Share": {
