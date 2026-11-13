@@ -53,8 +53,30 @@ export function useRoomMessageMutations({
   } | null>(null);
   const [isSavingEdit, startSavingEditTransition] = useTransition();
   const [_isDeleting, startDeleteTransition] = useTransition();
+  const [pinWrites] = useState(
+    () =>
+      new Map<
+        string,
+        { pinned: boolean; echoed: boolean; done: Promise<boolean> }
+      >(),
+  );
+  // Rows that show a change Core has not answered yet. The row reads as
+  // saving until the answer comes, success or failure.
+  const [savingMessageIds, setSavingMessageIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
 
-  function applyPinnedMutation(messageId: string, pinned: boolean) {
+  function setMessageSaving(messageId: string, saving: boolean) {
+    setSavingMessageIds((current) => {
+      if (current.has(messageId) === saving) return current;
+      const next = new Set(current);
+      if (saving) next.add(messageId);
+      else next.delete(messageId);
+      return next;
+    });
+  }
+
+  function setRowPinned(messageId: string, pinned: boolean) {
     // Unloaded rows arrive with Core's pinnedAt. The local time stands in
     // until the next read; only pinned-or-not is shown.
     setMessagesState((current) =>
@@ -64,7 +86,77 @@ export function useRoomMessageMutations({
           : message,
       ),
     );
+  }
+
+  function applyPinnedMutation(messageId: string, pinned: boolean) {
+    const openWrite = pinWrites.get(messageId);
+    if (openWrite?.pinned === pinned) {
+      openWrite.echoed = true;
+    }
+    setRowPinned(messageId, pinned);
     setPinnedListGeneration((generation) => generation + 1);
+  }
+
+  /**
+   * The row shows the new state at once. The pinned list reads Core, so it
+   * loads again only after Core has the write. A refused write puts the row
+   * back, unless a realtime event with the same state came in the meantime:
+   * then Core has the write and only the answer was lost. One write per
+   * message: a second request for the same state shares the open write, one
+   * for the other state is dropped.
+   */
+  function writePinned(
+    roomId: string,
+    messageId: string,
+    pinned: boolean,
+  ): Promise<boolean> {
+    const openWrite = pinWrites.get(messageId);
+    if (openWrite) {
+      return openWrite.pinned === pinned
+        ? openWrite.done
+        : Promise.resolve(false);
+    }
+    const write = { pinned, echoed: false, done: Promise.resolve(false) };
+    pinWrites.set(messageId, write);
+    setRowPinned(messageId, pinned);
+    setMessageSaving(messageId, true);
+    write.done = (
+      pinned
+        ? pinRoomMessageAction(roomId, messageId)
+        : unpinRoomMessageAction(roomId, messageId)
+    )
+      .catch(() => null)
+      .then((result) => {
+        pinWrites.delete(messageId);
+        setMessageSaving(messageId, false);
+        if (!result?.ok) {
+          const restoredPinned = write.echoed ? pinned : !pinned;
+          setRowPinned(messageId, restoredPinned);
+          toast.error(
+            result?.error.message ??
+              t(
+                pinned
+                  ? "PinnedMessages.pinError"
+                  : "PinnedMessages.unpinError",
+              ),
+            // Says how the row stands now, so the jump back is explained.
+            {
+              description: t(
+                restoredPinned
+                  ? "PinnedMessages.statePinned"
+                  : "PinnedMessages.stateUnpinned",
+              ),
+            },
+          );
+          return false;
+        }
+        // A read that began before the write, or a late event from an
+        // earlier write, can have put the old state back.
+        setRowPinned(messageId, pinned);
+        setPinnedListGeneration((generation) => generation + 1);
+        return true;
+      });
+    return write.done;
   }
 
   async function handlePinMessage(message: ChatRoomMessage) {
@@ -72,25 +164,11 @@ export function useRoomMessageMutations({
     if (!roomId) {
       return;
     }
-    const alreadyPinned = message.pinnedAt != null;
-    const result = alreadyPinned
-      ? await unpinRoomMessageAction(roomId, message.id)
-      : await pinRoomMessageAction(roomId, message.id);
-    if (!result.ok) {
-      toast.error(result.error.message);
-      return;
-    }
-    applyPinnedMutation(message.id, !alreadyPinned);
+    await writePinned(roomId, message.id, message.pinnedAt == null);
   }
 
-  async function handleUnpinFromPanel(roomId: string, messageId: string) {
-    const result = await unpinRoomMessageAction(roomId, messageId);
-    if (!result.ok) {
-      toast.error(result.error.message);
-      return false;
-    }
-    applyPinnedMutation(messageId, false);
-    return true;
+  function handleUnpinFromPanel(roomId: string, messageId: string) {
+    return writePinned(roomId, messageId, false);
   }
 
   function handleStartEdit(message: ChatRoomMessage, inThread: boolean) {
@@ -223,6 +301,7 @@ export function useRoomMessageMutations({
     editSession,
     setEditSession,
     isSavingEdit,
+    savingMessageIds,
     applyPinnedMutation,
     handlePinMessage,
     handleUnpinFromPanel,

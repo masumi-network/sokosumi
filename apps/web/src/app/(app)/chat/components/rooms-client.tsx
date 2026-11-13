@@ -149,6 +149,10 @@ import {
 } from "@/app/chat/utils/room-transcript-ranges";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { isThreadUnreadEvent } from "@/app/chat/utils/thread-unread-event";
+import {
+  type UnreadDividerPlace,
+  unreadDividerIn,
+} from "@/app/chat/utils/unread-divider-place";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
 import {
@@ -405,29 +409,6 @@ function visibleRoomLocation(
       deferToRoute || optimisticQuery === "" ? NO_ROOM_SEARCH : jump,
     pendingMessageJump,
   };
-}
-
-/** Where the Unread divider sits; `at` keeps its place once its message goes. */
-interface UnreadDividerPlace {
-  id: string;
-  at: number | null;
-}
-
-/**
- * The divider an answer names: undefined when it names none (an older page)
- * or has not arrived, null for no Room unread or a failed read.
- */
-function unreadDividerIn(
-  page: RoomTranscriptPage | null | undefined,
-): UnreadDividerPlace | null | undefined {
-  if (page === undefined) return undefined;
-  const id = page ? page.firstUnreadMessageId : null;
-  if (id === undefined) return undefined;
-  if (!id) return null;
-  const createdAt = page?.messages.find(
-    (message) => message.id === id,
-  )?.createdAt;
-  return { id, at: createdAt == null ? null : new Date(createdAt).getTime() };
 }
 
 interface RetainedTranscriptBinding {
@@ -935,6 +916,7 @@ function RoomView({
     editSession,
     setEditSession,
     isSavingEdit,
+    savingMessageIds,
     applyPinnedMutation,
     handlePinMessage,
     handleUnpinFromPanel,
@@ -3234,6 +3216,7 @@ function RoomView({
               isSavingEdit={
                 isSavingEdit && roomEditSession?.messageId === message.id
               }
+              isSaving={savingMessageIds.has(message.id)}
               showThreadButton={canOpenThread}
               isFirstOfDay={showDaySeparator}
               isContinuation={
@@ -3526,6 +3509,7 @@ function RoomView({
                 onCancelEdit={stableMessageHandlers.onCancelEdit}
                 onSaveEdit={stableMessageHandlers.onSaveEdit}
                 isSavingEdit={isSavingEdit}
+                savingMessageIds={savingMessageIds}
                 pendingQuote={pendingThreadQuote}
                 onClearPendingQuote={() => setPendingThreadQuote(null)}
                 onSetPendingQuote={setPendingThreadQuote}
