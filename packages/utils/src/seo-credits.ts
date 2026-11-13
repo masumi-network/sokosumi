@@ -13,7 +13,7 @@
 /** The owner's price for paid data: its cost plus 50%. */
 export const SEO_MARKUP_PERCENT = 150;
 /** A one-page full audit has no USD limit; the worker's page reserve bounds it. */
-export const SEO_PAGE_CEILING_CENTS = 31;
+export const SEO_PAGE_CEILING_CENTS = 32;
 /** The ceiling of one paid call of a focused check (live SERP is about 0.6, a backlinks summary about 2.4). */
 export const SEO_MAX_CALL_CENTS = 5;
 /** The worker's USD limit of a multi-page full audit when the request sets none. */
