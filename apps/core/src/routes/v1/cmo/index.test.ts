@@ -149,7 +149,6 @@ function overview() {
       pillars: null,
     },
     mailingListSize: 0,
-    subscribeUrl: "http://web/billing",
     billing: { plan: null, subscriptionStatus: null, availableCredits: 12 },
     posts: { DRAFT: 3, SCHEDULED: 1, PUBLISHING: 1, MISSED: 1 },
   };
@@ -326,6 +325,14 @@ describe("CMO routes", () => {
       published: 0,
       failed: 1,
     });
+  });
+
+  it("carries no link to Sokosumi's billing page in the overview", async () => {
+    const response = await createApp().request(`/projects/${PROJECT_ID}`);
+    const body = await response.json();
+    expect(body.data.billing).toBeDefined();
+    expect(JSON.stringify(body.data)).not.toContain("/billing");
+    expect(body.data).not.toHaveProperty("subscribeUrl");
   });
 
   it("answers 409 when Cuso is already working on a turn", async () => {

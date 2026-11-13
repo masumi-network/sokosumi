@@ -12,6 +12,7 @@ import { adsReturnError } from "../ads";
 import { hostOf } from "../brand-profile";
 import { Logo } from "../logo";
 import { StartOver } from "../start-over";
+import { topUpOffer } from "../top-up";
 import { type AnswerInput, type OnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
 import { LaunchStep } from "./launch-step";
@@ -174,6 +175,7 @@ export function OnboardingFlow({
   const answerBrand = async (input: AnswerInput) => {
     setOverview(await actions.answerBrandQuestion(input));
   };
+  const topUp = topUpOffer(overview, actions.startTopUp);
 
   return (
     <div className="ob">
@@ -231,6 +233,7 @@ export function OnboardingFlow({
               await actions.sendMessage(text);
               await refresh();
             }}
+            topUp={topUp}
           />
         ) : step === "brand" ? (
           <BrandStep
@@ -256,6 +259,7 @@ export function OnboardingFlow({
               if (!refused) setViewing(null);
               return refused;
             }}
+            topUp={topUp}
           />
         ) : step === "plan" ? (
           <PlanStep
@@ -282,6 +286,7 @@ export function OnboardingFlow({
             onConnectMeasurement={(provider) =>
               actions.connectMeasurement(provider, "onboarding")
             }
+            topUp={topUp}
           />
         ) : (
           <LaunchStep

@@ -14,6 +14,7 @@ import { hostOf } from "../brand-profile";
 import { CusoAvatar } from "../cuso";
 import { CusoClip } from "../cuso-clip";
 import { SubmitButton } from "../submit-button";
+import type { StartTopUp } from "../top-up";
 import { brandTiles, tileSource } from "./brand-step";
 import {
   Checklist,
@@ -55,6 +56,8 @@ interface SiteStepProps {
   onContinue: () => void;
   onRetry: () => Promise<string | null>;
   onReply: (text: string) => Promise<void>;
+  /** The top-up checkout; left out or null when this Cuso may not top up. */
+  topUp?: StartTopUp | null;
 }
 
 /**
@@ -73,6 +76,7 @@ export function SiteStep({
   onContinue,
   onRetry,
   onReply,
+  topUp = null,
 }: SiteStepProps) {
   const brain = overview.brandBrain;
   const work = overview.work?.kind === "research" ? overview.work : null;
@@ -235,7 +239,7 @@ export function SiteStep({
           <div className="card card-focus ob-says">
             <CusoAvatar pose="needs-you" size={96} />
             {noCredits ? (
-              <Refusal text="credits" topUpUrl={overview.subscribeUrl} />
+              <Refusal text="credits" topUp={topUp} />
             ) : (
               <p className="ob-value">
                 {found && found.saved > 0
@@ -243,7 +247,7 @@ export function SiteStep({
                   : "Nothing was lost. Try again and I start over."}
               </p>
             )}
-            <RetryButton onRetry={onRetry} topUpUrl={overview.subscribeUrl} />
+            <RetryButton onRetry={onRetry} topUp={topUp} />
           </div>
         ) : asked ? (
           <QuestionReply question={asked} onReply={onReply} />

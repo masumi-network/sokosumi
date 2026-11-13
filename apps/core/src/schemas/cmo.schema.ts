@@ -361,7 +361,6 @@ export const cmoOverviewSchema = z
       "After approval Cuso makes the whole month at once: how many of its pieces are made.",
     ),
     mailingListSize: z.number().int(),
-    subscribeUrl: z.string(),
     billing: z.object({
       plan: z.union([z.string(), z.null()]),
       subscriptionStatus: z.union([z.string(), z.null()]),

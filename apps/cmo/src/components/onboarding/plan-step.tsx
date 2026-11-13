@@ -14,6 +14,7 @@ import { EntrySheet } from "../entry-sheet";
 import { AdBudget, money, PACES, PacePicker } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
+import type { StartTopUp } from "../top-up";
 import {
   Checklist,
   PLANNING_PHASES,
@@ -149,6 +150,8 @@ interface PlanStepProps {
   starting?: boolean;
   /** Set when the founder opened the plan again: leads on to where they were. */
   ahead?: { label: string; onClick: () => void };
+  /** The top-up checkout; left out or null when this Cuso may not top up. */
+  topUp?: StartTopUp | null;
 }
 
 /**
@@ -157,18 +160,25 @@ interface PlanStepProps {
  * While Cuso writes or changes it, the plan stays on screen and fills in.
  */
 export function PlanStep(props: PlanStepProps) {
-  const { overview, phase, onRequest } = props;
+  const { overview, phase, onRequest, topUp = null } = props;
   if (phase === "planning") {
     return (
       <Planning
         overview={overview}
         starting={props.starting ?? false}
         onRetry={() => onRequest()}
+        topUp={topUp}
       />
     );
   }
   if (phase === "writing-needed" || !overview.strategy) {
-    return <WriteNeeded overview={overview} onWrite={() => onRequest()} />;
+    return (
+      <WriteNeeded
+        overview={overview}
+        onWrite={() => onRequest()}
+        topUp={topUp}
+      />
+    );
   }
   return <PlanReview {...props} />;
 }
@@ -177,10 +187,11 @@ interface PlanningProps {
   overview: CmoOverview;
   starting: boolean;
   onRetry: () => Promise<string | null>;
+  topUp: StartTopUp | null;
 }
 
 /** The first plan is being written: the checklist, and the way to try again. */
-function Planning({ overview, starting, onRetry }: PlanningProps) {
+function Planning({ overview, starting, onRetry, topUp }: PlanningProps) {
   const work = overview.work;
   const running =
     starting || (work?.kind === "strategy" && work.status === "running");
@@ -199,7 +210,7 @@ function Planning({ overview, starting, onRetry }: PlanningProps) {
           {running ? "Writing your plan" : "Planning stopped"}
         </h1>
         {noCredits ? (
-          <Refusal text="credits" topUpUrl={overview.subscribeUrl} />
+          <Refusal text="credits" topUp={topUp} />
         ) : (
           <p className="muted">
             {running
@@ -256,9 +267,7 @@ function Planning({ overview, starting, onRetry }: PlanningProps) {
             </ul>
           )}
         </div>
-        {running ? null : (
-          <RetryButton onRetry={onRetry} topUpUrl={overview.subscribeUrl} />
-        )}
+        {running ? null : <RetryButton onRetry={onRetry} topUp={topUp} />}
       </div>
     </section>
   );
@@ -267,10 +276,11 @@ function Planning({ overview, starting, onRetry }: PlanningProps) {
 interface WriteNeededProps {
   overview: CmoOverview;
   onWrite: () => Promise<string | null>;
+  topUp: StartTopUp | null;
 }
 
 /** Brand is confirmed and nothing writes the plan: one button does. */
-function WriteNeeded({ overview, onWrite }: WriteNeededProps) {
+function WriteNeeded({ overview, onWrite, topUp }: WriteNeededProps) {
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   return (
@@ -298,9 +308,7 @@ function WriteNeeded({ overview, onWrite }: WriteNeededProps) {
           {pending ? "Starting…" : "Write my plan"}
           {pending ? null : <ArrowRight size={16} aria-hidden="true" />}
         </button>
-        {refusal ? (
-          <Refusal text={refusal} topUpUrl={overview.subscribeUrl} />
-        ) : null}
+        {refusal ? <Refusal text={refusal} topUp={topUp} /> : null}
       </div>
     </section>
   );
@@ -323,6 +331,7 @@ export function PlanReview({
   onApprove,
   onConnectMeasurement,
   ahead,
+  topUp = null,
 }: PlanReviewProps) {
   const strategy = overview.strategy as Strategy;
   const [tab, setTab] = useState<PlanTab>(initialTab);
@@ -524,9 +533,7 @@ export function PlanReview({
         </div>
       ) : null}
 
-      {refusal ? (
-        <Refusal text={refusal} topUpUrl={overview.subscribeUrl} />
-      ) : null}
+      {refusal ? <Refusal text={refusal} topUp={topUp} /> : null}
       {stopped ? (
         <p className="alert" role="alert">
           {asked

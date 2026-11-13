@@ -125,7 +125,6 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
       },
     ],
     mailingListSize: 0,
-    subscribeUrl: "http://web/billing",
     billing: { plan: null, subscriptionStatus: null, availableCredits: 40 },
     posts: { draft: 2, scheduled: 1, published: 0, failed: 0 },
     createdAt: new Date("2026-10-01T09:00:00Z"),

@@ -72,7 +72,7 @@ interface SubscriptionSource {
  * An event that can never succeed (Polar would retry it until it disables the
  * endpoint): reported, then acknowledged by the caller.
  */
-function reportUnusableEvent(
+export function reportUnusableEvent(
   event: PolarWebhookEvent,
   issue: string,
   extra: Record<string, unknown>,

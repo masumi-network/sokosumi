@@ -1,0 +1,77 @@
+"use client";
+
+import type { CmoOverview } from "@sokosumi/core-client";
+import { useState, useTransition } from "react";
+
+/** Starts the top-up checkout: where the browser goes, or why it did not start. */
+export type StartTopUp = () => Promise<{
+  url: string | null;
+  error: string | null;
+}>;
+
+/**
+ * The top-up for this Cuso, or null when he may not have one: a Project
+ * top-up is sold only for a Cuso with an active CMO subscription (ADR 0068).
+ */
+export function topUpOffer(
+  overview: Pick<CmoOverview, "subscriptionActive">,
+  startTopUp: StartTopUp,
+): StartTopUp | null {
+  return overview.subscriptionActive ? startTopUp : null;
+}
+
+/** Opens the top-up checkout for this Cuso. */
+export function TopUpButton({
+  startTopUp,
+  className = "button button-small",
+}: {
+  startTopUp: StartTopUp;
+  className?: string;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <>
+      <button
+        type="button"
+        className={className}
+        disabled={pending}
+        onClick={() =>
+          startTransition(async () => {
+            setError(null);
+            const result = await startTopUp();
+            if (result.url) {
+              window.location.assign(result.url);
+              return;
+            }
+            setError(result.error ?? "Could not open the checkout. Try again.");
+          })
+        }
+      >
+        {pending ? "Opening…" : "Top up"}
+      </button>
+      {error ? (
+        <span className="note" role="alert">
+          {error}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+/** Out of credits, with the top-up when this Cuso may have one. */
+export function OutOfCredits({ topUp }: { topUp: StartTopUp | null }) {
+  return (
+    <>
+      <span className="note" role="alert">
+        You're out of credits.{topUp ? " Top up, then try again." : ""}
+      </span>
+      {topUp ? (
+        <TopUpButton
+          startTopUp={topUp}
+          className="button button-secondary button-small"
+        />
+      ) : null}
+    </>
+  );
+}

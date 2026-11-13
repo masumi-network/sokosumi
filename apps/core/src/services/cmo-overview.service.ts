@@ -151,7 +151,6 @@ export interface CmoOverview {
   /** People on the newsletter list. */
   mailingListSize: number;
   /** This person is in Sokosumi's Ads beta, so CMO offers ad connections. */
-  subscribeUrl: string;
   billing: {
     plan: string | null;
     subscriptionStatus: string | null;
@@ -411,8 +410,6 @@ export async function getCmoOverview(
     measurement,
     production: production.status,
     mailingListSize,
-    // Sokosumi's billing page on Cuso's organization: its credits pay for him.
-    subscribeUrl: `${web}/billing?organizationId=${payer.organizationId}`,
     billing: {
       plan: credits.subscription?.plan ?? null,
       subscriptionStatus: credits.subscription?.status ?? null,

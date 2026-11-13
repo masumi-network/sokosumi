@@ -39,6 +39,7 @@ const noop = {
   retryLearning: async () => null,
   compose: () => {},
   open: () => {},
+  topUp: null,
 };
 
 describe("Onboarding", () => {

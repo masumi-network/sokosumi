@@ -1,7 +1,11 @@
 import { createHmac } from "node:crypto";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { listPolarProducts, verifyPolarWebhook } from "./polar.client";
+import {
+  createPolarCheckout,
+  listPolarProducts,
+  verifyPolarWebhook,
+} from "./polar.client";
 
 const m = vi.hoisted(() => ({
   polar: {} as Record<string, string | undefined>,
@@ -85,5 +89,51 @@ describe("listPolarProducts", () => {
     m.polar = { POLAR_ACCESS_TOKEN: undefined };
 
     await expect(listPolarProducts()).rejects.toMatchObject({ status: 503 });
+  });
+});
+
+describe("createPolarCheckout", () => {
+  const input = {
+    productIds: ["prod_1", "prod_2"],
+    organizationId: "org_1",
+    metadata: { projectId: "project_1" },
+    returnUrl: "https://cmo.xyz/?project=project_1",
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("answers 503 without configuration", async () => {
+    m.polar = { POLAR_ACCESS_TOKEN: undefined };
+
+    await expect(createPolarCheckout(input)).rejects.toMatchObject({
+      status: 503,
+    });
+  });
+
+  it("asks Polar for a checkout of the products, trial and discount codes off, and returns its URL", async () => {
+    const fetchMock = vi.fn(async (..._request: Parameters<typeof fetch>) =>
+      Response.json({ url: "https://polar.example/checkout/1" }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const url = await createPolarCheckout(input);
+
+    expect(url).toBe("https://polar.example/checkout/1");
+    const [request, init] = fetchMock.mock.calls[0] ?? [];
+    const sent =
+      request instanceof Request ? request : new Request(request!, init);
+    expect(sent.method).toBe("POST");
+    expect(new URL(sent.url).pathname).toBe("/v1/checkouts/");
+    await expect(sent.json()).resolves.toEqual({
+      products: ["prod_1", "prod_2"],
+      external_customer_id: "org_1",
+      metadata: { projectId: "project_1" },
+      success_url: "https://cmo.xyz/?project=project_1",
+      return_url: "https://cmo.xyz/?project=project_1",
+      allow_discount_codes: false,
+      allow_trial: false,
+    });
   });
 });

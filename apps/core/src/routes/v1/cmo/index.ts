@@ -28,6 +28,7 @@ import mountStartCmoOverForProject from "./projects/[projectId]/start-over/post.
 import mountSetCmoAdBudgetForProject from "./projects/[projectId]/strategy/ads/post.js";
 import mountApplyCmoPlanAnswersForProject from "./projects/[projectId]/strategy/answers/apply/post.js";
 import mountRequestCmoStrategyForProject from "./projects/[projectId]/strategy/post.js";
+import mountStartCmoTopUpForProject from "./projects/[projectId]/top-up/post.js";
 import mountRevertCmoUpdateForProject from "./projects/[projectId]/updates/[id]/revert/post.js";
 
 /**
@@ -60,6 +61,7 @@ mountStartCmoOverForProject(app);
 mountSetCmoAdBudgetForProject(app);
 mountApplyCmoPlanAnswersForProject(app);
 mountRequestCmoStrategyForProject(app);
+mountStartCmoTopUpForProject(app);
 mountRevertCmoUpdateForProject(app);
 
 // Writes CMO made on the shared Project routes (ADR 0066); those stay too.
