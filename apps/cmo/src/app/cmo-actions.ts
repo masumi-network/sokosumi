@@ -19,6 +19,7 @@ import {
   finalizeCmoAdsForProject,
   finalizeCmoMeasurementForProject,
   finalizeCmoSocialConnectionForProject,
+  fixCmoBrandSectionForProject,
   getChatsRoomsByIdMessages,
   getCmoCalendarEntryTextForProject,
   getCmoOverviewForProject,
@@ -52,9 +53,11 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AGENT_NAME } from "../lib/agent";
 import { readSokosumiAppBaseUrl } from "../lib/auth-config";
+import type { BrandSectionKey } from "../lib/brand-sections";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import { coreForCurrentUser } from "../lib/core";
 import { INVITE_ONLY_NOTE, INVITE_ONLY_TITLE } from "../lib/invite-only";
+import { KEPT_WEBSITE_COOKIE } from "../lib/kept-website";
 import { lastCusoCookie } from "../lib/last-cuso";
 import {
   readSkippedSteps,
@@ -198,6 +201,9 @@ export async function onboard(
     };
   }
 
+  // A kept website starts one hire only, whatever Core answers: every hire
+  // makes a new Cuso, so a reload after a lost answer must not hire twice.
+  (await cookies()).delete(KEPT_WEBSITE_COOKIE);
   const core = await requireCore();
   const { data, error } = await startCmoOnboarding({
     ...core,
@@ -456,12 +462,14 @@ function errorText(error: unknown, fallback: string): string {
 }
 
 /**
- * Asks Cuso for the strategy, or for a change to it. Returns the overview
- * with his new work running, or why it could not start.
+ * Asks Cuso for the strategy, or for a change to it; with `patch`, only the
+ * entries the note touches change. Returns the overview with his new work
+ * running, or why it could not start.
  */
 export async function requestStrategy(
   projectId: string,
   note?: string,
+  patch?: boolean,
 ): Promise<{
   overview: CmoOverview | null;
   error: string | null;
@@ -470,7 +478,9 @@ export async function requestStrategy(
   const { error } = await requestCmoStrategyForProject({
     ...core,
     path: { projectId },
-    body: note?.trim() ? { note: note.trim() } : {},
+    body: note?.trim()
+      ? { note: note.trim(), ...(patch ? { patch: true } : {}) }
+      : {},
   });
   return {
     overview: await loadOverview(projectId),
@@ -478,7 +488,43 @@ export async function requestStrategy(
   };
 }
 
-/** The owner's own monthly ad budget; Cuso re-plans the ads around it. */
+/**
+ * One Brand Brain section is wrong: Core keeps the fix on it, and Cuso
+ * rewrites only that section now or once his current turn ends.
+ */
+export async function fixBrandSection(
+  projectId: string,
+  section: BrandSectionKey | null,
+  note: string,
+): Promise<string | null> {
+  const core = await requireCore();
+  const { error } = await fixCmoBrandSectionForProject({
+    ...core,
+    path: { projectId },
+    // No section: a general correction, Cuso rewrites what it changes.
+    body: section ? { section, note } : { note },
+  });
+  return error ? errorText(error, "Could not send that fix") : null;
+}
+
+/** Try again on a slow plan: Core replaces a run past twice the usual time. */
+export async function restartStrategy(projectId: string): Promise<{
+  overview: CmoOverview | null;
+  error: string | null;
+}> {
+  const core = await requireCore();
+  const { error } = await requestCmoStrategyForProject({
+    ...core,
+    path: { projectId },
+    body: { restart: true },
+  });
+  return {
+    overview: await loadOverview(projectId),
+    error: error ? errorText(error, "Could not start planning") : null,
+  };
+}
+
+/** The owner's own monthly ad budget; Cuso patches the ads around it. */
 export async function setAdBudget(
   projectId: string,
   monthly: number,
@@ -534,6 +580,8 @@ export async function startOver(projectId: string): Promise<string | null> {
       ? String((error as { message: unknown }).message)
       : "Could not start over";
   }
+  // The hiring form opens empty, not on a website kept from before.
+  (await cookies()).delete(KEPT_WEBSITE_COOKIE);
   revalidatePath("/");
   // A person who may not hire goes to the Cusos left, or the invite-only page.
   const list = await loadCusos().catch(() => undefined);
@@ -634,18 +682,22 @@ export async function connectChannel(
   return startChannel(projectId, provider, "app");
 }
 
-/** Connects a network on the Accounts step; the founder comes back to it. */
+/**
+ * Connects a network on Launch: in a popup that ends on `/connect/done`, or
+ * by redirect back to Launch when the browser blocked the popup.
+ */
 export async function connectSetupChannel(
   projectId: string,
   provider: SocialProvider,
+  from: "onboarding" | "popup" = "onboarding",
 ): Promise<{ url: string | null; error: string | null }> {
-  return startChannel(projectId, provider, "onboarding");
+  return startChannel(projectId, provider, from);
 }
 
 async function startChannel(
   projectId: string,
   provider: SocialProvider,
-  from: "onboarding" | "app",
+  from: "onboarding" | "popup" | "app",
 ): Promise<{ url: string | null; error: string | null }> {
   const { data, error } = await initiateCmoSocialConnectionForProject({
     ...(await requireCore()),
@@ -701,7 +753,7 @@ export async function finalizeChannel(
 export async function connectAds(
   projectId: string,
   provider: "google_ads" | "meta_ads",
-  from: "onboarding" | "app",
+  from: "onboarding" | "popup" | "app",
 ): Promise<{ url: string | null; error: string | null }> {
   const core = await requireCore();
   const { data, error } = await connectCmoAdsForProject({

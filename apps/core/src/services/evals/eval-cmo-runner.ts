@@ -1,3 +1,4 @@
+import { Prisma } from "@sokosumi/database";
 import {
   CMO_PRODUCTION_TURN_PREFIX,
   type MarketingStrategyPlan,
@@ -142,15 +143,30 @@ async function pointCusoAt(
   await prisma.brandBrain.deleteMany({ where: { projectId } });
   if (brandBrain)
     await prisma.brandBrain.create({
-      data: { projectId, body: brandBrain as object, updatedAt: new Date() },
+      data: {
+        projectId,
+        body: toInputJson(brandBrain),
+        updatedAt: new Date(),
+      },
     });
   const cuso = await findCusoForBot(lane.cusoBotId);
   if (!cuso) throw new Error(`Eval lane ${lane.lane} has no Cuso`);
   return cuso;
 }
 
-/** `count` slots, each item in its share of them, spread evenly. */
-function spread<T extends { share: number }>(items: T[], count: number): T[] {
+/** Prisma Json values from a helper, not a cast at the create call. */
+function toInputJson(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value));
+}
+
+/**
+ * `count` calendar slots filled from share-weighted items, spaced evenly
+ * across the month so each approach or pillar keeps its planned share.
+ */
+function shareWeightedSlots<T extends { share: number }>(
+  items: T[],
+  count: number,
+): T[] {
   const slots = items.flatMap((item) => {
     const times = (item.share / 100) * count;
     return Array.from({ length: Math.round(times) }, (_, n) => ({
@@ -241,8 +257,8 @@ export function changeRequestPlan(now: Date): MarketingStrategyPlan {
   const slots = [0, 1, 2, 3].flatMap((week) =>
     CHANGE_REQUEST_WEEK.map((piece, day) => ({ week, day: day + 1, piece })),
   );
-  const approaches = spread(frozen.mix, slots.length);
-  const pillars = spread(frozen.pillars, slots.length);
+  const approaches = shareWeightedSlots(frozen.mix, slots.length);
+  const pillars = shareWeightedSlots(frozen.pillars, slots.length);
   const named = new Set(CHANGE_REQUEST_CHANNELS.map((c) => c.channel));
   return {
     ...frozen,
@@ -330,7 +346,7 @@ export async function prepareCmoPlan(lane: EvalLaneRecord): Promise<void> {
   await prisma.marketingStrategy.create({
     data: {
       projectId: lane.cusoProjectId,
-      plan: changeRequestPlan(new Date()) as object,
+      plan: toInputJson(changeRequestPlan(new Date())),
       authorSokoBotId: lane.cusoBotId,
     },
   });
@@ -442,7 +458,7 @@ export async function startCmoCase(
     const strategy = await prisma.marketingStrategy.create({
       data: {
         projectId: lane.cusoProjectId,
-        plan: plan as object,
+        plan: toInputJson(plan),
         authorSokoBotId: lane.cusoBotId,
       },
       select: { id: true },

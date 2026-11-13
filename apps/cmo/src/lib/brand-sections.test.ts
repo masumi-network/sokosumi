@@ -1,28 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { companyUrl } from "./brand-sections";
+import { sameCompany } from "./brand-sections";
 
-const companies = [
-  { name: "Fathom Analytics", url: "https://usefathom.com" },
-  { name: "Matomo", url: "https://matomo.org" },
-  { name: "Google Analytics", url: "https://analytics.google.com" },
-  { name: "Plausible Clone" },
-];
-
-describe("companyUrl", () => {
-  it("links a name as written", () => {
-    expect(companyUrl("matomo", companies)).toBe("https://matomo.org");
+describe("sameCompany", () => {
+  it("matches a name as written, in any case", () => {
+    expect(sameCompany("matomo", "Matomo")).toBe(true);
   });
 
-  it("links a shorter or longer form of the name", () => {
-    expect(companyUrl("Fathom", companies)).toBe("https://usefathom.com");
-    expect(companyUrl("Google Analytics 4", companies)).toBe(
-      "https://analytics.google.com",
-    );
+  it("matches a shorter or longer form of the name", () => {
+    expect(sameCompany("Fathom", "Fathom Analytics")).toBe(true);
+    expect(sameCompany("Google Analytics 4", "Google Analytics")).toBe(true);
   });
 
-  it("leaves unknown names and names without a link unlinked", () => {
-    expect(companyUrl("Fath", companies)).toBeUndefined();
-    expect(companyUrl("Plausible Clone", companies)).toBeUndefined();
+  it("keeps other names apart", () => {
+    expect(sameCompany("Fath", "Fathom")).toBe(false);
+    expect(sameCompany("Plausible", "Fathom Analytics")).toBe(false);
   });
 });

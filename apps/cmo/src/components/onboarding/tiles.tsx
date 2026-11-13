@@ -3,24 +3,6 @@
 import { ChevronRight, X } from "lucide-react";
 import { type ReactNode, useEffect } from "react";
 
-interface StatRowProps {
-  stats: { value: string; line: string }[];
-}
-
-/** Big numbers over a small line, set off by a top line. */
-export function StatRow({ stats }: StatRowProps) {
-  return (
-    <dl className="ob-stats">
-      {stats.map((stat) => (
-        <div key={stat.value}>
-          <dt>{stat.value}</dt>
-          <dd>{stat.line}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
 interface GoalBlockProps {
   label: string;
   /** The short goal: the screen's one H1 when `headline` is set. */
@@ -64,6 +46,8 @@ export function GoalBlock({
 
 interface TileProps {
   label: string;
+  /** A short state beside the label, such as "Fixed by you". */
+  mark?: string;
   value: string;
   detail?: string;
   source?: string;
@@ -77,6 +61,7 @@ interface TileProps {
  */
 export function Tile({
   label,
+  mark,
   value,
   detail,
   source,
@@ -92,6 +77,7 @@ export function Tile({
     >
       <span className="ob-tile-head">
         <span className="ob-tile-label">{label}</span>
+        {mark ? <span className="ob-tile-mark">{mark}</span> : null}
         <ChevronRight size={16} aria-hidden="true" className="ob-tile-go" />
       </span>
       <span className="ob-tile-value">{value}</span>

@@ -5,8 +5,8 @@ The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi pale
 - **Voice, product, agent naming:** [`DESIGN.md`](DESIGN.md). This file covers how things look.
 - **Source:** the concept canvas https://claude.ai/artifact/9mWPtBgNY9HQ8wLXcadZk4 (boards Vibe, Site, Reading, Brand, Plan, Launch, Home, each with a dark version). Where a board and this file disagree, this file wins; Plan, Launch and Home on the canvas still use the earlier "Cuso Pop" radii, pills and 2px borders, which this file replaces.
 - **Family:** colours follow the [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide). CMO is its own product: never Sokosumi chrome, names or wording.
-- **Tokens:** values live once, as CSS custom properties in `src/app/globals.css`. Components read tokens, never literals. `src/design-guards.test.ts` enforces the rules below; `src/components/phone-feeds.css` and `showcases.css` are exempt because they draw the networks' own UIs.
-- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (step markers, checklist, question card, tile, side panel, assumption chip, goal block, stat row, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (hire, reading, writing, asking, brand, plan, planning, launch, launch-connected) and `/design-system/app/<view>` (chat, strategy, calendar, results, brain, channels, settings) render each real screen over fixture data (`?theme=dark` pins the theme).
+- **Tokens:** values live once, as CSS custom properties in `src/app/globals.css`. Components read tokens, never literals. `src/design-guards.test.ts` enforces the rules below; `src/components/showcases.css` is exempt because it draws the networks' own UIs.
+- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (the stage bar, checklist, tile, side panel, goal block, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (one per state on the Brief me boards: hire, research, research-question, brand, plan, briefing-plan, briefing-week, briefing-checks, briefing-ads, briefing-change, approve, connect, month, and the slow, error, words and away states) and `/design-system/app/<view>` (chat, strategy, calendar, results, brain, channels, settings) render each real screen over fixture data (`?theme=dark` pins the theme).
 
 ## Five rules
 
@@ -50,27 +50,27 @@ Inter, through `--font-sans`. Numbers that compare use `font-variant-numeric: ta
 
 | Step      | Size / line | Weight     | Tracking | Use                                  |
 | --------- | ----------- | ---------- | -------- | ------------------------------------ |
-| display   | 72 / 68     | 800        | -0.045em | Site hero only                       |
+| display   | 72 / 68     | 800        | -0.045em | the hire screen's headline only      |
 | h1        | 36 / 38     | 800        | -0.035em | the one screen title                 |
 | statement | 28 / 32     | 300        | -0.01em  | a promise, the plan goal             |
 | value     | 24 / 28     | 300        | -0.005em | tile values, big numbers, a question |
 | h2        | 16 / 20     | 600        | 0        | card and panel heads                 |
 | body      | 14 / 18     | 400        | 0        | UI text; 500 for labels and buttons  |
-| small     | 12 / 16     | 400 or 500 | 0        | meta, field help, step markers       |
+| small     | 12 / 16     | 400 or 500 | 0        | meta, field help, the stage bar      |
 | micro     | 11 / 14     | 400 or 500 | 0        | sources, tags                        |
 
 Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 ## Shape and space
 
-- **Radius:** 6px small marks (checkboxes, tags, badges), 8px controls (buttons, inputs, step markers, chips, tabs), 10px cards, 14px panels. Fully round only for avatars and status dots.
+- **Radius:** 6px small marks (checkboxes, tags, badges), 8px controls (buttons, inputs, chips, tabs), 10px cards, 14px panels. Fully round only for avatars and status dots.
 - **Space:** a 4px grid. Page padding 32px (16px under 768px). Panel padding and gap 12px. Card padding 16, 20 or 24px. Sections stack 24 to 48px apart.
 - **Width:** onboarding content max 1280px, Brand 1376px, Home main column 1120px. Panels fill their column; no centred narrow column except Launch (760px, one form).
 - **Breakpoints:** layouts are `flex-wrap` with min widths, so they reflow without media queries. Under 768px everything is one column and the side panel becomes a bottom sheet.
 
 ## Elevation and motion
 
-- Flat by default. The hard shadow is the only elevation. It marks the primary button, the card in focus (the question card, the open side panel or sheet, the Launch accounts list) and a card that needs the owner now (an approval waiting, a measurement or network not connected, questions left, unanswered plan checks); the card goes flat once the action is done, and a card with only optional buttons stays flat. The Site hero's tilted labels are the one exception.
+- Flat by default. The hard shadow is the only elevation. It marks the primary button, the card in focus (the chat question, the open side panel or sheet) and a card that needs the owner now (an approval waiting, a measurement or network not connected, questions left, unanswered plan checks); the card goes flat once the action is done, and a card with only optional buttons stays flat. The hero stage's tilted labels are the one exception.
 - An inset 1px hairline (`inset 0 0 0 1px`) is a line, not a shadow, and is allowed where a border would shift layout.
 - **Pressed:** the shadowed element moves 3px right and down and drops its shadow, as if pushed flat.
 - Transitions are 150ms on colour and transform only, off under `prefers-reduced-motion`.
@@ -79,9 +79,13 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Logo.** The CMO.XYZ wordmark from the concept canvas (`src/components/logo.tsx`), drawn in the text colour: ink on a light page, white on a dark one. 16px high in a header, never recoloured or set in Iris. Cuso's pointer mark stays the favicon and app icon.
 
-**Header (onboarding).** Logo 16px high left, step markers centre, the site chip right (green 8px dot with a line edge, then the domain). Hairline below, 14px 32px padding.
+**Header (onboarding).** Logo 16px high left, the site chip right (green 8px dot with a line edge, then the domain). Hairline below, 14px 32px padding.
 
-**Step marker.** 8px radius, small 500, "1 Site". Current: Iris fill, ink line, `aria-current="step"`. Done: check icon, ink line, text colour. Not yet: hairline, muted text. Four steps: Site, Brand, Plan, Launch.
+**Dock (onboarding).** Sticky at the bottom of every onboarding screen, an ink line above: a 96px Cuso (64px on a phone) whose pose is the state, then one state, never mixed. Working: a green live dot, "Cuso is working" (with the pieces while the plan writes, never a time), what he is doing now and "You can close this tab.", in a polite live region. Needs you: a yellow "!" disc, "Cuso needs you", a count ("2 of 4") only when more than one thing waits, and Later, then the chat. Live: a green dot, "You're live" and Go to Today. The page above it never asks.
+
+**Question.** Buttons answer, the field changes. Buttons are final answers: at most three, the yes first, none that only opens the field. One field, always the last row: its placeholder starts with "Or" and says what typing does ("Or say what to change"), Send stays off until there is text, and Enter sends; a number has its currency in front ("$ · Or another amount"). Where the text is the answer (the website, a research question) there are no buttons and the placeholder names the answer. A helper line under the question only for a cost or a consequence.
+
+**Stage bar.** Seven stages in one slim row under the header, sticky: a 4px rule over the name (small). Style alone says the state: done an ink rule, now an Iris rule and a bold name (`aria-current="step"`), work Cuso does behind the current stage a dashed rule and a green dot, ahead a hairline rule and a muted name (disabled). The stage the page shows is underlined. Under 768px it folds into one row, "Briefing 5 of 7" and a chevron over a seven-part strip, which drops down a sheet of the stages (Now, Viewing, a check, a green dot, or nothing on the right).
 
 **Buttons.** 44px high, 8px radius, body 500, 0 18px.
 
@@ -100,17 +104,17 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Side panel.** A card beside the grid: h2 title, 32px close button with a hairline edge, short summary, hairline-separated list, source link, and a "Tell {agent} what's off" input.
 
-**Question card.** Progress as five 6px segments (done: text fill; current: Iris with ink line; next: hairline). Topic (small, muted), question (value step), "Why I ask" line with an info icon, then Yes / No / Not sure as secondary buttons in three columns, and a text button to skip.
+**Chat question.** A card with an ink line and the hard shadow: the question (h2), one muted line under it, the answers as small buttons (the main one Iris) and a free-text line with Send. The person's own words sit right, in an inverted bubble. Focus moves to the question when it opens; Esc folds the chat.
 
 **Checklist.** 18px boxes, 6px radius. Done: green fill, ink line, check. Working: dashed ink line with a dot. Not yet: hairline.
 
-**Skeleton.** Dashed hairline box with hairline bars. Never a shimmer.
+**Skeleton.** Dashed hairline box with hairline bars. Never a shimmer. Every slot is on screen, with its skeleton, before its content lands, and keeps the same height filled, so nothing moves under the founder's cursor.
 
-**Assumption chip.** Sits on the line it changes (the budget, a move): panel fill, 8px radius, a 20px yellow disc with a Neutral 950 "!", the question, a small Yes button and a text alternative ("Change", "No").
+**Onboarding shell (Brief me).** One result on the page (a card with a small label, the line and its source), "See more" as an underlined text button that opens the full detail in place, and the bar. Past the usual time the bar says "Taking longer than usual" without a number; from twice the usual time the chat offers Try again. No times, no percentages.
+
+**Typing.** New text Cuso writes types in over about a second with a 2px caret (`useTypeIn`, `TypeIn`); text the screen mounted with never replays, and reduced motion shows it at once. Nothing else animates text. A count of pieces on Today climbs one at a time (`useLanding`).
 
 **Goal block.** The plan's goal: an ink block with inverted text that inverts again in dark, 10px radius, statement step.
-
-**Stat row.** Value step numbers over a small muted line, separated by a top line.
 
 **Sidebar (CMO home).** Panel fill, hairline right, 232 to 260px. Workspace card on top, nav rows 40px with 8px radius, current row as a card with an ink line. Counts are ink badges, 6px radius, micro text. Cuso's status card sits at the bottom.
 
@@ -120,9 +124,9 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 - **Cuso is the status.** Poses map to states: Reading, Thinking, Needs you (the only one labelled on Iris), Reporting, Done.
 - **Avatar:** always on a `#F5F5F5` circle with a line edge and a little padding, in both themes, so his black outline reads in dark. 36px in rows, 48px beside a title, 72 to 96px in a hero card.
-- **Stage:** the Site hero puts Cuso on an Iris stage with up to three tilted labels (8px radius, ink line, hard shadow, 16px 600). This is the one place labels tilt.
-- **Celebration:** the party image shows only after Launch is pressed.
-- **Motion:** Cuso's images are short clips that start and end on their still (`CusoClip`), and play once they are half on screen. The avatar plays once, then every 30 seconds; a past chat message keeps the still. The hire hero plays first and Cuso announces its three labels: each pops out of his megaphone while he shouts (500ms, transform only, the one entrance longer than 150ms); then the avatar beside the intro plays; the reading scene and the celebration play once. Under `prefers-reduced-motion` only the still shows.
+- **Stage:** the hero stage puts Cuso on an Iris stage with up to three tilted labels (8px radius, ink line, hard shadow, 16px 600). This is the one place labels tilt; the hire screen no longer uses it, and only `/design-system` shows it.
+- **You're live:** after Launch the bar shows Cuso done and one Iris button, Go to Today.
+- **Motion:** Cuso's images are short clips that start and end on their still (`CusoClip`), and play once they are half on screen. The avatar plays once, then every 30 seconds; a past chat message keeps the still. The bar's Cuso plays his pose for the state. Under `prefers-reduced-motion` only the still shows.
 - **Name:** every string with the agent's name comes from the person's chosen name; build it in one string so no double space appears.
 
 ## Accessibility
@@ -141,4 +145,4 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 Raise these with the guide owner rather than drifting further.
 
-Last updated: 2026-11-05
+Last updated: 2026-11-13
