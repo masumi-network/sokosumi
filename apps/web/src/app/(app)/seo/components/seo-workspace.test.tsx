@@ -5086,7 +5086,7 @@ describe("SEO workspace integration", () => {
     expect(requests[1].idempotencyKey).not.toBe(requests[0].idempotencyKey);
   });
 
-  it("keeps the run in the secondary look while the step wears the fill, with its reasons in its details", async () => {
+  it("keeps the run in the secondary look and the draft button tinted, with its reasons in its details", async () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     const observedAt = new Date("2026-01-03T12:00:00Z");
@@ -5166,7 +5166,7 @@ describe("SEO workspace integration", () => {
       name: "Create draft task",
     });
     // The step wears the brand fill (owner, after pass 59); the run is raised in the secondary look.
-    expect(create).toHaveClass("bg-primary");
+    expect(create).toHaveClass("bg-quinary");
     const run = screen.getByRole("button", { name: "Run full audit" });
     expect(run).toHaveClass("bg-quaternary");
     expect(run).not.toHaveClass("bg-primary");
@@ -5184,10 +5184,10 @@ describe("SEO workspace integration", () => {
     expect(await screen.findByText("The title is missing")).not.toBeVisible();
     expect(
       screen.getByRole("button", { name: "Create draft task" }),
-    ).toHaveClass("bg-primary");
+    ).toHaveClass("bg-quinary");
   });
 
-  it("gives the fill to the lead fix, also while no check can start", async () => {
+  it("keeps the lead fix tinted, also while no check can start", async () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     workspace.availableActions = {
@@ -5230,10 +5230,10 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    // The run cannot start, so it is no filled button: the tab's own next step is.
+    // The run cannot start: the draft button stays tinted, with no brand fill on the tab (owner, 2026-11-13).
     expect(
       await screen.findByRole("button", { name: "Create draft task" }),
-    ).toHaveClass("bg-primary");
+    ).toHaveClass("bg-quinary");
     expect(
       screen.getByRole("button", { name: "Run full audit" }),
     ).not.toHaveClass("bg-primary");
@@ -5241,7 +5241,7 @@ describe("SEO workspace integration", () => {
     await screen.findByText("The title is missing");
     expect(
       screen.getByRole("button", { name: "Create draft task" }),
-    ).toHaveClass("bg-primary");
+    ).toHaveClass("bg-quinary");
   });
 
   it("leads from a position check that found no page to the fixes, and only then", async () => {
@@ -5537,7 +5537,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=actions");
     expect(
       screen.getByRole("button", { name: "Create draft task" }),
-    ).toHaveClass("bg-primary");
+    ).toHaveClass("bg-quinary");
     await user.dblClick(
       screen.getByRole("button", { name: "Create draft task" }),
     );
@@ -5598,7 +5598,7 @@ describe("SEO workspace integration", () => {
       name: "Create draft task",
     });
     expect(creates).toHaveLength(2);
-    for (const create of creates) expect(create).toHaveClass("bg-primary");
+    for (const create of creates) expect(create).toHaveClass("bg-quinary");
     served = {
       ...workspace,
       actions: [

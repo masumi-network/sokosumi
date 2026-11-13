@@ -44,7 +44,7 @@ export function SeoActionCard({
   model: SeoWorkspaceModel;
   /** The rating of the issue the action fixes; null for a suggestion from search data. */
   severity: SeoIssueSeverity | null;
-  /** The page's one filled button. */
+  /** The page's one draft button. */
   primary?: boolean;
   /** The card is the one proposal of its place (the Agent tab): it stays open and its title is no button. */
   fixed?: boolean;
@@ -240,9 +240,8 @@ export function SeoActionCard({
           ) : model.data.availableActions.canEdit ? (
             <Button
               size="sm"
-              // The step's own commit wears the one brand fill, on every card alike (owner, after pass 59). The run
-              // keeps the secondary look.
-              variant="primary"
+              // Tinted, not the brand fill: a draft is a quiet step the owner reviews later (owner, 2026-11-13).
+              variant="secondary"
               loading={model.pending}
               onClick={() => {
                 void model.createActionTask(action);
@@ -273,7 +272,7 @@ function ActionGroup({
   actions: ProjectSeoAction[];
   model: SeoWorkspaceModel;
   severity: (action: ProjectSeoAction) => SeoIssueSeverity | null;
-  /** The action that carries the tab's one filled button. */
+  /** The action that carries the tab's one draft button. */
   primary: ProjectSeoAction | undefined;
   /** The other group has actions too: only then a group needs its name. */
   named: boolean;
@@ -312,7 +311,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   const opportunities = overview.actions.filter(
     (action) => action.kind === "opportunity",
   );
-  // The first action that still waits opens as a card, with the one filled button of the tab.
+  // The first action that still waits opens as a card, with the one draft button of the tab.
   const primary = [...fixes, ...opportunities].find(
     (action) => action.status === "recommended",
   );

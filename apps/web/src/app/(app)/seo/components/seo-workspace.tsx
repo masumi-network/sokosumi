@@ -191,7 +191,7 @@ export function SeoWorkspace({
       </p>
     );
   const { canRequestAnalysis } = model.data.availableActions;
-  // The run of every tab, in the secondary look: the step of the tab wears the fill. The setup card is on the Agent tab only;
+  // The run of every tab, in the secondary look; only the Agent tab's step wears the brand fill. The setup card is on the Agent tab only;
   // there its own check step leads.
   const runAudit =
     model.filters.tab === "agent" && setup ? null : seoRunAction(model.data);
