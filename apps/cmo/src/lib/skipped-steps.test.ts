@@ -39,6 +39,18 @@ describe("withSkippedSteps", () => {
     ).toBe("done");
   });
 
+  it("is done after skipped accounts once the Cuso has a CMO subscription", () => {
+    expect(
+      withSkippedSteps(
+        cmoOverview({
+          onboardingStep: "accounts",
+          billing: cmoBilling({ status: "active" }),
+        }),
+        readSkippedSteps("accounts"),
+      ).onboardingStep,
+    ).toBe("done");
+  });
+
   it("never skips the checkout", () => {
     const overview = cmoOverview({ onboardingStep: "checkout" });
     expect(withSkippedSteps(overview, readSkippedSteps("accounts"))).toBe(
