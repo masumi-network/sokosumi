@@ -143,8 +143,8 @@ describe("SEO check defaults", () => {
       within(summary).getByText("Germany · German · Mobile and Desktop"),
     ).toBeVisible();
     expect(within(summary).getByText("Akku Zustand")).toBeVisible();
-    // A one-page full audit shows the 45-credit ceiling Core checks before it starts.
-    expect(within(dialog).getByText(/^Up to 45 credits: /)).toBeVisible();
+    // A one-page full audit shows the 47-credit ceiling Core checks before it starts.
+    expect(within(dialog).getByText(/^Up to 47 credits: /)).toBeVisible();
     // No field asks for a choice until the reader wants one.
     expect(
       within(dialog).getByRole("button", { name: "Change options" }),
