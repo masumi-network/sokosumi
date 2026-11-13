@@ -39,6 +39,12 @@ describe("branded query split", () => {
     expect(seoIsBrandedQuery("ソニーテレビ", ["ソニー"])).toBe(true);
   });
 
+  it("reads a Latin term with CJK punctuation as words, not as a substring", () => {
+    expect(seoIsBrandedQuery("sony music japan", ["Sony・Music"])).toBe(true);
+    expect(seoIsBrandedQuery("paral.lel barcelona", ["paral·lel"])).toBe(true);
+    expect(seoIsBrandedQuery("col·legi", ["l·l"])).toBe(false);
+  });
+
   it("keeps marks and letters that tell words apart", () => {
     expect(seoIsBrandedQuery("हिंदू", ["हिंदी"])).toBe(false);
     expect(seoIsBrandedQuery("हिंदी फिल्म", ["हिंदी"])).toBe(true);

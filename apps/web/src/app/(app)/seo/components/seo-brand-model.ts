@@ -11,6 +11,15 @@ const SUBSTRING_SCRIPT_CLASS =
   "\\p{scx=Han}\\p{scx=Hiragana}\\p{scx=Katakana}\\p{scx=Hangul}\\p{scx=Thai}\\p{scx=Lao}\\p{scx=Khmer}\\p{scx=Myanmar}";
 const SUBSTRING_SCRIPTS = new RegExp(`[${SUBSTRING_SCRIPT_CLASS}]`, "u");
 /**
+ * A term matches as a substring only when it holds a letter of such a script.
+ * Punctuation such as "·" or "・" also has these scripts in its Script_Extensions,
+ * but "paral·lel" and "Sony・Music" are words in Latin script.
+ */
+const SUBSTRING_SCRIPT_LETTER = new RegExp(
+  `(?=\\p{L})[${SUBSTRING_SCRIPT_CLASS}]`,
+  "u",
+);
+/**
  * A change between such a script and any other text is a word bound: "iPhoneケース"
  * holds the word "iphone", and "华为P50价格" the word "p50".
  */
@@ -88,7 +97,7 @@ type BrandNeedle = { substring: string } | { words: string[]; signed: boolean };
  */
 function brandNeedle(term: string): BrandNeedle | null {
   if (!LETTER_OR_DIGIT.test(term)) return null;
-  if (SUBSTRING_SCRIPTS.test(term)) return { substring: compact(term) };
+  if (SUBSTRING_SCRIPT_LETTER.test(term)) return { substring: compact(term) };
   const words = brandWords(term);
   const signed = words.some((word) => JOINER.test(word));
   return words.length
