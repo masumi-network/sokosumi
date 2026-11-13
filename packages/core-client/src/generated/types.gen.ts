@@ -1722,6 +1722,47 @@ export type EvalTick = {
     busy: boolean;
 };
 
+export type AdminAdEvalsDashboard = {
+    leaderboard: Array<AdEvalsLeaderboardRow>;
+    agreement: Array<AdEvalsAgreementRow>;
+    minimumWorkspaces: number;
+};
+
+export type AdEvalsLeaderboardRow = {
+    model: string;
+    template: string | null;
+    aspect: string | null;
+    workspaceCount: number;
+    suppressed: boolean;
+    n: number;
+    thumbN: number;
+    pairwiseN: number;
+    judgeN: number;
+    thumbRate: number | null;
+    pairwiseWinRate: number | null;
+    judgeMean: number | null;
+    thumbRateCi: {
+        lower: number;
+        upper: number;
+    } | null;
+    pairwiseWinRateCi: {
+        lower: number;
+        upper: number;
+    } | null;
+    judgeMeanCi: {
+        lower: number;
+        upper: number;
+    } | null;
+};
+
+export type AdEvalsAgreementRow = {
+    criterion: string;
+    signal: 'thumb' | 'pairwise';
+    rho: number | null;
+    n: number;
+    lowAgreement: boolean;
+};
+
 export type AdminTaskListItem = {
     id: string;
     name: string;
@@ -6245,6 +6286,9 @@ export type ProjectImageJob = {
     kind: 'GENERATE' | 'EDIT' | 'TEXT_TO_VIDEO' | 'IMAGE_TO_VIDEO';
     model: string;
     prompt: string;
+    templateId?: string;
+    creativeDirection?: string;
+    variationIndex?: number;
     settings: ProjectImageSettings;
     video: ProjectVideoSettings | null;
     referenceAssetIds: Array<string>;
@@ -10604,6 +10648,9 @@ export type SaveStudioBrandLook = {
 export type CreateProjectImageJobRequest = {
     modelId?: string;
     prompt: string;
+    templateId?: string;
+    creativeDirection?: string;
+    variationIndex?: number;
     product?: StudioProductIdentity;
     batchId?: string;
     exportHeadline?: string;
@@ -13860,6 +13907,19 @@ export type CreateVendorLogoUploadRequest = {
      * Optional per-upload size ceiling in bytes. Must not exceed the organization logo maximum.
      */
     maxSizeBytes?: number;
+};
+
+export type WorkspaceAdDataConsent = {
+    workspaceId: string;
+    shareForImprovement: boolean;
+    allowTraining: boolean;
+    decidedAt: Date | null;
+    policyVersion: string;
+};
+
+export type WorkspaceAdDataConsentWrite = {
+    shareForImprovement: boolean;
+    allowTraining: boolean;
 };
 
 export type AdHocDesignMd = {
@@ -19511,6 +19571,130 @@ export type TickAdminEvalRunsResponses = {
 };
 
 export type TickAdminEvalRunsResponse = TickAdminEvalRunsResponses[keyof TickAdminEvalRunsResponses];
+
+export type GetAdminAdEvalsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/ad-evals';
+};
+
+export type GetAdminAdEvalsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminAdEvalsError = GetAdminAdEvalsErrors[keyof GetAdminAdEvalsErrors];
+
+export type GetAdminAdEvalsResponses = {
+    /**
+     * Ad leaderboard and judge agreement for consenting workspaces
+     */
+    200: {
+        data: AdminAdEvalsDashboard;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminAdEvalsResponse = GetAdminAdEvalsResponses[keyof GetAdminAdEvalsResponses];
+
+export type GetAdminAdEvalsExportData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/ad-evals/export';
+};
+
+export type GetAdminAdEvalsExportErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Image storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminAdEvalsExportError = GetAdminAdEvalsExportErrors[keyof GetAdminAdEvalsExportErrors];
+
+export type GetAdminAdEvalsExportResponses = {
+    /**
+     * Scrubbed human and implicit preference JSONL from training-consenting workspaces; image links expire in ten minutes
+     */
+    200: string;
+};
+
+export type GetAdminAdEvalsExportResponse = GetAdminAdEvalsExportResponses[keyof GetAdminAdEvalsExportResponses];
 
 export type ListAdminTasksData = {
     body?: never;
@@ -93596,6 +93780,186 @@ export type PostWebhooksResendNewsletterResponses = {
 };
 
 export type PostWebhooksResendNewsletterResponse = PostWebhooksResendNewsletterResponses[keyof PostWebhooksResendNewsletterResponses];
+
+export type GetWorkspaceAdDataConsentData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/workspaces/{id}/ad-data-consent';
+};
+
+export type GetWorkspaceAdDataConsentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspaceAdDataConsentError = GetWorkspaceAdDataConsentErrors[keyof GetWorkspaceAdDataConsentErrors];
+
+export type GetWorkspaceAdDataConsentResponses = {
+    /**
+     * Workspace ad data consent
+     */
+    200: {
+        data: WorkspaceAdDataConsent;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetWorkspaceAdDataConsentResponse = GetWorkspaceAdDataConsentResponses[keyof GetWorkspaceAdDataConsentResponses];
+
+export type PutWorkspaceAdDataConsentData = {
+    body: WorkspaceAdDataConsentWrite;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/workspaces/{id}/ad-data-consent';
+};
+
+export type PutWorkspaceAdDataConsentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - Workspace owner or admin required
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutWorkspaceAdDataConsentError = PutWorkspaceAdDataConsentErrors[keyof PutWorkspaceAdDataConsentErrors];
+
+export type PutWorkspaceAdDataConsentResponses = {
+    /**
+     * Workspace ad data consent
+     */
+    200: {
+        data: WorkspaceAdDataConsent;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutWorkspaceAdDataConsentResponse = PutWorkspaceAdDataConsentResponses[keyof PutWorkspaceAdDataConsentResponses];
 
 export type PostWorkspacesDesignMdAdhocData = {
     body?: AdHocDesignMdWrite;
