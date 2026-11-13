@@ -24,18 +24,20 @@ export interface CmoYearlyGrantSyncResult {
   stoppedEarly: boolean;
 }
 
-/** The month of the paid year that `now` falls in, and when it ends. */
-function monthOfPaidYear(
+/** The month of the paid year that `now` falls in, when it starts and ends. */
+export function monthOfPaidYear(
   periodStart: Date,
   now: Date,
-): { expiresAt: Date; index: number } {
+): { expiresAt: Date; index: number; startsAt: Date } {
   let index = 0;
+  let startsAt = periodStart;
   let expiresAt = getNextMonthlyPeriodEnd(periodStart, periodStart);
   while (expiresAt <= now && index < LAST_MONTH_INDEX) {
     index += 1;
+    startsAt = expiresAt;
     expiresAt = getNextMonthlyPeriodEnd(expiresAt, periodStart);
   }
-  return { expiresAt, index };
+  return { expiresAt, index, startsAt };
 }
 
 /**

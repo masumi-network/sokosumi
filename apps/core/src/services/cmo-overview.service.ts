@@ -166,7 +166,6 @@ export interface CmoOverview {
   /** People on the newsletter list. */
   mailingListSize: number;
   /** This person is in Sokosumi's Ads beta, so CMO offers ad connections. */
-  subscribeUrl: string;
   /** Cuso's CMO plan (ADR 0068) and what his Project can spend. */
   billing: CmoBilling & {
     availableCredits: number;
@@ -430,8 +429,6 @@ export async function getCmoOverview(
     measurement,
     production: production.status,
     mailingListSize,
-    // Sokosumi's billing page on Cuso's organization: its credits pay for him.
-    subscribeUrl: `${web}/billing?organizationId=${payer.organizationId}`,
     billing: {
       ...billing,
       availableCredits: credits.spendable,

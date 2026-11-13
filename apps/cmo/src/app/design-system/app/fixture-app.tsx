@@ -2,6 +2,7 @@
 
 import { CmoApp, type CmoAppActions } from "../../../components/app/cmo-app";
 import type { View } from "../../../lib/views";
+import { cmoPlans } from "../../../test-fixtures/cmo";
 import { messages, overview } from "./fixtures";
 
 /** Actions that change nothing: every call hands the same overview back. */
@@ -51,6 +52,9 @@ const actions: CmoAppActions = {
   ],
   // Both would leave the preview.
   startOver: async () => null,
+  startTopUp: async () => ({ url: null, error: null }),
+  changePlan: async () => ({ change: null, error: null }),
+  openPortal: async () => ({ url: null, error: null }),
   signOut: async () => {},
 };
 
@@ -67,6 +71,7 @@ export function FixtureApp({ view }: FixtureAppProps) {
       name="Francis Luz"
       email="francis@acme.io"
       initialView={view}
+      plans={cmoPlans}
       actions={actions}
     />
   );

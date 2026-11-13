@@ -1,4 +1,4 @@
-import { ExternalLink } from "lucide-react";
+import { OutOfCredits, type StartTopUp } from "../top-up";
 
 /**
  * Why a step could not start. Out of credits comes with the way to top up,
@@ -6,10 +6,11 @@ import { ExternalLink } from "lucide-react";
  */
 export function Refusal({
   text,
-  topUpUrl,
+  topUp,
 }: {
   text: string;
-  topUpUrl: string;
+  /** The top-up checkout, or null when this Cuso may not top up. */
+  topUp: StartTopUp | null;
 }) {
   if (!/credits/i.test(text)) {
     return (
@@ -19,13 +20,8 @@ export function Refusal({
     );
   }
   return (
-    <p className="note" role="alert">
-      You're out of credits.{" "}
-      <a className="ob-link" href={topUpUrl} target="_blank" rel="noreferrer">
-        Top up on Sokosumi
-        <ExternalLink size={12} aria-hidden="true" />
-      </a>
-      , then try again.
-    </p>
+    <div className="ob-retry">
+      <OutOfCredits topUp={topUp} />
+    </div>
   );
 }

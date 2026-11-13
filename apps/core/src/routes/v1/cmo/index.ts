@@ -24,12 +24,15 @@ import mountApproveCmoMarketingStrategyForProject from "./projects/[projectId]/m
 import mountConnectCmoMeasurementForProject from "./projects/[projectId]/measurement/[provider]/connect/post.js";
 import mountFinalizeCmoMeasurementForProject from "./projects/[projectId]/measurement/[provider]/finalize/post.js";
 import mountRetryCmoOnboardingForProject from "./projects/[projectId]/onboarding/retry/post.js";
+import mountChangeCmoPlanForProject from "./projects/[projectId]/plan/post.js";
+import mountOpenCmoCustomerPortalForProject from "./projects/[projectId]/portal/post.js";
 import mountFinalizeCmoSocialConnectionForProject from "./projects/[projectId]/social-connections/finalize/post.js";
 import mountInitiateCmoSocialConnectionForProject from "./projects/[projectId]/social-connections/initiate/post.js";
 import mountStartCmoOverForProject from "./projects/[projectId]/start-over/post.js";
 import mountSetCmoAdBudgetForProject from "./projects/[projectId]/strategy/ads/post.js";
 import mountApplyCmoPlanAnswersForProject from "./projects/[projectId]/strategy/answers/apply/post.js";
 import mountRequestCmoStrategyForProject from "./projects/[projectId]/strategy/post.js";
+import mountStartCmoTopUpForProject from "./projects/[projectId]/top-up/post.js";
 import mountRevertCmoUpdateForProject from "./projects/[projectId]/updates/[id]/revert/post.js";
 
 /**
@@ -60,10 +63,13 @@ mountStartCmoPlanCheckoutForProject(app);
 mountConnectCmoMeasurementForProject(app);
 mountFinalizeCmoMeasurementForProject(app);
 mountRetryCmoOnboardingForProject(app);
+mountChangeCmoPlanForProject(app);
+mountOpenCmoCustomerPortalForProject(app);
 mountStartCmoOverForProject(app);
 mountSetCmoAdBudgetForProject(app);
 mountApplyCmoPlanAnswersForProject(app);
 mountRequestCmoStrategyForProject(app);
+mountStartCmoTopUpForProject(app);
 mountRevertCmoUpdateForProject(app);
 
 // Writes CMO made on the shared Project routes (ADR 0066); those stay too.

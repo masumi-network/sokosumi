@@ -11,8 +11,10 @@ import { defaultValidationHook } from "@/lib/hono";
 import {
   handlePolarOrderPaid,
   handlePolarOrderRefunded,
+  handlePolarPlanChangePaid,
   handlePolarSubscriptionEvent,
 } from "@/services/cmo-subscription.service";
+import { handlePolarTopUpPaid } from "@/services/cmo-top-up.service";
 
 /** The Polar events Core acts on; every other type is acknowledged with 202. */
 const HANDLED_EVENT_TYPES = new Set<PolarWebhookEvent["type"]>([
@@ -71,7 +73,15 @@ app.openapi(route, async (c) => {
   }
   switch (event.type) {
     case "order.paid":
-      await handlePolarOrderPaid(event);
+      // A one-time purchase is a Project top-up; a plan change has its own
+      // grant; every other order is a plan's month.
+      if (event.data.billing_reason === "purchase") {
+        await handlePolarTopUpPaid(event);
+      } else if (event.data.billing_reason === "subscription_update") {
+        await handlePolarPlanChangePaid(event);
+      } else {
+        await handlePolarOrderPaid(event);
+      }
       break;
     case "order.refunded":
       await handlePolarOrderRefunded(event);

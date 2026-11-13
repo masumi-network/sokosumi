@@ -399,7 +399,6 @@ export const cmoOverviewSchema = z
       "After approval Cuso makes the whole month at once: how many of its pieces are made.",
     ),
     mailingListSize: z.number().int(),
-    subscribeUrl: z.string(),
     billing: z
       .object({
         tier: z

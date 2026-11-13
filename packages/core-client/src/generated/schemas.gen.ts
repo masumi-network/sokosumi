@@ -44306,9 +44306,6 @@ export const CmoOverviewSchema = {
         mailingListSize: {
             type: 'integer'
         },
-        subscribeUrl: {
-            type: 'string'
-        },
         billing: {
             type: 'object',
             properties: {
@@ -44465,7 +44462,6 @@ export const CmoOverviewSchema = {
         'measurement',
         'production',
         'mailingListSize',
-        'subscribeUrl',
         'billing',
         'posts',
         'createdAt'
@@ -46864,6 +46860,34 @@ export const CmoTurnStartedSchema = {
     ]
 } as const;
 
+export const CmoPlanChangeSchema = {
+    type: 'object',
+    properties: {
+        change: {
+            type: 'string',
+            enum: [
+                'upgrade',
+                'downgrade'
+            ]
+        }
+    },
+    required: [
+        'change'
+    ]
+} as const;
+
+export const CmoCustomerPortalSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string'
+        }
+    },
+    required: [
+        'url'
+    ]
+} as const;
+
 export const CmoAdBudgetRequestSchema = {
     type: 'object',
     properties: {
@@ -46892,6 +46916,18 @@ export const CmoStrategyRequestSchema = {
             maxLength: 1000
         }
     }
+} as const;
+
+export const CmoTopUpCheckoutSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string'
+        }
+    },
+    required: [
+        'url'
+    ]
 } as const;
 
 export const SokoBotApiKeySchema = {

@@ -2,6 +2,7 @@ import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 
 import type { CusoMessage } from "../../lib/chat-messages";
 import type { AdActions } from "../ads";
+import type { StartTopUp } from "../top-up";
 import type { Answer } from "./questions";
 
 /** One answer to one of Cuso's questions, with what is true instead after a no. */
@@ -76,10 +77,12 @@ export interface OnboardingCheckoutActions {
   ) => Promise<{ url: string | null; error: string | null }>;
 }
 
-/** Account menu: start over or sign out. */
+/** Account menu: start over or sign out; and the top-up a refusal offers. */
 export interface OnboardingAccountActions {
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
+  /** Starts the checkout for a Project top-up of this Cuso. */
+  startTopUp: StartTopUp;
   signOut: () => Promise<void>;
 }
 
@@ -128,6 +131,7 @@ export function inertOnboardingActions(
     connectAds: unavailable,
     startPlanCheckout: unavailable,
     startOver: async () => null,
+    startTopUp: unavailable,
     signOut: async () => {},
   };
 }

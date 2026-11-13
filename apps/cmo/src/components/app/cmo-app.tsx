@@ -2,7 +2,7 @@
 
 import "../onboarding/onboarding.css";
 
-import type { CmoOverview } from "@sokosumi/core-client";
+import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { ArrowUp, CalendarDays, PanelRight } from "lucide-react";
 import {
   useCallback,
@@ -22,6 +22,7 @@ import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
 import { CusoAvatar, type Pose } from "../cuso";
 import { StatusText } from "../status";
+import { type StartTopUp, TopUpButton, topUpOffer } from "../top-up";
 import { CalendarPage } from "./calendar-page";
 import {
   BrandBrainCard,
@@ -41,6 +42,7 @@ import {
 } from "./pages";
 import { initial, Sidebar, VIEWS } from "./sidebar";
 import { StrategyPage } from "./strategy-page";
+import { type ChangePlan, type OpenPortal } from "./subscription-card";
 import { UpNext } from "./up-next";
 
 const POLL_MS = 4_000;
@@ -93,6 +95,11 @@ export interface CmoAppActions extends AdActions {
   ) => Promise<{ url: string | null; error: string | null }>;
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
+  /** Starts the checkout for a Project top-up of this Cuso. */
+  startTopUp: StartTopUp;
+  /** Owners and admins: another tier of the interval, and Polar's portal. */
+  changePlan: ChangePlan;
+  openPortal: OpenPortal;
   signOut: () => Promise<void>;
 }
 
@@ -105,7 +112,29 @@ interface CmoAppProps {
   initialView?: View;
   /** The channel connection that sent the founder back did not finish. */
   connectFailed?: boolean;
+  /** The CMO plans, for Settings' plan change; empty unless the viewer manages billing. */
+  plans?: CmoSubscriptionPlan[];
   actions: CmoAppActions;
+}
+
+/**
+ * Cuso is paused because the credits ran out; the top-up is offered when
+ * this Cuso may have one.
+ */
+export function OutOfCreditsBanner({ topUp }: { topUp: StartTopUp | null }) {
+  return (
+    <div className="banner" role="status">
+      <span className="sw" aria-hidden="true" />
+      <b>{AGENT_NAME} is paused: out of credits.</b>
+      {topUp ? (
+        <>
+          <span className="muted">Scheduled work waits until you top up.</span>
+          <span className="sp" />
+          <TopUpButton startTopUp={topUp} />
+        </>
+      ) : null}
+    </div>
+  );
 }
 
 const INLINE = /(\*\*[^*\n]+\*\*|\[[^\]\n]+\]\([^)\s]+\))/g;
@@ -167,6 +196,7 @@ export function CmoApp({
   email,
   initialView = "chat",
   connectFailed = false,
+  plans = [],
   actions,
 }: CmoAppProps) {
   const [overview, setOverview] = useState(initialOverview);
@@ -243,6 +273,7 @@ export function CmoApp({
     [go],
   );
 
+  const topUp = topUpOffer(overview, actions.startTopUp);
   const cardActions: CardActions = {
     approve: async () => setOverview(await actions.approveStrategy()),
     revert: async (id) => setOverview(await actions.revertUpdate(id)),
@@ -253,6 +284,7 @@ export function CmoApp({
     },
     compose,
     open: (target) => go(target),
+    topUp,
   };
 
   function send(event: React.FormEvent) {
@@ -365,24 +397,7 @@ export function CmoApp({
           ) : null}
         </div>
 
-        {outOfCredits ? (
-          <div className="banner" role="status">
-            <span className="sw" aria-hidden="true" />
-            <b>{AGENT_NAME} is paused: out of credits.</b>
-            <span className="muted">
-              Scheduled work waits until you top up.
-            </span>
-            <span className="sp" />
-            <a
-              className="button button-small"
-              href={overview.subscribeUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Top up
-            </a>
-          </div>
-        ) : null}
+        {outOfCredits ? <OutOfCreditsBanner topUp={topUp} /> : null}
 
         {view === "chat" ? (
           <>
@@ -530,6 +545,10 @@ export function CmoApp({
                   email={email}
                   startOver={actions.startOver}
                   signOut={actions.signOut}
+                  topUp={topUp}
+                  plans={plans}
+                  changePlan={actions.changePlan}
+                  openPortal={actions.openPortal}
                 />
               )}
             </div>
@@ -546,6 +565,7 @@ export function CmoApp({
           setUpNextOpen(false);
           setDrawerOpen(false);
         }}
+        topUp={topUp}
       />
       {drawerOpen ? (
         <button

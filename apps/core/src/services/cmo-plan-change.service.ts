@@ -1,0 +1,144 @@
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+
+import {
+  changePolarSubscriptionPlan,
+  createPolarCustomerPortalUrl,
+} from "@/clients/polar.client";
+import { isFirstPartyAppUrl } from "@/config/cors-allow-origin";
+import { serviceUnavailable } from "@/helpers/error";
+import prisma from "@/lib/db/prisma";
+import { getCmoCatalog } from "@/services/cmo-catalog.service";
+import {
+  CmoConflictError,
+  CmoForbiddenError,
+  type Cuso,
+  type CusoTarget,
+  cmoPayer,
+  requireCuso,
+} from "@/services/cmo-cuso.service";
+import { mayApproveMarketingStrategy } from "@/services/marketing-strategy.service";
+
+/**
+ * What owners and admins do with a Cuso's CMO subscription from CMO's
+ * Settings (ADR 0068): move him to another tier of his interval, and open
+ * Polar's customer portal to cancel, change the payment method or read
+ * invoices. Other members get neither.
+ */
+
+/** The Cuso, when the caller may manage his organization's billing. */
+async function requireBillingManager(target: CusoTarget): Promise<{
+  cuso: Cuso;
+  organizationId: string;
+}> {
+  const cuso = await requireCuso(target);
+  const { organizationId } = await cmoPayer(cuso);
+  const workspace = { id: cuso.workspaceId, userId: null, organizationId };
+  if (!(await mayApproveMarketingStrategy(target.userId, workspace))) {
+    throw new CmoForbiddenError(
+      "Only the organization's owners and admins change the plan and open billing",
+      CORE_API_ERROR_KINDS.ORGANIZATION_ROLE_FORBIDDEN,
+    );
+  }
+  return { cuso, organizationId };
+}
+
+function refuse(message: string, kind: "not_active" | "not_allowed"): never {
+  throw new CmoConflictError(
+    message,
+    kind === "not_active"
+      ? CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE
+      : CORE_API_ERROR_KINDS.SUBSCRIPTION_CHANGE_NOT_ALLOWED,
+  );
+}
+
+/**
+ * Moves the Cuso to the tier of his interval. More credits is an upgrade: it
+ * applies now and Polar charges the prorated difference (the paid order
+ * grants the extra credits). Fewer is a downgrade: Polar applies it at the
+ * next renewal and the overview shows it as pending until then.
+ */
+export async function changeCmoPlan(
+  input: CusoTarget & { tier: string },
+): Promise<{ change: "upgrade" | "downgrade" }> {
+  const { cuso } = await requireBillingManager(input);
+  const subscription = await prisma.cmoSubscription.findFirst({
+    where: { projectId: cuso.projectId, endedAt: null },
+    select: {
+      polarSubscriptionId: true,
+      polarProductId: true,
+      interval: true,
+      status: true,
+      cancelAtPeriodEnd: true,
+    },
+  });
+  if (!subscription) refuse("This Cuso has no CMO subscription", "not_active");
+  if (subscription.status === "past_due") {
+    refuse(
+      "The last payment failed. Fix the payment before changing the plan",
+      "not_active",
+    );
+  }
+  if (subscription.status !== "active") {
+    refuse("This Cuso's CMO subscription is not active", "not_active");
+  }
+  if (subscription.cancelAtPeriodEnd) {
+    refuse(
+      "The subscription is cancelled at the period end. Undo the cancel in the billing portal first",
+      "not_allowed",
+    );
+  }
+  const plans = (await getCmoCatalog()).plans.filter(
+    (plan) => plan.interval === subscription.interval,
+  );
+  const current = plans.find(
+    (plan) => plan.productId === subscription.polarProductId,
+  );
+  if (!current) throw serviceUnavailable("CMO plans are not set up");
+  const target = plans.find((plan) => plan.tier === input.tier);
+  if (!target) {
+    refuse(
+      `The plan changes only to another plan billed ${subscription.interval === "year" ? "yearly" : "monthly"}`,
+      "not_allowed",
+    );
+  }
+  if (target.productId === current.productId) {
+    refuse("This Cuso is on that plan already", "not_allowed");
+  }
+  const upgrade = target.credits > current.credits;
+  const changed = await changePolarSubscriptionPlan({
+    polarSubscriptionId: subscription.polarSubscriptionId,
+    productId: target.productId,
+    ...(upgrade && { upgradeFromCredits: current.credits }),
+  });
+  if (changed.isErr()) {
+    if (changed.error === "payment_failed") {
+      throw new CmoConflictError(
+        "The payment for the upgrade failed. The plan stays as it was",
+        CORE_API_ERROR_KINDS.SUBSCRIPTION_PAYMENT_FAILED,
+      );
+    }
+    refuse(
+      "Polar cannot change this subscription right now. Try again later",
+      "not_allowed",
+    );
+  }
+  return { change: upgrade ? "upgrade" : "downgrade" };
+}
+
+/** A Polar customer portal link for the Cuso's organization. */
+export async function openCmoCustomerPortal(
+  input: CusoTarget & { returnUrl: string },
+): Promise<{ url: string }> {
+  if (!isFirstPartyAppUrl(input.returnUrl)) {
+    throw new CmoConflictError("The return address must be CMO's own page");
+  }
+  const { organizationId } = await requireBillingManager(input);
+  const url = await createPolarCustomerPortalUrl({
+    organizationId,
+    returnUrl: input.returnUrl,
+  });
+  if (!url) {
+    refuse("This organization has not paid for a CMO plan yet", "not_active");
+  }
+  return { url };
+}

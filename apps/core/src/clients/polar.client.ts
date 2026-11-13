@@ -1,3 +1,4 @@
+import { PolarClientError } from "@polar-sh/sdk";
 import {
   createPolar,
   errors,
@@ -15,7 +16,6 @@ import { serviceUnavailable } from "@/helpers/error";
  */
 
 export type PolarProduct = models.Product;
-export type PolarCheckoutCreate = models.CheckoutCreate;
 export type PolarWebhookEvent = webhooks.WebhookPayload;
 export type PolarWebhookError =
   | "not_configured"
@@ -66,11 +66,31 @@ export async function listPolarProducts(): Promise<PolarProduct[]> {
   return products;
 }
 
-/** Opens a hosted checkout and returns the address the person pays at. */
+export interface PolarCheckoutInput {
+  /** Copied by Polar to the order (and the subscription) of this checkout. */
+  metadata: Record<string, string>;
+  /** The Polar customer: its external id is the organization's id. */
+  organizationId: string;
+  /** The person picks one in the checkout; the first is preselected. */
+  productIds: string[];
+  /** Where the person lands after paying, and where "back" leads. */
+  returnUrl: string;
+}
+
+/** Starts a hosted checkout, trial and discount codes off; returns its URL. */
 export async function createPolarCheckout(
-  checkout: PolarCheckoutCreate,
+  input: PolarCheckoutInput,
 ): Promise<string> {
-  return (await requirePolar().checkouts.create(checkout)).url;
+  const checkout = await requirePolar().checkouts.create({
+    products: input.productIds,
+    external_customer_id: input.organizationId,
+    metadata: input.metadata,
+    success_url: input.returnUrl,
+    return_url: input.returnUrl,
+    allow_discount_codes: false,
+    allow_trial: false,
+  });
+  return checkout.url;
 }
 
 /**
@@ -84,6 +104,81 @@ export async function revokePolarSubscription(
     await requirePolar().subscriptions.revoke(polarSubscriptionId);
   } catch (error) {
     if (error instanceof errors.AlreadyCanceledSubscription) return;
+    throw error;
+  }
+}
+
+/** Why Polar left a subscription's plan as it was. */
+export type PolarPlanChangeError = "payment_failed" | "not_changeable";
+
+/**
+ * Moves a subscription to another plan product. An upgrade (`upgradeFromCredits`
+ * set) applies now and Polar invoices the prorated difference at once; the
+ * old plan's monthly credits go into the subscription's metadata, where the
+ * paid `subscription_update` order's grant reads them. Without it the change
+ * waits for the next period as Polar's pending update.
+ */
+export async function changePolarSubscriptionPlan(input: {
+  polarSubscriptionId: string;
+  productId: string;
+  upgradeFromCredits?: number;
+}): Promise<Result<void, PolarPlanChangeError>> {
+  const polar = requirePolar();
+  try {
+    if (input.upgradeFromCredits === undefined) {
+      await polar.subscriptions.update(input.polarSubscriptionId, {
+        product_id: input.productId,
+        proration_behavior: "next_period",
+      });
+      return ok(undefined);
+    }
+    // Polar replaces the metadata: keep what the checkout wrote.
+    const { metadata } = await polar.subscriptions.get(
+      input.polarSubscriptionId,
+    );
+    await polar.subscriptions.update(input.polarSubscriptionId, {
+      product_id: input.productId,
+      proration_behavior: "invoice",
+      metadata: { ...metadata, upgradeFromCredits: input.upgradeFromCredits },
+    });
+    return ok(undefined);
+  } catch (error) {
+    if (error instanceof errors.SubscriptionsUpdate402Error) {
+      return err("payment_failed");
+    }
+    if (
+      error instanceof errors.SubscriptionsUpdate403Error ||
+      error instanceof errors.SubscriptionsUpdate409Error
+    ) {
+      return err("not_changeable");
+    }
+    throw error;
+  }
+}
+
+/**
+ * A customer portal link for the organization, Polar's customer: cancel,
+ * payment method and invoices of every Cuso it pays for. Null when the
+ * organization never paid at Polar.
+ */
+export async function createPolarCustomerPortalUrl(input: {
+  organizationId: string;
+  returnUrl: string;
+}): Promise<string | null> {
+  try {
+    const session = await requirePolar().customerSessions.create({
+      external_customer_id: input.organizationId,
+      return_url: input.returnUrl,
+    });
+    return session.customer_portal_url;
+  } catch (error) {
+    // Polar does not know that external customer id (404 or 422).
+    if (
+      error instanceof PolarClientError &&
+      (error.statusCode === 404 || error.statusCode === 422)
+    ) {
+      return null;
+    }
     throw error;
   }
 }

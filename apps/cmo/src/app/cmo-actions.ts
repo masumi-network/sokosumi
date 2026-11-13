@@ -12,6 +12,7 @@ import {
   type CmoMeasurement,
   type CmoOverview,
   type CmoSubscriptionPlan,
+  changeCmoPlanForProject,
   chooseCmoAdAccountForProject,
   completeSokoBotIntegrationAuth,
   confirmCmoBrandBrainForProject,
@@ -30,6 +31,7 @@ import {
   listCmoAdChoicesForProject,
   listCmoCusos,
   listCmoPlans,
+  openCmoCustomerPortalForProject,
   pauseCmoCalendarEntryForProject,
   postChatsRoomsByIdMessages,
   postComposioCallbackComplete,
@@ -43,6 +45,7 @@ import {
   startCmoOnboarding,
   startCmoOverForProject,
   startCmoPlanCheckoutForProject,
+  startCmoTopUpForProject,
   updateCmoBrandBrainForProject,
 } from "@sokosumi/core-client";
 import {
@@ -65,6 +68,7 @@ import {
   skippedStepsCookie,
   withSkippedSteps,
 } from "../lib/skipped-steps";
+import { VIEW_PATHS } from "../lib/views";
 
 async function requireCore() {
   const core = await coreForCurrentUser();
@@ -887,6 +891,73 @@ export async function startPlanCheckout(
       url: null,
       error: errorText(error, "Could not open the checkout"),
     };
+  }
+  return { url: data.data.url, error: null };
+}
+
+/**
+ * Starts Polar's checkout for a Project top-up of this Cuso; the browser goes
+ * to the returned URL and comes back to this Cuso.
+ */
+export async function startTopUp(
+  projectId: string,
+): Promise<{ url: string | null; error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await startCmoTopUpForProject({
+    ...core,
+    path: { projectId },
+    body: { returnUrl: await callbackUrl("/", { project: projectId }) },
+  });
+  if (!data) {
+    return {
+      url: null,
+      error: errorText(error, "Could not open the checkout"),
+    };
+  }
+  return { url: data.data.url, error: null };
+}
+
+/**
+ * Moves this Cuso to another tier of his interval (owners and admins). An
+ * upgrade applies at once; a downgrade at the next renewal.
+ */
+export async function changePlan(
+  projectId: string,
+  tier: string,
+): Promise<{ change: "upgrade" | "downgrade" | null; error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await changeCmoPlanForProject({
+    ...core,
+    path: { projectId },
+    body: { tier },
+  });
+  if (!data) {
+    return {
+      change: null,
+      error: errorText(error, "Could not change the plan"),
+    };
+  }
+  revalidatePath("/");
+  return { change: data.data.change, error: null };
+}
+
+/**
+ * Opens Polar's customer portal for this Cuso's organization (owners and
+ * admins); it links back to Settings.
+ */
+export async function openPortal(
+  projectId: string,
+): Promise<{ url: string | null; error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await openCmoCustomerPortalForProject({
+    ...core,
+    path: { projectId },
+    body: {
+      returnUrl: await callbackUrl(VIEW_PATHS.settings, { project: projectId }),
+    },
+  });
+  if (!data) {
+    return { url: null, error: errorText(error, "Could not open billing") };
   }
   return { url: data.data.url, error: null };
 }
