@@ -311,5 +311,13 @@ describe("seoAnalysisMaxCredits", () => {
       seoAnalysisMaxCredits({ kind: "full", usd: 0, seconds: 900 }),
     ).toBeNull();
     expect(seoAnalysisMaxCredits({ kind: "requests", count: 2.5 })).toBeNull();
+    // Core refuses these limits, so the dialog shows no figure for them.
+    expect(
+      seoAnalysisMaxCredits({ kind: "full", usd: 0.1, seconds: 900 }),
+    ).toBeNull();
+    expect(
+      seoAnalysisMaxCredits({ kind: "full", usd: 60, seconds: 900 }),
+    ).toBeNull();
+    expect(seoAnalysisMaxCredits({ kind: "requests", count: 101 })).toBeNull();
   });
 });

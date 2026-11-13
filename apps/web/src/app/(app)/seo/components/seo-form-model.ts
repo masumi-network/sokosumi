@@ -67,6 +67,9 @@ export const SEO_NO_RELATED_PAGE = "no-related-page";
 export const SEO_MAX_KEYWORDS = 20;
 export const SEO_MAX_KEYWORD_LENGTH = 80;
 export const SEO_MAX_PROVIDER_CALLS = 100;
+/** Core's bounds of a multi-page audit's USD limit (fullAuditLimits.usd). */
+const SEO_MIN_AUDIT_USD = 0.3;
+const SEO_MAX_AUDIT_USD = 50;
 export const SEO_DEFAULT_PROVIDER_CALLS = 20;
 export const SEO_DEFAULT_FULL_AUDIT_USD = 3;
 export const SEO_DEVICES = ["mobile", "desktop"] as const;
@@ -322,7 +325,7 @@ export function analysisSeoBody(
 
 /**
  * The most the check can charge, in whole credits, as Core and the check service compute it (seoMaxCredits).
- * Null while a limit field holds no valid value.
+ * Null while a limit field holds a value Core refuses.
  */
 export function seoAnalysisMaxCredits(
   limits: SeoAnalysisLimits,
@@ -332,10 +335,12 @@ export function seoAnalysisMaxCredits(
     return seoMaxCredits({ kind: "audit_full", pages: 1 });
   if (limits.kind === "full")
     // "full" is the multi-page audit; any page count above one reads the USD limit.
-    return limits.usd > 0
+    return limits.usd >= SEO_MIN_AUDIT_USD && limits.usd <= SEO_MAX_AUDIT_USD
       ? seoMaxCredits({ kind: "audit_full", pages: 2, usd: limits.usd })
       : null;
-  return Number.isSafeInteger(limits.count) && limits.count >= 0
+  return Number.isSafeInteger(limits.count) &&
+    limits.count >= 0 &&
+    limits.count <= SEO_MAX_PROVIDER_CALLS
     ? seoMaxCredits({ kind: "focused", providerCalls: limits.count })
     : null;
 }
