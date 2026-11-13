@@ -86,6 +86,25 @@ describe("native audit chat inference boundary", () => {
     });
   });
 
+  it("names the search type of each Search Console metric and none for Analytics", () => {
+    const workspace = workspaceFixture();
+    const analytics = workspace.metrics[0];
+    workspace.metrics = [
+      {
+        ...analytics,
+        id: "discover",
+        source: "search_console",
+        searchType: "discover",
+      },
+      { ...analytics, id: "web", source: "search_console" },
+      analytics,
+    ];
+    const metrics = JSON.parse(seoChatContext(workspace)).metrics;
+    expect(
+      metrics.map((row: { searchType?: string }) => row.searchType),
+    ).toEqual(["discover", "web", undefined]);
+  });
+
   it("separates rule checks from unrequested analysis modules in chat evidence", () => {
     const workspace = workspaceFixture();
     workspace.observations = [
