@@ -210,9 +210,11 @@ export function ThreadPanel({
   useQuietHoverWhileScrolling(scroller);
   const transcriptRows = useMemo(
     () =>
+      // Replies show while the list loads: a reply sent in that window is
+      // already in `replies`, and hiding it looked like the send was lost.
       buildThreadTranscriptRows(
         parentMessage,
-        isLoading ? [] : replies,
+        replies,
         isLoading ? null : olderNextCursor,
       ),
     [isLoading, olderNextCursor, parentMessage, replies],
