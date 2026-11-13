@@ -144,7 +144,10 @@ export function seoTrendModel(
   const updates = points.length
     ? events.flatMap((event) => {
         const from = Math.max(dayNumber(event.first), first);
-        const to = Math.min(dayNumber(event.last ?? event.first), last);
+        // An update still rolling out has no known end: its band runs to the last plotted day.
+        const to = event.open
+          ? last
+          : Math.min(dayNumber(event.last ?? event.first), last);
         if (from > to) return [];
         const x = clip(edges(from)[0]);
         return [
@@ -185,7 +188,8 @@ export function seoTrendModel(
       updates
         .filter(
           (update) =>
-            update.first <= date && (update.last ?? update.first) >= date,
+            update.first <= date &&
+            (update.open || (update.last ?? update.first) >= date),
         )
         .map((update) => update.name),
     /**

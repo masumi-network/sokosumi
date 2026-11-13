@@ -189,7 +189,7 @@ describe("seoTrendModel Google update bands", () => {
     ]);
   });
 
-  it("runs the band of an update still rolling out to the as-of day of the table", () => {
+  it("runs the band of an update still rolling out to the last plotted day", () => {
     // 2026-11-08 to 2026-11-15: the November 2026 core update started on 2026-11-10, with no end on 2026-11-13.
     const november = Array.from({ length: 8 }, (_, index) => ({
       date: `2026-11-${String(8 + index).padStart(2, "0")}`,
@@ -202,13 +202,13 @@ describe("seoTrendModel Google update bands", () => {
         first: "2026-11-10",
         last: "2026-11-13",
         x: 25,
-        width: 50,
+        width: 75,
       }),
     ]);
-    expect(model.updatesOn("2026-11-13")).toEqual([
+    expect(model.updatesOn("2026-11-15")).toEqual([
       "November 2026 core update",
     ]);
-    expect(model.updatesOn("2026-11-14")).toEqual([]);
+    expect(model.updatesOn("2026-11-09")).toEqual([]);
     expect(model.updatesAsOf).toBe("2026-11-13");
   });
 
