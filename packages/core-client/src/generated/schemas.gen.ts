@@ -43114,7 +43114,7 @@ export const RequestProjectSeoAnalysisRequestSchema = {
                 seconds: {
                     type: 'integer',
                     minimum: 60,
-                    maximum: 3600
+                    maximum: 5400
                 }
             },
             required: [
