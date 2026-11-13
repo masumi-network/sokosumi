@@ -60,7 +60,9 @@ export default async function ArchivedTaskPage({
                   {task.identifier}
                 </p>
               ) : null}
-              <h1 className="text-xl font-semibold text-pretty">{task.name}</h1>
+              <h1 className="text-xl font-semibold text-pretty wrap-anywhere">
+                {task.name}
+              </h1>
               <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                 <TaskStatusBadge
                   status={task.status}

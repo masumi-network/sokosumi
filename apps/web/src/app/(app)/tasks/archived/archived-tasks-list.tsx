@@ -77,7 +77,7 @@ export function ArchivedTasksList({
       {rows.length === 0 ? (
         <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
           <Archive className="text-muted-foreground size-6" aria-hidden />
-          <p className="text-muted-foreground max-w-sm text-sm text-pretty">
+          <p className="text-muted-foreground max-w-sm text-sm text-pretty wrap-anywhere">
             {query ? t("noMatches", { query }) : t("empty")}
           </p>
         </div>
@@ -114,7 +114,7 @@ export function ArchivedTasksList({
                       className="w-fit rounded-sm"
                     />
                   </div>
-                  <p className="text-muted-foreground truncate text-xs">
+                  <p className="text-muted-foreground text-xs">
                     {task.project ?? t("noProject")}
                     {task.archivedOn
                       ? ` · ${t("archivedOn", { date: task.archivedOn })}`
