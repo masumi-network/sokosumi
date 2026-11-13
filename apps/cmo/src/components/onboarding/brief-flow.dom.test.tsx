@@ -755,6 +755,52 @@ describe("briefing", () => {
     expect(text()).toContain("Fitting your plan to your answers");
   });
 
+  it("keeps Change the plan, with the reason, when fitting the nos is refused or fails", async () => {
+    const answered: Strategy = {
+      ...fullPlan,
+      questions: [
+        { ...firstCheck, answer: "yes" },
+        { ...secondCheck, answer: "no" },
+      ],
+    };
+    const overview = draft({
+      strategy: {
+        ...fullPlan,
+        questions: [{ ...firstCheck, answer: "yes" }, secondCheck],
+      },
+    });
+    await render(
+      overview,
+      actionsFor(overview, {
+        answerPlanQuestion: async () => draft({ strategy: answered }),
+        applyPlanAnswers: async () => ({
+          overview: draft({ strategy: answered }),
+          error: "You're out of credits.",
+        }),
+      }),
+      { briefed: ["plan", "pace"] },
+    );
+    await press("No");
+    expect(button("Change the plan")).toBeTruthy();
+    expect(text()).toContain("You're out of credits.");
+
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await render(
+      overview,
+      actionsFor(overview, {
+        answerPlanQuestion: async () => draft({ strategy: answered }),
+        applyPlanAnswers: async () => {
+          throw new Error("offline");
+        },
+      }),
+      { briefed: ["plan", "pace"] },
+    );
+    await press("No");
+    expect(button("Change the plan")).toBeTruthy();
+    expect(text()).toContain("That didn't go through.");
+  });
+
   it("approves the month, and tells a member who cannot who does", async () => {
     const approveStrategy = vi.fn(async () =>
       draft({ ...cmoStrategyVersion(new Date()), strategy }),

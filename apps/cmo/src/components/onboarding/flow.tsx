@@ -49,6 +49,7 @@ const HIDDEN_POLL_MS = 20_000;
 const POPUP_CHECK_MS = 500;
 const CONNECT_FAILED = "That connection didn't finish. Try again.";
 const FITTING = "Fitting your plan to your answers";
+const APPLY_FAILED = "That didn't go through. Try again in a moment.";
 
 /** Briefing steps done on this device; Core keeps no record of them. */
 function briefedKey(projectId: string) {
@@ -278,9 +279,11 @@ export function OnboardingFlow({
   const progress = askProgress(overview, local, ask);
   const waiting = progress ? progress.of - progress.at + 1 : asks.length;
   const folded = key !== null && foldedAt === key;
-  // A refusal belongs to the question it answered.
+  // A refusal belongs to the question it answered, or to the one it names.
+  const noticeFor = useRef<string | null>(null);
   useEffect(() => {
-    if (key) setNotice(null);
+    if (key && key !== noticeFor.current) setNotice(null);
+    noticeFor.current = null;
   }, [key]);
 
   // The tab says when Cuso needs you.
@@ -411,10 +414,14 @@ export function OnboardingFlow({
         return;
       }
       setChanging(FITTING);
-      const result = await actions.applyPlanAnswers();
+      // A refusal or failure leaves "Change the plan" to press, with why.
+      const result = await actions
+        .applyPlanAnswers()
+        .catch(() => ({ overview: null, error: APPLY_FAILED }));
       setOverview(result.overview ?? next);
       if (result.error) {
         setChanging(null);
+        noticeFor.current = "plan-apply";
         setNotice(result.error);
       }
     },
