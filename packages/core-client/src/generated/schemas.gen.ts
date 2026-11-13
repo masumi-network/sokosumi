@@ -46787,6 +46787,34 @@ export const CmoTurnStartedSchema = {
     ]
 } as const;
 
+export const CmoPlanChangeSchema = {
+    type: 'object',
+    properties: {
+        change: {
+            type: 'string',
+            enum: [
+                'upgrade',
+                'downgrade'
+            ]
+        }
+    },
+    required: [
+        'change'
+    ]
+} as const;
+
+export const CmoCustomerPortalSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string'
+        }
+    },
+    required: [
+        'url'
+    ]
+} as const;
+
 export const CmoAdBudgetRequestSchema = {
     type: 'object',
     properties: {

@@ -28,6 +28,7 @@ import {
   applyPlanAnswers,
   approveBrandBrain,
   approveStrategy,
+  changePlan,
   connectAds,
   connectChannel,
   connectMeasurement,
@@ -42,6 +43,7 @@ import {
   loadPlans,
   loadState,
   onboard,
+  openPortal,
   pauseEntry,
   requestStrategy,
   retryLearning,
@@ -322,6 +324,11 @@ export async function Home({ searchParams, view }: HomeProps) {
   return (
     <CmoApp
       overview={overview}
+      plans={
+        overview.billing.viewerCanManage && overview.billing.tier
+          ? await loadPlans().catch(() => [])
+          : []
+      }
       messages={await loadMessages(projectId).catch(() => [])}
       name={session.user.name}
       email={session.user.email}
@@ -346,6 +353,8 @@ export async function Home({ searchParams, view }: HomeProps) {
         loadAdCampaigns: loadAdCampaigns.bind(null, projectId),
         startOver: startOver.bind(null, projectId),
         startTopUp: startTopUp.bind(null, projectId),
+        changePlan: changePlan.bind(null, projectId),
+        openPortal: openPortal.bind(null, projectId),
         signOut,
       }}
     />

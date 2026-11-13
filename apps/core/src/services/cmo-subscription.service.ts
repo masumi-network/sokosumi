@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { CreditBucketReferenceType } from "@sokosumi/database";
+import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import { getNextMonthlyPeriodEnd } from "@sokosumi/database/helpers";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { z } from "zod";
@@ -10,6 +10,7 @@ import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { cmoProductMetadataSchema } from "@/services/cmo-catalog.service";
+import { monthOfPaidYear } from "@/services/cmo-yearly-grant-sync.service";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 
 /** What Polar's events do to a Cuso's CMO subscription and its credits (ADR 0068). */
@@ -263,7 +264,6 @@ export async function handlePolarOrderPaid(
     return;
   }
 
-  const { organizationId, projectId } = row;
   const amount = convertCreditsToCents(plan.credits);
   // The period this order billed: its own line, because a late delivery
   // finds the subscription already in a later period.
@@ -273,34 +273,20 @@ export async function handlePolarOrderPaid(
   const monthStart = new Date(
     billed?.start_timestamp ?? subscription.current_period_start,
   );
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.transaction.create({
-        data: {
-          amount,
-          organizationId,
-          userId: null,
-          sourceCreditBucket: {
-            create: {
-              amount,
-              // One month after the grant month starts; a monthly plan's
-              // month is the period Polar billed.
-              expiresAt:
-                plan.interval === "month"
-                  ? new Date(
-                      billed?.end_timestamp ?? subscription.current_period_end,
-                    )
-                  : getNextMonthlyPeriodEnd(monthStart, monthStart),
-              organizationId,
-              projectId,
-              referenceId: `${order.id}:0`,
-              referenceNote: product.name,
-              referenceType: CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH,
-              userId: null,
-            },
-          },
-        },
-      });
+  await grantOrderMonth(
+    row,
+    {
+      amount,
+      // One month after the grant month starts; a monthly plan's month is
+      // the period Polar billed.
+      expiresAt:
+        plan.interval === "month"
+          ? new Date(billed?.end_timestamp ?? subscription.current_period_end)
+          : getNextMonthlyPeriodEnd(monthStart, monthStart),
+      orderId: order.id,
+      referenceNote: product.name,
+    },
+    async (tx) => {
       await tx.cmoSubscription.updateMany({
         where: {
           id: row.id,
@@ -308,6 +294,48 @@ export async function handlePolarOrderPaid(
         },
         data: { lastPaidOrderId: order.id, lastPaidAt: paidAt },
       });
+    },
+  );
+}
+
+/**
+ * Grants an order's month 0 as Project credits, with `alsoWrite` in the same
+ * transaction. The grant rides on the bucket's unique key: a redelivered or
+ * raced order ends there and grants nothing more.
+ */
+async function grantOrderMonth(
+  row: { organizationId: string; projectId: string },
+  grant: {
+    amount: bigint;
+    expiresAt: Date;
+    orderId: string;
+    referenceNote: string;
+  },
+  alsoWrite?: (tx: Prisma.TransactionClient) => Promise<void>,
+): Promise<void> {
+  const { organizationId, projectId } = row;
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.transaction.create({
+        data: {
+          amount: grant.amount,
+          organizationId,
+          userId: null,
+          sourceCreditBucket: {
+            create: {
+              amount: grant.amount,
+              expiresAt: grant.expiresAt,
+              organizationId,
+              projectId,
+              referenceId: `${grant.orderId}:0`,
+              referenceNote: grant.referenceNote,
+              referenceType: CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH,
+              userId: null,
+            },
+          },
+        },
+      });
+      await alsoWrite?.(tx);
       await markOutOfCreditsTasksAsToppedUp({
         organizationId,
         projectId,
@@ -320,6 +348,77 @@ export async function handlePolarOrderPaid(
     // concurrent delivery.
     if (!isPrismaUniqueViolation(error)) throw error;
   }
+}
+
+/** The old plan's monthly credits, which the upgrade wrote on the subscription. */
+const upgradeFromCreditsSchema = z.object({
+  upgradeFromCredits: z.coerce.number().int().nonnegative(),
+});
+
+/**
+ * `order.paid` for a `subscription_update`: an upgrade Polar invoiced at once
+ * grants the new monthly amount minus the old, times the share of the grant
+ * month left at payment, expiring with that month's grant. It never moves the
+ * last paid order: the yearly grant job counts a year's months from it.
+ */
+export async function handlePolarPlanChangePaid(
+  event: OrderPaidEvent,
+): Promise<void> {
+  const order = event.data;
+  const extra = {
+    polarOrderId: order.id,
+    polarSubscriptionId: order.subscription?.id,
+    polarProductId: order.product?.id,
+    metadata: order.subscription?.metadata,
+  };
+  const { product, subscription } = order;
+  const plan =
+    product && subscription
+      ? planOfProduct(product.metadata, subscription.recurring_interval)
+      : null;
+  if (!product || !subscription || !plan) {
+    reportUnusableEvent(event, "the product is not a CMO plan", extra);
+    return;
+  }
+  const from = upgradeFromCreditsSchema.safeParse(subscription.metadata);
+  if (!from.success) {
+    reportUnusableEvent(event, "the upgrade has no old plan credits", extra);
+    return;
+  }
+  const paidAt = new Date(event.timestamp);
+  const row = await upsertCmoSubscription({
+    eventAt: paidAt,
+    externalCustomerId: order.customer.external_id,
+    metadata: order.metadata,
+    plan,
+    subscription,
+  });
+  if (typeof row === "string") {
+    reportUnusableEvent(event, row, extra);
+    return;
+  }
+  const periodStart = new Date(subscription.current_period_start);
+  const month =
+    plan.interval === "month"
+      ? {
+          startsAt: periodStart,
+          expiresAt: new Date(subscription.current_period_end),
+        }
+      : monthOfPaidYear(periodStart, paidAt);
+  const left =
+    (month.expiresAt.getTime() - paidAt.getTime()) /
+    (month.expiresAt.getTime() - month.startsAt.getTime());
+  const credits = Math.round(
+    (plan.credits - from.data.upgradeFromCredits) *
+      Math.min(Math.max(left, 0), 1),
+  );
+  if (credits <= 0) return;
+  await grantOrderMonth(row, {
+    amount: convertCreditsToCents(credits),
+    expiresAt: month.expiresAt,
+    orderId: order.id,
+    referenceNote: product.name,
+  });
 }
 
 /**

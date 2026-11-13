@@ -128,6 +128,9 @@ describe("Settings", () => {
         startOver={async () => null}
         signOut={async () => {}}
         topUp={topUp}
+        plans={[]}
+        changePlan={async () => ({ change: null, error: null })}
+        openPortal={async () => ({ url: null, error: null })}
       />,
     );
 

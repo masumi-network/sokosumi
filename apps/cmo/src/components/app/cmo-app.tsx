@@ -2,7 +2,7 @@
 
 import "../onboarding/onboarding.css";
 
-import type { CmoOverview } from "@sokosumi/core-client";
+import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { ArrowUp, CalendarDays, PanelRight } from "lucide-react";
 import {
   useCallback,
@@ -42,6 +42,7 @@ import {
 } from "./pages";
 import { initial, Sidebar, VIEWS } from "./sidebar";
 import { StrategyPage } from "./strategy-page";
+import { type ChangePlan, type OpenPortal } from "./subscription-card";
 import { UpNext } from "./up-next";
 
 const POLL_MS = 4_000;
@@ -96,6 +97,9 @@ export interface CmoAppActions extends AdActions {
   startOver: () => Promise<string | null>;
   /** Starts the checkout for a Project top-up of this Cuso. */
   startTopUp: StartTopUp;
+  /** Owners and admins: another tier of the interval, and Polar's portal. */
+  changePlan: ChangePlan;
+  openPortal: OpenPortal;
   signOut: () => Promise<void>;
 }
 
@@ -108,6 +112,8 @@ interface CmoAppProps {
   initialView?: View;
   /** The channel connection that sent the founder back did not finish. */
   connectFailed?: boolean;
+  /** The CMO plans, for Settings' plan change; empty unless the viewer manages billing. */
+  plans?: CmoSubscriptionPlan[];
   actions: CmoAppActions;
 }
 
@@ -190,6 +196,7 @@ export function CmoApp({
   email,
   initialView = "chat",
   connectFailed = false,
+  plans = [],
   actions,
 }: CmoAppProps) {
   const [overview, setOverview] = useState(initialOverview);
@@ -539,6 +546,9 @@ export function CmoApp({
                   startOver={actions.startOver}
                   signOut={actions.signOut}
                   topUp={topUp}
+                  plans={plans}
+                  changePlan={actions.changePlan}
+                  openPortal={actions.openPortal}
                 />
               )}
             </div>

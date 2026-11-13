@@ -1,6 +1,6 @@
 "use client";
 
-import type { CmoOverview } from "@sokosumi/core-client";
+import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 
 import { Loader2 } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
@@ -24,7 +24,11 @@ import { StatusText } from "../status";
 import { MeasureFunnel } from "../strategy-core";
 import { SubmitButton } from "../submit-button";
 import { type StartTopUp, TopUpButton } from "../top-up";
-import { SubscriptionCard } from "./subscription-card";
+import {
+  type ChangePlan,
+  type OpenPortal,
+  SubscriptionCard,
+} from "./subscription-card";
 
 interface PageProps {
   overview: CmoOverview;
@@ -437,6 +441,9 @@ export function SettingsPage({
   startOver,
   signOut,
   topUp,
+  plans,
+  changePlan,
+  openPortal,
 }: PageProps & {
   name: string;
   email: string;
@@ -444,10 +451,19 @@ export function SettingsPage({
   signOut: () => Promise<void>;
   /** The top-up checkout, or null when this Cuso may not top up. */
   topUp: StartTopUp | null;
+  /** The CMO plans; read only for a viewer who may change the plan. */
+  plans: CmoSubscriptionPlan[];
+  changePlan: ChangePlan;
+  openPortal: OpenPortal;
 }) {
   return (
     <div className="page-body">
-      <SubscriptionCard billing={overview.billing} />
+      <SubscriptionCard
+        billing={overview.billing}
+        plans={plans}
+        changePlan={changePlan}
+        openPortal={openPortal}
+      />
       <section className="card">
         <h3>Credits</h3>
         <div className="li">
