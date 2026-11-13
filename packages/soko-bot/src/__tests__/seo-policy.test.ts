@@ -12,6 +12,29 @@ import {
 } from "../seo.js";
 
 describe("SEO capability boundaries", () => {
+  it("accepts the worker's 90-minute full-audit envelope and rejects a longer one", () => {
+    const request = {
+      projectId: "11111111-1111-4111-8111-111111111111",
+      kind: "audit_full",
+      countryCode: "US",
+      languageCode: "en",
+      idempotencyKey: "full-audit-ceiling",
+    };
+    const schema = SOKO_BOT_SEO_INPUT_SCHEMAS.request_seo_analysis;
+    expect(
+      schema.safeParse({
+        ...request,
+        fullAuditLimits: { usd: 5, seconds: 5400 },
+      }).success,
+    ).toBe(true);
+    expect(
+      schema.safeParse({
+        ...request,
+        fullAuditLimits: { usd: 5, seconds: 5401 },
+      }).success,
+    ).toBe(false);
+  });
+
   it("exposes the bounded Core Request contract and freezes saved-scope versions", () => {
     const projectId = "11111111-1111-4111-8111-111111111111";
     const scopeId = "22222222-2222-4222-8222-222222222222";

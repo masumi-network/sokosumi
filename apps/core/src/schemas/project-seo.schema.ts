@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { SEO_MIN_AUDIT_USD } from "@sokosumi/utils";
+import { SEO_FULL_AUDIT_MAX_SECONDS, SEO_MIN_AUDIT_USD } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { SEO_SHARING_SCOPES } from "@/lib/seo/data-visibility";
 import { SEO_STATS_MAX_DAYS } from "@/lib/seo/native-statistics";
@@ -197,8 +197,8 @@ export const requestSeoAnalysisSchema = z
     fullAuditLimits: z
       .object({
         usd: z.number().min(SEO_MIN_AUDIT_USD).max(50),
-        // 90 minutes: the SEO worker accepts a site Run that long (owner, 2026-11-13).
-        seconds: z.number().int().min(60).max(5400),
+        // 90 minutes: the worker contract accepts this owner-set site limit (owner, 2026-11-13).
+        seconds: z.number().int().min(60).max(SEO_FULL_AUDIT_MAX_SECONDS),
       })
       .strict()
       .optional(),

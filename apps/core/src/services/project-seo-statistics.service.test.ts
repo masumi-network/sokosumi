@@ -178,6 +178,7 @@ vi.mock(
 import { z } from "@hono/zod-openapi";
 import { runSeoTool } from "@/lib/soko-bot/seo-tools";
 import { nativeSeoMetricsSchema } from "@/schemas/project-seo-native-metrics.schema";
+import { getProjectSeoWorkspace } from "./project-seo.service";
 import { syncProjectSeoStatistics } from "./project-seo-statistics.service";
 
 const actor = {
@@ -233,9 +234,21 @@ function answer(slug: string, args: Record<string, unknown>) {
           { propertySummaries: [{ property: "properties/123" }] },
         ],
       }
-    : dimensions[0]?.name === "landingPagePlusQueryString"
-      ? landing("/a")
-      : ga4(dimensions.length > 0);
+    : dimensions[0]?.name === "hostName"
+      ? {
+          dimensionHeaders: [{ name: "hostName" }],
+          metricHeaders: [{ name: "sessions" }],
+          rows: [
+            {
+              dimensionValues: [{ value: new URL(state.pageUrl).hostname }],
+              metricValues: [{ value: "5" }],
+            },
+          ],
+          rowCount: 1,
+        }
+      : dimensions[0]?.name === "landingPagePlusQueryString"
+        ? landing("/a")
+        : ga4(dimensions.length > 0);
   return { successful: true, data: JSON.stringify(data) };
 }
 afterEach(() => {
@@ -262,6 +275,102 @@ beforeEach(() => {
 });
 
 describe("native statistics collection boundary", () => {
+  it("withholds previously stored landing totals that have no verified host while keeping page metrics", async () => {
+    await syncProjectSeoStatistics(actor, input);
+    const payload = nativeSeoMetricsSchema.parse(state.observations[0].payload);
+    if (!payload.landingPages) throw new Error("Missing landing rows");
+    delete payload.landingPages.verifiedHost;
+    state.observations[0].payload = payload;
+    const workspace = await getProjectSeoWorkspace(actor);
+    expect(workspace.landingPages).toBeNull();
+    expect(workspace.metrics[0].value).toBe(6);
+    expect(workspace.metrics[0].notes.join(" ")).toContain(
+      "key events per landing page were unavailable",
+    );
+  });
+
+  it.each([
+    "other-host",
+    "multiple-hosts",
+    "missing-count",
+    "truncated",
+    "thresholded",
+    "sampled",
+    "failed",
+  ])(
+    "withholds landing totals when property host scope is %s",
+    async (problem) => {
+      state.answer = (slug, args) => {
+        const dimensions = (args.dimensions ?? []) as Array<{ name: string }>;
+        if (dimensions[0]?.name !== "hostName") return answer(slug, args);
+        if (problem === "failed")
+          return { successful: false, error: "unavailable" };
+        return {
+          successful: true,
+          data: {
+            dimensionHeaders: [{ name: "hostName" }],
+            metricHeaders: [{ name: "sessions" }],
+            rows: [
+              {
+                dimensionValues: [
+                  {
+                    value:
+                      problem === "other-host"
+                        ? "blog.example.test"
+                        : new URL(state.pageUrl).hostname,
+                  },
+                ],
+                metricValues: [{ value: "5" }],
+              },
+              ...(problem === "multiple-hosts"
+                ? [
+                    {
+                      dimensionValues: [{ value: "blog.example.test" }],
+                      metricValues: [{ value: "10" }],
+                    },
+                  ]
+                : []),
+            ],
+            ...(problem === "missing-count"
+              ? {}
+              : {
+                  rowCount:
+                    problem === "truncated" || problem === "multiple-hosts"
+                      ? 2
+                      : 1,
+                }),
+            metadata:
+              problem === "thresholded"
+                ? { subjectToThresholding: true }
+                : problem === "sampled"
+                  ? {
+                      samplingMetadatas: [
+                        { samplesReadCount: "1", samplingSpaceSize: "10" },
+                      ],
+                    }
+                  : {},
+          },
+        };
+      };
+      await syncProjectSeoStatistics(actor, input);
+      const payload = state.observations[0].payload as {
+        landingPages?: unknown;
+        metrics: Array<{ value: number }>;
+        notes: string[];
+      };
+      expect(payload.landingPages).toBeUndefined();
+      expect(payload.metrics[0].value).toBe(6);
+      expect(payload.notes.join(" ")).toContain(
+        "key events per landing page were unavailable",
+      );
+      expect(
+        state.reads.some((read) =>
+          JSON.stringify(read.args.dimensions ?? []).includes("landingPage"),
+        ),
+      ).toBe(false);
+    },
+  );
+
   it("stores measured owner-only observations through the existing native connection", async () => {
     await syncProjectSeoStatistics(actor, input);
     expect(state.observations).toHaveLength(1);
@@ -271,11 +380,15 @@ describe("native statistics collection boundary", () => {
       pageIds: [state.pageId],
     });
     // Totals, days, landing pages, and the totals before. Google reported only Jan 1, so the earlier window is 1 day.
-    expect(state.reads).toHaveLength(5);
+    expect(state.reads).toHaveLength(6);
     expect(state.reads[1].args.limit).toBe(400);
-    expect(state.reads.map((read) => read.args.dateRanges).at(-1)).toEqual([
-      { startDate: "2025-12-31", endDate: "2025-12-31" },
-    ]);
+    expect(
+      state.reads
+        .map((read) => read.args.dateRanges)
+        .find((ranges) =>
+          (JSON.stringify(ranges) ?? "").includes("2025-12-31"),
+        ),
+    ).toEqual([{ startDate: "2025-12-31", endDate: "2025-12-31" }]);
     const payload = state.observations[0].payload as {
       metrics: Array<{ key: string; previous?: unknown }>;
     };
@@ -296,6 +409,7 @@ describe("native statistics collection boundary", () => {
     expect(payload).toMatchObject({
       landingPages: {
         channel: "organic",
+        verifiedHost: "example.test",
         rows: [{ pageUrl: state.pageUrl, sessions: 5, keyEvents: 2 }],
       },
     });

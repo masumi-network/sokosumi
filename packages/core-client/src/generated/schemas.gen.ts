@@ -41463,6 +41463,11 @@ export const ProjectSeoLandingPagesSchema = {
                 'ai_assistant'
             ]
         },
+        verifiedHost: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 253
+        },
         rows: {
             type: 'array',
             items: {

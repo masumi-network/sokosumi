@@ -18,7 +18,7 @@ describe("SEO analysis request", () => {
     expect(request(0.33)).toBe(true);
   });
 
-  it("takes the 90-minute time limit the web sends, and no longer one", () => {
+  it("uses the worker time ceiling for full audits", () => {
     const request = (seconds: number) =>
       requestSeoAnalysisSchema.safeParse({
         kind: "audit_full",
@@ -29,6 +29,8 @@ describe("SEO analysis request", () => {
         idempotencyKey: "full-audit-time-test",
         fullAuditLimits: { usd: 5, seconds },
       }).success;
+    expect(request(3_600)).toBe(true);
+    expect(request(3_601)).toBe(true);
     expect(request(5_400)).toBe(true);
     expect(request(5_401)).toBe(false);
   });

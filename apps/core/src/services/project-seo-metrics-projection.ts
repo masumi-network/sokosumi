@@ -1,4 +1,5 @@
 import type { ProjectSeoObservation } from "@sokosumi/database";
+import { SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE } from "@sokosumi/utils";
 import { internalServerError } from "@/helpers/error";
 import {
   type ProjectSeoWorkspace,
@@ -42,6 +43,22 @@ export function projectSeoMetricsRow(
   if (!parsed.success)
     throw internalServerError("Stored analytics evidence is not readable");
   const data = parsed.data;
+  // Older syncs mapped a path to a URL without proving the host. Keep their page metrics, but withhold landing totals.
+  if (
+    data.landingPages &&
+    (!data.landingPages.verifiedHost ||
+      data.pageUrls.some(
+        (url) => new URL(url).hostname !== data.landingPages?.verifiedHost,
+      ))
+  ) {
+    data.landingPages = undefined;
+    if (
+      !data.notes.includes(
+        SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
+      )
+    )
+      data.notes.push(SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE);
+  }
   // A verdict belongs to one page, so any sync that inspected a selected page counts.
   if (data.indexedPages)
     out.indexSources.push({ at: row.observedAt, pages: data.indexedPages });

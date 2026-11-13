@@ -43,6 +43,8 @@ export const SEO_AI_SOURCE_ROW_LIMIT = 250;
 export const seoLandingPagesSchema = z
   .object({
     channel: z.enum(["organic", "ai_assistant"]),
+    /** Property host proved by a complete, unsampled host inventory for the same period. Absent on older reads. */
+    verifiedHost: z.string().min(1).max(253).optional(),
     rows: z
       .array(
         z

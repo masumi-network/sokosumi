@@ -21,6 +21,89 @@ import {
 import { SEO_STRATEGY_NOT_IMPORTED } from "./project-seo-strategy";
 
 describe("public SEO report trust boundary", () => {
+  it("retains site-wide findings without inventing page or device evidence", () => {
+    const raw = {
+      ...siteStrategyReport(),
+      snapshotId: "site-snapshot",
+      siteFindings: [
+        {
+          id: "site/IL-13",
+          row: "IL-13",
+          name: "Lost equity",
+          level: "minor",
+          devices: [],
+          evidence: ["A linked URL is gone"],
+          pages: [],
+          findings: [],
+        },
+      ],
+    };
+    const imported = parsePublicSeoArtifact(raw);
+    expect(
+      imported.findings.find((row) => row.rowId === "IL-13"),
+    ).toMatchObject({
+      pageUrl: SEO_TEST_PAGE,
+      device: null,
+      evidence: ["A linked URL is gone"],
+    });
+    expect(imported.notes.join(" ")).toContain("Site-wide finding site/IL-13");
+  });
+
+  it("retains distinct site findings on each named page and device without duplicating merged page findings", () => {
+    const page = legacyReport();
+    const second = { ...page, request: { url: SEO_TEST_SECOND_PAGE } };
+    const siteFinding = {
+      id: "site/O-26",
+      row: "O-26",
+      name: "Duplicate titles",
+      level: "minor",
+      devices: ["mobile"],
+      evidence: ["Two indexable pages share their title"],
+      pages: [1, 2],
+      findings: [],
+    };
+    const raw = {
+      ...siteStrategyReport(),
+      snapshotId: "site-snapshot",
+      pages: [page, second],
+      siteFindings: [
+        siteFinding,
+        { ...siteFinding, id: "site/title", findings: ["p1/finding"] },
+      ],
+    };
+    const imported = parsePublicSeoArtifact(raw);
+    const findings = imported.findings.filter((row) => row.rowId === "O-26");
+    expect(findings).toHaveLength(2);
+    expect(findings.map((row) => row.pageUrl)).toEqual([
+      SEO_TEST_PAGE,
+      SEO_TEST_SECOND_PAGE,
+    ]);
+    expect(new Set(imported.findings.map((row) => row.id)).size).toBe(
+      imported.findings.length,
+    );
+    expect(findings[0]).toMatchObject({
+      device: "mobile",
+      severity: "minor",
+      evidence: siteFinding.evidence,
+      observedAt: page.header.capturedAt,
+    });
+    expect(
+      imported.findings.filter((row) => row.rowId === "title"),
+    ).toHaveLength(2);
+    for (const patch of [
+      { pages: [99] },
+      { pages: [1, 1] },
+      { devices: ["mobile", "mobile"] },
+    ]) {
+      expect(() =>
+        parsePublicSeoArtifact({
+          ...raw,
+          siteFindings: [{ ...siteFinding, ...patch }],
+        }),
+      ).toThrow();
+    }
+  });
+
   it("keeps unrequested modules separate from individual rule check counts", () => {
     const fixture = focusedReport();
     const raw = {

@@ -3,7 +3,11 @@ import type {
   ProjectSeoWorkspace,
   RequestProjectSeoAnalysisRequest,
 } from "@sokosumi/core-client";
-import { SEO_MIN_AUDIT_USD, seoMaxCredits } from "@sokosumi/utils";
+import {
+  SEO_FULL_AUDIT_MAX_SECONDS,
+  SEO_MIN_AUDIT_USD,
+  seoMaxCredits,
+} from "@sokosumi/utils";
 import type { SeoCommand } from "@/lib/actions/seo/types";
 import type { SeoAnalysisLimits } from "./seo-analysis-summary";
 
@@ -66,22 +70,26 @@ export const SEO_MAX_PROVIDER_CALLS = 100;
 const SEO_MAX_AUDIT_USD = 50;
 /** Core's bounds of a multi-page audit's time limit in whole seconds (fullAuditLimits.seconds). */
 const SEO_MIN_AUDIT_SECONDS = 60;
-const SEO_MAX_AUDIT_SECONDS = 5_400;
+const SEO_MAX_AUDIT_SECONDS = SEO_FULL_AUDIT_MAX_SECONDS;
 /**
  * The limits every multi-page full audit sends. The reader does not see them: the price shows in credits, and the
  * time limit only keeps a stuck check from running on (owner, 2026-11-13).
  */
-export const SEO_FULL_AUDIT_LIMITS = { usd: 5, seconds: 5_400 } as const;
+export const SEO_FULL_AUDIT_LIMITS = {
+  usd: 5,
+  seconds: SEO_FULL_AUDIT_MAX_SECONDS,
+} as const;
 export const SEO_DEVICES = ["mobile", "desktop"] as const;
 export type SeoDevice = (typeof SEO_DEVICES)[number];
 const SEO_FULL_AUDIT_FIRST_PAGE_SECONDS = 960;
 const SEO_FULL_AUDIT_RELATED_PAGE_SECONDS = 210;
-const SEO_FULL_AUDIT_MAX_SECONDS = 3600;
+/** The worker keeps its default envelope below its owner-set maximum. */
+const SEO_DEFAULT_AUDIT_MAX_SECONDS = 3600;
 
 /** Matches the SEO worker's site-audit default envelope. */
 export function defaultFullAuditSeconds(pageCount: number) {
   return Math.min(
-    SEO_FULL_AUDIT_MAX_SECONDS,
+    SEO_DEFAULT_AUDIT_MAX_SECONDS,
     SEO_FULL_AUDIT_FIRST_PAGE_SECONDS +
       Math.max(0, pageCount - 1) * SEO_FULL_AUDIT_RELATED_PAGE_SECONDS,
   );

@@ -1,4 +1,4 @@
-import { SEO_MIN_AUDIT_USD } from "@sokosumi/utils";
+import { SEO_FULL_AUDIT_MAX_SECONDS, SEO_MIN_AUDIT_USD } from "@sokosumi/utils";
 import { z } from "zod";
 
 const projectId = z.string().uuid();
@@ -205,7 +205,7 @@ export const SOKO_BOT_SEO_INPUT_SCHEMAS = {
       fullAuditLimits: z
         .object({
           usd: z.number().min(SEO_MIN_AUDIT_USD).max(50),
-          seconds: z.number().int().min(60).max(3600),
+          seconds: z.number().int().min(60).max(SEO_FULL_AUDIT_MAX_SECONDS),
         })
         .strict()
         .optional(),

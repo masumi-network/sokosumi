@@ -15,6 +15,8 @@ import {
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import {
+  assertGa4LandingHost,
+  ga4LandingHostArguments,
   ga4LandingPageArguments,
   ga4LandingPlan,
   normalizeGa4LandingPages,
@@ -401,21 +403,29 @@ export async function syncProjectSeoStatistics(
       : null;
   // Organic key events per landing page. Google Analytics only.
   const landingPlan = input.provider === "ga4" ? ga4LandingPlan(query) : null;
-  const collectLandingPages = async () =>
-    landingPlan?.query.pageUrls.length
-      ? normalizeGa4LandingPages(
-          landingPlan.query,
-          unwrapNativeStatistics(
-            await read(
-              integration,
-              tool,
-              ga4LandingPageArguments(landingPlan.query),
-            ),
-            ["metricHeaders"],
+  const collectLandingPages = async () => {
+    if (!landingPlan?.query.pageUrls.length) return null;
+    const hosts = unwrapNativeStatistics(
+      await read(integration, tool, ga4LandingHostArguments(query)),
+      ["metricHeaders"],
+    );
+    assertGa4LandingHost(query, hosts);
+    return {
+      ...normalizeGa4LandingPages(
+        landingPlan.query,
+        unwrapNativeStatistics(
+          await read(
+            integration,
+            tool,
+            ga4LandingPageArguments(landingPlan.query),
           ),
-          landingPlan.skippedUrls,
-        )
-      : null;
+          ["metricHeaders"],
+        ),
+        landingPlan.skippedUrls,
+      ),
+      verifiedHost: new URL(query.pageUrls[0]!).hostname,
+    };
+  };
   // One URL Inspection per page. A page Google did not answer for is left out, never guessed.
   const collectIndexedPages = async () => {
     if (input.provider !== "search_console") return null;

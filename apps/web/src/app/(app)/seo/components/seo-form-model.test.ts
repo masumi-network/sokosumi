@@ -130,7 +130,7 @@ describe("SEO form intent", () => {
     form.set("keywords", "x".repeat(81));
     expect(() => analysisSeoBody(form, seoTestWorkspace())).toThrow();
   });
-  it("sends the fixed USD 5 and 90-minute envelope instead of provider-call limits", () => {
+  it("sends the worker-compatible USD 5 and 90-minute envelope", () => {
     const form = analysisForm();
     form.set("kind", "audit_full");
     form.set("keywords", "stablecoins");

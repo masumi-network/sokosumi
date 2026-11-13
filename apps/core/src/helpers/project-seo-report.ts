@@ -16,6 +16,7 @@ import {
   seoAlertRowsSchema,
   seoSerpReadsSchema,
 } from "./project-seo-report-serps";
+import { publicSiteFindings } from "./project-seo-site-findings";
 import { publicSeoStrategy } from "./project-seo-strategy";
 
 const text = z.string().max(20_000);
@@ -520,7 +521,12 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       throw badRequest("The site report does not match its supported format");
     const pages = site.data.pages.map(parsePublicSeoArtifact),
       first = pages[0],
-      { strategy, note } = publicSeoStrategy(raw);
+      { strategy, note } = publicSeoStrategy(raw),
+      siteFindings = publicSiteFindings(
+        raw,
+        pages.flatMap((page) => page.pageUrls),
+        first.observedAt,
+      );
     return publicSeoPayloadSchema.parse({
       ...first,
       kind: "audit_full",
@@ -528,9 +534,12 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       checks: pages.flatMap((page) => page.checks),
       keywords: pages.flatMap((page) => page.keywords),
       competitors: pages.flatMap((page) => page.competitors),
-      findings: pages.flatMap((page, index) =>
-        page.findings.map((row) => ({ ...row, id: `${index}:${row.id}` })),
-      ),
+      findings: [
+        ...pages.flatMap((page, index) =>
+          page.findings.map((row) => ({ ...row, id: `${index}:${row.id}` })),
+        ),
+        ...siteFindings.findings,
+      ],
       actions: pages.flatMap((page, index) =>
         page.actions.map((row) => ({
           ...row,
@@ -545,6 +554,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       },
       notes: [
         ...pages.flatMap((page) => page.notes),
+        ...siteFindings.notes,
         ...skippedPages(raw).map(
           (page) =>
             `Page not audited: ${page.url} (${page.reason.slice(0, SKIPPED_REASON_CHARS)})`,

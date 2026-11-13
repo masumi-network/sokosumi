@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertGa4LandingHost,
+  ga4LandingHostArguments,
   ga4LandingPageArguments,
   ga4LandingPlan,
   normalizeGa4LandingPages,
@@ -26,6 +28,47 @@ function report(rows: Array<[string, string, string]>) {
 }
 
 describe("GA4 key events per landing page", () => {
+  it("proves a single matching property host without filters that could hide another host", () => {
+    expect(ga4LandingHostArguments(query)).toEqual({
+      property: query.propertyId,
+      dateRanges: [{ startDate: query.from, endDate: query.to }],
+      dimensions: [{ name: "hostName" }],
+      metrics: [{ name: "sessions" }],
+      limit: 2,
+      returnPropertyQuota: true,
+    });
+    const inventory = {
+      dimensionHeaders: [{ name: "hostName" }],
+      metricHeaders: [{ name: "sessions" }],
+      rows: [
+        {
+          dimensionValues: [{ value: "example.com" }],
+          metricValues: [{ value: "12" }],
+        },
+      ],
+      rowCount: 1,
+    };
+    expect(() => assertGa4LandingHost(query, inventory)).not.toThrow();
+    for (const patch of [
+      { dimensionHeaders: [{ name: "pagePath" }] },
+      { metadata: { dataLossFromOtherRow: true } },
+      { rows: [] },
+      { metricHeaders: [{ name: "views" }] },
+    ])
+      expect(() =>
+        assertGa4LandingHost(query, { ...inventory, ...patch }),
+      ).toThrow();
+    expect(() =>
+      assertGa4LandingHost(
+        {
+          ...query,
+          pageUrls: [...query.pageUrls, "https://blog.example.com/other"],
+        },
+        inventory,
+      ),
+    ).toThrow();
+  });
+
   it("asks for the selected paths with their query strings, organic sessions only, whatever the channel", () => {
     const args = ga4LandingPageArguments(query);
     expect(args.dimensionFilter).toEqual({

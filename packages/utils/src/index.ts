@@ -462,6 +462,7 @@ export {
 } from "./seo-capabilities.js";
 export {
   SEO_DEFAULT_FULL_AUDIT_USD,
+  SEO_FULL_AUDIT_MAX_SECONDS,
   SEO_MARKUP_PERCENT,
   SEO_MAX_CALL_CENTS,
   SEO_MIN_AUDIT_USD,

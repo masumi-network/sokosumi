@@ -10929,6 +10929,7 @@ export type ProjectSeoSearchBreakdown = {
 
 export type ProjectSeoLandingPages = {
     channel: 'organic' | 'ai_assistant';
+    verifiedHost?: string;
     rows: Array<{
         pageUrl: string;
         sessions: number;

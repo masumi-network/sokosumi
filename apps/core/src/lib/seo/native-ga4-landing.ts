@@ -1,3 +1,4 @@
+import { z } from "@hono/zod-openapi";
 import {
   SEO_AI_SOURCE_ROW_LIMIT,
   type SeoLandingPages,
@@ -13,6 +14,59 @@ const LANDING_DIMENSION = "landingPagePlusQueryString";
 /** Inside the AI Assistant channel, the session source names the assistant (chatgpt.com, perplexity.ai and others). */
 const SOURCE_DIMENSION = "sessionSource";
 const LANDING_METRICS = ["sessions", "keyEvents"] as const;
+const HOST_DIMENSION = "hostName";
+/** Two rows suffice to disprove a single-host property for the selected period. */
+const HOST_ROW_LIMIT = 2;
+
+/** Read all property hosts, without page/channel filters that could hide a second host. */
+export function ga4LandingHostArguments(
+  query: NativeStatisticsQuery,
+): Record<string, unknown> {
+  return {
+    property: query.propertyId,
+    dateRanges: [{ startDate: query.from, endDate: query.to }],
+    dimensions: [{ name: HOST_DIMENSION }],
+    metrics: [{ name: "sessions" }],
+    limit: HOST_ROW_LIMIT,
+    returnPropertyQuota: true,
+  };
+}
+
+/**
+ * A path alone cannot prove a landing host. A complete, unsampled property read must name only the selected host.
+ * Filtering hostName on the landing report instead would filter events after landing and change key-event attribution.
+ */
+export function assertGa4LandingHost(
+  query: NativeStatisticsQuery,
+  input: unknown,
+): void {
+  const report = ga4ReportSchema.parse(input);
+  const sampling = z
+    .object({
+      metadata: z
+        .object({ samplingMetadatas: z.array(z.unknown()).optional() })
+        .optional(),
+    })
+    .parse(input);
+  const hosts = new Set(query.pageUrls.map((url) => new URL(url).hostname));
+  if (
+    hosts.size !== 1 ||
+    report.rowCount !== 1 ||
+    report.rows.length !== 1 ||
+    report.dimensionHeaders.length !== 1 ||
+    report.dimensionHeaders[0]?.name !== HOST_DIMENSION ||
+    report.metricHeaders.length !== 1 ||
+    report.metricHeaders[0]?.name !== "sessions" ||
+    report.rows[0]?.dimensionValues.length !== 1 ||
+    report.rows[0]?.metricValues.length !== 1 ||
+    !hosts.has(report.rows[0]?.dimensionValues[0]?.value ?? "") ||
+    report.metadata?.subjectToThresholding ||
+    report.metadata?.dataLossFromOtherRow ||
+    sampling.metadata?.samplingMetadatas?.length
+  ) {
+    throw new Error("Analytics landing host scope is not determined");
+  }
+}
 
 /** GA4 names a landing page by its path and query string, without the host. */
 function landingPath(url: string): string {
