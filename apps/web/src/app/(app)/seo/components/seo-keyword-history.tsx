@@ -66,6 +66,7 @@ export function SeoKeywordHistory({
                 key={item.device ?? "all"}
                 points={item.points}
                 unit="position"
+                series={{ source: "serp", key: "position" }}
                 joinReads
                 label={t("historyPaidLabel", {
                   keyword,

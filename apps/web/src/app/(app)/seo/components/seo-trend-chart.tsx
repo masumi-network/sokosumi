@@ -4,7 +4,7 @@ import type { ProjectSeoMetric } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
 import { type KeyboardEvent, type PointerEvent, useId, useState } from "react";
 import { SeoFoldSummary } from "./seo-shared";
-import { seoTrendModel } from "./seo-trend-model";
+import { seoChartEvents, seoTrendModel } from "./seo-trend-model";
 
 interface SeoTrendChartProps {
   points: ProjectSeoMetric["points"];
@@ -20,6 +20,8 @@ interface SeoTrendChartProps {
   joinReads?: boolean;
   /** Replaces the note under a position axis, which speaks of days without impressions. */
   positionNote?: string;
+  /** The metric's source and key, which choose the Google updates shaded behind it. */
+  series: Pick<ProjectSeoMetric, "source" | "key">;
 }
 
 /** Share of a day band a bar fills; the rest is the gap between bars. */
@@ -40,6 +42,7 @@ export function SeoTrendChart({
   markers,
   joinReads,
   positionNote,
+  series,
 }: SeoTrendChartProps) {
   const t = useTranslations("App.Seo.overview");
   const format = useFormatter();
@@ -47,7 +50,13 @@ export function SeoTrendChart({
   const [active, setActive] = useState<number | null>(null);
   const [announced, setAnnounced] = useState<number | null>(null);
   const [focused, setFocused] = useState(false);
-  const model = seoTrendModel(points, unit, markers, joinReads);
+  const model = seoTrendModel(
+    points,
+    unit,
+    markers,
+    joinReads,
+    seoChartEvents(series),
+  );
   const last = points.length - 1;
   const day = (date: string) =>
     format.dateTime(new Date(`${date}T12:00:00Z`), {

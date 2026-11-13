@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { seoTrendModel } from "./seo-trend-model";
+import { seoChartEvents, seoTrendModel } from "./seo-trend-model";
 
 const days = (values: (number | null)[]) =>
   values.map((value, index) => ({
@@ -193,6 +193,36 @@ describe("seoTrendModel Google update bands", () => {
       seoTrendModel([], "count", [], false, [event("2026-10-11", "2026-10-12")])
         .updates,
     ).toEqual([]);
+  });
+});
+
+describe("seoChartEvents", () => {
+  // 2026-02-01 to 2026-04-30: the impressions logging error and the job listing error fall in it.
+  const spring = Array.from({ length: 89 }, (_, index) => ({
+    date: new Date(Date.UTC(2026, 1, 1 + index)).toISOString().slice(0, 10),
+    value: 1,
+  }));
+  const shaded = (source: "search_console" | "ga4", key: string) =>
+    seoTrendModel(
+      spring,
+      "count",
+      [],
+      false,
+      seoChartEvents({ source, key }),
+    ).updates.map((update) => update.name);
+  const updates = [
+    "Serving was experiencing an issue (15 minutes)",
+    "March 2026 spam update",
+    "March 2026 core update",
+  ];
+
+  it("keeps an anomaly that did not touch clicks off a clicks chart and off Analytics", () => {
+    expect(shaded("search_console", "clicks")).toEqual(updates);
+    expect(shaded("ga4", "sessions")).toEqual(updates);
+    expect(shaded("search_console", "impressions")).toEqual([
+      ...updates,
+      "Impressions logging error",
+    ]);
   });
 });
 

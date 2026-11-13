@@ -14,6 +14,25 @@ const MIN_RATIO_STEP = 0.001;
 
 type Point = ProjectSeoMetric["points"][number];
 
+/**
+ * The Google events that can move one chart's metric. A data anomaly is a Search Console reporting
+ * fault, so an Analytics chart leaves it out; an event that did not move clicks stays off a clicks chart
+ * and off Analytics visits. An event for pages with some markup is left out, because which plotted pages
+ * carry that markup is not known.
+ */
+export function seoChartEvents(
+  series: Pick<ProjectSeoMetric, "source" | "key">,
+  events: readonly GoogleEvent[] = GOOGLE_EVENTS,
+) {
+  const analytics = series.source === "ga4";
+  return events.filter(
+    (event) =>
+      !event.scope &&
+      !(analytics && event.kind === "data anomaly") &&
+      !((analytics || series.key === "clicks") && !event.clicks),
+  );
+}
+
 /** The smallest 1, 2 or 5 step (times a power of ten) that is at least `value`. */
 function niceStep(value: number) {
   if (value <= 0) return 1;

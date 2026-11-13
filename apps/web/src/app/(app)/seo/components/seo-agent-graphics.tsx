@@ -50,6 +50,7 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
         >
           <SeoTrendChart
             key={clicks.id}
+            series={clicks}
             label={t("metrics.clicks")}
             points={clicks.points}
             unit={clicks.unit}

@@ -392,6 +392,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
               {active.points.length ? (
                 <SeoTrendChart
                   key={active.id}
+                  series={active}
                   label={label(active)}
                   points={active.points}
                   unit={active.unit}

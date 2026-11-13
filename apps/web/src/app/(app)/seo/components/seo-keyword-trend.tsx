@@ -77,6 +77,7 @@ export function SeoKeywordTrendChart({
     <SeoTrendChart
       points={points}
       unit="position"
+      series={{ source: "search_console", key: "position" }}
       label={t("trendLabel", { keyword })}
       formatValue={(value) =>
         format.number(value, {
