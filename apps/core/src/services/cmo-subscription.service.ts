@@ -308,7 +308,7 @@ export async function handlePolarOrderPaid(
   const monthStart = new Date(
     billed?.start_timestamp ?? subscription.current_period_start,
   );
-  await grantCmoCredits(
+  const granted = await grantCmoCredits(
     {
       amount,
       // One month after the grant month starts; a monthly plan's month is
@@ -322,6 +322,7 @@ export async function handlePolarOrderPaid(
       referenceId: `${order.id}:0`,
       referenceNote: product.name,
       referenceType: CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH,
+      subscription: { cmoSubscriptionId: row.id },
     },
     async (tx) => {
       await tx.cmoSubscription.updateMany({
@@ -336,6 +337,19 @@ export async function handlePolarOrderPaid(
         },
       });
     },
+  );
+  if (granted === "not_live") reportNotLive(event, extra);
+}
+
+/** A payment for a subscription that ended or a Cuso no longer live. */
+function reportNotLive(
+  event: PolarWebhookEvent,
+  extra: Record<string, unknown>,
+): void {
+  reportUnusableEvent(
+    event,
+    "the subscription has ended or the Cuso is no longer live; refund by hand",
+    extra,
   );
 }
 
@@ -406,7 +420,7 @@ export async function handlePolarPlanChangePaid(
       Math.min(Math.max(left, 0), 1),
   );
   if (credits <= 0) return;
-  await grantCmoCredits({
+  const granted = await grantCmoCredits({
     amount: convertCreditsToCents(credits),
     expiresAt: month.expiresAt,
     organizationId: row.organizationId,
@@ -414,7 +428,9 @@ export async function handlePolarPlanChangePaid(
     referenceId: `${order.id}:0`,
     referenceNote: product.name,
     referenceType: CreditBucketReferenceType.CMO_SUBSCRIPTION_MONTH,
+    subscription: { cmoSubscriptionId: row.id },
   });
+  if (granted === "not_live") reportNotLive(event, extra);
 }
 
 /**

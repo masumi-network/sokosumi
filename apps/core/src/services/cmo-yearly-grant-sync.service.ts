@@ -71,10 +71,13 @@ export async function syncCmoYearlyGrants(
   });
   const due = subscriptions.flatMap((subscription) => {
     const month = monthOfPaidYear(subscription.currentPeriodStart, now);
+    const paidOrderId = subscription.lastPaidOrderId;
     // Month 0 came with the paid order.
-    if (month.index === 0) return [];
-    const referenceId = `${subscription.lastPaidOrderId}:${month.index}`;
-    return [{ ...subscription, expiresAt: month.expiresAt, referenceId }];
+    if (month.index === 0 || !paidOrderId) return [];
+    const referenceId = `${paidOrderId}:${month.index}`;
+    return [
+      { ...subscription, expiresAt: month.expiresAt, paidOrderId, referenceId },
+    ];
   });
   const result = { errors: 0, granted: 0, stoppedEarly: false };
   if (due.length === 0) return result;
@@ -123,8 +126,13 @@ export async function syncCmoYearlyGrants(
         referenceId: grant.referenceId,
         referenceNote: plan.name,
         referenceType,
+        subscription: {
+          cmoSubscriptionId: grant.id,
+          paidOrderId: grant.paidOrderId,
+        },
       });
-      // Otherwise granted by a concurrent run.
+      // Otherwise granted by a concurrent run, or the subscription ended
+      // or its order was refunded since it was read.
       if (granted === "granted") result.granted += 1;
     } catch (error) {
       result.errors += 1;

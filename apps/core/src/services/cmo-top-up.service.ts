@@ -117,7 +117,7 @@ export async function handlePolarTopUpPaid(
   // An order has no paid date of its own: the event's timestamp stands in.
   const expiresAt = new Date(event.timestamp);
   expiresAt.setUTCFullYear(expiresAt.getUTCFullYear() + 1);
-  await grantCmoCredits({
+  const granted = await grantCmoCredits({
     amount,
     expiresAt,
     organizationId,
@@ -125,5 +125,13 @@ export async function handlePolarTopUpPaid(
     referenceId: `${order.id}:0`,
     referenceNote: order.product.name,
     referenceType: CreditBucketReferenceType.PROJECT_TOP_UP,
+    subscription: { projectId },
   });
+  if (granted === "not_live") {
+    reportUnusableEvent(
+      event,
+      "the Cuso has no live subscription; refund by hand",
+      extra,
+    );
+  }
 }

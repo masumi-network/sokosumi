@@ -15,6 +15,7 @@ const m = vi.hoisted(() => ({
   verifyPolarWebhook: vi.fn(),
   captureMessage: vi.fn(),
   prisma: {
+    $queryRaw: vi.fn(),
     $transaction: vi.fn(),
     cmoSubscription: {
       create: vi.fn(),
@@ -23,6 +24,7 @@ const m = vi.hoisted(() => ({
       updateMany: vi.fn(),
     },
     project: { findFirst: vi.fn() },
+    sokoBot: { findFirst: vi.fn() },
     task: { findMany: vi.fn() },
     transaction: { create: vi.fn() },
   },
@@ -135,6 +137,16 @@ function post() {
 beforeEach(() => {
   vi.resetAllMocks();
   m.prisma.$transaction.mockImplementation((run) => run(m.prisma));
+  // The grant's locked subscription row, live, and its live Cuso.
+  m.prisma.$queryRaw.mockResolvedValue([
+    {
+      projectId: PROJECT_ID,
+      endedAt: null,
+      lastPaidOrderId: null,
+      lastPaidOrderRefundedAt: null,
+    },
+  ]);
+  m.prisma.sokoBot.findFirst.mockResolvedValue({ id: "bot_1" });
   m.prisma.cmoSubscription.updateMany.mockResolvedValue({ count: 0 });
   m.prisma.cmoSubscription.findUnique.mockResolvedValue(null);
   m.prisma.cmoSubscription.create.mockResolvedValue(ROW);
@@ -331,6 +343,40 @@ describe("POST /v1/webhooks/polar", () => {
 
       expect(response.status).toBe(200);
       expect(m.captureMessage).not.toHaveBeenCalled();
+    });
+
+    it("grants nothing and reports a payment for a subscription that has ended", async () => {
+      m.prisma.cmoSubscription.findUnique.mockResolvedValue(ROW);
+      m.prisma.$queryRaw.mockResolvedValue([
+        {
+          projectId: PROJECT_ID,
+          endedAt: new Date("2026-11-13T10:00:00.000Z"),
+          lastPaidOrderId: null,
+          lastPaidOrderRefundedAt: null,
+        },
+      ]);
+      m.verifyPolarWebhook.mockResolvedValue(orderPaid());
+
+      const response = await post();
+
+      expect(response.status).toBe(200);
+      expect(m.prisma.transaction.create).not.toHaveBeenCalled();
+      expect(m.captureMessage).toHaveBeenCalledExactlyOnceWith(
+        expect.stringContaining("no longer live"),
+        expect.any(Object),
+      );
+    });
+
+    it("grants nothing and reports a payment for a Cuso no longer live", async () => {
+      m.prisma.cmoSubscription.findUnique.mockResolvedValue(ROW);
+      m.prisma.sokoBot.findFirst.mockResolvedValue(null);
+      m.verifyPolarWebhook.mockResolvedValue(orderPaid());
+
+      const response = await post();
+
+      expect(response.status).toBe(200);
+      expect(m.prisma.transaction.create).not.toHaveBeenCalled();
+      expect(m.captureMessage).toHaveBeenCalledTimes(1);
     });
 
     it("answers 500 for a unique violation on any other key, so Polar delivers again", async () => {

@@ -13,6 +13,7 @@
 import { randomUUID } from "node:crypto";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { createPrismaClient } from "@sokosumi/database/client";
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { ok } from "neverthrow";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -133,6 +134,16 @@ describe.skipIf(!db)("order.refunded against PostgreSQL", () => {
     await db.$executeRaw`INSERT INTO "organization" ("id", "name", "slug", "createdAt") VALUES (${ORGANIZATION}, 'Polar Org', ${ORGANIZATION}, NOW())`;
     await db.$executeRaw`INSERT INTO "workspace" ("id", "createdAt", "updatedAt", "userId", "organizationId") VALUES (${WORKSPACE}::uuid, NOW(), NOW(), NULL, ${ORGANIZATION})`;
     await db.$executeRaw`INSERT INTO "project" ("id", "createdAt", "updatedAt", "workspaceId", "name") VALUES (${PROJECT}::uuid, NOW(), NOW(), ${WORKSPACE}::uuid, 'Cuso project')`;
+    // A live Cuso: credits are granted only to his Project.
+    await db.sokoBot.create({
+      data: {
+        workspaceId: WORKSPACE,
+        projectId: PROJECT,
+        userId: null,
+        versionId: CMO_SOKO_BOT_VERSION_IDS[0],
+        name: "Cuso",
+      },
+    });
   });
 
   afterAll(async () => {

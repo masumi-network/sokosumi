@@ -19,6 +19,7 @@ const m = vi.hoisted(() => ({
   verifyPolarWebhook: vi.fn(),
   captureMessage: vi.fn(),
   prisma: {
+    $queryRaw: vi.fn(),
     $transaction: vi.fn(),
     cmoSubscription: {
       create: vi.fn(),
@@ -26,6 +27,7 @@ const m = vi.hoisted(() => ({
       updateMany: vi.fn(),
     },
     project: { findFirst: vi.fn() },
+    sokoBot: { findFirst: vi.fn() },
     task: { findMany: vi.fn() },
     transaction: { create: vi.fn() },
   },
@@ -142,6 +144,16 @@ function post() {
 beforeEach(() => {
   vi.resetAllMocks();
   m.prisma.$transaction.mockImplementation((run) => run(m.prisma));
+  // The grant's locked subscription row, live, and its live Cuso.
+  m.prisma.$queryRaw.mockResolvedValue([
+    {
+      projectId: PROJECT_ID,
+      endedAt: null,
+      lastPaidOrderId: null,
+      lastPaidOrderRefundedAt: null,
+    },
+  ]);
+  m.prisma.sokoBot.findFirst.mockResolvedValue({ id: "bot_1" });
   m.prisma.cmoSubscription.updateMany.mockResolvedValue({ count: 1 });
   m.prisma.cmoSubscription.findUnique.mockResolvedValue(ROW);
   m.prisma.task.findMany.mockResolvedValue([]);

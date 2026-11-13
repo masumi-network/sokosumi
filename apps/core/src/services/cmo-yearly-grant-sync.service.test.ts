@@ -9,9 +9,11 @@ const m = vi.hoisted(() => ({
   listPolarProducts: vi.fn(),
   captureMessage: vi.fn(),
   prisma: {
+    $queryRaw: vi.fn(),
     $transaction: vi.fn(),
     cmoSubscription: { findMany: vi.fn() },
     creditBucket: { findMany: vi.fn() },
+    sokoBot: { findFirst: vi.fn() },
     task: { findMany: vi.fn() },
     transaction: { create: vi.fn() },
   },
@@ -115,6 +117,11 @@ beforeEach(() => {
     yearlyProduct("prod_growth_year", "Growth yearly", "growth", "25000"),
   ]);
   m.prisma.$transaction.mockImplementation((run) => run(m.prisma));
+  // The grant locks its subscription row by id; the Cuso is live.
+  m.prisma.$queryRaw.mockImplementation(async (_sql, id) =>
+    subscriptions.filter((row) => row.id === id),
+  );
+  m.prisma.sokoBot.findFirst.mockResolvedValue({ id: "bot_1" });
   m.prisma.cmoSubscription.findMany.mockImplementation(async ({ where }) =>
     subscriptions.filter((row) => matches(row, where)),
   );
@@ -219,6 +226,27 @@ describe("syncCmoYearlyGrants", () => {
     });
     expect([...buckets.keys()]).toEqual(["order_y1:2"]);
     expect(m.prisma.transaction.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("grants nothing when the subscription ended or its order was refunded after it was read", async () => {
+    vi.setSystemTime(new Date("2026-03-31T10:00:00.000Z"));
+    m.prisma.$queryRaw
+      .mockResolvedValueOnce([{ ...SUBSCRIPTION, endedAt: new Date() }])
+      .mockResolvedValueOnce([
+        { ...SUBSCRIPTION, lastPaidOrderRefundedAt: new Date() },
+      ]);
+
+    expect(await sync()).toEqual({
+      errors: 0,
+      granted: 0,
+      stoppedEarly: false,
+    });
+    expect(await sync()).toEqual({
+      errors: 0,
+      granted: 0,
+      stoppedEarly: false,
+    });
+    expect(m.prisma.transaction.create).not.toHaveBeenCalled();
   });
 
   it("counts no grant when a concurrent run wrote the month first", async () => {
