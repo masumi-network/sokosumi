@@ -4,6 +4,7 @@ import { cmoClientCheck } from "./cmo-client-check.js";
 
 import mountListCmoCusos from "./cusos/get.js";
 import mountStartCmoOnboarding from "./onboarding/post.js";
+import mountListCmoPlans from "./plans/get.js";
 import mountConnectCmoAdsForProject from "./projects/[projectId]/ads/[provider]/connect/post.js";
 import mountChooseCmoAdAccountForProject from "./projects/[projectId]/ads/accounts/post.js";
 import mountListCmoAdCampaignsForProject from "./projects/[projectId]/ads/campaigns/get.js";
@@ -16,6 +17,7 @@ import mountConfirmCmoBrandBrainForProject from "./projects/[projectId]/brand-br
 import mountUpdateCmoBrandBrainForProject from "./projects/[projectId]/brand-brain/put.js";
 import mountPauseCmoCalendarEntryForProject from "./projects/[projectId]/calendar/[id]/pause/post.js";
 import mountGetCmoCalendarEntryTextForProject from "./projects/[projectId]/calendar/[id]/text/get.js";
+import mountStartCmoPlanCheckoutForProject from "./projects/[projectId]/checkout/post.js";
 import mountGetCmoOverviewForProject from "./projects/[projectId]/get.js";
 import mountAnswerCmoMarketingStrategyQuestionForProject from "./projects/[projectId]/marketing-strategies/[strategyId]/answers/post.js";
 import mountApproveCmoMarketingStrategyForProject from "./projects/[projectId]/marketing-strategies/[strategyId]/approve/post.js";
@@ -30,6 +32,7 @@ import mountStartCmoOverForProject from "./projects/[projectId]/start-over/post.
 import mountSetCmoAdBudgetForProject from "./projects/[projectId]/strategy/ads/post.js";
 import mountApplyCmoPlanAnswersForProject from "./projects/[projectId]/strategy/answers/apply/post.js";
 import mountRequestCmoStrategyForProject from "./projects/[projectId]/strategy/post.js";
+import mountStartCmoTopUpForProject from "./projects/[projectId]/top-up/post.js";
 import mountRevertCmoUpdateForProject from "./projects/[projectId]/updates/[id]/revert/post.js";
 
 /**
@@ -44,6 +47,7 @@ app.use("*", cmoClientCheck);
 
 mountListCmoCusos(app);
 mountStartCmoOnboarding(app);
+mountListCmoPlans(app);
 
 mountConnectCmoAdsForProject(app);
 mountChooseCmoAdAccountForProject(app);
@@ -55,6 +59,7 @@ mountLaunchCmoSearchAdForProject(app);
 mountPauseCmoCalendarEntryForProject(app);
 mountGetCmoCalendarEntryTextForProject(app);
 mountGetCmoOverviewForProject(app);
+mountStartCmoPlanCheckoutForProject(app);
 mountConnectCmoMeasurementForProject(app);
 mountFinalizeCmoMeasurementForProject(app);
 mountRetryCmoOnboardingForProject(app);
@@ -64,6 +69,7 @@ mountStartCmoOverForProject(app);
 mountSetCmoAdBudgetForProject(app);
 mountApplyCmoPlanAnswersForProject(app);
 mountRequestCmoStrategyForProject(app);
+mountStartCmoTopUpForProject(app);
 mountRevertCmoUpdateForProject(app);
 
 // Writes CMO made on the shared Project routes (ADR 0066); those stay too.

@@ -51,6 +51,7 @@ const actions: CmoAppActions = {
   ],
   // Both would leave the preview.
   startOver: async () => null,
+  startTopUp: async () => ({ url: null, error: null }),
   signOut: async () => {},
 };
 

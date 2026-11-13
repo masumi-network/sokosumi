@@ -11246,9 +11246,9 @@ export type CmoOverview = {
     brandVisual: CmoBrandVisual | null;
     projectLogo: string | null;
     /**
-     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them. CMO opens on the chat once done.
+     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the checkout until his Project has a CMO subscription. CMO opens on the chat once done.
      */
-    onboardingStep: 'brandBrain' | 'strategy' | 'accounts' | 'done';
+    onboardingStep: 'brandBrain' | 'strategy' | 'accounts' | 'checkout' | 'done';
     routines: Array<CmoRoutine>;
     brandBrain: {
         summary: string;
@@ -11607,25 +11607,34 @@ export type CmoOverview = {
     measurement: Array<CmoMeasurement>;
     production: CmoProduction;
     mailingListSize: number;
-    subscribeUrl: string;
+    /**
+     * Cuso's CMO plan, read from his Project's CMO subscription that has not ended; the plan fields are null without one.
+     */
     billing: {
-        plan: string | null;
-        subscriptionStatus: string | null;
-        availableCredits: number;
         /**
-         * The tier of the Cuso's CMO subscription that has not ended; null without one.
+         * The CMO plan's tier, as its Polar product names it.
          */
         tier: string | null;
         interval: 'month' | 'year' | null;
         /**
-         * Polar's status of that subscription: active, or past_due after a renewal payment failed.
+         * Polar's subscription status, as sent.
          */
         status: string | null;
-        /**
-         * When the paid period ends: the renewal date, or the end date when cancelAtPeriodEnd is set.
-         */
         periodEnd: Date | null;
         cancelAtPeriodEnd: boolean;
+        /**
+         * The tier a scheduled downgrade moves to at period end.
+         */
+        pendingTier: string | null;
+        availableCredits: number;
+        /**
+         * Whether this member may change the plan and open the customer portal: the organization's owners and admins only.
+         */
+        viewerCanManage: boolean;
+        /**
+         * Hired before CMO plans: this Cuso was granted Starter credits, so his hiring ends without a checkout.
+         */
+        hiredWithStarterCredits: boolean;
     };
     posts: {
         draft: number;
@@ -12046,6 +12055,24 @@ export type CmoOnboardingRequest = {
     organizationId?: string;
 };
 
+export type CmoSubscriptionPlan = {
+    /**
+     * The plan's tier, as its Polar product names it.
+     */
+    tier: string;
+    name: string;
+    interval: 'month' | 'year';
+    /**
+     * Credits granted every month, on a yearly plan too.
+     */
+    credits: number;
+    /**
+     * Price per interval in the currency's minor unit.
+     */
+    priceAmount: number;
+    currency: string;
+};
+
 export type CmoAdsConnect = {
     redirectUrl: string;
 };
@@ -12073,6 +12100,10 @@ export type CmoPieceText = {
     text: string;
 };
 
+export type CmoCheckout = {
+    url: string;
+};
+
 export type CmoMeasurementConnect = {
     redirectUrl: string;
 };
@@ -12091,6 +12122,10 @@ export type CmoAdBudgetRequest = {
 
 export type CmoStrategyRequest = {
     note?: string;
+};
+
+export type CmoTopUpCheckout = {
+    url: string;
 };
 
 export type SokoBotApiKey = {
@@ -75574,6 +75609,64 @@ export type StartCmoOnboardingResponses = {
 
 export type StartCmoOnboardingResponse = StartCmoOnboardingResponses[keyof StartCmoOnboardingResponses];
 
+export type ListCmoPlansData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/cmo/plans';
+};
+
+export type ListCmoPlansErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Polar is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListCmoPlansError = ListCmoPlansErrors[keyof ListCmoPlansErrors];
+
+export type ListCmoPlansResponses = {
+    /**
+     * The CMO plans
+     */
+    200: {
+        data: Array<CmoSubscriptionPlan>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListCmoPlansResponse = ListCmoPlansResponses[keyof ListCmoPlansResponses];
+
 export type ConnectCmoAdsForProjectData = {
     body?: {
         returnUrl: string;
@@ -76676,6 +76769,118 @@ export type GetCmoOverviewForProjectResponses = {
 
 export type GetCmoOverviewForProjectResponse = GetCmoOverviewForProjectResponses[keyof GetCmoOverviewForProjectResponses];
 
+export type StartCmoPlanCheckoutForProjectData = {
+    body?: {
+        interval: 'month' | 'year';
+        /**
+         * The plan Polar's checkout opens on.
+         */
+        tier?: string;
+        returnUrl: string;
+    };
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/checkout';
+};
+
+export type StartCmoPlanCheckoutForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * This Cuso already has a CMO subscription, or an unknown return address
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Polar is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StartCmoPlanCheckoutForProjectError = StartCmoPlanCheckoutForProjectErrors[keyof StartCmoPlanCheckoutForProjectErrors];
+
+export type StartCmoPlanCheckoutForProjectResponses = {
+    /**
+     * Checkout started
+     */
+    200: {
+        data: CmoCheckout;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StartCmoPlanCheckoutForProjectResponse = StartCmoPlanCheckoutForProjectResponses[keyof StartCmoPlanCheckoutForProjectResponses];
+
 export type ConnectCmoMeasurementForProjectData = {
     body?: {
         returnUrl: string;
@@ -77326,6 +77531,113 @@ export type RequestCmoStrategyForProjectResponses = {
 };
 
 export type RequestCmoStrategyForProjectResponse = RequestCmoStrategyForProjectResponses[keyof RequestCmoStrategyForProjectResponses];
+
+export type StartCmoTopUpForProjectData = {
+    body?: {
+        returnUrl: string;
+    };
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/top-up';
+};
+
+export type StartCmoTopUpForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No active CMO subscription (subscription_not_active), or an unknown return address
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Polar is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StartCmoTopUpForProjectError = StartCmoTopUpForProjectErrors[keyof StartCmoTopUpForProjectErrors];
+
+export type StartCmoTopUpForProjectResponses = {
+    /**
+     * Checkout started
+     */
+    200: {
+        data: CmoTopUpCheckout;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StartCmoTopUpForProjectResponse = StartCmoTopUpForProjectResponses[keyof StartCmoTopUpForProjectResponses];
 
 export type RevertCmoUpdateForProjectData = {
     body?: never;

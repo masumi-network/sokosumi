@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { planWeeks } from "../../lib/calendar";
-import { cmoStrategyVersion } from "../../test-fixtures/cmo";
+import { cmoBilling, cmoStrategyVersion } from "../../test-fixtures/cmo";
 import {
   asking,
   brain,
@@ -245,11 +245,26 @@ describe("Site while Cuso reads", () => {
       reading({
         work: null,
         learning: "failed",
-        billing: { ...reading().billing, availableCredits: 0 },
+        billing: cmoBilling({ availableCredits: 0 }),
       }),
     );
     expect(html).toContain("out of credits");
     expect(html).toContain("Try again");
+    // Hiring is before the subscription: no top-up without one.
+    expect(html).not.toContain("Top up");
+  });
+
+  it("offers the top-up when credits ran out for a Cuso who may have one", () => {
+    const html = site(
+      reading({
+        work: null,
+        learning: "failed",
+        billing: cmoBilling({ availableCredits: 0 }),
+      }),
+      { topUp: async () => ({ url: null, error: null }) },
+    );
+    expect(html).toContain("out of credits");
+    expect(html).toContain(">Top up</button>");
   });
 });
 

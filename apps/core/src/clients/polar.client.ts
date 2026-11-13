@@ -66,6 +66,33 @@ export async function listPolarProducts(): Promise<PolarProduct[]> {
   return products;
 }
 
+export interface PolarCheckoutInput {
+  /** Copied by Polar to the order (and the subscription) of this checkout. */
+  metadata: Record<string, string>;
+  /** The Polar customer: its external id is the organization's id. */
+  organizationId: string;
+  /** The person picks one in the checkout; the first is preselected. */
+  productIds: string[];
+  /** Where the person lands after paying, and where "back" leads. */
+  returnUrl: string;
+}
+
+/** Starts a hosted checkout, trial and discount codes off; returns its URL. */
+export async function createPolarCheckout(
+  input: PolarCheckoutInput,
+): Promise<string> {
+  const checkout = await requirePolar().checkouts.create({
+    products: input.productIds,
+    external_customer_id: input.organizationId,
+    metadata: input.metadata,
+    success_url: input.returnUrl,
+    return_url: input.returnUrl,
+    allow_discount_codes: false,
+    allow_trial: false,
+  });
+  return checkout.url;
+}
+
 /**
  * Ends a subscription at Polar now: no further charge, no refund, and it
  * cannot be undone. One that Polar already ended counts as done.

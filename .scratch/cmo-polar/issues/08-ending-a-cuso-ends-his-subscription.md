@@ -12,6 +12,6 @@ Spec: `.scratch/cmo-polar/spec.md` (SOKD-204), stories 48 to 50.
 - [x] If Polar refuses or fails, the Cuso stays live, nothing is written off, and the person sees an error.
 - [x] The write-off covers plan grants and top-ups as well as Starter credits.
 - [x] Ending a Cuso without a subscription behaves as today.
-- [ ] CMO's confirmation for these actions names the immediate end, no refund and the loss of credits when the Cuso is subscribed.
-- [ ] A new hire after Start over has no subscription and runs the checkout again.
+- [x] CMO's confirmation for these actions names the immediate end, no refund and the loss of credits when the Cuso is subscribed.
+- [x] A new hire after Start over has no subscription and runs the checkout again.
 - [x] Tests cover revoke-then-write-off, the Polar failure, and the unsubscribed case; a component test covers the confirmation text.

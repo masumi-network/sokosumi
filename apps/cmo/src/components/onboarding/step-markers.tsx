@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 import { STEPS } from "./step";
 
 /**
- * The four steps in the header. `reached` is where Cuso has got to; `current`
+ * The five steps in the header. `reached` is where Cuso has got to; `current`
  * is the one on screen, which differs while the founder looks back. `open`
  * says which markers lead somewhere.
  */

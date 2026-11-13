@@ -6,7 +6,7 @@ The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi pale
 - **Source:** the concept canvas https://claude.ai/artifact/9mWPtBgNY9HQ8wLXcadZk4 (boards Vibe, Site, Reading, Brand, Plan, Launch, Home, each with a dark version). Where a board and this file disagree, this file wins; Plan, Launch and Home on the canvas still use the earlier "Cuso Pop" radii, pills and 2px borders, which this file replaces.
 - **Family:** colours follow the [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide). CMO is its own product: never Sokosumi chrome, names or wording.
 - **Tokens:** values live once, as CSS custom properties in `src/app/globals.css`. Components read tokens, never literals. `src/design-guards.test.ts` enforces the rules below; `src/components/phone-feeds.css` and `showcases.css` are exempt because they draw the networks' own UIs.
-- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (step markers, checklist, question card, tile, side panel, assumption chip, goal block, stat row, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (hire, reading, writing, asking, brand, plan, planning, launch, launch-connected) and `/design-system/app/<view>` (chat, strategy, calendar, results, brain, channels, settings) render each real screen over fixture data (`?theme=dark` pins the theme).
+- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (step markers, checklist, question card, tile, side panel, assumption chip, goal block, stat row, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (hire, reading, writing, asking, brand, plan, planning, launch, launch-connected, subscribe, subscribe-confirming) and `/design-system/app/<view>` (chat, strategy, calendar, results, brain, channels, settings) render each real screen over fixture data (`?theme=dark` pins the theme).
 
 ## Five rules
 
@@ -81,7 +81,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Header (onboarding).** Logo 16px high left, step markers centre, the site chip right (green 8px dot with a line edge, then the domain). Hairline below, 14px 32px padding.
 
-**Step marker.** 8px radius, small 500, "1 Site". Current: Iris fill, ink line, `aria-current="step"`. Done: check icon, ink line, text colour. Not yet: hairline, muted text. Four steps: Site, Brand, Plan, Launch.
+**Step marker.** 8px radius, small 500, "1 Site". Current: Iris fill, ink line, `aria-current="step"`. Done: check icon, ink line, text colour. Not yet: hairline, muted text. Five steps: Site, Brand, Plan, Launch, Subscribe.
 
 **Buttons.** 44px high, 8px radius, body 500, 0 18px.
 
@@ -93,6 +93,8 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 **Input.** 44px, 8px radius, ink line, 16px text, card fill. Label above (body 500), help below (small, muted). Inputs keep the ink line so their edge passes 3:1.
 
 **Selection.** Tabs, radio cards (pace) and the open tile button use the ink inversion: ink fill, inverted text. Iris is never selection; it means now.
+
+**Plan card (Subscribe).** The CMO plans of one interval as cards on a panel: name (h2), price (value step) with its interval (small, muted), credits a month (small). A Monthly / Yearly switch above them uses the ink inversion; the picked plan is the selected tile and takes the Iris shadow. One primary button below ("Continue to payment") leads to Polar's hosted checkout.
 
 **Card.** Card fill, 1px ink line, 10px radius, flat. The focused card, or one that needs the owner now, adds the hard shadow (`.card-focus`); a selected tile in a grid gets an Iris shadow instead.
 

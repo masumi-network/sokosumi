@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  cmoSubscriptionFindFirst,
+  creditBucketFindFirst,
   cusoFind,
   resetCmoServiceMocks,
   seedStrategy,
@@ -71,7 +73,10 @@ vi.mock("@/config/env", async (importOriginal) =>
   ),
 );
 
-import { cmoExecutionRefusal } from "./cmo-billing.service";
+const listPolarProducts = vi.hoisted(() => vi.fn());
+vi.mock("@/clients/polar.client", () => ({ listPolarProducts }));
+
+import { cmoExecutionRefusal, readCmoBilling } from "./cmo-billing.service";
 
 beforeEach(resetCmoServiceMocks);
 
@@ -104,5 +109,95 @@ describe("strategy approval → execution gate", () => {
     expect(
       await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
     ).toBeNull();
+  });
+});
+
+describe("readCmoBilling", () => {
+  const PERIOD_END = new Date("2026-12-13T10:00:00.000Z");
+  const row = {
+    polarProductId: "prod_growth_month",
+    tier: "growth",
+    interval: "month",
+    status: "active",
+    currentPeriodEnd: PERIOD_END,
+    cancelAtPeriodEnd: false,
+    pendingPolarProductId: null,
+  };
+
+  it("has no plan and owes the checkout for a Cuso hired without Starter credits", async () => {
+    expect(await readCmoBilling("project-1")).toEqual({
+      tier: null,
+      interval: null,
+      status: null,
+      periodEnd: null,
+      cancelAtPeriodEnd: false,
+      pendingTier: null,
+      hiredWithStarterCredits: false,
+    });
+    expect(cmoSubscriptionFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { projectId: "project-1", endedAt: null },
+      }),
+    );
+    expect(listPolarProducts).not.toHaveBeenCalled();
+  });
+
+  it("reads the plan from the Project's subscription that has not ended", async () => {
+    cmoSubscriptionFindFirst.mockResolvedValue({
+      ...row,
+      interval: "year",
+      status: "past_due",
+      cancelAtPeriodEnd: true,
+    });
+    expect(await readCmoBilling("project-1")).toEqual({
+      tier: "growth",
+      interval: "year",
+      status: "past_due",
+      periodEnd: PERIOD_END,
+      cancelAtPeriodEnd: true,
+      pendingTier: null,
+      hiredWithStarterCredits: false,
+    });
+  });
+
+  it("names the tier a scheduled downgrade moves to", async () => {
+    cmoSubscriptionFindFirst.mockResolvedValue({
+      ...row,
+      pendingPolarProductId: "prod_starter_month",
+    });
+    listPolarProducts.mockResolvedValueOnce([
+      {
+        id: "prod_starter_month",
+        name: "Starter",
+        metadata: { kind: "plan", tier: "starter", credits: "10000" },
+        is_recurring: true,
+        recurring_interval: "month",
+        recurring_interval_count: 1,
+        prices: [
+          {
+            amount_type: "fixed",
+            is_archived: false,
+            price_amount: 20000,
+            price_currency: "usd",
+          },
+        ],
+      },
+    ]);
+    expect((await readCmoBilling("project-1")).pendingTier).toBe("starter");
+  });
+
+  it("knows a Cuso hired with Starter credits, spent or not", async () => {
+    creditBucketFindFirst.mockResolvedValueOnce({ id: "bucket-1" });
+    expect((await readCmoBilling("project-1")).hiredWithStarterCredits).toBe(
+      true,
+    );
+    expect(creditBucketFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          referenceType: "FREE",
+          referenceNote: "CMO.xyz starter credits (project project-1)",
+        },
+      }),
+    );
   });
 });

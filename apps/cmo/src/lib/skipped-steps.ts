@@ -26,14 +26,21 @@ export function readSkippedSteps(value: string | undefined): SkippedStep[] {
 
 /**
  * Core's step, read from the data, moved past the accounts the person
- * skipped. Skipped questions only change CMO's own screens.
+ * skipped: on to the checkout (ADR 0068), which nothing skips, or straight
+ * to done for a Cuso hired with Starter credits. Skipped questions only
+ * change CMO's own screens.
  */
 export function withSkippedSteps(
   overview: CmoOverview,
   skipped: readonly SkippedStep[],
 ): CmoOverview {
   if (overview.onboardingStep === "accounts" && skipped.includes("accounts")) {
-    return { ...overview, onboardingStep: "done" };
+    return {
+      ...overview,
+      onboardingStep: overview.billing.hiredWithStarterCredits
+        ? "done"
+        : "checkout",
+    };
   }
   return overview;
 }

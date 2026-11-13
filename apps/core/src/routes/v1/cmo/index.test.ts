@@ -150,16 +150,16 @@ function overview() {
       pillars: null,
     },
     mailingListSize: 0,
-    subscribeUrl: "http://web/billing",
     billing: {
-      plan: null,
-      subscriptionStatus: null,
-      availableCredits: 12,
-      tier: "growth",
-      interval: "month",
-      status: "past_due",
-      periodEnd: new Date("2026-11-05T09:00:00.000Z"),
+      tier: null,
+      interval: null,
+      status: null,
+      periodEnd: null,
       cancelAtPeriodEnd: false,
+      pendingTier: null,
+      availableCredits: 12,
+      viewerCanManage: false,
+      hiredWithStarterCredits: false,
     },
     posts: { DRAFT: 3, SCHEDULED: 1, PUBLISHING: 1, MISSED: 1 },
   };
@@ -339,18 +339,38 @@ describe("CMO routes", () => {
   });
 
   it("returns the Cuso's CMO subscription and credits in the billing block", async () => {
+    const base = overview();
+    overviewMock.mockResolvedValue({
+      ...base,
+      billing: {
+        ...base.billing,
+        tier: "growth",
+        interval: "month",
+        status: "past_due",
+        periodEnd: new Date("2026-11-05T09:00:00.000Z"),
+      },
+    });
     const response = await createApp().request(`/projects/${PROJECT_ID}`);
 
     expect((await response.json()).data.billing).toEqual({
-      plan: null,
-      subscriptionStatus: null,
-      availableCredits: 12,
       tier: "growth",
       interval: "month",
       status: "past_due",
       periodEnd: "2026-11-05T09:00:00.000Z",
       cancelAtPeriodEnd: false,
+      pendingTier: null,
+      availableCredits: 12,
+      viewerCanManage: false,
+      hiredWithStarterCredits: false,
     });
+  });
+
+  it("carries no link to Sokosumi's billing page in the overview", async () => {
+    const response = await createApp().request(`/projects/${PROJECT_ID}`);
+    const body = await response.json();
+    expect(body.data.billing).toBeDefined();
+    expect(JSON.stringify(body.data)).not.toContain("/billing");
+    expect(body.data).not.toHaveProperty("subscribeUrl");
   });
 
   it("answers 409 when Cuso is already working on a turn", async () => {
@@ -413,6 +433,59 @@ describe("CMO routes", () => {
     expect(overviewMock).toHaveBeenCalledWith({
       userId: "user-1",
       projectId: PROJECT_ID,
+    });
+  });
+
+  it("answers the checkout step and no plan for a Cuso nobody paid for", async () => {
+    overviewMock.mockResolvedValue({
+      ...overview(),
+      onboardingStep: "checkout",
+    });
+    const response = await createApp().request(`/projects/${PROJECT_ID}`);
+    expect(response.status).toBe(200);
+    const { data } = await response.json();
+    expect(data.onboardingStep).toBe("checkout");
+    expect(data.billing).toEqual({
+      tier: null,
+      interval: null,
+      status: null,
+      periodEnd: null,
+      cancelAtPeriodEnd: false,
+      pendingTier: null,
+      availableCredits: 12,
+      viewerCanManage: false,
+      hiredWithStarterCredits: false,
+    });
+  });
+
+  it("answers the plan, its period and who may manage it once subscribed", async () => {
+    const base = overview();
+    overviewMock.mockResolvedValue({
+      ...base,
+      billing: {
+        ...base.billing,
+        tier: "growth",
+        interval: "year",
+        status: "active",
+        periodEnd: new Date("2027-11-13T10:00:00.000Z"),
+        cancelAtPeriodEnd: true,
+        pendingTier: "starter",
+        availableCredits: 25_000,
+        viewerCanManage: true,
+      },
+    });
+    const response = await createApp().request(`/projects/${PROJECT_ID}`);
+    expect(response.status).toBe(200);
+    expect((await response.json()).data.billing).toEqual({
+      tier: "growth",
+      interval: "year",
+      status: "active",
+      periodEnd: "2027-11-13T10:00:00.000Z",
+      cancelAtPeriodEnd: true,
+      pendingTier: "starter",
+      availableCredits: 25_000,
+      viewerCanManage: true,
+      hiredWithStarterCredits: false,
     });
   });
 

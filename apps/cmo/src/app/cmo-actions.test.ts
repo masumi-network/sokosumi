@@ -4,6 +4,7 @@ import { cmoOverview } from "../test-fixtures/cmo";
 
 const startCmoOnboarding = vi.fn();
 const listCmoCusos = vi.fn();
+const listCmoPlans = vi.fn();
 const getContactLists = vi.fn();
 const postContactLists = vi.fn();
 const postContactListsByIdImport = vi.fn();
@@ -43,6 +44,8 @@ const forProject = Object.fromEntries(
     "revertCmoUpdateForProject",
     "setCmoAdBudgetForProject",
     "setCmoAdCampaignStatusForProject",
+    "startCmoPlanCheckoutForProject",
+    "startCmoTopUpForProject",
     "updateCmoBrandBrainForProject",
   ].map((name) => [name, vi.fn()]),
 );
@@ -78,6 +81,7 @@ vi.mock("../lib/core", () => ({
 }));
 
 vi.mock("@sokosumi/core-client", () => ({
+  listCmoPlans,
   startCmoOnboarding,
   listCmoCusos,
   getContactLists,
@@ -125,6 +129,9 @@ const {
   skipBrandQuestions,
   skippedSteps,
   startOver,
+  loadPlans,
+  startPlanCheckout,
+  startTopUp,
 } = await import("./cmo-actions");
 
 const cmoBrandBrain = cmoOverview().brandBrain;
@@ -196,13 +203,14 @@ describe("onboard", () => {
     });
   });
 
-  it("links to top up when the organization is out of credits", async () => {
+  it("says the organization is out of credits without sending the person to Sokosumi", async () => {
     startCmoOnboarding.mockResolvedValue({
       error: { message: "You're out of credits", kind: "insufficient_balance" },
     });
     const state = await onboard(EMPTY, form("acme.io", "org-team"));
     expect(state.errors.form).toContain("out of credits");
-    expect(state.topUpUrl).toMatch(/\/billing$/);
+    expect(state.errors.form).not.toContain("Sokosumi");
+    expect(state).not.toHaveProperty("topUpUrl");
     // The choice stays for the next try.
     expect(state.organizationId).toBe("org-team");
   });
@@ -218,7 +226,6 @@ describe("onboard", () => {
     });
     const state = await onboard(EMPTY, form("acme.io", "org-team"));
     expect(state.errors.form).toContain(words);
-    expect(state.topUpUrl).toBeUndefined();
   });
 
   it("says so when Core refuses for another reason, keeping the answers", async () => {
@@ -399,7 +406,13 @@ describe("addMailingList", () => {
 describe("skipped hiring steps", () => {
   beforeEach(() => {
     const overview = {
-      data: { data: { projectId: "project-1", onboardingStep: "accounts" } },
+      data: {
+        data: {
+          projectId: "project-1",
+          onboardingStep: "accounts",
+          billing: { hiredWithStarterCredits: false },
+        },
+      },
       response: { status: 200 },
     };
     getCmoOverviewForProject.mockResolvedValue(overview);
@@ -411,14 +424,15 @@ describe("skipped hiring steps", () => {
 
   it("resumes past the steps CMO's cookie skipped for this Cuso", async () => {
     cookieJar.set("cmo-skipped-project-1", "accounts");
-    expect((await loadOverview("project-1"))?.onboardingStep).toBe("done");
+    // Past the accounts the checkout is owed (ADR 0068).
+    expect((await loadOverview("project-1"))?.onboardingStep).toBe("checkout");
     // Another Cuso's choices do not count.
     cookieJar.clear();
     cookieJar.set("cmo-skipped-project-2", "accounts");
     expect((await loadOverview("project-1"))?.onboardingStep).toBe("accounts");
   });
 
-  it("opens the app on Continue from the accounts step, kept in an httpOnly cookie", async () => {
+  it("moves on from the accounts step, kept in an httpOnly cookie", async () => {
     await finishAccounts("project-1").catch(() => undefined);
     expect(redirect).toHaveBeenCalledWith("/?project=project-1");
     expect(setCookie).toHaveBeenCalledWith(
@@ -750,5 +764,78 @@ describe("the Cuso on screen", () => {
         },
       }),
     );
+  });
+
+  describe("the CMO plan checkout", () => {
+    it("starts Polar's checkout for the Project, coming back to its confirming step", async () => {
+      forProject.startCmoPlanCheckoutForProject?.mockResolvedValue({
+        data: { data: { url: "https://polar.sh/checkout/c_1" } },
+      });
+      expect(await startPlanCheckout("project-2", "year", "growth")).toEqual({
+        url: "https://polar.sh/checkout/c_1",
+        error: null,
+      });
+      expect(forProject.startCmoPlanCheckoutForProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: { projectId: "project-2" },
+          body: {
+            interval: "year",
+            tier: "growth",
+            returnUrl: "https://app.cmo.xyz/?project=project-2&step=subscribed",
+          },
+        }),
+      );
+    });
+
+    it("hands Core's refusal back as text", async () => {
+      forProject.startCmoPlanCheckoutForProject?.mockResolvedValue({
+        error: { message: "This Cuso already has a CMO subscription" },
+      });
+      expect(await startPlanCheckout("project-2", "month", "starter")).toEqual({
+        url: null,
+        error: "This Cuso already has a CMO subscription",
+      });
+    });
+
+    it("lists the plans, and none when Core cannot read them", async () => {
+      listCmoPlans.mockResolvedValueOnce({
+        data: { data: [{ tier: "growth" }] },
+      });
+      expect(await loadPlans()).toEqual([{ tier: "growth" }]);
+      listCmoPlans.mockResolvedValueOnce({
+        error: { message: "Polar is not configured" },
+      });
+      expect(await loadPlans()).toEqual([]);
+    });
+  });
+
+  it("starts a top-up checkout for the named Cuso and comes back to him", async () => {
+    forProject.startCmoTopUpForProject.mockResolvedValue({
+      data: { data: { url: "https://polar.example/checkout/1" } },
+    });
+
+    const result = await startTopUp("project-2");
+
+    expect(result).toEqual({
+      url: "https://polar.example/checkout/1",
+      error: null,
+    });
+    expect(forProject.startCmoTopUpForProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: { projectId: "project-2" },
+        body: { returnUrl: "https://app.cmo.xyz/?project=project-2" },
+      }),
+    );
+  });
+
+  it("says why a top-up checkout could not start", async () => {
+    forProject.startCmoTopUpForProject.mockResolvedValue({
+      error: { message: "A top-up needs an active CMO subscription" },
+    });
+
+    expect(await startTopUp("project-2")).toEqual({
+      url: null,
+      error: "A top-up needs an active CMO subscription",
+    });
   });
 });

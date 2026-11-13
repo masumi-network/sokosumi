@@ -5,5 +5,5 @@ import type { CmoOverview } from "@sokosumi/core-client";
  * before the person confirms.
  */
 export function cusoSubscribed(overview: Pick<CmoOverview, "billing">) {
-  return overview.billing.subscriptionStatus !== null;
+  return overview.billing.status !== null;
 }

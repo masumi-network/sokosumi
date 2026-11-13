@@ -118,6 +118,27 @@ export const cmoStrategyRequestSchema = z
   .object({ note: z.string().trim().max(1_000).optional() })
   .openapi("CmoStrategyRequest");
 
+/** A CMO plan as Polar sells it (ADR 0068); not the marketing plan above. */
+export const cmoSubscriptionPlanSchema = z
+  .object({
+    tier: z
+      .string()
+      .min(1)
+      .describe("The plan's tier, as its Polar product names it."),
+    name: z.string(),
+    interval: z.enum(["month", "year"]),
+    credits: z
+      .number()
+      .int()
+      .describe("Credits granted every month, on a yearly plan too."),
+    priceAmount: z
+      .number()
+      .int()
+      .describe("Price per interval in the currency's minor unit."),
+    currency: z.string(),
+  })
+  .openapi("CmoSubscriptionPlan");
+
 /** The Project of the Cuso a CMO route acts on. */
 export const cmoProjectParamsSchema = z.object({
   projectId: z
@@ -305,7 +326,7 @@ export const cmoOverviewSchema = z
     onboardingStep: z
       .enum(CMO_ONBOARDING_STEPS)
       .describe(
-        "Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them. CMO opens on the chat once done.",
+        "Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the checkout until his Project has a CMO subscription. CMO opens on the chat once done.",
       ),
     routines: z.array(cmoRoutineSchema),
     brandBrain: z.union([brandBrainSchema, z.null()]),
@@ -361,29 +382,35 @@ export const cmoOverviewSchema = z
       "After approval Cuso makes the whole month at once: how many of its pieces are made.",
     ),
     mailingListSize: z.number().int(),
-    subscribeUrl: z.string(),
-    billing: z.object({
-      plan: z.union([z.string(), z.null()]),
-      subscriptionStatus: z.union([z.string(), z.null()]),
-      availableCredits: z.number(),
-      tier: z
-        .union([z.string(), z.null()])
-        .describe(
-          "The tier of the Cuso's CMO subscription that has not ended; null without one.",
-        ),
-      interval: z.union([z.enum(["month", "year"]), z.null()]),
-      status: z
-        .union([z.string(), z.null()])
-        .describe(
-          "Polar's status of that subscription: active, or past_due after a renewal payment failed.",
-        ),
-      periodEnd: z
-        .union([dateTimeSchema, z.null()])
-        .describe(
-          "When the paid period ends: the renewal date, or the end date when cancelAtPeriodEnd is set.",
-        ),
-      cancelAtPeriodEnd: z.boolean(),
-    }),
+    billing: z
+      .object({
+        tier: z
+          .union([z.string(), z.null()])
+          .describe("The CMO plan's tier, as its Polar product names it."),
+        interval: z.union([z.enum(["month", "year"]), z.null()]),
+        status: z
+          .union([z.string(), z.null()])
+          .describe("Polar's subscription status, as sent."),
+        periodEnd: z.union([dateTimeSchema, z.null()]),
+        cancelAtPeriodEnd: z.boolean(),
+        pendingTier: z
+          .union([z.string(), z.null()])
+          .describe("The tier a scheduled downgrade moves to at period end."),
+        availableCredits: z.number(),
+        viewerCanManage: z
+          .boolean()
+          .describe(
+            "Whether this member may change the plan and open the customer portal: the organization's owners and admins only.",
+          ),
+        hiredWithStarterCredits: z
+          .boolean()
+          .describe(
+            "Hired before CMO plans: this Cuso was granted Starter credits, so his hiring ends without a checkout.",
+          ),
+      })
+      .describe(
+        "Cuso's CMO plan, read from his Project's CMO subscription that has not ended; the plan fields are null without one.",
+      ),
     posts: z.object({
       draft: z.number(),
       scheduled: z.number(),

@@ -223,6 +223,7 @@ describe("CMO routes naming a Cuso by his Project", () => {
     ["POST", "/measurement/google_analytics/connect", RETURN_URL],
     ["POST", "/measurement/google_analytics/finalize", undefined],
     ["POST", "/ads/google_ads/connect", RETURN_URL],
+    ["POST", "/top-up", RETURN_URL],
     ["POST", "/ads/finalize", { connectionId: "c", sessionUri: null }],
     ["GET", `/ads/connections/${ID}/choices`, undefined],
     ["POST", "/ads/accounts", { adConnectionId: ID, externalAccountId: "1" }],
