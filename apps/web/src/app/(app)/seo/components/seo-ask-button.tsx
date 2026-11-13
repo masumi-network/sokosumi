@@ -35,8 +35,8 @@ export function SeoAskButton({ model }: { model: SeoWorkspaceModel }) {
       onClick={() => model.openChat()}
       // On a phone with a home indicator the button stays over it. There it has the 40 px of the other phone
       // controls and stands near the edge: it covers less of the row end under it while the page scrolls.
-      // A raised neutral surface: the filled button of the tab stays the one fill of the screen.
-      className="bg-popover text-popover-foreground hover:bg-accent focus-visible:ring-ring focus-visible:ring-offset-background fixed end-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 inline-flex size-10 items-center justify-center rounded-full border shadow-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:end-6 sm:bottom-6 sm:size-11"
+      // The agent in the brand colour, as on its tab. The primary is a fill only: the glyph takes its foreground.
+      className="bg-primary text-primary-foreground hover:bg-primary-hover press focus-visible:ring-ring focus-visible:ring-offset-background fixed end-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 inline-flex size-10 items-center justify-center rounded-full shadow-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:end-6 sm:bottom-6 sm:size-11"
     >
       <Bot className="size-5" />
     </button>

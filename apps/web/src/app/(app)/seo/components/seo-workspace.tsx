@@ -92,10 +92,19 @@ const SEO_TAB_ICONS: Record<SeoTab, LucideIcon> = {
   health: HeartPulse,
 };
 
-/** The picture of a tab. A phone has no room for it: five tabs fill the row. */
+/**
+ * The picture of a tab. A phone has no room for it: five tabs fill the row. The agent stands on a disc in the
+ * brand colour, as on the button that opens its chat: the primary is a fill only, never a line.
+ */
 function TabIcon({ tab }: { tab: SeoTab }) {
   const Icon = SEO_TAB_ICONS[tab];
-  return <Icon className="size-4 max-sm:hidden" />;
+  return tab === "agent" ? (
+    <span className="bg-primary text-primary-foreground grid size-5 shrink-0 place-items-center rounded-full max-sm:hidden">
+      <Icon className="size-3.5" />
+    </span>
+  ) : (
+    <Icon className="size-4 max-sm:hidden" />
+  );
 }
 
 export function SeoWorkspace({

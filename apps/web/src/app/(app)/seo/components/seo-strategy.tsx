@@ -3,13 +3,13 @@
 import type { ProjectSeoStrategy } from "@sokosumi/core-client";
 import { Check, Copy, WandSparkles } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { useClipboard } from "@/hooks/use-clipboard";
 import { cn } from "@/lib/utils";
 import { SeoActionCardHead } from "./seo-card-head";
-import { seoPlaces } from "./seo-places-model";
+import { type SeoPlaceEase, seoPlaces } from "./seo-places-model";
 import {
   SEO_ROW_LIST_CLASS,
   SeoDate,
@@ -36,6 +36,12 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** Under the fixes the list starts with this many actions: eight rows after five fix rows read as one long list. */
 const SEO_STRATEGY_ACTIONS_AFTER_FIXES = 3;
+/** The brand colour marks the places that are easy to get onto, orange the medium ones, grey the hard ones; the word beside the mark carries the name. Yellow did not show on white. */
+const EASE_MARK_CLASS: Record<SeoPlaceEase, string> = {
+  easy: "bg-primary",
+  medium: "bg-chart-2",
+  hard: "bg-chart-5",
+};
 
 function useStrategyLabels() {
   const t = useTranslations("App.Seo");
@@ -279,7 +285,7 @@ function StrategyActionCard({
   /** The page of a listing place, quiet under its site. */
   page?: string | null;
   /** Beside the title instead of the effort. */
-  meta?: string;
+  meta?: ReactNode;
   /** The first line of the open card. */
   note?: string;
 }) {
@@ -587,14 +593,25 @@ export function SeoStrategyActions({
                         : place.name
                     }
                     page={place.page}
-                    meta={[
-                      t(`strategy.links.ease.${place.ease}`),
-                      place.reads
-                        ? t("strategy.links.reach", place.reads)
-                        : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
+                    meta={
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "size-1.5 rounded-full",
+                            EASE_MARK_CLASS[place.ease],
+                          )}
+                        />
+                        {[
+                          t(`strategy.links.ease.${place.ease}`),
+                          place.reads
+                            ? t("strategy.links.reach", place.reads)
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    }
                     note={t(`strategy.links.reason.${place.reason}`)}
                     startOpen={
                       places.length === 1 ||
