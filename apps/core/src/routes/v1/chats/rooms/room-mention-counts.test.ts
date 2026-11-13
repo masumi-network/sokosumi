@@ -148,10 +148,12 @@ describe("getChatRoomUnreadMentionCounts", () => {
       tx,
     );
 
+    // It hands over the rows it read, so the helper does not read them again.
     expect(findPassedRowsMock).toHaveBeenCalledWith(
       ["room-a", "room-b", "room-c"],
       "user_1",
       tx,
+      await findMany.mock.results[0]?.value,
     );
     expect(counts.get("room-a")).toBe(1);
     expect(counts.has("room-b")).toBe(false);

@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
@@ -21,10 +20,7 @@ interface NewsletterSettingsPageProps {
   searchParams: Promise<SearchParams>;
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("App.Newsletter");
-  return { title: t("title") };
-}
+export { generateNewsletterMetadata as generateMetadata } from "@/app/newsletter/newsletter-project";
 
 /**
  * The newsletter's Settings tab, where a project's newsletter is created.
