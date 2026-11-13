@@ -884,6 +884,21 @@
       "loading": "Cargando documento…",
       "fetchError": "No se pudo cargar este documento."
     },
+    "VoicePlayer": {
+      "play": "Reproducir {name}",
+      "pause": "Pausar",
+      "seek": "Posición de reproducción",
+      "position": "{current} de {total}",
+      "speed": "Velocidad de reproducción {rate}×",
+      "download": "Descargar {name}",
+      "transcript": "Transcripción",
+      "addTranscript": "Añadir transcripción",
+      "editTranscript": "Editar transcripción",
+      "transcriptHint": "Escribe lo que se dijo. Se guarda en este mensaje, así que todas las personas de esta conversación pueden leerlo y buscarlo. Déjalo vacío para quitar la transcripción.",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "transcriptNotSaved": "La transcripción no se guardó. Vuelve a intentarlo en un momento o acórtala si el mensaje es demasiado largo."
+    },
     "UserCombobox": {
       "placeholder": "Select a user",
       "search": "Search users by name or email…",
@@ -8949,7 +8964,14 @@
         "removeAttachment": "Eliminar {name}",
         "attachmentFallback": "file",
         "showFormatting": "Mostrar formato",
-        "hideFormatting": "Ocultar formato"
+        "hideFormatting": "Ocultar formato",
+        "recordVoice": "Grabar un mensaje de voz",
+        "stopVoice": "Detener y adjuntar",
+        "cancelVoice": "Descartar grabación",
+        "voiceRecording": "Grabando mensaje de voz",
+        "voiceBlocked": "Permite el acceso al micrófono en tu navegador para grabar un mensaje de voz.",
+        "voiceFailed": "La grabación se detuvo. Inténtalo de nuevo.",
+        "voiceFileName": "Mensaje de voz {time}"
       },
       "Skills": {
         "add": "Añadir una skill",

@@ -892,6 +892,21 @@
       "loading": "Loading document…",
       "fetchError": "This document couldn't be loaded."
     },
+    "VoicePlayer": {
+      "play": "Play {name}",
+      "pause": "Pause",
+      "seek": "Playback position",
+      "position": "{current} of {total}",
+      "speed": "Playback speed {rate}×",
+      "download": "Download {name}",
+      "transcript": "Transcript",
+      "addTranscript": "Add transcript",
+      "editTranscript": "Edit transcript",
+      "transcriptHint": "Type what was said. It is saved in this message, so everyone in this conversation can read and search it. Leave it empty to remove the transcript.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "transcriptNotSaved": "The transcript was not saved. Try again in a moment, or shorten it if the message is too long."
+    },
     "SokoBot": {
       "BotStatus": {
         "IDLE": "Idle",
@@ -8949,7 +8964,14 @@
         "removeAttachment": "Remove {name}",
         "attachmentFallback": "file",
         "showFormatting": "Show formatting",
-        "hideFormatting": "Hide formatting"
+        "hideFormatting": "Hide formatting",
+        "recordVoice": "Record a voice message",
+        "stopVoice": "Stop and attach",
+        "cancelVoice": "Discard recording",
+        "voiceRecording": "Recording voice message",
+        "voiceBlocked": "Allow microphone access in your browser to record a voice message.",
+        "voiceFailed": "Recording stopped. Try again.",
+        "voiceFileName": "Voice message {time}"
       },
       "Skills": {
         "add": "Add a skill",

@@ -884,6 +884,21 @@
       "loading": "Dokument wird geladen…",
       "fetchError": "Dieses Dokument konnte nicht geladen werden."
     },
+    "VoicePlayer": {
+      "play": "{name} abspielen",
+      "pause": "Pause",
+      "seek": "Wiedergabeposition",
+      "position": "{current} von {total}",
+      "speed": "Wiedergabegeschwindigkeit {rate}×",
+      "download": "{name} herunterladen",
+      "transcript": "Transkript",
+      "addTranscript": "Transkript hinzufügen",
+      "editTranscript": "Transkript bearbeiten",
+      "transcriptHint": "Schreibe auf, was gesagt wurde. Es wird in dieser Nachricht gespeichert, sodass alle in dieser Unterhaltung es lesen und durchsuchen können. Lass das Feld leer, um das Transkript zu entfernen.",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "transcriptNotSaved": "Das Transkript wurde nicht gespeichert. Versuche es gleich noch einmal oder kürze es, falls die Nachricht zu lang ist."
+    },
     "UserCombobox": {
       "placeholder": "Select a user",
       "search": "Search users by name or email…",
@@ -8949,7 +8964,14 @@
         "removeAttachment": "{name} entfernen",
         "attachmentFallback": "file",
         "showFormatting": "Formatierung anzeigen",
-        "hideFormatting": "Formatierung ausblenden"
+        "hideFormatting": "Formatierung ausblenden",
+        "recordVoice": "Sprachnachricht aufnehmen",
+        "stopVoice": "Beenden und anhängen",
+        "cancelVoice": "Aufnahme verwerfen",
+        "voiceRecording": "Sprachnachricht wird aufgenommen",
+        "voiceBlocked": "Erlaube den Mikrofonzugriff im Browser, um eine Sprachnachricht aufzunehmen.",
+        "voiceFailed": "Aufnahme abgebrochen. Versuche es erneut.",
+        "voiceFileName": "Sprachnachricht {time}"
       },
       "Skills": {
         "add": "Skill hinzufügen",
