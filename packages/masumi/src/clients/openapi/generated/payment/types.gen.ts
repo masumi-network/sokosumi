@@ -450,6 +450,10 @@ export type Payment = {
          * SHA256 hash of the result to be submitted (hex string). Null if not applicable
          */
         resultHash: string | null;
+        /**
+         * When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it
+         */
+        manualActionAcknowledgedAt?: Date | null;
     };
     /**
      * Historical list of all actions for this payment. Null if includeHistory is false
@@ -825,6 +829,10 @@ export type Purchase = {
          * Additional details about the error, if any
          */
         errorNote: string | null;
+        /**
+         * When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it
+         */
+        manualActionAcknowledgedAt?: Date | null;
     };
     /**
      * Historical list of all actions for this purchase. Null if includeHistory is false
@@ -1050,9 +1058,29 @@ export type AgentMetadata = {
          */
         description?: string | null;
         /**
-         * Base URL of the agent API for interactions
+         * Primary interaction URL: MIP api base, x402 manifest URL, or OpenAPI spec URL
          */
         apiBaseUrl: string;
+        /**
+         * Registry entry type when encoded on-chain
+         */
+        type?: 'Standard' | 'OpenApi' | 'X402' | 'A2A';
+        /**
+         * OpenAPI spec URL for OpenApi registry entries
+         */
+        openApiSpecUrl?: string;
+        /**
+         * x402 manifest URL for X402 registry entries
+         */
+        x402ResourcesUrl?: string;
+        /**
+         * Agent Card URL for A2A registry entries
+         */
+        a2aAgentCardUrl?: string;
+        /**
+         * Declared A2A protocol versions
+         */
+        a2aProtocolVersions?: Array<string>;
         /**
          * List of example outputs from the agent
          */
@@ -1407,9 +1435,29 @@ export type AgentIdentifierMetadata = {
          */
         description?: string | null;
         /**
-         * Base URL of the agent API for interactions
+         * Primary interaction URL: MIP api base, x402 manifest URL, or OpenAPI spec URL
          */
         apiBaseUrl: string;
+        /**
+         * Registry entry type when encoded on-chain
+         */
+        type?: 'Standard' | 'OpenApi' | 'X402' | 'A2A';
+        /**
+         * OpenAPI spec URL for OpenApi registry entries
+         */
+        openApiSpecUrl?: string;
+        /**
+         * x402 manifest URL for X402 registry entries
+         */
+        x402ResourcesUrl?: string;
+        /**
+         * Agent Card URL for A2A registry entries
+         */
+        a2aAgentCardUrl?: string;
+        /**
+         * Declared A2A protocol versions
+         */
+        a2aProtocolVersions?: Array<string>;
         /**
          * List of example outputs from the agent
          */
@@ -1738,6 +1786,151 @@ export type AgentIdentifierMetadata = {
     };
 };
 
+export type RegistryListEntry = RegistryEntry & {
+    supportedPaymentSources?: Array<({
+        /**
+         * The blockchain this payment source is available on
+         */
+        chain: 'Cardano';
+        /**
+         * The Cardano network this payment source is available on
+         */
+        network: 'Preprod' | 'Mainnet';
+        /**
+         * The configured payment source type
+         */
+        paymentSourceType: 'Web3CardanoV1' | 'Web3CardanoV2';
+        /**
+         * The escrow smart contract address for this payment source
+         */
+        address: string;
+        pricing: {
+            /**
+             * A fixed amount is advertised for this payment source
+             */
+            pricingType: 'Fixed';
+            fixed: Array<{
+                /**
+                 * Chain-native asset identifier
+                 */
+                asset: string;
+                /**
+                 * Atomic token amount
+                 */
+                amount: string;
+                /**
+                 * Asset decimals when required by the rail
+                 */
+                decimals?: number;
+            }>;
+        } | {
+            /**
+             * The exact positive amount is supplied dynamically for each payment request
+             */
+            pricingType: 'Dynamic';
+            dynamic?: [
+                {
+                    /**
+                     * Optional accepted asset identifier
+                     */
+                    asset: string;
+                    /**
+                     * Asset decimals when required by the rail
+                     */
+                    decimals?: number;
+                }
+            ];
+        } | {
+            /**
+             * This payment source does not require payment
+             */
+            pricingType: 'Free';
+        };
+    } | {
+        /**
+         * The chain family used by standard x402
+         */
+        chain: 'EVM';
+        /**
+         * CAIP-2 EVM network id, for example eip155:8453
+         */
+        network: string;
+        /**
+         * The configured payment source type
+         */
+        paymentSourceType?: 'Web3CardanoV1' | 'Web3CardanoV2' | null;
+        /**
+         * Alias for payTo, kept for existing payment-source shape
+         */
+        address?: string;
+        /**
+         * x402 payment scheme
+         */
+        scheme: 'Exact';
+        /**
+         * EVM address receiving the x402 payment
+         */
+        payTo: string;
+        /**
+         * Optional absolute resource URL this x402 option protects
+         */
+        resource?: string;
+        /**
+         * Additional x402 metadata
+         */
+        extra?: {
+            [key: string]: unknown;
+        };
+        pricing: {
+            /**
+             * A fixed amount is advertised for this payment source
+             */
+            pricingType: 'Fixed';
+            fixed: Array<{
+                /**
+                 * Chain-native asset identifier
+                 */
+                asset: string;
+                /**
+                 * Atomic token amount
+                 */
+                amount: string;
+                /**
+                 * Asset decimals when required by the rail
+                 */
+                decimals?: number;
+            }>;
+        } | {
+            /**
+             * The exact positive amount is supplied dynamically for each payment request
+             */
+            pricingType: 'Dynamic';
+            dynamic?: [
+                {
+                    /**
+                     * Optional accepted asset identifier
+                     */
+                    asset: string;
+                    /**
+                     * Asset decimals when required by the rail
+                     */
+                    decimals?: number;
+                }
+            ];
+        } | {
+            /**
+             * This payment source does not require payment
+             */
+            pricingType: 'Free';
+        };
+    }) & {
+        /**
+         * Payment-node source row ID for x402 verify/settle. May change when sources are replaced.
+         */
+        id: string;
+    }> | null;
+};
+
 export type RegistryEntry = {
     /**
      * Error message if registration failed. Null if no error
@@ -1756,11 +1949,11 @@ export type RegistryEntry = {
      */
     description: string | null;
     /**
-     * The agent access model. Standard for legacy/untyped entries; OpenApi or X402 otherwise
+     * The agent access model. Standard for legacy/untyped entries; OpenApi, X402, or A2A otherwise
      */
-    type: 'Standard' | 'OpenApi' | 'X402';
+    type: 'Standard' | 'OpenApi' | 'X402' | 'A2A';
     /**
-     * Base URL of the agent API for interactions. Null for OpenApi/X402 agents
+     * Base URL of the agent API for interactions. Null for OpenApi/X402 agents; required for A2A agents alongside a2aAgentCardUrl
      */
     apiBaseUrl: string | null;
     /**
@@ -1771,6 +1964,18 @@ export type RegistryEntry = {
      * URL to the agent x402 resource manifest JSON. Null unless the agent is X402-type
      */
     x402ResourcesUrl: string | null;
+    /**
+     * URL to the agent MIP-002 Agent Card JSON. Null unless the agent is A2A-type
+     */
+    a2aAgentCardUrl: string | null;
+    /**
+     * A2A protocol versions this agent declares support for. Empty for non-A2A agents
+     */
+    a2aProtocolVersions: Array<string>;
+    /**
+     * Which payment source version (V1/V2) this registry entry is registered under
+     */
+    paymentSourceType: 'Web3CardanoV1' | 'Web3CardanoV2';
     /**
      * Information about the AI model and version used by the agent
      */
@@ -3115,18 +3320,46 @@ export type HydraHost = {
     publicPeerHost: string;
     hasAdminToken: boolean;
     hydraVersion: string | null;
+    release: DescribedRelease;
     scriptCatalogueHash: string | null;
     ledgerParamsHash: string | null;
     status: 'Active' | 'Draining' | 'Unreachable' | 'Disabled';
     lastHealthAt: string | null;
+    /**
+     * Why the last probe failed: one failed check per line. Null when it passed
+     */
     lastHealthError: string | null;
     participantCount: number;
+    /**
+     * Set while the Host is paused for maintenance
+     */
+    pausedAt: string | null;
+};
+
+/**
+ * Project release of the Host image, as of the last Check
+ */
+export type DescribedRelease = {
+    /**
+     * `git describe` form, e.g. 0.29.0-5-gabc1234, or a bare tag
+     */
+    version: string | null;
+    commit: string | null;
+    /**
+     * Release tag the build starts from
+     */
+    tag: string | null;
+    /**
+     * Commits on top of the tag; 0 for the tag itself
+     */
+    commitsAhead: number | null;
+    dirty: boolean;
 };
 
 export type HydraRelationDetail = HydraRelation & {
     Heads?: Array<{
         id: string;
-        status: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'Final';
+        status: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'FanningOut' | 'Final';
         headIdentifier: string | null;
         isEnabled: boolean;
         createdAt: Date;
@@ -3172,7 +3405,7 @@ export type HydraHead = {
     updatedAt: string;
     hydraRelationId: string;
     headIdentifier: string | null;
-    status: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'Final';
+    status: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'FanningOut' | 'Final';
     contestationPeriod: string;
     isEnabled: boolean;
     openedAt: string | null;
@@ -3196,6 +3429,15 @@ export type HydraHead = {
     initTxHash: string | null;
     closeTxHash: string | null;
     fanoutTxHash: string | null;
+    /**
+     * When an operator retired this head because it cannot reach Final
+     */
+    retiredAt: string | null;
+    retiredReason: string | null;
+    /**
+     * L1 tx holding the head output at retirement
+     */
+    retiredHeadOutputTxHash: string | null;
     /**
      * Which side of the invite exchange this head came from; absent for heads not created from one
      */
@@ -3247,6 +3489,30 @@ export type HydraHead = {
     };
 };
 
+export type HydraHostPauseState = {
+    hostId: string;
+    /**
+     * Draining: new work refused, waiting for in-flight work. Stopping: nodes asked to stop. Paused: every node reports Stopped.
+     */
+    phase: 'Active' | 'Draining' | 'Stopping' | 'Paused';
+    pausedAt: string | null;
+    pauseStopRequestedAt: string | null;
+    inFlight: {
+        l2Transactions: number;
+        topups: number;
+        withdrawals: number;
+        /**
+         * Heads closing or in their dispute window. The nodes stay up until these settle.
+         */
+        closingHeads: number;
+    };
+    nodes: Array<{
+        nodeId: string;
+        state: string | null;
+        error: string | null;
+    }>;
+};
+
 export type HydraLowBalanceRule = {
     id: string;
     createdAt: string;
@@ -3257,6 +3523,9 @@ export type HydraLowBalanceRule = {
     enabled: boolean;
     topupEnabled: boolean;
     topupAmount: string | null;
+    /**
+     * Last evaluated state. A Low rule stays Low on a reading the history replay has not checked, so lastKnownAmount can be at or above the threshold while it is Low.
+     */
     status: 'Unknown' | 'Healthy' | 'Low';
     lastKnownAmount: string | null;
     lastCheckedAt: string | null;
@@ -3280,7 +3549,7 @@ export type HydraLocalParticipant = {
         walletAddress: string;
     };
     HydraHead?: {
-        status: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'Final';
+        status: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'FanningOut' | 'Final';
     } | null;
     keysDisclosedAt: Date | null;
 };
@@ -3416,6 +3685,13 @@ export type TxSyncQuarantineEntry = {
         network: 'Preprod' | 'Mainnet';
         smartContractAddress: string;
     };
+};
+
+export type ReleaseWithUpdate = DescribedRelease & {
+    /**
+     * Null when it cannot be told: no latest release known, or a build without a release tag
+     */
+    updateAvailable: boolean | null;
 };
 
 export type GetHealthData = {
@@ -3580,6 +3856,10 @@ export type GetWalletListData = {
          * Filter to wallets with this Cardano address
          */
         walletAddress?: string;
+        /**
+         * Free-text search applied before pagination, so a wallet beyond the first page is still found. Matches wallet address, collection address, note, payment key hash and id (case-insensitive substring), and the wallet type by either its API name ("Purchasing") or the label the admin UI renders ("Buying"). "%" and "_" are matched literally. Balance is not searchable: it is read from the chain, not stored. Combined with the exact filters above as a logical AND.
+         */
+        searchQuery?: string;
     };
     url: '/wallet/list';
 };
@@ -4167,7 +4447,7 @@ export type PatchApiKeyData = {
          */
         UsageCreditsToAddOrRemove?: Array<{
             /**
-             * Asset policy id + asset name concatenated. Use an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA). For x402/EVM spending the unit is chain-qualified as "<caip2Network>:<assetAddress>" (lowercased), e.g. "eip155:8453:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", or "<caip2Network>:native" for the gas token.
+             * Asset policy id + asset name concatenated. Use an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA); "lovelace" is accepted and stored as the empty string. For x402/EVM spending the unit is chain-qualified as "<caip2Network>:<assetAddress>" (lowercased), e.g. "eip155:8453:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913". Gas-token units are not supported.
              */
             unit: string;
             /**
@@ -4176,11 +4456,11 @@ export type PatchApiKeyData = {
             amount: string;
         }>;
         /**
-         * Whether the API key is usage limited
+         * Whether the API key is usage limited. Omit to leave it unchanged.
          */
         usageLimited?: boolean;
         /**
-         * The status of the API key
+         * The status of the API key. Omit to leave it unchanged.
          */
         status?: 'Active' | 'Revoked';
         /**
@@ -4255,7 +4535,7 @@ export type PatchApiKeyResponse = PatchApiKeyResponses[keyof PatchApiKeyResponse
 export type PostApiKeyData = {
     body?: {
         /**
-         * Whether the API key is usage limited. Meaning only allowed to use the specified credits or can freely spend
+         * Whether the API key is usage limited. Meaning only allowed to use the specified credits or can freely spend. Omitted defaults to true for non-admin keys; admin keys are never usage limited.
          */
         usageLimited?: string;
         /**
@@ -4263,7 +4543,7 @@ export type PostApiKeyData = {
          */
         UsageCredits: Array<{
             /**
-             * Asset policy id + asset name concatenated. Use an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA). For x402/EVM spending the unit is chain-qualified as "<caip2Network>:<assetAddress>" (lowercased), e.g. "eip155:8453:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", or "<caip2Network>:native" for the gas token.
+             * Asset policy id + asset name concatenated. Use an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA); "lovelace" is accepted and stored as the empty string. For x402/EVM spending the unit is chain-qualified as "<caip2Network>:<assetAddress>" (lowercased), e.g. "eip155:8453:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913". Gas-token units are not supported.
              */
             unit: string;
             /**
@@ -4280,7 +4560,7 @@ export type PostApiKeyData = {
          */
         ChainIdLimit?: Array<string>;
         /**
-         * [DEPRECATED] The permission of the API key. Use canRead/canPay/canAdmin flags instead. Will be removed in a future version.
+         * [DEPRECATED] The permission of the API key. Use canRead/canPay/canAdmin flags instead. Will be removed in a future version. Omitted means read-only; sending it together with contradictory canRead/canPay/canAdmin flags is rejected.
          */
         permission?: 'Read' | 'ReadAndPay' | 'Admin';
         /**
@@ -4876,6 +5156,52 @@ export type PostWalletTransferFundsResponses = {
 
 export type PostWalletTransferFundsResponse = PostWalletTransferFundsResponses[keyof PostWalletTransferFundsResponses];
 
+export type PostWalletConsolidateData = {
+    /**
+     * Consolidation request
+     */
+    body?: {
+        /**
+         * The Cardano address of the hot wallet whose UTxOs to merge
+         */
+        walletAddress: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/wallet/consolidate';
+};
+
+export type PostWalletConsolidateErrors = {
+    /**
+     * Bad Request (fewer than two UTxOs, under 4 ADA in the wallet, over 150 UTxOs, or over 40 distinct assets)
+     */
+    400: unknown;
+    /**
+     * Not Found (wallet not found)
+     */
+    404: unknown;
+    /**
+     * Conflict (the wallet is mid-transaction, or a fund transfer from it is still pending)
+     */
+    409: unknown;
+    /**
+     * Bad Gateway (the chain provider could not list the wallet UTxOs)
+     */
+    502: unknown;
+};
+
+export type PostWalletConsolidateResponses = {
+    /**
+     * Consolidation queued
+     */
+    200: {
+        status: 'success';
+        data: WalletFundTransfer;
+    };
+};
+
+export type PostWalletConsolidateResponse = PostWalletConsolidateResponses[keyof PostWalletConsolidateResponses];
+
 export type GetPaymentData = {
     body?: never;
     path?: never;
@@ -4905,7 +5231,7 @@ export type GetPaymentData = {
          */
         filterPaymentSourceType?: 'Web3CardanoV1' | 'Web3CardanoV2';
         /**
-         * When true, only returns payments that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it
+         * When true, only returns payments that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it. Rows acknowledged via acknowledge-manual-action are left out until the action or the error changes
          */
         filterNeedsManualAction?: string;
         /**
@@ -5175,6 +5501,10 @@ export type PostPaymentResponses = {
                  * SHA256 hash of the result to be submitted (hex string). Null if not applicable
                  */
                 resultHash: string | null;
+                /**
+                 * When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it
+                 */
+                manualActionAcknowledgedAt?: Date | null;
             };
             /**
              * Current active transaction for this payment. Null if no transaction in progress
@@ -5471,7 +5801,7 @@ export type GetPaymentCountData = {
          */
         network: 'Preprod' | 'Mainnet';
         /**
-         * When true, only counts payments that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it
+         * When true, only counts payments that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it. Rows acknowledged via acknowledge-manual-action are left out until the action or the error changes
          */
         filterNeedsManualAction?: string;
         /**
@@ -5524,7 +5854,7 @@ export type GetPurchaseCountData = {
          */
         network: 'Preprod' | 'Mainnet';
         /**
-         * When true, only counts purchases that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it
+         * When true, only counts purchases that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it. Rows acknowledged via acknowledge-manual-action are left out until the action or the error changes
          */
         filterNeedsManualAction?: string;
         /**
@@ -5810,6 +6140,10 @@ export type PostPaymentSubmitResultResponses = {
                  * SHA256 hash of the result to be submitted (hex string). Null if not applicable
                  */
                 resultHash: string | null;
+                /**
+                 * When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it
+                 */
+                manualActionAcknowledgedAt?: Date | null;
             };
             /**
              * Current active transaction for this payment. Null if no transaction in progress
@@ -6140,6 +6474,10 @@ export type PostPaymentAuthorizeRefundResponses = {
                  * SHA256 hash of the result to be submitted (hex string). Null if not applicable
                  */
                 resultHash: string | null;
+                /**
+                 * When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it
+                 */
+                manualActionAcknowledgedAt?: Date | null;
             };
             /**
              * Current active transaction for this payment. Null if no transaction in progress
@@ -6490,6 +6828,10 @@ export type PostPaymentErrorStateRecoveryResponses = {
                  * SHA256 hash of the result to be submitted (hex string). Null if not applicable
                  */
                 resultHash: string | null;
+                /**
+                 * When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it
+                 */
+                manualActionAcknowledgedAt?: Date | null;
             };
             /**
              * Current active transaction for this payment. Null if no transaction in progress
@@ -6839,6 +7181,10 @@ export type PostPurchaseErrorStateRecoveryResponses = {
                  * Additional details about the error, if any
                  */
                 errorNote: string | null;
+                /**
+                 * When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it
+                 */
+                manualActionAcknowledgedAt?: Date | null;
             };
             /**
              * Current active transaction for this purchase. Null if no transaction in progress
@@ -7716,7 +8062,7 @@ export type GetPurchaseData = {
          */
         filterPaymentSourceType?: 'Web3CardanoV1' | 'Web3CardanoV2';
         /**
-         * When true, only returns purchases that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it
+         * When true, only returns purchases that require manual resolution: the next action is WaitingForManualAction or an error was recorded on it. Rows acknowledged via acknowledge-manual-action are left out until the action or the error changes
          */
         filterNeedsManualAction?: string;
         /**
@@ -8004,6 +8350,10 @@ export type PostPurchaseErrors = {
                  * Additional details about the error, if any
                  */
                 errorNote: string | null;
+                /**
+                 * When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it
+                 */
+                manualActionAcknowledgedAt?: Date | null;
             };
             /**
              * Current active transaction for this purchase. Null if no transaction in progress
@@ -8259,6 +8609,10 @@ export type PostPurchaseResponses = {
                  * Additional details about the error, if any
                  */
                 errorNote: string | null;
+                /**
+                 * When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it
+                 */
+                manualActionAcknowledgedAt?: Date | null;
             };
             /**
              * Current active transaction for this purchase. Null if no transaction in progress
@@ -8793,6 +9147,10 @@ export type PostPurchaseRequestRefundResponses = {
                  * Additional details about the error, if any
                  */
                 errorNote: string | null;
+                /**
+                 * When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it
+                 */
+                manualActionAcknowledgedAt?: Date | null;
             };
             /**
              * Current active transaction for this purchase. Null if no transaction in progress
@@ -9084,6 +9442,10 @@ export type PostPurchaseCancelRefundRequestResponses = {
                  * Additional details about the error, if any
                  */
                 errorNote: string | null;
+                /**
+                 * When an operator acknowledged this action and hid it from Needs Action. Null if not acknowledged. Omitted by endpoints that do not load it
+                 */
+                manualActionAcknowledgedAt?: Date | null;
             };
             /**
              * Current active transaction for this purchase. Null if no transaction in progress
@@ -9510,7 +9872,7 @@ export type GetRegistryResponses = {
     200: {
         status: string;
         data: {
-            Assets: Array<RegistryEntry>;
+            Assets: Array<RegistryListEntry>;
         };
     };
 };
@@ -9524,9 +9886,9 @@ export type PostRegistryData = {
          */
         network: 'Preprod' | 'Mainnet';
         /**
-         * The agent access model. Defaults to Standard when omitted (Standard emits no on-chain type field for backwards compatibility). Standard requires apiBaseUrl; OpenApi requires openApiSpecUrl; X402 advertises priced resources.
+         * The agent access model. Defaults to Standard when omitted (Standard emits no on-chain type field for backwards compatibility). Standard requires apiBaseUrl; OpenApi requires openApiSpecUrl; X402 advertises priced resources; A2A (V2 payment sources only) requires both apiBaseUrl and a2aAgentCardUrl plus a2aProtocolVersions.
          */
-        type?: 'Standard' | 'OpenApi' | 'X402';
+        type?: 'Standard' | 'OpenApi' | 'X402' | 'A2A';
         /**
          * The payment key of a specific wallet used for the registration
          */
@@ -9790,6 +10152,18 @@ export type PostRegistryData = {
          */
         x402ResourcesUrl?: string;
         /**
+         * URL to the agent MIP-002 Agent Card JSON document. Required for A2A-type agents (V2 payment sources only), alongside apiBaseUrl; omit for others.
+         */
+        a2aAgentCardUrl?: string;
+        /**
+         * A2A protocol versions this agent declares support for. Required and non-empty for A2A-type agents; every value must appear in the fetched Agent Card protocolVersions. Omit for other types.
+         */
+        a2aProtocolVersions?: Array<string>;
+        /**
+         * A2A-only override: when true, skip fetching/validating the Agent Card before registering. Ignored for other types.
+         */
+        skipAgentCardValidation?: boolean;
+        /**
          * Description of the agent
          */
         description: string;
@@ -9948,7 +10322,7 @@ export type GetRegistryDiffResponses = {
     200: {
         status: string;
         data: {
-            Assets: Array<RegistryEntry>;
+            Assets: Array<RegistryListEntry>;
         };
     };
 };
@@ -9994,9 +10368,9 @@ export type PostRegistryUpdateData = {
          */
         network: 'Preprod' | 'Mainnet';
         /**
-         * The agent access model. Defaults to Standard when omitted (Standard emits no on-chain type field for backwards compatibility). Standard requires apiBaseUrl; OpenApi requires openApiSpecUrl; X402 advertises priced resources.
+         * The agent access model. Defaults to Standard when omitted (Standard emits no on-chain type field for backwards compatibility). Standard requires apiBaseUrl; OpenApi requires openApiSpecUrl; X402 advertises priced resources; A2A (V2 payment sources only) requires both apiBaseUrl and a2aAgentCardUrl plus a2aProtocolVersions.
          */
-        type?: 'Standard' | 'OpenApi' | 'X402';
+        type?: 'Standard' | 'OpenApi' | 'X402' | 'A2A';
         /**
          * Optional managed hot wallet address on the same payment source that should receive the minted registry NFT. If omitted, the minting wallet receives it.
          */
@@ -10255,6 +10629,18 @@ export type PostRegistryUpdateData = {
          * URL to the agent self-hosted x402 resource manifest (e.g. /.well-known/x402.json): a JSON document listing this agent resources, each { resource, type (http|mcp), inputSchema?, outputSchema? }. Payment stays agent-level (supportedPaymentSources), not per resource. Required for X402-type agents; omit for others.
          */
         x402ResourcesUrl?: string;
+        /**
+         * URL to the agent MIP-002 Agent Card JSON document. Required for A2A-type agents (V2 payment sources only), alongside apiBaseUrl; omit for others.
+         */
+        a2aAgentCardUrl?: string;
+        /**
+         * A2A protocol versions this agent declares support for. Required and non-empty for A2A-type agents; every value must appear in the fetched Agent Card protocolVersions. Omit for other types.
+         */
+        a2aProtocolVersions?: Array<string>;
+        /**
+         * A2A-only override: when true, skip fetching/validating the Agent Card before registering. Ignored for other types.
+         */
+        skipAgentCardValidation?: boolean;
         /**
          * Description of the agent
          */
@@ -11000,6 +11386,10 @@ export type PostPaymentIncomeData = {
          * Filter by payment source type. When omitted, income totals default to Web3CardanoV1 for backwards compatibility.
          */
         filterPaymentSourceType?: 'Web3CardanoV1' | 'Web3CardanoV2';
+        /**
+         * cardano: escrow paymentRequest income (default). x402: seller-side settled x402 attempts for the agentIdentifier on this payment node.
+         */
+        paymentRail?: 'cardano' | 'x402';
     };
     path?: never;
     query?: never;
@@ -11258,7 +11648,7 @@ export type GetWebhooksResponses = {
                 id: string;
                 url: string;
                 format: 'EXTENDED' | 'SLACK' | 'GOOGLE_CHAT' | 'DISCORD';
-                Events: Array<'PURCHASE_ON_CHAIN_STATUS_CHANGED' | 'PAYMENT_ON_CHAIN_STATUS_CHANGED' | 'PURCHASE_ON_ERROR' | 'PAYMENT_ON_ERROR' | 'WALLET_LOW_BALANCE' | 'FUND_DISTRIBUTION_SENT' | 'FUND_DISTRIBUTION_CONFIRMED' | 'FUND_DISTRIBUTION_FAILED' | 'X402_PAYMENT_SETTLED' | 'X402_PAYMENT_FAILED' | 'X402_WALLET_LOW_BALANCE' | 'HYDRA_HEAD_LOW_BALANCE'>;
+                Events: Array<'PURCHASE_ON_CHAIN_STATUS_CHANGED' | 'PAYMENT_ON_CHAIN_STATUS_CHANGED' | 'PURCHASE_ON_ERROR' | 'PAYMENT_ON_ERROR' | 'WALLET_LOW_BALANCE' | 'FUND_DISTRIBUTION_SENT' | 'FUND_DISTRIBUTION_CONFIRMED' | 'FUND_DISTRIBUTION_FAILED' | 'X402_PAYMENT_SETTLED' | 'X402_PAYMENT_FAILED' | 'X402_WALLET_LOW_BALANCE' | 'HYDRA_HEAD_LOW_BALANCE' | 'HYDRA_HEAD_SNAPSHOT_ROUND_STUCK' | 'HYDRA_HEAD_POST_TX_FAILED' | 'HYDRA_HEAD_CONTEST_MISSING'>;
                 name: string | null;
                 isActive: boolean;
                 createdAt: Date;
@@ -11292,7 +11682,7 @@ export type PatchWebhooksData = {
          */
         url: string;
         /**
-         * Authentication token for extended webhook requests. Required when format is EXTENDED
+         * Authentication token for extended webhook requests. Omit to keep the stored token; required when changing a webhook to EXTENDED
          */
         authToken?: string | null;
         /**
@@ -11302,7 +11692,7 @@ export type PatchWebhooksData = {
         /**
          * Array of event types to subscribe to
          */
-        Events: Array<'PURCHASE_ON_CHAIN_STATUS_CHANGED' | 'PAYMENT_ON_CHAIN_STATUS_CHANGED' | 'PURCHASE_ON_ERROR' | 'PAYMENT_ON_ERROR' | 'WALLET_LOW_BALANCE' | 'FUND_DISTRIBUTION_SENT' | 'FUND_DISTRIBUTION_CONFIRMED' | 'FUND_DISTRIBUTION_FAILED' | 'X402_PAYMENT_SETTLED' | 'X402_PAYMENT_FAILED' | 'X402_WALLET_LOW_BALANCE' | 'HYDRA_HEAD_LOW_BALANCE'>;
+        Events: Array<'PURCHASE_ON_CHAIN_STATUS_CHANGED' | 'PAYMENT_ON_CHAIN_STATUS_CHANGED' | 'PURCHASE_ON_ERROR' | 'PAYMENT_ON_ERROR' | 'WALLET_LOW_BALANCE' | 'FUND_DISTRIBUTION_SENT' | 'FUND_DISTRIBUTION_CONFIRMED' | 'FUND_DISTRIBUTION_FAILED' | 'X402_PAYMENT_SETTLED' | 'X402_PAYMENT_FAILED' | 'X402_WALLET_LOW_BALANCE' | 'HYDRA_HEAD_LOW_BALANCE' | 'HYDRA_HEAD_SNAPSHOT_ROUND_STUCK' | 'HYDRA_HEAD_POST_TX_FAILED' | 'HYDRA_HEAD_CONTEST_MISSING'>;
         /**
          * Human-readable name for the webhook
          */
@@ -11350,7 +11740,7 @@ export type PatchWebhooksResponses = {
             id: string;
             url: string;
             format: 'EXTENDED' | 'SLACK' | 'GOOGLE_CHAT' | 'DISCORD';
-            Events: Array<'PURCHASE_ON_CHAIN_STATUS_CHANGED' | 'PAYMENT_ON_CHAIN_STATUS_CHANGED' | 'PURCHASE_ON_ERROR' | 'PAYMENT_ON_ERROR' | 'WALLET_LOW_BALANCE' | 'FUND_DISTRIBUTION_SENT' | 'FUND_DISTRIBUTION_CONFIRMED' | 'FUND_DISTRIBUTION_FAILED' | 'X402_PAYMENT_SETTLED' | 'X402_PAYMENT_FAILED' | 'X402_WALLET_LOW_BALANCE' | 'HYDRA_HEAD_LOW_BALANCE'>;
+            Events: Array<'PURCHASE_ON_CHAIN_STATUS_CHANGED' | 'PAYMENT_ON_CHAIN_STATUS_CHANGED' | 'PURCHASE_ON_ERROR' | 'PAYMENT_ON_ERROR' | 'WALLET_LOW_BALANCE' | 'FUND_DISTRIBUTION_SENT' | 'FUND_DISTRIBUTION_CONFIRMED' | 'FUND_DISTRIBUTION_FAILED' | 'X402_PAYMENT_SETTLED' | 'X402_PAYMENT_FAILED' | 'X402_WALLET_LOW_BALANCE' | 'HYDRA_HEAD_LOW_BALANCE' | 'HYDRA_HEAD_SNAPSHOT_ROUND_STUCK' | 'HYDRA_HEAD_POST_TX_FAILED' | 'HYDRA_HEAD_CONTEST_MISSING'>;
             name: string | null;
             isActive: boolean;
             createdAt: Date;
@@ -11382,7 +11772,7 @@ export type PostWebhooksData = {
         /**
          * Array of event types to subscribe to
          */
-        Events: Array<'PURCHASE_ON_CHAIN_STATUS_CHANGED' | 'PAYMENT_ON_CHAIN_STATUS_CHANGED' | 'PURCHASE_ON_ERROR' | 'PAYMENT_ON_ERROR' | 'WALLET_LOW_BALANCE' | 'FUND_DISTRIBUTION_SENT' | 'FUND_DISTRIBUTION_CONFIRMED' | 'FUND_DISTRIBUTION_FAILED' | 'X402_PAYMENT_SETTLED' | 'X402_PAYMENT_FAILED' | 'X402_WALLET_LOW_BALANCE' | 'HYDRA_HEAD_LOW_BALANCE'>;
+        Events: Array<'PURCHASE_ON_CHAIN_STATUS_CHANGED' | 'PAYMENT_ON_CHAIN_STATUS_CHANGED' | 'PURCHASE_ON_ERROR' | 'PAYMENT_ON_ERROR' | 'WALLET_LOW_BALANCE' | 'FUND_DISTRIBUTION_SENT' | 'FUND_DISTRIBUTION_CONFIRMED' | 'FUND_DISTRIBUTION_FAILED' | 'X402_PAYMENT_SETTLED' | 'X402_PAYMENT_FAILED' | 'X402_WALLET_LOW_BALANCE' | 'HYDRA_HEAD_LOW_BALANCE' | 'HYDRA_HEAD_SNAPSHOT_ROUND_STUCK' | 'HYDRA_HEAD_POST_TX_FAILED' | 'HYDRA_HEAD_CONTEST_MISSING'>;
         /**
          * Human-readable name for the webhook
          */
@@ -11430,7 +11820,7 @@ export type PostWebhooksResponses = {
             id: string;
             url: string;
             format: 'EXTENDED' | 'SLACK' | 'GOOGLE_CHAT' | 'DISCORD';
-            Events: Array<'PURCHASE_ON_CHAIN_STATUS_CHANGED' | 'PAYMENT_ON_CHAIN_STATUS_CHANGED' | 'PURCHASE_ON_ERROR' | 'PAYMENT_ON_ERROR' | 'WALLET_LOW_BALANCE' | 'FUND_DISTRIBUTION_SENT' | 'FUND_DISTRIBUTION_CONFIRMED' | 'FUND_DISTRIBUTION_FAILED' | 'X402_PAYMENT_SETTLED' | 'X402_PAYMENT_FAILED' | 'X402_WALLET_LOW_BALANCE' | 'HYDRA_HEAD_LOW_BALANCE'>;
+            Events: Array<'PURCHASE_ON_CHAIN_STATUS_CHANGED' | 'PAYMENT_ON_CHAIN_STATUS_CHANGED' | 'PURCHASE_ON_ERROR' | 'PAYMENT_ON_ERROR' | 'WALLET_LOW_BALANCE' | 'FUND_DISTRIBUTION_SENT' | 'FUND_DISTRIBUTION_CONFIRMED' | 'FUND_DISTRIBUTION_FAILED' | 'X402_PAYMENT_SETTLED' | 'X402_PAYMENT_FAILED' | 'X402_WALLET_LOW_BALANCE' | 'HYDRA_HEAD_LOW_BALANCE' | 'HYDRA_HEAD_SNAPSHOT_ROUND_STUCK' | 'HYDRA_HEAD_POST_TX_FAILED' | 'HYDRA_HEAD_CONTEST_MISSING'>;
             name: string | null;
             isActive: boolean;
             createdAt: Date;
@@ -13264,6 +13654,10 @@ export type PostFundDistributionTriggerResponse = PostFundDistributionTriggerRes
 export type DeleteHydraInviteData = {
     body?: {
         id: string;
+        /**
+         * Also cancel an invite the counterparty already redeemed but this service could not adopt. Its node is removed unless a head here claims it. For a redemption of someone else’s invite that is stuck here, this abandons it: the node is removed and the issuer is left with a head whose peer never joins.
+         */
+        discardRedemption?: boolean;
     };
     path?: never;
     query?: never;
@@ -13276,9 +13670,13 @@ export type DeleteHydraInviteErrors = {
      */
     401: unknown;
     /**
-     * Already redeemed, or not an invite we issued
+     * Already redeemed without discardRedemption, adopted meanwhile, or not an invite we issued
      */
     409: unknown;
+    /**
+     * Revoked here, but the Host refused to remove the node or forget the redemption
+     */
+    502: unknown;
 };
 
 export type DeleteHydraInviteResponses = {
@@ -13289,7 +13687,7 @@ export type DeleteHydraInviteResponses = {
         status: 'success';
         data: {
             id: string;
-            status: 'Issued' | 'Redeemed' | 'Started' | 'Completed' | 'Expired' | 'Revoked';
+            status: 'Issued' | 'Redeemed' | 'Started' | 'Completed' | 'Expired' | 'Revoked' | 'Failed';
         };
     };
 };
@@ -13301,7 +13699,7 @@ export type GetHydraInviteData = {
     path?: never;
     query?: {
         limit?: number;
-        status?: 'Issued' | 'Redeemed' | 'Started' | 'Completed' | 'Expired' | 'Revoked';
+        status?: 'Issued' | 'Redeemed' | 'Started' | 'Completed' | 'Expired' | 'Revoked' | 'Failed';
         /**
          * Filter by Cardano network
          */
@@ -13329,7 +13727,7 @@ export type GetHydraInviteResponses = {
                 nonce: string;
                 network: 'Preprod' | 'Mainnet';
                 role: 'Issuer' | 'Redeemer';
-                status: 'Issued' | 'Redeemed' | 'Started' | 'Completed' | 'Expired' | 'Revoked';
+                status: 'Issued' | 'Redeemed' | 'Started' | 'Completed' | 'Expired' | 'Revoked' | 'Failed';
                 createdAt: string;
                 expiresAt: string;
                 hydraHostId: string;
@@ -13361,7 +13759,7 @@ export type PostHydraInviteData = {
          */
         autoFund?: boolean;
         /**
-         * How long a deposit must settle before this head will take it. Both nodes run the value signed here. A top-up is unusable for one period and cannot be recovered for three. Defaults to 600 on preprod and 1200 on mainnet: on mainnet the funds are real, so the wait is what rules out a rollback before they count on L2.
+         * How long a deposit must settle before this head will take it — and, since this service always keeps hydra-node 2.4's deposit-activation equal to this same value, also how long before the deposit matures. Both nodes run the value signed here. A top-up is unusable until it matures, absorbable for one period after that, and cannot be recovered until two periods after it matures. Defaults to 600 on preprod and 1200 on mainnet: on mainnet the funds are real, so the wait is what rules out a rollback before they count on L2.
          */
         depositPeriodSeconds?: number;
         /**
@@ -13966,7 +14364,7 @@ export type GetHydraHeadData = {
         /**
          * Filter by head status
          */
-        status?: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'Final';
+        status?: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'FanningOut' | 'Final';
         /**
          * Filter by isEnabled
          */
@@ -14065,6 +14463,10 @@ export type PostHydraHeadInitData = {
 
 export type PostHydraHeadInitErrors = {
     /**
+     * Invalid input, or the head has no local participant
+     */
+    400: unknown;
+    /**
      * Unauthorized
      */
     401: unknown;
@@ -14073,9 +14475,21 @@ export type PostHydraHeadInitErrors = {
      */
     404: unknown;
     /**
-     * Head is not in a state that permits init
+     * Head is disabled, is not Idle, has its Hydra Host paused, is opened by the counterparty, or its node reports no numeric L2 maxTxSize or one above 15000
      */
     409: unknown;
+    /**
+     * The Hydra node could not be reached, or the InitTx could not be verified
+     */
+    502: unknown;
+    /**
+     * The node is behind the chain and did not post Init, or independent L1 evidence is not available yet
+     */
+    503: unknown;
+    /**
+     * The node failed to post the InitTx, Init did not confirm in time, or its outcome waits on the node catching up
+     */
+    504: unknown;
 };
 
 export type PostHydraHeadInitResponses = {
@@ -14086,7 +14500,7 @@ export type PostHydraHeadInitResponses = {
         status: 'success';
         data: {
             headId: string;
-            status: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'Final';
+            status: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'FanningOut' | 'Final';
         };
     };
 };
@@ -14118,6 +14532,10 @@ export type PostHydraHeadFanoutErrors = {
      * Head is not in a state that permits fanout
      */
     409: unknown;
+    /**
+     * The node is behind the chain and did not post the fanout
+     */
+    503: unknown;
 };
 
 export type PostHydraHeadFanoutResponses = {
@@ -14128,7 +14546,7 @@ export type PostHydraHeadFanoutResponses = {
         status: 'success';
         data: {
             headId: string;
-            status: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'Final';
+            status: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'FanningOut' | 'Final';
         };
     };
 };
@@ -14171,7 +14589,7 @@ export type PostHydraHeadCloseResponses = {
         status: 'success';
         data: {
             headId: string;
-            status: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'Final';
+            status: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'FanningOut' | 'Final';
         };
     };
 };
@@ -14237,6 +14655,10 @@ export type GetHydraHeadTopupData = {
          * The Hydra head whose top-ups to list
          */
         headId: string;
+        /**
+         * Inclusive cursor: the id of the last row already seen. It is returned again first.
+         */
+        cursorId?: string;
         limit?: number;
     };
     url: '/hydra/head/topup';
@@ -14355,6 +14777,10 @@ export type GetHydraHeadWithdrawData = {
          * The Hydra head whose withdrawals to list
          */
         headId: string;
+        /**
+         * Inclusive cursor: the id of the last row already seen. It is returned again first.
+         */
+        cursorId?: string;
         limit?: number;
     };
     url: '/hydra/head/withdraw';
@@ -14450,7 +14876,7 @@ export type PostHydraHeadWithdrawErrors = {
      */
     404: unknown;
     /**
-     * Head not open, disabled, not yet identified on chain, or its node is still catching up
+     * Head not open, disabled, not yet identified on chain, or its node is still catching up; a withdrawal is already in progress or still settling; `drain` while escrows are still live; or the wallet is busy
      */
     409: unknown;
     /**
@@ -14473,6 +14899,625 @@ export type PostHydraHeadWithdrawResponses = {
 };
 
 export type PostHydraHeadWithdrawResponse = PostHydraHeadWithdrawResponses[keyof PostHydraHeadWithdrawResponses];
+
+export type PostHydraHeadConsolidateData = {
+    body?: {
+        /**
+         * The Hydra head whose local wallet UTxOs to merge
+         */
+        headId: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/hydra/head/consolidate';
+};
+
+export type PostHydraHeadConsolidateErrors = {
+    /**
+     * Head has no local participant, or the wallet has nothing to consolidate
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Hydra head not found
+     */
+    404: unknown;
+    /**
+     * Head not open or disabled, its node is still catching up, a withdrawal is in progress or still settling, or the wallet is busy
+     */
+    409: unknown;
+    /**
+     * No live connection to the head
+     */
+    502: unknown;
+    /**
+     * The head accepted the self-send but did not confirm it in time
+     */
+    504: unknown;
+};
+
+export type PostHydraHeadConsolidateResponses = {
+    /**
+     * Consolidated
+     */
+    200: {
+        status: 'success';
+        data: {
+            headId: string;
+            /**
+             * The confirmed in-head self-send
+             */
+            txId: string;
+            /**
+             * UTxOs spent
+             */
+            inputCount: number;
+            /**
+             * UTxOs produced: one carrying everything, plus a pure-ADA collateral UTxO when the funds allow it
+             */
+            outputCount: number;
+            /**
+             * Eligible UTxOs left for another round, because one round spends at most 100. Non-zero means call again.
+             */
+            remainingCount: number;
+        };
+    };
+};
+
+export type PostHydraHeadConsolidateResponse = PostHydraHeadConsolidateResponses[keyof PostHydraHeadConsolidateResponses];
+
+export type GetHydraHeadSnapshotRoundData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * The Hydra head to inspect
+         */
+        headId: string;
+    };
+    url: '/hydra/head/snapshot-round';
+};
+
+export type GetHydraHeadSnapshotRoundErrors = {
+    /**
+     * Head has no local participant
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Hydra head not found
+     */
+    404: unknown;
+    /**
+     * Head not open
+     */
+    409: unknown;
+    /**
+     * No live connection to the head, or the node did not answer
+     */
+    502: unknown;
+};
+
+export type GetHydraHeadSnapshotRoundResponses = {
+    /**
+     * Snapshot round
+     */
+    200: {
+        status: 'success';
+        data: {
+            headId: string;
+            /**
+             * Whether our node reports a snapshot round in flight
+             */
+            inFlight: boolean;
+            /**
+             * The last-seen tag our node reports, for example SeenSnapshot or LastSeenSnapshot
+             */
+            tag: string;
+            /**
+             * The snapshot number under signature, if named
+             */
+            snapshotNumber: number | null;
+            /**
+             * Parties that have signed the round so far
+             */
+            signatoryCount: number;
+            /**
+             * Unconfirmed transactions the round would confirm, and a reset would drop
+             */
+            txIds: Array<string>;
+            /**
+             * Identifies this exact round. A reset must send it back unchanged.
+             */
+            signature: string;
+            /**
+             * When this exact round was first recorded
+             */
+            since: string | null;
+            /**
+             * True once the same round has not moved for ten minutes. Only then can it be reset.
+             */
+            stuck: boolean;
+        };
+    };
+};
+
+export type GetHydraHeadSnapshotRoundResponse = GetHydraHeadSnapshotRoundResponses[keyof GetHydraHeadSnapshotRoundResponses];
+
+export type PostHydraHeadSnapshotRoundResetData = {
+    body?: {
+        /**
+         * The Hydra head whose stuck round to reset
+         */
+        headId: string;
+        /**
+         * The round signature from GET /hydra/head/snapshot-round. The reset is refused if the round changed.
+         */
+        expectedSignature: string;
+        /**
+         * The confirmed snapshot number shown by the counterparty node (GET /snapshot on it, 0 if it shows InitialSnapshot), as its operator reports it. The reset is refused if it is ahead of this node (this node is then behind and resetting does not help) or more than one behind it (within the protocol no counterparty can be).
+         */
+        peerConfirmedSnapshotNumber: number;
+    };
+    path?: never;
+    query?: never;
+    url: '/hydra/head/snapshot-round/reset';
+};
+
+export type PostHydraHeadSnapshotRoundResetErrors = {
+    /**
+     * Head has no local participant
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Hydra head not found
+     */
+    404: unknown;
+    /**
+     * Head not open or disabled, no round in flight, the round changed since it was read, it is not stuck long enough, the confirmed snapshot does not match the verified one or holds a deposit that the chain has not settled, or the counterparty number is ahead of this node or more than one behind it
+     */
+    409: unknown;
+    /**
+     * No live connection to the head, the node could not be read, or the node refused the reset or is still stuck
+     */
+    502: unknown;
+    /**
+     * The node did not answer the reset; read the round and ask for the counterparty's snapshot number again before retrying
+     */
+    504: unknown;
+};
+
+export type PostHydraHeadSnapshotRoundResetResponses = {
+    /**
+     * Round reset
+     */
+    200: {
+        status: 'success';
+        data: {
+            headId: string;
+            /**
+             * The signed snapshot the node was reset to
+             */
+            confirmedSnapshotNumber: number;
+            /**
+             * Unconfirmed transactions the reset discarded
+             */
+            droppedTxIds: Array<string>;
+            /**
+             * The node’s round after the reset, when it could be read
+             */
+            roundAfter: {
+                /**
+                 * The last-seen tag our node reports, for example SeenSnapshot or LastSeenSnapshot
+                 */
+                tag: string;
+                /**
+                 * The snapshot number under signature, if named
+                 */
+                snapshotNumber: number | null;
+            } | null;
+        };
+    };
+};
+
+export type PostHydraHeadSnapshotRoundResetResponse = PostHydraHeadSnapshotRoundResetResponses[keyof PostHydraHeadSnapshotRoundResetResponses];
+
+export type GetHydraHeadL2ReservationsData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * The Hydra head to inspect
+         */
+        headId: string;
+    };
+    url: '/hydra/head/l2-reservations';
+};
+
+export type GetHydraHeadL2ReservationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Hydra head not found
+     */
+    404: unknown;
+};
+
+export type GetHydraHeadL2ReservationsResponses = {
+    /**
+     * L2 reservations
+     */
+    200: {
+        status: 'success';
+        data: {
+            headId: string;
+            reservations: Array<{
+                transactionId: string;
+                /**
+                 * Send it back to release; the release is refused if the row changed
+                 */
+                updatedAt: string;
+                /**
+                 * Hash of the reserved in-head body
+                 */
+                intendedTxHash: string | null;
+                /**
+                 * The body's validity upper bound, as head time
+                 */
+                expiresAt: string | null;
+                /**
+                 * An initial lock, or an action on an existing escrow
+                 */
+                kind: 'initial-lock' | 'action';
+                purchaseRequestIds: Array<string>;
+                paymentRequestIds: Array<string>;
+                /**
+                 * The wallet this reservation holds
+                 */
+                walletAddress: string | null;
+                /**
+                 * Inputs (txHash#index) the body spends
+                 */
+                inputRefs: Array<string>;
+                /**
+                 * Body inputs our node reports unspent. Read from the node's reference map: a hint, not evidence.
+                 */
+                inputsReportedUnspent: number | null;
+                /**
+                 * The recorded release nudge, if one was sent
+                 */
+                releaseNudgeTxHash: string | null;
+                rejectedByHeadReason: string | null;
+                /**
+                 * Whether an admin may release it now. The release also re-reads the node's snapshot round and UTxO set, and can still refuse.
+                 */
+                releasable: boolean;
+                /**
+                 * Why it cannot be released now
+                 */
+                blockedReason: string | null;
+            }>;
+        };
+    };
+};
+
+export type GetHydraHeadL2ReservationsResponse = GetHydraHeadL2ReservationsResponses[keyof GetHydraHeadL2ReservationsResponses];
+
+export type PostHydraHeadL2ReservationsReleaseData = {
+    body?: {
+        /**
+         * The Hydra head the reservation is on
+         */
+        headId: string;
+        /**
+         * The reservation to release
+         */
+        transactionId: string;
+        /**
+         * updatedAt from GET /hydra/head/l2-reservations
+         */
+        expectedUpdatedAt: Date;
+        /**
+         * Confirms the admin checked, on the other party’s node or on L1, that the body did not apply. The service cannot prove it.
+         */
+        acknowledgeUnprovable: true;
+    };
+    path?: never;
+    query?: never;
+    url: '/hydra/head/l2-reservations/release';
+};
+
+export type PostHydraHeadL2ReservationsReleaseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Hydra head or pending L2 reservation not found
+     */
+    404: unknown;
+    /**
+     * Head not open or closing, the row changed since it was read, the body is not provably expired or shows confirmed, or a request on it is in an action that cannot be restored
+     */
+    409: unknown;
+    /**
+     * No live connection to the head
+     */
+    502: unknown;
+};
+
+export type PostHydraHeadL2ReservationsReleaseResponses = {
+    /**
+     * Reservation released
+     */
+    200: {
+        status: 'success';
+        data: {
+            transactionId: string;
+            /**
+             * Purchases returned to where the reservation found them
+             */
+            purchaseRequestIds: Array<string>;
+            /**
+             * Payments returned to their retry action
+             */
+            paymentRequestIds: Array<string>;
+        };
+    };
+};
+
+export type PostHydraHeadL2ReservationsReleaseResponse = PostHydraHeadL2ReservationsReleaseResponses[keyof PostHydraHeadL2ReservationsReleaseResponses];
+
+export type GetHydraHeadL2ReservationsStalledReleaseData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * The Hydra head to inspect
+         */
+        headId: string;
+    };
+    url: '/hydra/head/l2-reservations/stalled-release';
+};
+
+export type GetHydraHeadL2ReservationsStalledReleaseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Hydra head not found
+     */
+    404: unknown;
+};
+
+export type GetHydraHeadL2ReservationsStalledReleaseResponses = {
+    /**
+     * Stalled release
+     */
+    200: {
+        status: 'success';
+        data: {
+            headId: string;
+            /**
+             * Null when replay is not held on a released reservation
+             */
+            reservation: {
+                transactionId: string;
+                /**
+                 * Send it back to re-apply; the call is refused if the row changed
+                 */
+                updatedAt: string;
+                /**
+                 * Hash of the released body that confirmed in the head
+                 */
+                intendedTxHash: string;
+                /**
+                 * Who released the reservation
+                 */
+                releasedBy: 'input-proof' | 'operator';
+                releasedAt: string;
+                /**
+                 * An initial lock, or an action on an existing escrow
+                 */
+                kind: 'initial-lock' | 'action';
+                purchaseRequestIds: Array<string>;
+                paymentRequestIds: Array<string>;
+                /**
+                 * Whether an admin may re-apply it now
+                 */
+                reapplicable: boolean;
+                /**
+                 * Why it cannot be re-applied now
+                 */
+                blockedReason: string | null;
+            } | null;
+        };
+    };
+};
+
+export type GetHydraHeadL2ReservationsStalledReleaseResponse = GetHydraHeadL2ReservationsStalledReleaseResponses[keyof GetHydraHeadL2ReservationsStalledReleaseResponses];
+
+export type PostHydraHeadL2ReservationsReapplyData = {
+    body?: {
+        /**
+         * The Hydra head whose replay is held
+         */
+        headId: string;
+        /**
+         * The released reservation to re-apply
+         */
+        transactionId: string;
+        /**
+         * updatedAt from GET /hydra/head/l2-reservations/stalled-release
+         */
+        expectedUpdatedAt: Date;
+    };
+    path?: never;
+    query?: never;
+    url: '/hydra/head/l2-reservations/reapply';
+};
+
+export type PostHydraHeadL2ReservationsReapplyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Hydra head not found
+     */
+    404: unknown;
+    /**
+     * Replay is not held on this released reservation, the row changed, it is an initial lock, or a check on the node or the requests failed
+     */
+    409: unknown;
+};
+
+export type PostHydraHeadL2ReservationsReapplyResponses = {
+    /**
+     * Reservation re-applied
+     */
+    200: {
+        status: 'success';
+        data: {
+            transactionId: string;
+            /**
+             * Purchases put back on the reservation
+             */
+            purchaseRequestIds: Array<string>;
+            /**
+             * Payments put back on the reservation
+             */
+            paymentRequestIds: Array<string>;
+        };
+    };
+};
+
+export type PostHydraHeadL2ReservationsReapplyResponse = PostHydraHeadL2ReservationsReapplyResponses[keyof PostHydraHeadL2ReservationsReapplyResponses];
+
+export type GetHydraHostPauseData = {
+    body?: never;
+    path?: never;
+    query: {
+        id: string;
+    };
+    url: '/hydra/host/pause';
+};
+
+export type GetHydraHostPauseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Hydra host not found
+     */
+    404: unknown;
+};
+
+export type GetHydraHostPauseResponses = {
+    /**
+     * Pause state
+     */
+    200: {
+        status: 'success';
+        data: HydraHostPauseState;
+    };
+};
+
+export type GetHydraHostPauseResponse = GetHydraHostPauseResponses[keyof GetHydraHostPauseResponses];
+
+export type PostHydraHostPauseData = {
+    body?: {
+        id: string;
+        /**
+         * Stop the nodes now, without waiting for in-flight work. That work then waits for Resume.
+         */
+        force?: boolean;
+    };
+    path?: never;
+    query?: never;
+    url: '/hydra/host/pause';
+};
+
+export type PostHydraHostPauseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Hydra host not found
+     */
+    404: unknown;
+    /**
+     * Host has no admin token, so its nodes cannot be stopped; or a forced pause found another pause action running. In the second case the pause stays recorded unless the other action was a Resume; read the pause state, then retry.
+     */
+    409: unknown;
+};
+
+export type PostHydraHostPauseResponses = {
+    /**
+     * Pause accepted
+     */
+    200: {
+        status: 'success';
+        data: HydraHostPauseState;
+    };
+};
+
+export type PostHydraHostPauseResponse = PostHydraHostPauseResponses[keyof PostHydraHostPauseResponses];
+
+export type PostHydraHostResumeData = {
+    body?: {
+        id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/hydra/host/resume';
+};
+
+export type PostHydraHostResumeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Hydra host not found
+     */
+    404: unknown;
+    /**
+     * Host has no admin token, or another pause action is running
+     */
+    409: unknown;
+    /**
+     * A node did not start; the Host stays paused
+     */
+    502: unknown;
+};
+
+export type PostHydraHostResumeResponses = {
+    /**
+     * Resumed
+     */
+    200: {
+        status: 'success';
+        data: HydraHostPauseState;
+    };
+};
+
+export type PostHydraHostResumeResponse = PostHydraHostResumeResponses[keyof PostHydraHostResumeResponses];
 
 export type GetHydraHeadBalanceData = {
     body?: never;
@@ -14526,9 +15571,34 @@ export type GetHydraHeadBalanceResponses = {
              */
             hasUnbackedUtxos: boolean;
             /**
+             * In-head UTxOs at this address that carry a unit with a positive net L2 mint in the head, as far as the signed history replay has checked. It is 0 until the replay has caught up after a connect, and it leaves out token UTxOs from transactions the replay has not reached yet. The service never spends them. A token minted inside the head and still unburned blocks its final fanout.
+             */
+            l2MintedUtxoCount: number;
+            /**
+             * Lovelace held by those UTxOs. It is counted in balance, and the service does not spend it.
+             */
+            l2MintedLovelace: string;
+            /**
+             * True when the history replay is current, so l2MintedUtxoCount counts every L2-minted UTxO the replay has verified; spendableBalance still counts token UTxOs from transactions it has not reached. False when not connected, right after a connect until the replay completes, and while the replay has failed. While connected and false, no UTxO counts as L2-minted and spendableBalance can read high. Low-balance rules do not turn Healthy on such a reading, and auto top-up waits.
+             */
+            l2MintChecked: boolean;
+            /**
              * This node's own funds currently inside the head (ADA + native tokens). Excludes the counterparty.
              */
             balance: Array<{
+                /**
+                 * Empty string for ADA/lovelace; otherwise policyId+assetName hex
+                 */
+                unit: string;
+                /**
+                 * Aggregate quantity across the local address in-head UTxOs
+                 */
+                quantity: string;
+            }>;
+            /**
+             * balance without the L2-minted UTxOs counted above. Low-balance rules compare against this. It still counts token UTxOs the replay has not checked yet and UTxOs of a deposit the head has not finished folding in; the service does not spend those until they are checked or folded in.
+             */
+            spendableBalance: Array<{
                 /**
                  * Empty string for ADA/lovelace; otherwise policyId+assetName hex
                  */
@@ -14552,6 +15622,10 @@ export type GetHydraHeadTransactionsData = {
          * The Hydra head whose transactions to list
          */
         headId: string;
+        /**
+         * Inclusive cursor: the id of the last row already seen, of any kind. It is returned again first. An id this head does not list returns an empty page.
+         */
+        cursorId?: string;
         /**
          * Number of results
          */
@@ -14685,6 +15759,11 @@ export type GetHydraHeadConnectionResponses = {
             nodeState: string;
             isReady: boolean;
             /**
+             * Whether both sessions and history are verified. Null outside Open.
+             */
+            syncReady: boolean | null;
+            syncReason: string | null;
+            /**
              * Whether this node is in its Hydra cluster, which for a two-party head means the counterparty's node is up and reachable. Null until the node reports either way. Not a statement about their chain sync.
              */
             peerConnected: boolean | null;
@@ -14788,9 +15867,9 @@ export type GetHydraHeadErrorsResponses = {
             errors: Array<{
                 id: string;
                 createdAt: Date;
-                errorType: 'CommandFailed' | 'PostTxOnChainFailed' | 'TxInvalid' | 'InvalidInput';
+                errorType: 'CommandFailed' | 'PostTxOnChainFailed' | 'TxInvalid' | 'InvalidInput' | 'ContestMissing';
                 errorMessage: string;
-                headStatus: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'Final';
+                headStatus: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'FanningOut' | 'Final';
                 clientInput: string | null;
                 txHash: string | null;
                 errorAt: Date;
@@ -14816,7 +15895,7 @@ export type GetHydraParticipantLocalFundErrors = {
      */
     401: unknown;
     /**
-     * Hydra head not found
+     * Local participant not found
      */
     404: unknown;
 };
@@ -14828,6 +15907,16 @@ export type GetHydraParticipantLocalFundResponses = {
     200: {
         status: 'success';
         data: {
+            autoFund: boolean;
+            /**
+             * Lifetime node funding limit in lovelace. Null means unlimited.
+             */
+            automaticFundingLimitLovelace: string | null;
+            /**
+             * Queued or confirmed funding to this address, including historical and manual transfers.
+             */
+            fundedLovelace: string;
+            remainingFundingLovelace: string | null;
             address: string;
             balanceLovelace: string;
             isUnderfunded: boolean;
@@ -14850,6 +15939,47 @@ export type GetHydraParticipantLocalFundResponses = {
 
 export type GetHydraParticipantLocalFundResponse = GetHydraParticipantLocalFundResponses[keyof GetHydraParticipantLocalFundResponses];
 
+export type PatchHydraParticipantLocalFundData = {
+    body?: {
+        id: string;
+        autoFund?: boolean;
+        /**
+         * Null removes the limit. Zero blocks automatic funding.
+         */
+        automaticFundingLimitLovelace?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/hydra/participant/local/fund';
+};
+
+export type PatchHydraParticipantLocalFundErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Local participant not found
+     */
+    404: unknown;
+};
+
+export type PatchHydraParticipantLocalFundResponses = {
+    /**
+     * Automatic funding settings
+     */
+    200: {
+        status: 'success';
+        data: {
+            id: string;
+            autoFund: boolean;
+            automaticFundingLimitLovelace: string | null;
+        };
+    };
+};
+
+export type PatchHydraParticipantLocalFundResponse = PatchHydraParticipantLocalFundResponses[keyof PatchHydraParticipantLocalFundResponses];
+
 export type PostHydraParticipantLocalFundData = {
     body?: {
         /**
@@ -14868,7 +15998,7 @@ export type PostHydraParticipantLocalFundErrors = {
      */
     401: unknown;
     /**
-     * Hydra head not found
+     * Local participant not found
      */
     404: unknown;
 };
@@ -14890,7 +16020,7 @@ export type PostHydraParticipantLocalFundResponses = {
              */
             transferredLovelace: string | null;
             /**
-             * `sent`: a transfer was started. `sufficient`: the node already holds enough. `in-flight`: an earlier transfer to this node has not confirmed yet, so nothing was sent — the balance below is still the pre-transfer one.
+             * `sent`: a transfer was started. `sufficient`: the node already holds enough. `in-flight`: an earlier transfer to this node has not confirmed yet, so nothing was sent. The balance below is still the pre-transfer one.
              */
             outcome: 'sent' | 'sufficient' | 'in-flight';
         };
@@ -14917,7 +16047,7 @@ export type PostHydraParticipantLocalWithdrawErrors = {
      */
     401: unknown;
     /**
-     * Hydra head not found
+     * Local participant not found
      */
     404: unknown;
     /**
@@ -15019,7 +16149,7 @@ export type GetHydraLowBalanceResponse = GetHydraLowBalanceResponses[keyof GetHy
 export type PostHydraLowBalanceData = {
     body?: {
         /**
-         * Local participant whose in-head balance to monitor
+         * Local participant whose spendable in-head balance to monitor
          */
         hydraLocalParticipantId: string;
         /**
@@ -15027,12 +16157,12 @@ export type PostHydraLowBalanceData = {
          */
         assetUnit: string;
         /**
-         * Alert when the in-head balance falls below this
+         * Alert when the spendable in-head balance falls below this
          */
         thresholdAmount: string;
         enabled?: boolean;
         /**
-         * Auto top-up from the assigned funding wallet when low
+         * Auto top-up from the assigned funding wallet when low. Skipped while the history replay is not current, and for a unit with a positive net L2 mint in the head.
          */
         topupEnabled?: boolean;
         /**
@@ -15297,6 +16427,244 @@ export type GetHydraParticipantRemoteResponses = {
 };
 
 export type GetHydraParticipantRemoteResponse = GetHydraParticipantRemoteResponses[keyof GetHydraParticipantRemoteResponses];
+
+export type PostHydraHeadChainCheckData = {
+    body?: {
+        /**
+         * ID of the HydraHead to check
+         */
+        id: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/hydra/head/chain-check';
+};
+
+export type PostHydraHeadChainCheckErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Hydra head not found
+     */
+    404: unknown;
+    /**
+     * Head identifier not observed yet, or no independent L1 observer configured
+     */
+    409: unknown;
+    /**
+     * The head state could not be read on chain
+     */
+    502: unknown;
+    /**
+     * Independent L1 evidence not yet available
+     */
+    503: unknown;
+};
+
+export type PostHydraHeadChainCheckResponses = {
+    /**
+     * Head state on chain
+     */
+    200: {
+        status: 'success';
+        data: {
+            /**
+             * Head state after its newest state-token transaction; gone means fanned out
+             */
+            chainState: 'open' | 'closed' | 'gone';
+            /**
+             * Newest transaction that moved the head state token
+             */
+            latestTxHash: string;
+        };
+    };
+};
+
+export type PostHydraHeadChainCheckResponse = PostHydraHeadChainCheckResponses[keyof PostHydraHeadChainCheckResponses];
+
+export type PostHydraHeadRetireData = {
+    body?: {
+        /**
+         * ID of the HydraHead
+         */
+        headId: string;
+        /**
+         * Why the head cannot reach Final. Stored with the head for a later recovery.
+         */
+        reason: string;
+        acknowledgeStrandedFunds: true;
+        acknowledgeRemainingUtxoUnknown?: boolean;
+        acknowledgeFanoutStalled?: boolean;
+    };
+    path?: never;
+    query?: never;
+    url: '/hydra/head/retire';
+};
+
+export type PostHydraHeadRetireErrors = {
+    /**
+     * Invalid input, or the stranded funds were not acknowledged
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Hydra head not found
+     */
+    404: unknown;
+    /**
+     * Already retired, status not retirable, contestation still running, L1 shows the head open or fanned out, the node is still settling the head (pass acknowledgeFanoutStalled for a stuck drain) or does not hold it as closed, or the head changed meanwhile
+     */
+    409: unknown;
+    /**
+     * The head state could not be read on chain, the node returned an unreadable head state, or the node reported no readable contestation deadline for a Closed head
+     */
+    502: unknown;
+    /**
+     * Independent L1 evidence or the remaining UTxO set is not available yet
+     */
+    503: unknown;
+};
+
+export type PostHydraHeadRetireResponses = {
+    /**
+     * Head retired
+     */
+    200: {
+        status: 'success';
+        data: {
+            headId: string;
+            status: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'FanningOut' | 'Final';
+            retiredAt: string;
+            retiredHeadOutputTxHash: string;
+            remainingUtxoCount: number | null;
+        };
+    };
+};
+
+export type PostHydraHeadRetireResponse = PostHydraHeadRetireResponses[keyof PostHydraHeadRetireResponses];
+
+export type GetHydraHeadPartialFanoutData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * ID of the HydraHead
+         */
+        headId: string;
+    };
+    url: '/hydra/head/partial-fanout';
+};
+
+export type GetHydraHeadPartialFanoutErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Hydra head not found
+     */
+    404: unknown;
+    /**
+     * Status not FanoutPossible or FanningOut, or the node does not hold the head as closed
+     */
+    409: unknown;
+    /**
+     * No connection to the head, or the node returned an unreadable head state
+     */
+    502: unknown;
+};
+
+export type GetHydraHeadPartialFanoutResponses = {
+    /**
+     * Outputs left to fan out
+     */
+    200: {
+        status: 'success';
+        data: {
+            headId: string;
+            status: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'FanningOut' | 'Final';
+            /**
+             * Null before the first step. A selection is accepted only before it or in AwaitingSelection.
+             */
+            fanoutMode: 'AutoDrain' | 'DistributingSelection' | 'AwaitingSelection' | null;
+            outputs: Array<{
+                reference: string;
+                address: string;
+                lovelace: string;
+            }>;
+        };
+    };
+};
+
+export type GetHydraHeadPartialFanoutResponse = GetHydraHeadPartialFanoutResponses[keyof GetHydraHeadPartialFanoutResponses];
+
+export type PostHydraHeadPartialFanoutData = {
+    body?: {
+        /**
+         * ID of the HydraHead
+         */
+        headId: string;
+        /**
+         * In-head references (txHash#index) of the outputs to fan out in this step
+         */
+        outputRefs: Array<string>;
+        /**
+         * Send the selection even while the node fans out on its own; it replaces the selection in progress.
+         */
+        replaceInProgressSelection?: boolean;
+    };
+    path?: never;
+    query?: never;
+    url: '/hydra/head/partial-fanout';
+};
+
+export type PostHydraHeadPartialFanoutErrors = {
+    /**
+     * Invalid input
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Hydra head not found
+     */
+    404: unknown;
+    /**
+     * Head disabled, status not FanoutPossible or FanningOut, an output is not in the head, or the node is still fanning out on its own and replaceInProgressSelection is not set, or a fanout command for the head is already in progress
+     */
+    409: unknown;
+    /**
+     * No connection to the head, or the node returned an unreadable head state
+     */
+    502: unknown;
+    /**
+     * The node is behind the chain and did not post the step
+     */
+    503: unknown;
+};
+
+export type PostHydraHeadPartialFanoutResponses = {
+    /**
+     * Partial fanout step result
+     */
+    200: {
+        status: 'success';
+        data: {
+            headId: string;
+            status: 'Disconnected' | 'Connected' | 'Connecting' | 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible' | 'FanningOut' | 'Final';
+            selectedCount: number;
+        };
+    };
+};
+
+export type PostHydraHeadPartialFanoutResponse = PostHydraHeadPartialFanoutResponses[keyof PostHydraHeadPartialFanoutResponses];
 
 export type GetRailReadinessData = {
     body?: never;
@@ -17078,3 +18446,199 @@ export type PostReportsExportZipResponses = {
 };
 
 export type PostReportsExportZipResponse = PostReportsExportZipResponses[keyof PostReportsExportZipResponses];
+
+export type GetReleaseStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/release-status';
+};
+
+export type GetReleaseStatusErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+};
+
+export type GetReleaseStatusResponses = {
+    /**
+     * Release status
+     */
+    200: {
+        status: 'success';
+        data: {
+            /**
+             * Newest published release, including pre-releases. Null when not checked yet.
+             */
+            latest: {
+                version: string;
+                url: string;
+                publishedAt: string | null;
+            } | null;
+            /**
+             * When GitHub last answered
+             */
+            checkedAt: string | null;
+            /**
+             * Why the last check failed, when it did
+             */
+            checkError: string | null;
+            service: ReleaseWithUpdate;
+            /**
+             * Hydra Hosts, as of their last probe. Empty for a key without admin access.
+             */
+            hosts: Array<{
+                id: string;
+                name: string;
+                network: 'Preprod' | 'Mainnet';
+                release: ReleaseWithUpdate;
+            }>;
+        };
+    };
+};
+
+export type GetReleaseStatusResponse = GetReleaseStatusResponses[keyof GetReleaseStatusResponses];
+
+export type GetSecurityStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/security-status';
+};
+
+export type GetSecurityStatusErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+};
+
+export type GetSecurityStatusResponses = {
+    /**
+     * Security status
+     */
+    200: {
+        status: 'success';
+        data: {
+            /**
+             * True when ENCRYPTION_KEY is the public .env.example value. A database copy then exposes every secret.
+             */
+            isEncryptionKeyPublic: boolean;
+        };
+    };
+};
+
+export type GetSecurityStatusResponse = GetSecurityStatusResponses[keyof GetSecurityStatusResponses];
+
+export type PostPaymentAcknowledgeManualActionData = {
+    /**
+     * Requests to acknowledge
+     */
+    body?: {
+        /**
+         * The network the requests were made on
+         */
+        network: 'Preprod' | 'Mainnet';
+        /**
+         * The requests to acknowledge
+         */
+        requests: Array<{
+            /**
+             * The blockchain identifier of the request
+             */
+            blockchainIdentifier: string;
+            /**
+             * nextActionLastChangedAt as the caller last read it. A request whose action or error changed since then is skipped, so an error the caller has not seen stays in Needs Action.
+             */
+            nextActionLastChangedAt: Date | Date;
+        }>;
+    };
+    path?: never;
+    query?: never;
+    url: '/payment/acknowledge-manual-action';
+};
+
+export type PostPaymentAcknowledgeManualActionErrors = {
+    /**
+     * Bad Request (invalid input)
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+};
+
+export type PostPaymentAcknowledgeManualActionResponses = {
+    /**
+     * Acknowledged count
+     */
+    200: {
+        status: 'success';
+        data: {
+            /**
+             * Requests that were in Needs Action and are now acknowledged. Others in the list are skipped.
+             */
+            acknowledgedCount: number;
+        };
+    };
+};
+
+export type PostPaymentAcknowledgeManualActionResponse = PostPaymentAcknowledgeManualActionResponses[keyof PostPaymentAcknowledgeManualActionResponses];
+
+export type PostPurchaseAcknowledgeManualActionData = {
+    /**
+     * Requests to acknowledge
+     */
+    body?: {
+        /**
+         * The network the requests were made on
+         */
+        network: 'Preprod' | 'Mainnet';
+        /**
+         * The requests to acknowledge
+         */
+        requests: Array<{
+            /**
+             * The blockchain identifier of the request
+             */
+            blockchainIdentifier: string;
+            /**
+             * nextActionLastChangedAt as the caller last read it. A request whose action or error changed since then is skipped, so an error the caller has not seen stays in Needs Action.
+             */
+            nextActionLastChangedAt: Date | Date;
+        }>;
+    };
+    path?: never;
+    query?: never;
+    url: '/purchase/acknowledge-manual-action';
+};
+
+export type PostPurchaseAcknowledgeManualActionErrors = {
+    /**
+     * Bad Request (invalid input)
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+};
+
+export type PostPurchaseAcknowledgeManualActionResponses = {
+    /**
+     * Acknowledged count
+     */
+    200: {
+        status: 'success';
+        data: {
+            /**
+             * Requests that were in Needs Action and are now acknowledged. Others in the list are skipped.
+             */
+            acknowledgedCount: number;
+        };
+    };
+};
+
+export type PostPurchaseAcknowledgeManualActionResponse = PostPurchaseAcknowledgeManualActionResponses[keyof PostPurchaseAcknowledgeManualActionResponses];

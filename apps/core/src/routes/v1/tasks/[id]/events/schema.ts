@@ -48,11 +48,11 @@ const masumiTimestampSchema = z
   .transform((value) => BigInt(value).toString());
 
 const masumiPaymentAmountSchema = z.object({
-  // The node caps amount strings at 25 characters — mirror it pre-charge.
+  // The node caps amount strings at 19 characters — mirror it pre-charge.
   amount: z
     .string()
     .min(1)
-    .max(25)
+    .max(19)
     .regex(/^\d+$/, "amount must be an unsigned integer")
     .refine(
       (value) => /^\d+$/.test(value) && BigInt(value) > 0n,

@@ -50787,7 +50787,7 @@ export const MasumiPaymentSchema = {
                     amount: {
                         type: 'string',
                         minLength: 1,
-                        maxLength: 25,
+                        maxLength: 19,
                         pattern: '^\\d+$',
                         example: '470000000000'
                     },
