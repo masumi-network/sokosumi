@@ -572,8 +572,10 @@ button.brief-week-row:hover .brief-week-text b {
 }
 
 /* ── The stages: one slim row under the header, always in view ── */
+/* The header scrolls away, but stacks above the stage bar and its sheet so the account menu opens over them. */
 .brief .brief-top {
-  position: static;
+  position: relative;
+  z-index: 40;
 }
 
 .brief-stages {
