@@ -8,6 +8,10 @@ import { forbidden, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { accepted, ok } from "@/helpers/response";
 import { defaultValidationHook } from "@/lib/hono";
+import {
+  handlePolarOrderPaid,
+  handlePolarSubscriptionEvent,
+} from "@/services/cmo-subscription.service";
 
 /** The Polar events Core acts on; every other type is acknowledged with 202. */
 const HANDLED_EVENT_TYPES = new Set<PolarWebhookEvent["type"]>([
@@ -60,8 +64,19 @@ app.openapi(route, async (c) => {
     }
     return accepted(c, { received: true });
   }
-  if (!HANDLED_EVENT_TYPES.has(verified.value.type)) {
+  const event = verified.value;
+  if (!HANDLED_EVENT_TYPES.has(event.type)) {
     return accepted(c, { received: true });
+  }
+  switch (event.type) {
+    case "order.paid":
+      await handlePolarOrderPaid(event);
+      break;
+    case "subscription.created":
+    case "subscription.active":
+    case "subscription.updated":
+      await handlePolarSubscriptionEvent(event);
+      break;
   }
   return ok(c, { received: true });
 });
