@@ -1,6 +1,6 @@
 /**
  * Real-Postgres proof of free hiring (ADR 0068): while a Cuso has never had a
- * CMO subscription, holds no Starter credits and his strategy is not approved,
+ * CMO subscription, holds no Tester credits and his strategy is not approved,
  * his turns cost nothing and may start in an organization with no credits.
  * A member's own Task in his Project is charged as before, and the one-unpaid-
  * Cuso rule finds the hirer's unpaid Cuso.
@@ -162,15 +162,14 @@ async function subscribe(
   });
 }
 
-const STARTER = (projectId: string) => ({
-  referenceType: CreditBucketReferenceType.FREE,
-  referenceNote: `CMO.xyz starter credits (project ${projectId})`,
-});
+const TESTER = {
+  referenceType: CreditBucketReferenceType.CMO_TESTER_CREDITS,
+};
 
 /** Spends the whole bucket, as Cuso's turns do. */
-async function spendStarterCredits(cuso: Seeded): Promise<void> {
+async function spendTesterCredits(cuso: Seeded): Promise<void> {
   const bucket = await prisma.creditBucket.findFirstOrThrow({
-    where: { projectId: cuso.projectId, ...STARTER(cuso.projectId) },
+    where: { projectId: cuso.projectId, ...TESTER },
   });
   await prisma.transaction.create({
     data: {
@@ -299,14 +298,9 @@ describe.skipIf(!enabled)("free hiring against PostgreSQL", () => {
     expect((await chargeTurn(cuso)).chargedCents).toBeGreaterThan(0n);
   });
 
-  it("does not apply to a Cuso hired with Starter credits", async () => {
+  it("does not apply to a Cuso with Tester credits", async () => {
     const cuso = await seedCuso();
-    await grant(
-      cuso.organizationId,
-      10_000n,
-      cuso.projectId,
-      STARTER(cuso.projectId),
-    );
+    await grant(cuso.organizationId, 10_000n, cuso.projectId, TESTER);
 
     const charge = await chargeTurn(cuso);
     expect(charge.chargedCents).toBe(charge.expectedCents);
@@ -368,17 +362,12 @@ describe.skipIf(!enabled)(
       await expectPaused(ended);
     });
 
-    it("lets a Cuso hired with Starter credits work until they are used up", async () => {
+    it("lets a Cuso with Tester credits work until they are used up", async () => {
       const cuso = await launchedCuso();
-      await grant(
-        cuso.organizationId,
-        10n,
-        cuso.projectId,
-        STARTER(cuso.projectId),
-      );
+      await grant(cuso.organizationId, 10n, cuso.projectId, TESTER);
       await expectWorking(cuso);
 
-      await spendStarterCredits(cuso);
+      await spendTesterCredits(cuso);
       await expectPaused(cuso);
     });
   },

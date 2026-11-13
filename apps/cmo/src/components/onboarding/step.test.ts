@@ -270,13 +270,13 @@ describe("onboardingStep", () => {
       ).toEqual({ step: "checkout", phase: "confirming" });
     });
 
-    it("has no checkout for a Cuso hired with Starter credits", () => {
+    it("has no checkout for a Cuso with Tester credits", () => {
       expect(
         onboardingStep(
           draft({
             ...cmoStrategyVersion(new Date()),
             onboardingStep: "done",
-            billing: cmoBilling({ hiredWithStarterCredits: true }),
+            billing: cmoBilling({ hasTesterCredits: true }),
           }),
           ["accounts"],
           { returnedFromCheckout: true },

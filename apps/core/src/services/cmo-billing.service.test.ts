@@ -138,7 +138,7 @@ describe("readCmoBilling", () => {
     pendingPolarProductId: null,
   };
 
-  it("has no plan and owes the checkout for a Cuso hired without Starter credits", async () => {
+  it("has no plan and owes the checkout for a Cuso without Tester credits", async () => {
     expect(await readCmoBilling("project-1")).toEqual({
       tier: null,
       interval: null,
@@ -146,7 +146,7 @@ describe("readCmoBilling", () => {
       periodEnd: null,
       cancelAtPeriodEnd: false,
       pendingTier: null,
-      hiredWithStarterCredits: false,
+      hasTesterCredits: false,
     });
     expect(polarSubscriptionFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -170,7 +170,7 @@ describe("readCmoBilling", () => {
       periodEnd: PERIOD_END,
       cancelAtPeriodEnd: true,
       pendingTier: null,
-      hiredWithStarterCredits: false,
+      hasTesterCredits: false,
     });
   });
 
@@ -200,22 +200,12 @@ describe("readCmoBilling", () => {
     expect((await readCmoBilling("project-1")).pendingTier).toBe("starter");
   });
 
-  it("knows a Cuso hired with Starter credits, spent or not", async () => {
+  it("knows a Cuso with Tester credits, spent or not", async () => {
     creditBucketFindFirst.mockResolvedValueOnce({ id: "bucket-1" });
-    expect((await readCmoBilling("project-1")).hiredWithStarterCredits).toBe(
-      true,
-    );
+    expect((await readCmoBilling("project-1")).hasTesterCredits).toBe(true);
     expect(creditBucketFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          OR: [
-            {
-              referenceType: "FREE",
-              referenceNote: "CMO.xyz starter credits (project project-1)",
-            },
-            { referenceType: "CMO_TESTER_CREDITS", projectId: "project-1" },
-          ],
-        },
+        where: { referenceType: "CMO_TESTER_CREDITS", projectId: "project-1" },
       }),
     );
   });
@@ -246,7 +236,7 @@ describe("maySkipCmoSubscription", () => {
     expect(await maySkipCmoSubscription("user-1", "project-1")).toBe(false);
   });
 
-  it("refuses while Starter or Tester credits are left, and allows it once they are spent", async () => {
+  it("refuses while Tester credits are left, and allows it once they are spent", async () => {
     creditBucketFindMany.mockResolvedValue([
       { amount: 10_000n * CREDIT, consumptions: [{ amount: 4_000n * CREDIT }] },
     ]);

@@ -86,7 +86,7 @@ export function cmoBilling(
     pendingTier: null,
     availableCredits: 40,
     viewerCanManage: true,
-    hiredWithStarterCredits: false,
+    hasTesterCredits: false,
     maySkipSubscription: false,
     ...patch,
   };

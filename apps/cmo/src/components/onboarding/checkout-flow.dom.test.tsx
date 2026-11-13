@@ -94,10 +94,10 @@ it("goes from Launch to the checkout instead of the celebration", async () => {
   expect(text()).not.toContain("is on it.");
 });
 
-it("still celebrates a Cuso hired with Starter credits, who owes no checkout", async () => {
+it("still celebrates a Cuso with Tester credits, who owes no checkout", async () => {
   const overview = unpaid({
     onboardingStep: "done",
-    billing: cmoBilling({ hiredWithStarterCredits: true }),
+    billing: cmoBilling({ hasTesterCredits: true }),
   });
   const finishAccounts = vi.fn(() => new Promise<never>(() => {}));
   await act(async () =>

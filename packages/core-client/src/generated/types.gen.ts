@@ -11238,7 +11238,7 @@ export type CmoOverview = {
      */
     learning: 'running' | 'failed' | 'done';
     /**
-     * Whether Cuso may work: his Project has an active CMO subscription (a scheduled cancel counts until the period ends), he is still in free hiring, or he holds Starter credits that are not used up. False means paused, even when the Organization credit pool has credits; `billing.status` says whether a payment failed.
+     * Whether Cuso may work: his Project has an active CMO subscription (a scheduled cancel counts until the period ends), he is still in free hiring, or he holds Tester credits that are not used up. False means paused, even when the Organization credit pool has credits; `billing.status` says whether a payment failed.
      */
     subscriptionActive: boolean;
     /**
@@ -11635,11 +11635,11 @@ export type CmoOverview = {
          */
         viewerCanManage: boolean;
         /**
-         * Hired before CMO plans: this Cuso was granted Starter credits, so his hiring ends without a checkout.
+         * This Cuso was granted Tester credits (by a tester, or at a hire before CMO plans), spent or not, so his hiring ends without a checkout.
          */
-        hiredWithStarterCredits: boolean;
+        hasTesterCredits: boolean;
         /**
-         * The caller is on CMO_SUBSCRIPTION_SKIP_ALLOWLIST and nothing pays for this Cuso (no active CMO subscription, no Starter or Tester credits left): CMO offers to continue without a subscription.
+         * The caller is on CMO_SUBSCRIPTION_SKIP_ALLOWLIST and nothing pays for this Cuso (no active CMO subscription, no Tester credits left): CMO offers to continue without a subscription.
          */
         maySkipSubscription: boolean;
     };

@@ -29,7 +29,7 @@ export function readSkippedSteps(value: string | undefined): SkippedStep[] {
 /**
  * Core's step, read from the data, moved past the accounts the person
  * skipped: on to the checkout (ADR 0068), which nothing skips, or straight
- * to done for a Cuso hired with Starter credits or one who already has a
+ * to done for a Cuso with Tester credits or one who already has a
  * CMO subscription (he paid without connecting an account). Skipped questions only
  * change CMO's own screens.
  */
@@ -41,7 +41,7 @@ export function withSkippedSteps(
     return {
       ...overview,
       onboardingStep:
-        overview.billing.hiredWithStarterCredits || cusoSubscribed(overview)
+        overview.billing.hasTesterCredits || cusoSubscribed(overview)
           ? "done"
           : "checkout",
     };

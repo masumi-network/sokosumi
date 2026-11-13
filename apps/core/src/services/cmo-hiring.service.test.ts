@@ -410,7 +410,7 @@ describe("startCmoOnboarding", () => {
     unpaidCuso.mockResolvedValue(null);
   });
 
-  it("hires into an organization with no credits and grants no Starter credits", async () => {
+  it("hires into an organization with no credits and grants no credits", async () => {
     await expect(
       startCmoOnboarding({ ...input, organizationId: "org-team" }),
     ).resolves.toMatchObject({ sokoBotId: "bot-1" });

@@ -97,15 +97,13 @@ export function cmoOnboardingStep(input: {
   /** His Project has a CMO subscription that has not ended. */
   subscribed: boolean;
   /** Hired before CMO plans: such a Cuso never owes the checkout. */
-  hiredWithStarterCredits: boolean;
+  hasTesterCredits: boolean;
 }): CmoOnboardingStep {
   if (!input.strategyApproved) {
     return input.brandBrainConfirmed ? "strategy" : "brandBrain";
   }
   if (!input.connected) return "accounts";
-  return input.subscribed || input.hiredWithStarterCredits
-    ? "done"
-    : "checkout";
+  return input.subscribed || input.hasTesterCredits ? "done" : "checkout";
 }
 
 export interface CmoOverview {
@@ -399,7 +397,7 @@ export async function getCmoOverview(
       // connection is fixed on Channels, not by hiring again.
       connected: channels.length > 0,
       subscribed: billing.status !== null,
-      hiredWithStarterCredits: billing.hiredWithStarterCredits,
+      hasTesterCredits: billing.hasTesterCredits,
     }),
     media,
     learning,

@@ -29,7 +29,7 @@ function tierName(tier: string): string {
 
 /**
  * Settings: the Cuso's CMO subscription, straight from the overview. Without
- * one it offers the plan checkout (a Cuso hired with Starter credits keeps
+ * one it offers the plan checkout (a Cuso with Tester credits keeps
  * them); the credits sit in the card below. Owners and admins
  * also see a pending downgrade, the other plans of the interval and the link
  * to Polar's customer portal; other members see none of them.
@@ -64,9 +64,9 @@ export function SubscriptionCard({
             className="button button-secondary button-small"
           />
         </div>
-        {billing.hiredWithStarterCredits ? (
+        {billing.hasTesterCredits ? (
           <p className="note">
-            Your Starter credits stay. {AGENT_NAME} spends the plan's monthly
+            Your Tester credits stay. {AGENT_NAME} spends the plan's monthly
             credits first, then them.
           </p>
         ) : null}

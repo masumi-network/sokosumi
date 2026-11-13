@@ -11,11 +11,21 @@
  * committed and deleted after. On PGlite (one backend) the two take turns.
  */
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { grantCmoTesterCredits } from "./cmo-billing.service";
+
+/** The data migration that retypes the credits earlier hires were granted. */
+const starterToTesterSql = readFileSync(
+  new URL(
+    "../../../../packages/database/prisma/migrations/20261113210735_starter_credits_become_tester_credits/migration.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const url = process.env.DATABASE_URL;
 const enabled =
@@ -88,5 +98,82 @@ describe.skipIf(!db)("Tester credits against PostgreSQL", () => {
         expiresAt: null,
       },
     ]);
+  });
+
+  describe("the credits earlier hires were granted", () => {
+    /** A bucket as main's grants wrote it: FREE unless named otherwise. */
+    async function bucket(input: {
+      note: string;
+      projectId?: string;
+      referenceType?: "FREE" | "STRIPE_FREE";
+    }) {
+      const created = await database().transaction.create({
+        data: {
+          amount: 10_000n * CREDIT,
+          organizationId: ORGANIZATION,
+          sourceCreditBucket: {
+            create: {
+              amount: 10_000n * CREDIT,
+              organizationId: ORGANIZATION,
+              projectId: input.projectId ?? null,
+              referenceId: `org:${ORGANIZATION}:free:${randomUUID()}`,
+              referenceNote: input.note,
+              referenceType: input.referenceType ?? "FREE",
+            },
+          },
+        },
+        select: { sourceCreditBucket: { select: { id: true } } },
+      });
+      const id = created.sourceCreditBucket?.id;
+      if (!id) throw new Error("The grant created no bucket");
+      return id;
+    }
+
+    async function read(id: string) {
+      return await database().creditBucket.findUniqueOrThrow({
+        where: { id },
+        select: {
+          referenceType: true,
+          referenceId: true,
+          referenceNote: true,
+          amount: true,
+          expiresAt: true,
+          projectId: true,
+        },
+      });
+    }
+
+    it("are retyped to Tester credits, once, leaving every other field and every other bucket alone", async () => {
+      const projectId = await hiredCuso();
+      const ids = {
+        project: await bucket({
+          note: `CMO.xyz starter credits (project ${projectId})`,
+          projectId,
+        }),
+        pool: await bucket({ note: "CMO.xyz starter credits (user-1)" }),
+        admin: await bucket({ note: "Thanks for the feedback" }),
+        otherType: await bucket({
+          note: "CMO.xyz starter credits (project x)",
+          referenceType: "STRIPE_FREE",
+        }),
+      };
+      const before = Object.fromEntries(
+        await Promise.all(
+          Object.entries(ids).map(async ([key, id]) => [key, await read(id)]),
+        ),
+      );
+
+      await database().$executeRawUnsafe(starterToTesterSql);
+      await database().$executeRawUnsafe(starterToTesterSql);
+
+      for (const key of ["project", "pool"] as const) {
+        expect(await read(ids[key])).toEqual({
+          ...before[key],
+          referenceType: "CMO_TESTER_CREDITS",
+        });
+      }
+      expect(await read(ids.admin)).toEqual(before.admin);
+      expect(await read(ids.otherType)).toEqual(before.otherType);
+    });
   });
 });

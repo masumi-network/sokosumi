@@ -80,14 +80,14 @@ describe("Settings: the CMO subscription", () => {
     expect(text).toContain("Subscribe");
     expect(text).not.toContain("Renews on");
     expect(text).not.toContain("payment failed");
-    expect(text).not.toContain("Starter credits");
+    expect(text).not.toContain("Tester credits");
   });
 
-  it("lets a Cuso with Starter credits subscribe and keep them", () => {
-    const text = settings({ hiredWithStarterCredits: true });
+  it("lets a Cuso with Tester credits subscribe and keep them", () => {
+    const text = settings({ hasTesterCredits: true });
 
     expect(text).toContain("Subscribe");
-    expect(text).toContain("Your Starter credits stay");
+    expect(text).toContain("Your Tester credits stay");
   });
 });
 

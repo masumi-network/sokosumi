@@ -19,7 +19,7 @@ const PROJECT_ID = "aaaaaaaa-aaaa-4aaa-8aaa-000000000002";
 
 const m = vi.hoisted(() => ({
   allowlist: [] as string[],
-  /** The Project's Starter and Tester credit buckets, as the database holds them. */
+  /** The Project's Tester credit buckets, as the database holds them. */
   buckets: [] as { amount: bigint; consumptions: { amount: bigint }[] }[],
   grantFreeCredits: vi.fn(),
   member: true,
@@ -88,7 +88,7 @@ function skip() {
   });
 }
 
-/** Spends what the Project's Starter and Tester credits hold. */
+/** Spends what the Project's Tester credits hold. */
 function spendAll() {
   for (const bucket of m.buckets) {
     bucket.consumptions.push({ amount: bucket.amount });
@@ -186,7 +186,7 @@ describe("POST /v1/cmo/projects/{projectId}/skip-subscription", () => {
     expect(m.grantFreeCredits).not.toHaveBeenCalled();
   });
 
-  it("refuses while his Tester or Starter credits are not used up", async () => {
+  it("refuses while his Tester credits are not used up", async () => {
     m.buckets = [{ amount: 10_000n * CREDIT, consumptions: [] }];
 
     expect((await skip()).status).toBe(409);

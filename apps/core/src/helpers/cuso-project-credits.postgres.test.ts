@@ -1,6 +1,6 @@
 /**
  * Real-Postgres proof that ending a Cuso writes off every kind of Project
- * credits: plan grants and top-ups (ADR 0068) as well as Starter credits
+ * credits: plan grants and top-ups (ADR 0068) as well as Tester credits
  * (ADR 0067), and leaves the organization's pool alone.
  *
  *   RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… \
@@ -91,7 +91,7 @@ describe.skipIf(!db)("writeOffProjectCredits against PostgreSQL", () => {
     await db.$disconnect();
   });
 
-  it("writes off plan grants, top-ups and Starter credits, and keeps the pool", async () => {
+  it("writes off plan grants, top-ups and Tester credits, and keeps the pool", async () => {
     if (!db) throw new Error("Missing integration database");
     const plan = await grant(
       CreditBucketReferenceType.POLAR_SUBSCRIPTION_MONTH,
@@ -103,8 +103,8 @@ describe.skipIf(!db)("writeOffProjectCredits against PostgreSQL", () => {
       5_000n,
       PROJECT,
     );
-    const starter = await grant(
-      CreditBucketReferenceType.FREE,
+    const tester = await grant(
+      CreditBucketReferenceType.CMO_TESTER_CREDITS,
       10_000n,
       PROJECT,
     );
@@ -114,7 +114,7 @@ describe.skipIf(!db)("writeOffProjectCredits against PostgreSQL", () => {
 
     expect(await remaining(plan)).toBe(0n);
     expect(await remaining(topUp)).toBe(0n);
-    expect(await remaining(starter)).toBe(0n);
+    expect(await remaining(tester)).toBe(0n);
     expect(await remaining(pool)).toBe(700n * CREDIT);
   });
 });

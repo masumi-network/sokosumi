@@ -514,7 +514,7 @@ export async function setAdBudget(
 
 /**
  * The founder moved on from the Accounts step: the checkout comes next
- * (ADR 0068), or the chat for a Cuso hired with Starter credits. A
+ * (ADR 0068), or the chat for a Cuso with Tester credits. A
  * connection already counts; skipping is kept in CMO's cookie. It goes to
  * the app's home, not back to the address it came from: back from a
  * connection, that address keeps the Accounts step open.

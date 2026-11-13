@@ -47,7 +47,7 @@ export const createOrganizationWorkspace = vi.fn();
 export const organizationFindFirst = vi.fn();
 export const organizationUpdate = vi.fn();
 export const creditBucketFindFirst = vi.fn();
-/** The gate's Starter credits read: none unless a test grants them. */
+/** The gate's Tester credits read: none unless a test grants them. */
 export const creditBucketFindMany = vi.fn();
 /** The Project's CMO subscription that has not ended: none unless a test seeds one. */
 export const polarSubscriptionFindFirst = vi.fn();
@@ -392,7 +392,7 @@ export function resetCmoServiceMocks(): void {
     metadata: args.create.metadata,
   }));
   projectUpdateMany.mockResolvedValue({ count: 1 });
-  // The starter grant's liveness write finds the live Cuso unless a test archives him.
+  // The Tester credit grant's liveness write finds the live Cuso unless a test archives him.
   sokoBotUpdateMany.mockResolvedValue({ count: 1 });
   messageFindMany.mockResolvedValue([]);
   // Every hire lives in the business's organization (ADR 0065), and the

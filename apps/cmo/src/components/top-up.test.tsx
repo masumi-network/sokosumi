@@ -208,7 +208,7 @@ describe("subscribeOffer", () => {
       subscribeOffer(
         overview({
           subscriptionActive: false,
-          billing: cmoBilling({ status: null, hiredWithStarterCredits: true }),
+          billing: cmoBilling({ status: null, hasTesterCredits: true }),
         }),
         startTopUp,
       ),

@@ -27,12 +27,12 @@ describe("withSkippedSteps", () => {
     ).toBe("checkout");
   });
 
-  it("is done after skipped accounts for a Cuso hired with Starter credits", () => {
+  it("is done after skipped accounts for a Cuso with Tester credits", () => {
     expect(
       withSkippedSteps(
         cmoOverview({
           onboardingStep: "accounts",
-          billing: cmoBilling({ hiredWithStarterCredits: true }),
+          billing: cmoBilling({ hasTesterCredits: true }),
         }),
         readSkippedSteps("accounts"),
       ).onboardingStep,

@@ -268,7 +268,7 @@ describe("Site while Cuso reads", () => {
   });
 });
 
-describe("a Cuso hired with Starter credits who ran out before his plan", () => {
+describe("a Cuso with Tester credits who ran out before his plan", () => {
   const ranOut = reading({
     work: null,
     learning: "failed",
@@ -276,7 +276,7 @@ describe("a Cuso hired with Starter credits who ran out before his plan", () => 
     billing: cmoBilling({
       availableCredits: 0,
       status: null,
-      hiredWithStarterCredits: true,
+      hasTesterCredits: true,
     }),
   });
   const subscribe = async () => ({ url: null, error: null });

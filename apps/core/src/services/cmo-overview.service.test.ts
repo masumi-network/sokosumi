@@ -99,7 +99,7 @@ describe("cmoOnboardingStep", () => {
     strategyApproved: false,
     connected: false,
     subscribed: false,
-    hiredWithStarterCredits: false,
+    hasTesterCredits: false,
   };
 
   it("resumes on the Brand Brain until a member confirms it", () => {
@@ -135,12 +135,12 @@ describe("cmoOnboardingStep", () => {
     );
   });
 
-  it("stays done for a Cuso hired with Starter credits", () => {
+  it("stays done for a Cuso with Tester credits", () => {
     expect(
       cmoOnboardingStep({
         ...approved,
         connected: true,
-        hiredWithStarterCredits: true,
+        hasTesterCredits: true,
       }),
     ).toBe("done");
   });

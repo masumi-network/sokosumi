@@ -70,10 +70,10 @@ export function OnboardingFlow({
   const [skipped, setSkipped] = useState(initialSkipped);
   // Back from Polar, until the payment shows or the person says they did not pay.
   const [confirming, setConfirming] = useState(returnedFromCheckout);
-  // Hiring ends with a checkout (ADR 0068), unless he was hired with Starter credits.
+  // Hiring ends with a checkout (ADR 0068), unless he has Tester credits.
   const owesCheckout =
     initialOverview.onboardingStep !== "done" &&
-    !initialOverview.billing.hiredWithStarterCredits;
+    !initialOverview.billing.hasTesterCredits;
   // A finished step opened again from the markers; Results after a connection.
   const [viewing, setViewing] = useState<OnboardingStep | null>(
     initialStep === "results" ? "plan" : null,
@@ -212,7 +212,7 @@ export function OnboardingFlow({
     if (!error) await refresh();
     return error;
   });
-  // A Cuso hired with Starter credits can run out before his plan: the
+  // A Cuso with Tester credits can run out before his plan: the
   // monthly plans, cheapest first, as in the app (Polar lets him switch).
   const subscribe = subscribeOffer(overview, () =>
     actions.startPlanCheckout("month"),

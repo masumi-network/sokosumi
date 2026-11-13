@@ -5764,7 +5764,7 @@ export const startCmoOverForProject = <ThrowOnError extends boolean = false>(opt
 });
 
 /**
- * A tester on CMO_SUBSCRIPTION_SKIP_ALLOWLIST continues this Cuso without a CMO subscription: his Project gets 10,000 Tester credits, which count like Starter credits for the gate and the hiring steps. Granted again once they are used up; refused while a subscription or such credits pay for him.
+ * A tester on CMO_SUBSCRIPTION_SKIP_ALLOWLIST continues this Cuso without a CMO subscription: his Project gets 10,000 Tester credits, which open the gate and end the hiring steps' checkout. Granted again once they are used up; refused while a subscription or such credits pay for him.
  */
 export const skipCmoSubscriptionForProject = <ThrowOnError extends boolean = false>(options: Options<SkipCmoSubscriptionForProjectData, ThrowOnError>): RequestResult<SkipCmoSubscriptionForProjectResponses, SkipCmoSubscriptionForProjectErrors, ThrowOnError> => (options.client ?? client).post<SkipCmoSubscriptionForProjectResponses, SkipCmoSubscriptionForProjectErrors, ThrowOnError>({
     responseTransformer: skipCmoSubscriptionForProjectResponseTransformer,
