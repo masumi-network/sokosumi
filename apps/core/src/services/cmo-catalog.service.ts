@@ -39,7 +39,8 @@ const creditsSchema = z
   .union([z.number(), z.string().regex(/^\d+$/).transform(Number)])
   .pipe(z.number().int().positive());
 
-const metadataSchema = z.discriminatedUnion("kind", [
+/** The metadata that makes a Polar product a CMO plan or a top-up pack. */
+export const cmoProductMetadataSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("plan"),
     tier: z.string().trim().min(1),
@@ -61,7 +62,7 @@ function fixedPrice(product: PolarProduct) {
 
 /** Adds the product to the catalog, or returns why it does not belong. */
 function addProduct(catalog: CmoCatalog, product: PolarProduct): string | null {
-  const metadata = metadataSchema.safeParse(product.metadata);
+  const metadata = cmoProductMetadataSchema.safeParse(product.metadata);
   if (!metadata.success) return z.prettifyError(metadata.error);
   const price = fixedPrice(product);
   if (!price) return "no fixed price";

@@ -140,6 +140,8 @@ model Organization {
   // Credit Buckets
   creditBuckets CreditBucket[]
 
+  cmoSubscriptions CmoSubscription[]
+
   enterpriseContracts EnterpriseContract[]
 
   @@unique([slug])
@@ -521,6 +523,8 @@ model Project {
   imageAssets   ProjectImageAsset[]
 
   creditBuckets CreditBucket[]
+
+  cmoSubscriptions CmoSubscription[]
 
   fileLinks FileProjectLink[]
 
@@ -1618,6 +1622,50 @@ enum CreditBucketReferenceType {
   ENTERPRISE_TOP_UP
   SIGNUP_BONUS
   FREE
+  // One month of a CMO subscription's credits; referenceId "<Polar order id>:<month index>" (ADR 0068).
+  CMO_SUBSCRIPTION_MONTH
+  // A Project top-up bought through Polar; referenceId "<Polar order id>:0" (ADR 0068).
+  PROJECT_TOP_UP
+}
+
+/// A Cuso's CMO subscription at Polar (ADR 0068). Its credits are Project
+/// credits of `project`; Sokosumi's Stripe plan stays in `Subscription`.
+model CmoSubscription {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  polarSubscriptionId   String
+  polarProductId        String
+  tier                  String
+  /// "month" or "year".
+  interval              String
+  /// Polar's subscription status, as sent.
+  status                String
+  currentPeriodStart    DateTime
+  currentPeriodEnd      DateTime
+  cancelAtPeriodEnd     Boolean   @default(false)
+  /// The product a scheduled downgrade moves to at the next period.
+  pendingPolarProductId String?
+  lastPaidOrderId       String?
+  lastPaidAt            DateTime?
+  /// Set once Polar ended the subscription; frees the Project for a new one.
+  endedAt               DateTime?
+  /// Timestamp of the newest Polar event applied. Polar does not order its
+  /// deliveries, so a payload older than this is skipped.
+  polarEventAt          DateTime
+
+  @@unique([polarSubscriptionId])
+  @@unique([projectId], map: "cmo_subscription_project_live_key", where: { endedAt: null })
+  @@index([projectId])
+  @@index([organizationId])
+  @@map("cmo_subscription")
 }
 
 model CreditConsumption {

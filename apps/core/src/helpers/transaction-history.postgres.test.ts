@@ -810,4 +810,69 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
       expect(ownedRows.rows).toHaveLength(0);
     });
   });
+
+  it("lists a Project credits grant and its write-off under the Project", async () => {
+    await withSeededLedger(async (tx) => {
+      const organizationProjectId = "dddddddd-dddd-4ddd-8ddd-ddddddddddd8";
+      await tx.$executeRaw`
+        INSERT INTO "project" ("id", "createdAt", "updatedAt", "workspaceId", "name")
+        VALUES (${organizationProjectId}::uuid, NOW(), NOW(), ${ORGANIZATION_WORKSPACE_ID}::uuid, 'Cuso project')
+      `;
+      await tx.$executeRaw`
+        INSERT INTO "Transaction" ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
+        VALUES
+          ('tx-cmo-grant', TIMESTAMP '2026-08-01 10:00:00', NOW(), ${25_000n * CREDIT}, NULL, ${ORGANIZATION_ID}),
+          ('tx-cmo-write-off', TIMESTAMP '2026-08-02 10:00:00', NOW(), ${-4n * CREDIT}, NULL, ${ORGANIZATION_ID})
+      `;
+      await tx.$executeRaw`
+        INSERT INTO "credit_bucket" (
+          "id", "createdAt", "updatedAt", "amount", "sourceTransactionId", "organizationId",
+          "projectId", "referenceId", "referenceType", "referenceNote"
+        )
+        VALUES (
+          'txhist-cmo-bucket', NOW(), NOW(), ${25_000n * CREDIT}, 'tx-cmo-grant', ${ORGANIZATION_ID},
+          ${organizationProjectId}::uuid, 'order_1:0',
+          'CMO_SUBSCRIPTION_MONTH'::"CreditBucketReferenceType", 'Growth'
+        )
+      `;
+      await tx.$executeRaw`
+        INSERT INTO "credit_consumption" ("id", "createdAt", "amount", "bucketId", "transactionId")
+        VALUES ('txhist-cmo-consumption', NOW(), ${4n * CREDIT}, 'txhist-cmo-bucket', 'tx-cmo-write-off')
+      `;
+
+      const { rows } = await findTransactionHistoryPage(
+        {
+          scope: "workspace",
+          userContext: {
+            source: "context",
+            userId: USER_ID,
+            organizationId: ORGANIZATION_ID,
+          },
+          workspaceContext: {
+            workspaceId: ORGANIZATION_WORKSPACE_ID,
+            userId: null,
+            organizationId: ORGANIZATION_ID,
+          },
+          projectId: organizationProjectId,
+        },
+        { take: 20 },
+        tx,
+      );
+
+      expect(
+        rows.map((row) => [row.id, row.kind, row.projectId, row.topUpSource]),
+      ).toEqual([
+        ["tx-cmo-write-off", "unattributed", organizationProjectId, null],
+        [
+          "tx-cmo-grant",
+          "topUp",
+          organizationProjectId,
+          "CMO_SUBSCRIPTION_MONTH",
+        ],
+      ]);
+      expect(rows.map((row) => mapTransactionHistoryRow(row))[1]).toMatchObject(
+        { title: "CMO plan credits", description: "Growth" },
+      );
+    });
+  });
 });

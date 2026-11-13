@@ -284,4 +284,23 @@ describe("mapTransactionHistoryRow refund rows", () => {
       description: null,
     });
   });
+
+  it("names a CMO subscription's monthly grant and a Project top-up", () => {
+    expect(
+      map(
+        refundRow({
+          topUpSource: "CMO_SUBSCRIPTION_MONTH",
+          topUpNote: "Growth",
+          projectId: "01960001-0001-7001-8001-000000000042",
+        }),
+      ),
+    ).toMatchObject({
+      title: "CMO plan credits",
+      description: "Growth",
+      projectId: "01960001-0001-7001-8001-000000000042",
+    });
+    expect(map(refundRow({ topUpSource: "PROJECT_TOP_UP" }))).toMatchObject({
+      title: "Project top-up",
+    });
+  });
 });
