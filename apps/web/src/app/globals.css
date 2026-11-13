@@ -691,9 +691,11 @@ body:has(vercel-live-feedback) main[data-app-main] {
   scroll-padding-block-end: calc(5rem + env(safe-area-inset-bottom));
 }
 
+/* Room only: on a page taller than the view the inner column overflows, so the spacer can lie over its rows. */
 body:has(vercel-live-feedback) main[data-app-main]::after {
   content: "";
   flex: 0 0 calc(5rem + env(safe-area-inset-bottom));
+  pointer-events: none;
 }
 
 @utility container {
