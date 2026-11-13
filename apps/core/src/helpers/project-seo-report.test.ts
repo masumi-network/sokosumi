@@ -623,6 +623,21 @@ describe("SERP reads of a focused result", () => {
     }
   });
 
+  it("keeps an AI Overview citation that the read could not determine", () => {
+    const aiOverview = {
+      shown: true,
+      asyncLoaded: false,
+      citedDomains: ["google.com"],
+      pageCited: null,
+    };
+    const parsed = parsePublicSeoArtifact({
+      ...focusedRankingsReport(),
+      serps: [serpRead({ aiOverview })],
+    });
+    expect(parsed.notes).toEqual([]);
+    expect(parsed.serps?.[0].aiOverview).toEqual(aiOverview);
+  });
+
   it("keeps a null AI Overview as not checked and a null featured snippet as none", () => {
     const parsed = parsePublicSeoArtifact({
       ...focusedRankingsReport(),

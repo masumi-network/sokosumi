@@ -11573,7 +11573,8 @@
             "cited": "Zitiert die Seite",
             "shown": "Angezeigt, Seite nicht zitiert",
             "absent": "Keine",
-            "not_checked": "KI-Übersicht nicht geprüft"
+            "not_checked": "KI-Übersicht nicht geprüft",
+            "undetermined": "Zitierung nicht ermittelt"
           },
           "snippet": {
             "owned": "Website der Seite",

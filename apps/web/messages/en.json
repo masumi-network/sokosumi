@@ -11573,7 +11573,8 @@
             "cited": "Cites the page",
             "shown": "Shown, page not cited",
             "absent": "None",
-            "not_checked": "AI Overview not checked"
+            "not_checked": "AI Overview not checked",
+            "undetermined": "Citation not determined"
           },
           "snippet": {
             "owned": "The page's site",

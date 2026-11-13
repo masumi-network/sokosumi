@@ -26,8 +26,16 @@ const NOT_COUNTED = new Set([
   "people_also_ask",
 ]);
 
-/** "not_checked": the read did not ask for AI Overviews. It never reads as "no AI Overview". */
-export type SeoAiOverviewMark = "cited" | "shown" | "absent" | "not_checked";
+/**
+ * "not_checked": the read did not ask for AI Overviews. It never reads as "no AI Overview". "undetermined": an
+ * AI Overview shows, but a Google-wrapped reference on the page's host hides whether it cites the page.
+ */
+export type SeoAiOverviewMark =
+  | "cited"
+  | "shown"
+  | "undetermined"
+  | "absent"
+  | "not_checked";
 
 export type SeoSerpMarker =
   | { date: Date; device: Series["device"]; suspect: true }
@@ -80,9 +88,11 @@ export function seoSerpMarkers(
             ? "not_checked"
             : !ai.shown
               ? "absent"
-              : ai.pageCited
-                ? "cited"
-                : "shown",
+              : ai.pageCited === null
+                ? "undetermined"
+                : ai.pageCited
+                  ? "cited"
+                  : "shown",
           featured: !point.featured
             ? "none"
             : point.featured.pageOwned

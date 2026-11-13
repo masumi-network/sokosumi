@@ -41736,7 +41736,10 @@ export const ProjectSeoSerpPointSchema = {
                             }
                         },
                         pageCited: {
-                            type: 'boolean'
+                            type: [
+                                'boolean',
+                                'null'
+                            ]
                         }
                     },
                     required: [

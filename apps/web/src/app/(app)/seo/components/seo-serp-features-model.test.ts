@@ -24,7 +24,7 @@ const series = (patch: Partial<Series>, points: Point[]): Series => ({
   points,
   ...patch,
 });
-const ai = (shown: boolean, pageCited = false) => ({
+const ai = (shown: boolean, pageCited: boolean | null = false) => ({
   shown,
   asyncLoaded: true,
   citedDomains: [],
@@ -40,13 +40,14 @@ describe("seoSerpMarkers", () => {
           point("02", { aiOverview: ai(false) }),
           point("03", { aiOverview: ai(true) }),
           point("04", { aiOverview: ai(true, true) }),
+          point("05", { aiOverview: ai(true, null) }),
         ]),
       ],
       [seoTestKeyword()],
     );
     expect(
       marks.map((mark) => (mark.suspect ? "suspect" : mark.aiOverview)),
-    ).toEqual(["cited", "shown", "absent", "not_checked"]);
+    ).toEqual(["undetermined", "cited", "shown", "absent", "not_checked"]);
   });
 
   it("reads the featured snippet, People also ask and other features of a check", () => {

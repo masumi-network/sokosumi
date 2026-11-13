@@ -10976,7 +10976,7 @@ export type ProjectSeoSerpPoint = {
         shown: boolean;
         asyncLoaded: boolean;
         citedDomains: Array<string>;
-        pageCited: boolean;
+        pageCited: boolean | null;
     } | null;
     featured: {
         domain: string | null;
