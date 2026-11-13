@@ -635,6 +635,37 @@ describe.skipIf(!enabled)(
           ),
         ),
       ).rejects.toMatchObject({ status: 403 });
+      // A schedule can repeat the full audit: each Run's Task carries the seo_audit packet.
+      const fullMonitor = await createProjectSeoMonitor(vars, actor, {
+        ...input,
+        operationId: randomUUID(),
+        analysis: requestSeoAnalysisSchema.parse({
+          ...analysis,
+          kind: "audit_full",
+          devices: ["mobile", "desktop"],
+          idempotencyKey: "monitor-full-audit",
+        }),
+      });
+      const fullRun = await prisma.taskScheduleRun.findFirstOrThrow({
+        where: { scheduleId: fullMonitor.id, state: "PLANNED" },
+        orderBy: { effectiveScheduledAt: "asc" },
+      });
+      const fullTask = await prisma.$transaction(async (tx) =>
+        releaseSeoMonitorRun(
+          tx,
+          await tx.taskSchedule.findUniqueOrThrow({
+            where: { id: fullMonitor.id },
+          }),
+          fullRun.id,
+        ),
+      );
+      expect(
+        (
+          await prisma.task.findUniqueOrThrow({
+            where: { id: fullTask?.id ?? "missing" },
+          })
+        ).description,
+      ).toMatch(/^seo_audit: /);
       // The step and the end date are part of the approved rule too.
       for (const tampered of [
         { intervalDays: 2 },

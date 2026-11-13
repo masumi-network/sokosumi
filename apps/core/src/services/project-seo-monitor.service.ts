@@ -51,8 +51,6 @@ export async function createProjectSeoMonitor(
     throw forbidden("A person must approve recurring public SEO work");
   requireSeoAnalysisDispatch();
   const owner = await requireSeoOwner(actor, prisma, true);
-  if (input.analysis.kind === "audit_full")
-    throw badRequest("Monitoring supports bounded focused analyses only");
   const executor = await requireSeoAnalysisExecutor(actor, input.analysis);
   if (!executor.canSchedule)
     throw conflict(

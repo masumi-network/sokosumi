@@ -60,8 +60,22 @@ describe("SEO monitor owner protocol", () => {
   });
 
   it("keeps Audit monitor Runs bounded to saved pages and the approved Coworker", () => {
+    // A scheduled full audit is bounded by its saved pages and its own limits, like a one-off one.
+    expect(
+      parseSeoMonitorPlan(
+        description({
+          version: 2,
+          auditId: AUDIT_ID,
+          ...plan,
+          analysis: {
+            ...plan.analysis,
+            kind: "audit_full",
+            devices: ["mobile", "desktop"],
+          },
+        }),
+      )?.analysis.kind,
+    ).toBe("audit_full");
     for (const analysis of [
-      { ...plan.analysis, kind: "audit_full" },
       { ...plan.analysis, scopeId: AUDIT_ID },
       { ...plan.analysis, pageIds: [] },
       { ...plan.analysis, coworkerId: undefined },

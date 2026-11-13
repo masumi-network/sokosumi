@@ -65,7 +65,6 @@ export function parseSeoMonitorPlan(
   const parsed = seoMonitorPacketSchema.safeParse(raw);
   if (
     !parsed.success ||
-    parsed.data.analysis.kind === "audit_full" ||
     parsed.data.analysis.scopeId ||
     !parsed.data.analysis.pageIds?.length ||
     !parsed.data.analysis.coworkerId
