@@ -122,6 +122,15 @@ describe("chat result cards", () => {
       />,
     );
     expect(custom).toContain("*/15 9-17 * * 1-5");
+    // The first Monday of each month must not read as every Monday.
+    const firstMonday = renderToStaticMarkup(
+      <ResultPreviewCard
+        result={{ ...followUp, recurrence: "0 10 * * 1#1" }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+    expect(firstMonday).toContain("0 10 * * 1#1");
+    expect(firstMonday).not.toContain("option.weekly");
     // A Task schedule's cron leaves out its every-N-days step: kept as is.
     const taskSchedule = renderToStaticMarkup(
       <ResultPreviewCard

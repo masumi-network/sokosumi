@@ -49,10 +49,7 @@ import { taskScheduleZoneName } from "@/app/tasks/utils/task-schedule-view";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
-import {
-  computeScheduleTitleInfo,
-  formatScheduleTitle,
-} from "@/components/schedules/format";
+import { formatCronScheduleTitle } from "@/components/schedules/format";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -137,16 +134,14 @@ export function ResultPreviewCard({
   // "Weekly (Monday, 9:00 AM)", not "0 9 * * 1". Only a bot follow-up's cron
   // is its whole rule: a Task schedule keeps an every-N-days step outside the
   // cron, so its cron alone would read as daily. Unnamed shapes stay raw.
-  const recurrenceInfo =
-    result.kind === "bot_schedule" && result.recurrence
-      ? computeScheduleTitleInfo(
-          { cron: result.recurrence, timezone: result.timezone ?? "UTC" },
-          format,
-        )
-      : null;
   const recurrence =
-    recurrenceInfo && recurrenceInfo.key !== "custom"
-      ? formatScheduleTitle(recurrenceInfo, tSchedule)
+    result.kind === "bot_schedule" && result.recurrence
+      ? formatCronScheduleTitle(
+          result.recurrence,
+          result.timezone ?? "UTC",
+          format,
+          tSchedule,
+        )
       : null;
   if (result.kind === "project_selection")
     return <ChatProjectSelection result={result} source={source} />;
