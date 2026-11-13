@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/node";
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import { getNextMonthlyPeriodEnd } from "@sokosumi/database/helpers";
 import { convertCreditsToCents } from "@sokosumi/utils";
+import { err, ok, type Result } from "neverthrow";
 import { z } from "zod";
 
 import type { PolarWebhookEvent } from "@/clients/polar.client";
@@ -62,6 +63,11 @@ export type CmoCheckoutMetadata = z.infer<typeof cmoCheckoutMetadataSchema>;
 const ENDED_STATUSES = new Set(["canceled", "unpaid", "incomplete_expired"]);
 
 const ROW_SELECT = { id: true, projectId: true, organizationId: true } as const;
+type CmoSubscriptionRow = {
+  id: string;
+  projectId: string;
+  organizationId: string;
+};
 
 interface CmoPlanOfProduct {
   credits: number;
@@ -109,12 +115,12 @@ function planOfProduct(
 
 /**
  * Writes the subscription's state from a Polar payload and returns its row,
- * or the reason no row can exist. Polar does not order its deliveries, so a
- * payload older than the stored state changes nothing.
+ * or the reason no row can exist (an error to report). Polar does not order
+ * its deliveries, so a payload older than the stored state changes nothing.
  */
 async function upsertCmoSubscription(
   source: SubscriptionSource,
-): Promise<{ id: string; projectId: string; organizationId: string } | string> {
+): Promise<Result<CmoSubscriptionRow, string>> {
   const { eventAt, plan, subscription } = source;
   const where = { polarSubscriptionId: subscription.id };
   const state = {
@@ -147,36 +153,37 @@ async function upsertCmoSubscription(
   }
 
   const stored = await applyToStoredRow();
-  if (stored) return stored;
+  if (stored) return ok(stored);
 
   const metadata = cmoCheckoutMetadataSchema.safeParse(source.metadata);
-  if (!metadata.success) return "no CMO checkout metadata";
+  if (!metadata.success) return err("no CMO checkout metadata");
   const { organizationId, projectId } = metadata.data;
   if (
     source.externalCustomerId &&
     source.externalCustomerId !== organizationId
   ) {
-    return "the Polar customer is not the organization of the checkout";
+    return err("the Polar customer is not the organization of the checkout");
   }
   const project = await prisma.project.findFirst({
     where: { id: projectId, workspace: { organizationId } },
     select: { id: true },
   });
-  if (!project) return "unknown organization or Project";
+  if (!project) return err("unknown organization or Project");
 
   try {
-    return await prisma.cmoSubscription.create({
-      data: { ...state, ...where, organizationId, projectId },
-      select: ROW_SELECT,
-    });
+    return ok(
+      await prisma.cmoSubscription.create({
+        data: { ...state, ...where, organizationId, projectId },
+        select: ROW_SELECT,
+      }),
+    );
   } catch (error) {
     if (!isPrismaUniqueViolation(error)) throw error;
     // Either another delivery created this subscription's row first, or the
     // Project already has a subscription that has not ended.
-    return (
-      (await applyToStoredRow()) ??
-      "the Project already has a CMO subscription that has not ended"
-    );
+    const raced = await applyToStoredRow();
+    if (raced) return ok(raced);
+    return err("the Project already has a CMO subscription that has not ended");
   }
 }
 
@@ -212,7 +219,7 @@ export async function handlePolarSubscriptionEvent(
     revoked: event.type === "subscription.revoked",
     subscription,
   });
-  if (typeof row === "string") reportUnusableEvent(event, row, extra);
+  if (row.isErr()) reportUnusableEvent(event, row.error, extra);
 }
 
 /**
@@ -252,17 +259,18 @@ export async function handlePolarOrderPaid(
   }
   // An order has no paid date of its own: the event's timestamp stands in.
   const paidAt = new Date(event.timestamp);
-  const row = await upsertCmoSubscription({
+  const upserted = await upsertCmoSubscription({
     eventAt: paidAt,
     externalCustomerId: order.customer.external_id,
     metadata: order.metadata,
     plan,
     subscription,
   });
-  if (typeof row === "string") {
-    reportUnusableEvent(event, row, extra);
+  if (upserted.isErr()) {
+    reportUnusableEvent(event, upserted.error, extra);
     return;
   }
+  const row = upserted.value;
 
   const amount = convertCreditsToCents(plan.credits);
   // The period this order billed: its own line, because a late delivery
@@ -390,17 +398,18 @@ export async function handlePolarPlanChangePaid(
     return;
   }
   const paidAt = new Date(event.timestamp);
-  const row = await upsertCmoSubscription({
+  const upserted = await upsertCmoSubscription({
     eventAt: paidAt,
     externalCustomerId: order.customer.external_id,
     metadata: order.metadata,
     plan,
     subscription,
   });
-  if (typeof row === "string") {
-    reportUnusableEvent(event, row, extra);
+  if (upserted.isErr()) {
+    reportUnusableEvent(event, upserted.error, extra);
     return;
   }
+  const row = upserted.value;
   const periodStart = new Date(subscription.current_period_start);
   const month =
     plan.interval === "month"
