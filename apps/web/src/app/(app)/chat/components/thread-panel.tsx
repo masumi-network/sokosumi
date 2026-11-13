@@ -119,6 +119,7 @@ export function ThreadPanel({
   onRemoveOutbound,
   onJumpToQuotedMessage,
   onSendToSelf,
+  isSelfDirect = false,
   outboundSentTickIds,
   editSession = null,
   onEditDraftChange,
@@ -179,6 +180,7 @@ export function ThreadPanel({
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   onJumpToQuotedMessage?: (messageId: string) => void;
   onSendToSelf?: (message: ChatRoomMessage) => void;
+  isSelfDirect?: boolean;
   outboundSentTickIds?: ReadonlySet<string>;
   editSession?: { messageId: string; draft: string } | null;
   onEditDraftChange?: (value: string) => void;
@@ -212,9 +214,11 @@ export function ThreadPanel({
   useQuietHoverWhileScrolling(scroller);
   const transcriptRows = useMemo(
     () =>
+      // Replies show while the list loads: a reply sent in that window is
+      // already in `replies`, and hiding it looked like the send was lost.
       buildThreadTranscriptRows(
         parentMessage,
-        isLoading ? [] : replies,
+        replies,
         isLoading ? null : olderNextCursor,
       ),
     [isLoading, olderNextCursor, parentMessage, replies],
@@ -308,6 +312,7 @@ export function ThreadPanel({
             onRemoveOutbound={isParent ? undefined : onRemoveOutbound}
             onJumpToQuotedMessage={onJumpToQuotedMessage}
             onSendToSelf={onSendToSelf}
+            isSelfDirect={isSelfDirect}
             showOutboundSentTick={
               isParent ? undefined : outboundSentTickIds?.has(message.id)
             }

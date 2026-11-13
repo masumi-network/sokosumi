@@ -42,7 +42,9 @@ describe("writing skills", () => {
     expect(judgedWritingRules("linkedin", "post")).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/^It states no number/),
-        expect.stringMatching(/^It says something specific/),
+        expect.stringMatching(
+          /^It names at least one thing only this business has/,
+        ),
       ]),
     );
   });
@@ -80,6 +82,26 @@ describe("writing skills", () => {
       "hooks-and-endings",
       "x",
     ]);
+  });
+
+  it("holds a Google ad to its own skill, not to a feed post's shape", () => {
+    expect(
+      writingSkillsForChannels(["google_ads"]).map((skill) => skill.id),
+    ).toEqual(["brand-voice", "google-ads"]);
+    expect(judgedWritingRules("google_ads", "search_ad")).toHaveLength(6);
+  });
+
+  it("asks the evaluator one ending rule per post and no bait rule", () => {
+    const endings = (channel: string) =>
+      judgedWritingRules(channel, "post").filter((rule) =>
+        /ends with/.test(rule),
+      );
+    expect(endings("linkedin")).toEqual([
+      "It ends with a single question, takeaway or call to action.",
+    ]);
+    expect(judgedWritingRules("facebook", "image").join(" ")).not.toMatch(
+      /bait/,
+    );
   });
 
   it("leaves plain-text post formatting out of Markdown files", () => {

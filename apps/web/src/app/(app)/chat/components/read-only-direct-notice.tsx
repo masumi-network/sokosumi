@@ -41,11 +41,13 @@ export function ReadOnlyDirectNotice({ message }: ReadOnlyDirectNoticeProps) {
   return (
     <div
       className={cn(
-        "shrink-0 px-4 md:px-5",
+        "pointer-events-none shrink-0 px-4 md:px-5",
         chatMobileComposerSafeAreaPbClass(),
       )}
     >
-      <p className="text-muted-foreground py-3 text-sm">{message}</p>
+      <p className="pointer-events-auto text-muted-foreground rounded-lg bg-background px-3 py-3 text-sm">
+        {message}
+      </p>
     </div>
   );
 }

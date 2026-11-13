@@ -11,7 +11,7 @@ import type {
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { Hash } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { MutableRefObject } from "react";
 import {
   type Dispatch,
@@ -654,6 +654,11 @@ function RoomView({
   }, []);
   // Defer local day separators / continuation until after hydrate (SOKOSUMI-A).
   const localCalendarReady = useClientLocalCalendarReady();
+  const locale = useLocale();
+  const formatDayLabel = useCallback(
+    (date: Date) => formatDaySeparator(date, locale),
+    [locale],
+  );
   const [openingDirectKey, setOpeningDirectKey] = useState<string | null>(null);
   const [pendingQuote, setPendingQuote] = useState<PendingRoomQuote | null>(
     null,
@@ -2346,7 +2351,11 @@ function RoomView({
         toast.error(result.error.message);
         return markedRead;
       }
-      setThreadMessages(result.value.messages);
+      // Merge, not replace: a reply sent while this list loaded is a pending
+      // row here, and replacing would drop it until the next refresh.
+      setThreadMessages((current) =>
+        mergeRoomMessages(current, result.value.messages),
+      );
       setThreadOlderNextCursor(result.value.nextCursor);
       return markedRead;
     } finally {
@@ -3104,14 +3113,14 @@ function RoomView({
             <UnreadDivider
               dayLabel={
                 showDaySeparator
-                  ? formatDaySeparator(new Date(message.createdAt))
+                  ? formatDayLabel(new Date(message.createdAt))
                   : null
               }
             />
           ) : showDaySeparator ? (
             <DaySeparator
               date={new Date(message.createdAt)}
-              formatDaySeparator={formatDaySeparator}
+              formatDaySeparator={formatDayLabel}
             />
           ) : null}
           {isRoomStatusMessage(message) ? (
@@ -3185,6 +3194,7 @@ function RoomView({
               onJumpToQuotedMessage={
                 stableMessageHandlers.onJumpToQuotedMessage
               }
+              isSelfDirect={room.isSelfDirect}
               onSendToSelf={
                 room.isSelfDirect
                   ? undefined
@@ -3468,6 +3478,7 @@ function RoomView({
                 onJumpToQuotedMessage={
                   stableMessageHandlers.onJumpToQuotedMessage
                 }
+                isSelfDirect={selectedRoom.isSelfDirect}
                 onSendToSelf={
                   selectedRoom.isSelfDirect
                     ? undefined

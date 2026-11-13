@@ -1158,6 +1158,11 @@
       "description": "CMO gestiona este proyecto, así que los cambios se hacen en CMO. Aquí puedes consultarlo.",
       "open": "Abrir en CMO",
       "newTab": "(se abre en una pestaña nueva)"
+    },
+    "FilesArchive": {
+      "failed": "No se pudieron descargar los archivos. Inténtalo de nuevo o ábrelos uno a uno.",
+      "partial": "Se descargaron {included} de {total} archivos. No incluidos: {names}{more, plural, =0 {} one { y # más} other { y # más}}. Ábrelos uno a uno.",
+      "empty": "Aún no hay archivos para descargar."
     }
   },
   "Join": {
@@ -1920,9 +1925,7 @@
         "expand": "Expandir",
         "collapse": "Contraer",
         "downloadAll": {
-          "button": "Descargar todo",
-          "failed": "No se pudieron descargar los archivos. Inténtalo de nuevo o ábrelos uno a uno.",
-          "partial": "Se descargaron {included} de {total} archivos. No incluidos: {names}{more, plural, =0 {} one { y # más} other { y # más}}. Ábrelos uno a uno."
+          "button": "Descargar todo"
         },
         "actorCoworker": "Coworker",
         "actorUser": "Usuario",
@@ -3003,7 +3006,11 @@
             "videoRequired": "TikTok necesita un video."
           },
           "x": {
-            "more": "Mostrar más"
+            "more": "Mostrar más",
+            "images": "{count, plural, one {# imagen} other {# imágenes}}",
+            "image": "Imagen {index} de {count}",
+            "previousImage": "Imagen anterior",
+            "nextImage": "Imagen siguiente"
           }
         },
         "statistics": {
@@ -4588,7 +4595,8 @@
       "creditsCharged": "Sumado a partir del precio publicado de cada modelo, a 1 crédito por céntimo y sin recargo. Es el cobro, no una aproximación: se toma la misma cifra cuando se entrega la imagen. Una generación que falla no cuesta nada.",
       "creditsUnderivable": "Al menos uno de estos modelos no puede tasarse por imagen para el encuadre elegido, así que este lote no se puede sumar.",
       "creditsNoFigure": "Sin cifra",
-      "failedNoCharge": "No se cobró nada por ella.",
+      "failedAfterModel": "falló",
+      "failedNoCharge": "sin cargo",
       "failedBodyUnreported": "El modelo no devolvió ninguna imagen, y esta generación es demasiado antigua para decir por qué.",
       "FailureReasons": {
         "provider_rejected": "El proveedor de imágenes rechazó esta solicitud.",
@@ -9111,6 +9119,8 @@
       "Message": {
         "delete": "Eliminar",
         "deleteConfirm": "¿Eliminar este mensaje? Los demás verán que fue eliminado.",
+        "deleteNoteTitle": "¿Eliminar esta nota?",
+        "deleteNoteConfirm": "Se elimina para siempre. Solo tú podías verla.",
         "deleted": "Este mensaje fue eliminado",
         "deleteError": "No se pudo eliminar el mensaje. Inténtalo de nuevo.",
         "restored": "El mensaje vuelve a estar en la conversación.",
@@ -9497,7 +9507,7 @@
         "Decisions": {
           "open": "Decisiones",
           "title": "Decisiones",
-          "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
+          "empty": "Aún no hay decisiones aquí. Las encontramos en canales y en chats con otras personas que lo permiten. Las notas para ti mismo nunca se etiquetan.",
           "loadOlder": "Cargar anteriores",
           "note": "Las encontramos por ti. Si una es incorrecta, abre su mensaje y haz clic en la × de la etiqueta.",
           "description": "Decisiones encontradas en tus chats, las más recientes primero, también las que ya leíste.",
@@ -9556,6 +9566,13 @@
       "myDrive": "Mis archivos",
       "uploadButton": "Subir",
       "uploadingProgress": "{progress}%",
+      "uploadFilesOption": "Archivos",
+      "uploadFolderOption": "Carpeta",
+      "filesUploaded": "{count, plural, one {# archivo subido} other {# archivos subidos}}",
+      "dropToUpload": "Suelta archivos o carpetas para subirlos",
+      "folderUploaded": "{count, plural, one {Se subió # archivo a {folder}} other {Se subieron # archivos a {folder}}}",
+      "folderUploadSkipped": "{count, plural, one {# archivo no se subió. Archivos omite tipos no compatibles, archivos de más de 100 MB, nombres que ya están en la carpeta y todo lo que pase de 500 archivos.} other {# archivos no se subieron. Archivos omite tipos no compatibles, archivos de más de 100 MB, nombres que ya están en la carpeta y todo lo que pase de 500 archivos.}}",
+      "folderUploadNothing": "Esta carpeta no tiene archivos que se puedan subir.",
       "emptyTitle": "Aún no hay archivos",
       "emptyDescription": "Sube tu primer archivo para comenzar",
       "searchPlaceholder": "Buscar archivos...",
@@ -9644,6 +9661,9 @@
       "deleteFolderError": "Error al eliminar carpeta",
       "moveFolderError": "Error al mover carpeta",
       "moveFolderAction": "Mover carpeta",
+      "downloadFolderButton": "Descargar",
+      "downloadFolderAction": "Descargar {name} como zip",
+      "downloadFolderRoomsLeftOut": "Las salas de datos no están en el zip: {names}. Sus archivos siguen siendo privados para las personas con acceso.",
       "moveFileError": "Error al mover archivo",
       "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "Aún no hay archivos de tareas",
@@ -11416,6 +11436,7 @@
       "open": "Abrir",
       "download": "Descargar",
       "downloadFile": "Descargar {name}",
+      "downloadAll": "Descargar todo",
       "truncated": "Se muestran los primeros 2.000 archivos de esta carpeta.",
       "emptyFolder": "Esta carpeta está vacía.",
       "errors": {

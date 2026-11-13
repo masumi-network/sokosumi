@@ -2396,6 +2396,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onRemoveOutbound,
   onJumpToQuotedMessage,
   onSendToSelf,
+  isSelfDirect = false,
   showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
@@ -2444,6 +2445,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onJumpToQuotedMessage?: (messageId: string) => void;
   /** Send to yourself. The room omits it inside the Self Direct. */
   onSendToSelf?: (message: ChatRoomMessage) => void;
+  /** Self Direct: delete copy speaks of a private note, not a shared message. */
+  isSelfDirect?: boolean;
   /** Brief check in the timestamp slot after confirm (fades, then wall-clock). */
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
@@ -3156,9 +3159,15 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{tChannels("Message.delete")}</AlertDialogTitle>
+              <AlertDialogTitle>
+                {isSelfDirect
+                  ? tChannels("Message.deleteNoteTitle")
+                  : tChannels("Message.delete")}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                {tChannels("Message.deleteConfirm")}
+                {isSelfDirect
+                  ? tChannels("Message.deleteNoteConfirm")
+                  : tChannels("Message.deleteConfirm")}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

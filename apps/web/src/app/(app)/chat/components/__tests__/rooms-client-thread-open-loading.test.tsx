@@ -15,6 +15,7 @@ import {
   mockSearch,
   renderWithQueryClient,
   roomsClientBaseProps,
+  sendRoomMessageAction,
   useChatRoomRealtimeMock,
 } from "./rooms-client-harness";
 
@@ -92,12 +93,18 @@ vi.mock("../thread-panel", () => ({
     olderLoadStatus,
     onLoadOlder,
     onClose,
+    onSendReply,
   }: {
     isLoading: boolean;
     replies: ChatRoomMessage[];
     olderLoadStatus?: string;
     onLoadOlder: () => void;
     onClose: () => void;
+    onSendReply: (request: {
+      content: string;
+      clientMessageId: string;
+      mentionedIds: string[];
+    }) => void;
   }) => (
     <div data-testid="thread-panel" data-older-status={olderLoadStatus}>
       <span data-testid="thread-loading">{String(isLoading)}</span>
@@ -114,6 +121,19 @@ vi.mock("../thread-panel", () => ({
       </button>
       <button type="button" data-testid="thread-close" onClick={onClose}>
         close
+      </button>
+      <button
+        type="button"
+        data-testid="thread-send"
+        onClick={() =>
+          onSendReply({
+            content: "Sent while loading",
+            clientMessageId: "turn-1",
+            mentionedIds: [],
+          })
+        }
+      >
+        send
       </button>
     </div>
   ),
@@ -232,6 +252,46 @@ describe("RoomsClient thread open loading race", () => {
       expect(screen.getByTestId("thread-state").textContent).toBe("replies");
     });
     expect(screen.getByTestId("thread-loading").textContent).toBe("false");
+    expect(screen.getByTestId("thread-reply-count").textContent).toBe("2");
+  });
+
+  it("keeps a reply sent while the thread loads once the list lands", async () => {
+    markThreadReadAction.mockResolvedValue({
+      ok: true as const,
+      value: { lookedAt: new Date().toISOString() },
+    });
+    let resolveList!: (value: {
+      ok: true;
+      value: { messages: ChatRoomMessage[]; nextCursor: null };
+    }) => void;
+    listThreadMessagesAction.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveList = resolve;
+        }),
+    );
+    // The send stays in flight, so the reply is still a pending row.
+    sendRoomMessageAction.mockImplementation(() => new Promise(() => {}));
+
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
+    fireEvent.click(screen.getByTestId("open-thread-parent-1"));
+    await waitFor(() => {
+      expect(listThreadMessagesAction).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByTestId("thread-send"));
+    expect(screen.getByTestId("thread-reply-count").textContent).toBe("1");
+
+    await act(async () => {
+      resolveList({
+        ok: true,
+        value: { messages: [replyMessage("r1")], nextCursor: null },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("thread-loading").textContent).toBe("false");
+    });
     expect(screen.getByTestId("thread-reply-count").textContent).toBe("2");
   });
 
