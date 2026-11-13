@@ -39,30 +39,50 @@ export function driveUploadEntries(files: Iterable<File>): DriveUploadEntry[] {
   }));
 }
 
+export interface DriveDropRead {
+  entries: DriveUploadEntry[];
+  /** Files past the cap, counted but not read; none of them upload. */
+  overflow: number;
+}
+
 /**
  * Every file in a drop, folders read recursively. The entries are taken
  * before the first await, while the browser still exposes them.
+ *
+ * Hidden files and folders (`.git/`) are not walked: the plan drops them
+ * anyway. After `DRIVE_FOLDER_UPLOAD_MAX_FILES` files nothing more is read,
+ * only counted, so the skipped count stays true.
  */
 export async function driveDropEntries(
   dataTransfer: DataTransfer,
-): Promise<DriveUploadEntry[]> {
+): Promise<DriveDropRead> {
   const roots = Array.from(dataTransfer.items ?? [])
     .filter((item) => item.kind === "file")
     .map((item) => item.webkitGetAsEntry?.() ?? item.getAsFile());
   // No entries API: take the dropped files as they are.
-  if (roots.length === 0) return driveUploadEntries(dataTransfer.files ?? []);
+  if (roots.length === 0) {
+    return {
+      entries: driveUploadEntries(dataTransfer.files ?? []),
+      overflow: 0,
+    };
+  }
 
-  const entries: DriveUploadEntry[] = [];
+  const read: DriveDropRead = { entries: [], overflow: 0 };
   async function walk(entry: FileSystemEntry | File | null): Promise<void> {
-    if (!entry) return;
-    if (entry instanceof File) {
-      entries.push({ file: entry, path: entry.name });
+    if (!entry || entry.name.startsWith(".")) return;
+    const isFile = entry instanceof File || entry.isFile;
+    if (isFile && read.entries.length >= DRIVE_FOLDER_UPLOAD_MAX_FILES) {
+      read.overflow += 1;
+    } else if (entry instanceof File) {
+      read.entries.push({ file: entry, path: entry.name });
     } else if (entry.isFile) {
       const file = await new Promise<File>((resolve, reject) =>
         (entry as FileSystemFileEntry).file(resolve, reject),
       );
-      entries.push({ file, path: entry.fullPath.replace(/^\//, "") });
+      read.entries.push({ file, path: entry.fullPath.replace(/^\//, "") });
     } else if (entry.isDirectory) {
+      // ponytail: past the cap folders are still listed to count what is
+      // skipped; a huge non-hidden tree (node_modules) costs listing time.
       const reader = (entry as FileSystemDirectoryEntry).createReader();
       // readEntries hands back one batch per call (100 in Chrome) until empty.
       for (;;) {
@@ -75,7 +95,7 @@ export async function driveDropEntries(
     }
   }
   for (const root of roots) await walk(root);
-  return entries;
+  return read;
 }
 
 /**

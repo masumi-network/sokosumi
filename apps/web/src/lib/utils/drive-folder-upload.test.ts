@@ -1,5 +1,5 @@
 import { FILE_UPLOAD_MAX_SIZE_BYTES } from "@sokosumi/utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   DRIVE_FOLDER_UPLOAD_MAX_FILES,
   driveDropEntries,
@@ -92,31 +92,44 @@ describe("planDriveFolderUpload", () => {
 
 /** Just enough of the File and Directory Entries API for a drop. */
 function fileEntry(fullPath: string) {
-  const file = new File(["x"], fullPath.split("/").at(-1)!, {
-    type: "text/plain",
-  });
-  return {
+  const name = fullPath.split("/").at(-1)!;
+  const entry = {
     isFile: true,
     isDirectory: false,
+    name,
     fullPath,
-    file: (resolve: (f: File) => void) => resolve(file),
+    file: vi.fn((resolve: (f: File) => void) =>
+      resolve(new File(["x"], name, { type: "text/plain" })),
+    ),
   };
+  return entry;
 }
 
 function dirEntry(fullPath: string, children: unknown[]) {
   return {
     isFile: false,
     isDirectory: true,
+    name: fullPath.split("/").at(-1)!,
     fullPath,
-    createReader: () => {
+    createReader: vi.fn(() => {
       // Two batches, then empty, like Chrome past 100 entries.
       const batches = [children.slice(0, 1), children.slice(1), []];
       return {
         readEntries: (resolve: (e: unknown[]) => void) =>
           resolve(batches.shift() ?? []),
       };
-    },
+    }),
   };
+}
+
+function drop(...entries: unknown[]): DataTransfer {
+  return {
+    items: entries.map((entry) => ({
+      kind: "file",
+      webkitGetAsEntry: () => entry,
+    })),
+    files: [],
+  } as unknown as DataTransfer;
 }
 
 describe("driveDropEntries", () => {
@@ -125,21 +138,44 @@ describe("driveDropEntries", () => {
       fileEntry("/Launch/brief.txt"),
       dirEntry("/Launch/assets", [fileEntry("/Launch/assets/notes.txt")]),
     ]);
-    const loose = fileEntry("/todo.txt");
-    const dataTransfer = {
-      items: [tree, loose].map((entry) => ({
-        kind: "file",
-        webkitGetAsEntry: () => entry,
-      })),
-      files: [],
-    } as unknown as DataTransfer;
 
-    const entries = await driveDropEntries(dataTransfer);
+    const { entries, overflow } = await driveDropEntries(
+      drop(tree, fileEntry("/todo.txt")),
+    );
 
     expect(entries.map((e) => [e.path, e.file.name])).toEqual([
       ["Launch/brief.txt", "brief.txt"],
       ["Launch/assets/notes.txt", "notes.txt"],
       ["todo.txt", "todo.txt"],
     ]);
+    expect(overflow).toBe(0);
+  });
+
+  it("never opens hidden folders or reads hidden files", async () => {
+    const git = dirEntry("/Launch/.git", [fileEntry("/Launch/.git/config")]);
+    const dsStore = fileEntry("/Launch/.DS_Store");
+
+    const { entries } = await driveDropEntries(
+      drop(dirEntry("/Launch", [git, dsStore, fileEntry("/Launch/brief.txt")])),
+    );
+
+    expect(entries.map((e) => e.path)).toEqual(["Launch/brief.txt"]);
+    expect(git.createReader).not.toHaveBeenCalled();
+    expect(dsStore.file).not.toHaveBeenCalled();
+  });
+
+  it("stops reading at the cap but counts every file past it", async () => {
+    const files = Array.from(
+      { length: DRIVE_FOLDER_UPLOAD_MAX_FILES + 3 },
+      (_, i) => fileEntry(`/Big/${i}.txt`),
+    );
+
+    const { entries, overflow } = await driveDropEntries(
+      drop(dirEntry("/Big", files)),
+    );
+
+    expect(entries).toHaveLength(DRIVE_FOLDER_UPLOAD_MAX_FILES);
+    expect(overflow).toBe(3);
+    expect(files.at(-1)?.file).not.toHaveBeenCalled();
   });
 });

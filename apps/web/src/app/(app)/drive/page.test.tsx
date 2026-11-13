@@ -2072,62 +2072,137 @@ describe("one catalog, not two", () => {
     ]);
   });
 
-  it("uploads a folder dropped on the list, keeping its subfolders", async () => {
-    searchParams = new URLSearchParams("view=workspace");
-    listDriveItemsMock.mockResolvedValue([]);
-    uploadDriveFileMock.mockReset();
-    uploadDriveFileMock.mockResolvedValue({ pathname: "a", fileUrl: null });
-    vi.mocked(toast.success).mockClear();
-
-    renderDrive();
-    const list = await screen.findByTestId("drive-all-files");
-
-    const fileEntry = (fullPath: string) => ({
-      isFile: true,
-      isDirectory: false,
-      fullPath,
-      file: (resolve: (f: File) => void) =>
-        resolve(
-          new File(["x"], fullPath.split("/").at(-1)!, { type: "text/plain" }),
-        ),
-    });
-    const dirEntry = (fullPath: string, children: unknown[]) => ({
+  describe("drag and drop", () => {
+    const fileEntry = (fullPath: string) => {
+      const name = fullPath.split("/").at(-1)!;
+      return {
+        isFile: true,
+        isDirectory: false,
+        name,
+        fullPath,
+        file: (resolve: (f: File) => void) =>
+          resolve(new File(["x"], name, { type: "text/plain" })),
+      };
+    };
+    const dirEntry = (
+      fullPath: string,
+      children: unknown[],
+      gate: Promise<void> = Promise.resolve(),
+    ) => ({
       isFile: false,
       isDirectory: true,
+      name: fullPath.split("/").at(-1)!,
       fullPath,
       createReader: () => {
         const batches = [children, []];
         return {
           readEntries: (resolve: (e: unknown[]) => void) =>
-            resolve(batches.shift() ?? []),
+            void gate.then(() => resolve(batches.shift() ?? [])),
         };
       },
     });
-    const folder = dirEntry("/Launch", [
-      fileEntry("/Launch/brief.txt"),
-      dirEntry("/Launch/assets", [fileEntry("/Launch/assets/notes.txt")]),
-    ]);
-    await act(async () => {
-      fireEvent.drop(list, {
-        dataTransfer: {
-          types: ["Files"],
-          files: [],
-          items: [{ kind: "file", webkitGetAsEntry: () => folder }],
-        },
+    const dropOn = (target: Element, ...entries: unknown[]) =>
+      act(async () => {
+        fireEvent.drop(target, {
+          dataTransfer: {
+            types: ["Files"],
+            files: [],
+            items: entries.map((entry) => ({
+              kind: "file",
+              webkitGetAsEntry: () => entry,
+            })),
+          },
+        });
       });
-    });
-
-    await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith("folderUploaded", undefined);
-    });
-    expect(
+    const uploadedTo = () =>
       uploadDriveFileMock.mock.calls.map(([file, options]) => [
         (file as File).name,
-        (options as { folder: string }).folder,
-      ]),
-    ).toEqual([
-      ["brief.txt", "Launch"],
-      ["notes.txt", "Launch/assets"],
-    ]);
+        (options as { folder?: string }).folder,
+      ]);
+
+    beforeEach(() => {
+      searchParams = new URLSearchParams("view=workspace");
+      listDriveItemsMock.mockResolvedValue([]);
+      uploadDriveFileMock.mockReset();
+      uploadDriveFileMock.mockResolvedValue({ pathname: "a", fileUrl: null });
+      vi.mocked(toast.success).mockClear();
+      vi.mocked(toast.error).mockClear();
+    });
+
+    it("uploads a folder dropped on the page header, keeping its subfolders", async () => {
+      renderDrive();
+      await screen.findByTestId("drive-all-files");
+
+      // Not the list: the header, so the whole page is the target.
+      await dropOn(
+        screen.getByTestId("files-desktop-header"),
+        dirEntry("/Launch", [
+          fileEntry("/Launch/brief.txt"),
+          dirEntry("/Launch/assets", [fileEntry("/Launch/assets/notes.txt")]),
+        ]),
+      );
+
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith("folderUploaded", undefined);
+      });
+      expect(uploadedTo()).toEqual([
+        ["brief.txt", "Launch"],
+        ["notes.txt", "Launch/assets"],
+      ]);
+    });
+
+    it("ignores a second drop while the first folder is still being read", async () => {
+      let release = () => {};
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      renderDrive();
+      const list = await screen.findByTestId("drive-all-files");
+
+      await dropOn(
+        list,
+        dirEntry("/Launch", [fileEntry("/Launch/brief.txt")], gate),
+      );
+      await dropOn(list, fileEntry("/second.txt"));
+      await act(async () => release());
+
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith("folderUploaded", undefined);
+      });
+      expect(uploadedTo()).toEqual([["brief.txt", "Launch"]]);
+    });
+
+    it("keeps the browser on Files when a file misses the page", async () => {
+      renderDrive();
+      await screen.findByTestId("drive-all-files");
+
+      // Outside the page, e.g. on the sidebar: cancelled, so the browser
+      // does not open the file in place of Sokosumi.
+      const miss = new Event("drop", { bubbles: true, cancelable: true });
+      Object.defineProperty(miss, "dataTransfer", {
+        value: { types: ["Files"] },
+      });
+      document.body.dispatchEvent(miss);
+
+      expect(miss.defaultPrevented).toBe(true);
+      expect(uploadDriveFileMock).not.toHaveBeenCalled();
+    });
+
+    it("reports a failed single file without the skip-reasons note", async () => {
+      uploadDriveFileMock.mockReset();
+      uploadDriveFileMock.mockRejectedValueOnce(new Error("network"));
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      renderDrive();
+      const list = await screen.findByTestId("drive-all-files");
+
+      await dropOn(list, fileEntry("/notes.txt"));
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith("uploadError", undefined);
+      });
+      consoleError.mockRestore();
+    });
   });
 });
