@@ -171,6 +171,28 @@ describe("GET /api/chat/rooms", () => {
       expect(result.status).toBe(503);
     });
 
+    it("answers the throttle even when a stall failed first", async () => {
+      listRoomsMock.mockRejectedValue(new CoreApiRequestError("timeout"));
+      listPendingMock.mockImplementation(
+        () =>
+          new Promise((_resolve, reject) =>
+            setTimeout(
+              () =>
+                reject(
+                  new CoreApiRequestError("slow down", {
+                    status: 429,
+                    retryAfterSeconds: 7,
+                  }),
+                ),
+              5,
+            ),
+          ),
+      );
+      const result = await GET(requestMany("active,invitations"));
+      expect(result.status).toBe(429);
+      expect(result.headers.get("retry-after")).toBe("7");
+    });
+
     it("rejects an unknown collection before fetching", async () => {
       expect((await GET(requestMany("active,everything"))).status).toBe(400);
       expect(listRoomsMock).not.toHaveBeenCalled();

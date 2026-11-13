@@ -46,22 +46,31 @@ async function readCollection(
 async function readCollections(
   collections: Collection[],
 ): Promise<BackgroundChatReadPage> {
-  const parts = await Promise.all(
-    collections.map((collection) =>
-      readCollection(collection).then(backgroundChatReadEnvelope, (error) => {
-        if (
-          error instanceof CoreApiRequestError &&
-          (error.status === 429 || !error.status)
-        ) {
-          throw error;
-        }
-        return null;
-      }),
-    ),
+  const settled = await Promise.allSettled(collections.map(readCollection));
+  const coreErrors = settled.flatMap((result) =>
+    result.status === "rejected" && result.reason instanceof CoreApiRequestError
+      ? [result.reason]
+      : [],
   );
+  // A throttle wins over a stall, whichever answered first: only the
+  // throttle sets the browser's shared backoff clock.
+  const failure =
+    coreErrors.find((error) => error.status === 429) ??
+    coreErrors.find((error) => !error.status);
+  if (failure) {
+    throw failure;
+  }
   return {
     data: Object.fromEntries(
-      collections.map((collection, index) => [collection, parts[index]]),
+      collections.map((collection, index) => {
+        const result = settled[index];
+        return [
+          collection,
+          result.status === "fulfilled"
+            ? backgroundChatReadEnvelope(result.value)
+            : null,
+        ];
+      }),
     ),
   };
 }
