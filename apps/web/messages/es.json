@@ -12409,6 +12409,8 @@
           "analyticsNoAggregate": "Google Analytics no devolvió totales en la última sincronización.",
           "analyticsThresholding": "Google Analytics aplicó umbrales o perdió datos en la última sincronización. Faltan algunos valores.",
           "analyticsTruncated": "Google Analytics recortó los valores diarios en la última sincronización. Faltan algunos días.",
+          "keywordRowsCut": "Search Console solo conservó las primeras {count} filas diarias de palabras clave en la última sincronización. Pueden faltar algunos días.",
+          "keywordsLeftOut": "En la última sincronización no se leyeron las posiciones diarias de {count, plural, one {# palabra clave seguida} other {# palabras clave seguidas}}: {names}.",
           "note": "Nota de la última sincronización: {note}",
           "queriesTruncated": "Search Console solo lista las primeras {count} filas de búsqueda. Las búsquedas menos frecuentes quedan fuera.",
           "noCheck": "Aún no se ha hecho ninguna comprobación en estas páginas.",

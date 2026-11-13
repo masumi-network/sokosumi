@@ -1,21 +1,12 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import {
+  readSeoStatisticsNote,
   SEO_CAPABILITIES,
   SEO_CAPABILITY_GROUPS,
   SEO_CAPABILITY_UNLOCKS,
-  SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE,
-  SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE,
-  SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE,
-  SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE,
-  SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
-  SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,
-  SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
-  SEO_STATISTICS_NO_AGGREGATE_NOTE,
-  SEO_STATISTICS_QUERY_FAILED_NOTE,
-  SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE,
-  SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE,
   type SeoCapability,
   type SeoCapabilityUnlock,
+  type SeoStatisticsNoteGap,
 } from "@sokosumi/utils";
 import { latestSeoMeasurements } from "./seo-statistics-model";
 
@@ -50,16 +41,7 @@ export type SeoAuditGap = {
     | "noSearchConsole"
     | "noAnalytics"
     | "statisticsUnavailable"
-    | "queryFailed"
-    | "noAggregate"
-    | "queryRows"
-    | "keywordSeries"
-    | "breakdown"
-    | "indexStatus"
-    | "analyticsTimeZone"
-    | "analyticsNoAggregate"
-    | "analyticsThresholding"
-    | "analyticsTruncated"
+    | SeoStatisticsNoteGap
     | "note"
     | "queriesTruncated"
     | "noCheck"
@@ -69,27 +51,13 @@ export type SeoAuditGap = {
     | "modulesFailed"
     | "paidOff"
     | "historyLimited";
-  /** A stored note Core wrote in English, for a note this list does not know. */
+  /** A stored note Core wrote in English, for a note the note catalog does not know. */
   note?: string;
   count?: number;
-  /** Module names, for the reader's list format. */
+  /** Module or keyword names, for the reader's list format. */
   names?: string[];
   fix: SeoAuditGapFix | null;
 };
-
-/** Notes a statistics sync stores, by the line that says them in the reader's language. */
-const KNOWN_NOTES = new Map<string, SeoAuditGap["message"]>([
-  [SEO_STATISTICS_QUERY_FAILED_NOTE, "queryFailed"],
-  [SEO_STATISTICS_NO_AGGREGATE_NOTE, "noAggregate"],
-  [SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE, "queryRows"],
-  [SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE, "keywordSeries"],
-  [SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE, "breakdown"],
-  [SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE, "indexStatus"],
-  [SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE, "analyticsTimeZone"],
-  [SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE, "analyticsNoAggregate"],
-  [SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE, "analyticsThresholding"],
-  [SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE, "analyticsTruncated"],
-]);
 
 /**
  * Whether a filter narrows the statistics Core returns: a sync counts only for its exact page group and
@@ -146,15 +114,19 @@ export function seoAuditGaps(
   if (latest.some((metric) => metric.coverage === "unavailable"))
     gaps.push({ message: "statisticsUnavailable", fix: sync });
   const notes = new Set(latest.flatMap((metric) => metric.notes));
-  // Every Search Console sync stores this note: it is no gap.
-  notes.delete(SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE);
+  // A routine note comes with every sync, and a flag note repeats a field read below (the cut query rows).
   for (const note of notes) {
-    const known = KNOWN_NOTES.get(note);
-    gaps.push(
-      known
-        ? { message: known, fix: sync }
-        : { message: "note", note, fix: sync },
-    );
+    const reading = readSeoStatisticsNote(note);
+    if (!reading) gaps.push({ message: "note", note, fix: sync });
+    else if (reading.kind === "gap") {
+      const { gap: message, count, names } = reading;
+      gaps.push({
+        message,
+        ...(count === undefined ? {} : { count }),
+        ...(names ? { names } : {}),
+        fix: sync,
+      });
+    }
   }
   if (data.searchQueries?.truncated)
     gaps.push({

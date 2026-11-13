@@ -6,8 +6,12 @@ import {
   SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE,
   SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE,
   SEO_STATISTICS_QUERY_FAILED_NOTE,
+  SEO_STATISTICS_QUERY_ROWS_ANONYMIZED_NOTE,
   SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE,
   SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE,
+  seoStatisticsKeywordRowsCutNote,
+  seoStatisticsKeywordsLeftOutNote,
+  seoStatisticsQueryRowsCutNote,
 } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import de from "../../../../../messages/de.json";
@@ -133,12 +137,18 @@ describe("seoAuditGaps", () => {
     ]);
   });
 
-  it("skips the routine Search Console note and names the Analytics notes", () => {
+  it("skips routine notes and the cut-rows note, and names every other note Core writes", () => {
     const workspace = seoTestWorkspace();
     workspace.metrics = [
       {
         ...seoTestMetric(),
-        notes: [SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE],
+        notes: [
+          SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE,
+          SEO_STATISTICS_QUERY_ROWS_ANONYMIZED_NOTE,
+          seoStatisticsQueryRowsCutNote(500),
+          seoStatisticsKeywordRowsCutNote(25000),
+          seoStatisticsKeywordsLeftOutNote(["kw (US)", "kw (DE)"], 25, 3),
+        ],
       },
       {
         ...seoTestMetric(),
@@ -156,17 +166,22 @@ describe("seoAuditGaps", () => {
         ],
       },
     ];
-    expect(
-      seoAuditGaps(workspace)
-        .filter((gap) => gap.fix === "sync")
-        .map((gap) => gap.message),
-    ).toEqual([
-      "queryFailed",
-      "analyticsTimeZone",
-      "analyticsNoAggregate",
-      "analyticsThresholding",
-      "analyticsTruncated",
-    ]);
+    expect(seoAuditGaps(workspace).filter((gap) => gap.fix === "sync")).toEqual(
+      [
+        { message: "keywordRowsCut", count: 25000, fix: "sync" },
+        {
+          message: "keywordsLeftOut",
+          count: 2,
+          names: ["kw (US)", "kw (DE)"],
+          fix: "sync",
+        },
+        { message: "queryFailed", fix: "sync" },
+        { message: "analyticsTimeZone", fix: "sync" },
+        { message: "analyticsNoAggregate", fix: "sync" },
+        { message: "analyticsThresholding", fix: "sync" },
+        { message: "analyticsTruncated", fix: "sync" },
+      ],
+    );
   });
 
   it("reads the notes of the latest sync, the cut rows and the newest check only", () => {

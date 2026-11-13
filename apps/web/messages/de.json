@@ -12409,6 +12409,8 @@
           "analyticsNoAggregate": "Google Analytics hat bei der letzten Synchronisierung keine Summen geliefert.",
           "analyticsThresholding": "Google Analytics hat bei der letzten Synchronisierung Schwellenwerte angewendet oder Daten verloren. Einige Werte fehlen.",
           "analyticsTruncated": "Google Analytics hat die Tageswerte bei der letzten Synchronisierung gekürzt. Einige Tage fehlen.",
+          "keywordRowsCut": "Die Search Console hat bei der letzten Synchronisierung nur die ersten {count} täglichen Keyword-Zeilen behalten. Einige Tage können fehlen.",
+          "keywordsLeftOut": "Bei der letzten Synchronisierung wurden keine täglichen Positionen gelesen für {count, plural, one {# beobachtetes Keyword} other {# beobachtete Keywords}}: {names}.",
           "note": "Hinweis der letzten Synchronisierung: {note}",
           "queriesTruncated": "Die Search Console listet nur die obersten {count} Suchzeilen. Seltenere Suchen fehlen.",
           "noCheck": "Auf diesen Seiten lief noch keine Prüfung.",
