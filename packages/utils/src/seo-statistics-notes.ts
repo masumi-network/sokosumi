@@ -88,8 +88,35 @@ export function seoStatisticsKeywordsLeftOutNote(
 }
 const KEYWORDS_LEFT_OUT =
   /^Daily positions are read for at most \d+ tracked keywords in \d+ countries Search Console can filter by, per sync\. Not read this time: ([\s\S]*?)(?: and (\d+) more)?\.$/;
-/** One quoted name, a doubled quote inside it, then the next name or the end. */
-const LEFT_OUT_NAME = /"((?:[^"]|"")*)"(?:, (?=")|$)/y;
+const NAME_SEPARATOR = ", ";
+
+/**
+ * Quoted names with a doubled quote inside a name, each name followed by ', ' and the next name or the end.
+ * Null when the list has another form. One pass over the list: no regex, so no backtracking on stored text.
+ */
+function quotedNames(list: string): string[] | null {
+  const names: string[] = [];
+  let at = 0;
+  while (at < list.length) {
+    if (list[at] !== '"') return null;
+    let name = "";
+    at += 1;
+    for (;;) {
+      const quote = list.indexOf('"', at);
+      if (quote < 0) return null;
+      name += list.slice(at, quote);
+      at = quote + 1;
+      if (list[at] !== '"') break;
+      name += '"';
+      at += 1;
+    }
+    names.push(name);
+    if (at === list.length) break;
+    if (!list.startsWith(`${NAME_SEPARATOR}"`, at)) return null;
+    at += NAME_SEPARATOR.length;
+  }
+  return names;
+}
 
 /**
  * The names of a left-out note. Notes stored before quotes were doubled do not parse as quoted names when a
@@ -97,14 +124,7 @@ const LEFT_OUT_NAME = /"((?:[^"]|"")*)"(?:, (?=")|$)/y;
  * that name as two, so its names and count are one too many.
  */
 function leftOutNames(list: string) {
-  const names: string[] = [];
-  LEFT_OUT_NAME.lastIndex = 0;
-  while (LEFT_OUT_NAME.lastIndex < list.length) {
-    const match = LEFT_OUT_NAME.exec(list);
-    if (!match) return list.slice(1, -1).split('", "');
-    names.push(match[1].replaceAll('""', '"'));
-  }
-  return names;
+  return quotedNames(list) ?? list.slice(1, -1).split('", "');
 }
 
 /** A message key under "App.Seo.improve.gaps" for a note that names data the sync left out. */
