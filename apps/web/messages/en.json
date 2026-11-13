@@ -12343,7 +12343,7 @@
         "action": "Action",
         "kind": "Type",
         "status": "Status",
-        "csvLabel": "Download {table} as CSV"
+        "csvLabel": "Download CSV: {table}"
       },
       "datePresets": {
         "label": "Quick periods",
@@ -12385,10 +12385,10 @@
         },
         "needs": "Needs: {list}",
         "ask": "Ask the agent",
-        "askLabel": "Ask the agent about {title}",
+        "askLabel": "Ask the agent: {title}",
         "askPrompt": "The SEO tab cannot do this yet: {title}. {missing} What can I do now with the data I have?",
         "request": "Copy request",
-        "requestLabel": "Copy a request for {title}",
+        "requestLabel": "Copy request: {title}",
         "requestText": "Feature request for the SEO agent, item {id}: {title}. What is missing: {missing}",
         "copied": "Request copied. Send it to the Sokosumi team.",
         "copyFailed": "Could not copy the request.",

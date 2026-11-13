@@ -12343,7 +12343,7 @@
         "action": "Acción",
         "kind": "Tipo",
         "status": "Estado",
-        "csvLabel": "Descargar {table} como CSV"
+        "csvLabel": "Descargar CSV: {table}"
       },
       "datePresets": {
         "label": "Periodos rápidos",
@@ -12385,10 +12385,10 @@
         },
         "needs": "Necesita: {list}",
         "ask": "Preguntar al agente",
-        "askLabel": "Preguntar al agente sobre {title}",
+        "askLabel": "Preguntar al agente: {title}",
         "askPrompt": "La pestaña SEO aún no puede hacer esto: {title}. {missing} ¿Qué puedo hacer ahora con los datos que tengo?",
         "request": "Copiar solicitud",
-        "requestLabel": "Copiar una solicitud de {title}",
+        "requestLabel": "Copiar solicitud: {title}",
         "requestText": "Solicitud de función para el agente SEO, punto {id}: {title}. Lo que falta: {missing}",
         "copied": "Solicitud copiada. Envíala al equipo de Sokosumi.",
         "copyFailed": "No se pudo copiar la solicitud.",

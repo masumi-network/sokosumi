@@ -101,14 +101,14 @@ describe("SEO Improve tab", () => {
     const write = vi.spyOn(navigator.clipboard, "writeText");
     await user.click(
       await screen.findByRole("button", {
-        name: "Copy a request for Orphan pages",
+        name: "Copy request: Orphan pages",
       }),
     );
     expect(write).toHaveBeenCalledWith(
       "Feature request for the SEO agent, item 4: Orphan pages. What is missing: No list of pages that no other page links to.",
     );
     await user.click(
-      screen.getByRole("button", { name: "Ask the agent about Orphan pages" }),
+      screen.getByRole("button", { name: "Ask the agent: Orphan pages" }),
     );
     // The reader reviews the question before it is sent.
     expect(

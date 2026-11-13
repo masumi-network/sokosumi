@@ -10,7 +10,9 @@ import {
   SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE,
 } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
+import de from "../../../../../messages/de.json";
 import messages from "../../../../../messages/en.json";
+import es from "../../../../../messages/es.json";
 import {
   seoAuditGaps,
   seoCapabilityGroups,
@@ -297,6 +299,18 @@ describe("Item 38", () => {
 });
 
 describe("Improve messages", () => {
+  it("start each button's accessible name with its visible text (WCAG 2.5.3)", () => {
+    for (const { App } of [messages, de, es]) {
+      const seo = App.Seo;
+      for (const [visible, label] of [
+        [seo.export.csv, seo.export.csvLabel],
+        [seo.improve.ask, seo.improve.askLabel],
+        [seo.improve.request, seo.improve.requestLabel],
+      ])
+        expect(label.startsWith(visible), label).toBe(true);
+    }
+  });
+
   it("say each item in English as the catalog does", () => {
     const items = messages.App.Seo.improve.items as Record<
       string,

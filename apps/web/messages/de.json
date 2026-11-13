@@ -12343,7 +12343,7 @@
         "action": "Aktion",
         "kind": "Art",
         "status": "Status",
-        "csvLabel": "{table} als CSV herunterladen"
+        "csvLabel": "CSV herunterladen: {table}"
       },
       "datePresets": {
         "label": "Schnellauswahl",
@@ -12385,10 +12385,10 @@
         },
         "needs": "Braucht: {list}",
         "ask": "Agent fragen",
-        "askLabel": "Den Agent zu {title} fragen",
+        "askLabel": "Agent fragen: {title}",
         "askPrompt": "Der SEO-Tab kann das noch nicht: {title}. {missing} Was kann ich jetzt mit meinen Daten tun?",
         "request": "Anfrage kopieren",
-        "requestLabel": "Eine Anfrage zu {title} kopieren",
+        "requestLabel": "Anfrage kopieren: {title}",
         "requestText": "Funktionswunsch für den SEO-Agent, Punkt {id}: {title}. Was fehlt: {missing}",
         "copied": "Anfrage kopiert. Sende sie an das Sokosumi-Team.",
         "copyFailed": "Die Anfrage konnte nicht kopiert werden.",
