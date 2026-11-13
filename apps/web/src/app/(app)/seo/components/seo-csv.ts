@@ -6,7 +6,12 @@ export type SeoCsvCell = string | number | null;
  * leading spaces and in the fullwidth forms (U+FF1D, U+FF0B, U+FF0D, U+FF20) that some spreadsheets fold.
  */
 const FORMULA_START = /^\s*[=+\-@\uFF1D\uFF0B\uFF0D\uFF20]|^[\t\r]/;
-/** Excel in these languages splits a CSV line at ";" and reads "," as the decimal sign. */
+/**
+ * Excel in these languages splits a CSV line at ";" and reads "," as the decimal sign. Excel follows the
+ * computer's region, which a web page cannot read, so the app language stands in for it: a German app on an
+ * English-region computer gets ";" that Excel there does not split. A "sep=" line would fix Excel but shows
+ * as a first row in other spreadsheets, so the file has none.
+ */
 const SEMICOLON_LOCALES = new Set(["de", "es"]);
 /** A field with one of these, or with the list separator, needs quotes (RFC 4180 section 2). */
 const NEEDS_QUOTES = /["\r\n]/;

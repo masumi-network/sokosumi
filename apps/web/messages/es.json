@@ -12585,7 +12585,7 @@
           },
           "38": {
             "title": "Exportación y periodos predefinidos",
-            "missing": "No hay una comparación con el mismo periodo del año anterior. Las tablas de países y dispositivos, competidores e ideas de palabras clave no tienen descarga CSV."
+            "missing": "No hay una comparación con el mismo periodo del año anterior. Las tablas de países y dispositivos, competidores e ideas de palabras clave no tienen descarga CSV. El separador del CSV sigue el idioma de la aplicación, no la región del ordenador."
           },
           "39": {
             "title": "Historial de citas en resúmenes de IA",

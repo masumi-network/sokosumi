@@ -310,6 +310,8 @@ describe("Item 38", () => {
     expect(withoutCsv.sort()).toEqual(Object.keys(names).sort());
     const missing = SEO_CAPABILITIES.find((item) => item.id === 38)?.missing;
     for (const name of Object.values(names)) expect(missing).toContain(name);
+    // seoCsv picks the separator from the app language; Excel reads the computer's region.
+    expect(missing).toContain("separator follows the app language");
   });
 });
 

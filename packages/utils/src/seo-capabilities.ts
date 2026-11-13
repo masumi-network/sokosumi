@@ -412,7 +412,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     title: "Export and date presets",
     status: "partial",
     missing:
-      "No comparison with the same period last year. The countries and devices, competitors and keyword ideas tables have no CSV download.",
+      "No comparison with the same period last year. The countries and devices, competitors and keyword ideas tables have no CSV download. The CSV separator follows the app language, not the computer's region.",
     unlocks: [DEV],
   },
   {
