@@ -124,7 +124,7 @@ export const SHARE_MESSAGE_PATHS = [
   "Components",
   "Library",
   "Auth",
-  // A shared Task's Files section offers Download all (client button and toasts).
+  // A shared Task's Files section offers Download all; its toasts are in Components.FilesArchive.
   "App.Tasks.Detail.downloadAll",
 ] as const;
 

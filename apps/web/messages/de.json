@@ -1145,6 +1145,11 @@
       "description": "CMO führt dieses Projekt, deshalb änderst du es in CMO. Hier kannst du es lesen.",
       "open": "In CMO öffnen",
       "newTab": "(öffnet in einem neuen Tab)"
+    },
+    "FilesArchive": {
+      "failed": "Die Dateien konnten nicht heruntergeladen werden. Versuche es erneut oder öffne sie einzeln.",
+      "partial": "{included} von {total} Dateien heruntergeladen. Nicht enthalten: {names}{more, plural, =0 {} one { und # weitere} other { und # weitere}}. Öffne sie einzeln.",
+      "empty": "Es gibt noch keine Dateien zum Herunterladen."
     }
   },
   "Join": {
@@ -1908,9 +1913,7 @@
         "expand": "Ausklappen",
         "collapse": "Weniger anzeigen",
         "downloadAll": {
-          "button": "Alle herunterladen",
-          "failed": "Die Dateien konnten nicht heruntergeladen werden. Versuche es erneut oder öffne sie einzeln.",
-          "partial": "{included} von {total} Dateien heruntergeladen. Nicht enthalten: {names}{more, plural, =0 {} one { und # weitere} other { und # weitere}}. Öffne sie einzeln."
+          "button": "Alle herunterladen"
         },
         "actorCoworker": "Coworker",
         "actorUser": "Nutzer",
@@ -9097,6 +9100,8 @@
       "Message": {
         "delete": "Löschen",
         "deleteConfirm": "Diese Nachricht löschen? Andere sehen, dass sie gelöscht wurde.",
+        "deleteNoteTitle": "Diese Notiz löschen?",
+        "deleteNoteConfirm": "Sie wird endgültig entfernt. Nur du konntest sie sehen.",
         "deleted": "Diese Nachricht wurde gelöscht",
         "deleteError": "Die Nachricht konnte nicht gelöscht werden. Versuche es erneut.",
         "restored": "Die Nachricht ist wieder in der Unterhaltung.",
@@ -9483,7 +9488,7 @@
         "Decisions": {
           "open": "Entscheidungen",
           "title": "Entscheidungen",
-          "empty": "Noch keine Entscheidungen. Nachrichten wie „Entschieden: Wir starten Montag“ landen hier.",
+          "empty": "Hier gibt es noch keine Entscheidungen. Wir finden sie in Kanälen und in Chats mit anderen Personen, die das erlauben. Notizen an dich selbst werden nie markiert.",
           "loadOlder": "Ältere laden",
           "note": "Wir finden sie für dich. Ist eine falsch, öffne ihre Nachricht und klicke auf das × am Tag.",
           "description": "Entscheidungen aus deinen Chats, die neuesten zuerst, auch bereits gelesene.",
@@ -9542,6 +9547,13 @@
       "myDrive": "Meine Dateien",
       "uploadButton": "Hochladen",
       "uploadingProgress": "{progress}%",
+      "uploadFilesOption": "Dateien",
+      "uploadFolderOption": "Ordner",
+      "filesUploaded": "{count, plural, one {# Datei hochgeladen} other {# Dateien hochgeladen}}",
+      "dropToUpload": "Dateien oder Ordner hier ablegen zum Hochladen",
+      "folderUploaded": "{count, plural, one {# Datei in {folder} hochgeladen} other {# Dateien in {folder} hochgeladen}}",
+      "folderUploadSkipped": "{count, plural, one {# Datei wurde nicht hochgeladen. Dateien überspringt nicht unterstützte Typen, Dateien über 100 MB, Namen, die es im Ordner schon gibt, und alles über 500 Dateien.} other {# Dateien wurden nicht hochgeladen. Dateien überspringt nicht unterstützte Typen, Dateien über 100 MB, Namen, die es im Ordner schon gibt, und alles über 500 Dateien.}}",
+      "folderUploadNothing": "Dieser Ordner enthält keine Dateien, die hochgeladen werden können.",
       "emptyTitle": "Noch keine Dateien",
       "emptyDescription": "Lade deine erste Datei hoch, um loszulegen",
       "searchPlaceholder": "Dateien suchen...",
@@ -9630,6 +9642,9 @@
       "deleteFolderError": "Ordner konnte nicht gelöscht werden",
       "moveFolderError": "Ordner konnte nicht verschoben werden",
       "moveFolderAction": "Ordner verschieben",
+      "downloadFolderButton": "Herunterladen",
+      "downloadFolderAction": "{name} als ZIP herunterladen",
+      "downloadFolderRoomsLeftOut": "Datenräume sind nicht im ZIP: {names}. Ihre Dateien bleiben privat für die eingeladenen Personen.",
       "moveFileError": "Datei konnte nicht verschoben werden",
       "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "Noch keine Aufgabendateien",
@@ -11402,6 +11417,7 @@
       "open": "Öffnen",
       "download": "Herunterladen",
       "downloadFile": "{name} herunterladen",
+      "downloadAll": "Alle herunterladen",
       "truncated": "Es werden die ersten 2.000 Dateien dieses Ordners angezeigt.",
       "emptyFolder": "Dieser Ordner ist leer.",
       "errors": {
