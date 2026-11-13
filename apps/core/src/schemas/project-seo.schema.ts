@@ -197,7 +197,8 @@ export const requestSeoAnalysisSchema = z
     fullAuditLimits: z
       .object({
         usd: z.number().min(SEO_MIN_AUDIT_USD).max(50),
-        seconds: z.number().int().min(60).max(3600),
+        // 90 minutes: the SEO worker accepts a site Run that long (owner, 2026-11-13).
+        seconds: z.number().int().min(60).max(5400),
       })
       .strict()
       .optional(),

@@ -17,4 +17,19 @@ describe("SEO analysis request", () => {
     expect(request(0.32)).toBe(false);
     expect(request(0.33)).toBe(true);
   });
+
+  it("takes the 90-minute time limit the web sends, and no longer one", () => {
+    const request = (seconds: number) =>
+      requestSeoAnalysisSchema.safeParse({
+        kind: "audit_full",
+        scopeId: randomUUID(),
+        expectedScopeVersion: 1,
+        countryCode: "US",
+        languageCode: "en",
+        idempotencyKey: "full-audit-time-test",
+        fullAuditLimits: { usd: 5, seconds },
+      }).success;
+    expect(request(5_400)).toBe(true);
+    expect(request(5_401)).toBe(false);
+  });
 });
