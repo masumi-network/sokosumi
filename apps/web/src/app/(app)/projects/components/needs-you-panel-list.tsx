@@ -1,6 +1,7 @@
 "use client";
 
 import type { NotificationItem } from "@sokosumi/core-client";
+import { CircleAlert } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -25,6 +26,13 @@ export interface ColumnProject {
   logo: string | null;
 }
 
+/** A row that is not a notification, opened by its link. */
+export interface NeedsYouLead {
+  title: string;
+  detail: string;
+  href: string;
+}
+
 interface NeedsYouPanelListProps {
   notifications: NotificationItem[];
   /** Rendered on the server, so the label cannot differ at hydration. */
@@ -37,6 +45,7 @@ interface NeedsYouPanelListProps {
    * team's day, and one line saying so when nothing waits.
    */
   quiet?: boolean;
+  lead?: NeedsYouLead;
 }
 
 /**
@@ -50,6 +59,7 @@ export function NeedsYouPanelList({
   projects,
   labels,
   quiet = false,
+  lead,
 }: NeedsYouPanelListProps) {
   const router = useRouter();
   const tCenter = useTranslations("Components.NotificationCenter");
@@ -77,7 +87,7 @@ export function NeedsYouPanelList({
     );
   }
 
-  const rows = notifications.map((notification) => {
+  const notificationRows = notifications.map((notification) => {
     const project = projects[notification.id];
     const Icon = getNotificationIcon(notification);
 
@@ -106,6 +116,28 @@ export function NeedsYouPanelList({
       ),
     };
   });
+  const rows = lead
+    ? [
+        {
+          key: "lead",
+          node: (
+            <WorkspaceColumnRow
+              leading={
+                <CircleAlert
+                  className="text-semantic-destructive size-4"
+                  aria-hidden
+                />
+              }
+              title={lead.title}
+              detail={lead.detail}
+              time=""
+              target={{ href: lead.href }}
+            />
+          ),
+        },
+        ...notificationRows,
+      ]
+    : notificationRows;
   const showAll = {
     label: labels.showAll,
     href: "/notifications",
@@ -119,7 +151,7 @@ export function NeedsYouPanelList({
           <h2 id={headingId} className="text-foreground text-sm font-medium">
             {labels.title}
           </h2>
-          {rows.length > 0 ? (
+          {notificationRows.length > 0 ? (
             <Link
               href={showAll.href}
               onClick={showAll.onClick}

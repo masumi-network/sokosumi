@@ -39,10 +39,7 @@ export function extensionForEntityImageMime(
   }
 }
 
-export function buildEntityImagePrefix(
-  directory: string,
-  entityId: string,
-): string {
+function buildEntityImagePrefix(directory: string, entityId: string): string {
   return `${directory}/${entityId}/`;
 }
 

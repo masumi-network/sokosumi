@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Bookmark,
   Check,
+  CircleAlert,
   Copy,
   Ellipsis,
   Link2,
@@ -49,7 +50,6 @@ import {
 import { toast } from "sonner";
 import { saveRoomMessageAction } from "@/app/chat/actions";
 import {
-  CoworkerFailedThoughtSparkle,
   CoworkerLiveThought,
   CoworkerThoughtTrace,
 } from "@/app/chat/components/coworker-thought-ui";
@@ -60,6 +60,7 @@ import {
   extractThoughtStartedAtMs,
   formatThoughtDurationLabel,
   isFailedMentionThoughtShell,
+  readFailedMentionShellTarget,
   resolveCoworkerThoughtViewModel,
 } from "@/app/chat/utils/coworker-thought";
 import {
@@ -2065,28 +2066,48 @@ function MessageTimeOrOutboundStatus({
   return <MessageWallClockTime value={createdAt} className={className} />;
 }
 
-function FailedMentionActions({
+/**
+ * A reply that did not finish, said in place of it. The cause is not shown:
+ * the shell does not carry one the reader can act on. "Your message is saved"
+ * only when the shell names the message it answers, which Core keeps.
+ */
+function FailedMentionCard({
+  name,
+  metadata,
   onRetryMention,
 }: {
+  name: string;
+  metadata: unknown;
   onRetryMention?: () => void;
 }) {
   const t = useTranslations("App.Channels");
-  if (!onRetryMention) {
-    return null;
-  }
+  const saved = readFailedMentionShellTarget(metadata) !== null;
   return (
     <div
-      className="flex w-fit max-w-full flex-wrap items-center gap-x-2 gap-y-1 pt-0.5 text-xs"
+      className="border-border flex w-fit max-w-full flex-col gap-1 rounded-lg border px-3 py-2"
       data-testid="coworker-mention-failed"
+      role="status"
     >
-      <button
-        type="button"
-        className="text-foreground press underline underline-offset-4 font-medium"
-        data-testid="coworker-mention-retry"
-        onClick={onRetryMention}
-      >
-        {t("MentionStatus.retry")}
-      </button>
+      <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
+        <CircleAlert
+          aria-hidden
+          className="text-semantic-destructive size-4 shrink-0"
+        />
+        {t("MentionStatus.failed", { name })}
+      </p>
+      <p className="text-muted-foreground text-sm">
+        {saved ? t("MentionStatus.failedSaved") : t("MentionStatus.failedBody")}
+      </p>
+      {onRetryMention ? (
+        <button
+          type="button"
+          className="text-foreground press w-fit text-sm font-medium underline underline-offset-4"
+          data-testid="coworker-mention-retry"
+          onClick={onRetryMention}
+        >
+          {t("MentionStatus.retry")}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -2865,16 +2886,13 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                   channels={channels}
                 />
               ) : isFailedMentionThoughtShell(message.metadata) ? (
-                <>
-                  <CoworkerFailedThoughtSparkle
-                    label={tChannels("MentionStatus.failed")}
-                  />
-                  <FailedMentionActions
-                    onRetryMention={
-                      onRetryMention ? () => onRetryMention(message) : undefined
-                    }
-                  />
-                </>
+                <FailedMentionCard
+                  name={sender.name}
+                  metadata={message.metadata}
+                  onRetryMention={
+                    onRetryMention ? () => onRetryMention(message) : undefined
+                  }
+                />
               ) : thoughtView?.showThinkingFallback ||
                 thoughtView?.liveBeat != null ? (
                 <CoworkerLiveThought
