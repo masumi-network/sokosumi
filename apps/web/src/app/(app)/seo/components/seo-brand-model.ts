@@ -44,26 +44,46 @@ function compact(text: string): string {
   return brandText(text).replace(/\s+/gu, "");
 }
 
+type BrandNeedle = { substring: string } | { words: string[] };
+
+/** A term in its matching form, or null for a term that matches nothing. */
+function brandNeedle(term: string): BrandNeedle | null {
+  if (!LETTER_OR_DIGIT.test(term)) return null;
+  if (SUBSTRING_SCRIPTS.test(term)) return { substring: compact(term) };
+  const words = brandWords(term);
+  return words.length ? { words } : null;
+}
+
+function holdsSequence(words: string[], needle: string[]): boolean {
+  for (let start = 0; start + needle.length <= words.length; start++)
+    if (needle.every((word, index) => words[start + index] === word))
+      return true;
+  return false;
+}
+
 /**
  * A query is branded when one brand term stands in it as whole words, in order.
  * Part of a word does not count: "art" does not make "party" branded. A
  * spelling such as "acmeshop" is its own term for the owner to add. A term in a
  * script without spaces matches as a substring. A term with no letter or digit
- * matches nothing.
+ * matches nothing. Each term is prepared once per list, not once per query.
  */
+export function seoBrandMatcher(terms: string[]): (query: string) => boolean {
+  const needles = terms.flatMap((term) => brandNeedle(term) ?? []);
+  return (query) => {
+    if (!needles.length) return false;
+    const words = brandWords(query);
+    let compacted: string | undefined;
+    return needles.some((needle) =>
+      "substring" in needle
+        ? (compacted ??= compact(query)).includes(needle.substring)
+        : holdsSequence(words, needle.words),
+    );
+  };
+}
+
 export function seoIsBrandedQuery(query: string, terms: string[]): boolean {
-  const words = brandWords(query);
-  return terms.some((term) => {
-    if (!LETTER_OR_DIGIT.test(term)) return false;
-    if (SUBSTRING_SCRIPTS.test(term))
-      return compact(query).includes(compact(term));
-    const needle = brandWords(term);
-    if (!needle.length) return false;
-    for (let start = 0; start + needle.length <= words.length; start++)
-      if (needle.every((word, index) => words[start + index] === word))
-        return true;
-    return false;
-  });
+  return seoBrandMatcher(terms)(query);
 }
 
 /** One brand term per line or between commas; blanks are dropped. */
@@ -87,9 +107,8 @@ export function seoBrandRows<T extends BrandRow>(
   view: SeoBrandView,
 ): T[] {
   if (view === "all" || !terms.length) return rows;
-  return rows.filter(
-    (row) => seoIsBrandedQuery(row.query, terms) === (view === "branded"),
-  );
+  const branded = seoBrandMatcher(terms);
+  return rows.filter((row) => branded(row.query) === (view === "branded"));
 }
 
 /** Clicks and impressions of the listed branded and non-branded queries. Hidden queries are in neither. */
@@ -98,10 +117,9 @@ export function seoBrandTotals(rows: BrandRow[], terms: string[]) {
     branded: { clicks: 0, impressions: 0 },
     nonBranded: { clicks: 0, impressions: 0 },
   };
+  const branded = seoBrandMatcher(terms);
   for (const row of rows) {
-    const side = seoIsBrandedQuery(row.query, terms)
-      ? totals.branded
-      : totals.nonBranded;
+    const side = branded(row.query) ? totals.branded : totals.nonBranded;
     side.clicks += row.clicks;
     side.impressions += row.impressions;
   }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   seoBrandRows,
   seoBrandTotals,
@@ -73,5 +73,24 @@ describe("branded query split", () => {
       "acme shop",
       "ACME",
     ]);
+  });
+
+  it("prepares each term once per list, not once per query", () => {
+    const terms = Array.from({ length: 20 }, (_, index) => `brand${index}`);
+    const rows = Array.from({ length: 100 }, (_, index) => ({
+      query: `running shoes ${index}`,
+      clicks: 1,
+      impressions: 1,
+    }));
+    const normalize = vi.spyOn(String.prototype, "normalize");
+    try {
+      seoBrandTotals(rows, terms);
+      // A few calls per query and per term; a per-row term rebuild would need 4,000.
+      expect(normalize.mock.calls.length).toBeLessThan(
+        10 * (rows.length + terms.length),
+      );
+    } finally {
+      normalize.mockRestore();
+    }
   });
 });
