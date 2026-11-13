@@ -11467,6 +11467,7 @@
         "changeMarker": "Cambio registrado el {day}: {changes}",
         "points": "{value} p. p.",
         "googleUpdate": "Google: {name}, del {from} al {to}",
+        "googleUpdateOpen": "Google: {name}, del {from} al {to}, aún en despliegue",
         "googleUpdateDay": "Google: {name}, {day}",
         "googleUpdatesAsOf": "Actualizaciones de Google conocidas hasta el {day}"
       },

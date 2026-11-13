@@ -152,6 +152,8 @@ export function seoTrendModel(
             name: event.name,
             first: event.first,
             last: event.last,
+            // Still rolling out on the as-of day: last is that day, not the real end.
+            open: event.open === true,
             x,
             width: clip(edges(to)[1]) - x,
           },

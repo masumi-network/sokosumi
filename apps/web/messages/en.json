@@ -11467,6 +11467,7 @@
         "changeMarker": "Recorded change on {day}: {changes}",
         "points": "{value} pp",
         "googleUpdate": "Google: {name}, {from} to {to}",
+        "googleUpdateOpen": "Google: {name}, {from} to {to}, still rolling out",
         "googleUpdateDay": "Google: {name}, {day}",
         "googleUpdatesAsOf": "Google updates known until {day}"
       },

@@ -349,16 +349,22 @@ export function SeoTrendChart({
                 className="bg-quinary border-border mt-0.5 size-3 shrink-0 rounded-xs border"
               />
               <span>
-                {update.last && update.last !== update.first
-                  ? t("googleUpdate", {
+                {update.open && update.last
+                  ? t("googleUpdateOpen", {
                       name: update.name,
                       from: fullDay(update.first),
                       to: fullDay(update.last),
                     })
-                  : t("googleUpdateDay", {
-                      name: update.name,
-                      day: fullDay(update.first),
-                    })}
+                  : update.last && update.last !== update.first
+                    ? t("googleUpdate", {
+                        name: update.name,
+                        from: fullDay(update.first),
+                        to: fullDay(update.last),
+                      })
+                    : t("googleUpdateDay", {
+                        name: update.name,
+                        day: fullDay(update.first),
+                      })}
               </span>
             </li>
           ))}
