@@ -2988,7 +2988,8 @@
             "videoRequired": "TikTok necesita un video."
           },
           "x": {
-            "more": "Mostrar más"
+            "more": "Mostrar más",
+            "moreImages": "{count, plural, one {# imagen más} other {# imágenes más}}"
           }
         },
         "statistics": {

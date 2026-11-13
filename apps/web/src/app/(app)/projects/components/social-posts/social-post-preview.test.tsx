@@ -680,6 +680,65 @@ describe("SocialPostPreview", () => {
     ).toHaveLength(2);
   });
 
+  it.each([8, 20])(
+    "shows the first four of %s X images with the remaining count",
+    (count) => {
+      render(
+        <SocialPostPreview
+          account={ACCOUNT}
+          media={Array.from({ length: count }, (_, index) => ({
+            ...IMAGE,
+            pathname: `drive/${index}.png`,
+            name: `${index}.png`,
+          }))}
+          provider="x"
+          text="Launch photos"
+          timestamp={null}
+        />,
+      );
+
+      const grid = screen.getByTestId("social-post-preview-media-grid");
+      expect(within(grid).getAllByRole("img")).toHaveLength(4);
+      expect(within(grid).getByAltText("3.png")).toBeVisible();
+      expect(within(grid).queryByAltText("4.png")).not.toBeInTheDocument();
+      const overflow = within(grid).getByTestId(
+        "social-post-preview-media-overflow",
+      );
+      expect(overflow).toHaveTextContent(`+${count - 4}`);
+      expect(overflow.parentElement).toContainElement(
+        within(grid).getByAltText("3.png"),
+      );
+      expect(overflow).toHaveTextContent("x.moreImages");
+    },
+  );
+
+  it.each(["x", "facebook"] as const)(
+    "keeps the four-image %s grid without an overflow count",
+    (provider) => {
+      render(
+        <SocialPostPreview
+          account={ACCOUNT}
+          media={Array.from({ length: 4 }, (_, index) => ({
+            ...IMAGE,
+            pathname: `drive/${index}.png`,
+          }))}
+          provider={provider}
+          text="Launch photos"
+          timestamp={null}
+        />,
+      );
+
+      expect(
+        within(
+          screen.getByTestId("social-post-preview-media-grid"),
+        ).getAllByRole("img"),
+      ).toHaveLength(4);
+      expect(
+        screen.queryByTestId("social-post-preview-media-overflow"),
+      ).not.toBeInTheDocument();
+    },
+  );
+
   it("renders a Facebook feed card with public reach, tags, and actions", () => {
     render(
       <SocialPostPreview

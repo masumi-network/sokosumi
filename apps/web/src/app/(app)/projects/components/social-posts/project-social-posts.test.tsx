@@ -210,14 +210,13 @@ const MESSAGES: Record<string, string> = {
   "composer.media.drop": "Drop files to attach",
   "composer.media.upload": "Upload",
   "composer.media.remove": "Remove {name}",
-  "composer.media.hint": "Up to 4 images, or one GIF, or one video.",
   "composer.media.unsupported": "Use a JPG, PNG, WebP, GIF, or MP4 file.",
   "composer.media.alreadyAttached": "That file is already attached.",
   "composer.media.uploadDuplicate":
     "A file with this name already exists in the Drive. Rename it and try again.",
   "composer.media.uploadFailed": "The upload failed. Try again.",
   "composer.media.errors.too_many_images":
-    "X allows at most 4 images per post.",
+    "{provider} allows at most {max} images per post.",
   "composer.media.errors.too_many_gifs": "X allows one GIF per post.",
   "composer.media.errors.too_many_videos": "X allows one video per post.",
   "composer.media.errors.mixed_media":
@@ -5140,6 +5139,80 @@ describe("ProjectSocialPosts", () => {
       within(dialog).getByTestId("social-post-media").querySelectorAll("img"),
     ).toHaveLength(2);
   });
+
+  it.each(["publish", "schedule"] as const)(
+    "attaches twenty X images, rejects the twenty-first, and sends all twenty to %s",
+    async (action) => {
+      freezeClock();
+      for (let index = 0; index < 20; index++) {
+        uploadDriveFileMock.mockResolvedValueOnce({
+          pathname: `drive/users/user_1/photo-${index}.png`,
+          fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/user_1/photo-${index}.png`,
+        });
+      }
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = screen.getByRole("dialog");
+      const input = dialog.querySelector('input[type="file"]');
+      expect(input).not.toBeNull();
+      const dataTransfer = new DataTransfer();
+      for (let index = 0; index < 21; index++) {
+        dataTransfer.items.add(
+          new File(["photo"], `photo-${index}.png`, { type: "image/png" }),
+        );
+      }
+      await act(async () => {
+        fireEvent.change(input as HTMLInputElement, {
+          target: { files: dataTransfer.files },
+        });
+      });
+
+      await waitFor(() => {
+        expect(uploadDriveFileMock).toHaveBeenCalledTimes(20);
+        expect(toastErrorMock).toHaveBeenCalledWith(
+          "X allows at most 20 images per post.",
+        );
+      });
+      expect(
+        within(dialog).getByTestId("social-post-media").querySelectorAll("img"),
+      ).toHaveLength(20);
+      expect(
+        within(dialog).getByTestId("social-post-preview-media-overflow"),
+      ).toHaveTextContent("+16");
+
+      if (action === "schedule") await pickInAnHour(user, dialog);
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: action === "schedule" ? /^Schedule/ : "Post now",
+        }),
+      );
+
+      await waitFor(() => {
+        expect(createProjectSocialPost).toHaveBeenCalledWith(
+          expect.objectContaining({
+            media: Array.from({ length: 20 }, (_, index) =>
+              expect.objectContaining({
+                pathname: `drive/users/user_1/photo-${index}.png`,
+              }),
+            ),
+            ...(action === "schedule"
+              ? { scheduledAt: IN_AN_HOUR.toISOString() }
+              : {}),
+          }),
+        );
+        if (action === "publish")
+          expect(publishProjectSocialPost).toHaveBeenCalled();
+      });
+    },
+  );
 
   it("attaches a pasted image and a dropped image", async () => {
     uploadDriveFileMock

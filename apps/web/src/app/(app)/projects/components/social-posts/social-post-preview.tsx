@@ -300,6 +300,11 @@ function XPreview({
         <PreviewMediaGrid
           compact={compact}
           media={media}
+          overflowLabel={
+            media.length > 4
+              ? t("x.moreImages", { count: media.length - 4 })
+              : undefined
+          }
           className={cn("mt-3 rounded-2xl border", embedded && "col-span-2")}
         />
         {quotedPost ? (

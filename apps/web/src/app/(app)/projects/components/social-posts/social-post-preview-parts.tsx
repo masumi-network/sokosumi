@@ -210,15 +210,18 @@ export function PreviewMediaItem({
 /**
  * X and Facebook lay out up to four images the same way: one fills the frame,
  * two split it, three put the first on the left, four make a 2×2 grid.
+ * X marks images beyond the first four with an overflow count.
  */
 export function PreviewMediaGrid({
   media,
   className,
   compact = false,
+  overflowLabel,
 }: {
   media: PreviewMedia[];
   className?: string;
   compact?: boolean;
+  overflowLabel?: string;
 }) {
   if (media.length === 0) return null;
   const [first, ...rest] = media;
@@ -250,12 +253,21 @@ export function PreviewMediaGrid({
           <PreviewMediaItem media={first} showPlay />
         </div>
       ) : null}
-      {rest.slice(0, 3).map((item) => (
+      {rest.slice(0, 3).map((item, index) => (
         <div
           key={"pathname" in item ? item.pathname : item.url}
-          className="min-h-0"
+          className="relative min-h-0"
         >
           <PreviewMediaItem media={item} showPlay />
+          {index === 2 && media.length > 4 && overflowLabel ? (
+            <span
+              className="bg-scrim-strong text-on-media absolute inset-0 flex items-center justify-center text-2xl font-semibold tabular-nums"
+              data-testid="social-post-preview-media-overflow"
+            >
+              <span aria-hidden>+{media.length - 4}</span>
+              <span className="sr-only">{overflowLabel}</span>
+            </span>
+          ) : null}
         </div>
       ))}
     </div>
