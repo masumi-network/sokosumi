@@ -356,9 +356,9 @@ export function workingStatus(
     };
   }
   if (stage === "plan" || (stage === "brand" && strategyRunning(overview))) {
-    const pieces = pieceCount(overview.strategy?.calendar ?? []);
+    // The page counts the pieces as they land; the dock says what it means.
     return {
-      count: pieces > 0 ? `${pieces} pieces so far` : "",
+      count: "",
       title: "Writing your plan",
       now: "",
       foot: `${CLOSE_TAB} I'll ask when it's ready.`,

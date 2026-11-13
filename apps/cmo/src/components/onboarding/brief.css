@@ -345,8 +345,10 @@ button.brief-week-row:hover .brief-week-text b {
   border-bottom: 0;
 }
 
+/* The weeks: narrow columns, the numbers centred under "Week". */
 .brief-table .num {
-  text-align: right;
+  width: 48px;
+  text-align: center;
 }
 
 .brief-table tfoot th,

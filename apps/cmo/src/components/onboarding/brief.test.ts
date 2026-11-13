@@ -413,13 +413,13 @@ describe("workingStatus", () => {
     );
   });
 
-  it("counts the pieces while the plan writes", () => {
+  it("leaves the piece count to the page while the plan writes", () => {
     const status = workingStatus(
       draft({ work: work("strategy", { steps: [] }) }),
       local(),
     );
     expect(status.title).toBe("Writing your plan");
-    expect(status.count).toBe("3 pieces so far");
+    expect(status.count).toBe("");
     expect(status.now).toBe("");
     expect(status.foot).toBe(
       "You can close this tab. I'll ask when it's ready.",
