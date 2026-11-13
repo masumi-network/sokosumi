@@ -39,7 +39,9 @@ async function readCollection(
 /**
  * Several collections behind one session read, each in its own envelope. A
  * collection whose Core read failed answers null, as its own request would
- * have; a throttle fails the whole answer, so every caller backs off.
+ * have. A throttle fails the whole answer, so every caller backs off, and so
+ * does a read that never reached Core: the browser retries a 503, and a null
+ * part would not be retried.
  */
 async function readCollections(
   collections: Collection[],
@@ -47,7 +49,10 @@ async function readCollections(
   const parts = await Promise.all(
     collections.map((collection) =>
       readCollection(collection).then(backgroundChatReadEnvelope, (error) => {
-        if (error instanceof CoreApiRequestError && error.status === 429) {
+        if (
+          error instanceof CoreApiRequestError &&
+          (error.status === 429 || !error.status)
+        ) {
           throw error;
         }
         return null;

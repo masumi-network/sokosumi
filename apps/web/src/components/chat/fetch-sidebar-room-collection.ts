@@ -24,28 +24,46 @@ type SidebarRoomCollection =
 let queuedReads: Map<SidebarRoomCollection, ((raw: unknown) => void)[]> | null =
   null;
 
+function readOneCollection(collection: SidebarRoomCollection) {
+  return fetchBackgroundJson(
+    `/api/chat/rooms?collection=${collection}`,
+    SIDEBAR_ROOM_REQUEST_TIMEOUT_MS,
+  );
+}
+
+async function readQueuedParts(
+  collections: SidebarRoomCollection[],
+): Promise<Map<SidebarRoomCollection, unknown>> {
+  if (collections.length === 1) {
+    return new Map([[collections[0], await readOneCollection(collections[0])]]);
+  }
+  let status: number | undefined;
+  const raw = await fetchBackgroundJson(
+    `/api/chat/rooms?collections=${collections.join(",")}`,
+    SIDEBAR_ROOM_REQUEST_TIMEOUT_MS,
+    (answered) => {
+      status = answered;
+    },
+  );
+  // A server from before batched reads refuses the list: ask one by one.
+  if (status === 400) {
+    const answers = await Promise.all(collections.map(readOneCollection));
+    return new Map(collections.map((c, index) => [c, answers[index]]));
+  }
+  const parts = (raw as { data?: Record<string, unknown> } | null)?.data;
+  return new Map(collections.map((c) => [c, parts?.[c] ?? null]));
+}
+
 async function sendQueuedReads(): Promise<void> {
   const batch = queuedReads;
   queuedReads = null;
   if (!batch) return;
-  const collections = [...batch.keys()];
-  const [only] = collections;
-  const raw =
-    collections.length === 1
-      ? await fetchBackgroundJson(
-          `/api/chat/rooms?collection=${only}`,
-          SIDEBAR_ROOM_REQUEST_TIMEOUT_MS,
-        )
-      : await fetchBackgroundJson(
-          `/api/chat/rooms?collections=${collections.join(",")}`,
-          SIDEBAR_ROOM_REQUEST_TIMEOUT_MS,
-        );
-  const parts =
-    collections.length === 1
-      ? null
-      : ((raw as { data?: Record<string, unknown> } | null)?.data ?? null);
+  // Every caller settles, even if the read threw: null, like any failure.
+  const parts = await readQueuedParts([...batch.keys()]).catch(
+    () => new Map<SidebarRoomCollection, unknown>(),
+  );
   for (const [collection, waiters] of batch) {
-    const part = collections.length === 1 ? raw : (parts?.[collection] ?? null);
+    const part = parts.get(collection) ?? null;
     // Each caller transforms its own copy: the generated transformers
     // rewrite dates in place.
     waiters.forEach((resolve, index) => {

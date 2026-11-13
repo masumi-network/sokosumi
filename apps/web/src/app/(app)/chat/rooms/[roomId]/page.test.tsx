@@ -156,6 +156,7 @@ describe("ChatRoomPage org deep-link guard", () => {
   });
 
   it("reads the caller's membership before the organization read answers", async () => {
+    getMyMemberInOrganizationMock.mockResolvedValue({ role: "owner" });
     let answerOrganization: (organization: unknown) => void = () => {};
     const organization = { id: ORG_A, name: "Org A", slug: "org-a" };
     getActiveOrganizationIdMock.mockResolvedValueOnce(ORG_A);
@@ -175,7 +176,7 @@ describe("ChatRoomPage org deep-link guard", () => {
 
     answerOrganization(organization);
     const props = roomsClientProps((await open) as ReactElement);
-    expect(props.isOrgOwnerOrAdmin).toBe(false);
+    expect(props.isOrgOwnerOrAdmin).toBe(true);
   });
 
   it("drops the membership when Core no longer shows the organization", async () => {

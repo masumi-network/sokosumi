@@ -165,6 +165,12 @@ describe("GET /api/chat/rooms", () => {
       expect(result.headers.get("retry-after")).toBe("7");
     });
 
+    it("answers 503 for all of them when one read never reached Core", async () => {
+      listPendingMock.mockRejectedValue(new CoreApiRequestError("timeout"));
+      const result = await GET(requestMany("active,invitations"));
+      expect(result.status).toBe(503);
+    });
+
     it("rejects an unknown collection before fetching", async () => {
       expect((await GET(requestMany("active,everything"))).status).toBe(400);
       expect(listRoomsMock).not.toHaveBeenCalled();

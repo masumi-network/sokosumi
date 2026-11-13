@@ -119,8 +119,8 @@ export async function waitForAuthSession<TSession = unknown>({
 }: WaitForAuthSessionOptions<TSession>): Promise<TSession | null> {
   discardRetiredAblyRealtimeClientAfterSignIn();
 
-  // The sign-in response has set the cookie by the time it resolves, so the
-  // first check runs at once; the retry below covers a cookie that lands late.
+  // The cookie is usually in place once the sign-in response resolves, so the
+  // first check runs at once; the retry below covers one still settling.
   const session = await getSessionOrNull(getSession);
   if (session) {
     return session;

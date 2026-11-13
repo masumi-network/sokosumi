@@ -140,6 +140,25 @@ describe("sidebar collection GET requests", () => {
     });
   });
 
+  it("asks one by one when the server refuses a list of collections", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock
+      .mockResolvedValueOnce(new Response("{}", { status: 400 }))
+      .mockResolvedValueOnce(response([]))
+      .mockResolvedValueOnce(response([]));
+    const [active, invitations] = await Promise.all([
+      fetchSidebarRoomCollection("active"),
+      fetchSidebarRoomCollection("invitations"),
+    ]);
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "/api/chat/rooms?collections=active,invitations",
+      "/api/chat/rooms?collection=active",
+      "/api/chat/rooms?collection=invitations",
+    ]);
+    expect(active).toEqual({ rooms: [], nextCursor: null });
+    expect(invitations).toEqual([]);
+  });
+
   it("answers null for a collection the batch left out", async () => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockResolvedValue(

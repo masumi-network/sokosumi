@@ -65,7 +65,9 @@ async function loadSokoBotChats(
   const [{ rooms }, important, tChannels] = await Promise.all([
     // The sidebar's private-cache slice, so the load reads rooms from Core
     // once for both. It soft-fails to no rooms, as this read did.
-    getPrivateCachedMembershipVisibleRooms(cacheArgs),
+    getPrivateCachedMembershipVisibleRooms(cacheArgs).catch(() => ({
+      rooms: [],
+    })),
     chatRoomService.listImportantMessages().catch(() => []),
     getTranslations("App.Channels"),
   ]);
