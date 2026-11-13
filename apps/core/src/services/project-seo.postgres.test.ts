@@ -913,6 +913,14 @@ describe.skipIf(!enabled)(
         "2026-11-03T11:00:50.000Z",
         "2026-11-02T09:00:00.000Z",
       ]);
+      // A Run whose first file was not worse still notifies once when a later file is worse, and only once.
+      const ranNowTaskId = ranNow.run.releasedTaskId!;
+      for (const at of ["2026-11-02T10:00:00.000Z", "2026-11-02T11:00:00.000Z"])
+        await notifySeoMonitorWorse(
+          ranNowTaskId,
+          (await result(ranNowTaskId, at, "fired")).id,
+        );
+      expect(await worse()).toBe(2);
     });
 
     it("uses configured protocol authority instead of imported-file provenance or the source Task assignee", async () => {

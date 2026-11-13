@@ -109,20 +109,23 @@ export async function notifySeoMonitorWorse(
   // One notification per Run. A second file of the Run stops here: inside the transaction the unique key error would
   // abort it.
   const { messageParams: _, workspaceId: __, ...key } = input;
-  if (
-    await prisma.notification.findUnique({
+  const sent = (client: Pick<typeof prisma, "notification">) =>
+    client.notification.findUnique({
       where: { userId_kind_referenceId_eventId_messageKey: key },
       select: { id: true },
-    })
-  )
-    return;
+    });
+  if (await sent(prisma)) return;
   // Read before the lock, so the transaction holds the membership lock only for the check and the write.
   const delivery = await resolveDelivery(input);
   // Under the membership lock: an Owner removed from the Workspace gets no notification. createNotification checks
   // again in the same transaction but throws; this check returns quietly.
   await prisma.$transaction(async (tx) => {
     await lockCalendarWorkspaceMembership(tx, task.workspaceId);
-    if (!(await hasCalendarWorkspaceAccess(tx, task.workspaceId, ownerId))) {
+    // Two files of one Run notify at the same time: the second waits on the lock and then finds the first one's row.
+    if (
+      !(await hasCalendarWorkspaceAccess(tx, task.workspaceId, ownerId)) ||
+      (await sent(tx))
+    ) {
       return;
     }
     await createNotification(input, tx, delivery);
