@@ -19,6 +19,7 @@ import { SeoCsvButton } from "./seo-csv-button";
 import { seoDaySpan } from "./seo-day-span";
 import { seoKeywordsExport } from "./seo-export-model";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
+import { SeoDifficultyCell } from "./seo-keyword-difficulty";
 import { SeoKeywordHistory } from "./seo-keyword-history";
 import { SeoKeywordIdeas } from "./seo-keyword-ideas";
 import { SeoKeywordReach } from "./seo-keyword-reach";
@@ -132,6 +133,8 @@ export function SeoKeywords({
   // A column no row has measured only repeats "Not available"; name it once instead.
   const shown = {
     volume: checked.some((group) => group.volume !== null),
+    // Only a check that reads keyword difficulty fills the column.
+    difficulty: checked.some((group) => group.difficulty !== null),
     // Only a check that estimates conversion fills the column.
     conversion: checked.some((group) => group.conversion !== null),
     // Where no keyword shows a page, the result line says so once; a column of "Not found" adds nothing.
@@ -184,6 +187,7 @@ export function SeoKeywords({
     Number(shown.position) +
     Number(shown.market) +
     Number(shown.volume) +
+    Number(shown.difficulty) +
     Number(shown.conversion) +
     Number(shown.priority);
   const first = model.data.keywords[0];
@@ -323,6 +327,9 @@ export function SeoKeywords({
                       <TableHead className="text-right">
                         {t("keywords.volume")}
                       </TableHead>
+                    ) : null}
+                    {shown.difficulty ? (
+                      <TableHead>{t("keywords.difficulty.title")}</TableHead>
                     ) : null}
                     {shown.conversion ? (
                       <TableHead>{t("keywords.conversion.title")}</TableHead>
@@ -469,6 +476,9 @@ export function SeoKeywords({
                                 />
                               )}
                             </TableCell>
+                          ) : null}
+                          {shown.difficulty ? (
+                            <SeoDifficultyCell difficulty={group.difficulty} />
                           ) : null}
                           {shown.conversion ? (
                             <SeoConversionCell

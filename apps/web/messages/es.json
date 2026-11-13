@@ -11636,6 +11636,17 @@
           },
           "otherFeatures": "{count, plural, one {# más} other {# más}}",
           "noFeatures": "Ninguno"
+        },
+        "difficulty": {
+          "title": "Dificultad",
+          "easy": "Fácil",
+          "medium": "Media",
+          "hard": "Difícil",
+          "phrase": {
+            "easy": "Fácil de posicionar",
+            "medium": "Dificultad media",
+            "hard": "Difícil de posicionar"
+          }
         }
       },
       "competitors": {

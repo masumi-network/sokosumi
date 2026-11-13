@@ -223,3 +223,17 @@ export function keywordPositions(reads: Keyword[]) {
     ? [{ ...lines[0], device: null }]
     : lines;
 }
+
+/** Keyword difficulty (0 to 100) from here reads "Medium", and from the next one "Hard". */
+export const SEO_DIFFICULTY_MEDIUM_FROM = 30;
+export const SEO_DIFFICULTY_HARD_FROM = 60;
+export type SeoDifficultyBand = "easy" | "medium" | "hard";
+
+/** One word a site owner reads without the 0 to 100 scale; null without a difficulty. */
+export function seoDifficultyBand(
+  difficulty: number | null,
+): SeoDifficultyBand | null {
+  if (difficulty === null) return null;
+  if (difficulty >= SEO_DIFFICULTY_HARD_FROM) return "hard";
+  return difficulty >= SEO_DIFFICULTY_MEDIUM_FROM ? "medium" : "easy";
+}

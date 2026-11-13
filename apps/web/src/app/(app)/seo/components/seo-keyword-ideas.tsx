@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
+import { SeoDifficultyCell } from "./seo-keyword-difficulty";
 import {
   SEO_IDEA_SOURCES,
   type SeoKeywordGroup,
@@ -59,6 +60,8 @@ export function SeoKeywordIdeas({
     SEO_IDEA_SOURCES.filter((source) => sources.includes(source));
   const shown = {
     volume: ideas.some((group) => group.volume !== null),
+    // Only a check that reads keyword difficulty fills the column.
+    difficulty: ideas.some((group) => group.difficulty !== null),
     // Only a check that estimates conversion fills the column.
     conversion: ideas.some((group) => group.conversion !== null),
     // One reason on every row in view tells no idea from another: "Related search" stood on ten of ten rows.
@@ -105,6 +108,9 @@ export function SeoKeywordIdeas({
                   {t("keywords.volume")}
                 </TableHead>
               ) : null}
+              {shown.difficulty ? (
+                <TableHead>{t("keywords.difficulty.title")}</TableHead>
+              ) : null}
               {shown.conversion ? (
                 <TableHead>{t("keywords.conversion.title")}</TableHead>
               ) : null}
@@ -117,96 +123,103 @@ export function SeoKeywordIdeas({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map(({ lead, volume, sources, conversion, feature }) => (
-              <TableRow key={lead.id}>
-                <TableCell className="min-w-48 whitespace-normal">
-                  <p className="font-medium break-words">
-                    <bdi>{lead.keyword}</bdi>
-                  </p>
-                  {manyMarkets ? (
-                    <p className="text-muted-foreground text-xs">
-                      {seoMarketName(
-                        locale,
-                        lead.countryCode,
-                        lead.languageCode,
-                      )}
+            {rows.map(
+              ({ lead, volume, sources, conversion, feature, difficulty }) => (
+                <TableRow key={lead.id}>
+                  <TableCell className="min-w-48 whitespace-normal">
+                    <p className="font-medium break-words">
+                      <bdi>{lead.keyword}</bdi>
                     </p>
+                    {manyMarkets ? (
+                      <p className="text-muted-foreground text-xs">
+                        {seoMarketName(
+                          locale,
+                          lead.countryCode,
+                          lead.languageCode,
+                        )}
+                      </p>
+                    ) : null}
+                    {manyPages && lead.pageUrl ? (
+                      <SeoPageText
+                        url={lead.pageUrl}
+                        workspace={model.data}
+                        skipPrimary
+                        oneLine
+                      />
+                    ) : null}
+                  </TableCell>
+                  {shown.volume ? (
+                    <TableCell
+                      className="text-right tabular-nums"
+                      // No number, no unit: the label names the empty value.
+                      data-label={
+                        volume === null ? t("keywords.volume") : undefined
+                      }
+                    >
+                      {volume === null ? (
+                        <span className="text-muted-foreground">
+                          {t("none")}
+                        </span>
+                      ) : (
+                        <SeoBarNumber
+                          value={volume}
+                          max={mostSearched}
+                          unit={t("keywords.volumeUnit", { count: volume })}
+                        />
+                      )}
+                    </TableCell>
                   ) : null}
-                  {manyPages && lead.pageUrl ? (
-                    <SeoPageText
-                      url={lead.pageUrl}
-                      workspace={model.data}
-                      skipPrimary
-                      oneLine
+                  {shown.difficulty ? (
+                    <SeoDifficultyCell difficulty={difficulty} />
+                  ) : null}
+                  {shown.conversion ? (
+                    <SeoConversionCell
+                      conversion={conversion}
+                      feature={feature}
                     />
                   ) : null}
-                </TableCell>
-                {shown.volume ? (
-                  <TableCell
-                    className="text-right tabular-nums"
-                    // No number, no unit: the label names the empty value.
-                    data-label={
-                      volume === null ? t("keywords.volume") : undefined
-                    }
-                  >
-                    {volume === null ? (
-                      <span className="text-muted-foreground">{t("none")}</span>
-                    ) : (
-                      <SeoBarNumber
-                        value={volume}
-                        max={mostSearched}
-                        unit={t("keywords.volumeUnit", { count: volume })}
-                      />
-                    )}
-                  </TableCell>
-                ) : null}
-                {shown.conversion ? (
-                  <SeoConversionCell
-                    conversion={conversion}
-                    feature={feature}
-                  />
-                ) : null}
-                {/* The reason is a tag beside the keyword and its values. On a phone it follows the number or the estimate on one line. */}
-                {shown.why ? (
-                  <TableCell className="text-muted-foreground whitespace-normal">
-                    {/* Each reason is a tag with a dot of its own colour: the eye finds the rows of one kind. */}
-                    <span className="flex flex-wrap gap-1.5">
-                      {reasonsOf(sources).map((source) => (
-                        <span
-                          key={source}
-                          className="bg-muted text-foreground inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs"
-                        >
+                  {/* The reason is a tag beside the keyword and its values. On a phone it follows the number or the estimate on one line. */}
+                  {shown.why ? (
+                    <TableCell className="text-muted-foreground whitespace-normal">
+                      {/* Each reason is a tag with a dot of its own colour: the eye finds the rows of one kind. */}
+                      <span className="flex flex-wrap gap-1.5">
+                        {reasonsOf(sources).map((source) => (
                           <span
-                            aria-hidden
-                            className={cn(
-                              "size-1.5 shrink-0 rounded-full",
-                              IDEA_SOURCE_MARK_CLASS[source],
-                            )}
-                          />
-                          {t(`keywords.ideas.source.${source}`)}
-                        </span>
-                      ))}
-                    </span>
-                  </TableCell>
-                ) : null}
-                <TableCell>
-                  {model.data.availableActions.canEdit ? (
-                    <div className="flex justify-end">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={model.pending}
-                        onClick={() => {
-                          void model.toggleKeyword(lead);
-                        }}
-                      >
-                        {t("keywords.save")}
-                      </Button>
-                    </div>
+                            key={source}
+                            className="bg-muted text-foreground inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs"
+                          >
+                            <span
+                              aria-hidden
+                              className={cn(
+                                "size-1.5 shrink-0 rounded-full",
+                                IDEA_SOURCE_MARK_CLASS[source],
+                              )}
+                            />
+                            {t(`keywords.ideas.source.${source}`)}
+                          </span>
+                        ))}
+                      </span>
+                    </TableCell>
                   ) : null}
-                </TableCell>
-              </TableRow>
-            ))}
+                  <TableCell>
+                    {model.data.availableActions.canEdit ? (
+                      <div className="flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={model.pending}
+                          onClick={() => {
+                            void model.toggleKeyword(lead);
+                          }}
+                        >
+                          {t("keywords.save")}
+                        </Button>
+                      </div>
+                    ) : null}
+                  </TableCell>
+                </TableRow>
+              ),
+            )}
           </TableBody>
         </Table>
         {shown.conversion ? <SeoConversionNote /> : null}

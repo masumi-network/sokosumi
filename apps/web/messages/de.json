@@ -11636,6 +11636,17 @@
           },
           "otherFeatures": "{count, plural, one {# weiteres} other {# weitere}}",
           "noFeatures": "Keine"
+        },
+        "difficulty": {
+          "title": "Schwierigkeit",
+          "easy": "Leicht",
+          "medium": "Mittel",
+          "hard": "Schwer",
+          "phrase": {
+            "easy": "Leicht zu ranken",
+            "medium": "Mittlere Schwierigkeit",
+            "hard": "Schwer zu ranken"
+          }
         }
       },
       "competitors": {

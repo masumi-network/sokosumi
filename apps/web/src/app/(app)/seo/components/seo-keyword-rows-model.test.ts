@@ -6,6 +6,7 @@ import {
   keywordPositions,
   keywordReadFailed,
   keywordSummary,
+  seoDifficultyBand,
 } from "./seo-keyword-rows-model";
 
 type Keyword = ProjectSeoWorkspace["keywords"][number];
@@ -404,5 +405,17 @@ describe("SEO keyword rows", () => {
     expect(keywordPositions([mobile])).toEqual([
       { device: "mobile", position: null },
     ]);
+  });
+});
+
+describe("seoDifficultyBand", () => {
+  it("puts each difficulty in one band at the edges", () => {
+    expect(seoDifficultyBand(null)).toBeNull();
+    expect(seoDifficultyBand(0)).toBe("easy");
+    expect(seoDifficultyBand(29)).toBe("easy");
+    expect(seoDifficultyBand(30)).toBe("medium");
+    expect(seoDifficultyBand(59)).toBe("medium");
+    expect(seoDifficultyBand(60)).toBe("hard");
+    expect(seoDifficultyBand(100)).toBe("hard");
   });
 });
