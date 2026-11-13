@@ -67,9 +67,12 @@ const request = () =>
   });
 const monitor = (analysis = request()) => ({
   operationId: randomUUID(),
-  cadence: "daily" as const,
-  timeZone: "UTC",
-  targetRunCount: 2,
+  rule: {
+    expr: "0 9 * * *",
+    timezone: "UTC",
+    endsMode: "AFTER" as const,
+    targetRunCount: 2,
+  },
   analysis,
 });
 async function counts() {

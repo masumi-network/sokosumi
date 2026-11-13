@@ -21,6 +21,7 @@ import {
   updateSeoScopeSchema,
 } from "@/schemas/project-seo.schema";
 import { listProjectSeoMonitors } from "./project-seo-monitor.service";
+import { seoMonitorOfTasks } from "./project-seo-monitor-runs";
 import { projectSeoProjection } from "./project-seo-projection";
 import {
   canConfirmSeoCompetitor,
@@ -368,7 +369,11 @@ export async function getProjectSeoWorkspace(
     completedAt: task.events[0]?.createdAt ?? null,
   }));
   const currentOwner = await requireSeoOwner(actor);
-  return projectSeoProjection({
+  const monitorOfTask = await seoMonitorOfTasks(
+    actor.workspaceId,
+    observations.flatMap((row) => (row.sourceTaskId ? [row.sourceTaskId] : [])),
+  );
+  const workspace = projectSeoProjection({
     project: currentOwner,
     sharing: seoSharingFor(actor),
     query,
@@ -387,4 +392,15 @@ export async function getProjectSeoWorkspace(
     canSchedule: executor?.canSchedule === true,
     monitors,
   });
+  const sourceTask = new Map(
+    observations.map((row) => [row.id, row.sourceTaskId]),
+  );
+  return {
+    ...workspace,
+    runs: workspace.runs?.map((run) => ({
+      ...run,
+      monitorId:
+        monitorOfTask.get(sourceTask.get(run.observationId) ?? "") ?? null,
+    })),
+  };
 }

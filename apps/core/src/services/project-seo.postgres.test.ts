@@ -36,14 +36,36 @@ import {
   releaseSeoMonitorRun,
 } from "./project-seo-monitor.service";
 import {
+  notifySeoMonitorWorse,
+  SEO_MONITOR_WORSE_MESSAGE_KEY,
+} from "./project-seo-monitor-notify";
+import {
   createProjectSeoActionTask,
   requestProjectSeoAnalysis,
 } from "./project-seo-operations.service";
 import {
   changeTaskScheduleState,
+  runTaskScheduleNow,
   updateTaskSchedule,
 } from "./task-schedule.service";
 
+// Notification and Task events publish after the test that made them: keep them off the network of later tests.
+vi.mock("@/helpers/notification-publish-queue", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/helpers/notification-publish-queue")
+  >()),
+  scheduleNotificationPublish: vi.fn(),
+}));
+vi.mock("@/helpers/notification-email-dispatch", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/helpers/notification-email-dispatch")
+  >()),
+  dispatchNotificationEmail: vi.fn(async () => undefined),
+}));
+vi.mock("@/lib/ably/publish", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/ably/publish")>()),
+  publishTaskEventData: vi.fn(async () => undefined),
+}));
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
   const { stubAuthMiddleware } = await import(
@@ -177,9 +199,12 @@ describe.skipIf(!enabled)(
         await expect(
           createProjectSeoMonitor(vars, actor, {
             operationId: randomUUID(),
-            cadence: "daily",
-            timeZone: "UTC",
-            targetRunCount: 2,
+            rule: {
+              expr: "0 9 * * *",
+              timezone: "UTC",
+              endsMode: "AFTER" as const,
+              targetRunCount: 2,
+            },
             analysis,
           }),
         ).rejects.toMatchObject({
@@ -513,9 +538,12 @@ describe.skipIf(!enabled)(
       };
       const input = {
         operationId: randomUUID(),
-        cadence: "daily" as const,
-        targetRunCount: 2,
-        timeZone: "UTC",
+        rule: {
+          expr: "0 9 * * *",
+          timezone: "UTC",
+          endsMode: "AFTER" as const,
+          targetRunCount: 2,
+        },
         analysis,
       };
       // A packet the worker would refuse fails at creation, not at every Run.
@@ -594,6 +622,159 @@ describe.skipIf(!enabled)(
       expect(
         (await changeTaskScheduleState(vars, monitor.id, "pause")).state,
       ).toBe("PAUSED");
+    });
+
+    it("edits only a monitor's rule, runs it now, and tells its Owner only when a result got worse", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: "https://example.test/monitor-ux",
+        relationship: "primary",
+      });
+      const vars = {
+        isAuthenticated: true,
+        authContext: {
+          actor: "user" as const,
+          userId,
+          organizationId: null,
+          role: "user",
+        },
+        workspaceContext: { workspaceId, userId, organizationId: null },
+      };
+      const monitor = await createProjectSeoMonitor(vars, actor, {
+        operationId: randomUUID(),
+        rule: {
+          expr: "0 9 * * *",
+          timezone: "UTC",
+          endsMode: "AFTER",
+          targetRunCount: 3,
+        },
+        analysis: requestSeoAnalysisSchema.parse({
+          kind: "page_check",
+          pageIds: [page.id],
+          countryCode: "US",
+          languageCode: "en",
+          devices: ["desktop"],
+          coworkerId,
+          idempotencyKey: "monitor-ux-analysis",
+        }),
+      });
+      await expect(
+        updateTaskSchedule(vars, monitor.id, {
+          expectedRevision: monitor.revision,
+          rule: { expr: "*/5 * * * *", timezone: "UTC", endsMode: "NEVER" },
+        }),
+      ).rejects.toMatchObject({ status: 422 });
+      const edited = await updateTaskSchedule(vars, monitor.id, {
+        expectedRevision: monitor.revision,
+        rule: {
+          expr: "30 7 * * *",
+          timezone: "Europe/Berlin",
+          endsMode: "NEVER",
+        },
+      });
+      const rule = {
+        expr: "30 7 * * *",
+        timezone: "Europe/Berlin",
+        endsMode: "NEVER",
+        targetRunCount: null,
+      };
+      expect(edited).toMatchObject(rule);
+      const schedule = await prisma.taskSchedule.findUniqueOrThrow({
+        where: { id: monitor.id },
+      });
+      const planned = await prisma.taskScheduleRun.findFirstOrThrow({
+        where: { scheduleId: monitor.id, state: "PLANNED" },
+        orderBy: { effectiveScheduledAt: "asc" },
+      });
+      // The edited rule is the approved rule: its planned Run still releases.
+      const scheduled = await prisma.$transaction((tx) =>
+        releaseSeoMonitorRun(tx, schedule, planned.id),
+      );
+      const ranNow = await runTaskScheduleNow(vars, monitor.id, {
+        expectedRevision: edited.revision,
+      });
+      expect(ranNow.run.manual).toBe(true);
+      const ranAgain = await runTaskScheduleNow(vars, monitor.id, {
+        expectedRevision: ranNow.revision,
+      });
+      for (const taskId of [
+        ranNow.run.releasedTaskId,
+        ranAgain.run.releasedTaskId,
+      ])
+        expect(
+          await prisma.projectSeoAnalysis.count({ where: { taskId: taskId! } }),
+        ).toBe(1);
+
+      const result = async (taskId: string, at: string, title: string) =>
+        prisma.projectSeoObservation.create({
+          data: {
+            projectId,
+            kind: "page_check",
+            source: "seo_coworker",
+            sourceKey: randomUUID(),
+            sourceTaskId: taskId,
+            pageIds: [page.id],
+            artifactHash: randomUUID(),
+            observedAt: new Date(at),
+            payload: {
+              version: 1,
+              kind: "page_check",
+              requestId: null,
+              pageUrls: [page.url],
+              observedAt: at,
+              countryCode: "US",
+              languageCode: "en",
+              rulebookVersion: "r1",
+              checks: [
+                {
+                  rowId: "title",
+                  pageUrl: page.url,
+                  device: "desktop",
+                  result: title,
+                },
+              ],
+              keywords: [],
+              competitors: [],
+              findings: [],
+              actions: [],
+              coverage: { checked: 1, skipped: 0, failed: 0 },
+              notes: [],
+            },
+          },
+        });
+      const worse = () =>
+        prisma.notification.count({
+          where: { userId, messageKey: SEO_MONITOR_WORSE_MESSAGE_KEY },
+        });
+      await result(scheduled!.id, "2026-11-01T09:00:00.000Z", "pass");
+      const same = await result(
+        ranNow.run.releasedTaskId!,
+        "2026-11-02T09:00:00.000Z",
+        "pass",
+      );
+      await notifySeoMonitorWorse(ranNow.run.releasedTaskId!, same.id);
+      expect(await worse()).toBe(0);
+      const failed = await result(
+        ranAgain.run.releasedTaskId!,
+        "2026-11-03T09:00:00.000Z",
+        "fired",
+      );
+      await notifySeoMonitorWorse(ranAgain.run.releasedTaskId!, failed.id);
+      await notifySeoMonitorWorse(ranAgain.run.releasedTaskId!, failed.id);
+      expect(await worse()).toBe(1);
+
+      const workspace = await getProjectSeoWorkspace(actor, {
+        pageId: page.id,
+      });
+      const listed = workspace.monitors.find((item) => item.id === monitor.id);
+      expect(listed).toMatchObject({
+        rule,
+        pageIds: [page.id],
+        lastRun: { taskId: ranAgain.run.releasedTaskId },
+        change: { comparable: true, newFailureCount: 1, fixedCount: 0 },
+      });
+      expect(
+        workspace.runs?.filter((run) => run.monitorId === monitor.id),
+      ).toHaveLength(3);
     });
 
     it("uses configured protocol authority instead of imported-file provenance or the source Task assignee", async () => {

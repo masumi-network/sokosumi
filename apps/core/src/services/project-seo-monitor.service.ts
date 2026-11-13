@@ -13,9 +13,8 @@ import {
 } from "@/lib/seo/analysis-price";
 import {
   parseSeoMonitorPlan,
-  SEO_MONITOR_CRON,
   SEO_MONITOR_MARKER,
-  seoMonitorPlanSchema,
+  seoMonitorDescription,
 } from "@/lib/seo/monitor-plan";
 import {
   createSeoMonitorSchema,
@@ -23,7 +22,7 @@ import {
   requestSeoAnalysisSchema,
   type SeoActor,
 } from "@/schemas/project-seo.schema";
-
+import { readSeoMonitorRuns } from "./project-seo-monitor-runs";
 import {
   requestProjectSeoAnalysisInTransaction,
   seoTaskPacket,
@@ -42,7 +41,7 @@ function parsePacket(description: string | null) {
   }
 }
 
-/** A human creates a bounded existing Task Schedule; the saved pages remain fixed for its lifetime. */
+/** A human creates an existing Task Schedule with an approved rule; the saved pages remain fixed for its lifetime. */
 export async function createProjectSeoMonitor(
   vars: EnvVariables["Variables"],
   actor: SeoActor,
@@ -100,37 +99,37 @@ export async function createProjectSeoMonitor(
     pageIds: scope.pageIds,
     idempotencyKey: "monitor-template",
   });
-  const packet = seoMonitorPlanSchema.parse({
+  const description = seoMonitorDescription({
     ...(actor.owner.kind === "audit"
       ? { version: 2, auditId: actor.owner.id }
       : { version: 1 }),
-    cadence: input.cadence,
-    timeZone: input.timeZone,
-    targetRunCount: input.targetRunCount,
+    rule: input.rule,
     scopeVersion: scope.version,
     analysis,
   });
   return createTaskSchedule(vars, {
     operationId: input.operationId,
-    name: `SEO ${input.cadence} ${analysis.kind.replaceAll("_", " ")}`,
-    description: `${SEO_MONITOR_MARKER}${JSON.stringify(packet)}`,
+    name: `SEO ${analysis.kind.replaceAll("_", " ")}`,
+    description,
     projectId: owner.projectId,
     visibility: "PUBLIC",
     assigneeId: analysis.coworkerId,
     rule: {
-      expr: SEO_MONITOR_CRON[input.cadence],
-      timezone: input.timeZone,
-      endsMode: "AFTER",
-      targetRunCount: input.targetRunCount,
+      ...input.rule,
+      targetRunCount: input.rule.targetRunCount ?? undefined,
     },
   });
 }
 
-/** Only the durable planned Run ledger may release this packet. Each Run gets its own request ID. */
+/**
+ * Only the durable planned Run ledger, or a Run now that passed the schedule's write checks, may release this
+ * packet. Each Run gets its own request ID.
+ */
 export async function releaseSeoMonitorRun(
   tx: Prisma.TransactionClient,
   schedule: TaskSchedule,
   runId: string,
+  manual = false,
 ) {
   const packet = parsePacket(schedule.description);
   if (!packet) return null;
@@ -144,24 +143,28 @@ export async function releaseSeoMonitorRun(
     schedule.assigneeId !== packet.analysis.coworkerId ||
     schedule.assigneeSokoBotId ||
     schedule.assigneeUserId ||
-    schedule.expr !== SEO_MONITOR_CRON[packet.cadence] ||
-    schedule.timezone !== packet.timeZone ||
+    schedule.expr !== packet.rule.expr ||
+    schedule.timezone !== packet.rule.timezone ||
     schedule.intervalDays ||
-    schedule.endsMode !== "AFTER" ||
-    schedule.targetRunCount !== packet.targetRunCount
+    schedule.endsMode !== packet.rule.endsMode ||
+    schedule.endsOn ||
+    schedule.targetRunCount !== packet.rule.targetRunCount
   )
     throw forbidden(
-      "The SEO monitor no longer matches its approved finite public blueprint",
+      "The SEO monitor no longer matches its approved public blueprint",
     );
-  const planned = await tx.taskScheduleRun.findFirst({
-    where: {
-      id: runId,
-      scheduleId: schedule.id,
-      state: "PLANNED",
-      manual: false,
-    },
-    select: { id: true },
-  });
+  // A Run now Run row is written after its Task, in the same transaction.
+  const planned =
+    manual ||
+    (await tx.taskScheduleRun.findFirst({
+      where: {
+        id: runId,
+        scheduleId: schedule.id,
+        state: "PLANNED",
+        manual: false,
+      },
+      select: { id: true },
+    }));
   if (!planned)
     throw forbidden(
       "Request a one-off analysis instead of adding an unbudgeted monitor Run",
@@ -203,9 +206,11 @@ export async function listProjectSeoMonitors(
   actor: SeoActor,
 ): Promise<ProjectSeoWorkspace["monitors"]> {
   await requireSeoOwner(actor);
-  const result: ProjectSeoWorkspace["monitors"] = [];
+  const found: Array<
+    Omit<ProjectSeoWorkspace["monitors"][number], "lastRun" | "change">
+  > = [];
   let cursor: string | null = null;
-  while (result.length < SEO_MONITOR_LIST_LIMIT) {
+  while (found.length < SEO_MONITOR_LIST_LIMIT) {
     const rows: TaskSchedule[] = await prisma.taskSchedule.findMany({
       where: {
         ...(actor.owner.kind === "project"
@@ -219,7 +224,7 @@ export async function listProjectSeoMonitors(
       take: SEO_MONITOR_LIST_LIMIT,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
-    result.push(
+    found.push(
       ...rows.flatMap((row) => {
         try {
           const packet = parsePacket(row.description);
@@ -234,8 +239,10 @@ export async function listProjectSeoMonitors(
                   id: row.id,
                   name: row.name,
                   state: row.state,
+                  revision: row.revision,
+                  createdAt: row.createdAt.toISOString(),
                   nextRunAt: row.nextRunAt?.toISOString() ?? null,
-                  targetRunCount: packet.targetRunCount,
+                  rule: packet.rule,
                   releasedCount: row.releasedCount,
                   pageIds: packet.analysis.pageIds ?? [],
                   scopeVersion: packet.scopeVersion,
@@ -244,7 +251,6 @@ export async function listProjectSeoMonitors(
                   devices: packet.analysis.devices,
                   kind: packet.analysis.kind,
                   maxProviderCalls: packet.analysis.maxProviderCalls,
-                  timeZone: row.timezone,
                 },
               ]
             : [];
@@ -256,5 +262,14 @@ export async function listProjectSeoMonitors(
     if (rows.length < SEO_MONITOR_LIST_LIMIT) break;
     cursor = rows.at(-1)!.id;
   }
-  return result.slice(0, SEO_MONITOR_LIST_LIMIT);
+  const monitors = found.slice(0, SEO_MONITOR_LIST_LIMIT);
+  const runs = await readSeoMonitorRuns(
+    actor.workspaceId,
+    monitors.map((monitor) => monitor.id),
+  );
+  return monitors.map((monitor) => ({
+    ...monitor,
+    lastRun: runs.get(monitor.id)?.lastRun ?? null,
+    change: runs.get(monitor.id)?.change ?? null,
+  }));
 }

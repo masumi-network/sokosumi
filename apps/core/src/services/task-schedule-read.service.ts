@@ -28,8 +28,10 @@ import { mapWorkCreator } from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
 import {
+  hasReadableSeoMonitorPlan,
   isSeoMonitorDescription,
   seoMonitorDescriptionForUser,
+  seoMonitorSummary,
 } from "@/lib/seo/monitor-plan";
 import {
   isCoworkerAuthContext,
@@ -331,11 +333,13 @@ export function mapTaskSchedule(schedule: TaskScheduleView) {
     canRunNow:
       schedule.canWrite &&
       schedule.state !== TaskScheduleState.ENDED &&
-      !isSeoMonitorDescription(schedule.description),
+      hasReadableSeoMonitorPlan(schedule.description),
+    // An SEO monitor is edited in the SEO workspace: this editor would send its blueprint too.
     canEditPlan:
       schedule.canWrite &&
       schedule.state !== TaskScheduleState.ENDED &&
       !isSeoMonitorDescription(schedule.description),
+    seoMonitor: seoMonitorSummary(schedule.description),
   };
 }
 

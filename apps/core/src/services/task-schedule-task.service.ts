@@ -15,8 +15,9 @@ export async function createTaskFromBlueprint(
   tx: Prisma.TransactionClient,
   schedule: TaskSchedule,
   runId: string,
+  manual = false,
 ) {
-  const seoTask = await releaseSeoMonitorRun(tx, schedule, runId);
+  const seoTask = await releaseSeoMonitorRun(tx, schedule, runId, manual);
   if (seoTask) return seoTask;
   return tx.task.create({
     data: {

@@ -11,6 +11,7 @@ import {
   taskVisibilitySchema,
 } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+import { seoAnalysisKindSchema } from "@/schemas/project-seo.schema";
 import {
   workCreatorField,
   workOwnerIdSchema,
@@ -236,12 +237,27 @@ export const taskScheduleSchema = z
     }),
     canRunNow: z.boolean().openapi({
       description:
-        "Whether the caller may release an extra manual Run now. Finite SEO monitors permit only their approved planned Runs.",
+        "Whether the caller may release an extra manual Run now. It does not count toward an end-after-N rule.",
     }),
     canEditPlan: z.boolean().openapi({
       description:
-        "Whether the caller may edit the schedule blueprint and rule. Finite SEO monitor plans stay fixed; pause and end use canWrite.",
+        "Whether the caller may edit the schedule blueprint and rule here. An SEO monitor is false: its rule is edited in the SEO workspace with only `rule` and `expectedRevision`; pause and end use canWrite.",
     }),
+    seoMonitor: z
+      .union([
+        z
+          .object({
+            kind: seoAnalysisKindSchema,
+            pageCount: z.number().int().nonnegative(),
+          })
+          .openapi("TaskScheduleSeoMonitor"),
+        z.null(),
+      ])
+      .optional()
+      .openapi({
+        description:
+          "The check and page count of an SEO monitor, so a client can write its plan sentence in the reader's language. Null for another schedule or a saved plan that no longer parses.",
+      }),
   })
   .openapi("TaskSchedule");
 

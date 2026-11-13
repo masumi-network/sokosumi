@@ -416,7 +416,7 @@ export async function releaseManualTaskScheduleRun(
   actor: Pick<TaskScheduleRun, "actorUserId" | "actorCoworkerId">,
 ): Promise<{ run: TaskScheduleRun; task: ReleasedTask }> {
   const runId = randomUUID();
-  const task = await createTaskFromBlueprint(tx, schedule, runId);
+  const task = await createTaskFromBlueprint(tx, schedule, runId, true);
   const run = await tx.taskScheduleRun.create({
     data: {
       id: runId,

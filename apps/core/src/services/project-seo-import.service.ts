@@ -16,7 +16,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { SeoActor } from "@/schemas/project-seo.schema";
-
+import { notifySeoMonitorWorseSafely } from "./project-seo-monitor-notify";
 import {
   commitSeoMutation,
   normalizeSeoUrl,
@@ -167,7 +167,9 @@ export async function importProjectSeoAudit(
   if (payload.requestId && (!analysis || payload.requestId !== analysis.id))
     throw badRequest("The SEO result does not match its requested analysis");
   if (analysis) assertSeoArtifactMatchesRequest(raw, payload, analysis);
-  return serializableTransaction(async (tx) => {
+  let createdId: string | null = null;
+  const result = await serializableTransaction(async (tx) => {
+    createdId = null;
     await requireLockedSeoOwner(tx, actor);
     await options.authorize?.(tx);
     const current = await requireSourceFile(actor, input, tx);
@@ -221,8 +223,11 @@ export async function importProjectSeoAudit(
         where: { id: analysis.id },
         data: { status: "completed", failureReason: null },
       });
+    createdId = observation.id;
     return commitSeoMutation(tx, observation, options);
   }, "The SEO report import changed. Please retry.");
+  if (createdId) await notifySeoMonitorWorseSafely(task.id, createdId);
+  return result;
 }
 
 /** Upload completion supplies only durable IDs. Authority comes from the original dispatch record. */

@@ -188,9 +188,12 @@ describe.skipIf(!enabled)("Independent Audit background ownership", () => {
     };
     const monitor = await createProjectSeoMonitor(vars, actor, {
       operationId: randomUUID(),
-      cadence: "daily",
-      targetRunCount: 2,
-      timeZone: "UTC",
+      rule: {
+        expr: "0 9 * * *",
+        timezone: "UTC",
+        endsMode: "AFTER" as const,
+        targetRunCount: 2,
+      },
       analysis: analysisInput(page.id, "audit-monitor-template"),
     });
     const schedule = await prisma.taskSchedule.findUniqueOrThrow({

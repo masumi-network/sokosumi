@@ -81,21 +81,22 @@ describe("Task Schedule read projection", () => {
       ),
     ).toMatchObject({ canWrite: true, canRunNow: false, canEditPlan: false });
   });
-  it("keeps finite monitor pause/end authority while refusing extra runs, edits and raw protocol display", () => {
+  it("lets a monitor run now but keeps its plan edit in the SEO workspace and hides the raw protocol", () => {
     const raw = schedule({
       description: monitorDescription(),
       projectId: PROJECT_ID,
     });
     const projected = mapTaskSchedule(toTaskScheduleView(owner, raw));
-    expect(projected.canRunNow).toBe(false);
+    expect(projected.canRunNow).toBe(true);
     expect(projected.canEditPlan).toBe(false);
     const mapped = taskScheduleSchema.parse(projected);
     expect(mapped).toMatchObject({
       canWrite: true,
-      canRunNow: false,
+      canRunNow: true,
       canEditPlan: false,
       description:
         "Weekly ranking checks for 1 saved page. Ends after 4 scheduled runs. Time zone: Europe/Oslo.",
+      seoMonitor: { kind: "rankings", pageCount: 1 },
     });
     expect(mapped.description).not.toContain(SEO_MONITOR_MARKER);
     expect(mapped.description).not.toContain(PAGE_ID);
@@ -116,6 +117,7 @@ describe("Task Schedule read projection", () => {
       canEditPlan: false,
       description:
         "SEO monitor. Review its saved plan before the next scheduled run.",
+      seoMonitor: null,
     });
     const prose = "Please explain the seo_monitor: format";
     expect(

@@ -28,7 +28,10 @@ import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
 import { validateTaskScheduleRule } from "@/helpers/task-schedule";
 import { creatorFields } from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
-import { isSeoMonitorDescription } from "@/lib/seo/monitor-plan";
+import {
+  isSeoMonitorDescription,
+  seoMonitorDescriptionWithRule,
+} from "@/lib/seo/monitor-plan";
 import { type WorkspaceContext } from "@/middleware/workspace";
 import type {
   CreateTaskScheduleRequest,
@@ -311,10 +314,10 @@ export async function updateTaskSchedule(
   return await prisma.$transaction(async (tx) => {
     const current = await findReadableSchedule(actor, id, tx);
     requireScheduleWriteAccess(actor, current);
-    if (isSeoMonitorDescription(current.description))
-      throw conflict(
-        "This SEO monitor has a fixed scope, allowance and plan. Pause or end it, then create a new monitor.",
-      );
+    // An SEO monitor keeps its approved pages and check: an edit replaces its rule only.
+    const description = isSeoMonitorDescription(current.description)
+      ? seoMonitorDescriptionWithRule(current.description, input)
+      : input.description;
     if (current.state === TaskScheduleState.ENDED) {
       throwStateConflict("An Ended Task Schedule cannot be changed");
     }
@@ -366,7 +369,7 @@ export async function updateTaskSchedule(
       where: { id, revision: input.expectedRevision },
       data: {
         name: input.name,
-        description: input.description,
+        description,
         projectId: input.projectId,
         ...assignees,
         ...rule,

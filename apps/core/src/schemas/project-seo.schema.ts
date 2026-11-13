@@ -2,13 +2,18 @@ import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { SEO_SHARING_SCOPES } from "@/lib/seo/data-visibility";
 import { SEO_STATS_MAX_DAYS } from "@/lib/seo/native-statistics";
+import {
+  seoMonitorChangeSchema,
+  seoMonitorLastRunSchema,
+  seoMonitorRuleSchema,
+} from "./project-seo-monitor.schema";
 import { seoStrategySchema } from "./project-seo-strategy.schema";
 
 export const SEO_MAX_PAGES = 10;
 export const SEO_MAX_KEYWORDS = 20;
 export const SEO_MAX_COMPETITORS = 10;
 export const SEO_MAX_PROVIDER_CALLS = 100;
-export const SEO_MAX_MONITOR_RUNS = 31;
+export { SEO_MAX_MONITOR_RUNS } from "./project-seo-monitor.schema";
 export const SEO_PAGE_CHANGE_CLOCK_SKEW_MS = 5 * 60_000;
 const SEO_SERP_LANGUAGES = new Set(
   "af ak am ar az be bg bn bs ca cs cy da de ee el en es et eu fa fi fo fr fy ga gl gu ha he hi hr ht hu hy id ig is it iw ja ka kg kk km kn ko ky lg ln lo lt lv mg mi mk ml mn mr ms mt my ne nl no ny om pa pl ps pt qu rm rn ro ru rw sd si sk sl sn so sq sr st sv sw ta te tg th ti tk tl tn to tr uk ur uz vi wo xh yo zu".split(
@@ -225,9 +230,7 @@ export const createSeoActionTaskSchema = z
 export const createSeoMonitorSchema = z
   .object({
     operationId: seoIdSchema,
-    cadence: z.enum(["daily", "weekly"]),
-    timeZone: z.string().min(1).max(100),
-    targetRunCount: z.number().int().min(1).max(SEO_MAX_MONITOR_RUNS),
+    rule: seoMonitorRuleSchema,
     analysis: requestSeoAnalysisSchema,
   })
   .strict()
@@ -257,8 +260,12 @@ export const seoMonitorSchema = z
     id: seoIdSchema,
     name: z.string(),
     state: z.string(),
+    /** The schedule revision. Edits and Run now send it back. */
+    revision: z.number().int(),
+    createdAt: dateTimeSchema,
     nextRunAt: dateTimeSchema.nullable(),
-    targetRunCount: z.number().int(),
+    rule: seoMonitorRuleSchema,
+    /** Scheduled Runs released so far. Run now Runs do not count. */
     releasedCount: z.number().int(),
     pageIds: z.array(seoIdSchema),
     scopeVersion: z.number().int(),
@@ -267,7 +274,8 @@ export const seoMonitorSchema = z
     devices: z.array(seoDeviceSchema),
     kind: seoAnalysisKindSchema,
     maxProviderCalls: z.number().int(),
-    timeZone: z.string(),
+    lastRun: z.union([seoMonitorLastRunSchema, z.null()]),
+    change: z.union([seoMonitorChangeSchema, z.null()]),
   })
   .openapi("ProjectSeoMonitor");
 
@@ -578,6 +586,8 @@ export const seoRunSchema = z
     issues: z.union([z.number().int().nonnegative(), z.null()]),
     /** Seconds from the request to the saved result. Null where no request of this workspace started the run. */
     seconds: z.union([z.number().int().nonnegative(), z.null()]),
+    /** The SEO monitor whose scheduled Run made this result. Null for a one-off check. */
+    monitorId: z.union([seoIdSchema, z.null()]).optional(),
   })
   .openapi("ProjectSeoRun");
 export const seoJobSchema = z
