@@ -63,7 +63,7 @@ export function seoStatisticsKeywordRowsCutNote(rowLimit: number) {
 const KEYWORD_ROWS_CUT =
   /^Only the first (\d+) daily keyword rows by clicks were kept\. Some days can be missing\.$/;
 
-/** Names the tracked keywords a sync did not read, as many as fit in one note. */
+/** Names the tracked keywords a sync did not read, as many as fit in one note. A quote in a name is doubled. */
 export function seoStatisticsKeywordsLeftOutNote(
   leftOut: readonly string[],
   maxKeywords: number,
@@ -71,7 +71,7 @@ export function seoStatisticsKeywordsLeftOutNote(
 ) {
   let note = `Daily positions are read for at most ${maxKeywords} tracked keywords in ${maxCountries} countries Search Console can filter by, per sync. Not read this time: `;
   for (const [index, keyword] of leftOut.entries()) {
-    const name = `${index ? ", " : ""}"${keyword}"`;
+    const name = `${index ? ", " : ""}"${keyword.replaceAll('"', '""')}"`;
     const more = ` and ${leftOut.length - index} more.`;
     if (note.length + name.length + more.length + 1 > SEO_STATISTICS_NOTE_LIMIT)
       return `${note}${more}`;
@@ -79,9 +79,26 @@ export function seoStatisticsKeywordsLeftOutNote(
   }
   return `${note}.`;
 }
-// A keyword that itself holds '", "' splits into two names; the count stays right.
 const KEYWORDS_LEFT_OUT =
   /^Daily positions are read for at most \d+ tracked keywords in \d+ countries Search Console can filter by, per sync\. Not read this time: ([\s\S]*?)(?: and (\d+) more)?\.$/;
+/** One quoted name, a doubled quote inside it, then the next name or the end. */
+const LEFT_OUT_NAME = /"((?:[^"]|"")*)"(?:, (?=")|$)/y;
+
+/**
+ * The names of a left-out note. Notes stored before quotes were doubled do not parse as quoted names when a
+ * name holds a quote; they split at '", "' as before. Such an older note with a name that holds '", "' reads
+ * that name as two, so its names and count are one too many.
+ */
+function leftOutNames(list: string) {
+  const names: string[] = [];
+  LEFT_OUT_NAME.lastIndex = 0;
+  while (LEFT_OUT_NAME.lastIndex < list.length) {
+    const match = LEFT_OUT_NAME.exec(list);
+    if (!match) return list.slice(1, -1).split('", "');
+    names.push(match[1].replaceAll('""', '"'));
+  }
+  return names;
+}
 
 /** A message key under "App.Seo.improve.gaps" for a note that names data the sync left out. */
 export type SeoStatisticsNoteGap =
@@ -155,7 +172,7 @@ export function readSeoStatisticsNote(
   const leftOut = KEYWORDS_LEFT_OUT.exec(note);
   if (leftOut) {
     const list = leftOut[1].trim();
-    const names = list ? list.slice(1, -1).split('", "') : [];
+    const names = leftOutNames(list);
     return {
       kind: "gap",
       gap: "keywordsLeftOut",

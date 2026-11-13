@@ -53,6 +53,22 @@ describe("readSeoStatisticsNote", () => {
     ).toEqual({ kind: "gap", gap: "keywordsLeftOut", names: [], count: 1 });
   });
 
+  it("keeps a name with quotes or '\", \"' whole, and reads older notes as before", () => {
+    const names = ['say "hi" (US)', 'a", "b (DE)', "plain (FR)"];
+    expect(
+      readSeoStatisticsNote(seoStatisticsKeywordsLeftOutNote(names, 25, 3)),
+    ).toEqual({ kind: "gap", gap: "keywordsLeftOut", names, count: 3 });
+    // Stored before quotes were doubled.
+    const older =
+      'Daily positions are read for at most 25 tracked keywords in 3 countries Search Console can filter by, per sync. Not read this time: "kw (US)", "say "hi" (DE)" and 2 more.';
+    expect(readSeoStatisticsNote(older)).toEqual({
+      kind: "gap",
+      gap: "keywordsLeftOut",
+      names: ["kw (US)", 'say "hi" (DE)'],
+      count: 4,
+    });
+  });
+
   it("knows no other note", () => {
     expect(readSeoStatisticsNote("A note from another writer.")).toBeNull();
     expect(
