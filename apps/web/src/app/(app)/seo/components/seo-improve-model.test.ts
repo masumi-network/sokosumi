@@ -1,3 +1,4 @@
+import { readdirSync, readFileSync } from "node:fs";
 import {
   SEO_CAPABILITIES,
   SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE,
@@ -267,6 +268,31 @@ describe("seoUnlockSteps", () => {
       ["paid_data", 1],
       ["development", 1],
     ]);
+  });
+});
+
+describe("Item 38", () => {
+  it("names each section table that has no CSV download", () => {
+    // A Table inside a section is a data table; a folded <table> beside a chart is its text alternative.
+    const dir = new URL(".", import.meta.url);
+    const withoutCsv = readdirSync(dir)
+      .filter((file) => file.endsWith(".tsx") && !file.includes(".test."))
+      .filter((file) => {
+        const source = readFileSync(new URL(file, dir), "utf8");
+        return (
+          /<Table[\s>]/.test(source) &&
+          source.includes("<SeoSection") &&
+          !source.includes("<SeoCsvButton")
+        );
+      });
+    const names: Record<string, string> = {
+      "seo-breakdown.tsx": "countries and devices",
+      "seo-competitors.tsx": "competitors",
+      "seo-keyword-ideas.tsx": "keyword ideas",
+    };
+    expect(withoutCsv.sort()).toEqual(Object.keys(names).sort());
+    const missing = SEO_CAPABILITIES.find((item) => item.id === 38)?.missing;
+    for (const name of Object.values(names)) expect(missing).toContain(name);
   });
 });
 

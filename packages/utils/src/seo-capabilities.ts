@@ -411,7 +411,8 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "measurement",
     title: "Export and date presets",
     status: "partial",
-    missing: "No comparison with the same period last year.",
+    missing:
+      "No comparison with the same period last year. The countries and devices, competitors and keyword ideas tables have no CSV download.",
     unlocks: [DEV],
   },
   {
