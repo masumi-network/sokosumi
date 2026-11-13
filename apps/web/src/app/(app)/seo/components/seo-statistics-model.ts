@@ -126,8 +126,9 @@ export function seoMatchingProperty(
 }
 
 /**
- * The quick choices of the date filter, in days. Each ends yesterday, as a sync does. No "same period last
- * year": a sync reads 90 days and compares them with the 90 days before, so no year-old day is saved.
+ * The quick choices of the date filter, in days. They show on the tabs of checks (Rankings and Actions), so
+ * each ends today: a check of today is in it. No "same period last year": a sync reads 90 days and compares
+ * them with the 90 days before, so no year-old day is saved.
  */
 export const SEO_DATE_PRESET_DAYS = [7, 28, 90] as const;
 
@@ -138,10 +139,20 @@ export function seoDatePreset(
 ) {
   return (
     SEO_DATE_PRESET_DAYS.find((days) => {
-      const preset = seoStatisticsPeriod(days, now);
+      const preset = seoCheckPeriod(days, now);
       return preset.from === period.from && preset.to === period.to;
     }) ?? null
   );
+}
+
+/** The last `days` days of checks, today included. A sync's period ends yesterday: see seoStatisticsPeriod. */
+export function seoCheckPeriod(days: number, now = new Date()) {
+  const from = new Date(now);
+  from.setUTCDate(from.getUTCDate() - days + 1);
+  return {
+    from: from.toISOString().slice(0, 10),
+    to: now.toISOString().slice(0, 10),
+  };
 }
 
 export function seoStatisticsPeriod(days: number, now = new Date()) {

@@ -8,6 +8,7 @@ import {
   latestSeoMeasurements,
   savedSeoStatistics,
   seoChangeMarkers,
+  seoCheckPeriod,
   seoCoverageIsNews,
   seoDatePreset,
   seoDefaultMetric,
@@ -267,22 +268,27 @@ describe("seoChangeMarkers", () => {
 describe("seoDatePreset", () => {
   const now = new Date("2026-11-13T10:00:00Z");
 
-  it("names the quick choice a period is, ending yesterday", () => {
-    expect(seoDatePreset({ from: "2026-10-16", to: "2026-11-12" }, now)).toBe(
+  it("names the quick choice a period is, ending today", () => {
+    expect(seoDatePreset({ from: "2026-10-17", to: "2026-11-13" }, now)).toBe(
       28,
     );
-    expect(seoDatePreset({ from: "2026-11-06", to: "2026-11-12" }, now)).toBe(
+    expect(seoDatePreset({ from: "2026-11-07", to: "2026-11-13" }, now)).toBe(
       7,
     );
+    // A sync's period ends yesterday; a quick choice of checks keeps today's check in view.
+    expect(seoCheckPeriod(7, now)).toEqual({
+      from: "2026-11-07",
+      to: "2026-11-13",
+    });
   });
 
   it("gives null for a typed period, an open end, or a quick choice of an earlier day", () => {
-    expect(seoDatePreset({ from: "2026-10-15", to: "2026-11-12" }, now)).toBe(
+    expect(seoDatePreset({ from: "2026-10-16", to: "2026-11-13" }, now)).toBe(
       null,
     );
-    expect(seoDatePreset({ from: "2026-11-06", to: null }, now)).toBe(null);
+    expect(seoDatePreset({ from: "2026-11-07", to: null }, now)).toBe(null);
     // Chosen yesterday: today it covers other days, so no button shows it as chosen.
-    expect(seoDatePreset({ from: "2026-11-05", to: "2026-11-11" }, now)).toBe(
+    expect(seoDatePreset({ from: "2026-11-06", to: "2026-11-12" }, now)).toBe(
       null,
     );
   });

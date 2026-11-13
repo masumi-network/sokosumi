@@ -17,8 +17,8 @@ import { cn } from "@/lib/utils";
 import { SeoSelect } from "./seo-form-fields";
 import {
   SEO_DATE_PRESET_DAYS,
+  seoCheckPeriod,
   seoDatePreset,
-  seoStatisticsPeriod,
 } from "./seo-statistics-model";
 import { seoTrafficChannel } from "./seo-traffic-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -220,7 +220,7 @@ export function SeoDateFields({
               aria-pressed={preset === days}
               onClick={() => {
                 dateFields.reveal();
-                void setFilters(seoStatisticsPeriod(days));
+                void setFilters(seoCheckPeriod(days));
               }}
             >
               {t("datePresets.days", { count: days })}
