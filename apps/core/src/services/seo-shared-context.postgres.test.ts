@@ -11,7 +11,8 @@ import {
 } from "vitest";
 
 import prisma from "@/lib/db/prisma";
-import type { NativeSeoMetrics, SeoActor } from "@/schemas/project-seo.schema";
+import type { SeoActor } from "@/schemas/project-seo.schema";
+import type { NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
 import {
   addProjectSeoPage,
   getProjectSeoWorkspace,

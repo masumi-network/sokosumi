@@ -177,7 +177,7 @@ vi.mock(
 
 import { z } from "@hono/zod-openapi";
 import { runSeoTool } from "@/lib/soko-bot/seo-tools";
-import { nativeSeoMetricsSchema } from "@/schemas/project-seo.schema";
+import { nativeSeoMetricsSchema } from "@/schemas/project-seo-native-metrics.schema";
 import { syncProjectSeoStatistics } from "./project-seo-statistics.service";
 
 const actor = {

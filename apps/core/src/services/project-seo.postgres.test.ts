@@ -11,10 +11,10 @@ import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import seo from "@/routes/v1/projects/[id]/seo";
 import {
-  type NativeSeoMetrics,
   requestSeoAnalysisSchema,
   type SeoActor,
 } from "@/schemas/project-seo.schema";
+import { type NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
 import {
   focusedRankingsReport,
   focusedReport,

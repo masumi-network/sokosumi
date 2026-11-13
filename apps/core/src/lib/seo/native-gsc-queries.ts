@@ -3,7 +3,6 @@ import { normalizeSeoQuery } from "@sokosumi/utils";
 import countries from "i18n-iso-countries";
 
 import {
-  type NativeSeoMetrics,
   SEO_KEYWORD_SERIES_MAX_COUNTRIES,
   SEO_KEYWORD_SERIES_MAX_KEYWORDS,
   SEO_KEYWORD_SERIES_ROW_LIMIT,
@@ -11,6 +10,7 @@ import {
   seoKeywordSeriesSchema,
   seoSearchQueryRowSchema,
 } from "@/schemas/project-seo.schema";
+import { type NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
 import {
   escapeRegex,
   gscSearchAnalyticsArguments,

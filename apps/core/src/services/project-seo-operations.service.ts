@@ -17,10 +17,8 @@ import type {
   RequestSeoAnalysis,
   SeoActor,
 } from "@/schemas/project-seo.schema";
-import {
-  nativeSeoMetricsSchema,
-  SEO_MAX_PAGES,
-} from "@/schemas/project-seo.schema";
+import { SEO_MAX_PAGES } from "@/schemas/project-seo.schema";
+import { nativeSeoMetricsSchema } from "@/schemas/project-seo-native-metrics.schema";
 
 import {
   canReadPrivateSeoMetrics,

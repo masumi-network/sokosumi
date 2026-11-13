@@ -9,7 +9,7 @@ import {
   SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE,
 } from "@sokosumi/utils";
 
-import type { NativeSeoMetrics } from "@/schemas/project-seo.schema";
+import type { NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
 import {
   type SeoSearchType,
   type SeoTrafficChannel,

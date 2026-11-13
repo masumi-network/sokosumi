@@ -12,14 +12,16 @@ import {
 import {
   addSeoPageSchema,
   createSeoScopeSchema,
-  type NativeSeoMetrics,
-  nativeSeoMetricsSchema,
   type SeoActor,
   type SeoWorkspaceQuery,
   saveSeoCompetitorSchema,
   saveSeoKeywordSchema,
   updateSeoScopeSchema,
 } from "@/schemas/project-seo.schema";
+import {
+  type NativeSeoMetrics,
+  nativeSeoMetricsSchema,
+} from "@/schemas/project-seo-native-metrics.schema";
 import { listProjectSeoMonitors } from "./project-seo-monitor.service";
 import { seoMonitorOfTasks } from "./project-seo-monitor-runs";
 import { projectSeoProjection } from "./project-seo-projection";

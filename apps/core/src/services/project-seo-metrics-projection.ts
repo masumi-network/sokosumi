@@ -1,11 +1,11 @@
 import type { ProjectSeoObservation } from "@sokosumi/database";
 import { internalServerError } from "@/helpers/error";
 import {
-  nativeSeoMetricsSchema,
   type ProjectSeoWorkspace,
   type SeoIndexedPage,
   type SeoWorkspaceQuery,
 } from "@/schemas/project-seo.schema";
+import { nativeSeoMetricsSchema } from "@/schemas/project-seo-native-metrics.schema";
 import type { SearchEvidenceSource } from "./project-seo-search-projection";
 import { normalizeSeoUrl } from "./project-seo-store";
 

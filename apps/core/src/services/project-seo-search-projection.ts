@@ -3,10 +3,8 @@ import type {
   ProjectSeoObservation,
 } from "@sokosumi/database";
 import { searchOpportunities } from "@/lib/seo/search-opportunities";
-import type {
-  NativeSeoMetrics,
-  ProjectSeoWorkspace,
-} from "@/schemas/project-seo.schema";
+import type { ProjectSeoWorkspace } from "@/schemas/project-seo.schema";
+import type { NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
 
 export interface SearchEvidenceSource {
   row: ProjectSeoObservation;
