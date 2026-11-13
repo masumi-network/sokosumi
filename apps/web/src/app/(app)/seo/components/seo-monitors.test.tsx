@@ -141,6 +141,31 @@ describe("SEO monitor card", () => {
     ).toBeEnabled();
   });
 
+  it("reads every N days up to a date, and counts no runs left where the end is a date", () => {
+    const card = renderCard(
+      withMonitors(
+        monitor({
+          rule: {
+            expr: "0 9 * * *",
+            timezone: "Europe/Berlin",
+            intervalDays: 3,
+            anchorAt: new Date("2026-12-01T08:00:00Z"),
+            endsMode: "ON",
+            endsOn: new Date("2027-01-01T22:59:59.999Z"),
+            targetRunCount: null,
+          },
+        }),
+      ),
+    );
+    expect(
+      within(card).getByText(
+        "Page check for 1 saved page, every 3 days at 9:00 AM (Europe/Berlin). Ends on Jan 1, 2027.",
+      ),
+    ).toBeVisible();
+    expect(within(card).queryByText(t.leftUntilStopped)).toBeNull();
+    expect(within(card).getByText(new RegExp(`^${t.leftUntil}`))).toBeVisible();
+  });
+
   it("names what got worse and what got better, with the items one press away", async () => {
     const user = userEvent.setup();
     const card = renderCard(
@@ -275,7 +300,10 @@ describe("SEO monitor card", () => {
       rule: {
         expr: "0 9 * * *",
         timezone: "Europe/Berlin",
+        intervalDays: null,
+        anchorAt: null,
         endsMode: "AFTER",
+        endsOn: null,
         targetRunCount: 6,
       },
     });

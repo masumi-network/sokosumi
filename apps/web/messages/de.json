@@ -11917,6 +11917,7 @@
         "pausedNext": "Pausiert. Kein Durchlauf geplant.",
         "left": "Verbleibende Durchläufe",
         "leftCount": "{count, plural, =0 {Keine} one {# Durchlauf} other {# Durchläufe}}",
+        "leftUntil": "Bis",
         "leftUntilStopped": "Bis jemand sie stoppt",
         "pagesDiffer": "Die gewählte Seitengruppe hat sich geändert, nachdem diese Prüfung geplant wurde. Sie prüft weiter ihre {count, plural, one {# gespeicherte Seite} other {# gespeicherten Seiten}}. Plane eine neue Prüfung für die aktuellen Seiten.",
         "runNow": "Jetzt ausführen",
@@ -11959,8 +11960,11 @@
           "other": "nach seinem gespeicherten Plan",
           "sentence": "{check} für {pages, plural, one {# gespeicherte Seite} other {# gespeicherte Seiten}}, {when} ({zone}).",
           "untilStopped": "Läuft, bis jemand sie stoppt.",
-          "endsAfter": "{count, plural, one {Endet nach # geplantem Durchlauf.} other {Endet nach # geplanten Durchläufen.}}"
-        }
+          "endsAfter": "{count, plural, one {Endet nach # geplantem Durchlauf.} other {Endet nach # geplanten Durchläufen.}}",
+          "interval": "alle {days} Tage um {time}",
+          "endsOn": "Endet am {date}."
+        },
+        "onceADay": "Eine Seitenprüfung läuft höchstens einmal am Tag, zu einer Uhrzeit."
       },
       "pageChange": {
         "title": "Änderung vermerken",
@@ -12199,11 +12203,6 @@
         "shown": "Zeitraum {range}.",
         "shownUntil": "Zeitraum bis {day}.",
         "scheduled": "Geplant",
-        "scheduleLabel": "Seitenprüfung planen",
-        "every": {
-          "weekly": "Jede Woche",
-          "monthly": "Jeden Monat"
-        },
         "next": "Nächste Prüfung"
       },
       "filterDates": "Nach Datum filtern",

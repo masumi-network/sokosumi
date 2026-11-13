@@ -14,7 +14,11 @@ import {
   type SeoDevice,
   seoAnalysisRequirements,
 } from "./seo-form-model";
-import { seoMonitorRuleOf, seoMonitorWhen } from "./seo-monitor-model";
+import {
+  seoMonitorRuleOf,
+  seoMonitorTooOften,
+  seoMonitorWhen,
+} from "./seo-monitor-model";
 import { seoCheckBlocking, seoRunAction } from "./seo-setup-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -29,14 +33,9 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
   const [providerCalls, setProviderCalls] = useState(
     String(SEO_DEFAULT_PROVIDER_CALLS),
   );
-  // A new monitor starts on the repeat its opener chose (weekly on Mondays by default), at 09:00 in the reader's time zone.
+  // A new monitor starts weekly on Mondays at 09:00 in the reader's time zone.
   const [when, setWhen] = useState(() =>
-    seoMonitorWhen(
-      null,
-      Intl.DateTimeFormat().resolvedOptions().timeZone,
-      undefined,
-      model.monitorPreset,
-    ),
+    seoMonitorWhen(null, Intl.DateTimeFormat().resolvedOptions().timeZone),
   );
   const rule = seoMonitorRuleOf(when);
   function toggleModule(module: string, checked: boolean) {
@@ -154,6 +153,7 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
     when,
     setWhen,
     rule,
+    tooOften: seoMonitorTooOften(when),
     providerCalls,
     setProviderCalls,
     optionsOpen,

@@ -34,7 +34,6 @@ import {
   SEO_MAX_PROVIDER_CALLS,
   seoAnalysisMaxCredits,
 } from "./seo-form-model";
-import { SEO_MONITOR_ENDS, SEO_MONITOR_REPEATS } from "./seo-monitor-model";
 import { useSeoAnalysisForm } from "./use-seo-analysis";
 import { useSeoAnalysisMarket } from "./use-seo-analysis-market";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -330,10 +329,13 @@ export function SeoAnalysisDialog({
               <TaskScheduleWhen
                 value={form.when}
                 onChange={form.setWhen}
-                repeats={SEO_MONITOR_REPEATS}
-                endsModes={SEO_MONITOR_ENDS}
                 maxRunCount={SEO_MAX_MONITOR_RUNS}
               />
+              {form.tooOften ? (
+                <p role="alert" className="text-destructive text-xs">
+                  {t("monitor.onceADay")}
+                </p>
+              ) : null}
               <p className="text-muted-foreground text-sm">
                 {form.rule?.targetRunCount
                   ? t("monitor.cap", {

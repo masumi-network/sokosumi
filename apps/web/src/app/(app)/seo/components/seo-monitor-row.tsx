@@ -19,12 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SEO_MAX_MONITOR_RUNS } from "./seo-form-model";
 import { SeoMonitorChange } from "./seo-monitor-change";
-import {
-  SEO_MONITOR_ENDS,
-  SEO_MONITOR_REPEATS,
-  seoMonitorPagesDiffer,
-  seoMonitorRunsLeft,
-} from "./seo-monitor-model";
+import { seoMonitorPagesDiffer, seoMonitorRunsLeft } from "./seo-monitor-model";
 import { useSeoMonitorPlanText } from "./seo-monitor-text";
 import { SeoDate, SeoState } from "./seo-shared";
 import { useSeoMonitor } from "./use-seo-monitor";
@@ -92,9 +87,19 @@ export function SeoMonitorRow({
         </dd>
         <dt>{t("left")}</dt>
         <dd>
-          {runsLeft === null
-            ? t("leftUntilStopped")
-            : t("leftCount", { count: runsLeft })}
+          {runsLeft !== null ? (
+            t("leftCount", { count: runsLeft })
+          ) : monitor.rule.endsOn ? (
+            <>
+              {t("leftUntil")}{" "}
+              <SeoDate
+                value={monitor.rule.endsOn}
+                timeZone={monitor.rule.timezone}
+              />
+            </>
+          ) : (
+            t("leftUntilStopped")
+          )}
         </dd>
       </dl>
       <SeoMonitorChange change={monitor.change} />
@@ -113,10 +118,13 @@ export function SeoMonitorRow({
             value={row.when}
             onChange={row.setWhen}
             storedCron={monitor.rule.expr}
-            repeats={SEO_MONITOR_REPEATS}
-            endsModes={SEO_MONITOR_ENDS}
             maxRunCount={SEO_MAX_MONITOR_RUNS}
           />
+          {row.tooOften ? (
+            <p role="alert" className="text-destructive text-xs">
+              {t("onceADay")}
+            </p>
+          ) : null}
           {row.belowReleased ? (
             <p role="alert" className="text-destructive text-xs">
               {t("belowReleased", { count: monitor.releasedCount })}

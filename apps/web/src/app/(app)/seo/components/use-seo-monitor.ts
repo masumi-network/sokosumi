@@ -7,6 +7,7 @@ import type { ScheduleWhen } from "@/lib/schedules/schedule-when";
 import {
   seoMonitorRuleBelowReleased,
   seoMonitorRuleOf,
+  seoMonitorTooOften,
   seoMonitorWhen,
 } from "./seo-monitor-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -32,6 +33,7 @@ export function useSeoMonitor(
     /** The edit can be saved: a complete rule that keeps the Runs the monitor already made. */
     canSave: rule !== null && !belowReleased,
     belowReleased,
+    tooOften: when ? seoMonitorTooOften(when) : false,
     startEdit: () =>
       setWhen(seoMonitorWhen(monitor.rule, monitor.rule.timezone)),
     cancelEdit: () => setWhen(null),

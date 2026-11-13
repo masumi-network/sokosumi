@@ -6,27 +6,36 @@ import type {
 } from "@sokosumi/core-client";
 import { DOW, type Dow, parseCron } from "@/lib/schedules/cron";
 import {
-  type ScheduleRepeat,
   type ScheduleWhen,
   selectionToWhen,
   whenCron,
+  whenToSelection,
 } from "@/lib/schedules/schedule-when";
+import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import { TaskScheduleEndsMode } from "@/lib/types/task-schedule";
+import {
+  selectionToTaskScheduleRule,
+  taskScheduleRuleToSelection,
+} from "@/lib/utils/task-schedule";
 import {
   SEO_DEFAULT_MONITOR_RUNS,
   SEO_MAX_MONITOR_RUNS,
 } from "./seo-form-model";
 
-/** The repeats an SEO monitor may hold. Core refuses any other rule. */
-export const SEO_MONITOR_REPEATS: readonly ScheduleRepeat[] = [
-  "daily",
-  "weekly",
-  "monthly",
-];
-export const SEO_MONITOR_ENDS: readonly TaskScheduleEndsMode[] = [
-  TaskScheduleEndsMode.NEVER,
-  TaskScheduleEndsMode.AFTER,
-];
+const MINUTE = /^[0-5]?\d$/;
+const HOUR = /^([01]?\d|2[0-3])$/;
+/** Core refuses a longer step. */
+const SEO_MAX_MONITOR_INTERVAL_DAYS = 365;
+
+/** Core's rule: a monitor runs at most once a day, at one time, since each Run is a paid check. */
+export function seoMonitorOnceADay(expr: string): boolean {
+  const fields = expr.trim().split(/\s+/);
+  return (
+    fields.length === 5 &&
+    MINUTE.test(fields[0] ?? "") &&
+    HOUR.test(fields[1] ?? "")
+  );
+}
 
 /** Why no monitor can be made here. Null when one can. */
 export type SeoMonitorBlock = "service" | "readOnly" | "noPages" | null;
@@ -39,7 +48,7 @@ export function seoMonitorBlock(
   return workspace.scope.pageIds.length ? null : "noPages";
 }
 
-/** Scheduled Runs still to come. Null for a monitor that runs until someone stops it. */
+/** Scheduled Runs still to come. Null for a monitor with no run count: it runs until its end date or until someone stops it. */
 export function seoMonitorRunsLeft(
   monitor: Pick<ProjectSeoMonitor, "rule" | "releasedCount" | "state">,
 ): number | null {
@@ -92,13 +101,30 @@ export function seoMonitorChangeSummary(
 /** How a rule reads in a sentence: its repeat and the values the sentence names. */
 export type SeoMonitorPlan =
   | { repeat: "daily"; hour: number; minute: number }
+  | { repeat: "interval"; days: number; hour: number; minute: number }
   | { repeat: "weekly"; hour: number; minute: number; weekdays: Dow[] }
   | { repeat: "monthly"; hour: number; minute: number; dayOfMonth: number }
   | { repeat: "other" };
 
 export function seoMonitorPlan(
-  rule: Pick<ProjectSeoMonitorRule, "expr">,
+  rule: Pick<ProjectSeoMonitorRule, "expr"> &
+    Partial<
+      Pick<ProjectSeoMonitorRule, "intervalDays" | "anchorAt" | "timezone">
+    >,
 ): SeoMonitorPlan {
+  // Every N days runs at its anchor's local time; the cron's day fields are unused.
+  if (rule.intervalDays != null && rule.intervalDays > 1 && rule.anchorAt) {
+    const local = utcToDateTimeLocalInTimezone(
+      new Date(rule.anchorAt),
+      rule.timezone ?? "UTC",
+    );
+    return {
+      repeat: "interval",
+      days: rule.intervalDays,
+      hour: Number(local.slice(11, 13)),
+      minute: Number(local.slice(14, 16)),
+    };
+  }
   const parsed = parseCron(rule.expr);
   switch (parsed.kind) {
     case "dailyAtTime":
@@ -125,76 +151,67 @@ export function seoMonitorPlan(
   }
 }
 
-/** The repeats a new schedule can start on: the run button offers them. Each starts at 09:00. */
-export type SeoMonitorPreset = "weekly" | "monthly";
-const SEO_MONITOR_PRESET_CRON: Record<SeoMonitorPreset, string> = {
-  weekly: "0 9 * * MON",
-  monthly: "0 9 1 * *",
-};
+/** A new schedule starts weekly on Mondays at 09:00, for a few Runs: each Run is a paid check. */
+const SEO_MONITOR_START_CRON = "0 9 * * MON";
 
-/** The editor state of a stored rule, or of a new monitor on its preset when there is none. */
+/** The editor state of a stored rule, or of a new monitor when there is none. */
 export function seoMonitorWhen(
   rule: ProjectSeoMonitorRule | null,
   timezone: string,
   now = new Date(),
-  preset: SeoMonitorPreset = "weekly",
 ): ScheduleWhen {
-  const when = selectionToWhen(
+  return selectionToWhen(
     rule
       ? {
-          timezone: rule.timezone,
-          cron: rule.expr,
-          // Core writes the end mode in capitals; the editor holds its own lowercase values.
-          endsMode:
-            rule.endsMode === "NEVER"
-              ? TaskScheduleEndsMode.NEVER
-              : TaskScheduleEndsMode.AFTER,
+          ...taskScheduleRuleToSelection({
+            ...rule,
+            intervalDays: rule.intervalDays ?? null,
+            // A Task Schedule always has an anchor; only an every-N-days rule reads it, and that rule carries one.
+            anchorAt: rule.anchorAt ?? new Date(0),
+            endsOn: rule.endsOn ?? null,
+          }),
           endAfterOccurrences: rule.targetRunCount ?? SEO_DEFAULT_MONITOR_RUNS,
         }
       : {
           timezone,
-          cron: SEO_MONITOR_PRESET_CRON[preset],
+          cron: SEO_MONITOR_START_CRON,
           endsMode: TaskScheduleEndsMode.AFTER,
           endAfterOccurrences: SEO_DEFAULT_MONITOR_RUNS,
         },
     now,
   );
-  // The SEO editor has no "weekdays" choice: Monday to Friday is a weekly rule with five days.
-  return when.repeat === "weekdays"
-    ? {
-        ...when,
-        repeat: "weekly",
-        weekdays: ["MON", "TUE", "WED", "THU", "FRI"],
-      }
-    : when;
+}
+
+/** True when the editor holds a cron that runs more than once a day: the form says why it cannot save. */
+export function seoMonitorTooOften(when: ScheduleWhen): boolean {
+  const expr = whenCron(when);
+  return expr !== null && !seoMonitorOnceADay(expr);
 }
 
 /** The rule an editor state saves, or null while it is incomplete or one Core would refuse. */
 export function seoMonitorRuleOf(
   when: ScheduleWhen,
 ): ProjectSeoMonitorRule | null {
-  if (!SEO_MONITOR_REPEATS.includes(when.repeat)) return null;
-  const expr = whenCron(when);
-  if (!expr) return null;
-  if (when.endsMode === TaskScheduleEndsMode.NEVER)
-    return {
-      expr,
-      timezone: when.timezone,
-      endsMode: "NEVER",
-      targetRunCount: null,
-    };
-  const count = when.endAfterOccurrences;
+  const rule = selectionToTaskScheduleRule(whenToSelection(when));
   if (
-    when.endsMode !== TaskScheduleEndsMode.AFTER ||
-    !Number.isInteger(count) ||
-    count < 1 ||
-    count > SEO_MAX_MONITOR_RUNS
+    !rule ||
+    !seoMonitorOnceADay(rule.expr) ||
+    (rule.intervalDays ?? 0) > SEO_MAX_MONITOR_INTERVAL_DAYS
+  )
+    return null;
+  const count = rule.targetRunCount ?? null;
+  if (
+    rule.endsMode === "AFTER" &&
+    (count === null || count > SEO_MAX_MONITOR_RUNS)
   )
     return null;
   return {
-    expr,
-    timezone: when.timezone,
-    endsMode: "AFTER",
+    expr: rule.expr,
+    timezone: rule.timezone,
+    intervalDays: rule.intervalDays ?? null,
+    anchorAt: rule.anchorAt ?? null,
+    endsMode: rule.endsMode ?? "NEVER",
+    endsOn: rule.endsOn ?? null,
     targetRunCount: count,
   };
 }

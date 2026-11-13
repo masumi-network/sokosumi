@@ -11917,6 +11917,7 @@
         "pausedNext": "Paused. No run is planned.",
         "left": "Runs left",
         "leftCount": "{count, plural, =0 {None} one {# run} other {# runs}}",
+        "leftUntil": "Until",
         "leftUntilStopped": "Until someone stops it",
         "pagesDiffer": "The selected page group changed after this check was scheduled. It still checks its {count, plural, one {# saved page} other {# saved pages}}. Schedule a new check for the current pages.",
         "runNow": "Run now",
@@ -11959,8 +11960,11 @@
           "other": "on its saved schedule",
           "sentence": "{check} for {pages, plural, one {# saved page} other {# saved pages}}, {when} ({zone}).",
           "untilStopped": "Runs until someone stops it.",
-          "endsAfter": "{count, plural, one {Ends after # scheduled run.} other {Ends after # scheduled runs.}}"
-        }
+          "endsAfter": "{count, plural, one {Ends after # scheduled run.} other {Ends after # scheduled runs.}}",
+          "interval": "every {days} days at {time}",
+          "endsOn": "Ends on {date}."
+        },
+        "onceADay": "A page check runs at most once a day, at one time."
       },
       "pageChange": {
         "title": "Record a change",
@@ -12199,11 +12203,6 @@
         "shown": "Showing {range}.",
         "shownUntil": "Showing up to {day}.",
         "scheduled": "Scheduled",
-        "scheduleLabel": "Schedule a page check",
-        "every": {
-          "weekly": "Every week",
-          "monthly": "Every month"
-        },
         "next": "Next check"
       },
       "filterDates": "Filter by date",

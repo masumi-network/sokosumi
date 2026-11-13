@@ -3469,18 +3469,24 @@ describe("SEO workspace integration", () => {
     );
     await user.click(
       await screen.findByRole("menuitem", {
-        name: messages.App.Seo.runs.every.weekly,
+        name: messages.App.Seo.monitor.create,
       }),
     );
     const dialog = screen.getByRole("dialog");
-    // The schedule opens weekly on Mondays at 09:00, with SEO repeats only.
+    // The schedule opens weekly on Mondays at 09:00.
     expect(
       within(dialog).getByRole("button", { name: "Weekly" }),
     ).toHaveAttribute("aria-pressed", "true");
-    expect(within(dialog).queryByRole("button", { name: "Custom" })).toBeNull();
-    expect(
-      within(dialog).queryByRole("button", { name: "Every few days" }),
-    ).toBeNull();
+    // The Sokosumi repeats are all there, but a cron that runs more than once a day says why it cannot save.
+    await user.click(within(dialog).getByRole("button", { name: "Custom" }));
+    await user.type(
+      within(dialog).getByPlaceholderText("0 9 * * MON"),
+      "*/15 * * * *",
+    );
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      messages.App.Seo.monitor.onceADay,
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Weekly" }));
     await user.click(
       within(dialog).getByRole("combobox", { name: "Check type" }),
     );
@@ -3527,7 +3533,10 @@ describe("SEO workspace integration", () => {
           rule: {
             expr: "0 9 * * MON",
             timezone: expect.any(String),
+            intervalDays: null,
+            anchorAt: null,
             endsMode: "AFTER",
+            endsOn: null,
             targetRunCount: 2,
           },
           analysis: expect.objectContaining({
@@ -3558,11 +3567,11 @@ describe("SEO workspace integration", () => {
     await user.click(
       screen.getByRole("button", { name: messages.App.Seo.monitor.create }),
     );
-    for (const name of Object.values(messages.App.Seo.runs.every))
-      expect(await screen.findByRole("menuitem", { name })).toHaveAttribute(
-        "aria-disabled",
-        "true",
-      );
+    expect(
+      await screen.findByRole("menuitem", {
+        name: messages.App.Seo.monitor.create,
+      }),
+    ).toHaveAttribute("aria-disabled", "true");
   });
 
   it.each([false, undefined])(
@@ -3608,14 +3617,11 @@ describe("SEO workspace integration", () => {
     );
     await user.click(
       await screen.findByRole("menuitem", {
-        name: messages.App.Seo.runs.every.monthly,
+        name: messages.App.Seo.monitor.create,
       }),
     );
     const dialog = screen.getByRole("dialog");
-    // The pick opens the form on its repeat, with a page check: the follow-up of an audit.
-    expect(
-      within(dialog).getByRole("button", { name: "Monthly" }),
-    ).toHaveAttribute("aria-pressed", "true");
+    // The schedule form opens with a page check: the follow-up of an audit.
     expect(
       within(dialog).getByRole("combobox", { name: "Check type" }),
     ).toHaveTextContent(messages.App.Seo.analysis.page_check);

@@ -11917,6 +11917,7 @@
         "pausedNext": "En pausa. No hay ejecución prevista.",
         "left": "Ejecuciones restantes",
         "leftCount": "{count, plural, =0 {Ninguna} one {# ejecución} other {# ejecuciones}}",
+        "leftUntil": "Hasta",
         "leftUntilStopped": "Hasta que alguien la detenga",
         "pagesDiffer": "El grupo de páginas seleccionado cambió después de programar esta revisión. Sigue revisando sus {count, plural, one {# página guardada} other {# páginas guardadas}}. Programa una revisión nueva para las páginas actuales.",
         "runNow": "Ejecutar ahora",
@@ -11959,8 +11960,11 @@
           "other": "según su plan guardado",
           "sentence": "{check} de {pages, plural, one {# página guardada} other {# páginas guardadas}}, {when} ({zone}).",
           "untilStopped": "Se ejecuta hasta que alguien la detenga.",
-          "endsAfter": "{count, plural, one {Termina tras # ejecución programada.} other {Termina tras # ejecuciones programadas.}}"
-        }
+          "endsAfter": "{count, plural, one {Termina tras # ejecución programada.} other {Termina tras # ejecuciones programadas.}}",
+          "interval": "cada {days} días a las {time}",
+          "endsOn": "Termina el {date}."
+        },
+        "onceADay": "Una comprobación de página se ejecuta como máximo una vez al día, a una hora."
       },
       "pageChange": {
         "title": "Registrar un cambio",
@@ -12199,11 +12203,6 @@
         "shown": "Mostrando {range}.",
         "shownUntil": "Mostrando hasta {day}.",
         "scheduled": "Programada",
-        "scheduleLabel": "Programar una comprobación de página",
-        "every": {
-          "weekly": "Cada semana",
-          "monthly": "Cada mes"
-        },
         "next": "Próxima comprobación"
       },
       "filterDates": "Filtrar por fecha",

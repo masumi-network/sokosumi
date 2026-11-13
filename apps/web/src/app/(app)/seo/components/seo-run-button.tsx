@@ -7,15 +7,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import type { SeoMonitorPreset } from "./seo-monitor-model";
 import type { seoRunAction } from "./seo-setup-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
-
-const SEO_MONITOR_PRESETS: readonly SeoMonitorPreset[] = ["weekly", "monthly"];
 
 /**
  * The secondary button, one surface up: in dark its own fill is the card's colour, in light only one step off, so
@@ -91,23 +87,15 @@ export function SeoRunButton({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
-              {t("runs.scheduleLabel")}
-            </DropdownMenuLabel>
-            {SEO_MONITOR_PRESETS.map((preset) => (
-              <DropdownMenuItem
-                key={preset}
-                disabled={
-                  unavailable ||
-                  model.pending ||
-                  !model.data.scope.pageIds.length
-                }
-                onSelect={() => model.openMonitor(preset)}
-              >
-                <CalendarClock className="size-4" />
-                {t(`runs.every.${preset}`)}
-              </DropdownMenuItem>
-            ))}
+            <DropdownMenuItem
+              disabled={
+                unavailable || model.pending || !model.data.scope.pageIds.length
+              }
+              onSelect={model.openMonitor}
+            >
+              <CalendarClock className="size-4" />
+              {t("monitor.create")}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}

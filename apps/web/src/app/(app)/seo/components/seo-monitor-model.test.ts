@@ -9,6 +9,7 @@ import {
   seoMonitorRuleBelowReleased,
   seoMonitorRuleOf,
   seoMonitorRunsLeft,
+  seoMonitorTooOften,
   seoMonitorWhen,
 } from "./seo-monitor-model";
 
@@ -24,7 +25,10 @@ const actions = (patch: { canEdit?: boolean; canCreateMonitor?: boolean }) => ({
 const rule = (patch: Partial<ProjectSeoMonitor["rule"]> = {}) => ({
   expr: "0 9 * * MON",
   timezone: "Europe/Berlin",
+  intervalDays: null,
+  anchorAt: null,
   endsMode: "AFTER" as const,
+  endsOn: null,
   targetRunCount: 4,
   ...patch,
 });
@@ -132,31 +136,70 @@ describe("SEO monitor card model", () => {
     expect(seoMonitorRuleOf(seoMonitorWhen(never, "UTC"))).toEqual(never);
   });
 
-  it("starts a new schedule on the repeat its opener chose, as a rule Core takes", () => {
+  it("starts a new schedule weekly on Mondays for a few runs, as a rule Core takes", () => {
     const weekly = seoMonitorWhen(null, "UTC");
     expect(weekly.repeat).toBe("weekly");
-    expect(seoMonitorRuleOf(weekly)?.expr).toBe("0 9 * * MON");
-    // The editor must read the preset as a monthly rule: a rule it cannot read would save nothing.
-    const monthly = seoMonitorWhen(null, "UTC", undefined, "monthly");
-    expect(monthly.repeat).toBe("monthly");
-    expect(seoMonitorRuleOf(monthly)?.expr).toBe("0 9 1 * *");
+    expect(seoMonitorRuleOf(weekly)).toMatchObject({
+      expr: "0 9 * * MON",
+      endsMode: "AFTER",
+    });
   });
 
-  it("opens a Monday-to-Friday rule as weekly with five days, since the SEO editor has no weekdays choice", () => {
-    const when = seoMonitorWhen(rule({ expr: "0 9 * * MON-FRI" }), "UTC");
-    expect(when.repeat).toBe("weekly");
-    expect(seoMonitorRuleOf(when)?.expr).toBe("0 9 * * MON,TUE,WED,THU,FRI");
+  it("saves every N days with its anchor and reads it back at the anchor's local time", () => {
+    const when = {
+      ...seoMonitorWhen(null, "Europe/Berlin"),
+      repeat: "interval" as const,
+      intervalDays: 3,
+      startDate: "2026-12-01",
+      time: "08:30",
+    };
+    const saved = seoMonitorRuleOf(when);
+    expect(saved).toMatchObject({
+      expr: "30 8 * * *",
+      intervalDays: 3,
+      anchorAt: new Date("2026-12-01T07:30:00.000Z"),
+    });
+    if (!saved) throw new Error("Missing rule");
+    expect(seoMonitorRuleOf(seoMonitorWhen(saved, "UTC"))).toEqual(saved);
+    expect(seoMonitorPlan(saved)).toEqual({
+      repeat: "interval",
+      days: 3,
+      hour: 8,
+      minute: 30,
+    });
+  });
+
+  it("saves an end date and reads it back on the same local day", () => {
+    const saved = seoMonitorRuleOf({
+      ...seoMonitorWhen(rule(), "UTC"),
+      endsMode: TaskScheduleEndsMode.ON,
+      endOnLocalDate: "2099-01-01",
+    });
+    expect(saved).toMatchObject({ endsMode: "ON", targetRunCount: null });
+    expect(saved?.endsOn).toBeInstanceOf(Date);
+    if (!saved) throw new Error("Missing rule");
+    expect(seoMonitorRuleOf(seoMonitorWhen(saved, "UTC"))).toEqual(saved);
   });
 
   it("refuses a rule Core would refuse", () => {
     const when = seoMonitorWhen(rule(), "UTC");
     expect(seoMonitorRuleOf({ ...when, weekdays: [] })).toBeNull();
     expect(seoMonitorRuleOf({ ...when, endAfterOccurrences: 32 })).toBeNull();
-    expect(seoMonitorRuleOf({ ...when, endAfterOccurrences: 0 })).toBeNull();
     expect(
       seoMonitorRuleOf({ ...when, endsMode: TaskScheduleEndsMode.ON }),
     ).toBeNull();
     expect(seoMonitorRuleOf({ ...when, repeat: "custom" })).toBeNull();
+    // More than once a day is a paid check per run: Core refuses it, and the form says why.
+    for (const customCron of ["*/15 * * * *", "0 9,17 * * *", "0 */2 * * *"]) {
+      const often = { ...when, repeat: "custom" as const, customCron };
+      expect(seoMonitorRuleOf(often)).toBeNull();
+      expect(seoMonitorTooOften(often)).toBe(true);
+    }
+    expect(seoMonitorTooOften(when)).toBe(false);
+    // The picker's field allows any number: Core refuses a step over a year.
+    expect(
+      seoMonitorRuleOf({ ...when, repeat: "interval", intervalDays: 366 }),
+    ).toBeNull();
   });
 
   it("keeps an edit from ending the monitor at or before the runs it already made", () => {
