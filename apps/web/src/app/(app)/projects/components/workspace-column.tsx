@@ -131,17 +131,21 @@ export async function NeedsYouPanel({
   quiet = false,
 }: {
   feed: PanelFeed<NotificationItem>;
-  projects: WorkspaceColumnProps["projects"];
+  /** A read still in flight is awaited next to the feed, not after it. */
+  projects:
+    | WorkspaceColumnProps["projects"]
+    | Promise<WorkspaceColumnProps["projects"]>;
   /** Home's quiet list instead of the column's panel. */
   quiet?: boolean;
 }) {
-  const [notifications, t, timeLabel] = await Promise.all([
+  const [notifications, t, timeLabel, gridProjects] = await Promise.all([
     feed,
     getTranslations("App.Projects.column.needsYou"),
     loadTimeLabel(),
+    projects,
   ]);
   const rows = notifications ?? [];
-  const projectByNotificationId = await resolveRowProjects(rows, projects);
+  const projectByNotificationId = await resolveRowProjects(rows, gridProjects);
 
   return (
     <NeedsYouPanelList
