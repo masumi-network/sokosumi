@@ -3,25 +3,16 @@ import {
   readSeoStatisticsNote,
   SEO_CAPABILITIES,
   SEO_CAPABILITY_GROUPS,
-  SEO_CAPABILITY_UNLOCKS,
   type SeoCapability,
-  type SeoCapabilityUnlock,
   type SeoStatisticsNoteGap,
 } from "@sokosumi/utils";
 import { latestSeoMeasurements } from "./seo-statistics-model";
 
-export const SEO_CAPABILITY_FILTERS = ["all", "missing", "partial"] as const;
-export type SeoCapabilityFilter = (typeof SEO_CAPABILITY_FILTERS)[number];
-
-/** The items not built yet, in the doc's groups and order; a group with no item in the filter is left out. */
+/** The items not built yet, in the doc's groups and order; a group with no open item is left out. */
 export function seoCapabilityGroups(
-  filter: SeoCapabilityFilter,
   catalog: readonly SeoCapability[] = SEO_CAPABILITIES,
 ) {
-  const open = catalog.filter(
-    (item) =>
-      item.status !== "built" && (filter === "all" || item.status === filter),
-  );
+  const open = catalog.filter((item) => item.status !== "built");
   return SEO_CAPABILITY_GROUPS.map((group) => ({
     group,
     items: open.filter((item) => item.group === group),
@@ -203,37 +194,4 @@ export function seoAuditGaps(
       fix: null,
     });
   return gaps;
-}
-
-/**
- * The ways to the missing features: each step, how many open items it unlocks, whether it is done, and the
- * connect action where the reader can take it here. Steps that unlock nothing are left out.
- */
-export function seoUnlockSteps(
-  data: ProjectSeoWorkspace,
-  narrowed = false,
-  catalog: readonly SeoCapability[] = SEO_CAPABILITIES,
-) {
-  const open = catalog.filter((item) => item.status !== "built");
-  const connected = connectedSources(data);
-  return SEO_CAPABILITY_UNLOCKS.map((unlock: SeoCapabilityUnlock) => {
-    const done =
-      unlock === "search_console" || unlock === "ga4"
-        ? connected[unlock]
-        : false;
-    const connect: SeoAuditGapFix | null =
-      done || narrowed || !data.availableActions.canSyncMetrics
-        ? null
-        : unlock === "search_console"
-          ? "connect_search_console"
-          : unlock === "ga4"
-            ? "connect_ga4"
-            : null;
-    return {
-      unlock,
-      items: open.filter((item) => item.unlocks.includes(unlock)).length,
-      done,
-      connect,
-    };
-  }).filter((step) => step.items > 0);
 }

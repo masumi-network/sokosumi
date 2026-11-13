@@ -11416,8 +11416,7 @@
         "actions": "Acciones",
         "agent": "Agente",
         "traffic": "Tráfico",
-        "rankings": "Posiciones",
-        "improve": "Mejorar"
+        "rankings": "Posiciones"
       },
       "overview": {
         "measurements": "Tráfico",
@@ -12424,18 +12423,7 @@
       "improve": {
         "catalog": {
           "title": "Lo que el agente aún no puede hacer",
-          "help": "Funciones que el agente SEO y esta pestaña aún no tienen, a fecha de {day}.",
-          "filterLabel": "Mostrar",
-          "filter": {
-            "all": "Todas",
-            "missing": "Faltan",
-            "partial": "En parte"
-          }
-        },
-        "status": {
-          "partial": "En parte",
-          "missing": "Falta",
-          "planned": "Prevista"
+          "help": "Funciones que el agente SEO aún no tiene."
         },
         "groups": {
           "technical": "Técnica",
@@ -12447,18 +12435,6 @@
           "ai": "Búsqueda con IA",
           "workflow": "Flujo de trabajo y automatización"
         },
-        "unlocks": {
-          "search_console": "Conectar Search Console",
-          "ga4": "Conectar Google Analytics",
-          "ga4_key_events": "Configurar eventos clave en Google Analytics",
-          "paid_data": "Datos de búsqueda de pago",
-          "development": "Desarrollo por el equipo",
-          "owner_decision": "Una decisión del equipo"
-        },
-        "needs": "Necesita: {list}",
-        "ask": "Preguntar al agente",
-        "askLabel": "Preguntar al agente: {title}",
-        "askPrompt": "La pestaña SEO aún no puede hacer esto: {title}. {missing} ¿Qué puedo hacer ahora con los datos que tengo?",
         "request": "Copiar solicitud",
         "requestLabel": "Copiar solicitud: {title}",
         "requestText": "Solicitud de función para el agente SEO, punto {id}: {title}. Lo que falta: {missing}",
@@ -12466,7 +12442,6 @@
         "copyFailed": "No se pudo copiar la solicitud.",
         "gaps": {
           "title": "Lo que esta auditoría no pudo ver",
-          "help": "Datos que les faltan a estas páginas, con el paso que los completa cuando existe.",
           "none": "A esta auditoría no le faltan datos conocidos.",
           "noSearchConsole": "No hay datos de Search Console: no se miden los clics, las búsquedas ni el estado en el índice de Google.",
           "noAnalytics": "No hay datos de Google Analytics: no se miden las visitas ni los eventos clave.",
@@ -12501,37 +12476,30 @@
           "sync": "Sincronizar estadísticas",
           "run_check": "Iniciar comprobación"
         },
-        "steps": {
-          "title": "Cómo mejorarlo",
-          "help": "Cada paso y cuántas de las funciones que faltan desbloquea.",
-          "items": "{count, plural, one {Desbloquea # función} other {Desbloquea # funciones}}",
-          "done": "Hecho",
-          "requests": "Para pedir una función, usa Copiar solicitud en su fila y envía el texto al equipo de Sokosumi. Las solicitudes aún no se guardan en Sokosumi."
-        },
         "items": {
           "1": {
             "title": "Rastreo de todo el sitio",
-            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
+            "missing": "Solo se comprueban las páginas que añades, no todas las páginas del sitio."
           },
           "2": {
             "title": "Enlaces rotos y cadenas de redirecciones de todo el sitio",
-            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
+            "missing": "Los enlaces rotos y las cadenas de redirección no se listan para todo el sitio."
           },
           "3": {
             "title": "Cobertura del índice de todas las URL",
-            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
+            "missing": "El estado de indexación de Google no se muestra para cada página del sitio."
           },
           "4": {
             "title": "Páginas huérfanas",
-            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
+            "missing": "No hay lista de páginas a las que ninguna otra página enlaza."
           },
           "5": {
             "title": "Páginas casi duplicadas",
-            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
+            "missing": "No hay lista de páginas con casi el mismo texto."
           },
           "6": {
             "title": "Core Web Vitals en la pestaña SEO",
-            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
+            "missing": "Las puntuaciones de velocidad de carga y de diseño no se muestran en la pestaña SEO."
           },
           "7": {
             "title": "Comprobación de una migración del sitio",
@@ -12543,7 +12511,7 @@
           },
           "9": {
             "title": "Brief de contenido para una palabra clave",
-            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
+            "missing": "No hay un esquema de lo que debe cubrir una página nueva para una palabra clave."
           },
           "10": {
             "title": "Borradores y reescrituras del texto principal",
@@ -12551,11 +12519,11 @@
           },
           "11": {
             "title": "Cola de actualización de contenido",
-            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
+            "missing": "No hay lista de páginas antiguas que actualizar primero."
           },
           "12": {
             "title": "Canibalización desde Search Console",
-            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
+            "missing": "No hay lista de búsquedas en las que compiten dos de tus páginas."
           },
           "13": {
             "title": "Señales de autor, Quiénes somos y Contacto",
@@ -12591,15 +12559,15 @@
           },
           "21": {
             "title": "Estacionalidad",
-            "missing": "Se muestra un volumen mensual, no los 12 meses."
+            "missing": "Cada palabra clave muestra un volumen de búsqueda mensual y su tendencia, no los 12 meses anteriores."
           },
           "22": {
             "title": "Intención de búsqueda y clase de conversión por palabra clave",
-            "missing": "Las palabras clave aún no tienen una etiqueta de intención y conversión."
+            "missing": "Las palabras clave tienen una probabilidad de conversión, pero no una etiqueta de lo que quiere hacer la persona que busca."
           },
           "23": {
             "title": "Perfil de backlinks propio",
-            "missing": "Los recuentos de backlinks se muestran solo para la competencia."
+            "missing": "Tus páginas muestran cuántos sitios enlazan a ellas, no qué enlaces son."
           },
           "24": {
             "title": "Dominios de referencia nuevos y perdidos",
@@ -12639,7 +12607,7 @@
           },
           "33": {
             "title": "Alertas de caída de tráfico y posiciones",
-            "missing": "El bot de SEO indica las comprobaciones del monitor que se activaron y Core las guarda, pero aún no se envía ninguna alerta y esta pestaña no las muestra."
+            "missing": "No se envía ninguna alerta cuando bajan el tráfico o las posiciones."
           },
           "34": {
             "title": "Marcas de actualizaciones de Google en los gráficos",

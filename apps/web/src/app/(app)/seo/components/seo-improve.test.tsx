@@ -26,7 +26,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
   }),
 }));
 
-function renderImprove(workspace: ProjectSeoWorkspace) {
+function renderImprove(workspace: ProjectSeoWorkspace, searchParams = "") {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) =>
@@ -47,7 +47,7 @@ function renderImprove(workspace: ProjectSeoWorkspace) {
         formats={createFormats()}
         messages={messages}
       >
-        <NuqsTestingAdapter searchParams="tab=improve" hasMemory>
+        <NuqsTestingAdapter searchParams={searchParams} hasMemory>
           <SeoWorkspace workspace={workspace} />
         </NuqsTestingAdapter>
       </NextIntlClientProvider>
@@ -55,68 +55,60 @@ function renderImprove(workspace: ProjectSeoWorkspace) {
   );
 }
 
+async function openImprove(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", { name: "Manage SEO" }));
+  await user.click(
+    await screen.findByRole("menuitem", {
+      name: "What the agent cannot do yet",
+    }),
+  );
+  return within(await screen.findByRole("dialog"));
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
-describe("SEO Improve tab", () => {
-  it("lists missing features, what the audit could not see, and the steps that unlock them", async () => {
+describe("What the agent cannot do yet", () => {
+  it("opens from the header menu with the open items and what the audit could not see", async () => {
     const user = userEvent.setup();
     const workspace = seoTestCheckedAudit();
     workspace.metrics = [seoTestMetric()];
     renderImprove(workspace);
+    const dialog = await openImprove(user);
+    // Built already: not listed as missing.
+    expect(dialog.queryByText("Google update markers on charts")).toBeNull();
+    expect(dialog.getByText("Full-site crawl")).toBeVisible();
+    expect(dialog.getByText("Site migration check")).toBeVisible();
+    // Search Console is synced, Google Analytics is not: one gap, with its connection.
+    expect(dialog.getByText(/^No Google Analytics data/)).toBeVisible();
+    expect(dialog.queryByText(/^No Search Console data/)).toBeNull();
     expect(
-      await screen.findByRole("tab", { name: "Improve", selected: true }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("heading", { name: "What the agent cannot do yet" }),
-    ).toBeVisible();
-    // Built in this tab's own release: not listed as missing.
-    expect(screen.queryByText("Google update markers on charts")).toBeNull();
-    expect(screen.getByText("Full-site crawl")).toBeVisible();
-
-    await user.click(screen.getByRole("button", { name: "Missing" }));
-    expect(screen.queryByText("Full-site crawl")).toBeNull();
-    expect(screen.getByText("Site migration check")).toBeVisible();
-
-    // Search Console is synced, Google Analytics is not: one gap, and its step offers the connection.
-    const gaps = screen
-      .getByRole("heading", { name: "What this audit could not see" })
-      .closest("section") as HTMLElement;
-    expect(within(gaps).getByText(/^No Google Analytics data/)).toBeVisible();
-    expect(within(gaps).queryByText(/^No Search Console data/)).toBeNull();
-    const steps = screen
-      .getByRole("heading", { name: "How to get it improved" })
-      .closest("section") as HTMLElement;
-    expect(within(steps).getByText("Done")).toBeVisible();
-    expect(
-      within(steps).getByRole("button", { name: "Connect Google Analytics" }),
+      dialog.getByRole("button", { name: "Connect Google Analytics" }),
     ).toBeVisible();
   });
 
-  it("asks the agent with a prepared question and copies a request", async () => {
+  it("copies a request for one item", async () => {
     const user = userEvent.setup();
     renderImprove(seoTestCheckedAudit());
+    const dialog = await openImprove(user);
     const write = vi.spyOn(navigator.clipboard, "writeText");
     await user.click(
-      await screen.findByRole("button", {
+      dialog.getByRole("button", {
         name: "Copy request: Site migration check",
       }),
     );
     expect(write).toHaveBeenCalledWith(
       "Feature request for the SEO agent, item 7: Site migration check. What is missing: No check of the redirects of a domain or URL move.",
     );
-    await user.click(
-      screen.getByRole("button", {
-        name: "Ask the agent: Site migration check",
-      }),
-    );
-    // The reader reviews the question before it is sent.
+  });
+
+  it("opens the Agent tab from a link saved when Improve was a tab", async () => {
+    renderImprove(seoTestCheckedAudit(), "tab=improve");
     expect(
-      within(await screen.findByRole("dialog")).getByLabelText("Your question"),
-    ).toHaveValue(
-      "The SEO tab cannot do this yet: Site migration check. No check of the redirects of a domain or URL move. What can I do now with the data I have?",
-    );
+      await screen.findByRole("tab", { name: "Agent", selected: true }),
+    ).toBeVisible();
+    expect(screen.queryByRole("tab", { name: "Improve" })).toBeNull();
   });
 });

@@ -59,7 +59,7 @@ import { SeoAnalysisDialog } from "./seo-analysis-dialog";
 import { SeoAskButton } from "./seo-ask-button";
 import { SeoChatPanel } from "./seo-chat-panel";
 import { SeoEditDialog } from "./seo-edit-dialog";
-import { SeoImprove } from "./seo-improve";
+import { SeoImproveDialog } from "./seo-improve";
 import { SeoIndexStatus } from "./seo-index-status";
 import { SeoHealth } from "./seo-overview";
 import { SeoPageChangeDialog } from "./seo-page-change-dialog";
@@ -93,11 +93,10 @@ const SEO_TAB_ICONS: Record<SeoTab, LucideIcon> = {
   actions: ListChecks,
   traffic: ChartLine,
   rankings: ListOrdered,
-  improve: Lightbulb,
 };
 
 /**
- * The picture of a tab. A phone has no room for it: five tabs fill the row. All tabs look the same: the brand
+ * The picture of a tab. A phone has no room for it: four tabs fill the row. All tabs look the same: the brand
  * colour is for the floating button that opens the agent's chat.
  */
 function TabIcon({ tab }: { tab: SeoTab }) {
@@ -364,6 +363,13 @@ export function SeoWorkspace({
                   {t("monitor.create")}
                 </DropdownMenuItem>
               ) : null}
+              <DropdownMenuItem
+                disabled={unavailable}
+                onSelect={() => model.setDialog("improve")}
+              >
+                <Lightbulb className="size-4" />
+                {t("improve.catalog.title")}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -572,9 +578,6 @@ export function SeoWorkspace({
               <SeoIndexStatus model={model} />
               <SeoHealth model={model} />
             </TabsContent>
-            <TabsContent value="improve" className="stagger">
-              <SeoImprove model={model} />
-            </TabsContent>
           </div>
         )}
       </Tabs>
@@ -603,6 +606,9 @@ export function SeoWorkspace({
               model={model}
               source={model.statisticsSource}
             />
+          ) : null}
+          {model.dialog === "improve" ? (
+            <SeoImproveDialog key={dialogKey} model={model} />
           ) : null}
         </>
       ) : null}

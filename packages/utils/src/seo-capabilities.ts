@@ -1,5 +1,5 @@
 /**
- * What the SEO agent and the SEO tab cannot do yet, for the Improve tab. Hand-written from the SEO bot's
+ * What the SEO agent and the SEO tab cannot do yet, for the "What the agent cannot do yet" dialog. Hand-written from the SEO bot's
  * `docs/seo-feature-gaps.md` (repository masumi-network/seo-bot, 45 items in 8 groups); the bot publishes the
  * same items as `docs/seo-capabilities.json` with the same ids (the doc's item numbers). Statuses are as of
  * SEO_CAPABILITIES_AS_OF and count what this Sokosumi build and the SEO bot's ticket 77 branches build. An item
@@ -105,8 +105,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "technical",
     title: "Full-site crawl",
     status: "partial",
-    missing:
-      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
+    missing: "Only the pages you add are checked, not every page of the site.",
     unlocks: [DEV],
   },
   {
@@ -115,7 +114,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     title: "Site-wide broken links and redirect chains",
     status: "partial",
     missing:
-      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
+      "Broken links and redirect chains are not listed for the whole site.",
     unlocks: [DEV],
   },
   {
@@ -123,8 +122,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "technical",
     title: "Index coverage for all URLs",
     status: "partial",
-    missing:
-      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
+    missing: "Google's index state does not show for every page of the site.",
     unlocks: [GSC, DEV],
   },
   {
@@ -132,8 +130,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "technical",
     title: "Orphan pages",
     status: "partial",
-    missing:
-      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
+    missing: "No list of pages that no other page links to.",
     unlocks: [DEV],
   },
   {
@@ -141,8 +138,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "technical",
     title: "Near-duplicate pages",
     status: "partial",
-    missing:
-      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
+    missing: "No list of pages with almost the same text.",
     unlocks: [DEV],
   },
   {
@@ -150,8 +146,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "technical",
     title: "Core Web Vitals in the SEO tab",
     status: "partial",
-    missing:
-      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
+    missing: "Loading speed and layout scores do not show in the SEO tab.",
     unlocks: [DEV],
   },
   {
@@ -175,8 +170,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "content",
     title: "Content brief for a target keyword",
     status: "partial",
-    missing:
-      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
+    missing: "No outline of what a new page for a keyword should cover.",
     unlocks: [DEV],
   },
   {
@@ -192,8 +186,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "content",
     title: "Content refresh queue",
     status: "partial",
-    missing:
-      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
+    missing: "No list of older pages to update first.",
     unlocks: [GSC, DEV],
   },
   {
@@ -201,8 +194,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "content",
     title: "Cannibalization from Search Console",
     status: "partial",
-    missing:
-      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
+    missing: "No list of searches where two of your pages compete.",
     unlocks: [GSC, DEV],
   },
   {
@@ -274,7 +266,8 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "keywords",
     title: "Seasonality",
     status: "partial",
-    missing: "One monthly volume shows, not the 12 months.",
+    missing:
+      "Each keyword shows one monthly search count and its trend, not the 12 months behind it.",
     unlocks: [DEV],
   },
   {
@@ -282,7 +275,8 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "keywords",
     title: "Search intent and conversion class per keyword",
     status: "planned",
-    missing: "Keywords have no intent and conversion label yet.",
+    missing:
+      "Keywords have a chance to convert, but no label for what the searcher wants to do.",
     unlocks: [OWNER],
   },
   {
@@ -290,7 +284,8 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "links",
     title: "Own backlink profile",
     status: "partial",
-    missing: "Backlink counts show for competitors only.",
+    missing:
+      "Your pages show how many sites link to them, not which links they are.",
     unlocks: [PAID, DEV],
   },
   {
@@ -372,8 +367,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "measurement",
     title: "Traffic and rank drop alerts",
     status: "partial",
-    missing:
-      "The SEO bot names the monitor checks that fired and Core keeps them, but no alert is sent and this tab does not show them yet.",
+    missing: "No alert is sent when traffic or ranks drop.",
     unlocks: [DEV],
   },
   {

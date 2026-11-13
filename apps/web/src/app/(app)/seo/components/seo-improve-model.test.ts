@@ -22,7 +22,6 @@ import {
   seoAuditGaps,
   seoAuditGapValues,
   seoCapabilityGroups,
-  seoUnlockSteps,
   seoViewNarrowed,
 } from "./seo-improve-model";
 import {
@@ -33,7 +32,7 @@ import {
 
 describe("seoCapabilityGroups", () => {
   it("lists every item not built, in the doc's groups and order", () => {
-    const groups = seoCapabilityGroups("all");
+    const groups = seoCapabilityGroups();
     const ids = groups.flatMap((group) => group.items.map((item) => item.id));
     expect(ids).not.toContain(34);
     expect(ids).toHaveLength(
@@ -51,18 +50,16 @@ describe("seoCapabilityGroups", () => {
     ]);
   });
 
-  it("keeps one status under a filter and drops a group left empty", () => {
+  it("drops a group left with no open item", () => {
     const catalog = [
       { ...SEO_CAPABILITIES[0], status: "partial" as const },
-      { ...SEO_CAPABILITIES[3], status: "missing" as const },
       { ...SEO_CAPABILITIES[21], status: "planned" as const },
+      { ...SEO_CAPABILITIES[33], status: "built" as const },
     ];
-    expect(seoCapabilityGroups("missing", catalog)).toEqual([
-      { group: "technical", items: [catalog[1]] },
+    expect(seoCapabilityGroups(catalog).map((group) => group.group)).toEqual([
+      "technical",
+      "keywords",
     ]);
-    expect(
-      seoCapabilityGroups("all", catalog).map((group) => group.group),
-    ).toEqual(["technical", "keywords"]);
   });
 });
 
@@ -128,12 +125,6 @@ describe("seoAuditGaps", () => {
       expect(
         seoAuditGaps(workspace, narrowed).map((gap) => gap.message),
       ).toEqual(["noCheck"]);
-      for (const step of seoUnlockSteps(workspace, narrowed).filter(
-        (step) => step.unlock === "search_console" || step.unlock === "ga4",
-      ))
-        expect(step).toEqual(
-          expect.objectContaining({ done: false, connect: null }),
-        );
     }
     expect(
       seoViewNarrowed({ channel: null, pageId: null, scopeId: null }),
@@ -281,31 +272,6 @@ describe("seoAuditGaps", () => {
   });
 });
 
-describe("seoUnlockSteps", () => {
-  it("marks a connected source done and offers to connect the other", () => {
-    const workspace = seoTestWorkspace();
-    workspace.metrics = [seoTestMetric()];
-    const steps = seoUnlockSteps(workspace);
-    expect(steps.find((step) => step.unlock === "search_console")).toEqual(
-      expect.objectContaining({ done: true, connect: null }),
-    );
-    expect(steps.find((step) => step.unlock === "ga4")).toEqual(
-      expect.objectContaining({ done: false, connect: "connect_ga4" }),
-    );
-  });
-
-  it("counts the open items of a step and leaves out a step with none", () => {
-    const steps = seoUnlockSteps(seoTestWorkspace(), false, [
-      { ...SEO_CAPABILITIES[0], unlocks: ["paid_data", "development"] },
-      { ...SEO_CAPABILITIES[33], unlocks: ["paid_data"] },
-    ]);
-    expect(steps.map((step) => [step.unlock, step.items])).toEqual([
-      ["paid_data", 1],
-      ["development", 1],
-    ]);
-  });
-});
-
 describe("Item 38", () => {
   it("names each section table that has no CSV download", () => {
     // A Table inside a section is a data table; a folded <table> beside a chart is its text alternative.
@@ -375,7 +341,6 @@ describe("Improve messages", () => {
       const seo = App.Seo;
       for (const [visible, label] of [
         [seo.export.csv, seo.export.csvLabel],
-        [seo.improve.ask, seo.improve.askLabel],
         [seo.improve.request, seo.improve.requestLabel],
       ])
         expect(label.startsWith(visible), label).toBe(true);

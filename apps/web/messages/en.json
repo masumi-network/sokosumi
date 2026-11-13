@@ -11416,8 +11416,7 @@
         "actions": "Actions",
         "agent": "Agent",
         "traffic": "Traffic",
-        "rankings": "Rankings",
-        "improve": "Improve"
+        "rankings": "Rankings"
       },
       "overview": {
         "measurements": "Traffic",
@@ -12424,18 +12423,7 @@
       "improve": {
         "catalog": {
           "title": "What the agent cannot do yet",
-          "help": "Features the SEO agent and this tab do not have yet, as of {day}.",
-          "filterLabel": "Show",
-          "filter": {
-            "all": "All",
-            "missing": "Missing",
-            "partial": "Partly built"
-          }
-        },
-        "status": {
-          "partial": "Partly built",
-          "missing": "Missing",
-          "planned": "Planned"
+          "help": "Features the SEO agent does not have yet."
         },
         "groups": {
           "technical": "Technical",
@@ -12447,18 +12435,6 @@
           "ai": "AI search",
           "workflow": "Workflow and automation"
         },
-        "unlocks": {
-          "search_console": "Connect Search Console",
-          "ga4": "Connect Google Analytics",
-          "ga4_key_events": "Set up key events in Google Analytics",
-          "paid_data": "Paid search data",
-          "development": "Development by the team",
-          "owner_decision": "A decision of the team"
-        },
-        "needs": "Needs: {list}",
-        "ask": "Ask the agent",
-        "askLabel": "Ask the agent: {title}",
-        "askPrompt": "The SEO tab cannot do this yet: {title}. {missing} What can I do now with the data I have?",
         "request": "Copy request",
         "requestLabel": "Copy request: {title}",
         "requestText": "Feature request for the SEO agent, item {id}: {title}. What is missing: {missing}",
@@ -12466,7 +12442,6 @@
         "copyFailed": "Could not copy the request.",
         "gaps": {
           "title": "What this audit could not see",
-          "help": "Data these pages lack, with the step that fills it where one exists.",
           "none": "This audit has no known gap in its data.",
           "noSearchConsole": "No Search Console data: clicks, searches and Google's index state are not measured.",
           "noAnalytics": "No Google Analytics data: visits and key events are not measured.",
@@ -12501,37 +12476,30 @@
           "sync": "Sync statistics",
           "run_check": "Run a check"
         },
-        "steps": {
-          "title": "How to get it improved",
-          "help": "Each step, and how many of the missing features it unlocks.",
-          "items": "{count, plural, one {Unlocks # feature} other {Unlocks # features}}",
-          "done": "Done",
-          "requests": "To ask for one feature, use Copy request on its row and send the text to the Sokosumi team. Requests are not saved in Sokosumi yet."
-        },
         "items": {
           "1": {
             "title": "Full-site crawl",
-            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
+            "missing": "Only the pages you add are checked, not every page of the site."
           },
           "2": {
             "title": "Site-wide broken links and redirect chains",
-            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
+            "missing": "Broken links and redirect chains are not listed for the whole site."
           },
           "3": {
             "title": "Index coverage for all URLs",
-            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
+            "missing": "Google's index state does not show for every page of the site."
           },
           "4": {
             "title": "Orphan pages",
-            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
+            "missing": "No list of pages that no other page links to."
           },
           "5": {
             "title": "Near-duplicate pages",
-            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
+            "missing": "No list of pages with almost the same text."
           },
           "6": {
             "title": "Core Web Vitals in the SEO tab",
-            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
+            "missing": "Loading speed and layout scores do not show in the SEO tab."
           },
           "7": {
             "title": "Site migration check",
@@ -12543,7 +12511,7 @@
           },
           "9": {
             "title": "Content brief for a target keyword",
-            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
+            "missing": "No outline of what a new page for a keyword should cover."
           },
           "10": {
             "title": "Body text drafts and rewrites",
@@ -12551,11 +12519,11 @@
           },
           "11": {
             "title": "Content refresh queue",
-            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
+            "missing": "No list of older pages to update first."
           },
           "12": {
             "title": "Cannibalization from Search Console",
-            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
+            "missing": "No list of searches where two of your pages compete."
           },
           "13": {
             "title": "Author, About and Contact signals",
@@ -12591,15 +12559,15 @@
           },
           "21": {
             "title": "Seasonality",
-            "missing": "One monthly volume shows, not the 12 months."
+            "missing": "Each keyword shows one monthly search count and its trend, not the 12 months behind it."
           },
           "22": {
             "title": "Search intent and conversion class per keyword",
-            "missing": "Keywords have no intent and conversion label yet."
+            "missing": "Keywords have a chance to convert, but no label for what the searcher wants to do."
           },
           "23": {
             "title": "Own backlink profile",
-            "missing": "Backlink counts show for competitors only."
+            "missing": "Your pages show how many sites link to them, not which links they are."
           },
           "24": {
             "title": "New and lost referring domains",
@@ -12639,7 +12607,7 @@
           },
           "33": {
             "title": "Traffic and rank drop alerts",
-            "missing": "The SEO bot names the monitor checks that fired and Core keeps them, but no alert is sent and this tab does not show them yet."
+            "missing": "No alert is sent when traffic or ranks drop."
           },
           "34": {
             "title": "Google update markers on charts",

@@ -92,6 +92,7 @@ export type SeoDialog =
   | "keyword"
   | "edit_keyword"
   | "competitor"
+  | "improve"
   | null;
 
 export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {

@@ -5,16 +5,10 @@ import {
 } from "./components/seo-traffic-model";
 
 /**
- * Tab order: the agent first, then its approvals with the site's health, then the two tools, then what is missing.
- * Actions stays in view on a phone.
+ * Tab order: the agent first, then its approvals with the site's health, then the two tools. Actions stays in view
+ * on a phone.
  */
-export const SEO_TABS = [
-  "agent",
-  "actions",
-  "traffic",
-  "rankings",
-  "improve",
-] as const;
+export const SEO_TABS = ["agent", "actions", "traffic", "rankings"] as const;
 export type SeoTab = (typeof SEO_TABS)[number];
 
 /** Links saved before the agent layout keep opening the tab that now holds their content. */
@@ -25,6 +19,8 @@ const LEGACY_SEO_TABS = new Map<string, SeoTab>([
   ["pages", "actions"],
   // Health was a tab of its own: its issues and pages now stand under the fixes.
   ["health", "actions"],
+  // What the agent cannot do yet was a tab: it is now in the header menu.
+  ["improve", "agent"],
 ]);
 
 export function seoTab(value: string | null | undefined): SeoTab | null {

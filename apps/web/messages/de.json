@@ -11416,8 +11416,7 @@
         "actions": "Aktionen",
         "agent": "Agent",
         "traffic": "Zugriffe",
-        "rankings": "Rankings",
-        "improve": "Verbessern"
+        "rankings": "Rankings"
       },
       "overview": {
         "measurements": "Zugriffe",
@@ -12424,18 +12423,7 @@
       "improve": {
         "catalog": {
           "title": "Was der Agent noch nicht kann",
-          "help": "Funktionen, die der SEO-Agent und dieser Tab noch nicht haben, Stand {day}.",
-          "filterLabel": "Zeigen",
-          "filter": {
-            "all": "Alle",
-            "missing": "Fehlt",
-            "partial": "Teilweise gebaut"
-          }
-        },
-        "status": {
-          "partial": "Teilweise gebaut",
-          "missing": "Fehlt",
-          "planned": "Geplant"
+          "help": "Funktionen, die der SEO-Agent noch nicht hat."
         },
         "groups": {
           "technical": "Technik",
@@ -12447,18 +12435,6 @@
           "ai": "KI-Suche",
           "workflow": "Ablauf und Automatisierung"
         },
-        "unlocks": {
-          "search_console": "Search Console verbinden",
-          "ga4": "Google Analytics verbinden",
-          "ga4_key_events": "Schlüsselereignisse in Google Analytics einrichten",
-          "paid_data": "Bezahlte Suchdaten",
-          "development": "Entwicklung durch das Team",
-          "owner_decision": "Eine Entscheidung des Teams"
-        },
-        "needs": "Braucht: {list}",
-        "ask": "Agent fragen",
-        "askLabel": "Agent fragen: {title}",
-        "askPrompt": "Der SEO-Tab kann das noch nicht: {title}. {missing} Was kann ich jetzt mit meinen Daten tun?",
         "request": "Anfrage kopieren",
         "requestLabel": "Anfrage kopieren: {title}",
         "requestText": "Funktionswunsch für den SEO-Agent, Punkt {id}: {title}. Was fehlt: {missing}",
@@ -12466,7 +12442,6 @@
         "copyFailed": "Die Anfrage konnte nicht kopiert werden.",
         "gaps": {
           "title": "Was dieses Audit nicht sehen konnte",
-          "help": "Daten, die diesen Seiten fehlen, mit dem Schritt, der sie ergänzt, wo es einen gibt.",
           "none": "Diesem Audit fehlen keine bekannten Daten.",
           "noSearchConsole": "Keine Daten aus der Search Console: Klicks, Suchanfragen und der Indexstatus bei Google werden nicht gemessen.",
           "noAnalytics": "Keine Daten aus Google Analytics: Besuche und Schlüsselereignisse werden nicht gemessen.",
@@ -12501,37 +12476,30 @@
           "sync": "Statistiken synchronisieren",
           "run_check": "Prüfung starten"
         },
-        "steps": {
-          "title": "Wie es besser wird",
-          "help": "Jeder Schritt und wie viele der fehlenden Funktionen er freischaltet.",
-          "items": "{count, plural, one {Schaltet # Funktion frei} other {Schaltet # Funktionen frei}}",
-          "done": "Erledigt",
-          "requests": "Um eine Funktion anzufragen, nutze in ihrer Zeile Anfrage kopieren und sende den Text an das Sokosumi-Team. Anfragen werden in Sokosumi noch nicht gespeichert."
-        },
         "items": {
           "1": {
             "title": "Crawl der ganzen Website",
-            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
+            "missing": "Nur die Seiten, die du hinzufügst, werden geprüft, nicht jede Seite der Website."
           },
           "2": {
             "title": "Defekte Links und Weiterleitungsketten der ganzen Website",
-            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
+            "missing": "Defekte Links und Weiterleitungsketten werden nicht für die ganze Website aufgelistet."
           },
           "3": {
             "title": "Indexabdeckung aller URLs",
-            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
+            "missing": "Der Indexstatus bei Google wird nicht für jede Seite der Website angezeigt."
           },
           "4": {
             "title": "Verwaiste Seiten",
-            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
+            "missing": "Keine Liste der Seiten, auf die keine andere Seite verlinkt."
           },
           "5": {
             "title": "Fast doppelte Seiten",
-            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
+            "missing": "Keine Liste der Seiten mit fast gleichem Text."
           },
           "6": {
             "title": "Core Web Vitals im SEO-Tab",
-            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
+            "missing": "Werte für Ladezeit und Layout werden im SEO-Tab nicht angezeigt."
           },
           "7": {
             "title": "Prüfung eines Website-Umzugs",
@@ -12543,7 +12511,7 @@
           },
           "9": {
             "title": "Content-Briefing für ein Ziel-Keyword",
-            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
+            "missing": "Keine Gliederung, was eine neue Seite zu einem Keyword abdecken sollte."
           },
           "10": {
             "title": "Entwürfe und Überarbeitungen von Fließtext",
@@ -12551,11 +12519,11 @@
           },
           "11": {
             "title": "Liste zum Auffrischen von Inhalten",
-            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
+            "missing": "Keine Liste älterer Seiten, die zuerst aktualisiert werden sollten."
           },
           "12": {
             "title": "Kannibalisierung aus der Search Console",
-            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
+            "missing": "Keine Liste der Suchen, bei denen zwei deiner Seiten konkurrieren."
           },
           "13": {
             "title": "Signale zu Autor, Über uns und Kontakt",
@@ -12591,15 +12559,15 @@
           },
           "21": {
             "title": "Saisonalität",
-            "missing": "Es zeigt sich ein Monatsvolumen, nicht die 12 Monate."
+            "missing": "Jedes Keyword zeigt ein monatliches Suchvolumen und seinen Trend, nicht die 12 Monate dahinter."
           },
           "22": {
             "title": "Suchintention und Conversion-Klasse pro Keyword",
-            "missing": "Keywords haben noch keine Angabe zu Suchintention und Conversion."
+            "missing": "Keywords haben eine Conversion-Chance, aber keine Angabe dazu, was die suchende Person tun will."
           },
           "23": {
             "title": "Eigenes Backlink-Profil",
-            "missing": "Backlink-Zahlen zeigen sich nur für Wettbewerber."
+            "missing": "Deine Seiten zeigen, wie viele Websites auf sie verlinken, nicht welche Links es sind."
           },
           "24": {
             "title": "Neue und verlorene verweisende Domains",
@@ -12639,7 +12607,7 @@
           },
           "33": {
             "title": "Warnungen bei Einbrüchen von Zugriffen und Rankings",
-            "missing": "Der SEO-Bot nennt die ausgelösten Monitor-Prüfungen und Core speichert sie, aber es gibt noch keine Warnung und dieser Tab zeigt sie nicht."
+            "missing": "Es wird keine Warnung gesendet, wenn Zugriffe oder Rankings fallen."
           },
           "34": {
             "title": "Markierungen von Google-Updates in Diagrammen",
