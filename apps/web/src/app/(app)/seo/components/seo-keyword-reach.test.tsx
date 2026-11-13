@@ -146,6 +146,20 @@ describe("SEO keyword reach sections", () => {
     ).toBeTruthy();
   });
 
+  it("names the topic words for a competing product with no row that holds one", () => {
+    renderReach({
+      ...seoTestStrategy(),
+      rivalKeywords: [host([row("aldente", false, 900)])],
+    });
+    const rivals = screen.getByTestId("seo-rival-keywords");
+    expect(
+      within(rivals).getByText(
+        "No keyword has a word of your topic (\u201cbattery\u201d).",
+      ),
+    ).toBeTruthy();
+    expect(within(rivals).getByText("aldente")).toBeTruthy();
+  });
+
   it("shows nothing for an audit without the sections", () => {
     renderReach(seoTestStrategy());
     expect(screen.queryByTestId("seo-feature-reach")).toBeNull();

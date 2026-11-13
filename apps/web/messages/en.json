@@ -12695,6 +12695,7 @@
           "help": "The keywords each competing product ranks for, most searches first.",
           "topic": "Keywords with a word of your topic ({words}):",
           "word": "“{word}”",
+          "noTopic": "No keyword has a word of your topic ({words}).",
           "other": "{count, plural, one {# keyword has} other {# keywords have}} none of these words: other products of the site, or product names",
           "more": "{count} more in the site report"
         },

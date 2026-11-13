@@ -117,8 +117,8 @@ function RivalKeywords({ hosts }: { hosts: RivalHost[] }) {
       help={t("rivals.help")}
       testId="seo-rival-keywords"
     >
-      {hosts.map((host) => (
-        <RivalHostRows key={host.host} host={host} />
+      {hosts.map((host, index) => (
+        <RivalHostRows key={`${index}:${host.host}`} host={host} />
       ))}
     </Fold>
   );
@@ -136,8 +136,10 @@ function RivalHostRows({ host }: { host: RivalHost }) {
   return (
     <section className="space-y-1.5 pt-1">
       <h3 className="font-medium break-all">{host.host}</h3>
-      {host.topicWords.length && lists.topic.length ? (
-        <p className="text-muted-foreground">{t("rivals.topic", { words })}</p>
+      {host.topicWords.length ? (
+        <p className="text-muted-foreground">
+          {t(lists.topic.length ? "rivals.topic" : "rivals.noTopic", { words })}
+        </p>
       ) : null}
       <RivalRows rows={lists.topic} more={lists.topicMore} />
       {lists.other.length ? (

@@ -12688,13 +12688,14 @@
         },
         "features": {
           "title": "Beste Suche jeder Funktion",
-          "help": "Für jede Funktion: die Suche mit den meisten Suchen, die keine Keyword-Gruppe enthält, und ihre Reichweite."
+          "help": "Für jede Funktion: die Suche mit den meisten Suchen, die in keiner Keyword-Gruppe steht, und ihre Reichweite."
         },
         "rivals": {
           "title": "Keywords konkurrierender Produkte",
           "help": "Die Keywords, für die jedes konkurrierende Produkt rankt, die meisten Suchen zuerst.",
           "topic": "Keywords mit einem Wort deines Themas ({words}):",
           "word": "„{word}“",
+          "noTopic": "Kein Keyword enthält ein Wort deines Themas ({words}).",
           "other": "{count, plural, one {# Keyword enthält} other {# Keywords enthalten}} keines dieser Wörter: andere Produkte der Website oder Produktnamen",
           "more": "{count} weitere im Website-Bericht"
         },
