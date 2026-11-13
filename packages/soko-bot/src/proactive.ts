@@ -94,7 +94,7 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     description:
       "Weekday evenings: what got done, what waits on you, tomorrow's first meeting, three priorities.",
     prompt: brief(
-      "End of day. From the packet below, in under 12 lines: what got done today, what is waiting on the owner, tomorrow's first meeting with its time, and three priorities you suggest for tomorrow, each with a reason. When nothing happened and nothing waits, answer exactly: Nothing to add.",
+      'End of day. From the packet below, in under 12 lines: what got done today, what is waiting on the owner, tomorrow\'s first meeting with its time, and three priorities you suggest for tomorrow, each with a reason. "Done today" and "Waiting on you" below are complete: when one says Nothing, say so in a line and never fill it with a teammate\'s Tasks. Their work, comments and decisions are theirs, never the owner\'s. When nothing happened and nothing waits, answer exactly: Nothing to add.',
     ),
     promptShared: brief(
       "End of day for the team. From the packet below, in under 12 lines: what got done today, what is waiting on the team, tomorrow's first meeting with its time, and three priorities you suggest for tomorrow, each with a reason. When nothing happened and nothing waits, answer exactly: Nothing to add.",
