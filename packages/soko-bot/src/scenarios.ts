@@ -1017,7 +1017,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       "One finished post in the Brand Brain's tone, specific to the business, no filler opener, no hashtag wall, no hype words the brand does not use, and no template gaps.",
     expect: {
       routes: ["MANAGE_WORK", "DIRECT_RESPONSE"],
-      answerAvoids: `${CMO_PLACEHOLDER_PATTERN}|in today's fast-paced|game[- ]changer|#\\w+\\s+#\\w+\\s+#\\w+`,
+      answerAvoids: `${CMO_PLACEHOLDER_PATTERN}|in today's fast-paced|game[- ]changer|(?:#\\w+\\s+){3}#\\w+`,
     },
   },
   {

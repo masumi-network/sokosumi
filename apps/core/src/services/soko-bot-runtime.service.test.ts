@@ -11085,7 +11085,7 @@ describe("CMO record saves", () => {
           toolCallId: "strategy",
           input: {},
         },
-        { approved: false, strategy, planSent: true },
+        { approved: false, projectId: "project-1", strategy, planSent: true },
       );
       expect(review).toMatchObject({
         save: saves,
@@ -11119,7 +11119,7 @@ describe("CMO record saves", () => {
           toolCallId: "strategy",
           input: {},
         },
-        { approved: true, strategy, planSent: true },
+        { approved: true, projectId: "project-1", strategy, planSent: true },
       ),
     ).resolves.toBeNull();
     expect(toolCallCountMock).not.toHaveBeenCalled();

@@ -21,6 +21,7 @@ import {
   cmoDraftProblems,
   cmoPlanDrift,
   cmoPlanProblems,
+  cmoPlanProblemsSince,
   cmoReplySafety,
   mixProblems,
   pillarProblems,
@@ -223,6 +224,30 @@ describe("cmoPlanProblems", () => {
     }));
     expect(cmoPlanProblems(plan({ calendar })).join("\n")).not.toMatch(
       /share a title|calendar titles/,
+    );
+  });
+});
+
+describe("cmoPlanProblemsSince", () => {
+  const thin = plan({
+    calendar: [entry("a", "seo", "article"), entry("b", "seo", "article")],
+  });
+
+  it("keeps quiet about what the owner's plan already had", () => {
+    const changed = { ...thin, calendar: thin.calendar.slice(0, 1) };
+    expect(cmoPlanProblems(changed)).not.toEqual([]);
+    expect(cmoPlanProblemsSince(changed, thin)).toEqual([]);
+  });
+
+  it("names what the change broke", () => {
+    expect(cmoPlanProblemsSince({ ...thin, mix: [] }, thin)).toEqual([
+      "mix is empty; give two to four approaches.",
+    ]);
+  });
+
+  it("excuses nothing for a plan still in the making", () => {
+    expect(cmoPlanProblemsSince(thin, plan({ calendar: [] }))).toEqual(
+      cmoPlanProblems(thin),
     );
   });
 });

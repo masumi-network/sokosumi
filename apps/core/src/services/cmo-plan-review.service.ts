@@ -157,6 +157,23 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
   return problems;
 }
 
+/**
+ * The problems a change brought. A plan the owner already has keeps the ones
+ * it had: asked to change one thing, Cuso once rewrote the month to clear
+ * them. Counts are ignored, so "4 pieces" and "3 pieces" are one problem.
+ * A plan still without a calendar is one in the making and excuses nothing.
+ */
+export function cmoPlanProblemsSince(
+  strategy: MarketingStrategyPlan,
+  before: MarketingStrategyPlan | null,
+): string[] {
+  const problems = cmoPlanProblems(strategy);
+  if (!before || before.calendar.length === 0) return problems;
+  const rule = (problem: string) => problem.replace(/\d+/g, "#");
+  const had = new Set(cmoPlanProblems(before).map(rule));
+  return problems.filter((problem) => !had.has(rule(problem)));
+}
+
 const COMPARISON_TITLE = /\b(vs\.?|versus|alternatives?)\b/i;
 
 /** LinkedIn rewards one real story; a month without them read as generic tips. */

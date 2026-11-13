@@ -86,7 +86,7 @@ LinkedIn rewards posts that teach something from real experience: a lesson, a re
 - **End with a question or a one-line takeaway.**
 - **Length**: a text post reads best at 800 to 1,500 characters. Shorter is fine when the idea is done.
 - **Links** go in firstComment; the post can say "Link in the first comment."
-- **Hashtags**: 3 to 5 specific ones on the last line, or none.
+- **Hashtags** add little: usually none, at most 3 specific ones on the last line.
 
 ## Formats
 
@@ -161,7 +161,7 @@ What would you stop making if you looked at your numbers?
         formats: ["images"],
       },
       {
-        rule: "Text post at most about 1,500 characters, image or video post about 900; no link in the body; 3 to 5 hashtags or none.",
+        rule: "Text post at most about 1,500 characters, image or video post about 900; no link in the body; at most 3 hashtags.",
         counted: true,
       },
     ],

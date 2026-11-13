@@ -359,7 +359,7 @@ import {
   type CmoPlanReview,
   cmoDraftProblems,
   cmoPlanDrift,
-  cmoPlanProblems,
+  cmoPlanProblemsSince,
   cmoReplySafety,
 } from "@/services/cmo-plan-review.service";
 import { reportCmoUpdate } from "@/services/cmo-reports.service";
@@ -400,6 +400,7 @@ import {
 import {
   approvedMarketingStrategy,
   isMarketingFilePiece,
+  parseMarketingPlan,
   readMarketingPlan,
 } from "@/services/marketing-strategy.service";
 import { writeMarketingStrategyFiles } from "@/services/marketing-strategy-files.service";
@@ -5757,6 +5758,7 @@ export class SokoBotRuntimeService {
     plan: {
       /** The version saved is the approved one (pieces of the running plan). */
       approved: boolean;
+      projectId: string;
       strategy: MarketingStrategyPlan | null;
       planSent: boolean;
     },
@@ -5770,7 +5772,22 @@ export class SokoBotRuntimeService {
     // a few more, so a late save still hears about a repeated title. Past
     // that the review stops, so a plan that cannot be fixed still ends.
     if (saves > 2 * CMO_PLAN_REVIEWS_PER_TURN) return null;
-    const problems = cmoPlanProblems(strategy);
+    // The plan as it was before this turn touched it.
+    const before = await prisma.marketingStrategy.findFirst({
+      where: {
+        projectId: plan.projectId,
+        OR: [
+          { authorTurnId: null },
+          { authorTurnId: { not: authorized.turn.id } },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      select: { plan: true },
+    });
+    const problems = cmoPlanProblemsSince(
+      strategy,
+      parseMarketingPlan(before?.plan),
+    );
     if (saves > CMO_PLAN_REVIEWS_PER_TURN) {
       return { save: saves, mainOffer: "skipped", problems };
     }
@@ -5930,6 +5947,7 @@ export class SokoBotRuntimeService {
           const calendar = stored?.calendar ?? [];
           const review = await this.reviewCmoPlan(authorized, input, {
             approved,
+            projectId: saved.projectId,
             strategy: stored,
             planSent: sent.summary !== undefined,
           });
