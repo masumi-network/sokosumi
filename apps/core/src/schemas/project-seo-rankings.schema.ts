@@ -17,3 +17,44 @@ export const seoPositionPointSchema = z
     device: z.union([device, z.null()]),
   })
   .openapi("ProjectSeoPositionPoint");
+
+/** Keyword series one workspace sends: the ones with the newest reads. */
+export const SEO_SERP_SERIES_MAX = 500;
+
+/**
+ * What one paid SERP read showed (seo-bot `serps[]`). `aiOverview` null: the read did not ask for it, so "not
+ * checked", never "no AI Overview". `featured` null: no featured snippet. A suspect read carries no SERP data.
+ */
+export const seoSerpPointSchema = z
+  .object({
+    observedAt: dateTimeSchema,
+    observationId: z.string(),
+    itemTypes: z.array(z.string()),
+    aiOverview: z.union([
+      z.object({
+        shown: z.boolean(),
+        asyncLoaded: z.boolean(),
+        citedDomains: z.array(z.string()),
+        pageCited: z.boolean(),
+      }),
+      z.null(),
+    ]),
+    featured: z.union([
+      z.object({ domain: z.string().nullable(), pageOwned: z.boolean() }),
+      z.null(),
+    ]),
+    paaOwned: z.boolean(),
+    suspect: z.boolean(),
+  })
+  .openapi("ProjectSeoSerpPoint");
+
+/** The SERP reads of one keyword, device and Market over time, newest last. */
+export const seoSerpSeriesSchema = z
+  .object({
+    keyword: z.string(),
+    device,
+    countryCode: z.string(),
+    languageCode: z.string(),
+    points: z.array(seoSerpPointSchema).max(SEO_RANK_HISTORY_POINTS),
+  })
+  .openapi("ProjectSeoSerpSeries");

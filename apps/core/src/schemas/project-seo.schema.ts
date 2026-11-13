@@ -9,7 +9,9 @@ import {
 } from "./project-seo-monitor.schema";
 import {
   SEO_RANK_HISTORY_POINTS,
+  SEO_SERP_SERIES_MAX,
   seoPositionPointSchema,
+  seoSerpSeriesSchema,
 } from "./project-seo-rankings.schema";
 import { seoStrategySchema } from "./project-seo-strategy.schema";
 
@@ -650,6 +652,11 @@ export const projectSeoWorkspaceSchema = z
     indexStatus: z.union([seoIndexStatusSchema, z.null()]).optional(),
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
+    /** SERP features, featured snippet, People also ask and AI Overview per keyword and device over time. */
+    serpHistory: z
+      .array(seoSerpSeriesSchema)
+      .max(SEO_SERP_SERIES_MAX)
+      .optional(),
     timeline: z.array(seoTimelineSchema),
     /** Every check of the selected pages. The period does not cut this list. */
     runs: z.array(seoRunSchema).optional(),

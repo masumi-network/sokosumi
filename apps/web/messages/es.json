@@ -11552,14 +11552,52 @@
           "table": "Mostrar como tabla",
           "note": "Más arriba: más búsquedas. Más a la izquierda: más fácil llegar al top 10. Un punto más grande: más clics adicionales en el puesto 3. La mayoría de los clics va al top 3. Los clics son estimaciones a partir de las búsquedas mensuales y la cuota de clics de cada puesto de Google (Advanced Web Ranking, julio de 2026). La dificultad viene de DataForSEO."
         },
-        "historyShow": "Historial de posiciones",
+        "historyShow": "Historial",
         "historyPaidTitle": "Posiciones en comprobaciones de pago",
         "historyPaidNote": "Cada punto es una comprobación de los resultados de búsqueda de ese día.",
         "historyPaidLabel": "{device, select, mobile {Móvil} desktop {Escritorio} other {Todos los dispositivos}}: posición en comprobaciones de pago para «{keyword}»",
         "historyNotInRange": "No está en los resultados comprobados",
         "historyPaidAxis": "La posición 1 está arriba. Una posición más baja es mejor. Una comprobación que no encontró la página en sus resultados no tiene posición.",
         "historyGscTitle": "Posición media en Search Console, diaria",
-        "historyGscNote": "Una media de todas las impresiones del día, no una sola comprobación."
+        "historyGscNote": "Una media de todas las impresiones del día, no una sola comprobación.",
+        "serp": {
+          "title": "Resultados de búsqueda en comprobaciones de pago",
+          "note": "Lo que mostró la página de resultados en cada comprobación, la más reciente primero.",
+          "check": "Comprobación",
+          "aiOverview": "AI Overview",
+          "featured": "Fragmento destacado",
+          "peopleAlsoAsk": "Más preguntas",
+          "features": "Otros elementos",
+          "suspect": "La lectura parecía errónea y no se usó",
+          "ai": {
+            "cited": "Cita la página",
+            "shown": "Se muestra, la página no se cita",
+            "absent": "Ninguno",
+            "not_checked": "AI Overview no comprobado"
+          },
+          "snippet": {
+            "owned": "El sitio de la página",
+            "other": "Otro sitio",
+            "none": "Ninguno"
+          },
+          "paa": {
+            "owned": "Enlaza el sitio de la página",
+            "shown": "Se muestra",
+            "none": "Ninguno"
+          },
+          "feature": {
+            "video": "Vídeos",
+            "short_videos": "Vídeos cortos",
+            "images": "Imágenes",
+            "local_pack": "Paquete local",
+            "top_stories": "Noticias destacadas",
+            "discussions_and_forums": "Debates y foros",
+            "shopping": "Shopping",
+            "knowledge_graph": "Panel de conocimiento"
+          },
+          "otherFeatures": "{count, plural, one {# más} other {# más}}",
+          "noFeatures": "Ninguno"
+        }
       },
       "competitors": {
         "title": "Competidores",

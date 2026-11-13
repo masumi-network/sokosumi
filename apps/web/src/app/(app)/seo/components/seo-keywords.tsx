@@ -39,6 +39,7 @@ import {
   normalizeQuery,
   searchConsoleIndex,
 } from "./seo-search-model";
+import { seoSerpMarkers } from "./seo-serp-features-model";
 import {
   SEO_COMPACT_ROWS_CLASS,
   SEO_LIST_PAGE_SIZE,
@@ -368,6 +369,9 @@ export function SeoKeywords({
                     const trendId = `seo-keyword-trend-${row.id}`;
                     // The paid checks' positions over time, one series per device.
                     const history = seoRankHistory(reads);
+                    // What the results page showed on each check: AI Overview, featured snippet, other features.
+                    const marks = seoSerpMarkers(model.data.serpHistory, reads);
+                    const hasHistory = history.length > 0 || marks.length > 0;
                     // Without a rank or a listed average, the position cell says "no impressions"; the line under the keyword would repeat it.
                     const cellSaysEmpty =
                       read.state === "empty" &&
@@ -414,7 +418,7 @@ export function SeoKeywords({
                               trend={
                                 cellSaysEmpty ? { state: "absent" } : trend
                               }
-                              history={history.length > 0}
+                              history={hasHistory}
                               open={trendOpen === row.id}
                               controls={trendId}
                               onToggle={() =>
@@ -604,7 +608,7 @@ export function SeoKeywords({
                           </TableCell>
                         </TableRow>
                         {trendOpen === row.id &&
-                        (history.length || trend.state === "measured") ? (
+                        (hasHistory || trend.state === "measured") ? (
                           <TableRow id={trendId}>
                             <TableCell
                               colSpan={columns}
@@ -614,6 +618,7 @@ export function SeoKeywords({
                                 keyword={row.keyword}
                                 trend={trend}
                                 series={history}
+                                marks={marks}
                               />
                             </TableCell>
                           </TableRow>

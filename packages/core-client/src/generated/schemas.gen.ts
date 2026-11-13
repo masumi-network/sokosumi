@@ -40102,6 +40102,13 @@ export const ProjectSeoWorkspaceSchema = {
                 }
             ]
         },
+        serpHistory: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoSerpSeries'
+            },
+            maxItems: 500
+        },
         timeline: {
             type: 'array',
             items: {
@@ -41645,6 +41652,135 @@ export const ProjectSeoStrategySchema = {
         'observedAt',
         'countryCode',
         'languageCode'
+    ]
+} as const;
+
+export const ProjectSeoSerpSeriesSchema = {
+    type: 'object',
+    properties: {
+        keyword: {
+            type: 'string'
+        },
+        device: {
+            type: 'string',
+            enum: [
+                'mobile',
+                'desktop'
+            ]
+        },
+        countryCode: {
+            type: 'string'
+        },
+        languageCode: {
+            type: 'string'
+        },
+        points: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoSerpPoint'
+            },
+            maxItems: 90
+        }
+    },
+    required: [
+        'keyword',
+        'device',
+        'countryCode',
+        'languageCode',
+        'points'
+    ]
+} as const;
+
+export const ProjectSeoSerpPointSchema = {
+    type: 'object',
+    properties: {
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        observationId: {
+            type: 'string'
+        },
+        itemTypes: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        aiOverview: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        shown: {
+                            type: 'boolean'
+                        },
+                        asyncLoaded: {
+                            type: 'boolean'
+                        },
+                        citedDomains: {
+                            type: 'array',
+                            items: {
+                                type: 'string'
+                            }
+                        },
+                        pageCited: {
+                            type: 'boolean'
+                        }
+                    },
+                    required: [
+                        'shown',
+                        'asyncLoaded',
+                        'citedDomains',
+                        'pageCited'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        featured: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        domain: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        pageOwned: {
+                            type: 'boolean'
+                        }
+                    },
+                    required: [
+                        'domain',
+                        'pageOwned'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        paaOwned: {
+            type: 'boolean'
+        },
+        suspect: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'observedAt',
+        'observationId',
+        'itemTypes',
+        'aiOverview',
+        'featured',
+        'paaOwned',
+        'suspect'
     ]
 } as const;
 

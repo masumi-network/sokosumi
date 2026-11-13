@@ -2,15 +2,19 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import { parsePublicSeoArtifact } from "@/helpers/project-seo-report";
-import { SEO_RANK_HISTORY_POINTS } from "@/schemas/project-seo-rankings.schema";
+import {
+  SEO_RANK_HISTORY_POINTS,
+  SEO_SERP_SERIES_MAX,
+} from "@/schemas/project-seo-rankings.schema";
 import {
   focusedRankingsReport,
   SEO_TEST_PAGE,
   SEO_TEST_SECOND_PAGE,
+  serpRead,
 } from "@/test-fixtures/project-seo";
 
 import { projectSeoProjection } from "./project-seo-projection";
-import { withSeoRankHistory } from "./project-seo-rankings";
+import { withSeoRankings } from "./project-seo-rankings";
 
 type Input = Parameters<typeof projectSeoProjection>[0];
 type Read = { position: number | null; status?: string; device?: string };
@@ -110,7 +114,7 @@ function workspaceOf(
     history === results
       ? rows
       : history.map((payload) => observation(base, payload));
-  return withSeoRankHistory(
+  return withSeoRankings(
     projectSeoProjection({ ...base, observations: rows }),
     historyRows,
   );
@@ -204,5 +208,79 @@ describe("keyword position history", () => {
     expect(
       workspace.keywords[0].positionHistory?.map((point) => point.position),
     ).toEqual([3]);
+  });
+});
+
+describe("SERP feature history", () => {
+  const serps = (day: number, rows: Record<string, unknown>[]) => ({
+    serps: rows.map((row) => serpRead({ observedAt: at(day), ...row })),
+  });
+
+  it("keeps one series per keyword, device and Market, oldest first, with not-checked and suspect reads as they are", () => {
+    const { serpHistory } = workspaceOf([
+      result(
+        2,
+        [{ position: 3 }],
+        serps(2, [
+          { keyword: "Example", aiOverview: null },
+          // A suspect read carries no SERP data (seo-bot serpEntry).
+          {
+            device: "mobile",
+            suspect: true,
+            itemTypes: [],
+            aiOverview: null,
+            featured: null,
+            paaOwned: false,
+            top: [],
+          },
+        ]),
+      ),
+      result(1, [{ position: 5 }], serps(1, [{}])),
+    ]);
+    expect(
+      serpHistory?.map((entry) => [
+        entry.keyword,
+        entry.device,
+        entry.points.map((point) => [
+          point.observedAt,
+          point.aiOverview?.pageCited ?? null,
+          point.suspect,
+        ]),
+      ]),
+    ).toEqual([
+      [
+        "example",
+        "desktop",
+        [
+          [at(1), true, false],
+          [at(2), null, false],
+        ],
+      ],
+      ["example", "mobile", [[at(2), null, true]]],
+    ]);
+  });
+
+  it("has no series for results from before SERP reads", () => {
+    const old = result(1, [{ position: 5 }]);
+    delete old.serps;
+    expect(workspaceOf([old]).serpHistory).toEqual([]);
+  });
+
+  it("keeps the series with the newest reads when they pass the cap", () => {
+    const many = (day: number, from: number, count: number) =>
+      serps(
+        day,
+        Array.from({ length: count }, (_, index) => ({
+          keyword: `keyword ${from + index}`,
+        })),
+      );
+    const { serpHistory } = workspaceOf([
+      result(2, [{ position: 1 }], many(2, 0, 10)),
+      result(1, [{ position: 1 }], many(1, 10, SEO_SERP_SERIES_MAX)),
+    ]);
+    expect(serpHistory).toHaveLength(SEO_SERP_SERIES_MAX);
+    expect(serpHistory?.slice(0, 10).map((entry) => entry.keyword)).toEqual(
+      Array.from({ length: 10 }, (_, index) => `keyword ${index}`),
+    );
   });
 });

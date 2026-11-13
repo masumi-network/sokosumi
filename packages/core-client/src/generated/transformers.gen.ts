@@ -4359,6 +4359,16 @@ const projectSeoStrategySchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const projectSeoSerpPointSchemaResponseTransformer = (data: any) => {
+    data.observedAt = new Date(data.observedAt);
+    return data;
+};
+
+const projectSeoSerpSeriesSchemaResponseTransformer = (data: any) => {
+    data.points = data.points.map((item: any) => projectSeoSerpPointSchemaResponseTransformer(item));
+    return data;
+};
+
 const projectSeoTimelineItemSchemaResponseTransformer = (data: any) => {
     data.at = new Date(data.at);
     return data;
@@ -4414,6 +4424,9 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
     }
     if (data.strategy) {
         data.strategy = projectSeoStrategySchemaResponseTransformer(data.strategy);
+    }
+    if (data.serpHistory) {
+        data.serpHistory = data.serpHistory.map((item: any) => projectSeoSerpSeriesSchemaResponseTransformer(item));
     }
     data.timeline = data.timeline.map((item: any) => projectSeoTimelineItemSchemaResponseTransformer(item));
     if (data.runs) {

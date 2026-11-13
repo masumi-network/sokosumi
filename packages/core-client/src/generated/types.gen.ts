@@ -10679,6 +10679,7 @@ export type ProjectSeoWorkspace = {
     searchQueries: ProjectSeoSearchQueries | null;
     indexStatus?: ProjectSeoIndexStatus | null;
     strategy?: ProjectSeoStrategy | null;
+    serpHistory?: Array<ProjectSeoSerpSeries>;
     timeline: Array<ProjectSeoTimelineItem>;
     runs?: Array<ProjectSeoRun>;
     analyses: Array<ProjectSeoAnalysis>;
@@ -10956,6 +10957,32 @@ export type ProjectSeoStrategy = {
     observedAt: Date;
     countryCode: string | null;
     languageCode: string | null;
+};
+
+export type ProjectSeoSerpSeries = {
+    keyword: string;
+    device: 'mobile' | 'desktop';
+    countryCode: string;
+    languageCode: string;
+    points: Array<ProjectSeoSerpPoint>;
+};
+
+export type ProjectSeoSerpPoint = {
+    observedAt: Date;
+    observationId: string;
+    itemTypes: Array<string>;
+    aiOverview: {
+        shown: boolean;
+        asyncLoaded: boolean;
+        citedDomains: Array<string>;
+        pageCited: boolean;
+    } | null;
+    featured: {
+        domain: string | null;
+        pageOwned: boolean;
+    } | null;
+    paaOwned: boolean;
+    suspect: boolean;
 };
 
 export type ProjectSeoTimelineItem = {

@@ -11552,14 +11552,52 @@
           "table": "Show as a table",
           "note": "Higher: more searches. Further left: easier to reach the top 10. A bigger dot: more extra clicks at place 3. Most clicks go to the top 3. Clicks are estimates from monthly searches and the share of clicks per Google place (Advanced Web Ranking, July 2026). Difficulty comes from DataForSEO."
         },
-        "historyShow": "Position history",
+        "historyShow": "History",
         "historyPaidTitle": "Positions in paid checks",
         "historyPaidNote": "Each point is one check of the search results on that day.",
         "historyPaidLabel": "{device, select, mobile {Mobile} desktop {Desktop} other {All devices}}: position in paid checks for “{keyword}”",
         "historyNotInRange": "Not in the checked results",
         "historyPaidAxis": "Position 1 is at the top. A lower position is better. A check that did not find the page in its results has no position.",
         "historyGscTitle": "Search Console average position, daily",
-        "historyGscNote": "An average over all impressions of the day, not one check."
+        "historyGscNote": "An average over all impressions of the day, not one check.",
+        "serp": {
+          "title": "Search results in paid checks",
+          "note": "What the results page showed on each check, newest first.",
+          "check": "Check",
+          "aiOverview": "AI Overview",
+          "featured": "Featured snippet",
+          "peopleAlsoAsk": "People also ask",
+          "features": "Other features",
+          "suspect": "The read looked wrong and was not used",
+          "ai": {
+            "cited": "Cites the page",
+            "shown": "Shown, page not cited",
+            "absent": "None",
+            "not_checked": "AI Overview not checked"
+          },
+          "snippet": {
+            "owned": "The page's site",
+            "other": "Another site",
+            "none": "None"
+          },
+          "paa": {
+            "owned": "Links the page's site",
+            "shown": "Shown",
+            "none": "None"
+          },
+          "feature": {
+            "video": "Videos",
+            "short_videos": "Short videos",
+            "images": "Images",
+            "local_pack": "Local pack",
+            "top_stories": "Top stories",
+            "discussions_and_forums": "Discussions and forums",
+            "shopping": "Shopping",
+            "knowledge_graph": "Knowledge panel"
+          },
+          "otherFeatures": "{count, plural, one {# other} other {# others}}",
+          "noFeatures": "None"
+        }
       },
       "competitors": {
         "title": "Competitors",

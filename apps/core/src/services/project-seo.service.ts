@@ -26,7 +26,7 @@ import { projectSeoProjection } from "./project-seo-projection";
 import {
   SEO_NON_RESULT_KINDS,
   SEO_RANK_HISTORY_OBSERVATIONS,
-  withSeoRankHistory,
+  withSeoRankings,
 } from "./project-seo-rankings";
 import {
   canConfirmSeoCompetitor,
@@ -421,5 +421,5 @@ export async function getProjectSeoWorkspace(
         monitorOfTask.get(sourceTask.get(run.observationId) ?? "") ?? null,
     })),
   };
-  return withSeoRankHistory(monitored, rankSources);
+  return withSeoRankings(monitored, rankSources);
 }

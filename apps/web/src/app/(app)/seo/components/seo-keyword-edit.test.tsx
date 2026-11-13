@@ -1457,7 +1457,7 @@ describe("Search Console queries", () => {
     expect(screen.queryByText(/Track one to see/)).toBeNull();
   });
 
-  it("opens the paid check positions of a keyword with two days of reads", async () => {
+  it("opens the paid check positions and SERP marks of a keyword", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     const read = (day: string, position: number | null) => ({
@@ -1473,13 +1473,52 @@ describe("Search Console queries", () => {
         positionHistory: [read("2026-10-01", 9), read("2026-10-08", 4)],
       }),
     );
+    const check = (day: string, aiOverview: { shown: boolean } | null) => ({
+      observedAt: new Date(`${day}T08:00:00Z`),
+      observationId: "observation-1",
+      itemTypes: ["organic", "video"],
+      aiOverview: aiOverview && {
+        ...aiOverview,
+        asyncLoaded: true,
+        citedDomains: [],
+        pageCited: false,
+      },
+      featured: null,
+      paaOwned: false,
+      suspect: false,
+    });
+    workspace.serpHistory = [
+      {
+        keyword: "battery app",
+        device: "desktop",
+        countryCode: "US",
+        languageCode: "en",
+        points: [
+          check("2026-10-01", null),
+          check("2026-10-08", { shown: false }),
+        ],
+      },
+    ];
     renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "Position history" }));
+    await user.click(screen.getByRole("button", { name: "History" }));
     expect(
       screen.getByRole("group", {
         name: "Desktop: position in paid checks for “battery app”",
       }),
     ).toBeVisible();
+    // A read that did not ask for an AI Overview never says there was none.
+    const marks = screen
+      .getByRole("columnheader", { name: "AI Overview" })
+      .closest("table");
+    // Newest check first; the first cell of a row is its AI Overview.
+    const [, newest, oldest] = within(marks!).getAllByRole("row");
+    expect(newest).toHaveTextContent("Oct 8, 2026");
+    expect(within(newest).getAllByRole("cell")[0]).toHaveTextContent("None");
+    expect(oldest).toHaveTextContent("Oct 1, 2026");
+    expect(within(oldest).getAllByRole("cell")[0]).toHaveTextContent(
+      "AI Overview not checked",
+    );
+    expect(within(oldest).getAllByRole("cell")[3]).toHaveTextContent("Videos");
     // Without a Search Console sync there is no daily average to set next to it.
     expect(
       screen.queryByText("Search Console average position, daily"),

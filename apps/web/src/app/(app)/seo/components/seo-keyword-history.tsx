@@ -8,6 +8,8 @@ import {
 } from "./seo-keyword-trend";
 import type { SeoRankSeries } from "./seo-rank-history-model";
 import type { SeoKeywordTrend } from "./seo-search-model";
+import { SeoSerpFeatures } from "./seo-serp-features";
+import type { SeoSerpMarker } from "./seo-serp-features-model";
 import { SeoTrendChart } from "./seo-trend-chart";
 
 function HistoryPart({
@@ -30,16 +32,19 @@ function HistoryPart({
 
 /**
  * The open row under a tracked keyword: the positions of the paid checks next to the Search Console daily
- * average. The two are different numbers: one check of the results against an average over the day's impressions.
+ * average, and what the results page showed on each check. The two positions are different numbers: one check of
+ * the results against an average over the day's impressions.
  */
 export function SeoKeywordHistory({
   keyword,
   trend,
   series,
+  marks,
 }: {
   keyword: string;
   trend: SeoKeywordTrend;
   series: SeoRankSeries[];
+  marks: SeoSerpMarker[];
 }) {
   const t = useTranslations("App.Seo.keywords");
   const format = useFormatter();
@@ -49,34 +54,41 @@ export function SeoKeywordHistory({
     ) : (
       <SeoKeywordTrendReason trend={trend} />
     );
-  // Without paid checks over time the row is the daily chart alone, as before.
-  if (!series.length) return searchConsole;
+  // Without paid checks the row is the daily chart alone, as before.
+  if (!series.length && !marks.length) return searchConsole;
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <HistoryPart title={t("historyPaidTitle")} note={t("historyPaidNote")}>
-        {series.map((item) =>
-          item.points.length ? (
-            <SeoTrendChart
-              key={item.device ?? "all"}
-              points={item.points}
-              unit="position"
-              joinReads
-              label={t("historyPaidLabel", {
-                keyword,
-                device: item.device ?? "all",
-              })}
-              formatValue={(value) => format.number(value)}
-              unavailable={t("historyNotInRange")}
-              positionNote={t("historyPaidAxis")}
-            />
-          ) : null,
-        )}
-      </HistoryPart>
+      {series.length ? (
+        <HistoryPart title={t("historyPaidTitle")} note={t("historyPaidNote")}>
+          {series.map((item) =>
+            item.points.length ? (
+              <SeoTrendChart
+                key={item.device ?? "all"}
+                points={item.points}
+                unit="position"
+                joinReads
+                label={t("historyPaidLabel", {
+                  keyword,
+                  device: item.device ?? "all",
+                })}
+                formatValue={(value) => format.number(value)}
+                unavailable={t("historyNotInRange")}
+                positionNote={t("historyPaidAxis")}
+              />
+            ) : null,
+          )}
+        </HistoryPart>
+      ) : null}
       {trend.state === "absent" ? null : (
         <HistoryPart title={t("historyGscTitle")} note={t("historyGscNote")}>
           {searchConsole}
         </HistoryPart>
       )}
+      {marks.length ? (
+        <div className="min-w-0 lg:col-span-2">
+          <SeoSerpFeatures marks={marks} />
+        </div>
+      ) : null}
     </div>
   );
 }
