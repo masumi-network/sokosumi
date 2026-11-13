@@ -114,7 +114,7 @@ export function ArchivedTasksList({
                       className="w-fit rounded-sm"
                     />
                   </div>
-                  <p className="text-muted-foreground text-xs">
+                  <p className="text-muted-foreground text-xs wrap-anywhere">
                     {task.project ?? t("noProject")}
                     {task.archivedOn
                       ? ` · ${t("archivedOn", { date: task.archivedOn })}`
