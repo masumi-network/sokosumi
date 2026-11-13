@@ -8938,7 +8938,14 @@
         "removeAttachment": "{name} entfernen",
         "attachmentFallback": "file",
         "showFormatting": "Formatierung anzeigen",
-        "hideFormatting": "Formatierung ausblenden"
+        "hideFormatting": "Formatierung ausblenden",
+        "recordVoice": "Sprachnachricht aufnehmen",
+        "stopVoice": "Beenden und anhängen",
+        "cancelVoice": "Aufnahme verwerfen",
+        "voiceRecording": "Sprachnachricht wird aufgenommen",
+        "voiceBlocked": "Erlaube den Mikrofonzugriff im Browser, um eine Sprachnachricht aufzunehmen.",
+        "voiceFailed": "Aufnahme abgebrochen. Versuche es erneut.",
+        "voiceFileName": "Sprachnachricht {time}"
       },
       "Skills": {
         "add": "Skill hinzufügen",

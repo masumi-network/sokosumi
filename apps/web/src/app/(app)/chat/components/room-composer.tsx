@@ -57,6 +57,7 @@ import {
 import { ComposerSkillChips } from "@/components/chat/skill-chip";
 import { SkillPicker } from "@/components/chat/skill-picker";
 import { StickerPicker } from "@/components/chat/sticker-picker";
+import { VoiceMessageRecorder } from "@/components/chat/voice-message-recorder";
 import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -746,6 +747,13 @@ export function RoomComposer({
                     <Paperclip className="size-4" aria-hidden />
                   </Button>
                 </AttachmentSubmenu>
+                <VoiceMessageRecorder
+                  buttonClassName={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                  disabled={isUploadingFiles}
+                  onRecorded={(file) => {
+                    void handleFilesSelected([file]);
+                  }}
+                />
               </>
             ) : null}
             <Button

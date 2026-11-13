@@ -8938,7 +8938,14 @@
         "removeAttachment": "Eliminar {name}",
         "attachmentFallback": "file",
         "showFormatting": "Mostrar formato",
-        "hideFormatting": "Ocultar formato"
+        "hideFormatting": "Ocultar formato",
+        "recordVoice": "Grabar un mensaje de voz",
+        "stopVoice": "Detener y adjuntar",
+        "cancelVoice": "Descartar grabación",
+        "voiceRecording": "Grabando mensaje de voz",
+        "voiceBlocked": "Permite el acceso al micrófono en tu navegador para grabar un mensaje de voz.",
+        "voiceFailed": "La grabación se detuvo. Inténtalo de nuevo.",
+        "voiceFileName": "Mensaje de voz {time}"
       },
       "Skills": {
         "add": "Añadir una skill",
