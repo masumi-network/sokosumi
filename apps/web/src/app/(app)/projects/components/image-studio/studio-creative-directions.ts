@@ -42,6 +42,13 @@ const AD_VARIATION_SUFFIXES = [
     `\n\nAd variation: ${angle} Follow the brief and creative direction first, keep any exact wording, and use only supplied claims.`,
 );
 
+export function studioAdVariationIndex(prompt: string): number | undefined {
+  const index = AD_VARIATION_SUFFIXES.findIndex((suffix) =>
+    prompt.includes(suffix),
+  );
+  return index === -1 ? undefined : index;
+}
+
 export function studioAdCopyPrompts(
   prompt: string,
   copies: number,
