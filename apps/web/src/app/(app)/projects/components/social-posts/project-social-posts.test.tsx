@@ -4673,6 +4673,27 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
   });
 
+  it("hides queueing when the posting queue is not open to the user", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).queryByRole("button", { name: "Add to queue" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("link", {
+        name: "Add queue times in accounts.",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   it("disables queueing without slots and links to accounts", async () => {
     const user = userEvent.setup();
     render(
@@ -4680,6 +4701,7 @@ describe("ProjectSocialPosts", () => {
         connections={[buildConnection()]}
         posts={[]}
         projectId={PROJECT_ID}
+        queueSlots={[]}
       />,
     );
     await user.click(screen.getByRole("button", { name: "New post" }));

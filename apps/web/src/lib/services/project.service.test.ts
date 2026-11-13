@@ -884,6 +884,25 @@ describe("project.service", () => {
       ).toHaveBeenCalledWith("project-1", "post-1", { revision: 0 });
     });
 
+    it("reads a closed posting queue as null and rethrows other failures", async () => {
+      const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+      coreClientMock.getProjectsByIdSocialQueueSlots.mockRejectedValueOnce(
+        new CoreApiRequestError("forbidden", { status: 403 }),
+      );
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.listSocialQueueSlots("project-1"),
+      ).resolves.toBeNull();
+
+      coreClientMock.getProjectsByIdSocialQueueSlots.mockRejectedValueOnce(
+        new CoreApiRequestError("down", { status: 500 }),
+      );
+      await expect(
+        projectService.listSocialQueueSlots("project-1"),
+      ).rejects.toThrow("down");
+    });
+
     it("publishes a post now with the observed revision", async () => {
       const publishedAt = new Date("2026-09-15T10:00:00.000Z");
       coreClientMock.postProjectsByIdSocialPostsByPostIdPublish.mockResolvedValue(

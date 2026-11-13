@@ -46,6 +46,16 @@ describe("loadSocialCalendarPreview", () => {
     expect(listQueueSlots).toHaveBeenCalledWith("project-1");
   });
 
+  it("opens the post when the posting queue is not open to the user", async () => {
+    listQueueSlots.mockResolvedValue(null);
+    const result = await loadSocialCalendarPreview({
+      projectId: "project-1",
+      postId: "post-1",
+    });
+    expect(result.queueSlots).toBeUndefined();
+    expect(result.post).toEqual({ id: "post-1", projectId: "project-1" });
+  });
+
   it("does not load queue settings for a missing post", async () => {
     getPost.mockResolvedValue(null);
     await expect(

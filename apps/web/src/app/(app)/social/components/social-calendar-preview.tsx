@@ -70,7 +70,7 @@ export function SocialCalendarPreviewProvider({
   const [target, setTarget] = useState<{
     post: SocialPost;
     connections: ProjectSocialConnection[];
-    queueSlots: SocialQueueSlot[];
+    queueSlots?: SocialQueueSlot[];
   } | null>(null);
 
   async function show(projectId: string, postId: string, trigger: HTMLElement) {

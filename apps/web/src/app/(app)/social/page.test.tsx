@@ -635,6 +635,18 @@ describe("SocialPage", () => {
     expect(projectServiceMock.listSocialPosts).toHaveBeenCalled();
   });
 
+  it("shows accounts when the posting queue is not open to the user", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialQueueSlots.mockResolvedValue(null);
+
+    await visit({ projectId: "project-1" });
+
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-accounts-failed",
+      "false",
+    );
+  });
+
   /**
    * Social's calendar is Social's, not the workspace calendar with a filter
    * left over from the last visit. Task runs never appear on it, so the lock

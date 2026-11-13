@@ -482,11 +482,20 @@ export const projectService = (() => {
     return result.data;
   }
 
+  /** Null when the posting queue is not open to this user (Core answers 403). */
   async function listSocialQueueSlots(
     projectId: string,
-  ): Promise<SocialQueueSlots> {
-    const result = await coreClient.getProjectsByIdSocialQueueSlots(projectId);
-    return result.data;
+  ): Promise<SocialQueueSlots | null> {
+    try {
+      const result =
+        await coreClient.getProjectsByIdSocialQueueSlots(projectId);
+      return result.data;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 403) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async function replaceSocialQueueSlots(

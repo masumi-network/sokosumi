@@ -131,7 +131,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     selectedPostResult,
     calendarResult,
     sokoBot,
-    queueSlots,
+    queueResult,
   ] = await Promise.all([
     Promise.all(
       SECTION_ORDER.map(async (section) => {
@@ -172,11 +172,16 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
         return { failed: true as const, calendar: null };
       }),
     sokoBotService.getMine().catch(() => null),
-    projectService.listSocialQueueSlots(project.id).catch(() => null),
+    projectService
+      .listSocialQueueSlots(project.id)
+      .then((queueSlots) => ({ failed: false as const, queueSlots }))
+      .catch(() => ({ failed: true as const, queueSlots: null })),
   ]);
   const { connections, failed: accountsFailed } = connectionsResult;
   const { calendar, failed: calendarFailed } = calendarResult;
   const { post: selectedPost, failed: selectedPostFailed } = selectedPostResult;
+  // Null queue slots without a failure: the posting queue is not open to this user.
+  const { queueSlots, failed: queueFailed } = queueResult;
   // Count every affected scheduled/failed post, including later list pages.
   // A failed read here only shortens the reconnect counts; Social stays up.
   const affectedPosts: SocialPost[] = [...pages[1].posts];
@@ -266,7 +271,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             accountCount={managedAccountCount}
             managedConnections={connections}
             affectedPosts={affectedPosts}
-            accountsFailed={accountsFailed || queueSlots === null}
+            accountsFailed={accountsFailed || queueFailed}
             calendarFailed={calendarFailed}
             connections={activeConnections}
             failedSections={SECTION_ORDER.filter(

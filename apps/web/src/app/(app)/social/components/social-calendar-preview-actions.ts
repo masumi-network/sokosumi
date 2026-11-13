@@ -20,7 +20,7 @@ export const loadSocialCalendarPreview = withSession(
     const queueSlots = await projectService.listSocialQueueSlots(projectId);
     return {
       post,
-      queueSlots: queueSlots.slots,
+      queueSlots: queueSlots?.slots,
       connections: connections.filter(
         (connection) => connection.status === "active",
       ),

@@ -126,6 +126,7 @@ export type SocialPostComposerMode =
   | { kind: "schedule"; post: SocialPost };
 
 interface SocialPostComposerDialogProps {
+  /** Undefined when the posting queue is not open to this user. */
   queueSlots?: SocialQueueSlot[];
   connections: ProjectSocialConnection[];
   connectDisabled?: boolean;
@@ -164,7 +165,7 @@ function resolveTimezone(): string {
 
 export function SocialPostComposerDialog({
   connections: initialConnections,
-  queueSlots = [],
+  queueSlots,
   connectDisabled = false,
   mode,
   onConnectAccount,
@@ -678,7 +679,8 @@ export function SocialPostComposerDialog({
         !post.scheduledAt ||
         post.scheduledAt.getTime() <= quoteTime.getTime())
     );
-  const hasQueueSlots = queueSlots.length > 0;
+  const queueAvailable = queueSlots !== undefined;
+  const hasQueueSlots = (queueSlots?.length ?? 0) > 0;
   const canQueue =
     hasQueueSlots && textValid && mediaValid && connectionId !== "" && !isBusy;
   // Posting now is for a new post: the fastest path is open, type, post.
@@ -2218,7 +2220,7 @@ export function SocialPostComposerDialog({
               className="text-muted-foreground min-w-0 flex-1 text-sm"
             >
               {footerMessage}
-              {!hasQueueSlots ? (
+              {queueAvailable && !hasQueueSlots ? (
                 <p>
                   <Link
                     className="underline underline-offset-4"
@@ -2238,17 +2240,19 @@ export function SocialPostComposerDialog({
               ) : null}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!canQueue}
-                loading={pending === "queue"}
-                onClick={() => {
-                  void handleQueue();
-                }}
-              >
-                {t("composer.addToQueue")}
-              </Button>
+              {queueAvailable ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canQueue}
+                  loading={pending === "queue"}
+                  onClick={() => {
+                    void handleQueue();
+                  }}
+                >
+                  {t("composer.addToQueue")}
+                </Button>
+              ) : null}
               {!isScheduleOnly && primaryAction !== "save" ? (
                 <>
                   <Tooltip>
