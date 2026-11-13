@@ -12330,6 +12330,19 @@
         "testsAll": "Jeder Test hat ein Ergebnis",
         "aMonth": "pro Monat",
         "depth": "{same, select, yes {Gelesene Ergebnisse pro Keyword: {max}} other {Gelesene Ergebnisse pro Keyword: {min} bis {max}}}"
+      },
+      "shareOfVoice": {
+        "title": "Share of Voice",
+        "description": "Geschätzter Anteil an organischen Klicks über die verfolgten Keywords in der Woche vom {week}, aus {count, plural, one {# Keyword-Abruf} other {# Keyword-Abrufen}}. Jedes Keyword zählt gleich.",
+        "site": "Ihre Seiten",
+        "others": "Andere Websites",
+        "unattributed": "Ergebnisse ohne bekannte Website",
+        "change": "{points} Pkt.",
+        "changeNote": "Punkte: Änderung seit der Woche vom {week}.",
+        "method": "Eine Schätzung, keine Messung: Jedes organische Ergebnis erhält die Klickrate seines Rangs (Advanced Web Ranking, Juli 2026).",
+        "weekly": "Wochenwerte",
+        "week": "Woche vom",
+        "siteShare": "Anteil Ihrer Seiten"
       }
     }
   },

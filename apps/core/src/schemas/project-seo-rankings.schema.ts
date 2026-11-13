@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { SEO_SHARE_WEEKS } from "@/lib/seo/share-of-voice";
 
 /** Points one history keeps: the newest, so a daily monitor shows about three months. */
 export const SEO_RANK_HISTORY_POINTS = 90;
@@ -58,3 +59,28 @@ export const seoSerpSeriesSchema = z
     points: z.array(seoSerpPointSchema).max(SEO_RANK_HISTORY_POINTS),
   })
   .openapi("ProjectSeoSerpSeries");
+
+/**
+ * Estimated share of organic clicks per week over the tracked keywords, from the SERP reads and a published
+ * click-through rate per rank (`ctrSource`). An estimate, not a measurement. Shares are 0 to 1.
+ */
+export const seoShareOfVoiceSchema = z
+  .object({
+    ctrSource: z.string(),
+    weeks: z
+      .array(
+        z.object({
+          /** The Monday the week starts on, UTC. */
+          weekStart: z.string(),
+          reads: z.number().int(),
+          site: z.number(),
+          competitors: z.array(
+            z.object({ domain: z.string(), share: z.number() }),
+          ),
+          others: z.number(),
+          unattributed: z.number(),
+        }),
+      )
+      .max(SEO_SHARE_WEEKS),
+  })
+  .openapi("ProjectSeoShareOfVoice");

@@ -12330,6 +12330,19 @@
         "testsAll": "Every test gave a result",
         "aMonth": "a month",
         "depth": "{same, select, yes {Results read per keyword: {max}} other {Results read per keyword: {min} to {max}}}"
+      },
+      "shareOfVoice": {
+        "title": "Share of voice",
+        "description": "Estimated share of organic clicks over the tracked keywords in the week of {week}, from {count, plural, one {# keyword read} other {# keyword reads}}. Each keyword counts the same.",
+        "site": "Your pages",
+        "others": "Other sites",
+        "unattributed": "Results without a known site",
+        "change": "{points} pts",
+        "changeNote": "Points: change since the week of {week}.",
+        "method": "An estimate, not a measurement: each organic result gets the click-through rate of its rank (Advanced Web Ranking, July 2026).",
+        "weekly": "Weekly values",
+        "week": "Week of",
+        "siteShare": "Your pages' share"
       }
     }
   },

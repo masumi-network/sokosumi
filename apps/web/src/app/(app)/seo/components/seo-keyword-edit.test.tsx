@@ -1524,4 +1524,40 @@ describe("Search Console queries", () => {
       screen.queryByText("Search Console average position, daily"),
     ).toBeNull();
   });
+
+  it("shows the estimated share of voice of the newest week with its change", () => {
+    const workspace = seoTestWorkspace();
+    workspace.shareOfVoice = {
+      ctrSource: "awr-2026-07",
+      weeks: [
+        {
+          weekStart: "2026-09-28",
+          reads: 3,
+          site: 0.1,
+          competitors: [{ domain: "rival.test", share: 0.3 }],
+          others: 0.6,
+          unattributed: 0,
+        },
+        {
+          weekStart: "2026-10-05",
+          reads: 4,
+          site: 0.25,
+          competitors: [{ domain: "rival.test", share: 0.3 }],
+          others: 0.45,
+          unattributed: 0,
+        },
+      ],
+    };
+    renderWorkspace(workspace);
+    const card = screen
+      .getByRole("heading", { name: "Share of voice" })
+      .closest("section");
+    expect(card).toHaveTextContent("week of Oct 5, 2026, from 4 keyword reads");
+    expect(
+      within(card!).getByText("Your pages").closest("li"),
+    ).toHaveTextContent("25%+15 pts");
+    expect(
+      within(card!).getByText("rival.test").closest("li"),
+    ).toHaveTextContent("30%0 pts");
+  });
 });

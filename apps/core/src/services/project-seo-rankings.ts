@@ -3,6 +3,8 @@ import {
   type PublicSeoPayload,
   publicSeoPayloadSchema,
 } from "@/helpers/project-seo-report";
+import { SEO_CTR_SOURCE } from "@/lib/seo/keyword-clicks";
+import { seoShareOfVoice } from "@/lib/seo/share-of-voice";
 import type { ProjectSeoWorkspace } from "@/schemas/project-seo.schema";
 import {
   SEO_RANK_HISTORY_POINTS,
@@ -51,7 +53,7 @@ function rankSources(workspace: ProjectSeoWorkspace, rows: SeoRankSource[]) {
 /**
  * The rank views over time: each observed keyword row gets every loaded paid read of its keyword, page, device,
  * reason and Market, newest last; a read where the page was not in the checked results stays a point without a
- * position. The SERP reads give one series per keyword, device and Market.
+ * position. The SERP reads give one series per keyword, device and Market, and the weekly share of voice.
  */
 export function withSeoRankings(
   workspace: ProjectSeoWorkspace,
@@ -62,7 +64,33 @@ export function withSeoRankings(
     ...workspace,
     keywords: withPositionHistory(workspace.keywords, sources),
     serpHistory: serpHistory(sources),
+    shareOfVoice: shareOfVoice(workspace, sources),
   };
+}
+
+/** The site is the hosts of the selected pages; the rivals are the confirmed competitors. */
+function shareOfVoice(
+  workspace: ProjectSeoWorkspace,
+  sources: Source[],
+): ProjectSeoWorkspace["shareOfVoice"] {
+  const pageIds = new Set(workspace.scope.pageIds);
+  const host = (url: string) => new URL(url).hostname;
+  const weeks = seoShareOfVoice(
+    sources.flatMap(({ data }) =>
+      (data.serps ?? []).map((read) => ({
+        ...read,
+        countryCode: data.countryCode,
+        languageCode: data.languageCode,
+      })),
+    ),
+    workspace.pages
+      .filter((page) => pageIds.has(page.id))
+      .map((page) => host(page.url)),
+    workspace.competitors
+      .filter((row) => row.role === "competitor" && row.confirmed)
+      .map((row) => host(row.url)),
+  );
+  return weeks.length ? { ctrSource: SEO_CTR_SOURCE, weeks } : null;
 }
 
 function withPositionHistory(

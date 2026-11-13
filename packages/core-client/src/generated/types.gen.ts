@@ -10680,6 +10680,7 @@ export type ProjectSeoWorkspace = {
     indexStatus?: ProjectSeoIndexStatus | null;
     strategy?: ProjectSeoStrategy | null;
     serpHistory?: Array<ProjectSeoSerpSeries>;
+    shareOfVoice?: ProjectSeoShareOfVoice | null;
     timeline: Array<ProjectSeoTimelineItem>;
     runs?: Array<ProjectSeoRun>;
     analyses: Array<ProjectSeoAnalysis>;
@@ -10983,6 +10984,21 @@ export type ProjectSeoSerpPoint = {
     } | null;
     paaOwned: boolean;
     suspect: boolean;
+};
+
+export type ProjectSeoShareOfVoice = {
+    ctrSource: string;
+    weeks: Array<{
+        weekStart: string;
+        reads: number;
+        site: number;
+        competitors: Array<{
+            domain: string;
+            share: number;
+        }>;
+        others: number;
+        unattributed: number;
+    }>;
 };
 
 export type ProjectSeoTimelineItem = {

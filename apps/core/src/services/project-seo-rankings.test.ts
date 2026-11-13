@@ -284,3 +284,50 @@ describe("SERP feature history", () => {
     );
   });
 });
+
+describe("share of voice in the workspace", () => {
+  it("counts the selected pages' host as the site and only confirmed competitors as rivals", () => {
+    const base = input();
+    const confirmed = (url: string, isConfirmed: boolean) => ({
+      id: randomUUID(),
+      projectId: base.project.id,
+      auditId: null,
+      url,
+      confirmed: isConfirmed,
+      version: 1,
+      updatedAt: new Date(at(0)),
+    });
+    const { shareOfVoice } = workspaceOf(
+      [
+        result(1, [{ position: 2 }], {
+          serps: [
+            serpRead({
+              observedAt: at(1),
+              top: [
+                { rank: 1, domain: "rival.test" },
+                { rank: 2, domain: "www.example.test" },
+                { rank: 3, domain: "unconfirmed.test" },
+              ],
+            }),
+          ],
+        }),
+      ],
+      {
+        ...base,
+        competitors: [
+          confirmed("https://rival.test/page", true),
+          confirmed("https://unconfirmed.test/page", false),
+        ],
+      },
+    );
+    const week = shareOfVoice?.weeks[0];
+    expect(shareOfVoice?.ctrSource).toBe("awr-2026-07");
+    expect(week?.site).toBeGreaterThan(0);
+    expect(week?.competitors.map((row) => row.domain)).toEqual(["rival.test"]);
+    expect(week?.others).toBeGreaterThan(0);
+  });
+
+  it("is null without SERP reads", () => {
+    expect(workspaceOf([result(1, [{ position: 2 }])]).shareOfVoice).toBeNull();
+  });
+});

@@ -12,6 +12,7 @@ import {
   SEO_SERP_SERIES_MAX,
   seoPositionPointSchema,
   seoSerpSeriesSchema,
+  seoShareOfVoiceSchema,
 } from "./project-seo-rankings.schema";
 import { seoStrategySchema } from "./project-seo-strategy.schema";
 
@@ -657,6 +658,8 @@ export const projectSeoWorkspaceSchema = z
       .array(seoSerpSeriesSchema)
       .max(SEO_SERP_SERIES_MAX)
       .optional(),
+    /** The site's and the confirmed competitors' estimated share of clicks per week. Null without SERP reads. */
+    shareOfVoice: z.union([seoShareOfVoiceSchema, z.null()]).optional(),
     timeline: z.array(seoTimelineSchema),
     /** Every check of the selected pages. The period does not cut this list. */
     runs: z.array(seoRunSchema).optional(),

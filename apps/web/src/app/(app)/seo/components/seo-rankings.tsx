@@ -11,6 +11,7 @@ import { SeoCompetitors } from "./seo-competitors";
 import { SeoKeywordMap } from "./seo-keyword-map";
 import { keywordGroups } from "./seo-keyword-rows-model";
 import { SeoKeywords, SeoQueryFilter } from "./seo-keywords";
+import { SeoShareOfVoice } from "./seo-share-of-voice";
 import { type SeoRankingsSection, seoSectionClass } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -83,6 +84,10 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
           />
         </div>
       </div>
+      {/* The site against its confirmed competitors over the tracked keywords: no use on the list of ideas. */}
+      {section === "ideas" ? null : (
+        <SeoShareOfVoice shareOfVoice={model.data.shareOfVoice} />
+      )}
       {/* Keywords and ideas on one map: which ones are worth the work. The competitors list has no use for it. */}
       {section === "competitors" ? null : <SeoKeywordMap groups={groups} />}
       <SeoKeywords model={model} section={section} />

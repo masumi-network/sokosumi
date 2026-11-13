@@ -40109,6 +40109,16 @@ export const ProjectSeoWorkspaceSchema = {
             },
             maxItems: 500
         },
+        shareOfVoice: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoShareOfVoice'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         timeline: {
             type: 'array',
             items: {
@@ -41781,6 +41791,69 @@ export const ProjectSeoSerpPointSchema = {
         'featured',
         'paaOwned',
         'suspect'
+    ]
+} as const;
+
+export const ProjectSeoShareOfVoiceSchema = {
+    type: 'object',
+    properties: {
+        ctrSource: {
+            type: 'string'
+        },
+        weeks: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    weekStart: {
+                        type: 'string'
+                    },
+                    reads: {
+                        type: 'integer'
+                    },
+                    site: {
+                        type: 'number'
+                    },
+                    competitors: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                domain: {
+                                    type: 'string'
+                                },
+                                share: {
+                                    type: 'number'
+                                }
+                            },
+                            required: [
+                                'domain',
+                                'share'
+                            ]
+                        }
+                    },
+                    others: {
+                        type: 'number'
+                    },
+                    unattributed: {
+                        type: 'number'
+                    }
+                },
+                required: [
+                    'weekStart',
+                    'reads',
+                    'site',
+                    'competitors',
+                    'others',
+                    'unattributed'
+                ]
+            },
+            maxItems: 104
+        }
+    },
+    required: [
+        'ctrSource',
+        'weeks'
     ]
 } as const;
 
