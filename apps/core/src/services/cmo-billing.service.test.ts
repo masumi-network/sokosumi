@@ -104,8 +104,16 @@ describe("strategy approval → execution gate", () => {
     ).toMatch(/approved/);
   });
 
-  it("executes once approved, with no plan and no per-post approval", async () => {
+  it("refuses once approved while the Project has no paid CMO plan", async () => {
     cusoFind.mockResolvedValue(workspace(new Date()));
+    expect(
+      await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
+    ).toMatch(/subscribes to CMO/);
+  });
+
+  it("executes once approved and subscribed, with no per-post approval", async () => {
+    cusoFind.mockResolvedValue(workspace(new Date()));
+    cmoSubscriptionFindFirst.mockResolvedValue({ id: "subscription-1" });
     expect(
       await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
     ).toBeNull();

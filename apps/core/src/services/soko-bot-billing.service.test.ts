@@ -4,6 +4,7 @@ const {
   balanceMock,
   botFindUniqueMock,
   freeHiringMock,
+  subscribedMock,
   hasSeatMock,
   getEnvMock,
   poolBalanceMock,
@@ -19,6 +20,7 @@ const {
   balanceMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
   freeHiringMock: vi.fn(),
+  subscribedMock: vi.fn(),
   hasSeatMock: vi.fn(),
   postNoticeMock: vi.fn(),
   getEnvMock: vi.fn(),
@@ -52,6 +54,7 @@ vi.mock("@/lib/db/transaction", () => ({
 }));
 vi.mock("@/services/cmo-billing.service", () => ({
   isCusoInFreeHiring: freeHiringMock,
+  isCmoSubscribed: subscribedMock,
 }));
 vi.mock("@/services/soko-bot-chat.service", () => ({
   postSokoBotOwnerNotice: postNoticeMock,
@@ -726,8 +729,20 @@ describe("Soko Bot billing", () => {
       expect(usageCreateMock).not.toHaveBeenCalled();
     });
 
+    it("pauses his turns without a paid CMO plan, pool credits or not", async () => {
+      freeHiringMock.mockResolvedValue(false);
+      subscribedMock.mockResolvedValue(false);
+      balanceMock.mockResolvedValue(convertCreditsToCents(1_000));
+
+      await expect(
+        requireSokoBotTurnFunding("user_2", SOKO_BOT_ID),
+      ).rejects.toMatchObject({ reason: "cmo_paused" });
+      expect(subscribedMock).toHaveBeenCalledWith({ projectId: PROJECT_ID });
+    });
+
     it("charges and gates him as before once free hiring ended", async () => {
       freeHiringMock.mockResolvedValue(false);
+      subscribedMock.mockResolvedValue(true);
 
       await expect(
         requireSokoBotTurnFunding(null, SOKO_BOT_ID),

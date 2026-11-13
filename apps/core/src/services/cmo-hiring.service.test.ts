@@ -195,6 +195,18 @@ describe("learning state", () => {
     );
   });
 
+  it("says Cuso is paused when his Project has no paid CMO plan", async () => {
+    cusoFind.mockResolvedValue(workspace);
+    turnFindFirst.mockResolvedValue(turn("FAILED", 3));
+    funding.requireFunding.mockRejectedValueOnce(
+      new funding.BillingError("no", "cmo_paused"),
+    );
+    await expect(
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
+    ).rejects.toThrow("paused until a CMO plan is paid");
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
   it("says out of credits instead of starting a turn that would stop", async () => {
     cusoFind.mockResolvedValue(workspace);
     turnFindFirst.mockResolvedValue(turn("FAILED", 3));

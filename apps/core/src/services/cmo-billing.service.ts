@@ -15,16 +15,6 @@ import {
   mayApproveMarketingStrategy,
 } from "@/services/marketing-strategy.service";
 
-/**
- * CMO has no billing yet: every Cuso works on his organization's credits once
- * the strategy is approved. CMO's own checkout replaces this later.
- */
-export async function isCmoSubscribed(
-  _cuso: Pick<Cuso, "workspaceId">,
-): Promise<boolean> {
-  return true;
-}
-
 const STARTER_CREDITS_NOTE = "CMO.xyz starter credits";
 
 /** Names the grant after the hire's Project, so each hire got it once. */
@@ -46,6 +36,12 @@ const UNPAID_CUSO_PROJECT_WHERE = {
   },
 } satisfies Prisma.ProjectWhereInput;
 
+/** An unpaid Cuso's Project whose strategy is not approved yet (Launch). */
+const FREE_HIRING_PROJECT_WHERE = {
+  ...UNPAID_CUSO_PROJECT_WHERE,
+  marketingStrategies: { none: { approvedAt: { not: null } } },
+} satisfies Prisma.ProjectWhereInput;
+
 /**
  * Free hiring (ADR 0068): an unpaid live Cuso whose strategy is not approved
  * yet. His turns are not charged and may start without credits; from
@@ -59,14 +55,61 @@ export async function isCusoInFreeHiring(
     where: {
       id: sokoBotId,
       ...LIVE_CUSO_WHERE,
-      project: {
-        ...UNPAID_CUSO_PROJECT_WHERE,
-        marketingStrategies: { none: { approvedAt: { not: null } } },
-      },
+      project: FREE_HIRING_PROJECT_WHERE,
     },
     select: { id: true },
   });
   return bot !== null;
+}
+
+/**
+ * The CMO subscription gate (ADR 0068): Cuso works while his Project has an
+ * active CMO subscription (a scheduled cancel counts until the period
+ * ends; past due and ended do not), while he is in free hiring, or while
+ * he holds Starter credits that are not used up. Otherwise he is paused,
+ * even when the Organization credit pool has credits.
+ */
+export async function isCmoSubscribed(
+  cuso: Pick<Cuso, "projectId">,
+  now: Date = new Date(),
+  db: Pick<
+    Prisma.TransactionClient,
+    "cmoSubscription" | "project" | "creditBucket"
+  > = prisma,
+): Promise<boolean> {
+  const { projectId } = cuso;
+  const [subscription, freeHiring, starterBuckets] = await Promise.all([
+    db.cmoSubscription.findFirst({
+      where: {
+        projectId,
+        endedAt: null,
+        status: "active",
+        OR: [{ cancelAtPeriodEnd: false }, { currentPeriodEnd: { gt: now } }],
+      },
+      select: { id: true },
+    }),
+    db.project.findFirst({
+      where: { id: projectId, ...FREE_HIRING_PROJECT_WHERE },
+      select: { id: true },
+    }),
+    db.creditBucket.findMany({
+      where: {
+        referenceType: CreditBucketReferenceType.FREE,
+        referenceNote: starterCreditsNote(projectId),
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      select: { amount: true, consumptions: { select: { amount: true } } },
+    }),
+  ]);
+  return (
+    subscription !== null ||
+    freeHiring !== null ||
+    starterBuckets.some(
+      (bucket) =>
+        bucket.consumptions.reduce((spent, c) => spent + c.amount, 0n) <
+        bucket.amount,
+    )
+  );
 }
 
 /**

@@ -11237,6 +11237,9 @@ export type CmoOverview = {
      * Cuso's first look at the business: still running, failed or stuck (offer a retry), or done.
      */
     learning: 'running' | 'failed' | 'done';
+    /**
+     * Whether Cuso may work: his Project has an active CMO subscription (a scheduled cancel counts until the period ends), he is still in free hiring, or he holds Starter credits that are not used up. False means paused, even when the Organization credit pool has credits; `billing.status` says whether a payment failed.
+     */
     subscriptionActive: boolean;
     /**
      * Whether this member may approve the strategy: the organization's owners and admins only. Every other member works with Cuso but cannot.

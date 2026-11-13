@@ -18,7 +18,10 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { chargeTaskCreditsOrMarkOutOfCredits } from "@/helpers/task-event-charge";
 import prisma from "@/lib/db/prisma";
-import { findUnpaidCusoHiredBy } from "@/services/cmo-billing.service";
+import {
+  findUnpaidCusoHiredBy,
+  isCmoSubscribed,
+} from "@/services/cmo-billing.service";
 import {
   recordSokoBotTurnUsage,
   requireSokoBotTurnFunding,
@@ -128,7 +131,17 @@ async function approveStrategy(cuso: Seeded): Promise<void> {
   });
 }
 
-async function subscribe(cuso: Seeded, endedAt: Date | null): Promise<void> {
+const DAY = 24 * 60 * 60 * 1000;
+
+async function subscribe(
+  cuso: Seeded,
+  endedAt: Date | null,
+  row: {
+    status?: string;
+    cancelAtPeriodEnd?: boolean;
+    currentPeriodEnd?: Date;
+  } = {},
+): Promise<void> {
   const now = new Date();
   await prisma.cmoSubscription.create({
     data: {
@@ -138,13 +151,58 @@ async function subscribe(cuso: Seeded, endedAt: Date | null): Promise<void> {
       polarProductId: "prod_starter",
       tier: "starter",
       interval: "month",
-      status: endedAt ? "canceled" : "active",
+      status: row.status ?? (endedAt ? "canceled" : "active"),
       currentPeriodStart: now,
-      currentPeriodEnd: now,
+      currentPeriodEnd: row.currentPeriodEnd ?? new Date(now.getTime() + DAY),
+      cancelAtPeriodEnd: row.cancelAtPeriodEnd ?? false,
       endedAt,
       polarEventAt: now,
     },
   });
+}
+
+const STARTER = (projectId: string) => ({
+  referenceType: CreditBucketReferenceType.FREE,
+  referenceNote: `CMO.xyz starter credits (project ${projectId})`,
+});
+
+/** Spends the whole bucket, as Cuso's turns do. */
+async function spendStarterCredits(cuso: Seeded): Promise<void> {
+  const bucket = await prisma.creditBucket.findFirstOrThrow({
+    where: { projectId: cuso.projectId, ...STARTER(cuso.projectId) },
+  });
+  await prisma.transaction.create({
+    data: {
+      amount: -bucket.amount,
+      organizationId: cuso.organizationId,
+      creditConsumptions: {
+        create: { amount: bucket.amount, bucketId: bucket.id },
+      },
+    },
+  });
+}
+
+/** Approved, with credits in the Organization credit pool. */
+async function launchedCuso(): Promise<Seeded> {
+  const cuso = await seedCuso(10n);
+  await approveStrategy(cuso);
+  return cuso;
+}
+
+async function expectPaused(cuso: Seeded): Promise<void> {
+  expect(await isCmoSubscribed(cuso)).toBe(false);
+  for (const userId of [cuso.userId, null]) {
+    await expect(
+      requireSokoBotTurnFunding(userId, cuso.sokoBotId),
+    ).rejects.toMatchObject({ reason: "cmo_paused" });
+  }
+}
+
+async function expectWorking(cuso: Seeded): Promise<void> {
+  expect(await isCmoSubscribed(cuso)).toBe(true);
+  await expect(
+    requireSokoBotTurnFunding(cuso.userId, cuso.sokoBotId),
+  ).resolves.toBeUndefined();
 }
 
 async function chargeTurn(cuso: Seeded) {
@@ -224,7 +282,7 @@ describe.skipIf(!enabled)("free hiring against PostgreSQL", () => {
     await approveStrategy(empty);
     await expect(
       requireSokoBotTurnFunding(empty.userId, empty.sokoBotId),
-    ).rejects.toThrow("Insufficient organization credits");
+    ).rejects.toMatchObject({ reason: "cmo_paused" });
 
     const funded = await seedCuso(10n);
     await approveStrategy(funded);
@@ -242,10 +300,12 @@ describe.skipIf(!enabled)("free hiring against PostgreSQL", () => {
 
   it("does not apply to a Cuso hired with Starter credits", async () => {
     const cuso = await seedCuso();
-    await grant(cuso.organizationId, 10_000n, cuso.projectId, {
-      referenceType: CreditBucketReferenceType.FREE,
-      referenceNote: `CMO.xyz starter credits (project ${cuso.projectId})`,
-    });
+    await grant(
+      cuso.organizationId,
+      10_000n,
+      cuso.projectId,
+      STARTER(cuso.projectId),
+    );
 
     const charge = await chargeTurn(cuso);
     expect(charge.chargedCents).toBe(charge.expectedCents);
@@ -266,3 +326,59 @@ describe.skipIf(!enabled)("free hiring against PostgreSQL", () => {
     expect(await findUnpaidCusoHiredBy(cuso.userId)).toBeNull();
   });
 });
+
+describe.skipIf(!enabled)(
+  "the CMO subscription gate against PostgreSQL",
+  () => {
+    it("lets Cuso work while he is being hired", async () => {
+      await expectWorking(await seedCuso());
+    });
+
+    it("pauses him from approval until a plan is paid, pool credits or not", async () => {
+      await expectPaused(await launchedCuso());
+    });
+
+    it("lets him work with an active subscription", async () => {
+      const cuso = await launchedCuso();
+      await subscribe(cuso, null);
+      await expectWorking(cuso);
+    });
+
+    it("counts a scheduled cancel until the period ends", async () => {
+      const ending = await launchedCuso();
+      await subscribe(ending, null, { cancelAtPeriodEnd: true });
+      await expectWorking(ending);
+
+      const ended = await launchedCuso();
+      await subscribe(ended, null, {
+        cancelAtPeriodEnd: true,
+        currentPeriodEnd: new Date(Date.now() - DAY),
+      });
+      await expectPaused(ended);
+    });
+
+    it("pauses him while the payment is past due, and once it ended", async () => {
+      const pastDue = await launchedCuso();
+      await subscribe(pastDue, null, { status: "past_due" });
+      await expectPaused(pastDue);
+
+      const ended = await launchedCuso();
+      await subscribe(ended, new Date());
+      await expectPaused(ended);
+    });
+
+    it("lets a Cuso hired with Starter credits work until they are used up", async () => {
+      const cuso = await launchedCuso();
+      await grant(
+        cuso.organizationId,
+        10n,
+        cuso.projectId,
+        STARTER(cuso.projectId),
+      );
+      await expectWorking(cuso);
+
+      await spendStarterCredits(cuso);
+      await expectPaused(cuso);
+    });
+  },
+);

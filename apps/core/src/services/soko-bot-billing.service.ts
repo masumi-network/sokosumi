@@ -15,7 +15,8 @@ const SOKO_BOT_BILLING_SHORTFALL_ERROR_KIND = "insufficient_credits";
 export class SokoBotBillingAccessError extends Error {
   constructor(
     message: string,
-    readonly reason: "seat" | "credits" = "credits",
+    /** `cmo_paused`: a Cuso without a paid CMO plan (ADR 0068). */
+    readonly reason: "seat" | "credits" | "cmo_paused" = "credits",
   ) {
     super(message);
   }
@@ -64,6 +65,8 @@ export interface SokoBotPayer {
    * without credits.
    */
   freeHiring?: boolean;
+  /** A Cuso: the CMO subscription gate applies to his turns. */
+  cuso?: boolean;
 }
 
 /** The credit scope a bot's charges and gates read: its Project, or none. */
@@ -103,6 +106,7 @@ async function sokoBotPayer(
     organizationId: bot.workspace.organizationId,
     projectId: bot.projectId,
     freeHiring: mayBeCuso && (await cusoInFreeHiring(sokoBotId, client)),
+    cuso: mayBeCuso,
   };
 }
 
@@ -112,6 +116,11 @@ async function cusoInFreeHiring(
 ): Promise<boolean> {
   const { isCusoInFreeHiring } = await import("@/services/cmo-billing.service");
   return isCusoInFreeHiring(sokoBotId, client);
+}
+
+async function cusoMayWork(projectId: string): Promise<boolean> {
+  const { isCmoSubscribed } = await import("@/services/cmo-billing.service");
+  return isCmoSubscribed({ projectId });
 }
 
 /** A shared bot's payer is its organization alone, whoever asked. */
@@ -238,6 +247,13 @@ export async function requireSokoBotTurnFunding(
       await requireMemberSeat(userId, payer.organizationId);
     }
     return;
+  }
+  // Pool credits alone never pay for a Cuso's turn (ADR 0068).
+  if (payer?.cuso && payer.projectId && !(await cusoMayWork(payer.projectId))) {
+    throw new SokoBotBillingAccessError(
+      "Cuso is paused: his Project has no active CMO subscription.",
+      "cmo_paused",
+    );
   }
   const shared = payer !== null && isSharedSokoBot(payer);
   // Turns record the Requester; usage records the member who paid.

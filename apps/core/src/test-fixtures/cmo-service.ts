@@ -22,6 +22,8 @@ export const subscriptionFindFirst = vi.fn();
 export const subscriptionCreate = vi.fn();
 export const subscriptionUpdate = vi.fn();
 export const projectFindUnique = vi.fn();
+/** The gate's free-hiring read: null unless a test is hiring. */
+export const projectFindFirst = vi.fn();
 export const projectUpdate = vi.fn();
 export const turnFindFirst = vi.fn();
 export const toolCallFindMany = vi.fn();
@@ -45,6 +47,8 @@ export const createOrganizationWorkspace = vi.fn();
 export const organizationFindFirst = vi.fn();
 export const organizationUpdate = vi.fn();
 export const creditBucketFindFirst = vi.fn();
+/** The gate's Starter credits read: none unless a test grants them. */
+export const creditBucketFindMany = vi.fn();
 /** The Project's CMO subscription that has not ended: none unless a test seeds one. */
 export const cmoSubscriptionFindFirst = vi.fn();
 export const grantFreeCredits = vi.fn();
@@ -232,10 +236,12 @@ const client = {
     findUnique: projectFindUnique,
     update: projectUpdate,
     updateMany: projectUpdateMany,
-    // Cuso's Project lives in the business's organization (ADR 0065).
-    findFirst: async () => ({
-      workspace: { id: "ws-1", userId: null, organizationId: "org-1" },
-    }),
+    // Cuso's Project lives in the business's organization (ADR 0065); the
+    // gate's free-hiring read is `projectFindFirst`.
+    findFirst: async (args: { select?: { workspace?: unknown } }) =>
+      args.select?.workspace
+        ? { workspace: { id: "ws-1", userId: null, organizationId: "org-1" } }
+        : projectFindFirst(args),
   },
   marketingStrategy,
   fileProjectLink: { findMany: fileLinkFindMany },
@@ -243,7 +249,10 @@ const client = {
     findFirst: organizationFindFirst,
     update: organizationUpdate,
   },
-  creditBucket: { findFirst: creditBucketFindFirst },
+  creditBucket: {
+    findFirst: creditBucketFindFirst,
+    findMany: creditBucketFindMany,
+  },
   cmoSubscription: { findFirst: cmoSubscriptionFindFirst },
   subscription: {
     findFirst: subscriptionFindFirst,
@@ -281,7 +290,7 @@ export const funding = {
   BillingError: class extends Error {
     constructor(
       message: string,
-      readonly reason: "seat" | "credits" = "credits",
+      readonly reason: "seat" | "credits" | "cmo_paused" = "credits",
     ) {
       super(message);
     }
@@ -373,6 +382,8 @@ export function resetCmoServiceMocks(): void {
   expireTurn.mockResolvedValue(true);
   cmoSubscriptionFindFirst.mockResolvedValue(null);
   creditBucketFindFirst.mockResolvedValue(null);
+  creditBucketFindMany.mockResolvedValue([]);
+  projectFindFirst.mockResolvedValue(null);
   toolCallFindMany.mockResolvedValue([]);
   // A report message comes back as it was written.
   messageUpsert.mockImplementation(async (args) => ({
