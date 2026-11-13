@@ -1047,6 +1047,8 @@
       "retry": "Erneut versuchen",
       "open": "Quelle öffnen",
       "openLabel": "Quelle öffnen: {title}",
+      "openSchedule": "In Zeitplänen ansehen",
+      "openScheduleLabel": "{title} in Zeitplänen ansehen",
       "openJob": "Job öffnen",
       "jobHint": {
         "started": "Der Job wird gestartet.",
@@ -1739,6 +1741,7 @@
           "placeholder": "Frag {name}…",
           "sendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
           "quietDay": "Noch hat sich nichts bewegt. Bitte {name}, etwas anzustoßen.",
+          "newSchedule": "Neuer Zeitplan für {name}",
           "open": "Öffnen",
           "suggestions": {
             "catchUp": "Bring mich auf den Stand",

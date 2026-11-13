@@ -1047,6 +1047,8 @@
       "retry": "Retry",
       "open": "Open source",
       "openLabel": "Open source: {title}",
+      "openSchedule": "View in schedules",
+      "openScheduleLabel": "View {title} in schedules",
       "openJob": "Open job",
       "jobHint": {
         "started": "Starting the job.",
@@ -1739,6 +1741,7 @@
           "placeholder": "Ask {name}…",
           "sendFailed": "Could not send your message. Please try again.",
           "quietDay": "Nothing moved yet. Ask {name} to start something.",
+          "newSchedule": "New schedule for {name}",
           "open": "Open",
           "suggestions": {
             "catchUp": "Catch me up",

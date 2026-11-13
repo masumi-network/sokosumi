@@ -202,6 +202,42 @@ describe("SokoBotHome", () => {
     expect(screen.queryByText(/quietDay/)).toBeNull();
   });
 
+  it("lists a schedule the bot just got among the Tasks, linked to its row", async () => {
+    await renderHome({
+      schedules: [
+        {
+          id: "sched-1",
+          name: "Monday invoices",
+          createdAt: new Date("2026-10-24T09:00:00Z"),
+        },
+      ],
+    });
+    const links = screen
+      .getAllByRole("link")
+      .filter((link) => link.closest("section[aria-labelledby]"));
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/personal-assistant?schedule=sched-1",
+      "/tasks/task-1",
+    ]);
+    expect(links[0]?.textContent).toContain('newSchedule:{"name":"Joseph"}');
+    expect(links[0]?.textContent).toContain("Monday invoices");
+    expect(links[0]?.textContent).toContain("2h");
+  });
+
+  it("drops the quiet line once the bot set up a schedule, with no Tasks", async () => {
+    await renderHome({
+      teamTasks: [],
+      schedules: [
+        {
+          id: "sched-1",
+          name: "Monday invoices",
+          createdAt: new Date("2026-10-24T09:00:00Z"),
+        },
+      ],
+    });
+    expect(screen.queryByText(/quietDay/)).toBeNull();
+  });
+
   it("drops the quiet line once a chat happened, with no Tasks", async () => {
     await renderHome({
       teamTasks: [],

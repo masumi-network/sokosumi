@@ -1047,6 +1047,8 @@
       "retry": "Reintentar",
       "open": "Abrir origen",
       "openLabel": "Abrir origen: {title}",
+      "openSchedule": "Ver en programaciones",
+      "openScheduleLabel": "Ver {title} en programaciones",
       "openJob": "Abrir job",
       "jobHint": {
         "started": "Iniciando el job.",
@@ -1739,6 +1741,7 @@
           "placeholder": "Pregunta a {name}…",
           "sendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
           "quietDay": "Todavía no se ha movido nada. Pide a {name} que empiece algo.",
+          "newSchedule": "Nueva programación para {name}",
           "open": "Abrir",
           "suggestions": {
             "catchUp": "Ponme al día",

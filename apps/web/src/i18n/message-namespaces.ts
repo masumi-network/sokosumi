@@ -89,6 +89,9 @@ export const APP_SHELL_MESSAGE_PATHS = [
   "App.Tasks.Priority.levels",
   "App.Tasks.RunAt.badge",
   "App.Tasks.Tags",
+  // Chat result cards name a Soko Bot follow-up's recurrence with the Task
+  // schedule labels, and Soko Bot routes render those cards too.
+  "App.Tasks.Schedule.option",
 ] as const;
 
 /** Default authenticated app bag — all App.* except SokoBot/Admin. */
