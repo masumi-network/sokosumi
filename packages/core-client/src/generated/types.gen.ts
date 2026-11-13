@@ -10967,6 +10967,7 @@ export type ProjectSeoRun = {
     observedAt: Date;
     issues: number | null;
     seconds: number | null;
+    monitorId?: string | null;
 };
 
 export type ProjectSeoAnalysis = {
@@ -10983,8 +10984,10 @@ export type ProjectSeoMonitor = {
     id: string;
     name: string;
     state: string;
+    revision: number;
+    createdAt: Date;
     nextRunAt: Date | null;
-    targetRunCount: number;
+    rule: ProjectSeoMonitorRule;
     releasedCount: number;
     pageIds: Array<string>;
     scopeVersion: number;
@@ -10993,7 +10996,53 @@ export type ProjectSeoMonitor = {
     devices: Array<'mobile' | 'desktop'>;
     kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
     maxProviderCalls: number;
-    timeZone: string;
+    lastRun: ProjectSeoMonitorLastRun | null;
+    change: ProjectSeoMonitorChange | null;
+};
+
+export type ProjectSeoMonitorRule = {
+    expr: string;
+    timezone: string;
+    endsMode: 'AFTER' | 'NEVER';
+    /**
+     * Total Runs when endsMode is AFTER, else null
+     */
+    targetRunCount: number | null;
+};
+
+export type ProjectSeoMonitorLastRun = {
+    at: Date;
+    status: 'requested' | 'running' | 'completed' | 'failed';
+    taskId: string | null;
+};
+
+export type ProjectSeoMonitorChange = {
+    from: Date;
+    to: Date;
+    comparable: boolean;
+    newFailureCount: number;
+    fixedCount: number;
+    newFailures: Array<{
+        rowId: string;
+        title: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop';
+    }>;
+    fixed: Array<{
+        rowId: string;
+        title: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop';
+    }>;
+    moves: Array<{
+        keyword: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        from: number;
+        to: number;
+    }>;
+    moveCount: number;
+    dropCount: number;
 };
 
 export type AddProjectSeoPageRequest = {
@@ -11061,9 +11110,7 @@ export type CreateProjectSeoActionTaskRequest = {
 
 export type CreateProjectSeoMonitorRequest = {
     operationId: string;
-    cadence: 'daily' | 'weekly';
-    timeZone: string;
-    targetRunCount: number;
+    rule: ProjectSeoMonitorRule;
     analysis: RequestProjectSeoAnalysisRequest;
 };
 
@@ -13433,13 +13480,17 @@ export type TaskSchedule = {
      */
     canWrite: boolean;
     /**
-     * Whether the caller may release an extra manual Run now. Finite SEO monitors permit only their approved planned Runs.
+     * Whether the caller may release an extra manual Run now. It does not count toward an end-after-N rule.
      */
     canRunNow: boolean;
     /**
-     * Whether the caller may edit the schedule blueprint and rule. Finite SEO monitor plans stay fixed; pause and end use canWrite.
+     * Whether the caller may edit the schedule blueprint and rule here. An SEO monitor is false: its rule is edited in the SEO workspace with only `rule` and `expectedRevision`; pause and end use canWrite.
      */
     canEditPlan: boolean;
+    /**
+     * The check and page count of an SEO monitor, so a client can write its plan sentence in the reader's language. Null for another schedule or a saved plan that no longer parses.
+     */
+    seoMonitor?: TaskScheduleSeoMonitor | null;
 };
 
 export const TaskScheduleState = {
@@ -13457,6 +13508,11 @@ export const TaskScheduleEndsMode = {
 } as const;
 
 export type TaskScheduleEndsMode = typeof TaskScheduleEndsMode[keyof typeof TaskScheduleEndsMode];
+
+export type TaskScheduleSeoMonitor = {
+    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
+    pageCount: number;
+};
 
 export type TaskScheduleAssignees = {
     coworkers: Array<Coworker>;

@@ -4366,9 +4366,27 @@ const projectSeoAnalysisSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const projectSeoMonitorLastRunSchemaResponseTransformer = (data: any) => {
+    data.at = new Date(data.at);
+    return data;
+};
+
+const projectSeoMonitorChangeSchemaResponseTransformer = (data: any) => {
+    data.from = new Date(data.from);
+    data.to = new Date(data.to);
+    return data;
+};
+
 const projectSeoMonitorSchemaResponseTransformer = (data: any) => {
+    data.createdAt = new Date(data.createdAt);
     if (data.nextRunAt) {
         data.nextRunAt = new Date(data.nextRunAt);
+    }
+    if (data.lastRun) {
+        data.lastRun = projectSeoMonitorLastRunSchemaResponseTransformer(data.lastRun);
+    }
+    if (data.change) {
+        data.change = projectSeoMonitorChangeSchemaResponseTransformer(data.change);
     }
     return data;
 };

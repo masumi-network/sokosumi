@@ -41697,6 +41697,17 @@ export const ProjectSeoRunSchema = {
                     type: 'null'
                 }
             ]
+        },
+        monitorId: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -41780,6 +41791,14 @@ export const ProjectSeoMonitorSchema = {
         state: {
             type: 'string'
         },
+        revision: {
+            type: 'integer'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
         nextRunAt: {
             type: [
                 'string',
@@ -41788,8 +41807,8 @@ export const ProjectSeoMonitorSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
-        targetRunCount: {
-            type: 'integer'
+        rule: {
+            $ref: '#/components/schemas/ProjectSeoMonitorRule'
         },
         releasedCount: {
             type: 'integer'
@@ -41833,16 +41852,35 @@ export const ProjectSeoMonitorSchema = {
         maxProviderCalls: {
             type: 'integer'
         },
-        timeZone: {
-            type: 'string'
+        lastRun: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoMonitorLastRun'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        change: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoMonitorChange'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
         'id',
         'name',
         'state',
+        'revision',
+        'createdAt',
         'nextRunAt',
-        'targetRunCount',
+        'rule',
         'releasedCount',
         'pageIds',
         'scopeVersion',
@@ -41851,7 +41889,233 @@ export const ProjectSeoMonitorSchema = {
         'devices',
         'kind',
         'maxProviderCalls',
-        'timeZone'
+        'lastRun',
+        'change'
+    ]
+} as const;
+
+export const ProjectSeoMonitorRuleSchema = {
+    type: 'object',
+    properties: {
+        expr: {
+            type: 'string',
+            maxLength: 100
+        },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        endsMode: {
+            type: 'string',
+            enum: [
+                'AFTER',
+                'NEVER'
+            ]
+        },
+        targetRunCount: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    minimum: 1,
+                    maximum: 31
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Total Runs when endsMode is AFTER, else null'
+        }
+    },
+    required: [
+        'expr',
+        'timezone',
+        'endsMode',
+        'targetRunCount'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ProjectSeoMonitorLastRunSchema = {
+    type: 'object',
+    properties: {
+        at: {
+            type: 'string',
+            format: 'date-time'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'requested',
+                'running',
+                'completed',
+                'failed'
+            ]
+        },
+        taskId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'at',
+        'status',
+        'taskId'
+    ]
+} as const;
+
+export const ProjectSeoMonitorChangeSchema = {
+    type: 'object',
+    properties: {
+        from: {
+            type: 'string',
+            format: 'date-time'
+        },
+        to: {
+            type: 'string',
+            format: 'date-time'
+        },
+        comparable: {
+            type: 'boolean'
+        },
+        newFailureCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        fixedCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        newFailures: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    rowId: {
+                        type: 'string'
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    device: {
+                        type: 'string',
+                        enum: [
+                            'mobile',
+                            'desktop'
+                        ]
+                    }
+                },
+                required: [
+                    'rowId',
+                    'title',
+                    'pageUrl',
+                    'device'
+                ]
+            },
+            maxItems: 10
+        },
+        fixed: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    rowId: {
+                        type: 'string'
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    device: {
+                        type: 'string',
+                        enum: [
+                            'mobile',
+                            'desktop'
+                        ]
+                    }
+                },
+                required: [
+                    'rowId',
+                    'title',
+                    'pageUrl',
+                    'device'
+                ]
+            },
+            maxItems: 10
+        },
+        moves: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    keyword: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    device: {
+                        anyOf: [
+                            {
+                                type: 'string',
+                                enum: [
+                                    'mobile',
+                                    'desktop'
+                                ]
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    from: {
+                        type: 'number'
+                    },
+                    to: {
+                        type: 'number'
+                    }
+                },
+                required: [
+                    'keyword',
+                    'pageUrl',
+                    'device',
+                    'from',
+                    'to'
+                ]
+            },
+            maxItems: 10
+        },
+        moveCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        dropCount: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'from',
+        'to',
+        'comparable',
+        'newFailureCount',
+        'fixedCount',
+        'newFailures',
+        'fixed',
+        'moves',
+        'moveCount',
+        'dropCount'
     ]
 } as const;
 
@@ -42203,22 +42467,8 @@ export const CreateProjectSeoMonitorRequestSchema = {
             type: 'string',
             format: 'uuid'
         },
-        cadence: {
-            type: 'string',
-            enum: [
-                'daily',
-                'weekly'
-            ]
-        },
-        timeZone: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 100
-        },
-        targetRunCount: {
-            type: 'integer',
-            minimum: 1,
-            maximum: 31
+        rule: {
+            $ref: '#/components/schemas/ProjectSeoMonitorRule'
         },
         analysis: {
             $ref: '#/components/schemas/RequestProjectSeoAnalysisRequest'
@@ -42226,9 +42476,7 @@ export const CreateProjectSeoMonitorRequestSchema = {
     },
     required: [
         'operationId',
-        'cadence',
-        'timeZone',
-        'targetRunCount',
+        'rule',
         'analysis'
     ],
     additionalProperties: false
@@ -52764,11 +53012,22 @@ export const TaskScheduleSchema = {
         },
         canRunNow: {
             type: 'boolean',
-            description: 'Whether the caller may release an extra manual Run now. Finite SEO monitors permit only their approved planned Runs.'
+            description: 'Whether the caller may release an extra manual Run now. It does not count toward an end-after-N rule.'
         },
         canEditPlan: {
             type: 'boolean',
-            description: 'Whether the caller may edit the schedule blueprint and rule. Finite SEO monitor plans stay fixed; pause and end use canWrite.'
+            description: 'Whether the caller may edit the schedule blueprint and rule here. An SEO monitor is false: its rule is edited in the SEO workspace with only `rule` and `expectedRevision`; pause and end use canWrite.'
+        },
+        seoMonitor: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskScheduleSeoMonitor'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The check and page count of an SEO monitor, so a client can write its plan sentence in the reader\'s language. Null for another schedule or a saved plan that no longer parses.'
         }
     },
     required: [
@@ -52816,6 +53075,30 @@ export const TaskScheduleEndsModeSchema = {
         'NEVER',
         'ON',
         'AFTER'
+    ]
+} as const;
+
+export const TaskScheduleSeoMonitorSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'page_check',
+                'rankings',
+                'links',
+                'audit_lite',
+                'audit_full'
+            ]
+        },
+        pageCount: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'kind',
+        'pageCount'
     ]
 } as const;
 
