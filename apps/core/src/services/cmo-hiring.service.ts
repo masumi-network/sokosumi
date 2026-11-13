@@ -548,11 +548,16 @@ async function requireNoUnpaidCuso(userId: string): Promise<void> {
 
 /**
  * Whether this person may hire Cuso while CMO is invite-only: the email Core
- * holds for them, or its `@domain`, is on `CMO_HIRE_ALLOWLIST`. Everything
- * else in CMO stays open to whoever already works with a Cuso.
+ * holds for them, verified, or its `@domain`, is on `CMO_HIRE_ALLOWLIST`.
+ * Everything else in CMO stays open to whoever already works with a Cuso.
  */
 export async function mayHireCuso(userId: string): Promise<boolean> {
-  return await isOnEmailAllowlist(userId, getEnv().CMO_HIRE_ALLOWLIST);
+  // Each hire's research and plan are free, and anyone can register an
+  // unverified address at a listed domain. Gates new hires only: a person's
+  // existing Cusos open whatever this says.
+  return await isOnEmailAllowlist(userId, getEnv().CMO_HIRE_ALLOWLIST, {
+    requireVerifiedEmail: true,
+  });
 }
 
 /**

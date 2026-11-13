@@ -246,6 +246,31 @@ describe("CMO routes", () => {
     expect((await response.json()).data).toEqual({ cusos: [], mayHire: false });
   });
 
+  it("still lists and opens the Cusos of a person who may not hire, such as one with an unverified email", async () => {
+    listMock.mockResolvedValue([
+      {
+        projectId: PROJECT_ID,
+        businessName: "acme.io",
+        websiteUrl: "https://acme.io",
+        projectLogo: null,
+        organizationId: "org-1",
+        organizationName: "Acme",
+        hiring: false,
+        createdAt: NOW,
+      },
+    ]);
+    mayHireMock.mockResolvedValue(false);
+    const list = await createApp().request("/cusos");
+    const { data } = await list.json();
+    expect(data.mayHire).toBe(false);
+    expect(
+      data.cusos.map((cuso: { projectId: string }) => cuso.projectId),
+    ).toEqual([PROJECT_ID]);
+
+    const opened = await createApp().request(`/projects/${PROJECT_ID}`);
+    expect(opened.status).toBe(200);
+  });
+
   it("no longer opens a default Cuso for the caller", async () => {
     const response = await createApp().request("/");
     expect(response.status).toBe(404);

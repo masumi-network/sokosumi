@@ -530,15 +530,44 @@ describe("startCmoOnboarding", () => {
     expect(grantFreeCredits).not.toHaveBeenCalled();
   });
 
+  it("refuses a person on the list whose email is not verified, and hires once it is", async () => {
+    envOverrides.CMO_HIRE_ALLOWLIST = ["@harborbikes.com"];
+    userFindUnique.mockResolvedValue({
+      email: "lena@harborbikes.com",
+      emailVerified: false,
+      preferredOrganizationId: "org-1",
+    });
+    await expect(mayHireCuso("user-1")).resolves.toBe(false);
+    await expect(startCmoOnboarding(input)).rejects.toMatchObject({
+      kind: "cmo_hire_not_allowed",
+    });
+    expect(projectCreate).not.toHaveBeenCalled();
+
+    userFindUnique.mockResolvedValue({
+      email: "lena@harborbikes.com",
+      emailVerified: true,
+      preferredOrganizationId: "org-1",
+    });
+    await expect(startCmoOnboarding(input)).resolves.toMatchObject({
+      projectId: "project-1",
+    });
+  });
+
   it("reads the email Core holds, ignoring its case and spaces", async () => {
     envOverrides.CMO_HIRE_ALLOWLIST = ["@harborbikes.com"];
-    userFindUnique.mockResolvedValue({ email: " Lena@HarborBikes.COM " });
+    userFindUnique.mockResolvedValue({
+      email: " Lena@HarborBikes.COM ",
+      emailVerified: true,
+    });
     await expect(mayHireCuso("user-1")).resolves.toBe(true);
     expect(userFindUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: "user-1" } }),
     );
     // A subdomain is another domain.
-    userFindUnique.mockResolvedValue({ email: "lena@shop.harborbikes.com" });
+    userFindUnique.mockResolvedValue({
+      email: "lena@shop.harborbikes.com",
+      emailVerified: true,
+    });
     await expect(mayHireCuso("user-1")).resolves.toBe(false);
     userFindUnique.mockResolvedValue(null);
     await expect(mayHireCuso("user-1")).resolves.toBe(false);
