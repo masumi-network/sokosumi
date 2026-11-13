@@ -13,12 +13,16 @@ import {
   NeedsYouPanel,
   panelFeed,
 } from "@/app/projects/components/workspace-column";
-import { WORKSPACE_COLUMN_ROWS } from "@/app/projects/constants";
+import {
+  PROJECTS_PAGE_LIMIT,
+  WORKSPACE_COLUMN_ROWS,
+} from "@/app/projects/constants";
 import { dayInTimeZone } from "@/app/tasks/utils/task-due";
 import { getSession } from "@/lib/auth/auth.server";
 import { chatRoomService } from "@/lib/services/chat-room.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { notificationService } from "@/lib/services/notification.service";
+import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
@@ -128,7 +132,19 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
         feed: panelFeed(
           notificationService.listNeedsYou(WORKSPACE_COLUMN_ROWS),
         ),
-        projects: {},
+        // The workspace's first page of projects, read next to the rows, so
+        // a row's project is usually known without its own read after them.
+        projects: projectService
+          .listProjects({ limit: PROJECTS_PAGE_LIMIT })
+          .then(({ projects }) =>
+            Object.fromEntries(
+              projects.map((project) => [
+                project.id,
+                { name: project.name, logo: project.logo },
+              ]),
+            ),
+          )
+          .catch(() => ({})),
         quiet: true,
       })}
     </Suspense>

@@ -17,6 +17,9 @@ const getActiveOrganizationId = vi.fn(async (): Promise<string | null> => null);
 const listNeedsYou = vi.fn(async () => []);
 const loadMyDay = vi.fn(async (_today: string) => null);
 const myDay = vi.fn();
+const listProjects = vi.fn(async (_query: { limit: number }) => ({
+  projects: [{ id: "project-1", name: "Launch", logo: null }],
+}));
 const redirect = vi.fn((path: string) => {
   throw new Error(`NEXT_REDIRECT ${path}`);
 });
@@ -102,6 +105,11 @@ vi.mock("@/app/chat/components/landing/chat-landing", () => ({
 vi.mock("@/lib/services/notification.service", () => ({
   notificationService: { listNeedsYou: () => listNeedsYou() },
 }));
+vi.mock("@/lib/services/project.service", () => ({
+  projectService: {
+    listProjects: (query: { limit: number }) => listProjects(query),
+  },
+}));
 vi.mock("@/app/projects/components/workspace-column", () => ({
   panelFeed: <T,>(promise: Promise<T[]>) => promise.catch(() => null),
   NeedsYouPanel: (props: unknown) => {
@@ -185,6 +193,7 @@ describe("WelcomePage", () => {
     expect(getActivitySummary).not.toHaveBeenCalled();
     expect(listNeedsYou).not.toHaveBeenCalled();
     expect(loadMyDay).not.toHaveBeenCalled();
+    expect(listProjects).not.toHaveBeenCalled();
     expect(chatLanding).not.toHaveBeenCalled();
   });
 
@@ -210,8 +219,16 @@ describe("WelcomePage", () => {
     expect(screen.getByText("needs you")).toBeTruthy();
     expect(needsYouPanel).toHaveBeenCalledTimes(1);
     expect(needsYouPanel).toHaveBeenCalledWith(
-      expect.objectContaining({ quiet: true, projects: {} }),
+      expect.objectContaining({ quiet: true }),
     );
+    // The first page of projects is read next to the rows, not after them.
+    const [{ projects }] = needsYouPanel.mock.calls[0] as [
+      { projects: Promise<unknown> },
+    ];
+    expect(listProjects).toHaveBeenCalledWith({ limit: 20 });
+    await expect(projects).resolves.toEqual({
+      "project-1": { name: "Launch", logo: null },
+    });
   });
 
   it("keeps the coworker welcome when the bot cannot be read", async () => {
