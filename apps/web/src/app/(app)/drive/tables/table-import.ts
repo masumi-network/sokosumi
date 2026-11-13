@@ -76,13 +76,20 @@ export function tableInsertRows(
   });
 }
 
-/** Clipboard text that holds more than one spreadsheet cell. */
-export function isPastedRange(text: string, column: Pick<TableColumn, "type">) {
-  const range = text.replace(/\r?\n$/, "");
-  // One long text value may hold its own line breaks.
-  return (
-    range.includes("\t") || (column.type !== "long_text" && /\n/.test(range))
-  );
+/**
+ * Clipboard text that holds more than one spreadsheet cell. Line breaks alone
+ * count only when the clipboard also carries an HTML table, as spreadsheets
+ * put there: an address copied from an email stays one value. One quoted cell
+ * with its own line breaks is still one cell.
+ */
+export function isPastedRange(text: string, html = "") {
+  if (!text.includes("\t") && !/<table[\s>]/i.test(html)) return false;
+  try {
+    const rows = readCsvRows(text, { delimiter: "\t" });
+    return rows.length > 1 || (rows[0]?.length ?? 0) > 1;
+  } catch {
+    return false;
+  }
 }
 
 /**

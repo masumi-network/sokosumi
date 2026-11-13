@@ -239,7 +239,11 @@ export function TableCell({
     if (event.target !== event.currentTarget || disabled || editing) return;
     event.preventDefault();
     const text = event.clipboardData.getData("text/plain");
-    if (onPasteRows && isPastedRange(text, column)) return onPasteRows(text);
+    if (
+      onPasteRows &&
+      isPastedRange(text, event.clipboardData.getData("text/html"))
+    )
+      return onPasteRows(text);
     // A row copied from a spreadsheet ends in a newline; the value does not.
     commit(text.replace(/\r?\n$/, ""));
   }

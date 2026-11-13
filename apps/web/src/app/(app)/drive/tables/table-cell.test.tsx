@@ -304,7 +304,10 @@ describe("table cell selection", () => {
     const pasteRows = vi.fn();
     renderCell({ active: true, onSave: save, onPasteRows: pasteRows });
     fireEvent.paste(gridCell(), {
-      clipboardData: { getData: () => "Acme\t3\nGlobex\t5\n" },
+      clipboardData: {
+        getData: (type: string) =>
+          type === "text/plain" ? "Acme\t3\nGlobex\t5\n" : "",
+      },
     });
     expect(pasteRows).toHaveBeenCalledWith("Acme\t3\nGlobex\t5\n");
     expect(save).not.toHaveBeenCalled();

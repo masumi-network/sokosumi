@@ -81,22 +81,34 @@ export function TableCreateDialog({
     if (file.size > 5000000) setError(t("csvLimit"));
     else handleRows(await file.text(), ",", file.name);
   }
+  /** Blank text clears the import; text that fails to parse clears it too,
+   * so Create never sends rows the source no longer holds. */
   function handleRows(text: string, delimiter: "," | "\t", name: string) {
+    setAttempt(null);
     try {
-      const rows = parseTableCsv(text, { delimiter });
+      const rows = text.trim() ? parseTableCsv(text, { delimiter }) : [];
+      const header = rows[0] ?? [];
       setCsv(rows);
       setCsvName(name);
-      setColumns(
-        rows[0].map((name) => ({
-          id: crypto.randomUUID(),
-          name,
-          type: "text",
-          options: [],
-        })),
-      );
-      setAttempt(null);
+      // An edit that keeps the header keeps the names, types and options
+      // already mapped to it.
+      if (
+        header.length !== csv[0]?.length ||
+        header.some((cell, i) => cell !== csv[0][i])
+      )
+        setColumns(
+          header.map((name) => ({
+            id: crypto.randomUUID(),
+            name,
+            type: "text",
+            options: [],
+          })),
+        );
       setError("");
     } catch (error) {
+      setCsv([]);
+      setCsvName("");
+      setColumns([]);
       setError(tableError(error, t));
     }
   }
@@ -266,10 +278,7 @@ export function TableCreateDialog({
               className="min-h-20 font-mono"
               placeholder={t("pastePlaceholder")}
               disabled={pending || !!attempt}
-              onChange={(event) => {
-                if (event.target.value.trim())
-                  handleRows(event.target.value, "\t", "");
-              }}
+              onChange={(event) => handleRows(event.target.value, "\t", "")}
             />
             <p className="text-muted-foreground text-sm">
               {t("pasteCellsHint")}

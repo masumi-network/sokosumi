@@ -1347,3 +1347,63 @@ describe("archive rows", () => {
     });
   });
 });
+it("P1: clearing or breaking pasted cells clears the import before Create", async () => {
+  f.create.mockResolvedValue({ id: f.column.tableId });
+  render(<TableCreateDialog workspaceId={null} />);
+  fireEvent.click(screen.getByRole("button", { name: "newTable" }));
+  fireEvent.change(screen.getByLabelText("title"), {
+    target: { value: "Pasted" },
+  });
+  const paste = screen.getByLabelText("pasteCells");
+  fireEvent.change(paste, { target: { value: "Company\nAcme\n" } });
+  expect(screen.getByLabelText("type")).toBeInTheDocument();
+  fireEvent.change(paste, { target: { value: "A\tB\nonly one" } });
+  expect(screen.getByRole("alert")).toHaveTextContent("errors.csvWidth");
+  expect(screen.queryByLabelText("type")).toBeNull();
+  fireEvent.change(paste, { target: { value: "Company\nAcme\n" } });
+  fireEvent.change(paste, { target: { value: "" } });
+  expect(screen.queryByLabelText("type")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "create" }));
+  await waitFor(() => expect(f.push).toHaveBeenCalled());
+  expect(f.create.mock.calls[0][0].columns).toEqual([
+    expect.objectContaining({ name: "firstColumn" }),
+  ]);
+  expect(f.batch).not.toHaveBeenCalled();
+});
+it("P1: editing pasted rows under the same header keeps the column types", () => {
+  render(<TableCreateDialog workspaceId={null} />);
+  fireEvent.click(screen.getByRole("button", { name: "newTable" }));
+  const paste = screen.getByLabelText("pasteCells");
+  fireEvent.change(paste, { target: { value: "Seats\n3" } });
+  fireEvent.change(screen.getByLabelText("type"), {
+    target: { value: "number" },
+  });
+  fireEvent.change(paste, { target: { value: "Seats\n4" } });
+  expect(screen.getByLabelText("type")).toHaveValue("number");
+  fireEvent.change(paste, { target: { value: "Desks\n4" } });
+  expect(screen.getByLabelText("type")).toHaveValue("text");
+});
+it("P2: cells pasted on a cell add rows from that cell's column", async () => {
+  f.columns = [f.column, f.score];
+  f.batch.mockResolvedValue({ rows: [] });
+  render(<TableEditor id={f.column.tableId} />);
+  const cell = document.querySelector<HTMLElement>(
+    `td[data-column="${f.score.id}"]`,
+  );
+  if (!cell) throw new Error("Score cell missing");
+  fireEvent.paste(cell, {
+    clipboardData: {
+      getData: (type: string) =>
+        type === "text/html" ? "<table><tr><td>7</td></tr></table>" : "7\n8\n",
+    },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "addPastedRows" }));
+  await waitFor(() => expect(f.batch).toHaveBeenCalledOnce());
+  expect(f.batch.mock.calls[0][1].insert).toEqual([
+    { values: { [f.score.id]: 7 }, evidence: {} },
+    { values: { [f.score.id]: 8 }, evidence: {} },
+  ]);
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "addPastedRows" })).toBeNull(),
+  );
+});

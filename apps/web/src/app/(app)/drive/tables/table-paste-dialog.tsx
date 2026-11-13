@@ -2,7 +2,7 @@
 
 import type { TableColumn } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,18 +49,20 @@ export function TablePasteDialog({
   // One key per pasted text: a retry after a failed batch replays the batches
   // that already landed instead of adding their rows twice.
   const [key, setKey] = useState(() => crypto.randomUUID());
-  let parsed: ReturnType<typeof pastedTableRows> | null = null;
-  let parseError = "";
-  if (text.trim())
+  // Parsed once per text, not on every progress tick of an import.
+  const { parsed, parseError } = useMemo(() => {
+    if (!text.trim()) return { parsed: null, parseError: "" };
     try {
-      parsed = pastedTableRows(columns, text);
+      return { parsed: pastedTableRows(columns, text), parseError: "" };
     } catch (error) {
-      parseError = tableError(error, t);
+      return { parsed: null, parseError: tableError(error, t) };
     }
+  }, [columns, text, t]);
   async function handleAdd() {
     if (!parsed) return;
     setPending(true);
     setError("");
+    let added = 0;
     try {
       const offset = parsed.header ? 2 : 1;
       const rows = tableInsertRows(
@@ -69,7 +71,6 @@ export function TablePasteDialog({
         (index, error) =>
           new Error(`${t("row")} ${index + offset}: ${tableError(error, t)}`),
       );
-      let added = 0;
       for (const batch of tableImportBatches(key, rows)) {
         await dataTableService.batch(tableId, batch);
         added += batch.insert.length;
@@ -79,6 +80,8 @@ export function TablePasteDialog({
       onClose();
     } catch (error) {
       setError(tableError(error, t));
+      // Batches that landed before the failure show in the grid now.
+      if (added) void onAdded();
     } finally {
       setPending(false);
     }

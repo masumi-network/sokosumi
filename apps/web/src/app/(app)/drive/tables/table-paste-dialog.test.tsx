@@ -74,3 +74,24 @@ it("names the row a pasted value fails in and adds nothing", async () => {
   expect(await screen.findByText("row 1: errors.number")).toBeTruthy();
   expect(batch).not.toHaveBeenCalled();
 });
+
+it("shows rows from batches that landed when a later batch fails", async () => {
+  batch.mockReset();
+  batch.mockResolvedValueOnce({}).mockRejectedValueOnce(new Error("offline"));
+  const added = vi.fn().mockResolvedValue(undefined);
+  const close = vi.fn();
+  render(
+    <TablePasteDialog
+      tableId={columns[0].tableId}
+      columns={columns}
+      text={Array.from({ length: 120 }, (_, i) => `Row ${i}\t${i}`).join("\n")}
+      onClose={close}
+      onAdded={added}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "addPastedRows:120" }));
+  expect(await screen.findByText("offline")).toBeTruthy();
+  expect(batch).toHaveBeenCalledTimes(2);
+  expect(added).toHaveBeenCalledOnce();
+  expect(close).not.toHaveBeenCalled();
+});

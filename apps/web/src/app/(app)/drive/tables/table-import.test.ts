@@ -75,10 +75,12 @@ it("parses text rows into insert rows and names the failing row", () => {
   ).toThrow("row 1");
 });
 it("treats only multi-cell clipboard text as a range", () => {
-  expect(isPastedRange("Acme\n", { type: "text" })).toBe(false);
-  expect(isPastedRange("Acme\tAcme Ltd", { type: "text" })).toBe(true);
-  expect(isPastedRange("Acme\nGlobex", { type: "text" })).toBe(true);
-  expect(isPastedRange("line one\nline two", { type: "long_text" })).toBe(
-    false,
-  );
+  const table = "<table><tr><td>x</td></tr></table>";
+  expect(isPastedRange("Acme\n")).toBe(false);
+  expect(isPastedRange("Acme\tAcme Ltd")).toBe(true);
+  // An address from an email is one value; a column from a sheet is rows.
+  expect(isPastedRange("1 Main St\nSpringfield")).toBe(false);
+  expect(isPastedRange("Acme\nGlobex\n", table)).toBe(true);
+  // One sheet cell with its own line breaks is one cell.
+  expect(isPastedRange('"line one\nline two"\n', table)).toBe(false);
 });
