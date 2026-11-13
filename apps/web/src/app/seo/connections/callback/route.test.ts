@@ -3,6 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import { readSeoConnectionHandoff } from "@/lib/seo/connection-callback";
 import { GET } from "./route";
 
+const SCRIPT_OPEN = "<script>";
+const SCRIPT_CLOSE = "</script>";
+
 describe("SEO callback privacy handoff", () => {
   it("hands one-use consent to a clean native URL without loading app analytics or a bot verifier", async () => {
     const params = new URLSearchParams({
@@ -22,8 +25,11 @@ describe("SEO callback privacy handoff", () => {
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
     expect(html).not.toContain("</script><script>unexpected()");
-    const script = html.match(/<script>([\s\S]*)<\/script>/)?.[1];
-    if (!script) throw new Error("Missing handoff script");
+    // The route writes this exact tag pair: a plain string search, no HTML-filter regex.
+    const open = html.indexOf(SCRIPT_OPEN);
+    const close = html.lastIndexOf(SCRIPT_CLOSE);
+    if (open < 0 || close < open) throw new Error("Missing handoff script");
+    const script = html.slice(open + SCRIPT_OPEN.length, close);
     const replace = vi.fn();
     const window = { name: "", location: { replace } };
     runInNewContext(script, { window });
