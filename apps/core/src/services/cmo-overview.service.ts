@@ -42,6 +42,10 @@ import {
   type CmoUpdateRecord,
   listCmoReports,
 } from "@/services/cmo-reports.service";
+import {
+  type CmoSubscriptionBilling,
+  cmoSubscriptionBilling,
+} from "@/services/cmo-subscription.service";
 import { contactListNameKey } from "@/services/contact-lists.service";
 import {
   approvedMarketingStrategy,
@@ -156,7 +160,7 @@ export interface CmoOverview {
     plan: string | null;
     subscriptionStatus: string | null;
     availableCredits: number;
-  };
+  } & CmoSubscriptionBilling;
   /** Real post counts by status from Project Social; no invented metrics. */
   posts: Record<string, number>;
 }
@@ -282,7 +286,7 @@ export async function getCmoOverview(
   // Up next is what is carried out: the approved version's calendar.
   const running = approved ? planOf(approved) : strategy;
   const web = getWebAppBaseUrl().replace(/\/+$/, "");
-  const [credits, viewerCanApprove] = await Promise.all([
+  const [credits, viewerCanApprove, subscriptionBilling] = await Promise.all([
     buildCreditsPayload({
       userId,
       organizationId: payer.organizationId,
@@ -295,6 +299,7 @@ export async function getCmoOverview(
       userId: null,
       organizationId: payer.organizationId,
     }),
+    cmoSubscriptionBilling(cuso.projectId),
   ]);
   const subscribed = await isCmoSubscribed(cuso);
   const mediaOf = (plan: typeof strategy) =>
@@ -417,6 +422,7 @@ export async function getCmoOverview(
       plan: credits.subscription?.plan ?? null,
       subscriptionStatus: credits.subscription?.status ?? null,
       availableCredits: credits.spendable,
+      ...subscriptionBilling,
     },
     posts: Object.fromEntries(
       postGroups.map((group) => [group.status, group._count._all]),

@@ -25,7 +25,11 @@ type SubscriptionEvent = Extract<
     type:
       | "subscription.created"
       | "subscription.active"
-      | "subscription.updated";
+      | "subscription.updated"
+      | "subscription.canceled"
+      | "subscription.uncanceled"
+      | "subscription.past_due"
+      | "subscription.revoked";
   }
 >;
 type PolarSubscription = SubscriptionEvent["data"];
@@ -71,6 +75,8 @@ interface SubscriptionSource {
   /** Left out by an order, which does not carry the pending change. */
   pendingProductId?: string | null;
   plan: CmoPlanOfProduct;
+  /** `subscription.revoked`: ended, whatever status the payload carries. */
+  revoked?: boolean;
   subscription: SubscriptionState;
 }
 
@@ -120,7 +126,7 @@ async function upsertCmoSubscription(
     cancelAtPeriodEnd: subscription.cancel_at_period_end,
     endedAt: subscription.ended_at
       ? new Date(subscription.ended_at)
-      : ENDED_STATUSES.has(subscription.status)
+      : source.revoked || ENDED_STATUSES.has(subscription.status)
         ? eventAt
         : null,
     polarEventAt: eventAt,
@@ -173,7 +179,46 @@ async function upsertCmoSubscription(
   }
 }
 
-/** `subscription.*`: only the row changes; credits come with `order.paid`. */
+/** What the CMO overview shows of a Cuso's CMO subscription. */
+export interface CmoSubscriptionBilling {
+  tier: string | null;
+  interval: "month" | "year" | null;
+  /** Polar's status; `past_due` after a renewal payment failed. */
+  status: string | null;
+  /** The renewal date, or the end date when a cancel is scheduled. */
+  periodEnd: Date | null;
+  cancelAtPeriodEnd: boolean;
+}
+
+/** The Project's subscription that has not ended; empty without one. */
+export async function cmoSubscriptionBilling(
+  projectId: string,
+): Promise<CmoSubscriptionBilling> {
+  const row = await prisma.cmoSubscription.findFirst({
+    where: { projectId, endedAt: null },
+    select: {
+      tier: true,
+      interval: true,
+      status: true,
+      currentPeriodEnd: true,
+      cancelAtPeriodEnd: true,
+    },
+  });
+  return {
+    tier: row?.tier ?? null,
+    interval: row?.interval === "year" ? "year" : row ? "month" : null,
+    status: row?.status ?? null,
+    periodEnd: row?.currentPeriodEnd ?? null,
+    cancelAtPeriodEnd: row?.cancelAtPeriodEnd ?? false,
+  };
+}
+
+/**
+ * `subscription.*`: only the row changes; credits come with `order.paid`. A
+ * scheduled cancel stays active with its period end, past due waits for
+ * Polar to collect, and a revoke ends the row, so the Project is free for a
+ * new checkout.
+ */
 export async function handlePolarSubscriptionEvent(
   event: SubscriptionEvent,
 ): Promise<void> {
@@ -197,6 +242,7 @@ export async function handlePolarSubscriptionEvent(
     metadata: subscription.metadata,
     pendingProductId: subscription.pending_update?.product_id ?? null,
     plan,
+    revoked: event.type === "subscription.revoked",
     subscription,
   });
   if (typeof row === "string") reportUnusableEvent(event, row, extra);
@@ -204,19 +250,22 @@ export async function handlePolarSubscriptionEvent(
 
 /**
  * `order.paid`: the only event that grants. The first order of a plan records
- * the subscription and grants its first month as Project credits. The grant
- * rides on the bucket's unique key, so a redelivered or raced event ends there.
+ * the subscription and grants its first month as Project credits; each paid
+ * renewal grants the month again at the tier Polar billed. A renewal Polar
+ * could not collect has no paid order, so it grants nothing until it has. The
+ * grant rides on the bucket's unique key, so a redelivered or raced event ends
+ * there.
  */
 export async function handlePolarOrderPaid(
   event: OrderPaidEvent,
 ): Promise<void> {
   const order = event.data;
-  // A yearly renewal grants its month 0 as the first order does; the yearly
-  // grant job counts months 1 to 11 from this order.
-  const isYearlyRenewal =
-    order.billing_reason === "subscription_cycle" &&
-    order.subscription?.recurring_interval === "year";
-  if (order.billing_reason !== "subscription_create" && !isYearlyRenewal) {
+  // A yearly cycle order grants month 0 only (expiring one month after the
+  // period starts); the yearly grant job counts months 1 to 11 from it.
+  if (
+    order.billing_reason !== "subscription_create" &&
+    order.billing_reason !== "subscription_cycle"
+  ) {
     return;
   }
   const extra = {
@@ -250,7 +299,14 @@ export async function handlePolarOrderPaid(
 
   const { organizationId, projectId } = row;
   const amount = convertCreditsToCents(plan.credits);
-  const monthStart = new Date(subscription.current_period_start);
+  // The period this order billed: its own line, because a late delivery
+  // finds the subscription already in a later period.
+  const billed = order.items?.find(
+    (item) => !item.proration && item.start_timestamp && item.end_timestamp,
+  );
+  const monthStart = new Date(
+    billed?.start_timestamp ?? subscription.current_period_start,
+  );
   try {
     await prisma.$transaction(async (tx) => {
       await tx.transaction.create({
@@ -265,7 +321,9 @@ export async function handlePolarOrderPaid(
               // month is the period Polar billed.
               expiresAt:
                 plan.interval === "month"
-                  ? new Date(subscription.current_period_end)
+                  ? new Date(
+                      billed?.end_timestamp ?? subscription.current_period_end,
+                    )
                   : getNextMonthlyPeriodEnd(monthStart, monthStart),
               organizationId,
               projectId,

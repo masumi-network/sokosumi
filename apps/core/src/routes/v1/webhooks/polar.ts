@@ -79,6 +79,10 @@ app.openapi(route, async (c) => {
     case "subscription.created":
     case "subscription.active":
     case "subscription.updated":
+    case "subscription.canceled":
+    case "subscription.uncanceled":
+    case "subscription.past_due":
+    case "subscription.revoked":
       await handlePolarSubscriptionEvent(event);
       break;
   }

@@ -151,7 +151,16 @@ function overview() {
     },
     mailingListSize: 0,
     subscribeUrl: "http://web/billing",
-    billing: { plan: null, subscriptionStatus: null, availableCredits: 12 },
+    billing: {
+      plan: null,
+      subscriptionStatus: null,
+      availableCredits: 12,
+      tier: "growth",
+      interval: "month",
+      status: "past_due",
+      periodEnd: new Date("2026-11-05T09:00:00.000Z"),
+      cancelAtPeriodEnd: false,
+    },
     posts: { DRAFT: 3, SCHEDULED: 1, PUBLISHING: 1, MISSED: 1 },
   };
 }
@@ -326,6 +335,21 @@ describe("CMO routes", () => {
       scheduled: 2,
       published: 0,
       failed: 1,
+    });
+  });
+
+  it("returns the Cuso's CMO subscription and credits in the billing block", async () => {
+    const response = await createApp().request(`/projects/${PROJECT_ID}`);
+
+    expect((await response.json()).data.billing).toEqual({
+      plan: null,
+      subscriptionStatus: null,
+      availableCredits: 12,
+      tier: "growth",
+      interval: "month",
+      status: "past_due",
+      periodEnd: "2026-11-05T09:00:00.000Z",
+      cancelAtPeriodEnd: false,
     });
   });
 

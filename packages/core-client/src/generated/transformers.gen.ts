@@ -4638,6 +4638,9 @@ const cmoOverviewSchemaResponseTransformer = (data: any) => {
         data.hiredAt = new Date(data.hiredAt);
     }
     data.updates = data.updates.map((item: any) => cmoUpdateSchemaResponseTransformer(item));
+    if (data.billing.periodEnd) {
+        data.billing.periodEnd = new Date(data.billing.periodEnd);
+    }
     data.createdAt = new Date(data.createdAt);
     return data;
 };

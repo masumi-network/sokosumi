@@ -23,6 +23,7 @@ import { StartOver } from "../start-over";
 import { StatusText } from "../status";
 import { MeasureFunnel } from "../strategy-core";
 import { SubmitButton } from "../submit-button";
+import { SubscriptionCard } from "./subscription-card";
 
 interface PageProps {
   overview: CmoOverview;
@@ -442,6 +443,7 @@ export function SettingsPage({
 }) {
   return (
     <div className="page-body">
+      <SubscriptionCard billing={overview.billing} />
       <section className="card">
         <h3>Credits</h3>
         <div className="li">
