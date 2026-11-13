@@ -321,9 +321,14 @@ async function loadSeoWorkspaceObservations(
         })
       : [],
   ]);
-  return [...evidence, ...metrics].sort(
-    (a, b) => b.observedAt.getTime() - a.observedAt.getTime(),
-  );
+  return {
+    observations: [...evidence, ...metrics].sort(
+      (a, b) => b.observedAt.getTime() - a.observedAt.getTime(),
+    ),
+    historyLimited:
+      evidence.length >= SEO_WORKSPACE_EVIDENCE_LIMIT ||
+      metrics.length >= SEO_WORKSPACE_METRICS_LIMIT,
+  };
 }
 
 export async function getProjectSeoWorkspace(
@@ -337,7 +342,7 @@ export async function getProjectSeoWorkspace(
   const [
     pages,
     scopes,
-    observations,
+    { observations, historyLimited },
     keywords,
     competitors,
     analyses,
@@ -428,6 +433,7 @@ export async function getProjectSeoWorkspace(
     pages,
     scopes,
     observations,
+    historyLimited,
     keywords,
     competitors,
     analyses,

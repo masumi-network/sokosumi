@@ -1214,6 +1214,51 @@ describe.skipIf(!enabled)(
       expect(ids).toContain(audit.id);
     });
 
+    it("marks the history limited only when one load reaches its own cap", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: "https://example.test/history-split",
+        relationship: "primary",
+      });
+      const payload = parsePublicSeoArtifact({
+        ...legacyReport(),
+        request: { url: page.url },
+      });
+      const audits = (from: number, count: number) =>
+        prisma.projectSeoObservation.createMany({
+          data: Array.from({ length: count }, (_, index) => ({
+            projectId,
+            source: "seo_coworker",
+            kind: "audit_full",
+            sourceKey: `history-split-audit:${from + index}`,
+            pageIds: [page.id],
+            artifactHash: "history-split-audit",
+            payload,
+            observedAt: new Date(Date.UTC(2026, 9, 1, 0, from + index)),
+          })),
+        });
+      await audits(0, 60);
+      await prisma.projectSeoObservation.createMany({
+        data: Array.from({ length: 40 }, (_, index) => ({
+          projectId,
+          ownerId: userId,
+          visibility: "PRIVATE",
+          source: "ga4",
+          kind: "metrics",
+          sourceKey: `history-split-sync:${index}`,
+          pageIds: [page.id],
+          artifactHash: `history-split-sync:${index}`,
+          payload: metrics([page.url]),
+          observedAt: new Date(Date.UTC(2026, 10, 1, 0, index)),
+        })),
+      });
+      const history = async () =>
+        (await getProjectSeoWorkspace(actor, { pageId: page.id })).history;
+      // 100 rows in all, but neither load reached its own cap of 100.
+      expect(await history()).toEqual({ limit: 100, limited: false });
+      await audits(60, 40);
+      expect(await history()).toEqual({ limit: 100, limited: true });
+    });
+
     it("keeps the newest saved brand terms, even a list saved before", async () => {
       const page = await addProjectSeoPage(actor, {
         url: "https://example.test/brand-terms",

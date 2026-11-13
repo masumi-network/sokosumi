@@ -64,6 +64,8 @@ interface ProjectionInput {
   pages: ProjectSeoPage[];
   scopes: ProjectSeoScope[];
   observations: ProjectSeoObservation[];
+  /** True when the evidence or the metrics load reached its own row cap. */
+  historyLimited: boolean;
   keywords: ProjectSeoKeyword[];
   competitors: ProjectSeoCompetitor[];
   analyses: ProjectSeoAnalysis[];
@@ -668,7 +670,7 @@ export function projectSeoProjection(
     observations,
     history: {
       limit: SEO_RESULT_LIMIT,
-      limited: input.observations.length >= SEO_RESULT_LIMIT,
+      limited: input.historyLimited,
     },
     keywords,
     competitors,

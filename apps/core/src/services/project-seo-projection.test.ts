@@ -48,6 +48,7 @@ function fixture(): Input {
     pages: [page],
     scopes: [],
     observations: [],
+    historyLimited: false,
     keywords: [],
     competitors: [],
     analyses: [],
