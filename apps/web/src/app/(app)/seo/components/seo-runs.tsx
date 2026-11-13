@@ -3,10 +3,7 @@
 import { CalendarRange, Loader2 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useId, useRef } from "react";
-import {
-  HOLDER_CLASS,
-  HOLDER_ITEM_CLASS,
-} from "@/components/ui/holder-surface";
+import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { SeoRunCalendar } from "./seo-run-calendar";
 import {
@@ -160,7 +157,8 @@ export function SeoRuns({
         ) : null}
         {shown ? (
           <div
-            className={cn(HOLDER_ITEM_CLASS, "order-3 basis-full px-2 py-3")}
+            // A fill without an outline: the checks card around it is the one frame.
+            className="bg-background order-3 basis-full rounded-lg px-2 py-3"
           >
             <ol
               ref={line}

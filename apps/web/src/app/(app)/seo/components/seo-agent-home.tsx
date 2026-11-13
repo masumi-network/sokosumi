@@ -355,16 +355,15 @@ function SeoAgentPanel({
           <SeoCheckRunning workspace={model.data} />
           {upkeep}
           {primary === -1 ? null : (
-            // On a phone the steps start more than one screen down, and the outlined buttons over the card are not
-            // the next step. The last row of the card is the way to the first step: a row control with a line over
-            // it, as wide as the card, like the "more fixes" row of the list. On a wide screen the row is an empty
-            // box that takes back the gap before it: a hidden box would leave that gap at the end of the card.
-            <div className="max-sm:-mx-4 max-sm:-mb-4 max-sm:border-t sm:-mt-2">
+            // The checks card over the tabs can push the steps below the first screen, on a wide screen too, and
+            // the filled run over the card is not the next step. The last row of the card is the way to the first step: a row
+            // control with a line over it, as wide as the card, like the "more fixes" row of the list.
+            <div className="-mx-4 -mb-4 border-t">
               <Button
                 variant="ghost"
                 // The words start at the text edge of the card; the arrow stands at its other edge (a button
                 // with an icon has a smaller inset by default).
-                className="h-11 w-full justify-between rounded-t-none rounded-b-lg px-4 has-[>svg]:px-4 sm:hidden"
+                className="h-11 w-full justify-between rounded-t-none rounded-b-lg px-4 has-[>svg]:px-4"
                 onClick={() => {
                   stepList.current?.scrollIntoView({
                     block: "start",
@@ -391,7 +390,7 @@ function SeoAgentPanel({
         <SeoGettingStarted model={model} />
       ) : null}
       {/* The numbers and the pictures are one block, in one place on every width. On a wide screen the tiles stand
-          one over the other beside the picture, so the first step and its button stay in the first screen. The
+          one over the other beside the picture, so the first step and its button start as high as they can. The
           two columns are one height: the tiles share the height of the picture, or the picture takes theirs. */}
       {setup ? null : (
         <div className="grid gap-2 empty:hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:[&>*:only-child]:col-span-2 lg:[&>dl:not(:only-child)]:grid-cols-1">
