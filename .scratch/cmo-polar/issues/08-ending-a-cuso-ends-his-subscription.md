@@ -6,12 +6,12 @@ Spec: `.scratch/cmo-polar/spec.md` (SOKD-204), stories 48 to 50.
 
 **Blocked by:** 02 A paid plan order grants a month of Project credits
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Every path that makes a Cuso stop being live revokes his non-ended Polar subscription first, then runs the existing write-off in one transaction.
-- [ ] If Polar refuses or fails, the Cuso stays live, nothing is written off, and the person sees an error.
-- [ ] The write-off covers plan grants and top-ups as well as Starter credits.
-- [ ] Ending a Cuso without a subscription behaves as today.
+- [x] Every path that makes a Cuso stop being live revokes his non-ended Polar subscription first, then runs the existing write-off in one transaction.
+- [x] If Polar refuses or fails, the Cuso stays live, nothing is written off, and the person sees an error.
+- [x] The write-off covers plan grants and top-ups as well as Starter credits.
+- [x] Ending a Cuso without a subscription behaves as today.
 - [ ] CMO's confirmation for these actions names the immediate end, no refund and the loss of credits when the Cuso is subscribed.
 - [ ] A new hire after Start over has no subscription and runs the checkout again.
-- [ ] Tests cover revoke-then-write-off, the Polar failure, and the unsubscribed case; a component test covers the confirmation text.
+- [x] Tests cover revoke-then-write-off, the Polar failure, and the unsubscribed case; a component test covers the confirmation text.
