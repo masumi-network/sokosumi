@@ -195,6 +195,17 @@ export function SeoWorkspace({
     model.filters.tab === "agent" && setup ? null : seoRunAction(model.data);
   // While the pages load or the dates are wrong, no dialog opens.
   const runReady = Boolean(runAudit?.ready) && !unavailable;
+  // The notices under the header; any of them keeps the full room over the timeline.
+  const historyNotice = !unavailable && model.data.history.limited;
+  // During setup the card on the agent tab says this on its check step.
+  const pausedNotice =
+    !unavailable &&
+    model.data.availableActions.canEdit &&
+    model.data.scope.pageIds.length > 0 &&
+    !canRequestAnalysis &&
+    !(model.filters.tab === "agent" && setup);
+  const readOnlyNotice = !model.data.availableActions.canEdit;
+  const noticeShown = historyNotice || pausedNotice || readOnlyNotice;
   const scopePage =
     model.data.scope.pageIds.length === 1
       ? model.data.pages.find((page) => page.id === model.data.scope.pageIds[0])
@@ -205,7 +216,15 @@ export function SeoWorkspace({
     <div className="space-y-6 pb-16 [&_details[open]>:not(summary)]:content-rise max-sm:[&_[data-slot=button]]:min-h-10 max-sm:[&_[data-slot=dropdown-menu-trigger]]:min-h-10 max-sm:[&_[data-slot=input]]:min-h-10 max-sm:[&_[data-slot=select-trigger]]:min-h-10">
       {/* The actions sit on the title row, centred to it, and the pages line has its own row under both: the
           header is as tall on every tab, on every screen. */}
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1">
+      {/* On a phone the timeline moves up to the header: the room over it pushed the tabs down on every tab. The
+          last header row and the room over the dots part them. A notice or an alert under the header keeps the
+          full room. The owner's room over the tab bar stays. */}
+      <div
+        className={cn(
+          "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1",
+          runsRow && !noticeShown && !model.result.isError && "max-sm:mb-2",
+        )}
+      >
         <div className="contents">
           <Link
             href={seoIndexHref(model.data.projectId ?? null)}
@@ -347,7 +366,7 @@ export function SeoWorkspace({
       </div>
       {/* One group of notices; it takes no room when none shows. */}
       <div className="space-y-2 empty:hidden">
-        {!unavailable && model.data.history.limited ? (
+        {historyNotice ? (
           <p
             role="status"
             className="text-muted-foreground flex items-start gap-2 text-sm"
@@ -356,12 +375,7 @@ export function SeoWorkspace({
             {t("historyLimited", { limit: model.data.history.limit })}
           </p>
         ) : null}
-        {/* During setup the card on the agent tab says this on its check step. */}
-        {!unavailable &&
-        model.data.availableActions.canEdit &&
-        model.data.scope.pageIds.length > 0 &&
-        !model.data.availableActions.canRequestAnalysis &&
-        !(model.filters.tab === "agent" && setup) ? (
+        {pausedNotice ? (
           <p
             id={SEO_DISPATCH_PAUSED_ID}
             className="text-muted-foreground flex items-start gap-2 text-sm"
@@ -370,7 +384,7 @@ export function SeoWorkspace({
             {t("dispatchPaused")}
           </p>
         ) : null}
-        {!model.data.availableActions.canEdit ? (
+        {readOnlyNotice ? (
           <p className="text-muted-foreground flex items-start gap-2 text-sm">
             <Eye className="mt-0.5 size-4 shrink-0" />
             {t("readOnly")}
