@@ -1,5 +1,5 @@
 import type { ChatRoom } from "@sokosumi/core-client";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RoomMembersPanel } from "./room-members-panel";
@@ -158,11 +158,11 @@ function externalChannel(overrides: Partial<ChatRoom> = {}): ChatRoom {
   };
 }
 
-function renderPanel(
+function panel(
   room: ChatRoom,
   { isOrgOwnerOrAdmin = false }: { isOrgOwnerOrAdmin?: boolean } = {},
 ) {
-  return render(
+  return (
     <RoomMembersPanel
       room={room}
       currentUserId={ME}
@@ -176,8 +176,31 @@ function renderPanel(
       openingDirectKey={null}
       onClose={vi.fn()}
       readStateFor={() => null}
-    />,
+    />
   );
+}
+
+function renderPanel(
+  room: ChatRoom,
+  options: { isOrgOwnerOrAdmin?: boolean } = {},
+) {
+  return render(panel(room, options));
+}
+
+/** A removal that stays open until the test answers or rejects it. */
+function holdOpen(mock: typeof removeRoomCoworkerActionMock) {
+  let answer: (value: unknown) => void = () => {};
+  let reject: (reason: Error) => void = () => {};
+  mock.mockReturnValueOnce(
+    new Promise((resolve, fail) => {
+      answer = resolve;
+      reject = fail;
+    }),
+  );
+  return {
+    answer: (value: unknown) => act(async () => answer(value)),
+    reject: () => act(async () => reject(new Error("network down"))),
+  };
 }
 
 function removableNames(): string[] {
@@ -306,7 +329,7 @@ describe("RoomMembersPanel", () => {
     expect(toastMock.success).toHaveBeenCalledWith(
       "RoomRoster.removeSuccess:Gus",
     );
-    expect(refreshMock).toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("removes a Coworker at once and offers Undo, which adds it back", async () => {
@@ -342,6 +365,99 @@ describe("RoomMembersPanel", () => {
         coworkerIds: ["cow-1"],
       });
     });
+  });
+
+  it("takes a Coworker off the roster before Core answers and keeps it off", async () => {
+    const write = holdOpen(removeRoomCoworkerActionMock);
+    renderPanel(externalChannel());
+    expect(removableNames()).toContain("Soupie");
+
+    await chooseRemove("Soupie");
+    expect(removableNames()).not.toContain("Soupie");
+
+    // The room this panel shows still lists the Coworker for a moment.
+    await write.answer({ ok: true, value: externalChannel() });
+    expect(removableNames()).not.toContain("Soupie");
+  });
+
+  it.each([
+    [
+      "Core refuses",
+      (write: ReturnType<typeof holdOpen>) =>
+        write.answer({ ok: false, error: { message: "Core is down" } }),
+      "Core is down",
+    ],
+    [
+      "the call fails",
+      (write: ReturnType<typeof holdOpen>) => write.reject(),
+      "RoomRoster.removeError:Minibot",
+    ],
+  ])(
+    "puts a Soko Bot back on the roster when %s",
+    async (_case, settle, message) => {
+      const write = holdOpen(removeRoomSokoBotActionMock);
+      renderPanel(externalChannel());
+
+      await chooseRemove("Minibot");
+      expect(removableNames()).not.toContain("Minibot");
+
+      await settle(write);
+      expect(removableNames()).toContain("Minibot");
+      expect(toastMock.error).toHaveBeenCalledWith(message);
+      expect(toastMock.success).not.toHaveBeenCalled();
+    },
+  );
+
+  it("shows a removed Coworker again at once on Undo", async () => {
+    removeRoomCoworkerActionMock.mockResolvedValue({
+      ok: true,
+      value: externalChannel(),
+    });
+    addRoomMembersActionMock.mockReturnValueOnce(new Promise(() => {}));
+    renderPanel(externalChannel());
+    await chooseRemove("Soupie");
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalled());
+
+    const [, options] = toastMock.success.mock.calls[0];
+    act(() => options.action.onClick());
+
+    expect(removableNames()).toContain("Soupie");
+  });
+
+  it("shows a Coworker that is added again after its removal", async () => {
+    removeRoomCoworkerActionMock.mockResolvedValue({
+      ok: true,
+      value: externalChannel(),
+    });
+    const { rerender } = renderPanel(externalChannel());
+    await chooseRemove("Soupie");
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalled());
+
+    rerender(panel(externalChannel({ coworkerMembers: [] })));
+    rerender(panel(externalChannel()));
+
+    expect(removableNames()).toContain("Soupie");
+  });
+
+  it("keeps one removed agent hidden when the room drops the other", async () => {
+    removeRoomCoworkerActionMock.mockResolvedValue({
+      ok: true,
+      value: externalChannel(),
+    });
+    removeRoomSokoBotActionMock.mockResolvedValue({
+      ok: true,
+      value: externalChannel(),
+    });
+    const { rerender } = renderPanel(externalChannel());
+    await chooseRemove("Soupie");
+    await chooseRemove("Minibot");
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalledTimes(2));
+
+    rerender(panel(externalChannel({ coworkerMembers: [] })));
+    rerender(panel(externalChannel()));
+
+    expect(removableNames()).toContain("Soupie");
+    expect(removableNames()).not.toContain("Minibot");
   });
 
   it("removes your own Soko Bot at once and offers Undo", async () => {
@@ -392,6 +508,22 @@ describe("RoomMembersPanel", () => {
       expect(leaveRoomActionMock).toHaveBeenCalledWith("room-1");
     });
     expect(replaceMock).toHaveBeenCalledWith("/");
+  });
+
+  it("reports an Undo call that fails", async () => {
+    removeRoomCoworkerActionMock.mockResolvedValue({
+      ok: true,
+      value: externalChannel(),
+    });
+    addRoomMembersActionMock.mockRejectedValueOnce(new Error("network down"));
+    renderPanel(externalChannel());
+    await chooseRemove("Soupie");
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalled());
+
+    const [, options] = toastMock.success.mock.calls[0];
+    await act(async () => options.action.onClick());
+
+    expect(toastMock.error).toHaveBeenCalledWith("RoomRoster.undoError:Soupie");
   });
 
   it("reports a failed Undo without claiming the member returned", async () => {

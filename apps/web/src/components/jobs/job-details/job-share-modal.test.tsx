@@ -200,6 +200,76 @@ describe("JobShareModal", () => {
     );
   });
 
+  it("shows the indexing choice at once and takes it back when the save fails", async () => {
+    let fail = (_: unknown) => {};
+    putJobShareMock.mockReturnValueOnce(
+      new Promise((_, reject) => void (fail = reject)),
+    );
+    render(
+      <JobShareModal
+        open
+        onOpenChange={vi.fn()}
+        job={createJob({
+          share: {
+            id: "share-1",
+            jobId: "job-1",
+            token: "public-token",
+            allowSearchIndexing: true,
+            createdAt: new Date("2026-02-13T10:00:00.000Z"),
+            updatedAt: new Date("2026-02-13T10:00:00.000Z"),
+          },
+        })}
+      />,
+    );
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect(screen.getByRole("checkbox")).not.toBeChecked();
+    expect(screen.getByRole("checkbox").parentElement).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+    fail(new Error("offline"));
+    await waitFor(() => expect(screen.getByRole("checkbox")).toBeChecked());
+    expect(toastErrorMock).toHaveBeenCalledWith("Error.searchIndexing");
+    expect(screen.getByRole("checkbox").parentElement).not.toHaveAttribute(
+      "aria-busy",
+    );
+    expect(setQueryDataMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps what Core saved when a step after the save throws", async () => {
+    putJobShareMock.mockResolvedValueOnce({
+      id: "share-1",
+      jobId: "job-1",
+      token: "public-token",
+      allowSearchIndexing: false,
+      createdAt: new Date("2026-02-13T10:00:00.000Z"),
+      updatedAt: new Date("2026-02-13T10:00:00.000Z"),
+    });
+    setQueryDataMock.mockImplementationOnce(() => {
+      throw new Error("cache failed");
+    });
+    render(
+      <JobShareModal
+        open
+        onOpenChange={vi.fn()}
+        job={createJob({
+          share: {
+            id: "share-1",
+            jobId: "job-1",
+            token: "public-token",
+            allowSearchIndexing: true,
+            createdAt: new Date("2026-02-13T10:00:00.000Z"),
+            updatedAt: new Date("2026-02-13T10:00:00.000Z"),
+          },
+        })}
+      />,
+    );
+    fireEvent.click(screen.getByRole("checkbox"));
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalled());
+    expect(screen.getByRole("checkbox")).not.toBeChecked();
+    expect(toastErrorMock).toHaveBeenCalledWith("Error.share");
+  });
+
   it("removes public sharing without refreshing the page", async () => {
     deleteJobShareMock.mockResolvedValue(undefined);
 

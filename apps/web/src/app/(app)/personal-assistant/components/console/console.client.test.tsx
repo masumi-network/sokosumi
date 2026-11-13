@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -91,8 +92,19 @@ vi.mock("../avatar-picker.client", () => ({
 vi.mock("../schedule-form.client", () => ({
   ScheduleForm: () => <TargetProbe name="schedule" />,
 }));
+// The row's actions leave with a removed row, so the test keeps their report.
+const rowActions = vi.hoisted(() => ({
+  reportRemoved: (_removed: boolean) => {},
+}));
 vi.mock("../schedule-row-actions.client", () => ({
-  ScheduleRowActions: () => null,
+  ScheduleRowActions: ({
+    onRemovedChange,
+  }: {
+    onRemovedChange: (removed: boolean) => void;
+  }) => {
+    rowActions.reportRemoved = onRemovedChange;
+    return null;
+  },
 }));
 vi.mock("../proactive-settings.client", () => ({
   ProactiveSettings: () => <span data-testid="proactive" />,
@@ -262,6 +274,32 @@ describe("SokoBotConsole", () => {
     expect(screen.queryByTestId("schedule")).not.toBeInTheDocument();
   });
 
+  it("takes a schedule off the list as soon as its delete begins, and puts it back when the delete fails", () => {
+    viewMock.mockReturnValue(null);
+    const state = chatState(true);
+    state.bot.schedules = [
+      {
+        id: "s1",
+        name: "Morning check",
+        systemKey: null,
+        cronExpression: "0 9 * * *",
+        timezone: "UTC",
+        prompt: "Check the board",
+        enabled: true,
+        nextRunAt: "2030-01-02T09:00:00.000Z",
+        consecutiveFailures: 0,
+      } as (typeof state.bot.schedules)[number],
+    ];
+    render(consoleElement({ initialState: state }));
+    expect(screen.getByText("Morning check")).toBeInTheDocument();
+
+    act(() => rowActions.reportRemoved(true));
+    expect(screen.queryByText("Morning check")).not.toBeInTheDocument();
+
+    act(() => rowActions.reportRemoved(false));
+    expect(screen.getByText("Morning check")).toBeInTheDocument();
+  });
+
   it("lets the keyboard reach and scroll the memory", () => {
     const state = chatState(true);
     state.bot.memory = {
@@ -426,6 +464,16 @@ describe("SokoBotConsole header portrait", () => {
     });
     expect(screen.getByText("RUNNING")).toBeInTheDocument();
     expect(screen.getByText("Console.lastActivity(now)")).toBeInTheDocument();
+  });
+
+  it("says its last reply failed, and only then", () => {
+    const { rerender } = renderConsole({
+      initialState: stateWith({ status: "ERROR" }),
+    });
+    expect(screen.getByText(/Console\.lastTurnFailed/)).toBeInTheDocument();
+
+    rerender(consoleElement({ initialState: stateWith({ status: "IDLE" }) }));
+    expect(screen.queryByText(/Console\.lastTurnFailed/)).toBeNull();
   });
 
   it("edits only the own bot's picture, from its avatar, never in a studio", () => {

@@ -42,6 +42,12 @@ const catalog = {
     id: `toolbar-model-${index}`,
   })),
 };
+// Production's longest text-to-video label, the one cut off at 390px.
+const videoModel = {
+  ...TEST_CATALOG.videoModels[0]!,
+  label: "MiniMax H3 Max Turbo",
+};
+const videoCatalog = { ...TEST_CATALOG, videoModels: [videoModel] };
 
 let context: BrowserContext;
 let page: Page;
@@ -92,10 +98,7 @@ async function showComposer(
   }: ComposerScenario = {},
 ) {
   const messages = locale === "de" ? german : english;
-  const translate = createTranslator({ locale, messages: messages.App.Studio });
-  const labels = buildStudioLabels((key) =>
-    translate(key as Parameters<typeof translate>[0]),
-  );
+  const labels = studioLabels(locale);
   await page.setViewportSize({ width, height: 800 });
   const modeSwitch = (
     <StudioModeSwitch labels={labels} mode={mode} onModeChange={() => {}} />
@@ -150,6 +153,55 @@ async function showComposer(
                 }}
               />
             )}
+          </div>
+        </main>
+      </div>
+    </NextIntlClientProvider>,
+  );
+  await page.setContent(
+    `<!doctype html><html lang="${locale}"><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}</style></head><body>${markup}</body></html>`,
+  );
+}
+
+function studioLabels(locale: "en" | "de") {
+  const messages = locale === "de" ? german : english;
+  const translate = createTranslator({ locale, messages: messages.App.Studio });
+  return buildStudioLabels((key) =>
+    translate(key as Parameters<typeof translate>[0]),
+  );
+}
+
+async function showVideoComposer(width: number, locale: "en" | "de" = "en") {
+  const messages = locale === "de" ? german : english;
+  const labels = studioLabels(locale);
+  await page.setViewportSize({ width, height: 800 });
+  const markup = renderToStaticMarkup(
+    <NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
+      <div className="flex">
+        <aside className="hidden w-64 shrink-0 md:block" />
+        <main className="min-w-0 flex-1 p-4">
+          <div className="mx-auto w-full max-w-3xl">
+            <StudioVideoComposer
+              busy={false}
+              canGenerate
+              catalog={videoCatalog}
+              draft={videoDraftFor(videoModel)}
+              labels={labels}
+              modeSwitch={
+                <StudioModeSwitch
+                  labels={labels}
+                  mode="video"
+                  onModeChange={() => {}}
+                />
+              }
+              onClearSource={() => {}}
+              onDraftChange={() => {}}
+              onGenerate={() => {}}
+              onPromptChange={() => {}}
+              prompt=""
+              promptRef={{ current: null }}
+              source={null}
+            />
           </div>
         </main>
       </div>
@@ -217,7 +269,7 @@ async function expectToolbarFits(summaryName = /^Will run/) {
   expect(await summary.count()).toBe(1);
   expect(
     await summary.evaluate((element) =>
-      [...element.querySelectorAll("span")].every(
+      [...element.querySelectorAll("span:not(.sr-only)")].every(
         (span) => span.scrollWidth <= span.clientWidth,
       ),
     ),
@@ -344,4 +396,37 @@ describe("Content Studio composer toolbar", () => {
       if (mode === "image") await expectToolbarFits();
     },
   );
+});
+
+describe("Content Studio video composer toolbar", () => {
+  it.each([320, 390, 1024, 1440])(
+    "shows the mode switch, model and options without horizontal scroll at %ipx",
+    async (width) => {
+      await showVideoComposer(width);
+      expect(
+        await page.getByRole("radio", { name: "Video", exact: true }).count(),
+      ).toBe(1);
+      expect(await page.getByRole("button", { name: /^Model/ }).count()).toBe(
+        1,
+      );
+      await expectToolbarFits(/^Options/);
+    },
+  );
+
+  it("shows the whole model name on a phone", async () => {
+    await showVideoComposer(390);
+    const model = page.getByRole("button", { name: /^Model/ });
+    expect(
+      await model.evaluate((element) =>
+        [...element.querySelectorAll("span:not(.sr-only)")].every(
+          (span) => span.scrollWidth <= span.clientWidth,
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("fits longer German labels on the narrow composer", async () => {
+    await showVideoComposer(390, "de");
+    await expectToolbarFits(new RegExp(`^${german.App.Studio.moreOptions}`));
+  });
 });

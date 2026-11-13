@@ -4,6 +4,7 @@ import type {
   WorkspaceCalendarSource,
 } from "@sokosumi/core-client";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -867,8 +868,10 @@ describe("WorkspaceCalendar Social-only view", () => {
         // Drawn at the new time before Core answers, like a drop.
         expect(renderedPostStart(POST.id)).toBe("2030-01-05T13:30:00.000Z");
 
-        resolve({ ok: true, value: {} });
-        await waitFor(() => expect(refreshMock).toHaveBeenCalled());
+        await act(async () => {
+          resolve({ ok: true, value: {} });
+        });
+        expect(refreshMock).not.toHaveBeenCalled();
       });
 
       it("puts the post back and says why when Core refuses", async () => {
@@ -926,7 +929,7 @@ describe("WorkspaceCalendar Social-only view", () => {
               scheduledAt: "2030-01-05T14:30:00.000Z",
             }),
           );
-          await waitFor(() => expect(refreshMock).toHaveBeenCalled());
+          expect(refreshMock).not.toHaveBeenCalled();
         } finally {
           vi.unstubAllGlobals();
         }

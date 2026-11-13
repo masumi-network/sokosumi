@@ -115,7 +115,12 @@ describe("newsletter issue editor", () => {
     expect(
       details.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(within(panel).getByText("Draft")).toBeInTheDocument();
+    // Status sits beside the subject heading, once, not in the panel.
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Weekly news" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Draft")).toBeInTheDocument();
+    expect(within(panel).queryByText("Draft")).toBeNull();
     expect(
       within(panel).getByRole("button", { name: "Save issue" }),
     ).toBeInTheDocument();

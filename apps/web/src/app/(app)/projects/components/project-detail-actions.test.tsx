@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -95,7 +95,8 @@ describe("ProjectDetailActions", () => {
     expect(hideProjectActionMock).toHaveBeenCalledWith({
       projectId: "project-1",
     });
-    expect(refreshMock).toHaveBeenCalled();
+    // The Hide action revalidates; a refresh on top is a second page render.
+    expect(refreshMock).not.toHaveBeenCalled();
     const [message, options] = toastSuccessMock.mock.calls[0];
     expect(message).toBe("Project hidden");
     expect(options.action.label).toBe("Undo");
@@ -163,7 +164,9 @@ describe("ProjectDetailActions", () => {
         projectId: "project-1",
       }),
     );
-    expect(refreshMock).toHaveBeenCalled();
+    // Let the answered write finish before looking for a refresh.
+    await act(async () => {});
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("exposes project actions only inside the overflow menu", async () => {
