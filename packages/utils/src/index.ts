@@ -477,18 +477,26 @@ export {
 } from "./seo-google-events.js";
 export { normalizeSeoQuery } from "./seo-query.js";
 export {
+  readSeoStatisticsNote,
   SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE,
   SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE,
   SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE,
   SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE,
   SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
+  SEO_STATISTICS_FIXED_NOTES,
   SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
   SEO_STATISTICS_NO_AGGREGATE_NOTE,
   SEO_STATISTICS_QUERY_FAILED_NOTE,
+  SEO_STATISTICS_QUERY_ROWS_ANONYMIZED_NOTE,
   SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE,
   SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE,
+  type SeoStatisticsNoteGap,
+  type SeoStatisticsNoteReading,
+  seoStatisticsKeywordRowsCutNote,
+  seoStatisticsKeywordsLeftOutNote,
   seoStatisticsLostData,
+  seoStatisticsQueryRowsCutNote,
 } from "./seo-statistics-notes.js";
 export {
   buildSocialAccountAvatarPathname,

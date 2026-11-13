@@ -1,7 +1,7 @@
 /**
- * Notes a statistics sync stores when it lost data, beyond the usual gaps of
- * its source. Core writes them; the web flags a sync that carries one. Older
- * syncs stored the same text, so keep each note's wording unchanged.
+ * Every note a statistics sync stores. Core writes only these constants and builders; the web reads each
+ * stored note back with readSeoStatisticsNote. Older syncs stored the same text, so keep each note's wording
+ * unchanged.
  */
 export const SEO_STATISTICS_QUERY_FAILED_NOTE =
   "One native query failed. Successful totals or daily observations are retained without filling gaps.";
@@ -41,6 +41,130 @@ export const SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE =
   "Analytics reported thresholding or data loss.";
 export const SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE =
   "The daily Analytics result was truncated.";
+
+/** Every Search Console sync with query rows stores this routine note: Google never lists anonymized queries. */
+export const SEO_STATISTICS_QUERY_ROWS_ANONYMIZED_NOTE =
+  "Query rows omit anonymized queries, so they can add up to less than the page totals.";
+
+/** Core stores at most this many characters per note. */
+const SEO_STATISTICS_NOTE_LIMIT = 2000;
+
+/** Search Console kept only the first query rows. The stored query rows carry the same fact as `truncated`. */
+export function seoStatisticsQueryRowsCutNote(rowLimit: number) {
+  return `Only the first ${rowLimit} query rows by clicks were kept. More rows can exist.`;
+}
+const QUERY_ROWS_CUT =
+  /^Only the first (\d+) query rows by clicks were kept\. More rows can exist\.$/;
+
+/** Search Console kept only the first daily rows of the tracked keywords. */
+export function seoStatisticsKeywordRowsCutNote(rowLimit: number) {
+  return `Only the first ${rowLimit} daily keyword rows by clicks were kept. Some days can be missing.`;
+}
+const KEYWORD_ROWS_CUT =
+  /^Only the first (\d+) daily keyword rows by clicks were kept\. Some days can be missing\.$/;
+
+/** Names the tracked keywords a sync did not read, as many as fit in one note. */
+export function seoStatisticsKeywordsLeftOutNote(
+  leftOut: readonly string[],
+  maxKeywords: number,
+  maxCountries: number,
+) {
+  let note = `Daily positions are read for at most ${maxKeywords} tracked keywords in ${maxCountries} countries Search Console can filter by, per sync. Not read this time: `;
+  for (const [index, keyword] of leftOut.entries()) {
+    const name = `${index ? ", " : ""}"${keyword}"`;
+    const more = ` and ${leftOut.length - index} more.`;
+    if (note.length + name.length + more.length + 1 > SEO_STATISTICS_NOTE_LIMIT)
+      return `${note}${more}`;
+    note += name;
+  }
+  return `${note}.`;
+}
+// A keyword that itself holds '", "' splits into two names; the count stays right.
+const KEYWORDS_LEFT_OUT =
+  /^Daily positions are read for at most \d+ tracked keywords in \d+ countries Search Console can filter by, per sync\. Not read this time: ([\s\S]*?)(?: and (\d+) more)?\.$/;
+
+/** A message key under "App.Seo.improve.gaps" for a note that names data the sync left out. */
+export type SeoStatisticsNoteGap =
+  | "queryFailed"
+  | "noAggregate"
+  | "queryRows"
+  | "keywordSeries"
+  | "breakdown"
+  | "indexStatus"
+  | "analyticsTimeZone"
+  | "analyticsNoAggregate"
+  | "analyticsThresholding"
+  | "analyticsTruncated"
+  | "keywordRowsCut"
+  | "keywordsLeftOut";
+
+/**
+ * What one stored note means: "routine" is a property of the source on every sync, never a gap; "flag"
+ * repeats a structured field the reader already gets (the query rows' `truncated`); "gap" is data the sync
+ * left out, with its message and values.
+ */
+export type SeoStatisticsNoteReading =
+  | { kind: "routine" }
+  | { kind: "flag" }
+  | {
+      kind: "gap";
+      gap: SeoStatisticsNoteGap;
+      count?: number;
+      names?: string[];
+    };
+
+const gap = (name: SeoStatisticsNoteGap): SeoStatisticsNoteReading => ({
+  kind: "gap",
+  gap: name,
+});
+
+const FIXED_NOTES = new Map<string, SeoStatisticsNoteReading>([
+  [SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE, { kind: "routine" }],
+  [SEO_STATISTICS_QUERY_ROWS_ANONYMIZED_NOTE, { kind: "routine" }],
+  [SEO_STATISTICS_QUERY_FAILED_NOTE, gap("queryFailed")],
+  [SEO_STATISTICS_NO_AGGREGATE_NOTE, gap("noAggregate")],
+  [SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE, gap("queryRows")],
+  [SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE, gap("keywordSeries")],
+  [SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE, gap("breakdown")],
+  [SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE, gap("indexStatus")],
+  [SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE, gap("analyticsTimeZone")],
+  [SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE, gap("analyticsNoAggregate")],
+  [SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE, gap("analyticsThresholding")],
+  [SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE, gap("analyticsTruncated")],
+]);
+
+/** The fixed notes of the catalog. A builder's notes are read by readSeoStatisticsNote. */
+export const SEO_STATISTICS_FIXED_NOTES: readonly string[] = [
+  ...FIXED_NOTES.keys(),
+];
+
+/** The catalog's reading of one stored note, or null for a note this catalog does not know. */
+export function readSeoStatisticsNote(
+  note: string,
+): SeoStatisticsNoteReading | null {
+  const fixed = FIXED_NOTES.get(note);
+  if (fixed) return fixed;
+  if (QUERY_ROWS_CUT.test(note)) return { kind: "flag" };
+  const keywordRows = KEYWORD_ROWS_CUT.exec(note);
+  if (keywordRows)
+    return {
+      kind: "gap",
+      gap: "keywordRowsCut",
+      count: Number(keywordRows[1]),
+    };
+  const leftOut = KEYWORDS_LEFT_OUT.exec(note);
+  if (leftOut) {
+    const list = leftOut[1].trim();
+    const names = list ? list.slice(1, -1).split('", "') : [];
+    return {
+      kind: "gap",
+      gap: "keywordsLeftOut",
+      names,
+      count: names.length + Number(leftOut[2] ?? 0),
+    };
+  }
+  return null;
+}
 
 const SEO_STATISTICS_LOSS_NOTES = [
   SEO_STATISTICS_QUERY_FAILED_NOTE,

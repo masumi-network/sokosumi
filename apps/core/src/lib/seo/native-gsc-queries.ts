@@ -101,7 +101,6 @@ export function normalizeGscQueries(
 /** Search Console refuses a filter expression longer than this. */
 export const GSC_FILTER_EXPRESSION_LIMIT = 4096;
 const KEYWORD_SERIES_DIMENSIONS = ["date", "query"];
-const NOTE_LIMIT = 2000;
 const PRIORITY_RANK = { high: 0, medium: 1, low: 2 } as const;
 const gscKeywordSeriesReportSchema = z.object({
   rows: z
@@ -215,19 +214,6 @@ export function selectTrackedKeywords(keywords: TrackedKeyword[]): {
     })),
     leftOut,
   };
-}
-
-/** Names the keywords a sync did not request, as many as fit in one note. */
-export function keywordSeriesLeftOutNote(leftOut: string[]): string {
-  let note = `Daily positions are read for at most ${SEO_KEYWORD_SERIES_MAX_KEYWORDS} tracked keywords in ${SEO_KEYWORD_SERIES_MAX_COUNTRIES} countries Search Console can filter by, per sync. Not read this time: `;
-  for (const [index, keyword] of leftOut.entries()) {
-    const name = `${index ? ", " : ""}"${keyword}"`;
-    const more = ` and ${leftOut.length - index} more.`;
-    if (note.length + name.length + more.length + 1 > NOTE_LIMIT)
-      return `${note}${more}`;
-    note += name;
-  }
-  return `${note}.`;
 }
 
 /** Same pages, dates and search type as the totals, limited to the tracked keywords and their country, grouped by day. */

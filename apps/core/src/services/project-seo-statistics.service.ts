@@ -3,7 +3,11 @@ import {
   SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
   SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,
   SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
+  SEO_STATISTICS_QUERY_ROWS_ANONYMIZED_NOTE,
   SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE,
+  seoStatisticsKeywordRowsCutNote,
+  seoStatisticsKeywordsLeftOutNote,
+  seoStatisticsQueryRowsCutNote,
 } from "@sokosumi/utils";
 
 import { conflict, unprocessableEntity } from "@/helpers/error";
@@ -21,7 +25,6 @@ import {
 import {
   gscKeywordSeriesArguments,
   gscQueryArguments,
-  keywordSeriesLeftOutNote,
   type NativeKeywordSeries,
   type NativeSearchQueries,
   normalizeGscKeywordSeries,
@@ -45,7 +48,12 @@ import {
   unwrapNativeStatistics,
   withinSearchConsoleRetention,
 } from "@/lib/seo/native-statistics";
-import { SEO_MAX_PAGES, type SeoActor } from "@/schemas/project-seo.schema";
+import {
+  SEO_KEYWORD_SERIES_MAX_COUNTRIES,
+  SEO_KEYWORD_SERIES_MAX_KEYWORDS,
+  SEO_MAX_PAGES,
+  type SeoActor,
+} from "@/schemas/project-seo.schema";
 import {
   type ProjectSeoStatisticsProperties,
   type SyncProjectSeoStatistics,
@@ -477,12 +485,10 @@ export async function syncProjectSeoStatistics(
   if (input.provider === "search_console") {
     if (queries.status === "fulfilled" && queries.value) {
       metrics.queries = queries.value;
-      metrics.notes.push(
-        "Query rows omit anonymized queries, so they can add up to less than the page totals.",
-      );
+      metrics.notes.push(SEO_STATISTICS_QUERY_ROWS_ANONYMIZED_NOTE);
       if (queries.value.truncated)
         metrics.notes.push(
-          `Only the first ${queries.value.rowLimit} query rows by clicks were kept. More rows can exist.`,
+          seoStatisticsQueryRowsCutNote(queries.value.rowLimit),
         );
     } else metrics.notes.push(SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE);
     if (tracked.groups.length) {
@@ -490,7 +496,7 @@ export async function syncProjectSeoStatistics(
         metrics.keywordSeries = keywordSeries.value;
         if (keywordSeries.value.truncated)
           metrics.notes.push(
-            `Only the first ${keywordSeries.value.rowLimit} daily keyword rows by clicks were kept. Some days can be missing.`,
+            seoStatisticsKeywordRowsCutNote(keywordSeries.value.rowLimit),
           );
       } else metrics.notes.push(SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE);
     }
@@ -508,7 +514,13 @@ export async function syncProjectSeoStatistics(
     )
       metrics.notes.push(SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE);
     if (tracked.leftOut.length)
-      metrics.notes.push(keywordSeriesLeftOutNote(tracked.leftOut));
+      metrics.notes.push(
+        seoStatisticsKeywordsLeftOutNote(
+          tracked.leftOut,
+          SEO_KEYWORD_SERIES_MAX_KEYWORDS,
+          SEO_KEYWORD_SERIES_MAX_COUNTRIES,
+        ),
+      );
   }
   const current = await integrationFor(actor, input.provider);
   if (

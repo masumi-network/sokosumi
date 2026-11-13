@@ -1,6 +1,9 @@
+import { seoStatisticsKeywordsLeftOutNote } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
+  SEO_KEYWORD_SERIES_MAX_COUNTRIES,
+  SEO_KEYWORD_SERIES_MAX_KEYWORDS,
   SEO_KEYWORD_SERIES_ROW_LIMIT,
   SEO_SEARCH_QUERY_ROW_LIMIT,
 } from "@/schemas/project-seo.schema";
@@ -8,7 +11,6 @@ import {
   GSC_FILTER_EXPRESSION_LIMIT,
   gscKeywordSeriesArguments,
   gscQueryArguments,
-  keywordSeriesLeftOutNote,
   normalizeGscKeywordSeries,
   normalizeGscQueries,
   selectTrackedKeywords,
@@ -183,7 +185,11 @@ describe("tracked keyword daily rows", () => {
       "kw 27 (US)",
       "kw 28 (US)",
     ]);
-    const note = keywordSeriesLeftOutNote(leftOut);
+    const note = seoStatisticsKeywordsLeftOutNote(
+      leftOut,
+      SEO_KEYWORD_SERIES_MAX_KEYWORDS,
+      SEO_KEYWORD_SERIES_MAX_COUNTRIES,
+    );
     expect(note).toContain(
       '"kw 24 (US)", "kw 25 (US)", "kw 26 (US)", "kw 27 (US)", "kw 28 (US)".',
     );
