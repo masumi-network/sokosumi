@@ -16,6 +16,6 @@ Spec: `.scratch/cmo-polar/spec.md` (SOKD-204). Decisions: `docs/adr/0068-cmo-sel
 - [x] Subscription events (created, active, updated) upsert the subscription row from the payload; an older payload never overwrites a newer state.
 - [x] A redelivered `order.paid` grants nothing more and answers 2xx.
 - [x] An event for an unknown organization or Project is reported to Sentry and acknowledged.
-- [ ] The grant shows in the organization's transaction history under its Project.
-- [ ] Route-level tests with mocked Prisma cover the cases above; one `*.postgres.test.ts` proves two concurrent deliveries of the same order produce one bucket.
+- [x] The grant shows in the organization's transaction history under its Project.
+- [x] Route-level tests with mocked Prisma cover the cases above; one `*.postgres.test.ts` proves two concurrent deliveries of the same order produce one bucket.
 - [x] No Stripe table, column or enum value changes.
