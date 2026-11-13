@@ -16,8 +16,9 @@ const domain = z.string().min(1).max(DOMAIN_CHARS);
 /**
  * One SERP read of a focused result (seo-bot `AnalysisReport.serps`). `aiOverview` is null when the read did not
  * ask for async AI Overviews and none is on the page: "not checked", never "no AI Overview". `asyncLoaded` tells
- * whether the read asked. `pageCited` null: a Google-wrapped reference on the page's host hides the cited URL, so
- * the citation is not determined. `featured` is null when the page had no featured snippet.
+ * whether the read asked. `pageCited` null: no reference matches the page by URL and a Google-wrapped reference has
+ * no known domain or a domain on the page's host (not determined). `featured` is null when the page had no
+ * featured snippet.
  */
 export const seoSerpReadSchema = z.object({
   keyword: z.string().max(20_000),

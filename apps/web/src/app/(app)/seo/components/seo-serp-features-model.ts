@@ -28,7 +28,8 @@ const NOT_COUNTED = new Set([
 
 /**
  * "not_checked": the read did not ask for AI Overviews. It never reads as "no AI Overview". "undetermined": an
- * AI Overview shows, but a Google-wrapped reference on the page's host hides whether it cites the page.
+ * AI Overview shows, no reference matches the page by URL and a Google-wrapped reference has no known domain or a
+ * domain on the page's host (not determined).
  * "cited" names the row's page: the check read that page alone. A check of several pages cites one of them
  * ("cited_checked"), and the read does not say which.
  */

@@ -41,7 +41,10 @@ export const seoSerpPointSchema = z
         shown: z.boolean(),
         asyncLoaded: z.boolean(),
         citedDomains: z.array(z.string()),
-        /** Null: a Google-wrapped reference on the page's host hides the cited URL (not determined). */
+        /**
+         * Null: no reference matches the page by URL and a Google-wrapped reference has no known domain or a
+         * domain on the page's host (not determined).
+         */
         pageCited: z.boolean().nullable(),
       }),
       z.null(),
