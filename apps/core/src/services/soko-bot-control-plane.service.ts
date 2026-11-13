@@ -117,6 +117,10 @@ import type {
   SokoBotTurnStartResult,
   StartSokoBotTurnInput,
 } from "@/lib/soko-bot/turn-start";
+import {
+  revokeCusoSubscription,
+  revokeCusoSubscriptionIfLeavingCmo,
+} from "@/services/cmo-subscription-end.service";
 import { isNewsletterDraftAvailable } from "@/services/newsletter-draft.service";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { claimAvatar } from "@/services/soko-bot-avatar.service";
@@ -3412,6 +3416,9 @@ export class SokoBotControlPlane {
         "Cuso runs CMO's own version, which cannot be changed here",
       );
     }
+    // Leaving CMO ends Cuso: Polar stops charging before anything is
+    // written (ADR 0068). A failure throws, so the version stays.
+    await revokeCusoSubscriptionIfLeavingCmo(bot.id, versionId);
     await serializableTransaction(async (tx) => {
       await forfeitCusoProjectCreditsIfLeavingCmo(bot.id, versionId, tx);
       const updated = await tx.sokoBot.updateMany({
@@ -4143,6 +4150,9 @@ export class SokoBotControlPlane {
     } else if (input.action === "SET_VERSION") {
       const versionId = input.versionId as string;
       try {
+        // Before the transaction, which is retried: Polar is called once
+        // (ADR 0068). A failure throws, so the version stays.
+        await revokeCusoSubscriptionIfLeavingCmo(bot.id, versionId);
         await serializableTransaction(async (tx) => {
           const current = await tx.sokoBot.findUnique({
             where: { id: bot.id },
@@ -4595,6 +4605,15 @@ export class SokoBotControlPlane {
     workspaceId: string,
     selector: SokoBotSelector = ME_SOKO_BOT,
   ): Promise<void> {
+    // Polar stops charging for a live Cuso before he is archived (ADR 0068).
+    // It is called here, once, because the transaction below is retried; the
+    // role check runs first so only someone who may archive ends it. A
+    // failure throws, so nothing is archived.
+    const candidate = await memberSokoBot(userId, workspaceId, selector);
+    if (candidate) {
+      await assertSokoBotManagement(userId, candidate, "archive");
+      await revokeCusoSubscription(candidate.id);
+    }
     const archived = await serializableTransaction(async (tx) => {
       const bot = await memberSokoBot(userId, workspaceId, selector, tx);
       if (!bot) return null;

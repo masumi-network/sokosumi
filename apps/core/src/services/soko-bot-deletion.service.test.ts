@@ -17,6 +17,7 @@ const {
   revokeIntegrationsMock,
   txIntegrationsFindManyMock,
   forfeitMock,
+  revokeSubscriptionMock,
   txSocialPostFindManyMock,
   txSocialPostUpdateManyMock,
   flagQuotesMock,
@@ -45,6 +46,7 @@ const {
   revokeIntegrationsMock: vi.fn(),
   txIntegrationsFindManyMock: vi.fn(),
   forfeitMock: vi.fn(),
+  revokeSubscriptionMock: vi.fn(),
   txSocialPostFindManyMock: vi.fn(),
   txSocialPostUpdateManyMock: vi.fn(),
   flagQuotesMock: vi.fn(),
@@ -57,6 +59,10 @@ vi.mock("@/helpers/social-post-quote", () => ({
 
 vi.mock("@/helpers/cuso-project-credits", () => ({
   forfeitCusoProjectCredits: forfeitMock,
+}));
+
+vi.mock("@/services/cmo-subscription-end.service", () => ({
+  revokeCusoSubscription: revokeSubscriptionMock,
 }));
 
 vi.mock("@/helpers/chat-room-mention-status", () => ({
@@ -402,6 +408,25 @@ describe("deleteSokoBot", () => {
       );
     },
   );
+
+  it("ends Cuso's subscription at Polar before the write-off", async () => {
+    await deleteSokoBot(BOT_ID);
+
+    expect(revokeSubscriptionMock).toHaveBeenCalledExactlyOnceWith(BOT_ID);
+    expect(revokeSubscriptionMock.mock.invocationCallOrder[0]).toBeLessThan(
+      forfeitMock.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("deletes nothing and writes nothing off when Polar refuses", async () => {
+    revokeSubscriptionMock.mockRejectedValueOnce(new Error("polar refused"));
+
+    await expect(deleteSokoBot(BOT_ID)).rejects.toThrow("polar refused");
+
+    expect(forfeitMock).not.toHaveBeenCalled();
+    expect(txBotDeleteMock).not.toHaveBeenCalled();
+    expect(txBotUpdateMock).not.toHaveBeenCalled();
+  });
 
   it("keeps a tombstone when the assistant uploaded a task file", async () => {
     // The file outlives the bot on the Task and its uploader FK is

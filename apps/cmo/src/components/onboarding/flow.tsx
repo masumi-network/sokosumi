@@ -6,6 +6,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { useCallback, useEffect, useState } from "react";
 
 import type { CusoMessage } from "../../lib/chat-messages";
+import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import type { SkippedStep } from "../../lib/skipped-steps";
 import { AccountMenu } from "../account-menu";
 import { adsReturnError } from "../ads";
@@ -199,6 +200,7 @@ export function OnboardingFlow({
         <AccountMenu
           label={hostOf(overview.websiteUrl)}
           startOver={actions.startOver}
+          subscribed={cusoSubscribed(overview)}
           signOut={actions.signOut}
         />
       </header>
@@ -303,6 +305,7 @@ export function OnboardingFlow({
           className="button button-ghost button-small"
           label="Use another website"
           startOver={actions.startOver}
+          subscribed={cusoSubscribed(overview)}
         />
       </footer>
     </div>
