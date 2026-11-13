@@ -14,10 +14,11 @@ import {
 } from "@/services/soko-bot-lab-scenario.service";
 import { createSokoBotSchedule } from "@/services/soko-bot-schedule.service";
 import type { EvalCase } from "./eval-cases";
+import type { CmoChatSetup } from "./eval-cmo-cases";
 import {
   commentChecks,
   pollCmoCase,
-  prepareCmoComments,
+  prepareCmoChatCase,
   startCmoCase,
 } from "./eval-cmo-runner";
 import {
@@ -96,11 +97,11 @@ async function startScenario(
   bot: "soko-bot" | "cuso",
   lane: EvalLaneRecord,
   context: CaseContext,
-  prepare?: "cmo-comments",
+  prepare?: CmoChatSetup,
 ): Promise<CaseStart> {
   const sokoBotId = bot === "cuso" ? lane.cusoBotId : lane.sokoBotId;
   if (await botIsBusy(sokoBotId)) return { kind: "busy" };
-  const state = prepare ? { comments: await prepareCmoComments(lane) } : {};
+  const state = prepare ? await prepareCmoChatCase(lane, prepare) : {};
   if (bot === "soko-bot" && (context.firstOfSuite || scenario.setup))
     await resetEvalLaneForSokoBot(lane);
   for (const schedule of scenario.setup?.schedules ?? [])
