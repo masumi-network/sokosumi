@@ -9,6 +9,7 @@ import {
   seoStrategyPayloadSchema,
   seoStrategyPlaceSchema,
 } from "@/schemas/project-seo-strategy.schema";
+import { publicSeoKeywordReach } from "./project-seo-keyword-reach";
 
 const count = z.number().finite().nullable();
 /** The fields Core reads from a site report. Zod drops every other field of the strategy block. */
@@ -174,6 +175,7 @@ export function publicSeoStrategy(raw: unknown): {
       },
     ),
     ...(placesNotes.length ? { placesNotes } : {}),
+    ...publicSeoKeywordReach(raw as Record<string, unknown>, webAddress),
   });
   return strategy.success
     ? { strategy: strategy.data }

@@ -11000,6 +11000,40 @@ export type ProjectSeoStrategy = {
         }>;
     }>;
     placesNotes?: Array<string>;
+    featureReach?: Array<{
+        feature: string;
+        keyword: string;
+        volume: number;
+        demand: number | null;
+        reach: string;
+        position: number | null;
+        note: string | null;
+    }>;
+    rivalKeywords?: Array<{
+        host: string;
+        total: number | null;
+        topicWords: Array<string>;
+        rows: Array<{
+            keyword: string;
+            volume: number | null;
+            position: number | null;
+            url: string | null;
+            topic: boolean;
+        }>;
+    }>;
+    articleIdeas?: Array<{
+        topic: string;
+        feature: string;
+        keyword: string | null;
+        demand: number | null;
+        reach: string;
+        position: number | null;
+        note: string | null;
+        suggestions: Array<{
+            keyword: string;
+            volume: number;
+        }> | null;
+    }>;
     observationId: string;
     observedAt: Date;
     countryCode: string | null;

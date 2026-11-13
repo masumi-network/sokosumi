@@ -41879,6 +41879,214 @@ export const ProjectSeoStrategySchema = {
             },
             maxItems: 20
         },
+        featureReach: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    feature: {
+                        type: 'string',
+                        maxLength: 20000
+                    },
+                    keyword: {
+                        type: 'string',
+                        maxLength: 20000
+                    },
+                    volume: {
+                        type: 'number'
+                    },
+                    demand: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    reach: {
+                        type: 'string',
+                        maxLength: 100
+                    },
+                    position: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    note: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        maxLength: 20000
+                    }
+                },
+                required: [
+                    'feature',
+                    'keyword',
+                    'volume',
+                    'demand',
+                    'reach',
+                    'position',
+                    'note'
+                ]
+            },
+            maxItems: 10
+        },
+        rivalKeywords: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    host: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 253
+                    },
+                    total: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    topicWords: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 100
+                        },
+                        maxItems: 50
+                    },
+                    rows: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                keyword: {
+                                    type: 'string',
+                                    maxLength: 20000
+                                },
+                                volume: {
+                                    type: [
+                                        'number',
+                                        'null'
+                                    ]
+                                },
+                                position: {
+                                    type: [
+                                        'number',
+                                        'null'
+                                    ]
+                                },
+                                url: {
+                                    type: [
+                                        'string',
+                                        'null'
+                                    ],
+                                    maxLength: 4096
+                                },
+                                topic: {
+                                    type: 'boolean'
+                                }
+                            },
+                            required: [
+                                'keyword',
+                                'volume',
+                                'position',
+                                'url',
+                                'topic'
+                            ]
+                        },
+                        maxItems: 100
+                    }
+                },
+                required: [
+                    'host',
+                    'total',
+                    'topicWords',
+                    'rows'
+                ]
+            },
+            maxItems: 3
+        },
+        articleIdeas: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    topic: {
+                        type: 'string',
+                        maxLength: 20000
+                    },
+                    feature: {
+                        type: 'string',
+                        maxLength: 20000
+                    },
+                    keyword: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        maxLength: 20000
+                    },
+                    demand: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    reach: {
+                        type: 'string',
+                        maxLength: 100
+                    },
+                    position: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    },
+                    note: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        maxLength: 20000
+                    },
+                    suggestions: {
+                        type: [
+                            'array',
+                            'null'
+                        ],
+                        items: {
+                            type: 'object',
+                            properties: {
+                                keyword: {
+                                    type: 'string',
+                                    maxLength: 20000
+                                },
+                                volume: {
+                                    type: 'number'
+                                }
+                            },
+                            required: [
+                                'keyword',
+                                'volume'
+                            ]
+                        },
+                        maxItems: 10
+                    }
+                },
+                required: [
+                    'topic',
+                    'feature',
+                    'keyword',
+                    'demand',
+                    'reach',
+                    'position',
+                    'note',
+                    'suggestions'
+                ]
+            },
+            maxItems: 10
+        },
         observationId: {
             type: 'string',
             format: 'uuid'

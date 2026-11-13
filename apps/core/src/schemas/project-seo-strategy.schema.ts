@@ -21,6 +21,80 @@ export const seoStrategyPlaceSchema = z.object({
   form: label,
 });
 
+/** At most this many rows of a feature reach or article idea section; the SEO bot reads at most 10. */
+export const SEO_KEYWORD_REACH_ROWS_MAX = 10;
+/** At most this many competing products; the SEO bot reads at most 3. */
+export const SEO_RIVAL_HOSTS_MAX = 3;
+/** At most this many keyword rows per competing product; the SEO bot reads at most 100. */
+export const SEO_RIVAL_ROWS_MAX = 100;
+
+/** The reach of each feature's best search that no keyword group holds (SEO bot ticket 76). */
+export const seoFeatureReachSchema = z
+  .array(
+    z.object({
+      feature: text,
+      keyword: text,
+      /** Monthly searches in the suggestions read. */
+      volume: z.number().finite(),
+      /** Monthly searches in the overview read (the recent mean when the trend falls). */
+      demand: count,
+      reach: label,
+      position: count,
+      note: text.nullable(),
+    }),
+  )
+  .max(SEO_KEYWORD_REACH_ROWS_MAX)
+  .optional();
+/** The organic keywords of each competing product, most searches first (SEO bot ticket 76). */
+export const seoRivalKeywordsSchema = z
+  .array(
+    z.object({
+      host: z.string().min(1).max(253),
+      /** The keywords the host ranks for in the vendor's database; the rows are the first of them. */
+      total: count,
+      /** The site's topic words the rows were matched against; none when the site has too few keyword rows. */
+      topicWords: z.array(label).max(50),
+      rows: z
+        .array(
+          z.object({
+            keyword: text,
+            volume: count,
+            position: count,
+            url: url.nullable(),
+            /** The keyword holds a topic word of the site. A host with other products ranks for their keywords too. */
+            topic: z.boolean(),
+          }),
+        )
+        .max(SEO_RIVAL_ROWS_MAX),
+    }),
+  )
+  .max(SEO_RIVAL_HOSTS_MAX)
+  .optional();
+/** Searches the product's users make before they need it, as article ideas (SEO bot ticket 76). They convert low. */
+export const seoArticleIdeasSchema = z
+  .array(
+    z.object({
+      topic: text,
+      feature: text,
+      keyword: text.nullable(),
+      demand: count,
+      reach: label,
+      position: count,
+      note: text.nullable(),
+      suggestions: z
+        .array(z.object({ keyword: text, volume: z.number().finite() }))
+        .max(SEO_KEYWORD_REACH_ROWS_MAX)
+        .nullable(),
+    }),
+  )
+  .max(SEO_KEYWORD_REACH_ROWS_MAX)
+  .optional();
+export type SeoKeywordReach = {
+  featureReach?: z.infer<typeof seoFeatureReachSchema>;
+  rivalKeywords?: z.infer<typeof seoRivalKeywordsSchema>;
+  articleIdeas?: z.infer<typeof seoArticleIdeasSchema>;
+};
+
 /** The strategy results of a site audit that Core keeps. The helper checks each URL at import. */
 export const seoStrategyPayloadSchema = z.object({
   verdict: label,
@@ -72,6 +146,10 @@ export const seoStrategyPayloadSchema = z.object({
    * left out or did not answer for. Older rows have none.
    */
   placesNotes: z.array(text).max(SEO_STRATEGY_PLACES_NOTES_MAX).optional(),
+  /** The keyword reach sections of the site audit. Older rows have none. */
+  featureReach: seoFeatureReachSchema,
+  rivalKeywords: seoRivalKeywordsSchema,
+  articleIdeas: seoArticleIdeasSchema,
 });
 export type SeoStrategyPayload = z.infer<typeof seoStrategyPayloadSchema>;
 
