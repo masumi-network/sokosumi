@@ -37,7 +37,7 @@ describe("InvitationActionsDropdown", () => {
     inviteMemberMock.mockResolvedValue({ error: { message: "rate limited" } });
 
     render(
-      <InvitationActionsModalContextProvider>
+      <InvitationActionsModalContextProvider onCancelling={vi.fn()}>
         <InvitationActionsDropdown
           me={{ role: MemberRole.ADMIN } as OrganizationMembershipSelf}
           invitation={
