@@ -84,7 +84,7 @@ import { useSeoWorkspace } from "./use-seo-workspace";
 const SKELETON_DELAY_MS = 150;
 const SKELETON_ROWS = ["first", "second"] as const;
 
-/** The notice that says checks are off; the header's run button points to it. */
+/** The notice that says checks are off; the run of the checks card points to it. */
 const SEO_DISPATCH_PAUSED_ID = "seo-dispatch-paused";
 const SEO_TAB_ICONS: Record<SeoTab, LucideIcon> = {
   agent: Bot,
@@ -191,11 +191,13 @@ export function SeoWorkspace({
       </p>
     );
   const { canRequestAnalysis } = model.data.availableActions;
-  // The filled button of every tab, until a result waits. The setup card is on the Agent tab only; there its own check step leads.
+  // The filled button of every tab while a check can start. The setup card is on the Agent tab only; there its own check step leads.
   const runAudit =
     model.filters.tab === "agent" && setup ? null : seoRunAction(model.data);
   // While the pages load or the dates are wrong, no dialog opens.
   const runReady = Boolean(runAudit?.ready) && !unavailable;
+  // The card of the checks over the tabs: the run, or the line of checks, or both.
+  const checksCard = runsRow || runAudit !== null;
   // The notices under the header; any of them keeps the full room over the timeline.
   const historyNotice = !unavailable && model.data.history.limited;
   // During setup the card on the agent tab says this on its check step.
@@ -217,13 +219,16 @@ export function SeoWorkspace({
     <div className="space-y-6 pb-16 [&_details[open]>:not(summary)]:content-rise max-sm:[&_[data-slot=button]]:min-h-10 max-sm:[&_[data-slot=dropdown-menu-trigger]]:min-h-10 max-sm:[&_[data-slot=input]]:min-h-10 max-sm:[&_[data-slot=select-trigger]]:min-h-10">
       {/* The actions sit on the title row, centred to it, and the pages line has its own row under both: the
           header is as tall on every tab, on every screen. */}
-      {/* On a phone the timeline moves up to the header: the room over it pushed the tabs down on every tab. The
-          last header row and the room over the dots part them. A notice or an alert under the header keeps the
-          full room. The owner's room over the tab bar stays. */}
+      {/* The checks card stands as far under the header as the tabs stand under the card: 20 px, 16 px on a phone,
+          where the room pushed the tabs down on every tab. A notice or an alert under the header keeps the full
+          room. */}
       <div
         className={cn(
           "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1",
-          runsRow && !noticeShown && !model.result.isError && "max-sm:mb-2",
+          checksCard &&
+            !noticeShown &&
+            !model.result.isError &&
+            "mb-5 max-sm:mb-4",
         )}
       >
         <div className="contents">
@@ -398,11 +403,11 @@ export function SeoWorkspace({
         />
         <div
           ref={tabBar}
-          // On a phone the tabs fill the row; a fifth tab still scrolls, without a scroll track. The room above
-          // parts the tabs from the timeline over them.
+          // On a phone the tabs fill the row; a fifth tab still scrolls, without a scroll track. Under the checks
+          // card the tab gap and this room make 20 px, the room over the card; a phone keeps the 16 px gap.
           className={cn(
             "app-scrollbar w-fit max-w-full overflow-x-auto max-sm:w-full max-sm:[scrollbar-width:none]",
-            runsRow && "mt-3",
+            checksCard && "sm:mt-1",
           )}
         >
           <TabsList

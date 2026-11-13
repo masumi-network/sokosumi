@@ -106,7 +106,7 @@ export function SeoRuns({
         aria-labelledby={shown ? titleId : undefined}
         className="contents"
       >
-        <div className="order-1 flex min-w-0 flex-1 items-baseline gap-3 px-2 py-1.5">
+        <div className="order-1 flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-1 px-2 py-1.5 sm:flex-initial">
           {/* Under the audit name, the h2 of the page. */}
           <h3 id={titleId} className="text-sm font-semibold">
             {t("runs.label")}
@@ -129,12 +129,38 @@ export function SeoRuns({
             </SeoRunCalendar>
           ) : null}
         </div>
+        {/* Beside the date controls: an earlier check or a range in view says so, with the way back, and fades in.
+            On a phone it is the last row of the card, so a picked stop does not move under the finger. */}
+        {shown ? (
+          <p className="text-muted-foreground order-1 min-w-0 flex-1 px-2 text-xs empty:hidden max-sm:order-5 max-sm:basis-full sm:-ms-1">
+            {model.invalidDates ? (
+              // The tab says why it is empty; the line gives the way back.
+              latest
+            ) : picked && inView ? (
+              <span className="content-in">
+                {t("runs.earlier", { day: dayOf(inView.at) })} {latest}
+              </span>
+            ) : ranged ? (
+              <span className="content-in">
+                {from
+                  ? t("runs.shown", {
+                      range: format.dateTimeRange(
+                        utcDay(from),
+                        to ? utcDay(to) : now,
+                        { month: "short", day: "numeric", timeZone: "UTC" },
+                      ),
+                    })
+                  : t("runs.shownUntil", {
+                      day: dayOf(utcDay(to ?? "")),
+                    })}{" "}
+                {latest}
+              </span>
+            ) : null}
+          </p>
+        ) : null}
         {shown ? (
           <div
-            className={cn(
-              HOLDER_ITEM_CLASS,
-              "order-3 basis-full space-y-1 px-2 pt-3 pb-1",
-            )}
+            className={cn(HOLDER_ITEM_CLASS, "order-3 basis-full px-2 py-3")}
           >
             <ol
               ref={line}
@@ -267,38 +293,11 @@ export function SeoRuns({
                 </li>
               ) : null}
             </ol>
-            {/* Always there, empty or not: a pick of a day or a range moves nothing under the line. An earlier check or
-          a range in view says so, with the way back, and fades in. */}
-            <p className="text-muted-foreground min-h-5 px-2 text-sm">
-              {model.invalidDates ? (
-                // The tab says why it is empty; the line gives the way back.
-                latest
-              ) : picked && inView ? (
-                <span className="content-in">
-                  {t("runs.earlier", { day: dayOf(inView.at) })} {latest}
-                </span>
-              ) : ranged ? (
-                <span className="content-in">
-                  {from
-                    ? t("runs.shown", {
-                        range: format.dateTimeRange(
-                          utcDay(from),
-                          to ? utcDay(to) : now,
-                          { month: "short", day: "numeric", timeZone: "UTC" },
-                        ),
-                      })
-                    : t("runs.shownUntil", {
-                        day: dayOf(utcDay(to ?? "")),
-                      })}{" "}
-                  {latest}
-                </span>
-              ) : null}
-            </p>
           </div>
         ) : null}
       </div>
       {runButton ? (
-        <div className="order-2 max-sm:order-4 max-sm:basis-full max-sm:[&>div]:w-full">
+        <div className="order-2 ms-auto max-sm:order-4 max-sm:basis-full max-sm:[&>div]:w-full">
           {runButton}
         </div>
       ) : null}
