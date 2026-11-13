@@ -91,6 +91,18 @@ const KNOWN_NOTES = new Map<string, SeoAuditGap["message"]>([
   [SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE, "analyticsTruncated"],
 ]);
 
+/**
+ * Whether a filter narrows the statistics Core returns: a sync counts only for its exact page group and
+ * channel, and Search Console stores "organic" only. A narrowed view can lack a connected source's data.
+ */
+export function seoViewNarrowed(filters: {
+  channel?: string | null;
+  pageId?: string | null;
+  scopeId?: string | null;
+}) {
+  return Boolean(filters.channel || filters.pageId || filters.scopeId);
+}
+
 /** Which Google sources the saved statistics of these pages come from. */
 function connectedSources(data: ProjectSeoWorkspace) {
   const latest = latestSeoMeasurements(data.metrics);
@@ -108,28 +120,32 @@ function connectedSources(data: ProjectSeoWorkspace) {
  * the optional checks it did not run, paid data that is off and history that is cut. A fix shows only where the
  * reader may take it.
  */
-export function seoAuditGaps(data: ProjectSeoWorkspace): SeoAuditGap[] {
+export function seoAuditGaps(
+  data: ProjectSeoWorkspace,
+  narrowed = false,
+): SeoAuditGap[] {
   const { canSyncMetrics, canRequestAnalysis, canUsePaidSearchData } =
     data.availableActions;
   const sync = canSyncMetrics ? "sync" : null;
   const check = canRequestAnalysis ? "run_check" : null;
   const connected = connectedSources(data);
   const gaps: SeoAuditGap[] = [];
-  if (!connected.search_console)
+  // A narrowed view says nothing about a source it does not show.
+  if (!connected.search_console && !narrowed)
     gaps.push({
       message: "noSearchConsole",
       fix: canSyncMetrics ? "connect_search_console" : null,
     });
-  if (!connected.ga4)
+  if (!connected.ga4 && !narrowed)
     gaps.push({
       message: "noAnalytics",
       fix: canSyncMetrics ? "connect_ga4" : null,
     });
-  if (data.metricsStatus === "unavailable")
+  // Core says "unavailable" whenever there are no statistics; only a sync that read nothing is this gap.
+  const latest = latestSeoMeasurements(data.metrics);
+  if (latest.some((metric) => metric.coverage === "unavailable"))
     gaps.push({ message: "statisticsUnavailable", fix: sync });
-  const notes = new Set(
-    latestSeoMeasurements(data.metrics).flatMap((metric) => metric.notes),
-  );
+  const notes = new Set(latest.flatMap((metric) => metric.notes));
   // Every Search Console sync stores this note: it is no gap.
   notes.delete(SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE);
   for (const note of notes) {
@@ -193,6 +209,7 @@ export function seoAuditGaps(data: ProjectSeoWorkspace): SeoAuditGap[] {
  */
 export function seoUnlockSteps(
   data: ProjectSeoWorkspace,
+  narrowed = false,
   catalog: readonly SeoCapability[] = SEO_CAPABILITIES,
 ) {
   const open = catalog.filter((item) => item.status !== "built");
@@ -203,7 +220,7 @@ export function seoUnlockSteps(
         ? connected[unlock]
         : false;
     const connect: SeoAuditGapFix | null =
-      done || !data.availableActions.canSyncMetrics
+      done || narrowed || !data.availableActions.canSyncMetrics
         ? null
         : unlock === "search_console"
           ? "connect_search_console"

@@ -13,6 +13,7 @@ import {
   seoAuditGaps,
   seoCapabilityGroups,
   seoUnlockSteps,
+  seoViewNarrowed,
 } from "./seo-improve-model";
 import {
   SEO_ROW_LIST_CLASS,
@@ -39,8 +40,9 @@ export function SeoImprove({ model }: { model: SeoWorkspaceModel }) {
   const format = useFormatter();
   const [filter, setFilter] = useState<SeoCapabilityFilter>("all");
   const groups = seoCapabilityGroups(filter);
-  const gaps = seoAuditGaps(model.data);
-  const steps = seoUnlockSteps(model.data);
+  const narrowed = seoViewNarrowed(model.filters);
+  const gaps = seoAuditGaps(model.data, narrowed);
+  const steps = seoUnlockSteps(model.data, narrowed);
   // The chat belongs to an Audit; a Project's own workspace has none.
   const canAsk = Boolean(model.data.auditId);
   const day = (date: string) =>

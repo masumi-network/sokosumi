@@ -14,6 +14,7 @@ import {
   seoAuditGaps,
   seoCapabilityGroups,
   seoUnlockSteps,
+  seoViewNarrowed,
 } from "./seo-improve-model";
 import {
   seoTestMetric,
@@ -74,6 +75,45 @@ describe("seoAuditGaps", () => {
       expect(seoAuditGaps(workspace).map((gap) => gap.message)).not.toContain(
         "noCheck",
       );
+  });
+
+  it("names a sync that read nothing, not the empty statistics of a new audit", () => {
+    const fresh = seoTestWorkspace();
+    fresh.metricsStatus = "unavailable";
+    expect(seoAuditGaps(fresh).map((gap) => gap.message)).not.toContain(
+      "statisticsUnavailable",
+    );
+    const empty = seoTestWorkspace();
+    empty.metrics = [{ ...seoTestMetric(), coverage: "unavailable" }];
+    empty.metricsStatus = "partial";
+    expect(seoAuditGaps(empty)).toContainEqual({
+      message: "statisticsUnavailable",
+      fix: "sync",
+    });
+  });
+
+  it("claims no missing source where a filter narrows the statistics", () => {
+    for (const filters of [
+      { channel: "all" },
+      { pageId: "page" },
+      { scopeId: "scope" },
+    ]) {
+      const narrowed = seoViewNarrowed(filters);
+      expect(narrowed).toBe(true);
+      const workspace = seoTestWorkspace();
+      expect(
+        seoAuditGaps(workspace, narrowed).map((gap) => gap.message),
+      ).toEqual(["noCheck"]);
+      for (const step of seoUnlockSteps(workspace, narrowed).filter(
+        (step) => step.unlock === "search_console" || step.unlock === "ga4",
+      ))
+        expect(step).toEqual(
+          expect.objectContaining({ done: false, connect: null }),
+        );
+    }
+    expect(
+      seoViewNarrowed({ channel: null, pageId: null, scopeId: null }),
+    ).toBe(false);
   });
 
   it("offers no fix the reader cannot take", () => {
@@ -219,7 +259,7 @@ describe("seoUnlockSteps", () => {
   });
 
   it("counts the open items of a step and leaves out a step with none", () => {
-    const steps = seoUnlockSteps(seoTestWorkspace(), [
+    const steps = seoUnlockSteps(seoTestWorkspace(), false, [
       { ...SEO_CAPABILITIES[0], unlocks: ["paid_data", "development"] },
       { ...SEO_CAPABILITIES[33], unlocks: ["paid_data"] },
     ]);

@@ -114,7 +114,8 @@ export function seoTestWorkspace(): ProjectSeoWorkspace {
     findings: [],
     actions: [],
     searchQueries: null,
-    metricsStatus: "not_connected",
+    // Core sends "unavailable" whenever no statistics are saved.
+    metricsStatus: "unavailable",
     metrics: [],
     timeline: [],
     analyses: [],
