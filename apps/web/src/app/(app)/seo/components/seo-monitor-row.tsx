@@ -107,7 +107,7 @@ export function SeoMonitorRow({
           {t("pagesDiffer", { count: monitor.pageIds.length })}
         </p>
       ) : null}
-      {row.editing && row.when ? (
+      {row.editing && row.when && !ended ? (
         <div className="bg-muted space-y-3 rounded-lg p-3">
           <TaskScheduleWhen
             value={row.when}
@@ -118,7 +118,7 @@ export function SeoMonitorRow({
             maxRunCount={SEO_MAX_MONITOR_RUNS}
           />
           {row.belowReleased ? (
-            <p className="text-destructive text-xs">
+            <p role="alert" className="text-destructive text-xs">
               {t("belowReleased", { count: monitor.releasedCount })}
             </p>
           ) : null}

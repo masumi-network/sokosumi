@@ -11807,7 +11807,7 @@
         "title": "Scheduled checks",
         "create": "Schedule checks",
         "description": "Repeat a focused check on a schedule. Review the market, pages and per-run budget before saving.",
-        "cap": "Up to {runs} scheduled runs and {calls} data requests for them. Each Run now adds one more run. Model and runtime charges can also apply.",
+        "cap": "Up to {runs, plural, one {# scheduled run} other {# scheduled runs}} and {calls} data requests. Each Run now adds one more run. Model and runtime charges can also apply.",
         "created": "SEO monitoring scheduled",
         "next": "Next run",
         "manage": "Manage task schedule",

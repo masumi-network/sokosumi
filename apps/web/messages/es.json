@@ -11807,7 +11807,7 @@
         "title": "Comprobaciones programadas",
         "create": "Programar revisiones",
         "description": "Repite una revisión concreta según un plan. Revisa el mercado, las páginas y el presupuesto por ejecución antes de guardar.",
-        "cap": "Hasta {runs} ejecuciones programadas y {calls} solicitudes de datos para ellas. Cada «Ejecutar ahora» añade una ejecución más. También pueden aplicarse cargos de modelo y ejecución.",
+        "cap": "Hasta {runs, plural, one {# ejecución programada} other {# ejecuciones programadas}} y {calls} solicitudes de datos. Cada «Ejecutar ahora» añade una ejecución más. También pueden aplicarse cargos de modelo y ejecución.",
         "created": "Seguimiento SEO programado",
         "next": "Próxima ejecución",
         "manage": "Gestionar plan de tareas",

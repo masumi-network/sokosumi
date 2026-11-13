@@ -11807,7 +11807,7 @@
         "title": "Geplante Prüfungen",
         "create": "Prüfungen planen",
         "description": "Wiederhole eine gezielte Prüfung nach Plan. Prüfe Markt, Seiten und Budget pro Durchlauf vor dem Speichern.",
-        "cap": "Bis zu {runs} geplante Durchläufe und {calls} Datenanfragen dafür. Jedes „Jetzt ausführen“ fügt einen Durchlauf hinzu. Modell- und Laufzeitkosten können ebenfalls anfallen.",
+        "cap": "Bis zu {runs, plural, one {# geplanter Durchlauf} other {# geplante Durchläufe}} und {calls} Datenanfragen. Jedes „Jetzt ausführen“ fügt einen Durchlauf hinzu. Modell- und Laufzeitkosten können ebenfalls anfallen.",
         "created": "SEO-Monitoring geplant",
         "next": "Nächster Durchlauf",
         "manage": "Aufgabenplan verwalten",
