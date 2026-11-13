@@ -72,15 +72,26 @@ export async function createProjectSeoMonitor(
   validateSeoAnalysis(preparedAnalysis, pageUrls);
   // Each Run sends this packet with its own Analysis id, a UUID of the same length: refuse it now, not at every Run.
   seoTaskPacket(preparedAnalysis, pageUrls, crypto.randomUUID());
-  await requireSeoAnalysisBalance(
-    prisma,
-    {
-      userId: actor.userId,
-      organizationId: actor.organizationId,
-      projectId: owner.projectId,
+  // A retry of a monitor already made replays it in createTaskSchedule: only a new monitor needs the credits.
+  const made = await prisma.taskScheduleCreateOperation.findUnique({
+    where: {
+      workspaceId_operationId: {
+        workspaceId: actor.workspaceId,
+        operationId: input.operationId,
+      },
     },
-    seoAnalysisMaxCredits(preparedAnalysis, pageUrls.length),
-  );
+    select: { scheduleId: true },
+  });
+  if (!made)
+    await requireSeoAnalysisBalance(
+      prisma,
+      {
+        userId: actor.userId,
+        organizationId: actor.organizationId,
+        projectId: owner.projectId,
+      },
+      seoAnalysisMaxCredits(preparedAnalysis, pageUrls.length),
+    );
   const analysis = requestSeoAnalysisSchema.parse({
     ...preparedAnalysis,
     coworkerId: executor.coworkerId,

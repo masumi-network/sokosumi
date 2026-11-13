@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { getEnv } from "@/config/env";
@@ -143,7 +144,6 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     await prisma.user.delete({ where: { id: userId } });
     await prisma.coworker.deleteMany({ where: { vendorId } });
     await prisma.vendor.delete({ where: { id: vendorId } });
-    await prisma.$disconnect();
   });
 
   it("refuses a paid check the balance cannot cover and writes nothing", async () => {
@@ -155,6 +155,7 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
       status: 422,
       message:
         "Not enough credits. This check costs up to 150 credits and the balance is 149.",
+      cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
     });
     expect(await counts()).toEqual(before);
     await setBalance(150n);
@@ -206,6 +207,11 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     expect(await prisma.taskSchedule.count({ where: { workspaceId } })).toBe(0);
     await setBalance(150n);
     const result = await createProjectSeoMonitor(vars, actor, input);
+    // A retry whose first reply was lost replays the monitor, though the balance has dropped since.
+    await setBalance(0n);
+    expect((await createProjectSeoMonitor(vars, actor, input)).id).toBe(
+      result.id,
+    );
     const schedule = await prisma.taskSchedule.findUniqueOrThrow({
       where: { id: result.id },
     });
@@ -317,6 +323,7 @@ describe.skipIf(!enabled)("SEO credit ceiling of a Project's check", () => {
     await prisma.user.delete({ where: { id: memberId } });
     await prisma.coworker.deleteMany({ where: { vendorId: orgVendorId } });
     await prisma.vendor.delete({ where: { id: orgVendorId } });
+    await prisma.$disconnect();
   });
 
   it("counts the Project's own credits, which the charge spends first", async () => {
