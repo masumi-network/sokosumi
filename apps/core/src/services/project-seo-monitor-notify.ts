@@ -68,8 +68,11 @@ export async function notifySeoMonitorWorse(
       scheduleId: task.scheduleId,
       workspaceId: task.workspaceId,
       id: { not: taskId },
-      // A late result compares against the Runs before its own, not against newer ones.
-      createdAt: { lt: task.createdAt },
+      // A late result compares against the Runs before its own, in the workspace order (created time, then id).
+      OR: [
+        { createdAt: { lt: task.createdAt } },
+        { createdAt: task.createdAt, id: { lt: taskId } },
+      ],
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: SEO_MONITOR_EARLIER_RUNS,
