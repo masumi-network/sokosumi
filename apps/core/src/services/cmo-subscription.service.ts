@@ -123,6 +123,33 @@ function planOfProduct(
 }
 
 /**
+ * The organization and Project a checkout's metadata names, once the Polar
+ * customer is that organization (by its external id) and the Project is in
+ * it. Renewals carry no metadata: they go by the stored subscription.
+ */
+export async function resolveCheckoutTarget(
+  checkoutMetadata: Record<string, unknown>,
+  externalCustomerId: string | null | undefined,
+): Promise<
+  Result<{ organizationId: string; projectId: string }, UnusableEvent>
+> {
+  const metadata = cmoCheckoutMetadataSchema.safeParse(checkoutMetadata);
+  if (!metadata.success) return err({ issue: "no CMO checkout metadata" });
+  const { organizationId, projectId } = metadata.data;
+  if (externalCustomerId !== organizationId) {
+    return err({
+      issue: "the Polar customer is not the organization of the checkout",
+    });
+  }
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, workspace: { organizationId } },
+    select: { id: true },
+  });
+  if (!project) return err({ issue: "unknown organization or Project" });
+  return ok({ organizationId, projectId });
+}
+
+/**
  * Writes the subscription's state from a Polar payload and returns its row,
  * or the reason no row can exist (an error to report). Polar does not order
  * its deliveries, so a payload older than the stored state changes nothing.
@@ -164,20 +191,12 @@ async function upsertCmoSubscription(
   const stored = await applyToStoredRow();
   if (stored) return ok(stored);
 
-  const metadata = cmoCheckoutMetadataSchema.safeParse(source.metadata);
-  if (!metadata.success) return err({ issue: "no CMO checkout metadata" });
-  const { organizationId, projectId } = metadata.data;
-  // The organization is Polar's customer by its external id.
-  if (source.externalCustomerId !== organizationId) {
-    return err({
-      issue: "the Polar customer is not the organization of the checkout",
-    });
-  }
-  const project = await prisma.project.findFirst({
-    where: { id: projectId, workspace: { organizationId } },
-    select: { id: true },
-  });
-  if (!project) return err({ issue: "unknown organization or Project" });
+  const target = await resolveCheckoutTarget(
+    source.metadata,
+    source.externalCustomerId,
+  );
+  if (target.isErr()) return err(target.error);
+  const { organizationId, projectId } = target.value;
 
   try {
     return ok(

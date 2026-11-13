@@ -1,28 +1,19 @@
 import { CreditBucketReferenceType } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
 
-import {
-  createPolarCheckout,
-  type PolarWebhookEvent,
-} from "@/clients/polar.client";
-import { isFirstPartyAppUrl } from "@/config/cors-allow-origin";
+import type { PolarWebhookEvent } from "@/clients/polar.client";
 import { serviceUnavailable } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import {
   cmoProductMetadataSchema,
   getCmoCatalog,
 } from "@/services/cmo-catalog.service";
+import { startCmoCheckout } from "@/services/cmo-checkout.service";
 import { grantCmoCredits } from "@/services/cmo-credit-grant.service";
+import { CmoConflictError, type CusoTarget } from "@/services/cmo-cuso.service";
 import {
-  CmoConflictError,
-  type CusoTarget,
-  cmoPayer,
-  requireCuso,
-} from "@/services/cmo-cuso.service";
-import {
-  type CmoCheckoutMetadata,
-  cmoCheckoutMetadataSchema,
   reportUnusableEvent,
+  resolveCheckoutTarget,
 } from "@/services/cmo-subscription.service";
 
 /** Project top-ups: credits a member buys for one subscribed Cuso (ADR 0068). */
@@ -35,38 +26,23 @@ import {
 export async function startCmoTopUpCheckout(
   input: CusoTarget & { returnUrl: string },
 ): Promise<{ url: string }> {
-  if (!isFirstPartyAppUrl(input.returnUrl)) {
-    throw new CmoConflictError("The return address must be CMO's own page");
-  }
-  const cuso = await requireCuso(input);
-  const subscription = await prisma.cmoSubscription.findFirst({
-    where: { projectId: cuso.projectId, status: "active", endedAt: null },
-    select: { id: true },
+  return await startCmoCheckout(input, "top-up", async (cuso) => {
+    const subscription = await prisma.cmoSubscription.findFirst({
+      where: { projectId: cuso.projectId, status: "active", endedAt: null },
+      select: { id: true },
+    });
+    if (!subscription) {
+      throw new CmoConflictError(
+        "A top-up needs an active CMO subscription",
+        CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE,
+      );
+    }
+    const { topUps } = await getCmoCatalog();
+    if (topUps.length === 0) {
+      throw serviceUnavailable("Project top-ups are not set up");
+    }
+    return topUps.map((pack) => pack.productId);
   });
-  if (!subscription) {
-    throw new CmoConflictError(
-      "A top-up needs an active CMO subscription",
-      CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE,
-    );
-  }
-  const { organizationId } = await cmoPayer(cuso);
-  const { topUps } = await getCmoCatalog();
-  if (topUps.length === 0) {
-    throw serviceUnavailable("Project top-ups are not set up");
-  }
-  const metadata: CmoCheckoutMetadata & { kind: "top-up" } = {
-    projectId: cuso.projectId,
-    organizationId,
-    userId: input.userId,
-    kind: "top-up",
-  };
-  const url = await createPolarCheckout({
-    productIds: topUps.map((pack) => pack.productId),
-    organizationId,
-    metadata,
-    returnUrl: input.returnUrl,
-  });
-  return { url };
 }
 
 /**
@@ -90,28 +66,15 @@ export async function handlePolarTopUpPaid(
     reportUnusableEvent(event, "the product is not a top-up pack", extra);
     return;
   }
-  const metadata = cmoCheckoutMetadataSchema.safeParse(order.metadata);
-  if (!metadata.success) {
-    reportUnusableEvent(event, "no CMO checkout metadata", extra);
+  const target = await resolveCheckoutTarget(
+    order.metadata,
+    order.customer.external_id,
+  );
+  if (target.isErr()) {
+    reportUnusableEvent(event, target.error.issue, extra);
     return;
   }
-  const { organizationId, projectId } = metadata.data;
-  if (order.customer.external_id !== organizationId) {
-    reportUnusableEvent(
-      event,
-      "the Polar customer is not the organization of the checkout",
-      extra,
-    );
-    return;
-  }
-  const project = await prisma.project.findFirst({
-    where: { id: projectId, workspace: { organizationId } },
-    select: { id: true },
-  });
-  if (!project) {
-    reportUnusableEvent(event, "unknown organization or Project", extra);
-    return;
-  }
+  const { organizationId, projectId } = target.value;
 
   const amount = convertCreditsToCents(pack.data.credits);
   // An order has no paid date of its own: the event's timestamp stands in.
