@@ -27,7 +27,8 @@ const SEO_MONITOR_EARLIER_RUNS = 10;
 /**
  * Tells the monitor's Owner when its new result is worse than the result before: a check that passed fails, or a
  * ranked keyword fell beyond the noise band. In-app, and by email through the task update path. Nothing when it
- * stayed the same or got better. The observation id keys the notification, so a repeated import sends one.
+ * stayed the same or got better. The Run (its Task) keys the notification, so a repeated import or a second file of
+ * the same Run sends no second one.
  */
 export async function notifySeoMonitorWorse(
   taskId: string,
@@ -97,7 +98,7 @@ export async function notifySeoMonitorWorse(
     workspaceId: task.workspaceId,
     kind: NotificationKind.TASK,
     referenceId: taskId,
-    eventId: observationId,
+    eventId: taskId,
     messageKey: SEO_MONITOR_WORSE_MESSAGE_KEY,
     messageParams: {
       taskName: task.name,
@@ -105,9 +106,20 @@ export async function notifySeoMonitorWorse(
       drops: change.dropCount,
     },
   };
+  // One notification per Run. A second file of the Run stops here: inside the transaction the unique key error would
+  // abort it.
+  const { messageParams: _, workspaceId: __, ...key } = input;
+  if (
+    await prisma.notification.findUnique({
+      where: { userId_kind_referenceId_eventId_messageKey: key },
+      select: { id: true },
+    })
+  )
+    return;
   // Read before the lock, so the transaction holds the membership lock only for the check and the write.
   const delivery = await resolveDelivery(input);
-  // Under the membership lock: an Owner removed from the Workspace gets no notification.
+  // Under the membership lock: an Owner removed from the Workspace gets no notification. createNotification checks
+  // again in the same transaction but throws; this check returns quietly.
   await prisma.$transaction(async (tx) => {
     await lockCalendarWorkspaceMembership(tx, task.workspaceId);
     if (!(await hasCalendarWorkspaceAccess(tx, task.workspaceId, ownerId))) {

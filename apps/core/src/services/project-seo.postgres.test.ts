@@ -856,8 +856,15 @@ describe.skipIf(!enabled)(
           where: { userId: otherId, messageKey: SEO_MONITOR_WORSE_MESSAGE_KEY },
         }),
       ).toBe(0);
-      // A second file of the same Run counts once: the change still compares against the Run before.
-      await result(againTaskId, "2026-11-03T10:00:00.000Z", "fired");
+      // A second file of the same Run counts once: the change still compares against the Run before, and the Owner
+      // gets no second notification for the Run.
+      const secondFile = await result(
+        againTaskId,
+        "2026-11-03T10:00:00.000Z",
+        "fired",
+      );
+      await notifySeoMonitorWorse(againTaskId, secondFile.id);
+      expect(await worse()).toBe(1);
       // A late result of the oldest Run keeps that Run's place: the pair stays the two newest Runs.
       await result(scheduled!.id, "2026-11-04T09:00:00.000Z", "pass");
 
