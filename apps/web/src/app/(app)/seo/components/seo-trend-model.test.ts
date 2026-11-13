@@ -202,7 +202,7 @@ describe("seoChartEvents", () => {
     date: new Date(Date.UTC(2026, 1, 1 + index)).toISOString().slice(0, 10),
     value: 1,
   }));
-  const shaded = (source: "search_console" | "ga4", key: string) =>
+  const shaded = (source: string, key: string) =>
     seoTrendModel(
       spring,
       "count",
@@ -223,6 +223,14 @@ describe("seoChartEvents", () => {
       ...updates,
       "Impressions logging error",
     ]);
+  });
+
+  it("keeps a Search Console data anomaly off the positions of the paid SERP checks", () => {
+    expect(shaded("search_console", "position")).toEqual([
+      ...updates,
+      "Impressions logging error",
+    ]);
+    expect(shaded("serp", "position")).toEqual(updates);
   });
 });
 

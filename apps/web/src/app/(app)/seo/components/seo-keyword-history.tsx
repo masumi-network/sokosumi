@@ -66,6 +66,7 @@ export function SeoKeywordHistory({
                 key={item.device ?? "all"}
                 points={item.points}
                 unit="position"
+                // Not a Search Console metric: its data anomalies stay off the paid checks.
                 series={{ source: "serp", key: "position" }}
                 joinReads
                 label={t("historyPaidLabel", {
