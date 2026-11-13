@@ -10,6 +10,7 @@ import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import type { SkippedStep } from "../../lib/skipped-steps";
 import { AccountMenu } from "../account-menu";
 import { adsReturnError } from "../ads";
+import { subscribeOffer } from "../app/paused";
 import { hostOf } from "../brand-profile";
 import { Logo } from "../logo";
 import { StartOver } from "../start-over";
@@ -204,6 +205,11 @@ export function OnboardingFlow({
     setOverview(await actions.answerBrandQuestion(input));
   };
   const topUp = topUpOffer(overview, actions.startTopUp);
+  // A Cuso hired with Starter credits can run out before his plan: the
+  // monthly plans, cheapest first, as in the app (Polar lets him switch).
+  const subscribe = subscribeOffer(overview, () =>
+    actions.startPlanCheckout("month"),
+  );
 
   return (
     <div className="ob">
@@ -263,6 +269,7 @@ export function OnboardingFlow({
               await refresh();
             }}
             topUp={topUp}
+            subscribe={subscribe}
           />
         ) : step === "brand" ? (
           <BrandStep
@@ -289,6 +296,7 @@ export function OnboardingFlow({
               return refused;
             }}
             topUp={topUp}
+            subscribe={subscribe}
           />
         ) : step === "plan" ? (
           <PlanStep
@@ -316,6 +324,7 @@ export function OnboardingFlow({
               actions.connectMeasurement(provider, "onboarding")
             }
             topUp={topUp}
+            subscribe={subscribe}
           />
         ) : step === "checkout" ? (
           <CheckoutStep

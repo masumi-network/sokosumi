@@ -8,6 +8,7 @@ import {
 } from "../test-fixtures/cmo";
 import { OutOfCreditsBanner } from "./app/cmo-app";
 import { SettingsPage } from "./app/pages";
+import { subscribeOffer } from "./app/paused";
 import { UpNext } from "./app/up-next";
 import { Refusal } from "./onboarding/refusal";
 import { type StartTopUp, topUpOffer } from "./top-up";
@@ -128,6 +129,31 @@ describe("a refusal", () => {
     expect(html).not.toMatch(/top up/i);
   });
 
+  it("offers the plan checkout, never a top-up, to an unsubscribed Cuso out of credits", () => {
+    const html = renderToStaticMarkup(
+      <Refusal
+        text="You're out of credits"
+        topUp={null}
+        subscribe={startTopUp}
+      />,
+    );
+    expect(html).toContain("You&#x27;re out of credits.");
+    expect(html).toContain(">Subscribe</button>");
+    expect(html).not.toMatch(/top up/i);
+  });
+
+  it("offers the plan checkout when Cuso is paused for want of a plan", () => {
+    const html = renderToStaticMarkup(
+      <Refusal
+        text="Cuso is paused until a CMO plan is paid"
+        topUp={null}
+        subscribe={startTopUp}
+      />,
+    );
+    expect(html).toContain("Cuso is paused until a CMO plan is paid");
+    expect(html).toContain(">Subscribe</button>");
+  });
+
   it("shows any other reason as it is", () => {
     const html = renderToStaticMarkup(
       <Refusal text="Cuso is busy" topUp={startTopUp} />,
@@ -166,5 +192,34 @@ describe("Settings", () => {
     const html = settings(null);
     expect(html).toContain("credits available");
     expect(html).not.toContain("Top up");
+  });
+});
+
+describe("subscribeOffer", () => {
+  it("offers the plan checkout to a paused Cuso without a subscription", () => {
+    expect(
+      subscribeOffer(
+        overview({
+          subscriptionActive: false,
+          billing: cmoBilling({ status: null, hiredWithStarterCredits: true }),
+        }),
+        startTopUp,
+      ),
+    ).toBe(startTopUp);
+  });
+
+  it("offers none while he may work or when his payment needs fixing", () => {
+    expect(
+      subscribeOffer(overview({ subscriptionActive: true }), startTopUp),
+    ).toBeNull();
+    expect(
+      subscribeOffer(
+        overview({
+          subscriptionActive: false,
+          billing: cmoBilling({ status: "past_due" }),
+        }),
+        startTopUp,
+      ),
+    ).toBeNull();
   });
 });

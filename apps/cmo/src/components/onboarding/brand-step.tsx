@@ -203,6 +203,8 @@ interface BrandStepProps {
   ahead?: { label: string; onClick: () => void };
   /** The top-up checkout; left out or null when this Cuso may not top up. */
   topUp?: StartTopUp | null;
+  /** The plan checkout, set when Cuso is paused without a CMO plan. */
+  subscribe?: StartTopUp | null;
 }
 
 /** What Cuso learned, as the founder's brand: a promise, six tiles, a side panel. */
@@ -215,6 +217,7 @@ export function BrandStep({
   onAnswer,
   ahead,
   topUp = null,
+  subscribe = null,
 }: BrandStepProps) {
   const brain = overview.brandBrain as BrandBrain;
   const profile = brandProfile(brain);
@@ -345,7 +348,9 @@ export function BrandStep({
           ) : null}
         </div>
       </div>
-      {refusal ? <Refusal text={refusal} topUp={topUp} /> : null}
+      {refusal ? (
+        <Refusal text={refusal} topUp={topUp} subscribe={subscribe} />
+      ) : null}
 
       <div className="panel ob-brand-panel">
         <div className="ob-brand-main">

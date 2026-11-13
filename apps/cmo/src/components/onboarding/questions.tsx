@@ -233,10 +233,16 @@ interface RetryButtonProps {
   onRetry: () => Promise<string | null>;
   /** The top-up checkout, or null when this Cuso may not top up. */
   topUp: StartTopUp | null;
+  /** The plan checkout, set when Cuso is paused without a CMO plan. */
+  subscribe?: StartTopUp | null;
 }
 
 /** Starts the work again; a refusal (such as no credits) comes back as text. */
-export function RetryButton({ onRetry, topUp }: RetryButtonProps) {
+export function RetryButton({
+  onRetry,
+  topUp,
+  subscribe = null,
+}: RetryButtonProps) {
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   return (
@@ -253,7 +259,9 @@ export function RetryButton({ onRetry, topUp }: RetryButtonProps) {
       >
         {pending ? "Starting…" : "Try again"}
       </button>
-      {refusal ? <Refusal text={refusal} topUp={topUp} /> : null}
+      {refusal ? (
+        <Refusal text={refusal} topUp={topUp} subscribe={subscribe} />
+      ) : null}
     </div>
   );
 }

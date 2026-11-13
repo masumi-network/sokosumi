@@ -73,7 +73,8 @@ export interface OnboardingCheckoutActions {
   /** Starts Polar's checkout; the browser goes to the returned URL. */
   startPlanCheckout: (
     interval: CmoSubscriptionPlan["interval"],
-    tier: string,
+    /** The plan Polar opens on; without one, the cheapest. */
+    tier?: string,
   ) => Promise<{ url: string | null; error: string | null }>;
 }
 

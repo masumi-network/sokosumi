@@ -58,6 +58,8 @@ interface SiteStepProps {
   onReply: (text: string) => Promise<void>;
   /** The top-up checkout; left out or null when this Cuso may not top up. */
   topUp?: StartTopUp | null;
+  /** The plan checkout, set when Cuso is paused without a CMO plan. */
+  subscribe?: StartTopUp | null;
 }
 
 /**
@@ -77,6 +79,7 @@ export function SiteStep({
   onRetry,
   onReply,
   topUp = null,
+  subscribe = null,
 }: SiteStepProps) {
   const brain = overview.brandBrain;
   const work = overview.work?.kind === "research" ? overview.work : null;
@@ -239,7 +242,7 @@ export function SiteStep({
           <div className="card card-focus ob-says">
             <CusoAvatar pose="needs-you" size={96} />
             {noCredits ? (
-              <Refusal text="credits" topUp={topUp} />
+              <Refusal text="credits" topUp={topUp} subscribe={subscribe} />
             ) : (
               <p className="ob-value">
                 {found && found.saved > 0
@@ -247,7 +250,11 @@ export function SiteStep({
                   : "Nothing was lost. Try again and I start over."}
               </p>
             )}
-            <RetryButton onRetry={onRetry} topUp={topUp} />
+            <RetryButton
+              onRetry={onRetry}
+              topUp={topUp}
+              subscribe={subscribe}
+            />
           </div>
         ) : asked ? (
           <QuestionReply question={asked} onReply={onReply} />

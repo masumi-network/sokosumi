@@ -61,17 +61,33 @@ export function TopUpButton({
   );
 }
 
-/** Out of credits, with the top-up when this Cuso may have one. */
-export function OutOfCredits({ topUp }: { topUp: StartTopUp | null }) {
+/**
+ * Out of credits, with the top-up when this Cuso may have one, else the plan
+ * checkout when he has no CMO plan (never a top-up without one).
+ */
+export function OutOfCredits({
+  topUp,
+  subscribe = null,
+}: {
+  topUp: StartTopUp | null;
+  subscribe?: StartTopUp | null;
+}) {
+  const offer = topUp ?? subscribe;
   return (
     <>
       <span className="note" role="alert">
-        You're out of credits.{topUp ? " Top up, then try again." : ""}
+        You're out of credits.
+        {topUp
+          ? " Top up, then try again."
+          : subscribe
+            ? " Subscribe to a CMO plan, then try again."
+            : ""}
       </span>
-      {topUp ? (
+      {offer ? (
         <TopUpButton
-          startTopUp={topUp}
+          startTopUp={offer}
           className="button button-secondary button-small"
+          label={topUp ? "Top up" : "Subscribe"}
         />
       ) : null}
     </>

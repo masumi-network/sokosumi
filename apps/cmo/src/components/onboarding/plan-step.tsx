@@ -152,6 +152,8 @@ interface PlanStepProps {
   ahead?: { label: string; onClick: () => void };
   /** The top-up checkout; left out or null when this Cuso may not top up. */
   topUp?: StartTopUp | null;
+  /** The plan checkout, set when Cuso is paused without a CMO plan. */
+  subscribe?: StartTopUp | null;
 }
 
 /**
@@ -160,7 +162,7 @@ interface PlanStepProps {
  * While Cuso writes or changes it, the plan stays on screen and fills in.
  */
 export function PlanStep(props: PlanStepProps) {
-  const { overview, phase, onRequest, topUp = null } = props;
+  const { overview, phase, onRequest, topUp = null, subscribe = null } = props;
   if (phase === "planning") {
     return (
       <Planning
@@ -168,6 +170,7 @@ export function PlanStep(props: PlanStepProps) {
         starting={props.starting ?? false}
         onRetry={() => onRequest()}
         topUp={topUp}
+        subscribe={subscribe}
       />
     );
   }
@@ -177,6 +180,7 @@ export function PlanStep(props: PlanStepProps) {
         overview={overview}
         onWrite={() => onRequest()}
         topUp={topUp}
+        subscribe={subscribe}
       />
     );
   }
@@ -188,10 +192,17 @@ interface PlanningProps {
   starting: boolean;
   onRetry: () => Promise<string | null>;
   topUp: StartTopUp | null;
+  subscribe: StartTopUp | null;
 }
 
 /** The first plan is being written: the checklist, and the way to try again. */
-function Planning({ overview, starting, onRetry, topUp }: PlanningProps) {
+function Planning({
+  overview,
+  starting,
+  onRetry,
+  topUp,
+  subscribe,
+}: PlanningProps) {
   const work = overview.work;
   const running =
     starting || (work?.kind === "strategy" && work.status === "running");
@@ -210,7 +221,7 @@ function Planning({ overview, starting, onRetry, topUp }: PlanningProps) {
           {running ? "Writing your plan" : "Planning stopped"}
         </h1>
         {noCredits ? (
-          <Refusal text="credits" topUp={topUp} />
+          <Refusal text="credits" topUp={topUp} subscribe={subscribe} />
         ) : (
           <p className="muted">
             {running
@@ -267,7 +278,9 @@ function Planning({ overview, starting, onRetry, topUp }: PlanningProps) {
             </ul>
           )}
         </div>
-        {running ? null : <RetryButton onRetry={onRetry} topUp={topUp} />}
+        {running ? null : (
+          <RetryButton onRetry={onRetry} topUp={topUp} subscribe={subscribe} />
+        )}
       </div>
     </section>
   );
@@ -277,10 +290,16 @@ interface WriteNeededProps {
   overview: CmoOverview;
   onWrite: () => Promise<string | null>;
   topUp: StartTopUp | null;
+  subscribe: StartTopUp | null;
 }
 
 /** Brand is confirmed and nothing writes the plan: one button does. */
-function WriteNeeded({ overview, onWrite, topUp }: WriteNeededProps) {
+function WriteNeeded({
+  overview,
+  onWrite,
+  topUp,
+  subscribe,
+}: WriteNeededProps) {
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   return (
@@ -308,7 +327,9 @@ function WriteNeeded({ overview, onWrite, topUp }: WriteNeededProps) {
           {pending ? "Starting…" : "Write my plan"}
           {pending ? null : <ArrowRight size={16} aria-hidden="true" />}
         </button>
-        {refusal ? <Refusal text={refusal} topUp={topUp} /> : null}
+        {refusal ? (
+          <Refusal text={refusal} topUp={topUp} subscribe={subscribe} />
+        ) : null}
       </div>
     </section>
   );
@@ -332,6 +353,7 @@ export function PlanReview({
   onConnectMeasurement,
   ahead,
   topUp = null,
+  subscribe = null,
 }: PlanReviewProps) {
   const strategy = overview.strategy as Strategy;
   const [tab, setTab] = useState<PlanTab>(initialTab);
@@ -533,7 +555,9 @@ export function PlanReview({
         </div>
       ) : null}
 
-      {refusal ? <Refusal text={refusal} topUp={topUp} /> : null}
+      {refusal ? (
+        <Refusal text={refusal} topUp={topUp} subscribe={subscribe} />
+      ) : null}
       {stopped ? (
         <p className="alert" role="alert">
           {asked

@@ -22,6 +22,14 @@ export function cmoPause(
   return status !== null && status !== "active" ? "fixPayment" : "subscribe";
 }
 
+/** The plan checkout when Cuso is paused for want of a plan, else null. */
+export function subscribeOffer(
+  overview: Pick<CmoOverview, "subscriptionActive" | "billing">,
+  subscribe: StartTopUp,
+): StartTopUp | null {
+  return cmoPause(overview) === "subscribe" ? subscribe : null;
+}
+
 /** Cuso is paused without a paid CMO plan: why, and the way out. */
 export function PausedBanner({
   pause,

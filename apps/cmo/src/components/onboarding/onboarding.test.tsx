@@ -268,6 +268,27 @@ describe("Site while Cuso reads", () => {
   });
 });
 
+describe("a Cuso hired with Starter credits who ran out before his plan", () => {
+  const ranOut = reading({
+    work: null,
+    learning: "failed",
+    subscriptionActive: false,
+    billing: cmoBilling({
+      availableCredits: 0,
+      status: null,
+      hiredWithStarterCredits: true,
+    }),
+  });
+  const subscribe = async () => ({ url: null, error: null });
+
+  it("offers the plan checkout on the read, not a top-up", () => {
+    const html = site(ranOut, { subscribe });
+    expect(html).toContain("out of credits");
+    expect(html).toContain(">Subscribe</button>");
+    expect(html).not.toMatch(/top up/i);
+  });
+});
+
 describe("Brand", () => {
   const render = (
     overview: CmoOverview,
