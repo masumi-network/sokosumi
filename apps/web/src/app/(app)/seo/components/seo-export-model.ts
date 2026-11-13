@@ -5,6 +5,7 @@ import type {
 import type { SeoCsvCell } from "./seo-csv";
 import type { SeoKeywordGroup } from "./seo-keyword-rows-model";
 import type { SeoTopPage } from "./seo-search-model";
+import type { seoKeyEvents } from "./seo-traffic-model";
 
 /** One table as the CSV writes it: translated column names and raw values. */
 export type SeoExport = { header: string[]; rows: SeoCsvCell[][] };
@@ -39,7 +40,23 @@ export function seoQueriesExport(
   };
 }
 
-export function seoTopPagesExport(rows: SeoTopPage[], t: Label): SeoExport {
+/**
+ * The Top pages rows. With a Google Analytics read, the key events column names its own period:
+ * that read can cover another period than the Search Console rows.
+ */
+export function seoTopPagesExport(
+  rows: SeoTopPage[],
+  t: Label,
+  keyEvents: ReturnType<typeof seoKeyEvents> = null,
+): SeoExport {
+  const keyEventsCell = (pageUrl: string): SeoCsvCell[] =>
+    keyEvents
+      ? [
+          keyEvents.skipped.has(pageUrl)
+            ? t("traffic.keyEventsNotRead")
+            : (keyEvents.byPage.get(pageUrl) ?? null),
+        ]
+      : [];
   return {
     header: [
       t("page"),
@@ -48,6 +65,11 @@ export function seoTopPagesExport(rows: SeoTopPage[], t: Label): SeoExport {
       t("queries.ctr"),
       t("queries.position"),
       t("pages.queryCount"),
+      ...(keyEvents
+        ? [
+            `${t(keyEvents.label)} ${keyEvents.period.from}/${keyEvents.period.to}`,
+          ]
+        : []),
       t("pages.topQuery"),
     ],
     rows: rows.map((row) => [
@@ -57,6 +79,7 @@ export function seoTopPagesExport(rows: SeoTopPage[], t: Label): SeoExport {
       row.ctr,
       row.averagePosition,
       row.queries,
+      ...keyEventsCell(row.pageUrl),
       row.topQuery,
     ]),
   };

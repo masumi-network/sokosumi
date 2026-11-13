@@ -71,6 +71,10 @@ export function seoKeyEvents(landing: ProjectSeoWorkspace["landingPages"]) {
   if (!landing) return null;
   return {
     channel: landing.channel,
+    label:
+      landing.channel === "ai_assistant"
+        ? ("traffic.keyEventsAiAssistant" as const)
+        : ("traffic.keyEvents" as const),
     // The landing read can cover another period than the Search Console rows beside it.
     period: { from: landing.from, to: landing.to },
     byPage: new Map(landing.rows.map((row) => [row.pageUrl, row.keyEvents])),
