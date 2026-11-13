@@ -3,7 +3,7 @@ import type {
   ProjectSeoWorkspace,
   RequestProjectSeoAnalysisRequest,
 } from "@sokosumi/core-client";
-import { seoMaxCredits } from "@sokosumi/utils";
+import { SEO_MIN_AUDIT_USD, seoMaxCredits } from "@sokosumi/utils";
 import type { SeoCommand } from "@/lib/actions/seo/types";
 import type { SeoAnalysisLimits } from "./seo-analysis-summary";
 
@@ -67,8 +67,7 @@ export const SEO_NO_RELATED_PAGE = "no-related-page";
 export const SEO_MAX_KEYWORDS = 20;
 export const SEO_MAX_KEYWORD_LENGTH = 80;
 export const SEO_MAX_PROVIDER_CALLS = 100;
-/** Core's bounds of a multi-page audit's USD limit (fullAuditLimits.usd). */
-const SEO_MIN_AUDIT_USD = 0.3;
+/** Core's bounds of a multi-page audit's USD limit (fullAuditLimits.usd); the minimum comes from utils. */
 const SEO_MAX_AUDIT_USD = 50;
 /** Core's bounds of a multi-page audit's time limit in whole seconds (fullAuditLimits.seconds). */
 const SEO_MIN_AUDIT_SECONDS = 60;

@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { SEO_MIN_AUDIT_USD } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { SEO_SHARING_SCOPES } from "@/lib/seo/data-visibility";
 import { SEO_STATS_MAX_DAYS } from "@/lib/seo/native-statistics";
@@ -195,7 +196,7 @@ export const requestSeoAnalysisSchema = z
       .default(20),
     fullAuditLimits: z
       .object({
-        usd: z.number().min(0.3).max(50),
+        usd: z.number().min(SEO_MIN_AUDIT_USD).max(50),
         seconds: z.number().int().min(60).max(3600),
       })
       .strict()

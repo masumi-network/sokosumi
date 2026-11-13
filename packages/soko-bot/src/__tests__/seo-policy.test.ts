@@ -47,6 +47,14 @@ describe("SEO capability boundaries", () => {
         fullAuditLimits: { usd: 3, seconds: 1170 },
       }).success,
     ).toBe(true);
+    // Below one page's reserve the worker refuses the audit, so the tool does too.
+    expect(
+      schema.safeParse({
+        ...request,
+        kind: "audit_full",
+        fullAuditLimits: { usd: 0.32, seconds: 1170 },
+      }).success,
+    ).toBe(false);
     const stats = {
       projectId,
       provider: "ga4",

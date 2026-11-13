@@ -1,5 +1,6 @@
 "use client";
 
+import { SEO_MIN_AUDIT_USD } from "@sokosumi/utils";
 import { CalendarClock, ChevronDown, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TaskScheduleWhen } from "@/app/tasks/components/task-schedule-when";
@@ -275,7 +276,7 @@ export function SeoAnalysisDialog({
                     id="seo-analysis-usd"
                     name="usd"
                     type="number"
-                    min="0.3"
+                    min={SEO_MIN_AUDIT_USD}
                     max="50"
                     step="0.01"
                     value={form.usd}

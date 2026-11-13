@@ -315,6 +315,10 @@ describe("seoAnalysisMaxCredits", () => {
     expect(
       seoAnalysisMaxCredits({ kind: "full", usd: 0.1, seconds: 900 }),
     ).toBeNull();
+    // Below one page's reserve the worker refuses the audit.
+    expect(
+      seoAnalysisMaxCredits({ kind: "full", usd: 0.32, seconds: 900 }),
+    ).toBeNull();
     expect(
       seoAnalysisMaxCredits({ kind: "full", usd: 60, seconds: 900 }),
     ).toBeNull();

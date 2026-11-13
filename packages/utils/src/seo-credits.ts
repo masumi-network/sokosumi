@@ -20,6 +20,8 @@ export const SEO_MAX_CALL_CENTS = 5;
 export const SEO_DEFAULT_FULL_AUDIT_USD = 3;
 
 const CENTS_PER_USD = 100;
+/** The smallest USD limit of a multi-page full audit: the worker refuses a limit below one page's reserve. */
+export const SEO_MIN_AUDIT_USD = SEO_PAGE_CEILING_CENTS / CENTS_PER_USD;
 const PERCENT = 100;
 
 export type SeoCreditCeilingInput =

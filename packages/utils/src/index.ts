@@ -464,6 +464,7 @@ export {
   SEO_DEFAULT_FULL_AUDIT_USD,
   SEO_MARKUP_PERCENT,
   SEO_MAX_CALL_CENTS,
+  SEO_MIN_AUDIT_USD,
   SEO_PAGE_CEILING_CENTS,
   type SeoCreditCeilingInput,
   seoCreditsForCents,

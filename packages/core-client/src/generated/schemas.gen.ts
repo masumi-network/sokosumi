@@ -42816,7 +42816,7 @@ export const RequestProjectSeoAnalysisRequestSchema = {
             properties: {
                 usd: {
                     type: 'number',
-                    minimum: 0.3,
+                    minimum: 0.33,
                     maximum: 50
                 },
                 seconds: {
