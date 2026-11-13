@@ -101,7 +101,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const [chatOpen, setChatOpen] = useState(false);
   // A question another tab prepared; the chat shows it for the user to review and send.
   const [chatDraft, setChatDraft] = useState<string | null>(null);
-  const [filters, setFilters] = useQueryStates({
+  const [urlFilters, setUrlFilters] = useQueryStates({
     tab: parseAsSeoTab.withDefault("agent"),
     pageId: parseAsString,
     scopeId: parseAsString,
@@ -110,6 +110,18 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     channel: parseAsStringLiteral(SEO_TRAFFIC_CHANNELS),
     searchType: parseAsStringLiteral(SEO_SEARCH_TYPES),
   });
+  // The search type is a Traffic control: every other tab reads web search, and leaving Traffic clears it.
+  const filters =
+    urlFilters.tab === "traffic"
+      ? urlFilters
+      : { ...urlFilters, searchType: null };
+  const setFilters: typeof setUrlFilters = (values, options) =>
+    setUrlFilters(
+      typeof values !== "function" && values?.tab && values.tab !== "traffic"
+        ? { ...values, searchType: null }
+        : values,
+      options,
+    );
   const query = new URLSearchParams();
   for (const key of [
     "pageId",

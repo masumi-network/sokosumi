@@ -90,6 +90,23 @@ describe("SEO Traffic search type", () => {
     expect(screen.queryByRole("combobox", { name: "Search type" })).toBeNull();
   });
 
+  it("keeps the search type on Traffic: another tab reads web search and clears it", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.metrics = [{ ...seoTestMetric(), searchType: "discover" }];
+    renderTraffic(workspace, "&searchType=discover");
+    await user.click(screen.getByRole("tab", { name: "Rankings" }));
+    await waitFor(() =>
+      expect(vi.mocked(fetch).mock.calls.at(-1)?.[0]).not.toContain(
+        "searchType",
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "Traffic" }));
+    expect(
+      await screen.findByRole("combobox", { name: "Search type" }),
+    ).toHaveTextContent("Web");
+  });
+
   it("shows a Discover split by device beside the no query data note", () => {
     const workspace = seoTestWorkspace();
     workspace.metrics = [{ ...seoTestMetric(), searchType: "discover" }];
