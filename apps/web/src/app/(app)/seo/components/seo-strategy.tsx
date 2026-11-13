@@ -562,11 +562,9 @@ export function SeoStrategyActions({
         </SeoSection>
       ) : null}
       {places.length ? (
-        // Communities, lists, directories and stores in one list, easiest first: each is a place to get a link.
-        <SeoSection
-          title={t("strategy.links.title")}
-          description={t("strategy.links.help")}
-        >
+        // Communities, lists, directories and stores in one list, easiest first: each is a place to get a link. No
+        // line says the order: each row reads "Easy · Seen in 11 Google results", in that order.
+        <SeoSection title={t("strategy.links.title")}>
           <ul
             role="list"
             className={SEO_ROW_LIST_CLASS}

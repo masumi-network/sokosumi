@@ -12253,7 +12253,6 @@
             "link": "Pedir un enlace a {site}",
             "listing": "Pedir a {site} que incluya el producto"
           },
-          "help": "Primero los más fáciles, luego los sitios que aparecen en más resultados de Google.",
           "ease": {
             "easy": "Fácil",
             "medium": "Intermedio",
