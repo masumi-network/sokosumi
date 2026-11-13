@@ -316,6 +316,27 @@ describe("SEO Traffic branded split", () => {
     expect(queriesSection().getByText("example shop")).toBeVisible();
   });
 
+  it("counts only the queries the search filter lists", async () => {
+    const user = userEvent.setup();
+    const workspace = brandWorkspace(["acme"]);
+    // The filter box shows once the list is long enough to need it.
+    for (let index = 0; index < 20; index++)
+      workspace.searchQueries?.rows.push({
+        id: `filler-${index}`,
+        query: `garden tool ${index}`,
+        pageUrl: "https://example.com/",
+        clicks: 1,
+        impressions: 5,
+        ctr: 0.2,
+        averagePosition: 9,
+      });
+    renderTraffic(workspace);
+    await user.type(await screen.findByRole("searchbox"), "acm");
+    expect(screen.getByTestId("seo-brand-totals")).toHaveTextContent(
+      "Listed queries: 9 clicks branded, 0 clicks non-branded",
+    );
+  });
+
   it("saves the brand terms the owner types, one per line", async () => {
     const user = userEvent.setup();
     mutate.mockResolvedValue({ ok: true, value: null });

@@ -147,7 +147,12 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
         </p>
       ) : null}
       {source ? (
-        <SeoBrandSplit model={model} view={brandView} onView={setBrandView} />
+        <SeoBrandSplit
+          model={model}
+          rows={model.filteredQueries}
+          view={brandView}
+          onView={setBrandView}
+        />
       ) : null}
       {!source ? (
         <SeoEmpty

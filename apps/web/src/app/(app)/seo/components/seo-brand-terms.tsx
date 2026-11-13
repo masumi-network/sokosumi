@@ -21,10 +21,13 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
  */
 export function SeoBrandSplit({
   model,
+  rows,
   view,
   onView,
 }: {
   model: SeoWorkspaceModel;
+  /** The rows the table filters from, so the totals count what the reader can list. */
+  rows: SeoWorkspaceModel["filteredQueries"];
   view: SeoBrandView;
   onView: (view: SeoBrandView) => void;
 }) {
@@ -36,7 +39,7 @@ export function SeoBrandSplit({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   if (!terms.length && !canEdit) return null;
-  const totals = seoBrandTotals(model.data.searchQueries?.rows ?? [], terms);
+  const totals = seoBrandTotals(rows, terms);
   async function save() {
     const saved = await model.execute(
       { kind: "save_brand_terms", body: { terms: seoParseBrandTerms(draft) } },
