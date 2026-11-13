@@ -2991,7 +2991,11 @@
             "videoRequired": "TikTok needs a video."
           },
           "x": {
-            "more": "Show more"
+            "more": "Show more",
+            "images": "{count, plural, one {# image} other {# images}}",
+            "image": "Image {index} of {count}",
+            "previousImage": "Previous image",
+            "nextImage": "Next image"
           }
         },
         "statistics": {
@@ -4576,7 +4580,8 @@
       "creditsCharged": "Added up from each model's own published price, at 1 credit per cent and no markup on it. This is the charge, not an approximation of one: the same figure is taken when the image is delivered. A generation that fails costs nothing.",
       "creditsUnderivable": "At least one of these models cannot be priced per image for the frame it would run at, so this batch cannot be totalled.",
       "creditsNoFigure": "No figure",
-      "failedNoCharge": "Nothing was charged for it.",
+      "failedAfterModel": "failed",
+      "failedNoCharge": "not charged",
       "failedBodyUnreported": "The model did not return an image, and this generation is too old to say why.",
       "FailureReasons": {
         "provider_rejected": "The image provider refused this request.",
@@ -9092,6 +9097,8 @@
       "Message": {
         "delete": "Delete",
         "deleteConfirm": "Delete this message? Others will see that it was deleted.",
+        "deleteNoteTitle": "Delete this note?",
+        "deleteNoteConfirm": "It's removed for good. Only you could see it.",
         "deleted": "This message was deleted",
         "deleteError": "Could not delete the message. Try again.",
         "restored": "The message is back in the conversation.",
@@ -9478,7 +9485,7 @@
         "Decisions": {
           "open": "Decisions",
           "title": "Decisions",
-          "empty": "No decisions here yet. Messages like \"Decided: we launch Monday\" collect here.",
+          "empty": "No decisions here yet. We find them in channels and in chats with other people who allow it. Notes to yourself are never tagged.",
           "loadOlder": "Load older",
           "note": "We find these for you. If one is wrong, open its message and click the × on the tag.",
           "description": "Decisions found in your chats, newest first, including ones you already read.",
@@ -9537,6 +9544,13 @@
       "myDrive": "My files",
       "uploadButton": "Upload",
       "uploadingProgress": "{progress}%",
+      "uploadFilesOption": "Files",
+      "uploadFolderOption": "Folder",
+      "filesUploaded": "{count, plural, one {Uploaded # file} other {Uploaded # files}}",
+      "dropToUpload": "Drop files or folders to upload",
+      "folderUploaded": "{count, plural, one {Uploaded # file to {folder}} other {Uploaded # files to {folder}}}",
+      "folderUploadSkipped": "{count, plural, one {# file was not uploaded. Files skips unsupported types, files over 100 MB, names already in the folder and anything past 500 files.} other {# files were not uploaded. Files skips unsupported types, files over 100 MB, names already in the folder and anything past 500 files.}}",
+      "folderUploadNothing": "This folder has no files that can be uploaded.",
       "emptyTitle": "No files yet",
       "emptyDescription": "Upload your first file to get started",
       "searchPlaceholder": "Search files...",

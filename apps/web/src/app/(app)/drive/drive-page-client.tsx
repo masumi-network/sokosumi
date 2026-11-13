@@ -16,14 +16,17 @@ import {
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ChevronDown,
   ChevronRight,
   Copy,
   Download,
   FileSpreadsheet,
+  FileUp,
   Folder,
   FolderInput,
   FolderPlus,
   Folders,
+  FolderUp,
   Link2,
   ListFilter,
   LockKeyhole,
@@ -52,6 +55,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
+import { RoomFileDropZone } from "@/app/chat/components/room-file-drop-zone";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { DriveAllFilesPanel } from "@/app/drive/components/drive-all-files-panel";
@@ -147,6 +151,13 @@ import {
   isDuplicateResourceError,
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
+import {
+  type DriveDropRead,
+  type DriveUploadEntry,
+  driveDropEntries,
+  driveUploadEntries,
+  planDriveFolderUpload,
+} from "@/lib/utils/drive-folder-upload";
 import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
 import {
   type FileStore,
@@ -301,6 +312,7 @@ function DrivePageWorkspace({
     tags: parseAsArrayOf(parseAsString).withDefault([]),
   });
   const [uploading, setUploading] = useState(false);
+  const uploadBusyRef = useRef(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [filesViewMode, setFilesViewMode] =
     useState<FilesViewMode>(defaultFilesViewMode);
@@ -457,6 +469,24 @@ function DrivePageWorkspace({
       viewParam === "all" ||
       viewParam === "browse" ||
       folderParam.length > 0);
+
+  // The Workspace page takes file drops. One that lands beside it (sidebar,
+  // app header) must not make the browser open the file and leave Files.
+  useEffect(() => {
+    if (!isWorkspaceView) return;
+    const ignoreFileDrop = (event: DragEvent) => {
+      if (!event.dataTransfer?.types.includes("Files")) return;
+      event.preventDefault();
+      // The no-drop cursor: nothing happens here.
+      event.dataTransfer.dropEffect = "none";
+    };
+    window.addEventListener("dragover", ignoreFileDrop);
+    window.addEventListener("drop", ignoreFileDrop);
+    return () => {
+      window.removeEventListener("dragover", ignoreFileDrop);
+      window.removeEventListener("drop", ignoreFileDrop);
+    };
+  }, [isWorkspaceView]);
   /**
    * The Workspace tab is the catalog, and nothing else.
    *
@@ -877,37 +907,109 @@ function DrivePageWorkspace({
     };
   }, [activeOrganizationId]);
 
-  async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) {
+  /**
+   * Run one upload at a time, busy from the moment files arrive: reading a
+   * dropped folder takes a while, and a second drop or pick in that window
+   * would race the first.
+   */
+  async function runUpload(read: () => Promise<DriveDropRead> | DriveDropRead) {
+    if (uploadBusyRef.current) return;
+    uploadBusyRef.current = true;
+    setUploading(true);
+    setUploadProgress(0);
+    try {
+      const { entries, overflow } = await read();
+      await uploadEntries(entries, overflow);
+    } catch (err) {
+      console.error("Failed to upload files", err);
+      toast.error(t("uploadError"));
+    } finally {
+      uploadBusyRef.current = false;
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  }
+
+  /**
+   * Upload picked or dropped files into the current folder, folders with
+   * their subfolders. One file at a time, so a big folder does not open
+   * hundreds of requests at once. `overflow` files were past the cap and
+   * never read; they count as not uploaded.
+   */
+  async function uploadEntries(entries: DriveUploadEntry[], overflow: number) {
+    const plan = planDriveFolderUpload(entries, currentFolder);
+    // Skipped on purpose (type, size, cap, name taken): the note explains these.
+    let notUploaded = plan.skipped.length + overflow;
+    const skippedNote = () =>
+      notUploaded > 0
+        ? { description: t("folderUploadSkipped", { count: notUploaded }) }
+        : undefined;
+    if (plan.uploads.length === 0) {
+      if (notUploaded > 0) toast.error(t("uploadError"), skippedNote());
+      else toast.error(t("folderUploadNothing"));
       return;
     }
 
-    setUploading(true);
-    setUploadProgress(0);
-
-    try {
-      await uploadDriveFile(file, {
-        ...driveStore,
-        ...(currentFolder ? { folder: currentFolder } : {}),
-        onUploadProgress: (progress) => {
-          setUploadProgress(progress.percentage);
-        },
-      });
-
-      await refreshDriveItems();
-    } catch (err) {
-      if (isDriveFileUploadDuplicate(err)) {
-        toast.error(t("uploadDuplicateError"));
-      } else {
-        console.error("Failed to upload file", err);
-        toast.error(t("uploadError"));
+    let uploaded = 0;
+    let failed = 0;
+    let duplicate = false;
+    const total = plan.uploads.length;
+    for (const [index, { file, folder }] of plan.uploads.entries()) {
+      try {
+        await uploadDriveFile(file, {
+          ...driveStore,
+          ...(folder ? { folder } : {}),
+          onUploadProgress: (progress) => {
+            setUploadProgress(
+              Math.round((index * 100 + progress.percentage) / total),
+            );
+          },
+        });
+        uploaded += 1;
+      } catch (err) {
+        // A same-named file already there is kept; anything else is a
+        // failure the skip note would misexplain.
+        if (isDriveFileUploadDuplicate(err)) {
+          duplicate = true;
+          notUploaded += 1;
+        } else {
+          console.error("Failed to upload file", err);
+          failed += 1;
+        }
       }
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
-      event.target.value = "";
     }
+    await refreshDriveItems();
+    if (uploaded > 0 && plan.rootFolder) applyFolderFacet(plan.rootFolder);
+
+    if (uploaded === 0 && entries.length === 1 && duplicate) {
+      toast.error(t("uploadDuplicateError"));
+      return;
+    }
+    if (failed > 0 || uploaded === 0) {
+      toast.error(t("uploadError"), skippedNote());
+    }
+    if (uploaded === 0) return;
+    if (plan.rootFolder) {
+      toast.success(
+        t("folderUploaded", {
+          count: uploaded,
+          folder: plan.rootFolder.split("/").at(-1) ?? "",
+        }),
+        failed > 0 ? undefined : skippedNote(),
+      );
+    } else if (entries.length > 1) {
+      // One loose file shows up in the list; no toast needed.
+      toast.success(
+        t("filesUploaded", { count: uploaded }),
+        failed > 0 ? undefined : skippedNote(),
+      );
+    }
+  }
+
+  function handlePickedFiles(event: React.ChangeEvent<HTMLInputElement>) {
+    const entries = driveUploadEntries(event.target.files ?? []);
+    event.target.value = "";
+    void runUpload(() => ({ entries, overflow: 0 }));
   }
 
   async function handleRename(item: DriveItem, newName: string) {
@@ -1491,6 +1593,8 @@ function DrivePageWorkspace({
     fileInputRef.current?.click();
   }
 
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
   const driveTasksFilterLabels = {
     title: t("filterTitle"),
     searchPlaceholder: t("filterSearchPlaceholder"),
@@ -1680,7 +1784,22 @@ function DrivePageWorkspace({
   );
 
   return (
-    <div className={cn("@container w-full", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
+    // The whole Workspace page takes drops, header and empty space below a
+    // short list included; `flex-1` stretches it to the bottom of the view
+    // (the app shell's main column is a flex column).
+    <RoomFileDropZone
+      enabled={isWorkspaceView}
+      className={cn(
+        "@container w-full flex-1",
+        LIST_MOBILE_CREATE_FAB_CLEARANCE,
+      )}
+      onDropTransfer={(dataTransfer) => {
+        // runUpload calls this before its first await, still inside the
+        // drop event, while the browser exposes the dropped entries.
+        void runUpload(() => driveDropEntries(dataTransfer));
+      }}
+      label={t("dropToUpload")}
+    >
       {/* Drive scopes to a Project only on the Tasks view. */}
       <DriveCmoProjectBanner
         projectId={
@@ -1791,27 +1910,59 @@ function DrivePageWorkspace({
                   <FileSpreadsheet className="size-4" aria-hidden />
                   {t("GoogleSheet.button")}
                 </Button>
-                {/* A real button: a label over a hidden input never gets
-                    keyboard focus, so Tab skipped Upload. */}
-                <Button
-                  type="button"
-                  disabled={uploading}
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={openFilePicker}
-                >
-                  <Upload className="size-4" aria-hidden />
-                  {uploading
-                    ? t("uploadingProgress", { progress: uploadProgress })
-                    : t("uploadButton")}
-                </Button>
+                {/* One Upload: files or a whole folder. A file input picks
+                    one or the other, never both, so the menu asks first.
+                    Dropping either on the list works too. */}
+                <DropdownMenu>
+                  {/* A real button: a label over a hidden input never gets
+                      keyboard focus, so Tab skipped Upload. */}
+                  <DropdownMenuTrigger asChild disabled={uploading}>
+                    <Button
+                      type="button"
+                      disabled={uploading}
+                      size="sm"
+                      className="gap-1.5"
+                    >
+                      <Upload className="size-4" aria-hidden />
+                      {uploading
+                        ? t("uploadingProgress", { progress: uploadProgress })
+                        : t("uploadButton")}
+                      <ChevronDown className="size-4" aria-hidden />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={openFilePicker}>
+                      <FileUp className="size-4" aria-hidden />
+                      {t("uploadFilesOption")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => folderInputRef.current?.click()}
+                    >
+                      <FolderUp className="size-4" aria-hidden />
+                      {t("uploadFolderOption")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Input
                   id="file-upload"
                   ref={fileInputRef}
                   type="file"
+                  multiple
                   className="hidden"
-                  onChange={handleUpload}
+                  onChange={handlePickedFiles}
                   disabled={uploading}
+                />
+                {/* `webkitdirectory` is not in React's input types, but every
+                    current browser reads it and hands back the files with
+                    `webkitRelativePath` set. */}
+                <Input
+                  ref={folderInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handlePickedFiles}
+                  disabled={uploading}
+                  {...{ webkitdirectory: "" }}
                 />
               </div>
             )}
@@ -2560,6 +2711,6 @@ function DrivePageWorkspace({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </RoomFileDropZone>
   );
 }

@@ -2991,7 +2991,11 @@
             "videoRequired": "TikTok braucht ein Video."
           },
           "x": {
-            "more": "Mehr anzeigen"
+            "more": "Mehr anzeigen",
+            "images": "{count, plural, one {# Bild} other {# Bilder}}",
+            "image": "Bild {index} von {count}",
+            "previousImage": "Vorheriges Bild",
+            "nextImage": "Nächstes Bild"
           }
         },
         "statistics": {
@@ -4576,7 +4580,8 @@
       "creditsCharged": "Summiert aus dem veröffentlichten Preis jedes Modells, 1 Credit pro Cent und ohne Aufschlag. Das ist die Abbuchung, keine Schätzung: derselbe Betrag wird bei der Lieferung des Bildes genommen. Eine fehlgeschlagene Generierung kostet nichts.",
       "creditsUnderivable": "Mindestens eines dieser Modelle lässt sich für das gewählte Format nicht pro Bild bepreisen, deshalb kann dieser Stapel nicht summiert werden.",
       "creditsNoFigure": "Kein Betrag",
-      "failedNoCharge": "Dafür wurde nichts berechnet.",
+      "failedAfterModel": "fehlgeschlagen",
+      "failedNoCharge": "nicht berechnet",
       "failedBodyUnreported": "Das Modell hat kein Bild zurückgegeben, und diese Generierung ist zu alt, um den Grund zu nennen.",
       "FailureReasons": {
         "provider_rejected": "Der Bildanbieter hat diese Anfrage abgelehnt.",
@@ -9092,6 +9097,8 @@
       "Message": {
         "delete": "Löschen",
         "deleteConfirm": "Diese Nachricht löschen? Andere sehen, dass sie gelöscht wurde.",
+        "deleteNoteTitle": "Diese Notiz löschen?",
+        "deleteNoteConfirm": "Sie wird endgültig entfernt. Nur du konntest sie sehen.",
         "deleted": "Diese Nachricht wurde gelöscht",
         "deleteError": "Die Nachricht konnte nicht gelöscht werden. Versuche es erneut.",
         "restored": "Die Nachricht ist wieder in der Unterhaltung.",
@@ -9478,7 +9485,7 @@
         "Decisions": {
           "open": "Entscheidungen",
           "title": "Entscheidungen",
-          "empty": "Noch keine Entscheidungen. Nachrichten wie „Entschieden: Wir starten Montag“ landen hier.",
+          "empty": "Hier gibt es noch keine Entscheidungen. Wir finden sie in Kanälen und in Chats mit anderen Personen, die das erlauben. Notizen an dich selbst werden nie markiert.",
           "loadOlder": "Ältere laden",
           "note": "Wir finden sie für dich. Ist eine falsch, öffne ihre Nachricht und klicke auf das × am Tag.",
           "description": "Entscheidungen aus deinen Chats, die neuesten zuerst, auch bereits gelesene.",
@@ -9537,6 +9544,13 @@
       "myDrive": "Meine Dateien",
       "uploadButton": "Hochladen",
       "uploadingProgress": "{progress}%",
+      "uploadFilesOption": "Dateien",
+      "uploadFolderOption": "Ordner",
+      "filesUploaded": "{count, plural, one {# Datei hochgeladen} other {# Dateien hochgeladen}}",
+      "dropToUpload": "Dateien oder Ordner hier ablegen zum Hochladen",
+      "folderUploaded": "{count, plural, one {# Datei in {folder} hochgeladen} other {# Dateien in {folder} hochgeladen}}",
+      "folderUploadSkipped": "{count, plural, one {# Datei wurde nicht hochgeladen. Dateien überspringt nicht unterstützte Typen, Dateien über 100 MB, Namen, die es im Ordner schon gibt, und alles über 500 Dateien.} other {# Dateien wurden nicht hochgeladen. Dateien überspringt nicht unterstützte Typen, Dateien über 100 MB, Namen, die es im Ordner schon gibt, und alles über 500 Dateien.}}",
+      "folderUploadNothing": "Dieser Ordner enthält keine Dateien, die hochgeladen werden können.",
       "emptyTitle": "Noch keine Dateien",
       "emptyDescription": "Lade deine erste Datei hoch, um loszulegen",
       "searchPlaceholder": "Dateien suchen...",

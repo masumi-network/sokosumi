@@ -59,6 +59,20 @@ describe("RoomMessageMarkdown mention hover", () => {
     expect(card).toHaveTextContent("Message");
   });
 
+  it("renders links as plain text when not interactive", () => {
+    render(
+      <RoomMessageMarkdown
+        content="Brief at https://example.com/brief"
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        hoverInteractive={false}
+      />,
+    );
+
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByText(/example\.com\/brief/)).toBeInTheDocument();
+  });
+
   it("keeps the mention chip mounted when parent lookups change", () => {
     const props = {
       content: `@${coworker.id}:${coworker.slug} please look`,
