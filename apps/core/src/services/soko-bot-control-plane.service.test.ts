@@ -154,6 +154,15 @@ vi.mock("@/helpers/cuso-project-credits", () => ({
   forfeitCusoProjectCredits: forfeitMock,
   forfeitCusoProjectCreditsIfLeavingCmo: forfeitIfLeavingCmoMock,
 }));
+const { revokeSubscriptionMock, revokeSubscriptionIfLeavingCmoMock } =
+  vi.hoisted(() => ({
+    revokeSubscriptionMock: vi.fn(),
+    revokeSubscriptionIfLeavingCmoMock: vi.fn(),
+  }));
+vi.mock("@/services/cmo-subscription-end.service", () => ({
+  revokeCusoSubscription: revokeSubscriptionMock,
+  revokeCusoSubscriptionIfLeavingCmo: revokeSubscriptionIfLeavingCmoMock,
+}));
 vi.mock("@/helpers/chat-room-mention-status", () => ({
   failOpenChatRoomMentions: failOpenMentionsMock,
   publishChatRoomMentionStatuses: publishMentionStatusesMock,
@@ -3324,6 +3333,34 @@ describe("SokoBotControlPlane lifecycle", () => {
       );
     });
 
+    it("ends Cuso's subscription at Polar before the write-off", async () => {
+      await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
+
+      expect(revokeSubscriptionMock).toHaveBeenCalledExactlyOnceWith(BOT_ID);
+      expect(revokeSubscriptionMock.mock.invocationCallOrder[0]).toBeLessThan(
+        forfeitMock.mock.invocationCallOrder[0] ?? 0,
+      );
+    });
+
+    it("archives nothing and writes nothing off when Polar refuses", async () => {
+      revokeSubscriptionMock.mockRejectedValueOnce(new Error("polar refused"));
+
+      await expect(
+        new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID),
+      ).rejects.toThrow("polar refused");
+
+      expect(forfeitMock).not.toHaveBeenCalled();
+      expect(botUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("leaves the subscription alone when a member may not archive", async () => {
+      await expect(
+        new SokoBotControlPlane().archive("member_1", "ws_1", SHARED_ID),
+      ).rejects.toMatchObject({ status: 403 });
+
+      expect(revokeSubscriptionMock).not.toHaveBeenCalled();
+    });
+
     it("writes nothing off for an already archived bot", async () => {
       botFindFirstMock.mockResolvedValue(sharedBot({ archivedAt: new Date() }));
 
@@ -4808,6 +4845,46 @@ describe("updateVersion", () => {
       botUpdateManyMock.mock.invocationCallOrder[0] ?? 0,
     );
   });
+
+  it("ends Cuso's subscription before the admin lab's version change, and changes nothing when Polar refuses", async () => {
+    vi.clearAllMocks();
+    const cuso = adminBot({
+      userId: null,
+      versionId: CMO_SOKO_BOT_VERSION_ID,
+      workspace: { organizationId: "org_1" },
+    });
+    botFindFirstMock.mockResolvedValue(cuso);
+    botUpdateManyMock.mockResolvedValue({ count: 1 });
+    const move = () =>
+      new SokoBotControlPlane().updateVersion(
+        "admin_1",
+        "workspace_1",
+        "v19",
+        { allowUnpromoted: true },
+        { kind: "id", sokoBotId: BOT_ID },
+      );
+
+    await move();
+
+    expect(revokeSubscriptionIfLeavingCmoMock).toHaveBeenCalledExactlyOnceWith(
+      BOT_ID,
+      "v19",
+    );
+    expect(
+      revokeSubscriptionIfLeavingCmoMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(forfeitIfLeavingCmoMock.mock.invocationCallOrder[0] ?? 0);
+
+    vi.clearAllMocks();
+    botFindFirstMock.mockResolvedValue(cuso);
+    revokeSubscriptionIfLeavingCmoMock.mockRejectedValueOnce(
+      new Error("polar refused"),
+    );
+
+    await expect(move()).rejects.toThrow("polar refused");
+
+    expect(forfeitIfLeavingCmoMock).not.toHaveBeenCalled();
+    expect(botUpdateManyMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("SET_VERSION and fleet migration", () => {
@@ -4887,6 +4964,45 @@ describe("SET_VERSION and fleet migration", () => {
     expect(forfeitIfLeavingCmoMock.mock.invocationCallOrder[0]).toBeLessThan(
       botUpdateMock.mock.invocationCallOrder[0] ?? 0,
     );
+  });
+
+  it("ends Cuso's subscription before SET_VERSION, and changes nothing when Polar refuses", async () => {
+    botFindUniqueMock.mockResolvedValue(
+      adminBot({ userId: null, versionId: CMO_SOKO_BOT_VERSION_ID }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+    const move = (operationId: string) =>
+      new SokoBotControlPlane().performAdminAction({
+        sokoBotId: BOT_ID,
+        operatorId: "admin_1",
+        action: "SET_VERSION",
+        versionId: "v16",
+        reason: "Move Cuso to the assistant",
+        operationId,
+      });
+
+    await move("cuso-off-cmo-revoke");
+
+    expect(revokeSubscriptionIfLeavingCmoMock).toHaveBeenCalledExactlyOnceWith(
+      BOT_ID,
+      "v16",
+    );
+    expect(
+      revokeSubscriptionIfLeavingCmoMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(forfeitIfLeavingCmoMock.mock.invocationCallOrder[0] ?? 0);
+
+    vi.clearAllMocks();
+    revokeSubscriptionIfLeavingCmoMock.mockRejectedValueOnce(
+      new Error("polar refused"),
+    );
+
+    await expect(move("cuso-off-cmo-refused")).rejects.toThrow("polar refused");
+
+    expect(forfeitIfLeavingCmoMock).not.toHaveBeenCalled();
+    expect(botUpdateMock).not.toHaveBeenCalled();
   });
 
   it("asks the write-off about a move between CMO versions too", async () => {

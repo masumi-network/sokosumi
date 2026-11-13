@@ -18,6 +18,7 @@ import {
 } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { revokeCusoSubscription } from "@/services/cmo-subscription-end.service";
 import { revokeSokoBotIntegrationAccounts } from "@/services/soko-bot-integrations.service";
 
 /**
@@ -128,6 +129,10 @@ export async function deleteSokoBot(
     select: { id: true },
   });
   if (!live) throw notFound("Soko Bot not found");
+
+  // Polar stops charging for a live Cuso before he ends (ADR 0068). A
+  // failure throws here, so nothing below runs.
+  await revokeCusoSubscription(live.id);
 
   const deleted = await serializableTransaction(async (tx) => {
     const bot = await tx.sokoBot.findFirst({

@@ -1,4 +1,9 @@
-import { createPolar, type models, webhooks } from "@polar-sh/sdk/2026-10";
+import {
+  createPolar,
+  errors,
+  type models,
+  webhooks,
+} from "@polar-sh/sdk/2026-10";
 import { err, ok, type Result } from "neverthrow";
 
 import { getEnv } from "@/config/env";
@@ -58,6 +63,21 @@ export async function listPolarProducts(): Promise<PolarProduct[]> {
     products.push(product);
   }
   return products;
+}
+
+/**
+ * Ends a subscription at Polar now: no further charge, no refund, and it
+ * cannot be undone. One that Polar already ended counts as done.
+ */
+export async function revokePolarSubscription(
+  polarSubscriptionId: string,
+): Promise<void> {
+  try {
+    await requirePolar().subscriptions.revoke(polarSubscriptionId);
+  } catch (error) {
+    if (error instanceof errors.AlreadyCanceledSubscription) return;
+    throw error;
+  }
 }
 
 /**

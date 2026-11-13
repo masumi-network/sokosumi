@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { serviceUnavailable } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
@@ -355,6 +356,22 @@ describe("CMO routes", () => {
       projectId: PROJECT_ID,
     });
     expect((await response.json()).data).toEqual({ startedOver: true });
+  });
+
+  it("tells the person when the subscription could not be ended on starting over", async () => {
+    archiveMock.mockRejectedValue(
+      serviceUnavailable(
+        "The subscription could not be ended. Nothing was changed. Try again later.",
+      ),
+    );
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/start-over`,
+      { method: "POST" },
+    );
+    expect(response.status).toBe(503);
+    expect((await response.json()).message).toBe(
+      "The subscription could not be ended. Nothing was changed. Try again later.",
+    );
   });
 
   it("reverts an update of the named Project's Cuso and returns his overview", async () => {
