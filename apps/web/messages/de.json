@@ -11558,7 +11558,7 @@
       "competitors": {
         "title": "Mitbewerber",
         "checkedBetween": "Positionsprüfungen {from} bis {to}",
-        "nextActions": "{count, plural, one {Nächster Schritt: # Punkt aus der Keyword-Strategie} other {Nächster Schritt: # Punkte aus der Keyword-Strategie}}",
+        "nextActions": "{places, select, yes {{count, plural, one {Nächster Schritt: # Ort, an dem du das Produkt zeigst} other {Nächster Schritt: # Orte, an denen du das Produkt zeigst}}} other {{count, plural, one {Nächster Schritt: # Punkt aus der Keyword-Strategie} other {Nächster Schritt: # Punkte aus der Keyword-Strategie}}}}",
         "empty": "Noch keine Wettbewerber",
         "emptyBody": "Starte eine Prüfung für Vorschläge oder füge einen Mitbewerber hinzu.",
         "emptyBodyOff": "Ein Mitbewerber, den du hinzufügst, wird hier gespeichert. Seine Rankings und Backlinks brauchen kostenpflichtige Suchdaten, die in diesem Workspace aus sind.",
@@ -11997,7 +11997,7 @@
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
             "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
           },
-          "strategy": "{count, plural, one {# Punkt} other {# Punkte}} aus der Keyword-Strategie"
+          "strategy": "{places, select, yes {{count, plural, one {# Ort, an dem du das Produkt zeigst} other {# Orte, an denen du das Produkt zeigst}}} other {{count, plural, one {# Punkt} other {# Punkte}} aus der Keyword-Strategie}}"
         },
         "prompts": {
           "first": "Was soll ich zuerst tun?",
@@ -12185,13 +12185,21 @@
         },
         "links": {
           "title": "Wo du das Produkt zeigst",
-          "help": "Die einfachsten zuerst, dann die Orte, die in mehr Suchen des Audits erscheinen.",
+          "task": {
+            "post": "In {site} posten",
+            "answer": "Auf {site} eine Frage beantworten",
+            "submit": "Das Produkt bei {site} eintragen",
+            "store": "Bei {site} gelistet werden",
+            "link": "{site} um einen Link bitten",
+            "listing": "{site} bitten, das Produkt aufzunehmen"
+          },
+          "help": "Die einfachsten zuerst, dann die Orte, die in mehr Google-Ergebnissen erscheinen.",
           "ease": {
             "easy": "Einfach",
             "medium": "Mittel",
-            "hard": "Schwerer"
+            "hard": "Schwer"
           },
-          "reach": "In {seen, plural, one {# Suche} other {# Suchen}}",
+          "reach": "Gesehen in {seen, plural, one {# Google-Ergebnis} other {# Google-Ergebnissen}}",
           "more": "{count, plural, one {# weiteren Ort zeigen} other {# weitere Orte zeigen}}",
           "reason": {
             "text": "Du postest selbst, und das Audit hat den Text geschrieben.",

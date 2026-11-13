@@ -13,7 +13,7 @@ export const SEO_AGENT_ACTION_LIMIT = 3;
 type Action = ProjectSeoWorkspace["actions"][number];
 export type SeoAgentStep =
   | { kind: "action"; action: Action }
-  | { kind: "strategy"; count: number }
+  | { kind: "strategy"; count: number; places: boolean }
   | { kind: "refresh"; reason: "stale" | "no_queries" }
   | { kind: "connect"; provider: "ga4" | "search_console" }
   | { kind: "competitors"; available: boolean };
@@ -52,7 +52,7 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
   // so it comes after the work that has one.
   // One row per place: the list it opens has that many rows.
   const strategyRows = seoStrategyRows(workspace.strategy);
-  if (strategyRows) steps.push({ kind: "strategy", count: strategyRows });
+  if (strategyRows.count) steps.push({ kind: "strategy", ...strategyRows });
   if (refresh && (staleSearch || !workspace.searchQueries))
     steps.push({
       kind: "refresh",

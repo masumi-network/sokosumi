@@ -1,4 +1,5 @@
 import type { ProjectSeoStrategy } from "@sokosumi/core-client";
+import { seoHost } from "./seo-competitors-model";
 
 type Action = ProjectSeoStrategy["actions"][number];
 type Target = Action["targets"][number];
@@ -18,9 +19,26 @@ export type SeoPlaceReason =
   | "mention"
   | "author";
 
+/**
+ * What the owner does at a place, as message keys: post in a community, answer a question there, submit to a
+ * directory, get into a store, ask a page that names the product for a link, ask a page's author for a listing.
+ */
+export type SeoPlaceTask =
+  | "post"
+  | "answer"
+  | "submit"
+  | "store"
+  | "link"
+  | "listing";
+
 export interface SeoPlace {
   key: string;
+  /** The site: a community's name, or the host of a listing page. */
   name: string;
+  /** The title of a listing page; null for a community, whose name is the place. */
+  page: string | null;
+  /** Null where the bot named no place: its title already says the task. */
+  task: SeoPlaceTask | null;
   /** The action of this one place: a listing action keeps only this page as its target. */
   action: Action;
   ease: SeoPlaceEase;
@@ -61,6 +79,14 @@ const ANSWER_ONLY = /^Answer a question on /;
 /** A list that links to the site has nothing left to ask. */
 const LINKS = "links";
 const MENTIONED = "mentioned without a link";
+const LISTING_TASKS: Record<SeoPlaceReason, SeoPlaceTask> = {
+  text: "post",
+  self: "submit",
+  answer: "answer",
+  review: "store",
+  mention: "link",
+  author: "listing",
+};
 const PAGE_REASONS: Record<string, SeoPlaceReason> = {
   directory: "self",
   "app store": "review",
@@ -92,6 +118,8 @@ function promotePlace(action: Action, index: number): SeoPlace {
   return {
     key: `${index}:${action.place?.url ?? action.title}`,
     name: action.place?.name ?? action.title,
+    page: null,
+    task: !action.place ? null : reason === "answer" ? "answer" : "post",
     action,
     ease: REASON_EASE[reason],
     reason,
@@ -110,7 +138,10 @@ function listingPlaces(action: Action, index: number): SeoPlace[] {
     return [
       {
         key: `${index}:${target.url}`,
-        name: target.title ?? target.url,
+        // The site leads, as a competitor row does: page titles of stores and lists read as other products.
+        name: seoHost(target.url),
+        page: target.title ?? null,
+        task: LISTING_TASKS[reason],
         // The reason counts all pages of the kind; one page's row says its own count.
         action: { ...action, why: "", targets: [target] },
         ease: REASON_EASE[reason],
@@ -150,10 +181,16 @@ export function seoPlaces(actions: readonly Action[]) {
   };
 }
 
-/** The rows of the strategy: its other actions and its places. The rows that lead there count these. */
+/**
+ * The rows of the strategy: its other actions and its places. The rows that lead there count these, and name
+ * them as places while every row is one: the list they open has that title.
+ */
 export function seoStrategyRows(
   strategy: ProjectSeoStrategy | null | undefined,
 ) {
   const { places, rest } = seoPlaces(strategy?.actions ?? []);
-  return places.length + rest.length;
+  return {
+    count: places.length + rest.length,
+    places: places.length > 0 && !rest.length,
+  };
 }

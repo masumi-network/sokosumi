@@ -4118,11 +4118,15 @@ describe("SEO workspace integration", () => {
     expect(
       screen.getByRole("heading", { name: "Where to show the product" }),
     ).toBeVisible();
+    // The task and the site lead; the page title stays under them: a list's title reads as another product.
     const card = screen
-      .getByRole("heading", { name: /^Best battery apps/ })
+      .getByRole("heading", {
+        name: /^Ask lists\.example to list the product/,
+      })
       .closest("article");
     if (!card) throw new Error("no card");
-    expect(within(card).getByText("Harder")).toBeVisible();
+    expect(within(card).getByText("Best battery apps")).toBeVisible();
+    expect(within(card).getByText("Hard")).toBeVisible();
     // A closed card is one row: its body and its button are not on the page.
     expect(
       within(card).queryByRole("button", { name: "Draft a plan" }),
@@ -4143,7 +4147,7 @@ describe("SEO workspace integration", () => {
     ).toBeNull();
     // A type and a state without a label add no note.
     const other = screen
-      .getByRole("heading", { name: /^https:\/\/other\.example\/page/ })
+      .getByRole("heading", { name: /^Ask other\.example to list the product/ })
       .closest("article");
     if (!other) throw new Error("no other card");
     await user.click(within(other).getByRole("button", { expanded: false }));

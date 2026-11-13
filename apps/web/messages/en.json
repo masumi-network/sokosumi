@@ -11558,7 +11558,7 @@
       "competitors": {
         "title": "Competitors",
         "checkedBetween": "Position checks {from} to {to}",
-        "nextActions": "{count, plural, one {Next step: # item from the keyword strategy} other {Next step: # items from the keyword strategy}}",
+        "nextActions": "{places, select, yes {{count, plural, one {Next step: # place to show the product} other {Next step: # places to show the product}}} other {{count, plural, one {Next step: # item from the keyword strategy} other {Next step: # items from the keyword strategy}}}}",
         "empty": "No competitors yet",
         "emptyBody": "Run a check for suggested search competitors, or add a competitor to your list.",
         "emptyBodyOff": "A competitor you add is saved here. Its ranks and backlinks need paid search data, which is off in this workspace.",
@@ -11997,7 +11997,7 @@
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
             "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
           },
-          "strategy": "{count, plural, one {# item} other {# items}} from the keyword strategy"
+          "strategy": "{places, select, yes {{count, plural, one {# place to show the product} other {# places to show the product}}} other {{count, plural, one {# item} other {# items}} from the keyword strategy}}"
         },
         "prompts": {
           "first": "What should I do first?",
@@ -12185,13 +12185,21 @@
         },
         "links": {
           "title": "Where to show the product",
-          "help": "Easiest first, then the places that show up in more of the audit's searches.",
+          "task": {
+            "post": "Post in {site}",
+            "answer": "Answer a question on {site}",
+            "submit": "Submit the product to {site}",
+            "store": "Get listed on {site}",
+            "link": "Ask {site} for a link",
+            "listing": "Ask {site} to list the product"
+          },
+          "help": "Easiest first, then the places seen in more Google results.",
           "ease": {
             "easy": "Easy",
             "medium": "Medium",
-            "hard": "Harder"
+            "hard": "Hard"
           },
-          "reach": "In {seen, plural, one {# search} other {# searches}}",
+          "reach": "Seen in {seen, plural, one {# Google result} other {# Google results}}",
           "more": "{count, plural, one {Show # more place} other {Show # more places}}",
           "reason": {
             "text": "You post it yourself, and the audit wrote the text.",

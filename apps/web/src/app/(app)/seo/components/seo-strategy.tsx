@@ -266,6 +266,7 @@ function StrategyActionCard({
   model,
   startOpen,
   title = action.title,
+  page,
   meta,
   note,
 }: {
@@ -275,6 +276,8 @@ function StrategyActionCard({
   startOpen: boolean;
   /** A place row names the place. */
   title?: string;
+  /** The page of a listing place, quiet under its site. */
+  page?: string | null;
   /** Beside the title instead of the effort. */
   meta?: string;
   /** The first line of the open card. */
@@ -296,13 +299,20 @@ function StrategyActionCard({
           onToggle={() => setToggled(!open)}
         >
           <span className="min-w-0 flex-1 gap-3 sm:flex sm:items-center">
-            <span
-              id={titleId}
-              // Plain wrap: a heading balances its lines, so the same title broke at another word here than
-              // on the Agent tab.
-              className="block min-w-0 text-sm font-medium text-wrap break-words sm:flex-1"
-            >
-              {title}
+            {/* The page belongs to the name: two pages of one site have the same task. */}
+            <span id={titleId} className="block min-w-0 sm:flex-1">
+              <span
+                // Plain wrap: a heading balances its lines, so the same title broke at another word here than
+                // on the Agent tab.
+                className="block text-sm font-medium text-wrap break-words"
+              >
+                {title}
+              </span>
+              {page ? (
+                <span className="text-muted-foreground block text-xs font-normal break-words">
+                  {page}
+                </span>
+              ) : null}
             </span>
             {/* Quiet plain text, as the impact of a fix row. Two outlined labels on every row made the list a
                 list of labels, and the title already says what kind of action it is. */}
@@ -569,7 +579,14 @@ export function SeoStrategyActions({
                   <StrategyActionCard
                     action={place.action}
                     model={model}
-                    title={place.name}
+                    title={
+                      place.task
+                        ? t(`strategy.links.task.${place.task}`, {
+                            site: place.name,
+                          })
+                        : place.name
+                    }
+                    page={place.page}
                     meta={[
                       t(`strategy.links.ease.${place.ease}`),
                       place.reads

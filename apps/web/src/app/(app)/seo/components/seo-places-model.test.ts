@@ -88,23 +88,27 @@ describe("SEO places to get links", () => {
       }),
     ]);
     expect(
-      places.map(({ name, ease, reason, reads }) => [
+      places.map(({ name, task, ease, reason, reads }) => [
         name,
+        task,
         ease,
         reason,
         reads && `${reads.seen}/${reads.total}`,
       ]),
     ).toEqual([
-      ["forums.macrumors.com", "easy", "text", "11/23"],
-      ["r/macbook", "easy", "text", "4/23"],
+      ["forums.macrumors.com", "post", "easy", "text", "11/23"],
+      ["r/macbook", "post", "easy", "text", "4/23"],
       // No count: after the counted places of its ease, in the bot's order.
-      ["https://dir.test/", "easy", "self", null],
-      ["X", "easy", "self", null],
-      ["https://lists.test/b", "medium", "mention", "2/23"],
-      ["quora.com", "hard", "answer", "10/23"],
-      ["https://lists.test/a", "hard", "author", "6/23"],
-      ["https://odd.test/", "hard", "author", "1/23"],
+      ["dir.test", "submit", "easy", "self", null],
+      ["X", "post", "easy", "self", null],
+      ["lists.test", "link", "medium", "mention", "2/23"],
+      ["quora.com", "answer", "hard", "answer", "10/23"],
+      ["lists.test", "listing", "hard", "author", "6/23"],
+      ["odd.test", "listing", "hard", "author", "1/23"],
     ]);
+    // A page row names its site and keeps the page under it; a community is the place itself.
+    expect(places[6].page).toBe("https://lists.test/a");
+    expect(places[0].page).toBeNull();
     // A page row is its own action: one target, and no reason about all pages of its kind.
     expect(places[6].action.targets.map((page) => page.url)).toEqual([
       "https://lists.test/a",
@@ -146,7 +150,7 @@ describe("SEO places to get links", () => {
       ]),
     ).toEqual([
       ["r/a", "2/19"],
-      ["https://dir.test/", "1/1"],
+      ["dir.test", "1/1"],
       // Found only by the audit's own searches: no count.
       ["r/b", null],
     ]);
@@ -187,9 +191,9 @@ describe("SEO places to get links", () => {
     expect(
       places.map(({ name, reads }) => [name, reads && reads.seen]),
     ).toEqual([
-      ["https://dir.test/", 6],
+      ["dir.test", 6],
       ["r/a", 4],
-      ["https://other-dir.test/", null],
+      ["other-dir.test", null],
     ]);
   });
 
@@ -203,6 +207,8 @@ describe("SEO places to get links", () => {
       }),
     ]);
     expect(places.map((place) => place.reads)).toEqual([null, null]);
+    // No place named: the title says the task already, so no task wraps it again.
+    expect(places.map((place) => place.task)).toEqual([null, "listing"]);
     expect(
       seoStrategyRows({
         actions: [
@@ -218,7 +224,13 @@ describe("SEO places to get links", () => {
           }),
         ],
       } as ProjectSeoStrategy),
-    ).toBe(3);
-    expect(seoStrategyRows(null)).toBe(0);
+    ).toEqual({ count: 3, places: false });
+    // Only places: the rows that lead there name the list by its title.
+    expect(
+      seoStrategyRows({
+        actions: [action({ draft: "Hello" })],
+      } as ProjectSeoStrategy),
+    ).toEqual({ count: 1, places: true });
+    expect(seoStrategyRows(null)).toEqual({ count: 0, places: false });
   });
 });

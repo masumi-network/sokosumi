@@ -191,9 +191,12 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
         </dl>
       ) : null}
       {/* A list of sites alone had no next step. The row opens the strategy actions, as the Agent row does. */}
-      {rows.length && strategyActions ? (
+      {rows.length && strategyActions.count ? (
         <SeoNextStepRow onClick={model.showStrategy}>
-          {t("competitors.nextActions", { count: strategyActions })}
+          {t("competitors.nextActions", {
+            count: strategyActions.count,
+            places: strategyActions.places ? "yes" : "no",
+          })}
         </SeoNextStepRow>
       ) : null}
       {rows.length ? (

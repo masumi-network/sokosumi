@@ -74,7 +74,7 @@ describe("SEO agent brief", () => {
       "refresh",
     ]);
     // One row per place: the page action and the two pages of the listing action.
-    expect(steps[1]).toEqual({ kind: "strategy", count: 3 });
+    expect(steps[1]).toEqual({ kind: "strategy", count: 3, places: false });
   });
 
   it("loads missing query rows after a retry delay, not right after a sync", () => {
