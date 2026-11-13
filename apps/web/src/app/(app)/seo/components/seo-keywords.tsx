@@ -701,8 +701,11 @@ export function SeoKeywords({
                     taskOf(strategy.observationId) ===
                       taskOf(summary.newest.observationId))),
             )}
-          />
-          <SeoKeywordReach strategy={strategy ?? null} />
+          >
+            <div className="-mx-2">
+              <SeoKeywordReach strategy={strategy ?? null} />
+            </div>
+          </SeoStrategyFold>
         </SeoSection>
       </div>
       <div className={seoSectionClass(bothLists || section === "ideas")}>

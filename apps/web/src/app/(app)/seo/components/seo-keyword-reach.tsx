@@ -13,7 +13,7 @@ type Strategy = NonNullable<ProjectSeoStrategy>;
 type RivalHost = NonNullable<Strategy["rivalKeywords"]>[number];
 
 /**
- * The keyword reach sections of the site audit (SEO bot ticket 76), as closed lines under the keyword strategy: the
+ * The keyword reach sections of the site audit (SEO bot ticket 76), as closed lines inside the keyword strategy: the
  * reach of each feature's best search, the keywords of the competing products, and article ideas. They are context
  * for content: the strategy verdict does not read them. Keywords, features and hosts are third-party text, so they
  * show as plain text in the site's language.

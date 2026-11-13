@@ -100,10 +100,13 @@ export function SeoStrategyLine({
 export function SeoStrategyFold({
   model,
   dated,
+  children,
 }: {
   model: SeoWorkspaceModel;
   /** The date line of the keyword list already names the check of the strategy, or opens the same results. */
   dated: boolean;
+  /** The reach folds of the same audit: inside the strategy, so the list ends on one closed line. */
+  children?: ReactNode;
 }) {
   const t = useTranslations("App.Seo");
   const labels = useStrategyLabels();
@@ -179,6 +182,7 @@ export function SeoStrategyFold({
             </SeoSource>
           </p>
         )}
+        {children}
       </div>
     </details>
   );
