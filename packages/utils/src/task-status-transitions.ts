@@ -42,7 +42,7 @@ export type TaskAssigneeKind = "coworker" | "sokoBot" | "human" | "unset";
  * Statuses that require a coworker or sokoBot assignee (queue, grants, HITL,
  * credits, failed). Human/unset tasks cannot enter these.
  */
-export const AGENT_ONLY_TASK_STATUSES = [
+const AGENT_ONLY_TASK_STATUSES = [
   "QUEUED",
   "GRANT_PENDING",
   "INPUT_REQUIRED",
