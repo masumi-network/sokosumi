@@ -3465,6 +3465,12 @@ describe("SEO workspace integration", () => {
       }),
     );
     const dialog = screen.getByRole("dialog");
+    // The schedule repeats the full audit, the check of the run button.
+    expect(
+      within(within(dialog).getByTestId("seo-analysis-summary")).getByText(
+        "Full audit",
+      ),
+    ).toBeVisible();
     // The schedule opens weekly on Mondays at 09:00.
     expect(
       within(dialog).getByRole("button", { name: "Weekly" }),
@@ -3610,7 +3616,7 @@ describe("SEO workspace integration", () => {
       }),
     );
     const dialog = screen.getByRole("dialog");
-    // The schedule form opens with a page check: the follow-up of an audit. Its fields are folded.
+    // Without paid search data the schedule form opens with a page check. Its fields are folded.
     await user.click(
       within(dialog).getByRole("button", { name: "Change options" }),
     );

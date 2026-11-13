@@ -241,10 +241,9 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setAnalysisKind(null);
     setDialogState(value);
   }
-  /** Opens the schedule form with a page check: the follow-up of an audit. */
+  /** Opens the schedule form on the run button's check: the full audit where these pages allow one. */
   function openMonitor() {
     setDialog("monitor");
-    setAnalysisKind("page_check");
   }
   /** Opens the check form on one check type; the form falls back to a page check where that type cannot run. */
   function openAnalysis(kind: SeoAnalysisKind) {
