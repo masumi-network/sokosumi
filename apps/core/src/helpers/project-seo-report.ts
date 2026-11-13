@@ -11,6 +11,11 @@ import {
 import { seoStrategyPayloadSchema } from "@/schemas/project-seo-strategy.schema";
 import { assertValidPartialSeoActions } from "./project-seo-partial-actions";
 import { legacyReportKeywords } from "./project-seo-report-keywords";
+import {
+  focusedSerpFields,
+  seoAlertRowsSchema,
+  seoSerpReadsSchema,
+} from "./project-seo-report-serps";
 import { publicSeoStrategy } from "./project-seo-strategy";
 
 const text = z.string().max(20_000);
@@ -103,6 +108,10 @@ export const publicSeoPayloadSchema = z.object({
   notes: z.array(text).max(500),
   /** A site audit's strategy results. Older rows and focused checks have none. */
   strategy: seoStrategyPayloadSchema.optional(),
+  /** A focused result's SERP reads per keyword and device. Older results and audits have none. */
+  serps: seoSerpReadsSchema.optional(),
+  /** Monitor rule ids that fired in a focused result's Run. */
+  alertRows: seoAlertRowsSchema.optional(),
 });
 export type PublicSeoPayload = z.infer<typeof publicSeoPayloadSchema>;
 
@@ -226,6 +235,11 @@ export function assertSeoArtifactMatchesRequest(
       (row) =>
         !request.keywords?.includes(row.keyword) ||
         (row.device && !request.devices?.includes(row.device)),
+    ) ||
+    payload.serps?.some(
+      (row) =>
+        !request.keywords?.includes(row.keyword) ||
+        !request.devices?.includes(row.device),
     ) ||
     payload.checks.some((row) => !request.devices?.includes(row.device)) ||
     payload.findings.some(
@@ -544,7 +558,8 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     const parsed = partial.safeParse(raw);
     if (!parsed.success)
       throw badRequest("The SEO result does not match its supported format");
-    const result = parsed.data;
+    const result = parsed.data,
+      serp = focusedSerpFields(result);
     assertValidPartialSeoActions(result);
     return publicSeoPayloadSchema.parse({
       version: 1,
@@ -569,7 +584,12 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
         notRequestedNames: result.coverage.skipped,
         failedNames: result.coverage.failed,
       }),
-      notes: result.gaps.map((gap) => gap.reason),
+      notes: [
+        ...result.gaps.map((gap) => gap.reason),
+        ...(serp.note ? [serp.note] : []),
+      ],
+      serps: serp.serps,
+      alertRows: serp.alertRows,
     });
   }
   const parsed = legacy.safeParse(raw);

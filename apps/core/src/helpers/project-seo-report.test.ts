@@ -1,16 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  focusedRankingsReport,
   focusedReport,
   legacyReport,
   SEO_TEST_PAGE,
   SEO_TEST_REQUEST_ID,
   SEO_TEST_SECOND_PAGE,
+  serpRead,
   siteStrategyReport,
 } from "@/test-fixtures/project-seo";
 import {
   assertSeoArtifactMatchesRequest,
   parsePublicSeoArtifact,
+  publicSeoPayloadSchema,
 } from "./project-seo-report";
+import { SEO_SERPS_NOT_READ } from "./project-seo-report-serps";
 import { SEO_STRATEGY_NOT_IMPORTED } from "./project-seo-strategy";
 
 describe("public SEO report trust boundary", () => {
@@ -559,5 +563,90 @@ describe("public SEO report trust boundary", () => {
         request,
       ),
     ).toThrow("unapproved link target");
+  });
+});
+
+describe("SERP reads of a focused result", () => {
+  const rankingsRequest = {
+    id: SEO_TEST_REQUEST_ID,
+    kind: "rankings",
+    request: {
+      pageUrls: [SEO_TEST_PAGE],
+      keywords: ["example"],
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop"],
+    },
+  };
+
+  it("keeps serps and alertRows through import and the stored re-parse", () => {
+    const raw = focusedRankingsReport(),
+      parsed = parsePublicSeoArtifact(raw);
+    expect(parsed.serps).toEqual([serpRead()]);
+    expect(parsed.alertRows).toEqual(["M-01"]);
+    // The projection reads the stored JSON with the same schema: a plain object would strip the new keys.
+    const stored = publicSeoPayloadSchema.parse(
+      JSON.parse(JSON.stringify(parsed)),
+    );
+    expect(stored.serps).toEqual([serpRead()]);
+    expect(stored.alertRows).toEqual(["M-01"]);
+    expect(() =>
+      assertSeoArtifactMatchesRequest(raw, parsed, rankingsRequest),
+    ).not.toThrow();
+  });
+
+  it("parses an older result without serps, with no field and no note", () => {
+    const { serps: _serps, alertRows: _rows, ...old } = focusedRankingsReport();
+    const parsed = parsePublicSeoArtifact(old);
+    expect(parsed.serps).toBeUndefined();
+    expect(parsed.alertRows).toBeUndefined();
+    expect(parsed.notes).toEqual([]);
+    expect(parsed.keywords).toHaveLength(1);
+  });
+
+  it("drops unreadable SERP details with a note and keeps the paid positions", () => {
+    for (const serps of [
+      [serpRead({ aiOverview: { shown: true } })],
+      [serpRead({ top: [{ rank: 0, domain: "a.test" }] })],
+      [serpRead({ device: "tablet" })],
+      "not a list",
+    ]) {
+      const parsed = parsePublicSeoArtifact({
+        ...focusedRankingsReport(),
+        serps,
+        alertRows: [42],
+      });
+      expect(parsed.serps).toBeUndefined();
+      expect(parsed.alertRows).toBeUndefined();
+      expect(parsed.notes).toEqual([SEO_SERPS_NOT_READ]);
+      expect(parsed.keywords[0]).toMatchObject({ position: 2 });
+    }
+  });
+
+  it("keeps a null AI Overview as not checked and a null featured snippet as none", () => {
+    const parsed = parsePublicSeoArtifact({
+      ...focusedRankingsReport(),
+      serps: [serpRead({ aiOverview: null, featured: null })],
+    });
+    expect(parsed.serps?.[0]).toMatchObject({
+      aiOverview: null,
+      featured: null,
+    });
+  });
+
+  it("rejects a SERP read of an unrequested keyword or device", () => {
+    for (const row of [
+      serpRead({ keyword: "unrequested" }),
+      serpRead({ device: "mobile" }),
+    ]) {
+      const raw = { ...focusedRankingsReport(), serps: [row] };
+      expect(() =>
+        assertSeoArtifactMatchesRequest(
+          raw,
+          parsePublicSeoArtifact(raw),
+          rankingsRequest,
+        ),
+      ).toThrow("unrequested keywords or devices");
+    }
   });
 });

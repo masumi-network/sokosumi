@@ -223,3 +223,58 @@ export function siteStrategyReport() {
     },
   };
 }
+/** One SERP read in the shape of seo-bot `AnalysisReport.serps[]`. */
+export function serpRead(overrides: Record<string, unknown> = {}) {
+  return {
+    keyword: "example",
+    device: "desktop",
+    sourceRef: "snapshot:serp:desktop",
+    observedAt: "2026-11-01T12:00:00.000Z",
+    itemTypes: [
+      "ai_overview",
+      "featured_snippet",
+      "organic",
+      "people_also_ask",
+    ],
+    aiOverview: {
+      shown: true,
+      asyncLoaded: false,
+      citedDomains: ["example.test", "rival.test"],
+      pageCited: true,
+    },
+    featured: { domain: "rival.test", pageOwned: false },
+    paaOwned: true,
+    top: [
+      { rank: 1, domain: "rival.test" },
+      { rank: 2, domain: "example.test" },
+      { rank: 3, domain: null },
+    ],
+    suspect: false,
+    ...overrides,
+  };
+}
+/** A focused rankings result with one position read and its SERP read. */
+export function focusedRankingsReport() {
+  const base = focusedReport();
+  return {
+    ...base,
+    kind: "rankings",
+    scope: { ...base.scope, keywords: ["example"] },
+    checks: [],
+    keywords: [
+      {
+        keyword: "example",
+        pageUrl: SEO_TEST_PAGE,
+        device: "desktop",
+        position: 2,
+        positionStatus: "ranked",
+        checkedResults: 100,
+        sourceRef: "snapshot:serp:desktop",
+        observedAt: base.observedAt,
+      },
+    ],
+    coverage: { ...base.coverage, requested: ["keyword.refresh"] },
+    serps: [serpRead()],
+    alertRows: ["M-01"],
+  };
+}
