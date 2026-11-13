@@ -18,7 +18,7 @@ export interface CmoPlanReview {
   problems: string[];
 }
 
-/** Saves in one planning turn the review answers; past them Cuso finishes as he is. */
+/** Saves in one planning turn the semantic review answers; past them Cuso finishes as he is, with deterministic checks still returned. */
 export const CMO_PLAN_REVIEWS_PER_TURN = 4;
 
 const MIN_PIECES = 16;
@@ -155,6 +155,27 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
       );
   }
   return problems;
+}
+
+/**
+ * The problems a change brought. A plan the owner already has keeps the ones
+ * it had: asked to change one thing, Cuso once rewrote the month to clear
+ * them. A plan still without a calendar is one in the making and excuses nothing.
+ */
+export function cmoPlanProblemsSince(
+  strategy: MarketingStrategyPlan,
+  before: MarketingStrategyPlan | null,
+): string[] {
+  const problems = cmoPlanProblems(strategy);
+  if (!before || before.calendar.length === 0) return problems;
+  // A calendar already short of the month's totals stays short by any
+  // count: adding one piece must not demand the other twelve.
+  const rule = (problem: string) =>
+    /^calendar (has \d+ pieces; plan at least|uses \d+ formats;) /.test(problem)
+      ? problem.replace(/\d+/g, "#")
+      : problem;
+  const had = new Set(cmoPlanProblems(before).map(rule));
+  return problems.filter((problem) => !had.has(rule(problem)));
 }
 
 const COMPARISON_TITLE = /\b(vs\.?|versus|alternatives?)\b/i;
@@ -378,12 +399,12 @@ export function mixProblems(
       : [];
   });
   const planned = new Set(mix.map((part) => part.approach));
-  const outside = pieces.filter(
-    (entry) => entry.approach && !planned.has(entry.approach),
-  ).length;
-  if (outside > 0)
+  const outside = pieces.flatMap((entry) =>
+    entry.approach && !planned.has(entry.approach) ? [entry.approach] : [],
+  );
+  if (outside.length > 0)
     off.push(
-      `${outside} pieces take an approach outside the mix; use only the mix's approaches.`,
+      `${outside.length} pieces take an approach outside the mix (${[...new Set(outside)].join(", ")}); give each one of ${[...planned].join(", ")}, or add its approach to the mix.`,
     );
   return off;
 }
@@ -457,6 +478,7 @@ export async function cmoPlanDrift(input: {
         mainOffer: brain.reveal?.positioning ?? brain.summary,
         products: brain.products,
         plan: {
+          coreOffer: strategy.ladder?.core.what ?? strategy.offer?.what,
           idea: strategy.idea?.sentence,
           summary: strategy.summary,
           offer: strategy.offer?.what,
@@ -468,7 +490,7 @@ export async function cmoPlanDrift(input: {
         sellsMainOffer: {
           type: "boolean",
           instructions:
-            "Does the plan sell the business's main offer rather than a narrower side product or feature?",
+            "Is the plan built around the business's main product or service, rather than a narrower side product or feature? A trial, demo or introductory call is a valid entry offer when it leads to that product; do not treat the entry offer alone as drift.",
         },
       },
       timeoutMs: 15_000,
