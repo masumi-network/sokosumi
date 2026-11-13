@@ -3,6 +3,8 @@ import { connection } from "next/server";
 import { ProjectScopeMarker } from "@/app/components/project-scope/project-scope-marker";
 import { loadWorkspaceSwitchAccounts } from "@/app/components/user-avatar/workspace-switch-accounts";
 import { TaskCanonicalUrl } from "@/app/tasks/components/task-canonical-url";
+import { TaskDetailStatusProvider } from "@/app/tasks/components/task-detail-optimistic";
+import { TaskDetailLinksProvider } from "@/app/tasks/components/task-detail-optimistic-links";
 import { TaskDetailView } from "@/app/tasks/components/task-detail-view";
 import { TaskWorkspaceSwitchDialog } from "@/app/tasks/components/task-workspace-switch-dialog";
 import { taskHref } from "@/app/tasks/utils/task-href";
@@ -34,7 +36,11 @@ export default async function TaskDetailPage({
   if (task) {
     return (
       <>
-        <TaskDetailView task={task} />
+        <TaskDetailStatusProvider status={task.status}>
+          <TaskDetailLinksProvider>
+            <TaskDetailView task={task} />
+          </TaskDetailLinksProvider>
+        </TaskDetailStatusProvider>
         <TaskCanonicalUrl href={taskHref(task)} />
         {/* Opening the task is reading what its notifications were about.
             Not on the admin or developer views: those inspect someone else's

@@ -1,12 +1,13 @@
 "use client";
 
-import type {
-  SokoBotAvatar,
-  SokoBotDailyStats,
-  SokoBotInstalledSkill,
-  SokoBotIntegrations,
-  SokoBotUsage,
-  SokoBotVersion,
+import {
+  type SokoBotAvatar,
+  type SokoBotDailyStats,
+  type SokoBotInstalledSkill,
+  type SokoBotIntegrations,
+  SokoBotStatus,
+  type SokoBotUsage,
+  type SokoBotVersion,
 } from "@sokosumi/core-client";
 import { SOKO_BOT_SYSTEM_SCHEDULES } from "@sokosumi/soko-bot";
 import { MessageSquare, ShieldCheck } from "lucide-react";
@@ -122,6 +123,10 @@ function ScheduleRow({
         (entry) => entry.key === schedule.systemKey,
       )
     : undefined;
+  // A schedule being deleted leaves the list at once and comes back when
+  // the delete fails.
+  const [removed, setRemoved] = useState(false);
+  if (removed) return null;
   return (
     <li className="space-y-1.5 px-3 py-3">
       <div className="flex items-start justify-between gap-2">
@@ -146,6 +151,7 @@ function ScheduleRow({
             scheduleId={schedule.id}
             enabled={schedule.enabled}
             deletable={!schedule.systemKey}
+            onRemovedChange={setRemoved}
           />
         )}
       </div>
@@ -401,6 +407,11 @@ export function SokoBotConsole({
                 <p className="text-muted-foreground max-w-xl text-sm text-pretty">
                   {t("Console.tagline")}
                 </p>
+                {bot.status === SokoBotStatus.ERROR ? (
+                  <p className="text-destructive max-w-xl text-sm text-pretty">
+                    {t("Console.lastTurnFailed", { name: botName })}
+                  </p>
+                ) : null}
                 {bot.lastActivityAt ? (
                   <p
                     className="text-muted-foreground text-xs tabular-nums"

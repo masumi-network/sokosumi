@@ -13,6 +13,7 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomMessageSchema } from "@/schemas/chat-room.schema";
 import { dispatchChatRoomMention } from "@/services/chat-room-coworker-dispatch.service";
+import { releaseFailedTurnForRetry } from "@/services/chat-room-mention-state";
 
 import {
   chatRoomMessageInclude,
@@ -121,6 +122,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
         throw conflict("Mention is not failed");
       }
+      await releaseFailedTurnForRetry(tx, mentionId);
 
       return tx.chatRoomMessage.findUniqueOrThrow({
         where: { id: messageId },

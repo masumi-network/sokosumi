@@ -1,7 +1,8 @@
 import type { TaskSchedule } from "@sokosumi/core-client";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { changeTaskScheduleState } from "@/lib/actions/task-schedule/action";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { TaskScheduleRow } from "./task-schedule-row";
@@ -223,5 +224,42 @@ describe("TaskScheduleRow", () => {
     expect(
       screen.getByRole("dialog", { name: "schedule dialog" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows a pause at once and takes it back when Core refuses", async () => {
+    const user = userEvent.setup();
+    let answer: (result: unknown) => void = () => {};
+    vi.mocked(changeTaskScheduleState).mockImplementationOnce(
+      () => new Promise((resolve) => (answer = resolve)) as never,
+    );
+    renderRow();
+
+    await user.click(screen.getByRole("button", { name: "pause" }));
+
+    expect(screen.getByText("state.PAUSED")).toBeInTheDocument();
+    expect(screen.getByText("noNextRun")).toBeInTheDocument();
+
+    await act(async () => answer({ ok: false, error: { kind: "stale" } }));
+
+    expect(screen.getByText("state.ACTIVE")).toBeInTheDocument();
+    expect(screen.getByText("nextRun(Mon, 9:00)")).toBeInTheDocument();
+  });
+
+  it("does not claim there is no next run while a resume is open", async () => {
+    const user = userEvent.setup();
+    let answer: (result: unknown) => void = () => {};
+    vi.mocked(changeTaskScheduleState).mockImplementationOnce(
+      () => new Promise((resolve) => (answer = resolve)) as never,
+    );
+    renderRow({ state: "PAUSED", nextRunAt: null });
+
+    await user.click(screen.getByRole("button", { name: "resume" }));
+
+    expect(screen.getByText("state.ACTIVE")).toBeInTheDocument();
+    expect(screen.queryByText("noNextRun")).toBeNull();
+
+    await act(async () => answer({ ok: false, error: { kind: "stale" } }));
+
+    expect(screen.getByText("noNextRun")).toBeInTheDocument();
   });
 });

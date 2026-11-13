@@ -37,21 +37,25 @@ export async function findUnreadThreadReplyRows(
   roomIds: readonly string[],
   userId: string,
   tx: Prisma.TransactionClient,
+  // From a caller that already read the unread badge rows of these rooms.
+  badgeRows?: Array<{ id: string; referenceId: string; eventId: string }>,
 ): Promise<UnreadThreadReplyRow[]> {
   if (roomIds.length === 0) {
     return [];
   }
 
-  const rows = await tx.notification.findMany({
-    where: {
-      userId,
-      kind: NotificationKind.CHAT,
-      referenceId: { in: [...roomIds] },
-      messageKey: { in: [...CHAT_ROOM_BADGE_MESSAGE_KEYS] },
-      isRead: false,
-    },
-    select: { id: true, referenceId: true, eventId: true },
-  });
+  const rows =
+    badgeRows ??
+    (await tx.notification.findMany({
+      where: {
+        userId,
+        kind: NotificationKind.CHAT,
+        referenceId: { in: [...roomIds] },
+        messageKey: { in: [...CHAT_ROOM_BADGE_MESSAGE_KEYS] },
+        isRead: false,
+      },
+      select: { id: true, referenceId: true, eventId: true },
+    }));
   if (rows.length === 0) {
     return [];
   }
@@ -178,8 +182,9 @@ export async function findThreadReplyRowsPassedByRoomRead(
   roomIds: readonly string[],
   userId: string,
   tx: Prisma.TransactionClient,
+  badgeRows?: Parameters<typeof findUnreadThreadReplyRows>[3],
 ): Promise<UnreadThreadReplyRow[]> {
-  const rows = await findUnreadThreadReplyRows(roomIds, userId, tx);
+  const rows = await findUnreadThreadReplyRows(roomIds, userId, tx, badgeRows);
   if (rows.length === 0) {
     return [];
   }

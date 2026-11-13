@@ -5820,9 +5820,8 @@ model FileResource {
   @@map("file_resource")
 }
 
-/// Immutable bytes for one revision of a resource.
-/// A Drive file that is a copy of a Google Sheet, read through its share
-/// link ("Anyone with the link can view") and refreshed every hour.
+/// A Drive file that holds Google's PDF of a Google Sheet, read through its
+/// share link ("Anyone with the link can view") and refreshed every hour.
 model DriveGoogleSheet {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
@@ -5842,6 +5841,7 @@ model DriveGoogleSheet {
   @@map("drive_google_sheet")
 }
 
+/// Immutable bytes for one revision of a resource.
 model FileVersion {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
