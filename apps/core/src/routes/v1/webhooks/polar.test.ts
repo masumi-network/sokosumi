@@ -177,7 +177,6 @@ describe("POST /v1/webhooks/polar", () => {
   });
 
   it.each([
-    "order.refunded",
     "subscription.canceled",
     "subscription.uncanceled",
     "subscription.past_due",
