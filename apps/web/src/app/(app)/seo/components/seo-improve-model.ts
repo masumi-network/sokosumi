@@ -168,8 +168,11 @@ export function seoAuditGaps(
       coverage.modules !== undefined,
   );
   // A date filter or a cut of the checks can hide a check: no check in view is then no proof of none.
+  // A workspace read by an older Core has no evidenceLimited: either cut then counts.
   const partView = Boolean(
-    data.scope.from || data.scope.to || data.history.evidenceLimited,
+    data.scope.from ||
+      data.scope.to ||
+      (data.history.evidenceLimited ?? data.history.limited),
   );
   if (!newest) {
     if (!partView) gaps.push({ message: "noCheck", fix: check });

@@ -194,7 +194,12 @@ export function seoPageSummaries(workspace: ProjectSeoWorkspace) {
         pageIds.includes(page.id),
     );
     // Only a cut of the checks can hide this page's check; a cut of the syncs cannot.
-    if (!check && workspace.history.evidenceLimited) continue;
+    // A workspace read by an older Core has no evidenceLimited: either cut then counts.
+    if (
+      !check &&
+      (workspace.history.evidenceLimited ?? workspace.history.limited)
+    )
+      continue;
     summaries.set(page.id, {
       issues: issues.filter((finding) => finding.pageUrl === page.url).length,
       checkedAt: check?.observedAt ?? null,

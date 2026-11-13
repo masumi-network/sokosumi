@@ -376,6 +376,16 @@ describe("seoPageSummaries", () => {
     expect(
       seoPageSummaries({ ...cut, history: base.history }).get(SEO_TEST_PAGE),
     ).toEqual({ issues: 0, checkedAt: null, checkId: null, incomplete: false });
+    // A workspace from a Core before evidenceLimited: its cut can hide the check.
+    expect(
+      seoPageSummaries({
+        ...cut,
+        history: {
+          limit: base.history.limit,
+          limited: true,
+        } as typeof base.history,
+      }).has(SEO_TEST_PAGE),
+    ).toBe(false);
     // A cut of the syncs only hides no check, so the page still says it has none.
     expect(
       seoPageSummaries({

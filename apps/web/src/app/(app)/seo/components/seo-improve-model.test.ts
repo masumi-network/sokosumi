@@ -91,6 +91,13 @@ describe("seoAuditGaps", () => {
     expect(seoAuditGaps(syncsCut).map((gap) => gap.message)).toContain(
       "noCheck",
     );
+    // A workspace from a Core before evidenceLimited: its cut can hide a check.
+    const older = seoTestWorkspace();
+    older.observations = [];
+    older.history = { limit: 200, limited: true } as typeof older.history;
+    expect(seoAuditGaps(older).map((gap) => gap.message)).not.toContain(
+      "noCheck",
+    );
   });
 
   it("names a sync that read nothing, not the empty statistics of a new audit", () => {
