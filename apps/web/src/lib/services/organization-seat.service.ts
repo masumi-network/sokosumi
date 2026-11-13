@@ -5,6 +5,7 @@ import {
   type OrganizationBillingPlanName,
 } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
+import { cache } from "react";
 
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
@@ -85,15 +86,19 @@ function mapCoreSeatWriteError(error: unknown): never {
 
 export const organizationSeatService = (() => {
   return {
-    async hasAssignedSeat(organizationId: string | null): Promise<boolean> {
-      if (!organizationId) {
-        return true;
-      }
+    // One read per request: the seat gate layout, the app frame and the page
+    // under them each ask.
+    hasAssignedSeat: cache(
+      async (organizationId: string | null): Promise<boolean> => {
+        if (!organizationId) {
+          return true;
+        }
 
-      const { data } =
-        await coreClient.getOrganizationCallerSeat(organizationId);
-      return data.assigned;
-    },
+        const { data } =
+          await coreClient.getOrganizationCallerSeat(organizationId);
+        return data.assigned;
+      },
+    ),
 
     /**
      * Returns the seat summary, or `null` when Core reports the caller has no

@@ -4,7 +4,11 @@ import type {
   ChatCatchUpTopic,
   ChatRoom,
 } from "@sokosumi/core-client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import {
   act,
   fireEvent,
@@ -15,6 +19,7 @@ import {
 } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "@/components/chat/organization-chat-events";
 import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
 
 import { CatchUpView } from "./catch-up-view";
@@ -26,7 +31,9 @@ const {
   setLoopMock,
   showRoomUnreadCountMock,
   summaryActionMock,
+  toastErrorMock,
 } = vi.hoisted(() => ({
+  toastErrorMock: vi.fn(),
   listElsewhereMock: vi.fn(),
   markAllReadMock: vi.fn(),
   sendMock: vi.fn(),
@@ -36,6 +43,10 @@ const {
 }));
 
 const NOW = new Date("2026-10-31T12:00:00.000Z");
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: toastErrorMock },
+}));
 
 vi.mock("next/link", () => ({
   default: ({ children, href }: { children: ReactNode; href: string }) => (
@@ -643,6 +654,295 @@ describe("CatchUpView's unread rooms elsewhere", () => {
           .getByTestId("catch-up-groups")
           .className.includes("lg:grid-cols-"),
       ).toBe(twoColumns);
+    });
+
+    /** One summary, then a read that never lands: only the page's own state shows. */
+    function summaryAnswersOnce(summary: Partial<ChatCatchUpSummary>) {
+      summaryActionMock.mockReset();
+      summaryActionMock
+        .mockResolvedValueOnce({
+          ok: true,
+          value: { ...EMPTY_SUMMARY, ...summary },
+        })
+        .mockReturnValue(new Promise(() => {}));
+    }
+
+    /** A Mark read that stays open until the test answers or rejects it. */
+    function holdMarkRead() {
+      let answer: (value: unknown) => void = () => {};
+      let reject: (reason: Error) => void = () => {};
+      markAllReadMock.mockReturnValueOnce(
+        new Promise((resolve, fail) => {
+          answer = resolve;
+          reject = fail;
+        }),
+      );
+      return {
+        answer: (value: unknown) => act(async () => answer(value)),
+        reject: () => act(async () => reject(new Error("network down"))),
+      };
+    }
+
+    const QUIET_ROOM = {
+      roomId: "room-q",
+      roomName: "random",
+      roomKind: "channel" as const,
+      unreadCount: 2,
+      latest: null,
+      mentionsYou: false,
+    };
+    const QUIET_REGION = "App.Channels.Signals.Briefing.otherMessages 1";
+
+    it.each([
+      [
+        "Core refuses",
+        (write: ReturnType<typeof holdMarkRead>) =>
+          write.answer({ ok: false, error: { message: "x" } }),
+      ],
+      [
+        "the call fails",
+        (write: ReturnType<typeof holdMarkRead>) => write.reject(),
+      ],
+    ])(
+      "takes the quiet rooms off before Core answers, and puts them back when %s",
+      async (_case, settle) => {
+        toastErrorMock.mockClear();
+        summaryAnswersOnce({
+          unreadMessageCount: 5,
+          unreadRoomCount: 2,
+          topics: [topic("t1")],
+          quietRooms: [QUIET_ROOM],
+        });
+        const write = holdMarkRead();
+        renderCatchUp();
+        const quiet = await screen.findByRole("region", { name: QUIET_REGION });
+        const unread = (messages: number, rooms: number) =>
+          screen.queryByText(
+            `App.Channels.Signals.Briefing.unread ${messages} ${rooms}`,
+          );
+
+        await act(async () =>
+          within(quiet)
+            .getByRole("button", { name: "App.Channels.Signals.markRead" })
+            .click(),
+        );
+        // The query cache tells its readers on a timer, so wait for the paint.
+        await waitFor(() =>
+          expect(
+            screen.queryByRole("region", { name: QUIET_REGION }),
+          ).toBeNull(),
+        );
+        // A topic in another room is not part of this write.
+        expect(screen.getByText("title of t1")).toBeTruthy();
+        // The header counts what is left: the quiet room held 2 of the 5.
+        expect(unread(3, 1)).toBeTruthy();
+
+        await settle(write);
+        expect(
+          await screen.findByRole("region", { name: QUIET_REGION }),
+        ).toBeTruthy();
+        expect(unread(5, 2)).toBeTruthy();
+        // The room that was never part of the write is still there.
+        expect(screen.getByText("title of t1")).toBeTruthy();
+        expect(toastErrorMock).toHaveBeenCalledWith(
+          "App.Channels.Signals.markAllReadError",
+        );
+      },
+    );
+
+    it("keeps the rooms off when a summary read from before the click lands", async () => {
+      const full = {
+        ...EMPTY_SUMMARY,
+        topics: [topic("t1", { status: "waitingOnYou" })],
+        quietRooms: [QUIET_ROOM],
+      };
+      let landLate: (value: unknown) => void = () => {};
+      summaryActionMock.mockReset();
+      summaryActionMock
+        .mockResolvedValueOnce({ ok: true, value: full })
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            landLate = resolve;
+          }),
+        )
+        .mockReturnValue(new Promise(() => {}));
+      setLoopMock.mockResolvedValue({ ok: true, value: {} });
+      markAllReadMock.mockClear();
+      const write = holdMarkRead();
+      renderCatchUp();
+      await screen.findByRole("region", { name: QUIET_REGION });
+      // Done re-reads the summary; that read is still out at the click.
+      await act(async () =>
+        screen
+          .getByRole("button", { name: "App.Channels.Signals.done" })
+          .click(),
+      );
+      await waitFor(() => expect(summaryActionMock).toHaveBeenCalledTimes(2));
+
+      await act(async () =>
+        within(screen.getByRole("region", { name: QUIET_REGION }))
+          .getByRole("button", { name: "App.Channels.Signals.markRead" })
+          .click(),
+      );
+      expect(markAllReadMock).toHaveBeenCalledTimes(1);
+      await act(async () => landLate({ ok: true, value: full }));
+      await act(async () => new Promise((resolve) => setTimeout(resolve, 20)));
+
+      expect(screen.queryByRole("region", { name: QUIET_REGION })).toBeNull();
+      await write.answer({ ok: true, value: null });
+    });
+
+    it("clears every unread room before Core answers and keeps the button until then", async () => {
+      toastErrorMock.mockClear();
+      // An open loop is already read, so it keeps the page, and the button.
+      summaryAnswersOnce({
+        headline: "A busy morning.",
+        openLoops: [item("loop")],
+        unreadMessageCount: 5,
+        unreadRoomCount: 2,
+        topics: [topic("t1")],
+        quietRooms: [QUIET_ROOM],
+      });
+      const write = holdMarkRead();
+      renderCatchUp();
+      const markAll = () =>
+        screen.queryByRole("button", {
+          name: "App.Channels.Signals.markAllRead",
+        });
+      const button = await screen.findByRole("button", {
+        name: "App.Channels.Signals.markAllRead",
+      });
+
+      await act(async () => button.click());
+      await waitFor(() => expect(screen.queryByText("title of t1")).toBeNull());
+      expect(screen.queryByRole("region", { name: QUIET_REGION })).toBeNull();
+      expect(
+        screen.queryByText(/App\.Channels\.Signals\.Briefing\.unread/),
+      ).toBeNull();
+      // The headline was written about the rooms that just left.
+      expect(screen.queryByText("A busy morning.")).toBeNull();
+      expect(markAll()).toBe(button);
+
+      const roomsChanged = vi.fn();
+      window.addEventListener(
+        ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
+        roomsChanged,
+      );
+      const summaryReads = summaryActionMock.mock.calls.length;
+      await write.answer({ ok: true, value: null });
+      window.removeEventListener(
+        ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
+        roomsChanged,
+      );
+      // The sidebar hears of the read, and the summary is written again.
+      expect(roomsChanged).toHaveBeenCalledTimes(1);
+      expect(summaryActionMock).toHaveBeenCalledTimes(summaryReads + 1);
+      await waitFor(() => expect(markAll()).toBeNull());
+      expect(screen.queryByText("title of t1")).toBeNull();
+      expect(toastErrorMock).not.toHaveBeenCalled();
+    });
+
+    it("says caught up before Core answers, and brings the page back when the write fails", async () => {
+      toastErrorMock.mockClear();
+      // What Core writes for one busy room: a headline, a topic, a section.
+      summaryAnswersOnce({
+        headline: "A busy morning.",
+        unreadMessageCount: 1,
+        unreadRoomCount: 1,
+        topics: [topic("t1")],
+        needsYou: [item("ask")],
+      });
+      const write = holdMarkRead();
+      renderCatchUp();
+      const button = await screen.findByRole("button", {
+        name: "App.Channels.Signals.markAllRead",
+      });
+
+      await act(async () => button.click());
+      expect(
+        await screen.findByText("App.Channels.Signals.caughtUpTitle"),
+      ).toBeTruthy();
+
+      // The header that began the write has left the page by now.
+      await write.reject();
+      expect(await screen.findByText("title of t1")).toBeTruthy();
+      expect(screen.getByText("A busy morning.")).toBeTruthy();
+      expect(toastErrorMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("fails at once offline, rather than holding the rooms off until the network returns", async () => {
+      toastErrorMock.mockClear();
+      summaryAnswersOnce({ topics: [topic("t1")], quietRooms: [QUIET_ROOM] });
+      markAllReadMock.mockRejectedValueOnce(new Error("network down"));
+      renderCatchUp();
+      const quiet = await screen.findByRole("region", { name: QUIET_REGION });
+      onlineManager.setOnline(false);
+      try {
+        await act(async () =>
+          within(quiet)
+            .getByRole("button", { name: "App.Channels.Signals.markRead" })
+            .click(),
+        );
+        await waitFor(() => expect(toastErrorMock).toHaveBeenCalledTimes(1));
+        expect(
+          await screen.findByRole("region", { name: QUIET_REGION }),
+        ).toBeTruthy();
+      } finally {
+        onlineManager.setOnline(true);
+      }
+    });
+
+    it("sends one write for two clicks in the same moment", async () => {
+      summaryAnswersOnce({
+        openLoops: [item("loop")],
+        topics: [topic("t1")],
+        quietRooms: [QUIET_ROOM],
+      });
+      markAllReadMock.mockClear();
+      const write = holdMarkRead();
+      renderCatchUp();
+      const quiet = await screen.findByRole("region", { name: QUIET_REGION });
+      const markAll = screen.getByRole("button", {
+        name: "App.Channels.Signals.markAllRead",
+      });
+
+      await act(async () => {
+        within(quiet)
+          .getByRole("button", { name: "App.Channels.Signals.markRead" })
+          .click();
+        markAll.click();
+      });
+      expect(markAllReadMock).toHaveBeenCalledTimes(1);
+
+      await write.answer({ ok: true, value: null });
+    });
+
+    it("holds the other Mark read while one write is open", async () => {
+      summaryAnswersOnce({
+        openLoops: [item("loop")],
+        topics: [topic("t1")],
+        quietRooms: [QUIET_ROOM],
+      });
+      markAllReadMock.mockClear();
+      const write = holdMarkRead();
+      renderCatchUp();
+      const quiet = await screen.findByRole("region", { name: QUIET_REGION });
+      const markAll = screen.getByRole("button", {
+        name: "App.Channels.Signals.markAllRead",
+      });
+
+      await act(async () =>
+        within(quiet)
+          .getByRole("button", { name: "App.Channels.Signals.markRead" })
+          .click(),
+      );
+      await waitFor(() =>
+        expect(markAll.getAttribute("aria-busy")).toBe("true"),
+      );
+      await act(async () => markAll.click());
+      expect(markAllReadMock).toHaveBeenCalledTimes(1);
+
+      await write.answer({ ok: true, value: null });
     });
 
     it("marks every unread room read at once", async () => {

@@ -5,6 +5,7 @@ vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 import {
   buildDataRoomTree,
   type DataRoomFile,
+  viewableInRoom,
 } from "./data-room-files.service";
 
 function file(
@@ -64,7 +65,7 @@ describe("buildDataRoomTree", () => {
     const rows = buildDataRoomTree({
       files,
       order: new Map(),
-      member: { folderPaths: ["Legal"], previousVisitAt: null },
+      member: { folderPaths: ["Legal"] },
     });
     expect(rows.map((row) => row.path)).toEqual([
       "Legal",
@@ -72,28 +73,33 @@ describe("buildDataRoomTree", () => {
       "Legal/NDA.pdf",
     ]);
   });
+});
 
-  it("marks what changed since the previous visit, and the folders holding it", () => {
-    const rows = buildDataRoomTree({
-      files,
-      order: new Map(),
-      member: {
-        folderPaths: [],
-        previousVisitAt: new Date("2026-11-05T00:00:00.000Z"),
-      },
-    });
-    expect(rows.filter((row) => row.isNew).map((row) => row.path)).toEqual([
-      "Legal",
-      "Legal/NDA.pdf",
-    ]);
+describe("viewableInRoom", () => {
+  it("lets a viewer open a spreadsheet even when downloads are off", () => {
+    expect(
+      viewableInRoom({
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        name: "Model.xlsx",
+      }),
+    ).toBe(true);
+    expect(viewableInRoom({ mimeType: null, name: "Model.XLSX" })).toBe(true);
+    expect(
+      viewableInRoom({ mimeType: "text/csv", name: "Cap table.csv" }),
+    ).toBe(true);
   });
 
-  it("marks nothing new on a first visit", () => {
-    const rows = buildDataRoomTree({
-      files,
-      order: new Map(),
-      member: { folderPaths: [], previousVisitAt: null },
-    });
-    expect(rows.some((row) => row.isNew)).toBe(false);
+  it("still keeps other office files download-only", () => {
+    expect(
+      viewableInRoom({
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        name: "Memo.docx",
+      }),
+    ).toBe(false);
+    expect(
+      viewableInRoom({ mimeType: "application/vnd.ms-excel", name: "Old.xls" }),
+    ).toBe(false);
   });
 });

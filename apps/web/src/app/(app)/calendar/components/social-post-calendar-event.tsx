@@ -712,7 +712,7 @@ function SocialPostCalendarPreview({
         <>
           <img
             alt=""
-            className="size-full object-cover"
+            className="size-full object-contain"
             decoding="async"
             loading="lazy"
             src={media.fileUrl}

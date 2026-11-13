@@ -493,6 +493,10 @@ export {
   X_PREMIUM_TEXT_LIMIT,
   type XLongPostSubscriptionType,
 } from "./social-post.js";
+export {
+  isStaleSokoBotReply,
+  readSokoBotAttemptAt,
+} from "./soko-bot-reply-order.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
 export {
@@ -504,7 +508,7 @@ export {
   STUDIO_LOGO_MIME_TYPES,
 } from "./studio-logo-upload.js";
 export { productBrief } from "./studio-product-brief.js";
-export { encodeTableCsv, parseTableCsv } from "./table-csv.js";
+export { encodeTableCsv, parseTableCsv, readCsvRows } from "./table-csv.js";
 export { validateTableValues } from "./table-value-validation.js";
 export {
   canArchiveTaskStatus,

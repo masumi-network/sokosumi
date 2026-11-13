@@ -631,6 +631,21 @@ export function StudioComposer({
       .join(" · "),
   );
   const mixedSettings = new Set(plannedSettings).size > 1;
+  // The size most models will get, said once. Only a model that gets a
+  // different one is listed by name; repeating the same line per model hid the
+  // rest of the options.
+  const settingsCounts = new Map<string, number>();
+  for (const value of plannedSettings) {
+    settingsCounts.set(value, (settingsCounts.get(value) ?? 0) + 1);
+  }
+  const commonSettings = plannedSettings.reduce<string | undefined>(
+    (best, value) =>
+      best === undefined ||
+      (settingsCounts.get(value) ?? 0) > (settingsCounts.get(best) ?? 0)
+        ? value
+        : best,
+    undefined,
+  );
   const optionSummary = [
     creativeDirection ? t(`CreativeDirections.${creativeDirection}`) : null,
     frameCount > 1 || unsupportedPlacements
@@ -1078,22 +1093,6 @@ export function StudioComposer({
                     {labels.noModelSelected}
                   </p>
                 ) : null}
-                {mixedSettings && frameCount === 1 ? (
-                  <ul className="space-y-2 text-xs">
-                    {plan.configured.map(({ model }, index) => (
-                      <li className="break-words" key={model.id}>
-                        <span className="font-medium">{model.label}</span>
-                        <p className="text-muted-foreground tabular-nums">
-                          {labels.dimensions}: {plannedSettings[index]}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-
-                <p className="text-muted-foreground text-xs text-pretty">
-                  {t("placementHelp")}
-                </p>
                 <Row label={t("adPlacements")}>
                   {AD_PLACEMENTS.map(({ ratio, label }) => {
                     const selected = placementRatios.includes(ratio);
@@ -1209,6 +1208,27 @@ export function StudioComposer({
                       </button>
                     ))}
                   </Row>
+                ) : null}
+
+                {mixedSettings && frameCount === 1 ? (
+                  <div className="space-y-1 text-xs break-words">
+                    <p className="text-muted-foreground tabular-nums">
+                      {labels.dimensions}: {commonSettings}
+                    </p>
+                    <ul className="space-y-1">
+                      {plan.configured.map(({ model }, index) =>
+                        plannedSettings[index] === commonSettings ? null : (
+                          <li key={model.id}>
+                            <span className="font-medium">{model.label}</span>
+                            <span className="text-muted-foreground tabular-nums">
+                              {" · "}
+                              {plannedSettings[index]}
+                            </span>
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                  </div>
                 ) : null}
 
                 {hasProductBatch ? (
@@ -1478,10 +1498,8 @@ function Row({
   label: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-      <span className="text-muted-foreground w-20 shrink-0 text-xs font-medium">
-        {label}
-      </span>
+    <div className="space-y-1.5">
+      <p className="text-muted-foreground text-xs font-medium">{label}</p>
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         {children}
       </div>

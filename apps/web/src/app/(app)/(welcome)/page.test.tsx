@@ -2,6 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getMine = vi.fn();
+const lastFailure = vi.fn(() => null as unknown);
 const listRooms = vi.fn();
 const listMessages = vi.fn();
 const listImportantMessages = vi.fn();
@@ -9,11 +10,17 @@ const sokoBotHome = vi.fn();
 const needsYouPanel = vi.fn();
 const chatLanding = vi.fn();
 const getWorkspaceAccess = vi.fn();
-const listCoworkers = vi.fn(async () => []);
-const getActivitySummary = vi.fn(async () => ({ awaitingInput: 2 }));
+const listCoworkers = vi.fn(async (_capability: string) => []);
+const getActivitySummary = vi.fn(async (_query: { scope: string }) => ({
+  awaitingInput: 2,
+}));
+const getActiveOrganizationId = vi.fn(async (): Promise<string | null> => null);
 const listNeedsYou = vi.fn(async () => []);
 const loadMyDay = vi.fn(async (_today: string) => null);
 const myDay = vi.fn();
+const listProjects = vi.fn(async (_query: { limit: number }) => ({
+  projects: [{ id: "project-1", name: "Launch", logo: null }],
+}));
 const redirect = vi.fn((path: string) => {
   throw new Error(`NEXT_REDIRECT ${path}`);
 });
@@ -28,6 +35,7 @@ vi.mock("next-intl/server", () => ({
 }));
 vi.mock("./components/my-day", () => ({
   loadMyDay: (today: string) => loadMyDay(today),
+  countOverdue: () => Promise.resolve(0),
   MyDay: (props: unknown) => {
     myDay(props);
     return <div>my day</div>;
@@ -41,12 +49,17 @@ vi.mock("@/lib/auth/auth.server", () => ({
 }));
 vi.mock("@/lib/services/user.service", () => ({
   userService: {
-    getActiveOrganizationId: async () => null,
+    getActiveOrganizationId: () => getActiveOrganizationId(),
     getWorkspaceAccess: () => getWorkspaceAccess(),
   },
 }));
 vi.mock("@/lib/services/soko-bot.service", () => ({
-  sokoBotService: { getMine: () => getMine() },
+  sokoBotService: {
+    getMineWithLastFailure: async () => ({
+      sokoBot: await getMine(),
+      lastFailure: lastFailure(),
+    }),
+  },
 }));
 vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
@@ -56,11 +69,13 @@ vi.mock("@/lib/services/chat-room.service", () => ({
   },
 }));
 vi.mock("@/lib/services/coworker.service", () => ({
-  coworkerService: { listCoworkers: () => listCoworkers() },
+  coworkerService: {
+    listCoworkers: (capability: string) => listCoworkers(capability),
+  },
 }));
 vi.mock("@/lib/services/task.service", () => ({
   taskService: {
-    getActivitySummary: () => getActivitySummary(),
+    getActivitySummary: (query: { scope: string }) => getActivitySummary(query),
     listTasks: async () => ({
       tasks: [
         {
@@ -96,6 +111,11 @@ vi.mock("@/app/chat/components/landing/chat-landing", () => ({
 vi.mock("@/lib/services/notification.service", () => ({
   notificationService: { listNeedsYou: () => listNeedsYou() },
 }));
+vi.mock("@/lib/services/project.service", () => ({
+  projectService: {
+    listProjects: (query: { limit: number }) => listProjects(query),
+  },
+}));
 vi.mock("@/app/projects/components/workspace-column", () => ({
   panelFeed: <T,>(promise: Promise<T[]>) => promise.catch(() => null),
   NeedsYouPanel: (props: unknown) => {
@@ -122,6 +142,7 @@ async function renderPage() {
 describe("WelcomePage", () => {
   beforeEach(() => {
     getWorkspaceAccess.mockResolvedValue({ gate: "ready" });
+    lastFailure.mockReturnValue(null);
     listRooms.mockResolvedValue({
       rooms: [
         {
@@ -179,6 +200,7 @@ describe("WelcomePage", () => {
     expect(getActivitySummary).not.toHaveBeenCalled();
     expect(listNeedsYou).not.toHaveBeenCalled();
     expect(loadMyDay).not.toHaveBeenCalled();
+    expect(listProjects).not.toHaveBeenCalled();
     expect(chatLanding).not.toHaveBeenCalled();
   });
 
@@ -204,14 +226,70 @@ describe("WelcomePage", () => {
     expect(screen.getByText("needs you")).toBeTruthy();
     expect(needsYouPanel).toHaveBeenCalledTimes(1);
     expect(needsYouPanel).toHaveBeenCalledWith(
-      expect.objectContaining({ quiet: true, projects: {} }),
+      expect.objectContaining({ quiet: true }),
     );
+    // The first page of projects is read next to the rows, not after them.
+    const [{ projects }] = needsYouPanel.mock.calls[0] as [
+      { projects: Promise<unknown> },
+    ];
+    expect(listProjects).toHaveBeenCalledWith({ limit: 20 });
+    await expect(projects).resolves.toEqual({
+      "project-1": { name: "Launch", logo: null },
+    });
   });
 
   it("keeps the coworker welcome when the bot cannot be read", async () => {
     getMine.mockRejectedValue(new Error("feature off"));
     await renderPage();
     expect(screen.getByText("coworker welcome")).toBeTruthy();
+  });
+
+  it("starts every read that needs no bot before the bot read answers", async () => {
+    let answerBot: (bot: null) => void = () => {};
+    getMine.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answerBot = resolve;
+      }),
+    );
+
+    const page = renderPage();
+    await vi.waitFor(() => expect(getMine).toHaveBeenCalled());
+    expect(loadMyDay).toHaveBeenCalled();
+    expect(listNeedsYou).toHaveBeenCalled();
+    expect(getActivitySummary).toHaveBeenCalledWith({ scope: "owned" });
+    expect(listCoworkers).toHaveBeenCalledWith("chat");
+
+    answerBot(null);
+    await page;
+    expect(screen.getByText("coworker welcome")).toBeTruthy();
+  });
+
+  it("counts the whole workspace's day in an org", async () => {
+    getActiveOrganizationId.mockResolvedValueOnce("org-1");
+    getMine.mockResolvedValue(null);
+    await renderPage();
+
+    expect(getActivitySummary).toHaveBeenCalledWith({ scope: "workspace" });
+  });
+
+  it("still fails the coworker welcome when coworkers cannot be read", async () => {
+    getMine.mockResolvedValue(null);
+    listCoworkers.mockRejectedValueOnce(new Error("core down"));
+
+    await expect(renderPage()).rejects.toThrow("core down");
+  });
+
+  it("shows the bot home when only the coworker read fails", async () => {
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    listCoworkers.mockRejectedValueOnce(new Error("core down"));
+
+    await renderPage();
+    expect(screen.getByText("bot home")).toBeTruthy();
   });
 
   it("shows the bot home with its room and the team's day", async () => {
@@ -241,6 +319,53 @@ describe("WelcomePage", () => {
         needsYou: expect.anything(),
       }),
     );
+    expect(needsYouPanel).toHaveBeenCalledWith(
+      expect.objectContaining({ lead: undefined }),
+    );
+  });
+
+  describe("a bot whose last turn failed", () => {
+    const failedBot = {
+      id: "bot-1",
+      name: "Pip",
+      status: "ERROR",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    };
+
+    it.each([
+      ["its Direct", "room-1", "shell-1"],
+      // Not the Direct: the reply that failed was in a channel.
+      ["a channel", "channel-9", "shell-2"],
+    ])("opens the failed reply in %s", async (_where, roomId, messageId) => {
+      getMine.mockResolvedValue(failedBot);
+      lastFailure.mockReturnValue({ roomId, messageId });
+      await renderPage();
+      expect(needsYouPanel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lead: {
+            title: "App.Chat.Landing.SokoBotHome.failedReply",
+            detail: "App.Chat.Landing.SokoBotHome.openChat",
+            href: `/chat/rooms/${roomId}?message=${messageId}`,
+          },
+        }),
+      );
+    });
+
+    it("sends other failed work to the bot's page in neutral words", async () => {
+      getMine.mockResolvedValue(failedBot);
+      lastFailure.mockReturnValue({ roomId: null, messageId: null });
+      await renderPage();
+      expect(needsYouPanel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lead: {
+            title: "App.Chat.Landing.SokoBotHome.failedWork",
+            detail: "App.Chat.Landing.SokoBotHome.openBot",
+            href: "/personal-assistant",
+          },
+        }),
+      );
+    });
   });
 });
 

@@ -538,6 +538,7 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       name: "Filter Fresh",
       stage: "PROSPECT",
       organization: "Filterworks",
+      location: "Zürich, Switzerland",
     });
     await log(asBob, fresh.contact.id, days(2));
     const query = (filter: Parameters<typeof listContacts>[1]["filter"]) =>
@@ -556,10 +557,33 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     expect(await query({ hasChannel: "GITHUB" })).toEqual(["Filter Stale"]);
     expect(await query({ search: "filterstale" })).toEqual(["Filter Stale"]);
     expect(await query({ search: "filterworks" })).toEqual(["Filter Fresh"]);
+    expect(await query({ search: "zurich" })).toEqual(["Filter Fresh"]);
+    expect(await query({ search: "ZÜRICH, SWITZ" })).toEqual(["Filter Fresh"]);
     expect(await query({ createdWithinDays: 1 })).toEqual([
       "Filter Fresh",
       "Filter Stale",
     ]);
+    // unaccent expands and replaces letters NFD cannot split: Æ, ø.
+    await create(asAlice, { name: "Filter Island", location: "Ærøskøbing" });
+    expect(await query({ search: "aeroskobing" })).toEqual(["Filter Island"]);
+    expect(await query({ search: "ærø" })).toEqual(["Filter Island"]);
+    // A search and a smart list's search compose in one query.
+    const island = await inContactTransaction((tx) =>
+      createContactList(tx, asAlice, {
+        name: "Islands",
+        color: "blue",
+        smartFilter: { search: "skobing" },
+      }),
+    );
+    const inList = (search: string) =>
+      listContacts(asAlice, {
+        filter: { search },
+        listId: island.id,
+        sort: "name",
+        limit: 50,
+      }).then((page) => page.items.map((contact) => contact.name));
+    expect(await inList("aero")).toEqual(["Filter Island"]);
+    expect(await inList("zurich")).toEqual([]);
   });
 
   it("derives the reply state from directions and filters by it", async () => {
