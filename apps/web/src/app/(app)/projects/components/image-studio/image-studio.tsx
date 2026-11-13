@@ -78,6 +78,7 @@ import {
 import { StudioComposer } from "./studio-composer";
 import { StudioCreativeStart } from "./studio-creative-start";
 import { StudioFailedSubmission } from "./studio-failed-submission";
+import { getDistinctProviderError } from "./studio-failure-notice";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
@@ -1683,44 +1684,49 @@ export function FailedJob({
       </div>
     );
   }
+  const summary = `${model} ${labels.failedAfterModel} · ${labels.failedNoCharge}`;
+  const reason =
+    job.failureReason === null
+      ? labels.failedBodyUnreported
+      : labels.failedBody[job.failureReason];
+  const providerError = getDistinctProviderError(reason, job.error);
   return (
     <div
-      className="bg-card-background text-muted-foreground flex items-start gap-3 rounded-xl p-3 text-sm"
+      className="bg-card-background text-muted-foreground grid grid-cols-[minmax(0,1fr)_auto_auto] items-start gap-x-3 rounded-xl p-3 text-sm"
       role="status"
     >
-      <AlertTriangle aria-hidden className="mt-2 size-4 shrink-0" />
-      {/* Try again sits beside the line, and drops under it only when a
-          longer translation would squeeze the line into a narrow column. */}
-      <div className="flex min-w-0 flex-1 flex-wrap items-start gap-x-3 gap-y-1">
-        <details className="group min-w-0 grow basis-40">
-          <summary className="text-foreground focus-visible:ring-ring flex w-fit cursor-pointer list-none items-start gap-1 rounded py-1.5 font-medium outline-none select-none focus-visible:ring-2 [&::-webkit-details-marker]:hidden">
-            <span className="text-pretty">
-              {`${model} ${labels.failedAfterModel} · ${labels.failedNoCharge}`}
-            </span>
-            <ChevronDown
-              aria-hidden
-              className="text-muted-foreground mt-0.5 size-4 shrink-0 transition-transform group-open:rotate-180"
-            />
-          </summary>
-          <p className="text-pretty">
-            {job.failureReason === null
-              ? labels.failedBodyUnreported
-              : labels.failedBody[job.failureReason]}
-          </p>
-          {job.error ? (
-            <p className="mt-1 font-mono text-xs break-words">{job.error}</p>
-          ) : null}
-        </details>
-        <Button
-          className="shrink-0"
-          onClick={onRetry}
-          size="sm"
-          variant="secondary"
+      {/* Previously: Try again sits beside the line, and drops under it only when a
+          longer translation would squeeze the line into a narrow column.
+          The summary now truncates so every control stays on the same row. */}
+      <details className="group col-span-full col-start-1 row-start-1 grid min-w-0 grid-cols-subgrid [&::details-content]:col-span-full">
+        <summary
+          className="text-foreground focus-visible:ring-ring flex min-w-0 cursor-pointer list-none flex-nowrap items-center gap-1 rounded py-1.5 font-medium outline-none select-none focus-visible:ring-2 [&::-webkit-details-marker]:hidden"
+          title={summary}
         >
-          {labels.tryAgain}
-        </Button>
-      </div>
-      <div className="mt-1 shrink-0">{dismiss}</div>
+          <AlertTriangle
+            aria-hidden
+            className="text-muted-foreground me-2 size-4 shrink-0"
+          />
+          <span className="min-w-0 truncate">{summary}</span>
+          <ChevronDown
+            aria-hidden
+            className="text-muted-foreground size-4 shrink-0 transition-transform group-open:rotate-180"
+          />
+        </summary>
+        <p className="text-pretty">{reason}</p>
+        {providerError ? (
+          <p className="mt-1 font-mono text-xs break-words">{providerError}</p>
+        ) : null}
+      </details>
+      <Button
+        className="col-start-2 row-start-1 shrink-0"
+        onClick={onRetry}
+        size="sm"
+        variant="secondary"
+      >
+        {labels.tryAgain}
+      </Button>
+      <div className="col-start-3 row-start-1 mt-1 shrink-0">{dismiss}</div>
     </div>
   );
 }

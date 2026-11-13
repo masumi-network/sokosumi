@@ -80,7 +80,11 @@ afterEach(async () => {
   await page?.close();
 });
 
-async function showFailure(width: number, locale: keyof typeof MESSAGES) {
+async function showFailure(
+  width: number,
+  locale: keyof typeof MESSAGES,
+  overrides: Partial<StudioJob> = {},
+) {
   const translate = createTranslator({
     locale,
     messages: MESSAGES[locale].App.Studio,
@@ -95,7 +99,7 @@ async function showFailure(width: number, locale: keyof typeof MESSAGES) {
       <main className={`min-w-0 flex-1 py-4 ${STUDIO_COMPOSER_GUTTER_CLASS}`}>
         <FailedJob
           catalog={catalog}
-          job={job}
+          job={{ ...job, ...overrides }}
           labels={labels}
           onDismiss={() => {}}
           onRefresh={() => {}}
@@ -118,6 +122,9 @@ async function box(selector: string) {
 
 describe("Content Studio failure notice", () => {
   it.each([
+    [320, "en"],
+    [320, "de"],
+    [320, "es"],
     [390, "en"],
     [390, "de"],
     [390, "es"],
@@ -130,6 +137,7 @@ describe("Content Studio failure notice", () => {
       const labels = await showFailure(width, locale);
       const notice = await box('[role="status"]');
       const summary = await box("summary");
+      const text = page.locator("summary span");
       const retry = await box(`button:has-text("${labels.tryAgain}")`);
       const dismiss = await box(`button[aria-label="${labels.close}"]`);
 
@@ -146,18 +154,31 @@ describe("Content Studio failure notice", () => {
 
       const sameRow = Math.abs(retry.y - summary.y) <= 1;
       const lines = Math.round((summary.height - 12) / 20);
-      if (width >= 1024 || locale === "en") {
-        // Try again beside the line: one row, no button row underneath.
-        expect(sameRow).toBe(true);
-      } else {
-        // A longer translation drops Try again directly under the line
-        // rather than squeezing the line into a narrow column.
-        expect(sameRow || retry.y >= summary.y + summary.height).toBe(true);
-      }
-      // Wide, a single line of text; narrow, at most two.
-      expect(lines).toBeLessThanOrEqual(width >= 1024 ? 1 : 2);
+      // Try again beside the line: one row, no button row underneath.
+      // Previously:
+      // A longer translation drops Try again directly under the line
+      // rather than squeezing the line into a narrow column.
+      // Now every locale keeps the controls beside the truncated text.
+      expect(sameRow).toBe(true);
+      // Wide, a single line of text; narrow, at most two. Now always one.
+      expect(lines).toBe(1);
       // Production showed ~165px at 390 for title, sentence, toggle, button.
-      expect(notice.height).toBeLessThanOrEqual(width >= 1024 ? 56 : 112);
+      expect(notice.height).toBe(56);
+      expect(await page.locator("summary").getAttribute("title")).toBe(
+        `${catalog.models[0].label} ${labels.failedAfterModel} · ${labels.failedNoCharge}`,
+      );
+      expect(
+        await text.evaluate(
+          (element) => getComputedStyle(element).textOverflow,
+        ),
+      ).toBe("ellipsis");
+      if (width <= 390) {
+        expect(
+          await text.evaluate(
+            (element) => element.scrollWidth > element.clientWidth,
+          ),
+        ).toBe(true);
+      }
 
       // The reason and the provider's words wait behind the line.
       expect(
@@ -170,15 +191,50 @@ describe("Content Studio failure notice", () => {
     },
   );
 
-  it("opens to the reason and the provider's words without moving Try again", async () => {
-    const labels = await showFailure(390, "en");
-    const before = await box(`button:has-text("${labels.tryAgain}")`);
-    await page.locator("summary").click();
+  it.each([390, 1440])(
+    "opens to full-width details without moving Try again at %ipx",
+    async (width) => {
+      const labels = await showFailure(width, "en");
+      const notice = await box('[role="status"]');
+      const before = await box(`button:has-text("${labels.tryAgain}")`);
+      const dismissBefore = await box(`button[aria-label="${labels.close}"]`);
+      await page.locator("summary").click();
 
-    expect(
-      await page.getByText(labels.failedBody.provider_error).isVisible(),
-    ).toBe(true);
-    expect(await page.getByText(job.error ?? "").isVisible()).toBe(true);
-    expect(await box(`button:has-text("${labels.tryAgain}")`)).toEqual(before);
-  });
+      expect(
+        await page.getByText(labels.failedBody.provider_error).isVisible(),
+      ).toBe(true);
+      expect(await page.getByText(job.error ?? "").isVisible()).toBe(true);
+      expect(await box(`button:has-text("${labels.tryAgain}")`)).toEqual(
+        before,
+      );
+      expect(await box(`button[aria-label="${labels.close}"]`)).toEqual(
+        dismissBefore,
+      );
+      for (const paragraph of await page.locator("details p").all()) {
+        const bounds = await paragraph.boundingBox();
+        expect(bounds?.x).toBe(notice.x + 12);
+        expect(bounds?.width).toBe(notice.width - 24);
+        expect(bounds?.y).toBeGreaterThanOrEqual(before.y + before.height);
+      }
+    },
+  );
+
+  it.each(["provider_error", null] as const)(
+    "shows the reason once when provider text repeats it (%s)",
+    async (failureReason) => {
+      const reason =
+        failureReason === null
+          ? english.App.Studio.failedBodyUnreported
+          : english.App.Studio.FailureReasons[failureReason];
+      await showFailure(390, "en", {
+        failureReason,
+        error: `  ${reason.toUpperCase().replaceAll(" ", "  \n")} !  `,
+      });
+      await page.locator("summary").click();
+
+      expect(await page.locator("details p").allTextContents()).toEqual([
+        reason,
+      ]);
+    },
+  );
 });
