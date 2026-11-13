@@ -378,12 +378,12 @@ export function mixProblems(
       : [];
   });
   const planned = new Set(mix.map((part) => part.approach));
-  const outside = pieces.filter(
-    (entry) => entry.approach && !planned.has(entry.approach),
-  ).length;
-  if (outside > 0)
+  const outside = pieces.flatMap((entry) =>
+    entry.approach && !planned.has(entry.approach) ? [entry.approach] : [],
+  );
+  if (outside.length > 0)
     off.push(
-      `${outside} pieces take an approach outside the mix; use only the mix's approaches.`,
+      `${outside.length} pieces take an approach outside the mix (${[...new Set(outside)].join(", ")}); give each one of ${[...planned].join(", ")}, or add its approach to the mix.`,
     );
   return off;
 }

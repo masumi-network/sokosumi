@@ -435,6 +435,15 @@ describe("mixProblems", () => {
     ]);
   });
 
+  it("names the approaches outside the mix and the ones to use", () => {
+    const calendar = pieces(12, 8).map((entry, index) =>
+      index < 2 ? { ...entry, approach: "entertainment" as const } : entry,
+    );
+    expect(mixProblems(mix, calendar).at(-1)).toBe(
+      "2 pieces take an approach outside the mix (entertainment); give each one of educational, promotional, or add its approach to the mix.",
+    );
+  });
+
   it("asks for an approach on every entry", () => {
     const calendar = pieces(12, 8);
     delete (calendar[0] as { approach?: string }).approach;
