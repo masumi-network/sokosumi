@@ -78,7 +78,7 @@ describe("SEO Improve tab", () => {
 
     await user.click(screen.getByRole("button", { name: "Missing" }));
     expect(screen.queryByText("Full-site crawl")).toBeNull();
-    expect(screen.getByText("Orphan pages")).toBeVisible();
+    expect(screen.getByText("Site migration check")).toBeVisible();
 
     // Search Console is synced, Google Analytics is not: one gap, and its step offers the connection.
     const gaps = screen
@@ -101,20 +101,22 @@ describe("SEO Improve tab", () => {
     const write = vi.spyOn(navigator.clipboard, "writeText");
     await user.click(
       await screen.findByRole("button", {
-        name: "Copy request: Orphan pages",
+        name: "Copy request: Site migration check",
       }),
     );
     expect(write).toHaveBeenCalledWith(
-      "Feature request for the SEO agent, item 4: Orphan pages. What is missing: No list of pages that no other page links to.",
+      "Feature request for the SEO agent, item 7: Site migration check. What is missing: No check of the redirects of a domain or URL move.",
     );
     await user.click(
-      screen.getByRole("button", { name: "Ask the agent: Orphan pages" }),
+      screen.getByRole("button", {
+        name: "Ask the agent: Site migration check",
+      }),
     );
     // The reader reviews the question before it is sent.
     expect(
       within(await screen.findByRole("dialog")).getByLabelText("Your question"),
     ).toHaveValue(
-      "The SEO tab cannot do this yet: Orphan pages. No list of pages that no other page links to. What can I do now with the data I have?",
+      "The SEO tab cannot do this yet: Site migration check. No check of the redirects of a domain or URL move. What can I do now with the data I have?",
     );
   });
 });

@@ -12481,27 +12481,27 @@
         "items": {
           "1": {
             "title": "Full-site crawl",
-            "missing": "An audit reads at most 10 pages. No crawl of every linked or listed URL."
+            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
           },
           "2": {
             "title": "Site-wide broken links and redirect chains",
-            "missing": "No list of broken links and redirect chains for the whole site."
+            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
           },
           "3": {
             "title": "Index coverage for all URLs",
-            "missing": "Google's index state shows for checked pages only, not for every sitemap URL."
+            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
           },
           "4": {
             "title": "Orphan pages",
-            "missing": "No list of pages that no other page links to."
+            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
           },
           "5": {
             "title": "Near-duplicate and thin pages",
-            "missing": "No check for pages with almost the same main text."
+            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
           },
           "6": {
             "title": "Core Web Vitals in the SEO tab",
-            "missing": "The agent reads Core Web Vitals, but the tab does not show them."
+            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
           },
           "7": {
             "title": "Site migration check",
@@ -12513,7 +12513,7 @@
           },
           "9": {
             "title": "Content brief for a target keyword",
-            "missing": "No brief of the subtopics and questions of the top results for one keyword."
+            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
           },
           "10": {
             "title": "Body text drafts and rewrites",
@@ -12521,19 +12521,19 @@
           },
           "11": {
             "title": "Content refresh queue",
-            "missing": "No list of all pages that lost clicks against the year before."
+            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
           },
           "12": {
             "title": "Cannibalization from Search Console",
-            "missing": "Checked for audited pages only, not for every query of the site."
+            "missing": "The SEO bot computes this; Core does not store it and this tab does not show it yet."
           },
           "13": {
             "title": "Author, About and Contact signals",
-            "missing": "No check for an author profile, an About page and a Contact page."
+            "missing": ""
           },
           "14": {
             "title": "Publication date checks",
-            "missing": "Only future dates are checked, not the visible date against the structured data."
+            "missing": ""
           },
           "15": {
             "title": "Topic cluster map",
@@ -12541,11 +12541,11 @@
           },
           "16": {
             "title": "Rank history for tracked keywords",
-            "missing": "Paid positions show the latest check only. No stored history."
+            "missing": ""
           },
           "17": {
             "title": "SERP features over time",
-            "missing": "No history of AI Overviews, featured snippets and other result features."
+            "missing": ""
           },
           "18": {
             "title": "City-level rank",
@@ -12553,11 +12553,11 @@
           },
           "19": {
             "title": "Share of voice",
-            "missing": "No share of clicks against competitors over the tracked keywords."
+            "missing": ""
           },
           "20": {
             "title": "Branded and non-branded traffic split",
-            "missing": "No split of Search Console clicks into brand searches and other searches."
+            "missing": ""
           },
           "21": {
             "title": "Seasonality",
@@ -12609,7 +12609,7 @@
           },
           "33": {
             "title": "Traffic and rank drop alerts",
-            "missing": "No alert when clicks, the index state or a rank drops."
+            "missing": "The SEO bot names the monitor checks that fired and Core keeps them, but no alert is sent and this tab does not show them yet."
           },
           "34": {
             "title": "Google update markers on charts",
@@ -12617,7 +12617,7 @@
           },
           "35": {
             "title": "Organic conversions per landing page",
-            "missing": "Key events and revenue per landing page do not show."
+            "missing": "Revenue per landing page does not show, and key events show only after they are set up in Google Analytics."
           },
           "36": {
             "title": "Before and after impact per action",
@@ -12625,7 +12625,7 @@
           },
           "37": {
             "title": "Discover, News, Image and Video performance",
-            "missing": "Only web search is read, not Discover, News, Image or Video."
+            "missing": ""
           },
           "38": {
             "title": "Export and date presets",
@@ -12633,11 +12633,11 @@
           },
           "39": {
             "title": "AI Overview citation history",
-            "missing": "The tab does not show if an AI Overview cites the site."
+            "missing": "AI Overviews that Google loads after the page are not checked, because that read costs extra."
           },
           "40": {
             "title": "AI assistant referral traffic",
-            "missing": "No view of visits from AI assistants such as ChatGPT or Gemini."
+            "missing": ""
           },
           "41": {
             "title": "Brand mentions in LLM answers",

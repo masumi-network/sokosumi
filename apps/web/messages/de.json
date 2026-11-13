@@ -12481,27 +12481,27 @@
         "items": {
           "1": {
             "title": "Crawl der ganzen Website",
-            "missing": "Ein Audit liest höchstens 10 Seiten. Es gibt keinen Crawl aller verlinkten oder gelisteten URLs."
+            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
           },
           "2": {
             "title": "Defekte Links und Weiterleitungsketten der ganzen Website",
-            "missing": "Es gibt keine Liste der defekten Links und Weiterleitungsketten der ganzen Website."
+            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
           },
           "3": {
             "title": "Indexabdeckung aller URLs",
-            "missing": "Der Indexstatus bei Google zeigt sich nur für geprüfte Seiten, nicht für jede URL der Sitemap."
+            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
           },
           "4": {
             "title": "Verwaiste Seiten",
-            "missing": "Es gibt keine Liste der Seiten, auf die keine andere Seite verlinkt."
+            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
           },
           "5": {
             "title": "Fast doppelte und dünne Seiten",
-            "missing": "Es gibt keine Prüfung auf Seiten mit fast gleichem Haupttext."
+            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
           },
           "6": {
             "title": "Core Web Vitals im SEO-Tab",
-            "missing": "Der Agent liest die Core Web Vitals, aber der Tab zeigt sie nicht."
+            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
           },
           "7": {
             "title": "Prüfung eines Website-Umzugs",
@@ -12513,7 +12513,7 @@
           },
           "9": {
             "title": "Content-Briefing für ein Ziel-Keyword",
-            "missing": "Es gibt kein Briefing der Unterthemen und Fragen der Top-Ergebnisse für ein Keyword."
+            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
           },
           "10": {
             "title": "Entwürfe und Überarbeitungen von Fließtext",
@@ -12521,19 +12521,19 @@
           },
           "11": {
             "title": "Liste zum Auffrischen von Inhalten",
-            "missing": "Es gibt keine Liste aller Seiten, die gegenüber dem Vorjahr Klicks verloren haben."
+            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
           },
           "12": {
             "title": "Kannibalisierung aus der Search Console",
-            "missing": "Nur für geprüfte Seiten, nicht für jede Suchanfrage der Website."
+            "missing": "Der SEO-Bot berechnet das; Core speichert es noch nicht und dieser Tab zeigt es noch nicht."
           },
           "13": {
             "title": "Signale zu Autor, Über uns und Kontakt",
-            "missing": "Es gibt keine Prüfung auf ein Autorenprofil, eine Über-uns-Seite und eine Kontaktseite."
+            "missing": ""
           },
           "14": {
             "title": "Prüfung der Veröffentlichungsdaten",
-            "missing": "Nur Daten in der Zukunft werden geprüft, nicht das sichtbare Datum gegen die strukturierten Daten."
+            "missing": ""
           },
           "15": {
             "title": "Karte der Themencluster",
@@ -12541,11 +12541,11 @@
           },
           "16": {
             "title": "Ranking-Verlauf für beobachtete Keywords",
-            "missing": "Bezahlte Positionen zeigen nur die letzte Prüfung. Es gibt keinen gespeicherten Verlauf."
+            "missing": ""
           },
           "17": {
             "title": "SERP-Funktionen im Zeitverlauf",
-            "missing": "Es gibt keinen Verlauf von KI-Übersichten, Featured Snippets und anderen Funktionen der Ergebnisse."
+            "missing": ""
           },
           "18": {
             "title": "Rankings auf Stadtebene",
@@ -12553,11 +12553,11 @@
           },
           "19": {
             "title": "Share of Voice",
-            "missing": "Es gibt keinen Anteil an Klicks gegenüber Wettbewerbern über die beobachteten Keywords."
+            "missing": ""
           },
           "20": {
             "title": "Aufteilung in Marken- und andere Zugriffe",
-            "missing": "Es gibt keine Aufteilung der Search-Console-Klicks in Markensuchen und andere Suchen."
+            "missing": ""
           },
           "21": {
             "title": "Saisonalität",
@@ -12609,7 +12609,7 @@
           },
           "33": {
             "title": "Warnungen bei Einbrüchen von Zugriffen und Rankings",
-            "missing": "Es gibt keine Warnung, wenn Klicks, der Indexstatus oder ein Ranking fallen."
+            "missing": "Der SEO-Bot nennt die ausgelösten Monitor-Prüfungen und Core speichert sie, aber es gibt noch keine Warnung und dieser Tab zeigt sie nicht."
           },
           "34": {
             "title": "Markierungen von Google-Updates in Diagrammen",
@@ -12617,7 +12617,7 @@
           },
           "35": {
             "title": "Organische Conversions pro Landingpage",
-            "missing": "Schlüsselereignisse und Umsatz pro Landingpage zeigen sich nicht."
+            "missing": "Der Umsatz pro Landingpage zeigt sich nicht, und Schlüsselereignisse zeigen sich erst, wenn sie in Google Analytics eingerichtet sind."
           },
           "36": {
             "title": "Wirkung vorher und nachher pro Aktion",
@@ -12625,7 +12625,7 @@
           },
           "37": {
             "title": "Leistung in Discover, News, Bildern und Videos",
-            "missing": "Nur die Websuche wird gelesen, nicht Discover, News, Bilder oder Videos."
+            "missing": ""
           },
           "38": {
             "title": "Export und Zeitraum-Vorlagen",
@@ -12633,11 +12633,11 @@
           },
           "39": {
             "title": "Verlauf der Zitate in KI-Übersichten",
-            "missing": "Der Tab zeigt nicht, ob eine KI-Übersicht die Website zitiert."
+            "missing": "KI-Übersichten, die Google erst nach der Seite lädt, werden nicht geprüft, weil dieser Abruf extra kostet."
           },
           "40": {
             "title": "Zugriffe über KI-Assistenten",
-            "missing": "Es gibt keine Ansicht der Besuche über KI-Assistenten wie ChatGPT oder Gemini."
+            "missing": ""
           },
           "41": {
             "title": "Erwähnungen der Marke in Antworten von KI-Modellen",

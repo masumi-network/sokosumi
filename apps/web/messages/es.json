@@ -12481,27 +12481,27 @@
         "items": {
           "1": {
             "title": "Rastreo de todo el sitio",
-            "missing": "Una auditoría lee como máximo 10 páginas. No hay rastreo de todas las URL enlazadas o listadas."
+            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
           },
           "2": {
             "title": "Enlaces rotos y cadenas de redirecciones de todo el sitio",
-            "missing": "No hay una lista de enlaces rotos y cadenas de redirecciones de todo el sitio."
+            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
           },
           "3": {
             "title": "Cobertura del índice de todas las URL",
-            "missing": "El estado en el índice de Google se muestra solo para las páginas comprobadas, no para cada URL del sitemap."
+            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
           },
           "4": {
             "title": "Páginas huérfanas",
-            "missing": "No hay una lista de las páginas a las que no enlaza ninguna otra página."
+            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
           },
           "5": {
             "title": "Páginas casi duplicadas y con poco contenido",
-            "missing": "No hay una comprobación de páginas con un texto principal casi igual."
+            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
           },
           "6": {
             "title": "Core Web Vitals en la pestaña SEO",
-            "missing": "El agente lee las Core Web Vitals, pero la pestaña no las muestra."
+            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
           },
           "7": {
             "title": "Comprobación de una migración del sitio",
@@ -12513,7 +12513,7 @@
           },
           "9": {
             "title": "Brief de contenido para una palabra clave",
-            "missing": "No hay un brief de los subtemas y preguntas de los primeros resultados para una palabra clave."
+            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
           },
           "10": {
             "title": "Borradores y reescrituras del texto principal",
@@ -12521,19 +12521,19 @@
           },
           "11": {
             "title": "Cola de actualización de contenido",
-            "missing": "No hay una lista de todas las páginas que perdieron clics frente al año anterior."
+            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
           },
           "12": {
             "title": "Canibalización desde Search Console",
-            "missing": "Se comprueba solo en las páginas auditadas, no para cada búsqueda del sitio."
+            "missing": "El bot de SEO lo calcula; Core aún no lo guarda y esta pestaña aún no lo muestra."
           },
           "13": {
             "title": "Señales de autor, Quiénes somos y Contacto",
-            "missing": "No hay una comprobación de un perfil de autor, una página Quiénes somos y una página de contacto."
+            "missing": ""
           },
           "14": {
             "title": "Comprobación de fechas de publicación",
-            "missing": "Solo se comprueban las fechas futuras, no la fecha visible frente a los datos estructurados."
+            "missing": ""
           },
           "15": {
             "title": "Mapa de grupos de temas",
@@ -12541,11 +12541,11 @@
           },
           "16": {
             "title": "Historial de posiciones de las palabras clave seguidas",
-            "missing": "Las posiciones de pago muestran solo la última comprobación. No hay historial guardado."
+            "missing": ""
           },
           "17": {
             "title": "Funciones de la SERP a lo largo del tiempo",
-            "missing": "No hay historial de resúmenes de IA, fragmentos destacados y otras funciones de los resultados."
+            "missing": ""
           },
           "18": {
             "title": "Posición por ciudad",
@@ -12553,11 +12553,11 @@
           },
           "19": {
             "title": "Cuota de visibilidad",
-            "missing": "No hay una cuota de clics frente a la competencia en las palabras clave seguidas."
+            "missing": ""
           },
           "20": {
             "title": "Tráfico de marca y de otras búsquedas",
-            "missing": "No hay una división de los clics de Search Console entre búsquedas de marca y otras búsquedas."
+            "missing": ""
           },
           "21": {
             "title": "Estacionalidad",
@@ -12609,7 +12609,7 @@
           },
           "33": {
             "title": "Alertas de caída de tráfico y posiciones",
-            "missing": "No hay una alerta cuando bajan los clics, el estado en el índice o una posición."
+            "missing": "El bot de SEO indica las comprobaciones del monitor que se activaron y Core las guarda, pero aún no se envía ninguna alerta y esta pestaña no las muestra."
           },
           "34": {
             "title": "Marcas de actualizaciones de Google en los gráficos",
@@ -12617,7 +12617,7 @@
           },
           "35": {
             "title": "Conversiones orgánicas por página de destino",
-            "missing": "No se muestran los eventos clave ni los ingresos por página de destino."
+            "missing": "No se muestran los ingresos por página de destino, y los eventos clave solo se muestran cuando están configurados en Google Analytics."
           },
           "36": {
             "title": "Impacto antes y después por acción",
@@ -12625,7 +12625,7 @@
           },
           "37": {
             "title": "Rendimiento en Discover, Noticias, Imágenes y Vídeos",
-            "missing": "Solo se lee la búsqueda web, no Discover, Noticias, Imágenes ni Vídeos."
+            "missing": ""
           },
           "38": {
             "title": "Exportación y periodos predefinidos",
@@ -12633,11 +12633,11 @@
           },
           "39": {
             "title": "Historial de citas en resúmenes de IA",
-            "missing": "La pestaña no muestra si un resumen de IA cita el sitio."
+            "missing": "No se comprueban los resúmenes de IA que Google carga después de la página, porque esa lectura cuesta más."
           },
           "40": {
             "title": "Tráfico desde asistentes de IA",
-            "missing": "No hay una vista de las visitas desde asistentes de IA como ChatGPT o Gemini."
+            "missing": ""
           },
           "41": {
             "title": "Menciones de la marca en respuestas de modelos de IA",

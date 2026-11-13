@@ -2,7 +2,8 @@
  * What the SEO agent and the SEO tab cannot do yet, for the Improve tab. Hand-written from the SEO bot's
  * `docs/seo-feature-gaps.md` (repository masumi-network/seo-bot, 45 items in 8 groups); the bot publishes the
  * same items as `docs/seo-capabilities.json` with the same ids (the doc's item numbers). Statuses are as of
- * SEO_CAPABILITIES_AS_OF, except items 34 and 38, which this web build adds.
+ * SEO_CAPABILITIES_AS_OF and count what this Sokosumi build and the SEO bot's ticket 77 branches build. An item
+ * the bot computes that Core does not store yet stays partial.
  */
 
 export const SEO_CAPABILITIES_AS_OF = "2026-11-13";
@@ -105,7 +106,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     title: "Full-site crawl",
     status: "partial",
     missing:
-      "An audit reads at most 10 pages. No crawl of every linked or listed URL.",
+      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
     unlocks: [DEV],
   },
   {
@@ -113,7 +114,8 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "technical",
     title: "Site-wide broken links and redirect chains",
     status: "partial",
-    missing: "No list of broken links and redirect chains for the whole site.",
+    missing:
+      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
     unlocks: [DEV],
   },
   {
@@ -122,23 +124,25 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     title: "Index coverage for all URLs",
     status: "partial",
     missing:
-      "Google's index state shows for checked pages only, not for every sitemap URL.",
+      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
     unlocks: [GSC, DEV],
   },
   {
     id: 4,
     group: "technical",
     title: "Orphan pages",
-    status: "missing",
-    missing: "No list of pages that no other page links to.",
+    status: "partial",
+    missing:
+      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
     unlocks: [DEV],
   },
   {
     id: 5,
     group: "technical",
     title: "Near-duplicate and thin pages",
-    status: "missing",
-    missing: "No check for pages with almost the same main text.",
+    status: "partial",
+    missing:
+      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
     unlocks: [DEV],
   },
   {
@@ -146,7 +150,8 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "technical",
     title: "Core Web Vitals in the SEO tab",
     status: "partial",
-    missing: "The agent reads Core Web Vitals, but the tab does not show them.",
+    missing:
+      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
     unlocks: [DEV],
   },
   {
@@ -171,7 +176,7 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     title: "Content brief for a target keyword",
     status: "partial",
     missing:
-      "No brief of the subtopics and questions of the top results for one keyword.",
+      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
     unlocks: [DEV],
   },
   {
@@ -187,7 +192,8 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "content",
     title: "Content refresh queue",
     status: "partial",
-    missing: "No list of all pages that lost clicks against the year before.",
+    missing:
+      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
     unlocks: [GSC, DEV],
   },
   {
@@ -195,26 +201,25 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "content",
     title: "Cannibalization from Search Console",
     status: "partial",
-    missing: "Checked for audited pages only, not for every query of the site.",
+    missing:
+      "The SEO bot computes this; Core does not store it and this tab does not show it yet.",
     unlocks: [GSC, DEV],
   },
   {
     id: 13,
     group: "content",
     title: "Author, About and Contact signals",
-    status: "missing",
-    missing:
-      "No check for an author profile, an About page and a Contact page.",
-    unlocks: [DEV],
+    status: "built",
+    missing: null,
+    unlocks: [],
   },
   {
     id: 14,
     group: "content",
     title: "Publication date checks",
-    status: "partial",
-    missing:
-      "Only future dates are checked, not the visible date against the structured data.",
-    unlocks: [DEV],
+    status: "built",
+    missing: null,
+    unlocks: [],
   },
   {
     id: 15,
@@ -228,18 +233,17 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     id: 16,
     group: "keywords",
     title: "Rank history for tracked keywords",
-    status: "partial",
-    missing: "Paid positions show the latest check only. No stored history.",
-    unlocks: [PAID, DEV],
+    status: "built",
+    missing: null,
+    unlocks: [],
   },
   {
     id: 17,
     group: "keywords",
     title: "SERP features over time",
-    status: "partial",
-    missing:
-      "No history of AI Overviews, featured snippets and other result features.",
-    unlocks: [PAID, DEV],
+    status: "built",
+    missing: null,
+    unlocks: [],
   },
   {
     id: 18,
@@ -253,19 +257,17 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     id: 19,
     group: "keywords",
     title: "Share of voice",
-    status: "missing",
-    missing:
-      "No share of clicks against competitors over the tracked keywords.",
-    unlocks: [PAID, DEV],
+    status: "built",
+    missing: null,
+    unlocks: [],
   },
   {
     id: 20,
     group: "keywords",
     title: "Branded and non-branded traffic split",
-    status: "missing",
-    missing:
-      "No split of Search Console clicks into brand searches and other searches.",
-    unlocks: [GSC, DEV],
+    status: "built",
+    missing: null,
+    unlocks: [],
   },
   {
     id: 21,
@@ -369,8 +371,9 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     id: 33,
     group: "measurement",
     title: "Traffic and rank drop alerts",
-    status: "missing",
-    missing: "No alert when clicks, the index state or a rank drops.",
+    status: "partial",
+    missing:
+      "The SEO bot names the monitor checks that fired and Core keeps them, but no alert is sent and this tab does not show them yet.",
     unlocks: [DEV],
   },
   {
@@ -386,7 +389,8 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "measurement",
     title: "Organic conversions per landing page",
     status: "partial",
-    missing: "Key events and revenue per landing page do not show.",
+    missing:
+      "Revenue per landing page does not show, and key events show only after they are set up in Google Analytics.",
     unlocks: ["ga4", "ga4_key_events", DEV],
   },
   {
@@ -402,9 +406,9 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     id: 37,
     group: "measurement",
     title: "Discover, News, Image and Video performance",
-    status: "partial",
-    missing: "Only web search is read, not Discover, News, Image or Video.",
-    unlocks: [GSC, DEV],
+    status: "built",
+    missing: null,
+    unlocks: [],
   },
   {
     id: 38,
@@ -420,16 +424,17 @@ export const SEO_CAPABILITIES: readonly SeoCapability[] = [
     group: "ai",
     title: "AI Overview citation history",
     status: "partial",
-    missing: "The tab does not show if an AI Overview cites the site.",
-    unlocks: [PAID, DEV],
+    missing:
+      "AI Overviews that Google loads after the page are not checked, because that read costs extra.",
+    unlocks: [PAID],
   },
   {
     id: 40,
     group: "ai",
     title: "AI assistant referral traffic",
-    status: "missing",
-    missing: "No view of visits from AI assistants such as ChatGPT or Gemini.",
-    unlocks: ["ga4", DEV],
+    status: "built",
+    missing: null,
+    unlocks: [],
   },
   {
     id: 41,
