@@ -12,23 +12,142 @@ import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
 import type { StudioLabels } from "./types";
 
 const TILES = [
-  [-0.04, 0.05, 4, 12, true],
-  [0.14, 0.13, 0, 10, false],
-  [0.36, 0.06, 3, 13, true],
-  [0.58, 0.12, 4, 17, false],
-  [0.83, 0.1, 2, 16, false],
-  [1.02, 0.16, 1, 10, true],
-  [0.07, 0.45, 1, 14, false],
-  [0.25, 0.42, 2, 11, true],
-  [0.45, 0.47, 0, 9, true],
-  [0.72, 0.38, 1, 10, true],
-  [0.93, 0.48, 3, 13, false],
-  [-0.03, 0.77, 0, 9, true],
-  [0.15, 0.85, 2, 12, true],
-  [0.32, 0.88, 4, 17, false],
-  [0.56, 0.83, 3, 13, false],
-  [0.74, 0.86, 0, 10, true],
-  [0.9, 0.89, 1, 15, false],
+  {
+    x: -0.04,
+    y: 0.05,
+    templateIndex: 4,
+    width: 12,
+    distant: true,
+    src: "/studio/empty-ads/daybreak-oats.webp",
+  },
+  {
+    x: 0.14,
+    y: 0.13,
+    templateIndex: 0,
+    width: 10,
+    distant: false,
+    src: "/studio/empty-ads/lumen-sip.webp",
+  },
+  {
+    x: 0.36,
+    y: 0.06,
+    templateIndex: 3,
+    width: 13,
+    distant: true,
+    src: "/studio/empty-ads/sable-ink.webp",
+  },
+  {
+    x: 0.58,
+    y: 0.12,
+    templateIndex: 4,
+    width: 17,
+    distant: false,
+    src: "/studio/empty-ads/ridge-and-river.webp",
+  },
+  {
+    x: 0.83,
+    y: 0.1,
+    templateIndex: 2,
+    width: 16,
+    distant: false,
+    src: "/studio/empty-ads/ledgerly.webp",
+  },
+  {
+    x: 1.02,
+    y: 0.16,
+    templateIndex: 1,
+    width: 10,
+    distant: true,
+    src: "/studio/empty-ads/northbench-coffee.webp",
+  },
+  {
+    x: 0.07,
+    y: 0.45,
+    templateIndex: 1,
+    width: 14,
+    distant: false,
+    src: "/studio/empty-ads/fieldstep-sneakers.webp",
+  },
+  {
+    x: 0.25,
+    y: 0.42,
+    templateIndex: 2,
+    width: 11,
+    distant: true,
+    src: "/studio/empty-ads/solara-routes.webp",
+  },
+  {
+    x: 0.45,
+    y: 0.47,
+    templateIndex: 0,
+    width: 9,
+    distant: true,
+    src: "/studio/empty-ads/nimbus-air.webp",
+  },
+  {
+    x: 0.72,
+    y: 0.38,
+    templateIndex: 1,
+    width: 10,
+    distant: true,
+    src: "/studio/empty-ads/cedar-volt.webp",
+  },
+  {
+    x: 0.93,
+    y: 0.48,
+    templateIndex: 3,
+    width: 13,
+    distant: false,
+    src: "/studio/empty-ads/aero-loom.webp",
+  },
+  {
+    x: -0.03,
+    y: 0.77,
+    templateIndex: 0,
+    width: 9,
+    distant: true,
+    src: "/studio/empty-ads/bramble-rye.webp",
+  },
+  {
+    x: 0.15,
+    y: 0.85,
+    templateIndex: 2,
+    width: 12,
+    distant: true,
+    src: "/studio/empty-ads/kite-and-kiln.webp",
+  },
+  {
+    x: 0.32,
+    y: 0.88,
+    templateIndex: 4,
+    width: 17,
+    distant: false,
+    src: "/studio/empty-ads/cinder-cycle.webp",
+  },
+  {
+    x: 0.56,
+    y: 0.83,
+    templateIndex: 3,
+    width: 13,
+    distant: false,
+    src: "/studio/empty-ads/parcelly.webp",
+  },
+  {
+    x: 0.74,
+    y: 0.86,
+    templateIndex: 0,
+    width: 10,
+    distant: true,
+    src: "/studio/empty-ads/paloma-skin.webp",
+  },
+  {
+    x: 0.9,
+    y: 0.89,
+    templateIndex: 1,
+    width: 15,
+    distant: false,
+    src: "/studio/empty-ads/fern-and-co.webp",
+  },
 ] as const;
 
 const WRAP_MARGIN = 156;
@@ -69,7 +188,7 @@ export function StudioTemplateCanvas({
     const sceneLeft = (width - sceneWidth) / 2;
     const sceneTop = (height - sceneHeight) / 2;
 
-    TILES.forEach(([x, y], index) => {
+    TILES.forEach(({ x, y }, index) => {
       const tile = tilesRef.current[index];
       if (!tile) return;
       const left =
@@ -164,7 +283,7 @@ export function StudioTemplateCanvas({
     );
     const tile = TILES[current.tile];
     if (distance < DRAG_THRESHOLD && tile)
-      onApplyTemplate(STUDIO_TEMPLATES[tile[2]]);
+      onApplyTemplate(STUDIO_TEMPLATES[tile.templateIndex]);
   }
 
   return (
@@ -182,7 +301,7 @@ export function StudioTemplateCanvas({
         onPointerUp={handlePointerUp}
         ref={canvasRef}
       >
-        {TILES.map(([x, y, templateIndex, width, distant], index) => {
+        {TILES.map(({ x, y, templateIndex, width, distant, src }, index) => {
           const template = STUDIO_TEMPLATES[templateIndex];
           const aspectRatio = template.aspectRatio.replace(":", " / ");
           return (
@@ -218,7 +337,7 @@ export function StudioTemplateCanvas({
                   draggable={false}
                   fill
                   sizes={`(max-width: 640px) 80px, ${width * 0.95}vw`}
-                  src={`/studio/templates/${template.id}.jpg`}
+                  src={src}
                 />
               </div>
             </div>
