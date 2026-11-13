@@ -15,6 +15,7 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { cmoProductMetadataSchema } from "@/services/cmo-catalog.service";
 import { grantCmoCredits } from "@/services/cmo-credit-grant.service";
+import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
 import { monthOfPaidYear } from "@/services/cmo-yearly-grant-sync.service";
 
 /** What Polar's events do to a Cuso's CMO subscription and its credits (ADR 0068). */
@@ -204,6 +205,37 @@ async function upsertCmoSubscription(
   );
   if (target.isErr()) return err(target.error);
   const { organizationId, projectId } = target.value;
+
+  // A checkout paid, or first delivered, after its Cuso ended: the ending
+  // found no row to revoke, so Polar would go on charging. Revoked here and
+  // kept as ended, so later deliveries change nothing.
+  const cuso = await prisma.sokoBot.findFirst({
+    where: { ...LIVE_CUSO_WHERE, projectId },
+    select: { id: true },
+  });
+  if (!cuso) {
+    const revokedAt = new Date();
+    if (!state.endedAt) await revokePolarSubscription(subscription.id);
+    try {
+      await prisma.cmoSubscription.create({
+        data: {
+          ...state,
+          ...(!state.endedAt && {
+            status: "canceled",
+            endedAt: revokedAt,
+            polarEventAt: revokedAt,
+          }),
+          ...where,
+          organizationId,
+          projectId,
+        },
+      });
+    } catch (error) {
+      // Another delivery of the same subscription recorded it first.
+      if (!isPrismaUniqueViolation(error)) throw error;
+    }
+    return err({ issue: "the Cuso has ended; the subscription is revoked" });
+  }
 
   try {
     return ok(

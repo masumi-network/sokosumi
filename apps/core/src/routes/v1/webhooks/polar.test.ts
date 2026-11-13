@@ -630,6 +630,59 @@ describe("POST /v1/webhooks/polar", () => {
       },
     );
 
+    it.each([
+      [
+        "subscription.created",
+        subscriptionEvent("subscription.created", "2026-11-13T10:00:03.000Z"),
+      ],
+      ["order.paid", orderPaid()],
+    ])(
+      "%s of a subscription first seen after its Cuso ended revokes it at Polar and records it ended",
+      async (_type, event) => {
+        // Start over archived the Cuso while the checkout was still open.
+        m.prisma.sokoBot.findFirst.mockResolvedValue(null);
+        m.verifyPolarWebhook.mockResolvedValue(event);
+
+        const response = await post();
+
+        expect(response.status).toBe(200);
+        expect(m.revokePolarSubscription).toHaveBeenCalledExactlyOnceWith(
+          "sub_1",
+        );
+        expect(m.prisma.cmoSubscription.create.mock.calls[0]?.[0].data).toEqual(
+          expect.objectContaining({
+            polarSubscriptionId: "sub_1",
+            projectId: PROJECT_ID,
+            status: "canceled",
+            endedAt: expect.any(Date),
+          }),
+        );
+        expect(m.captureMessage).toHaveBeenCalledExactlyOnceWith(
+          expect.stringContaining("Cuso has ended"),
+          expect.anything(),
+        );
+        expect(m.prisma.transaction.create).not.toHaveBeenCalled();
+      },
+    );
+
+    it("records a subscription that Polar already ended for an ended Cuso without revoking it", async () => {
+      m.prisma.sokoBot.findFirst.mockResolvedValue(null);
+      m.verifyPolarWebhook.mockResolvedValue(
+        subscriptionEvent("subscription.revoked", "2026-11-13T10:00:03.000Z", {
+          status: "canceled",
+          ended_at: "2026-11-13T10:00:02.000Z",
+        }),
+      );
+
+      const response = await post();
+
+      expect(response.status).toBe(200);
+      expect(m.revokePolarSubscription).not.toHaveBeenCalled();
+      expect(
+        m.prisma.cmoSubscription.create.mock.calls[0]?.[0].data.endedAt,
+      ).toEqual(new Date("2026-11-13T10:00:02.000Z"));
+    });
+
     it("leaves the subscription to Polar's retry when the revoke fails", async () => {
       m.prisma.cmoSubscription.create.mockRejectedValue(
         Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
