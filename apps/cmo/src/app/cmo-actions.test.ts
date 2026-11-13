@@ -420,7 +420,7 @@ describe("skipped hiring steps", () => {
         data: {
           projectId: "project-1",
           onboardingStep: "accounts",
-          billing: { hiredWithStarterCredits: false },
+          billing: { hiredWithStarterCredits: false, status: null },
         },
       },
       response: { status: 200 },
