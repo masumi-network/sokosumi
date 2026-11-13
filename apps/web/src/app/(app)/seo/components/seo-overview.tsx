@@ -40,6 +40,7 @@ import {
   SeoSeverity,
   SeoSource,
   SeoState,
+  seoPageLabel,
   seoPageName,
   seoSiteUrl,
 } from "./seo-shared";
@@ -243,7 +244,11 @@ function PageDetail({
               <span id={pageLabelId} className="sr-only">
                 {finding.pageUrl}
               </span>
-              <SeoPageLink url={finding.pageUrl} site={seoSiteUrl(data)} />
+              <SeoPageLink
+                url={finding.pageUrl}
+                site={seoSiteUrl(data)}
+                label={seoPageLabel(data, finding.pageUrl)}
+              />
             </>
           ) : null}
         </div>
@@ -374,11 +379,12 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                         {/* The open row has the link to the page. */}
                         <span className="group-open:hidden">
                           {finding.devices.length === 1 ? " · " : null}
-                          {seoPageName(
-                            finding.pageUrl,
-                            seoSiteUrl(data),
-                            t("pages.home"),
-                          )}
+                          {seoPageLabel(data, finding.pageUrl) ??
+                            seoPageName(
+                              finding.pageUrl,
+                              seoSiteUrl(data),
+                              t("pages.home"),
+                            )}
                         </span>
                       </span>
                     </summary>
@@ -388,6 +394,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                         <SeoPageLink
                           url={finding.pageUrl}
                           site={seoSiteUrl(data)}
+                          label={seoPageLabel(data, finding.pageUrl)}
                           quiet
                         />
                         <span className="flex sm:hidden">

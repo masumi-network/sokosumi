@@ -295,6 +295,15 @@ export function seoPagePath(url: string, site: string) {
   }
 }
 
+/**
+ * The name the Pages card gives a page, where it has one of its own. Rows use it too: a path beside that name on
+ * one tab made the reader match two names to one page.
+ */
+export function seoPageLabel(workspace: ProjectSeoWorkspace, url: string) {
+  const label = workspace.pages.find((page) => page.url === url)?.label;
+  return label && label !== url ? label : null;
+}
+
 /** A page of the Audit's site by its path, the home page by the given name; any other address in full. */
 export function seoPageName(url: string, site: string | null, home: string) {
   const path = site ? seoPagePath(url, site) : null;
@@ -534,7 +543,8 @@ export function SeoPageText({
         oneLine && "max-sm:truncate",
       )}
     >
-      {seoPageName(url, seoSiteUrl(workspace), t("pages.home"))}
+      {seoPageLabel(workspace, url) ??
+        seoPageName(url, seoSiteUrl(workspace), t("pages.home"))}
     </bdi>
   );
 }

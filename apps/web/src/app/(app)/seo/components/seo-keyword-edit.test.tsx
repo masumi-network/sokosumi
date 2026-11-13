@@ -323,7 +323,7 @@ describe("Saved keyword edits", () => {
     },
   );
 
-  it("shows a keyword's page as the address after the site, and the home page by name", () => {
+  it("names a keyword's page as the Pages card does: its own name, else the address after the site", () => {
     const { workspace, pricingPage } = savedKeywordWorkspace();
     workspace.scope.pageIds = workspace.pages.map((page) => page.id);
     // An Audit saves no site: its primary page stands for it.
@@ -344,9 +344,10 @@ describe("Saved keyword edits", () => {
       },
     );
     renderWorkspace(workspace);
-    // The page is text under the keyword: the path after the site, and the home page by name.
-    expect(screen.getByText("/pricing")).toBeVisible();
-    expect(screen.getByText("Home page")).toBeVisible();
+    // The page is text under the keyword, by the name the Pages card gives it: one page, one name on a tab.
+    expect(screen.getByText("Pricing")).toBeVisible();
+    expect(screen.getByText("Home")).toBeVisible();
+    expect(screen.queryByText("/pricing")).toBeNull();
     // A page of another site keeps its site.
     expect(screen.getByText("https://other.example/x")).toBeVisible();
     // No link per keyword: the Actions tab holds the page links.
@@ -368,8 +369,8 @@ describe("Saved keyword edits", () => {
     renderWorkspace(workspace);
     // Most keywords belong to the primary page: only a keyword of another page names its page.
     expect(screen.getByText("Wallets")).toBeVisible();
-    expect(screen.queryByText("Home page")).toBeNull();
-    expect(screen.getByText("/pricing")).toBeVisible();
+    expect(screen.queryByText("Home")).toBeNull();
+    expect(screen.getByText("Pricing")).toBeVisible();
   });
 
   it("shows the filter box only over a list long enough to need it", async () => {
@@ -718,8 +719,10 @@ describe("Keywords after a check", () => {
       .map((name) => name.closest("td")?.textContent);
     // Two rows with one name: the page tells them apart, the primary page too.
     expect(cells).toHaveLength(2);
-    expect(cells.filter((text) => text?.includes("Home page"))).toHaveLength(1);
-    expect(cells.filter((text) => text?.includes("/guides"))).toHaveLength(1);
+    // Each page by the name the Pages card gives it ("Home", "Guides"), not by its path.
+    expect(cells.filter((text) => text?.includes("Home"))).toHaveLength(1);
+    expect(cells.filter((text) => text?.includes("Guides"))).toHaveLength(1);
+    expect(cells.filter((text) => text?.includes("/guides"))).toHaveLength(0);
     // A keyword of the primary page alone names no page: most rows belong to that page.
     const alone = screen.getAllByText("charge timer");
     expect(alone).toHaveLength(2);

@@ -23,6 +23,7 @@ import {
   SeoSeverity,
   SeoSource,
   SeoState,
+  seoPageLabel,
   seoSiteUrl,
 } from "./seo-shared";
 import { SeoStrategyActions, SeoStrategyPlaceNotes } from "./seo-strategy";
@@ -143,6 +144,7 @@ export function SeoActionCard({
             <SeoPageLink
               url={action.pageUrl}
               site={seoSiteUrl(model.data)}
+              label={seoPageLabel(model.data, action.pageUrl)}
               quiet
             />
           </div>

@@ -5447,7 +5447,13 @@ describe("SEO workspace integration", () => {
     // With several pages two fixes can have one title: the row names its page.
     const pricing = "https://example.com/pricing";
     const second = "a658c5bb-3084-4b26-81ee-b3208ee5ab61";
-    workspace.pages.push({ ...workspace.pages[0], id: second, url: pricing });
+    // No name of its own: the row names the page by its path.
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: second,
+      url: pricing,
+      label: "",
+    });
     workspace.scope = {
       ...workspace.scope,
       pageIds: [...workspace.scope.pageIds, second],
