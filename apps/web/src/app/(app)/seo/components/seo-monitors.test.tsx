@@ -62,6 +62,7 @@ function monitor(patch: Partial<ProjectSeoMonitor> = {}): ProjectSeoMonitor {
     devices: ["mobile", "desktop"],
     kind: "page_check",
     maxProviderCalls: 0,
+    isOwner: true,
     lastRun: {
       at: new Date("2026-11-09T08:00:00Z"),
       status: "completed",
@@ -199,6 +200,19 @@ describe("SEO monitor card", () => {
     await user.click(within(card).getByRole("button", { name: t.resume }));
     await waitFor(() => expect(mutate).toHaveBeenCalledTimes(2));
     expect(mutate.mock.calls[1][0].command.action).toBe("resume");
+  });
+
+  it("lets another member pause, but only the owner run now or edit", async () => {
+    const user = userEvent.setup();
+    const card = renderCard(withMonitors(monitor({ isOwner: false })));
+    expect(
+      within(card).queryByRole("button", { name: t.runNow }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(card).queryByRole("button", { name: t.edit }),
+    ).not.toBeInTheDocument();
+    await user.click(within(card).getByRole("button", { name: t.pause }));
+    await waitFor(() => expect(mutate).toHaveBeenCalledTimes(1));
   });
 
   it("runs now against the revision it shows", async () => {

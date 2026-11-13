@@ -290,6 +290,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
               ? t("conflict")
               : t("saveFailed"),
         );
+        // A conflict means this view is stale: read the current revision so the next try can land.
+        if (response.error.status === 409) await refetchForViewer();
         return false;
       }
       if (

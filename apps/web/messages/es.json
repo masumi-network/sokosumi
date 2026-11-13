@@ -11807,7 +11807,7 @@
         "title": "Comprobaciones programadas",
         "create": "Programar revisiones",
         "description": "Repite una revisión concreta según un plan. Revisa el mercado, las páginas y el presupuesto por ejecución antes de guardar.",
-        "cap": "Hasta {runs} ejecuciones y {calls} solicitudes de datos en total. También pueden aplicarse cargos de modelo y ejecución.",
+        "cap": "Hasta {runs} ejecuciones programadas y {calls} solicitudes de datos para ellas. Cada «Ejecutar ahora» añade una ejecución más. También pueden aplicarse cargos de modelo y ejecución.",
         "created": "Seguimiento SEO programado",
         "next": "Próxima ejecución",
         "manage": "Gestionar plan de tareas",
@@ -11856,7 +11856,7 @@
           "same": "Sin cambios desde la última ejecución.",
           "summary": "Desde la última ejecución: {parts}",
           "newFailures": "{count, plural, one {# fallo nuevo} other {# fallos nuevos}}",
-          "fixed": "{count} corregidos",
+          "fixed": "{count, plural, one {# corregido} other {# corregidos}}",
           "drops": "{count, plural, one {# caída de posición} other {# caídas de posición}}",
           "rises": "{count, plural, one {# subida de posición} other {# subidas de posición}}",
           "newFailuresTitle": "Ahora fallan",
@@ -12528,7 +12528,7 @@
         "assigned": "Se te asignó {taskName}",
         "participantAdded": "Te añadieron a {taskName} como participante",
         "followUp": "{taskName} sigue esperándote",
-        "seoMonitorWorse": "{taskName}: el último resultado SEO programado empeoró ({newFailures, plural, one {# fallo nuevo} other {# fallos nuevos}}, {drops, plural, one {# caída de posición} other {# caídas de posición}})"
+        "seoMonitorWorse": "{taskName}: el último resultado SEO programado empeoró. Fallos nuevos: {newFailures}. Caídas de posición: {drops}."
       },
       "Billing": {
         "lowBalance": "Tus créditos se están agotando: quedan {credits}",

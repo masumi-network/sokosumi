@@ -11807,7 +11807,7 @@
         "title": "Geplante Prüfungen",
         "create": "Prüfungen planen",
         "description": "Wiederhole eine gezielte Prüfung nach Plan. Prüfe Markt, Seiten und Budget pro Durchlauf vor dem Speichern.",
-        "cap": "Bis zu {runs} Durchläufe und insgesamt {calls} Datenanfragen. Modell- und Laufzeitkosten können ebenfalls anfallen.",
+        "cap": "Bis zu {runs} geplante Durchläufe und {calls} Datenanfragen dafür. Jedes „Jetzt ausführen“ fügt einen Durchlauf hinzu. Modell- und Laufzeitkosten können ebenfalls anfallen.",
         "created": "SEO-Monitoring geplant",
         "next": "Nächster Durchlauf",
         "manage": "Aufgabenplan verwalten",
@@ -12528,7 +12528,7 @@
         "assigned": "Dir wurde {taskName} zugewiesen",
         "participantAdded": "Du wurdest als Teilnehmer zu {taskName} hinzugefügt",
         "followUp": "{taskName} wartet weiterhin auf dich",
-        "seoMonitorWorse": "{taskName}: Das neueste geplante SEO-Ergebnis ist schlechter ({newFailures, plural, one {# neuer Fehler} other {# neue Fehler}}, {drops, plural, one {# Ranking-Verlust} other {# Ranking-Verluste}})"
+        "seoMonitorWorse": "{taskName}: Das neueste geplante SEO-Ergebnis ist schlechter. Neue Fehler: {newFailures}. Ranking-Verluste: {drops}."
       },
       "Billing": {
         "lowBalance": "Deine Credits werden knapp: noch {credits}",

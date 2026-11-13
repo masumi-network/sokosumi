@@ -11807,7 +11807,7 @@
         "title": "Scheduled checks",
         "create": "Schedule checks",
         "description": "Repeat a focused check on a schedule. Review the market, pages and per-run budget before saving.",
-        "cap": "Up to {runs} runs and {calls} data requests in total. Model and runtime charges can also apply.",
+        "cap": "Up to {runs} scheduled runs and {calls} data requests for them. Each Run now adds one more run. Model and runtime charges can also apply.",
         "created": "SEO monitoring scheduled",
         "next": "Next run",
         "manage": "Manage task schedule",
@@ -12528,7 +12528,7 @@
         "assigned": "You were assigned {taskName}",
         "participantAdded": "You were added to {taskName} as a participant",
         "followUp": "{taskName} is still waiting for you",
-        "seoMonitorWorse": "{taskName}: the newest scheduled SEO result got worse ({newFailures, plural, one {# new failure} other {# new failures}}, {drops, plural, one {# ranking drop} other {# ranking drops}})"
+        "seoMonitorWorse": "{taskName}: the newest scheduled SEO result got worse. New failures: {newFailures}. Ranking drops: {drops}."
       },
       "Billing": {
         "lowBalance": "Your credits are running low: {credits} left",

@@ -108,7 +108,7 @@ export function SeoMonitorRow({
         </p>
       ) : null}
       {row.editing && row.when ? (
-        <div className="bg-muted/40 space-y-3 rounded-lg p-3">
+        <div className="bg-muted space-y-3 rounded-lg p-3">
           <TaskScheduleWhen
             value={row.when}
             onChange={row.setWhen}
@@ -139,14 +139,16 @@ export function SeoMonitorRow({
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           {canEdit && !ended ? (
             <>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={row.pending}
-                onClick={() => void row.runNow()}
-              >
-                {t("runNow")}
-              </Button>
+              {monitor.isOwner ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={row.pending}
+                  onClick={() => void row.runNow()}
+                >
+                  {t("runNow")}
+                </Button>
+              ) : null}
               <Button
                 size="sm"
                 variant="ghost"
@@ -159,14 +161,16 @@ export function SeoMonitorRow({
               >
                 {t(monitor.state === "PAUSED" ? "resume" : "pause")}
               </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={row.pending}
-                onClick={row.startEdit}
-              >
-                {t("edit")}
-              </Button>
+              {monitor.isOwner ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={row.pending}
+                  onClick={row.startEdit}
+                >
+                  {t("edit")}
+                </Button>
+              ) : null}
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button size="sm" variant="ghost" disabled={row.pending}>
