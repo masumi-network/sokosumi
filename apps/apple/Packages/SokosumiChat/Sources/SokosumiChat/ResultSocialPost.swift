@@ -47,7 +47,10 @@ public struct ResultSocialPost: Equatable, Sendable {
   }
 
   /// Web's X carousel shows up to twenty pictures; the other networks' grids show at most four.
-  private var visibleMediaLimit: Int { provider == .x ? 20 : 4 }
+  private var visibleMediaLimit: Int {
+    provider == .x ? 20 : 4
+  }
+
   /// LinkedIn folds after three lines or 210 characters, Instagram after two lines or 125.
   public static let linkedInFold = (maxChars: 210, maxLines: 3)
   public static let instagramFold = (maxChars: 125, maxLines: 2)
