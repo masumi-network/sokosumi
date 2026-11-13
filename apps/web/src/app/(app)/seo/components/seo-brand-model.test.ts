@@ -30,6 +30,15 @@ describe("branded query split", () => {
     expect(seoIsBrandedQuery("パナソニック", ["ソニー テレビ"])).toBe(false);
   });
 
+  it("reads a change of script in a query as a word bound", () => {
+    expect(seoIsBrandedQuery("iPhoneケース", ["iPhone"])).toBe(true);
+    expect(seoIsBrandedQuery("LINEの使い方", ["LINE"])).toBe(true);
+    expect(seoIsBrandedQuery("华为P50价格", ["P50"])).toBe(true);
+    expect(seoIsBrandedQuery("acme靴", ["acme"])).toBe(true);
+    expect(seoIsBrandedQuery("acmeshop靴", ["acme"])).toBe(false);
+    expect(seoIsBrandedQuery("ソニーテレビ", ["ソニー"])).toBe(true);
+  });
+
   it("keeps marks and letters that tell words apart", () => {
     expect(seoIsBrandedQuery("हिंदू", ["हिंदी"])).toBe(false);
     expect(seoIsBrandedQuery("हिंदी फिल्म", ["हिंदी"])).toBe(true);

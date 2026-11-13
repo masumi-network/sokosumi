@@ -7,8 +7,21 @@ export type SeoBrandView = (typeof SEO_BRAND_VIEWS)[number];
  * the word: "ソニーテレビ" holds "ソニー". Word bounds are not readable there, so a
  * term in these scripts matches as a substring, with spaces ignored.
  */
-const SUBSTRING_SCRIPTS =
-  /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
+const SUBSTRING_SCRIPT_CLASS =
+  "\\p{scx=Han}\\p{scx=Hiragana}\\p{scx=Katakana}\\p{scx=Hangul}\\p{scx=Thai}\\p{scx=Lao}\\p{scx=Khmer}\\p{scx=Myanmar}";
+const SUBSTRING_SCRIPTS = new RegExp(`[${SUBSTRING_SCRIPT_CLASS}]`, "u");
+/**
+ * A change between such a script and any other text is a word bound: "iPhoneケース"
+ * holds the word "iphone", and "华为P50价格" the word "p50".
+ */
+const INTO_SUBSTRING_SCRIPT = new RegExp(
+  `([^\\s${SUBSTRING_SCRIPT_CLASS}])(?=[${SUBSTRING_SCRIPT_CLASS}])`,
+  "gu",
+);
+const OUT_OF_SUBSTRING_SCRIPT = new RegExp(
+  `([${SUBSTRING_SCRIPT_CLASS}])(?=[^\\s${SUBSTRING_SCRIPT_CLASS}])`,
+  "gu",
+);
 const LETTER_OR_DIGIT = /[\p{L}\p{N}]/u;
 /** Compatibility forms would turn "acme™" into "acmetm"; the signs are not part of a name. */
 const TRADEMARK_SIGNS = /[\u2120\u2122]/gu;
@@ -34,8 +47,17 @@ function brandText(text: string): string {
     .toLocaleLowerCase();
 }
 
+/** Most queries hold no such script; they skip the two scans. */
+function splitScripts(text: string): string {
+  return SUBSTRING_SCRIPTS.test(text)
+    ? text
+        .replace(INTO_SUBSTRING_SCRIPT, "$1 ")
+        .replace(OUT_OF_SUBSTRING_SCRIPT, "$1 ")
+    : text;
+}
+
 function brandWords(text: string): string[] {
-  return (brandText(text).match(WORD) ?? [])
+  return (splitScripts(brandText(text)).match(WORD) ?? [])
     .map((word) => word.replace(LEADING_JOINERS, ""))
     .filter((word) => LETTER_OR_DIGIT.test(word));
 }
