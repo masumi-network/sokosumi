@@ -3,7 +3,9 @@ import type {
   ProjectSeoWorkspace,
   RequestProjectSeoAnalysisRequest,
 } from "@sokosumi/core-client";
+import { seoMaxCredits } from "@sokosumi/utils";
 import type { SeoCommand } from "@/lib/actions/seo/types";
+import type { SeoAnalysisLimits } from "./seo-analysis-summary";
 
 /**
  * The target page of a keyword's choice. A keyword tracked from its check has no stored choice
@@ -316,4 +318,24 @@ export function analysisSeoBody(
         ? {}
         : { maxProviderCalls }),
   };
+}
+
+/**
+ * The most the check can charge, in whole credits, as Core and the check service compute it (seoMaxCredits).
+ * Null while a limit field holds no valid value.
+ */
+export function seoAnalysisMaxCredits(
+  limits: SeoAnalysisLimits,
+): number | null {
+  if (limits.kind === "free") return 0;
+  if (limits.kind === "standard")
+    return seoMaxCredits({ kind: "audit_full", pages: 1 });
+  if (limits.kind === "full")
+    // "full" is the multi-page audit; any page count above one reads the USD limit.
+    return limits.usd > 0
+      ? seoMaxCredits({ kind: "audit_full", pages: 2, usd: limits.usd })
+      : null;
+  return Number.isSafeInteger(limits.count) && limits.count >= 0
+    ? seoMaxCredits({ kind: "focused", providerCalls: limits.count })
+    : null;
 }

@@ -7,6 +7,7 @@ import type {
   ProjectSeoMetric,
   ProjectSeoWorkspace,
 } from "@sokosumi/core-client";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import {
@@ -283,7 +284,11 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       });
       if (!response.ok) {
         toast.error(
-          response.error.status === 409 ? t("conflict") : t("saveFailed"),
+          response.error.kind === CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE
+            ? t("notEnoughCredits")
+            : response.error.status === 409
+              ? t("conflict")
+              : t("saveFailed"),
         );
         return false;
       }

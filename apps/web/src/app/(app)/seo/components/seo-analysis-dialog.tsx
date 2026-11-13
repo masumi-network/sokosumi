@@ -17,7 +17,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { seoDefaultMarket } from "./seo-analysis-market-model";
-import { SeoAnalysisSummary } from "./seo-analysis-summary";
+import {
+  type SeoAnalysisLimits,
+  SeoAnalysisSummary,
+} from "./seo-analysis-summary";
 import { SeoField, SeoSelect } from "./seo-form-fields";
 import {
   SEO_ANALYSIS_MODULES,
@@ -27,6 +30,7 @@ import {
   SEO_MAX_MONITOR_RUNS,
   SEO_MAX_PAGES,
   SEO_MAX_PROVIDER_CALLS,
+  seoAnalysisMaxCredits,
 } from "./seo-form-model";
 import { useSeoAnalysisForm } from "./use-seo-analysis";
 import { useSeoAnalysisMarket } from "./use-seo-analysis-market";
@@ -45,6 +49,18 @@ export function SeoAnalysisDialog({
   const form = useSeoAnalysisForm(model, monitor);
   const full = form.kind === "audit_full";
   const multiPageFull = full && form.workspace.scope.pageIds.length > 1;
+  const limits: SeoAnalysisLimits = multiPageFull
+    ? {
+        kind: "full",
+        usd: Number(form.usd) || 0,
+        seconds: Number(form.seconds) || 0,
+      }
+    : full
+      ? { kind: "standard" }
+      : form.usesPaidData
+        ? { kind: "requests", count: Number(form.providerCalls) || 0 }
+        : { kind: "free" };
+  const maxCredits = seoAnalysisMaxCredits(limits);
   const noService = !form.serviceAvailable;
   const market = useSeoAnalysisMarket(
     form.workspace.keywords,
@@ -86,22 +102,7 @@ export function SeoAnalysisDialog({
                 languageCode={market.languageCode}
                 devices={form.devices}
                 keywords={form.wantsKeywords ? market.keywords : null}
-                limits={
-                  multiPageFull
-                    ? {
-                        kind: "full",
-                        usd: Number(form.usd) || 0,
-                        seconds: Number(form.seconds) || 0,
-                      }
-                    : full
-                      ? { kind: "standard" }
-                      : form.usesPaidData
-                        ? {
-                            kind: "requests",
-                            count: Number(form.providerCalls) || 0,
-                          }
-                        : { kind: "free" }
-                }
+                limits={limits}
               />
               <Button
                 type="button"
@@ -380,7 +381,9 @@ export function SeoAnalysisDialog({
             </div>
           ) : null}
           <p className="text-muted-foreground text-sm">
-            {t(form.usesPaidData ? "analysis.cost" : "analysis.htmlCost")}
+            {maxCredits
+              ? t("analysis.maxCredits", { credits: maxCredits })
+              : t(form.usesPaidData ? "analysis.cost" : "analysis.htmlCost")}
           </p>
           <DialogFooter>
             <Button
