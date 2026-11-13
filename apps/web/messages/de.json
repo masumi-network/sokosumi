@@ -11551,7 +11551,15 @@
           "gain": "Zusätzliche Klicks in den Top 3",
           "table": "Als Tabelle anzeigen",
           "note": "Höher: mehr Suchanfragen. Weiter links: leichter in die Top 10. Ein größerer Punkt: mehr zusätzliche Klicks auf Platz 3. Die meisten Klicks gehen an die Top 3. Klicks sind Schätzungen aus den monatlichen Suchanfragen und dem Klickanteil je Google-Platz (Advanced Web Ranking, Juli 2026). Die Schwierigkeit stammt von DataForSEO."
-        }
+        },
+        "historyShow": "Positionsverlauf",
+        "historyPaidTitle": "Positionen in bezahlten Prüfungen",
+        "historyPaidNote": "Jeder Punkt ist eine Prüfung der Suchergebnisse an diesem Tag.",
+        "historyPaidLabel": "{device, select, mobile {Mobil} desktop {Desktop} other {Alle Geräte}}: Position in bezahlten Prüfungen für „{keyword}“",
+        "historyNotInRange": "Nicht in den geprüften Ergebnissen",
+        "historyPaidAxis": "Position 1 steht oben. Eine niedrigere Position ist besser. Eine Prüfung, die die Seite nicht in ihren Ergebnissen fand, hat keine Position.",
+        "historyGscTitle": "Durchschnittliche Position in der Search Console, täglich",
+        "historyGscNote": "Ein Durchschnitt über alle Impressionen des Tages, keine einzelne Prüfung."
       },
       "competitors": {
         "title": "Mitbewerber",

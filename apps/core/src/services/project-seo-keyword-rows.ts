@@ -6,11 +6,33 @@ import {
   type ProjectSeoWorkspace,
   saveSeoKeywordSchema,
 } from "@/schemas/project-seo.schema";
+import { normalizeSeoUrl } from "./project-seo-store";
 
 type SeoKeywordRow = ProjectSeoWorkspace["keywords"][number];
 /** Why a check lists a keyword it did not set out to read. The SEO tab shows these as ideas (web: SEO_IDEA_SOURCES). */
 const IDEA_SOURCES = new Set(["gap", "opportunity"]);
 const priority = z.enum(["low", "medium", "high"]);
+
+/** One keyword row per keyword, page, device, reason and Market: a check row and its later reads share it. */
+export function seoKeywordIdentity(
+  row: {
+    keyword: string;
+    pageUrl: string;
+    device: string | null;
+    source?: string | null;
+  },
+  countryCode: string,
+  languageCode: string,
+) {
+  return JSON.stringify([
+    row.keyword.normalize("NFKC").toLowerCase(),
+    normalizeSeoUrl(row.pageUrl),
+    row.device,
+    row.source ?? "rank_refresh",
+    countryCode,
+    languageCode,
+  ]);
+}
 
 /** A keyword a check read or listed, with the reader's choice for it when there is one. */
 export function observedSeoKeyword(

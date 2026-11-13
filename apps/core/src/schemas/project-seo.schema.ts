@@ -7,6 +7,10 @@ import {
   seoMonitorLastRunSchema,
   seoMonitorRuleSchema,
 } from "./project-seo-monitor.schema";
+import {
+  SEO_RANK_HISTORY_POINTS,
+  seoPositionPointSchema,
+} from "./project-seo-rankings.schema";
 import { seoStrategySchema } from "./project-seo-strategy.schema";
 
 export const SEO_MAX_PAGES = 10;
@@ -334,6 +338,11 @@ export const seoKeywordSchema = z
     observationId: z.union([seoIdSchema, z.null()]),
     priority: z.enum(["low", "medium", "high"]),
     version: z.number().int(),
+    /** Every loaded paid read of this keyword, page and device, newest last. GSC average positions are separate. */
+    positionHistory: z
+      .array(seoPositionPointSchema)
+      .max(SEO_RANK_HISTORY_POINTS)
+      .optional(),
   })
   .openapi("ProjectSeoKeyword");
 export const seoCompetitorSchema = z

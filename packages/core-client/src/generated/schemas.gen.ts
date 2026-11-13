@@ -40559,6 +40559,13 @@ export const ProjectSeoKeywordSchema = {
         },
         version: {
             type: 'integer'
+        },
+        positionHistory: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoPositionPoint'
+            },
+            maxItems: 90
         }
     },
     required: [
@@ -40584,6 +40591,55 @@ export const ProjectSeoKeywordSchema = {
         'observationId',
         'priority',
         'version'
+    ]
+} as const;
+
+export const ProjectSeoPositionPointSchema = {
+    type: 'object',
+    properties: {
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        observationId: {
+            type: 'string'
+        },
+        position: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        positionStatus: {
+            type: 'string',
+            enum: [
+                'ranked',
+                'not_in_range',
+                'unavailable'
+            ]
+        },
+        device: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: [
+                        'mobile',
+                        'desktop'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'observedAt',
+        'observationId',
+        'position',
+        'positionStatus',
+        'device'
     ]
 } as const;
 

@@ -26,6 +26,7 @@ import {
 import {
   observedSeoKeyword,
   savedSeoKeyword,
+  seoKeywordIdentity,
 } from "./project-seo-keyword-rows";
 import {
   projectSearchEvidence,
@@ -395,11 +396,8 @@ export function projectSeoProjection(
         .success;
     for (const item of data.keywords) {
       if (!selectedUrls.has(normalizeSeoUrl(item.pageUrl))) continue;
-      const identity = key(
-        item.keyword.normalize("NFKC").toLowerCase(),
-        normalizeSeoUrl(item.pageUrl),
-        item.device,
-        item.source ?? "rank_refresh",
+      const identity = seoKeywordIdentity(
+        item,
         data.countryCode,
         data.languageCode,
       );

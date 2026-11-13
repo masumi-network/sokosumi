@@ -11551,7 +11551,15 @@
           "gain": "Extra clicks at top 3",
           "table": "Show as a table",
           "note": "Higher: more searches. Further left: easier to reach the top 10. A bigger dot: more extra clicks at place 3. Most clicks go to the top 3. Clicks are estimates from monthly searches and the share of clicks per Google place (Advanced Web Ranking, July 2026). Difficulty comes from DataForSEO."
-        }
+        },
+        "historyShow": "Position history",
+        "historyPaidTitle": "Positions in paid checks",
+        "historyPaidNote": "Each point is one check of the search results on that day.",
+        "historyPaidLabel": "{device, select, mobile {Mobile} desktop {Desktop} other {All devices}}: position in paid checks for “{keyword}”",
+        "historyNotInRange": "Not in the checked results",
+        "historyPaidAxis": "Position 1 is at the top. A lower position is better. A check that did not find the page in its results has no position.",
+        "historyGscTitle": "Search Console average position, daily",
+        "historyGscNote": "An average over all impressions of the day, not one check."
       },
       "competitors": {
         "title": "Competitors",

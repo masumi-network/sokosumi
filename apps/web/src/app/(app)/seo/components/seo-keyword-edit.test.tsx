@@ -18,6 +18,7 @@ import { SeoEditDialog } from "./seo-edit-dialog";
 import { SeoRankings } from "./seo-rankings";
 import { SeoSearchQueries } from "./seo-search-queries";
 import {
+  seoTestKeyword,
   seoTestObservation,
   seoTestStrategy,
   seoTestWorkspace,
@@ -1454,5 +1455,34 @@ describe("Search Console queries", () => {
     renderWorkspace(workspace);
     expect(screen.getByText("battery app")).toBeVisible();
     expect(screen.queryByText(/Track one to see/)).toBeNull();
+  });
+
+  it("opens the paid check positions of a keyword with two days of reads", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const read = (day: string, position: number | null) => ({
+      observedAt: new Date(`${day}T08:00:00Z`),
+      observationId: "observation-1",
+      position,
+      positionStatus:
+        position === null ? ("not_in_range" as const) : ("ranked" as const),
+      device: "desktop" as const,
+    });
+    workspace.keywords.push(
+      seoTestKeyword({
+        positionHistory: [read("2026-10-01", 9), read("2026-10-08", 4)],
+      }),
+    );
+    renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "Position history" }));
+    expect(
+      screen.getByRole("group", {
+        name: "Desktop: position in paid checks for “battery app”",
+      }),
+    ).toBeVisible();
+    // Without a Search Console sync there is no daily average to set next to it.
+    expect(
+      screen.queryByText("Search Console average position, daily"),
+    ).toBeNull();
   });
 });

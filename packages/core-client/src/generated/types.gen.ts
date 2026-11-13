@@ -10763,6 +10763,15 @@ export type ProjectSeoKeyword = {
     observationId: string | null;
     priority: 'low' | 'medium' | 'high';
     version: number;
+    positionHistory?: Array<ProjectSeoPositionPoint>;
+};
+
+export type ProjectSeoPositionPoint = {
+    observedAt: Date;
+    observationId: string;
+    position: number | null;
+    positionStatus: 'ranked' | 'not_in_range' | 'unavailable';
+    device: 'mobile' | 'desktop' | null;
 };
 
 export type ProjectSeoCompetitor = {

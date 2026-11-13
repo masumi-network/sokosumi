@@ -209,3 +209,34 @@ export function seoTestStrategy(): NonNullable<
     languageCode: "en",
   };
 }
+
+/** A keyword row a rankings check read: "battery app" on the home page, US English, desktop. */
+export function seoTestKeyword(
+  patch: Partial<ProjectSeoWorkspace["keywords"][number]> = {},
+): ProjectSeoWorkspace["keywords"][number] {
+  return {
+    id: "keyword-1",
+    keyword: "battery app",
+    pageUrl: "https://example.com/",
+    targetPageId: null,
+    saved: true,
+    countryCode: "US",
+    languageCode: "en",
+    source: "rank_refresh",
+    volume: null,
+    intent: null,
+    difficulty: null,
+    clicks: null,
+    conversion: null,
+    feature: null,
+    device: "desktop",
+    position: 4,
+    positionStatus: "ranked",
+    checkedResults: 100,
+    observedAt: new Date("2026-10-08T08:00:00Z"),
+    observationId: "observation-1",
+    priority: "medium",
+    version: 0,
+    ...patch,
+  };
+}

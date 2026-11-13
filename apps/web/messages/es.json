@@ -11551,7 +11551,15 @@
           "gain": "Clics adicionales en el top 3",
           "table": "Mostrar como tabla",
           "note": "Más arriba: más búsquedas. Más a la izquierda: más fácil llegar al top 10. Un punto más grande: más clics adicionales en el puesto 3. La mayoría de los clics va al top 3. Los clics son estimaciones a partir de las búsquedas mensuales y la cuota de clics de cada puesto de Google (Advanced Web Ranking, julio de 2026). La dificultad viene de DataForSEO."
-        }
+        },
+        "historyShow": "Historial de posiciones",
+        "historyPaidTitle": "Posiciones en comprobaciones de pago",
+        "historyPaidNote": "Cada punto es una comprobación de los resultados de búsqueda de ese día.",
+        "historyPaidLabel": "{device, select, mobile {Móvil} desktop {Escritorio} other {Todos los dispositivos}}: posición en comprobaciones de pago para «{keyword}»",
+        "historyNotInRange": "No está en los resultados comprobados",
+        "historyPaidAxis": "La posición 1 está arriba. Una posición más baja es mejor. Una comprobación que no encontró la página en sus resultados no tiene posición.",
+        "historyGscTitle": "Posición media en Search Console, diaria",
+        "historyGscNote": "Una media de todas las impresiones del día, no una sola comprobación."
       },
       "competitors": {
         "title": "Competidores",

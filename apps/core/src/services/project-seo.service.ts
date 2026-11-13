@@ -24,6 +24,11 @@ import { listProjectSeoMonitors } from "./project-seo-monitor.service";
 import { seoMonitorOfTasks } from "./project-seo-monitor-runs";
 import { projectSeoProjection } from "./project-seo-projection";
 import {
+  SEO_NON_RESULT_KINDS,
+  SEO_RANK_HISTORY_OBSERVATIONS,
+  withSeoRankHistory,
+} from "./project-seo-rankings";
+import {
   canConfirmSeoCompetitor,
   canReadPrivateSeoMetrics,
   commitSeoMutation,
@@ -292,6 +297,7 @@ export async function getProjectSeoWorkspace(
     analyses,
     actionTasks,
     monitors,
+    rankSources,
   ] = await Promise.all([
     prisma.projectSeoPage.findMany({
       where: seoOwnerWhere(actor),
@@ -341,6 +347,18 @@ export async function getProjectSeoWorkspace(
       where: seoOwnerWhere(actor),
     }),
     listProjectSeoMonitors(actor),
+    // Rank history has its own bound: metric syncs share the load above.
+    prisma.projectSeoObservation.findMany({
+      where: {
+        ...seoOwnerWhere(actor),
+        pageIds: { hasSome: scope.pageIds },
+        ownerId: null,
+        kind: { notIn: SEO_NON_RESULT_KINDS },
+      },
+      select: { id: true, observedAt: true, payload: true },
+      orderBy: { observedAt: "desc" },
+      take: SEO_RANK_HISTORY_OBSERVATIONS,
+    }),
   ]);
   const taskIds = [
     ...new Set([
@@ -395,7 +413,7 @@ export async function getProjectSeoWorkspace(
   const sourceTask = new Map(
     observations.map((row) => [row.id, row.sourceTaskId]),
   );
-  return {
+  const monitored = {
     ...workspace,
     runs: workspace.runs?.map((run) => ({
       ...run,
@@ -403,4 +421,5 @@ export async function getProjectSeoWorkspace(
         monitorOfTask.get(sourceTask.get(run.observationId) ?? "") ?? null,
     })),
   };
+  return withSeoRankHistory(monitored, rankSources);
 }

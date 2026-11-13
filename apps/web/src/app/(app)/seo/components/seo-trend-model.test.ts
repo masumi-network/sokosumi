@@ -27,6 +27,20 @@ describe("seoTrendModel", () => {
     expect(model.points[2].y).toBeNull();
   });
 
+  it("joins single reads over the days between them, and breaks at a read without a value", () => {
+    const reads = [
+      { date: "2026-10-01", value: 4 },
+      { date: "2026-10-08", value: 3 },
+      { date: "2026-10-15", value: null },
+      { date: "2026-10-22", value: 5 },
+    ];
+    const model = seoTrendModel(reads, "position", [], true);
+    expect(model.lines).toEqual([[0, 1]]);
+    expect(model.dots).toEqual([3]);
+    // The same points as a daily series: every week apart is a gap.
+    expect(seoTrendModel(reads, "position").dots).toEqual([0, 1, 3]);
+  });
+
   it("draws an all-zero count on the baseline without dividing by zero", () => {
     const model = seoTrendModel(days([0, 0, 0]), "count");
     expect(model.points.map((point) => point.y)).toEqual([100, 100, 100]);

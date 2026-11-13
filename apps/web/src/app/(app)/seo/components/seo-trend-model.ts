@@ -34,6 +34,11 @@ export function seoTrendModel(
   unit: ProjectSeoMetric["unit"],
   /** Recorded changes by day; a day outside the plotted span is left out. */
   markers: { date: string; label: string }[] = [],
+  /**
+   * The points are single reads, not a daily series: a line joins neighbouring reads over the days
+   * between them. A read without a value still breaks the line.
+   */
+  joinReads = false,
 ) {
   const inverted = unit === "position";
   // Older saved syncs stored position 0 for days without impressions.
@@ -101,7 +106,11 @@ export function seoTrendModel(
     if (point.y === null) return;
     const run = runs.at(-1);
     const previous = run?.at(-1);
-    if (run && previous === index - 1 && days[index] - days[previous] === 1)
+    if (
+      run &&
+      previous === index - 1 &&
+      (joinReads || days[index] - days[previous] === 1)
+    )
       run.push(index);
     else runs.push([index]);
   });

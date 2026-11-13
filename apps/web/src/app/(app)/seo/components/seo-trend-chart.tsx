@@ -16,6 +16,10 @@ interface SeoTrendChartProps {
   unavailable: string;
   /** Recorded page changes, drawn as dashed lines on their day. */
   markers?: { date: string; label: string }[];
+  /** The points are single reads: a line joins neighbouring reads (seoTrendModel `joinReads`). */
+  joinReads?: boolean;
+  /** Replaces the note under a position axis, which speaks of days without impressions. */
+  positionNote?: string;
 }
 
 /** Share of a day band a bar fills; the rest is the gap between bars. */
@@ -34,6 +38,8 @@ export function SeoTrendChart({
   formatValue,
   unavailable,
   markers,
+  joinReads,
+  positionNote,
 }: SeoTrendChartProps) {
   const t = useTranslations("App.Seo.overview");
   const format = useFormatter();
@@ -41,7 +47,7 @@ export function SeoTrendChart({
   const [active, setActive] = useState<number | null>(null);
   const [announced, setAnnounced] = useState<number | null>(null);
   const [focused, setFocused] = useState(false);
-  const model = seoTrendModel(points, unit, markers);
+  const model = seoTrendModel(points, unit, markers, joinReads);
   const last = points.length - 1;
   const day = (date: string) =>
     format.dateTime(new Date(`${date}T12:00:00Z`), {
@@ -304,7 +310,7 @@ export function SeoTrendChart({
       ) : null}
       {model.inverted ? (
         <figcaption className="text-muted-foreground text-xs">
-          {t("positionAxis")}
+          {positionNote ?? t("positionAxis")}
         </figcaption>
       ) : null}
       <details className="text-sm">

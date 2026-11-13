@@ -4305,9 +4305,17 @@ const projectSeoObservationSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const projectSeoPositionPointSchemaResponseTransformer = (data: any) => {
+    data.observedAt = new Date(data.observedAt);
+    return data;
+};
+
 const projectSeoKeywordSchemaResponseTransformer = (data: any) => {
     if (data.observedAt) {
         data.observedAt = new Date(data.observedAt);
+    }
+    if (data.positionHistory) {
+        data.positionHistory = data.positionHistory.map((item: any) => projectSeoPositionPointSchemaResponseTransformer(item));
     }
     return data;
 };

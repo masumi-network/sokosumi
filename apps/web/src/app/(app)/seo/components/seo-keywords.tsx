@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { seoDaySpan } from "./seo-day-span";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
+import { SeoKeywordHistory } from "./seo-keyword-history";
 import { SeoKeywordIdeas } from "./seo-keyword-ideas";
 import {
   keywordGroups,
@@ -26,11 +27,9 @@ import {
   keywordSummary,
 } from "./seo-keyword-rows-model";
 import { SeoKeywordSuggestions } from "./seo-keyword-suggestions";
-import {
-  SeoKeywordTrendChart,
-  SeoKeywordTrendToggle,
-} from "./seo-keyword-trend";
+import { SeoKeywordTrendToggle } from "./seo-keyword-trend";
 import { seoOpenFixes, seoOverviewModel } from "./seo-overview-model";
+import { seoRankHistory } from "./seo-rank-history-model";
 import { SeoRankPill } from "./seo-rank-pill";
 import { SeoRowMenu } from "./seo-row-menu";
 import { seoRunsNameSpan } from "./seo-runs-model";
@@ -367,6 +366,8 @@ export function SeoKeywords({
                         ? ({ state: "absent" } as const)
                         : read;
                     const trendId = `seo-keyword-trend-${row.id}`;
+                    // The paid checks' positions over time, one series per device.
+                    const history = seoRankHistory(reads);
                     // Without a rank or a listed average, the position cell says "no impressions"; the line under the keyword would repeat it.
                     const cellSaysEmpty =
                       read.state === "empty" &&
@@ -413,6 +414,7 @@ export function SeoKeywords({
                               trend={
                                 cellSaysEmpty ? { state: "absent" } : trend
                               }
+                              history={history.length > 0}
                               open={trendOpen === row.id}
                               controls={trendId}
                               onToggle={() =>
@@ -601,15 +603,17 @@ export function SeoKeywords({
                             ) : null}
                           </TableCell>
                         </TableRow>
-                        {trendOpen === row.id && trend.state === "measured" ? (
+                        {trendOpen === row.id &&
+                        (history.length || trend.state === "measured") ? (
                           <TableRow id={trendId}>
                             <TableCell
                               colSpan={columns}
                               className="whitespace-normal"
                             >
-                              <SeoKeywordTrendChart
+                              <SeoKeywordHistory
                                 keyword={row.keyword}
-                                points={trend.points}
+                                trend={trend}
+                                series={history}
                               />
                             </TableCell>
                           </TableRow>
