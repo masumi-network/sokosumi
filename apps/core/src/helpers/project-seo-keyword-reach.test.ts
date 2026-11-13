@@ -176,6 +176,18 @@ describe("keyword reach sections of a site report", () => {
       ["ok.test", 1],
     ]);
     expect(hosts?.[0]?.rows.at(-1)?.keyword).toBe("keyword 99");
+    // More readable hosts than Core keeps: the first ones, never a lost strategy.
+    const four = imported({
+      rivalKeywords: ["a.test", "b.test", "c.test", "d.test"].map((host) =>
+        rival(host, ["battery app"]),
+      ),
+    });
+    expect(four?.verdict).toBe("keep");
+    expect(four?.rivalKeywords?.map((host) => host.host)).toEqual([
+      "a.test",
+      "b.test",
+      "c.test",
+    ]);
     // More topic words than Core keeps, and one longer than a label, cut the words, not the host.
     const many = [
       "x".repeat(101),
