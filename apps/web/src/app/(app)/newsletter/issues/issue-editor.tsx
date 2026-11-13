@@ -57,10 +57,8 @@ import { DraftIssueButton } from "./draft-issue-dialog";
 import { IssueActions } from "./issue-actions";
 import { IssueBlockFields } from "./issue-block-fields";
 import { BlockIcon, IssueBlockLibrary, newBlock } from "./issue-block-library";
-import {
-  IssueDeliveryOutcome,
-  IssueStatusBadge,
-} from "./issue-delivery-status";
+import { IssueDeliveryOutcome } from "./issue-delivery-status";
+import { IssueHeader } from "./issue-header";
 import { NewsletterIssuePreview } from "./issue-preview";
 import { hasNewsletterSender } from "./issue-readiness";
 
@@ -232,21 +230,15 @@ export function NewsletterIssueEditor({
             {t("back")}
           </Link>
         </Button>
-        <div className="flex flex-wrap items-center gap-3">
-          {editable && !blocks.fields.length ? (
-            <DraftIssueButton projectId={projectId} template={template} />
-          ) : null}
-          {status === NewsletterIssueStatus.SENT ? (
-            <Button asChild variant="outline">
-              <Link
-                href={`/n/${encodeURIComponent(newsletter.publicSlug)}/p/${encodeURIComponent(currentIssue.publicSlug)}`}
-              >
-                {t("viewOnWeb")}
-              </Link>
-            </Button>
-          ) : null}
-        </div>
+        {editable && !blocks.fields.length ? (
+          <DraftIssueButton projectId={projectId} template={template} />
+        ) : null}
       </div>
+      <IssueHeader
+        issue={currentIssue}
+        newsletterSlug={newsletter.publicSlug}
+        recipients={analytics?.totals.sent}
+      />
       {status === NewsletterIssueStatus.SENT && analytics ? (
         <IssueAnalyticsSummary analytics={analytics} />
       ) : null}
@@ -479,10 +471,7 @@ export function NewsletterIssueEditor({
           )}
         >
           <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-3 p-4")}>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-base font-semibold">{t("sendPanel")}</h3>
-              <IssueStatusBadge issue={currentIssue} />
-            </div>
+            <h3 className="text-base font-semibold">{t("sendPanel")}</h3>
             {editable ? (
               <div className="space-y-3">
                 <div

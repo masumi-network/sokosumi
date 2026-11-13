@@ -2,6 +2,7 @@
 
 import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import {
+  CalendarDays,
   Code2,
   Coins,
   HardDrive,
@@ -178,6 +179,13 @@ export function YouPageClient({
               icon={<Repeat className="size-4 shrink-0" aria-hidden />}
               label={tMenu("schedules")}
               testId="you-schedules"
+            />
+            {/* The sidebar's Calendar row: phones have no other way in. */}
+            <MobileStackedMenuLink
+              href="/calendar"
+              icon={<CalendarDays className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("calendar")}
+              testId="you-calendar"
             />
             <MobileStackedMenuLink
               href={STUDIO_HREF}
