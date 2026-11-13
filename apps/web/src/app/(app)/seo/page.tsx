@@ -9,9 +9,9 @@ import { SeoAuditIndex } from "./components/seo-audit-index";
 import { SeoPageError } from "./components/seo-page-error";
 import { SeoWorkspace } from "./components/seo-workspace";
 import { SeoWorkspaceSwitchDialog } from "./components/seo-workspace-switch-dialog";
-import { seoRescopedHref } from "./seo-href";
+import { seoHrefWithout, seoRescopedHref } from "./seo-href";
 import { seoLoadErrorStatus } from "./seo-load-error-model";
-import { readSeoPageQuery } from "./seo-query";
+import { readSeoPageQuery, seoTab } from "./seo-query";
 import { seoAuditSwitchFor } from "./seo-workspace-switch";
 
 export const instant = false;
@@ -35,15 +35,11 @@ export default async function SeoPage({
         <SeoPageError invalidFilters resetHref="/seo" />
       </WorkspacePageShell>
     );
-  const {
-    auditId,
-    projectId,
-    cursor,
-    view,
-    add,
-    tab: _tab,
-    ...query
-  } = parsed.data;
+  const { auditId, projectId, cursor, view, add, tab, ...query } = parsed.data;
+  // The search type is a Traffic control (useSeoWorkspace): every other tab reads web search, so a stale one
+  // leaves the URL before it can load Discover or News data as the workspace's first data.
+  if (query.searchType && seoTab(tab) !== "traffic")
+    redirect(seoHrefWithout(raw, "searchType"));
   // `projectId` is the header's Project scope: it filters the Audit list. With `view=project` it opens the
   // Project's own SEO workspace, where its Soko Bot keeps pages outside any Audit.
   const owner: SeoOwner | undefined = auditId

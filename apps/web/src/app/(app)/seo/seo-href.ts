@@ -23,6 +23,18 @@ export function seoProjectHref(projectId: string) {
   return `/seo?${new URLSearchParams({ projectId, view: "project" })}`;
 }
 
+/** The same SEO URL without one query key. */
+export function seoHrefWithout(
+  query: Record<string, string | string[] | undefined>,
+  key: string,
+) {
+  const params = new URLSearchParams();
+  for (const [name, value] of Object.entries(query))
+    if (name !== key)
+      for (const one of [value ?? []].flat()) params.append(name, one);
+  return `/seo?${params}`;
+}
+
 /** The same SEO URL in another Project scope. Tabs, filters and the open Audit stay. */
 export function seoRescopedHref(
   query: Record<string, string | string[] | undefined>,

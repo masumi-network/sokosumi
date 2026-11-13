@@ -187,6 +187,39 @@ describe("native SEO audit entry", () => {
     expect(m.coworkers).not.toHaveBeenCalled();
   });
 
+  it("loads a search type only on Traffic and drops a stale one from the URL", async () => {
+    m.getWorkspace.mockResolvedValue({
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+    });
+    const open = { auditId: SEO_TEST_AUDIT, projectId: SEO_TEST_PROJECT };
+    await expect(
+      SeoPage({
+        searchParams: Promise.resolve({
+          ...open,
+          tab: "agent",
+          searchType: "discover",
+        }),
+      }),
+    ).rejects.toMatchObject({
+      digest: expect.stringContaining(
+        `/seo?auditId=${SEO_TEST_AUDIT}&projectId=${SEO_TEST_PROJECT}&tab=agent;`,
+      ),
+    });
+    expect(m.getWorkspace).not.toHaveBeenCalled();
+    await SeoPage({
+      searchParams: Promise.resolve({
+        ...open,
+        tab: "traffic",
+        searchType: "discover",
+      }),
+    });
+    expect(m.getWorkspace).toHaveBeenCalledWith(
+      { kind: "audit", id: SEO_TEST_AUDIT },
+      { searchType: "discover" },
+    );
+  });
+
   it("opens an Audit in its own Project scope, so the header names that Project", async () => {
     m.getWorkspace.mockResolvedValue({
       ...seoTestWorkspace(),
