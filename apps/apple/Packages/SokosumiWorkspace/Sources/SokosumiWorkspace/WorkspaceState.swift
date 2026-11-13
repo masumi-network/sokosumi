@@ -182,7 +182,8 @@ public final class WorkspaceState: ObservableObject {
     self.now = now
     self.makeId = makeId
     openRoom = OpenRoomSession(now: now, makeId: makeId, sleep: sleep)
-    presence = OrgPresence(now: now())
+    // Stamped on the first presence call. Reading `now` here would count as a jump mark landing.
+    presence = OrgPresence()
     sidebarRecovery = SidebarCollectionsRecovery(sleep: sleep)
     self.auth = auth
     self.clientProvider = clientProvider
