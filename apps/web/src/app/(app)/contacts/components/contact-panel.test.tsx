@@ -1,4 +1,4 @@
-import type { ContactDetail } from "@sokosumi/core-client";
+import type { ContactDetail, ContactList } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   fireEvent,
@@ -65,12 +65,12 @@ vi.mock("next-intl", () => ({
   useNow: () => new Date("2026-11-12T08:00:00.000Z"),
 }));
 
-function renderPanel() {
+function renderPanel(lists: ContactList[] = []) {
   render(
     <QueryClientProvider client={new QueryClient()}>
       <ContactPanel
         contactId="c-1"
-        lists={[]}
+        lists={lists}
         teammates={[]}
         onClose={vi.fn()}
         onOpenContact={vi.fn()}
@@ -163,5 +163,28 @@ describe("ContactPanel lists menu", () => {
     await waitFor(() => expect(changeMembers).toHaveBeenCalledTimes(2));
     expect(changeMembers).toHaveBeenLastCalledWith("l-1", { add: ["c-1"] });
     expect(createList).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks the ticked list as saving until Core answers", async () => {
+    let answer = () => {};
+    member.current = () => new Promise<void>((done) => void (answer = done));
+    const investors = {
+      id: "l-2",
+      name: "Investors",
+      kind: "manual",
+      color: "blue",
+    } as ContactList;
+    const trigger = await renderPanel([investors]);
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+    fireEvent.click(
+      await screen.findByRole("menuitemcheckbox", { name: "Investors" }),
+    );
+    const option = screen.getByRole("menuitemcheckbox", { name: "Investors" });
+    await waitFor(() => expect(option).toHaveAttribute("aria-busy", "true"));
+    expect(
+      within(trigger).getByText("Investors").parentElement,
+    ).toHaveAttribute("aria-busy", "true");
+    answer();
+    await waitFor(() => expect(option).not.toHaveAttribute("aria-busy"));
   });
 });

@@ -53,6 +53,11 @@ interface RoomMembersPanelProps {
   readStateFor: (userId: string) => RoomMemberReadState | null;
 }
 
+/** One id space per kind: a Coworker and a Soko Bot can share an id. */
+function participantKey(participant: ChatParticipantHoverProfile): string {
+  return `${participant.kind}:${participant.id}`;
+}
+
 /**
  * The room's members panel, and on a Channel where membership is managed:
  * add people, Coworkers and your own Soko Bots, remove whom you may, leave.
@@ -79,6 +84,25 @@ export function RoomMembersPanel({
   const [pendingRemoval, setPendingRemoval] =
     useState<ChatParticipantHoverProfile | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+  // Coworkers and Soko Bots with a removal sent to Core. They are off the
+  // roster at once, and stay off until the room no longer lists them.
+  const [removingAgents, setRemovingAgents] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
+  const participants = getRoomParticipantPreviews(room);
+  const listedKeys = new Set(participants.map(participantKey));
+  if ([...removingAgents].some((key) => !listedKeys.has(key))) {
+    setRemovingAgents(
+      new Set([...removingAgents].filter((key) => listedKeys.has(key))),
+    );
+  }
+  function showAgent(participant: ChatParticipantHoverProfile) {
+    setRemovingAgents((current) => {
+      const next = new Set(current);
+      next.delete(participantKey(participant));
+      return next;
+    });
+  }
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
 
@@ -91,26 +115,42 @@ export function RoomMembersPanel({
   );
 
   async function handleUndoRemoval(participant: ChatParticipantHoverProfile) {
+    // If the room still lists the agent (its refresh has not landed), the
+    // agent shows again at once.
+    showAgent(participant);
     const result = await addRoomMembersAction(
       room.id,
       participant.kind === "coworker"
         ? { coworkerIds: [participant.id] }
         : { sokoBotIds: [participant.id] },
-    );
-    if (!result.ok) {
-      toast.error(result.error.message);
+    ).catch(() => null);
+    if (!result?.ok) {
+      // The roster shows what the room says from here.
+      toast.error(
+        result?.error.message ??
+          t("RoomRoster.undoError", { name: participant.name }),
+      );
       return;
     }
   }
 
   /** Coworkers and Soko Bots go at once; the toast can put them back. */
   async function removeAgent(participant: ChatParticipantHoverProfile) {
-    const result =
-      participant.kind === "coworker"
-        ? await removeRoomCoworkerAction(room.id, participant.id)
-        : await removeRoomSokoBotAction(room.id, participant.id);
-    if (!result.ok) {
-      toast.error(result.error.message);
+    setRemovingAgents((current) =>
+      new Set(current).add(participantKey(participant)),
+    );
+    // A rejected call is a failed write too: the agent must not stay off
+    // the roster when Core never removed it.
+    const result = await (participant.kind === "coworker"
+      ? removeRoomCoworkerAction(room.id, participant.id)
+      : removeRoomSokoBotAction(room.id, participant.id)
+    ).catch(() => null);
+    if (!result?.ok) {
+      showAgent(participant);
+      toast.error(
+        result?.error.message ??
+          t("RoomRoster.removeError", { name: participant.name }),
+      );
       return;
     }
     toast.success(t("RoomRoster.removeSuccess", { name: participant.name }), {
@@ -169,7 +209,9 @@ export function RoomMembersPanel({
   return (
     <>
       <RoomRosterPanel
-        participants={getRoomParticipantPreviews(room)}
+        participants={participants.filter(
+          (participant) => !removingAgents.has(participantKey(participant)),
+        )}
         currentUserId={currentUserId}
         readStateFor={readStateFor}
         canOpenHumanDirect={canOpenHumanDirect}
