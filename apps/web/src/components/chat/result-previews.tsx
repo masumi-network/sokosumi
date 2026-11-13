@@ -131,11 +131,12 @@ export function ResultPreviewCard({
         {t("unavailable")}
       </div>
     );
+  const isBotSchedule = result.kind === "bot_schedule";
   // "Weekly (Monday, 9:00 AM)", not "0 9 * * 1". Only a bot follow-up's cron
   // is its whole rule: a Task schedule keeps an every-N-days step outside the
   // cron, so its cron alone would read as daily. Unnamed shapes stay raw.
   const recurrence =
-    result.kind === "bot_schedule" && result.recurrence
+    isBotSchedule && result.recurrence
       ? formatCronScheduleTitle(
           result.recurrence,
           result.timezone ?? "UTC",
@@ -265,7 +266,11 @@ export function ResultPreviewCard({
       <Link
         ref={sourceLink}
         href={cardHref(result.sourceHref, botId)}
-        aria-label={t("openLabel", { title: result.title })}
+        aria-label={
+          isBotSchedule
+            ? t("openScheduleLabel", { title: result.title })
+            : t("openLabel", { title: result.title })
+        }
         className="focus-visible:ring-ring absolute inset-0 rounded-lg outline-none focus-visible:ring-2"
         data-testid="result-preview-source"
       />
@@ -474,7 +479,11 @@ export function ResultPreviewCard({
             aria-hidden
             className="text-foreground ml-auto inline-flex items-center gap-1"
           >
-            {jobStatus ? t("openJob") : t("open")}
+            {jobStatus
+              ? t("openJob")
+              : isBotSchedule
+                ? t("openSchedule")
+                : t("open")}
             <ArrowUpRight aria-hidden className="size-3.5" />
           </span>
         </div>

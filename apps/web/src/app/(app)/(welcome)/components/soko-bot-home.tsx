@@ -1,14 +1,19 @@
 import type { TaskActivitySummary, TaskListItem } from "@sokosumi/core-client";
-import { MessageCircle } from "lucide-react";
+import { CalendarClock, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { getTaskStatusMarker } from "@/app/tasks/components/task-status-badge";
 import { BotFace, botFaceSeed } from "@/components/soko-bot/bot-face";
 import { getToneStyle, StatusMarker } from "@/components/ui/status-marker";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 import { SokoBotHomeComposer } from "./soko-bot-home-composer.client";
-import type { SokoBotHomeChat, SokoBotHomeTask } from "./soko-bot-home-data";
+import type {
+  SokoBotHomeChat,
+  SokoBotHomeSchedule,
+  SokoBotHomeTask,
+} from "./soko-bot-home-data";
 
 export interface SokoBotHomeBot {
   id: string;
@@ -28,6 +33,8 @@ interface SokoBotHomeProps {
   teamTasks: SokoBotHomeTask[];
   /** Important chat messages the reader has not read, last 24 hours. */
   chats?: SokoBotHomeChat[];
+  /** Schedules the bot got in the last 24 hours, its built-in ones aside. */
+  schedules?: SokoBotHomeSchedule[];
   /** The reader's Tasks due today or overdue, first; nothing when none are. */
   myDay?: ReactNode;
   /** What waits on the reader, above the team's day; one line when nothing
@@ -51,6 +58,7 @@ export async function SokoBotHome({
   summary,
   teamTasks,
   chats = [],
+  schedules = [],
   myDay,
   needsYou,
 }: SokoBotHomeProps) {
@@ -80,7 +88,8 @@ export async function SokoBotHome({
       ].filter((stat): stat is string => stat !== null)
     : [];
   const awaitingInput = summary?.awaitingInput ?? 0;
-  // One list, newest first: a chat sits among the Tasks by its last activity.
+  // One list, newest first: a chat sits among the Tasks by its last
+  // activity, a new schedule by when it was set up.
   const rows = [
     ...teamTasks.map((task) => ({
       kind: "task" as const,
@@ -88,6 +97,11 @@ export async function SokoBotHome({
       task,
     })),
     ...chats.map((chat) => ({ kind: "chat" as const, at: chat.at, chat })),
+    ...schedules.map((schedule) => ({
+      kind: "schedule" as const,
+      at: schedule.createdAt,
+      schedule,
+    })),
   ].sort((a, b) => b.at.getTime() - a.at.getTime());
   const rowClassName =
     "hover:bg-accent focus-visible:ring-ring flex min-w-0 items-center gap-3 rounded-md px-3 py-2 outline-none transition-colors focus-visible:ring-2";
@@ -156,7 +170,27 @@ export async function SokoBotHome({
           {rows.length > 0 ? (
             <ul className="flex flex-col">
               {rows.map((row) =>
-                row.kind === "chat" ? (
+                row.kind === "schedule" ? (
+                  <li key={`schedule:${row.schedule.id}`}>
+                    <Link
+                      href={`${SOKO_BOT_ROUTE}?schedule=${encodeURIComponent(row.schedule.id)}`}
+                      className={rowClassName}
+                    >
+                      <CalendarClock
+                        aria-hidden
+                        className="text-muted-foreground size-4 shrink-0"
+                      />
+                      <span className="text-foreground min-w-0 flex-1 truncate text-sm">
+                        {t("newSchedule", { name: botName })}
+                        <span className="text-muted-foreground">
+                          {" "}
+                          · {row.schedule.name}
+                        </span>
+                      </span>
+                      {timeOf(row.at)}
+                    </Link>
+                  </li>
+                ) : row.kind === "chat" ? (
                   <li key={`chat:${row.chat.roomId}`}>
                     <Link
                       href={chatRoomMessageHref(

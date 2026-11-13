@@ -45,9 +45,11 @@ vi.mock("next-intl", () => ({
       (key: string, values?: { title?: string; name?: string }) =>
         key === "openLabel"
           ? `Open source: ${values?.title}`
-          : key === "downloadLabel"
-            ? `Download ${values?.name}`
-            : key,
+          : key === "openScheduleLabel"
+            ? `View ${values?.title} in schedules`
+            : key === "downloadLabel"
+              ? `Download ${values?.name}`
+              : key,
       { has: () => true },
     ),
   useFormatter: () => ({
@@ -234,7 +236,11 @@ describe("chat result cards", () => {
         />,
       );
       expect(html).toContain('data-testid="result-preview-source"');
-      expect(html).toContain('aria-label="Open source: Launch campaign"');
+      expect(html).toContain(
+        kind === "bot_schedule"
+          ? 'aria-label="View Launch campaign in schedules"'
+          : 'aria-label="Open source: Launch campaign"',
+      );
       expect(html).toContain("absolute inset-0");
       expect(html).toContain('aria-label="Download brief.docx"');
     },
@@ -878,7 +884,7 @@ describe("bot card links for a shared bot", () => {
     );
   });
 
-  it("links a schedule card in a shared bot's room to its console", async () => {
+  it("links a schedule card to its row on the bot's page, shared bot included", async () => {
     const { SokoBotTargetContext } = await import(
       "@/app/personal-assistant/components/soko-bot-target"
     );
@@ -886,14 +892,18 @@ describe("bot card links for a shared bot", () => {
       ...task,
       id: "schedule",
       kind: "bot_schedule",
-      sourceHref: "/personal-assistant",
+      title: "Monday invoices",
+      sourceHref: "/personal-assistant?schedule=s1",
     };
     const html = renderToStaticMarkup(
       <SokoBotTargetContext.Provider value="bot-1">
         <ResultPreviewCard result={schedule} onDecisionResolved={() => {}} />
       </SokoBotTargetContext.Provider>,
     );
-    expect(html).toContain('href="/soko-bots/bot-1"');
+    expect(html).toContain('href="/soko-bots/bot-1?schedule=s1"');
+    expect(html).toContain('aria-label="View Monday invoices in schedules"');
+    expect(html).toContain("openSchedule");
+    expect(html).not.toContain(">open<");
   });
 });
 

@@ -1,6 +1,7 @@
 import {
   type ChatCatchUpItem,
   type ChatRoom,
+  type SokoBotSchedule,
   type SokoBotState,
   SokoBotStatus,
   type TaskListItem,
@@ -101,6 +102,36 @@ export function toTeamDay(
       updatedAt: task.updatedAt,
       who: taskWho(task),
     }));
+}
+
+/** A schedule the reader's bot got in the last day, as one row of the home. */
+export interface SokoBotHomeSchedule {
+  id: string;
+  name: string;
+  createdAt: Date;
+}
+
+/**
+ * The bot's own schedules set up in the 24 hours before `now`, newest first.
+ * Built-in rhythms come with every bot, so they are not news.
+ */
+export function toNewSchedules(
+  schedules: readonly Pick<
+    SokoBotSchedule,
+    "id" | "name" | "systemKey" | "createdAt"
+  >[],
+  now: Date,
+  limit = SOKO_BOT_HOME_TASK_LIMIT,
+): SokoBotHomeSchedule[] {
+  return schedules
+    .filter(
+      (schedule) =>
+        !schedule.systemKey &&
+        now.getTime() - schedule.createdAt.getTime() <= DAY_MS,
+    )
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, limit)
+    .map(({ id, name, createdAt }) => ({ id, name, createdAt }));
 }
 
 /**
