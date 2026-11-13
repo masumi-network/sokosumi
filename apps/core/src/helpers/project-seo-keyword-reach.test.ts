@@ -176,9 +176,10 @@ describe("keyword reach sections of a site report", () => {
       ["ok.test", 1],
     ]);
     expect(hosts?.[0]?.rows.at(-1)?.keyword).toBe("keyword 99");
-    // More readable hosts than Core keeps: the first ones, never a lost strategy.
+    // More readable hosts than Core keeps: the first ones, never a lost strategy. A host Core cannot read gives its
+    // place to the next one.
     const four = imported({
-      rivalKeywords: ["a.test", "b.test", "c.test", "d.test"].map((host) =>
+      rivalKeywords: ["", "a.test", "b.test", "c.test", "d.test"].map((host) =>
         rival(host, ["battery app"]),
       ),
     });
