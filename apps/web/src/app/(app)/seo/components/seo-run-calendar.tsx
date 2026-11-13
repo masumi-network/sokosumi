@@ -25,8 +25,8 @@ const CHECK_DAY_CLASS =
 
 /** The day the page shows: the box today had before. */
 const IN_VIEW_CLASS = "bg-accent text-accent-foreground rounded-md";
-/** Today: a bold number, no box. The day button sets its own weight, so the bold goes on the button. */
-const TODAY_CLASS = "[&>button]:font-semibold";
+/** A day without a check: muted, so the days with a check are the bright choices. It still starts or ends a range. */
+const NO_CHECK_CLASS = "text-muted-foreground";
 
 /**
  * "Other dates" at the end of the row of checks: a calendar under it. It opens on the month of the first check and marks
@@ -51,14 +51,15 @@ export function SeoRunCalendar({
   const [open, setOpen] = useState(false);
   const { filters, setFilters } = model;
   const checks = checkDays.map((day) => parseISO(day));
+  const checked = new Set(checkDays);
   const from = seoFilterDay(filters.from);
   const to = seoFilterDay(filters.to);
   // A range of two days is set: the next press starts a new range, it does not stretch this one.
   const complete = Boolean(from && to && !isSameDay(from, to));
   // The filter compares UTC days: the UTC day of now is the last day with a check, also west of UTC.
   const today = parseISO(new Date().toISOString().slice(0, 10));
-  // The day the line marks has the box, so both say one day. Today has none: a box on today read as "the page
-  // shows today".
+  // The day the line marks has the box, so both say one day. Today has no mark: a box on today read as "the page
+  // shows today", and a bold today outweighed the day in view.
   const inView = shownDay ? parseISO(shownDay) : undefined;
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -72,16 +73,24 @@ export function SeoRunCalendar({
           required
           // The range or check in view, else the first check: the reader sees how far back the checks go.
           defaultMonth={from ?? to ?? checks.at(-1)}
-          // The UTC day for "today" too: the local day west of UTC put the bold mark a day early.
+          // The UTC day for "today" too, which the label of the day says: the local day west of UTC is a day early.
           today={today}
+          // No month before the first check and none after today: an arrow to a month without a check is a dead end.
+          // A range start the URL holds before the first check opens on the first check: no check is before it.
+          startMonth={checks.at(-1)}
           endMonth={today}
           disabled={{ after: today }}
-          modifiers={{ check: checks, inView: inView ? [inView] : [] }}
+          modifiers={{
+            check: checks,
+            noCheck: (date) => !checked.has(formatDay(date, DAY_FORMAT)),
+            inView: inView ? [inView] : [],
+          }}
           modifiersClassNames={{
             check: CHECK_DAY_CLASS,
+            noCheck: NO_CHECK_CLASS,
             inView: IN_VIEW_CLASS,
           }}
-          classNames={{ today: TODAY_CLASS }}
+          classNames={{ today: "" }}
           labels={{
             // The dot said in words too.
             labelDayButton: (date, modifiers, options, dateLib) => {

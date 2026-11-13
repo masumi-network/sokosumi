@@ -1190,6 +1190,44 @@ describe("SEO workspace integration", () => {
     expect(await boxed("?tab=traffic&to=2026-13-45")).toEqual([]);
   });
 
+  it("mutes the calendar days without a check and opens no month before the first check", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.metrics = [seoTestMetric()];
+    const run = (observedAt: string) => ({
+      observationId: crypto.randomUUID(),
+      kind: "audit_full",
+      observedAt: new Date(observedAt),
+      issues: 5,
+      seconds: 600,
+    });
+    workspace.runs = [run("2026-11-12T13:00:00Z"), run("2026-11-10T09:00:00Z")];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=traffic");
+    await user.click(
+      within(screen.getByRole("group", { name: "Checks" })).getByRole(
+        "button",
+        { name: "Other dates" },
+      ),
+    );
+    const calendar = await screen.findByRole("dialog");
+    const cell = (day: string) =>
+      within(calendar)
+        .getAllByRole("gridcell")
+        .find((item) => item.textContent === day);
+    // The days with a check are the bright choices; a day without one is muted and still starts a range.
+    expect(cell("9")).toHaveClass("text-muted-foreground");
+    expect(cell("10")).not.toHaveClass("text-muted-foreground");
+    expect(cell("12")).not.toHaveClass("text-muted-foreground");
+    // November holds the first check: the month before it has none.
+    expect(
+      within(calendar).getByRole("button", { name: /previous month/i }),
+    ).toHaveAttribute("aria-disabled", "true");
+  });
+
   it.each([
     // A start alone runs to today.
     ["?tab=traffic&from=2026-11-05", /Showing Nov 5\b/],
