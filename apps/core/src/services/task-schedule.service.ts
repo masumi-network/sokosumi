@@ -48,6 +48,7 @@ import {
   findReadableSchedule,
   type RouteVars,
   requireScheduleWriteAccess,
+  requireSeoMonitorOwner,
   resolveScheduleActor,
   SCHEDULE_ASSIGNEE_VENDOR,
   type ScheduleActor,
@@ -314,6 +315,7 @@ export async function updateTaskSchedule(
   return await prisma.$transaction(async (tx) => {
     const current = await findReadableSchedule(actor, id, tx);
     requireScheduleWriteAccess(actor, current);
+    requireSeoMonitorOwner(actor, current);
     // An SEO monitor keeps its approved pages and check: an edit replaces its rule only.
     const description = isSeoMonitorDescription(current.description)
       ? seoMonitorDescriptionWithRule(current.description, input)
@@ -680,6 +682,7 @@ export async function runTaskScheduleNow(
   const { run, task } = await prisma.$transaction(async (tx) => {
     const current = await findReadableSchedule(actor, id, tx);
     requireScheduleWriteAccess(actor, current);
+    requireSeoMonitorOwner(actor, current);
     if (current.state === TaskScheduleState.ENDED) {
       throwStateConflict("An Ended Task Schedule cannot run");
     }

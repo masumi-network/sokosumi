@@ -657,6 +657,27 @@ describe.skipIf(!enabled)(
           idempotencyKey: "monitor-ux-analysis",
         }),
       });
+      // Another member of the workspace may read the monitor but not add Runs billed to its owner.
+      const memberVars = {
+        ...vars,
+        authContext: { ...vars.authContext, userId: otherId },
+        workspaceContext: {
+          workspaceId,
+          userId: otherId,
+          organizationId: null,
+        },
+      };
+      await expect(
+        updateTaskSchedule(memberVars, monitor.id, {
+          expectedRevision: monitor.revision,
+          rule: { expr: "0 9 * * *", timezone: "UTC", endsMode: "NEVER" },
+        }),
+      ).rejects.toMatchObject({ status: 403 });
+      await expect(
+        runTaskScheduleNow(memberVars, monitor.id, {
+          expectedRevision: monitor.revision,
+        }),
+      ).rejects.toMatchObject({ status: 403 });
       await expect(
         updateTaskSchedule(vars, monitor.id, {
           expectedRevision: monitor.revision,
@@ -753,14 +774,46 @@ describe.skipIf(!enabled)(
       );
       await notifySeoMonitorWorse(ranNow.run.releasedTaskId!, same.id);
       expect(await worse()).toBe(0);
-      const failed = await result(
-        ranAgain.run.releasedTaskId!,
-        "2026-11-03T09:00:00.000Z",
-        "fired",
-      );
-      await notifySeoMonitorWorse(ranAgain.run.releasedTaskId!, failed.id);
-      await notifySeoMonitorWorse(ranAgain.run.releasedTaskId!, failed.id);
+      // The worse result arrives through the import path, as a Coworker upload does. A second read sends no second
+      // notification.
+      const againTaskId = ranAgain.run.releasedTaskId!;
+      const againAnalysis = await prisma.projectSeoAnalysis.findFirstOrThrow({
+        where: { taskId: againTaskId },
+      });
+      await prisma.task.update({
+        where: { id: againTaskId },
+        data: { status: "COMPLETED" },
+      });
+      const report = focusedReport();
+      const body = JSON.stringify({
+        ...report,
+        requestId: againAnalysis.id,
+        scope: { ...report.scope, pageUrls: [page.url] },
+        observedAt: "2026-11-03T09:00:00.000Z",
+        // The same rulebook as the results before, so the two Runs compare.
+        rulebookVersion: "r1",
+        checks: [{ ...report.checks[0], pageUrl: page.url, result: "fired" }],
+      });
+      const file = await prisma.taskFile.create({
+        data: {
+          taskId: againTaskId,
+          name: `seo-report-${againTaskId}.json`,
+          fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${againTaskId}/report.json`,
+          mimeType: "application/json",
+          size: BigInt(Buffer.byteLength(body)),
+          uploadedByCoworkerId: coworkerId,
+        },
+      });
+      vi.stubGlobal("fetch", async () => new Response(body));
+      try {
+        await reconcileProjectSeoTaskFile(againTaskId, file.id);
+        await reconcileProjectSeoTaskFile(againTaskId, file.id);
+      } finally {
+        vi.unstubAllGlobals();
+      }
       expect(await worse()).toBe(1);
+      // A second file of the same Run counts once: the change still compares against the Run before.
+      await result(againTaskId, "2026-11-03T10:00:00.000Z", "fired");
 
       const workspace = await getProjectSeoWorkspace(actor, {
         pageId: page.id,
@@ -769,12 +822,13 @@ describe.skipIf(!enabled)(
       expect(listed).toMatchObject({
         rule,
         pageIds: [page.id],
+        isOwner: true,
         lastRun: { taskId: ranAgain.run.releasedTaskId },
         change: { comparable: true, newFailureCount: 1, fixedCount: 0 },
       });
       expect(
         workspace.runs?.filter((run) => run.monitorId === monitor.id),
-      ).toHaveLength(3);
+      ).toHaveLength(4); // Each stored result is one history entry: three Runs, one with two files.
     });
 
     it("uses configured protocol authority instead of imported-file provenance or the source Task assignee", async () => {

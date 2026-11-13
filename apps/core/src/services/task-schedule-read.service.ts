@@ -296,6 +296,19 @@ export function requireScheduleWriteAccess(
   );
 }
 
+/**
+ * An SEO monitor bills its Runs to its owner within a count the owner approved. Only that owner may add a Run or
+ * change the rule: other members and the assigned Coworker keep pause, resume and end.
+ */
+export function requireSeoMonitorOwner(
+  actor: ScheduleActor,
+  schedule: { description: string | null; ownerId: string | null },
+): void {
+  if (!isSeoMonitorDescription(schedule.description)) return;
+  if (actor.kind === "user" && actor.userId === schedule.ownerId) return;
+  throw forbidden("Only the owner can run or change an SEO monitor's rule");
+}
+
 export function mapTaskSchedule(schedule: TaskScheduleView) {
   return {
     id: schedule.id,

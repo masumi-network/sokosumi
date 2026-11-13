@@ -251,6 +251,7 @@ export async function listProjectSeoMonitors(
                   devices: packet.analysis.devices,
                   kind: packet.analysis.kind,
                   maxProviderCalls: packet.analysis.maxProviderCalls,
+                  isOwner: row.ownerId === actor.userId,
                 },
               ]
             : [];

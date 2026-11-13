@@ -29,6 +29,7 @@ export async function notifySeoMonitorWorse(
     where: { id: taskId },
     select: {
       name: true,
+      createdAt: true,
       workspaceId: true,
       scheduleId: true,
       schedule: { select: { ownerId: true, description: true } },
@@ -52,6 +53,8 @@ export async function notifySeoMonitorWorse(
       scheduleId: task.scheduleId,
       workspaceId: task.workspaceId,
       id: { not: taskId },
+      // A late result compares against the Runs before its own, not against newer ones.
+      createdAt: { lt: task.createdAt },
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: SEO_MONITOR_EARLIER_RUNS,

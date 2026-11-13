@@ -274,6 +274,8 @@ export const seoMonitorSchema = z
     devices: z.array(seoDeviceSchema),
     kind: seoAnalysisKindSchema,
     maxProviderCalls: z.number().int(),
+    /** The viewer owns the monitor. Only the owner may run it now or change its rule. */
+    isOwner: z.boolean(),
     lastRun: z.union([seoMonitorLastRunSchema, z.null()]),
     change: z.union([seoMonitorChangeSchema, z.null()]),
   })
