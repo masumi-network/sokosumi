@@ -224,12 +224,45 @@ describe("syncCmoYearlyGrants", () => {
       granted: 0,
       stoppedEarly: false,
     });
-    expect([...buckets.keys()]).toEqual(["order_y1:2"]);
-    expect(m.prisma.transaction.create).toHaveBeenCalledTimes(1);
+    expect([...buckets.keys()]).toEqual(["order_y1:1", "order_y1:2"]);
+    expect(m.prisma.transaction.create).toHaveBeenCalledTimes(2);
+  });
+
+  it("grants the months a skipped run missed, none of them already expired", async () => {
+    vi.setSystemTime(new Date("2026-02-28T10:00:00.000Z"));
+    await sync();
+    // No run from March to mid-June: months 2 and 3 passed unseen.
+    vi.setSystemTime(new Date("2026-06-15T12:00:00.000Z"));
+
+    expect(await sync()).toEqual({
+      errors: 0,
+      granted: 3,
+      stoppedEarly: false,
+    });
+    expect(
+      [...buckets].map(([referenceId, bucket]) => [
+        referenceId,
+        bucket.expiresAt.toISOString(),
+      ]),
+    ).toEqual([
+      ["order_y1:1", "2026-03-31T10:00:00.000Z"],
+      // Their own month ended: one month from the grant.
+      ["order_y1:2", "2026-07-15T12:00:00.000Z"],
+      ["order_y1:3", "2026-07-15T12:00:00.000Z"],
+      // Still running: its own month end.
+      ["order_y1:4", "2026-06-30T10:00:00.000Z"],
+    ]);
+
+    vi.setSystemTime(new Date("2026-06-20T00:00:00.000Z"));
+    expect(await sync()).toEqual({
+      errors: 0,
+      granted: 0,
+      stoppedEarly: false,
+    });
   });
 
   it("grants nothing when the subscription ended or its order was refunded after it was read", async () => {
-    vi.setSystemTime(new Date("2026-03-31T10:00:00.000Z"));
+    vi.setSystemTime(new Date("2026-02-28T10:00:00.000Z"));
     m.prisma.$queryRaw
       .mockResolvedValueOnce([{ ...SUBSCRIPTION, endedAt: new Date() }])
       .mockResolvedValueOnce([
@@ -265,7 +298,7 @@ describe("syncCmoYearlyGrants", () => {
     });
   });
 
-  it("grants nothing to a past-due subscription, and the running month once Polar collects", async () => {
+  it("grants nothing to a past-due subscription, and every started month once Polar collects", async () => {
     vi.setSystemTime(new Date("2026-06-30T10:00:00.000Z"));
     subscriptions = [{ ...SUBSCRIPTION, status: "past_due" }];
 
@@ -275,7 +308,9 @@ describe("syncCmoYearlyGrants", () => {
     subscriptions = [SUBSCRIPTION];
     vi.setSystemTime(new Date("2026-08-02T00:00:00.000Z"));
     await sync();
-    expect([...buckets.keys()]).toEqual(["order_y1:6"]);
+    expect([...buckets.keys()]).toEqual(
+      [1, 2, 3, 4, 5, 6].map((index) => `order_y1:${index}`),
+    );
   });
 
   it("grants nothing to an ended subscription", async () => {

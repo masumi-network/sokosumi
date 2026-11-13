@@ -40,10 +40,12 @@ export function monthOfPaidYear(
 }
 
 /**
- * Grants the running month to each active yearly CMO subscription that does
- * not have it yet. A month that passed without a run is not granted later: it
- * would have expired already. The grant rides on the bucket's unique key
- * (last paid order id and month index), so a repeated or raced run ends there.
+ * Grants each active yearly CMO subscription every started month of its paid
+ * year it does not have yet, so a month a run missed is granted by the next
+ * (a subscriber never loses a paid month). A month whose own end has passed
+ * expires one month from its grant instead. The grant rides on the bucket's
+ * unique key (last paid order id and month index), so a repeated or raced
+ * run ends there.
  */
 export async function syncCmoYearlyGrants(
   shouldContinue: () => boolean,
@@ -69,15 +71,31 @@ export async function syncCmoYearlyGrants(
       lastPaidOrderId: true,
     },
   });
+  // A missed month is granted late, never already expired.
+  const lateExpiry = getNextMonthlyPeriodEnd(now, now);
   const due = subscriptions.flatMap((subscription) => {
-    const month = monthOfPaidYear(subscription.currentPeriodStart, now);
     const paidOrderId = subscription.lastPaidOrderId;
+    if (!paidOrderId) return [];
+    const current = monthOfPaidYear(subscription.currentPeriodStart, now);
+    const months = [];
+    let expiresAt = getNextMonthlyPeriodEnd(
+      subscription.currentPeriodStart,
+      subscription.currentPeriodStart,
+    );
     // Month 0 came with the paid order.
-    if (month.index === 0 || !paidOrderId) return [];
-    const referenceId = `${paidOrderId}:${month.index}`;
-    return [
-      { ...subscription, expiresAt: month.expiresAt, paidOrderId, referenceId },
-    ];
+    for (let index = 1; index <= current.index; index += 1) {
+      expiresAt = getNextMonthlyPeriodEnd(
+        expiresAt,
+        subscription.currentPeriodStart,
+      );
+      months.push({
+        ...subscription,
+        expiresAt: expiresAt > now ? expiresAt : lateExpiry,
+        paidOrderId,
+        referenceId: `${paidOrderId}:${index}`,
+      });
+    }
+    return months;
   });
   const result = { errors: 0, granted: 0, stoppedEarly: false };
   if (due.length === 0) return result;
