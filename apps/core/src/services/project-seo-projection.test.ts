@@ -1202,6 +1202,32 @@ describe("stored SEO workspace projections", () => {
     });
   });
 
+  it("shows no older split beside query rows whose own split read failed", () => {
+    const input = fixture();
+    const older = searchObservation(input, "2026-11-02T12:00:00Z");
+    older.payload = {
+      ...(older.payload as object),
+      devices: {
+        rowLimit: 250,
+        truncated: false,
+        rows: [
+          {
+            key: "mobile",
+            clicks: 3,
+            impressions: 40,
+            ctr: 0.075,
+            averagePosition: 2,
+          },
+        ],
+      },
+    } as never;
+    const newer = searchObservation(input, "2026-11-03T12:00:00Z");
+    input.observations = [newer, older];
+    const view = projectSeoProjection(input);
+    expect(view.searchQueries?.observationId).toBe(newer.id);
+    expect(view.searchBreakdown).toBeNull();
+  });
+
   it("names the search type of image query rows and none for web rows", () => {
     const input = fixture();
     const image = searchObservation(input, "2026-11-03T12:00:00Z");

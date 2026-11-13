@@ -66,19 +66,22 @@ export function projectSearchEvidence(
           : "task_created",
     });
   }
-  // Discover and Google News sync a split but no query rows, so the split has its own source.
-  const split = sources.find((source) => splitOf(source.data));
-  const searchBreakdown = split
-    ? {
-        observationId: split.row.id,
-        propertyId: split.data.propertyId,
-        from: split.data.from,
-        to: split.data.to,
-        observedAt: split.row.observedAt.toISOString(),
-        ...splitOf(split.data),
-      }
-    : null;
   const current = sources.find((source) => source.data.queries);
+  // Beside query rows, the split comes from the same sync. Discover and Google
+  // News sync a split but no query rows, so there the newest split stands alone.
+  const split = current ?? sources.find((source) => splitOf(source.data));
+  const parts = split && splitOf(split.data);
+  const searchBreakdown =
+    split && parts
+      ? {
+          observationId: split.row.id,
+          propertyId: split.data.propertyId,
+          from: split.data.from,
+          to: split.data.to,
+          observedAt: split.row.observedAt.toISOString(),
+          ...parts,
+        }
+      : null;
   if (!current?.data.queries)
     return { searchQueries: null, searchBreakdown, actions };
   // A Task linked from an observation outside this scope still covers the same opportunity.
