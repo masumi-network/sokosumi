@@ -76797,6 +76797,10 @@ export type StartCmoPlanCheckoutForProjectData = {
          */
         tier?: string;
         returnUrl: string;
+        /**
+         * Where Polar's back link leads without paying: no success marker.
+         */
+        backUrl: string;
     };
     path: {
         projectId: string;

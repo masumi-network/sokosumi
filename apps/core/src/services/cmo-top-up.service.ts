@@ -26,23 +26,29 @@ import {
 export async function startCmoTopUpCheckout(
   input: CusoTarget & { returnUrl: string },
 ): Promise<{ url: string }> {
-  return await startCmoCheckout(input, "top-up", async (cuso) => {
-    const subscription = await prisma.polarSubscription.findFirst({
-      where: { projectId: cuso.projectId, status: "active", endedAt: null },
-      select: { id: true },
-    });
-    if (!subscription) {
-      throw new CmoConflictError(
-        "A top-up needs an active CMO subscription",
-        CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE,
-      );
-    }
-    const { topUps } = await getCmoCatalog();
-    if (topUps.length === 0) {
-      throw serviceUnavailable("Project top-ups are not set up");
-    }
-    return topUps.map((pack) => pack.productId);
-  });
+  // A top-up's return address carries no success marker, so "back" leads to
+  // the same place.
+  return await startCmoCheckout(
+    { ...input, backUrl: input.returnUrl },
+    "top-up",
+    async (cuso) => {
+      const subscription = await prisma.polarSubscription.findFirst({
+        where: { projectId: cuso.projectId, status: "active", endedAt: null },
+        select: { id: true },
+      });
+      if (!subscription) {
+        throw new CmoConflictError(
+          "A top-up needs an active CMO subscription",
+          CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE,
+        );
+      }
+      const { topUps } = await getCmoCatalog();
+      if (topUps.length === 0) {
+        throw serviceUnavailable("Project top-ups are not set up");
+      }
+      return topUps.map((pack) => pack.productId);
+    },
+  );
 }
 
 /**

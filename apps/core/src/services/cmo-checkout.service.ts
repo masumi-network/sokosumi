@@ -20,11 +20,14 @@ import type { CmoCheckoutMetadata } from "@/services/polar-subscription.service"
  * buy and lists the products, the preselected one first.
  */
 export async function startCmoCheckout(
-  input: CusoTarget & { returnUrl: string },
+  input: CusoTarget & { returnUrl: string; backUrl: string },
   kind: "plan" | "top-up",
   productsFor: (cuso: Cuso) => Promise<string[]>,
 ): Promise<{ url: string }> {
-  if (!isFirstPartyAppUrl(input.returnUrl)) {
+  if (
+    !isFirstPartyAppUrl(input.returnUrl) ||
+    !isFirstPartyAppUrl(input.backUrl)
+  ) {
     throw new CmoConflictError("The return address must be CMO's own page");
   }
   const cuso = await requireCuso(input);
@@ -41,6 +44,7 @@ export async function startCmoCheckout(
     organizationId,
     metadata,
     returnUrl: input.returnUrl,
+    backUrl: input.backUrl,
   });
   return { url };
 }
@@ -58,6 +62,8 @@ export async function startCmoPlanCheckout(
     interval: CmoPlan["interval"];
     tier?: string | undefined;
     returnUrl: string;
+    /** Polar's back link: without the success marker of `returnUrl`. */
+    backUrl: string;
   },
 ): Promise<{ url: string }> {
   return await startCmoCheckout(input, "plan", async (cuso) => {

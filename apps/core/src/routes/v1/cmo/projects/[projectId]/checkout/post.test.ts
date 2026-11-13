@@ -36,6 +36,8 @@ vi.mock("@sentry/node", () => ({
 
 const PROJECT_ID = "aaaaaaaa-aaaa-4aaa-8aaa-000000000002";
 const RETURN_URL = `https://app.cmo.xyz/?project=${PROJECT_ID}&step=subscribed`;
+/** Polar's back link: the plans again, never the confirming state. */
+const BACK_URL = `https://app.cmo.xyz/?project=${PROJECT_ID}`;
 const CHECKOUT_URL = "https://sandbox.polar.sh/checkout/polar_c_1";
 
 function plan(
@@ -151,6 +153,7 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
     const response = await startCheckout({
       interval: "month",
       returnUrl: RETURN_URL,
+      backUrl: BACK_URL,
     });
     expect(response.status).toBe(200);
     expect((await response.json()).data).toEqual({ url: CHECKOUT_URL });
@@ -169,11 +172,16 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
         userId: "user-1",
       },
       returnUrl: RETURN_URL,
+      backUrl: BACK_URL,
     });
   });
 
   it("offers the yearly plans for a yearly checkout", async () => {
-    await startCheckout({ interval: "year", returnUrl: RETURN_URL });
+    await startCheckout({
+      interval: "year",
+      returnUrl: RETURN_URL,
+      backUrl: BACK_URL,
+    });
     expect(m.createPolarCheckout.mock.calls[0]?.[0].productIds).toEqual([
       "prod_starter_year",
       "prod_growth_year",
@@ -186,6 +194,7 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
       interval: "month",
       tier: "scale",
       returnUrl: RETURN_URL,
+      backUrl: BACK_URL,
     });
     expect(m.createPolarCheckout.mock.calls[0]?.[0].productIds).toEqual([
       "prod_scale_month",
@@ -199,6 +208,7 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
     const response = await startCheckout({
       interval: "month",
       returnUrl: RETURN_URL,
+      backUrl: BACK_URL,
     });
     expect(response.status).toBe(409);
     expect(m.prisma.polarSubscription.findFirst).toHaveBeenCalledWith(
@@ -214,6 +224,7 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
     const response = await startCheckout({
       interval: "month",
       returnUrl: RETURN_URL,
+      backUrl: BACK_URL,
     });
     expect(response.status).toBe(404);
     expect(m.createPolarCheckout).not.toHaveBeenCalled();
@@ -223,6 +234,17 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
     const response = await startCheckout({
       interval: "month",
       returnUrl: "https://evil.example/?paid=1",
+      backUrl: BACK_URL,
+    });
+    expect(response.status).toBe(409);
+    expect(m.createPolarCheckout).not.toHaveBeenCalled();
+  });
+
+  it("refuses a back address that is not CMO's own page", async () => {
+    const response = await startCheckout({
+      interval: "month",
+      returnUrl: RETURN_URL,
+      backUrl: "https://evil.example/",
     });
     expect(response.status).toBe(409);
     expect(m.createPolarCheckout).not.toHaveBeenCalled();
@@ -232,6 +254,7 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
     const response = await startCheckout({
       interval: "week",
       returnUrl: RETURN_URL,
+      backUrl: BACK_URL,
     });
     expect(response.status).toBe(422);
   });
@@ -241,7 +264,7 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
       serviceUnavailable("Polar is not configured"),
     );
     const response = await startCheckout(
-      { interval: "month", returnUrl: RETURN_URL },
+      { interval: "month", returnUrl: RETURN_URL, backUrl: BACK_URL },
       await freshApp(),
     );
     expect(response.status).toBe(503);
@@ -253,7 +276,7 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
       PRODUCTS.filter((product) => product.recurring_interval === "month"),
     );
     const response = await startCheckout(
-      { interval: "year", returnUrl: RETURN_URL },
+      { interval: "year", returnUrl: RETURN_URL, backUrl: BACK_URL },
       await freshApp(),
     );
     expect(response.status).toBe(503);

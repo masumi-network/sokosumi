@@ -74,8 +74,10 @@ export interface PolarCheckoutInput {
   organizationId: string;
   /** The person picks one in the checkout; the first is preselected. */
   productIds: string[];
-  /** Where the person lands after paying, and where "back" leads. */
+  /** Where the person lands after paying (Polar's `success_url`). */
   returnUrl: string;
+  /** Where Polar's back link leads without paying (its `return_url`). */
+  backUrl: string;
 }
 
 /** Starts a hosted checkout, trial and discount codes off; returns its URL. */
@@ -87,7 +89,7 @@ export async function createPolarCheckout(
     external_customer_id: input.organizationId,
     metadata: input.metadata,
     success_url: input.returnUrl,
-    return_url: input.returnUrl,
+    return_url: input.backUrl,
     allow_discount_codes: false,
     allow_trial: false,
   });

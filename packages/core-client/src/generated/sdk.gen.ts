@@ -5685,7 +5685,7 @@ export const getCmoOverviewForProject = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Starts Polar's hosted checkout for this Cuso's CMO plan: the interval's plans, without trial or discount codes. Any member of his organization may pay; the person comes back to returnUrl on CMO.xyz, and the subscription shows in the overview once Polar confirms the payment.
+ * Starts Polar's hosted checkout for this Cuso's CMO plan: the interval's plans, without trial or discount codes. Any member of his organization may pay; the person comes back to returnUrl on CMO.xyz after paying, or to backUrl through Polar's back link, and the subscription shows in the overview once Polar confirms the payment.
  */
 export const startCmoPlanCheckoutForProject = <ThrowOnError extends boolean = false>(options: Options<StartCmoPlanCheckoutForProjectData, ThrowOnError>): RequestResult<StartCmoPlanCheckoutForProjectResponses, StartCmoPlanCheckoutForProjectErrors, ThrowOnError> => (options.client ?? client).post<StartCmoPlanCheckoutForProjectResponses, StartCmoPlanCheckoutForProjectErrors, ThrowOnError>({
     responseTransformer: startCmoPlanCheckoutForProjectResponseTransformer,

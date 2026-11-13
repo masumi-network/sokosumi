@@ -148,6 +148,8 @@ describe("POST /v1/cmo/projects/{projectId}/top-up", () => {
         kind: "top-up",
       },
       returnUrl: "https://cmo.xyz/?project=p",
+      // No success marker: back from Polar lands where the top-up started.
+      backUrl: "https://cmo.xyz/?project=p",
     });
   });
 

@@ -777,7 +777,7 @@ describe("the Cuso on screen", () => {
   });
 
   describe("the CMO plan checkout", () => {
-    it("starts Polar's checkout for the Project, coming back to its confirming step", async () => {
+    it("starts Polar's checkout for the Project, coming back to its confirming step, or to the plans without paying", async () => {
       forProject.startCmoPlanCheckoutForProject?.mockResolvedValue({
         data: { data: { url: "https://polar.sh/checkout/c_1" } },
       });
@@ -792,6 +792,7 @@ describe("the Cuso on screen", () => {
             interval: "year",
             tier: "growth",
             returnUrl: "https://app.cmo.xyz/?project=project-2&step=subscribed",
+            backUrl: "https://app.cmo.xyz/?project=project-2",
           },
         }),
       );

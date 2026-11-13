@@ -865,8 +865,9 @@ export async function connectMeasurement(
 
 /**
  * Starts Polar's hosted checkout for this Cuso's CMO plan; the browser goes
- * to the returned URL. Polar sends the person back to the home page, which
- * shows the confirming state (`step=subscribed`) until the payment is in.
+ * to the returned URL. After paying, Polar sends the person back to the home
+ * page, which shows the confirming state (`step=subscribed`) until the
+ * payment is in; its back link leads to the plans without that marker.
  */
 export async function startPlanCheckout(
   projectId: string,
@@ -885,6 +886,8 @@ export async function startPlanCheckout(
         project: projectId,
         step: "subscribed",
       }),
+      // Back without paying: the plans again, not the confirming state.
+      backUrl: await callbackUrl("/", { project: projectId }),
     },
   });
   if (!data) {

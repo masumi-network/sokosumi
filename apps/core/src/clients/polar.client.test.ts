@@ -101,7 +101,8 @@ describe("createPolarCheckout", () => {
     productIds: ["prod_1", "prod_2"],
     organizationId: "org_1",
     metadata: { projectId: "project_1" },
-    returnUrl: "https://cmo.xyz/?project=project_1",
+    returnUrl: "https://cmo.xyz/?project=project_1&step=subscribed",
+    backUrl: "https://cmo.xyz/?project=project_1",
   };
 
   afterEach(() => {
@@ -134,7 +135,7 @@ describe("createPolarCheckout", () => {
       products: ["prod_1", "prod_2"],
       external_customer_id: "org_1",
       metadata: { projectId: "project_1" },
-      success_url: "https://cmo.xyz/?project=project_1",
+      success_url: "https://cmo.xyz/?project=project_1&step=subscribed",
       return_url: "https://cmo.xyz/?project=project_1",
       allow_discount_codes: false,
       allow_trial: false,
