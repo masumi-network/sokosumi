@@ -2988,7 +2988,11 @@
             "videoRequired": "TikTok necesita un video."
           },
           "x": {
-            "more": "Mostrar más"
+            "more": "Mostrar más",
+            "images": "{count, plural, one {# imagen} other {# imágenes}}",
+            "image": "Imagen {index} de {count}",
+            "previousImage": "Imagen anterior",
+            "nextImage": "Imagen siguiente"
           }
         },
         "statistics": {
@@ -4375,6 +4379,7 @@
       "reroll": "Repetir",
       "reusePrompt": "Reutilizar prompt",
       "download": "Descargar",
+      "moreActions": "Más acciones",
       "previewAd": "Vista previa del anuncio",
       "previewAdDescription": "Previsualiza un anuncio en el feed de Instagram o Facebook, o como reel vertical.",
       "approvedHeadline": "Titular aprobado",
@@ -4449,7 +4454,6 @@
       "model": "Modelo",
       "aspectRatio": "Encuadre",
       "adPlacements": "Ubicaciones de anuncios",
-      "placementHelp": "Elige una o más ubicaciones o selecciona abajo una sola proporción personalizada.",
       "creativeDirection": "Dirección creativa",
       "adGallery": "Galería de anuncios",
       "groupByProduct": "Agrupar por producto",
@@ -4573,7 +4577,8 @@
       "creditsCharged": "Sumado a partir del precio publicado de cada modelo, a 1 crédito por céntimo y sin recargo. Es el cobro, no una aproximación: se toma la misma cifra cuando se entrega la imagen. Una generación que falla no cuesta nada.",
       "creditsUnderivable": "Al menos uno de estos modelos no puede tasarse por imagen para el encuadre elegido, así que este lote no se puede sumar.",
       "creditsNoFigure": "Sin cifra",
-      "failedNoCharge": "No se cobró nada por ella.",
+      "failedAfterModel": "falló",
+      "failedNoCharge": "sin cargo",
       "failedBodyUnreported": "El modelo no devolvió ninguna imagen, y esta generación es demasiado antigua para decir por qué.",
       "FailureReasons": {
         "provider_rejected": "El proveedor de imágenes rechazó esta solicitud.",
