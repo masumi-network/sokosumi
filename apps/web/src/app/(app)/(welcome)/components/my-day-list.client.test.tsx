@@ -39,6 +39,20 @@ function row(n: number): MyDayRow {
 // unrelated ones out, so the list only ever pages through these six.
 const firstFive = [1, 2, 3, 4, 5].map(row);
 
+/**
+ * A page's rows or error text commit before the transition ends, and a busy
+ * button drops the click: wait for it to go idle before the next press.
+ */
+async function moreButtonIsIdle() {
+  await waitFor(() =>
+    expect(
+      screen
+        .getByRole("button", { name: 'more:{"count":1}' })
+        .getAttribute("aria-busy"),
+    ).toBeNull(),
+  );
+}
+
 describe("MyDayList", () => {
   afterEach(() => {
     cleanup();
@@ -110,6 +124,7 @@ describe("MyDayList", () => {
       expect(screen.getByRole("status").textContent).toBe("error"),
     );
     expect(screen.getAllByTestId("home-my-day-row")).toHaveLength(5);
+    await moreButtonIsIdle();
 
     loadMoreMyDay.mockResolvedValueOnce({
       rows: [row(6)],
@@ -163,6 +178,7 @@ describe("MyDayList", () => {
         expect.stringContaining("Due 8"),
       ]);
       loadMoreMyDay.mockResolvedValueOnce(null);
+      await moreButtonIsIdle();
       fireEvent.click(screen.getByRole("button", { name: 'more:{"count":1}' }));
       await waitFor(() =>
         expect(loadMoreMyDay).toHaveBeenLastCalledWith({

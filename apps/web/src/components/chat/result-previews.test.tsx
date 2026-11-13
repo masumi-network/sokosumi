@@ -298,6 +298,58 @@ describe("chat result cards", () => {
       expect(html).not.toContain('aria-label="Open source: Launch campaign"');
     },
   );
+  it("keeps the full social image and its platform notice in a chat result", () => {
+    const notice = "Instagram will pad this image to 4:5.";
+    render(
+      <ResultPreviewCard
+        result={{
+          ...task,
+          kind: "social_post",
+          status: "DRAFT",
+          summary: "Launch post",
+          social: {
+            provider: "instagram",
+            account: {
+              displayName: "Masumi",
+              handle: "masumi",
+              avatarUrl: null,
+            },
+            timestamp: null,
+          },
+          outputs: [
+            {
+              name: "tall.png",
+              contentType: "image/png",
+              sizeBytes: 100,
+              openHref: "/drive/files/image",
+              previewHref: "/api/drive/files/image/content",
+              transformation: {
+                provider: "instagram",
+                code: "pad_4_5",
+                notice,
+                original: {
+                  pathname: "drive/original.png",
+                  fileUrl: "https://example.com/original.png",
+                  name: "original.png",
+                  size: 100,
+                  mimeType: "image/png",
+                  kind: "image",
+                },
+              },
+            },
+          ],
+        }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+
+    const image = screen.getByRole("img", { name: "tall.png" });
+    expect(image).toHaveClass("object-contain");
+    expect(image).toHaveAttribute("src", "/api/drive/files/image/content");
+    expect(screen.getAllByText("mediaNotice.pad_4_5")).toHaveLength(1);
+    expect(screen.queryByText(notice)).not.toBeInTheDocument();
+  });
+
   it("shows now on a draft social card with no publish time", () => {
     const html = renderToStaticMarkup(
       <ResultPreviewCard

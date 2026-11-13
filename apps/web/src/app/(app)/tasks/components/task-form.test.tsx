@@ -110,8 +110,13 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: (namespace: string) => (key: string) =>
-    namespace === "App.Tasks.Tags" && key === "label" ? "Tags" : key,
+  useTranslations:
+    (namespace: string) => (key: string, values?: { name?: string }) =>
+      namespace === "App.Tasks.Tags" && key === "label"
+        ? "Tags"
+        : key === "createError"
+          ? `${key}: ${values?.name}`
+          : key,
   useFormatter: () => ({
     dateTime: (value: Date) => value.toISOString(),
   }),
@@ -1522,7 +1527,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("shows the save error when Core refuses the create", async () => {
+  it("names the Task and keeps the input when Core refuses the create", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
     createTaskMock.mockResolvedValue({
@@ -1545,8 +1550,40 @@ describe("TaskForm", () => {
     await user.click(screen.getByRole("button", { name: "Create Task" }));
 
     await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith("createError: Write docs"),
+    );
+    expect(screen.getByTestId("markdown-editor")).toHaveValue("Write docs");
+  });
+
+  it("keeps the general save error when the Task was created", async () => {
+    const user = userEvent.setup();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    vi.mocked(createTask).mockResolvedValue(
+      createTaskSuccess("task-1", "Write docs"),
+    );
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onCreated={() => {
+          throw new Error("after create");
+        }}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith(baseLabels.saveError),
     );
+    consoleError.mockRestore();
   });
 
   it("shows a queued celebration with the Run at after creating", async () => {
@@ -3375,7 +3412,7 @@ describe("TaskForm", () => {
     expect(onCreateTask).not.toHaveBeenCalled();
   });
 
-  it("toasts the generic save error for other create failures", async () => {
+  it("names the Task when the create throws", async () => {
     const user = userEvent.setup();
     const consoleError = vi
       .spyOn(console, "error")
@@ -3398,7 +3435,7 @@ describe("TaskForm", () => {
     await user.click(screen.getByRole("button", { name: "Create Task" }));
 
     await waitFor(() => {
-      expect(toastErrorMock).toHaveBeenCalledWith("Failed to save task");
+      expect(toastErrorMock).toHaveBeenCalledWith("createError: Write docs");
     });
     consoleError.mockRestore();
   });

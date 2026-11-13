@@ -180,7 +180,7 @@ export function createSokoBotAvatarStore() {
       id: randomUUID(),
       createdAt: new Date(),
       subject: "owl",
-      background: "gently muted sage green",
+      background: "golden yellow",
       seed: avatars.length + 1,
       model: "google/gemini-3.1-flash-image",
       imageUrl: `https://blob.test/avatar-${avatars.length + 1}.png`,

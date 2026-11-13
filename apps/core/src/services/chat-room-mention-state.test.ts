@@ -76,11 +76,14 @@ describe("mention state transitions", () => {
   });
   it("claims pending mentions without touching terminal responses", async () => {
     updateManyMock.mockResolvedValue({ count: 1 });
-    await expect(claimMentionForDispatch(MENTION_ID)).resolves.toBe(true);
+    await expect(claimMentionForDispatch(MENTION_ID)).resolves.toEqual({
+      stamp: expect.any(Date),
+      reclaimed: false,
+    });
     expect(updateManyMock).toHaveBeenCalledOnce();
     expect(updateManyMock).toHaveBeenCalledWith({
       where: { id: MENTION_ID, status: "pending" },
-      data: { status: "sent", error: null },
+      data: { status: "sent", error: null, updatedAt: expect.any(Date) },
     });
   });
 });

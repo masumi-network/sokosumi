@@ -1,7 +1,6 @@
 "use client";
 
 import type { ChatRoom } from "@sokosumi/core-client";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type FormEvent,
@@ -63,7 +62,6 @@ function NameGroupForm({
   onDone: () => void;
 }) {
   const t = useTranslations("App.Channels.GroupName");
-  const router = useRouter();
   const [groupName, setGroupName] = useState(room.groupName ?? "");
   const [isPending, startTransition] = useTransition();
 
@@ -80,7 +78,6 @@ function NameGroupForm({
         return;
       }
       onDone();
-      router.refresh();
     });
   }
 

@@ -10,8 +10,9 @@ vi.mock("@/lib/services/chat-room.service", () => ({
     listArchivedRooms: (...args: unknown[]) => listArchivedRoomsMock(...args),
   },
 }));
-vi.mock("@/lib/services/user.service", () => ({
-  userService: {
+vi.mock("@/lib/clients/core.client", () => ({
+  coreClient: {},
+  coreClientNoRedirect: {
     getMyMembersWithOrganizations: (...args: unknown[]) =>
       getMyMembersWithOrganizationsMock(...args),
   },
@@ -32,9 +33,9 @@ describe("loadChatListChromeData", () => {
       rooms: [{ id: "archived-1" }],
       nextCursor: null,
     });
-    getMyMembersWithOrganizationsMock.mockResolvedValue([
-      { organizationId: "org-1", role: "owner" },
-    ]);
+    getMyMembersWithOrganizationsMock.mockResolvedValue({
+      data: [{ organizationId: "org-1", role: "owner" }],
+    });
   });
 
   it("issues one rooms + archived + members fetch per loadChatListChromeData call", async () => {
@@ -137,7 +138,21 @@ describe("chat list chrome single-source composition contract", () => {
       "utf8",
     );
 
-    expect(sidebar).toMatch(/getPrivateCachedChatListChrome/);
+    // The sidebar takes the same two slices, rooms first.
+    expect(sidebar).toMatch(/loadSidebarChatList/);
+    const sidebarLoaderStart = cacheSource.indexOf(
+      "function loadSidebarChatList",
+    );
+    const sidebarLoader = cacheSource.slice(
+      sidebarLoaderStart,
+      cacheSource.indexOf("\n}\n", sidebarLoaderStart),
+    );
+    expect(sidebarLoader).toMatch(
+      /getPrivateCachedMembershipVisibleRooms\(args\)/,
+    );
+    expect(sidebarLoader).toMatch(
+      /getPrivateCachedChatListArchivedAndMembers\(args\)/,
+    );
     // Chats awaits membership rooms, then Suspense-streams archived+members.
     expect(chatsPage).toMatch(/getPrivateCachedMembershipVisibleRooms/);
     expect(chatsPage).toMatch(/getPrivateCachedChatListArchivedAndMembers/);
@@ -151,7 +166,7 @@ describe("chat list chrome single-source composition contract", () => {
     expect(chatsPage).not.toMatch(
       /userService\s*\.\s*getMyMembersWithOrganizations\s*\(/,
     );
-    // Composer still exists for the sidebar; rooms + deferred are separate
+    // Composer still exists for the account footer and `/you`; rooms + deferred are separate
     // private-cache entries with the same tags (SOK-779).
     expect(cacheSource).toMatch(
       /function getPrivateCachedMembershipVisibleRooms/,

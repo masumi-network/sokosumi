@@ -11,7 +11,6 @@ import {
   Upload,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   createContext,
@@ -94,7 +93,6 @@ export function ProjectBrandProvider({
   projectId,
   websiteUrl,
 }: ProjectBrandProviderProps) {
-  const router = useRouter();
   const tDesignMd = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
   const [designMd, setDesignMd] = useState<ProjectDesignMd | null>(
     initialDesignMd,
@@ -118,9 +116,8 @@ export function ProjectBrandProvider({
         extractionId: nextDesignMd.extractionId,
         url: nextDesignMd.url,
       });
-      router.refresh();
     },
-    [router],
+    [],
   );
   const generation = useDesignMdGeneration({
     messages,
@@ -140,7 +137,7 @@ export function ProjectBrandProvider({
   useEffect(() => {
     if (designMd) {
       // Prevent an explicit remove from immediately recreating a brand when
-      // router.refresh remounts this provider in the same browser session.
+      // a server re-render remounts this provider in the same browser session.
       backgroundGenerationAttempted.current = true;
       markProjectBrandAutoStartAttempted(projectId);
       return;
@@ -178,7 +175,6 @@ export function ProjectBrandCard({
   websiteUrl,
   readOnly = false,
 }: ProjectBrandCardProps) {
-  const router = useRouter();
   const t = useTranslations("App.Projects.Detail");
   const { designMd, generation, setDesignMd } = useProjectBrandDashboard();
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
@@ -205,7 +201,6 @@ export function ProjectBrandCard({
         setIsRemoveDialogOpen(false);
         setShowUpload(false);
         toast.success(t("brandCard.removed"));
-        router.refresh();
       } catch {
         toast.error(t("errors.brand"));
       }
@@ -379,7 +374,6 @@ export function ProjectBrandCard({
                 url: uploadedDesignMd.url,
               });
               setShowUpload(false);
-              router.refresh();
             }}
           />
         ) : null}
