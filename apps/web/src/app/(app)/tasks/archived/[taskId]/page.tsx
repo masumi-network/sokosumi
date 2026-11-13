@@ -69,7 +69,9 @@ export default async function ArchivedTaskPage({
                   label={tStatus(task.status)}
                   className="w-fit rounded-sm"
                 />
-                <span>{task.project?.name ?? t("noProject")}</span>
+                <span className="min-w-0 wrap-anywhere">
+                  {task.project?.name ?? t("noProject")}
+                </span>
                 {archivedOn ? (
                   <span>{t("archivedOn", { date: archivedOn })}</span>
                 ) : null}
