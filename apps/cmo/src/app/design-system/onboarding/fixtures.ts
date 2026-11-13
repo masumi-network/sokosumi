@@ -24,6 +24,8 @@ export const SCREENS = [
   "planning",
   "launch",
   "launch-connected",
+  "subscribe",
+  "subscribe-confirming",
 ] as const;
 
 export type Screen = (typeof SCREENS)[number];
@@ -140,6 +142,15 @@ export function screenOverview(screen: Screen): CmoOverview {
                 },
               ]
             : [],
+      });
+    // Launched, nobody paid yet: the CMO plan checkout (ADR 0068).
+    case "subscribe":
+    case "subscribe-confirming":
+      return draft({
+        ...cmoStrategyVersion(new Date("2026-10-05T09:10:00Z")),
+        onboardingStep: "checkout",
+        brandBrain: richBrain,
+        strategy: richPlan,
       });
     default:
       return draft({ brandBrain: richBrain, strategy: richPlan });

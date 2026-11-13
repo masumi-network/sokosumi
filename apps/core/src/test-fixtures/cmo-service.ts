@@ -45,6 +45,8 @@ export const createOrganizationWorkspace = vi.fn();
 export const organizationFindFirst = vi.fn();
 export const organizationUpdate = vi.fn();
 export const creditBucketFindFirst = vi.fn();
+/** The Project's CMO subscription that has not ended: none unless a test seeds one. */
+export const cmoSubscriptionFindFirst = vi.fn();
 export const grantFreeCredits = vi.fn();
 export const getUserWorkspace = vi.fn();
 export const messageUpsert = vi.fn();
@@ -242,6 +244,7 @@ const client = {
     update: organizationUpdate,
   },
   creditBucket: { findFirst: creditBucketFindFirst },
+  cmoSubscription: { findFirst: cmoSubscriptionFindFirst },
   subscription: {
     findFirst: subscriptionFindFirst,
     create: subscriptionCreate,
@@ -368,6 +371,8 @@ export function resetCmoServiceMocks(): void {
   }
   envOverrides.CMO_HIRE_ALLOWLIST = ["lena@harborbikes.com"];
   expireTurn.mockResolvedValue(true);
+  cmoSubscriptionFindFirst.mockResolvedValue(null);
+  creditBucketFindFirst.mockResolvedValue(null);
   toolCallFindMany.mockResolvedValue([]);
   // A report message comes back as it was written.
   messageUpsert.mockImplementation(async (args) => ({

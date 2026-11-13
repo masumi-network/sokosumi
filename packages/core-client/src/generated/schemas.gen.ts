@@ -42256,9 +42256,10 @@ export const CmoOverviewSchema = {
                 'brandBrain',
                 'strategy',
                 'accounts',
+                'checkout',
                 'done'
             ],
-            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them. CMO opens on the chat once done.'
+            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the checkout until his Project has a CMO subscription. CMO opens on the chat once done.'
         },
         routines: {
             type: 'array',
@@ -44311,17 +44312,32 @@ export const CmoOverviewSchema = {
         billing: {
             type: 'object',
             properties: {
-                plan: {
+                tier: {
                     anyOf: [
                         {
                             type: 'string'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ],
+                    description: 'The CMO plan\'s tier, as its Polar product names it.'
+                },
+                interval: {
+                    anyOf: [
+                        {
+                            type: 'string',
+                            enum: [
+                                'month',
+                                'year'
+                            ]
                         },
                         {
                             type: 'null'
                         }
                     ]
                 },
-                subscriptionStatus: {
+                status: {
                     anyOf: [
                         {
                             type: 'string'
@@ -44329,17 +44345,59 @@ export const CmoOverviewSchema = {
                         {
                             type: 'null'
                         }
+                    ],
+                    description: 'Polar\'s subscription status, as sent.'
+                },
+                periodEnd: {
+                    anyOf: [
+                        {
+                            type: 'string',
+                            format: 'date-time',
+                            example: '2021-01-01T00:00:00.000Z'
+                        },
+                        {
+                            type: 'null'
+                        }
                     ]
+                },
+                cancelAtPeriodEnd: {
+                    type: 'boolean'
+                },
+                pendingTier: {
+                    anyOf: [
+                        {
+                            type: 'string'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ],
+                    description: 'The tier a scheduled downgrade moves to at period end.'
                 },
                 availableCredits: {
                     type: 'number'
+                },
+                viewerCanManage: {
+                    type: 'boolean',
+                    description: 'Whether this member may change the plan and open the customer portal: the organization\'s owners and admins only.'
+                },
+                hiredWithStarterCredits: {
+                    type: 'boolean',
+                    description: 'Hired before CMO plans: this Cuso was granted Starter credits, so his hiring ends without a checkout.'
                 }
             },
             required: [
-                'plan',
-                'subscriptionStatus',
-                'availableCredits'
-            ]
+                'tier',
+                'interval',
+                'status',
+                'periodEnd',
+                'cancelAtPeriodEnd',
+                'pendingTier',
+                'availableCredits',
+                'viewerCanManage',
+                'hiredWithStarterCredits'
+            ],
+            description: 'Cuso\'s CMO plan, read from his Project\'s CMO subscription that has not ended; the plan fields are null without one.'
         },
         posts: {
             type: 'object',
@@ -46553,6 +46611,46 @@ export const CmoOnboardingRequestSchema = {
     ]
 } as const;
 
+export const CmoSubscriptionPlanSchema = {
+    type: 'object',
+    properties: {
+        tier: {
+            type: 'string',
+            minLength: 1,
+            description: 'The plan\'s tier, as its Polar product names it.'
+        },
+        name: {
+            type: 'string'
+        },
+        interval: {
+            type: 'string',
+            enum: [
+                'month',
+                'year'
+            ]
+        },
+        credits: {
+            type: 'integer',
+            description: 'Credits granted every month, on a yearly plan too.'
+        },
+        priceAmount: {
+            type: 'integer',
+            description: 'Price per interval in the currency\'s minor unit.'
+        },
+        currency: {
+            type: 'string'
+        }
+    },
+    required: [
+        'tier',
+        'name',
+        'interval',
+        'credits',
+        'priceAmount',
+        'currency'
+    ]
+} as const;
+
 export const CmoAdsConnectSchema = {
     type: 'object',
     properties: {
@@ -46654,6 +46752,18 @@ export const CmoPieceTextSchema = {
     },
     required: [
         'text'
+    ]
+} as const;
+
+export const CmoCheckoutSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string'
+        }
+    },
+    required: [
+        'url'
     ]
 } as const;
 

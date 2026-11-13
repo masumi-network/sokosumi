@@ -1,6 +1,7 @@
 import { CreditBucketReferenceType } from "@sokosumi/database";
 import { cmoMayExecute, getSokoBotVersion } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
+import { getCmoCatalog } from "@/services/cmo-catalog.service";
 import {
   CmoForbiddenError,
   type Cuso,
@@ -29,6 +30,74 @@ export const CMO_STARTER_CREDITS = 10_000;
 /** Names the grant after the hire's Project, so each hire gets it once. */
 function starterCreditsNote(projectId: string): string {
   return `CMO.xyz starter credits (project ${projectId})`;
+}
+
+/** A Cuso's CMO plan, as his Project's subscription that has not ended says. */
+export interface CmoBilling {
+  tier: string | null;
+  interval: "month" | "year" | null;
+  /** Polar's subscription status, as sent. */
+  status: string | null;
+  periodEnd: Date | null;
+  cancelAtPeriodEnd: boolean;
+  /** The tier a scheduled downgrade moves to at the next period. */
+  pendingTier: string | null;
+  /**
+   * Hired before CMO plans (ADR 0068): his Project was granted Starter
+   * credits, spent or not, so his hiring ends without a checkout.
+   */
+  hiredWithStarterCredits: boolean;
+}
+
+/** The tier of a plan product; null when Polar's catalog does not answer. */
+async function cmoPlanTier(productId: string): Promise<string | null> {
+  const catalog = await getCmoCatalog().catch((error) => {
+    console.warn("CMO catalog not read", {
+      error: error instanceof Error ? error.message : "unknown",
+    });
+    return null;
+  });
+  return (
+    catalog?.plans.find((plan) => plan.productId === productId)?.tier ?? null
+  );
+}
+
+export async function readCmoBilling(projectId: string): Promise<CmoBilling> {
+  const [subscription, starter] = await Promise.all([
+    prisma.cmoSubscription.findFirst({
+      where: { projectId, endedAt: null },
+      select: {
+        tier: true,
+        interval: true,
+        status: true,
+        currentPeriodEnd: true,
+        cancelAtPeriodEnd: true,
+        pendingPolarProductId: true,
+      },
+    }),
+    prisma.creditBucket.findFirst({
+      where: {
+        referenceType: CreditBucketReferenceType.FREE,
+        referenceNote: starterCreditsNote(projectId),
+      },
+      select: { id: true },
+    }),
+  ]);
+  return {
+    tier: subscription?.tier ?? null,
+    interval: subscription
+      ? subscription.interval === "year"
+        ? "year"
+        : "month"
+      : null,
+    status: subscription?.status ?? null,
+    periodEnd: subscription?.currentPeriodEnd ?? null,
+    cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
+    pendingTier: subscription?.pendingPolarProductId
+      ? await cmoPlanTier(subscription.pendingPolarProductId)
+      : null,
+    hiredWithStarterCredits: starter !== null,
+  };
 }
 
 /**

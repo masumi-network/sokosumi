@@ -14,6 +14,7 @@ import { toCusoMessages } from "../lib/chat-messages";
 import { buildThread, cusoStatus } from "../lib/thread";
 import { VIEW_PATHS, viewFromPath } from "../lib/views";
 import {
+  cmoBilling,
   cmoChatMessage,
   cmoStrategyVersion,
   cmoOverview as overview,
@@ -260,11 +261,7 @@ describe("thread", () => {
       cusoStatus(
         overview({
           ...cmoStrategyVersion(new Date()),
-          billing: {
-            plan: null,
-            subscriptionStatus: null,
-            availableCredits: 0,
-          },
+          billing: cmoBilling({ availableCredits: 0 }),
         }),
       ),
     ).toBe("Paused");

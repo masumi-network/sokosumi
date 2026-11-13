@@ -150,7 +150,17 @@ function overview() {
     },
     mailingListSize: 0,
     subscribeUrl: "http://web/billing",
-    billing: { plan: null, subscriptionStatus: null, availableCredits: 12 },
+    billing: {
+      tier: null,
+      interval: null,
+      status: null,
+      periodEnd: null,
+      cancelAtPeriodEnd: false,
+      pendingTier: null,
+      availableCredits: 12,
+      viewerCanManage: false,
+      hiredWithStarterCredits: false,
+    },
     posts: { DRAFT: 3, SCHEDULED: 1, PUBLISHING: 1, MISSED: 1 },
   };
 }
@@ -372,6 +382,59 @@ describe("CMO routes", () => {
     expect(overviewMock).toHaveBeenCalledWith({
       userId: "user-1",
       projectId: PROJECT_ID,
+    });
+  });
+
+  it("answers the checkout step and no plan for a Cuso nobody paid for", async () => {
+    overviewMock.mockResolvedValue({
+      ...overview(),
+      onboardingStep: "checkout",
+    });
+    const response = await createApp().request(`/projects/${PROJECT_ID}`);
+    expect(response.status).toBe(200);
+    const { data } = await response.json();
+    expect(data.onboardingStep).toBe("checkout");
+    expect(data.billing).toEqual({
+      tier: null,
+      interval: null,
+      status: null,
+      periodEnd: null,
+      cancelAtPeriodEnd: false,
+      pendingTier: null,
+      availableCredits: 12,
+      viewerCanManage: false,
+      hiredWithStarterCredits: false,
+    });
+  });
+
+  it("answers the plan, its period and who may manage it once subscribed", async () => {
+    const base = overview();
+    overviewMock.mockResolvedValue({
+      ...base,
+      billing: {
+        ...base.billing,
+        tier: "growth",
+        interval: "year",
+        status: "active",
+        periodEnd: new Date("2027-11-13T10:00:00.000Z"),
+        cancelAtPeriodEnd: true,
+        pendingTier: "starter",
+        availableCredits: 25_000,
+        viewerCanManage: true,
+      },
+    });
+    const response = await createApp().request(`/projects/${PROJECT_ID}`);
+    expect(response.status).toBe(200);
+    expect((await response.json()).data.billing).toEqual({
+      tier: "growth",
+      interval: "year",
+      status: "active",
+      periodEnd: "2027-11-13T10:00:00.000Z",
+      cancelAtPeriodEnd: true,
+      pendingTier: "starter",
+      availableCredits: 25_000,
+      viewerCanManage: true,
+      hiredWithStarterCredits: false,
     });
   });
 

@@ -2,7 +2,11 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { AGENT_NAME } from "../../../lib/agent";
 import type { CusoMessage } from "../../../lib/chat-messages";
 import { VIEW_PATHS, type View } from "../../../lib/views";
-import { cmoOverview, cmoStrategyVersion } from "../../../test-fixtures/cmo";
+import {
+  cmoBilling,
+  cmoOverview,
+  cmoStrategyVersion,
+} from "../../../test-fixtures/cmo";
 import { richBrain, richPlan } from "../../../test-fixtures/onboarding";
 
 export const VIEWS = Object.keys(VIEW_PATHS) as View[];
@@ -196,11 +200,13 @@ export const overview: CmoOverview = cmoOverview({
   ],
   adProviders: ["google_ads"],
   mailingListSize: 128,
-  billing: {
-    plan: "pro",
-    subscriptionStatus: "active",
+  billing: cmoBilling({
+    tier: "growth",
+    interval: "month",
+    status: "active",
+    periodEnd: new Date("2026-11-05T09:00:00Z"),
     availableCredits: 8400,
-  },
+  }),
   posts: { draft: 3, scheduled: 5, published: 2, failed: 0 },
   upNext: [
     {

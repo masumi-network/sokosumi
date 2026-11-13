@@ -9,7 +9,11 @@ import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import type { CmoBrandMedia } from "@/schemas/cmo.schema";
 import { parseBrandBrain } from "@/services/brand-brain.service";
-import { isCmoSubscribed } from "@/services/cmo-billing.service";
+import {
+  type CmoBilling,
+  isCmoSubscribed,
+  readCmoBilling,
+} from "@/services/cmo-billing.service";
 import { cmoBrandMedia } from "@/services/cmo-brand-media.service";
 import {
   type CmoBrandVisual,
@@ -71,7 +75,8 @@ export interface CmoUpNextItem {
 /**
  * Where Hiring Cuso stands, read from the data (ADR 0062): the Brand Brain
  * until a member confirms it, the Marketing strategy until a version is
- * approved, the accounts until the Project has an active Social connection.
+ * approved, the accounts until the Project has an active Social connection,
+ * the checkout until his Project has a CMO subscription (ADR 0068).
  * CMO's own cookie may skip the accounts (ADR 0062).
  */
 /** Hiring Cuso's steps, in order. */
@@ -79,6 +84,7 @@ export const CMO_ONBOARDING_STEPS = [
   "brandBrain",
   "strategy",
   "accounts",
+  "checkout",
   "done",
 ] as const;
 export type CmoOnboardingStep = (typeof CMO_ONBOARDING_STEPS)[number];
@@ -87,9 +93,18 @@ export function cmoOnboardingStep(input: {
   brandBrainConfirmed: boolean;
   strategyApproved: boolean;
   connected: boolean;
+  /** His Project has a CMO subscription that has not ended. */
+  subscribed: boolean;
+  /** Hired before CMO plans: such a Cuso never owes the checkout. */
+  hiredWithStarterCredits: boolean;
 }): CmoOnboardingStep {
-  if (input.strategyApproved) return input.connected ? "done" : "accounts";
-  return input.brandBrainConfirmed ? "strategy" : "brandBrain";
+  if (!input.strategyApproved) {
+    return input.brandBrainConfirmed ? "strategy" : "brandBrain";
+  }
+  if (!input.connected) return "accounts";
+  return input.subscribed || input.hiredWithStarterCredits
+    ? "done"
+    : "checkout";
 }
 
 export interface CmoOverview {
@@ -152,10 +167,11 @@ export interface CmoOverview {
   mailingListSize: number;
   /** This person is in Sokosumi's Ads beta, so CMO offers ad connections. */
   subscribeUrl: string;
-  billing: {
-    plan: string | null;
-    subscriptionStatus: string | null;
+  /** Cuso's CMO plan (ADR 0068) and what his Project can spend. */
+  billing: CmoBilling & {
     availableCredits: number;
+    /** This member may change the plan and open the portal. */
+    viewerCanManage: boolean;
   };
   /** Real post counts by status from Project Social; no invented metrics. */
   posts: Record<string, number>;
@@ -282,7 +298,7 @@ export async function getCmoOverview(
   // Up next is what is carried out: the approved version's calendar.
   const running = approved ? planOf(approved) : strategy;
   const web = getWebAppBaseUrl().replace(/\/+$/, "");
-  const [credits, viewerCanApprove] = await Promise.all([
+  const [credits, viewerCanApprove, billing] = await Promise.all([
     buildCreditsPayload({
       userId,
       organizationId: payer.organizationId,
@@ -295,6 +311,7 @@ export async function getCmoOverview(
       userId: null,
       organizationId: payer.organizationId,
     }),
+    readCmoBilling(cuso.projectId),
   ]);
   const subscribed = await isCmoSubscribed(cuso);
   const mediaOf = (plan: typeof strategy) =>
@@ -376,6 +393,8 @@ export async function getCmoOverview(
       // Once a network was connected hiring is over: a lapsed or removed
       // connection is fixed on Channels, not by hiring again.
       connected: channels.length > 0,
+      subscribed: billing.status !== null,
+      hiredWithStarterCredits: billing.hiredWithStarterCredits,
     }),
     media,
     learning,
@@ -414,9 +433,10 @@ export async function getCmoOverview(
     // Sokosumi's billing page on Cuso's organization: its credits pay for him.
     subscribeUrl: `${web}/billing?organizationId=${payer.organizationId}`,
     billing: {
-      plan: credits.subscription?.plan ?? null,
-      subscriptionStatus: credits.subscription?.status ?? null,
+      ...billing,
       availableCredits: credits.spendable,
+      // Owners and admins, as for approving the strategy (ADR 0061).
+      viewerCanManage: viewerCanApprove,
     },
     posts: Object.fromEntries(
       postGroups.map((group) => [group.status, group._count._all]),

@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { planWeeks } from "../../lib/calendar";
-import { cmoStrategyVersion } from "../../test-fixtures/cmo";
+import { cmoBilling, cmoStrategyVersion } from "../../test-fixtures/cmo";
 import {
   asking,
   brain,
@@ -245,7 +245,7 @@ describe("Site while Cuso reads", () => {
       reading({
         work: null,
         learning: "failed",
-        billing: { plan: null, subscriptionStatus: null, availableCredits: 0 },
+        billing: cmoBilling({ availableCredits: 0 }),
       }),
     );
     expect(html).toContain("out of credits");

@@ -1,4 +1,8 @@
-import type { ChatRoomMessage, CmoOverview } from "@sokosumi/core-client";
+import type {
+  ChatRoomMessage,
+  CmoOverview,
+  CmoSubscriptionPlan,
+} from "@sokosumi/core-client";
 
 /** The overview's one Marketing strategy version, approved at `approvedAt` or a draft. */
 export function cmoStrategyVersion(
@@ -44,6 +48,48 @@ export const cmoStrategy: NonNullable<CmoOverview["strategy"]> = {
     { kind: "ad", channel: "meta", title: "Try it", body: "Ad copy" },
   ],
 };
+
+const cmoPlan = (
+  name: string,
+  interval: CmoSubscriptionPlan["interval"],
+  credits: number,
+  dollars: number,
+): CmoSubscriptionPlan => ({
+  tier: name.toLowerCase(),
+  name,
+  interval,
+  credits,
+  priceAmount: dollars * 100,
+  currency: "usd",
+});
+
+/** ADR 0068's CMO plans, as Core lists them: monthly first, each by credits. */
+export const cmoPlans: CmoSubscriptionPlan[] = [
+  cmoPlan("Starter", "month", 10_000, 200),
+  cmoPlan("Growth", "month", 25_000, 500),
+  cmoPlan("Scale", "month", 50_000, 1_000),
+  cmoPlan("Starter", "year", 10_000, 2_000),
+  cmoPlan("Growth", "year", 25_000, 5_000),
+  cmoPlan("Scale", "year", 50_000, 10_000),
+];
+
+/** A Cuso nobody subscribed yet, with 40 credits to spend. */
+export function cmoBilling(
+  patch: Partial<CmoOverview["billing"]> = {},
+): CmoOverview["billing"] {
+  return {
+    tier: null,
+    interval: null,
+    status: null,
+    periodEnd: null,
+    cancelAtPeriodEnd: false,
+    pendingTier: null,
+    availableCredits: 40,
+    viewerCanManage: true,
+    hiredWithStarterCredits: false,
+    ...patch,
+  };
+}
 
 export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
   return {
@@ -126,7 +172,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     ],
     mailingListSize: 0,
     subscribeUrl: "http://web/billing",
-    billing: { plan: null, subscriptionStatus: null, availableCredits: 40 },
+    billing: cmoBilling(),
     posts: { draft: 2, scheduled: 1, published: 0, failed: 0 },
     createdAt: new Date("2026-10-01T09:00:00Z"),
     ...patch,

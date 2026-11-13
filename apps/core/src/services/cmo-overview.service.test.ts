@@ -98,6 +98,8 @@ describe("cmoOnboardingStep", () => {
     brandBrainConfirmed: false,
     strategyApproved: false,
     connected: false,
+    subscribed: false,
+    hiredWithStarterCredits: false,
   };
 
   it("resumes on the Brand Brain until a member confirms it", () => {
@@ -110,13 +112,36 @@ describe("cmoOnboardingStep", () => {
     );
   });
 
-  it("resumes on the accounts until one is connected, then is done", () => {
-    const approved = {
-      ...start,
-      brandBrainConfirmed: true,
-      strategyApproved: true,
-    };
+  const approved = {
+    ...start,
+    brandBrainConfirmed: true,
+    strategyApproved: true,
+  };
+
+  it("resumes on the accounts until one is connected, then on the checkout", () => {
     expect(cmoOnboardingStep(approved)).toBe("accounts");
-    expect(cmoOnboardingStep({ ...approved, connected: true })).toBe("done");
+    expect(cmoOnboardingStep({ ...approved, connected: true })).toBe(
+      "checkout",
+    );
+  });
+
+  it("is done only with a CMO subscription", () => {
+    expect(
+      cmoOnboardingStep({ ...approved, connected: true, subscribed: true }),
+    ).toBe("done");
+    // Paying early does not skip the accounts.
+    expect(cmoOnboardingStep({ ...approved, subscribed: true })).toBe(
+      "accounts",
+    );
+  });
+
+  it("stays done for a Cuso hired with Starter credits", () => {
+    expect(
+      cmoOnboardingStep({
+        ...approved,
+        connected: true,
+        hiredWithStarterCredits: true,
+      }),
+    ).toBe("done");
   });
 });
