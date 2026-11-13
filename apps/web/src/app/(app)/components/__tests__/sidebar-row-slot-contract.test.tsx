@@ -70,6 +70,8 @@ vi.mock("@/components/chat/live-member-presence-dot", () => ({
 }));
 vi.mock("@/components/chat/personal-assistant-chrome-store", () => ({
   publishPersonalAssistantChromeVisible: vi.fn(),
+  publishFailedSokoBotId: vi.fn(),
+  useFailedSokoBotId: () => null,
 }));
 vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
   fetchSidebarRoomCollection: async () => ({ rooms: [], nextCursor: null }),
