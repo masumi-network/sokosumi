@@ -4,7 +4,6 @@ import type { Coworker } from "@sokosumi/core-client";
 import { COWORKER_IMAGE_MAX_SIZE_BYTES } from "@sokosumi/utils";
 import { Bot } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
@@ -68,7 +67,6 @@ export function CoworkerDisplayForm({
   onNotFound,
 }: CoworkerDisplayFormProps) {
   const t = useTranslations("App.Coworkers.DisplayForm");
-  const router = useRouter();
 
   const [baseline, setBaseline] = useState(coworker);
   const [name, setName] = useState(coworker.name);
@@ -157,7 +155,6 @@ export function CoworkerDisplayForm({
         } else {
           toast.success(t("success.imageSaved"));
         }
-        router.refresh();
       });
     } finally {
       setPendingImageFiles([]);
@@ -191,7 +188,6 @@ export function CoworkerDisplayForm({
         } else {
           toast.success(t("success.imageRemoved"));
         }
-        router.refresh();
       });
     } finally {
       setIsRemovingImage(false);
@@ -257,7 +253,6 @@ export function CoworkerDisplayForm({
         } else {
           toast.success(t("success.saved"));
         }
-        router.refresh();
       });
     } finally {
       setIsSavingText(false);

@@ -4,9 +4,14 @@ import { Download, ExternalLink, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { GoogleSheetBar } from "@/app/drive/components/google-sheet-bar";
+import { CapTableFileView } from "@/components/cap-table/cap-table-view";
 import Markdown from "@/components/markdown";
+import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
 import { TeamFileView } from "@/components/team/team-view";
 import { Button } from "@/components/ui/button";
+import { isCapTableFileName } from "@/lib/cap-table-file";
+import { spreadsheetKind } from "@/lib/spreadsheet-file";
 import { isTeamFileName } from "@/lib/team-file";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import type { FileStore } from "@/lib/utils/file-search.client";
@@ -122,6 +127,7 @@ const EXTENSION_TYPES: Record<string, string> = {
   svg: "image/svg+xml",
   txt: "text/plain",
   webp: "image/webp",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 };
 
 export function effectiveType(
@@ -161,8 +167,12 @@ export function DriveFilePreview({
   const type = effectiveType(mimeType, displayName);
   const source = contentUrl({ resourceId, store });
   const isTeam = isTeamFileName(displayName);
+  const isCapTable = isCapTableFileName(displayName);
+  const sheet = spreadsheetKind(type, displayName);
   const isText =
     !isTeam &&
+    !isCapTable &&
+    !sheet &&
     TEXT_TYPES.has(type) &&
     (sizeBytes === null || sizeBytes <= MAX_TEXT_PREVIEW_BYTES);
   // Played from the same authorized route, so nothing public is handed out.
@@ -223,8 +233,14 @@ export function DriveFilePreview({
         {actions}
       </div>
 
+      <GoogleSheetBar resourceId={resourceId} store={store} />
+
       {isTeam ? (
         <TeamFileView url={source} />
+      ) : isCapTable ? (
+        <CapTableFileView url={source} />
+      ) : sheet ? (
+        <SpreadsheetFileView url={source} kind={sheet} />
       ) : rendersAsImage(type) ? (
         // Not `next/image`: the bytes come from an authorized route with a
         // per-request check, not from an optimizable public asset.

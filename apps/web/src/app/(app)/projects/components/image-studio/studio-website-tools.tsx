@@ -16,6 +16,10 @@ import { cn } from "@/lib/utils";
 import type { StudioBatchProduct } from "./studio-batch";
 import { StudioBrandKitDialog } from "./studio-brand-kit";
 import { StudioProductCatalogDialog } from "./studio-product-catalog";
+import {
+  STUDIO_TOOLBAR_LABEL_CLASS,
+  StudioToolbarTip,
+} from "./studio-project-toolbar";
 import { consumeStudioWebsiteDraftRequest } from "./studio-website-intent";
 
 export function StudioWebsiteTools({
@@ -98,16 +102,18 @@ export function StudioWebsiteTools({
   return (
     <>
       {websiteUrl ? (
-        <Button
-          loading={pending}
-          onClick={prepare}
-          size="sm"
-          type="button"
-          variant="outline"
-        >
-          <Globe aria-hidden />
-          {t("prepare")}
-        </Button>
+        <StudioToolbarTip label={t("prepare")}>
+          <Button
+            loading={pending}
+            onClick={prepare}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <Globe aria-hidden />
+            <span className={STUDIO_TOOLBAR_LABEL_CLASS}>{t("prepare")}</span>
+          </Button>
+        </StudioToolbarTip>
       ) : null}
       <StudioBrandKitDialog
         disabled={pending}

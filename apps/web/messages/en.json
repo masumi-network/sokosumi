@@ -281,7 +281,7 @@
           "confirm": "Confirm",
           "cancel": "Cancel",
           "success": "Invitation canceled successfully",
-          "error": "Failed to cancel invitation",
+          "error": "Could not cancel the invitation for {email}. It is still pending.",
           "Errors": {
             "unauthorizedAction": "Log in"
           }
@@ -418,7 +418,8 @@
             },
             "Error": {
               "share": "Failed to update share",
-              "copyLink": "Failed to copy link"
+              "copyLink": "Failed to copy link",
+              "searchIndexing": "Search indexing was not saved. It is back to its earlier setting."
             },
             "Errors": {
               "unauthenticated": "You must be logged in.",
@@ -896,7 +897,7 @@
         "IDLE": "Idle",
         "RUNNING": "Running",
         "PAUSED": "Paused",
-        "ERROR": "Error"
+        "ERROR": "Couldn't reply"
       },
       "TurnStatus": {
         "QUEUED": "Queued",
@@ -1098,6 +1099,34 @@
     },
     "ConnectLink": {
       "error": "Could not start the connection."
+    },
+    "SpreadsheetView": {
+      "loading": "Loading spreadsheet",
+      "failed": "This spreadsheet could not be opened.",
+      "sheet": "Sheet {number}",
+      "empty": "This sheet is empty.",
+      "truncated": "Showing the first {rows} rows and 50 columns. Download the file to see the rest."
+    },
+    "CapTableView": {
+      "loading": "Loading cap table",
+      "failed": "This cap table file can't be shown. Check that it is a valid cap table file.",
+      "title": "{company} cap table",
+      "asOf": "As of {date}",
+      "ownership": "Ownership, fully diluted",
+      "holder": "Holder",
+      "class": "Class",
+      "shares": "Shares",
+      "issued": "Issued",
+      "fullyDiluted": "Fully diluted",
+      "optionPool": "Option pool",
+      "vesting": "Vesting: {schedule}",
+      "granted": "{granted} granted, {available} available",
+      "total": "Total",
+      "issuedShares": "Issued shares",
+      "reservedShares": "Reserved for stock plan",
+      "unallocatedShares": "Not issued or reserved",
+      "authorizedShares": "Authorized shares",
+      "parValue": "Par value"
     },
     "TeamView": {
       "loading": "Loading team",
@@ -1664,7 +1693,24 @@
         "MyDay": {
           "title": "My day",
           "more": "{count, plural, one {Show # more} other {Show # more}}",
-          "error": "Couldn't load more. Try again."
+          "error": "Couldn't load more. Try again.",
+          "MoveOverdue": {
+            "trigger": "{count, plural, one {Move # overdue} other {Move # overdue}}",
+            "label": "{count, plural, one {Move # overdue Task to} other {Move # overdue Tasks to}}",
+            "targets": {
+              "today": "Today",
+              "tomorrow": "Tomorrow",
+              "nextMonday": "Monday next week"
+            },
+            "moved": "{count, plural, one {Moved # Task to {date}} other {Moved # Tasks to {date}}}",
+            "movedPartly": "{count} of {total} Tasks moved to {date}. The others changed or aren't yours to edit.",
+            "nothingMoved": "Nothing moved. Those Tasks changed or aren't yours to edit.",
+            "error": "Couldn't move your overdue Tasks. Try again.",
+            "undo": "Undo",
+            "undone": "{count, plural, one {Put # Task back} other {Put # Tasks back}}",
+            "undonePartly": "Put {count} of {total} Tasks back. The others changed since.",
+            "undoError": "Couldn't undo the move. Try again."
+          }
         },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
@@ -1678,7 +1724,11 @@
             "catchUp": "Catch me up",
             "teamWins": "What did we finish?",
             "planTomorrow": "Plan tomorrow"
-          }
+          },
+          "failedReply": "{name} couldn't finish its last reply",
+          "openChat": "Open the chat",
+          "failedWork": "{name} couldn't finish what it was working on",
+          "openBot": "Open {name}'s page"
         }
       },
       "SokoBot": {
@@ -1693,6 +1743,7 @@
         "feedbackUseful": "Useful",
         "feedbackNotUseful": "Not useful",
         "feedbackThanks": "Thanks, noted.",
+        "feedbackError": "Could not save your rating.",
         "approvals": "{count, plural, one {# approval waiting} other {# approvals waiting}}",
         "review": "Review on the assistant page",
         "task": "Task",
@@ -1816,6 +1867,7 @@
       },
       "Detail": {
         "back": "Back to tasks",
+        "backToCalendar": "Back to calendar",
         "privateBadge": "Private",
         "visibility": "Visibility",
         "parentTask": "Parent:",
@@ -1853,6 +1905,11 @@
         "authenticate": "Authenticate",
         "expand": "Expand",
         "collapse": "Show less",
+        "downloadAll": {
+          "button": "Download all",
+          "failed": "Couldn't download the files. Try again, or open them one by one.",
+          "partial": "Downloaded {included} of {total} files. Not included: {names}{more, plural, =0 {} one { and # more} other { and # more}}. Open them one by one."
+        },
         "actorCoworker": "Coworker",
         "actorUser": "User",
         "actorSokoBot": "Assistant",
@@ -1984,7 +2041,8 @@
           },
           "Error": {
             "share": "Failed to update task sharing",
-            "copyLink": "Failed to copy public link"
+            "copyLink": "Failed to copy public link",
+            "searchIndexing": "Search indexing was not saved. It is back to its earlier setting."
           },
           "Errors": {
             "unauthenticated": "Please log in to manage task sharing",
@@ -2087,6 +2145,7 @@
         "noStatusMatches": "No status matches",
         "untitledTask": "Untitled task",
         "saveError": "Failed to save task",
+        "createError": "Could not create “{name}”. Your input is still in the form.",
         "back": "Back",
         "uploadFile": "Upload file",
         "uploadFileError": "Failed to upload file",
@@ -2891,6 +2950,14 @@
           "timeout": "Timed out.",
           "missing": "Couldn't open this post.",
           "mediaUnavailable": "Media isn't included in imported history yet.",
+          "mediaNotice": {
+            "pad_4_5": "{provider} will pad this image to 4:5.",
+            "pad_1_91_1": "{provider} will pad this image to 1.91:1.",
+            "resize": "{provider} will resize this image.",
+            "jpeg": "{provider} will convert this image to JPEG.",
+            "srgb": "{provider} will convert this image to sRGB.",
+            "smaller_file": "{provider} will compress this image."
+          },
           "linkedin": {
             "like": "Like",
             "comment": "Comment",
@@ -3527,7 +3594,20 @@
           }
         },
         "Calendar": {
-          "title": "Calendar"
+          "title": "Calendar",
+          "nextIssue": "Next issue",
+          "nothingScheduled": "Nothing scheduled yet. Schedule an issue and it shows here.",
+          "openFullCalendar": "Open full calendar",
+          "emptyTitle": "No issues yet",
+          "emptyDescription": "Write an issue and it shows here by date.",
+          "goToIssues": "Go to issues",
+          "groups": {
+            "scheduled": "Scheduled",
+            "unscheduled": "Not scheduled",
+            "sent": "Sent"
+          },
+          "count": "{count, plural, one {# issue} other {# issues}}",
+          "newestOnly": "Showing the newest {count} issues. Open the full calendar to see older ones."
         },
         "Issues": {
           "title": "Issues",
@@ -3558,6 +3638,7 @@
           "previewText": "Preview text",
           "status": "Status",
           "sentAt": "Sent {date}",
+          "sentTo": "Sent {date} to {count, plural, one {# subscriber} other {# subscribers}}",
           "firstPage": "First page",
           "nextPage": "Next page",
           "results": "{count, plural, one {# issue} other {# issues}}",
@@ -3740,10 +3821,10 @@
           "Image": {
             "width": "Width",
             "widths": {
-              "100": "Full width",
-              "75": "Three quarters",
+              "25": "Quarter",
               "50": "Half",
-              "25": "Quarter"
+              "75": "Three quarters",
+              "100": "Full width"
             },
             "align": "Alignment",
             "aligns": {
@@ -4368,7 +4449,6 @@
       "model": "Model",
       "aspectRatio": "Frame",
       "adPlacements": "Ad placements",
-      "placementHelp": "Choose one or more ad placements, or pick a single custom frame below.",
       "creativeDirection": "Creative direction",
       "adGallery": "Ad gallery",
       "groupByProduct": "Group by product",
@@ -5270,7 +5350,6 @@
         "SokoBot": {
           "fallbackName": "Soko Bot",
           "workingNow": "Working now",
-          "needsAttention": "Needs attention",
           "activeAgo": "Active {time}",
           "ready": "Ready",
           "team": "Your team's Soko Bots"
@@ -8794,8 +8873,10 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "failed": "Failed to reply",
-        "retry": "Retry"
+        "failed": "{name} couldn't reply",
+        "failedBody": "The reply stopped before it finished.",
+        "failedSaved": "The reply stopped before it finished. Your message is saved.",
+        "retry": "Try again"
       },
       "Outbound": {
         "sending": "Sending",
@@ -8968,7 +9049,9 @@
         "messageRequired": "Message is required.",
         "roomRequired": "Room is required.",
         "pinError": "Could not pin message.",
-        "unpinError": "Could not unpin message."
+        "unpinError": "Could not unpin message.",
+        "statePinned": "The message is pinned.",
+        "stateUnpinned": "The message is not pinned."
       },
       "SavedMessages": {
         "save": "Save for later",
@@ -8998,12 +9081,16 @@
       "Unfurl": {
         "openLink": "Open link preview: {title}",
         "imageAlt": "Preview image for {title}",
-        "remove": "Remove link preview: {title}"
+        "remove": "Remove link preview: {title}",
+        "removeError": "Could not remove the link preview. Try again.",
+        "restored": "The link preview is back on the message."
       },
       "Message": {
         "delete": "Delete",
         "deleteConfirm": "Delete this message? Others will see that it was deleted.",
         "deleted": "This message was deleted",
+        "deleteError": "Could not delete the message. Try again.",
+        "restored": "The message is back in the conversation.",
         "showMore": "Show more",
         "showLess": "Show less"
       },
@@ -9013,7 +9100,9 @@
         "composerAria": "Edit message. Use Save or Cancel to finish. On a keyboard, Enter saves, Escape cancels, and Shift+Enter adds a new line.",
         "edited": "Edited",
         "editedAt": "Edited {when}",
-        "save": "Save"
+        "save": "Save",
+        "saveError": "Could not save the edit. Try again.",
+        "restored": "The message shows its earlier text again."
       },
       "Copy": {
         "action": "Copy text",
@@ -9101,7 +9190,9 @@
         "removeConfirmTitle": "Remove {name} from this channel?",
         "removeConfirmDescription": "{name} will no longer see this channel or its messages.",
         "removeSuccess": "Removed {name} from the channel.",
-        "undo": "Undo"
+        "removeError": "Could not remove {name} from the channel.",
+        "undo": "Undo",
+        "undoError": "Could not put {name} back in the channel."
       },
       "AddMembers": {
         "title": "Add members",
@@ -9483,6 +9574,30 @@
       "createFolderDialogTitle": "Create new folder",
       "createFolderDialogDescription": "Enter a name for the new folder",
       "createFolderDialogConfirm": "Create",
+      "GoogleSheet": {
+        "button": "Link Google Sheet",
+        "dialogTitle": "Link a Google Sheet",
+        "dialogDescription": "Paste the sheet's link. In Google Sheets, set Share → General access to “Anyone with the link”. Sokosumi keeps Google’s PDF of it here and updates it every hour.",
+        "linkLabel": "Google Sheets link",
+        "link": "Link",
+        "linking": "Linking…",
+        "cancel": "Cancel",
+        "linked": "Linked {name}",
+        "notALink": "That isn't a Google Sheets link. Copy it from the address bar of the sheet.",
+        "notShared": "Sokosumi can't open that sheet. Set its General access to “Anyone with the link” and try again.",
+        "nameTaken": "A file with this sheet's name is already in this folder.",
+        "failed": "Google Sheets didn't answer. Try again in a minute.",
+        "source": "Google Sheet",
+        "updated": "updated {when}",
+        "refresh": "Refresh",
+        "refreshing": "Refreshing…",
+        "open": "Open in Google Sheets",
+        "error": {
+          "not_shared": "The last update failed: the sheet is no longer shared by link. This copy is from before.",
+          "too_large": "The last update failed: the sheet is too large. This copy is from before.",
+          "failed": "The last update failed. This copy is from before."
+        }
+      },
       "deleteFolderDialogTitle": "Delete folder",
       "deleteFolderAction": "Delete folder",
       "deleteFolderDialogDescription": "Are you sure you want to delete {folderName} and all its contents? This action cannot be undone.",
@@ -9597,7 +9712,7 @@
         "bulkDeleteDescriptionSkipsTaskFiles": "They are removed for everyone in this Files workspace. Files from tasks stay with their task. This can't be undone.",
         "bulkDeleteCancel": "Cancel",
         "bulkDeleted": "{count, plural, one {Deleted # file} other {Deleted # files}}",
-        "bulkDeletePartial": "{deleted} deleted, {failed} failed and stay selected",
+        "bulkDeletePartial": "{deleted} deleted. Could not delete {failed, plural, one {# file} other {# files}}. Try again.",
         "detailLoading": "Loading file",
         "detailProcessing": "Processing",
         "detailCategory": "Category",
@@ -9662,7 +9777,8 @@
         "collectionSaved": "Saved “{name}”",
         "collectionUpdated": "Updated “{name}”",
         "collectionSaveFailed": "That collection could not be saved.",
-        "collectionDeleteFailed": "That collection could not be deleted.",
+        "collectionRenameFailed": "Could not rename “{name}”. The new name was not saved.",
+        "collectionDeleteFailed": "Could not delete “{name}”. The collection is back in its place.",
         "collectionsUnavailable": "Collections could not be loaded.",
         "labelsUnavailable": "Categories and tags could not be loaded.",
         "collectionActions": "Actions for {name}",
@@ -9837,6 +9953,8 @@
         },
         "Settings": {
           "titleLabel": "Title",
+          "welcomeLabel": "Welcome note",
+          "welcomeHint": "Shown on the Welcome page when someone opens the room. Line breaks are kept.",
           "logoLabel": "Logo",
           "noLogo": "No logo",
           "logoHint": "An image from this room, shown beside the title.",
@@ -10172,6 +10290,7 @@
       },
       "Console": {
         "tagline": "Your personal project manager. It delegates work, follows up, and keeps you posted — talk to it in chat.",
+        "lastTurnFailed": "{name} couldn't finish its last reply.",
         "lastActivity": "last active {time}",
         "adminView": "Admin view",
         "openChat": "Open chat",
@@ -10392,6 +10511,8 @@
         "moveRun": "Move run",
         "skipRun": "Skip run",
         "restoreRun": "Restore run",
+        "runSkipped": "Skipped the {name} run.",
+        "undo": "Undo",
         "openSchedule": "Open schedule",
         "allDay": "All day",
         "runStale": "This schedule changed somewhere else. The calendar is reloading; try again.",
@@ -10436,7 +10557,10 @@
         "showing": "Times in {zone}"
       },
       "empty": {
-        "title": "Nothing scheduled matches these filters.",
+        "title": "{view, select, month {Nothing scheduled this month} week {Nothing scheduled this week} other {Nothing coming up}}",
+        "filtered": "Nothing scheduled matches these filters.",
+        "hint": "Tasks with a start time, schedule runs and dated posts show up here.",
+        "createHint": "{view, select, agenda {Use Schedule a task to add one.} other {Use Schedule a task, or click a day to start on that date.}}",
         "socialOnly": "No social posts are scheduled in this period."
       },
       "schedules": {
@@ -10632,7 +10756,10 @@
         "csv": "Check the quotes and separators in the CSV file.",
         "csvHeaders": "Give every CSV column a non-empty header.",
         "csvWidth": "Every CSV row must have the same number of columns.",
-        "layout": "Column layout wasn't saved and was reset. {reason}"
+        "layout": "Column layout wasn't saved and was reset. {reason}",
+        "archiveRows": "{count, plural, one {Could not archive # row. It is back in the table.} other {Could not archive # rows. They are back in the table.}} {reason}",
+        "restoreRows": "{count, plural, one {Could not restore # row. It is back in archived rows.} other {Could not restore # rows. They are back in archived rows.}} {reason}",
+        "cellNotSaved": "Your value was not saved. It is back in the editor. {reason}"
       },
       "reorderColumn": "Reorder {column}. Drag, or press the left and right arrow keys.",
       "reorderRow": "Reorder row. Drag, or press the up and down arrow keys.",
@@ -10782,7 +10909,7 @@
       },
       "toolbar": {
         "search": "Search contacts",
-        "searchPlaceholder": "Search name, company, email…",
+        "searchPlaceholder": "Search name, company, email, place…",
         "me": "Me",
         "clearFilter": "Clear {filter} filter",
         "export": "Export CSV",
@@ -10897,6 +11024,7 @@
         "channelTaken": "Someone on your team already has this person in Contacts.",
         "openExisting": "Open contact",
         "failed": "The contact didn't save. Try again.",
+        "listFailed": "The contact is saved but isn't on the list yet. Try again to add them.",
         "cancel": "Cancel",
         "submit": "Add contact"
       },
@@ -10983,11 +11111,16 @@
         "linkCopied": "Link copied",
         "archive": "Archive contact",
         "archived": "{name} archived",
+        "archiveFailed": "Could not archive {name}. The contact is back in your list.",
         "changeStage": "Stage: {stage}. Change stage",
         "changeLists": "Change lists",
         "addToList": "Add to a list",
         "manualLists": "Lists",
         "noManualLists": "No lists yet.",
+        "newList": "New list…",
+        "newListAddFailed": "{list} is ready, but {name} isn't on it yet.",
+        "addToListFailed": "Could not add {name} to {list}. The contact is off the list again.",
+        "removeFromListFailed": "Could not take {name} off {list}. The contact is back on the list.",
         "empty": "Add…",
         "location": "Location",
         "nextStepTitle": "Next step",
@@ -11286,12 +11419,10 @@
         "failed": "Could not reach the data room. Try again."
       },
       "signedInAs": "Signed in as {email}",
-      "downloadAll": "Download all",
+      "downloadAll": "Download everything",
       "signOut": "Sign out",
       "empty": "Nothing in this data room yet.",
       "indexLabel": "Contents",
-      "pickFile": "Choose a file to open it.",
-      "new": "New",
       "download": "Download",
       "watermarkNote": "Pages and images you open carry your email and the time.",
       "downloadToOpen": "This file can't be shown here. Download it to open it.",
@@ -11303,7 +11434,11 @@
       "awaitingAnswer": "Waiting for an answer",
       "askLabel": "Ask the owner about this document",
       "ask": "Ask",
-      "askFailed": "Could not send your question. Try again."
+      "askFailed": "Could not send your question. Try again.",
+      "welcome": "Welcome",
+      "welcomeTitle": "Welcome to {title}",
+      "contents": "{files, plural, one {# document} other {# documents}}{folders, plural, =0 {} one { in # folder} other { in # folders}}",
+      "openFirst": "Open {name}"
     }
   },
   "NotFound": {

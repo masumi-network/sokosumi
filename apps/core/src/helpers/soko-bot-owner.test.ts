@@ -16,6 +16,7 @@ import {
   sokoBotPersonaOf,
   sokoBotTurnAudience,
   sokoBotTurnReaderOf,
+  taskOwnerLabel,
 } from "./soko-bot-owner";
 
 const PROJECT_ID = "01960001-0001-7001-8001-000000000010";
@@ -220,5 +221,24 @@ describe("loadSokoBotPersona", () => {
       name: null,
       ownerName: null,
     });
+  });
+});
+
+describe("taskOwnerLabel", () => {
+  const task = { ownerId: "user-2", owner: { name: "Patrick" } };
+
+  it("marks the bot's own owner", () => {
+    expect(taskOwnerLabel(task, "user-2")).toBe("your owner");
+  });
+
+  it("names a teammate so their Task is not taken for the owner's", () => {
+    expect(taskOwnerLabel(task, "user-1")).toBe(
+      "Patrick, a teammate (not your owner)",
+    );
+  });
+
+  it("only names the owner for a shared bot, and nobody for an unowned Task", () => {
+    expect(taskOwnerLabel(task, null)).toBe("Patrick");
+    expect(taskOwnerLabel({ ownerId: null, owner: null }, "user-1")).toBeNull();
   });
 });

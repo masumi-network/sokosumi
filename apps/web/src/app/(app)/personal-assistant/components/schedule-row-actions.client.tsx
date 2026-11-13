@@ -1,8 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
@@ -29,54 +28,73 @@ interface ScheduleRowActionsProps {
   enabled: boolean;
   /** Built-in rhythms can be paused but not deleted. */
   deletable?: boolean;
+  /** Told at once that a delete began (true), and that it failed (false). */
+  onRemovedChange?: (removed: boolean) => void;
 }
 
 export function ScheduleRowActions({
   scheduleId,
   enabled,
   deletable = true,
+  onRemovedChange,
 }: ScheduleRowActionsProps) {
   const t = useTranslations("App.SokoBot.Schedules");
-  const router = useRouter();
   const botId = useSokoBotTargetId();
   const [isPending, startTransition] = useTransition();
+  // Committed state, not `useOptimistic`. `enabled` comes from the bot state,
+  // which takes fresh props in an effect: one commit after the transition
+  // ends. An optimistic value would show the old state in between.
+  const [shown, setShown] = useState(enabled);
+  // Whatever the server last told us. When that changes it wins over what
+  // this switch remembers.
+  const [savedEnabled, setSavedEnabled] = useState<boolean | null>(enabled);
+  if (savedEnabled !== enabled) {
+    setSavedEnabled(enabled);
+    setShown(enabled);
+  }
 
   function toggle(next: boolean) {
+    setShown(next);
     startTransition(async () => {
+      // A rejected call is a failed write too: the switch must not stay on
+      // a state Core never saved.
       const result = await updateSokoBotScheduleAction({
         botId,
         input: { scheduleId, patch: { enabled: next } },
-      });
-      if (!result.ok) {
-        toast.error(result.error.message ?? t("updateError"));
-        return;
+      }).catch(() => null);
+      if (!result?.ok) {
+        // Forget what the server said, so the next render takes its newest
+        // word. That can differ from the state before the click when a
+        // read landed while this write was open.
+        setSavedEnabled(null);
+        toast.error(result?.error.message ?? t("updateError"));
       }
-      router.refresh();
     });
   }
 
   function remove() {
+    onRemovedChange?.(true);
     startTransition(async () => {
       const result = await deleteSokoBotScheduleAction({
         scheduleId,
         botId,
-      });
-      if (!result.ok) {
-        toast.error(result.error.message ?? t("deleteError"));
+      }).catch(() => null);
+      if (!result?.ok) {
+        onRemovedChange?.(false);
+        toast.error(result?.error.message ?? t("deleteError"));
         return;
       }
       toast.success(t("deleted"));
-      router.refresh();
     });
   }
 
   return (
     <div className="flex shrink-0 items-center gap-2">
       <Switch
-        checked={enabled}
+        checked={shown}
         onCheckedChange={toggle}
         disabled={isPending}
-        aria-label={enabled ? t("disable") : t("enable")}
+        aria-label={shown ? t("disable") : t("enable")}
       />
       {deletable ? (
         <AlertDialog>

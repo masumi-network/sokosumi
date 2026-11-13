@@ -9,6 +9,7 @@ import {
   mergeTaskActivityEvents,
   sortTaskEventsAscending,
   TASK_ACTIVITY_VISIBLE_COMMENT_LIMIT,
+  taskActivityFeedFromEvents,
 } from "@/app/tasks/utils/task-activity-feed";
 
 function event(
@@ -185,5 +186,46 @@ describe("mergeTaskActivityEvents", () => {
 
     expect(merged.map((e) => e.id)).toEqual(["a", "b"]);
     expect(isTaskActivityComment(merged[1]!)).toBe(true);
+  });
+});
+
+describe("taskActivityFeedFromEvents", () => {
+  const at = "2026-01-01T12:00:00.000Z";
+  const comments = (count: number) =>
+    Array.from({ length: count }, (_, index) =>
+      event(`c${index}`, at, { comment: `comment ${index}` }),
+    );
+
+  it("picks the newest comments by id when the payload order ties on time", () => {
+    const feed = taskActivityFeedFromEvents(comments(6).reverse(), {
+      keepAllComments: false,
+    });
+
+    expect(feed.events.map((e) => e.id)).toEqual([
+      "c1",
+      "c2",
+      "c3",
+      "c4",
+      "c5",
+    ]);
+    expect(feed.pagination).toEqual({
+      commentCount: 6,
+      latestCommentId: "c5",
+    });
+  });
+
+  it("orders the payload when it keeps every comment", () => {
+    const feed = taskActivityFeedFromEvents(comments(6).reverse(), {
+      keepAllComments: true,
+    });
+
+    expect(feed.events.map((e) => e.id)).toEqual([
+      "c0",
+      "c1",
+      "c2",
+      "c3",
+      "c4",
+      "c5",
+    ]);
   });
 });

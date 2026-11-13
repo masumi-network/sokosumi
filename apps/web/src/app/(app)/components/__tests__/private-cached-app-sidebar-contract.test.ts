@@ -22,7 +22,7 @@ describe("PrivateCachedAppSidebar session contract", () => {
   });
 
   it("does not block rooms chrome on pending invites, credits, or vendor-admin", () => {
-    expect(source).toMatch(/getPrivateCachedChatListChrome/);
+    expect(source).toMatch(/loadSidebarChatList/);
     expect(source).not.toMatch(/listPendingInvitations/);
     expect(source).not.toMatch(/getCachedMyCredits/);
     expect(source).not.toMatch(/getDeveloperVendorAdminAccess/);
