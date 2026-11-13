@@ -45,6 +45,8 @@ export async function getChatRoomUnreadMentionCounts(
     [...new Set(rows.map((row) => row.referenceId))],
     userId,
     tx,
+    // The same rows the helper would read again.
+    rows,
   );
   const passedIds = new Set(passedRows.map((row) => row.id));
   const messagesByRoom = new Map<string, Set<string>>();

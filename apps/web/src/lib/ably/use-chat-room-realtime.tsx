@@ -10,7 +10,6 @@ import type * as Ably from "ably";
 import { useAbly } from "ably/react";
 import { useEffect, useMemo, useRef } from "react";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
-
 import {
   type ChatRoomMessageEventData,
   type ChatRoomPinnedMessageEventData,
@@ -19,6 +18,7 @@ import {
   chatRoomPinnedMessageEventDataSchema,
   chatRoomReadEventDataSchema,
 } from "@/lib/ably/schema";
+import { authorizeAbly } from "./authorize.client";
 
 import {
   CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
@@ -210,7 +210,7 @@ export function useChatRoomRealtime({
 
       let tokenDetails: Ably.TokenDetails | null = null;
       try {
-        tokenDetails = await ably.auth.authorize();
+        tokenDetails = await authorizeAbly(ably);
       } catch (error) {
         if (generation !== syncGenerationRef.current) {
           return;

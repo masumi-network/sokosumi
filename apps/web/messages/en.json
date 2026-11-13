@@ -281,7 +281,7 @@
           "confirm": "Confirm",
           "cancel": "Cancel",
           "success": "Invitation canceled successfully",
-          "error": "Failed to cancel invitation",
+          "error": "Could not cancel the invitation for {email}. It is still pending.",
           "Errors": {
             "unauthorizedAction": "Log in"
           }
@@ -418,7 +418,8 @@
             },
             "Error": {
               "share": "Failed to update share",
-              "copyLink": "Failed to copy link"
+              "copyLink": "Failed to copy link",
+              "searchIndexing": "Search indexing was not saved. It is back to its earlier setting."
             },
             "Errors": {
               "unauthenticated": "You must be logged in.",
@@ -1738,6 +1739,7 @@
         "feedbackUseful": "Useful",
         "feedbackNotUseful": "Not useful",
         "feedbackThanks": "Thanks, noted.",
+        "feedbackError": "Could not save your rating.",
         "approvals": "{count, plural, one {# approval waiting} other {# approvals waiting}}",
         "review": "Review on the assistant page",
         "task": "Task",
@@ -2035,7 +2037,8 @@
           },
           "Error": {
             "share": "Failed to update task sharing",
-            "copyLink": "Failed to copy public link"
+            "copyLink": "Failed to copy public link",
+            "searchIndexing": "Search indexing was not saved. It is back to its earlier setting."
           },
           "Errors": {
             "unauthenticated": "Please log in to manage task sharing",
@@ -2138,6 +2141,7 @@
         "noStatusMatches": "No status matches",
         "untitledTask": "Untitled task",
         "saveError": "Failed to save task",
+        "createError": "Could not create “{name}”. Your input is still in the form.",
         "back": "Back",
         "uploadFile": "Upload file",
         "uploadFileError": "Failed to upload file",
@@ -9180,7 +9184,9 @@
         "removeConfirmTitle": "Remove {name} from this channel?",
         "removeConfirmDescription": "{name} will no longer see this channel or its messages.",
         "removeSuccess": "Removed {name} from the channel.",
-        "undo": "Undo"
+        "removeError": "Could not remove {name} from the channel.",
+        "undo": "Undo",
+        "undoError": "Could not put {name} back in the channel."
       },
       "AddMembers": {
         "title": "Add members",
@@ -9565,7 +9571,7 @@
       "GoogleSheet": {
         "button": "Link Google Sheet",
         "dialogTitle": "Link a Google Sheet",
-        "dialogDescription": "Paste the sheet's link. In Google Sheets, set Share → General access to “Anyone with the link”. Sokosumi keeps a copy here and updates it every hour.",
+        "dialogDescription": "Paste the sheet's link. In Google Sheets, set Share → General access to “Anyone with the link”. Sokosumi keeps Google’s PDF of it here and updates it every hour.",
         "linkLabel": "Google Sheets link",
         "link": "Link",
         "linking": "Linking…",
@@ -9700,7 +9706,7 @@
         "bulkDeleteDescriptionSkipsTaskFiles": "They are removed for everyone in this Files workspace. Files from tasks stay with their task. This can't be undone.",
         "bulkDeleteCancel": "Cancel",
         "bulkDeleted": "{count, plural, one {Deleted # file} other {Deleted # files}}",
-        "bulkDeletePartial": "{deleted} deleted, {failed} failed and stay selected",
+        "bulkDeletePartial": "{deleted} deleted. Could not delete {failed, plural, one {# file} other {# files}}. Try again.",
         "detailLoading": "Loading file",
         "detailProcessing": "Processing",
         "detailCategory": "Category",
@@ -9765,7 +9771,8 @@
         "collectionSaved": "Saved “{name}”",
         "collectionUpdated": "Updated “{name}”",
         "collectionSaveFailed": "That collection could not be saved.",
-        "collectionDeleteFailed": "That collection could not be deleted.",
+        "collectionRenameFailed": "Could not rename “{name}”. The new name was not saved.",
+        "collectionDeleteFailed": "Could not delete “{name}”. The collection is back in its place.",
         "collectionsUnavailable": "Collections could not be loaded.",
         "labelsUnavailable": "Categories and tags could not be loaded.",
         "collectionActions": "Actions for {name}",
@@ -9940,6 +9947,8 @@
         },
         "Settings": {
           "titleLabel": "Title",
+          "welcomeLabel": "Welcome note",
+          "welcomeHint": "Shown on the Welcome page when someone opens the room. Line breaks are kept.",
           "logoLabel": "Logo",
           "noLogo": "No logo",
           "logoHint": "An image from this room, shown beside the title.",
@@ -10740,7 +10749,10 @@
         "csv": "Check the quotes and separators in the CSV file.",
         "csvHeaders": "Give every CSV column a non-empty header.",
         "csvWidth": "Every CSV row must have the same number of columns.",
-        "layout": "Column layout wasn't saved and was reset. {reason}"
+        "layout": "Column layout wasn't saved and was reset. {reason}",
+        "archiveRows": "{count, plural, one {Could not archive # row. It is back in the table.} other {Could not archive # rows. They are back in the table.}} {reason}",
+        "restoreRows": "{count, plural, one {Could not restore # row. It is back in archived rows.} other {Could not restore # rows. They are back in archived rows.}} {reason}",
+        "cellNotSaved": "Your value was not saved. It is back in the editor. {reason}"
       },
       "reorderColumn": "Reorder {column}. Drag, or press the left and right arrow keys.",
       "reorderRow": "Reorder row. Drag, or press the up and down arrow keys.",
@@ -11092,6 +11104,7 @@
         "linkCopied": "Link copied",
         "archive": "Archive contact",
         "archived": "{name} archived",
+        "archiveFailed": "Could not archive {name}. The contact is back in your list.",
         "changeStage": "Stage: {stage}. Change stage",
         "changeLists": "Change lists",
         "addToList": "Add to a list",
@@ -11099,6 +11112,8 @@
         "noManualLists": "No lists yet.",
         "newList": "New list…",
         "newListAddFailed": "{list} is ready, but {name} isn't on it yet.",
+        "addToListFailed": "Could not add {name} to {list}. The contact is off the list again.",
+        "removeFromListFailed": "Could not take {name} off {list}. The contact is back on the list.",
         "empty": "Add…",
         "location": "Location",
         "nextStepTitle": "Next step",
@@ -11397,12 +11412,10 @@
         "failed": "Could not reach the data room. Try again."
       },
       "signedInAs": "Signed in as {email}",
-      "downloadAll": "Download all",
+      "downloadAll": "Download everything",
       "signOut": "Sign out",
       "empty": "Nothing in this data room yet.",
       "indexLabel": "Contents",
-      "pickFile": "Choose a file to open it.",
-      "new": "New",
       "download": "Download",
       "watermarkNote": "Pages and images you open carry your email and the time.",
       "downloadToOpen": "This file can't be shown here. Download it to open it.",
@@ -11414,7 +11427,11 @@
       "awaitingAnswer": "Waiting for an answer",
       "askLabel": "Ask the owner about this document",
       "ask": "Ask",
-      "askFailed": "Could not send your question. Try again."
+      "askFailed": "Could not send your question. Try again.",
+      "welcome": "Welcome",
+      "welcomeTitle": "Welcome to {title}",
+      "contents": "{files, plural, one {# document} other {# documents}}{folders, plural, =0 {} one { in # folder} other { in # folders}}",
+      "openFirst": "Open {name}"
     }
   },
   "NotFound": {

@@ -14,6 +14,8 @@ interface RoomReadOverlay {
   unreadThreadMentionCount?: number;
   unreadThreads?: ChatRoom["unreadThreads"];
   unreadMentionCount: number;
+  /** Absent on a snapshot that says nothing about it. */
+  unreadNeedsYouCount?: number;
   markedUnread: boolean;
   revision: number;
   pending: {
@@ -56,6 +58,7 @@ function storeAttention(
     unreadThreadMentionCount: room.unreadThreadMentionCount,
     unreadThreads: room.unreadThreads,
     unreadMentionCount: room.unreadMentionCount,
+    unreadNeedsYouCount: room.unreadNeedsYouCount,
     markedUnread: room.markedUnread,
     revision: nextRevision,
     pending,
@@ -91,6 +94,8 @@ function applyAttention<T extends RoomAttentionFields>(
       overlay.unreadThreadMentionCount ?? room.unreadThreadMentionCount,
     unreadThreads: overlay.unreadThreads ?? room.unreadThreads,
     unreadMentionCount: overlay.unreadMentionCount,
+    unreadNeedsYouCount:
+      overlay.unreadNeedsYouCount ?? room.unreadNeedsYouCount,
     markedUnread: overlay.markedUnread,
   };
 }
