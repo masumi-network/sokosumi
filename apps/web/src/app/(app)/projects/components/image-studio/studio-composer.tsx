@@ -904,12 +904,18 @@ export function StudioComposer({
                   placeholder={labels.searchModels}
                   value={modelQuery}
                 />
-                <p
-                  className="text-muted-foreground mb-2 px-1 text-xs"
-                  id="studio-model-selection-limit"
-                >
-                  {selectionLimitReason}
-                </p>
+                {/* The "Select up to N" button already states the plain model
+                  limit, so this line only appears once the limit is reached
+                  (it explains the disabled rows) or for a product batch,
+                  where it says which choices count toward the image limit. */}
+                {selectionLimitReached || hasProductBatch ? (
+                  <p
+                    className="text-muted-foreground mb-2 px-1 text-xs"
+                    id="studio-model-selection-limit"
+                  >
+                    {selectionLimitReason}
+                  </p>
+                ) : null}
                 <div
                   className="app-scrollbar max-h-80 overflow-y-auto overscroll-contain"
                   role="group"
