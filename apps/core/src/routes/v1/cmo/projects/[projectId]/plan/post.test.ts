@@ -30,7 +30,7 @@ const m = vi.hoisted(() => ({
     },
     member: { findFirst: vi.fn() },
     project: { findUnique: vi.fn() },
-    sokoBot: { findFirst: vi.fn() },
+    sokoBot: { findFirst: vi.fn(), updateMany: vi.fn() },
     task: { findMany: vi.fn() },
     transaction: { create: vi.fn() },
     workspace: { findUnique: vi.fn() },
@@ -397,6 +397,8 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
     );
     m.prisma.task.findMany.mockResolvedValue([]);
     m.prisma.transaction.create.mockResolvedValue({ id: "tx_1" });
+    // The grant write-locks the live Cuso's row.
+    m.prisma.sokoBot.updateMany.mockResolvedValue({ count: 1 });
 
     const response = await changePlan("scale");
 

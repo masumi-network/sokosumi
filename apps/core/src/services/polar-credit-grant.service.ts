@@ -108,8 +108,9 @@ async function isOrderRefunded(
  * Locks the subscription row the grant is for and says whether it may still
  * grant. Every ending revokes, and so writes this row, before it archives the
  * Cuso: a grant either waits for that write and sees it, or commits first and
- * the ending's write-off takes its credits. The Cuso check reads what the
- * locked row already orders. The lock is a write, not `FOR UPDATE`: a
+ * the ending's write-off takes its credits. The Cuso's row is written too,
+ * for an ending that found no subscription to revoke. The lock is a write,
+ * not `FOR UPDATE`: a
  * Serializable refund whose snapshot predates the grant then fails on this
  * row and runs again, finding the new bucket.
  */
@@ -137,11 +138,14 @@ async function lockLiveSubscription(
   ) {
     return false;
   }
-  const cuso = await tx.sokoBot.findFirst({
+  // Written, not read: an archive that holds the Cuso's row makes this wait
+  // and then match nothing; one whose snapshot predates the grant fails on
+  // this write and runs again, finding the bucket (`writeOffUnlessLiveCuso`).
+  const { count } = await tx.sokoBot.updateMany({
     where: { ...LIVE_CUSO_WHERE, projectId: grant.projectId },
-    select: { id: true },
+    data: { updatedAt: new Date() },
   });
-  return cuso !== null;
+  return count > 0;
 }
 
 interface LockedSubscription {

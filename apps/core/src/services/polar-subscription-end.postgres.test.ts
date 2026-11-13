@@ -43,6 +43,8 @@ const db = enabled && url ? createPrismaClient(url) : null;
 const ORGANIZATION = `org-${randomUUID()}`;
 const WORKSPACE = randomUUID();
 const DAY_MS = 86_400_000;
+/** 10^10 ledger units are one credit. */
+const CREDIT = 10_000_000_000n;
 
 function database() {
   if (!db) throw new Error("Missing integration database");
@@ -110,6 +112,21 @@ async function archive(botId: string) {
   });
 }
 
+/** What is left of the Project's credits. */
+async function left(projectId: string): Promise<bigint> {
+  const buckets = await database().creditBucket.findMany({
+    where: { projectId },
+    select: { amount: true, consumptions: { select: { amount: true } } },
+  });
+  return buckets.reduce(
+    (sum, bucket) =>
+      sum +
+      bucket.amount -
+      bucket.consumptions.reduce((spent, c) => spent + c.amount, 0n),
+    0n,
+  );
+}
+
 async function stored(polarSubscriptionId: string) {
   return await database().polarSubscription.findUnique({
     where: { polarSubscriptionId },
@@ -133,6 +150,10 @@ describe.skipIf(!db)(
     afterAll(async () => {
       if (!db) return;
       await db.polarSubscription.deleteMany({
+        where: { organizationId: ORGANIZATION },
+      });
+      // Buckets and consumptions go with their transactions.
+      await db.transaction.deleteMany({
         where: { organizationId: ORGANIZATION },
       });
       await db.sokoBot.deleteMany({ where: { workspaceId: WORKSPACE } });
@@ -189,6 +210,34 @@ describe.skipIf(!db)(
         status: "canceled",
         endedAt: expect.any(Date),
       });
+    });
+
+    it("writes off the credits a payment granted before the ending missed them", async () => {
+      const cuso = await hiredCuso();
+      await revokeCusoSubscription(cuso.botId);
+      await handlePolarSubscriptionEvent(subscriptionCreated(cuso));
+      // The payment's grant, which the archive's write-off did not see.
+      await database().transaction.create({
+        data: {
+          amount: 25_000n * CREDIT,
+          organizationId: ORGANIZATION,
+          sourceCreditBucket: {
+            create: {
+              amount: 25_000n * CREDIT,
+              expiresAt: new Date(Date.now() + 30 * DAY_MS),
+              organizationId: ORGANIZATION,
+              projectId: cuso.projectId,
+              referenceId: `order-${randomUUID()}:0`,
+              referenceType: "POLAR_SUBSCRIPTION_MONTH",
+            },
+          },
+        },
+      });
+      await archive(cuso.botId);
+
+      await revokeSubscriptionsLeftByEnding(cuso.projectId);
+
+      expect(await left(cuso.projectId)).toBe(0n);
     });
   },
 );

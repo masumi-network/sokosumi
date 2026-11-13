@@ -13,7 +13,7 @@ const m = vi.hoisted(() => ({
     $transaction: vi.fn(),
     polarSubscription: { findMany: vi.fn() },
     creditBucket: { findMany: vi.fn() },
-    sokoBot: { findFirst: vi.fn() },
+    sokoBot: { findFirst: vi.fn(), updateMany: vi.fn() },
     task: { findMany: vi.fn() },
     transaction: { create: vi.fn() },
   },
@@ -122,6 +122,8 @@ beforeEach(() => {
     subscriptions.filter((row) => row.id === id),
   );
   m.prisma.sokoBot.findFirst.mockResolvedValue({ id: "bot_1" });
+  // The grant write-locks the live Cuso's row.
+  m.prisma.sokoBot.updateMany.mockResolvedValue({ count: 1 });
   m.prisma.polarSubscription.findMany.mockImplementation(async ({ where }) =>
     subscriptions.filter((row) => matches(row, where)),
   );

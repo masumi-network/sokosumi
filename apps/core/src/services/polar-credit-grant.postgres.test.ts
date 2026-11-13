@@ -19,6 +19,7 @@ import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { writeOffProjectCredits } from "@/helpers/cuso-project-credits";
+import { serializableTransaction } from "@/lib/db/transaction";
 import { grantPolarCredits } from "./polar-credit-grant.service";
 import { handlePolarOrderRefunded } from "./polar-subscription.service";
 
@@ -185,6 +186,62 @@ describe.skipIf(!db)("a CMO grant racing a Cuso ending", () => {
     });
     await holding;
     const ending = revoke(cuso.subscriptionId).then(() => endCuso(cuso));
+    release();
+
+    expect(await granted).toBe("granted");
+    await ending;
+    expect(await left(cuso.projectId)).toBe(0n);
+  });
+
+  it("grants nothing when the archive holds the Cuso's row while the payment arrives", async () => {
+    // Start over's first revoke found no subscription: the row is live.
+    const cuso = await subscribedCuso();
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const ending = serializableTransaction(async (tx) => {
+      await tx.sokoBot.update({
+        where: { id: cuso.botId },
+        data: { archivedAt: new Date() },
+      });
+      await writeOffProjectCredits(cuso.projectId, tx);
+      await held;
+    }, "archive");
+    const granted = grantPolarCredits(grantFor(cuso));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    release();
+    await ending;
+
+    expect(await granted).toBe("not_live");
+    expect(await left(cuso.projectId)).toBe(0n);
+  });
+
+  it("writes the grant off when the grant holds the Cuso's row while the archive reads", async () => {
+    const cuso = await subscribedCuso();
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let locked = () => {};
+    const holding = new Promise<void>((resolve) => {
+      locked = resolve;
+    });
+    const granted = grantPolarCredits(grantFor(cuso), async () => {
+      locked();
+      await held;
+    });
+    await holding;
+    // The archive's snapshot predates the grant: its write of the Cuso's
+    // row fails and it runs again, finding the bucket.
+    const ending = serializableTransaction(async (tx) => {
+      await writeOffProjectCredits(cuso.projectId, tx);
+      await tx.sokoBot.update({
+        where: { id: cuso.botId },
+        data: { archivedAt: new Date() },
+      });
+    }, "archive");
+    await new Promise((resolve) => setTimeout(resolve, 300));
     release();
 
     expect(await granted).toBe("granted");

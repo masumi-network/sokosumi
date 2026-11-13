@@ -25,7 +25,7 @@ const m = vi.hoisted(() => ({
       updateMany: vi.fn(),
     },
     project: { findFirst: vi.fn() },
-    sokoBot: { findFirst: vi.fn() },
+    sokoBot: { findFirst: vi.fn(), updateMany: vi.fn() },
     task: { findMany: vi.fn() },
     transaction: { create: vi.fn() },
   },
@@ -150,6 +150,8 @@ beforeEach(() => {
     },
   ]);
   m.prisma.sokoBot.findFirst.mockResolvedValue({ id: "bot_1" });
+  // The grant write-locks the live Cuso's row.
+  m.prisma.sokoBot.updateMany.mockResolvedValue({ count: 1 });
   m.prisma.polarSubscription.updateMany.mockResolvedValue({ count: 0 });
   m.prisma.polarSubscription.findUnique.mockResolvedValue(null);
   m.prisma.polarSubscription.create.mockResolvedValue(ROW);
@@ -409,6 +411,7 @@ describe("POST /v1/webhooks/polar", () => {
     it("grants nothing and reports a payment for a Cuso no longer live", async () => {
       m.prisma.polarSubscription.findUnique.mockResolvedValue(ROW);
       m.prisma.sokoBot.findFirst.mockResolvedValue(null);
+      m.prisma.sokoBot.updateMany.mockResolvedValue({ count: 0 });
       m.verifyPolarWebhook.mockResolvedValue(orderPaid());
 
       const response = await post();
@@ -666,6 +669,7 @@ describe("POST /v1/webhooks/polar", () => {
       async (_type, event) => {
         // Start over archived the Cuso while the checkout was still open.
         m.prisma.sokoBot.findFirst.mockResolvedValue(null);
+        m.prisma.sokoBot.updateMany.mockResolvedValue({ count: 0 });
         m.verifyPolarWebhook.mockResolvedValue(event);
 
         const response = await post();
@@ -711,6 +715,7 @@ describe("POST /v1/webhooks/polar", () => {
         endedAt: null,
       });
       m.prisma.sokoBot.findFirst.mockResolvedValue(null);
+      m.prisma.sokoBot.updateMany.mockResolvedValue({ count: 0 });
       m.verifyPolarWebhook.mockResolvedValue(
         subscriptionEvent("subscription.updated", "2026-11-13T10:00:03.000Z"),
       );
@@ -725,6 +730,7 @@ describe("POST /v1/webhooks/polar", () => {
 
     it("records a subscription that Polar already ended for an ended Cuso without revoking it", async () => {
       m.prisma.sokoBot.findFirst.mockResolvedValue(null);
+      m.prisma.sokoBot.updateMany.mockResolvedValue({ count: 0 });
       m.prisma.polarSubscription.create.mockImplementation(
         async ({ data }) => ({
           ...ROW,

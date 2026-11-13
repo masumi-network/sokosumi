@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({
   revokePolarSubscription: vi.fn(),
   captureException: vi.fn(),
+  writeOffUnlessLiveCuso: vi.fn(),
   prisma: {
     polarSubscription: { findMany: vi.fn(), updateMany: vi.fn() },
   },
@@ -13,6 +14,13 @@ vi.mock("@/clients/polar.client", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: m.prisma }));
 vi.mock("@sentry/node", () => ({ captureException: m.captureException }));
+vi.mock("@/helpers/cuso-project-credits", () => ({
+  writeOffUnlessLiveCuso: m.writeOffUnlessLiveCuso,
+}));
+vi.mock("@/lib/db/transaction", () => ({
+  serializableTransaction: (run: (tx: unknown) => Promise<unknown>) =>
+    run("tx"),
+}));
 
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 
@@ -185,6 +193,25 @@ describe("revokeSubscriptionsLeftByEnding", () => {
       failure,
       expect.any(Object),
     );
+  });
+
+  it("writes off the Project's credits once it revoked one, even when Polar failed", async () => {
+    await revokeSubscriptionsLeftByEnding(PROJECT_ID);
+    m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));
+    await revokeSubscriptionsLeftByEnding(PROJECT_ID);
+
+    expect(m.writeOffUnlessLiveCuso.mock.calls).toEqual([
+      [PROJECT_ID, "tx"],
+      [PROJECT_ID, "tx"],
+    ]);
+  });
+
+  it("writes off nothing when the ending left no subscription", async () => {
+    m.prisma.polarSubscription.findMany.mockResolvedValue([]);
+
+    await revokeSubscriptionsLeftByEnding(PROJECT_ID);
+
+    expect(m.writeOffUnlessLiveCuso).not.toHaveBeenCalled();
   });
 
   it("looks for nothing without a Project", async () => {

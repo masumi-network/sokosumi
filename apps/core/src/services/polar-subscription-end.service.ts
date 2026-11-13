@@ -4,8 +4,10 @@ import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 
 import { revokePolarSubscription } from "@/clients/polar.client";
+import { writeOffUnlessLiveCuso } from "@/helpers/cuso-project-credits";
 import { serviceUnavailable } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
 
 /**
@@ -20,7 +22,7 @@ import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
  */
 async function revokeSubscriptions(
   where: Prisma.PolarSubscriptionWhereInput,
-): Promise<void> {
+): Promise<number> {
   const subscriptions = await prisma.polarSubscription.findMany({
     where: { endedAt: null, ...where },
     select: { id: true, polarSubscriptionId: true },
@@ -48,6 +50,7 @@ async function revokeSubscriptions(
       data: { status: "canceled", endedAt, polarEventAt: endedAt },
     });
   }
+  return subscriptions.length;
 }
 
 /** For a path that archives or deletes this bot; any bot but a live Cuso is left alone. */
@@ -87,18 +90,29 @@ export async function revokeOrganizationCusoSubscriptions(
  * after the ending's revoke above found none. It writes its row before it
  * checks the Cuso, and the ending archived him before this looks: whichever
  * of the two looks second sees the other, and revokes. The Cuso has ended by
- * now, so a failure is reported (inside `revokeSubscriptions`) and not thrown.
+ * now, so a failure is reported (inside `revokeSubscriptions`) and not thrown;
+ * his Project's credits are written off either way.
  */
 export async function revokeSubscriptionsLeftByEnding(
   projectId: string | null,
 ): Promise<void> {
   if (!projectId) return;
+  let left: number;
   try {
-    await revokeSubscriptions({
+    left = await revokeSubscriptions({
       projectId,
       project: { sokoBots: { none: LIVE_CUSO_WHERE } },
     });
   } catch (error) {
     if (!(error instanceof HTTPException)) throw error;
+    left = 1;
+  }
+  // Its first payment may have granted credits the ending's write-off did not
+  // see: they go too, as the ending's would have.
+  if (left > 0) {
+    await serializableTransaction(
+      (tx) => writeOffUnlessLiveCuso(projectId, tx),
+      "The write-off raced another write to the same credits",
+    );
   }
 }
