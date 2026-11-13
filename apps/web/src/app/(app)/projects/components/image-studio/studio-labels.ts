@@ -34,6 +34,7 @@ export function buildStudioLabels(t: Translator): StudioLabels {
     reroll: t("reroll"),
     reusePrompt: t("reusePrompt"),
     download: t("download"),
+    moreActions: t("moreActions"),
     compare: t("compare"),
     version: t("version"),
     generating: t("generating"),
