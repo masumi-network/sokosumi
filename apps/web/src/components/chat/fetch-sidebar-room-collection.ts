@@ -51,7 +51,17 @@ async function readQueuedParts(
     return new Map(collections.map((c, index) => [c, answers[index]]));
   }
   const parts = (raw as { data?: Record<string, unknown> } | null)?.data;
-  return new Map(collections.map((c) => [c, parts?.[c] ?? null]));
+  // A part whose read never reached Core is asked for again on its own, so
+  // it gets the retries a stalled read gets and the other parts keep theirs.
+  return new Map(
+    await Promise.all(
+      collections.map(async (c): Promise<[SidebarRoomCollection, unknown]> => {
+        const part = parts?.[c] ?? null;
+        const stalled = (part as { stalled?: unknown } | null)?.stalled;
+        return [c, stalled === true ? await readOneCollection(c) : part];
+      }),
+    ),
+  );
 }
 
 async function sendQueuedReads(): Promise<void> {

@@ -159,6 +159,40 @@ describe("sidebar collection GET requests", () => {
     expect(invitations).toEqual([]);
   });
 
+  it("asks again on its own for a part that never reached Core", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              active: {
+                data: [],
+                meta: {
+                  timestamp,
+                  requestId: "request-1",
+                  pagination: { nextCursor: null },
+                },
+              },
+              invitations: { stalled: true },
+            },
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(response([]));
+    const [active, invitations] = await Promise.all([
+      fetchSidebarRoomCollection("active"),
+      fetchSidebarRoomCollection("invitations"),
+    ]);
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "/api/chat/rooms?collections=active,invitations",
+      "/api/chat/rooms?collection=invitations",
+    ]);
+    expect(active).toEqual({ rooms: [], nextCursor: null });
+    expect(invitations).toEqual([]);
+  });
+
   it("answers null for a collection the batch left out", async () => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockResolvedValue(

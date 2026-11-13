@@ -36,40 +36,42 @@ async function readCollection(
   };
 }
 
+/** Marks a part whose read never reached Core, so the browser asks again. */
+const STALLED_PART = { stalled: true } as const;
+
 /**
  * Several collections behind one session read, each in its own envelope. A
  * collection whose Core read failed answers null, as its own request would
- * have. A throttle fails the whole answer, so every caller backs off, and so
- * does a read that never reached Core: the browser retries a 503, and a null
- * part would not be retried.
+ * have. A throttle fails the whole answer, so every caller backs off. A read
+ * that never reached Core answers `{ stalled: true }`: the browser asks for
+ * that one again on its own, with the retries a 503 gets, and the other
+ * parts keep their rows.
  */
 async function readCollections(
   collections: Collection[],
 ): Promise<BackgroundChatReadPage> {
   const settled = await Promise.allSettled(collections.map(readCollection));
-  const coreErrors = settled.flatMap((result) =>
-    result.status === "rejected" && result.reason instanceof CoreApiRequestError
-      ? [result.reason]
-      : [],
-  );
   // A throttle wins over a stall, whichever answered first: only the
   // throttle sets the browser's shared backoff clock.
-  const failure =
-    coreErrors.find((error) => error.status === 429) ??
-    coreErrors.find((error) => !error.status);
-  if (failure) {
-    throw failure;
+  const throttle = settled.find(
+    (result) =>
+      result.status === "rejected" &&
+      result.reason instanceof CoreApiRequestError &&
+      result.reason.status === 429,
+  );
+  if (throttle?.status === "rejected") {
+    throw throttle.reason;
   }
   return {
     data: Object.fromEntries(
       collections.map((collection, index) => {
         const result = settled[index];
-        return [
-          collection,
-          result.status === "fulfilled"
-            ? backgroundChatReadEnvelope(result.value)
-            : null,
-        ];
+        if (result.status === "fulfilled") {
+          return [collection, backgroundChatReadEnvelope(result.value)];
+        }
+        const stalled =
+          result.reason instanceof CoreApiRequestError && !result.reason.status;
+        return [collection, stalled ? STALLED_PART : null];
       }),
     ),
   };

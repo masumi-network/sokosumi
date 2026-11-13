@@ -165,10 +165,16 @@ describe("GET /api/chat/rooms", () => {
       expect(result.headers.get("retry-after")).toBe("7");
     });
 
-    it("answers 503 for all of them when one read never reached Core", async () => {
+    it("marks a read that never reached Core and keeps the others", async () => {
       listPendingMock.mockRejectedValue(new CoreApiRequestError("timeout"));
       const result = await GET(requestMany("active,invitations"));
-      expect(result.status).toBe(503);
+      expect(result.status).toBe(200);
+      expect(await result.json()).toMatchObject({
+        data: {
+          active: { data: [{ id: "room-1" }] },
+          invitations: { stalled: true },
+        },
+      });
     });
 
     it("answers the throttle even when a stall failed first", async () => {
