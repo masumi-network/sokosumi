@@ -1251,7 +1251,8 @@ body:has(.ob) .site-header {
   background: var(--surface);
 }
 
-.ob-tabs button[aria-selected="true"] {
+.ob-tabs button[aria-selected="true"],
+.ob-tabs button[aria-pressed="true"] {
   border-color: var(--line);
   background: var(--foreground);
   color: var(--background);
@@ -1480,6 +1481,61 @@ body:has(.ob) .site-header {
 
 .ob-rules li > svg {
   color: var(--muted);
+}
+
+/* ── Step 5: Subscribe (the CMO plan checkout) ── */
+.ob-checkout {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+}
+
+.ob-checkout .panel {
+  width: 100%;
+}
+
+.ob-checkout > .ob-small {
+  justify-self: center;
+}
+
+.ob-plan-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ob-plan-option {
+  display: grid;
+  flex: 1 1 220px;
+  align-content: start;
+  gap: 8px;
+  padding: 20px;
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The selected tile in a grid takes the Iris shadow. */
+.ob-plan-option[aria-pressed="true"] {
+  box-shadow: var(--shadow-iris);
+}
+
+.ob-plan-option:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.ob-plan-name {
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+.ob-confirming {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* ── Step 4: Launch ── */

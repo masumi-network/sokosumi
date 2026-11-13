@@ -3,11 +3,19 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import type { SkippedStep } from "../../lib/skipped-steps";
 import { strategyApproved } from "../../lib/strategy";
 
-/** The four moments of hiring Cuso. */
-export type OnboardingStep = "site" | "brand" | "plan" | "launch";
+/**
+ * The five moments of hiring Cuso. "plan" is the marketing strategy; paying
+ * for a CMO plan is "checkout" (ADR 0068).
+ */
+export type OnboardingStep = "site" | "brand" | "plan" | "launch" | "checkout";
 
-/** What the step shows: Site reads or asks, Plan waits, asks for a plan, or reviews. */
+/**
+ * What the step shows: Site reads or asks, Plan waits, asks for a plan, or
+ * reviews, the checkout offers the plans or waits for Polar's confirmation.
+ */
 type Phase =
+  | "choosing"
+  | "confirming"
   | "reading"
   | "asking"
   | "failed"
@@ -23,8 +31,11 @@ export type PlanPhase = Extract<
   "planning" | "writing-needed" | "review"
 >;
 
+export type CheckoutPhase = Extract<Phase, "choosing" | "confirming">;
+
 type Position =
   | { step: "site"; phase: SitePhase }
+  | { step: "checkout"; phase: CheckoutPhase }
   | { step: "brand" | "launch"; phase: "review" }
   | { step: "plan"; phase: PlanPhase };
 
@@ -33,6 +44,7 @@ export const STEPS: { id: OnboardingStep; label: string }[] = [
   { id: "brand", label: "Brand" },
   { id: "plan", label: "Plan" },
   { id: "launch", label: "Launch" },
+  { id: "checkout", label: "Subscribe" },
 ];
 
 export function stepIndex(step: OnboardingStep): number {
@@ -60,10 +72,14 @@ export function planUnfitted(overview: CmoOverview): boolean {
   );
 }
 
-/** Where the founder is, from what Cuso has done so far and what they skipped. */
+/**
+ * Where the founder is, from what Cuso has done so far, what they skipped,
+ * and whether this page is Polar's return after a payment.
+ */
 export function onboardingStep(
   overview: CmoOverview,
   skipped: readonly SkippedStep[] = [],
+  { returnedFromCheckout = false }: { returnedFromCheckout?: boolean } = {},
 ): Position {
   const work = overview.work;
   const strategy = overview.strategy;
@@ -81,7 +97,19 @@ export function onboardingStep(
   const approved = strategyApproved(overview);
   // Core reads accounts from a connection, and CMO's cookie from the person's
   // skip, so a reload after Launch resumes in the app.
-  if (strategy && approved) return { step: "launch", phase: "review" };
+  if (strategy && approved) {
+    // Core owes the checkout from the first connection on; the person gets
+    // there by pressing Launch, which CMO's cookie remembers as "accounts".
+    if (overview.onboardingStep === "checkout") {
+      // Polar's confirmation arrives after the person does.
+      if (returnedFromCheckout)
+        return { step: "checkout", phase: "confirming" };
+      if (skipped.includes("accounts")) {
+        return { step: "checkout", phase: "choosing" };
+      }
+    }
+    return { step: "launch", phase: "review" };
+  }
 
   if (!strategy && work?.kind === "strategy" && work.status !== "done") {
     return { step: "plan", phase: "planning" };

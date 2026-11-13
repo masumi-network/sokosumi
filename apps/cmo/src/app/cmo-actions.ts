@@ -11,6 +11,7 @@ import {
   type CmoCusoList,
   type CmoMeasurement,
   type CmoOverview,
+  type CmoSubscriptionPlan,
   chooseCmoAdAccountForProject,
   completeSokoBotIntegrationAuth,
   confirmCmoBrandBrainForProject,
@@ -28,6 +29,7 @@ import {
   listCmoAdCampaignsForProject,
   listCmoAdChoicesForProject,
   listCmoCusos,
+  listCmoPlans,
   pauseCmoCalendarEntryForProject,
   postChatsRoomsByIdMessages,
   postComposioCallbackComplete,
@@ -40,6 +42,7 @@ import {
   setCmoAdCampaignStatusForProject,
   startCmoOnboarding,
   startCmoOverForProject,
+  startCmoPlanCheckoutForProject,
   updateCmoBrandBrainForProject,
 } from "@sokosumi/core-client";
 import {
@@ -497,9 +500,10 @@ export async function setAdBudget(
 }
 
 /**
- * The founder moved on from the Accounts step, the last one: CMO opens on the
- * chat. A connection already counts; skipping is kept in CMO's cookie. It
- * goes to the app's home, not back to the address it came from: back from a
+ * The founder moved on from the Accounts step: the checkout comes next
+ * (ADR 0068), or the chat for a Cuso hired with Starter credits. A
+ * connection already counts; skipping is kept in CMO's cookie. It goes to
+ * the app's home, not back to the address it came from: back from a
  * connection, that address keeps the Accounts step open.
  */
 export async function finishAccounts(projectId: string): Promise<never> {
@@ -538,6 +542,12 @@ export async function startOver(projectId: string): Promise<string | null> {
   // A person who may not hire goes to the Cusos left, or the invite-only page.
   const list = await loadCusos().catch(() => undefined);
   redirect(list?.mayHire === false ? "/?cusos=1" : "/?hire=1");
+}
+
+/** The CMO plans, for the checkout step; none when Core cannot read them from Polar. */
+export async function loadPlans(): Promise<CmoSubscriptionPlan[]> {
+  const { data } = await listCmoPlans(await requireCore());
+  return data?.data ?? [];
 }
 
 /** The contact list Cuso writes the newsletter for; Core counts it by this name. */
@@ -839,6 +849,38 @@ export async function connectMeasurement(
     return { url: null, error: errorText(error, "Could not start connecting") };
   }
   return { url: data.data.redirectUrl, error: null };
+}
+
+/**
+ * Starts Polar's hosted checkout for this Cuso's CMO plan; the browser goes
+ * to the returned URL. Polar sends the person back to the home page, which
+ * shows the confirming state (`step=subscribed`) until the payment is in.
+ */
+export async function startPlanCheckout(
+  projectId: string,
+  interval: CmoSubscriptionPlan["interval"],
+  tier: string,
+): Promise<{ url: string | null; error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await startCmoPlanCheckoutForProject({
+    ...core,
+    path: { projectId },
+    body: {
+      interval,
+      tier,
+      returnUrl: await callbackUrl("/", {
+        project: projectId,
+        step: "subscribed",
+      }),
+    },
+  });
+  if (!data) {
+    return {
+      url: null,
+      error: errorText(error, "Could not open the checkout"),
+    };
+  }
+  return { url: data.data.url, error: null };
 }
 
 /** Finishes a measurement connection after the founder signed in. */

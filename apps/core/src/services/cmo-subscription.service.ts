@@ -179,40 +179,6 @@ async function upsertCmoSubscription(
   }
 }
 
-/** What the CMO overview shows of a Cuso's CMO subscription. */
-export interface CmoSubscriptionBilling {
-  tier: string | null;
-  interval: "month" | "year" | null;
-  /** Polar's status; `past_due` after a renewal payment failed. */
-  status: string | null;
-  /** The renewal date, or the end date when a cancel is scheduled. */
-  periodEnd: Date | null;
-  cancelAtPeriodEnd: boolean;
-}
-
-/** The Project's subscription that has not ended; empty without one. */
-export async function cmoSubscriptionBilling(
-  projectId: string,
-): Promise<CmoSubscriptionBilling> {
-  const row = await prisma.cmoSubscription.findFirst({
-    where: { projectId, endedAt: null },
-    select: {
-      tier: true,
-      interval: true,
-      status: true,
-      currentPeriodEnd: true,
-      cancelAtPeriodEnd: true,
-    },
-  });
-  return {
-    tier: row?.tier ?? null,
-    interval: row?.interval === "year" ? "year" : row ? "month" : null,
-    status: row?.status ?? null,
-    periodEnd: row?.currentPeriodEnd ?? null,
-    cancelAtPeriodEnd: row?.cancelAtPeriodEnd ?? false,
-  };
-}
-
 /**
  * `subscription.*`: only the row changes; credits come with `order.paid`. A
  * scheduled cancel stays active with its period end, past due waits for

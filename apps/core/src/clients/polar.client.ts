@@ -15,6 +15,7 @@ import { serviceUnavailable } from "@/helpers/error";
  */
 
 export type PolarProduct = models.Product;
+export type PolarCheckoutCreate = models.CheckoutCreate;
 export type PolarWebhookEvent = webhooks.WebhookPayload;
 export type PolarWebhookError =
   | "not_configured"
@@ -63,6 +64,13 @@ export async function listPolarProducts(): Promise<PolarProduct[]> {
     products.push(product);
   }
   return products;
+}
+
+/** Opens a hosted checkout and returns the address the person pays at. */
+export async function createPolarCheckout(
+  checkout: PolarCheckoutCreate,
+): Promise<string> {
+  return (await requirePolar().checkouts.create(checkout)).url;
 }
 
 /**
