@@ -12186,6 +12186,7 @@
         "left": "about {minutes} min left",
         "late": "longer than usual",
         "earlier": "Earlier check ({day}).",
+        "showDay": "Show the check from {day}",
         "latest": "Show the latest",
         "inRange": "in the date range",
         "dates": "Other dates",

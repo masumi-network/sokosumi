@@ -19,9 +19,9 @@ const MINUTE_MS = 60_000;
 const STOP_CLASS =
   "relative flex min-w-24 flex-1 flex-col items-center pt-0.5 text-center";
 const LINE_CLASS = "absolute top-[7px] h-0 border-t";
-/** A day of the line: muted, bright on hover and while pressed. */
+/** A day of the line: muted, bright while pressed. The pointer gives it a fill, so it reads as a control, not a label. */
 const STOP_BUTTON_CLASS =
-  "group text-muted-foreground hover:text-foreground aria-pressed:text-foreground focus-visible:ring-ring press relative flex min-h-10 flex-col items-center rounded-sm px-2 transition-colors outline-none focus-visible:ring-2 aria-pressed:font-medium";
+  "group text-muted-foreground hover:text-foreground hover:bg-accent aria-pressed:text-foreground focus-visible:ring-ring press relative -mt-1 flex min-h-10 flex-col items-center rounded-md px-2 pt-1 transition-colors outline-none focus-visible:ring-2 aria-pressed:font-medium";
 
 /**
  * The checks of the site over the tabs, in a card of their own: the run on its title line, and a timeline of one
@@ -196,6 +196,12 @@ export function SeoRuns({
                     ref={entry.newest ? newestRef : undefined}
                     type="button"
                     aria-pressed={entry.selected}
+                    // The hint says what a press does: the page as it was on that day.
+                    title={
+                      entry.selected
+                        ? undefined
+                        : t("runs.showDay", { day: dayOf(entry.at) })
+                    }
                     // The run in view is bright with a bright neutral dot; the others are muted. No accent: it is a fill only.
                     className={STOP_BUTTON_CLASS}
                     onClick={() => {
@@ -209,7 +215,7 @@ export function SeoRuns({
                       aria-hidden
                       className={cn(
                         // The ring in the page colour cuts the line around the dot.
-                        "ring-background mb-1.5 size-2.5 rounded-full ring-4 transition-colors duration-150 motion-reduce:transition-none",
+                        "ring-background group-hover:ring-accent mb-1.5 size-2.5 rounded-full ring-4 transition-colors duration-150 motion-reduce:transition-none",
                         entry.selected || entry.inRange
                           ? "bg-foreground"
                           : "bg-muted-foreground group-hover:bg-foreground",

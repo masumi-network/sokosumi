@@ -12186,6 +12186,7 @@
         "left": "noch etwa {minutes} Min.",
         "late": "länger als üblich",
         "earlier": "Ältere Prüfung ({day}).",
+        "showDay": "Die Prüfung vom {day} zeigen",
         "latest": "Neueste zeigen",
         "inRange": "im Zeitraum",
         "dates": "Andere Tage",

@@ -12186,6 +12186,7 @@
         "left": "quedan unos {minutes} min",
         "late": "más de lo habitual",
         "earlier": "Comprobación anterior ({day}).",
+        "showDay": "Mostrar la comprobación del {day}",
         "latest": "Ver la más reciente",
         "inRange": "en el rango de fechas",
         "dates": "Otras fechas",
