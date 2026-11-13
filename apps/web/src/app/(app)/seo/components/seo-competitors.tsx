@@ -21,6 +21,7 @@ import {
 } from "./seo-competitors-model";
 import { seoDaySpan } from "./seo-day-span";
 import { seoStrategyRows } from "./seo-places-model";
+import { SeoRankPill } from "./seo-rank-pill";
 import { SeoRowMenu } from "./seo-row-menu";
 import {
   SEO_COMPACT_ROWS_CLASS,
@@ -285,7 +286,11 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                         className="text-right tabular-nums"
                         data-label={t("competitors.rank")}
                       >
-                        {number(best)}
+                        {best === null ? (
+                          number(best)
+                        ) : (
+                          <SeoRankPill position={best} />
+                        )}
                       </TableCell>
                     ) : null}
                     {shown.backlinks ? (

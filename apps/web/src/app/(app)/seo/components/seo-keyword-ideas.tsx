@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
 import {
   SEO_IDEA_SOURCES,
@@ -28,6 +29,15 @@ import {
 } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
+/** Bright for what competitors rank for, quiet for a related search: the colours of the tab mean demand and rank. */
+const IDEA_SOURCE_MARK_CLASS: Record<
+  (typeof SEO_IDEA_SOURCES)[number],
+  string
+> = {
+  gap: "bg-foreground",
+  opportunity: "bg-chart-5",
+};
+
 /** Keywords a check found but read no position for: one row each, a high or medium conversion estimate first, then the most searched. */
 export function SeoKeywordIdeas({
   model,
@@ -37,7 +47,6 @@ export function SeoKeywordIdeas({
   ideas: SeoKeywordGroup[];
 }) {
   const t = useTranslations("App.Seo");
-  const format = useFormatter();
   const locale = useLocale();
   const [expanded, setExpanded] = useState(false);
   if (!ideas.length) return null;
@@ -148,14 +157,27 @@ export function SeoKeywordIdeas({
                     feature={feature}
                   />
                 ) : null}
-                {/* The reason is quieter than the keyword and its values. On a phone it follows the number or the estimate on one line. */}
+                {/* The reason is a tag beside the keyword and its values. On a phone it follows the number or the estimate on one line. */}
                 {shown.why ? (
                   <TableCell className="text-muted-foreground whitespace-normal">
-                    {format.list(
-                      reasonsOf(sources).map((source) =>
-                        t(`keywords.ideas.source.${source}`),
-                      ),
-                    )}
+                    {/* Each reason is a tag with a dot of its own colour: the eye finds the rows of one kind. */}
+                    <span className="flex flex-wrap gap-1.5">
+                      {reasonsOf(sources).map((source) => (
+                        <span
+                          key={source}
+                          className="bg-muted text-foreground inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs"
+                        >
+                          <span
+                            aria-hidden
+                            className={cn(
+                              "size-1.5 shrink-0 rounded-full",
+                              IDEA_SOURCE_MARK_CLASS[source],
+                            )}
+                          />
+                          {t(`keywords.ideas.source.${source}`)}
+                        </span>
+                      ))}
+                    </span>
                   </TableCell>
                 ) : null}
                 <TableCell>

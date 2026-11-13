@@ -31,6 +31,7 @@ import {
   SeoKeywordTrendToggle,
 } from "./seo-keyword-trend";
 import { seoOpenFixes, seoOverviewModel } from "./seo-overview-model";
+import { SeoRankPill } from "./seo-rank-pill";
 import { SeoRowMenu } from "./seo-row-menu";
 import {
   keywordSuggestions,
@@ -464,9 +465,11 @@ export function SeoKeywords({
                                           {t(`analysis.${line.device}`)}:{" "}
                                         </span>
                                       ) : null}
-                                      {line.position !== null
-                                        ? format.number(line.position)
-                                        : t("keywords.notFound")}
+                                      {line.position !== null ? (
+                                        <SeoRankPill position={line.position} />
+                                      ) : (
+                                        t("keywords.notFound")
+                                      )}
                                     </p>
                                   ))}
                                   {olderDay ? (

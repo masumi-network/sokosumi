@@ -112,8 +112,8 @@ export function SeoDemandChart({
                   <span
                     aria-hidden
                     data-testid="seo-demand-bar"
-                    // A quiet neutral: the number after the bar is the bright part.
-                    className="bg-tertiary bar-grow stagger-delay absolute inset-y-2 left-0 rounded-r-sm"
+                    // Sand, as every count of searches: demand has one colour. Orange is for impact.
+                    className="bg-chart-4 bar-grow stagger-delay absolute inset-y-2 left-0 rounded-r-sm"
                     style={{
                       width: `${Math.max(BAR_MIN_PERCENT, percent(row.volume))}%`,
                     }}

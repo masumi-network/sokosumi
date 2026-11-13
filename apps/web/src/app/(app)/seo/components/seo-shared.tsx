@@ -479,10 +479,11 @@ export function SeoBarNumber({
       {max > 0 ? (
         <span
           aria-hidden
-          className="bg-quaternary block h-1 w-16 rounded-full max-sm:hidden"
+          className="bg-muted block h-1 w-16 rounded-full max-sm:hidden"
         >
+          {/* Sand, as every count of searches: demand has one colour. Orange is for impact. It grows in with its row. */}
           <span
-            className="bg-chart-5 block h-1 rounded-full"
+            className="bg-chart-4 bar-grow stagger-delay block h-1 rounded-full"
             style={{
               width: `${value > 0 ? Math.max(SEO_BAR_MIN_PERCENT, Math.round((value / max) * 100)) : 0}%`,
             }}
