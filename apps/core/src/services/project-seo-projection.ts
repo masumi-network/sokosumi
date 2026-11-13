@@ -14,7 +14,6 @@ import {
   seoPayloadCoverage,
 } from "@/helpers/project-seo-report";
 import {
-  nativeSeoMetricsSchema,
   type ProjectSeoWorkspace,
   projectSeoWorkspaceSchema,
   type SeoIndexedPage,
@@ -28,6 +27,7 @@ import {
   savedSeoKeyword,
   seoKeywordIdentity,
 } from "./project-seo-keyword-rows";
+import { projectSeoMetricsRow } from "./project-seo-metrics-projection";
 import {
   projectSearchEvidence,
   type SearchEvidenceSource,
@@ -207,65 +207,13 @@ export function projectSeoProjection(
       continue;
     }
     if (row.kind === "metrics") {
-      const parsed = nativeSeoMetricsSchema.safeParse(row.payload);
-      if (!row.ownerId)
-        throw internalServerError("Stored analytics evidence is not readable");
-      // A newer build may store fields this build does not know. That sync is
-      // skipped with its timeline entry and verdicts, so a rollback shows the
-      // older syncs instead of failing the page. A new enum value still fails.
-      if (
-        !parsed.success &&
-        parsed.error.issues.every((issue) => issue.code === "unrecognized_keys")
-      )
-        continue;
-      if (!parsed.success)
-        throw internalServerError("Stored analytics evidence is not readable");
-      const data = parsed.data;
-      // A verdict belongs to one page, so any sync that inspected a selected page counts.
-      if (data.indexedPages)
-        indexSources.push({ at: row.observedAt, pages: data.indexedPages });
-      // Distinct-user totals cannot be sliced or added from an incompatible page group.
-      if (
-        data.pageUrls.length !== selectedUrls.size ||
-        data.pageUrls.some((url) => !selectedUrls.has(normalizeSeoUrl(url)))
-      )
-        continue;
-      if (query.channel && data.channel !== query.channel) continue;
-      if (data.provider === "search_console") searchSources.push({ row, data });
-      timeline.push({
-        id: `metrics:${row.id}`,
-        kind: "metrics",
-        title: `${data.provider === "ga4" ? "Analytics" : "Search Console"} statistics synced`,
-        at: row.createdAt.toISOString(),
-        pageIds: row.pageIds,
-        observationId: row.id,
-        taskId: null,
-        status: data.coverage,
-        detail: `${data.from} to ${data.to}. ${data.channel}. ${data.notes.join(" ")}`,
+      projectSeoMetricsRow(row, query, selectedUrls, {
+        metrics,
+        timeline,
+        searchSources,
+        indexSources,
+        seenGroups: seenMetricGroups,
       });
-      const group = key(
-        data.provider,
-        data.propertyId,
-        data.from,
-        data.to,
-        data.channel,
-      );
-      if (seenMetricGroups.has(group)) continue;
-      seenMetricGroups.add(group);
-      for (const metric of data.metrics)
-        metrics.push({
-          id: `${row.id}:${metric.key}`,
-          ...metric,
-          source: data.provider,
-          propertyId: data.propertyId,
-          from: data.from,
-          to: data.to,
-          timeZone: data.timeZone,
-          channel: data.channel,
-          observedAt: row.observedAt.toISOString(),
-          coverage: data.coverage,
-          notes: data.notes,
-        });
       continue;
     }
     const parsed = publicSeoPayloadSchema.safeParse(row.payload);
