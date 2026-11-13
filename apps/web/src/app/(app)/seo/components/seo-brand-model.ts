@@ -25,8 +25,12 @@ const OUT_OF_SUBSTRING_SCRIPT = new RegExp(
 const LETTER_OR_DIGIT = /[\p{L}\p{N}]/u;
 /** Compatibility forms would turn "acme™" into "acmetm"; the signs are not part of a name. */
 const TRADEMARK_SIGNS = /[\u2120\u2122]/gu;
-/** Accents are dropped only on Latin and Greek letters, so "café" is "cafe". */
-const LATIN_GREEK_MARKS = /([\p{Script=Latin}\p{Script=Greek}])\p{Mn}+/gu;
+/**
+ * Accents are dropped on Latin and Greek letters, so "café" is "cafe", and vowel marks
+ * on Arabic and Hebrew letters, which most queries leave out.
+ */
+const DROPPED_MARKS =
+  /([\p{Script=Latin}\p{Script=Greek}\p{Script=Arabic}\p{Script=Hebrew}])\p{Mn}+/gu;
 /** Cyrillic keeps "й" apart from "и"; only "ё" reads as "е". */
 const CYRILLIC_DIAERESIS = /(\p{Script=Cyrillic})\u0308/gu;
 /**
@@ -35,13 +39,15 @@ const CYRILLIC_DIAERESIS = /(\p{Script=Cyrillic})\u0308/gu;
  */
 const WORD = /[\p{L}\p{M}\p{N}+#&]+/gu;
 const LEADING_JOINERS = /^[+#&]+/;
+const JOINER = /[+#&]/u;
+const JOINERS = /[+#&]+/u;
 
 /** Case, compatibility forms and Latin or Greek accents do not matter: "CAFÉ" and "cafe" are one word. */
 function brandText(text: string): string {
   return text
     .replace(TRADEMARK_SIGNS, " ")
     .normalize("NFKD")
-    .replace(LATIN_GREEK_MARKS, "$1")
+    .replace(DROPPED_MARKS, "$1")
     .replace(CYRILLIC_DIAERESIS, "$1")
     .normalize("NFC")
     .toLocaleLowerCase();
@@ -66,14 +72,28 @@ function compact(text: string): string {
   return brandText(text).replace(/\s+/gu, "");
 }
 
-type BrandNeedle = { substring: string } | { words: string[] };
+/** The words with their signs taken out: "procter&gamble" is "procter" and "gamble", "acme+" is "acme". */
+function plainWords(words: string[]): string[] {
+  return words.flatMap((word) =>
+    word.split(JOINERS).filter((part) => LETTER_OR_DIGIT.test(part)),
+  );
+}
 
-/** A term in its matching form, or null for a term that matches nothing. */
+type BrandNeedle = { substring: string } | { words: string[]; signed: boolean };
+
+/**
+ * A term in its matching form, or null for a term that matches nothing. A term that
+ * holds a sign ("C++", "AT&T") matches only the whole signed word; any other term
+ * also matches the parts of a signed query word.
+ */
 function brandNeedle(term: string): BrandNeedle | null {
   if (!LETTER_OR_DIGIT.test(term)) return null;
   if (SUBSTRING_SCRIPTS.test(term)) return { substring: compact(term) };
   const words = brandWords(term);
-  return words.length ? { words } : null;
+  const signed = words.some((word) => JOINER.test(word));
+  return words.length
+    ? { words: signed ? words : plainWords(words), signed }
+    : null;
 }
 
 function holdsSequence(words: string[], needle: string[]): boolean {
@@ -96,10 +116,14 @@ export function seoBrandMatcher(terms: string[]): (query: string) => boolean {
     if (!needles.length) return false;
     const words = brandWords(query);
     let compacted: string | undefined;
+    let plain: string[] | undefined;
     return needles.some((needle) =>
       "substring" in needle
         ? (compacted ??= compact(query)).includes(needle.substring)
-        : holdsSequence(words, needle.words),
+        : holdsSequence(
+            needle.signed ? words : (plain ??= plainWords(words)),
+            needle.words,
+          ),
     );
   };
 }
