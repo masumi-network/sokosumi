@@ -70,6 +70,9 @@ export const SEO_MAX_PROVIDER_CALLS = 100;
 /** Core's bounds of a multi-page audit's USD limit (fullAuditLimits.usd). */
 const SEO_MIN_AUDIT_USD = 0.3;
 const SEO_MAX_AUDIT_USD = 50;
+/** Core's bounds of a multi-page audit's time limit in whole seconds (fullAuditLimits.seconds). */
+const SEO_MIN_AUDIT_SECONDS = 60;
+const SEO_MAX_AUDIT_SECONDS = 3_600;
 export const SEO_DEFAULT_PROVIDER_CALLS = 20;
 export const SEO_DEFAULT_FULL_AUDIT_USD = 3;
 export const SEO_DEVICES = ["mobile", "desktop"] as const;
@@ -335,7 +338,11 @@ export function seoAnalysisMaxCredits(
     return seoMaxCredits({ kind: "audit_full", pages: 1 });
   if (limits.kind === "full")
     // "full" is the multi-page audit; any page count above one reads the USD limit.
-    return limits.usd >= SEO_MIN_AUDIT_USD && limits.usd <= SEO_MAX_AUDIT_USD
+    return limits.usd >= SEO_MIN_AUDIT_USD &&
+      limits.usd <= SEO_MAX_AUDIT_USD &&
+      Number.isInteger(limits.seconds) &&
+      limits.seconds >= SEO_MIN_AUDIT_SECONDS &&
+      limits.seconds <= SEO_MAX_AUDIT_SECONDS
       ? seoMaxCredits({ kind: "audit_full", pages: 2, usd: limits.usd })
       : null;
   return Number.isSafeInteger(limits.count) &&

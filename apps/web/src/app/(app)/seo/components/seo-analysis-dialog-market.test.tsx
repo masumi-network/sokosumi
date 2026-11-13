@@ -2,6 +2,7 @@ import type {
   ProjectSeoKeyword,
   ProjectSeoWorkspace,
 } from "@sokosumi/core-client";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   fireEvent,
@@ -20,8 +21,14 @@ import { SeoAnalysisDialog } from "./seo-analysis-dialog";
 import { openCheckOptions, seoTestWorkspace } from "./seo-test-fixture";
 import { useSeoWorkspace } from "./use-seo-workspace";
 
-const { mutate } = vi.hoisted(() => ({ mutate: vi.fn() }));
+const { mutate, toastError } = vi.hoisted(() => ({
+  mutate: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock("@/lib/actions/seo/action", () => ({ mutateSeo: mutate }));
+vi.mock("sonner", () => ({
+  toast: { error: toastError, success: vi.fn() },
+}));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     data: { session: { activeOrganizationId: "org" }, user: { id: "owner" } },
@@ -185,6 +192,28 @@ describe("SEO check defaults", () => {
       expect(options).toHaveAttribute("aria-expanded", "true"),
     );
     expect(mutate).not.toHaveBeenCalled();
+  });
+});
+
+describe("SEO check credits", () => {
+  it("says the balance is too low when Core refuses the check for credits", async () => {
+    mutate.mockResolvedValueOnce({
+      ok: false,
+      error: {
+        kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE,
+        message: "Not enough credits.",
+      },
+    });
+    const user = userEvent.setup(),
+      dialog = showDialog(workspace());
+    await user.click(
+      within(dialog).getByRole("button", { name: "Start check" }),
+    );
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        messages.App.Seo.notEnoughCredits,
+      ),
+    );
   });
 });
 

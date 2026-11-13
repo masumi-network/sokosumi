@@ -319,5 +319,9 @@ describe("seoAnalysisMaxCredits", () => {
       seoAnalysisMaxCredits({ kind: "full", usd: 60, seconds: 900 }),
     ).toBeNull();
     expect(seoAnalysisMaxCredits({ kind: "requests", count: 101 })).toBeNull();
+    for (const seconds of [30, 4_000, 90.5])
+      expect(
+        seoAnalysisMaxCredits({ kind: "full", usd: 3, seconds }),
+      ).toBeNull();
   });
 });
