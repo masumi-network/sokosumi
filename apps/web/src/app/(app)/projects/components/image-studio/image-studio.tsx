@@ -1707,7 +1707,10 @@ export function FailedJob({
             aria-hidden
             className="text-muted-foreground me-2 size-4 shrink-0"
           />
-          <span className="min-w-0 truncate">{summary}</span>
+          <span className="min-w-0 shrink-[999999] truncate">{model}</span>
+          <span className="min-w-0 truncate">
+            {` ${labels.failedAfterModel} · ${labels.failedNoCharge}`}
+          </span>
           <ChevronDown
             aria-hidden
             className="text-muted-foreground size-4 shrink-0 transition-transform group-open:rotate-180"

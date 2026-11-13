@@ -129,15 +129,19 @@ describe("Content Studio failure notice", () => {
     [390, "de"],
     [390, "es"],
     [1024, "en"],
+    [1024, "de"],
+    [1024, "es"],
     [1440, "en"],
     [1440, "de"],
+    [1440, "es"],
   ] as const)(
     "keeps the failure to one line beside Try again and dismiss at %ipx (%s)",
     async (width, locale) => {
       const labels = await showFailure(width, locale);
       const notice = await box('[role="status"]');
       const summary = await box("summary");
-      const text = page.locator("summary span");
+      const text = page.locator("summary span").first();
+      const status = page.locator("summary span").nth(1);
       const retry = await box(`button:has-text("${labels.tryAgain}")`);
       const dismiss = await box(`button[aria-label="${labels.close}"]`);
 
@@ -150,7 +154,10 @@ describe("Content Studio failure notice", () => {
         b.y < a.y + a.height;
       expect(overlaps(summary, retry)).toBe(false);
       expect(overlaps(summary, dismiss)).toBe(false);
-      expect(dismiss.y).toBeLessThan(summary.y + 20);
+      expect(overlaps(retry, dismiss)).toBe(false);
+      expect(dismiss.y + dismiss.height / 2).toBe(
+        summary.y + summary.height / 2,
+      );
 
       const sameRow = Math.abs(retry.y - summary.y) <= 1;
       const lines = Math.round((summary.height - 12) / 20);
@@ -166,6 +173,39 @@ describe("Content Studio failure notice", () => {
       expect(notice.height).toBe(56);
       expect(await page.locator("summary").getAttribute("title")).toBe(
         `${catalog.models[0].label} ${labels.failedAfterModel} · ${labels.failedNoCharge}`,
+      );
+      expect(await page.locator("summary").textContent()).toBe(
+        `${catalog.models[0].label} ${labels.failedAfterModel} · ${labels.failedNoCharge}`,
+      );
+      expect(await status.textContent()).toBe(
+        ` ${labels.failedAfterModel} · ${labels.failedNoCharge}`,
+      );
+      const statusFits = await status.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      );
+      expect(statusFits).toBe(
+        width > 390 || (width === 390 && locale !== "de"),
+      );
+      if (!statusFits) {
+        expect((await box("summary span")).width).toBeLessThanOrEqual(1);
+      }
+      const statusBounds = await box("summary span:nth-of-type(2)");
+      expect(statusBounds.x).toBeGreaterThanOrEqual(summary.x);
+      expect(statusBounds.x + statusBounds.width).toBeLessThanOrEqual(
+        summary.x + summary.width,
+      );
+      const chevron = await box("summary svg:last-child");
+      expect(chevron.x).toBeGreaterThanOrEqual(
+        statusBounds.x + statusBounds.width,
+      );
+      expect(chevron.x + chevron.width).toBeLessThanOrEqual(
+        summary.x + summary.width,
+      );
+      expect(chevron.width).toBe(16);
+      expect(statusBounds.y).toBe(summary.y + 6);
+      expect(statusBounds.height).toBe(20);
+      expect(chevron.y + chevron.height / 2).toBe(
+        summary.y + summary.height / 2,
       );
       expect(
         await text.evaluate(
