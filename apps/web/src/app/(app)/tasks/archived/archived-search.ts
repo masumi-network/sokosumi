@@ -11,6 +11,9 @@ export function readArchivedSearch(
   const value = (Array.isArray(raw) ? raw[0] : raw)
     ?.trim()
     .slice(0, ARCHIVED_SEARCH_MAX_LENGTH)
+    // A cut through an emoji leaves half a surrogate pair, which the Core
+    // client cannot URL-encode; drop it.
+    .replace(/[\uD800-\uDBFF]$/, "")
     .trim();
   return value || undefined;
 }
