@@ -62,6 +62,7 @@ export function SeoRunCalendar({
   // The day the line marks has the box, so both say one day. Today has no mark: a box on today read as "the page
   // shows today", and a bold today outweighed the day in view.
   const inView = shownDay ? parseISO(shownDay) : undefined;
+  const newest = checks[0] ?? today;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
@@ -91,13 +92,14 @@ export function SeoRunCalendar({
           defaultMonth={from ?? to ?? checks.at(-1)}
           // The UTC day for "today" too, which the label of the day says: the local day west of UTC is a day early.
           today={today}
-          // No month before the first check and none after today: an arrow to a month without a check is a dead end.
-          // A range start the URL holds before the first check opens on the first check: no check is before it.
+          // No month before the first check and none after the newest: an arrow to a month without a check is a dead
+          // end. A range start the URL holds before the first check opens on the first check: no check is before it.
           startMonth={checks.at(-1)}
-          endMonth={today}
-          // A day before the first loaded check or after today shows no check: only the days between stay a choice.
+          endMonth={newest}
+          // A day before the first loaded check or after the newest shows no check: only the days between stay a
+          // choice. A range that ends after the newest check shows the same page as one that ends on it.
           disabled={[
-            { after: today },
+            { after: newest },
             ...(checks.length ? [{ before: checks[checks.length - 1] }] : []),
           ]}
           modifiers={{

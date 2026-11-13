@@ -3,7 +3,6 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import {
   Bot,
-  CalendarClock,
   ChartLine,
   ChevronDown,
   ChevronLeft,
@@ -13,11 +12,9 @@ import {
   ListChecks,
   ListOrdered,
   ListPlus,
-  Loader2,
   type LucideIcon,
   MoreHorizontal,
   PencilLine,
-  Play,
   Plus,
   RotateCw,
   Settings2,
@@ -65,6 +62,7 @@ import { SeoHealth } from "./seo-overview";
 import { SeoPageChangeDialog } from "./seo-page-change-dialog";
 import { SeoPageError } from "./seo-page-error";
 import { SeoRankings } from "./seo-rankings";
+import { SeoRunButton } from "./seo-run-button";
 import { SeoRuns } from "./seo-runs";
 import { seoRunDays, seoRunsRow } from "./seo-runs-model";
 import {
@@ -268,47 +266,10 @@ export function SeoWorkspace({
           </div>
         </div>
         <div className="col-start-2 row-start-2 flex flex-nowrap gap-2">
-          {runAudit ? (
-            <Button
-              size="sm"
-              variant={runReady && runAudit.leads ? "primary" : "outline"}
-              // Not the disabled attribute: that drops focus. The button's own text says a check runs;
-              // the notice under the header says checks are off.
-              aria-disabled={!runReady || undefined}
-              aria-describedby={
-                canRequestAnalysis || unavailable
-                  ? undefined
-                  : SEO_DISPATCH_PAUSED_ID
-              }
-              aria-label={t(runAudit.label)}
-              className="aria-disabled:pointer-events-none aria-disabled:opacity-50 max-sm:min-w-10"
-              onClick={() => {
-                if (runReady) model.openAnalysis(runAudit.kind);
-              }}
-            >
-              {runAudit.running ? (
-                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-              ) : (
-                <Play className="size-4" />
-              )}
-              {/* On the phone a running check shows its spinner only; the label names it. The phone words say
-                  what runs and are part of the label, so a voice command with the shown words finds the button. */}
-              {runAudit.running ? null : (
-                <span className="sm:hidden">
-                  {t(
-                    runAudit.kind === "audit_full"
-                      ? "runAuditShort"
-                      : "runCheckShort",
-                  )}
-                </span>
-              )}
-              <span className="max-sm:hidden">{t(runAudit.label)}</span>
-            </Button>
-          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              {/* The trigger shows only its icon, so one worded button stands in the header: the run. An
-                  icon-only control is 40 px below md. */}
+              {/* The trigger shows only its icon: the run leads the checks card under the header. An icon-only
+                  control is 40 px below md. */}
               <Button
                 variant="outline"
                 size="sm"
@@ -353,15 +314,6 @@ export function SeoWorkspace({
                     {t("pageChange.title")}
                   </DropdownMenuItem>
                 </>
-              ) : null}
-              {model.data.availableActions.canCreateMonitor === true ? (
-                <DropdownMenuItem
-                  disabled={unavailable || !model.data.scope.pageIds.length}
-                  onSelect={() => model.setDialog("monitor")}
-                >
-                  <CalendarClock className="size-4" />
-                  {t("monitor.create")}
-                </DropdownMenuItem>
               ) : null}
               <DropdownMenuItem
                 disabled={unavailable}
@@ -424,7 +376,26 @@ export function SeoWorkspace({
         }}
         className="gap-4"
       >
-        <SeoRuns model={model} shown={runsRow} />
+        <SeoRuns
+          model={model}
+          shown={runsRow}
+          runButton={
+            runAudit ? (
+              <SeoRunButton
+                model={model}
+                run={runAudit}
+                ready={runReady}
+                unavailable={unavailable}
+                // The notice under the header says checks are off.
+                describedBy={
+                  canRequestAnalysis || unavailable
+                    ? undefined
+                    : SEO_DISPATCH_PAUSED_ID
+                }
+              />
+            ) : undefined
+          }
+        />
         <div
           ref={tabBar}
           // On a phone the tabs fill the row; a fifth tab still scrolls, without a scroll track. The room above

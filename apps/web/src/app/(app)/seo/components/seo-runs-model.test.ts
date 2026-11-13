@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  seoNextScheduledCheck,
   seoRunChecks,
   seoRunCountDays,
   seoRunDays,
@@ -263,6 +264,40 @@ describe("SEO runs of a site", () => {
     expect(
       seoRunChecks({ runs: [run("2026-11-12T13:00:00Z", 5), partial] }),
     ).toEqual(new Set(["2026-11-12T13:00:00Z"]));
+  });
+});
+
+describe("seoNextScheduledCheck", () => {
+  const now = new Date("2026-11-13T12:00:00Z");
+  const monitor = (state: string, nextRunAt: string | null) => ({
+    state,
+    nextRunAt: nextRunAt ? new Date(nextRunAt) : null,
+  });
+
+  it("gives the soonest check of a running schedule", () => {
+    expect(
+      seoNextScheduledCheck(
+        [
+          monitor("ACTIVE", "2026-12-01T09:00:00Z"),
+          monitor("ACTIVE", "2026-11-17T09:00:00Z"),
+        ],
+        now,
+      ),
+    ).toEqual(new Date("2026-11-17T09:00:00Z"));
+  });
+
+  it("gives none for a paused or ended schedule, no time, or a time already passed", () => {
+    expect(
+      seoNextScheduledCheck(
+        [
+          monitor("PAUSED", "2026-11-14T09:00:00Z"),
+          monitor("ENDED", "2026-11-15T09:00:00Z"),
+          monitor("ACTIVE", null),
+          monitor("ACTIVE", "2026-11-13T09:00:00Z"),
+        ],
+        now,
+      ),
+    ).toBeNull();
   });
 });
 

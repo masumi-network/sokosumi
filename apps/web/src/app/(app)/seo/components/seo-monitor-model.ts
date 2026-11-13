@@ -140,11 +140,19 @@ export function seoMonitorPlan(
   }
 }
 
-/** The editor state of a stored rule, or of a new monitor when there is none. */
+/** The repeats a new schedule can start on: the run button offers them. Each starts at 09:00. */
+export type SeoMonitorPreset = "weekly" | "monthly";
+const SEO_MONITOR_PRESET_CRON: Record<SeoMonitorPreset, string> = {
+  weekly: "0 9 * * MON",
+  monthly: "0 9 1 * *",
+};
+
+/** The editor state of a stored rule, or of a new monitor on its preset when there is none. */
 export function seoMonitorWhen(
   rule: ProjectSeoMonitorRule | null,
   timezone: string,
   now = new Date(),
+  preset: SeoMonitorPreset = "weekly",
 ): ScheduleWhen {
   const when = selectionToWhen(
     rule
@@ -160,7 +168,7 @@ export function seoMonitorWhen(
         }
       : {
           timezone,
-          cron: "0 9 * * MON",
+          cron: SEO_MONITOR_PRESET_CRON[preset],
           endsMode: TaskScheduleEndsMode.AFTER,
           endAfterOccurrences: SEO_DEFAULT_MONITOR_RUNS,
         },

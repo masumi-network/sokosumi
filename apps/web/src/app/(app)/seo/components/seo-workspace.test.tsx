@@ -1062,7 +1062,7 @@ describe("SEO workspace integration", () => {
     expect(screen.getByRole("group", { name: "Quick periods" })).toBeVisible();
   });
 
-  it("puts the runs on a timeline, newest on the right, with the date filter at its end", async () => {
+  it("puts the runs on a timeline, newest on the right, with the date filter beside its title", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     workspace.metrics = [seoTestMetric()];
@@ -1089,10 +1089,10 @@ describe("SEO workspace integration", () => {
         .getAllByRole("button", { pressed: undefined })
         .map((button) => button.textContent),
     ).toEqual([
+      "Other dates",
       "Oct 287 issues",
       "Nov 106 issues",
       "Nov 125 issues",
-      "Other dates",
     ]);
     // The timeline holds the one date filter: the header and the filter block have none.
     expect(screen.queryByRole("button", { name: "Filter by date" })).toBeNull();
@@ -3461,12 +3461,15 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     mutate.mockResolvedValue({ ok: true, value: null });
-    renderWorkspace(workspace);
-    // Before the first check the schedule is in the Manage menu, not on the agent home.
-    await user.click(screen.getByRole("button", { name: "Manage SEO" }));
+    // The Agent tab leads with its setup card before the first check; the other tabs hold the run.
+    renderWorkspace(workspace, "?tab=traffic");
+    // The arrow of the run schedules the follow-up, also before the first check.
+    await user.click(
+      screen.getByRole("button", { name: messages.App.Seo.monitor.create }),
+    );
     await user.click(
       await screen.findByRole("menuitem", {
-        name: messages.App.Seo.monitor.create,
+        name: messages.App.Seo.runs.every.weekly,
       }),
     );
     const dialog = screen.getByRole("dialog");
@@ -3544,6 +3547,24 @@ describe("SEO workspace integration", () => {
     );
   });
 
+  it("offers no schedule while the dates are wrong: the form could not open and would open later unasked", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=traffic&from=2026-02-01&to=2026-01-01");
+    await user.click(
+      screen.getByRole("button", { name: messages.App.Seo.monitor.create }),
+    );
+    for (const name of Object.values(messages.App.Seo.runs.every))
+      expect(await screen.findByRole("menuitem", { name })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+  });
+
   it.each([false, undefined])(
     "keeps one-off checks available without an approved scheduler (%s)",
     async (permission) => {
@@ -3581,14 +3602,23 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    const view = renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "Manage SEO" }));
+    const view = renderWorkspace(workspace, "?tab=traffic");
+    await user.click(
+      screen.getByRole("button", { name: messages.App.Seo.monitor.create }),
+    );
     await user.click(
       await screen.findByRole("menuitem", {
-        name: messages.App.Seo.monitor.create,
+        name: messages.App.Seo.runs.every.monthly,
       }),
     );
     const dialog = screen.getByRole("dialog");
+    // The pick opens the form on its repeat, with a page check: the follow-up of an audit.
+    expect(
+      within(dialog).getByRole("button", { name: "Monthly" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(dialog).getByRole("combobox", { name: "Check type" }),
+    ).toHaveTextContent(messages.App.Seo.analysis.page_check);
     expect(
       within(dialog).getByText(messages.App.Seo.analysis.htmlService),
     ).toBeVisible();

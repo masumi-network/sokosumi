@@ -11395,8 +11395,6 @@
       "runAnalysis": "Iniciar comprobación",
       "runFullAudit": "Iniciar auditoría completa",
       "runPageCheck": "Iniciar comprobación de página",
-      "runAuditShort": "Auditoría",
-      "runCheckShort": "Comprobación",
       "syncStatistics": "Sincronizar estadísticas",
       "noPages": "Añade una página para empezar",
       "noPagesBody": "Las páginas definen qué abarcan las comprobaciones y las estadísticas.",
@@ -12195,7 +12193,13 @@
         "checkDay": "Día con comprobación",
         "shown": "Mostrando {range}.",
         "shownUntil": "Mostrando hasta {day}.",
-        "scheduled": "Programada"
+        "scheduled": "Programada",
+        "scheduleLabel": "Programar una comprobación de página",
+        "every": {
+          "weekly": "Cada semana",
+          "monthly": "Cada mes"
+        },
+        "next": "Próxima comprobación"
       },
       "filterDates": "Filtrar por fecha",
       "syncNow": "Sincronizar ahora",

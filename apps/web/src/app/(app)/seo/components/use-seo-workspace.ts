@@ -34,6 +34,7 @@ import {
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
 import { type SeoAnalysisKind, seoKeywordTargetPageId } from "./seo-form-model";
+import type { SeoMonitorPreset } from "./seo-monitor-model";
 import { seoCheckBlocking } from "./seo-setup-model";
 import {
   SEO_DEFAULT_STATISTICS_DAYS,
@@ -225,6 +226,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const [analysisKind, setAnalysisKind] = useState<SeoAnalysisKind | null>(
     null,
   );
+  const [monitorPreset, setMonitorPreset] =
+    useState<SeoMonitorPreset>("weekly");
   /**
    * One check at a time. Every way to the check form goes through here, so a press while a check runs opens
    * nothing and says why: the buttons, the steps of the Agent tab and the replies in the chat.
@@ -239,7 +242,14 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setStatisticsSource(undefined);
     setKeywordDraft(null);
     setAnalysisKind(null);
+    setMonitorPreset("weekly");
     setDialogState(value);
+  }
+  /** Opens the schedule form on a repeat, with a page check: the follow-up of an audit. */
+  function openMonitor(preset: SeoMonitorPreset) {
+    setDialog("monitor");
+    setAnalysisKind("page_check");
+    setMonitorPreset(preset);
   }
   /** Opens the check form on one check type; the form falls back to a page check where that type cannot run. */
   function openAnalysis(kind: SeoAnalysisKind) {
@@ -468,6 +478,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     keywordDraft,
     analysisKind,
     openAnalysis,
+    monitorPreset,
+    openMonitor,
     checkInFlight,
     refreshSearchStatistics,
     filteredCompetitors,

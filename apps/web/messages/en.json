@@ -11395,8 +11395,6 @@
       "runAnalysis": "Run a check",
       "runFullAudit": "Run full audit",
       "runPageCheck": "Run page check",
-      "runAuditShort": "Full audit",
-      "runCheckShort": "Page check",
       "syncStatistics": "Sync statistics",
       "noPages": "Add a page to start",
       "noPagesBody": "Pages define what each check and statistic covers.",
@@ -12195,7 +12193,13 @@
         "checkDay": "Day with a check",
         "shown": "Showing {range}.",
         "shownUntil": "Showing up to {day}.",
-        "scheduled": "Scheduled"
+        "scheduled": "Scheduled",
+        "scheduleLabel": "Schedule a page check",
+        "every": {
+          "weekly": "Every week",
+          "monthly": "Every month"
+        },
+        "next": "Next check"
       },
       "filterDates": "Filter by date",
       "syncNow": "Sync now",

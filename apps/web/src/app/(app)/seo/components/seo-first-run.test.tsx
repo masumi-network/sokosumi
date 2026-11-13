@@ -343,9 +343,15 @@ describe("SEO audit first run", () => {
       name: copy.overview.manageConnections,
     });
     expect(setUp).toHaveLength(1);
-    // A check can start and no action waits, so the header's run button is the filled one: the view keeps one.
+    // A check can start and no action waits, so the run is the filled one: the view keeps one. Its arrow, which
+    // schedules the follow-up, is part of the same control.
     expect(setUp[0]).not.toHaveClass("bg-primary");
-    expect(document.querySelectorAll("button.bg-primary")).toHaveLength(1);
+    const arrow = screen.getByRole("button", { name: copy.monitor.create });
+    expect(
+      [...document.querySelectorAll("button.bg-primary")]
+        .filter((button) => button !== arrow)
+        .map((button) => button.textContent),
+    ).toEqual([copy.runFullAudit]);
   });
 
   it("puts a failed check on its own step, with the button that runs it again", () => {

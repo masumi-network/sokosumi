@@ -94,6 +94,25 @@ export function seoRunCountDays(days: Pick<SeoRunDay, "day" | "issues">[]) {
   return shown.size > 1 ? shown : new Set<string>();
 }
 
+/**
+ * The next check a schedule starts: the soonest one of a running schedule, else null. A paused or ended schedule
+ * starts none, and a time in the past is one the schedule already passed.
+ */
+export function seoNextScheduledCheck(
+  monitors: Pick<
+    ProjectSeoWorkspace["monitors"][number],
+    "state" | "nextRunAt"
+  >[],
+  now: Date,
+): Date | null {
+  const next = monitors
+    .filter(({ state, nextRunAt }) => state === "ACTIVE" && nextRunAt)
+    .map(({ nextRunAt }) => new Date(nextRunAt as Date))
+    .filter((at) => at.getTime() > now.getTime())
+    .sort((a, b) => a.getTime() - b.getTime());
+  return next[0] ?? null;
+}
+
 /** The row of runs shows with two entries at least: one run, with none in flight, is no choice. */
 export function seoRunsRow(days: SeoRunDay[], running: boolean) {
   return days.length + (running ? 1 : 0) >= 2;

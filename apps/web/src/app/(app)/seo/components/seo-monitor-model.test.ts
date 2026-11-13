@@ -168,6 +168,16 @@ describe("SEO monitor card model", () => {
     expect(seoMonitorRuleOf(seoMonitorWhen(never, "UTC"))).toEqual(never);
   });
 
+  it("starts a new schedule on the repeat its opener chose, as a rule Core takes", () => {
+    const weekly = seoMonitorWhen(null, "UTC");
+    expect(weekly.repeat).toBe("weekly");
+    expect(seoMonitorRuleOf(weekly)?.expr).toBe("0 9 * * MON");
+    // The editor must read the preset as a monthly rule: a rule it cannot read would save nothing.
+    const monthly = seoMonitorWhen(null, "UTC", undefined, "monthly");
+    expect(monthly.repeat).toBe("monthly");
+    expect(seoMonitorRuleOf(monthly)?.expr).toBe("0 9 1 * *");
+  });
+
   it("opens a Monday-to-Friday rule as weekly with five days, since the SEO editor has no weekdays choice", () => {
     const when = seoMonitorWhen(rule({ expr: "0 9 * * MON-FRI" }), "UTC");
     expect(when.repeat).toBe("weekly");

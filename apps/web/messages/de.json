@@ -11395,8 +11395,6 @@
       "runAnalysis": "Prüfung starten",
       "runFullAudit": "Vollständiges Audit starten",
       "runPageCheck": "Seitenprüfung starten",
-      "runAuditShort": "Audit",
-      "runCheckShort": "Seitenprüfung",
       "syncStatistics": "Statistiken synchronisieren",
       "noPages": "Füge zuerst eine Seite hinzu",
       "noPagesBody": "Seiten legen fest, worauf sich Prüfungen und Statistiken beziehen.",
@@ -12195,7 +12193,13 @@
         "checkDay": "Tag mit Prüfung",
         "shown": "Zeitraum {range}.",
         "shownUntil": "Zeitraum bis {day}.",
-        "scheduled": "Geplant"
+        "scheduled": "Geplant",
+        "scheduleLabel": "Seitenprüfung planen",
+        "every": {
+          "weekly": "Jede Woche",
+          "monthly": "Jeden Monat"
+        },
+        "next": "Nächste Prüfung"
       },
       "filterDates": "Nach Datum filtern",
       "syncNow": "Jetzt synchronisieren",
