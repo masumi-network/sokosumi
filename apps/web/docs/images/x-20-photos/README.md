@@ -1,24 +1,15 @@
 # X 20-photo screenshots
 
-Real Chromium screenshots at 1440 × 1000 and 390 × 1000, captured locally on
-2026-11-13. `composer-*.png` shows eight attached images; `preview-*.png`
-shows the real X preview with four visible tiles and a `+4` overlay.
+Real Chromium screenshots, captured locally on 2026-11-13 at 1440 and 390 px wide.
 
-These are **component-harness screenshots with mocked data**, not an authenticated
-Project or a connected X account. `verify-sokosumi doctor` found no local Core/Web
-stack, no configured sign-in credentials, and no `agent-browser` executable.
+- `preview-20-*`: X preview with 20 images, as a carousel (1440 is hovered, so the next arrow shows).
+- `preview-20-end-*`: the same carousel scrolled to the last image.
+- `preview-5-*`, `preview-4-*`: 5 and 4 images use the same carousel.
+- `composer-20-*`: the composer with 20 attachments and the live preview.
 
-The temporary Vite harness imported the production `SocialPostComposerDialog`,
-`SocialPostPreview`, modal, media chips, styles, translations, and date formats.
-Playwright selected eight existing repository photos through the real composer
-file input. The mocked Drive uploader returned local fixture URLs; mocked session
-and Core reads supplied a single active X connection. All mutation functions
-threw if called. Next Image/Link used local browser adapters; the browser used
-its sans-serif fallback rather than Next's downloaded Inter font. Account
-settings, Drive picker, quote picker, and document viewer were inert harness
-stubs. No post was published, scheduled, or saved to an account.
-
-The capture checked eight composer attachments, the `+4` preview, loaded images,
-and a clean browser console at both widths. Harness files remain in the ignored
-`.cursor/verify-sokosumi-artifacts/x20/harness/` directory for this worktree.
-The local Vite server and Chromium were stopped after capture.
+The production `SocialPostComposerDialog` and `SocialPostPreview` were rendered in
+a local Vite harness with a mocked X account and mocked uploads. They don't come
+from a signed-in Project, and nothing was posted, scheduled or saved. Fixture
+images come from the repo (`docs/images` fixtures and `public/studio/empty-ads`).
+The capture checked the item counts, that there's no "+N" badge, no page-level
+horizontal scroll, and a clean browser console at both widths.
