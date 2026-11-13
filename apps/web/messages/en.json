@@ -1779,6 +1779,12 @@
         "open": "Open",
         "restoreError": "Couldn't restore this task. Try again."
       },
+      "NotFound": {
+        "title": "This task isn’t here",
+        "description": "It may have been archived or deleted, or it belongs to another workspace. Archived tasks can be restored.",
+        "archived": "Archived tasks",
+        "back": "Back to tasks"
+      },
       "Columns": {
         "backlog": "Backlog",
         "todo": "Todo",

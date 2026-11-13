@@ -658,10 +658,11 @@ describe("TasksView filtered empty state", () => {
     expect(replaceMock).toHaveBeenCalledWith(`/tasks?projectId=${PROJECT_ID}`);
   });
 
-  it("keeps the plain board when nothing is filtered", () => {
+  it("shows one empty state instead of empty columns when nothing is filtered", () => {
     render(emptyView(EMPTY_FILTERS));
 
-    expect(screen.getByTestId("board-density")).toBeInTheDocument();
+    expect(screen.getByText("No tasks")).toBeInTheDocument();
+    expect(screen.queryByTestId("board-density")).not.toBeInTheDocument();
     expect(
       screen.queryByText("Filters.noMatchesTitle"),
     ).not.toBeInTheDocument();

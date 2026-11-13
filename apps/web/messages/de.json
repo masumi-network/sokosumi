@@ -1779,6 +1779,12 @@
         "open": "Öffnen",
         "restoreError": "Die Aufgabe konnte nicht wiederhergestellt werden. Versuche es erneut."
       },
+      "NotFound": {
+        "title": "Diese Aufgabe ist nicht da",
+        "description": "Sie wurde vielleicht archiviert oder gelöscht, oder sie gehört zu einem anderen Workspace. Archivierte Aufgaben lassen sich wiederherstellen.",
+        "archived": "Archivierte Aufgaben",
+        "back": "Zurück zu den Aufgaben"
+      },
       "Columns": {
         "backlog": "Backlog",
         "todo": "Offen",
