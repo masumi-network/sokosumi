@@ -19,7 +19,7 @@ import type {
 } from "@/schemas/project-seo.schema";
 import { SEO_MAX_PAGES } from "@/schemas/project-seo.schema";
 import { nativeSeoMetricsSchema } from "@/schemas/project-seo-native-metrics.schema";
-
+import { requireNoActiveSeoAnalysis } from "./project-seo-analysis-concurrency";
 import {
   canReadPrivateSeoMetrics,
   commitSeoMutation,
@@ -203,6 +203,7 @@ export async function requestProjectSeoAnalysisInTransaction(
       throw conflict("This analysis key was already used for another request");
     return commitSeoMutation(tx, previous, hooks);
   }
+  await requireNoActiveSeoAnalysis(tx, actor);
   const executor = await requireSeoAnalysisExecutor(actor, input, tx);
   if (requireScheduledExecutor && !executor.canSchedule)
     throw conflict(
@@ -238,18 +239,17 @@ export async function requestProjectSeoAnalysisInTransaction(
     },
   });
   const packet = seoTaskPacket(input, pageUrls, analysis.id);
-  // A monitor checks its first Run when it is made. A refused scheduled Run would roll back its release and hold the
-  // schedule, so a later short balance pauses that Run's Task at completion instead (OUT_OF_CREDITS).
-  if (!requireScheduledExecutor)
-    await requireSeoAnalysisBalance(
-      tx,
-      {
-        userId: actor.userId,
-        organizationId: actor.organizationId,
-        projectId,
-      },
-      seoAnalysisMaxCredits(input, pageUrls.length),
-    );
+  // A monitor checks its first Run when it is made. Recheck at every dispatch: a later short balance must leave
+  // the scheduled Run planned for a top-up, rather than spend provider money before reaching OUT_OF_CREDITS.
+  await requireSeoAnalysisBalance(
+    tx,
+    {
+      userId: actor.userId,
+      organizationId: actor.organizationId,
+      projectId,
+    },
+    seoAnalysisMaxCredits(input, pageUrls.length),
+  );
   const task = await createTaskForActor(
     {
       actor: actor.sokoBotId

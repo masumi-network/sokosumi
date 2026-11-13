@@ -14,6 +14,7 @@ import {
   releaseSeoMonitorRun,
 } from "./project-seo-monitor.service";
 import { requestProjectSeoAnalysis } from "./project-seo-operations.service";
+import { runTaskScheduleNow } from "./task-schedule.service";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -132,7 +133,12 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
       })
     ).id;
   });
-  beforeEach(() => setBalance(0n));
+  beforeEach(async () => {
+    await prisma.projectSeoAnalysis.deleteMany({ where: { auditId } });
+    await prisma.task.deleteMany({ where: { workspaceId } });
+    await prisma.taskSchedule.deleteMany({ where: { workspaceId } });
+    await setBalance(0n);
+  });
   afterAll(async () => {
     env.SEO_ANALYSIS_EXECUTOR = previousExecutor;
     env.SEO_ANALYSIS_DISPATCH_ENABLED = previousDispatch;
@@ -193,7 +199,7 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     ).not.toBeNull();
   });
 
-  it("checks a monitor's first Run when it is made, but never holds a scheduled Run", async () => {
+  it("checks a monitor at creation and rechecks the balance before each scheduled Run", async () => {
     const input = {
       operationId: randomUUID(),
       rule: {
@@ -233,10 +239,67 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
       where: { scheduleId: schedule.id, state: "PLANNED" },
     });
     await setBalance(0n);
+    const before = await counts();
+    await expect(
+      prisma.$transaction((tx) => releaseSeoMonitorRun(tx, schedule, run.id)),
+    ).rejects.toMatchObject({
+      status: 422,
+      cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
+    });
+    expect(await counts()).toEqual(before);
+    expect(
+      (
+        await prisma.taskScheduleRun.findUniqueOrThrow({
+          where: { id: run.id },
+        })
+      ).state,
+    ).toBe("PLANNED");
+    await setBalance(150n);
     const task = await prisma.$transaction((tx) =>
       releaseSeoMonitorRun(tx, schedule, run.id),
     );
     expect(task?.id).toBeDefined();
+  });
+
+  it("refuses Run now after credits drop, then permits retry after a top-up", async () => {
+    await setBalance(150n);
+    const monitor = await createProjectSeoMonitor(vars, actor, {
+      operationId: randomUUID(),
+      rule: {
+        expr: "0 9 * * *",
+        timezone: "UTC",
+        endsMode: "AFTER",
+        targetRunCount: 2,
+      },
+      analysis: rankings(),
+    });
+    await setBalance(149n);
+    const before = await counts();
+    const runsBefore = await prisma.taskScheduleRun.count({
+      where: { scheduleId: monitor.id },
+    });
+    await expect(
+      runTaskScheduleNow(vars, monitor.id, { expectedRevision: 0 }),
+    ).rejects.toMatchObject({
+      status: 422,
+      cause: { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
+    });
+    expect(await counts()).toEqual(before);
+    expect(
+      await prisma.taskScheduleRun.count({ where: { scheduleId: monitor.id } }),
+    ).toBe(runsBefore);
+    expect(
+      (
+        await prisma.taskSchedule.findUniqueOrThrow({
+          where: { id: monitor.id },
+        })
+      ).revision,
+    ).toBe(0);
+    await setBalance(150n);
+    const result = await runTaskScheduleNow(vars, monitor.id, {
+      expectedRevision: 0,
+    });
+    expect(result.run.releasedTaskId).toBeTruthy();
   });
 });
 

@@ -15,6 +15,7 @@ import {
 import { computeNextRun } from "@/helpers/cron";
 import { computeIntervalNextRun } from "@/helpers/task-schedule";
 import prisma from "@/lib/db/prisma";
+import { isSeoMonitorDescription } from "@/lib/seo/monitor-plan";
 import {
   announceReleasedTasks,
   createTaskFromBlueprint,
@@ -39,6 +40,8 @@ const MAX_PLANNED_RUNS = 2_000;
 export const TASK_SCHEDULE_RELEASE_BATCH_SIZE = 25;
 /** Keeps one transaction well inside Prisma's interactive timeout. */
 const MAX_RELEASES_PER_TRANSACTION = 50;
+/** One active SEO check per Audit: a later owed Run must not roll back the first release. */
+const SEO_RELEASES_PER_TRANSACTION = 1;
 
 /** Calendar source of the Runs a schedule plans: its project, or its workspace. */
 function getRunSource(schedule: {
@@ -461,7 +464,9 @@ async function releaseRuns(
       effectiveScheduledAt: due,
     },
     orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
-    take: limit,
+    take: isSeoMonitorDescription(schedule.description)
+      ? Math.min(limit, SEO_RELEASES_PER_TRANSACTION)
+      : limit,
     select: { id: true },
   });
 

@@ -48,6 +48,10 @@ import {
 } from "@/helpers/vendor-grants";
 import { creatorFields } from "@/helpers/work-creator";
 import {
+  requireSeoTaskReactivation,
+  SEO_INACTIVE_TASK_STATUSES,
+} from "./project-seo-analysis-concurrency";
+import {
   requireAssigneeForExecutableStatus,
   requireAssigneeXor,
   requireNoHumanAssigneeOnPrivateTask,
@@ -527,6 +531,8 @@ export async function restoreTaskRecord(
   task: Task,
   actor: TaskDomainActor,
 ): Promise<void> {
+  if (!SEO_INACTIVE_TASK_STATUSES.includes(task.status))
+    await requireSeoTaskReactivation(tx, task.id);
   const keepStatus = RESTORE_KEEPS_STATUS.includes(task.status);
   const result = await tx.task.updateMany({
     where: {

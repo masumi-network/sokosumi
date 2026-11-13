@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
@@ -126,6 +126,20 @@ describe.skipIf(!enabled)("Native SEO trusted executor with PostgreSQL", () => {
       })
     ).id;
   });
+  beforeEach(async () => {
+    // Each case starts after earlier dispatched checks have finished.
+    const earlier = await prisma.projectSeoAnalysis.findMany({
+      where: { requestedBy: userId },
+      select: { taskId: true },
+    });
+    await prisma.task.updateMany({
+      where: {
+        id: { in: earlier.flatMap((row) => (row.taskId ? [row.taskId] : [])) },
+        status: { notIn: ["COMPLETED", "FAILED", "CANCELED"] },
+      },
+      data: { status: "COMPLETED" },
+    });
+  });
   afterAll(async () => {
     env.SEO_ANALYSIS_EXECUTOR = previousExecutor;
     env.SEO_ANALYSIS_DISPATCH_ENABLED = previousDispatch;
@@ -199,6 +213,10 @@ describe.skipIf(!enabled)("Native SEO trusted executor with PostgreSQL", () => {
       expect(analysis.request).toMatchObject({
         budget: { maxProviderCalls: 0 },
       });
+      await prisma.task.update({
+        where: { id: analysis.taskId! },
+        data: { status: "COMPLETED" },
+      });
     }
   });
 
@@ -252,6 +270,10 @@ describe.skipIf(!enabled)("Native SEO trusted executor with PostgreSQL", () => {
             where: { id: analysis.taskId! },
           }),
         ).toMatchObject({ assigneeId: coworkerId });
+        await prisma.task.update({
+          where: { id: analysis.taskId! },
+          data: { status: "COMPLETED" },
+        });
       }
     } finally {
       env.SEO_ANALYSIS_EXECUTOR = trusted;
@@ -331,6 +353,10 @@ describe.skipIf(!enabled)("Native SEO trusted executor with PostgreSQL", () => {
     const replay = await prisma.$transaction((tx) =>
       releaseSeoMonitorRun(tx, schedule, runs[0].id),
     );
+    await prisma.task.update({
+      where: { id: first!.id },
+      data: { status: "COMPLETED" },
+    });
     const second = await prisma.$transaction((tx) =>
       releaseSeoMonitorRun(tx, schedule, runs[1].id),
     );

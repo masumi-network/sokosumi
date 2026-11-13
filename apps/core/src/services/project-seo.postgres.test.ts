@@ -1,6 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { HTTPException } from "hono/http-exception";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { getEnv } from "@/config/env";
 
@@ -152,6 +160,22 @@ describe.skipIf(!enabled)(
       });
       await prisma.creditBucket.create({
         data: { amount: credits, userId, sourceTransactionId: topUp.id },
+      });
+    });
+    beforeEach(async () => {
+      // Each case starts after earlier dispatched checks have finished.
+      const earlier = await prisma.projectSeoAnalysis.findMany({
+        where: { requestedBy: userId },
+        select: { taskId: true },
+      });
+      await prisma.task.updateMany({
+        where: {
+          id: {
+            in: earlier.flatMap((row) => (row.taskId ? [row.taskId] : [])),
+          },
+          status: { notIn: ["COMPLETED", "FAILED", "CANCELED"] },
+        },
+        data: { status: "COMPLETED" },
       });
     });
     afterAll(async () => {
@@ -605,6 +629,10 @@ describe.skipIf(!enabled)(
       const same = await prisma.$transaction((tx) =>
         releaseSeoMonitorRun(tx, schedule, runs[0].id),
       );
+      await prisma.task.update({
+        where: { id: first!.id },
+        data: { status: "COMPLETED" },
+      });
       const second = await prisma.$transaction((tx) =>
         releaseSeoMonitorRun(tx, schedule, runs[1].id),
       );
@@ -635,6 +663,10 @@ describe.skipIf(!enabled)(
           ),
         ),
       ).rejects.toMatchObject({ status: 403 });
+      await prisma.task.update({
+        where: { id: second!.id },
+        data: { status: "COMPLETED" },
+      });
       // A schedule can repeat the full audit: each Run's Task carries the seo_audit packet.
       const fullMonitor = await createProjectSeoMonitor(vars, actor, {
         ...input,
@@ -676,6 +708,10 @@ describe.skipIf(!enabled)(
             releaseSeoMonitorRun(tx, { ...schedule, ...tampered }, runs[0].id),
           ),
         ).rejects.toMatchObject({ status: 403 });
+      await prisma.task.update({
+        where: { id: fullTask!.id },
+        data: { status: "COMPLETED" },
+      });
       // Every N days up to a date, as the schedule dialog writes it: the guard lets its Runs start.
       const day = 86_400_000;
       const every = await createProjectSeoMonitor(vars, actor, {
@@ -776,6 +812,10 @@ describe.skipIf(!enabled)(
       const siblingRun = await runTaskScheduleNow(vars, sibling.id, {
         expectedRevision: sibling.revision,
       });
+      await prisma.task.update({
+        where: { id: siblingRun.run.releasedTaskId! },
+        data: { status: "COMPLETED" },
+      });
       // Another member of the workspace may read the monitor but not add Runs billed to its owner.
       const memberVars = {
         ...vars,
@@ -829,10 +869,18 @@ describe.skipIf(!enabled)(
       const scheduled = await prisma.$transaction((tx) =>
         releaseSeoMonitorRun(tx, schedule, planned.id),
       );
+      await prisma.task.update({
+        where: { id: scheduled!.id },
+        data: { status: "COMPLETED" },
+      });
       const ranNow = await runTaskScheduleNow(vars, monitor.id, {
         expectedRevision: edited.revision,
       });
       expect(ranNow.run.manual).toBe(true);
+      await prisma.task.update({
+        where: { id: ranNow.run.releasedTaskId! },
+        data: { status: "COMPLETED" },
+      });
       const ranAgain = await runTaskScheduleNow(vars, monitor.id, {
         expectedRevision: ranNow.revision,
       });
@@ -1131,6 +1179,10 @@ describe.skipIf(!enabled)(
         await prisma.projectSeoObservation.update({
           where: { id: observation.id },
           data: { sourceTaskId: inferred.taskId },
+        });
+        await prisma.task.update({
+          where: { id: inferred.taskId! },
+          data: { status: "COMPLETED" },
         });
         const configured = await requestProjectSeoAnalysis(sourceActor, {
           ...request,
