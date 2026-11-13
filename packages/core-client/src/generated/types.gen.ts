@@ -12136,7 +12136,7 @@ export type CmoTurnStarted = {
 };
 
 export type CmoPlanChange = {
-    change: 'upgrade' | 'downgrade';
+    change: 'upgrade' | 'downgrade' | 'kept';
 };
 
 export type CmoCustomerPortal = {
@@ -77251,7 +77251,7 @@ export type ChangeCmoPlanForProjectErrors = {
         };
     };
     /**
-     * Refused with a reason: no active subscription (subscription_not_active, also when past due), a tier of the other interval, the current tier or a scheduled cancel (subscription_change_not_allowed), or the upgrade's payment failed (subscription_payment_failed)
+     * Refused with a reason: no active subscription (subscription_not_active, also when past due), a tier of the other interval, the current tier with no downgrade pending, or a scheduled cancel (subscription_change_not_allowed), or the upgrade's payment failed (subscription_payment_failed)
      */
     409: {
         error: string;
@@ -77286,7 +77286,7 @@ export type ChangeCmoPlanForProjectError = ChangeCmoPlanForProjectErrors[keyof C
 
 export type ChangeCmoPlanForProjectResponses = {
     /**
-     * Plan changed, or the downgrade is scheduled
+     * Plan changed, the downgrade is scheduled, or the pending downgrade is cleared
      */
     200: {
         data: CmoPlanChange;

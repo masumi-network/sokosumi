@@ -7,9 +7,12 @@ import { AGENT_NAME } from "../../lib/agent";
 import { money } from "../strategy-core";
 import { type StartTopUp, TopUpButton } from "../top-up";
 
-/** Moves the Cuso to a tier of his interval: what changed, or why not. */
+/**
+ * Moves the Cuso to a tier of his interval: what changed, or why not. His
+ * current tier while a downgrade is pending keeps the plan.
+ */
 export type ChangePlan = (tier: string) => Promise<{
-  change: "upgrade" | "downgrade" | null;
+  change: "upgrade" | "downgrade" | "kept" | null;
   error: string | null;
 }>;
 
@@ -106,9 +109,11 @@ export function SubscriptionCard({
         </p>
       ) : null}
       {manage && billing.pendingTier && date ? (
-        <p className="note">
-          Moves to {tierName(billing.pendingTier)} on {date}.
-        </p>
+        <KeepPlan
+          notice={`Moves to ${tierName(billing.pendingTier)} on ${date}.`}
+          tier={tier}
+          changePlan={changePlan}
+        />
       ) : null}
       {changeable ? (
         <PlanChange
@@ -161,6 +166,54 @@ export function PortalButton({
         <span className="note" role="alert">
           {error}
         </span>
+      ) : null}
+    </>
+  );
+}
+
+/** The pending downgrade, and the button that drops it. */
+function KeepPlan({
+  notice,
+  tier,
+  changePlan,
+}: {
+  notice: string;
+  tier: string;
+  changePlan: ChangePlan;
+}) {
+  const [kept, setKept] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  if (kept) {
+    return <p className="note">{tierName(tier)} stays your plan.</p>;
+  }
+  return (
+    <>
+      <div className="li">
+        <span className="grow note">{notice}</span>
+        <button
+          type="button"
+          className="button button-secondary button-small"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              setError(null);
+              const result = await changePlan(tier);
+              if (result.change === "kept") {
+                setKept(true);
+                return;
+              }
+              setError(result.error ?? "Could not keep the plan. Try again.");
+            })
+          }
+        >
+          {pending ? "Keeping…" : "Keep my plan"}
+        </button>
+      </div>
+      {error ? (
+        <p className="alert" role="alert">
+          {error}
+        </p>
       ) : null}
     </>
   );

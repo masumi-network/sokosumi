@@ -46868,7 +46868,8 @@ export const CmoPlanChangeSchema = {
             type: 'string',
             enum: [
                 'upgrade',
-                'downgrade'
+                'downgrade',
+                'kept'
             ]
         }
     },

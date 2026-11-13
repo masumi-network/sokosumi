@@ -13,7 +13,7 @@ const route = createRoute({
   operationId: "changeCmoPlanForProject",
   tags: ["CMO"],
   description:
-    "Moves this Cuso's CMO subscription to another tier of the same interval. An upgrade applies at once: Polar charges the prorated difference and the extra credits for the rest of the month follow its payment. A downgrade applies at the next renewal and shows as the pending tier until then. The organization's owners and admins only.",
+    "Moves this Cuso's CMO subscription to another tier of the same interval. An upgrade applies at once: Polar charges the prorated difference and the extra credits for the rest of the month follow its payment. A downgrade applies at the next renewal and shows as the pending tier until then. The current tier while a downgrade is pending keeps the plan: the pending downgrade is cleared (`kept`). The organization's owners and admins only.",
   request: {
     params: cmoProjectParamsSchema,
     body: {
@@ -32,15 +32,15 @@ const route = createRoute({
   responses: {
     200: jsonSuccessResponse(
       z
-        .object({ change: z.enum(["upgrade", "downgrade"]) })
+        .object({ change: z.enum(["upgrade", "downgrade", "kept"]) })
         .openapi("CmoPlanChange"),
-      "Plan changed, or the downgrade is scheduled",
+      "Plan changed, the downgrade is scheduled, or the pending downgrade is cleared",
     ),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Only an organization owner or admin can"),
     404: jsonErrorResponse("Cuso is not hired yet"),
     409: jsonErrorResponse(
-      "Refused with a reason: no active subscription (subscription_not_active, also when past due), a tier of the other interval, the current tier or a scheduled cancel (subscription_change_not_allowed), or the upgrade's payment failed (subscription_payment_failed)",
+      "Refused with a reason: no active subscription (subscription_not_active, also when past due), a tier of the other interval, the current tier with no downgrade pending, or a scheduled cancel (subscription_change_not_allowed), or the upgrade's payment failed (subscription_payment_failed)",
     ),
     503: jsonErrorResponse("Polar is not configured"),
   },

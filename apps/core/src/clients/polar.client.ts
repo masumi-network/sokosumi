@@ -143,16 +143,38 @@ export async function changePolarSubscriptionPlan(input: {
     });
     return ok(undefined);
   } catch (error) {
-    if (error instanceof errors.SubscriptionsUpdate402Error) {
-      return err("payment_failed");
-    }
-    if (
-      error instanceof errors.SubscriptionsUpdate403Error ||
-      error instanceof errors.SubscriptionsUpdate409Error
-    ) {
-      return err("not_changeable");
-    }
-    throw error;
+    return planChangeError(error);
+  }
+}
+
+function planChangeError(error: unknown): Result<never, PolarPlanChangeError> {
+  if (error instanceof errors.SubscriptionsUpdate402Error) {
+    return err("payment_failed");
+  }
+  if (
+    error instanceof errors.SubscriptionsUpdate403Error ||
+    error instanceof errors.SubscriptionsUpdate409Error
+  ) {
+    return err("not_changeable");
+  }
+  throw error;
+}
+
+/**
+ * Drops the subscription's scheduled change (a downgrade waiting for the next
+ * period), so the current plan renews as it is.
+ */
+export async function clearPolarPendingPlanChange(
+  polarSubscriptionId: string,
+): Promise<Result<void, PolarPlanChangeError>> {
+  const polar = requirePolar();
+  try {
+    await polar.subscriptions.update(polarSubscriptionId, {
+      pending_update: null,
+    });
+    return ok(undefined);
+  } catch (error) {
+    return planChangeError(error);
   }
 }
 

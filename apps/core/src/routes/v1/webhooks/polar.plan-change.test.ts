@@ -326,3 +326,53 @@ describe("POST /v1/webhooks/polar: a scheduled downgrade", () => {
     ]);
   });
 });
+
+describe("POST /v1/webhooks/polar: a kept plan", () => {
+  it("keeps the tier and no pending product once Polar dropped the downgrade", async () => {
+    m.verifyPolarWebhook.mockResolvedValue(
+      subscriptionUpdated("2026-12-22T10:00:00.000Z", { pending_update: null }),
+    );
+
+    await post();
+
+    expect(rowWrites()).toEqual([
+      expect.objectContaining({
+        polarProductId: GROWTH.id,
+        tier: "growth",
+        pendingPolarProductId: null,
+      }),
+    ]);
+  });
+
+  it("grants the current tier at the renewal, not the cleared downgrade", async () => {
+    m.verifyPolarWebhook.mockResolvedValue(
+      ok({
+        type: "order.paid",
+        timestamp: "2027-01-13T10:00:05.000Z",
+        data: {
+          id: "order_5",
+          billing_reason: "subscription_cycle",
+          metadata: {},
+          customer: { id: "cus_1", external_id: ORGANIZATION_ID },
+          product: GROWTH,
+          subscription: {
+            ...SUBSCRIPTION,
+            current_period_start: "2027-01-13T10:00:00.000Z",
+            current_period_end: "2027-02-13T10:00:00.000Z",
+          },
+          items: [],
+        },
+      }),
+    );
+
+    await post();
+
+    expect(rowWrites()[0]).toMatchObject({
+      polarProductId: GROWTH.id,
+      tier: "growth",
+    });
+    expect(grants()).toMatchObject([
+      { amount: 25_000n * CENTS_PER_CREDIT, referenceId: "order_5:0" },
+    ]);
+  });
+});
