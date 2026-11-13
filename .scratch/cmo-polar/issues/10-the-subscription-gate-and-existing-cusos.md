@@ -6,14 +6,14 @@ Spec: `.scratch/cmo-polar/spec.md` (SOKD-204), stories 11, 34, 45 to 47.
 
 **Blocked by:** 09 Free hiring and no Starter credits
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The check takes the Project. Active counts, a scheduled cancel counts until the period ends, past due and ended do not.
-- [ ] A Cuso in free hiring passes; a Cuso whose strategy is approved and who has no subscription does not.
-- [ ] A Cuso with unspent Starter credits passes without a subscription; with them used up he does not.
-- [ ] Pool credits alone never pass the check.
-- [ ] Every consumer of the check follows it: execution, the execution refusal, the overview, production and Cuso's context packet.
-- [ ] CMO's paused screens offer "subscribe" when there is no subscription and "fix payment" when it is past due; the subscribe action starts the plan checkout outside the hiring flow too.
-- [ ] A Cuso with Starter credits left can subscribe from Settings and keeps those credits.
+- [x] The check takes the Project. Active counts, a scheduled cancel counts until the period ends, past due and ended do not.
+- [x] A Cuso in free hiring passes; a Cuso whose strategy is approved and who has no subscription does not.
+- [x] A Cuso with unspent Starter credits passes without a subscription; with them used up he does not.
+- [x] Pool credits alone never pass the check.
+- [x] Every consumer of the check follows it: execution, the execution refusal, the overview, production and Cuso's context packet.
+- [x] CMO's paused screens offer "subscribe" when there is no subscription and "fix payment" when it is past due; the subscribe action starts the plan checkout outside the hiring flow too.
+- [x] A Cuso with Starter credits left can subscribe from Settings and keeps those credits.
 - [ ] Tests cover each row above through the overview route and the charging path, plus component tests for the paused screens.
 - [ ] The Cuso evals are run and their table goes in the PR's Evidence (`docs/agents/evals.md`), because the context packet's paused line is now driven by the real check.
