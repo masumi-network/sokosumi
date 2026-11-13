@@ -1,12 +1,13 @@
 "use client";
 
-import type {
-  SokoBotAvatar,
-  SokoBotDailyStats,
-  SokoBotInstalledSkill,
-  SokoBotIntegrations,
-  SokoBotUsage,
-  SokoBotVersion,
+import {
+  type SokoBotAvatar,
+  type SokoBotDailyStats,
+  type SokoBotInstalledSkill,
+  type SokoBotIntegrations,
+  SokoBotStatus,
+  type SokoBotUsage,
+  type SokoBotVersion,
 } from "@sokosumi/core-client";
 import { SOKO_BOT_SYSTEM_SCHEDULES } from "@sokosumi/soko-bot";
 import { MessageSquare, ShieldCheck } from "lucide-react";
@@ -406,6 +407,11 @@ export function SokoBotConsole({
                 <p className="text-muted-foreground max-w-xl text-sm text-pretty">
                   {t("Console.tagline")}
                 </p>
+                {bot.status === SokoBotStatus.ERROR ? (
+                  <p className="text-destructive max-w-xl text-sm text-pretty">
+                    {t("Console.lastTurnFailed", { name: botName })}
+                  </p>
+                ) : null}
                 {bot.lastActivityAt ? (
                   <p
                     className="text-muted-foreground text-xs tabular-nums"
