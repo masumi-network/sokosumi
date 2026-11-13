@@ -140,7 +140,7 @@ struct VoiceAttachmentPlayer: View {
       if player.timeControlStatus == .paused, duration > 0, current >= duration - 0.05 {
         playing = false
         current = 0
-        player.seek(to: .zero)
+        _ = await player.seek(to: .zero)
       }
       try? await Task.sleep(for: .milliseconds(100))
     }
