@@ -1173,6 +1173,46 @@ describe.skipIf(!enabled)(
       ).toContain(selectedObservation.id);
     });
 
+    it("keeps an audit beside 150 newer metric snapshots", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: "https://example.test/metrics-flood",
+        relationship: "primary",
+      });
+      const audit = await prisma.projectSeoObservation.create({
+        data: {
+          projectId,
+          source: "seo_coworker",
+          kind: "audit_full",
+          sourceKey: randomUUID(),
+          pageIds: [page.id],
+          artifactHash: "metrics-flood-audit",
+          payload: parsePublicSeoArtifact({
+            ...legacyReport(),
+            request: { url: page.url },
+          }),
+          observedAt: new Date("2026-10-01T00:00:00Z"),
+        },
+      });
+      await prisma.projectSeoObservation.createMany({
+        data: Array.from({ length: 150 }, (_, index) => ({
+          projectId,
+          ownerId: userId,
+          visibility: "PRIVATE",
+          source: "ga4",
+          kind: "metrics",
+          sourceKey: `metrics-flood:${index}`,
+          pageIds: [page.id],
+          artifactHash: `metrics-flood:${index}`,
+          payload: metrics([page.url]),
+          observedAt: new Date(Date.UTC(2026, 10, 1, 0, index)),
+        })),
+      });
+      const ids = (
+        await getProjectSeoWorkspace(actor, { pageId: page.id })
+      ).observations.map((row) => row.id);
+      expect(ids).toContain(audit.id);
+    });
+
     it("imports only ready owned artifacts, rechecks source authority after fetch and links each action once", async () => {
       async function source() {
         const task = await prisma.task.create({

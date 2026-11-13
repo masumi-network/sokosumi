@@ -280,6 +280,48 @@ export async function recordNativeSeoMetrics(
       );
 }
 
+/** Audit evidence and page changes: the newest rows the workspace shows. */
+const SEO_WORKSPACE_EVIDENCE_LIMIT = 100;
+/** Native metric snapshots: the newest syncs the workspace shows. */
+const SEO_WORKSPACE_METRICS_LIMIT = 100;
+
+/**
+ * Loads public evidence and private metric snapshots with separate caps, so
+ * frequent syncs never push an audit out of the bounded history. Rows come
+ * newest first, as the projection expects.
+ */
+async function loadSeoWorkspaceObservations(
+  actor: SeoActor,
+  pageIds: string[],
+  privateMetricsAllowed: boolean,
+) {
+  const where = { ...seoOwnerWhere(actor), pageIds: { hasSome: pageIds } };
+  const [evidence, metrics] = await Promise.all([
+    prisma.projectSeoObservation.findMany({
+      where: { ...where, ownerId: null },
+      orderBy: { observedAt: "desc" },
+      take: SEO_WORKSPACE_EVIDENCE_LIMIT,
+    }),
+    privateMetricsAllowed
+      ? prisma.projectSeoObservation.findMany({
+          where: {
+            ...where,
+            kind: "metrics",
+            visibility: seoVisibilityFor(actor),
+            ...(actor.organizationId
+              ? { ownerId: { not: null } }
+              : { ownerId: actor.userId }),
+          },
+          orderBy: { observedAt: "desc" },
+          take: SEO_WORKSPACE_METRICS_LIMIT,
+        })
+      : [],
+  ]);
+  return [...evidence, ...metrics].sort(
+    (a, b) => b.observedAt.getTime() - a.observedAt.getTime(),
+  );
+}
+
 export async function getProjectSeoWorkspace(
   actor: SeoActor,
   query: SeoWorkspaceQuery = {},
@@ -307,26 +349,7 @@ export async function getProjectSeoWorkspace(
       where: seoOwnerWhere(actor),
       orderBy: { createdAt: "asc" },
     }),
-    prisma.projectSeoObservation.findMany({
-      where: {
-        ...seoOwnerWhere(actor),
-        pageIds: { hasSome: scope.pageIds },
-        OR: [
-          { ownerId: null },
-          ...(privateMetricsAllowed
-            ? [
-                {
-                  kind: "metrics",
-                  visibility: seoVisibilityFor(actor),
-                  ...(actor.organizationId ? {} : { ownerId: actor.userId }),
-                },
-              ]
-            : []),
-        ],
-      },
-      orderBy: { observedAt: "desc" },
-      take: 100,
-    }),
+    loadSeoWorkspaceObservations(actor, scope.pageIds, privateMetricsAllowed),
     prisma.projectSeoKeyword.findMany({
       where: seoOwnerWhere(actor),
       orderBy: { keyword: "asc" },
