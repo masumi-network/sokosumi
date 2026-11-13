@@ -168,3 +168,45 @@ export async function listSharedSokoBots(
     }),
   );
 }
+
+/**
+ * Where the bot's last failed foreground turn happened, for the person
+ * reading it. A failed chat reply returns its message and room only when the
+ * reader is a member of that room and the reply still exists; anything else
+ * (scheduled or event work, a room they cannot open) returns nulls.
+ */
+export async function getSokoBotLastFailure(
+  sokoBotId: string,
+  viewerUserId: string,
+): Promise<{ roomId: string | null; messageId: string | null } | null> {
+  const turn = await prisma.sokoBotTurn.findFirst({
+    where: { sokoBotId, parentTurnId: null, status: "FAILED" },
+    orderBy: { createdAt: "desc" },
+    select: {
+      source: true,
+      destinationRoomId: true,
+      chatResponseMessageId: true,
+    },
+  });
+  if (!turn) return null;
+  const reply =
+    turn.source === "CHAT" &&
+    turn.chatResponseMessageId &&
+    turn.destinationRoomId
+      ? await prisma.chatRoomMessage.findFirst({
+          where: {
+            id: turn.chatResponseMessageId,
+            roomId: turn.destinationRoomId,
+            deletedAt: null,
+            room: {
+              archivedAt: null,
+              userMembers: { some: { userId: viewerUserId } },
+            },
+          },
+          select: { id: true, roomId: true },
+        })
+      : null;
+  return reply
+    ? { roomId: reply.roomId, messageId: reply.id }
+    : { roomId: null, messageId: null };
+}

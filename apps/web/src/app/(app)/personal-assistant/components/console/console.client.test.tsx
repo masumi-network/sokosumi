@@ -466,6 +466,16 @@ describe("SokoBotConsole header portrait", () => {
     expect(screen.getByText("Console.lastActivity(now)")).toBeInTheDocument();
   });
 
+  it("says its last reply failed, and only then", () => {
+    const { rerender } = renderConsole({
+      initialState: stateWith({ status: "ERROR" }),
+    });
+    expect(screen.getByText(/Console\.lastTurnFailed/)).toBeInTheDocument();
+
+    rerender(consoleElement({ initialState: stateWith({ status: "IDLE" }) }));
+    expect(screen.queryByText(/Console\.lastTurnFailed/)).toBeNull();
+  });
+
   it("edits only the own bot's picture, from its avatar, never in a studio", () => {
     renderConsole({ botId: null, sharedRoomId: null });
     expect(screen.queryByTestId("avatar")).toBeNull();
