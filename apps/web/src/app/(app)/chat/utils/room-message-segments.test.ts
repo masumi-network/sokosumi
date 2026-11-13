@@ -17,6 +17,15 @@ describe("segmentRoomMessageContent", () => {
     ]);
   });
 
+  it("shows a recorded voice message as an attachment", () => {
+    const content =
+      "Note\n[Voice message.m4a](https://cdn.example/voice.m4a)\n[Voice message.weba](https://cdn.example/voice.weba)";
+    expect(segmentRoomMessageContent(content).map((s) => s.kind)).toEqual([
+      "text",
+      "files",
+    ]);
+  });
+
   it("splits file groups when prose sits between attachments", () => {
     const content =
       "[a.png](https://cdn.example/a.png)\nsee also\n[b.png](https://cdn.example/b.png)";
