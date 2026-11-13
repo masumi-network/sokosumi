@@ -15,7 +15,6 @@ import { serviceUnavailable } from "@/helpers/error";
  */
 
 export type PolarProduct = models.Product;
-export type PolarCheckoutCreate = models.CheckoutCreate;
 export type PolarWebhookEvent = webhooks.WebhookPayload;
 export type PolarWebhookError =
   | "not_configured"
@@ -66,11 +65,31 @@ export async function listPolarProducts(): Promise<PolarProduct[]> {
   return products;
 }
 
-/** Opens a hosted checkout and returns the address the person pays at. */
+export interface PolarCheckoutInput {
+  /** Copied by Polar to the order (and the subscription) of this checkout. */
+  metadata: Record<string, string>;
+  /** The Polar customer: its external id is the organization's id. */
+  organizationId: string;
+  /** The person picks one in the checkout; the first is preselected. */
+  productIds: string[];
+  /** Where the person lands after paying, and where "back" leads. */
+  returnUrl: string;
+}
+
+/** Starts a hosted checkout, trial and discount codes off; returns its URL. */
 export async function createPolarCheckout(
-  checkout: PolarCheckoutCreate,
+  input: PolarCheckoutInput,
 ): Promise<string> {
-  return (await requirePolar().checkouts.create(checkout)).url;
+  const checkout = await requirePolar().checkouts.create({
+    products: input.productIds,
+    external_customer_id: input.organizationId,
+    metadata: input.metadata,
+    success_url: input.returnUrl,
+    return_url: input.returnUrl,
+    allow_discount_codes: false,
+    allow_trial: false,
+  });
+  return checkout.url;
 }
 
 /**

@@ -13,6 +13,7 @@ import {
   handlePolarOrderRefunded,
   handlePolarSubscriptionEvent,
 } from "@/services/cmo-subscription.service";
+import { handlePolarTopUpPaid } from "@/services/cmo-top-up.service";
 
 /** The Polar events Core acts on; every other type is acknowledged with 202. */
 const HANDLED_EVENT_TYPES = new Set<PolarWebhookEvent["type"]>([
@@ -71,7 +72,12 @@ app.openapi(route, async (c) => {
   }
   switch (event.type) {
     case "order.paid":
-      await handlePolarOrderPaid(event);
+      // A one-time purchase is a Project top-up; every other order is a plan's.
+      if (event.data.billing_reason === "purchase") {
+        await handlePolarTopUpPaid(event);
+      } else {
+        await handlePolarOrderPaid(event);
+      }
       break;
     case "order.refunded":
       await handlePolarOrderRefunded(event);

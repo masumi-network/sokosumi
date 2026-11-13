@@ -28,6 +28,7 @@ function settings(billing: Partial<CmoOverview["billing"]> = {}) {
       email="ada@acme.io"
       startOver={async () => null}
       signOut={async () => {}}
+      topUp={null}
     />,
   ).replace(/<[^>]+>/g, " ");
 }

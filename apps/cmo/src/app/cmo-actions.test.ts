@@ -45,6 +45,7 @@ const forProject = Object.fromEntries(
     "setCmoAdBudgetForProject",
     "setCmoAdCampaignStatusForProject",
     "startCmoPlanCheckoutForProject",
+    "startCmoTopUpForProject",
     "updateCmoBrandBrainForProject",
   ].map((name) => [name, vi.fn()]),
 );
@@ -130,6 +131,7 @@ const {
   startOver,
   loadPlans,
   startPlanCheckout,
+  startTopUp,
 } = await import("./cmo-actions");
 
 const cmoBrandBrain = cmoOverview().brandBrain;
@@ -201,13 +203,14 @@ describe("onboard", () => {
     });
   });
 
-  it("links to top up when the organization is out of credits", async () => {
+  it("says the organization is out of credits without sending the person to Sokosumi", async () => {
     startCmoOnboarding.mockResolvedValue({
       error: { message: "You're out of credits", kind: "insufficient_balance" },
     });
     const state = await onboard(EMPTY, form("acme.io", "org-team"));
     expect(state.errors.form).toContain("out of credits");
-    expect(state.topUpUrl).toMatch(/\/billing$/);
+    expect(state.errors.form).not.toContain("Sokosumi");
+    expect(state).not.toHaveProperty("topUpUrl");
     // The choice stays for the next try.
     expect(state.organizationId).toBe("org-team");
   });
@@ -223,7 +226,6 @@ describe("onboard", () => {
     });
     const state = await onboard(EMPTY, form("acme.io", "org-team"));
     expect(state.errors.form).toContain(words);
-    expect(state.topUpUrl).toBeUndefined();
   });
 
   it("says so when Core refuses for another reason, keeping the answers", async () => {
@@ -804,6 +806,36 @@ describe("the Cuso on screen", () => {
         error: { message: "Polar is not configured" },
       });
       expect(await loadPlans()).toEqual([]);
+    });
+  });
+
+  it("starts a top-up checkout for the named Cuso and comes back to him", async () => {
+    forProject.startCmoTopUpForProject.mockResolvedValue({
+      data: { data: { url: "https://polar.example/checkout/1" } },
+    });
+
+    const result = await startTopUp("project-2");
+
+    expect(result).toEqual({
+      url: "https://polar.example/checkout/1",
+      error: null,
+    });
+    expect(forProject.startCmoTopUpForProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: { projectId: "project-2" },
+        body: { returnUrl: "https://app.cmo.xyz/?project=project-2" },
+      }),
+    );
+  });
+
+  it("says why a top-up checkout could not start", async () => {
+    forProject.startCmoTopUpForProject.mockResolvedValue({
+      error: { message: "A top-up needs an active CMO subscription" },
+    });
+
+    expect(await startTopUp("project-2")).toEqual({
+      url: null,
+      error: "A top-up needs an active CMO subscription",
     });
   });
 });

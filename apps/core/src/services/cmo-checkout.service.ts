@@ -52,15 +52,13 @@ export async function startCmoPlanCheckout(
     userId: input.userId,
   };
   const url = await createPolarCheckout({
-    products: [
+    productIds: [
       ...plans.filter((plan) => plan.tier === input.tier),
       ...plans.filter((plan) => plan.tier !== input.tier),
     ].map((plan) => plan.productId),
-    external_customer_id: organizationId,
+    organizationId,
     metadata,
-    success_url: input.returnUrl,
-    allow_discount_codes: false,
-    allow_trial: false,
+    returnUrl: input.returnUrl,
   });
   return { url };
 }

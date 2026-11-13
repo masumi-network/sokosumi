@@ -250,6 +250,21 @@ describe("Site while Cuso reads", () => {
     );
     expect(html).toContain("out of credits");
     expect(html).toContain("Try again");
+    // Hiring is before the subscription: no top-up without one.
+    expect(html).not.toContain("Top up");
+  });
+
+  it("offers the top-up when credits ran out for a Cuso who may have one", () => {
+    const html = site(
+      reading({
+        work: null,
+        learning: "failed",
+        billing: cmoBilling({ availableCredits: 0 }),
+      }),
+      { topUp: async () => ({ url: null, error: null }) },
+    );
+    expect(html).toContain("out of credits");
+    expect(html).toContain(">Top up</button>");
   });
 });
 

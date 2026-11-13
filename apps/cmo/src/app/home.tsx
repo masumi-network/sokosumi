@@ -54,6 +54,7 @@ import {
   skippedSteps,
   startOver,
   startPlanCheckout,
+  startTopUp,
 } from "./cmo-actions";
 import { saveName } from "./name-actions";
 
@@ -312,6 +313,7 @@ export async function Home({ searchParams, view }: HomeProps) {
           connectAds: connectAds.bind(null, projectId),
           startPlanCheckout: startPlanCheckout.bind(null, projectId),
           startOver: startOver.bind(null, projectId),
+          startTopUp: startTopUp.bind(null, projectId),
           signOut,
         }}
       />
@@ -343,6 +345,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         setAdCampaignStatus: setAdCampaignStatus.bind(null, projectId),
         loadAdCampaigns: loadAdCampaigns.bind(null, projectId),
         startOver: startOver.bind(null, projectId),
+        startTopUp: startTopUp.bind(null, projectId),
         signOut,
       }}
     />

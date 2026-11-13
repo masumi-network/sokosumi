@@ -43,6 +43,7 @@ import {
   startCmoOnboarding,
   startCmoOverForProject,
   startCmoPlanCheckoutForProject,
+  startCmoTopUpForProject,
   updateCmoBrandBrainForProject,
 } from "@sokosumi/core-client";
 import {
@@ -54,7 +55,6 @@ import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AGENT_NAME } from "../lib/agent";
-import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import { coreForCurrentUser } from "../lib/core";
 import { INVITE_ONLY_NOTE, INVITE_ONLY_TITLE } from "../lib/invite-only";
@@ -162,8 +162,6 @@ export interface OnboardFormState {
   /** Where Cuso goes: an organization's id, or "" for a new organization. */
   organizationId?: string;
   errors: { websiteUrl?: string; form?: string };
-  /** Out of credits: where to top up before starting again. */
-  topUpUrl?: string;
 }
 
 /** What the start form says for each refusal Core declares, by its kind. */
@@ -215,9 +213,8 @@ export async function onboard(
       return {
         ...result,
         errors: {
-          form: "That organization is out of credits. Top up on Sokosumi, then press Start again.",
+          form: "That organization is out of credits. Choose another organization or a new one.",
         },
-        topUpUrl: `${readSokosumiAppBaseUrl()}/billing`,
       };
     }
     const refusal = kind ? HIRE_REFUSALS[kind as CoreApiErrorKind] : undefined;
@@ -873,6 +870,28 @@ export async function startPlanCheckout(
         step: "subscribed",
       }),
     },
+  });
+  if (!data) {
+    return {
+      url: null,
+      error: errorText(error, "Could not open the checkout"),
+    };
+  }
+  return { url: data.data.url, error: null };
+}
+
+/**
+ * Starts Polar's checkout for a Project top-up of this Cuso; the browser goes
+ * to the returned URL and comes back to this Cuso.
+ */
+export async function startTopUp(
+  projectId: string,
+): Promise<{ url: string | null; error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await startCmoTopUpForProject({
+    ...core,
+    path: { projectId },
+    body: { returnUrl: await callbackUrl("/", { project: projectId }) },
   });
   if (!data) {
     return {

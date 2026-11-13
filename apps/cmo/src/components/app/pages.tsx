@@ -23,6 +23,7 @@ import { StartOver } from "../start-over";
 import { StatusText } from "../status";
 import { MeasureFunnel } from "../strategy-core";
 import { SubmitButton } from "../submit-button";
+import { type StartTopUp, TopUpButton } from "../top-up";
 import { SubscriptionCard } from "./subscription-card";
 
 interface PageProps {
@@ -435,11 +436,14 @@ export function SettingsPage({
   email,
   startOver,
   signOut,
+  topUp,
 }: PageProps & {
   name: string;
   email: string;
   startOver: () => Promise<string | null>;
   signOut: () => Promise<void>;
+  /** The top-up checkout, or null when this Cuso may not top up. */
+  topUp: StartTopUp | null;
 }) {
   return (
     <div className="page-body">
@@ -453,14 +457,12 @@ export function SettingsPage({
             </span>{" "}
             <span className="note">credits available</span>
           </span>
-          <a
-            className="button button-secondary button-small"
-            href={overview.subscribeUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Top up
-          </a>
+          {topUp ? (
+            <TopUpButton
+              startTopUp={topUp}
+              className="button button-secondary button-small"
+            />
+          ) : null}
         </div>
       </section>
       <section className="card">

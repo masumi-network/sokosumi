@@ -156,23 +156,25 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
     expect((await response.json()).data).toEqual({ url: CHECKOUT_URL });
     expect(m.createPolarCheckout).toHaveBeenCalledTimes(1);
     expect(m.createPolarCheckout).toHaveBeenCalledWith({
-      products: ["prod_starter_month", "prod_growth_month", "prod_scale_month"],
-      external_customer_id: "org-1",
+      productIds: [
+        "prod_starter_month",
+        "prod_growth_month",
+        "prod_scale_month",
+      ],
+      organizationId: "org-1",
       metadata: {
         kind: "plan",
         projectId: PROJECT_ID,
         organizationId: "org-1",
         userId: "user-1",
       },
-      success_url: RETURN_URL,
-      allow_discount_codes: false,
-      allow_trial: false,
+      returnUrl: RETURN_URL,
     });
   });
 
   it("offers the yearly plans for a yearly checkout", async () => {
     await startCheckout({ interval: "year", returnUrl: RETURN_URL });
-    expect(m.createPolarCheckout.mock.calls[0]?.[0].products).toEqual([
+    expect(m.createPolarCheckout.mock.calls[0]?.[0].productIds).toEqual([
       "prod_starter_year",
       "prod_growth_year",
       "prod_scale_year",
@@ -185,7 +187,7 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
       tier: "scale",
       returnUrl: RETURN_URL,
     });
-    expect(m.createPolarCheckout.mock.calls[0]?.[0].products).toEqual([
+    expect(m.createPolarCheckout.mock.calls[0]?.[0].productIds).toEqual([
       "prod_scale_month",
       "prod_starter_month",
       "prod_growth_month",
