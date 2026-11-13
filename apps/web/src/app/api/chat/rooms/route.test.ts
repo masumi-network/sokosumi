@@ -7,12 +7,14 @@ import { CoreApiRequestError } from "@/lib/clients/core.request";
 
 const {
   getSessionResultMock,
+  getRoomMock,
   listRoomsMock,
   listArchivedMock,
   listElsewhereMock,
   listPendingMock,
 } = vi.hoisted(() => ({
   getSessionResultMock: vi.fn(),
+  getRoomMock: vi.fn(),
   listRoomsMock: vi.fn(),
   listArchivedMock: vi.fn(),
   listElsewhereMock: vi.fn(),
@@ -23,6 +25,7 @@ vi.mock("@/lib/auth/auth.server", () => ({
 }));
 vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
+    getRoom: getRoomMock,
     listRooms: listRoomsMock,
     listArchivedRooms: listArchivedMock,
     listElsewhereRooms: listElsewhereMock,
@@ -48,6 +51,37 @@ describe("GET /api/chat/rooms", () => {
     });
     listArchivedMock.mockResolvedValue({ rooms: [], nextCursor: null });
     listPendingMock.mockResolvedValue([]);
+  });
+
+  it("answers the one room a message event named, not the list", async () => {
+    const roomId = "0198c3a2-7b1e-7c44-9d0a-3f5e6a7b8c9d";
+    getRoomMock.mockResolvedValue({ id: roomId });
+    const result = await GET(
+      new NextRequest(`https://app.test/api/chat/rooms?roomId=${roomId}`),
+    );
+    expect(result.status).toBe(200);
+    expect(await result.json()).toMatchObject({ data: { id: roomId } });
+    expect(getRoomMock).toHaveBeenCalledExactlyOnceWith(roomId);
+    expect(listRoomsMock).not.toHaveBeenCalled();
+  });
+
+  it("answers null for a room the reader can no longer open", async () => {
+    getRoomMock.mockResolvedValue(null);
+    const result = await GET(
+      new NextRequest(
+        "https://app.test/api/chat/rooms?roomId=0198c3a2-7b1e-7c44-9d0a-3f5e6a7b8c9d",
+      ),
+    );
+    expect(result.status).toBe(200);
+    expect(await result.json()).toMatchObject({ data: null });
+  });
+
+  it("refuses a room id that is not a UUID before asking Core", async () => {
+    const result = await GET(
+      new NextRequest("https://app.test/api/chat/rooms?roomId=..%2Fadmin"),
+    );
+    expect(result.status).toBe(400);
+    expect(getRoomMock).not.toHaveBeenCalled();
   });
 
   it("answers Elsewhere rooms as Core lists them", async () => {

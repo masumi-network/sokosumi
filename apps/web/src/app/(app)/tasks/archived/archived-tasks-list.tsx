@@ -29,10 +29,14 @@ export function ArchivedTasksList({ tasks }: { tasks: ArchivedTaskRow[] }) {
   const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
   const router = useRouter();
   const [rows, setRows] = useState(tasks);
-  const [restoringId, setRestoringId] = useState<string | null>(null);
+  // Several restores can run at once. A row stays in place until its answer:
+  // a row that left on click would put the next Restore under the pointer.
+  const [restoringIds, setRestoringIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
 
   async function handleRestore(task: ArchivedTaskRow) {
-    setRestoringId(task.id);
+    setRestoringIds((current) => new Set(current).add(task.id));
     try {
       await taskClientService.restore(task.id);
       // The board hides ids archived in this tab; let it show this one again.
@@ -48,7 +52,11 @@ export function ArchivedTasksList({ tasks }: { tasks: ArchivedTaskRow[] }) {
     } catch {
       toast.error(t("restoreError"));
     } finally {
-      setRestoringId(null);
+      setRestoringIds((current) => {
+        const next = new Set(current);
+        next.delete(task.id);
+        return next;
+      });
     }
   }
 
@@ -88,8 +96,7 @@ export function ArchivedTasksList({ tasks }: { tasks: ArchivedTaskRow[] }) {
                 <Button
                   size="sm"
                   variant="outline"
-                  loading={restoringId === task.id}
-                  disabled={restoringId !== null}
+                  loading={restoringIds.has(task.id)}
                   onClick={() => handleRestore(task)}
                   aria-label={t("restoreNamed", { name: task.name })}
                 >

@@ -54,6 +54,7 @@ export default function InvitationActionsDropdown({
       if (result.error) {
         console.error("Failed to resend invitation", result.error);
         toast.error(t("resendError"));
+        return;
       }
 
       toast.success(t("resendSuccess"));
