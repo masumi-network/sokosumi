@@ -1,6 +1,7 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import { cmoMayExecute, getSokoBotVersion } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
+import { isEvalCusoProject } from "@/lib/evals/eval-guard";
 import { getCmoCatalog } from "@/services/cmo-catalog.service";
 import {
   CmoForbiddenError,
@@ -67,7 +68,8 @@ export async function isCusoInFreeHiring(
  * active CMO subscription (a scheduled cancel counts until the period
  * ends; past due and ended do not), while he is in free hiring, or while
  * he holds Starter credits that are not used up. Otherwise he is paused,
- * even when the Organization credit pool has credits.
+ * even when the Organization credit pool has credits. An eval lane's Cuso
+ * stands in for a paying customer.
  */
 export async function isCmoSubscribed(
   cuso: Pick<Cuso, "projectId">,
@@ -78,6 +80,7 @@ export async function isCmoSubscribed(
   > = prisma,
 ): Promise<boolean> {
   const { projectId } = cuso;
+  if (await isEvalCusoProject(projectId)) return true;
   const [subscription, freeHiring, starterBuckets] = await Promise.all([
     db.cmoSubscription.findFirst({
       where: {
