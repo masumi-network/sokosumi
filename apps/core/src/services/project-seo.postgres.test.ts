@@ -144,11 +144,22 @@ describe.skipIf(!enabled)(
           isWhitelisted: true,
         },
       });
+      // A paid check needs a balance that covers its ceiling (seo-credit-gate.postgres.test.ts).
+      const credits = 10_000n * 10n ** 10n;
+      const topUp = await prisma.transaction.create({
+        data: { amount: credits, userId },
+        select: { id: true },
+      });
+      await prisma.creditBucket.create({
+        data: { amount: credits, userId, sourceTransactionId: topUp.id },
+      });
     });
     afterAll(async () => {
       getEnv().SEO_ANALYSIS_DISPATCH_ENABLED = previousDispatchEnabled;
       getEnv().SEO_ANALYSIS_EXECUTOR = previousExecutor;
       await prisma.task.deleteMany({ where: { workspaceId } });
+      await prisma.creditBucket.deleteMany({ where: { userId } });
+      await prisma.transaction.deleteMany({ where: { userId } });
       await prisma.workspace.deleteMany({
         where: { id: { in: [workspaceId, otherWorkspaceId] } },
       });
