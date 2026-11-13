@@ -177,6 +177,19 @@ describe("GET /api/chat/rooms", () => {
       });
     });
 
+    it("answers null, not a stall, for a part that threw a redirect", async () => {
+      listPendingMock.mockRejectedValue(
+        Object.assign(new Error("NEXT_REDIRECT"), {
+          digest: "NEXT_REDIRECT;replace;/signin;307;",
+        }),
+      );
+      const result = await GET(requestMany("active,invitations"));
+      expect(result.status).toBe(200);
+      expect(await result.json()).toMatchObject({
+        data: { active: { data: [{ id: "room-1" }] }, invitations: null },
+      });
+    });
+
     it("answers the throttle even when a stall failed first", async () => {
       listRoomsMock.mockRejectedValue(new CoreApiRequestError("timeout"));
       listPendingMock.mockImplementation(

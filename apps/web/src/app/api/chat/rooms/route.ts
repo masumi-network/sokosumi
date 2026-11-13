@@ -44,8 +44,8 @@ const STALLED_PART = { stalled: true } as const;
  * collection whose Core read failed answers null, as its own request would
  * have. A throttle fails the whole answer, so every caller backs off. A read
  * that never reached Core answers `{ stalled: true }`: the browser asks for
- * that one again on its own, with the retries a 503 gets, and the other
- * parts keep their rows.
+ * that one again on its own, and that request gets the retries a 503 gets.
+ * The other parts keep their rows.
  */
 async function readCollections(
   collections: Collection[],

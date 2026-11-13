@@ -52,15 +52,14 @@ async function readQueuedParts(
   }
   const parts = (raw as { data?: Record<string, unknown> } | null)?.data;
   // A part whose read never reached Core is asked for again on its own, so
-  // it gets the retries a stalled read gets and the other parts keep theirs.
+  // it gets another try plus the retries a stalled read gets. The other
+  // parts answer at once and do not wait for it.
   return new Map(
-    await Promise.all(
-      collections.map(async (c): Promise<[SidebarRoomCollection, unknown]> => {
-        const part = parts?.[c] ?? null;
-        const stalled = (part as { stalled?: unknown } | null)?.stalled;
-        return [c, stalled === true ? await readOneCollection(c) : part];
-      }),
-    ),
+    collections.map((c) => {
+      const part = parts?.[c] ?? null;
+      const stalled = (part as { stalled?: unknown } | null)?.stalled;
+      return [c, stalled === true ? readOneCollection(c) : part];
+    }),
   );
 }
 
@@ -72,14 +71,18 @@ async function sendQueuedReads(): Promise<void> {
   const parts = await readQueuedParts([...batch.keys()]).catch(
     () => new Map<SidebarRoomCollection, unknown>(),
   );
-  for (const [collection, waiters] of batch) {
-    const part = parts.get(collection) ?? null;
-    // Each caller transforms its own copy: the generated transformers
-    // rewrite dates in place.
-    waiters.forEach((resolve, index) => {
-      resolve(index === 0 || part == null ? part : structuredClone(part));
-    });
-  }
+  await Promise.all(
+    [...batch].map(async ([collection, waiters]) => {
+      const part = await Promise.resolve(parts.get(collection) ?? null).catch(
+        () => null,
+      );
+      // Each caller transforms its own copy: the generated transformers
+      // rewrite dates in place.
+      waiters.forEach((resolve, index) => {
+        resolve(index === 0 || part == null ? part : structuredClone(part));
+      });
+    }),
+  );
 }
 
 /**

@@ -193,6 +193,40 @@ describe("sidebar collection GET requests", () => {
     expect(invitations).toEqual([]);
   });
 
+  it("answers the other parts without waiting for a stalled part's re-read", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    let answerInvitations: (value: Response) => void = () => {};
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              active: {
+                data: [],
+                meta: {
+                  timestamp,
+                  requestId: "request-1",
+                  pagination: { nextCursor: null },
+                },
+              },
+              invitations: { stalled: true },
+            },
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          answerInvitations = resolve;
+        }),
+      );
+    const active = fetchSidebarRoomCollection("active");
+    const invitations = fetchSidebarRoomCollection("invitations");
+    expect(await active).toEqual({ rooms: [], nextCursor: null });
+    answerInvitations(response([]));
+    expect(await invitations).toEqual([]);
+  });
+
   it("answers null for a collection the batch left out", async () => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockResolvedValue(
