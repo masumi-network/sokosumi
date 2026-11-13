@@ -11778,6 +11778,7 @@
           "market": "Markt",
           "keywords": "{count, plural, one {Keyword} other {Keywords}}",
           "noKeyword": "Keines",
+          "agentKeywords": "Findet der Agent",
           "keywordCount": "{count} Keywords"
         },
         "kind": "Prüfungstyp",

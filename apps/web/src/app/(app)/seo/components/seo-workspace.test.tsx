@@ -3466,11 +3466,10 @@ describe("SEO workspace integration", () => {
     );
     const dialog = screen.getByRole("dialog");
     // The schedule repeats the full audit, the check of the run button.
-    expect(
-      within(within(dialog).getByTestId("seo-analysis-summary")).getByText(
-        "Full audit",
-      ),
-    ).toBeVisible();
+    const summary = within(within(dialog).getByTestId("seo-analysis-summary"));
+    expect(summary.getByText("Full audit")).toBeVisible();
+    // Without a target keyword the full audit finds its keywords itself.
+    expect(summary.getByText("Found by the agent")).toBeVisible();
     // The schedule opens weekly on Mondays at 09:00.
     expect(
       within(dialog).getByRole("button", { name: "Weekly" }),

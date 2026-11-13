@@ -11778,6 +11778,7 @@
           "market": "Market",
           "keywords": "{count, plural, one {Keyword} other {Keywords}}",
           "noKeyword": "None",
+          "agentKeywords": "Found by the agent",
           "keywordCount": "{count} keywords"
         },
         "kind": "Check type",

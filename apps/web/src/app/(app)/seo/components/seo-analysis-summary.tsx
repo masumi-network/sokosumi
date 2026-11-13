@@ -63,7 +63,13 @@ export function SeoAnalysisSummary({
       t("analysis.summary.keywords", { count: words.length }),
       words.length > SHOWN_KEYWORDS
         ? t("analysis.summary.keywordCount", { count: words.length })
-        : words.join(", ") || t("analysis.summary.noKeyword"),
+        : words.join(", ") ||
+          // A full audit without a target keyword finds its keywords itself.
+          t(
+            kind === "audit_full"
+              ? "analysis.summary.agentKeywords"
+              : "analysis.summary.noKeyword",
+          ),
     ]);
   return (
     <dl

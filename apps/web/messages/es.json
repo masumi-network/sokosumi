@@ -11778,6 +11778,7 @@
           "market": "Mercado",
           "keywords": "{count, plural, one {Palabra clave} other {Palabras clave}}",
           "noKeyword": "Ninguna",
+          "agentKeywords": "Las elige el agente",
           "keywordCount": "{count} palabras clave"
         },
         "kind": "Tipo de comprobación",
