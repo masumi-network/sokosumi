@@ -212,6 +212,14 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     expect((await createProjectSeoMonitor(vars, actor, input)).id).toBe(
       result.id,
     );
+    // The same key with another request is no replay: it is refused and makes no schedule.
+    await expect(
+      createProjectSeoMonitor(vars, actor, { ...input, targetRunCount: 3 }),
+    ).rejects.toMatchObject({
+      status: 409,
+      cause: { kind: CORE_API_ERROR_KINDS.SCHEDULE_OPERATION_CONFLICT },
+    });
+    expect(await prisma.taskSchedule.count({ where: { workspaceId } })).toBe(1);
     const schedule = await prisma.taskSchedule.findUniqueOrThrow({
       where: { id: result.id },
     });
