@@ -11558,7 +11558,6 @@
         },
         "ideas": {
           "title": "{count, plural, one {# idea de palabra clave} other {# ideas de palabras clave}}",
-          "why": "Por qué aparece",
           "source": {
             "gap": "De la competencia",
             "opportunity": "Búsqueda relacionada"

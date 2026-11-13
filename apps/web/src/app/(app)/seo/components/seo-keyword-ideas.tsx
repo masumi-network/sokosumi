@@ -12,7 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
 import { SeoDifficultyCell } from "./seo-keyword-difficulty";
 import {
@@ -30,15 +29,6 @@ import {
   seoMarketName,
 } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
-
-/** Bright for what competitors rank for, quiet for a related search: the colours of the tab mean demand and rank. */
-const IDEA_SOURCE_MARK_CLASS: Record<
-  (typeof SEO_IDEA_SOURCES)[number],
-  string
-> = {
-  gap: "bg-foreground",
-  opportunity: "bg-chart-5",
-};
 
 /** Keywords a check found but read no position for: one row each, a high or medium conversion estimate first, then the most searched. */
 export function SeoKeywordIdeas({
@@ -114,9 +104,6 @@ export function SeoKeywordIdeas({
               {shown.conversion ? (
                 <TableHead>{t("keywords.conversion.title")}</TableHead>
               ) : null}
-              {shown.why ? (
-                <TableHead>{t("keywords.ideas.why")}</TableHead>
-              ) : null}
               <TableHead>
                 <span className="sr-only">{t("queries.rowActions")}</span>
               </TableHead>
@@ -130,6 +117,17 @@ export function SeoKeywordIdeas({
                     <p className="font-medium break-words">
                       <bdi>{lead.keyword}</bdi>
                     </p>
+                    {/* The reason is a quiet line under the keyword, not a column of tags: the tags made each row two lines high. */}
+                    {shown.why ? (
+                      <p className="text-muted-foreground text-xs">
+                        {reasonsOf(sources).map((source, index) => (
+                          <span key={source}>
+                            {index ? " · " : null}
+                            <span>{t(`keywords.ideas.source.${source}`)}</span>
+                          </span>
+                        ))}
+                      </p>
+                    ) : null}
                     {manyMarkets ? (
                       <p className="text-muted-foreground text-xs">
                         {seoMarketName(
@@ -177,29 +175,6 @@ export function SeoKeywordIdeas({
                       conversion={conversion}
                       feature={feature}
                     />
-                  ) : null}
-                  {/* The reason is a tag beside the keyword and its values. On a phone it follows the number or the estimate on one line. */}
-                  {shown.why ? (
-                    <TableCell className="text-muted-foreground whitespace-normal">
-                      {/* Each reason is a tag with a dot of its own colour: the eye finds the rows of one kind. */}
-                      <span className="flex flex-wrap gap-1.5">
-                        {reasonsOf(sources).map((source) => (
-                          <span
-                            key={source}
-                            className="bg-muted text-foreground inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs"
-                          >
-                            <span
-                              aria-hidden
-                              className={cn(
-                                "size-1.5 shrink-0 rounded-full",
-                                IDEA_SOURCE_MARK_CLASS[source],
-                              )}
-                            />
-                            {t(`keywords.ideas.source.${source}`)}
-                          </span>
-                        ))}
-                      </span>
-                    </TableCell>
                   ) : null}
                   <TableCell>
                     {model.data.availableActions.canEdit ? (

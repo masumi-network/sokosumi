@@ -284,18 +284,6 @@ export function SeoKeywords({
                     </SeoSource>
                   ) : null,
                 ],
-                [
-                  "depth",
-                  summary.depth
-                    ? t("summary.depth", {
-                        ...summary.depth,
-                        same:
-                          summary.depth.min === summary.depth.max
-                            ? "yes"
-                            : "no",
-                      })
-                    : null,
-                ],
               ]}
             />
           ) : null}

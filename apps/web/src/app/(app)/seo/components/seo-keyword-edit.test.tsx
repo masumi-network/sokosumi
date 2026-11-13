@@ -780,14 +780,12 @@ describe("Keywords after a check", () => {
       screen.getByText("In Google's top results for 0 of 1 checked keyword"),
     ).toBeVisible();
     expect(screen.getAllByText("battery app")).toHaveLength(1);
-    // No keyword shows a page: the result line says so once, with how deep the check read.
+    // No keyword shows a page: the result line says so once.
     // A Position column of "Not found" in every row would add nothing.
     expect(screen.queryByText("Not found")).toBeNull();
     expect(screen.queryByRole("columnheader", { name: "Position" })).toBeNull();
-    expect(
-      // The same words as the keyword tile of the Agent tab.
-      screen.getByText(/Results read per keyword: 16 to 17$/),
-    ).toBeVisible();
+    // How deep the check read stays on the Agent tile: under the list it was one more fact to read.
+    expect(screen.queryByText(/Results read per keyword/)).toBeNull();
     // A keyword of a check is tracked from the start: its list asks for nothing and explains no button.
     // What a click on "Track" gives stands on the Ideas list alone, where the rows carry the button.
     expect(screen.getAllByText(/Track one to see/)).toHaveLength(1);
@@ -830,16 +828,12 @@ describe("Keywords after a check", () => {
     workspace.keywords = [idea(0, "opportunity"), idea(1, "opportunity")];
     const { unmount } = renderWorkspace(workspace);
     expect(screen.getByText("idea 1")).toBeVisible();
-    expect(
-      screen.queryByRole("columnheader", { name: "Why it is listed" }),
-    ).toBeNull();
     expect(screen.queryByText("Related search")).toBeNull();
     unmount();
     workspace.keywords[1] = idea(1, "gap");
     renderWorkspace(workspace);
-    expect(
-      screen.getByRole("columnheader", { name: "Why it is listed" }),
-    ).toBeVisible();
+    // The reason is a line under the keyword, not a column of its own.
+    expect(screen.getAllByRole("columnheader")).toHaveLength(3);
     expect(screen.getByText("From competitors")).toBeVisible();
     expect(screen.getByText("Related search")).toBeVisible();
   });

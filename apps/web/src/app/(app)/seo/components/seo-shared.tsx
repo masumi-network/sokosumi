@@ -51,6 +51,8 @@ export const SEO_COMPACT_ROWS_CLASS = [
   "max-sm:[&_td]:order-3 max-sm:[&_td]:min-w-0 max-sm:[&_td]:p-0 max-sm:[&_td]:text-left max-sm:[&_td]:whitespace-normal max-sm:[&_td:empty]:hidden",
   // A row of one cell (a chart under a keyword) keeps the full width.
   "max-sm:[&_td:only-child]:basis-full",
+  // On a wider screen 32 px stand between two columns: at 16 px a number and the word beside it read as one value.
+  "sm:[&_th]:px-4 sm:[&_td]:px-4 sm:[&_td]:py-3",
   "max-sm:[&_td:first-child:not(:last-child)]:order-1 max-sm:[&_td:first-child:not(:last-child)]:flex-1 max-sm:[&_td:first-child:not(:last-child)]:basis-0",
   // A name of one line stands at the middle of its button, not over an empty line.
   "max-sm:[&_td:first-child:not(:last-child)]:self-center",
