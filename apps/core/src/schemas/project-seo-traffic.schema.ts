@@ -83,8 +83,13 @@ export const seoWorkspaceLandingPagesSchema = seoLandingPagesSchema
 /** Owner-chosen words that name the brand. Search Console queries that contain one count as branded. */
 export const SEO_BRAND_TERM_LIMIT = 50;
 const brandTermSchema = z.string().trim().min(1).max(100);
+/** A term of signs only ("++", "&&") would read as no term at all, so a save refuses it. */
+const savedBrandTermSchema = brandTermSchema.refine(
+  (term) => /[\p{L}\p{N}]/u.test(term),
+  "A brand term needs a letter or digit.",
+);
 export const saveSeoBrandTermsSchema = z
-  .object({ terms: z.array(brandTermSchema).max(SEO_BRAND_TERM_LIMIT) })
+  .object({ terms: z.array(savedBrandTermSchema).max(SEO_BRAND_TERM_LIMIT) })
   .strict()
   .openapi("SaveProjectSeoBrandTermsRequest");
 /** Stored as an immutable observation of kind "settings"; the newest one is current. */

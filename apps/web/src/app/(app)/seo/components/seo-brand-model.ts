@@ -2,25 +2,61 @@
 export const SEO_BRAND_VIEWS = ["all", "branded", "non_branded"] as const;
 export type SeoBrandView = (typeof SEO_BRAND_VIEWS)[number];
 
-/** Case, compatibility forms and accents do not matter: "CAFÉ" and "cafe" are one word. */
+/**
+ * Scripts written without spaces between words, plus Hangul, where a particle joins
+ * the word: "ソニーテレビ" holds "ソニー". Word bounds are not readable there, so a
+ * term in these scripts matches as a substring, with spaces ignored.
+ */
+const SUBSTRING_SCRIPTS =
+  /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
+const LETTER_OR_DIGIT = /[\p{L}\p{N}]/u;
+/** Compatibility forms would turn "acme™" into "acmetm"; the signs are not part of a name. */
+const TRADEMARK_SIGNS = /[\u2120\u2122]/gu;
+/** Accents are dropped only on Latin and Greek letters, so "café" is "cafe". */
+const LATIN_GREEK_MARKS = /([\p{Script=Latin}\p{Script=Greek}])\p{Mn}+/gu;
+/** Cyrillic keeps "й" apart from "и"; only "ё" reads as "е". */
+const CYRILLIC_DIAERESIS = /(\p{Script=Cyrillic})\u0308/gu;
+/**
+ * A word keeps its marks (Indic vowel signs tell "हिंदी" from "हिंदू") and the signs
+ * that make a name distinct: "c++", "c#" and "at&t" are not "c" or "at".
+ */
+const WORD = /[\p{L}\p{M}\p{N}+#&]+/gu;
+const LEADING_JOINERS = /^[+#&]+/;
+
+/** Case, compatibility forms and Latin or Greek accents do not matter: "CAFÉ" and "cafe" are one word. */
+function brandText(text: string): string {
+  return text
+    .replace(TRADEMARK_SIGNS, " ")
+    .normalize("NFKD")
+    .replace(LATIN_GREEK_MARKS, "$1")
+    .replace(CYRILLIC_DIAERESIS, "$1")
+    .normalize("NFC")
+    .toLocaleLowerCase();
+}
+
 function brandWords(text: string): string[] {
-  return (
-    text
-      .normalize("NFKD")
-      .replace(/\p{M}+/gu, "")
-      .toLocaleLowerCase()
-      .match(/[\p{L}\p{N}]+/gu) ?? []
-  );
+  return (brandText(text).match(WORD) ?? [])
+    .map((word) => word.replace(LEADING_JOINERS, ""))
+    .filter((word) => LETTER_OR_DIGIT.test(word));
+}
+
+function compact(text: string): string {
+  return brandText(text).replace(/\s+/gu, "");
 }
 
 /**
  * A query is branded when one brand term stands in it as whole words, in order.
  * Part of a word does not count: "art" does not make "party" branded. A
- * spelling such as "acmeshop" is its own term for the owner to add.
+ * spelling such as "acmeshop" is its own term for the owner to add. A term in a
+ * script without spaces matches as a substring. A term with no letter or digit
+ * matches nothing.
  */
 export function seoIsBrandedQuery(query: string, terms: string[]): boolean {
   const words = brandWords(query);
   return terms.some((term) => {
+    if (!LETTER_OR_DIGIT.test(term)) return false;
+    if (SUBSTRING_SCRIPTS.test(term))
+      return compact(query).includes(compact(term));
     const needle = brandWords(term);
     if (!needle.length) return false;
     for (let start = 0; start + needle.length <= words.length; start++)
