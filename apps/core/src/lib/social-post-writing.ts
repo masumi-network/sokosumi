@@ -31,7 +31,7 @@ export const SOCIAL_POST_WRITING_GUIDES = Object.fromEntries(
 
 const MAX_HASHTAGS = {
   x: 2,
-  linkedin: 5,
+  linkedin: 3,
   facebook: 3,
   instagram: 5,
   tiktok: 5,

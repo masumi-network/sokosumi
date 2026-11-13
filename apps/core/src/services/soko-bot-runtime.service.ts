@@ -18,6 +18,7 @@ import {
   CMO_PRODUCTION_MEDIA_PER_RUN,
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoCalendarEntry,
+  cmoStrategySaveClears,
   cmoStrategySavePart,
   composeSystemPrompt,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
@@ -5922,7 +5923,12 @@ export class SokoBotRuntimeService {
             saveCmoStrategy(
               where,
               sent,
-              { turnId: authorized.turn.id, pieces, executing },
+              {
+                turnId: authorized.turn.id,
+                pieces,
+                executing,
+                clear: cmoStrategySaveClears(input.input),
+              },
               tx,
             ),
           );
@@ -5936,6 +5942,7 @@ export class SokoBotRuntimeService {
                   ([key, value]) =>
                     key !== "changes" &&
                     key !== "calendar" &&
+                    !cmoStrategySaveClears(input.input).includes(key) &&
                     (value === "" ||
                       (Array.isArray(value) && value.length === 0)),
                 )

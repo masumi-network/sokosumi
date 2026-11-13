@@ -424,6 +424,8 @@ export async function saveCmoStrategy(
     pieces?: boolean;
     /** A rhythm or production turn: it builds on the approved version. */
     executing?: boolean;
+    /** Lists Cuso empties because the owner asked; sent empty, they clear. */
+    clear?: readonly string[];
   } = {},
   db: Prisma.TransactionClient = prisma,
 ): Promise<MarketingStrategy> {
@@ -469,10 +471,13 @@ export async function saveCmoStrategy(
   // for what it is not changing: that keeps the stored value too. Changing
   // one channel's cadence once emptied the mix, campaigns and improvements.
   const before = parseMarketingPlan(base?.plan);
-  const left = (value: unknown) =>
+  const left = (value: unknown, key?: string) =>
     value === undefined ||
     (options.turnId !== undefined &&
-      (value === "" || (Array.isArray(value) && value.length === 0)));
+      (value === "" ||
+        (Array.isArray(value) &&
+          value.length === 0 &&
+          !(key && options.clear?.includes(key)))));
   // A save of the calendar alone replaces it, so an empty one removes every
   // piece. `changes` is empty on purpose when the save is not a revision.
   const calendarOnly = Object.keys(strategy).every((key) => key === "calendar");
@@ -480,7 +485,7 @@ export async function saveCmoStrategy(
     ...before,
     ...Object.fromEntries(
       Object.entries(strategy).filter(
-        ([key, value]) => key === "changes" || !left(value),
+        ([key, value]) => key === "changes" || !left(value, key),
       ),
     ),
     calendar:

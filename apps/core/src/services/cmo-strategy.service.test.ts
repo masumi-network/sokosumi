@@ -511,6 +511,24 @@ describe("saving versions", () => {
     );
   });
 
+  it("empties a list Cuso names in clear, and only that one", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    const preview = {
+      kind: "post" as const,
+      channel: "linkedin",
+      title: "Sample",
+      body: "Text.",
+    };
+    seedStrategy({ ...strategy, previews: [preview] });
+    const saved = await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { ...strategy, previews: [], goals: [] },
+      { turnId: "turn-1", clear: ["previews"] },
+    );
+    expect(plan(saved).previews).toEqual([]);
+    expect(plan(saved).goals).toEqual(strategy.goals);
+  });
+
   it("still lets an owner clear a list", async () => {
     cusoFind.mockResolvedValue(HIRE);
     seedStrategy({

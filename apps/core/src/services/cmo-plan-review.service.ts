@@ -171,7 +171,7 @@ export function cmoPlanProblemsSince(
   // A calendar already short of the month's totals stays short by any
   // count: adding one piece must not demand the other twelve.
   const rule = (problem: string) =>
-    /^calendar (has|uses) /.test(problem)
+    /^calendar (has \d+ pieces; plan at least|uses \d+ formats;) /.test(problem)
       ? problem.replace(/\d+/g, "#")
       : problem;
   const had = new Set(cmoPlanProblems(before).map(rule));

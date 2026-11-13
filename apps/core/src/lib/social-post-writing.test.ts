@@ -78,8 +78,11 @@ describe("formatting a bot's post", () => {
       "Rewrite the post: it has 3 hashtags; use at most 2 on x.",
     );
     expect(
-      socialPostFormattingError("linkedin", post("Lessons\n\n#a #b #c #d #e")),
+      socialPostFormattingError("linkedin", post("Lessons\n\n#a #b #c")),
     ).toBeNull();
+    expect(
+      socialPostFormattingError("linkedin", post("Lessons\n\n#a #b #c #d")),
+    ).toBe("Rewrite the post: it has 4 hashtags; use at most 3 on linkedin.");
   });
 
   it("does not take a numbered point or a language name for a heading or hashtag", () => {

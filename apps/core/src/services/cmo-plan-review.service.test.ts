@@ -249,6 +249,18 @@ describe("cmoPlanProblemsSince", () => {
     );
   });
 
+  it("still names more videos than the plan had", () => {
+    const videos = (count: number) => ({
+      ...thin,
+      calendar: Array.from({ length: count }, (_, index) =>
+        entry(`v${index}`, "tiktok", "video"),
+      ),
+    });
+    expect(cmoPlanProblemsSince(videos(10), videos(5)).join("\n")).toMatch(
+      /calendar has 10 videos/,
+    );
+  });
+
   it("names what the change broke", () => {
     expect(cmoPlanProblemsSince({ ...thin, mix: [] }, thin)).toEqual([
       "mix is empty; give two to four approaches.",
