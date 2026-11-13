@@ -12047,9 +12047,10 @@
         "running": "Läuft",
         "left": "noch etwa {minutes} Min.",
         "late": "länger als üblich",
-        "earlier": "Du siehst eine ältere Prüfung ({day}).",
-        "latest": "Neueste Prüfung zeigen",
-        "inRange": "im Zeitraum"
+        "earlier": "Ältere Prüfung ({day}).",
+        "latest": "Neueste zeigen",
+        "inRange": "im Zeitraum",
+        "dates": "Andere Tage"
       },
       "filterDates": "Nach Datum filtern",
       "syncNow": "Jetzt synchronisieren",

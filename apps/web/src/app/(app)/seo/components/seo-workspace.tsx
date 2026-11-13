@@ -533,24 +533,32 @@ export function SeoWorkspace({
             </div>
           )
         ) : (
-          <>
-            <TabsContent value="agent">
+          // While another day loads, the page in view dims: its numbers are of the day before the pick.
+          <div
+            aria-busy={model.updating || undefined}
+            className={cn(
+              "transition-opacity duration-200",
+              model.updating && "opacity-60",
+            )}
+          >
+            {/* Each tab fades in when it opens. */}
+            <TabsContent value="agent" className="content-in">
               <SeoAgentHome model={model} />
             </TabsContent>
-            <TabsContent value="traffic">
+            <TabsContent value="traffic" className="content-in">
               <SeoTraffic model={model} />
             </TabsContent>
-            <TabsContent value="rankings" className="space-y-6">
+            <TabsContent value="rankings" className="content-in space-y-6">
               <SeoRankings model={model} />
             </TabsContent>
-            <TabsContent value="health" className="space-y-6">
+            <TabsContent value="health" className="content-in space-y-6">
               <SeoIndexStatus model={model} />
               <SeoHealth model={model} />
             </TabsContent>
-            <TabsContent value="actions">
+            <TabsContent value="actions" className="content-in">
               <SeoActions model={model} />
             </TabsContent>
-          </>
+          </div>
         )}
       </Tabs>
       {model.data.auditId ? (

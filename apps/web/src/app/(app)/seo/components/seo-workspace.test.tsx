@@ -1093,16 +1093,15 @@ describe("SEO workspace integration", () => {
       within(runs)
         .getAllByRole("button", { pressed: undefined })
         .map((button) => button.textContent),
-    ).toEqual(["Nov 106 issues", "Nov 125 issues", "Filter by date"]);
+    ).toEqual(["Nov 106 issues", "Nov 125 issues", "Other dates"]);
     // The timeline holds the one date filter: the header and the filter block have none.
-    expect(
-      screen.getAllByRole("button", { name: "Filter by date" }),
-    ).toHaveLength(1);
-    await user.click(
-      within(runs).getByRole("button", { name: "Filter by date" }),
-    );
+    expect(screen.queryByRole("button", { name: "Filter by date" })).toBeNull();
+    const dates = within(runs).getByRole("button", { name: "Other dates" });
+    await user.click(dates);
     const from = screen.getByLabelText("Activity from");
     expect(from).toHaveFocus();
+    // The stop stays on the line while its fields are open, so the days do not move.
+    expect(dates).toBeVisible();
     // The fields open under the timeline, over the tabs.
     expect(
       runs.compareDocumentPosition(from) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -1111,6 +1110,52 @@ describe("SEO workspace integration", () => {
       screen.getByRole("tablist").compareDocumentPosition(from) &
         Node.DOCUMENT_POSITION_PRECEDING,
     ).toBeTruthy();
+    // A tab that dates do not narrow keeps the stop's place, out of reach.
+    await user.click(screen.getByRole("tab", { name: "Agent" }));
+    expect(
+      within(screen.getByRole("group", { name: "Checks" })).queryByRole(
+        "button",
+        { name: "Other dates" },
+      ),
+    ).toBeNull();
+  });
+
+  it("keeps the page in view while another day loads, without a jump back to the first read", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.metrics = [seoTestMetric()];
+    workspace.auditName = "First read";
+    workspace.runs = ["2026-11-12T13:00:00Z", "2026-11-10T09:00:00Z"].map(
+      (observedAt) => ({
+        observationId: crypto.randomUUID(),
+        kind: "audit_full",
+        observedAt: new Date(observedAt),
+        issues: 5,
+        seconds: 600,
+      }),
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        // The read of the older day does not answer while the test looks.
+        String(url).includes("to=")
+          ? new Promise(() => {})
+          : Promise.resolve(
+              Response.json({ ...workspace, auditName: "Fresh read" }),
+            ),
+      ),
+    );
+    renderWorkspace(workspace, "?tab=traffic");
+    await screen.findByRole("heading", { name: "Fresh read" });
+    await user.click(
+      within(screen.getByRole("group", { name: "Checks" })).getByRole(
+        "button",
+        { name: /^Nov 10/ },
+      ),
+    );
+    expect(screen.getByRole("heading", { name: "Fresh read" })).toBeVisible();
+    // The page says that its numbers are not of the picked day yet.
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
   it("folds empty date fields opened on another tab when the Agent tab opens", async () => {

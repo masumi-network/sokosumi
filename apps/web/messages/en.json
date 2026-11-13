@@ -12047,9 +12047,10 @@
         "running": "Running",
         "left": "about {minutes} min left",
         "late": "longer than usual",
-        "earlier": "You see an earlier check ({day}).",
-        "latest": "Show the latest check",
-        "inRange": "in the date range"
+        "earlier": "Earlier check ({day}).",
+        "latest": "Show the latest",
+        "inRange": "in the date range",
+        "dates": "Other dates"
       },
       "filterDates": "Filter by date",
       "syncNow": "Sync now",

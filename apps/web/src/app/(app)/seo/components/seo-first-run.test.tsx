@@ -496,14 +496,10 @@ describe("SEO audit first run", () => {
     // The row shows the pick: the date fields stay closed.
     expect(document.getElementById("seo-period-from")).toBeNull();
     // An earlier check in view says so, with the way back to the newest.
-    expect(
-      screen.getByText(/You see an earlier check \(Nov 10\)\./),
-    ).toBeVisible();
-    await user.click(
-      screen.getByRole("button", { name: "Show the latest check" }),
-    );
+    expect(screen.getByText(/Earlier check \(Nov 10\)\./)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Show the latest" }));
     await waitFor(() => expect(newest).toHaveAttribute("aria-pressed", "true"));
-    expect(screen.queryByText(/You see an earlier check/)).toBeNull();
+    expect(screen.queryByText(/Earlier check/)).toBeNull();
     // The way back leaves with its line: focus stays in the row.
     expect(newest).toHaveFocus();
     // A press on an entry picks it too.

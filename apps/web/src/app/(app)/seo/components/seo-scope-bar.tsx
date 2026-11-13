@@ -138,6 +138,16 @@ export function SeoPagePicker({ model }: { model: SeoWorkspaceModel }) {
   );
 }
 
+/** Opens the date fields and moves focus to the first one: the control that opened them unmounts or stays put. */
+export function seoRevealDates(
+  dateFields: ReturnType<typeof useSeoDateFields>,
+) {
+  dateFields.reveal();
+  requestAnimationFrame(() =>
+    document.getElementById("seo-period-from")?.focus(),
+  );
+}
+
 /**
  * The closed date filter: quiet words, no outline. It stands in the header line beside the page picker, or in
  * the filter block where the header has no picker. An outlined button in a row of its own stood over every
@@ -165,12 +175,8 @@ export function SeoDateFilterButton({
         className,
       )}
       onClick={() => {
-        dateFields.reveal();
+        seoRevealDates(dateFields);
         onReveal?.();
-        // The button unmounts; keep focus on the field it revealed.
-        requestAnimationFrame(() =>
-          document.getElementById("seo-period-from")?.focus(),
-        );
       }}
     >
       <CalendarRange className="size-4" />

@@ -41,6 +41,24 @@ import {
 } from "./seo-statistics-model";
 
 const SEO_RUNNING_REFRESH_MS = 15_000;
+/** The filters that choose the time the page shows, not what it shows. */
+const DATE_PARAMS = ["from", "to"];
+
+/**
+ * Two workspace reads of one selection: the same viewer, owner, page, scope and channel. Only their dates differ.
+ * The last part of a key is the read's query string.
+ */
+export function seoSameSelection(
+  left: readonly unknown[],
+  right: readonly unknown[],
+) {
+  const selection = (key: readonly unknown[]) => {
+    const query = new URLSearchParams(String(key.at(-1) ?? ""));
+    for (const name of DATE_PARAMS) query.delete(name);
+    return JSON.stringify([...key.slice(0, -1), query.toString()]);
+  };
+  return selection(left) === selection(right);
+}
 
 // Old tab names in saved links open the tab that now holds their content.
 const parseAsSeoTab = createParser<SeoTab>({
@@ -135,6 +153,15 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
         : undefined,
     // Server data seeded after a late session is not fresh enough to skip the read.
     initialDataUpdatedAt: 0,
+    // Another day of the same selection keeps the page in view while it loads: no jump back to the first
+    // read and forward again. Another page, scope or channel reads afresh.
+    // Dates that cannot be read show no old read under them.
+    placeholderData: (previous, previousQuery) =>
+      !invalidDates &&
+      previousQuery &&
+      seoSameSelection(previousQuery.queryKey, key)
+        ? previous
+        : undefined,
     // Always read once after mount; fresh server or cached data would skip it.
     refetchOnMount: "always",
     enabled: !invalidDates && !!session?.user.id,
@@ -404,6 +431,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     toggleCompetitor,
     createActionTask,
     loadingScope: !result.data && !waitingForSession,
+    /** The page shows the read of other dates while the read of the picked ones loads. */
+    updating: result.isPlaceholderData,
     waitingForSession,
     waitingForContext:
       !result.data && initialIdentity !== null && identity !== initialIdentity,

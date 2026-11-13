@@ -12047,9 +12047,10 @@
         "running": "En curso",
         "left": "quedan unos {minutes} min",
         "late": "más de lo habitual",
-        "earlier": "Ves una comprobación anterior ({day}).",
-        "latest": "Mostrar la comprobación más reciente",
-        "inRange": "en el rango de fechas"
+        "earlier": "Comprobación anterior ({day}).",
+        "latest": "Ver la más reciente",
+        "inRange": "en el rango de fechas",
+        "dates": "Otras fechas"
       },
       "filterDates": "Filtrar por fecha",
       "syncNow": "Sincronizar ahora",
