@@ -139,6 +139,14 @@ function Harness({
   );
 }
 
+/** The Options popover's named models: only those whose size differs. */
+function sizeExceptions() {
+  return screen
+    .getAllByRole("listitem")
+    .map(({ textContent }) => textContent ?? "")
+    .filter((text) => /^Model \w · /.test(text));
+}
+
 function modelEntry(label: string) {
   const entry = screen
     .getAllByRole("checkbox")
@@ -623,8 +631,10 @@ describe("an honest generation plan", () => {
     fireEvent.click(screen.getByRole("button", { name: "templates" }));
     fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
     expect(screen.getByText("mixedSettings")).toBeInTheDocument();
+    // Options says the first size once; the credits list names both.
     expect(screen.getAllByText("dimensions: 9:16 · 1K · png")).toHaveLength(2);
-    expect(screen.getAllByText("dimensions: 1:1 · 1K · png")).toHaveLength(2);
+    expect(screen.getAllByText("dimensions: 1:1 · 1K · png")).toHaveLength(1);
+    expect(sizeExceptions()).toEqual(["Model B · 1:1 · 1K · png"]);
     generate();
     expect(
       onGenerate.mock.calls[0][0].map(
@@ -734,7 +744,11 @@ describe("an honest generation plan", () => {
     for (const [index, request] of requests.entries()) {
       const { aspectRatio, resolution, outputFormat } = request.settings;
       const actualSettings = `dimensions: ${aspectRatio} · ${resolution} · ${outputFormat}`;
-      expect(screen.getAllByText(actualSettings)).toHaveLength(2);
+      // Options states the shared size once and names the other model
+      // instead; the credits list repeats each model's size.
+      expect(screen.getAllByText(actualSettings)).toHaveLength(
+        index === 0 ? 2 : 1,
+      );
       const priceRow = screen
         .getByText(
           `creditsEach:${JSON.stringify({ credits: index === 0 ? 2 : 10, count: 1 })}`,
@@ -746,6 +760,43 @@ describe("an honest generation plan", () => {
       ).toBeInTheDocument();
       expect(within(priceRow).getByText(actualSettings)).toBeInTheDocument();
     }
+    expect(sizeExceptions()).toEqual(["Model B · 1:1 · 1K · png"]);
+  });
+
+  it("states the size most models share once and names only the models that differ", () => {
+    const catalog: StudioCatalog = {
+      ...TEST_CATALOG,
+      models: [
+        ...TEST_CATALOG.models.map((model) =>
+          model.id === "model-b" ? { ...model, outputFormats: [] } : model,
+        ),
+        { ...TEST_CATALOG.models[0], id: "model-c", label: "Model C" },
+      ],
+    };
+    render(
+      <Harness
+        catalog={catalog}
+        initial={{
+          modelIds: ["model-b", "model-a", "model-c"],
+          settings: SETTINGS,
+        }}
+        onGenerate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("mixedSettings")).toBeInTheDocument();
+    const shared = screen
+      .getAllByText("dimensions: 1:1 · 1K · png")
+      .filter((line) => !line.closest("li"));
+    expect(shared).toHaveLength(1);
+    expect(sizeExceptions()).toEqual([
+      "Model B · 1:1 · 1K · modelChoosesFormat",
+    ]);
+    // Placements come before the per-model sizes, not below them.
+    expect(
+      screen.getByText("adPlacements").compareDocumentPosition(shared[0]) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("summarizes a single model's normalized frame instead of inherited settings", () => {
@@ -807,7 +858,8 @@ describe("an honest generation plan", () => {
       );
       expect(
         screen.getAllByText(`dimensions: 1:1 · 1K · ${shownFormat}`),
-      ).toHaveLength(2);
+      ).toHaveLength(1);
+      expect(sizeExceptions()).toEqual([`Model B · 1:1 · 1K · ${shownFormat}`]);
       generate();
       expect(
         onGenerate.mock.calls[0][0].map(
