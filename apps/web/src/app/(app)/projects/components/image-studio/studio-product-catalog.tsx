@@ -34,6 +34,10 @@ import {
 
 import type { StudioBatchProduct } from "./studio-batch";
 import { StudioProductPhotoControl } from "./studio-product-photo";
+import {
+  STUDIO_TOOLBAR_LABEL_CLASS,
+  StudioToolbarTip,
+} from "./studio-project-toolbar";
 
 const MAX_PRODUCTS = 20;
 
@@ -304,14 +308,18 @@ export function StudioProductCatalogDialog({
     }
   }
 
+  const triggerLabel = t(websiteProducts ? "reviewImportedProducts" : "title");
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild disabled={disabled}>
-        <Button disabled={disabled} size="sm" type="button" variant="outline">
-          <Package aria-hidden />
-          {t(websiteProducts ? "reviewImportedProducts" : "title")}
-        </Button>
-      </DialogTrigger>
+      <StudioToolbarTip label={triggerLabel}>
+        <DialogTrigger asChild disabled={disabled}>
+          <Button disabled={disabled} size="sm" type="button" variant="outline">
+            <Package aria-hidden />
+            <span className={STUDIO_TOOLBAR_LABEL_CLASS}>{triggerLabel}</span>
+          </Button>
+        </DialogTrigger>
+      </StudioToolbarTip>
       <DialogContent
         className="app-scrollbar max-h-[calc(100dvh-2rem)] overflow-y-auto"
         onCloseAutoFocus={(event) => {

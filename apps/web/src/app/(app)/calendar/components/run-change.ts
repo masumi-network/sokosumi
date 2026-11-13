@@ -10,7 +10,7 @@ import {
   type TaskScheduleActionError,
 } from "@/lib/actions/task-schedule/action";
 
-type RunChange =
+export type RunChange =
   | { action: "skip" | "restore" }
   | { action: "move"; scheduledAt: Date };
 
@@ -35,6 +35,14 @@ export function isChangeableRun(
     item.canChangeRun &&
     item.scheduleId !== null &&
     item.scheduleRevision !== null
+  );
+}
+
+/** A moved Run is planned at a time other than the rule's. */
+export function isMovedRun(item: WorkspaceCalendarItem): boolean {
+  return (
+    item.originalScheduledAt !== null &&
+    item.originalScheduledAt.getTime() !== item.scheduledAt.getTime()
   );
 }
 

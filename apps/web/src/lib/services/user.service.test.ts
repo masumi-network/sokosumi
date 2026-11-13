@@ -198,14 +198,47 @@ describe("user.service", () => {
   });
 
   describe("getWorkspaceAccess", () => {
-    it("returns null when there is no session", async () => {
+    it("returns null when there is no session, even when Core refuses the read", async () => {
       getSessionMock.mockResolvedValue(null);
+      getMyWorkspacesMock.mockRejectedValueOnce(new Error("NEXT_REDIRECT"));
 
       const { userService } = await import("./user.service");
       const result = await userService.getWorkspaceAccess();
 
-      expect(getMyWorkspacesMock).not.toHaveBeenCalled();
       expect(result).toBeNull();
+    });
+
+    it("asks Core for the workspaces before the session read answers", async () => {
+      let answerSession: (session: unknown) => void = () => {};
+      getSessionMock.mockReturnValueOnce(
+        new Promise((resolve) => {
+          answerSession = resolve;
+        }),
+      );
+      getMyWorkspacesMock.mockResolvedValueOnce({
+        data: { workspaces: [], pendingInvitationCount: 0 },
+      });
+
+      const { userService } = await import("./user.service");
+      const access = userService.getWorkspaceAccess();
+      await vi.waitFor(() => expect(getSessionMock).toHaveBeenCalled());
+      expect(getMyWorkspacesMock).toHaveBeenCalledOnce();
+
+      answerSession({ session: { id: "session-1" }, user: { id: "user-1" } });
+      await expect(access).resolves.not.toBeNull();
+    });
+
+    it("rethrows the Core failure when there is a session", async () => {
+      getSessionMock.mockResolvedValue({
+        session: { id: "session-1" },
+        user: { id: "user-1" },
+      });
+      getMyWorkspacesMock.mockRejectedValueOnce(new Error("NEXT_REDIRECT"));
+
+      const { userService } = await import("./user.service");
+      await expect(userService.getWorkspaceAccess()).rejects.toThrow(
+        "NEXT_REDIRECT",
+      );
     });
 
     it("derives the gate from the session user's workspaces", async () => {

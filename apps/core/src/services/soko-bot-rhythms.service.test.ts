@@ -287,6 +287,23 @@ describe("end of day", () => {
     expect(packet.skip).toBe(true);
   });
 
+  it("states that nothing got done and nothing waits beside tomorrow's meetings", async () => {
+    calendarMock.mockResolvedValue([
+      event({ title: "Board sync", startsAt: "2026-10-02T09:00:00.000Z" }),
+    ]);
+    const packet = await buildRhythmPacket({
+      key: "end-of-day",
+      bot,
+      now: new Date("2026-10-01T17:30:00.000Z"),
+      dayStart: new Date("2026-10-01T00:00:00.000Z"),
+    });
+    const text = packet.lines.join("\n");
+    expect(packet.skip).toBe(false);
+    expect(text).toContain("## Done today\n- Nothing.");
+    expect(text).toContain("## Waiting on you\n- Nothing.");
+    expect(text).toContain("Board sync");
+  });
+
   it("lists what got done, what waits and tomorrow", async () => {
     taskFindManyMock
       .mockResolvedValueOnce([

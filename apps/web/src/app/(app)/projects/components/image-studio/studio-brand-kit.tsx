@@ -50,6 +50,10 @@ import {
 } from "@/lib/actions/image-studio/brand-kit";
 
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
+import {
+  STUDIO_TOOLBAR_LABEL_CLASS,
+  StudioToolbarTip,
+} from "./studio-project-toolbar";
 
 const MAX_LINES = 8;
 const MAX_AUDIENCE_LENGTH = 400;
@@ -445,6 +449,14 @@ export function StudioBrandKitDialog({
     });
   }
 
+  const triggerLabel = t(
+    websiteVisual
+      ? "WebsiteDraft.reviewBrand"
+      : websiteCopy
+        ? "WebsiteDraft.reviewCopy"
+        : "brandKit",
+  );
+
   return (
     <Dialog
       open={open}
@@ -463,18 +475,14 @@ export function StudioBrandKitDialog({
         }
       }}
     >
-      <DialogTrigger asChild disabled={disabled}>
-        <Button disabled={disabled} size="sm" type="button" variant="outline">
-          <Palette aria-hidden />
-          {t(
-            websiteVisual
-              ? "WebsiteDraft.reviewBrand"
-              : websiteCopy
-                ? "WebsiteDraft.reviewCopy"
-                : "brandKit",
-          )}
-        </Button>
-      </DialogTrigger>
+      <StudioToolbarTip label={triggerLabel}>
+        <DialogTrigger asChild disabled={disabled}>
+          <Button disabled={disabled} size="sm" type="button" variant="outline">
+            <Palette aria-hidden />
+            <span className={STUDIO_TOOLBAR_LABEL_CLASS}>{triggerLabel}</span>
+          </Button>
+        </DialogTrigger>
+      </StudioToolbarTip>
       <DialogContent
         className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden"
         showCloseButton={false}

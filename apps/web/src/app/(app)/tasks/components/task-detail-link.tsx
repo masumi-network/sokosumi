@@ -10,10 +10,17 @@ import type {
   TouchEvent,
 } from "react";
 
+import { useIntentPrefetch } from "@/hooks/use-intent-prefetch";
 import { storeTasksReturnPath } from "./task-navigation";
 
+/**
+ * How long one predicted approach covers a link before the next one prefetches
+ * again. Hover, focus and touch still prefetch each time.
+ */
+const TASK_APPROACH_REPEAT_MS = 60_000;
+
 interface TaskDetailLinkProps
-  extends Omit<ComponentProps<typeof Link>, "href"> {
+  extends Omit<ComponentProps<typeof Link>, "href" | "ref"> {
   href: string;
 }
 
@@ -30,6 +37,11 @@ export function TaskDetailLink({
   const prefetchTaskDetail = () => {
     router.prefetch(href);
   };
+  // The link's box is its text. A card stretches the link over itself with a
+  // pseudo-element, which only the hover handler below can see.
+  const approachRef = useIntentPrefetch<HTMLAnchorElement>(prefetchTaskDetail, {
+    reactivateAfter: TASK_APPROACH_REPEAT_MS,
+  });
 
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
     onClick?.(event);
@@ -70,6 +82,7 @@ export function TaskDetailLink({
       onPointerEnter={handlePointerEnter}
       onFocus={handleFocus}
       onTouchStart={handleTouchStart}
+      ref={approachRef}
     />
   );
 }
