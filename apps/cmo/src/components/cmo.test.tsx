@@ -260,11 +260,7 @@ describe("thread", () => {
       cusoStatus(
         overview({
           ...cmoStrategyVersion(new Date()),
-          billing: {
-            plan: null,
-            subscriptionStatus: null,
-            availableCredits: 0,
-          },
+          billing: { ...overview().billing, availableCredits: 0 },
         }),
       ),
     ).toBe("Paused");

@@ -245,7 +245,7 @@ describe("Site while Cuso reads", () => {
       reading({
         work: null,
         learning: "failed",
-        billing: { plan: null, subscriptionStatus: null, availableCredits: 0 },
+        billing: { ...reading().billing, availableCredits: 0 },
       }),
     );
     expect(html).toContain("out of credits");

@@ -11612,6 +11612,20 @@ export type CmoOverview = {
         plan: string | null;
         subscriptionStatus: string | null;
         availableCredits: number;
+        /**
+         * The tier of the Cuso's CMO subscription that has not ended; null without one.
+         */
+        tier: string | null;
+        interval: 'month' | 'year' | null;
+        /**
+         * Polar's status of that subscription: active, or past_due after a renewal payment failed.
+         */
+        status: string | null;
+        /**
+         * When the paid period ends: the renewal date, or the end date when cancelAtPeriodEnd is set.
+         */
+        periodEnd: Date | null;
+        cancelAtPeriodEnd: boolean;
     };
     posts: {
         draft: number;

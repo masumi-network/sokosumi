@@ -200,6 +200,11 @@ export const overview: CmoOverview = cmoOverview({
     plan: "pro",
     subscriptionStatus: "active",
     availableCredits: 8400,
+    tier: "growth",
+    interval: "month",
+    status: "active",
+    periodEnd: new Date("2026-12-13T10:00:00Z"),
+    cancelAtPeriodEnd: false,
   },
   posts: { draft: 3, scheduled: 5, published: 2, failed: 0 },
   upNext: [

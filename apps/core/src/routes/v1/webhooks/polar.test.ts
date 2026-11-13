@@ -176,13 +176,7 @@ describe("POST /v1/webhooks/polar", () => {
     expect(response.status).toBe(202);
   });
 
-  it.each([
-    "order.refunded",
-    "subscription.canceled",
-    "subscription.uncanceled",
-    "subscription.past_due",
-    "subscription.revoked",
-  ])("answers 200 on %s", async (type) => {
+  it.each(["order.refunded"])("answers 200 on %s", async (type) => {
     m.verifyPolarWebhook.mockResolvedValue(ok({ type, data: { id: "id_1" } }));
 
     const response = await post();

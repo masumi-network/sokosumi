@@ -366,6 +366,23 @@ export const cmoOverviewSchema = z
       plan: z.union([z.string(), z.null()]),
       subscriptionStatus: z.union([z.string(), z.null()]),
       availableCredits: z.number(),
+      tier: z
+        .union([z.string(), z.null()])
+        .describe(
+          "The tier of the Cuso's CMO subscription that has not ended; null without one.",
+        ),
+      interval: z.union([z.enum(["month", "year"]), z.null()]),
+      status: z
+        .union([z.string(), z.null()])
+        .describe(
+          "Polar's status of that subscription: active, or past_due after a renewal payment failed.",
+        ),
+      periodEnd: z
+        .union([dateTimeSchema, z.null()])
+        .describe(
+          "When the paid period ends: the renewal date, or the end date when cancelAtPeriodEnd is set.",
+        ),
+      cancelAtPeriodEnd: z.boolean(),
     }),
     posts: z.object({
       draft: z.number(),

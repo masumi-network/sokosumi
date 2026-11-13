@@ -44333,12 +44333,69 @@ export const CmoOverviewSchema = {
                 },
                 availableCredits: {
                     type: 'number'
+                },
+                tier: {
+                    anyOf: [
+                        {
+                            type: 'string'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ],
+                    description: 'The tier of the Cuso\'s CMO subscription that has not ended; null without one.'
+                },
+                interval: {
+                    anyOf: [
+                        {
+                            type: 'string',
+                            enum: [
+                                'month',
+                                'year'
+                            ]
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                status: {
+                    anyOf: [
+                        {
+                            type: 'string'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ],
+                    description: 'Polar\'s status of that subscription: active, or past_due after a renewal payment failed.'
+                },
+                periodEnd: {
+                    anyOf: [
+                        {
+                            type: 'string',
+                            format: 'date-time',
+                            example: '2021-01-01T00:00:00.000Z'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ],
+                    description: 'When the paid period ends: the renewal date, or the end date when cancelAtPeriodEnd is set.'
+                },
+                cancelAtPeriodEnd: {
+                    type: 'boolean'
                 }
             },
             required: [
                 'plan',
                 'subscriptionStatus',
-                'availableCredits'
+                'availableCredits',
+                'tier',
+                'interval',
+                'status',
+                'periodEnd',
+                'cancelAtPeriodEnd'
             ]
         },
         posts: {
