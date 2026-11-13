@@ -5184,9 +5184,25 @@ describe("ProjectSocialPosts", () => {
       expect(
         within(dialog).getByTestId("social-post-media").querySelectorAll("img"),
       ).toHaveLength(20);
+      const carousel = within(dialog).getByTestId(
+        "social-post-preview-media-carousel",
+      );
+      const carouselItems = within(carousel).getAllByTestId(
+        "social-post-preview-carousel-item",
+      );
+      expect(carouselItems).toHaveLength(20);
+      for (const [index, item] of carouselItems.entries()) {
+        expect(within(item).getByRole("img")).toHaveAttribute(
+          "alt",
+          `photo-${index}.png`,
+        );
+      }
       expect(
-        within(dialog).getByTestId("social-post-preview-media-overflow"),
-      ).toHaveTextContent("+16");
+        within(dialog).queryByTestId("social-post-preview-media-grid"),
+      ).not.toBeInTheDocument();
+      expect(
+        within(dialog).queryByTestId("social-post-preview-media-overflow"),
+      ).not.toBeInTheDocument();
 
       if (action === "schedule") await pickInAnHour(user, dialog);
       await user.click(

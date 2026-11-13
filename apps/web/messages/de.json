@@ -2989,7 +2989,10 @@
           },
           "x": {
             "more": "Mehr anzeigen",
-            "moreImages": "{count, plural, one {# weiteres Bild} other {# weitere Bilder}}"
+            "images": "{count, plural, one {# Bild} other {# Bilder}}",
+            "image": "Bild {index} von {count}",
+            "previousImage": "Vorheriges Bild",
+            "nextImage": "Nächstes Bild"
           }
         },
         "statistics": {

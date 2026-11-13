@@ -1,15 +1,30 @@
 import type { SocialPostMediaRef } from "@sokosumi/core-client";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import enMessages from "@/messages/en.json";
 
 import { SocialPostPreview } from "./social-post-preview";
 
 vi.mock("next-intl", async () => {
   const { createTestFormatter } = await import("@/test/intl-formatter");
+  const { createTranslator } =
+    await vi.importActual<typeof import("next-intl")>("next-intl");
   return {
     useFormatter: () => createTestFormatter(),
-    useTranslations: () => (key: string) => key,
+    useTranslations:
+      (namespace: string) =>
+      (key: string, values?: Record<string, string | number>) => {
+        if (namespace === "App.Projects.SocialPosts.preview.x") {
+          const messages: Record<string, string> =
+            enMessages.App.Projects.SocialPosts.preview.x;
+          return createTranslator({
+            locale: "en",
+            messages,
+          })(key, values);
+        }
+        return key;
+      },
   };
 });
 
@@ -93,7 +108,7 @@ describe("SocialPostPreview", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows entire images in a multiple-image preview", () => {
+  it("crops multiple X images to their carousel cards", () => {
     render(
       <SocialPostPreview
         account={ACCOUNT}
@@ -105,7 +120,8 @@ describe("SocialPostPreview", () => {
     );
 
     for (const image of screen.getAllByRole("img")) {
-      expect(image).toHaveClass("object-contain");
+      expect(image).toHaveClass("object-cover");
+      expect(image).not.toHaveClass("object-contain");
     }
   });
 
@@ -662,26 +678,8 @@ describe("SocialPostPreview", () => {
     );
   });
 
-  it("lays out several images in a grid", () => {
-    render(
-      <SocialPostPreview
-        account={ACCOUNT}
-        media={[IMAGE, { ...IMAGE, pathname: "drive/b.png", name: "b.png" }]}
-        provider="x"
-        text=""
-        timestamp={null}
-      />,
-    );
-
-    expect(
-      within(screen.getByTestId("social-post-preview-media-grid")).getAllByRole(
-        "img",
-      ),
-    ).toHaveLength(2);
-  });
-
-  it.each([8, 20])(
-    "shows the first four of %s X images with the remaining count",
+  it.each([2, 5, 20])(
+    "renders all %s X images in order in a carousel",
     (count) => {
       render(
         <SocialPostPreview
@@ -697,32 +695,240 @@ describe("SocialPostPreview", () => {
         />,
       );
 
-      const grid = screen.getByTestId("social-post-preview-media-grid");
-      expect(within(grid).getAllByRole("img")).toHaveLength(4);
-      expect(within(grid).getByAltText("3.png")).toBeVisible();
-      expect(within(grid).queryByAltText("4.png")).not.toBeInTheDocument();
-      const overflow = within(grid).getByTestId(
-        "social-post-preview-media-overflow",
+      const carousel = screen.getByRole("group", {
+        name: `${count} images`,
+      });
+      expect(carousel).toHaveAttribute("aria-roledescription", "carousel");
+      expect(carousel).toHaveAttribute(
+        "data-testid",
+        "social-post-preview-media-carousel",
       );
-      expect(overflow).toHaveTextContent(`+${count - 4}`);
-      expect(overflow.parentElement).toContainElement(
-        within(grid).getByAltText("3.png"),
+      const items = within(carousel).getAllByTestId(
+        "social-post-preview-carousel-item",
       );
-      expect(overflow).toHaveTextContent("x.moreImages");
+      expect(items).toHaveLength(count);
+      for (const [index, item] of items.entries()) {
+        expect(item).toHaveAttribute(
+          "aria-label",
+          `Image ${index + 1} of ${count}`,
+        );
+        expect(within(item).getByRole("img")).toHaveAttribute(
+          "alt",
+          `${index}.png`,
+        );
+      }
+      expect(
+        screen.queryByTestId("social-post-preview-media-grid"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("social-post-preview-media-overflow"),
+      ).not.toBeInTheDocument();
     },
   );
 
-  it.each(["x", "facebook"] as const)(
-    "keeps the four-image %s grid without an overflow count",
-    (provider) => {
+  it.each([
+    { width: 1600, height: 900, aspectRatio: 20 / 17 },
+    { width: 100, height: 1000, aspectRatio: 9 / 16 },
+    { width: 900, height: 1000, aspectRatio: 0.9 },
+  ])(
+    "sizes a $width × $height carousel image after it loads",
+    ({ width, height, aspectRatio }) => {
       render(
         <SocialPostPreview
           account={ACCOUNT}
-          media={Array.from({ length: 4 }, (_, index) => ({
+          media={[IMAGE, { ...IMAGE, pathname: "drive/b.png", name: "b.png" }]}
+          provider="x"
+          text="Launch photos"
+          timestamp={null}
+        />,
+      );
+
+      const [item, nextItem] = screen.getAllByTestId(
+        "social-post-preview-carousel-item",
+      );
+      expect(item).toHaveStyle({ aspectRatio: "1" });
+      const image = within(item).getByRole("img");
+      Object.defineProperties(image, {
+        naturalWidth: { configurable: true, value: width },
+        naturalHeight: { configurable: true, value: height },
+      });
+
+      fireEvent.load(image);
+
+      expect(item).toHaveStyle({ aspectRatio: String(aspectRatio) });
+      expect(nextItem).toHaveStyle({ aspectRatio: "1" });
+    },
+  );
+
+  it("sizes a carousel video from metadata and keeps its play badge", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[VIDEO, IMAGE]}
+        provider="x"
+        text="Launch media"
+        timestamp={null}
+      />,
+    );
+
+    const [item] = screen.getAllByTestId("social-post-preview-carousel-item");
+    expect(item).toHaveStyle({ aspectRatio: "1" });
+    const video = within(item).getByLabelText(VIDEO.name);
+    Object.defineProperties(video, {
+      videoWidth: { configurable: true, value: 1280 },
+      videoHeight: { configurable: true, value: 1920 },
+    });
+
+    fireEvent.loadedMetadata(video);
+
+    expect(item).toHaveStyle({ aspectRatio: String(1280 / 1920) });
+    expect(within(item).getByTestId("social-post-preview-play")).toBeVisible();
+  });
+
+  it("keeps a GIF badge inside its carousel card", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[
+          {
+            ...IMAGE,
+            pathname: "drive/a.gif",
+            name: "a.gif",
+            mimeType: "image/gif",
+            kind: "gif",
+          },
+          IMAGE,
+        ]}
+        provider="x"
+        text="Launch media"
+        timestamp={null}
+      />,
+    );
+
+    const [item] = screen.getAllByTestId("social-post-preview-carousel-item");
+    expect(
+      within(item).getByTestId("social-post-preview-gif"),
+    ).toHaveTextContent("GIF");
+  });
+
+  it("scrolls one carousel item at a time and hides controls at each end", async () => {
+    const user = userEvent.setup();
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={Array.from({ length: 3 }, (_, index) => ({
+          ...IMAGE,
+          pathname: `drive/${index}.png`,
+          name: `${index}.png`,
+        }))}
+        provider="x"
+        text="Launch photos"
+        timestamp={null}
+      />,
+    );
+
+    const track = screen.getByTestId("social-post-preview-media-carousel");
+    Object.defineProperties(track, {
+      clientWidth: { configurable: true, value: 300 },
+      scrollWidth: { configurable: true, value: 908 },
+      scrollLeft: { configurable: true, writable: true, value: 0 },
+    });
+    for (const [index, item] of within(track)
+      .getAllByTestId("social-post-preview-carousel-item")
+      .entries()) {
+      Object.defineProperty(item, "offsetLeft", {
+        configurable: true,
+        value: 52 + index * 304,
+      });
+    }
+    const scrollTo = vi.spyOn(track, "scrollTo").mockImplementation(() => {});
+    const previous = screen.getByLabelText("Previous image");
+    const next = screen.getByLabelText("Next image");
+
+    fireEvent.scroll(track);
+    expect(previous).toHaveAttribute("hidden");
+    expect(next).not.toHaveAttribute("hidden");
+    await user.click(next);
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 304 });
+
+    track.scrollLeft = 304;
+    fireEvent.scroll(track);
+    expect(previous).not.toHaveAttribute("hidden");
+    expect(next).not.toHaveAttribute("hidden");
+    await user.click(previous);
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 0 });
+    await user.click(next);
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 608 });
+    expect(next).toHaveFocus();
+
+    track.scrollLeft = 608;
+    fireEvent.scroll(track);
+    expect(previous).not.toHaveAttribute("hidden");
+    expect(next).toHaveAttribute("hidden");
+    expect(track).toHaveFocus();
+    await user.click(previous);
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 304 });
+    expect(previous).toHaveFocus();
+
+    track.scrollLeft = 0;
+    Object.defineProperty(track, "scrollWidth", { value: 300 });
+    fireEvent.scroll(track);
+    expect(previous).toHaveAttribute("hidden");
+    expect(next).toHaveAttribute("hidden");
+    expect(track).toHaveFocus();
+  });
+
+  it("caps the carousel height in compact mode", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        compact
+        media={[IMAGE, { ...IMAGE, pathname: "drive/b.png", name: "b.png" }]}
+        provider="x"
+        text="Launch photos"
+        timestamp={null}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("social-post-preview-media-carousel").parentElement,
+    ).toHaveClass("max-h-64");
+  });
+
+  it("keeps the existing single-image X layout", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[IMAGE]}
+        provider="x"
+        text="Launch photo"
+        timestamp={null}
+      />,
+    );
+
+    const image = screen.getByRole("img", { name: IMAGE.name });
+    expect(image).toHaveClass("object-contain", "max-h-[32rem]");
+    expect(image.parentElement).toHaveClass("rounded-2xl", "border");
+    expect(
+      screen.queryByTestId("social-post-preview-media-carousel"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("social-post-preview-media-grid"),
+    ).not.toBeInTheDocument();
+  });
+
+  it.each([4, 5])(
+    "keeps the first four of %s Facebook images in a grid",
+    (count) => {
+      render(
+        <SocialPostPreview
+          account={ACCOUNT}
+          media={Array.from({ length: count }, (_, index) => ({
             ...IMAGE,
             pathname: `drive/${index}.png`,
+            name: `${index}.png`,
           }))}
-          provider={provider}
+          provider="facebook"
           text="Launch photos"
           timestamp={null}
         />,
@@ -733,9 +939,16 @@ describe("SocialPostPreview", () => {
           screen.getByTestId("social-post-preview-media-grid"),
         ).getAllByRole("img"),
       ).toHaveLength(4);
+      for (const image of screen.getAllByRole("img")) {
+        expect(image).toHaveClass("object-contain");
+      }
       expect(
         screen.queryByTestId("social-post-preview-media-overflow"),
       ).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("social-post-preview-media-carousel"),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByAltText("4.png")).not.toBeInTheDocument();
     },
   );
 

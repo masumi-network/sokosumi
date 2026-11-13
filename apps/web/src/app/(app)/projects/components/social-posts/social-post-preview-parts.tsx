@@ -2,9 +2,11 @@ import type {
   SocialAccountPostMedia,
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
-import { Play } from "lucide-react";
-import { Fragment } from "react";
+import { ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 
@@ -138,11 +140,13 @@ export function PreviewMediaItem({
   media,
   className,
   showPlay = false,
+  onAspectRatioChange,
 }: {
   media: PreviewMedia;
   className?: string;
   /** Feed cards mark a video with a play badge; TikTok/YouTube draw their own. */
   showPlay?: boolean;
+  onAspectRatioChange?: (aspectRatio: number) => void;
 }) {
   const mediaClassName = cn(
     "size-full",
@@ -166,6 +170,13 @@ export function PreviewMediaItem({
         playsInline
         preload="metadata"
         src={src}
+        onLoadedMetadata={({ currentTarget }) => {
+          if (currentTarget.videoWidth && currentTarget.videoHeight) {
+            onAspectRatioChange?.(
+              currentTarget.videoWidth / currentTarget.videoHeight,
+            );
+          }
+        }}
       />
     ) : (
       <img
@@ -174,6 +185,13 @@ export function PreviewMediaItem({
         decoding="async"
         loading="lazy"
         src={src}
+        onLoad={({ currentTarget }) => {
+          if (currentTarget.naturalWidth && currentTarget.naturalHeight) {
+            onAspectRatioChange?.(
+              currentTarget.naturalWidth / currentTarget.naturalHeight,
+            );
+          }
+        }}
       />
     );
   if (media.kind === "video" && showPlay) {
@@ -208,20 +226,18 @@ export function PreviewMediaItem({
 }
 
 /**
- * X and Facebook lay out up to four images the same way: one fills the frame,
+ * Facebook and LinkedIn lay out up to four images: one fills the frame,
  * two split it, three put the first on the left, four make a 2×2 grid.
- * X marks images beyond the first four with an overflow count.
+ * X also uses this layout for a single image; multiple media use a carousel.
  */
 export function PreviewMediaGrid({
   media,
   className,
   compact = false,
-  overflowLabel,
 }: {
   media: PreviewMedia[];
   className?: string;
   compact?: boolean;
-  overflowLabel?: string;
 }) {
   if (media.length === 0) return null;
   const [first, ...rest] = media;
@@ -253,23 +269,145 @@ export function PreviewMediaGrid({
           <PreviewMediaItem media={first} showPlay />
         </div>
       ) : null}
-      {rest.slice(0, 3).map((item, index) => (
+      {rest.slice(0, 3).map((item) => (
         <div
           key={"pathname" in item ? item.pathname : item.url}
           className="relative min-h-0"
         >
           <PreviewMediaItem media={item} showPlay />
-          {index === 2 && media.length > 4 && overflowLabel ? (
-            <span
-              className="bg-scrim-strong text-on-media absolute inset-0 flex items-center justify-center text-2xl font-semibold tabular-nums"
-              data-testid="social-post-preview-media-overflow"
-            >
-              <span aria-hidden>+{media.length - 4}</span>
-              <span className="sr-only">{overflowLabel}</span>
-            </span>
-          ) : null}
         </div>
       ))}
+    </div>
+  );
+}
+
+/** X shows every multi-media post in a fixed-height, horizontally snapping track. */
+export function PreviewMediaCarousel({
+  media,
+  className,
+  compact = false,
+}: {
+  media: PreviewMedia[];
+  className?: string;
+  compact?: boolean;
+}) {
+  const t = useTranslations("App.Projects.SocialPosts.preview.x");
+  const trackRef = useRef<HTMLDivElement>(null);
+  const previousRef = useRef<HTMLButtonElement>(null);
+  const nextRef = useRef<HTMLButtonElement>(null);
+  const [edges, setEdges] = useState({ previous: false, next: false });
+  const updateEdges = useCallback((track: HTMLDivElement) => {
+    const previous = track.scrollLeft > 1;
+    const next = track.scrollLeft + track.clientWidth < track.scrollWidth - 1;
+    if (
+      (!previous && document.activeElement === previousRef.current) ||
+      (!next && document.activeElement === nextRef.current)
+    ) {
+      track.focus({ preventScroll: true });
+    }
+    setEdges({ previous, next });
+  }, []);
+
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const sync = () => updateEdges(track);
+    const observer = new ResizeObserver(sync);
+    observer.observe(track);
+    for (const item of track.children) observer.observe(item);
+    sync();
+    return () => observer.disconnect();
+  }, [media, updateEdges]);
+
+  function scrollItem(direction: "previous" | "next") {
+    const track = trackRef.current;
+    if (!track) return;
+    const items = Array.from(track.children).filter(
+      (item): item is HTMLElement => item instanceof HTMLElement,
+    );
+    const origin = items[0]?.offsetLeft ?? 0;
+    const offsets = items.map((item) => item.offsetLeft - origin);
+    const target =
+      direction === "next"
+        ? offsets.find((offset) => offset > track.scrollLeft + 1)
+        : offsets.reverse().find((offset) => offset < track.scrollLeft - 1);
+    if (target !== undefined) track.scrollTo({ left: target });
+  }
+
+  return (
+    <div
+      className={cn(
+        "group relative aspect-[100/68] min-w-0",
+        compact && "max-h-64",
+        className,
+      )}
+    >
+      <div
+        ref={trackRef}
+        role="group"
+        aria-roledescription="carousel"
+        aria-label={t("images", { count: media.length })}
+        tabIndex={0}
+        className="absolute inset-0 flex snap-x snap-mandatory gap-1 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden focus-visible:outline-2 focus-visible:outline-ring"
+        data-testid="social-post-preview-media-carousel"
+        onScroll={({ currentTarget }) => updateEdges(currentTarget)}
+      >
+        {media.map((item, index) => (
+          <PreviewMediaCarouselItem
+            key={"pathname" in item ? item.pathname : item.url}
+            media={item}
+            label={t("image", { index: index + 1, count: media.length })}
+          />
+        ))}
+      </div>
+      <Button
+        ref={previousRef}
+        type="button"
+        size="icon"
+        aria-label={t("previousImage")}
+        hidden={!edges.previous}
+        className="hit-area absolute top-1/2 start-1 size-8 -translate-y-1/2 rounded-full opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+        onClick={() => scrollItem("previous")}
+      >
+        <ChevronLeft />
+      </Button>
+      <Button
+        ref={nextRef}
+        type="button"
+        size="icon"
+        aria-label={t("nextImage")}
+        hidden={!edges.next}
+        className="hit-area absolute top-1/2 end-1 size-8 -translate-y-1/2 rounded-full opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+        onClick={() => scrollItem("next")}
+      >
+        <ChevronRight />
+      </Button>
+    </div>
+  );
+}
+
+function PreviewMediaCarouselItem({
+  media,
+  label,
+}: {
+  media: PreviewMedia;
+  label: string;
+}) {
+  const [aspectRatio, setAspectRatio] = useState(1);
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="h-full shrink-0 snap-start overflow-hidden rounded-md border"
+      style={{ aspectRatio: Math.min(20 / 17, Math.max(9 / 16, aspectRatio)) }}
+      data-testid="social-post-preview-carousel-item"
+    >
+      <PreviewMediaItem
+        media={media}
+        showPlay
+        className="object-cover"
+        onAspectRatioChange={setAspectRatio}
+      />
     </div>
   );
 }

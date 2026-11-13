@@ -2989,7 +2989,10 @@
           },
           "x": {
             "more": "Show more",
-            "moreImages": "{count, plural, one {# more image} other {# more images}}"
+            "images": "{count, plural, one {# image} other {# images}}",
+            "image": "Image {index} of {count}",
+            "previousImage": "Previous image",
+            "nextImage": "Next image"
           }
         },
         "statistics": {
