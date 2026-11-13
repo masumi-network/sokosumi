@@ -25,6 +25,7 @@ import {
   SeoSection,
   SeoShowMore,
   seoFoldCount,
+  seoIsOnlyPrimary,
   seoMarketName,
 } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -63,7 +64,14 @@ export function SeoKeywordIdeas({
     // One reason on every row in view tells no idea from another: "Related search" stood on ten of ten rows.
     why: new Set(rows.map(({ sources }) => reasonsOf(sources).join())).size > 1,
   };
+  // A row names its page only when it is not the primary page: the header says "and its page" only when a row in
+  // view names one.
   const manyPages = model.data.scope.pageIds.length > 1;
+  const pageNamed =
+    manyPages &&
+    rows.some(
+      ({ lead }) => lead.pageUrl && !seoIsOnlyPrimary(model.data, lead.pageUrl),
+    );
   // The bars set each idea against the most searched row in view: the list leads with the best ideas, not the
   // most searched, so a scale from beyond the fold left the bars in view near empty.
   const mostSearched = Math.max(0, ...rows.map((group) => group.volume ?? 0));
@@ -90,7 +98,7 @@ export function SeoKeywordIdeas({
           <TableHeader>
             <TableRow>
               <TableHead>
-                {t(manyPages ? "keywords.keywordAndPage" : "keywords.keyword")}
+                {t(pageNamed ? "keywords.keywordAndPage" : "keywords.keyword")}
               </TableHead>
               {shown.volume ? (
                 <TableHead className="text-right">

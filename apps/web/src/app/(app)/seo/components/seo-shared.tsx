@@ -122,6 +122,14 @@ export const SEO_WRAP_CLASS =
  */
 export const SEO_GHOST_EDGE_CLASS = "-mx-3 max-w-[calc(100%+1.5rem)]";
 
+/** The url is the Audit's one primary page: a list where most rows belong to it names only the other pages. */
+export function seoIsOnlyPrimary(workspace: ProjectSeoWorkspace, url: string) {
+  const primary = workspace.pages.filter(
+    (page) => page.relationship === "primary",
+  );
+  return primary.length === 1 && primary[0].url === url;
+}
+
 /** One titled holder. Every SEO section uses it, so titles, help text and actions line up across tabs. */
 export function SeoSection({
   title,
@@ -518,12 +526,7 @@ export function SeoPageText({
   oneLine?: boolean;
 }) {
   const t = useTranslations("App.Seo");
-  const primary = workspace.pages.filter(
-    (page) => page.relationship === "primary",
-  );
-  if (skipPrimary && primary.length === 1 && primary[0].url === url) {
-    return null;
-  }
+  if (skipPrimary && seoIsOnlyPrimary(workspace, url)) return null;
   return (
     <bdi
       className={cn(

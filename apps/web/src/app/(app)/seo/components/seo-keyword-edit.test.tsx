@@ -841,6 +841,49 @@ describe("Keywords after a check", () => {
     expect(screen.getByText("Related search")).toBeVisible();
   });
 
+  it('says "and its page" over the ideas only when an idea in view names a page', () => {
+    const { workspace } = savedKeywordWorkspace();
+    // One primary page and one related page: the copy of the primary page in the fixture goes.
+    workspace.pages = [workspace.pages[0]];
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: crypto.randomUUID(),
+      url: "https://example.com/guides",
+      label: "Guides",
+      relationship: "related",
+      relatedToPageId: workspace.pages[0].id,
+    });
+    workspace.scope.pageIds = workspace.pages.map((page) => page.id);
+    const idea = (id: string, pageUrl: string) => ({
+      ...workspace.keywords[0],
+      id,
+      keyword: `idea ${id}`,
+      pageUrl,
+      saved: false,
+      version: 0,
+      source: "opportunity" as const,
+      countryCode: "US",
+      languageCode: "en",
+    });
+    // Every idea is on the primary page, which no row names.
+    workspace.keywords = [
+      idea("a", workspace.pages[0].url),
+      idea("b", workspace.pages[0].url),
+    ];
+    const { unmount } = renderWorkspace(workspace);
+    expect(screen.getByText("idea a")).toBeVisible();
+    expect(
+      screen.queryByRole("columnheader", { name: "Keyword and its page" }),
+    ).toBeNull();
+    expect(screen.getByRole("columnheader", { name: "Keyword" })).toBeVisible();
+    unmount();
+    workspace.keywords[1] = idea("b", "https://example.com/guides");
+    renderWorkspace(workspace);
+    expect(
+      screen.getByRole("columnheader", { name: "Keyword and its page" }),
+    ).toBeVisible();
+  });
+
   it("shows the conversion estimate and its feature in the lists that have one, with the note that it is an estimate", () => {
     const { workspace } = savedKeywordWorkspace();
     const base = {
