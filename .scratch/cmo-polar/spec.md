@@ -1,4 +1,6 @@
-Decisions and vocabulary: `docs/adr/0068-cmo-sells-its-plans-through-polar.md`, `GLOSSARY.md` (CMO plan, CMO subscription, Project top-up, Project credits, Starter credits, Hiring Cuso).
+Decisions and vocabulary: `docs/adr/0068-cmo-sells-its-plans-through-polar.md`, `GLOSSARY.md` (CMO plan, CMO subscription, Project top-up, Project credits, Tester credits, Hiring Cuso).
+
+Later change: Starter credits are Tester credits now, with their own credit bucket type (`CMO_TESTER_CREDITS`); a tester on `CMO_SUBSCRIPTION_SKIP_ALLOWLIST` grants them in place of a subscription. Read "Starter credits" below as Tester credits.
 
 ## Problem Statement
 

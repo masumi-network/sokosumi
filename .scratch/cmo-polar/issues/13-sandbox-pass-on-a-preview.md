@@ -18,5 +18,5 @@ Spec: `.scratch/cmo-polar/spec.md` (SOKD-204), "Testing Decisions".
 - [ ] A top-up lands on the Cuso's Project with a 12-month expiry.
 - [x] A refund in Polar's dashboard writes off the rest of that order's credits.
 - [x] Start over on a subscribed Cuso ends the subscription at Polar.
-- [ ] An existing Cuso with Starter credits works without a subscription.
+- [ ] An existing Cuso with Tester credits (formerly Starter credits) works without a subscription, and a tester on the skip list can continue one without a subscription.
 - [ ] The PR's Evidence holds a screenshot or log line per scenario.
