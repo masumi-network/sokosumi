@@ -11653,7 +11653,7 @@
       "competitors": {
         "title": "Competidores",
         "checkedBetween": "Comprobaciones de posiciones del {from} al {to}",
-        "nextActions": "{places, select, yes {{count, plural, one {Siguiente paso: # sitio donde mostrar el producto} other {Siguiente paso: # sitios donde mostrar el producto}}} other {{count, plural, one {Siguiente paso: # punto de la estrategia de palabras clave} other {Siguiente paso: # puntos de la estrategia de palabras clave}}}}",
+        "nextActions": "{places, select, yes {{count, plural, one {Siguiente paso: # sitio donde mostrar el producto} other {Siguiente paso: # sitios donde mostrar el producto}}} other {{count, plural, one {Siguiente paso: # acción de la estrategia de palabras clave} other {Siguiente paso: # acciones de la estrategia de palabras clave}}}}",
         "empty": "Todavía no hay competidores",
         "emptyBody": "Ejecuta una comprobación para ver sugerencias o añade un competidor a tu lista.",
         "emptyBodyOff": "El competidor que añadas se guarda aquí. Sus posiciones y backlinks necesitan datos de búsqueda de pago, que están desactivados en este espacio de trabajo.",
@@ -12147,7 +12147,7 @@
             "available": "Aún no se ha investigado ningún competidor. Una comprobación con datos de búsqueda de pago encuentra las páginas que posicionan para tus palabras clave.",
             "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."
           },
-          "strategy": "{places, select, yes {{count, plural, one {# sitio donde mostrar el producto} other {# sitios donde mostrar el producto}}} other {{count, plural, one {# punto} other {# puntos}} de la estrategia de palabras clave}}"
+          "strategy": "{places, select, yes {{count, plural, one {# sitio donde mostrar el producto} other {# sitios donde mostrar el producto}}} other {{count, plural, one {# acción} other {# acciones}} de la estrategia de palabras clave}}"
         },
         "prompts": {
           "first": "¿Qué debo hacer primero?",

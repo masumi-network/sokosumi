@@ -4427,7 +4427,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     // The step is one row that leads to the list: the whole row is the button.
     const step = await screen.findByRole("button", {
-      name: "3 items from the keyword strategy",
+      name: "3 actions from the keyword strategy",
     });
     expect(step.closest("li")).not.toBeNull();
     expect(screen.queryByTestId("seo-agent-strategy")).toBeNull();
@@ -4615,7 +4615,7 @@ describe("SEO workspace integration", () => {
     const third = renderWorkspace(workspace, "?tab=agent");
     await userEvent.setup().click(
       await screen.findByRole("button", {
-        name: "5 items from the keyword strategy",
+        name: "5 actions from the keyword strategy",
       }),
     );
     const group = await screen.findByRole("heading", {
@@ -4641,7 +4641,7 @@ describe("SEO workspace integration", () => {
       .click(screen.getByRole("button", { name: "Competitors" }));
     await userEvent.setup().click(
       screen.getByRole("button", {
-        name: "Next step: 5 items from the keyword strategy",
+        name: "Next step: 5 actions from the keyword strategy",
       }),
     );
     await waitFor(() => expect(rows()).toHaveLength(5));
