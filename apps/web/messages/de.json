@@ -12674,6 +12674,33 @@
         "weekly": "Wochenwerte",
         "week": "Woche vom",
         "siteShare": "Anteil Ihrer Seiten"
+      },
+      "keywordReach": {
+        "searches": "{count, number} Suchen pro Monat",
+        "searchesBoth": "{count, number} Suchen pro Monat ({suggested, number} in den Vorschlägen)",
+        "position": "Position {position}",
+        "reach": {
+          "ranks": "Rankt",
+          "inReach": "In Reichweite",
+          "open": "Ein Forum in den Ergebnissen",
+          "outOfReach": "Außer Reichweite",
+          "notDetermined": "Reichweite nicht bestimmt"
+        },
+        "features": {
+          "title": "Beste Suche jeder Funktion",
+          "help": "Für jede Funktion: die Suche mit den meisten Suchen, die keine Keyword-Gruppe enthält, und ihre Reichweite."
+        },
+        "rivals": {
+          "title": "Keywords konkurrierender Produkte",
+          "help": "Die Keywords, für die jedes konkurrierende Produkt rankt, die meisten Suchen zuerst.",
+          "topic": "Keywords mit einem Wort deines Themas ({words}):",
+          "other": "{count, plural, one {# Keyword enthält} other {# Keywords enthalten}} keines dieser Wörter: andere Produkte der Website oder Produktnamen",
+          "more": "{count} weitere im Website-Bericht"
+        },
+        "ideas": {
+          "title": "Ideen für Artikel",
+          "help": "Suchen, die deine Nutzer machen, bevor sie das Produkt brauchen. Ein Artikel dazu bringt Leser, die es später brauchen können."
+        }
       }
     }
   },

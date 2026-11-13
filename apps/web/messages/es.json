@@ -12674,6 +12674,33 @@
         "weekly": "Valores semanales",
         "week": "Semana del",
         "siteShare": "Cuota de tus páginas"
+      },
+      "keywordReach": {
+        "searches": "{count, number} búsquedas al mes",
+        "searchesBoth": "{count, number} búsquedas al mes ({suggested, number} en las sugerencias)",
+        "position": "posición {position}",
+        "reach": {
+          "ranks": "Posiciona",
+          "inReach": "Al alcance",
+          "open": "Un foro en los resultados",
+          "outOfReach": "Fuera de alcance",
+          "notDetermined": "Alcance no determinado"
+        },
+        "features": {
+          "title": "Mejor búsqueda de cada función",
+          "help": "Para cada función: la búsqueda con más búsquedas que ningún grupo de keywords contiene, y su alcance."
+        },
+        "rivals": {
+          "title": "Keywords de productos competidores",
+          "help": "Las keywords para las que posiciona cada producto competidor, primero las de más búsquedas.",
+          "topic": "Keywords con una palabra de tu tema ({words}):",
+          "other": "{count, plural, one {# keyword no tiene} other {# keywords no tienen}} ninguna de estas palabras: otros productos del sitio o nombres de productos",
+          "more": "{count} más en el informe del sitio"
+        },
+        "ideas": {
+          "title": "Ideas para artículos",
+          "help": "Búsquedas que tus usuarios hacen antes de necesitar el producto. Un artículo sobre ellas trae lectores que pueden necesitarlo más tarde."
+        }
       }
     }
   },

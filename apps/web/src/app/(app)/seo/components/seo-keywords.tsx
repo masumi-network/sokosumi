@@ -21,6 +21,7 @@ import { seoKeywordsExport } from "./seo-export-model";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
 import { SeoKeywordHistory } from "./seo-keyword-history";
 import { SeoKeywordIdeas } from "./seo-keyword-ideas";
+import { SeoKeywordReach } from "./seo-keyword-reach";
 import {
   keywordGroups,
   keywordPage,
@@ -692,6 +693,7 @@ export function SeoKeywords({
                       taskOf(summary.newest.observationId))),
             )}
           />
+          <SeoKeywordReach strategy={strategy ?? null} />
         </SeoSection>
       </div>
       <div className={seoSectionClass(bothLists || section === "ideas")}>
