@@ -99,7 +99,6 @@ import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import {
   applyFullChatRoomMessageEvent,
   applyThreadUnreadReplyCounts,
-  keepKnownThreadUnreadReplyCount,
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
 } from "@/app/chat/utils/merge-room-messages";
@@ -926,12 +925,13 @@ function RoomView({
     handleSaveEdit,
     handleRemoveUnfurl,
     handleDeleteMessage,
+    mergeUpdatedMessage,
   } = useRoomMessageMutations({
     getSelectedRoomId: () => selectedRoom?.id,
     isStillSelectedRoom,
-    mergeUpdatedMessage,
     messagesState,
     setMessagesState,
+    setThreadMessages,
     threadParentMessage,
     setThreadParentMessage,
   });
@@ -2014,38 +2014,6 @@ function RoomView({
     messagesPending,
     requestRefresh: refreshLatestRef.current,
   });
-
-  function mergeUpdatedMessage(updatedMessage: ChatRoomMessage) {
-    setMessagesState((current) => {
-      // Thread replies never belong in the room list (edit/delete/reaction).
-      if (!isTopLevelChatRoomMessage(updatedMessage)) {
-        return current.filter((message) => message.id !== updatedMessage.id);
-      }
-      return filterTopLevelChatRoomMessages(
-        current.map((message) =>
-          message.id === updatedMessage.id
-            ? keepKnownThreadUnreadReplyCount(message, updatedMessage)
-            : message,
-        ),
-      );
-    });
-    // Parent lives in threadParentMessage only — never in the replies list.
-    // Purge any prior leak (e.g. pre-fix Ably merge of the root).
-    if (isTopLevelChatRoomMessage(updatedMessage)) {
-      setThreadMessages((current) =>
-        current.filter((message) => message.id !== updatedMessage.id),
-      );
-    } else {
-      setThreadMessages((current) =>
-        current.map((message) =>
-          message.id === updatedMessage.id ? updatedMessage : message,
-        ),
-      );
-    }
-    setThreadParentMessage((current) =>
-      current?.id === updatedMessage.id ? updatedMessage : current,
-    );
-  }
 
   /** Only `emoji`'s entry moves; edits and other reactions stay (ADR 0032). */
   function mergeConfirmedReactionIntoState(

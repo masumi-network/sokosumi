@@ -11,6 +11,7 @@ import { RoomsClient } from "../rooms-client";
 import {
   editRoomMessageAction,
   pinRoomMessageAction,
+  removeRoomMessageUnfurlAction,
   renderWithQueryClient,
   roomsClientBaseProps,
   setMessageReactionAction,
@@ -72,6 +73,7 @@ vi.mock("../room-message-row", async () => {
       editDraft,
       onToggleReaction,
       onPin,
+      onRemoveUnfurl,
       onStartEdit,
       onOpenThread,
       onEditDraftChange,
@@ -84,6 +86,7 @@ vi.mock("../room-message-row", async () => {
       editDraft?: string;
       onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
       onPin?: (message: ChatRoomMessage) => void;
+      onRemoveUnfurl?: (message: ChatRoomMessage, url: string) => void;
       onStartEdit?: (message: ChatRoomMessage) => void;
       onOpenThread?: (message: ChatRoomMessage) => void;
       onEditDraftChange?: (value: string) => void;
@@ -95,6 +98,9 @@ vi.mock("../room-message-row", async () => {
           data-testid="chat-message-row"
           data-message-id={message.id}
           data-pinned={String(Boolean(isPinned))}
+          data-unfurls={(message.unfurls ?? [])
+            .map((unfurl) => unfurl.url)
+            .join(" ")}
           aria-busy={isSaving || undefined}
           data-editing={String(Boolean(isEditing))}
           data-edit-draft={editDraft ?? ""}
@@ -109,6 +115,15 @@ vi.mock("../room-message-row", async () => {
           <button type="button" onClick={() => onStartEdit?.(message)}>
             {`Edit ${message.id}`}
           </button>
+          {(message.unfurls ?? []).map((unfurl) => (
+            <button
+              key={unfurl.url}
+              type="button"
+              onClick={() => onRemoveUnfurl?.(message, unfurl.url)}
+            >
+              {`Remove ${unfurl.url}`}
+            </button>
+          ))}
           <button type="button" onClick={() => onOpenThread?.(message)}>
             {`Thread ${message.id}`}
           </button>
@@ -585,6 +600,180 @@ describe("RoomsClient transcript row render isolation", () => {
     });
 
     expect(pinnedFlags()).toEqual(["false", "true", "false"]);
+  });
+
+  describe("link preview removal", () => {
+    const unfurl = (url: string) => ({
+      url,
+      title: url,
+      description: null,
+      imageUrl: null,
+      siteName: null,
+    });
+    const withPreviews = () => [
+      message("m1", 1),
+      { ...message("m2", 2), unfurls: [unfurl("a"), unfurl("b"), unfurl("c")] },
+      message("m3", 3),
+    ];
+    const previews = () =>
+      screen
+        .getAllByTestId("chat-message-row")
+        .map((row) => row.getAttribute("data-unfurls"));
+    const remove = async (url: string) => {
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: `Remove ${url}` }));
+      });
+    };
+
+    it("takes the card out before Core answers, then shows Core's message", async () => {
+      let answer: (result: unknown) => void = () => {};
+      vi.mocked(removeRoomMessageUnfurlAction).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            answer = resolve as (result: unknown) => void;
+          }) as never,
+      );
+      await mountRoom(withPreviews());
+
+      await remove("b");
+      expect(previews()).toEqual(["", "a c", ""]);
+      expect(removeRoomMessageUnfurlAction).toHaveBeenCalledWith(
+        "room-channel",
+        "m2",
+        "b",
+      );
+
+      await act(async () => {
+        answer({
+          ok: true,
+          value: { ...message("m2", 2), unfurls: [unfurl("a")] },
+        });
+      });
+      expect(previews()).toEqual(["", "a", ""]);
+
+      // The answered removal is closed: a later answer may hold "b" again.
+      vi.mocked(removeRoomMessageUnfurlAction).mockResolvedValueOnce({
+        ok: true as const,
+        value: { ...message("m2", 2), unfurls: [unfurl("b")] },
+      } as never);
+      await remove("a");
+      expect(previews()).toEqual(["", "b", ""]);
+    });
+
+    it("puts a refused card back in its place and says so", async () => {
+      vi.mocked(removeRoomMessageUnfurlAction).mockResolvedValueOnce({
+        ok: false as const,
+        error: { message: "Removal refused" } as never,
+      });
+      await mountRoom(withPreviews());
+
+      await remove("b");
+
+      expect(previews()).toEqual(["", "a b c", ""]);
+      expect(toast.error).toHaveBeenCalledWith("Removal refused", {
+        description: "Unfurl.restored",
+      });
+
+      // The refused removal is closed: a later answer may hold its card.
+      vi.mocked(removeRoomMessageUnfurlAction).mockResolvedValueOnce({
+        ok: true as const,
+        value: { ...message("m2", 2), unfurls: [unfurl("b"), unfurl("c")] },
+      } as never);
+      await remove("a");
+      expect(previews()).toEqual(["", "b c", ""]);
+    });
+
+    it("puts the card back when the request fails, and keeps a second removal", async () => {
+      let fail: (error: Error) => void = () => {};
+      vi.mocked(removeRoomMessageUnfurlAction)
+        .mockImplementationOnce(
+          () =>
+            new Promise((_resolve, reject) => {
+              fail = reject;
+            }) as never,
+        )
+        .mockImplementationOnce(() => new Promise(() => {}) as never);
+      await mountRoom(withPreviews());
+      await remove("b");
+      await remove("a");
+      expect(previews()).toEqual(["", "c", ""]);
+
+      await act(async () => {
+        fail(new Error("down"));
+      });
+
+      expect(previews()).toEqual(["", "b c", ""]);
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+        "Unfurl.removeError",
+        {
+          description: "Unfurl.restored",
+        },
+      );
+    });
+
+    it("puts a refused last card back at the end", async () => {
+      vi.mocked(removeRoomMessageUnfurlAction).mockResolvedValueOnce({
+        ok: false as const,
+        error: { message: "Removal refused" } as never,
+      });
+      await mountRoom(withPreviews());
+
+      await remove("c");
+
+      expect(previews()).toEqual(["", "a b c", ""]);
+    });
+
+    it("does not add the card twice when a realtime update put it back first", async () => {
+      let fail: (error: Error) => void = () => {};
+      vi.mocked(removeRoomMessageUnfurlAction).mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            fail = reject;
+          }) as never,
+      );
+      await mountRoom(withPreviews());
+      await remove("b");
+      const event = chatRoomMessageEventDataSchema.parse(
+        JSON.parse(
+          JSON.stringify({ eventType: "update", message: withPreviews()[1] }),
+        ),
+      );
+      await act(async () => {
+        realtimeOptions().onMessage?.(event);
+      });
+      expect(previews()).toEqual(["", "a b c", ""]);
+
+      await act(async () => {
+        fail(new Error("down"));
+      });
+
+      expect(previews()).toEqual(["", "a b c", ""]);
+    });
+
+    it("keeps a second card out when Core answers the first removal", async () => {
+      let answer: (result: unknown) => void = () => {};
+      vi.mocked(removeRoomMessageUnfurlAction)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              answer = resolve as (result: unknown) => void;
+            }) as never,
+        )
+        .mockImplementationOnce(() => new Promise(() => {}) as never);
+      await mountRoom(withPreviews());
+      await remove("b");
+      await remove("a");
+
+      // Core's answer to the first removal still holds "a".
+      await act(async () => {
+        answer({
+          ok: true,
+          value: { ...message("m2", 2), unfurls: [unfurl("a"), unfurl("c")] },
+        });
+      });
+
+      expect(previews()).toEqual(["", "c", ""]);
+    });
   });
 
   it("marks messages pinned on first load without opening the pinned panel", async () => {
