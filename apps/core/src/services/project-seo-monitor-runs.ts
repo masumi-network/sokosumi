@@ -1,3 +1,4 @@
+import { PrismaRaw } from "@sokosumi/database/client";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
 import { SEO_MONITOR_MARKER } from "@/lib/seo/monitor-plan";
@@ -35,7 +36,7 @@ export function lastRunStatus(
  * Per group of Tasks (newest created first): the newest readable result of each of the two newest Tasks with a
  * result, newest Task first. A late result keeps its Run's place, and one Task with two imported files counts once,
  * so the workspace and the notification compare the same pair of Runs. All groups share one id read and one payload
- * read. The id read has no row limit: a shared limit would let one Task's many files push out other Tasks' results.
+ * read. The id read returns one row per Task, so one Task's many files never push out other Tasks' results.
  */
 async function newestResultsOfTaskGroups(
   owner: Pick<SeoActor, "owner">,
@@ -43,27 +44,28 @@ async function newestResultsOfTaskGroups(
 ): Promise<SeoMonitorRunResult[][]> {
   const taskIds = groups.flat();
   if (!taskIds.length) return groups.map(() => []);
-  const rows = await prisma.projectSeoObservation.findMany({
-    where: {
-      ...seoOwnerWhere(owner),
-      sourceTaskId: { in: taskIds },
-      ownerId: null,
-      kind: { notIn: NON_RESULT_KINDS },
-    },
-    orderBy: [{ observedAt: "desc" }, { id: "desc" }],
-    select: { id: true, sourceTaskId: true },
-  });
-  const newestOfTask = new Map<string, string>();
-  for (const row of rows)
-    if (row.sourceTaskId && !newestOfTask.has(row.sourceTaskId))
-      newestOfTask.set(row.sourceTaskId, row.id);
+  const ownerFilter =
+    owner.owner.kind === "audit"
+      ? PrismaRaw.sql`"auditId" = ${owner.owner.id}::uuid AND "projectId" IS NULL`
+      : PrismaRaw.sql`"projectId" = ${owner.owner.id}::uuid AND "auditId" IS NULL`;
+  // One row per Task, its newest result. A Task with many files still returns one row.
+  const rows = await prisma.$queryRaw<{ id: string; sourceTaskId: string }[]>`
+    SELECT DISTINCT ON ("sourceTaskId") id, "sourceTaskId"
+    FROM "project_seo_observation"
+    WHERE ${ownerFilter}
+      AND "sourceTaskId" = ANY(${taskIds}::text[])
+      AND "ownerId" IS NULL
+      AND kind NOT IN (${PrismaRaw.join(NON_RESULT_KINDS)})
+    ORDER BY "sourceTaskId", "observedAt" DESC, id DESC
+  `;
+  const newestOfTask = new Map(rows.map((row) => [row.sourceTaskId, row.id]));
   const groupIds = groups.map((group) =>
     group.flatMap((taskId) => newestOfTask.get(taskId) ?? []).slice(0, 2),
   );
   const ids = groupIds.flat();
   const results = ids.length
     ? await prisma.projectSeoObservation.findMany({
-        where: { id: { in: ids } },
+        where: { id: { in: ids }, ...seoOwnerWhere(owner) },
         select: { id: true, observedAt: true, payload: true },
       })
     : [];

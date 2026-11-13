@@ -883,32 +883,27 @@ describe.skipIf(!enabled)(
       expect(
         workspace.runs?.filter((run) => run.monitorId === monitor.id),
       ).toHaveLength(5);
-      // The batched read keeps each monitor's own Runs: other monitors of this owner show their own last Run and
-      // no change from this monitor's results.
-      const others = workspace.monitors.filter(
-        (item) => item.id !== monitor.id,
-      );
-      expect(others.map((item) => item.id)).toContain(sibling.id);
-      for (const other of others) {
-        expect(other.change).toBeNull();
-        if (other.lastRun?.taskId)
-          expect(
-            (
-              await prisma.task.findUniqueOrThrow({
-                where: { id: other.lastRun.taskId },
-              })
-            ).scheduleId,
-          ).toBe(other.id);
-      }
-      // A Run with many files keeps the Run before it in the pair: the result read has no shared row limit.
-      for (let minute = 10; minute < 20; minute++)
-        await result(againTaskId, `2026-11-03T10:${minute}:00.000Z`, "fired");
+      // The batched read keeps each monitor's own Runs: the sibling shows its own last Run and no change from this
+      // monitor's results.
+      expect(
+        workspace.monitors.find((item) => item.id === sibling.id),
+      ).toMatchObject({
+        lastRun: { taskId: siblingRun.run.releasedTaskId },
+        change: null,
+      });
+      // A Run with many files keeps the Run before it in the pair: the result read returns one row per Run.
+      for (let second = 0; second <= 50; second++)
+        await result(
+          againTaskId,
+          new Date(Date.UTC(2026, 10, 3, 11, 0, second)).toISOString(),
+          "fired",
+        );
       const pair = await newestSeoMonitorResults(actor, [
         againTaskId,
         ranNow.run.releasedTaskId!,
       ]);
       expect(pair.map((item) => item.observedAt.toISOString())).toEqual([
-        "2026-11-03T10:19:00.000Z",
+        "2026-11-03T11:00:50.000Z",
         "2026-11-02T09:00:00.000Z",
       ]);
     });
