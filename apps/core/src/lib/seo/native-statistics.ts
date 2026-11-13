@@ -10,9 +10,10 @@ import {
 } from "@sokosumi/utils";
 
 import type { NativeSeoMetrics } from "@/schemas/project-seo.schema";
-import type {
-  SeoSearchType,
-  SeoTrafficChannel,
+import {
+  type SeoSearchType,
+  type SeoTrafficChannel,
+  seoSearchTypeHasQueries,
 } from "@/schemas/project-seo-traffic.schema";
 
 export const SEO_STATS_MAX_DAYS = 366;
@@ -82,20 +83,28 @@ export const ga4ReportSchema = z.object({
     })
     .optional(),
 });
-const gscReportSchema = z.object({
-  rows: z
-    .array(
-      z.object({
-        keys: z.array(z.string()).default([]),
-        clicks: valueSchema,
-        impressions: valueSchema,
-        ctr: valueSchema,
-        position: valueSchema,
-      }),
-    )
-    .max(SEO_STATS_MAX_ROWS)
-    .default([]),
-});
+const gscRowFields = {
+  keys: z.array(z.string()).default([]),
+  clicks: valueSchema,
+  impressions: valueSchema,
+  ctr: valueSchema,
+};
+function gscReportOf<Row extends z.ZodTypeAny>(row: Row) {
+  return z.object({
+    rows: z.array(row).max(SEO_STATS_MAX_ROWS).default([]),
+  });
+}
+const gscReportSchema = gscReportOf(
+  z.object({ ...gscRowFields, position: valueSchema }),
+);
+/**
+ * Discover and Google News rows may come without a position. The Search Analytics API page
+ * (developers.google.com/webmaster-tools/v1/searchanalytics/query) does not say position is
+ * absent there, so this is a guard, not a known shape: a missing position reads as no value.
+ */
+const feedGscReportSchema = gscReportOf(
+  z.object({ ...gscRowFields, position: valueSchema.optional() }),
+);
 export interface NativeStatisticsQuery {
   provider: (typeof SEO_STATS_PROVIDERS)[number];
   propertyId: string;
@@ -174,8 +183,10 @@ export function bindSeoToolArguments(
 }
 
 /**
- * GA4 default channel group names per channel. "AI Assistant" is GA4's group for
- * ChatGPT, Gemini, Copilot and other assistants; AI Overviews stay in Organic Search.
+ * GA4 default channel group names per channel. Source: support.google.com/analytics/answer/9756891
+ * (the lead's fetch). The default channel is exactly "AI Assistant" (rule: medium exactly
+ * "ai-assistant"); it covers ChatGPT, Gemini, Deepseek, Copilot and Grok. AI Overviews and
+ * AI Mode stay in Organic Search.
  */
 export const GA4_CHANNEL_GROUPS = {
   organic: "Organic Search",
@@ -425,12 +436,12 @@ export function normalizeGa4Statistics(
   };
 }
 
-type GscRow = z.infer<typeof gscReportSchema>["rows"][number];
+type GscRow = z.infer<typeof feedGscReportSchema>["rows"][number];
 /** A day or period with no impressions has no CTR or position; Search Console reports 0 there. */
 function gscValue(row: GscRow, name: (typeof GSC_METRICS)[number]["name"]) {
   return (name === "ctr" || name === "position") && row.impressions === 0
     ? null
-    : row[name];
+    : (row[name] ?? null);
 }
 
 export function normalizeGscStatistics(
@@ -439,8 +450,12 @@ export function normalizeGscStatistics(
   dailyInput: unknown,
   observedAt: string,
 ): NativeSeoMetrics {
-  const period = gscReportSchema.parse(periodInput ?? {}),
-    daily = gscReportSchema.parse(dailyInput ?? {});
+  // Discover and Google News are the feed types: the ones without query rows.
+  const schema = seoSearchTypeHasQueries(query.searchType)
+    ? gscReportSchema
+    : feedGscReportSchema;
+  const period = schema.parse(periodInput ?? {}),
+    daily = schema.parse(dailyInput ?? {});
   if (
     period.rows.length > 1 ||
     period.rows.some((row) => row.keys.length) ||

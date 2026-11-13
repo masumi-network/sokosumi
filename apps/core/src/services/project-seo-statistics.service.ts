@@ -369,6 +369,7 @@ export async function syncProjectSeoStatistics(
     return { window, totals };
   };
   // Discover and Google News have no search query: no query rows and no keyword days to read.
+  // INFERRED from the Search Console help; the API page does not say so (see seoSearchTypeHasQueries).
   const readsQueries =
     input.provider === "search_console" &&
     seoSearchTypeHasQueries(input.searchType);

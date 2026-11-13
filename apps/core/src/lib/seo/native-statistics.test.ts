@@ -180,6 +180,29 @@ describe("native SEO statistics", () => {
     ).toThrow("outside the selected period");
   });
 
+  it("reads a Discover sync without positions and refuses a web read without one", () => {
+    const totals = { rows: [{ clicks: 2, impressions: 100, ctr: 0.02 }] };
+    const daily = {
+      rows: [{ keys: ["2026-01-01"], clicks: 2, impressions: 100, ctr: 0.02 }],
+    };
+    const gsc = { ...query, provider: "search_console" as const };
+    const result = normalizeGscStatistics(
+      { ...gsc, searchType: "discover" },
+      totals,
+      daily,
+      "2026-01-03T00:00:00.000Z",
+    );
+    expect(
+      result.metrics.find((metric) => metric.key === "position")?.value,
+    ).toBeNull();
+    expect(
+      result.metrics.find((metric) => metric.key === "clicks")?.value,
+    ).toBe(2);
+    expect(() =>
+      normalizeGscStatistics(gsc, totals, daily, "2026-01-03T00:00:00.000Z"),
+    ).toThrow();
+  });
+
   it("keeps Search Console weighted period position instead of averaging daily positions", () => {
     const totals = {
       rows: [{ clicks: 2, impressions: 100, ctr: 0.02, position: 3.2 }],
