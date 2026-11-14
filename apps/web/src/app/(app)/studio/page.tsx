@@ -96,7 +96,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         websiteUrl={project?.websiteUrl}
         recentProjects={
           recentProjects.length > 0 ? (
-            <StudioRecentProjects projects={recentProjects} />
+            <StudioRecentProjects now={new Date()} projects={recentProjects} />
           ) : undefined
         }
         projectScopePrompt={

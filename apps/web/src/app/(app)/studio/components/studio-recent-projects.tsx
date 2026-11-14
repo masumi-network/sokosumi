@@ -4,22 +4,46 @@ import type { ImageStudioRecentProjects } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 
+import { handStudioBriefTo } from "@/app/projects/components/image-studio/studio-workspace-brief";
 import { assetContentUrl } from "@/app/projects/components/image-studio/types";
+
+type Formatter = ReturnType<typeof useFormatter>;
+
+/**
+ * "Nov 11", with the year only when it is not this one. Both years are read
+ * through the same formatter, so in its time zone, and against the `now` the
+ * server rendered with, so the server and the browser agree.
+ */
+export function recentProjectDate(
+  format: Formatter,
+  latestAt: Date,
+  now: Date,
+): string {
+  const year = (date: Date) => format.dateTime(date, { year: "numeric" });
+  return format.dateTime(latestAt, {
+    month: "short",
+    day: "numeric",
+    ...(year(latestAt) === year(now) ? {} : { year: "numeric" }),
+  });
+}
 
 /**
  * All projects, for a workspace that already makes ads: the projects with the
  * newest Studio images, each one link into that project's gallery. A plain
  * link is enough to switch scope: the scope hook remembers a `?projectId=`
- * it lands on.
+ * it lands on. A same-tab click takes the typed brief along, as Select
+ * project does; a new tab or window leaves it where it is.
  */
 export function StudioRecentProjects({
+  now,
   projects,
 }: {
+  /** The server's render time. */
+  now: Date;
   projects: ImageStudioRecentProjects["projects"];
 }) {
   const t = useTranslations("App.Studio.RecentProjects");
   const format = useFormatter();
-  const thisYear = new Date().getFullYear();
   return (
     <section
       aria-labelledby="studio-recent-projects"
@@ -37,6 +61,15 @@ export function StudioRecentProjects({
             <Link
               className="bg-card-background border-border hover:bg-card-background-hover focus-visible:ring-ring flex items-center gap-3 rounded-xl border p-2 transition-colors outline-none focus-visible:ring-2 sm:flex-col sm:items-stretch"
               href={`/studio?projectId=${encodeURIComponent(project.projectId)}`}
+              onClick={(event) => {
+                const newTab =
+                  event.button !== 0 ||
+                  event.metaKey ||
+                  event.ctrlKey ||
+                  event.shiftKey ||
+                  event.altKey;
+                if (!newTab) handStudioBriefTo(project.projectId);
+              }}
             >
               <img
                 alt=""
@@ -55,14 +88,7 @@ export function StudioRecentProjects({
                   {t("imageCount", { count: project.imageCount })}
                   {" · "}
                   <time dateTime={new Date(project.latestAt).toISOString()}>
-                    {format.dateTime(new Date(project.latestAt), {
-                      month: "short",
-                      day: "numeric",
-                      // Only when it is not this year's.
-                      ...(new Date(project.latestAt).getFullYear() === thisYear
-                        ? {}
-                        : { year: "numeric" }),
-                    })}
+                    {recentProjectDate(format, new Date(project.latestAt), now)}
                   </time>
                 </span>
               </span>
