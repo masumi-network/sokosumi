@@ -11,9 +11,9 @@ const FOIL_COLOR_TOKENS = ["--foil-1", "--foil-2", "--foil-3", "--foil-4"];
 const VERTEX_SHADER = `attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}`;
 
 // Domain-warped noise coloured by a loop through the four foil tokens, with
-// thin bright creases, a shine that follows the pointer, and film grain.
+// thin bright creases and film grain.
 const FRAGMENT_SHADER = `precision highp float;
-uniform vec2 res; uniform float t; uniform vec2 m; uniform float shine;
+uniform vec2 res; uniform float t; uniform float shine;
 uniform vec3 c0,c1,c2,c3;
 float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
@@ -24,22 +24,19 @@ vec3 pal(float x){x=fract(x)*4.;
   return mix(a,b,smoothstep(0.,1.,fract(x)));}
 void main(){
   vec2 uv=gl_FragCoord.xy/res; vec2 p=uv*vec2(res.x/res.y,1.)*1.4;
-  vec2 tilt=m-.5;
   vec2 q=vec2(fbm(p+t*.03),fbm(p+vec2(5.2,1.3)-t*.025));
-  vec2 r=vec2(fbm(p+2.4*q+vec2(1.7,9.2)+tilt*.6),fbm(p+2.4*q+vec2(8.3,2.8)-tilt*.6));
-  float phase=fbm(p+2.6*r)*2.2+r.x*.8+dot(uv-.5,tilt)*1.2+t*.015;
+  vec2 r=vec2(fbm(p+2.4*q+vec2(1.7,9.2)),fbm(p+2.4*q+vec2(8.3,2.8)));
+  float phase=fbm(p+2.6*r)*2.2+r.x*.8+t*.015;
   vec3 c=pal(phase);
   c+=pow(1.-abs(fract(phase*2.)-.5)*2.,10.)*.4*shine;
-  c+=pow(max(0.,1.-abs(uv.x-uv.y*.35-m.x*.9-.05)*2.),5.)*shine;
   c+=(h(gl_FragCoord.xy+fract(t))-.5)*.04;
   gl_FragColor=vec4(c,1.);
 }`;
 
 /**
  * The Home page's holographic foil: a slow WebGL drift in the `--foil-*`
- * tokens whose shine follows the pointer, like tilting a foil card. It fades
- * out toward the bottom, draws one still frame under reduced motion, stops
- * while off screen, and renders nothing where WebGL is missing.
+ * tokens. It fades out toward the bottom, draws one still frame under reduced
+ * motion, stops while off screen, and renders nothing where WebGL is missing.
  */
 export function FoilBackground({ className }: { className?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -64,7 +61,6 @@ export function FoilBackground({ className }: { className?: string }) {
     const uniform = (name: string) => gl.getUniformLocation(program, name);
 
     const reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY).matches;
-    const pointer = { x: 0.5, y: 0.5, targetX: 0.5, targetY: 0.5 };
     const start = performance.now();
     let frame = 0;
     let visible = true;
@@ -93,26 +89,17 @@ export function FoilBackground({ className }: { className?: string }) {
         gl.viewport(0, 0, width, height);
       }
       if (colorsStale) applyColors();
-      pointer.x += (pointer.targetX - pointer.x) * 0.06;
-      pointer.y += (pointer.targetY - pointer.y) * 0.06;
       gl.uniform2f(uniform("res"), width, height);
       gl.uniform1f(
         uniform("t"),
         reducedMotion ? 0 : (performance.now() - start) / 1000,
       );
-      gl.uniform2f(uniform("m"), pointer.x, pointer.y);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     };
 
     const loop = () => {
       draw();
       frame = visible ? requestAnimationFrame(loop) : 0;
-    };
-
-    const onPointerMove = (event: PointerEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      pointer.targetX = (event.clientX - rect.left) / rect.width;
-      pointer.targetY = 1 - (event.clientY - rect.top) / rect.height;
     };
 
     // The theme switch swaps the tokens, so read them again on the next draw.
@@ -140,12 +127,10 @@ export function FoilBackground({ className }: { className?: string }) {
       if (visible && !frame) frame = requestAnimationFrame(loop);
     });
     visibilityObserver.observe(canvas);
-    window.addEventListener("pointermove", onPointerMove, { passive: true });
     frame = requestAnimationFrame(loop);
 
     return () => {
       cancelAnimationFrame(frame);
-      window.removeEventListener("pointermove", onPointerMove);
       visibilityObserver.disconnect();
       themeObserver.disconnect();
     };
