@@ -10430,6 +10430,8 @@
         "hint": "Wähle eines oder lass dir andere zeigen.",
         "showOthers": "Andere zeigen",
         "noneNew": "Gerade keine neuen Bilder. Versuch es in einer Minute noch einmal.",
+        "drawing": "Neue Bilder werden gezeichnet. Das kann eine Minute dauern.",
+        "noMore": "Mehr neue Bilder gibt es gerade nicht. Wähl eines oben aus.",
         "pictures": "Bilder",
         "loadError": "Bilder konnten nicht geladen werden.",
         "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal."

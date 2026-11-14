@@ -8,14 +8,12 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
  * beside the route: what a user is offered, and what a top-up draws.
  */
 
-const { store, generateTextMock, putMock, deferred } = vi.hoisted(() => ({
+const { store, generateTextMock, putMock } = vi.hoisted(() => ({
   store: {} as ReturnType<
     typeof import("@/test-fixtures/soko-bot-avatar-store").createSokoBotAvatarStore
   >,
   generateTextMock: vi.fn(),
   putMock: vi.fn(),
-  /** Work Core kept alive past the response. */
-  deferred: [] as Promise<unknown>[],
 }));
 
 vi.mock("@/lib/db/prisma", async () => {
@@ -32,17 +30,6 @@ vi.mock("ai", async (importOriginal) => ({
 }));
 
 vi.mock("@vercel/blob", () => ({ put: putMock }));
-
-vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => {
-    deferred.push(promise);
-  },
-}));
-
-/** Let the work deferred past the response finish. */
-async function runDeferred() {
-  while (deferred.length > 0) await deferred.shift();
-}
 
 vi.mock("@/config/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/config/env")>();
@@ -154,7 +141,6 @@ describe("Soko Bot avatar picker", () => {
   beforeEach(() => {
     store.reset();
     vi.clearAllMocks();
-    deferred.length = 0;
     generateTextMock.mockImplementation(async () => ({
       files: [{ mediaType: "image/png", uint8Array: drawnPng }],
     }));
@@ -236,45 +222,33 @@ describe("Soko Bot avatar picker", () => {
       expect(generateTextMock).not.toHaveBeenCalled();
     });
 
-    it("answers a refresh at once with what is unseen and draws the rest after", async () => {
+    it("draws a refresh's shortfall before it answers", async () => {
       const seen = Array.from({ length: 4 }, () => store.seed().id);
       const unseen = [store.seed().id, store.seed().id];
-      // The image model is slow; the answer must not wait for it.
-      let release: () => void = () => {};
-      const drawing = new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      generateTextMock.mockImplementation(async () => {
-        await drawing;
-        return { files: [{ mediaType: "image/png", uint8Array: drawnPng }] };
-      });
 
       const { status, avatars } = await topUp(6, seen);
 
       expect(status).toBe(200);
-      expect(avatars?.map((one) => one.id).sort()).toEqual([...unseen].sort());
-
-      release();
-      await runDeferred();
       expect(generateTextMock).toHaveBeenCalledTimes(4);
-      const after = await topUp(6, seen);
-      expect(after.avatars).toHaveLength(6);
-      expect(after.avatars?.some((one) => seen.includes(one.id))).toBe(false);
+      expect(avatars).toHaveLength(6);
+      expect(avatars?.some((one) => seen.includes(one.id))).toBe(false);
+      expect(avatars?.map((one) => one.id)).toEqual(
+        expect.arrayContaining(unseen),
+      );
     });
 
-    it("answers a refresh of a fully seen pool with nothing, and draws a set after", async () => {
+    it("answers a refresh of a fully seen pool with a new set", async () => {
       const seen = Array.from({ length: 6 }, () => store.seed().id);
 
       const { status, avatars } = await topUp(6, seen);
 
       expect(status).toBe(200);
-      expect(avatars).toEqual([]);
-      await runDeferred();
       expect(generateTextMock).toHaveBeenCalledTimes(6);
-      expect((await topUp(6, seen)).avatars).toHaveLength(6);
+      expect(avatars).toHaveLength(6);
+      expect(avatars?.some((one) => seen.includes(one.id))).toBe(false);
     });
 
-    it("keeps a refresh answered when its background draw fails", async () => {
+    it("answers a refresh with nothing new when its draw fails", async () => {
       const seen = [store.seed().id];
       // Quiet the failure's log line; the outcome is what is checked.
       const error = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -284,14 +258,13 @@ describe("Soko Bot avatar picker", () => {
 
       expect(status).toBe(200);
       expect(avatars).toEqual([]);
-      await expect(runDeferred()).resolves.toBeUndefined();
       // Only the probe was tried, and nothing blank is offered.
       expect(generateTextMock).toHaveBeenCalledTimes(1);
       await expect(list()).resolves.toEqual({ status: 200, ids: seen });
       error.mockRestore();
     });
 
-    it("buys one draw for quick refreshes while that draw is in flight", async () => {
+    it("buys one set for repeated refreshes while that set is drawing", async () => {
       const seen = [store.seed().id];
       let release: () => void = () => {};
       const drawing = new Promise<void>((resolve) => {
@@ -302,23 +275,23 @@ describe("Soko Bot avatar picker", () => {
         return { files: [{ mediaType: "image/png", uint8Array: drawnPng }] };
       });
 
-      // "Show others" four times before the first draw lands.
-      for (let i = 0; i < 4; i += 1) {
-        expect((await topUp(6, seen)).status).toBe(200);
+      // The first refresh waits on the image model; three more arrive meanwhile.
+      const first = topUp(6, seen);
+      await vi.waitFor(() => expect(generateTextMock).toHaveBeenCalled());
+      for (let i = 0; i < 3; i += 1) {
+        expect((await topUp(6, seen)).avatars).toEqual([]);
       }
       release();
-      await runDeferred();
 
+      expect((await first).avatars).toHaveLength(6);
       const paid = store.avatars.filter(
         (row) => row.requestedByUserId === USER_ID,
       );
       expect(paid).toHaveLength(6);
       expect(generateTextMock).toHaveBeenCalledTimes(6);
-      // The one draw fills the next refresh, and allowance is left over.
-      expect((await topUp(6, seen)).avatars).toHaveLength(6);
     });
 
-    it("keeps concurrent background draws under the hourly cap", async () => {
+    it("keeps concurrent refreshes under the hourly cap", async () => {
       // Two left of the allowance, and three refreshes each short of six.
       for (
         let i = 0;
@@ -330,7 +303,6 @@ describe("Soko Bot avatar picker", () => {
       const seen = [store.seed().id];
 
       await Promise.all([topUp(6, seen), topUp(6, seen), topUp(6, seen)]);
-      await runDeferred();
 
       expect(generateTextMock).toHaveBeenCalledTimes(2);
     });

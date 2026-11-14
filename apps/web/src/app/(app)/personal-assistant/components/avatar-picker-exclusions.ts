@@ -15,7 +15,7 @@ export function nextSeenAvatars<T>(
 }
 
 /**
- * A refresh comes back short while new avatars are still being drawn. Fill
+ * A refresh comes back short when the hourly cap leaves fewer to draw. Fill
  * the rest of the row with avatars seen before, most recent first, so the row
  * stays full and no avatar shows twice.
  */

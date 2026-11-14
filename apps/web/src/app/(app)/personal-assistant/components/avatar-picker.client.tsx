@@ -18,11 +18,20 @@ import {
 } from "./avatar-picker-exclusions";
 
 const PAGE_SIZE = 6;
+/**
+ * "Show others" draws new pictures, and each one is billed, so a picker
+ * session gets this many refreshes that bring new ones. A refresh that comes
+ * back with nothing new (its draw failed or another is still running) does not
+ * count, so the user can retry it. Core's per-user hourly cap (24 images, four
+ * sets of six) bounds the spend on the server.
+ */
+const MAX_AVATAR_REFRESHES = 4;
 
 /**
  * Six unclaimed Soko Bot avatars at a time, or five beside the current
- * picture; "show others" for a fresh set. Each one is unique across all bots:
- * the pool hands an avatar to exactly one bot.
+ * picture; "show others" draws a fresh set, up to `MAX_AVATAR_REFRESHES`.
+ * Each one is unique across all bots: the pool hands an avatar to exactly
+ * one bot.
  */
 export function AvatarPicker(props: AvatarPickerProps) {
   // A saved pick becomes the current picture. Remount on that change so the
@@ -55,9 +64,11 @@ function AvatarPickerSet({
   const [seen, setSeen] = useState<SokoBotAvatar[]>([]);
   const [isPending, startTransition] = useTransition();
   const [loaded, setLoaded] = useState(false);
-  // "Show others" found nothing unseen and started over: the set looks the
-  // same, so say why instead of seeming to do nothing.
+  // "Show others" brought nothing new: the set stays, so say why instead of
+  // seeming to do nothing.
   const [noneNew, setNoneNew] = useState(false);
+  const [refreshes, setRefreshes] = useState(0);
+  const refreshesLeft = refreshes < MAX_AVATAR_REFRESHES;
   // The current picture takes one tile, so the set shrinks by one and the
   // tiles still fill whole rows (six wide, or two rows of three).
   const take = currentImageUrl ? PAGE_SIZE - 1 : PAGE_SIZE;
@@ -96,22 +107,18 @@ function AvatarPickerSet({
       setLoaded(true);
       return;
     }
-    // The pool is finite; when a fresh set comes back short, start over.
-    const wrappedAround =
-      result.value.length === 0 && requestedExcludeIds.length > 0;
-    // A short one has its rest still being drawn; fill the row from those
-    // seen before so it stays full.
-    const fresh = wrappedAround
-      ? await topUpSokoBotAvatarsAction({
-          input: { take, excludeIds: [] },
-        }).then((r) => (r.ok ? r.value : []))
-      : result.value;
-    const next =
-      wrappedAround || requestedExcludeIds.length === 0
-        ? fresh
-        : fillAvatarRow(fresh, seen, take);
+    const refresh = requestedExcludeIds.length > 0;
+    const fresh = result.value;
+    // Nothing new: keep the set and the pick on screen, and let the user retry.
+    if (refresh && fresh.length === 0) {
+      setNoneNew(true);
+      return;
+    }
+    // A short set fills the row from pictures seen before so it stays full.
+    const next = refresh ? fillAvatarRow(fresh, seen, take) : fresh;
+    if (refresh) setRefreshes((count) => count + 1);
     setAvatars(next);
-    setNoneNew(wrappedAround);
+    setNoneNew(false);
     // A new bot starts with a picture; picking another stays one click.
     // The pick must stay on screen: after "show others" a pick from the
     // old set may be gone, so fall back to the current picture or the first.
@@ -120,9 +127,7 @@ function AvatarPickerSet({
         ? Boolean(currentImageUrl)
         : next.some((avatar) => avatar.id === value);
     if (!pickOnScreen) onChange(currentImageUrl ? null : (next[0] ?? null));
-    setSeen((prev) =>
-      nextSeenAvatars(prev, fresh, wrappedAround ? [] : requestedExcludeIds),
-    );
+    setSeen((prev) => nextSeenAvatars(prev, fresh, requestedExcludeIds));
     setLoaded(true);
   }
 
@@ -178,7 +183,13 @@ function AvatarPickerSet({
       </div>
       <div className="flex items-center justify-between gap-3">
         <p aria-live="polite" className="text-muted-foreground text-xs">
-          {noneNew ? t("noneNew") : t("hint")}
+          {isPending && loaded
+            ? t("drawing")
+            : noneNew
+              ? t("noneNew")
+              : refreshesLeft
+                ? t("hint")
+                : t("noMore")}
         </p>
         <Button
           type="button"
@@ -187,7 +198,7 @@ function AvatarPickerSet({
           // The first set loads behind the skeletons; only a refresh the user
           // asked for shows (and announces) this button as busy.
           loading={isPending && loaded}
-          disabled={!loaded}
+          disabled={!loaded || !refreshesLeft}
           onClick={() => load(seen.map((avatar) => avatar.id))}
         >
           <RefreshCw aria-hidden className="size-3.5" />

@@ -229,22 +229,18 @@ describe("AvatarPicker", () => {
     expect(names).toEqual(["g", "h", "f", "e", "d", "c"]);
   });
 
-  it("says so when Show others has nothing new, and drops the note once new ones come", async () => {
+  it("keeps the set and the pick when Show others brings nothing new, and lets the user retry", async () => {
     const user = userEvent.setup();
     topUpMock
       .mockResolvedValueOnce({
         ok: true,
         value: avatars("a", "b", "c", "d", "e", "f"),
       })
-      // Nothing unseen: the picker starts over with the same set.
+      // The draw failed or another one is still running.
       .mockResolvedValueOnce({ ok: true, value: [] })
-      .mockResolvedValueOnce({
-        ok: true,
-        value: avatars("a", "b", "c", "d", "e", "f"),
-      })
       .mockResolvedValueOnce({ ok: true, value: avatars("g") });
-    renderPicker();
-    await screen.findByRole("button", { name: "a" });
+    render(<Harness />);
+    await user.click(await screen.findByRole("button", { name: "c" }));
     expect(
       screen.getByText("Pick one, or ask for other options."),
     ).toBeInTheDocument();
@@ -256,6 +252,8 @@ describe("AvatarPicker", () => {
         "No new pictures right now. Try again in a minute.",
       ),
     ).toBeInTheDocument();
+    expect(pressed("c")).toBe("true");
+    expect(topUpMock).toHaveBeenCalledTimes(2);
 
     await user.click(screen.getByRole("button", { name: "Show others" }));
 
@@ -263,6 +261,66 @@ describe("AvatarPicker", () => {
     expect(
       screen.getByText("Pick one, or ask for other options."),
     ).toBeInTheDocument();
+  });
+
+  it("keeps the set and the pick when Show others fails", async () => {
+    const user = userEvent.setup();
+    topUpMock
+      .mockResolvedValueOnce({ ok: true, value: avatars("a", "b") })
+      .mockResolvedValueOnce({ ok: false, error: { code: "UNKNOWN" } });
+    render(<Harness />);
+    await user.click(await screen.findByRole("button", { name: "b" }));
+
+    await user.click(screen.getByRole("button", { name: "Show others" }));
+
+    await waitFor(() => expect(pressed("b")).toBe("true"));
+    expect(screen.getByRole("button", { name: "a" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Show others" })).toBeEnabled();
+  });
+
+  it("says new pictures are being drawn while Show others waits", async () => {
+    const user = userEvent.setup();
+    let resolveRefresh: (value: unknown) => void = () => {};
+    topUpMock
+      .mockResolvedValueOnce({ ok: true, value: avatars("a") })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveRefresh = resolve;
+        }),
+      );
+    renderPicker();
+    await screen.findByRole("button", { name: "a" });
+
+    await user.click(screen.getByRole("button", { name: "Show others" }));
+
+    expect(
+      screen.getByText("Drawing new pictures. This can take a minute."),
+    ).toBeInTheDocument();
+    // One request at a time: the busy button cannot start a second draw.
+    await user.click(screen.getByRole("button", { name: "Show others" }));
+    expect(topUpMock).toHaveBeenCalledTimes(2);
+    await act(async () => resolveRefresh({ ok: true, value: avatars("b") }));
+  });
+
+  it("stops Show others after four sets of new pictures", async () => {
+    const user = userEvent.setup();
+    topUpMock.mockResolvedValueOnce({ ok: true, value: avatars("a") });
+    for (const subject of ["b", "c", "d", "e"]) {
+      topUpMock.mockResolvedValueOnce({ ok: true, value: avatars(subject) });
+    }
+    renderPicker();
+    await screen.findByRole("button", { name: "a" });
+
+    for (const subject of ["b", "c", "d", "e"]) {
+      await user.click(screen.getByRole("button", { name: "Show others" }));
+      await screen.findByRole("button", { name: subject });
+    }
+
+    expect(screen.getByRole("button", { name: "Show others" })).toBeDisabled();
+    expect(
+      screen.getByText("That is all the new pictures for now. Pick one above."),
+    ).toBeInTheDocument();
+    expect(topUpMock).toHaveBeenCalledTimes(5);
   });
 
   it("shows only skeletons, and nothing to pick, while others load", async () => {

@@ -233,11 +233,23 @@ function actorLocale(metadata: string | null): string | null {
     : null;
 }
 
-function actorTimezone(metadata: string | null): string | null {
-  const timezone = sanitizeText(
-    readMetadataString(metadata, ["timezone", "timeZone"]),
-    TEXT_LIMITS.timezone,
+/**
+ * The owner's IANA zone: their saved one, else the bot's own, which setup took
+ * from the owner's browser. The bot uses it for a reminder whose zone the owner
+ * did not name, instead of asking.
+ */
+function actorTimezone(
+  metadata: string | null,
+  botTimezone: string | null,
+): string | null {
+  return (
+    validTimezone(readMetadataString(metadata, ["timezone", "timeZone"])) ??
+    validTimezone(botTimezone)
   );
+}
+
+function validTimezone(value: string | null): string | null {
+  const timezone = sanitizeText(value, TEXT_LIMITS.timezone);
   if (!timezone || !/^[a-z0-9_+.-]+(?:\/[a-z0-9_+.-]+)*$/i.test(timezone)) {
     return null;
   }
@@ -582,6 +594,7 @@ export class ContextPacketBuilder {
       pendingDecisionCount,
       recentTurnCount,
       asker,
+      bot,
     ] = await Promise.all([
       input.userId === null
         ? null
@@ -828,6 +841,10 @@ export class ContextPacketBuilder {
             select: { name: true },
           })
         : null,
+      prisma.sokoBot.findUnique({
+        where: { id: input.sokoBotId },
+        select: { ingestTimezone: true },
+      }),
     ]);
 
     const namedOnly =
@@ -918,7 +935,10 @@ export class ContextPacketBuilder {
         id: boundedIdentifier(user?.id ?? null),
         name: sanitizeText(user?.name ?? null, TEXT_LIMITS.actorName),
         locale: actorLocale(user?.metadata ?? null),
-        timezone: actorTimezone(user?.metadata ?? null),
+        // Null with the actor: a shared bot acting on its own has no owner.
+        timezone: user
+          ? actorTimezone(user.metadata, bot?.ingestTimezone ?? null)
+          : null,
         workspaceId: boundedIdentifier(workspace.id),
         organizationId: boundedIdentifier(workspace.organizationId),
         organizationName: sanitizeText(

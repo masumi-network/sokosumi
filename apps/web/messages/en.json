@@ -10430,6 +10430,8 @@
         "hint": "Pick one, or ask for other options.",
         "showOthers": "Show others",
         "noneNew": "No new pictures right now. Try again in a minute.",
+        "drawing": "Drawing new pictures. This can take a minute.",
+        "noMore": "That is all the new pictures for now. Pick one above.",
         "pictures": "Pictures",
         "loadError": "Could not load pictures.",
         "rateLimited": "Too many new pictures requested. Try again later."

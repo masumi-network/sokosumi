@@ -3,7 +3,6 @@ import crypto from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 
 import { put } from "@vercel/blob";
-import { waitUntil } from "@vercel/functions";
 import { createGateway, generateText } from "ai";
 import { HTTPException } from "hono/http-exception";
 import sharp from "sharp";
@@ -39,7 +38,7 @@ const GENERATION_WINDOW_MS = 60 * 60 * 1000;
 /**
  * How long a reservation can still be in flight: one image, then one upload,
  * each under `GENERATION_TIMEOUT_MS`. Younger reservations are a run that may
- * still finish; a background draw waits for it rather than buying more.
+ * still finish; a refresh draws nothing rather than buying more.
  */
 const IN_FLIGHT_MS = 2 * GENERATION_TIMEOUT_MS;
 
@@ -368,7 +367,7 @@ interface AvatarDrawOptions {
  *
  * With `skipWhileInFlight`, nothing is reserved while one of the caller's own
  * runs is still in flight. Checked in the same Serializable step, so two
- * background draws racing each other cannot both see none.
+ * refreshes racing each other cannot both see none.
  */
 async function reserveDraws(
   count: number,
@@ -641,52 +640,17 @@ async function sweepAndDraw(
 }
 
 /**
- * Draw a refresh's shortfall after its response, kept alive past it on Vercel.
- *
- * Never throws: the caller was already answered with what the pool held. A
- * spent allowance or a lost race is expected and only noted; anything else is
- * a fault worth an error log. Concurrent draws stay under the hourly cap
- * because `reserveDraws` counts and reserves in one Serializable step.
- *
- * A refresh answers at once, so quick "show others" clicks would each start a
- * draw and spend the hour's allowance before the first one lands. While one of
- * the user's draws is still in flight, a new one buys nothing; that draw's
- * avatars fill the next refresh.
- */
-function drawShortfallInBackground(
-  count: number,
-  requestedByUserId: string,
-): void {
-  // Sweeps first, like every draw, so a dead run cannot hold the allowance.
-  waitUntil(
-    sweepAndDraw(count, requestedByUserId, { skipWhileInFlight: true }).then(
-      (result) => {
-        if (!result) return;
-        console.warn("Soko Bot avatar background draw skipped", {
-          count,
-          error: errorText(result.recoverableError),
-        });
-      },
-      (error: unknown) => {
-        console.error("Soko Bot avatar background draw failed", {
-          count,
-          error: errorText(error),
-        });
-      },
-    ),
-  );
-}
-
-/**
  * Fill a short pool, then read it back. There is no cron: the picker asks to
  * fill the pool when it opens, so new avatars are drawn only when someone is
  * about to pick one.
  *
- * Only a first open (nothing excluded) waits for the drawing: it has nothing
- * else to show. A "show others" refresh gets the unseen avatars there are at
- * once, and its shortfall is drawn after the response, ready for the next
- * refresh. Drawing takes up to a minute, and Web queues server actions per
- * session, so a refresh that waited would also hold back "Use this picture".
+ * Both a first open and a "show others" refresh wait for the drawing, so a
+ * refresh the user asked for comes back with new pictures rather than the same
+ * set. The picker holds saving while it waits, and asks for at most four
+ * refreshes per session; the hourly cap in `reserveDraws` (24 images, four
+ * refreshes of six) is the server-side bound on what those refreshes buy.
+ * A refresh draws nothing while one of the user's own runs is still in flight,
+ * so a second tab or a repeated request cannot buy the same set twice.
  *
  * This spends image budget and writes rows, so it belongs behind a POST.
  * Decorative reads use `listAvailableAvatars` so a page render never waits on
@@ -706,13 +670,12 @@ export async function topUpAvailableAvatars(
     const available = await prisma.sokoBotAvatar.count({
       where: unclaimedAvatarFilter(options.excludeIds),
     });
-    if (available < take && options.excludeIds?.length) {
-      drawShortfallInBackground(take - available, options.requestedByUserId);
-    } else if (available < take) {
+    if (available < take) {
       // `sweepAndDraw` sweeps first, as every draw does.
       const result = await sweepAndDraw(
         take - available,
         options.requestedByUserId,
+        { skipWhileInFlight: Boolean(options.excludeIds?.length) },
       );
       if (result) {
         // Neither a spent allowance nor a lost race says anything about what
