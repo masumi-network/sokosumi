@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
 import { generateText } from "ai";
+import { aiGateway } from "@/lib/ai-gateway-purpose";
 
 import prisma from "@/lib/db/prisma";
 import { PROJECT_MEMORY_LOCK_TTL_MS } from "@/lib/project-memory-config";
@@ -200,7 +201,7 @@ export async function refreshProjectLatestUpdate({
 
   try {
     const generation = await generateText({
-      model: modelId,
+      model: aiGateway("project-memory").languageModel(modelId),
       system: PROJECT_LATEST_UPDATE_SYSTEM_PROMPT,
       prompt,
       maxOutputTokens: MAX_OUTPUT_TOKENS,

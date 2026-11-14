@@ -8,6 +8,10 @@ import {
   streamModelCall,
 } from "@/lib/soko-bot/stream-model-call";
 
+const envState = vi.hoisted(() => ({
+  value: {} as Record<string, string>,
+}));
+
 const {
   authorizeMock,
   createEventMock,
@@ -33,7 +37,7 @@ const {
 }));
 
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({ AI_GATEWAY_API_KEY: "gateway-key" }),
+  getEnv: () => envState.value,
 }));
 vi.mock("@/lib/db/prisma", () => {
   const client = {
@@ -152,6 +156,7 @@ function gatewayAnswer(parts: unknown[] = []) {
 describe("sandbox turn service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    envState.value = { AI_GATEWAY_API_KEY: "gateway-key" };
     vi.stubGlobal("fetch", fetchMock);
     findFirstEventMock.mockResolvedValue(null);
     turnFindUniqueMock.mockResolvedValue(null);
@@ -197,6 +202,38 @@ describe("sandbox turn service", () => {
       ),
     ).rejects.toThrow("not this turn's");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["chat:1", "bot-key"],
+    ["cmo-daily-run:1", "cmo-key"],
+    ["lab:eval:r1", "evals-key"],
+  ])("bills turn %s to its purpose key", async (clientTurnId, key) => {
+    envState.value = {
+      AI_GATEWAY_API_KEY: "gateway-key",
+      SOKO_BOT_AI_GATEWAY_API_KEY: "bot-key",
+      CMO_AI_GATEWAY_API_KEY: "cmo-key",
+      EVALS_AI_GATEWAY_API_KEY: "evals-key",
+    };
+    turnFindUniqueMock.mockResolvedValue({ clientTurnId, versionId: "v16" });
+    fetchMock.mockResolvedValue(gatewayAnswer());
+    await proxySandboxModelCall(claims, modelRequest());
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(new Headers(init.headers).get("authorization")).toBe(
+      `Bearer ${key}`,
+    );
+  });
+
+  it("keeps the shared key for every turn until a purpose key is set", async () => {
+    for (const clientTurnId of ["chat:1", "cmo-daily-run:1", "lab:eval:r1"]) {
+      turnFindUniqueMock.mockResolvedValue({ clientTurnId, versionId: "v16" });
+      fetchMock.mockResolvedValue(gatewayAnswer());
+      await proxySandboxModelCall(claims, modelRequest());
+    }
+    for (const [, init] of fetchMock.mock.calls as [string, RequestInit][])
+      expect(new Headers(init.headers).get("authorization")).toBe(
+        "Bearer gateway-key",
+      );
   });
 
   it("forwards with Core's key and EU routing, and meters the step itself", async () => {
