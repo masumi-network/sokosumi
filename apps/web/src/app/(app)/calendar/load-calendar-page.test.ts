@@ -192,7 +192,7 @@ describe("loadWorkspaceCalendarPage", () => {
     });
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        types: "tasks,social,newsletter,contacts,marketing",
+        types: "tasks,social,newsletter,contacts,marketing,sokoBot",
         timeZone: "Europe/Berlin",
       }),
     );
@@ -229,7 +229,7 @@ describe("loadWorkspaceCalendarPage", () => {
     });
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        types: "tasks,social,newsletter,contacts",
+        types: "tasks,social,newsletter,contacts,sokoBot",
         scope: "owned",
       }),
     );
@@ -320,8 +320,8 @@ describe("loadWorkspaceCalendarPage", () => {
 
   it.each([
     ["newsletter,contacts", "newsletter,contacts"],
-    [undefined, "tasks,social,newsletter,contacts,marketing"],
-    ["bogus", "tasks,social,newsletter,contacts,marketing"],
+    [undefined, "tasks,social,newsletter,contacts,marketing,sokoBot"],
+    ["bogus", "tasks,social,newsletter,contacts,marketing,sokoBot"],
   ])(
     "asks Core only for the selected features (types=%s)",
     async (types, query) => {
@@ -341,7 +341,9 @@ describe("loadWorkspaceCalendarPage", () => {
     await loadWorkspaceCalendarPage({ searchParams: Promise.resolve({}) });
 
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
-      expect.objectContaining({ types: "tasks,social,contacts,marketing" }),
+      expect.objectContaining({
+        types: "tasks,social,contacts,marketing,sokoBot",
+      }),
     );
   });
 

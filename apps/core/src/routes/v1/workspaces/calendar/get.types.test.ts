@@ -22,7 +22,19 @@ const mocks = vi.hoisted(() => ({
   strategies: vi.fn(),
   strategyFiles: vi.fn(),
   botSchedules: vi.fn(),
+  proactivePaused: false,
 }));
+
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({
+      ...actual.getEnv(),
+      SOKO_BOT_PROACTIVE_PAUSED: mocks.proactivePaused,
+    }),
+  };
+});
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
@@ -242,6 +254,7 @@ describe("GET /workspaces/calendar types", () => {
     mocks.strategies.mockResolvedValue([]);
     mocks.strategyFiles.mockResolvedValue([]);
     mocks.botSchedules.mockResolvedValue([]);
+    mocks.proactivePaused = false;
   });
 
   const featureReads = () => [
@@ -530,6 +543,115 @@ describe("GET /workspaces/calendar types", () => {
     );
     expect(ids(third.body)).toEqual([`social:${POST_ID}`]);
     expect(third.body.meta.pagination.nextCursor).toBeNull();
+  });
+
+  const BOT_SCHEDULE_ID = "88888888-8888-7888-8888-888888888888";
+  const ONCE_SCHEDULE_ID = "88888888-8888-7888-8888-888888888889";
+
+  it("shows the caller's own Soko Bot runs still to come, and only those", async () => {
+    mocks.botSchedules.mockResolvedValue([
+      {
+        id: BOT_SCHEDULE_ID,
+        name: "Morning brief",
+        timezone: "Europe/Berlin",
+        cronExpression: "0 9 * * 1-5",
+        runOnce: false,
+        nextRunAt: new Date("2026-06-02T07:00:00.000Z"),
+      },
+      {
+        id: ONCE_SCHEDULE_ID,
+        name: "Remind me about the offer",
+        timezone: "UTC",
+        cronExpression: "30 10 3 6 *",
+        runOnce: true,
+        nextRunAt: new Date("2026-06-03T10:30:00.000Z"),
+      },
+    ]);
+    const { body } = await get("types=sokoBot");
+    expect(body.data[0]).toEqual({
+      kind: "sokoBotRun",
+      id: `sokobot:${BOT_SCHEDULE_ID}:2026-06-02T07:00:00.000Z`,
+      scheduleId: BOT_SCHEDULE_ID,
+      name: "Morning brief",
+      sourceId: `workspace:${WORKSPACE_ID}`,
+      sourceType: "WORKSPACE",
+      sourceProjectId: null,
+      sourceWorkspaceId: WORKSPACE_ID,
+      scheduledAt: "2026-06-02T07:00:00.000Z",
+    });
+    // Weekdays at 09:00 Berlin from the next run on; Monday 06-01 is past.
+    expect(
+      body.data.map((i: { scheduledAt: string }) => i.scheduledAt),
+    ).toEqual([
+      "2026-06-02T07:00:00.000Z",
+      "2026-06-03T07:00:00.000Z",
+      "2026-06-03T10:30:00.000Z",
+      "2026-06-04T07:00:00.000Z",
+      "2026-06-05T07:00:00.000Z",
+    ]);
+    expect(body.meta.pagination.total).toBe(5);
+    // Never a teammate's bot, a shared bot, a built-in rhythm or a follow-up,
+    // nor a bot the runner skips because it is paused.
+    expect(mocks.botSchedules.mock.lastCall?.[0].where).toEqual({
+      workspaceId: WORKSPACE_ID,
+      enabled: true,
+      systemKey: null,
+      taskId: null,
+      jobId: null,
+      nextRunAt: { lt: new Date(TO) },
+      sokoBot: {
+        userId: "user_123",
+        workspaceId: WORKSPACE_ID,
+        archivedAt: null,
+        deletedAt: null,
+        status: { not: "PAUSED" },
+        proactivePaused: false,
+      },
+    });
+  });
+
+  it("shows no Soko Bot runs while the platform kill switch is on", async () => {
+    mocks.proactivePaused = true;
+    const { body } = await get("types=sokoBot");
+    expect(body.data).toEqual([]);
+    expect(mocks.botSchedules).not.toHaveBeenCalled();
+  });
+
+  it("pages through every run of a frequent schedule", async () => {
+    mocks.botSchedules.mockResolvedValue([
+      {
+        id: BOT_SCHEDULE_ID,
+        name: "Hourly check",
+        timezone: "UTC",
+        cronExpression: "0 * * * *",
+        runOnce: false,
+        nextRunAt: new Date("2026-06-01T13:00:00.000Z"),
+      },
+    ]);
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    do {
+      const { body } = await get(
+        `types=sokoBot&limit=50${cursor ? `&cursor=${cursor}` : ""}`,
+      );
+      seen.push(
+        ...body.data.map((i: { scheduledAt: string }) => i.scheduledAt),
+      );
+      cursor = body.meta.pagination.nextCursor;
+    } while (cursor);
+    // 13:00 on 06-01 through 23:00 on 06-07: 11 + 6 × 24 hourly runs.
+    expect(seen).toHaveLength(155);
+    expect(new Set(seen).size).toBe(155);
+    expect(seen.at(-1)).toBe("2026-06-07T23:00:00.000Z");
+  });
+
+  it("leaves Soko Bot runs out of a Project and of task-only filters", async () => {
+    await get(`types=tasks,sokoBot&projectId=${PROJECT_ID}`);
+    await get("types=tasks,sokoBot&status=READY");
+    expect(mocks.botSchedules).not.toHaveBeenCalled();
+    await get(`types=sokoBot&sourceId=workspace:${WORKSPACE_ID}`);
+    expect(mocks.botSchedules).toHaveBeenCalledTimes(1);
+    expect((await get("types=sokoBot", COWORKER)).status).toBe(403);
   });
 
   it("limits Project-scoped types to the Project and drops Contacts", async () => {

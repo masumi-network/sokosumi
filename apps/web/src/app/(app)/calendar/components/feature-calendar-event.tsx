@@ -4,13 +4,21 @@ import type {
   ContactFollowUpCalendarItem,
   MarketingPieceCalendarItem,
   NewsletterIssueCalendarItem,
+  SokoBotRunCalendarItem,
   WorkspaceCalendarSource,
 } from "@sokosumi/core-client";
-import { FileText, type LucideIcon, Mail, Users } from "lucide-react";
+import {
+  CalendarClock,
+  FileText,
+  type LucideIcon,
+  Mail,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { calendarTypeOf } from "@/app/calendar/calendar-types";
 import { newsletterHref } from "@/app/newsletter/newsletter-tabs";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 import { SourceMarker } from "./source-marker";
 
@@ -18,7 +26,8 @@ import { SourceMarker } from "./source-marker";
 export type FeatureCalendarEntry =
   | NewsletterIssueCalendarItem
   | ContactFollowUpCalendarItem
-  | MarketingPieceCalendarItem;
+  | MarketingPieceCalendarItem
+  | SokoBotRunCalendarItem;
 
 /** The card every Calendar entry is drawn on; `interactive` adds hover and focus. */
 export function calendarCardClassName(interactive: boolean): string {
@@ -78,6 +87,16 @@ function featureEventView(item: FeatureCalendarEntry): {
         allDay: false,
         start: item.scheduledAt.toISOString(),
       };
+    case "sokoBotRun":
+      return {
+        Icon: CalendarClock,
+        title: item.name,
+        detail: null,
+        href: `${SOKO_BOT_ROUTE}?schedule=${encodeURIComponent(item.scheduleId)}`,
+        project: null,
+        allDay: false,
+        start: item.scheduledAt.toISOString(),
+      };
   }
 }
 
@@ -87,7 +106,7 @@ export function featureEntryPlacement(item: FeatureCalendarEntry) {
   return { title, allDay, start };
 }
 
-/** A Newsletter issue, Contact follow-up or Marketing piece: title and time. */
+/** A Newsletter issue, Contact follow-up, Marketing piece or Soko Bot run: title and time. */
 export function FeatureCalendarEvent({
   item,
   source,

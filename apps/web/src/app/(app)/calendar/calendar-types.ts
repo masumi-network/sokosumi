@@ -7,6 +7,7 @@ export const CALENDAR_TYPES = [
   "newsletter",
   "contacts",
   "marketing",
+  "sokoBot",
 ] as const;
 export type CalendarType = (typeof CALENDAR_TYPES)[number];
 
@@ -17,6 +18,7 @@ const TYPE_OF_KIND = {
   newsletterIssue: "newsletter",
   contactFollowUp: "contacts",
   marketingPiece: "marketing",
+  sokoBotRun: "sokoBot",
 } as const satisfies Record<WorkspaceCalendarEntry["kind"], CalendarType>;
 
 export function calendarTypeOf(item: WorkspaceCalendarEntry): CalendarType {
@@ -31,8 +33,8 @@ export function parseCalendarTypes(value: string | undefined): CalendarType[] {
 
 /**
  * The features a workspace offers right now. Matches Core's silent drops:
- * Newsletter only where it has it, Follow-ups never under a Project, and the
- * Marketing plan never under `scope=owned`.
+ * Newsletter only where it has it, Follow-ups and the Soko Bot never under a
+ * Project, and the Marketing plan never under `scope=owned`.
  */
 export function availableCalendarTypes(
   newsletterEnabled: boolean,
@@ -43,7 +45,8 @@ export function availableCalendarTypes(
 ): CalendarType[] {
   return CALENDAR_TYPES.filter((type) => {
     if (type === "newsletter" && !newsletterEnabled) return false;
-    if (type === "contacts" && options.projectId) return false;
+    if ((type === "contacts" || type === "sokoBot") && options.projectId)
+      return false;
     if (type === "marketing" && options.scope === "owned") return false;
     return true;
   });

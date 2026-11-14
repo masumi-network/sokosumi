@@ -3,6 +3,7 @@ import type {
   MarketingPieceCalendarItem,
   NewsletterIssueCalendarItem,
   SocialPostCalendarItem,
+  SokoBotRunCalendarItem,
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@sokosumi/core-client";
@@ -197,6 +198,18 @@ const PIECE: MarketingPieceCalendarItem = {
   sourceType: "PROJECT",
 };
 
+const BOT_RUN: SokoBotRunCalendarItem = {
+  kind: "sokoBotRun",
+  id: "sokobot:schedule-1:2030-01-04T09:00:00.000Z",
+  scheduledAt: new Date("2030-01-04T09:00:00.000Z"),
+  scheduleId: "schedule-1",
+  name: "Morning brief",
+  sourceId: "workspace:workspace-1",
+  sourceProjectId: null,
+  sourceWorkspaceId: "workspace-1",
+  sourceType: "WORKSPACE",
+};
+
 const SOURCES: WorkspaceCalendarSource[] = [
   {
     sourceId: "project:project-1",
@@ -280,6 +293,23 @@ describe("WorkspaceCalendar features", () => {
       expect(
         screen.getByRole("link", { name: "Launch article, show.marketing" }),
       ).toHaveAttribute("href", "/drive/files/file-1");
+    });
+
+    it("opens a Soko Bot run on its schedule in the Soko Bot console", () => {
+      renderCalendar({ items: [BOT_RUN] });
+
+      const link = screen.getByRole("link", {
+        name: "Morning brief, show.sokoBot",
+      });
+      expect(link).toHaveAttribute(
+        "href",
+        "/personal-assistant?schedule=schedule-1",
+      );
+      expect(link).toHaveTextContent("9:00 AM");
+      expect(renderedEvents()[0]).toMatchObject({
+        allDay: false,
+        startEditable: false,
+      });
     });
 
     it("shows a Marketing piece with no file yet, without a link", () => {
@@ -406,6 +436,7 @@ describe("WorkspaceCalendar features", () => {
         "show.social",
         "show.newsletter",
         "show.contacts",
+        "show.sokoBot",
       ]);
     });
 
@@ -420,7 +451,7 @@ describe("WorkspaceCalendar features", () => {
       );
 
       expect(onUrlUpdate.mock.lastCall?.[0].searchParams.get("types")).toBe(
-        "social,newsletter,contacts,marketing",
+        "social,newsletter,contacts,marketing,sokoBot",
       );
     });
 
@@ -441,6 +472,9 @@ describe("WorkspaceCalendar features", () => {
       );
       await user.click(
         screen.getByRole("menuitemcheckbox", { name: "show.marketing" }),
+      );
+      await user.click(
+        screen.getByRole("menuitemcheckbox", { name: "show.sokoBot" }),
       );
 
       expect(onUrlUpdate.mock.lastCall?.[0].searchParams.has("types")).toBe(
@@ -475,6 +509,7 @@ describe("WorkspaceCalendar features", () => {
         "show.social",
         "show.contacts",
         "show.marketing",
+        "show.sokoBot",
       ]);
     });
 

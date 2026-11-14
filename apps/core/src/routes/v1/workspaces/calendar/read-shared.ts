@@ -92,7 +92,7 @@ export function calendarEntrySource(args: {
 /**
  * Entries sort by (scheduledAt, id). Run and Run at ids are lowercase UUIDs;
  * every other id starts with a prefix above any UUID ("followup:",
- * "marketing:", "newsletter:", "social:"). So after a non-UUID cursor no Run
+ * "marketing:", "newsletter:", "social:", "sokobot:"). So after a non-UUID cursor no Run
  * is left at the cursor's time, and a prefixed kind tells from the cursor
  * alone which of its entries follow.
  */
