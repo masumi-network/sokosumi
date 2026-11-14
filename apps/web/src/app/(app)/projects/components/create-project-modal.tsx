@@ -95,9 +95,17 @@ export function CreateProjectModal() {
     handleClose();
   }, [handleClose, stripCreateProjectSearchParams]);
 
-  function handleSuccess() {
+  // Land on the new project: from Hidden or Closed the list would not show
+  // it, and from Open the card gives no sign it was just made.
+  function handleSuccess(projectId: string) {
     handleClose();
-    stripCreateProjectSearchParams();
+    const href = `/projects/${projectId}`;
+    // Replace a `?create` entry so Back does not reopen the wizard.
+    if (new URLSearchParams(window.location.search).has("create")) {
+      router.replace(href);
+    } else {
+      router.push(href);
+    }
   }
 
   if (!hasOpened) {
@@ -113,7 +121,6 @@ export function CreateProjectModal() {
       }}
       creationSource="projects_page"
       onSuccess={handleSuccess}
-      onOpenProject={(projectId) => router.push(`/projects/${projectId}`)}
     />
   );
 }
