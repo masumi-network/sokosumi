@@ -1,13 +1,10 @@
 import { createGateway, gateway } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { envMock, findUniqueMock, evalWorkspaceMock } = vi.hoisted(() => ({
+const { envMock, findUniqueMock, laneFindUniqueMock } = vi.hoisted(() => ({
   envMock: vi.fn(),
   findUniqueMock: vi.fn(),
-  evalWorkspaceMock: vi.fn(),
-}));
-vi.mock("@/lib/evals/eval-guard", () => ({
-  isEvalWorkspace: evalWorkspaceMock,
+  laneFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("ai", async (importOriginal) => {
@@ -16,10 +13,14 @@ vi.mock("ai", async (importOriginal) => {
 });
 vi.mock("@/config/env", () => ({ getEnv: envMock }));
 vi.mock("@/lib/db/prisma", () => ({
-  default: { sokoBotTurn: { findUnique: findUniqueMock } },
+  default: {
+    sokoBotTurn: { findUnique: findUniqueMock },
+    evalLane: { findUnique: laneFindUniqueMock, findMany: vi.fn() },
+  },
 }));
 
 import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
+import prisma from "@/lib/db/prisma";
 import { isProjectMemoryConfigured } from "@/lib/project-memory-config";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
 import {
@@ -142,7 +143,7 @@ describe("sokoBotTurnPurpose", () => {
       inEvalLane: boolean,
     ) => {
       findUniqueMock.mockResolvedValue({ ...turn, workspaceId: "ws-1" });
-      evalWorkspaceMock.mockResolvedValue(inEvalLane);
+      laneFindUniqueMock.mockResolvedValue(inEvalLane ? { lane: 1 } : null);
       return loadSokoBotTurnPurpose("t1");
     };
 
@@ -152,7 +153,10 @@ describe("sokoBotTurnPurpose", () => {
         where: { id: "t1" },
         select: { clientTurnId: true, versionId: true, workspaceId: true },
       });
-      expect(evalWorkspaceMock).toHaveBeenCalledWith("ws-1");
+      expect(laneFindUniqueMock).toHaveBeenCalledWith({
+        where: { workspaceId: "ws-1" },
+        select: { lane: true },
+      });
     });
 
     it("bills a lane's CMO turns (cmo: ids, CMO version) to evals", async () => {
@@ -179,6 +183,29 @@ describe("sokoBotTurnPurpose", () => {
           },
           true,
         ),
+      ).resolves.toBe("evals");
+    });
+
+    it("sees a lane created after the guard cached its lane list", async () => {
+      const { isEvalWorkspace } = await import("@/lib/evals/eval-guard");
+      // The guard caches "no lane" for this workspace...
+      const findMany = vi.mocked(prisma.evalLane.findMany);
+      findMany.mockResolvedValue([]);
+      await expect(isEvalWorkspace("ws-1")).resolves.toBe(false);
+      // ...then the lane appears: billing must not reuse that answer.
+      findMany.mockResolvedValue([{ workspaceId: "ws-1" }] as never);
+      await expect(isEvalWorkspace("ws-1")).resolves.toBe(false);
+      await expect(
+        load(
+          {
+            clientTurnId: "cmo:strategy:b1:1",
+            versionId: CMO_SOKO_BOT_VERSION_ID,
+          },
+          true,
+        ),
+      ).resolves.toBe("evals");
+      await expect(
+        load({ clientTurnId: "background:t0:research", versionId: null }, true),
       ).resolves.toBe("evals");
     });
 
