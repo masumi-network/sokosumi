@@ -1,9 +1,9 @@
-import type { Project as DatabaseProject } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createProjectRequestSchema,
   mapProjectForApi,
+  type ProjectApiRow,
   patchProjectRequestSchema,
 } from "./project.schema";
 
@@ -16,8 +16,8 @@ vi.mock("@/config/env", () => ({
 }));
 
 function createDatabaseProject(
-  overrides: Partial<DatabaseProject> = {},
-): DatabaseProject {
+  overrides: Partial<ProjectApiRow> = {},
+): ProjectApiRow {
   return {
     id: "22222222-2222-4222-8222-222222222222",
     workspaceId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
@@ -51,7 +51,8 @@ function createDatabaseProject(
     health: null,
     healthNote: null,
     healthSetAt: null,
-    healthSetByName: null,
+    healthSetByUserId: null,
+    healthSetByUser: null,
     createdAt: new Date("2026-08-16T10:00:00.000Z"),
     updatedAt: new Date("2026-08-16T10:00:00.000Z"),
     ...overrides,
@@ -382,7 +383,8 @@ describe("project schemas", () => {
           health: "AT_RISK",
           healthNote: "Waiting on the client",
           healthSetAt: setAt,
-          healthSetByName: "Ana",
+          healthSetByUserId: "user_1",
+          healthSetByUser: { name: "Ana" },
         }),
         { cmo: false },
       ).health,
@@ -392,6 +394,17 @@ describe("project schemas", () => {
       setAt: setAt.toISOString(),
       setByName: "Ana",
     });
+    // The setter deleted their account: the verdict stays, unattributed.
+    expect(
+      mapProjectForApi(
+        createDatabaseProject({
+          health: "ON_TRACK",
+          healthSetAt: setAt,
+          healthSetByUser: null,
+        }),
+        { cmo: false },
+      ).health?.setByName,
+    ).toBe(null);
 
     expect(
       patchProjectRequestSchema.parse({

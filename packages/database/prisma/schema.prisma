@@ -486,12 +486,12 @@ model Project {
   closedAt         DateTime?
 
   // The team's own verdict on the Project, set by hand. latestUpdateMd is the
-  // generated summary; this is what a person says about it. The setter's name
-  // is a snapshot of who said it, so a later rename does not rewrite history.
-  health          ProjectHealth?
-  healthNote      String?
-  healthSetAt     DateTime?
-  healthSetByName String?
+  // generated summary; this is what a person says about it, and who said it.
+  health            ProjectHealth?
+  healthNote        String?
+  healthSetAt       DateTime?
+  healthSetByUserId String?
+  healthSetByUser   User?          @relation("ProjectHealthSetBy", fields: [healthSetByUserId], references: [id], onDelete: SetNull)
 
   dataTables       DataTable[]
   jobs             Job[]
@@ -543,6 +543,7 @@ model Project {
 
   @@unique([workspaceId, identifier])
   @@index([workspaceId])
+  @@index([healthSetByUserId])
   @@map("project")
 }
 

@@ -14,7 +14,11 @@ import {
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import { mapProjectForApi, projectSchema } from "@/schemas/project.schema";
+import {
+  mapProjectForApi,
+  projectApiInclude,
+  projectSchema,
+} from "@/schemas/project.schema";
 import { isCmoProject } from "@/services/cmo-cuso.service";
 
 const paramsSchema = z.object({
@@ -61,6 +65,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const project = await prisma.project.findFirst({
       where: { id: projectId, workspaceId },
+      include: projectApiInclude,
     });
     if (!project) {
       throw notFound("Project or task link not found");

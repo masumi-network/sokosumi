@@ -24789,7 +24789,7 @@ export const ProjectHealthStateSchema = {
                 'string',
                 'null'
             ],
-            description: 'Name of the person who set it, as it was then.',
+            description: 'Name of the person who set it. Null when they deleted their account.',
             example: 'Ana Ruiz'
         }
     },

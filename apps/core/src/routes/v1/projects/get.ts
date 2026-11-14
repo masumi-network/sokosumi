@@ -25,6 +25,7 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
   mapProjectForApi,
+  projectApiInclude,
   projectListItemSchema,
 } from "@/schemas/project.schema";
 import { cmoProjectIds } from "@/services/cmo-cuso.service";
@@ -139,7 +140,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const [rows, count, stars, cmoIds] = await Promise.all([
       prisma.project.findMany({
         where: { workspaceId, id: { in: page.map((row) => row.id) } },
-        include: projectListCountsInclude,
+        include: { ...projectListCountsInclude, ...projectApiInclude },
       }),
       // Prisma `contains` compiles to unescaped ILIKE, so `%` / `_` in `q`
       // would inflate the total relative to the escaped ranked query.

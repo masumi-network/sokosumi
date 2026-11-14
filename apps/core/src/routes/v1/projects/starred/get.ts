@@ -11,6 +11,7 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   mapProjectForApi,
+  projectApiInclude,
   starredProjectSchema,
 } from "@/schemas/project.schema";
 import { cmoProjectIds } from "@/services/cmo-cuso.service";
@@ -63,7 +64,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // there is no reorder mode yet, so this really is the time of pinning.
       orderBy: { starredAt: "asc" },
       take: MAX_STARRED_PROJECTS,
-      select: { project: true, starredAt: true },
+      select: {
+        project: { include: projectApiInclude },
+        starredAt: true,
+      },
     });
 
     const cmoIds = await cmoProjectIds(stars.map((star) => star.project.id));

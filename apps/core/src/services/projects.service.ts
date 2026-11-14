@@ -27,12 +27,6 @@ export interface UpdateProjectInput {
   studioLogoPosition?: StudioLogoPosition | null;
   identifier?: string;
   postingInstructionsMd?: string | null;
-  /** Null clears it. `setByName` is who set it, stored as it is now. */
-  health?: {
-    status: ProjectHealth;
-    note?: string | null;
-    setByName: string | null;
-  } | null;
 }
 
 function identifierTaken(error: unknown): never {
@@ -41,6 +35,39 @@ function identifierTaken(error: unknown): never {
         kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN,
       })
     : error;
+}
+
+/**
+ * Set or clear the team's health verdict. It is a note about the Project, not
+ * its content, so it leaves `projectRevision` and the Calendar alone: a close
+ * in progress compares that revision. A closing or closed Project keeps the
+ * verdict it closed with.
+ */
+export async function setProjectHealth(
+  workspaceId: string,
+  id: string,
+  health: {
+    status: ProjectHealth;
+    note?: string | null;
+    setByUserId: string;
+  } | null,
+): Promise<void> {
+  const { count } = await prisma.project.updateMany({
+    where: { id, workspaceId, closingAt: null, closedAt: null },
+    data: {
+      health: health?.status ?? null,
+      healthNote: health?.note?.trim() || null,
+      healthSetAt: health ? new Date() : null,
+      healthSetByUserId: health?.setByUserId ?? null,
+    },
+  });
+  if (count > 0) return;
+  const exists = await prisma.project.findFirst({
+    where: { id, workspaceId },
+    select: { id: true },
+  });
+  if (!exists) throw notFound("Project not found");
+  throw conflict("A closing or closed Project's health cannot change");
 }
 
 /** A project in the workspace, with its briefing stored as a file. */
@@ -105,12 +132,6 @@ export async function updateProject(
     data.studioLogoPosition = input.studioLogoPosition;
   if (input.postingInstructionsMd !== undefined) {
     data.postingInstructionsMd = input.postingInstructionsMd?.trim() || null;
-  }
-  if (input.health !== undefined) {
-    data.health = input.health?.status ?? null;
-    data.healthNote = input.health?.note?.trim() || null;
-    data.healthSetAt = input.health ? new Date() : null;
-    data.healthSetByName = input.health?.setByName ?? null;
   }
   const existing = await prisma.project.findFirst({
     where: { id, workspaceId },

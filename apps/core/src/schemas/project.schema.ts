@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import {
   type Project as DatabaseProject,
+  type Prisma,
   TaskStatus,
 } from "@sokosumi/database";
 import {
@@ -162,13 +163,23 @@ export const projectLatestUpdateSchema = z
 
 export const PROJECT_HEALTH_NOTE_MAX_LENGTH = 280;
 
+/** Every Project read that `mapProjectForApi` maps includes this. */
+export const projectApiInclude = {
+  healthSetByUser: { select: { name: true } },
+} satisfies Prisma.ProjectInclude;
+
+export type ProjectApiRow = DatabaseProject & {
+  healthSetByUser: { name: string } | null;
+};
+
 export const projectHealthStateSchema = z
   .object({
     status: projectHealthSchema,
     note: z.string().nullable().openapi({ example: "Waiting on the client" }),
     setAt: dateTimeSchema,
     setByName: z.string().nullable().openapi({
-      description: "Name of the person who set it, as it was then.",
+      description:
+        "Name of the person who set it. Null when they deleted their account.",
       example: "Ana Ruiz",
     }),
   })
@@ -619,7 +630,7 @@ export function mapProjectContextMdForApi(
 }
 
 export function mapProjectForApi(
-  project: DatabaseProject,
+  project: ProjectApiRow,
   {
     cmo,
     now = new Date(),
@@ -650,7 +661,7 @@ export function mapProjectForApi(
             status: project.health,
             note: project.healthNote,
             setAt: project.healthSetAt,
-            setByName: project.healthSetByName,
+            setByName: project.healthSetByUser?.name || null,
           }
         : null,
     websiteUrl: project.websiteUrl,

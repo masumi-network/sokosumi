@@ -4247,8 +4247,8 @@
         }
       },
       "Health": {
-        "title": "Status",
-        "set": "Status setzen",
+        "title": "Einschätzung",
+        "set": "Einschätzung abgeben",
         "change": "Ändern",
         "status": {
           "ON_TRACK": "Im Plan",
@@ -4259,12 +4259,12 @@
         "notePlaceholder": "Was ist los? Eine Zeile reicht.",
         "save": "Speichern",
         "clear": "Entfernen",
-        "saved": "Status gespeichert",
-        "cleared": "Status entfernt",
-        "saveFailed": "Status konnte nicht gespeichert werden. Versuche es erneut.",
+        "saved": "Einschätzung gespeichert",
+        "cleared": "Einschätzung entfernt",
+        "saveFailed": "Einschätzung konnte nicht gespeichert werden. Versuche es erneut.",
         "setBy": "Gesetzt von {name}",
         "setByUnknown": "Gesetzt",
-        "empty": "Noch niemand hat den Status dieses Projekts gesetzt."
+        "empty": "Noch niemand hat dieses Projekt eingeschätzt."
       }
     },
     "Studio": {

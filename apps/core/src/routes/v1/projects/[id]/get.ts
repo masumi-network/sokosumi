@@ -9,7 +9,11 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import { mapProjectForApi, projectSchema } from "@/schemas/project.schema";
+import {
+  mapProjectForApi,
+  projectApiInclude,
+  projectSchema,
+} from "@/schemas/project.schema";
 import { isCmoProject } from "@/services/cmo-cuso.service";
 import { SOCIAL_POSTS_CANCELED_ON_PROJECT_CLOSE } from "@/services/project-close-lifecycle.service";
 
@@ -50,6 +54,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const [project, scheduledSocialPostCount, cmo] = await Promise.all([
       prisma.project.findFirst({
         where: { id, workspaceId: workspaceContext.workspaceId },
+        include: projectApiInclude,
       }),
       prisma.socialPost.count({
         where: {

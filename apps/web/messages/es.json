@@ -4247,8 +4247,8 @@
         }
       },
       "Health": {
-        "title": "Estado",
-        "set": "Definir estado",
+        "title": "Valoración",
+        "set": "Valorar el proyecto",
         "change": "Cambiar",
         "status": {
           "ON_TRACK": "En marcha",
@@ -4259,12 +4259,12 @@
         "notePlaceholder": "¿Qué está pasando? Basta con una línea.",
         "save": "Guardar",
         "clear": "Quitar",
-        "saved": "Estado guardado",
-        "cleared": "Estado quitado",
-        "saveFailed": "No se pudo guardar el estado. Inténtalo de nuevo.",
-        "setBy": "Definido por {name}",
-        "setByUnknown": "Definido",
-        "empty": "Nadie ha definido aún el estado de este proyecto."
+        "saved": "Valoración guardada",
+        "cleared": "Valoración quitada",
+        "saveFailed": "No se pudo guardar la valoración. Inténtalo de nuevo.",
+        "setBy": "Valorado por {name}",
+        "setByUnknown": "Valorado",
+        "empty": "Nadie ha valorado aún este proyecto."
       }
     },
     "Studio": {

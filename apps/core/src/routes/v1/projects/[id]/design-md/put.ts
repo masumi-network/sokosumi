@@ -13,6 +13,7 @@ import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   mapProjectForApi,
+  projectApiInclude,
   projectDesignMdWriteSchema,
   projectSchema,
 } from "@/schemas/project.schema";
@@ -82,6 +83,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         designMdUrl,
         designMdExtractionId: body.extractionId ?? null,
       },
+      include: projectApiInclude,
     });
 
     return ok(

@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -12,9 +12,10 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   mapProjectForApi,
   patchProjectRequestSchema,
+  projectApiInclude,
   projectSchema,
 } from "@/schemas/project.schema";
-import { updateProject } from "@/services/projects.service";
+import { setProjectHealth, updateProject } from "@/services/projects.service";
 
 const paramsSchema = z.object({
   id: z
@@ -48,7 +49,9 @@ const route = withOrganizationSlugHeaderParameter(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
-      409: jsonErrorResponse("Project identifier already in use"),
+      409: jsonErrorResponse(
+        "Project identifier already in use, or health set on a closing or closed Project",
+      ),
       422: jsonErrorResponse("Unprocessable Entity"),
     },
   }),
@@ -60,18 +63,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
     const { health, ...body } = c.req.valid("json");
-    const setBy = health
-      ? await prisma.user.findUnique({
-          where: { id: userId },
-          select: { name: true },
-        })
-      : null;
-    const project = await updateProject(workspaceContext.workspaceId, id, {
-      ...body,
-      ...(health !== undefined
-        ? { health: health && { ...health, setByName: setBy?.name ?? null } }
-        : {}),
+    const { workspaceId } = workspaceContext;
+    if (health !== undefined) {
+      await setProjectHealth(
+        workspaceId,
+        id,
+        health && { ...health, setByUserId: userId },
+      );
+    }
+    if (Object.values(body).some((value) => value !== undefined)) {
+      await updateProject(workspaceId, id, body);
+    }
+    const project = await prisma.project.findFirst({
+      where: { id, workspaceId },
+      include: projectApiInclude,
     });
+    if (!project) throw notFound("Project not found");
     return ok(
       c,
       mapProjectForApi(project, {

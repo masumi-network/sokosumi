@@ -7213,7 +7213,7 @@ export type ProjectHealthState = {
     note: string | null;
     setAt: Date;
     /**
-     * Name of the person who set it, as it was then.
+     * Name of the person who set it. Null when they deleted their account.
      */
     setByName: string | null;
 };
@@ -71336,7 +71336,7 @@ export type PatchProjectsByIdErrors = {
         };
     };
     /**
-     * Project identifier already in use
+     * Project identifier already in use, or health set on a closing or closed Project
      */
     409: {
         error: string;

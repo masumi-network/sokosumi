@@ -132,6 +132,9 @@ export default async function ProjectDetailPage({
           ) : null}
 
           <ProjectHealthSection
+            // A verdict set elsewhere arrives on refresh: remount so the
+            // section shows it instead of the one it opened with.
+            key={project.health?.setAt.toISOString() ?? "no-health"}
             projectId={project.id}
             health={project.health}
             readOnly={
