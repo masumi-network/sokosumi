@@ -61,6 +61,17 @@ describe("TimeAgo", () => {
     expect(screen.getByText("5 minutes")).toBeInTheDocument();
   });
 
+  it("reads near zero, not the stale gap, when the date is after the tick", () => {
+    const date = new Date();
+    const staleTick = new Date(date.getTime() - 42_000);
+
+    render(
+      intl(<TimeAgo date={date} strict addSuffix={false} now={staleTick} />),
+    );
+
+    expect(screen.getByText("0 seconds")).toBeInTheDocument();
+  });
+
   it("localizes the post-mount relative string to the active locale", () => {
     const date = new Date(Date.now() - 60_000);
 

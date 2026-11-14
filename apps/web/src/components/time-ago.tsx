@@ -72,14 +72,17 @@ function TimeAgoRelative({
   addSuffix,
   strict,
   locale,
-  now = new Date(),
+  now,
   className,
 }: TimeAgoRelativeProps) {
   use(browser());
   const options = { addSuffix, locale: DATE_FNS_LOCALES[locale] ?? enUS };
+  // A tick older than the date (a status that just reset) would read as a
+  // stale distance; the real clock gives the near-zero answer.
+  const base = now && now > dateObj ? now : new Date();
   const label = strict
-    ? formatDistanceStrict(dateObj, now, options)
-    : formatDistance(dateObj, now, options);
+    ? formatDistanceStrict(dateObj, base, options)
+    : formatDistance(dateObj, base, options);
 
   return (
     <TimeAgoStamp
