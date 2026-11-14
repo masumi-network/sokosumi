@@ -4,6 +4,7 @@ import {
   clampToModel,
   defaultModel,
   modelIdForRepeat,
+  modelVariants,
   resolveModel,
   settingsOf,
   supportsVariation,
@@ -157,4 +158,47 @@ describe("supportsVariation", () => {
       expect(supportsVariation(catalog, MODEL_A.generateEndpoint)).toBe(false);
     },
   );
+});
+
+describe("modelVariants", () => {
+  const row = (id: string, label: string, generateEndpoint: string) => ({
+    id,
+    label,
+    generateEndpoint,
+  });
+
+  it("names each same-label model by the part of its endpoint it does not share", () => {
+    const variants = modelVariants([
+      row("wan-5b", "Wan", "fal-ai/wan/v2.2-5b/text-to-image"),
+      row("wan-14b", "Wan", "fal-ai/wan/v2.2-a14b/text-to-image"),
+      row("wan-pro", "Wan", "fal-ai/wan/v2.7/pro/text-to-image"),
+      row("wan-27", "Wan", "fal-ai/wan/v2.7/text-to-image"),
+      row("flux-1", "FLUX.1 [dev]", "fal-ai/flux-1/dev"),
+      row("flux", "FLUX.1 [dev]", "fal-ai/flux/dev"),
+      row(
+        "seedream-flash",
+        "Seedream",
+        "bytedance/seedream/v5/flash/text-to-image",
+      ),
+      row(
+        "seedream-lite",
+        "Seedream",
+        "bytedance/seedream/v5/lite/text-to-image",
+      ),
+      row("hidream", "Hidream O1 Image", "fal-ai/hidream-o1-image"),
+      row("hidream-dev", "Hidream O1 Image", "fal-ai/hidream-o1-image/dev"),
+      row("unique", "FLUX.2 Pro", "fal-ai/flux-2-pro"),
+    ]);
+    expect(Object.fromEntries(variants)).toEqual({
+      "wan-5b": "v2.2-5b",
+      "wan-14b": "v2.2-a14b",
+      "wan-pro": "v2.7 · pro",
+      "wan-27": "v2.7",
+      "flux-1": "flux-1",
+      flux: "flux",
+      "seedream-flash": "flash",
+      "seedream-lite": "lite",
+      "hidream-dev": "dev",
+    });
+  });
 });
