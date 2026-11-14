@@ -2,6 +2,8 @@ import {
   SOKO_BOT_SEO_INPUT_SCHEMAS,
   type SokoBotSeoCapability,
 } from "@sokosumi/soko-bot";
+import { badRequest } from "@/helpers/error";
+import { isEvalWorkspace } from "@/lib/evals/eval-guard";
 
 import {
   addSeoPageSchema,
@@ -34,6 +36,12 @@ import {
 } from "@/services/project-seo-statistics.service";
 import type { SeoMutationHooks } from "@/services/project-seo-store";
 
+const PROVIDER_BACKED_SEO_TOOLS = new Set<SokoBotSeoCapability>([
+  "import_seo_audit",
+  "request_seo_analysis",
+  "sync_seo_statistics",
+]);
+
 /** Chat and the SEO page share authorization, validation and durable operations. */
 export async function runSeoTool(
   capability: SokoBotSeoCapability,
@@ -46,6 +54,14 @@ export async function runSeoTool(
   const { projectId, ...fields } = parsed;
   if (actor.owner.kind !== "project" || projectId !== actor.owner.id)
     throw new Error("SEO Project mismatch");
+  if (
+    PROVIDER_BACKED_SEO_TOOLS.has(capability) &&
+    actor.sokoBotId &&
+    (await isEvalWorkspace(actor.workspaceId))
+  )
+    throw badRequest(
+      "Provider-backed SEO tools are not available in provider-free eval cases",
+    );
   const link = `/seo?projectId=${encodeURIComponent(projectId)}&view=project`;
   if (capability === "get_seo_workspace") {
     return {

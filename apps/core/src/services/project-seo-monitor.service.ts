@@ -180,7 +180,9 @@ export async function releaseSeoMonitorRun(
     userId: schedule.ownerId,
     organizationId: schedule.organizationId,
   };
-  const owner = await requireSeoOwner(actor, tx, true);
+  // The request seam validates the locked ledger for a Run owed before Project close.
+  // Run now retains the normal open-Project gate.
+  const owner = await requireSeoOwner(actor, tx, manual);
   if (owner.projectId !== schedule.projectId)
     throw forbidden("The SEO monitor no longer matches its approved context");
   const input = requestSeoAnalysisSchema.parse({
@@ -194,6 +196,7 @@ export async function releaseSeoMonitorRun(
     {},
     packet.scopeVersion,
     true,
+    manual ? undefined : { scheduleId: schedule.id, runId },
   );
   if (!analysis.taskId)
     throw conflict("The monitor analysis did not create its Task");

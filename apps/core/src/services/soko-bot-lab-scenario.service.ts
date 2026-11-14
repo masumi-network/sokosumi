@@ -21,8 +21,6 @@ import { buildSystemBeatMessage } from "@/services/soko-bot-proactive.service";
 export interface LabScenarioOwner {
   bot: { id: string; userId: string };
   workspaceId: string;
-  /** A persisted fixture clock, only supplied by the headless eval runner. */
-  now?: Date;
 }
 
 export const SETTLED_TURN_STATUSES = ["COMPLETED", "FAILED", "CANCELLED"];
@@ -77,7 +75,7 @@ export async function startLabScenarioTurn(
               prompt:
                 SOKO_BOT_SYSTEM_SCHEDULES.find((s) => s.key === beat)?.prompt ??
                 "Daily stand-up.",
-              now: owner.now ?? new Date(),
+              now: new Date(),
             })
           ).message;
     return reconciled(
@@ -138,13 +136,11 @@ export async function loadLabScenarioTurn(turnId: string) {
     select: {
       status: true,
       route: true,
-      createdAt: true,
       userMessage: true,
       finalAnswer: true,
       durationMs: true,
       costUsdMicros: true,
       errorKind: true,
-      errorDetail: true,
       toolCalls: {
         orderBy: { createdAt: "asc" },
         select: { capability: true, status: true, input: true, result: true },

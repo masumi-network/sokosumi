@@ -306,6 +306,13 @@
   --scrim: rgb(0 0 0 / 0.5); /* Alpha 50 */
   --scrim-strong: rgb(0 0 0 / 0.8); /* Alpha 20 */
   --media-ground: #000000; /* Black */
+  /* The Home page's holographic foil (FoilBackground): four colours it loops
+     through, and how bright its creases get. */
+  --foil-1: #d9c8ff; /* Lilac */
+  --foil-2: #b9dcff; /* Sky */
+  --foil-3: #ffd3ee; /* Pink */
+  --foil-4: #ede6ff; /* Pearl */
+  --foil-shine: 0.3;
   --on-media: hsla(0, 0%, 100%, 1);
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
   --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
@@ -408,6 +415,11 @@
   --scrim: rgb(0 0 0 / 0.5); /* Alpha 50 */
   --scrim-strong: rgb(0 0 0 / 0.8); /* Alpha 20 */
   --media-ground: #000000; /* Black */
+  --foil-1: #2b2150; /* Deep lilac */
+  --foil-2: #1b3150; /* Deep sky */
+  --foil-3: #43203f; /* Deep pink */
+  --foil-4: #221d33; /* Deep pearl */
+  --foil-shine: 0.08;
   --on-media: hsla(0, 0%, 100%, 1);
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
   --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
@@ -678,11 +690,9 @@ body:has(vercel-live-feedback) main[data-app-main] {
   scroll-padding-block-end: calc(5rem + env(safe-area-inset-bottom));
 }
 
-/* Room only: on a page taller than the view the inner column overflows, so the spacer can lie over its rows. */
 body:has(vercel-live-feedback) main[data-app-main]::after {
   content: "";
   flex: 0 0 calc(5rem + env(safe-area-inset-bottom));
-  pointer-events: none;
 }
 
 @utility container {

@@ -36,7 +36,11 @@ interface UseDesignMdGenerationOptions {
   onCompleted?: (designMd: PersistedDesignMd) => void;
   /** Called once a background job exists — lets callers persist it so another
    * surface (e.g. the project page) can `resume` polling after navigation. */
-  onJobStarted?: (job: { jobId: string; jobToken: string }) => void;
+  onJobStarted?: (job: {
+    jobId: string;
+    jobToken: string;
+    url: string;
+  }) => void;
   onSettled?: () => void;
   owner: DesignMdOwner;
   pollIntervalMs?: number;
@@ -192,6 +196,7 @@ export function useDesignMdGeneration({
         onJobStarted?.({
           jobId: startResult.value.jobId,
           jobToken: startResult.value.jobToken,
+          url,
         });
         pollUntilDone(startResult.value.jobId, startResult.value.jobToken);
       } catch (error) {

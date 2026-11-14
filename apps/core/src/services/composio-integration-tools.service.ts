@@ -12,10 +12,6 @@ import {
 import { getComposio } from "@/clients/composio.client";
 import { adProviderForToolkit } from "@/config/ads-providers";
 import { getEnv } from "@/config/env";
-import {
-  executeMailboxFixtureTool,
-  refuseMailboxFixtureGenericTool,
-} from "@/lib/evals/mailbox-integration-adapter";
 
 /** The account and its actual Composio execution identity, independent of UI. */
 export interface ComposioIntegrationAccount {
@@ -130,7 +126,6 @@ export async function listIntegrationTools(
   integration: ComposioIntegrationAccount,
   options: { query?: string; limit: number },
 ): Promise<SokoBotIntegrationTool[]> {
-  await refuseMailboxFixtureGenericTool(integration);
   const refusal = adToolkitRefusal(integration.provider.id);
   if (refusal) throw new SokoBotIntegrationError(refusal);
   const composio = requireComposio();
@@ -156,7 +151,6 @@ export async function runIntegrationTool(
   tool: string,
   args: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
-  await refuseMailboxFixtureGenericTool(integration);
   return executeIntegrationTool(
     integration,
     integrationToolSlug(integration, tool),
@@ -170,7 +164,6 @@ export async function readIntegrationTool(
   tool: string,
   args: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
-  await refuseMailboxFixtureGenericTool(integration);
   const slug = integrationToolSlug(integration, tool);
   const composio = requireComposio();
   const described = await withComposio("describe tool", () =>
@@ -316,8 +309,6 @@ export async function executeIntegrationTool(
   slug: string,
   args: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
-  const fixture = await executeMailboxFixtureTool(integration, slug, args);
-  if (fixture !== null) return fixture;
   const mode = fixtureMode();
   const key = fixtureKey(slug, args);
   const file = path.join(fixtureDir(), `${key}.json`);

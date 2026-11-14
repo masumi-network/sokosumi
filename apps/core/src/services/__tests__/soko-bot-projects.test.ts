@@ -36,7 +36,6 @@ function authorizedAs(actingUserId: string | null): AuthorizedSokoBotRuntime {
   return {
     toolCallLimit: 64,
     turn: {
-      clientTurnId: "ordinary-runtime-test",
       id: turnId,
       actingUserId,
       requestedByUserId: userId,

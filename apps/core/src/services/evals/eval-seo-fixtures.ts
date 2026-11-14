@@ -6,7 +6,6 @@ import {
 import { z } from "zod";
 import { badRequest } from "@/helpers/error";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
-import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { findSeoAnalysisExecutor } from "@/lib/seo/analysis-dispatch";
 import type { SeoActor } from "@/schemas/project-seo.schema";
@@ -24,12 +23,6 @@ const ACTION_ID = "eval-add-pricing-title";
 const CHANGE_TITLE = "Updated pricing page title";
 const CHANGE_NOTE =
   "Owner reports a new title. Traffic impact is not measured.";
-const EVAL_PREFIX = "lab:eval:";
-const PROVIDER_BOUNDARIES = new Set([
-  "import_seo_audit",
-  "request_seo_analysis",
-  "sync_seo_statistics",
-]);
 const FIXTURE_REQUIRED =
   "A registered provider-free SEO eval fixture is required";
 
@@ -47,23 +40,6 @@ export type SeoEvalFixture = z.infer<typeof seoEvalFixtureSchema>;
 
 export function isSeoEvalCase(caseId: string): boolean {
   return Object.hasOwn(SEO_EVAL_CAPABILITIES, caseId);
-}
-
-/** Model input never grants access to a paid provider or external worker in these cases. */
-export async function assertSeoEvalCapability(
-  turnId: string,
-  capability: string,
-) {
-  if (!PROVIDER_BOUNDARIES.has(capability)) return;
-  const turn = await prisma.sokoBotTurn.findUnique({
-    where: { id: turnId },
-    select: { clientTurnId: true },
-  });
-  if (!turn?.clientTurnId?.startsWith(EVAL_PREFIX)) return;
-  // An absent result cannot make an eval-owned request fall through to a provider.
-  throw badRequest(
-    "Provider-backed SEO tools are not available in provider-free eval cases",
-  );
 }
 
 async function requireLane(

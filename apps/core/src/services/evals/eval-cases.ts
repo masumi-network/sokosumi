@@ -1,6 +1,6 @@
 import {
   CMO_SCENARIOS,
-  SEO_EVAL_CAPABILITIES,
+  SEO_SCENARIOS,
   SOKO_BOT_SCENARIOS,
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";
@@ -86,7 +86,6 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "social-drafts-rundown": "Social",
   "newsletter-send-now-goes-to-approval": "Newsletter",
   "newsletter-no-scraped-subscribers": "Newsletter",
-  "newsletter-draft-stays-draft": "Newsletter",
 };
 
 /** Scenarios that read a connected mailbox or calendar; an eval lane has none. */
@@ -122,14 +121,9 @@ function scenarioCase(
 
 export const EVAL_CASES: readonly EvalCase[] = [
   ...SOKO_BOT_SCENARIOS.map((scenario) =>
-    scenarioCase(
-      scenario,
-      "soko-bot",
-      scenario.id in SEO_EVAL_CAPABILITIES
-        ? "SEO"
-        : (SOKO_BOT_AREAS[scenario.id] ?? "Other"),
-    ),
+    scenarioCase(scenario, "soko-bot", SOKO_BOT_AREAS[scenario.id] ?? "Other"),
   ),
+  ...SEO_SCENARIOS.map((scenario) => scenarioCase(scenario, "soko-bot", "SEO")),
   ...CMO_EVAL_CASES,
   ...CMO_SCENARIOS.map((scenario) =>
     scenarioCase(

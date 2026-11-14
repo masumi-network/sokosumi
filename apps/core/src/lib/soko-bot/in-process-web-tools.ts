@@ -4,7 +4,6 @@ import {
   recordSandboxActionResult,
 } from "@/services/soko-bot-sandbox-turn.service";
 import { citableSources, fetchWebPage } from "@/soko-bot-runner/local-tools";
-import { runWebEvidenceTool } from "@/soko-bot-runner/web-evidence-tool";
 import { gatewayCallUsage } from "./gateway-cost";
 import { sokoBotModelRequest } from "./model-policy";
 import { RuntimeEventLog, runtimeEvent } from "./turn-loop";
@@ -37,11 +36,19 @@ export async function runInProcessWebTool(input: {
     toolCallId: input.toolCallId,
     toolInput: input.toolInput,
   });
-  return runWebEvidenceTool({
-    run: () =>
+  const report = (status: "completed" | "failed", output: unknown) =>
+    recordSandboxActionResult(claims, {
+      name: input.capability,
+      toolCallId: input.toolCallId,
+      status,
+      output: JSON.stringify(output ?? null).slice(0, 8_000),
+      sources: citableSources(input.capability, output),
+    }).catch(() => undefined);
+  try {
+    const output =
       input.capability === "web_fetch"
-        ? fetchWebPage(input.toolInput as { url: string })
-        : searchWeb(
+        ? await fetchWebPage(input.toolInput as { url: string })
+        : await searchWeb(
             (input.toolInput as { query: string }).query,
             gateway,
             sokoBotModelRequest({
@@ -57,15 +64,13 @@ export async function runInProcessWebTool(input: {
                   usage: gatewayCallUsage(result),
                 }),
               ),
-          ),
-    sources: (output) => citableSources(input.capability, output),
-    report: (status, output, sources) =>
-      recordSandboxActionResult(claims, {
-        name: input.capability,
-        toolCallId: input.toolCallId,
-        status,
-        output,
-        sources,
-      }),
-  });
+          );
+    await report("completed", output);
+    return output;
+  } catch (error) {
+    await report("failed", {
+      error: error instanceof Error ? error.message : "failed",
+    });
+    throw error;
+  }
 }

@@ -78,6 +78,7 @@ describe("message namespaces", () => {
       expect(bag).toContain("App.Tasks.Tags");
       expect(bag).toContain("App.Tasks.Priority.levels");
       expect(bag).toContain("App.Tasks.Due");
+      expect(bag).toContain("App.Tasks.StatusAge");
     }
   });
 

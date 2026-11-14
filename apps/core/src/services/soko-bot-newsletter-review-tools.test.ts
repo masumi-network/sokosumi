@@ -117,7 +117,6 @@ const INPUTS: Record<Tool, Record<string, unknown>> = {
 };
 const AUTHORIZED: AuthorizedSokoBotRuntime = {
   turn: {
-    clientTurnId: "ordinary-runtime-test",
     id: "turn",
     sokoBotId: BOT_ID,
     actingUserId: "user",

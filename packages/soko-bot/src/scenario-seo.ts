@@ -1,4 +1,4 @@
-import type { SokoBotScenario } from "./scenario-types.js";
+import type { SokoBotScenario } from "./scenarios.js";
 
 /** Provider-free model coverage. Core prepares real, isolated lane records. */
 export const SEO_EVAL_CAPABILITIES = {

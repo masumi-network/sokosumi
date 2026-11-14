@@ -5,11 +5,6 @@ import {
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
-import {
-  MAILBOX_FIXTURE_CASES,
-  prepareMailboxFixture,
-  withMailboxFixturePreparation,
-} from "@/lib/evals/mailbox-binding";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { judgeEvalScenarioTurn } from "@/services/soko-bot-lab-judge.service";
 import {
@@ -26,13 +21,12 @@ import {
   prepareCmoChatCase,
   startCmoCase,
 } from "./eval-cmo-runner";
-import { infrastructureCaseOutcome } from "./eval-infrastructure";
 import {
   type EvalLaneRecord,
   resetEvalLaneForSokoBot,
 } from "./eval-lanes.service";
 import { seoEvalChecks } from "./eval-seo-checks";
-import { prepareSeoEvalCase } from "./eval-seo-fixtures";
+import { isSeoEvalCase, prepareSeoEvalCase } from "./eval-seo-fixtures";
 
 /** What a finished case reports; the runner stores it on its result. */
 export interface CaseOutcome {
@@ -109,22 +103,28 @@ async function startScenario(
 ): Promise<CaseStart> {
   const sokoBotId = bot === "cuso" ? lane.cusoBotId : lane.sokoBotId;
   const clientTurnId = evalClientTurnId(context.resultId);
-  const previous = await prisma.sokoBotTurn.findFirst({
-    where: { sokoBotId, clientTurnId },
-    select: { id: true },
-  });
-  if (previous) {
-    const saved = await prisma.evalResult.findUniqueOrThrow({
-      where: { id: context.resultId },
-      select: { state: true },
+  const seoCase = bot === "soko-bot" && isSeoEvalCase(scenario.id);
+  if (seoCase) {
+    const previous = await prisma.sokoBotTurn.findFirst({
+      where: { sokoBotId, clientTurnId },
+      select: { id: true },
     });
-    const state =
-      saved.state &&
-      typeof saved.state === "object" &&
-      !Array.isArray(saved.state)
-        ? (saved.state as Record<string, unknown>)
-        : {};
-    return { kind: "started", turnId: previous.id, state };
+    if (previous) {
+      const saved = await prisma.evalResult.findUniqueOrThrow({
+        where: { id: context.resultId },
+        select: { state: true },
+      });
+      return {
+        kind: "started",
+        turnId: previous.id,
+        state:
+          saved.state &&
+          typeof saved.state === "object" &&
+          !Array.isArray(saved.state)
+            ? saved.state
+            : {},
+      };
+    }
   }
   if (await botIsBusy(sokoBotId)) return { kind: "busy" };
   let state: Record<string, unknown> = prepare
@@ -140,28 +140,11 @@ async function startScenario(
       timezone: "Europe/Berlin",
       ...schedule,
     });
-  if (bot === "soko-bot") {
+  if (seoCase) {
     const prepared = await prepareSeoEvalCase(lane, scenario, context.resultId);
     scenario = prepared.scenario;
     state = { ...state, ...prepared.state };
   }
-  const mailbox =
-    bot === "soko-bot"
-      ? await prepareMailboxFixture({
-          resultId: context.resultId,
-          caseId: scenario.id,
-          referenceTime: context.startedAt,
-          lane,
-        })
-      : null;
-  if (MAILBOX_FIXTURE_CASES.some((id) => id === scenario.id) && !mailbox)
-    return {
-      kind: "done",
-      outcome: skipped(
-        "Mailbox fixtures require a Preview or local evaluation",
-      ),
-    };
-  if (mailbox) state = { ...state, mailboxFixture: mailbox };
   const turnId =
     bot === "cuso"
       ? (
@@ -173,26 +156,14 @@ async function startScenario(
             message: scenario.prompt,
           })
         ).turnId
-      : await (mailbox
-          ? withMailboxFixturePreparation(mailbox, () =>
-              startLabScenarioTurn(
-                scenario,
-                {
-                  bot: { id: sokoBotId, userId: lane.userId },
-                  workspaceId: lane.workspaceId,
-                  now: new Date(mailbox.referenceTime),
-                },
-                clientTurnId,
-              ),
-            )
-          : startLabScenarioTurn(
-              scenario,
-              {
-                bot: { id: sokoBotId, userId: lane.userId },
-                workspaceId: lane.workspaceId,
-              },
-              clientTurnId,
-            ));
+      : await startLabScenarioTurn(
+          scenario,
+          {
+            bot: { id: sokoBotId, userId: lane.userId },
+            workspaceId: lane.workspaceId,
+          },
+          clientTurnId,
+        );
   return { kind: "started", turnId, state };
 }
 
@@ -230,17 +201,13 @@ async function pollScenario(
       outcome: caseError("The turn did not settle in 20 minutes", [turnId]),
     };
   }
-  const infrastructure = infrastructureCaseOutcome(
-    turnId,
-    turn,
-    scenarioOutput(turn),
-  );
-  if (infrastructure) return { kind: "done", outcome: infrastructure };
   const result = evaluateScenario(scenario, turn);
-  const seoChecks = await seoEvalChecks(scenario.id, lane, turn, state);
-  result.checks.push(...seoChecks);
-  result.total += seoChecks.length;
-  result.passed += seoChecks.filter((check) => check.pass).length;
+  if (isSeoEvalCase(scenario.id)) {
+    const checks = await seoEvalChecks(scenario.id, lane, turn, state);
+    result.checks.push(...checks);
+    result.total += checks.length;
+    result.passed += checks.filter((check) => check.pass).length;
+  }
   const comments = (state as { comments?: Record<string, string> } | null)
     ?.comments;
   if (comments) {
@@ -278,6 +245,11 @@ export async function startEvalCase(
   lane: EvalLaneRecord,
   context: CaseContext,
 ): Promise<CaseStart> {
+  if (evalCase.requires === "mailbox")
+    return {
+      kind: "done",
+      outcome: skipped("Needs a connected mailbox and calendar"),
+    };
   if (evalCase.kind === "scenario")
     return startScenario(
       evalCase.scenario,

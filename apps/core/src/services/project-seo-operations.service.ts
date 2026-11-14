@@ -21,6 +21,10 @@ import { SEO_MAX_PAGES } from "@/schemas/project-seo.schema";
 import { nativeSeoMetricsSchema } from "@/schemas/project-seo-native-metrics.schema";
 import { requireNoActiveSeoAnalysis } from "./project-seo-analysis-concurrency";
 import {
+  type PlannedSeoMonitorRun,
+  requirePlannedSeoMonitorRun,
+} from "./project-seo-monitor-release";
+import {
   canReadPrivateSeoMetrics,
   commitSeoMutation,
   normalizeSeoUrl,
@@ -38,9 +42,10 @@ import { createTaskForActor } from "./task-domain.service";
 async function requireSeoTaskProject(
   actor: SeoActor,
   tx: Prisma.TransactionClient,
+  requireOpen = true,
 ) {
   const owner = await requireSeoOwner(actor, tx);
-  if (owner.projectId)
+  if (owner.projectId && requireOpen)
     await requireLockedOpenProject(tx, {
       projectId: owner.projectId,
       workspaceId: actor.workspaceId,
@@ -185,10 +190,13 @@ export async function requestProjectSeoAnalysisInTransaction(
   hooks: SeoMutationHooks = {},
   frozenScopeVersion?: number,
   requireScheduledExecutor = false,
+  plannedMonitorRun?: PlannedSeoMonitorRun,
 ) {
   requireSeoAnalysisDispatch();
   const requestHash = sha256(JSON.stringify(input));
-  await requireLockedSeoOwner(tx, actor);
+  await requireLockedSeoOwner(tx, actor, !plannedMonitorRun);
+  if (plannedMonitorRun)
+    await requirePlannedSeoMonitorRun(tx, actor, plannedMonitorRun);
   await hooks.authorize?.(tx);
   const previous = await tx.projectSeoAnalysis.findUnique({
     where: seoOwnerUnique(actor, "idempotencyKey", {
@@ -218,7 +226,7 @@ export async function requestProjectSeoAnalysisInTransaction(
       "The page group changed. Reload it before requesting an analysis.",
     );
   validateSeoAnalysis(input, pageUrls);
-  const projectId = await requireSeoTaskProject(actor, tx);
+  const projectId = await requireSeoTaskProject(actor, tx, !plannedMonitorRun);
   const initialRequest: Prisma.InputJsonObject = {
     pageUrls,
     countryCode: input.countryCode,

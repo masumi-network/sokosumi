@@ -1,20 +1,19 @@
 import { randomUUID } from "node:crypto";
 import {
   SEO_EVAL_CAPABILITIES,
-  SOKO_BOT_SCENARIOS,
+  SEO_SCENARIOS,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
-import { judgeEvalScenarioTurn } from "@/services/soko-bot-lab-judge.service";
+import { runSeoTool } from "@/lib/soko-bot/seo-tools";
 import { loadLabScenarioTurn } from "@/services/soko-bot-lab-scenario.service";
 import { SokoBotRuntimeService } from "@/services/soko-bot-runtime.service";
-import { pollEvalCase } from "./eval-case-runner";
-import type { EvalCase } from "./eval-cases";
+import { startEvalCase } from "./eval-case-runner";
+import { EVAL_CASES } from "./eval-cases";
 import { type EvalLaneRecord, ensureEvalLanes } from "./eval-lanes.service";
 import { seoEvalChecks } from "./eval-seo-checks";
 import {
-  assertSeoEvalCapability,
   prepareSeoEvalCase,
   SEO_EVAL_EXPECTED,
   type SeoEvalFixture,
@@ -37,10 +36,6 @@ vi.mock("@/lib/ably/publish", async (importOriginal) => ({
   publishTaskEventData: vi.fn(async () => undefined),
 }));
 
-vi.mock("@/services/soko-bot-lab-judge.service", () => ({
-  judgeEvalScenarioTurn: vi.fn(async () => null),
-}));
-
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
@@ -53,7 +48,7 @@ const TEST_TURN_LEASE_MS = 60_000;
 let lane: EvalLaneRecord;
 
 async function prepare(caseId: string) {
-  const scenario = SOKO_BOT_SCENARIOS.find((entry) => entry.id === caseId);
+  const scenario = SEO_SCENARIOS.find((entry) => entry.id === caseId);
   if (!scenario) throw new Error(`Missing scenario ${caseId}`);
   const run = await prisma.evalRun.create({
     data: {
@@ -152,7 +147,7 @@ async function turn(
       clientTurnId,
       userMessage: "SEO fixture test",
       capabilityNames: capabilities,
-      versionId: "v40",
+      versionId: "v33",
       status: "RUNNING",
       deadlineAt: new Date(Date.now() + TEST_TURN_LEASE_MS),
       leaseExpiresAt: new Date(Date.now() + TEST_TURN_LEASE_MS),
@@ -208,6 +203,52 @@ describe.skipIf(!enabled)(
       await prisma.$disconnect();
     });
 
+    it("resumes an existing SEO turn without resetting its persisted fixture", async () => {
+      const prepared = await prepare("seo-save-keyword");
+      const turnId = await turn(prepared.resultId);
+      const evalCase = EVAL_CASES.find(
+        (entry) => entry.id === "seo-save-keyword",
+      );
+      if (!evalCase) throw new Error("Missing SEO case");
+      const input = mutationInput("seo-save-keyword", prepared.fixture);
+      const actor = {
+        userId: lane.userId,
+        workspaceId: lane.workspaceId,
+        organizationId: lane.organizationId,
+        sokoBotId: lane.sokoBotId,
+        owner: { kind: "project" as const, id: prepared.fixture.projectId },
+      };
+      await runSeoTool("save_seo_keyword", input, actor, {});
+      const restarted = await startEvalCase(evalCase, lane, {
+        resultId: prepared.resultId,
+        firstOfSuite: true,
+        startedAt: new Date(),
+      });
+      expect(restarted).toEqual({
+        kind: "started",
+        turnId,
+        state: prepared.state,
+      });
+      expect(
+        await prisma.projectSeoKeyword.findFirst({
+          where: {
+            projectId: prepared.fixture.projectId,
+            keywordKey: SEO_EVAL_EXPECTED.keyword,
+            countryCode: "US",
+            languageCode: "en",
+          },
+        }),
+      ).not.toBeNull();
+      expect(
+        await prisma.sokoBotTurn.count({
+          where: {
+            sokoBotId: lane.sokoBotId,
+            clientTurnId: `lab:eval:${prepared.resultId}`,
+          },
+        }),
+      ).toBe(1);
+    });
+
     it.each(Object.entries(SEO_EVAL_CAPABILITIES))(
       "%s requires a real scoped result from %s",
       async (caseId, capability) => {
@@ -252,14 +293,6 @@ describe.skipIf(!enabled)(
           await call("get_task_status", { taskId: link.taskId });
         }
         const stored = await loadLabScenarioTurn(turnId);
-        expect(stored.createdAt).toEqual(
-          (
-            await prisma.sokoBotTurn.findUniqueOrThrow({
-              where: { id: turnId },
-              select: { createdAt: true },
-            })
-          ).createdAt,
-        );
         const checks = await seoEvalChecks(
           caseId,
           lane,
@@ -370,57 +403,6 @@ describe.skipIf(!enabled)(
       },
     );
 
-    it("preserves real failed-turn diagnostics and reports infrastructure before SEO scoring", async () => {
-      const prepared = await prepare("seo-save-keyword");
-      const turnId = await turn(prepared.resultId);
-      const errorDetail =
-        "API key budget exceeded. Current spend: $400.12, limit: $400.00.";
-      await prisma.sokoBotTurn.update({
-        where: { id: turnId },
-        data: {
-          status: "FAILED",
-          errorKind: "GatewayInternalServerError",
-          errorDetail,
-        },
-      });
-      const loaded = await loadLabScenarioTurn(turnId);
-      expect(loaded).toMatchObject({
-        errorKind: "GatewayInternalServerError",
-        errorDetail,
-      });
-      const result = await pollEvalCase(
-        {
-          kind: "scenario",
-          id: prepared.scenario.id,
-          suite: "soko-bot",
-          bot: "soko-bot",
-          scenario: prepared.scenario,
-        } as EvalCase,
-        lane,
-        { turnId, state: prepared.state },
-        {
-          resultId: prepared.resultId,
-          firstOfSuite: false,
-          startedAt: new Date(),
-        },
-      );
-      expect(result).toMatchObject({
-        kind: "done",
-        outcome: {
-          status: "ERROR",
-          checks: [],
-          turnIds: [turnId],
-          output: {
-            infrastructure: {
-              code: "provider_budget_exhausted",
-              detail: errorDetail,
-            },
-          },
-        },
-      });
-      expect(judgeEvalScenarioTurn).not.toHaveBeenCalled();
-    });
-
     it("does not accept a successful tool name with no stored effect or a forged lane", async () => {
       const prepared = await prepare("seo-save-keyword");
       const toolCalls = [
@@ -457,51 +439,69 @@ describe.skipIf(!enabled)(
       ).rejects.toMatchObject({ status: 400 });
     });
 
-    it("blocks every external SEO boundary for prepared, damaged, and missing eval bindings", async () => {
+    it("blocks all paid SEO tools in the registered bot workspace even after fixture bindings disappear", async () => {
       const prepared = await prepare("seo-workspace-read");
-      const turnId = await turn(prepared.resultId);
-      for (const capability of [
-        "import_seo_audit",
-        "request_seo_analysis",
-        "sync_seo_statistics",
-      ]) {
-        await expect(
-          assertSeoEvalCapability(turnId, capability),
-        ).rejects.toMatchObject({ status: 400 });
-        await prisma.evalResult.update({
-          where: { id: prepared.resultId },
-          data: { state: { seoFixture: "invalid" } },
-        });
-        await expect(
-          assertSeoEvalCapability(turnId, capability),
-        ).rejects.toMatchObject({ status: 400 });
-      }
-      await prisma.evalResult.delete({ where: { id: prepared.resultId } });
-      await expect(
-        assertSeoEvalCapability(turnId, "request_seo_analysis"),
-      ).rejects.toMatchObject({ status: 400 });
-      const normal = await turn(randomUUID(), `owner:${randomUUID()}`);
-      await expect(
-        assertSeoEvalCapability(normal, "request_seo_analysis"),
-      ).resolves.toBeUndefined();
-      const research = await prisma.evalResult.create({
-        data: {
-          runId: runIds[0]!,
-          caseId: "web-research-with-sources",
-          suite: "soko-bot",
-          repeat: lane.lane,
-          position: 1,
+      const actor = {
+        userId: lane.userId,
+        workspaceId: lane.workspaceId,
+        organizationId: lane.organizationId,
+        sokoBotId: lane.sokoBotId,
+        owner: { kind: "project" as const, id: lane.world.marketingProjectId },
+      };
+      const base = { projectId: actor.owner.id };
+      const attempts = [
+        {
+          capability: "import_seo_audit" as const,
+          input: { ...base, taskId: randomUUID(), fileId: randomUUID() },
         },
-      });
-      const researchTurn = await turn(research.id);
-      for (const capability of [
-        "import_seo_audit",
-        "request_seo_analysis",
-        "sync_seo_statistics",
-      ])
+        {
+          capability: "request_seo_analysis" as const,
+          input: {
+            ...base,
+            kind: "page_check",
+            countryCode: "US",
+            languageCode: "en",
+            pageIds: [prepared.fixture.homePageId],
+            idempotencyKey: `guard:${randomUUID()}`,
+          },
+        },
+        {
+          capability: "sync_seo_statistics" as const,
+          input: {
+            ...base,
+            provider: "ga4",
+            propertyId: "properties/123",
+            pageIds: [prepared.fixture.homePageId],
+            from: "2026-01-01",
+            to: "2026-01-02",
+          },
+        },
+      ];
+      for (const attempt of attempts) {
         await expect(
-          assertSeoEvalCapability(researchTurn, capability),
+          runSeoTool(attempt.capability, attempt.input, actor, {}),
+        ).rejects.toMatchObject({
+          status: 400,
+          message:
+            "Provider-backed SEO tools are not available in provider-free eval cases",
+        });
+      }
+      await prisma.evalResult.update({
+        where: { id: prepared.resultId },
+        data: { state: { seoFixture: "invalid" } },
+      });
+      for (const attempt of attempts)
+        await expect(
+          runSeoTool(attempt.capability, attempt.input, actor, {}),
         ).rejects.toMatchObject({ status: 400 });
+      await prisma.evalResult.delete({ where: { id: prepared.resultId } });
+      for (const attempt of attempts)
+        await expect(
+          runSeoTool(attempt.capability, attempt.input, actor, {}),
+        ).rejects.toMatchObject({ status: 400 });
+      expect(
+        await runSeoTool("get_seo_workspace", base, actor, {}),
+      ).toHaveProperty("pages");
     });
 
     it("refuses a damaged prepared state instead of resetting records after a retry", async () => {

@@ -124,7 +124,7 @@ export function buildIngestMessage(input: {
     );
   } else {
     lines.push(
-      "New mail arrived. The packet shows Jev's actual triage tags; there may be no urgent items. First decide from the mail whether anything needs the owner before tomorrow's briefing. Tags are a guide, not a fact. Read a mail when needed to resolve its urgency. If no urgent item remains, reply exactly `Nothing new worth flagging.` Otherwise report what each urgent item needs and by when. Include notable mail only when it adds useful context to that urgent report. Omit FYI-only mail entirely.",
+      "New mail arrived that Jev triaged as urgent. Tell the owner briefly what each urgent one needs and by when, as described in your inbox skill, then any notable mail one line each under Notable. Leave out any that, on reading, can wait for tomorrow's briefing; if no urgent mail is left, reply exactly `Nothing new worth flagging.`",
     );
   }
   if (input.mail.some((item) => item.matchesRule))

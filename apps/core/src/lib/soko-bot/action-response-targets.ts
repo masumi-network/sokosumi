@@ -1,10 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
-import {
-  redactSokoBotSensitiveText,
-  SOKO_BOT_SEO_WRITE_CAPABILITIES,
-} from "@sokosumi/soko-bot";
+import { SOKO_BOT_SEO_WRITE_CAPABILITIES } from "@sokosumi/soko-bot";
 import { z } from "zod";
-import { newsletterIssueLink } from "./newsletter-issue-link";
 
 const NEWSLETTER_ISSUE_CAPABILITIES = new Set([
   "create_newsletter_issue",
@@ -64,54 +60,6 @@ const SOCIAL_POST_CAPABILITIES = new Set([
   "cancel_social_post",
   "publish_social_post",
 ]);
-
-const SCHEDULE_CAPABILITIES = new Set([
-  "create_schedule",
-  "update_schedule",
-  "delete_schedule",
-]);
-const MAX_ACTION_NAME_LENGTH = 120;
-const MAX_QUEUED_CHAT_CONTENT_LENGTH = 1_000;
-const queuedChatResult = z.object({
-  messageId: z.string().min(1),
-  roomName: z.string().min(1),
-  queuedContent: z.string().min(1),
-  deliveryStatus: z.literal("QUEUED"),
-});
-const scheduleResult = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  taskId: z.string().min(1).nullable().optional(),
-  nextRunAt: z.string().datetime({ offset: true }).optional(),
-  timezone: z.string().min(1).optional(),
-  runOnce: z.boolean().optional(),
-  enabled: z.boolean().optional(),
-});
-
-/** Redact before clipping, and keep saved text literal inside Markdown. */
-function quoteResultText(value: string, maxLength: number): string {
-  const safe = redactSokoBotSensitiveText(value).replace(/[\r\n]+/g, " ");
-  const bounded =
-    safe.length > maxLength ? `${safe.slice(0, maxLength)}...` : safe;
-  return JSON.stringify(bounded).replace(/[\\`*_[\]<>]/g, "\\$&");
-}
-
-/** Only committed schedule results can name the work that a check watches. */
-export function scheduleTaskId(call: {
-  capability: string;
-  targetId: string | null;
-  result?: unknown;
-}): string | null {
-  if (
-    !SCHEDULE_CAPABILITIES.has(call.capability) ||
-    call.capability === "delete_schedule"
-  )
-    return null;
-  const schedule = scheduleResult.safeParse(call.result);
-  return schedule.success && schedule.data.id === call.targetId
-    ? (schedule.data.taskId ?? null)
-    : null;
-}
 
 export const TASK_TARGET_CAPABILITIES = new Set([
   "create_task",
@@ -239,37 +187,10 @@ export function actionTarget(
     return `${task}([Open SEO](${saved.link}))`;
   }
 
-  if (call.capability === "post_chat") {
-    const chat = queuedChatResult.safeParse(call.result);
-    return chat.success && chat.data.messageId === id
-      ? `in ${quoteResultText(chat.data.roomName, MAX_ACTION_NAME_LENGTH)}: ${quoteResultText(chat.data.queuedContent, MAX_QUEUED_CHAT_CONTENT_LENGTH)} (delivery pending)`
-      : "";
-  }
-  if (SCHEDULE_CAPABILITIES.has(call.capability)) {
-    const schedule = scheduleResult.safeParse(call.result);
-    if (!schedule.success || schedule.data.id !== id) return "";
-    const saved = schedule.data;
-    const name = quoteResultText(saved.name, MAX_ACTION_NAME_LENGTH);
-    if (call.capability === "delete_schedule") return name;
-    const task = saved.taskId ? tasks.get(saved.taskId) : null;
-    const work =
-      task && saved.taskId
-        ? ` for [${linkText(task.name)}](/tasks/${encodeURIComponent(saved.taskId)})`
-        : "";
-    const time =
-      saved.enabled === true && saved.nextRunAt && saved.timezone
-        ? `, ${saved.runOnce ? "once" : "next run"} at ${new Date(saved.nextRunAt).toISOString()} (time zone ${redactSokoBotSensitiveText(
-            saved.timezone,
-          )
-            .replace(/[\r\n]+/g, " ")
-            .slice(0, 100)})`
-        : "";
-    return `${name}${work}${time}`;
-  }
   if (call.capability === "newsletter_draft_issue") {
     const issue = z.object({ projectId: z.uuid() }).safeParse(call.result);
     return issue.success
-      ? `([Review draft](${newsletterIssueLink({ id, projectId: issue.data.projectId }, true)}))`
+      ? `([Review draft](/newsletter/issues/${encodeURIComponent(id)}?projectId=${encodeURIComponent(issue.data.projectId)}&draftedBySokoBot=true))`
       : "";
   }
   if (NEWSLETTER_ISSUE_CAPABILITIES.has(call.capability)) {
@@ -279,7 +200,7 @@ export function actionTarget(
     // A deleted issue has no editor left to open.
     return call.capability === "delete_newsletter_issue"
       ? `([Open issues](/newsletter/issues${query}))`
-      : `([Open issue](${newsletterIssueLink({ id, projectId: issue.data.projectId })}))`;
+      : `([Open issue](/newsletter/issues/${encodeURIComponent(id)}${query}))`;
   }
   if (call.capability === "update_newsletter_settings") {
     const newsletter = z.object({ projectId: z.uuid() }).safeParse(call.result);
@@ -411,25 +332,19 @@ export function missedTasks(links: string[]): string {
 export function countedLabel(label: string, count: number): string {
   if (count === 1) return label;
   const task = /^(.*) task$/i.exec(label);
-  const schedule = /^(.*) schedule$/i.exec(label);
-  return task
-    ? `${task[1]} ${count} Tasks`
-    : schedule
-      ? `${schedule[1]} ${count} schedules`
-      : `${label} (${count}×)`;
+  return task ? `${task[1]} ${count} Tasks` : `${label} (${count}×)`;
 }
 
 export function collapseActionLines(
-  lines: { head: string; target: string; identity?: string }[],
+  lines: { head: string; target: string }[],
 ): string[] {
-  const groups = new Map<string, Map<string, string>>();
-  for (const { head, target, identity } of lines) {
-    const targets = groups.get(head) ?? new Map<string, string>();
-    targets.set(identity ?? target, target);
+  const groups = new Map<string, string[]>();
+  for (const { head, target } of lines) {
+    const targets = groups.get(head) ?? [];
+    if (!targets.includes(target)) targets.push(target);
     groups.set(head, targets);
   }
-  return [...groups].map(([head, entries]) => {
-    const targets = [...entries.values()];
+  return [...groups].map(([head, targets]) => {
     if (targets.length === 1)
       return `${[head, targets[0]].filter(Boolean).join(" ")}.`;
     const named = targets.filter(Boolean);

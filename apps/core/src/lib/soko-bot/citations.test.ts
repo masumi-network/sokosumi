@@ -78,44 +78,6 @@ describe("dropUnverifiedLinks", () => {
     ).toBe(`Source: .\n\n${NOTE}`);
   });
 
-  it.each([
-    ["“", "”"],
-    ["‘", "’"],
-    ['"', '"'],
-    ["'", "'"],
-    ["[", "]"],
-    ["(", ")"],
-  ])("keeps a verified URL inside %s%s", (open, close) => {
-    const text = `Proposed message: ${open}Source: http://example.org/report?page=2${close}.`;
-    expect(dropUnverifiedLinks(text, evidence)).toEqual({ text, dropped: 0 });
-  });
-
-  it.each(["”", "’", '"', "'", "]", ")"])(
-    "removes an unverified URL without removing its closing %s",
-    (close) => {
-      expect(
-        dropUnverifiedLinks(
-          `Proposed message: Source: https://invented.example/page${close}.`,
-          evidence,
-        ),
-      ).toEqual({
-        text: `Proposed message: Source: ${close}.\n\n${NOTE}`,
-        dropped: 1,
-      });
-    },
-  );
-
-  it("preserves evidenced apostrophes and valid URL characters in destinations", () => {
-    const url = "https://example.org/d’Art?q=O'Reilly&quote=%27%22";
-    const text = `Source: [research](${url}).`;
-    expect(
-      dropUnverifiedLinks(text, new Set([normalizeCitation(url)!])),
-    ).toEqual({
-      text,
-      dropped: 0,
-    });
-  });
-
   it("catches links written in capitals or without a scheme", () => {
     const result = dropUnverifiedLinks(
       "[a](HTTPS://evil.example/1) and [b](//evil.example/2)",

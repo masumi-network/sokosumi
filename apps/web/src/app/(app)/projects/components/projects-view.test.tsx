@@ -1,5 +1,11 @@
 import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { loadMoreProjects } from "@/app/projects/actions";
@@ -9,9 +15,22 @@ import {
   PROJECTS_LIST_CARD_MIN_H_CLASS,
 } from "@/app/projects/constants";
 
+const { queryStateOptions } = vi.hoisted(() => ({
+  queryStateOptions: {} as Record<
+    string,
+    { startTransition?: (callback: () => Promise<void>) => void }
+  >,
+}));
+
 vi.mock("nuqs", async (importOriginal) => ({
   ...(await importOriginal<typeof import("nuqs")>()),
-  useQueryState: () => ["", vi.fn()],
+  useQueryState: (
+    key: string,
+    options: { startTransition?: (callback: () => Promise<void>) => void },
+  ) => {
+    queryStateOptions[key] = options;
+    return ["", vi.fn()];
+  },
 }));
 
 const { refreshMock } = vi.hoisted(() => ({ refreshMock: vi.fn() }));
@@ -370,5 +389,39 @@ describe("ProjectsView Hidden view", () => {
       screen.queryByRole("menuitem", { name: "Pin" }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Show" })).toBeInTheDocument();
+  });
+});
+
+describe("ProjectsView switching views", () => {
+  it("marks the old cards stale until the new list arrives", () => {
+    renderView();
+    const panel = screen.getByTestId("projects-browse");
+    expect(panel).not.toHaveAttribute("aria-busy");
+
+    // A server refetch that has not answered yet.
+    act(() => {
+      queryStateOptions.state?.startTransition?.(() => new Promise(() => {}));
+    });
+
+    expect(panel).toHaveAttribute("aria-busy", "true");
+    expect(
+      panel.querySelector('[data-slot="button-loading-bar"]'),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Autumn Launch").closest(".grid")).toHaveClass(
+      "opacity-50",
+    );
+  });
+
+  it("shares the pending state with the filter", () => {
+    renderView();
+
+    act(() => {
+      queryStateOptions.q?.startTransition?.(() => new Promise(() => {}));
+    });
+
+    expect(screen.getByTestId("projects-browse")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
   });
 });

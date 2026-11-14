@@ -36,7 +36,6 @@ import {
 } from "./local-tools";
 import { runTurnLoop } from "./loop";
 import { superviseRunner } from "./supervise";
-import { runWebEvidenceTool } from "./web-evidence-tool";
 
 interface TurnStart {
   message: string;
@@ -132,27 +131,13 @@ async function callCore<T>(route: string, body: unknown): Promise<T> {
 }
 
 /** Records a sandbox tool call with Core before it runs, and after. */
-async function sandboxTool(
+async function sandboxTool<T>(
   name: SokoBotCapability,
   toolCallId: string,
   input: unknown,
-  run: () => Promise<unknown>,
-): Promise<unknown> {
+  run: () => Promise<T>,
+): Promise<T> {
   await callCore("/actions", { name, toolCallId, input });
-  if (name === "web_search" || name === "web_fetch") {
-    return runWebEvidenceTool({
-      run,
-      sources: (output) => citableSources(name, output),
-      report: (status, output, sources) =>
-        callCore("/actions/result", {
-          name,
-          toolCallId,
-          status,
-          output,
-          sources,
-        }),
-    });
-  }
   // What the tool returned, clipped: the audit trail of what the bot read.
   const report = (status: "completed" | "failed", output: unknown) =>
     callCore("/actions/result", {

@@ -1,18 +1,13 @@
 import type { Prisma } from "@sokosumi/database";
 import { getSokoBotVersion, isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
 import { z } from "zod";
+import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
 
 import {
   ACTION_CAPABILITIES,
   verifyTaskArchiveReceipt,
 } from "./action-receipts";
 
-import { cmoReportedByCard, cmoSavedRecord } from "./action-response-cmo";
-import {
-  correctedCreationInput,
-  inputCovers,
-  requiresRecoveryRequester,
-} from "./action-response-recovery";
 import {
   actionTarget,
   attemptedTarget,
@@ -20,18 +15,11 @@ import {
   countedLabel,
   linkText,
   missedTasks,
-  scheduleTaskId,
   seoTaskLabels,
   TASK_TARGET_CAPABILITIES,
   taskLabels,
   UNDONE_TASK_VERBS,
 } from "./action-response-targets";
-import {
-  describeRead,
-  READ_OBSERVATION_CAPABILITIES,
-} from "./read-observations";
-import { savedPreferenceResponse } from "./saved-preference-response";
-import { workspaceWriteConfirmations } from "./workspace-write-confirmation";
 
 /** Turns an owner asked for; the rest the bot started itself. */
 const OWNER_STARTED_SOURCES = new Set(["CHAT", "ADMIN_RETRY"]);
@@ -50,6 +38,7 @@ export const ACTION_LABELS: Record<string, string> = {
   create_seo_action_task: "Created SEO action task",
   sync_seo_statistics: "Synced SEO statistics",
   record_seo_page_change: "Recorded SEO page change",
+
   newsletter_draft_issue: "Drafted newsletter issue for review",
   create_newsletter_issue: "Created newsletter draft",
   update_newsletter_issue: "Updated newsletter issue",
@@ -116,11 +105,7 @@ export const ACTION_LABELS: Record<string, string> = {
 };
 
 /** A comment that also changed the status says which change it was. */
-function actionLabel(call: {
-  capability: string;
-  input?: unknown;
-  result?: unknown;
-}): string {
+function actionLabel(call: { capability: string; result?: unknown }): string {
   const reply = z
     .object({ statusChanged: z.literal(true), status: z.string() })
     .safeParse(call.result);
@@ -135,13 +120,6 @@ function actionLabel(call: {
     z.object({ replaced: z.literal(true) }).safeParse(call.result).success
   )
     return "Updated file";
-  const schedule = z.object({ enabled: z.boolean() }).safeParse(call.result);
-  if (call.capability === "update_schedule" && schedule.success) {
-    const requested = z.object({ enabled: z.boolean() }).safeParse(call.input);
-    if (requested.success && requested.data.enabled === schedule.data.enabled)
-      return schedule.data.enabled ? "Enabled schedule" : "Paused schedule";
-    return `Updated schedule (${schedule.data.enabled ? "enabled" : "paused"})`;
-  }
   return ACTION_LABELS[call.capability] ?? call.capability;
 }
 
@@ -190,6 +168,220 @@ export function parseActionNarrativeText(text: string) {
   }
 }
 
+// These are persisted authorized read fields, not model-authored narration.
+const readObservationSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().nullable().optional(),
+  status: z.string().optional(),
+  project: z.object({ name: z.string() }).nullable().optional(),
+  assignee: z.object({ name: z.string().nullable() }).nullable().optional(),
+  events: z
+    .array(
+      z.object({
+        status: z.string().nullable().optional(),
+        comment: z.string().nullable().optional(),
+        by: z.string().optional(),
+        inputSchema: z.unknown().optional(),
+      }),
+    )
+    .optional(),
+  fulfillment: z
+    .object({
+      state: z.enum([
+        "UNKNOWN",
+        "IN_PROGRESS",
+        "FULFILLED",
+        "PARTIAL",
+        "BLOCKED",
+        "FAILED",
+        "CANCELLED",
+      ]),
+      blockerKind: z.string().nullable(),
+      remainingSteps: z.array(z.string()),
+      acceptanceCriteria: z
+        .array(z.object({ id: z.string(), description: z.string().optional() }))
+        .optional(),
+    })
+    .optional(),
+  links: z
+    .array(
+      z.object({
+        relation: z.string(),
+        direction: z.string(),
+        note: z.string().nullable().optional(),
+        task: z.object({ name: z.string(), status: z.string() }),
+      }),
+    )
+    .optional(),
+});
+
+function quoteRead(value: string) {
+  return JSON.stringify(value.slice(0, 600));
+}
+
+const socialAccountObservationSchema = z.object({
+  id: z.string(),
+  provider: z.string(),
+  externalHandle: z.string().nullable(),
+  status: z.string(),
+  connectedAt: z.string().nullable(),
+  disconnectedAt: z.string().nullable(),
+  // Absent from tool calls stored before accounts carried limits.
+  textLimit: z.number().int().optional(),
+});
+
+const socialPostObservationSchema = z.object({
+  id: z.string(),
+  provider: z.string(),
+  text: z.string(),
+  status: z.string(),
+  revision: z.number().int().nonnegative(),
+  scheduledAt: z.string().nullable(),
+  timezone: z.string().nullable(),
+  publishedUrl: z.string().nullable(),
+  socialConnection: z
+    .object({ externalHandle: z.string().nullable(), status: z.string() })
+    .nullable()
+    .optional(),
+  threadPartCount: z.number().int().optional(),
+  quotedPostId: z.string().nullable().optional(),
+});
+
+function describeSocialPost(read: z.infer<typeof socialPostObservationSchema>) {
+  return `Observed social post ${quoteRead(read.id)}: platform ${quoteRead(read.provider)}, status ${quoteRead(read.status)}, revision ${read.revision}. Text: ${quoteRead(read.text)}. Scheduled at: ${quoteRead(read.scheduledAt ?? "not scheduled")}; time zone: ${quoteRead(read.timezone ?? "not set")}.${read.socialConnection ? ` Account: ${quoteRead(read.socialConnection.externalHandle ?? "unknown handle")}, status ${quoteRead(read.socialConnection.status)}.` : ""}${read.threadPartCount && read.threadPartCount > 1 ? ` Thread of ${read.threadPartCount} posts.` : ""}${read.quotedPostId ? ` Quotes post ${quoteRead(read.quotedPostId)}.` : ""}${read.publishedUrl ? ` Published URL: ${quoteRead(read.publishedUrl)}.` : ""}`;
+}
+
+function describeRead(capability: string, value: unknown): string[] {
+  if (capability === "list_project_social_accounts") {
+    const accounts = z.array(socialAccountObservationSchema);
+    // Stored tool calls from before workspace availability contain the array directly.
+    const parsed = z
+      .union([
+        accounts,
+        z.object({ accounts }).transform((result) => result.accounts),
+      ])
+      .safeParse(value);
+    if (!parsed.success) return [];
+    return [
+      `Showing ${parsed.data.length} of ${parsed.data.length} returned social accounts.`,
+      ...parsed.data.map(
+        (read) =>
+          `Observed social account ${quoteRead(read.id)}: platform ${quoteRead(read.provider)}, handle ${quoteRead(read.externalHandle ?? "unknown handle")}, status ${quoteRead(read.status)}. Connected at: ${quoteRead(read.connectedAt ?? "not recorded")}; disconnected at: ${quoteRead(read.disconnectedAt ?? "not recorded")}.${read.textLimit ? ` Text limit: ${read.textLimit} characters.` : ""}`,
+      ),
+    ];
+  }
+  if (capability === "list_social_posts") {
+    const parsed = z
+      .object({
+        posts: z.array(socialPostObservationSchema),
+        pagination: cursorPaginationMetaSchema,
+      })
+      .safeParse(value);
+    if (!parsed.success) return [];
+    return [
+      `Showing ${Math.min(parsed.data.posts.length, 5)} of ${parsed.data.posts.length} returned social posts (${parsed.data.pagination.total} total).${parsed.data.pagination.nextCursor ? " More posts are available." : ""}`,
+      ...parsed.data.posts.slice(0, 5).map(describeSocialPost),
+    ];
+  }
+  if (capability === "get_social_post") {
+    const parsed = socialPostObservationSchema.safeParse(value);
+    return parsed.success ? [describeSocialPost(parsed.data)] : [];
+  }
+  const parsed = readObservationSchema.safeParse(value);
+  if (!parsed.success) return [];
+  const read = parsed.data;
+  const isTask = capability === "get_task_status";
+  const event = isTask ? read.events?.at(-1) : read.events?.[0];
+  const status = read.status ?? event?.status;
+  const observations: string[] = [];
+  if (read.name && status)
+    observations.push(
+      `Observed ${isTask ? "task" : "job"} ${quoteRead(read.name)}: status ${quoteRead(status)}.`,
+    );
+  if (read.project)
+    observations.push(`Recorded project: ${quoteRead(read.project.name)}.`);
+  if (read.assignee?.name)
+    observations.push(`Recorded assignee: ${quoteRead(read.assignee.name)}.`);
+  if (event?.comment)
+    observations.push(
+      `Latest reported task update (${quoteRead(event.by ?? "unknown author")}): ${quoteRead(event.comment)}.`,
+    );
+  if (!isTask && (status === "AWAITING_INPUT" || status === "input_required"))
+    observations.push(
+      "The latest job event is awaiting input; completion is not verified.",
+    );
+  if (read.fulfillment) {
+    for (const id of read.fulfillment.remainingSteps.slice(0, 4)) {
+      const criterion = read.fulfillment.acceptanceCriteria?.find(
+        (item) => item.id === id,
+      );
+      observations.push(
+        `Not confirmed yet: ${quoteRead(criterion?.description ?? id)}.`,
+      );
+    }
+  }
+  for (const link of (read.links ?? []).slice(0, 4))
+    observations.push(
+      `Recorded task relationship ${quoteRead(link.relation)} (${quoteRead(link.direction)}): ${quoteRead(link.task.name)}, status ${quoteRead(link.task.status)}.${link.note ? ` Reported note: ${quoteRead(link.note)}.` : ""}`,
+    );
+  return observations;
+}
+
+/** Whether `later` repeats every field `earlier` set, with the same value. */
+/**
+ * What a file's name is chosen by. A voice-over refused because its filename
+ * was taken, then made again under a new name, read "Not confirmed: made
+ * voice-over." beneath the finished video.
+ */
+const FILE_NAMING_KEYS = new Set(["filename", "overwrite"]);
+
+function inputCovers(later: unknown, earlier: unknown): boolean {
+  if (!isPlainObject(later) || !isPlainObject(earlier)) return false;
+  return Object.entries(earlier).every(
+    ([key, value]) =>
+      FILE_NAMING_KEYS.has(key) ||
+      JSON.stringify(later[key]) === JSON.stringify(value),
+  );
+}
+
+/** Whether a Cuso turn filed its report as a chat card (report_update). */
+async function cmoReportedByCard(
+  tx: Prisma.TransactionClient,
+  turnId: string,
+  cmo: boolean,
+): Promise<boolean> {
+  if (!cmo) return false;
+  const reports = await tx.sokoBotToolCall.count({
+    where: { turnId, capability: "report_update", status: "COMPLETED" },
+  });
+  return reports > 0;
+}
+
+/**
+ * Whether a Cuso turn saved his Brand Brain or strategy. Those writes carry
+ * no action receipt, so without this a correction he applied would end on
+ * "Nothing was changed in this turn."
+ */
+async function cmoSavedRecord(
+  tx: Prisma.TransactionClient,
+  turnId: string,
+  cmo: boolean,
+): Promise<boolean> {
+  if (!cmo) return false;
+  const saves = await tx.sokoBotToolCall.count({
+    where: {
+      turnId,
+      capability: { in: ["save_brand_brain", "save_strategy"] },
+      status: "COMPLETED",
+    },
+  });
+  return saves > 0;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 /** Model text cannot confer evidence. Replays reference original committed proof. */
 export async function buildActionResponse(
   tx: Prisma.TransactionClient,
@@ -198,55 +390,39 @@ export async function buildActionResponse(
   actionRequested = false,
   narrativeInput?: unknown,
 ) {
-  const collectedCalls = await tx.sokoBotToolCall.findMany({
-    where: {
-      turnId,
-      capability: { in: [...ACTION_CAPABILITIES, "workspace_write"] },
-    },
+  const calls = await tx.sokoBotToolCall.findMany({
+    where: { turnId, capability: { in: [...ACTION_CAPABILITIES] } },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
-  // Sandbox writes carry a local runner result, never a Core action receipt.
-  const workspaceCalls = collectedCalls.filter(
-    (call) => call.capability === "workspace_write",
-  );
-  const calls = collectedCalls.filter(
-    (call) => call.capability !== "workspace_write",
-  );
   const replayIds = calls.flatMap((call) =>
     call.replayedReceiptId ? [call.replayedReceiptId] : [],
   );
-  const turn =
-    replayIds.length || calls.some(requiresRecoveryRequester)
-      ? await tx.sokoBotTurn.findUnique({
-          where: { id: turnId },
-          select: {
-            sokoBotId: true,
-            workspaceId: true,
-            intentId: true,
-            intentRevision: true,
-            requestedByUserId: true,
+  const turn = replayIds.length
+    ? await tx.sokoBotTurn.findUnique({
+        where: { id: turnId },
+        select: {
+          sokoBotId: true,
+          workspaceId: true,
+          intentId: true,
+          intentRevision: true,
+        },
+      })
+    : null;
+  const prior = turn
+    ? await tx.sokoBotToolCall.findMany({
+        where: {
+          id: { in: replayIds },
+          actorBotId: turn.sokoBotId,
+          turn: {
+            sokoBotId: turn.sokoBotId,
+            workspaceId: turn.workspaceId,
+            ...(turn.intentId
+              ? { intentId: turn.intentId, intentRevision: turn.intentRevision }
+              : { id: turnId }),
           },
-        })
-      : null;
-  const prior =
-    turn && replayIds.length
-      ? await tx.sokoBotToolCall.findMany({
-          where: {
-            id: { in: replayIds },
-            actorBotId: turn.sokoBotId,
-            turn: {
-              sokoBotId: turn.sokoBotId,
-              workspaceId: turn.workspaceId,
-              ...(turn.intentId
-                ? {
-                    intentId: turn.intentId,
-                    intentRevision: turn.intentRevision,
-                  }
-                : { id: turnId }),
-            },
-          },
-        })
-      : [];
+        },
+      })
+    : [];
   const linkedPrior = prior.filter((source) =>
     calls.some(
       (call) =>
@@ -285,8 +461,7 @@ export async function buildActionResponse(
         applied.capability === call.capability &&
         applied.createdAt > call.createdAt &&
         ((call.targetId !== null && applied.targetId === call.targetId) ||
-          inputCovers(applied.input, call.input) ||
-          correctedCreationInput(call, applied, turn?.requestedByUserId)),
+          inputCovers(applied.input, call.input)),
     );
   const unfulfilledActions = calls
     .filter(
@@ -313,12 +488,11 @@ export async function buildActionResponse(
     calls.map((call) => [call.id, attemptedTarget(call)]),
   );
   const tasks = await taskLabels(tx, [
-    ...unique.flatMap((call) => {
-      const id = TASK_TARGET_CAPABILITIES.has(call.capability)
-        ? call.targetId
-        : scheduleTaskId(call);
-      return id ? [id] : [];
-    }),
+    ...unique.flatMap((call) =>
+      TASK_TARGET_CAPABILITIES.has(call.capability) && call.targetId
+        ? [call.targetId]
+        : [],
+    ),
     ...unfulfilledActions.flatMap((action) => {
       const target = unfulfilledTargets.get(action.receiptId);
       return TASK_TARGET_CAPABILITIES.has(action.action) && target
@@ -355,7 +529,6 @@ export async function buildActionResponse(
           : actionLabel(call)
       }`,
       target: actionTarget(call, tasks, jobAgents, assignedTaskIds, seoTasks),
-      identity: call.targetId ?? call.id,
     })),
   );
   // Cuso reports through a card in the founder's chat. Once he filed one this
@@ -363,22 +536,12 @@ export async function buildActionResponse(
   // card does not carry, still follow as lines.
   // One read of the turn serves every question about it below.
   let turnRow:
-    | Promise<{
-        source: string | null;
-        versionId: string | null;
-        sokoBotId: string;
-        contextSnapshot: { packet: Prisma.JsonValue } | null;
-      } | null>
+    | Promise<{ source: string | null; versionId: string | null } | null>
     | undefined;
   const turnInfo = () => {
     turnRow ??= tx.sokoBotTurn.findUnique({
       where: { id: turnId },
-      select: {
-        source: true,
-        versionId: true,
-        sokoBotId: true,
-        contextSnapshot: { select: { packet: true } },
-      },
+      select: { source: true, versionId: true },
     });
     return turnRow;
   };
@@ -386,13 +549,6 @@ export async function buildActionResponse(
     getSokoBotVersion((await turnInfo())?.versionId).profile === "cmo";
   const reportedByCard = await cmoReportedByCard(tx, turnId, await isCmo());
   const actionText: string[] = reportedByCard ? [] : receiptLines;
-  if (
-    !reportedByCard &&
-    !unique.some((call) => call.capability === "update_memory")
-  ) {
-    const saved = await savedPreferenceResponse(tx, await turnInfo());
-    if (saved) actionText.push(saved);
-  }
   // A file link on its own line renders as the file's card in chat.
   const attachments = [
     ...new Set(
@@ -418,12 +574,6 @@ export async function buildActionResponse(
     );
     return ownerStarted;
   };
-  if (
-    workspaceCalls.length &&
-    !reportedByCard &&
-    OWNER_STARTED_SOURCES.has((await turnInfo())?.source ?? "")
-  )
-    actionText.push(...workspaceWriteConfirmations(workspaceCalls));
   const ownerAsked = unfulfilledActions.some(
     (action) => action.reason !== "UNKNOWN",
   )
@@ -436,33 +586,16 @@ export async function buildActionResponse(
   );
   const unfulfilledGroups = new Map<
     string,
-    {
-      reason: string;
-      action: string;
-      ran: boolean;
-      earlierAttempt: boolean;
-      targets: Set<string>;
-    }
+    { reason: string; action: string; ran: boolean; targets: Set<string> }
   >();
   for (const action of unfulfilledActions) {
     if (action.reason !== "UNKNOWN" && !ownerAsked) continue;
     const didRun = ranIds.has(action.receiptId);
-    const failedCall = calls.find((call) => call.id === action.receiptId);
-    const earlierAttempt =
-      action.reason !== "UNKNOWN" &&
-      !!failedCall &&
-      unique.some(
-        (call) =>
-          call.turnId === turnId &&
-          call.capability === action.action &&
-          call.createdAt > failedCall.createdAt,
-      );
-    const key = `${action.reason}:${didRun}:${action.action}:${earlierAttempt}`;
+    const key = `${action.reason}:${didRun}:${action.action}`;
     const group = unfulfilledGroups.get(key) ?? {
       reason: action.reason,
       action: action.action,
       ran: didRun,
-      earlierAttempt,
       targets: new Set<string>(),
     };
     group.targets.add(
@@ -470,13 +603,7 @@ export async function buildActionResponse(
     );
     unfulfilledGroups.set(key, group);
   }
-  for (const {
-    reason,
-    action,
-    ran,
-    earlierAttempt,
-    targets,
-  } of unfulfilledGroups.values()) {
+  for (const { reason, action, ran, targets } of unfulfilledGroups.values()) {
     const label = countedLabel(
       (ACTION_LABELS[action] ?? action).toLowerCase(),
       targets.size,
@@ -493,16 +620,14 @@ export async function buildActionResponse(
           ),
         ),
       );
-    const failureLine =
+    actionText.push(
       reason === "UNKNOWN"
         ? `I couldn't confirm whether this went through: ${label}. Check before trying again.`
         : !verbs
           ? `Not confirmed: ${label}.`
           : ran
             ? `Couldn't confirm I ${verbs[1]} ${what()}.`
-            : `Couldn't ${verbs[0]} ${what()}.`;
-    actionText.push(
-      earlierAttempt ? `Earlier attempt: ${failureLine}` : failureLine,
+            : `Couldn't ${verbs[0]} ${what()}.`,
     );
   }
   const narrative =
@@ -515,7 +640,13 @@ export async function buildActionResponse(
         turnId,
         toolCallId: { in: narrative.observationToolCallIds },
         capability: {
-          in: [...READ_OBSERVATION_CAPABILITIES],
+          in: [
+            "get_task_status",
+            "get_job_status",
+            "list_project_social_accounts",
+            "list_social_posts",
+            "get_social_post",
+          ],
         },
         status: "COMPLETED",
       },
@@ -560,19 +691,10 @@ export async function buildActionResponse(
     calls.length > 0 &&
     calls.every((call) => call.capability === "update_memory") &&
     !(await isOwnerStarted());
-  // Bookkeeping must not precede the headline of an autonomous report.
-  // Keep its receipts and retain every unconfirmed or unknown effect.
-  const memoryBookkeepingReport =
-    onlyMemory &&
-    unique.length > 0 &&
-    unfulfilledActions.length === 0 &&
-    narrative?.kind === "REPORT" &&
-    !!message;
   const silent =
     (!calls.length &&
-      !actionText.length &&
       (narrative?.kind === "SILENT" ||
-        (isSokoBotSilentAnswer(answerText) && !narrativeText.length) ||
+        isSokoBotSilentAnswer(answerText) ||
         (actionRequested && nothingToSay && !(await isOwnerStarted())))) ||
     (onlyMemory &&
       !question &&
@@ -585,9 +707,9 @@ export async function buildActionResponse(
     unfulfilledActions,
     answerText: silent
       ? "Nothing to add."
-      : calls.length || actionText.length || narrativeText.length
+      : calls.length || narrativeText.length
         ? [
-            memoryBookkeepingReport ? "" : actionText.join("\n"),
+            actionText.join("\n"),
             reportedByCard ? "" : attachments.join("\n"),
             narrativeText.join("\n"),
           ]

@@ -47,7 +47,10 @@ import {
   isReadOnlyForViewer,
 } from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
-import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
+import {
+  latestStatusChange,
+  mapTaskToTaskWithCoworker,
+} from "@/app/tasks/utils/task-view-model";
 import { getSession } from "@/lib/auth/auth.server";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -499,6 +502,10 @@ async function TaskMetadataSection({
           organization: task.organization,
           assignee: task.assignee,
           runAt: task.runAt?.toISOString() ?? null,
+          statusSince: latestStatusChange(
+            task.events,
+            task.createdAt,
+          ).toISOString(),
         }}
         project={project ? { id: project.id, name: project.name } : null}
         schedule={

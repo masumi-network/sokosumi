@@ -6,6 +6,8 @@ import {
   parseSokoBotMemory,
   SOKO_BOT_CMO_RHYTHMS,
   SOKO_BOT_SYSTEM_SCHEDULES,
+  type SokoBotCalendarEvent,
+  type SokoBotInboxMessage,
   sokoBotSystemSchedulePrompt,
 } from "@sokosumi/soko-bot";
 import { buildChatMessagePreview } from "@sokosumi/utils";
@@ -14,6 +16,11 @@ import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import {
+  MAIL_TRIAGE_GUIDE,
+  triagedMailLines,
+  triageMail,
+} from "@/lib/soko-bot/mail-triage";
 import {
   foreignTasksBlock,
   memoryTasks,
@@ -25,19 +32,26 @@ import {
 } from "@/lib/soko-bot/rhythm-task-scope";
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
 import { listChatOpenLoops } from "@/services/chat-signal-views.service";
+import { calendarPeopleBlock } from "@/services/contacts-context.service";
 import {
   activityStats,
   activityStatsLines,
 } from "@/services/soko-bot-activity-stats.service";
+import {
+  activeIntegrationsForBot,
+  fetchCalendarEvents,
+  fetchInboxMessages,
+  withOwnerReplies,
+} from "@/services/soko-bot-integrations.service";
 import {
   buildRhythmPacket,
   dueSoonBlock,
   RHYTHM_KEYS,
   type RhythmBot,
 } from "@/services/soko-bot-rhythms.service";
-import { standupSourcesBlock } from "@/services/soko-bot-standup-context.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
+const STANDUP_MAIL_LIMIT = 40;
 const STALE_RUNNING_MS = 24 * HOUR_MS;
 const UNANSWERED_MS = 4 * HOUR_MS;
 const UNHANDLED_FAILURE_MS = 1 * HOUR_MS;
@@ -299,7 +313,6 @@ export async function findAttentionItems(
       assigneeId: true,
       assigneeSokoBotId: true,
       assignee: { select: { name: true } },
-      assigneeUser: { select: { name: true } },
       assigneeSokoBot: { select: { name: true } },
       events: {
         orderBy: { createdAt: "desc" },
@@ -316,10 +329,7 @@ export async function findAttentionItems(
     if (age > ATTENTION_MAX_AGE_MS) continue;
     const name = task.name ?? "Untitled task";
     const who =
-      task.assignee?.name ??
-      task.assigneeUser?.name ??
-      task.assigneeSokoBot?.name ??
-      "the assignee";
+      task.assignee?.name ?? task.assigneeSokoBot?.name ?? "the assignee";
     if (task.status === "RUNNING" && age > STALE_RUNNING_MS) {
       candidates.push({
         key: `stale:${task.id}:${last?.id ?? "initial"}`,
@@ -566,7 +576,69 @@ export async function buildSystemBeatMessage(input: {
   if (input.key === "standup") {
     lines.push(...(await dueSoonBlock(bot, now)));
     lines.push(...(await chatOpenLoopsBlock(bot, now).catch(() => [])));
-    lines.push(...(await standupSourcesBlock(bot, now)));
+    const events: SokoBotCalendarEvent[] = [];
+    for (const integration of await activeIntegrationsForBot(
+      bot.id,
+      "calendar",
+    )) {
+      events.push(
+        ...(await fetchCalendarEvents(integration, {
+          from: new Date(now.getTime() - HOUR_MS),
+          to: new Date(now.getTime() + 36 * HOUR_MS),
+          limit: 15,
+        }).catch(() => [])),
+      );
+    }
+    if (events.length > 0) {
+      lines.push(`## Calendar (${bot.ingestTimezone})`);
+      for (const event of events.slice(0, 15)) {
+        const when = event.allDay
+          ? "all day"
+          : new Intl.DateTimeFormat("en-GB", {
+              timeZone: bot.ingestTimezone,
+              weekday: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            }).format(new Date(event.startsAt));
+        lines.push(
+          `- ${when}: ${event.title}${event.attendees.length ? ` · with ${event.attendees.slice(0, 4).join(", ")}` : ""} [${event.provider}:${event.id}]`,
+        );
+      }
+      lines.push("");
+      lines.push(
+        ...(await calendarPeopleBlock({
+          workspaceId: bot.workspaceId,
+          attendees: events.slice(0, 15).flatMap((event) => event.attendees),
+          timeZone: bot.ingestTimezone,
+        }).catch(() => [])),
+      );
+    }
+    const mail: SokoBotInboxMessage[] = [];
+    const dayAgo = new Date(now.getTime() - 24 * HOUR_MS);
+    for (const integration of await activeIntegrationsForBot(bot.id, "email")) {
+      const received = await fetchInboxMessages(integration, {
+        since: dayAgo,
+        limit: STANDUP_MAIL_LIMIT,
+      }).catch(() => []);
+      mail.push(...(await withOwnerReplies(integration, received, dayAgo)));
+    }
+    if (mail.length > 0) {
+      const triage = await triageMail({
+        sokoBotId: bot.id,
+        mail: mail.slice(0, STANDUP_MAIL_LIMIT),
+        source: "standup",
+      });
+      triage.log.emit();
+      lines.push(
+        `The mail below is from the last 24 hours. ${MAIL_TRIAGE_GUIDE}`,
+        "",
+        ...triagedMailLines({
+          timeZone: bot.ingestTimezone,
+          mail: triage.mail,
+          limit: STANDUP_MAIL_LIMIT,
+        }),
+      );
+    }
   }
   {
     const items = await findAttentionItems({ ...bot, now });
@@ -586,9 +658,7 @@ export async function buildSystemBeatMessage(input: {
       id: true,
       name: true,
       status: true,
-      assigneeSokoBot: { select: { name: true } },
       assignee: { select: { name: true } },
-      assigneeUser: { select: { name: true } },
     },
     orderBy: { updatedAt: "desc" },
     take: 12,
@@ -597,7 +667,7 @@ export async function buildSystemBeatMessage(input: {
     lines.push("## Your open Tasks");
     for (const task of open) {
       lines.push(
-        `- ${task.status} · "${task.name ?? "Untitled task"}" (id ${task.id})${task.assigneeUser ? ` · human assignee: ${task.assigneeUser.name}` : task.assigneeSokoBot ? ` · assistant assignee: ${task.assigneeSokoBot.name}` : task.assignee ? ` · ${task.assignee.name}` : ""}`,
+        `- ${task.status} · "${task.name ?? "Untitled task"}" (id ${task.id})${task.assignee ? ` · ${task.assignee.name}` : ""}`,
       );
     }
     lines.push("");
@@ -615,8 +685,6 @@ export async function buildSystemBeatMessage(input: {
         status: true,
         owner: { select: { name: true } },
         assignee: { select: { name: true } },
-        assigneeSokoBot: { select: { name: true } },
-        assigneeUser: { select: { name: true } },
       },
       orderBy: { updatedAt: "desc" },
       take: 8,
@@ -625,7 +693,7 @@ export async function buildSystemBeatMessage(input: {
       lines.push("## Team activity (last 24h)");
       for (const task of team) {
         lines.push(
-          `- ${task.owner?.name ?? "A teammate"} · ${task.status} · "${task.name ?? "Untitled task"}"${task.assigneeUser ? ` · with human assignee: ${task.assigneeUser.name}` : task.assigneeSokoBot ? ` · with assistant assignee: ${task.assigneeSokoBot.name}` : task.assignee ? ` · with ${task.assignee.name}` : ""}`,
+          `- ${task.owner?.name ?? "A teammate"} · ${task.status} · "${task.name ?? "Untitled task"}"${task.assignee ? ` · with ${task.assignee.name}` : ""}`,
         );
       }
       lines.push("");

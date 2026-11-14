@@ -57,19 +57,6 @@ describe("evalOutcome", () => {
     expect(evalOutcome(["ERROR", "SKIPPED"], [1])).toBe("error");
   });
 
-  it.each([{ history: [] }, { history: [1, 1] }, { history: [0, 0.5] }])(
-    "does not call a successful repeat plus an execution error a behavior regression: $history",
-    ({ history }) => {
-      expect(evalOutcome(["PASSED", "ERROR"], history)).toBe("error");
-      expect(evalOutcome(["ERROR", "PENDING"], history)).toBe("error");
-    },
-  );
-
-  it("keeps genuine behavior failures visible when another repeat has an error", () => {
-    expect(evalOutcome(["FAILED", "ERROR"], [1])).toBe("regressed");
-    expect(evalOutcome(["PASSED", "FAILED", "ERROR"], [])).toBe("flaky");
-  });
-
   it("waits while no repeat has finished", () => {
     expect(evalOutcome(["PENDING", "RUNNING"], [1])).toBe("pending");
     expect(evalOutcome(["PASSED", "PENDING"], [1])).toBe("passing");

@@ -10,8 +10,10 @@ import {
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatResultPreviewSchema } from "@/schemas/chat-result-preview.schema";
-import { preloadChatResultHydration } from "@/services/chat-result-hydration";
-import { hydrateChatResultSnapshots } from "@/services/chat-result-preview.service";
+import {
+  hydrateChatResultSnapshots,
+  preloadChatResultHydration,
+} from "@/services/chat-result-preview.service";
 import { requireChatRoomUserMembership } from "../../helpers";
 
 /** One page of rendered rows; a room page holds up to 100 messages. */

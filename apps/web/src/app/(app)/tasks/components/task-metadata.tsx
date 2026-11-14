@@ -34,6 +34,7 @@ import {
 } from "./task-metadata-status-field";
 import { TaskPriorityIcon } from "./task-priority-icon";
 import { TaskRunAtBadge } from "./task-run-at-badge";
+import { TaskStatusAge } from "./task-status-age";
 import { getTaskStatusMarker } from "./task-status-badge";
 
 interface TaskMetadataLabels {
@@ -62,6 +63,8 @@ interface TaskMetadataTask {
   assignee: Task["assignee"];
   /** ISO start time; shown while the task waits for it (Scheduled). */
   runAt?: string | null;
+  /** ISO time the Task took its status. */
+  statusSince?: string;
 }
 
 interface PersonDisplay {
@@ -153,21 +156,31 @@ export function TaskMetadata({
             taskId={taskId}
             status={task.status}
             selectableStatuses={task.selectableStatuses}
+            statusSince={task.statusSince}
             labels={statusFieldLabels}
           />
         ) : (
-          <PropertyRow
-            label={labels.status}
-            value={statusLabel}
-            icon={
-              <StatusMarker
-                spec={statusMarker}
-                tone={getToneStyle(statusMarker.tone).onSurface}
+          <>
+            <PropertyRow
+              label={labels.status}
+              value={statusLabel}
+              icon={
+                <StatusMarker
+                  spec={statusMarker}
+                  tone={getToneStyle(statusMarker.tone).onSurface}
+                />
+              }
+            >
+              <span className="truncate">{statusLabel}</span>
+            </PropertyRow>
+            {task.statusSince ? (
+              <TaskStatusAge
+                status={task.status}
+                statusSince={task.statusSince}
+                variant="row"
               />
-            }
-          >
-            <span className="truncate">{statusLabel}</span>
-          </PropertyRow>
+            ) : null}
+          </>
         )}
 
         {task.status === "QUEUED" && task.runAt ? (

@@ -83,6 +83,7 @@ const NOT_YET_COVERED = new Set([
   "preview_newsletter_issue",
   "preview_newsletter_signup_form",
   "preview_result",
+  "provide_job_input",
   "read_email",
   "read_integration_tool",
   "read_memory",
@@ -110,14 +111,14 @@ const NOT_YET_COVERED = new Set([
   "workspace_read",
   "workspace_search",
   "write_table_rows",
-  // These provider-backed SEO tools have isolated integration tests, not model cases.
+  // Provider-backed SEO tools have isolated integration tests, not model cases.
   "import_seo_audit",
   "request_seo_analysis",
   "sync_seo_statistics",
 ]);
 
 describe("eval cases", () => {
-  it("requires real calls for the eight SEO cases that need no provider", () => {
+  it("requires real calls for the eight provider-free SEO cases", () => {
     const expected = {
       "seo-workspace-read": "get_seo_workspace",
       "seo-add-page": "add_seo_page",

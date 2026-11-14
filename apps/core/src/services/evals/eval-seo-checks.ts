@@ -1,8 +1,4 @@
-import {
-  type evaluateScenario,
-  type ScenarioCheck,
-  SEO_EVAL_CAPABILITIES,
-} from "@sokosumi/soko-bot";
+import { type ScenarioCheck, SEO_EVAL_CAPABILITIES } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { seoPageChangePayloadSchema } from "@/schemas/project-seo.schema";
@@ -194,7 +190,14 @@ async function storedPostcondition(
 export async function seoEvalChecks(
   scenarioId: string,
   lane: EvalLaneRecord,
-  turn: Pick<Parameters<typeof evaluateScenario>[1], "toolCalls">,
+  turn: {
+    toolCalls: {
+      capability: string;
+      status: string;
+      input: unknown;
+      result: unknown;
+    }[];
+  },
   state: unknown,
 ): Promise<ScenarioCheck[]> {
   if (!isSeoEvalCase(scenarioId)) return [];

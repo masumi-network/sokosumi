@@ -6,7 +6,6 @@ import {
 
 import { getComposio } from "@/clients/composio.client";
 import prisma from "@/lib/db/prisma";
-import { mailboxFixtureIntegrations } from "@/lib/evals/mailbox-integration-adapter";
 import { requireBot } from "@/services/soko-bot-integration-connection.service";
 
 const INTEGRATION_SELECT = {
@@ -58,21 +57,6 @@ export async function listSokoBotIntegrations(
 export async function listSokoBotIntegrationsForBot(
   sokoBotId: string,
 ): Promise<SokoBotIntegrationList> {
-  const fixtures = await mailboxFixtureIntegrations(sokoBotId);
-  if (fixtures)
-    return {
-      configured: true,
-      integrations: fixtures.map(({ provider }) => ({
-        provider: provider.id,
-        name: provider.name,
-        logoUrl: provider.logoUrl,
-        kinds: provider.kinds,
-        status: "ACTIVE",
-        connectedAt: null,
-        lastIngestAt: null,
-        lastError: null,
-      })),
-    };
   const rows = await prisma.sokoBotIntegration.findMany({
     where: { sokoBotId },
     select: INTEGRATION_SELECT,

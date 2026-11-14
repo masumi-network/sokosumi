@@ -511,5 +511,6 @@ export function mapTaskListItem(task: TaskListItemWithIncludes) {
     ...mapTaskSummary(task),
     jobsCount: task._count.jobs,
     commentsCount: task._count.events,
+    statusSince: task.events[0]?.createdAt ?? task.createdAt,
   };
 }

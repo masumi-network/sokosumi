@@ -22080,6 +22080,50 @@ export const ProjectImageJobSchema = {
     ]
 } as const;
 
+export const ImageStudioRecentProjectsSchema = {
+    type: 'object',
+    properties: {
+        projects: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    projectId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    projectName: {
+                        type: 'string'
+                    },
+                    imageCount: {
+                        type: 'integer',
+                        minimum: 1
+                    },
+                    latestAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    latestImageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    }
+                },
+                required: [
+                    'projectId',
+                    'projectName',
+                    'imageCount',
+                    'latestAt',
+                    'latestImageId'
+                ]
+            }
+        }
+    },
+    required: [
+        'projects'
+    ]
+} as const;
+
 export const NewsletterAvailabilitySchema = {
     type: 'object',
     properties: {
@@ -53450,6 +53494,12 @@ export const TaskListItemSchema = {
             type: 'integer',
             minimum: 0,
             example: 4
+        },
+        statusSince: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the Task last changed status, or its creation time if it never did.'
         }
     },
     required: [
@@ -53490,7 +53540,8 @@ export const TaskListItemSchema = {
         'archivedAt',
         'workspace',
         'jobsCount',
-        'commentsCount'
+        'commentsCount',
+        'statusSince'
     ]
 } as const;
 

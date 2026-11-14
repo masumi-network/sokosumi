@@ -35,7 +35,20 @@ async function requireSourceFile(
   input: { taskId: string; fileId: string },
   client: Prisma.TransactionClient = prisma,
 ) {
-  const owner = await requireSeoOwner(actor, client, true);
+  const analysis = await client.projectSeoAnalysis.findUnique({
+    where: { taskId: input.taskId },
+  });
+  if (
+    analysis &&
+    (analysis.requestedBy !== actor.userId ||
+      (actor.owner.kind === "audit"
+        ? analysis.auditId !== actor.owner.id || analysis.projectId !== null
+        : analysis.projectId !== actor.owner.id || analysis.auditId !== null))
+  )
+    throw notFound("The analysis belongs to another SEO workspace");
+  // A dispatched check may finish after its Project closes. Retain that evidence,
+  // while ad-hoc imports still require an open Project.
+  const owner = await requireSeoOwner(actor, client, !analysis);
   const task = await client.task.findFirst({
     where: {
       id: input.taskId,
@@ -87,7 +100,7 @@ async function requireSourceFile(
     file.size > BigInt(SEO_ARTIFACT_MAX_BYTES)
   )
     throw badRequest("The SEO report has an invalid size");
-  return { task, file, fileUrl: file.fileUrl };
+  return { task, file, fileUrl: file.fileUrl, analysis };
 }
 
 async function readSeoArtifact(
@@ -133,14 +146,17 @@ export async function importProjectSeoAudit(
   input: { taskId: string; fileId: string },
   options: SeoMutationHooks & { fetchImpl?: typeof fetch } = {},
 ) {
-  const { task, file, fileUrl } = await requireSourceFile(actor, input);
+  const { task, file, fileUrl, analysis } = await requireSourceFile(
+    actor,
+    input,
+  );
   const sourceKey = `task-file:${file.id}`;
   const existing = await prisma.projectSeoObservation.findUnique({
     where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
   });
   if (existing)
     return serializableTransaction(async (tx) => {
-      await requireLockedSeoOwner(tx, actor);
+      await requireLockedSeoOwner(tx, actor, !analysis);
       await requireSourceFile(actor, input, tx);
       await options.authorize?.(tx);
       return commitSeoMutation(tx, existing, options);
@@ -154,23 +170,13 @@ export async function importProjectSeoAudit(
   }
   const payload = parsePublicSeoArtifact(raw),
     artifactHash = sha256(body);
-  const analysis = await prisma.projectSeoAnalysis.findUnique({
-    where: { taskId: task.id },
-  });
-  if (
-    analysis &&
-    (actor.owner.kind === "audit"
-      ? analysis.auditId !== actor.owner.id || analysis.projectId !== null
-      : analysis.projectId !== actor.owner.id || analysis.auditId !== null)
-  )
-    throw notFound("The analysis belongs to another SEO workspace");
   if (payload.requestId && (!analysis || payload.requestId !== analysis.id))
     throw badRequest("The SEO result does not match its requested analysis");
   if (analysis) assertSeoArtifactMatchesRequest(raw, payload, analysis);
   let createdId: string | null = null;
   const result = await serializableTransaction(async (tx) => {
     createdId = null;
-    await requireLockedSeoOwner(tx, actor);
+    await requireLockedSeoOwner(tx, actor, !analysis);
     await options.authorize?.(tx);
     const current = await requireSourceFile(actor, input, tx);
     if (
