@@ -1,5 +1,7 @@
 import {
+  createEmptySokoBotMemory,
   projectSokoBotWebEvidence,
+  renderSokoBotMemory,
   SOKO_BOT_SCENARIOS,
   sokoBotJudgeVerdictSchema,
 } from "@sokosumi/soko-bot";
@@ -16,6 +18,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { findFirst: vi.fn(), update: vi.fn() },
     sokoBotLabRun: { upsert: vi.fn() },
+    sokoBotMemoryRevision: { findFirst: vi.fn() },
   },
 }));
 
@@ -88,6 +91,11 @@ describe("soko-bot lab judge generateText", () => {
       model: "anthropic/claude-haiku-4.5",
       payload: {},
     });
+    const instructions = vi
+      .mocked(generateText)
+      .mock.calls.at(-1)?.[0]?.instructions;
+    expect(instructions).not.toContain("Nothing needs owner approval.");
+    expect(instructions).toContain("Never require a forbidden tool");
     expect(generateText).toHaveBeenLastCalledWith(
       expect.objectContaining({
         model: expect.objectContaining({
@@ -160,6 +168,50 @@ describe("soko-bot lab judge transcript scope", () => {
   const scenarioId = SOKO_BOT_SCENARIOS[0]?.id ?? "missing";
   const findTurn = vi.mocked(prisma.sokoBotTurn.findFirst);
 
+  it.each([true, false])(
+    "shows automatic memory capture only after revision verification (%s)",
+    async (verified) => {
+      const instruction = "Write Hannah's Task briefs in German.";
+      const memory = createEmptySokoBotMemory();
+      memory.preferences.push(instruction);
+      const markdown = renderSokoBotMemory(memory);
+      findTurn.mockResolvedValueOnce({
+        sokoBotId: "bot-1",
+        requestedByUserId: "user-1",
+        source: "CHAT",
+        status: "COMPLETED",
+        route: "DIRECT_RESPONSE",
+        userMessage: "Remember my preference.",
+        finalAnswer: `Saved preference: ${JSON.stringify(instruction)}.`,
+        versionId: "v38",
+        sokoBot: { name: "Soko", userId: "user-1" },
+        contextSnapshot: {
+          packet: {
+            trigger: {
+              source: "CHAT",
+              askedBy: { kind: "OWNER" },
+              savedPreference: {
+                instruction,
+                memoryRevisionId: "11111111-1111-4111-8111-111111111111",
+                memoryVersion: 2,
+                memoryHash: "capture-hash",
+              },
+            },
+            memory: { version: 3, hash: "later-dream-hash", markdown },
+          },
+        },
+        toolCalls: [],
+      } as never);
+      vi.mocked(prisma.sokoBotMemoryRevision.findFirst).mockResolvedValueOnce(
+        verified ? ({ markdown } as never) : null,
+      );
+      const payload = await loadLabJudgePayload("turn-memory", scenarioId);
+      expect(payload.turn.coreActions).toEqual(
+        verified ? [`Saved preference: ${JSON.stringify(instruction)}.`] : [],
+      );
+    },
+  );
+
   it("flags evidence omitted by the shared judge budget on the actual payload", async () => {
     const result = {
       output: projectSokoBotWebEvidence({ text: "a".repeat(7_500) }),
@@ -194,6 +246,34 @@ describe("soko-bot lab judge transcript scope", () => {
     expect(
       payload.turn.toolCalls.every((call) => !call.evidenceVisibility.complete),
     ).toBe(true);
+  });
+
+  it("passes forbidden hires and readiness rules to the scenario judge", async () => {
+    findTurn.mockResolvedValueOnce({
+      sokoBotId: "bot-1",
+      requestedByUserId: "user-1",
+      source: "CHAT",
+      status: "COMPLETED",
+      route: "DELEGATE_TASK",
+      userMessage: "Start a research Task.",
+      finalAnswer:
+        "Created an unassigned draft because no researcher is available.",
+      versionId: "v37",
+      sokoBot: { name: "Soko", userId: "user-1" },
+      contextSnapshot: { packet: { coworkers: [] } },
+      toolCalls: [],
+    } as never);
+    const payload = await loadLabJudgePayload(
+      "turn-research",
+      "quick-research-task",
+    );
+    expect(payload.scenario.constraints.forbiddenTools).toContain("hire_agent");
+    expect(payload.platformRules).toContain(
+      "READY requires a verified assignee. Create new unassigned Tasks as DRAFT. Existing unassigned FAILED or INPUT_REQUIRED Tasks can retain their status while receiving guidance; never move an unassigned Task to READY.",
+    );
+    expect(payload.platformRules).toContain(
+      "A marketplace listing is not an available teammate or permission to hire. Respect forbiddenTools, owner authorization, spending limits and workspace access.",
+    );
   });
 
   it("keeps the member filter for any id the lab passes, even an empty one", async () => {

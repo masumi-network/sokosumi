@@ -4,6 +4,7 @@ import type {
   TurnClassification,
 } from "@sokosumi/soko-bot";
 import {
+  parseSokoBotMemory,
   redactSokoBotSensitiveText,
   sanitizeSokoBotMemoryMarkdown,
 } from "@sokosumi/soko-bot";
@@ -117,12 +118,67 @@ export function triggerHints(input: BuildContextPacketInput): string[] {
       : []),
     ...(input.capturedPreference
       ? [
-          `Saved to your memory's preferences from this message: "${input.capturedPreference}". Tell the owner in one line what you will do differently; correct it with update_memory if it is wrong.`,
+          `Saved to your memory's preferences from this message: "${input.capturedPreference.instruction}". Tell the owner in one line what you will do differently; correct it with update_memory if it is wrong.`,
         ]
       : (signals?.statesPreference ?? 0) >= LIKELY_SIGNAL
         ? ["The message may state a lasting preference."]
         : []),
   ];
+}
+
+/** The capture argument is Core's committed result, not the owner's prose. */
+export function formatTrigger(
+  input: BuildContextPacketInput,
+  asker: {
+    kind: SokoBotContextPacket["trigger"]["askedBy"]["kind"];
+    ownerName: string | null;
+    askerName: string | null;
+  },
+  memory: { markdown: string } | null,
+): SokoBotContextPacket["trigger"] {
+  const hints = triggerHints(input);
+  const capture = input.capturedPreference;
+  const instruction = capture?.instruction;
+  const captured =
+    input.personAsked &&
+    input.source === "CHAT" &&
+    asker.kind === "OWNER" &&
+    instruction &&
+    memory &&
+    parseSokoBotMemory(memory.markdown, {
+      secretHandling: "redact",
+    }).preferences.includes(instruction);
+  return {
+    source: input.source,
+    route: input.classification.route,
+    confidence: input.classification.confidence,
+    ...(input.classification.unsureRoute
+      ? { unsureRoute: input.classification.unsureRoute }
+      : {}),
+    ...(hints.length ? { hints } : {}),
+    ...(captured ? { savedPreference: capture } : {}),
+    requestedOutcome:
+      sanitizeText(
+        input.classification.requestedOutcome,
+        TEXT_LIMITS.requestedOutcome,
+      ) ?? "",
+    // Who is on the other side of this turn. `actor` below is the owner
+    // whatever happens, so this is the only field that distinguishes the
+    // owner asking, a colleague asking in a shared room, and another
+    // assistant asking on its own owner's behalf.
+    askedBy: {
+      kind: asker.kind,
+      // Only an OWNER turn may borrow the owner's name. A colleague whose
+      // account has since been deleted has no name to give, and falling
+      // back to the owner's would say the owner is the one asking — the
+      // exact confusion this field exists to end.
+      name: sanitizeText(
+        asker.kind === "OWNER" ? asker.ownerName : asker.askerName,
+        TEXT_LIMITS.actorName,
+      ),
+      trust: "untrusted-data",
+    },
+  };
 }
 
 export function sanitizeText(

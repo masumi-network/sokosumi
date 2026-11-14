@@ -181,6 +181,27 @@ describe("Soko Bot table dispatch", () => {
     );
     expect(result).toMatchObject({ table, url: `/drive/tables/${table.id}` });
   });
+  it("normalizes exact column names before the strict table writer", async () => {
+    const runtime = service();
+    const id = randomUUID();
+    mocks.create.mockResolvedValue({ id: randomUUID(), title: "Marketplaces" });
+    await runtime["executeAuthorizedTool"]({
+      sessionId,
+      turnId,
+      toolCallId: "names",
+      capability: "create_table",
+      input: {
+        key: "names",
+        title: "Marketplaces",
+        columns: [{ id, name: "Name", type: "text" }],
+        rows: [{ values: { Name: "Sokosumi" } }],
+      },
+    });
+    expect(mocks.create.mock.calls[0][1].rows[0]).toEqual({
+      values: { [id]: "Sokosumi" },
+      evidence: {},
+    });
+  });
   it("reuses the operation key and publication identity across tool receipts", async () => {
     const runtime = service();
     const post = vi.fn<SokoBotRuntimeService["postChat"]>().mockResolvedValue({

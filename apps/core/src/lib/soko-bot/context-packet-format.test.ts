@@ -43,7 +43,11 @@ describe("triggerHints", () => {
           aboutTasks: 0.05,
         },
       },
-      { capturedPreference: "Do not flag Make scenario errors." },
+      {
+        capturedPreference: {
+          instruction: "Do not flag Make scenario errors.",
+        },
+      },
     );
     expect(hints.join("\n")).toMatch(/points back at earlier messages/);
     expect(hints.join("\n")).toMatch(/about mail/);

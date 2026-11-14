@@ -26,6 +26,7 @@ import {
   FINISHED_TASK_WINDOW_MS,
   finiteNonNegative,
   fitPacketToBudget,
+  formatTrigger,
   LIMITS,
   MARKETPLACE_ROUTES,
   OFF_TOPIC_TASKS,
@@ -34,13 +35,14 @@ import {
   sanitizeStringList,
   sanitizeText,
   TEXT_LIMITS,
-  triggerHints,
   UNLIKELY_SIGNAL,
 } from "./context-packet-format";
 import {
   type ContextPacketReaderInput,
   contextPacketScope,
 } from "./context-packet-scope";
+
+import type { CapturedPreference } from "./preference-capture";
 
 export interface BuildContextPacketInput extends ContextPacketReaderInput {
   source: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT" | "INGEST";
@@ -51,7 +53,7 @@ export interface BuildContextPacketInput extends ContextPacketReaderInput {
   /** A person typed this turn: it holds every tool, and the route is a guess. */
   personAsked?: boolean;
   /** The lasting preference saved from this message before the turn. */
-  capturedPreference?: string | null;
+  capturedPreference?: CapturedPreference | null;
 }
 
 export interface BuiltContextPacket {
@@ -391,7 +393,12 @@ export class ContextPacketBuilder {
       prisma.sokoBotMemoryRevision.findFirst({
         where: scope.memoryWhere,
         orderBy: { version: "desc" },
-        select: { id: true, version: true, hash: true, markdown: true },
+        select: {
+          id: true,
+          version: true,
+          hash: true,
+          markdown: true,
+        },
       }),
       billingPromise,
       prisma.project.count({ where: scope.projectWhere }),
@@ -485,42 +492,18 @@ export class ContextPacketBuilder {
     const safeMemoryMarkdown = sanitizeMemory(
       memoryRevision?.markdown ?? "# Soko Bot memory",
     );
-    const hints = triggerHints(input);
     const packetWithoutHash: ContextPacketWithoutHash = {
       schemaVersion: 1,
       generatedAt,
-      trigger: {
-        source: input.source,
-        route: input.classification.route,
-        confidence: input.classification.confidence,
-        ...(input.classification.unsureRoute
-          ? { unsureRoute: input.classification.unsureRoute }
-          : {}),
-        ...(hints.length ? { hints } : {}),
-        requestedOutcome:
-          sanitizeText(
-            input.classification.requestedOutcome,
-            TEXT_LIMITS.requestedOutcome,
-          ) ?? "",
-        // Who is on the other side of this turn. `actor` below is the owner
-        // whatever happens, so this is the only field that distinguishes the
-        // owner asking, a colleague asking in a shared room, and another
-        // assistant asking on its own owner's behalf.
-        askedBy: {
+      trigger: formatTrigger(
+        input,
+        {
           kind: askedByKind,
-          // Only an OWNER turn may borrow the owner's name. A colleague whose
-          // account has since been deleted has no name to give, and falling
-          // back to the owner's would say the owner is the one asking — the
-          // exact confusion this field exists to end.
-          name:
-            askedByKind === "OWNER"
-              ? sanitizeText(user?.name ?? null, TEXT_LIMITS.actorName)
-              : asker
-                ? sanitizeText(asker.name, TEXT_LIMITS.actorName)
-                : null,
-          trust: "untrusted-data",
+          ownerName: user?.name ?? null,
+          askerName: asker?.name ?? null,
         },
-      },
+        memoryRevision,
+      ),
       actor: {
         // Null when a shared bot acts on its own: nobody is behind the turn.
         id: boundedIdentifier(user?.id ?? null),

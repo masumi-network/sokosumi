@@ -4,7 +4,11 @@ import {
   FileSourceKind,
   FileSourceScope,
 } from "@sokosumi/database";
-import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
+import {
+  CMO_SOKO_BOT_VERSION_ID,
+  createEmptySokoBotMemory,
+  renderSokoBotMemory,
+} from "@sokosumi/soko-bot";
 import { del } from "@vercel/blob";
 import { z } from "zod";
 import { getEnv } from "@/config/env";
@@ -17,7 +21,10 @@ import {
 } from "@/lib/evals/eval-guard";
 import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 import { freeCreditAdminService } from "@/services/free-credit-admin.service";
-import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
+import {
+  memoryHash,
+  sokoBotControlPlane,
+} from "@/services/soko-bot-control-plane.service";
 import { getDefaultSokoBotVersionId } from "@/services/soko-bot-version.service";
 
 /**
@@ -36,6 +43,9 @@ export const EVAL_LANE_COUNT = 3;
 /** Topped up before each run; a full daily run spends a fraction of this. */
 const LANE_CREDITS = 2_000;
 const EMAIL_DOMAIN = "sokosumi.com";
+const EVAL_MEMORY_CHANGED = "Eval memory changed after reset; retry the reset";
+const OWNER_CONFIRMED_TEAM_ROLES =
+  "Robin Keller confirmed these team roles: Hannah Weber handles research; Alex Kim handles writing.";
 
 const worldSchema = z.object({
   hannahUserId: z.string(),
@@ -558,5 +568,34 @@ export async function resetEvalLaneForSokoBot(
   await prisma.socialPost.deleteMany({ where: { workspaceId } });
   await prisma.newsletterIssue.deleteMany({ where: { workspaceId } });
   await prisma.contact.deleteMany({ where: { workspaceId } });
-  await sokoBotControlPlane.resetMemory(lane.userId, workspaceId);
+  const reset = await sokoBotControlPlane.resetMemory(lane.userId, workspaceId);
+  // The lane's roles are owner-provided fixture facts, not directory metadata.
+  // Store them through the existing memory format without changing the reset
+  // revision, whose timestamp remains the floor for retained eval history.
+  const memory = createEmptySokoBotMemory();
+  memory.preferences.push(OWNER_CONFIRMED_TEAM_ROLES);
+  const markdown = renderSokoBotMemory(memory);
+  const hash = memoryHash(markdown);
+  await serializableTransaction(async (tx) => {
+    const current = await tx.sokoBot.findFirstOrThrow({
+      where: {
+        id: sokoBotId,
+        workspaceId,
+        userId: lane.userId,
+        archivedAt: null,
+        deletedAt: null,
+      },
+      select: { memoryVersion: true },
+    });
+    if (current.memoryVersion !== reset.version)
+      throw new Error(EVAL_MEMORY_CHANGED);
+    const version = reset.version + 1;
+    await tx.sokoBotMemoryRevision.create({
+      data: { sokoBotId, version, hash, markdown, source: "eval_fixture" },
+    });
+    await tx.sokoBot.update({
+      where: { id: sokoBotId },
+      data: { memoryVersion: version, memoryHash: hash },
+    });
+  }, EVAL_MEMORY_CHANGED);
 }

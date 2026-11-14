@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { limitSokoBotWrites, SOKO_BOT_ROUTE_CAPABILITIES } from "../policy.js";
 import { sokoBotPreviewResultInputSchema } from "../result-previews.js";
-import { sokoBotPostChatInputSchema } from "../tool-contracts.js";
+import { sokoBotPostChatInputSchema } from "../tool-contracts-workspace.js";
 import {
   applyVersionCapabilities,
   composeSystemPrompt,

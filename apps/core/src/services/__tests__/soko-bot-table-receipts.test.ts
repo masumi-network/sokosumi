@@ -106,7 +106,12 @@ it.each(["write_table_rows", "create_table", "update_table_columns"] as const)(
         key: randomUUID(),
         insert: [{ values: { [randomUUID()]: "x".repeat(20000) } }],
       },
-      create_table: { key: randomUUID(), title: "Research", columns },
+      create_table: {
+        key: randomUUID(),
+        title: "Research",
+        columns,
+        rows: [{ values: { "Column 0": "Sokosumi" } }],
+      },
       update_table_columns: { tableId, key: randomUUID(), version: 1, columns },
     };
     const input = payloads[capability];
@@ -169,6 +174,11 @@ it.each(["write_table_rows", "create_table", "update_table_columns"] as const)(
     );
     expect(helper).not.toHaveBeenCalled();
     expect(mocks.recover).toHaveBeenCalledOnce();
+    if (capability === "create_table") {
+      expect(mocks.recover.mock.calls[0][2].create.rows[0].values).toEqual({
+        [columns[0].id]: "Sokosumi",
+      });
+    }
     expect(mocks.alias).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({

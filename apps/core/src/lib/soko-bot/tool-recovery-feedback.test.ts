@@ -2,6 +2,30 @@ import { describe, expect, it } from "vitest";
 import { toolRecoveryFeedback } from "./tool-recovery-feedback";
 
 describe("toolRecoveryFeedback", () => {
+  it.each([
+    "newsletter_draft_issue",
+    "create_newsletter_issue",
+    "update_newsletter_issue",
+    "get_newsletter_issue",
+  ])(
+    "gives %s an editor link without treating an issue as a file preview",
+    (capability) => {
+      const result = {
+        id: "11111111-1111-4111-8111-111111111111",
+        projectId: "22222222-2222-4222-8222-222222222222",
+        status: "DRAFT",
+      };
+      expect(toolRecoveryFeedback(capability, result)).toMatchObject({
+        ...result,
+        url: `/newsletter/issues/${result.id}?projectId=${result.projectId}${capability === "newsletter_draft_issue" ? "&draftedBySokoBot=true" : ""}`,
+        instruction: expect.stringContaining("Do not call preview_result"),
+      });
+    },
+  );
+  it("does not fabricate a newsletter link from an invalid result", () => {
+    const result = { id: "not-an-issue", error: "unavailable" };
+    expect(toolRecoveryFeedback("newsletter_draft_issue", result)).toBe(result);
+  });
   it("explains an empty directory without inventing assignees", () => {
     const feedback = toolRecoveryFeedback("find_coworkers", {
       people: [],

@@ -18,6 +18,7 @@ import {
   sokoBotInferenceEvidence,
   sokoBotModelRequest,
 } from "@/lib/soko-bot/model-policy";
+import { savedPreferenceResponse } from "@/lib/soko-bot/saved-preference-response";
 import {
   JUDGE_EVIDENCE_VISIBILITY_GUIDANCE,
   judgeEvidenceVisibility,
@@ -132,6 +133,10 @@ async function loadTranscript(turnId: string, userId?: string) {
   if (!turn) throw new SokoBotLabJudgeError("Turn not found");
   const runtimeInput = clip(turn.userMessage);
   const finalAnswer = clip(turn.finalAnswer) || "(no answer)";
+  // A Core capture commits before the model starts and has no model tool call.
+  // Validate its persisted revision, just as the canonical response does.
+  const savedPreference = await savedPreferenceResponse(prisma, turn);
+  const coreActions = savedPreference ? [savedPreference] : [];
   // Sandbox tools (web, shell, workspace) are tool calls too, in order.
   const calls = turn.toolCalls;
   const fitted = fitWithinBudget(
@@ -156,6 +161,7 @@ async function loadTranscript(turnId: string, userId?: string) {
   const spent =
     runtimeInput.length +
     finalAnswer.length +
+    coreActions.join("\n").length +
     fitted.reduce((total, value) => total + value.length, 0);
   return {
     turn,
@@ -172,6 +178,7 @@ async function loadTranscript(turnId: string, userId?: string) {
         Math.min(PACKET_LIMIT, Math.max(0, TRANSCRIPT_LIMIT - spent)),
       ),
       toolCalls,
+      coreActions,
       finalAnswer,
     },
   };
@@ -352,6 +359,7 @@ function labJudgePayload(scenario: SokoBotScenario, transcript: Transcript) {
       title: scenario.title,
       intent: scenario.intent,
       rubric: scenario.rubric,
+      constraints: scenario.expect,
       ownerMessageOrTrigger:
         scenario.trigger?.kind === "task_event"
           ? `Coworker set the task to ${scenario.trigger.status}: ${scenario.trigger.comment}`
@@ -359,6 +367,10 @@ function labJudgePayload(scenario: SokoBotScenario, transcript: Transcript) {
             ? `Self-started ${scenario.trigger.beat} turn built from the connected mail and calendar (see the packet in the prompt).`
             : scenario.prompt,
     },
+    platformRules: [
+      "READY requires a verified assignee. Create new unassigned Tasks as DRAFT. Existing unassigned FAILED or INPUT_REQUIRED Tasks can retain their status while receiving guidance; never move an unassigned Task to READY.",
+      "A marketplace listing is not an available teammate or permission to hire. Respect forbiddenTools, owner authorization, spending limits and workspace access.",
+    ],
     turn: transcript,
   };
 }

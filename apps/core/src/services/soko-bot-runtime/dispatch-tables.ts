@@ -1,6 +1,5 @@
 import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
 import {
-  createDataTableSchema,
   tableBatchSchema,
   tableMutationSchema,
   tableQuerySchema,
@@ -31,6 +30,7 @@ import {
 } from "../soko-bot-runtime.service";
 import { CORE_WRITE_CALLS } from "./execution-limits";
 import { type RuntimeOperations } from "./operations";
+import { normalizeCreateTableInput } from "./table-create-input";
 
 export async function dispatchTablesTools(
   runtime: RuntimeOperations,
@@ -207,7 +207,7 @@ export async function dispatchTablesTools(
       if (input.capability === "create_table") {
         const table = await createDataTable(
           scopedActor,
-          createDataTableSchema.parse(input.input),
+          normalizeCreateTableInput(input.input),
           complete,
         );
         return {

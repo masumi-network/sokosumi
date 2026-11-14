@@ -11,6 +11,7 @@ import {
 const db = vi.hoisted(() => ({
   sokoBotToolCall: { findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn() },
   sokoBotTurn: { findUnique: vi.fn() },
+  sokoBotMemoryRevision: { findFirst: vi.fn() },
   task: { findFirst: vi.fn(), findMany: vi.fn() },
   job: { findMany: vi.fn() },
 }));
@@ -1079,6 +1080,95 @@ describe("authoritative action responses", () => {
       'Observed job "Research": status "AWAITING_INPUT".\nThe latest job event is awaiting input; completion is not verified.',
     );
   });
+
+  it("confirms a preference Core saved before a turn with no tool calls", async () => {
+    const preference = "Write tasks assigned to Hannah in German.";
+    db.sokoBotToolCall.findMany.mockResolvedValue([]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "CHAT",
+      sokoBotId: "bot-one",
+      versionId: "v37",
+      contextSnapshot: {
+        packet: {
+          trigger: {
+            source: "CHAT",
+            askedBy: { kind: "OWNER" },
+            savedPreference: {
+              instruction: preference,
+              memoryRevisionId: "01960001-0001-7001-8001-000000000003",
+              memoryVersion: 1,
+              memoryHash: "saved-hash",
+            },
+          },
+          memory: {
+            version: 1,
+            hash: "saved-hash",
+            markdown: `# Soko Bot memory\n\n## Preferences\n- ${preference}`,
+          },
+        },
+      },
+    });
+    db.sokoBotMemoryRevision.findFirst.mockResolvedValue({
+      markdown: `# Soko Bot memory\n\n## Preferences\n- ${preference}`,
+    });
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "",
+      true,
+      {
+        kind: "REPORT",
+        message: null,
+        question: null,
+        observationToolCallIds: [],
+      },
+    );
+    expect(response.answerText).toBe(
+      `Saved preference: ${JSON.stringify(preference)}.`,
+    );
+    expect(response.appliedReceiptIds).toEqual([]);
+  });
+
+  it("reports a verified schedule pause without depending on model wording", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValue([
+      receipt({
+        capability: "update_schedule",
+        input: { enabled: false },
+        targetId: "schedule-one",
+        result: { enabled: false },
+      }),
+    ]);
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "",
+      true,
+    );
+    expect(response.answerText).toBe("Paused schedule.");
+  });
+
+  it.each([true, false])(
+    "reports a rename as an update with enabled=%s",
+    async (enabled) => {
+      db.sokoBotToolCall.findMany.mockResolvedValue([
+        receipt({
+          capability: "update_schedule",
+          input: { name: "New check name" },
+          targetId: "schedule-one",
+          result: { enabled },
+        }),
+      ]);
+      const response = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "",
+        true,
+      );
+      expect(response.answerText).toBe(
+        `Updated schedule (${enabled ? "enabled" : "paused"}).`,
+      );
+    },
+  );
 
   it.each([false, true])(
     "handles no action attempts with actionRequested=%s",

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { composeSokoBotVersionNotice } from "../persona.js";
 import { SOKO_BOT_NEWSLETTER_CAPABILITIES } from "../policy.js";
-import { SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX } from "../tool-contracts.js";
+import { SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX } from "../tool-contracts-marketing.js";
 import {
   applyVersionCapabilities,
   composeSystemPrompt,

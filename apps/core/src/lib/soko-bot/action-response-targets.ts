@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import { z } from "zod";
+import { newsletterIssueLink } from "./newsletter-issue-link";
 
 const NEWSLETTER_ISSUE_CAPABILITIES = new Set([
   "create_newsletter_issue",
@@ -120,7 +121,7 @@ export function actionTarget(
   if (call.capability === "newsletter_draft_issue") {
     const issue = z.object({ projectId: z.uuid() }).safeParse(call.result);
     return issue.success
-      ? `([Review draft](/newsletter/issues/${encodeURIComponent(id)}?projectId=${encodeURIComponent(issue.data.projectId)}&draftedBySokoBot=true))`
+      ? `([Review draft](${newsletterIssueLink({ id, projectId: issue.data.projectId }, true)}))`
       : "";
   }
   if (NEWSLETTER_ISSUE_CAPABILITIES.has(call.capability)) {
@@ -130,7 +131,7 @@ export function actionTarget(
     // A deleted issue has no editor left to open.
     return call.capability === "delete_newsletter_issue"
       ? `([Open issues](/newsletter/issues${query}))`
-      : `([Open issue](/newsletter/issues/${encodeURIComponent(id)}${query}))`;
+      : `([Open issue](${newsletterIssueLink({ id, projectId: issue.data.projectId })}))`;
   }
   if (call.capability === "update_newsletter_settings") {
     const newsletter = z.object({ projectId: z.uuid() }).safeParse(call.result);

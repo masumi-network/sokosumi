@@ -3,11 +3,7 @@ import {
   isSokoBotSeoCapability,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
 } from "@sokosumi/soko-bot";
-import {
-  createDataTableSchema,
-  tableBatchSchema,
-  tableMutationSchema,
-} from "@sokosumi/utils";
+import { tableBatchSchema, tableMutationSchema } from "@sokosumi/utils";
 import { z } from "zod";
 import { readTableOperation } from "@/helpers/data-table";
 import prisma from "@/lib/db/prisma";
@@ -47,6 +43,7 @@ import {
 } from "./execution-limits";
 import { type RuntimeOperations } from "./operations";
 import { persistedErrorDetail } from "./seller-recovery";
+import { normalizeCreateTableInput } from "./table-create-input";
 
 export async function executeTool(
   runtime: RuntimeOperations,
@@ -91,6 +88,22 @@ export async function executeTool(
       },
     },
   });
+  // A later attempt may have committed the same intent after this call failed.
+  // Reuse that receipt before reopening the older rejected call's unique key.
+  if (
+    existing?.status === "FAILED" &&
+    existing.inputHash === inputHash &&
+    existing.capability === input.capability &&
+    existing.disposition === "REJECTED" &&
+    existing.verification === "NONE" &&
+    !existing.committedAt &&
+    operationKey
+  ) {
+    const operation = await prisma.sokoBotToolCall.findUnique({
+      where: { operationKey },
+    });
+    if (operation) existing = operation;
+  }
   if (!existing) {
     existing = await serializableTransaction(async (tx) => {
       await tx.$queryRaw`
@@ -274,7 +287,7 @@ export async function executeTool(
         let key: string;
         let request: unknown;
         if (input.capability === "create_table") {
-          const body = createDataTableSchema.parse(input.input);
+          const body = normalizeCreateTableInput(input.input);
           key = body.key;
           request = { create: body };
         } else {

@@ -292,6 +292,36 @@ afterEach(() => {
 });
 
 describe("ContextPacketBuilder", () => {
+  it("links the automatic capture to its persisted memory revision", async () => {
+    const preference = "Write tasks assigned to Hannah in German.";
+    const memoryRevisionId = "01960001-0001-7001-8001-000000000003";
+    memoryFindFirstMock.mockResolvedValue({
+      id: memoryRevisionId,
+      source: "preference_capture",
+      version: 1,
+      hash: "saved-hash",
+      markdown: `# Soko Bot memory\n\n## Preferences\n- ${preference}`,
+    });
+    const { packet } = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      personAsked: true,
+      capturedPreference: {
+        instruction: preference,
+        memoryRevisionId,
+        memoryVersion: 1,
+        memoryHash: "saved-hash",
+      },
+    });
+    expect(packet.trigger).toMatchObject({
+      savedPreference: {
+        instruction: preference,
+        memoryRevisionId,
+        memoryVersion: 1,
+        memoryHash: "saved-hash",
+      },
+    });
+  });
+
   it("reads and counts only the current eval world after its reset", async () => {
     historyFloorMock.mockResolvedValue(EARLIER);
     await new ContextPacketBuilder().build(buildInput());

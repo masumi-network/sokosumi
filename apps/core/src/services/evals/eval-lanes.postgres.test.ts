@@ -424,6 +424,41 @@ describe.skipIf(!enabled)("eval lanes", () => {
     }
   });
 
+  it("seeds owner-confirmed team roles into current memory after each reset", async () => {
+    const [lane] = await ensureEvalLanes(1);
+    if (!lane) throw new Error("no lane");
+    for (let resetIndex = 0; resetIndex < 2; resetIndex += 1) {
+      await resetEvalLaneForSokoBot(lane);
+      const bot = await prisma.sokoBot.findUniqueOrThrow({
+        where: { id: lane.sokoBotId },
+      });
+      const current = await prisma.sokoBotMemoryRevision.findUniqueOrThrow({
+        where: {
+          sokoBotId_version: {
+            sokoBotId: lane.sokoBotId,
+            version: bot.memoryVersion,
+          },
+        },
+      });
+      expect(current.source).toBe("eval_fixture");
+      expect(current.markdown).toContain(
+        "Robin Keller confirmed these team roles: Hannah Weber handles research; Alex Kim handles writing.",
+      );
+      expect(current.hash).toBe(bot.memoryHash);
+      const reset = await prisma.sokoBotMemoryRevision.findFirstOrThrow({
+        where: { sokoBotId: lane.sokoBotId, source: "user_reset" },
+        orderBy: { version: "desc" },
+      });
+      expect(current.version).toBe(reset.version + 1);
+      expect(
+        await evalHistoryFloor({
+          workspaceId: lane.workspaceId,
+          sokoBotId: lane.sokoBotId,
+        }),
+      ).toEqual(reset.createdAt);
+    }
+  });
+
   it("limits history only for the registered bot in its eval workspace", async () => {
     const [lane, other] = await ensureEvalLanes(2);
     if (!lane || !other) throw new Error("no lanes");

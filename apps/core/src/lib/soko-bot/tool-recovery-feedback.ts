@@ -1,6 +1,16 @@
 import { z } from "zod";
+import { newsletterIssueLink } from "./newsletter-issue-link";
 
 const BOT_SCHEDULE_PREVIEW_KIND = "bot_schedule";
+const NEWSLETTER_EDITOR_CAPABILITIES = new Set([
+  "newsletter_draft_issue",
+  "create_newsletter_issue",
+  "update_newsletter_issue",
+  "get_newsletter_issue",
+]);
+const newsletterIssue = z
+  .object({ id: z.uuid(), projectId: z.uuid(), status: z.string() })
+  .passthrough();
 
 const directoryResult = z
   .object({
@@ -33,6 +43,19 @@ export function toolRecoveryFeedback(
   capability: string,
   result: unknown,
 ): unknown {
+  if (NEWSLETTER_EDITOR_CAPABILITIES.has(capability)) {
+    const issue = newsletterIssue.safeParse(result);
+    if (issue.success)
+      return {
+        ...issue.data,
+        url: newsletterIssueLink(
+          issue.data,
+          capability === "newsletter_draft_issue",
+        ),
+        instruction:
+          "Present this issue editor URL as the review link. Do not call preview_result: newsletter issue IDs are not file or decision IDs and have no preview_result reference kind. Use get_newsletter_issue to read the saved issue. A preview card is not needed to link the draft. Keep the saved status; drafting does not submit, schedule or send it.",
+      };
+  }
   if (capability === "list_schedules" && Array.isArray(result))
     return result.map((entry) => {
       const schedule = botSchedule.safeParse(entry);

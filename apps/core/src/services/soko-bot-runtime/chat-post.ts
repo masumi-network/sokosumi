@@ -186,6 +186,7 @@ export async function postChat(
     // Coworker or another assistant is a message of its own and still goes.
     if (
       !input.via &&
+      !input.publicationId &&
       authorized.turn.source === "CHAT" &&
       authorized.turn.chainDepth === 0 &&
       mentionedCoworkerIds.length === 0 &&

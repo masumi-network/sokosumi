@@ -8,6 +8,7 @@ import {
   verifyTaskArchiveReceipt,
 } from "./action-receipts";
 
+import { cmoReportedByCard, cmoSavedRecord } from "./action-response-cmo";
 import {
   correctedCreationInput,
   inputCovers,
@@ -24,6 +25,7 @@ import {
   taskLabels,
   UNDONE_TASK_VERBS,
 } from "./action-response-targets";
+import { savedPreferenceResponse } from "./saved-preference-response";
 
 /** Turns an owner asked for; the rest the bot started itself. */
 const OWNER_STARTED_SOURCES = new Set(["CHAT", "ADMIN_RETRY"]);
@@ -99,7 +101,11 @@ export const ACTION_LABELS: Record<string, string> = {
 };
 
 /** A comment that also changed the status says which change it was. */
-function actionLabel(call: { capability: string; result?: unknown }): string {
+function actionLabel(call: {
+  capability: string;
+  input?: unknown;
+  result?: unknown;
+}): string {
   const reply = z
     .object({ statusChanged: z.literal(true), status: z.string() })
     .safeParse(call.result);
@@ -114,6 +120,13 @@ function actionLabel(call: { capability: string; result?: unknown }): string {
     z.object({ replaced: z.literal(true) }).safeParse(call.result).success
   )
     return "Updated file";
+  const schedule = z.object({ enabled: z.boolean() }).safeParse(call.result);
+  if (call.capability === "update_schedule" && schedule.success) {
+    const requested = z.object({ enabled: z.boolean() }).safeParse(call.input);
+    if (requested.success && requested.data.enabled === schedule.data.enabled)
+      return schedule.data.enabled ? "Enabled schedule" : "Paused schedule";
+    return `Updated schedule (${schedule.data.enabled ? "enabled" : "paused"})`;
+  }
   return ACTION_LABELS[call.capability] ?? call.capability;
 }
 
@@ -321,40 +334,6 @@ function describeRead(capability: string, value: unknown): string[] {
   return observations;
 }
 
-/** Whether a Cuso turn filed its report as a chat card (report_update). */
-async function cmoReportedByCard(
-  tx: Prisma.TransactionClient,
-  turnId: string,
-  cmo: boolean,
-): Promise<boolean> {
-  if (!cmo) return false;
-  const reports = await tx.sokoBotToolCall.count({
-    where: { turnId, capability: "report_update", status: "COMPLETED" },
-  });
-  return reports > 0;
-}
-
-/**
- * Whether a Cuso turn saved his Brand Brain or strategy. Those writes carry
- * no action receipt, so without this a correction he applied would end on
- * "Nothing was changed in this turn."
- */
-async function cmoSavedRecord(
-  tx: Prisma.TransactionClient,
-  turnId: string,
-  cmo: boolean,
-): Promise<boolean> {
-  if (!cmo) return false;
-  const saves = await tx.sokoBotToolCall.count({
-    where: {
-      turnId,
-      capability: { in: ["save_brand_brain", "save_strategy"] },
-      status: "COMPLETED",
-    },
-  });
-  return saves > 0;
-}
-
 /** Model text cannot confer evidence. Replays reference original committed proof. */
 export async function buildActionResponse(
   tx: Prisma.TransactionClient,
@@ -515,12 +494,22 @@ export async function buildActionResponse(
   // card does not carry, still follow as lines.
   // One read of the turn serves every question about it below.
   let turnRow:
-    | Promise<{ source: string | null; versionId: string | null } | null>
+    | Promise<{
+        source: string | null;
+        versionId: string | null;
+        sokoBotId: string;
+        contextSnapshot: { packet: Prisma.JsonValue } | null;
+      } | null>
     | undefined;
   const turnInfo = () => {
     turnRow ??= tx.sokoBotTurn.findUnique({
       where: { id: turnId },
-      select: { source: true, versionId: true },
+      select: {
+        source: true,
+        versionId: true,
+        sokoBotId: true,
+        contextSnapshot: { select: { packet: true } },
+      },
     });
     return turnRow;
   };
@@ -528,6 +517,13 @@ export async function buildActionResponse(
     getSokoBotVersion((await turnInfo())?.versionId).profile === "cmo";
   const reportedByCard = await cmoReportedByCard(tx, turnId, await isCmo());
   const actionText: string[] = reportedByCard ? [] : receiptLines;
+  if (
+    !reportedByCard &&
+    !unique.some((call) => call.capability === "update_memory")
+  ) {
+    const saved = await savedPreferenceResponse(tx, await turnInfo());
+    if (saved) actionText.push(saved);
+  }
   // A file link on its own line renders as the file's card in chat.
   const attachments = [
     ...new Set(
@@ -697,6 +693,7 @@ export async function buildActionResponse(
     !(await isOwnerStarted());
   const silent =
     (!calls.length &&
+      !actionText.length &&
       (narrative?.kind === "SILENT" ||
         isSokoBotSilentAnswer(answerText) ||
         (actionRequested && nothingToSay && !(await isOwnerStarted())))) ||
@@ -711,7 +708,7 @@ export async function buildActionResponse(
     unfulfilledActions,
     answerText: silent
       ? "Nothing to add."
-      : calls.length || narrativeText.length
+      : calls.length || actionText.length || narrativeText.length
         ? [
             actionText.join("\n"),
             reportedByCard ? "" : attachments.join("\n"),

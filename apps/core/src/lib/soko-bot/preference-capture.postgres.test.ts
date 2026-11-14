@@ -3,6 +3,8 @@ import { parseSokoBotMemory } from "@sokosumi/soko-bot";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import prisma from "@/lib/db/prisma";
+import { buildActionResponse } from "./action-response";
+import { formatTrigger } from "./context-packet-format";
 import { capturePreference } from "./preference-capture";
 
 const enabled =
@@ -58,7 +60,7 @@ describe.skipIf(!enabled)("preference capture", () => {
         { sokoBotId: BOT, message },
         answering(JSON.stringify({ kind: "preference", instruction: MUTE })),
       ),
-    ).toBe(MUTE);
+    ).toMatchObject({ instruction: MUTE, memoryVersion: 1 });
     expect(await preferences()).toEqual({
       lines: [MUTE],
       version: 1,
@@ -116,7 +118,178 @@ describe.skipIf(!enabled)("preference capture", () => {
         { sokoBotId: BOT, message: instruction },
         answering(JSON.stringify({ kind: "preference", instruction })),
       ),
-    ).toBe(instruction);
+    ).toMatchObject({ instruction });
     expect((await preferences()).lines).toContain(instruction);
+  });
+  it("confirms the exact committed capture after a later dream revision", async () => {
+    const instruction = "Write tasks assigned to Hannah in German.";
+    const captured = await capturePreference(
+      { sokoBotId: BOT, message: instruction },
+      answering(JSON.stringify({ kind: "preference", instruction })),
+    );
+    expect(captured).not.toBeNull();
+    if (!captured) throw new Error("Capture did not persist");
+    const original = await prisma.sokoBotMemoryRevision.findUniqueOrThrow({
+      where: { id: captured.memoryRevisionId },
+    });
+    // A later autonomous writer preserves the preference, but has a new identity.
+    const later = await prisma.sokoBotMemoryRevision.create({
+      data: {
+        sokoBotId: BOT,
+        version: original.version + 1,
+        source: "dreaming",
+        markdown: original.markdown,
+        hash: "later-memory-hash",
+      },
+    });
+    await prisma.sokoBot.update({
+      where: { id: BOT },
+      data: { memoryVersion: later.version, memoryHash: later.hash },
+    });
+    const trigger = formatTrigger(
+      {
+        userId: OWNER,
+        sokoBotId: BOT,
+        workspaceId: WS,
+        sharedScope: null,
+        source: "CHAT",
+        personAsked: true,
+        capturedPreference: captured,
+        classification: {
+          schemaVersion: 1,
+          route: "MANAGE_WORK",
+          confidence: 1,
+          requestedOutcome: instruction,
+          rationaleSummary: "Owner preference",
+          candidateProjectIds: [],
+          candidateCoworkerIds: [],
+          candidateAgentIds: [],
+          requiresClarification: false,
+          requiresApproval: false,
+        },
+      },
+      { kind: "OWNER", ownerName: OWNER, askerName: null },
+      later,
+    );
+    expect(trigger.savedPreference).toEqual(captured);
+    const turn = await prisma.sokoBotTurn.create({
+      data: {
+        sokoBotId: BOT,
+        workspaceId: WS,
+        requestedByUserId: OWNER,
+        source: "CHAT",
+        status: "RUNNING",
+        clientTurnId: randomUUID(),
+        userMessage: instruction,
+        capabilityNames: [],
+        deadlineAt: new Date(Date.now() + 60_000),
+        contextSnapshot: {
+          create: {
+            generatedAt: new Date(),
+            schemaVersion: 1,
+            hash: "capture-context-hash",
+            byteSize: 1,
+            tokenEstimate: 1,
+            counts: {},
+            omissions: {},
+            packet: {
+              trigger,
+              memory: {
+                version: later.version,
+                hash: later.hash,
+                markdown: later.markdown,
+              },
+            },
+          },
+        },
+      },
+    });
+    const response = await buildActionResponse(prisma, turn.id, "", true, {
+      kind: "REPORT",
+      message: null,
+      question: null,
+      observationToolCallIds: [],
+    });
+    expect(response.answerText).toBe(
+      `Saved preference: ${JSON.stringify(instruction)}.`,
+    );
+    expect(response.appliedReceiptIds).toEqual([]);
+    expect(
+      await prisma.sokoBotToolCall.count({ where: { turnId: turn.id } }),
+    ).toBe(0);
+
+    // A matching preference alone does not prove this message saved anything.
+    const { savedPreference: _capture, ...uncapturedTrigger } = trigger;
+    await prisma.sokoBotContextSnapshot.update({
+      where: { turnId: turn.id },
+      data: {
+        packet: {
+          trigger: uncapturedTrigger,
+          memory: {
+            version: later.version,
+            hash: later.hash,
+            markdown: later.markdown,
+          },
+        },
+      },
+    });
+    expect(
+      (await buildActionResponse(prisma, turn.id, "", true)).answerText,
+    ).toBe("Nothing to add.");
+
+    // A proof cannot confirm a revision whose committed hash does not match.
+    await prisma.sokoBotContextSnapshot.update({
+      where: { turnId: turn.id },
+      data: {
+        packet: {
+          trigger: {
+            ...trigger,
+            savedPreference: { ...captured, memoryHash: "wrong-hash" },
+          },
+          memory: {
+            version: later.version,
+            hash: later.hash,
+            markdown: later.markdown,
+          },
+        },
+      },
+    });
+    expect(
+      (await buildActionResponse(prisma, turn.id, "", true)).answerText,
+    ).toBe("Nothing to add.");
+
+    const foreignBot = randomUUID();
+    await prisma.sokoBot.create({
+      data: {
+        id: foreignBot,
+        userId: OWNER,
+        workspaceId: WS,
+        deletedAt: new Date(),
+      },
+    });
+    try {
+      await prisma.sokoBotTurn.update({
+        where: { id: turn.id },
+        data: { sokoBotId: foreignBot },
+      });
+      await prisma.sokoBotContextSnapshot.update({
+        where: { turnId: turn.id },
+        data: {
+          packet: {
+            trigger,
+            memory: {
+              version: later.version,
+              hash: later.hash,
+              markdown: later.markdown,
+            },
+          },
+        },
+      });
+      expect(
+        (await buildActionResponse(prisma, turn.id, "", true)).answerText,
+      ).toBe("Nothing to add.");
+    } finally {
+      await prisma.sokoBot.delete({ where: { id: foreignBot } });
+    }
   });
 });

@@ -70,7 +70,7 @@ export const WORKFLOW_SCENARIOS: SokoBotScenario[] = [
       "A short, casual request to start a research task creates it and says so in plain words, without status boilerplate.",
     prompt: "okay please start a research task for x402 news",
     rubric:
-      'A task for researching recent x402 news exists, READY or assigned to the research teammate if one fits. The answer says in one or two plain sentences what was started and for whom, with no internal status boilerplate ("outcome is blocked", "acceptance criterion", raw ids without names).',
+      'A task for researching recent x402 news exists and is assigned to a verified suitable research teammate when one fits. If directory results and owner-provided role facts establish no suitable assignee, an unassigned DRAFT with that limit stated is correct; never hire without authorization or mark an unassigned task READY. The answer says in one or two plain sentences what was started and for whom, with no internal status boilerplate ("outcome is blocked", "acceptance criterion", raw ids without names).',
     expect: {
       routes: ["DELEGATE_TASK"],
       tools: ["create_task"],

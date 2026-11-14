@@ -86,16 +86,24 @@ const defaultDeps: PreferenceCaptureDeps = {
   },
 };
 
+export interface CapturedPreference {
+  instruction: string;
+  memoryRevisionId: string;
+  memoryVersion: number;
+  memoryHash: string;
+}
+
 /**
  * Saves the lasting preference a typed message states into the bot's memory,
  * before the turn reads it, so a mute is remembered whether or not the model
  * thinks to save it. The bot is told what was saved and can correct it.
- * Returns the saved line, or null when nothing new was saved; never throws.
+ * Returns the saved line and committed revision proof, or null when nothing
+ * new was saved; never throws.
  */
 export async function capturePreference(
   input: { sokoBotId: string; message: string },
   deps: PreferenceCaptureDeps = defaultDeps,
-): Promise<string | null> {
+): Promise<CapturedPreference | null> {
   const log = createCoreLogger({ operation: "soko_bot_preference_capture" });
   log.set({ sokoBot: { id: input.sokoBotId } });
   try {
@@ -123,7 +131,7 @@ export async function capturePreference(
     log.set({ preferenceCapture: { costUsd, saved: false } });
     if (!line || memory.preferences.includes(line)) return null;
     const saved = line.slice(0, SOKO_BOT_MEMORY_LIMITS.maxEntryLength);
-    await serializableTransaction(async (tx) => {
+    const committed = await serializableTransaction(async (tx) => {
       const bot = await tx.sokoBot.findUniqueOrThrow({
         where: { id: input.sokoBotId },
         select: { memoryVersion: true },
@@ -143,7 +151,7 @@ export async function capturePreference(
       const markdown = renderSokoBotMemory(next);
       const hash = createHash("sha256").update(markdown).digest("hex");
       const version = bot.memoryVersion + 1;
-      await tx.sokoBotMemoryRevision.create({
+      const revision = await tx.sokoBotMemoryRevision.create({
         data: {
           sokoBotId: input.sokoBotId,
           version,
@@ -151,14 +159,21 @@ export async function capturePreference(
           markdown,
           source: "preference_capture",
         },
+        select: { id: true },
       });
       await tx.sokoBot.update({
         where: { id: input.sokoBotId },
         data: { memoryVersion: version, memoryHash: hash },
       });
+      return {
+        instruction: saved,
+        memoryRevisionId: revision.id,
+        memoryVersion: version,
+        memoryHash: hash,
+      };
     }, "Soko Bot memory changed concurrently");
     log.set({ preferenceCapture: { costUsd, saved: true } });
-    return saved;
+    return committed;
   } catch (error) {
     log.set({
       preferenceCapture: {

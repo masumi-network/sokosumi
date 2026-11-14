@@ -60,7 +60,7 @@ export const FOUNDATION_SCENARIOS: SokoBotScenario[] = [
   {
     id: "coworker-failure",
     rubric:
-      "The bot read the failure reason and restarted the task with concrete guidance (e.g. use secondary sources or note the gap for the two blocked sites) via reply_to_task READY, or created a linked follow-up task with a changed scope. Just apologising or only summarising is weak.",
+      "The bot read the failure reason and restarted an assigned task with concrete guidance (e.g. use secondary sources or note the gap for the two blocked sites) via reply_to_task READY, or created a linked follow-up task with a changed scope. If the task is unassigned and no verified suitable teammate is available, it leaves concrete recovery guidance without READY and clearly reports the assignment blocker. It keeps the owner-requested check-in enabled. Just apologising or only summarising is weak.",
     title: "Coworker reports a failure",
     intent:
       "Reads the failure reason and restarts with guidance or creates a linked follow-up instead of just apologising.",
