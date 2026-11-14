@@ -5,6 +5,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -74,6 +75,10 @@ export function CreateProjectModal() {
   const router = useRouter();
   const pathname = usePathname();
   const [hasOpened, setHasOpened] = useState(open);
+  // The wizard calls onSuccess and then onOpenChange(false). After a
+  // success that close must not run the cancel cleanup: its replace back to
+  // the list would override the navigation to the new project.
+  const createdRef = useRef(false);
 
   if (open && !hasOpened) {
     setHasOpened(true);
@@ -98,6 +103,7 @@ export function CreateProjectModal() {
   // Land on the new project: from Hidden or Closed the list would not show
   // it, and from Open the card gives no sign it was just made.
   function handleSuccess(projectId: string) {
+    createdRef.current = true;
     handleClose();
     const href = `/projects/${projectId}`;
     // Replace a `?create` entry so Back does not reopen the wizard.
@@ -117,7 +123,12 @@ export function CreateProjectModal() {
       key={formInstanceKey}
       open={open}
       onOpenChange={(nextOpen) => {
-        if (!nextOpen) handleDismiss();
+        if (nextOpen) return;
+        if (createdRef.current) {
+          createdRef.current = false;
+          return;
+        }
+        handleDismiss();
       }}
       creationSource="projects_page"
       onSuccess={handleSuccess}
