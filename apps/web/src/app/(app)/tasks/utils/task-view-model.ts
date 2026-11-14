@@ -22,7 +22,7 @@ function getCommentsCount(events: TaskEvent[]): number {
 }
 
 /** When the latest status event happened, else `fallback`. */
-function latestStatusChange(events: TaskEvent[], fallback: Date): Date {
+export function latestStatusChange(events: TaskEvent[], fallback: Date): Date {
   return events.reduce(
     (latest, event) =>
       event.status && event.createdAt > latest ? event.createdAt : latest,

@@ -13,6 +13,8 @@ interface TaskStatusAgeProps {
   status: TaskStatus;
   /** ISO time the Task last changed status. */
   statusSince: string;
+  /** `row` matches the Task page's property rows; `card` fits boards and lists. */
+  variant?: "card" | "row";
   className?: string;
 }
 
@@ -20,6 +22,7 @@ interface TaskStatusAgeProps {
 export function TaskStatusAge({
   status,
   statusSince,
+  variant = "card",
   className,
 }: TaskStatusAgeProps) {
   const t = useTranslations("App.Tasks.StatusAge");
@@ -31,13 +34,20 @@ export function TaskStatusAge({
   return (
     <span
       className={cn(
-        "inline-flex min-w-0 items-center gap-1 text-xs",
+        "inline-flex min-w-0 items-center",
+        variant === "row" ? "h-8 gap-2 text-sm" : "gap-1 text-xs",
         stuck ? "text-foreground font-medium" : "text-muted-foreground",
         className,
       )}
     >
-      <Hourglass className="size-3.5 shrink-0" aria-hidden />
-      <span className={stuck ? undefined : "sr-only"}>
+      {variant === "row" ? (
+        <span className="flex size-5 shrink-0 items-center justify-center">
+          <Hourglass className="size-4" aria-hidden />
+        </span>
+      ) : (
+        <Hourglass className="size-3.5 shrink-0" aria-hidden />
+      )}
+      <span className={stuck || variant === "row" ? undefined : "sr-only"}>
         {stuck ? t("stuck") : t("label")}
       </span>
       <TimeAgo
