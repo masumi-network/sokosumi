@@ -3525,6 +3525,95 @@ describe("SokoBotRuntimeService authorization", () => {
     });
   });
 
+  describe("resuming a human-assigned Task", () => {
+    function resume() {
+      return new SokoBotRuntimeService()["replyToTask"](
+        {
+          turn: {
+            id: SCOPE.turnId,
+            sokoBotId: SCOPE.sokoBotId,
+            actingUserId: SCOPE.userId,
+            requestedByUserId: SCOPE.userId,
+            workspaceId: SCOPE.workspaceId,
+          },
+          reader: {
+            userId: SCOPE.userId,
+            audience: undefined,
+            sharedScope: null,
+          },
+        } as never,
+        {
+          taskId: "task_1",
+          comment: "Use accessible sources and label gaps.",
+          status: "READY",
+        },
+        "call_resume_human",
+      );
+    }
+
+    it("reads the human assignee and delivers recovery guidance with READY", async () => {
+      transactionTaskFindFirstMock.mockResolvedValue({
+        id: "task_1",
+        name: "Research",
+        ownerId: SCOPE.userId,
+        status: TaskStatus.FAILED,
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: "human_1",
+      });
+      await expect(resume()).resolves.toMatchObject({
+        id: "task_1",
+        status: TaskStatus.READY,
+        commented: true,
+        statusChanged: true,
+      });
+      expect(transactionTaskFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: expect.objectContaining({ assigneeUserId: true }),
+          where: expect.objectContaining({
+            workspaceId: SCOPE.workspaceId,
+            archivedAt: null,
+          }),
+        }),
+      );
+      expect(transactionTaskEventCreateMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          status: TaskStatus.READY,
+          comment: "Use accessible sources and label gaps.",
+        }),
+        select: { id: true },
+      });
+      expect(applyGuardedTaskStatusUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          expectedStatus: TaskStatus.FAILED,
+          eventStatus: TaskStatus.READY,
+        }),
+      );
+    });
+
+    it("still refuses to resume a Task with no kind of assignee", async () => {
+      transactionTaskFindFirstMock.mockResolvedValue({
+        id: "task_1",
+        name: "Research",
+        ownerId: SCOPE.userId,
+        status: TaskStatus.FAILED,
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+      });
+      await expect(resume()).rejects.toThrow("Task has no assignee");
+      expect(transactionTaskEventCreateMock).not.toHaveBeenCalled();
+      expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("does not resume a human-assigned Task outside the reader's visibility", async () => {
+      transactionTaskFindFirstMock.mockResolvedValue(null);
+      await expect(resume()).rejects.toThrow("Task not found");
+      expect(transactionTaskEventCreateMock).not.toHaveBeenCalled();
+      expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
+    });
+  });
+
   it("resumes its own assigned Task and fans out the soko bot event", async () => {
     transactionTaskFindFirstMock.mockResolvedValue({
       id: "task_1",
