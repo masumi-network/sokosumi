@@ -43,7 +43,7 @@ describe("runInProcessWebTool", () => {
       capability: "web_fetch",
       toolInput: { url: "https://acme.io" },
     });
-    expect(output).toMatchObject({ text: "Acme sells rockets." });
+    expect(output).toMatchObject({ data: { text: "Acme sells rockets." } });
     // The same audit row and web taint as a sandbox read.
     expect(recordAction).toHaveBeenCalledWith(
       expect.objectContaining({ turnId: "turn-1", sessionId: "sess-1" }),
@@ -71,5 +71,25 @@ describe("runInProcessWebTool", () => {
       expect.anything(),
       expect.objectContaining({ status: "failed" }),
     );
+  });
+
+  it("gives the in-process model the same redacted bounded view as the audit", async () => {
+    fetchPage.mockResolvedValue({
+      url: "https://acme.io/pricing",
+      api_key: "synthetic-test-secret-only",
+      text: `${"a".repeat(9000)} Price EUR24/month.`,
+    });
+    const output = await runInProcessWebTool({
+      ...base,
+      capability: "web_fetch",
+      toolInput: { url: "https://acme.io/pricing" },
+    });
+    const reported = recordResult.mock.calls[0][1];
+    expect(JSON.parse(reported.output)).toEqual(output);
+    expect(JSON.stringify(output)).not.toContain("EUR24");
+    expect(JSON.stringify(output)).not.toContain("synthetic-test-secret-only");
+    expect(output).toMatchObject({
+      evidence: { truncated: true, redacted: true },
+    });
   });
 });

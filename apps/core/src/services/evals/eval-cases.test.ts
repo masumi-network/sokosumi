@@ -83,7 +83,6 @@ const NOT_YET_COVERED = new Set([
   "preview_newsletter_issue",
   "preview_newsletter_signup_form",
   "preview_result",
-  "provide_job_input",
   "read_email",
   "read_integration_tool",
   "read_memory",

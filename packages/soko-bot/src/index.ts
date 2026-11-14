@@ -248,6 +248,13 @@ export {
   type SokoBotVersion,
   versionShowsResultCards,
 } from "./versions/index.js";
+export {
+  isSokoBotWebEvidence,
+  projectSokoBotWebEvidence,
+  SOKO_BOT_WEB_EVIDENCE_FORMAT,
+  SOKO_BOT_WEB_EVIDENCE_MAX_BYTES,
+  type SokoBotWebEvidence,
+} from "./web-evidence.js";
 export { sokoBotContextPacketSchema } from "./wire-contracts.js";
 export {
   judgedWritingRules,

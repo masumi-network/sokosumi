@@ -1,4 +1,5 @@
 import {
+  projectSokoBotWebEvidence,
   SOKO_BOT_SCENARIOS,
   sokoBotJudgeVerdictSchema,
 } from "@sokosumi/soko-bot";
@@ -93,6 +94,7 @@ describe("soko-bot lab judge generateText", () => {
           modelId: "anthropic/claude-haiku-4.5",
         }),
         maxRetries: 0,
+        instructions: expect.stringContaining("missing text is not proof"),
         providerOptions: {
           gateway: {
             only: ["vertex", "bedrock"],
@@ -157,6 +159,42 @@ describe("soko-bot judge failure reporting", () => {
 describe("soko-bot lab judge transcript scope", () => {
   const scenarioId = SOKO_BOT_SCENARIOS[0]?.id ?? "missing";
   const findTurn = vi.mocked(prisma.sokoBotTurn.findFirst);
+
+  it("flags evidence omitted by the shared judge budget on the actual payload", async () => {
+    const result = {
+      output: projectSokoBotWebEvidence({ text: "a".repeat(7_500) }),
+      sources: [],
+    };
+    findTurn.mockResolvedValueOnce({
+      sokoBotId: "bot-1",
+      requestedByUserId: "user-1",
+      source: "CHAT",
+      status: "COMPLETED",
+      route: "ANSWER",
+      userMessage: "Compare the pages.",
+      finalAnswer: "Comparison.",
+      versionId: "version-1",
+      sokoBot: { name: "Soko", userId: "user-1" },
+      contextSnapshot: { packet: {} },
+      toolCalls: Array.from({ length: 10 }, () => ({
+        capability: "web_fetch",
+        status: "COMPLETED",
+        input: {},
+        result,
+        errorDetail: null,
+      })),
+    } as never);
+    const payload = await loadLabJudgePayload("turn-3", scenarioId);
+    expect(payload.turn.toolCalls).toHaveLength(10);
+    expect(
+      payload.turn.toolCalls.every((call) =>
+        call.evidenceVisibility.reasons.includes("judge_budget_clipped"),
+      ),
+    ).toBe(true);
+    expect(
+      payload.turn.toolCalls.every((call) => !call.evidenceVisibility.complete),
+    ).toBe(true);
+  });
 
   it("keeps the member filter for any id the lab passes, even an empty one", async () => {
     findTurn.mockResolvedValueOnce(null);

@@ -18,6 +18,10 @@ import {
   sokoBotInferenceEvidence,
   sokoBotModelRequest,
 } from "@/lib/soko-bot/model-policy";
+import {
+  JUDGE_EVIDENCE_VISIBILITY_GUIDANCE,
+  judgeEvidenceVisibility,
+} from "./soko-bot-lab-judge-evidence";
 
 const JUDGE_TIMEOUT_MS = 90_000;
 // Tool results are the judge's evidence. At 2,000 a `search_inbox` result of
@@ -143,6 +147,11 @@ async function loadTranscript(turnId: string, userId?: string) {
     status: call.status,
     input: fitted[index * 2],
     result: fitted[index * 2 + 1],
+    evidenceVisibility: judgeEvidenceVisibility(
+      call.capability,
+      call.status === "FAILED" ? call.errorDetail : call.result,
+      fitted[index * 2 + 1] ?? "",
+    ),
   }));
   const spent =
     runtimeInput.length +
@@ -193,7 +202,7 @@ export async function generateSokoBotJudgeText(options: {
     ...sokoBotModelRequest({ role: "judge", model: options.model }),
     output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
     abortSignal: options.abortSignal,
-    instructions: SOKO_BOT_JUDGE_RUBRIC,
+    instructions: `${SOKO_BOT_JUDGE_RUBRIC}\n\n${JUDGE_EVIDENCE_VISIBILITY_GUIDANCE}`,
     prompt: JSON.stringify(options.payload),
   });
   assertSokoBotInferenceRegion(result.providerMetadata, {

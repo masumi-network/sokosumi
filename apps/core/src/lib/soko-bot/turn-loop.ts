@@ -29,7 +29,9 @@ import {
 import { citationsIn, dropUnverifiedLinks } from "./citations";
 import { evaluationBinding, evaluationContext } from "./evaluation-dispatch";
 import { SOKO_BOT_ARCHIVE_GUIDANCE } from "./evaluation-preparation";
+import { memoryRecallResponse } from "./memory-recall-response";
 import { tableCreationFeedback } from "./table-creation-feedback";
+import { toolRecoveryFeedback } from "./tool-recovery-feedback";
 
 /**
  * The parts of a turn every runtime shares, whether the loop runs inside Core
@@ -491,7 +493,7 @@ export async function runTurnTool(input: {
   const result =
     capability === "create_table"
       ? tableCreationFeedback(input.toolInput, executed)
-      : executed;
+      : toolRecoveryFeedback(capability, executed);
   await log.append(runtimeEvent("action.result", { name: capability, callId }));
   return ACTION_CAPABILITIES.has(capability) || input.cite === false
     ? result
@@ -580,6 +582,28 @@ async function ownerNarrative(
     turnId,
     reason: claim === null ? "unchecked" : "claims_unconfirmed_change",
   });
+  const recall =
+    claim === true && evidence.confirmedChanges.length === 0
+      ? memoryRecallResponse(
+          await prisma.sokoBotTurn.findUnique({
+            where: { id: turnId },
+            select: {
+              source: true,
+              route: true,
+              userMessage: true,
+              contextSnapshot: { select: { packet: true } },
+            },
+          }),
+        )
+      : null;
+  if (recall) {
+    return {
+      kind: "REPORT",
+      message: recall,
+      question: null,
+      observationToolCallIds: [],
+    };
+  }
   // A claim is dropped: the receipts say what changed, or that nothing did.
   // An unchecked reply is not shown either, but the owner is told why.
   return {

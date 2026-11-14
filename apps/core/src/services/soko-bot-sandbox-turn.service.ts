@@ -35,6 +35,7 @@ import {
 } from "@/lib/soko-bot/persisted-value";
 import { stopTurnSandbox } from "@/lib/soko-bot/sandbox/sandbox-runtime";
 import type { TurnTokenClaims } from "@/lib/soko-bot/sandbox/turn-token";
+import { sandboxActionEvidence } from "@/lib/soko-bot/sandbox-action-evidence";
 import {
   MODEL_CALL_MAX_MS,
   ModelStreamStalledError,
@@ -362,7 +363,6 @@ export async function recordSandboxAction(
   );
 }
 
-const SANDBOX_OUTPUT_MAX_BYTES = 12_288;
 const SANDBOX_ERROR_DETAIL_MAX_BYTES = 1_000;
 
 export async function recordSandboxActionResult(
@@ -379,7 +379,8 @@ export async function recordSandboxActionResult(
   if (!isSokoBotSandboxCapability(input.name))
     throw forbidden("Not a sandbox tool");
   const failed = input.status === "failed";
-  await prisma.sokoBotToolCall.updateMany({
+  const evidence = sandboxActionEvidence(input);
+  const settled = await prisma.sokoBotToolCall.updateMany({
     where: {
       turnId: claims.turnId,
       toolCallId: input.toolCallId,
@@ -392,15 +393,7 @@ export async function recordSandboxActionResult(
       status: failed ? "FAILED" : "COMPLETED",
       // The output is bounded on its own, so a long result can never crowd
       // out the sources the answer's citations are checked against.
-      result: jsonInput(
-        sanitizePersistedValue({
-          output:
-            input.output === undefined
-              ? null
-              : truncateUtf8(input.output, SANDBOX_OUTPUT_MAX_BYTES),
-          sources: input.sources ?? [],
-        }),
-      ),
+      result: jsonInput(evidence),
       // Redacted as Core's own tool errors are: a failed fetch can echo a URL
       // with a token in it, and this row is shown to the owner and the judge.
       ...(failed
@@ -413,13 +406,13 @@ export async function recordSandboxActionResult(
         : {}),
     },
   });
+  if (settled.count !== 1)
+    throw conflict("Sandbox tool result was not recorded");
   await logFor(claims).append(
     runtimeEvent("action.result", {
       name: input.name,
       callId: input.toolCallId,
-      ...(input.output === undefined
-        ? {}
-        : { output: sanitizePersistedValue(input.output) }),
+      ...(input.output === undefined ? {} : { output: evidence.output }),
     }),
   );
 }

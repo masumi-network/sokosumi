@@ -218,6 +218,27 @@ function finish(text: string, requiresActionProof: boolean) {
   });
 }
 
+function savedRecallTurn() {
+  return {
+    source: "CHAT",
+    route: "DIRECT_RESPONSE",
+    userMessage: "What did I tell you about Tasks for Hannah?",
+    contextSnapshot: {
+      packet: {
+        trigger: {
+          source: "CHAT",
+          route: "DIRECT_RESPONSE",
+          askedBy: { kind: "OWNER" },
+        },
+        memory: {
+          markdown:
+            "# Soko Bot memory\n\n## Preferences\n- Write every Task for Hannah in German.",
+        },
+      },
+    },
+  };
+}
+
 function completedMessage(): unknown {
   return log.append.mock.calls
     .map(([event]) => event)
@@ -228,12 +249,51 @@ beforeEach(() => {
   vi.clearAllMocks();
   claimsActionMock.mockResolvedValue(false);
   toolCallFind.mockResolvedValue([]);
+  turnFind.mockResolvedValue(null);
   buildActionResponseMock.mockImplementation(
     async (_tx, _turnId, text: string) => ({ answerText: text }),
   );
 });
 
 describe("runTurnTool table creation", () => {
+  it("tells the model to retry an empty directory search", async () => {
+    executeToolMock.mockResolvedValue({ people: [], coworkers: [] });
+    await expect(
+      runTurnTool({
+        log: log as never,
+        capability: "find_coworkers",
+        toolCallId: "directory-1",
+        toolInput: { query: "research" },
+      }),
+    ).resolves.toMatchObject({
+      evidenceToolCallId: "directory-1",
+      result: {
+        people: [],
+        coworkers: [],
+        instruction: expect.stringContaining("Retry without a query"),
+      },
+    });
+  });
+
+  it("does not invite a preview after a confirmed schedule deletion", async () => {
+    executeToolMock.mockResolvedValue({
+      id: "deleted-1",
+      name: "Old check",
+      deleted: true,
+    });
+    await expect(
+      runTurnTool({
+        log: log as never,
+        capability: "delete_schedule",
+        toolCallId: "delete-1",
+        toolInput: { scheduleId: "deleted-1" },
+      }),
+    ).resolves.toMatchObject({
+      id: "deleted-1",
+      instruction: expect.stringContaining("do not call preview_result"),
+    });
+  });
+
   it("tells the model that successful creation already inserted its rows", async () => {
     executeToolMock.mockResolvedValue({
       table: { id: "table-1", title: "Launch research" },
@@ -278,6 +338,43 @@ describe("finishTurn", () => {
     expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
       message: null,
     });
+  });
+
+  it("answers a suppressed owner recall from matching saved memory, not the model's claim", async () => {
+    const { buildActionResponse } =
+      await vi.importActual<typeof import("./action-response")>(
+        "./action-response",
+      );
+    buildActionResponseMock.mockImplementationOnce(buildActionResponse);
+    claimsActionMock.mockResolvedValue(true);
+    turnFind.mockResolvedValue(savedRecallTurn());
+    await finish("I created a German Task for Hannah.", true);
+    const narrative = buildActionResponseMock.mock.calls[0][4];
+    expect(narrative.message).toBe(
+      "Saved memory:\n> Write every Task for Hannah in German.",
+    );
+    expect(narrative.message).not.toContain("I created");
+    expect(completedMessage()).toBe(narrative.message);
+    expect(turnUpdate.mock.calls[0][0].data.responseContract.answerText).toBe(
+      narrative.message,
+    );
+  });
+
+  it("does not replace a mutation report with a memory quotation", async () => {
+    claimsActionMock.mockResolvedValue(true);
+    toolCallFind.mockResolvedValue([{ capability: "update_memory" }]);
+    turnFind.mockResolvedValue(savedRecallTurn());
+    await finish("I sent Hannah a new Task.", true);
+    expect(buildActionResponseMock.mock.calls[0][4].message).toBeNull();
+  });
+
+  it("keeps the failed-check warning even when matching memory exists", async () => {
+    claimsActionMock.mockResolvedValue(null);
+    turnFind.mockResolvedValue(savedRecallTurn());
+    await finish("Hannah's Tasks are in German.", true);
+    const message = buildActionResponseMock.mock.calls[0][4].message;
+    expect(message).toContain("could not be checked");
+    expect(message).not.toContain("German");
   });
 
   it("lets the message report the changes its receipts confirm", async () => {
