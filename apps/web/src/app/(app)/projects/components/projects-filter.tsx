@@ -2,7 +2,12 @@
 
 import { Search, X } from "lucide-react";
 import { useQueryState } from "nuqs";
-import { useEffect, useRef, useState, useTransition } from "react";
+import {
+  type TransitionStartFunction,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import { Input } from "@/components/ui/input";
@@ -18,6 +23,8 @@ export interface ProjectsFilterLabels {
 
 interface ProjectsFilterProps {
   labels: ProjectsFilterLabels;
+  /** `ProjectsView`'s transition, so the list shows it is loading. */
+  startTransition: TransitionStartFunction;
 }
 
 /**
@@ -28,9 +35,11 @@ interface ProjectsFilterProps {
  * `startTransition` keeps the current tree (and this field) visible instead
  * of swapping the page Suspense fallback in while Core runs.
  */
-export function ProjectsFilter({ labels }: ProjectsFilterProps) {
+export function ProjectsFilter({
+  labels,
+  startTransition,
+}: ProjectsFilterProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [, startTransition] = useTransition();
   const [queryParam, setQueryParam] = useQueryState("q", {
     defaultValue: "",
     shallow: false,

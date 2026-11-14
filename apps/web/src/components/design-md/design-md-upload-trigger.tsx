@@ -69,6 +69,10 @@ export function DesignMdUploadTrigger({
       setUploading(true);
       try {
         const content = await file.text();
+        // An empty file would come back as the schema's raw validation text.
+        if (!content.trim()) {
+          throw new Error(t("uploadEmpty"));
+        }
         const result = await saveDesignMdUpload({ owner, content });
 
         if (!result.ok) {

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
@@ -85,7 +85,7 @@ export function ProjectTabs({
               <Link
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "-mb-px flex items-center gap-2 border-b-2 py-2.5 whitespace-nowrap transition-colors",
+                  "relative -mb-px flex items-center gap-2 border-b-2 py-2.5 whitespace-nowrap transition-colors",
                   // No radius: the corners belong to the indicator too, and a
                   // rounded 2px bar under a word reads as a pill rather than
                   // as an underline.
@@ -98,11 +98,31 @@ export function ProjectTabs({
               >
                 {tab.icon}
                 {tab.label}
+                <TabPendingUnderline />
               </Link>
             </li>
           );
         })}
       </ul>
     </nav>
+  );
+}
+
+/**
+ * A subpage renders on the server, so a click can sit for most of a second
+ * before the route changes. Until then the clicked tab's underline pulses in
+ * place; always rendered, so nothing shifts.
+ */
+function TabPendingUnderline() {
+  const { pending } = useLinkStatus();
+  return (
+    <span
+      aria-hidden
+      data-pending={pending || undefined}
+      className={cn(
+        "bg-muted-foreground pointer-events-none absolute inset-x-0 -bottom-0.5 h-0.5 opacity-0 transition-opacity",
+        pending && "opacity-100 motion-safe:animate-pulse",
+      )}
+    />
   );
 }

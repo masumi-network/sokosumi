@@ -241,6 +241,31 @@ describe("project actions", () => {
     });
   });
 
+  it("leaves the name alone on a website-only save", async () => {
+    // Another member may have renamed the project since this page rendered;
+    // a website save must not write the old name back.
+    projectServiceMock.patchProject.mockResolvedValue(buildProject());
+
+    const { updateProject } = await import("./action");
+    await updateProject({
+      projectId: "project-1",
+      websiteUrl: "https://example.com/",
+    });
+
+    expect(projectServiceMock.patchProject).toHaveBeenCalledWith("project-1", {
+      websiteUrl: "https://example.com/",
+    });
+  });
+
+  it("still rejects a blank name when one is passed", async () => {
+    const { updateProject } = await import("./action");
+
+    await expect(
+      updateProject({ projectId: "project-1", name: "   " }),
+    ).rejects.toThrow("Name required");
+    expect(projectServiceMock.patchProject).not.toHaveBeenCalled();
+  });
+
   it("saves posting instructions and clears blank ones", async () => {
     const { updateProjectPostingInstructions } = await import("./action");
     projectServiceMock.patchProject.mockResolvedValueOnce({
