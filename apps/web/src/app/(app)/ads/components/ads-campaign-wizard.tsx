@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { GoogleSitelink } from "@sokosumi/core-client";
 import {
   ArrowLeft,
   ArrowRight,
@@ -59,6 +60,7 @@ import {
   googleFormChanges,
   googleFormMeaning,
   googleListChanges,
+  googleSitelinkKey,
 } from "@/lib/ads/google-form-values";
 import { parseGoogleKeywords } from "@/lib/ads/google-keywords";
 import {
@@ -566,15 +568,39 @@ function ListChanges({ removed, added }: ListItemChanges) {
   );
 }
 
-/** Text items as changed items: each copy keyed by its text and position. */
+/** A list edit as changed items, compared by `key` and shown by `show`. */
+function listItems<T>(
+  before: readonly T[],
+  after: readonly T[],
+  key: (item: T) => string,
+  show: (item: T) => ReactNode,
+): ListItemChanges {
+  const { removed, added } = googleListChanges(before, after, key);
+  const keyed = (list: T[]) =>
+    list.map((item, index) => ({
+      key: `${index}:${key(item)}`,
+      node: show(item),
+    }));
+  return { removed: keyed(removed), added: keyed(added) };
+}
+
 function textItems(
   before: readonly string[],
   after: readonly string[],
 ): ListItemChanges {
-  const { removed, added } = googleListChanges(before, after);
-  const keyed = (list: string[]) =>
-    list.map((text, index) => ({ key: `${index}:${text}`, node: text }));
-  return { removed: keyed(removed), added: keyed(added) };
+  return listItems(before, after, String, String);
+}
+
+/** "Sale · https://example.com/sale · Up to 50% off", for reading only. */
+function sitelinkText({
+  text,
+  finalUrl,
+  description1,
+  description2,
+}: GoogleSitelink): string {
+  return [text, finalUrl, description1, description2]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 /** An ad image in a review list: its thumbnail and its role. */
@@ -640,13 +666,12 @@ function imageItems(
   before: readonly GoogleFormImage[],
   after: readonly GoogleFormImage[],
 ): ListItemChanges {
-  const { removed, added } = googleListChanges(before, after, ({ key }) => key);
-  const keyed = (list: GoogleFormImage[]) =>
-    list.map((image) => ({
-      key: image.key,
-      node: <ReviewImage image={image} />,
-    }));
-  return { removed: keyed(removed), added: keyed(added) };
+  return listItems(
+    before,
+    after,
+    ({ key }) => key,
+    (image) => <ReviewImage image={image} />,
+  );
 }
 
 /** The last step: the ad as it could look, then what will be saved. */
@@ -783,7 +808,16 @@ function GoogleReviewStep({
               ? AD_LIST_PARTS.filter(changed).map((part) => (
                   <SummaryRow
                     changed
-                    items={textItems(was[part], now[part])}
+                    items={
+                      part === "sitelinks"
+                        ? listItems(
+                            was.sitelinks,
+                            now.sitelinks,
+                            googleSitelinkKey,
+                            sitelinkText,
+                          )
+                        : textItems(was[part], now[part])
+                    }
                     key={part}
                     label={t(AD_PART_LABELS[part])}
                     onEdit={() => goTo("ad")}

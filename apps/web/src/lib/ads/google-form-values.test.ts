@@ -8,7 +8,9 @@ import {
   googleFormMeaning,
   googleFormValuesFromDetails,
   googleListChanges,
+  googleSitelinkKey,
 } from "./google-form-values";
+import { googleSearchFormSchema } from "./google-search";
 
 const TOTALS = {
   spend: 0,
@@ -272,9 +274,23 @@ describe("googleFormMeaning", () => {
     });
     expect(was.path).toBe("shoes");
     expect(now.path).toBe("shoes/sale");
-    expect(googleListChanges(was.sitelinks, now.sitelinks)).toEqual({
-      removed: ["Sale · https://example.com/sale · Up to 50% off"],
-      added: ["Outlet · https://example.com/sale · Up to 50% off"],
+    expect(
+      googleListChanges(was.sitelinks, now.sitelinks, googleSitelinkKey),
+    ).toEqual({
+      removed: [
+        {
+          text: "Sale",
+          finalUrl: "https://example.com/sale",
+          description1: "Up to 50% off",
+        },
+      ],
+      added: [
+        {
+          text: "Outlet",
+          finalUrl: "https://example.com/sale",
+          description1: "Up to 50% off",
+        },
+      ],
     });
   });
 
@@ -303,6 +319,45 @@ describe("googleFormMeaning", () => {
         name: "wide.png",
       },
       { key: "SQUARE:asset:a2", role: "SQUARE", url: "https://g/a2.png" },
+    ]);
+  });
+});
+
+describe("sitelink changes", () => {
+  it("tells descriptions apart even when one holds the review's separator", () => {
+    const sitelink = {
+      text: "Sale",
+      finalUrl: "https://example.com/sale",
+      description1: "Fast · Free",
+      description2: "Delivery",
+    };
+    const before = {
+      ...googleFormValuesFromDetails(BASE),
+      sitelinks: [sitelink],
+    };
+    const after = {
+      ...before,
+      sitelinks: [
+        { ...sitelink, description1: "Fast", description2: "Free · Delivery" },
+      ],
+    };
+    const messages = {};
+    expect(googleSearchFormSchema(messages).safeParse(before).success).toBe(
+      true,
+    );
+    expect(googleSearchFormSchema(messages).safeParse(after).success).toBe(
+      true,
+    );
+
+    expect(googleFormChanges(before, after)).toEqual(["sitelinks"]);
+    const { removed, added } = googleListChanges(
+      googleFormMeaning(before).sitelinks,
+      googleFormMeaning(after).sitelinks,
+      googleSitelinkKey,
+    );
+    expect(removed).toEqual([sitelink]);
+    expect(added).toEqual([
+      { ...sitelink, description1: "Fast", description2: "Free · Delivery" },
     ]);
   });
 });

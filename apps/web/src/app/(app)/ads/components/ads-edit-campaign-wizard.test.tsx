@@ -398,6 +398,37 @@ describe("EditGoogleCampaignWizard", () => {
       ).toBeEnabled();
     });
 
+    it("names a sitelink edit that moves text across the separator", async () => {
+      const user = renderEdit({
+        ...SEARCH_VALUES,
+        sitelinks: [
+          {
+            text: "Sale",
+            finalUrl: "https://example.com/sale",
+            description1: "Fast · Free",
+            description2: "Delivery",
+          },
+        ],
+      });
+      await jump(user, "Ad");
+      await user.click(screen.getByRole("button", { name: /^Sitelinks/ }));
+      const first = screen.getByLabelText("Description line 1");
+      const second = screen.getByLabelText("Description line 2");
+      await user.clear(first);
+      await user.type(first, "Fast");
+      await user.clear(second);
+      await user.type(second, "Free · Delivery");
+      await jump(user, "Review");
+
+      expect(
+        screen.getByRole("button", { name: "Save 1 change" }),
+      ).toBeEnabled();
+      const row = changedRow("Sitelinks");
+      expect(row).toBeDefined();
+      expect(row?.querySelectorAll("del")).toHaveLength(1);
+      expect(row?.querySelectorAll("ins")).toHaveLength(1);
+    });
+
     it("shows a changed sitelink and display path, old and new", async () => {
       const user = renderEdit({
         ...SEARCH_VALUES,

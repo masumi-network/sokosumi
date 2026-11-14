@@ -1,4 +1,4 @@
-import type { AdCampaignDetails } from "@sokosumi/core-client";
+import type { AdCampaignDetails, GoogleSitelink } from "@sokosumi/core-client";
 
 import {
   GOOGLE_DISPLAY_LIMITS,
@@ -156,10 +156,20 @@ export interface GoogleFormMeaning {
   headlines: string[];
   longHeadline: string;
   descriptions: string[];
-  /** "Sale · https://example.com/sale · Up to 50% off" */
-  sitelinks: string[];
+  /** Each field kept apart: text in one can never pass for another. */
+  sitelinks: GoogleSitelink[];
   callouts: string[];
   images: GoogleFormImage[];
+}
+
+/** A sitelink's identity: its four fields as a tuple, boundaries kept. */
+export function googleSitelinkKey({
+  text,
+  finalUrl,
+  description1 = "",
+  description2 = "",
+}: GoogleSitelink): string {
+  return JSON.stringify([text, finalUrl, description1, description2]);
 }
 
 function filledTexts(texts: readonly string[]): string[] {
@@ -195,13 +205,9 @@ export function googleFormMeaning(values: GoogleFormValues): GoogleFormMeaning {
       search ? values.descriptions : values.displayDescriptions,
     ),
     sitelinks: search
-      ? filledSitelinks(values.sitelinks)
-          .map(({ text, finalUrl, description1, description2 }) =>
-            [text, finalUrl, description1, description2]
-              .filter(Boolean)
-              .join(" · "),
-          )
-          .sort()
+      ? filledSitelinks(values.sitelinks).sort((a, b) =>
+          googleSitelinkKey(a).localeCompare(googleSitelinkKey(b)),
+        )
       : [],
     callouts: search ? filledCallouts(values.callouts).sort() : [],
     images: search

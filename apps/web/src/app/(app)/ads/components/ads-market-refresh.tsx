@@ -6,10 +6,10 @@ import { useTranslations } from "next-intl";
 import {
   createContext,
   type ReactNode,
+  startTransition,
   use,
   useEffect,
   useState,
-  useTransition,
 } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -48,9 +48,11 @@ function time(updatedAt: AdMarketProfile["updatedAt"] | string): number {
  * Bridges a market save and the page catching up. A save returns before the
  * refreshed results render, so until the page shows a profile at least as new
  * as the saved one, the saved profile stands in for the summary and the
- * results are updating. After `MARKET_REFRESH_WAIT_MS` the page is asked once
- * more; if it still lags, the results are stale and can be refreshed by hand.
- * The saved profile is never dropped: Core confirmed it.
+ * results are updating. At `MARKET_REFRESH_WAIT_MS` the page is asked once
+ * more and the results turn stale, with a refresh by hand, until it catches
+ * up. A refresh still in flight never hides that: it may never settle. A new
+ * save starts a new wait. The saved profile is never dropped: Core confirmed
+ * it.
  */
 export function AdsMarketRefresh({
   children,
@@ -63,7 +65,7 @@ export function AdsMarketRefresh({
   const router = useRouter();
   const [confirmed, setConfirmed] = useState<AdMarketProfile | null>(null);
   const [waited, setWaited] = useState(false);
-  const [refreshing, startRefresh] = useTransition();
+  const refresh = () => startTransition(() => router.refresh());
   const saved =
     confirmed &&
     (shownUpdatedAt === null ||
@@ -75,14 +77,14 @@ export function AdsMarketRefresh({
     if (!saved || waited) return;
     const id = setTimeout(() => {
       setWaited(true);
-      startRefresh(() => router.refresh());
+      startTransition(() => router.refresh());
     }, MARKET_REFRESH_WAIT_MS);
     return () => clearTimeout(id);
   }, [saved, waited, router]);
 
   const results: MarketResultsState = !saved
     ? "current"
-    : waited && !refreshing
+    : waited
       ? "stale"
       : "updating";
 
@@ -95,7 +97,7 @@ export function AdsMarketRefresh({
           setWaited(false);
           setConfirmed(profile);
         },
-        refresh: () => startRefresh(() => router.refresh()),
+        refresh,
       }}
     >
       {children}
