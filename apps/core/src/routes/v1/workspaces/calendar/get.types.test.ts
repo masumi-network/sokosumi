@@ -22,7 +22,19 @@ const mocks = vi.hoisted(() => ({
   strategies: vi.fn(),
   strategyFiles: vi.fn(),
   botSchedules: vi.fn(),
+  proactivePaused: false,
 }));
+
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({
+      ...actual.getEnv(),
+      SOKO_BOT_PROACTIVE_PAUSED: mocks.proactivePaused,
+    }),
+  };
+});
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
@@ -242,6 +254,7 @@ describe("GET /workspaces/calendar types", () => {
     mocks.strategies.mockResolvedValue([]);
     mocks.strategyFiles.mockResolvedValue([]);
     mocks.botSchedules.mockResolvedValue([]);
+    mocks.proactivePaused = false;
   });
 
   const featureReads = () => [
@@ -577,7 +590,8 @@ describe("GET /workspaces/calendar types", () => {
       "2026-06-05T07:00:00.000Z",
     ]);
     expect(body.meta.pagination.total).toBe(5);
-    // Never a teammate's bot, a shared bot, a built-in rhythm or a follow-up.
+    // Never a teammate's bot, a shared bot, a built-in rhythm or a follow-up,
+    // nor a bot the runner skips because it is paused.
     expect(mocks.botSchedules.mock.lastCall?.[0].where).toEqual({
       workspaceId: WORKSPACE_ID,
       enabled: true,
@@ -590,8 +604,45 @@ describe("GET /workspaces/calendar types", () => {
         workspaceId: WORKSPACE_ID,
         archivedAt: null,
         deletedAt: null,
+        status: { not: "PAUSED" },
+        proactivePaused: false,
       },
     });
+  });
+
+  it("shows no Soko Bot runs while the platform kill switch is on", async () => {
+    mocks.proactivePaused = true;
+    const { body } = await get("types=sokoBot");
+    expect(body.data).toEqual([]);
+    expect(mocks.botSchedules).not.toHaveBeenCalled();
+  });
+
+  it("pages through every run of a frequent schedule", async () => {
+    mocks.botSchedules.mockResolvedValue([
+      {
+        id: BOT_SCHEDULE_ID,
+        name: "Hourly check",
+        timezone: "UTC",
+        cronExpression: "0 * * * *",
+        runOnce: false,
+        nextRunAt: new Date("2026-06-01T13:00:00.000Z"),
+      },
+    ]);
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    do {
+      const { body } = await get(
+        `types=sokoBot&limit=50${cursor ? `&cursor=${cursor}` : ""}`,
+      );
+      seen.push(
+        ...body.data.map((i: { scheduledAt: string }) => i.scheduledAt),
+      );
+      cursor = body.meta.pagination.nextCursor;
+    } while (cursor);
+    // 13:00 on 06-01 through 23:00 on 06-07: 11 + 6 × 24 hourly runs.
+    expect(seen).toHaveLength(155);
+    expect(new Set(seen).size).toBe(155);
+    expect(seen.at(-1)).toBe("2026-06-07T23:00:00.000Z");
   });
 
   it("leaves Soko Bot runs out of a Project and of task-only filters", async () => {

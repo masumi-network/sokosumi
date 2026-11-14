@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MAX_RUNS_PER_SCHEDULE, runTimes } from "./read-soko-bot";
+import { runTimes } from "./read-soko-bot";
 
 const FROM = new Date("2026-06-01T00:00:00.000Z");
 const TO = new Date("2026-06-08T00:00:00.000Z");
@@ -16,6 +16,7 @@ describe("runTimes", () => {
       },
       FROM,
       TO,
+      100,
     );
     expect(times.map((t) => t.toISOString())).toEqual([
       "2026-06-01T12:00:00.000Z",
@@ -28,7 +29,7 @@ describe("runTimes", () => {
     ]);
   });
 
-  it("caps a schedule that runs every minute", () => {
+  it("stops at max runs for a schedule that runs every minute", () => {
     const times = runTimes(
       {
         cronExpression: "* * * * *",
@@ -38,8 +39,9 @@ describe("runTimes", () => {
       },
       FROM,
       TO,
+      100,
     );
-    expect(times).toHaveLength(MAX_RUNS_PER_SCHEDULE);
+    expect(times).toHaveLength(100);
     expect(times[0]).toEqual(FROM);
   });
 
@@ -50,10 +52,10 @@ describe("runTimes", () => {
       runOnce: true,
       nextRunAt: new Date(at),
     });
-    expect(runTimes(once("2026-06-01T09:00:00.000Z"), FROM, TO)).toHaveLength(
-      1,
-    );
-    expect(runTimes(once("2026-06-08T00:00:00.000Z"), FROM, TO)).toEqual([]);
+    expect(
+      runTimes(once("2026-06-01T09:00:00.000Z"), FROM, TO, 1),
+    ).toHaveLength(1);
+    expect(runTimes(once("2026-06-08T00:00:00.000Z"), FROM, TO, 1)).toEqual([]);
   });
 
   it("shows nothing for a cron it cannot read", () => {
@@ -67,6 +69,7 @@ describe("runTimes", () => {
         },
         FROM,
         TO,
+        100,
       ),
     ).toEqual([]);
   });
