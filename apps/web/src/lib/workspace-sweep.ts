@@ -1,6 +1,8 @@
 import {
-  cssColorToRgb,
-  FOIL_COLOR_TOKENS,
+  applyFoilTokens,
+  FOIL_GLSL,
+  foilLoopAt,
+  foilUnit,
   linkProgram,
 } from "@/components/foil-background";
 
@@ -8,28 +10,19 @@ const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const COVER_MS = 650;
 const REVEAL_MS = 750;
 
-// A wavy band in the `--foil-*` colours. `p` moves its centre across the
+// A wavy band cut out of the Home foil. `p` moves its centre across the
 // screen (0 off the left, 0.5 the middle, 1 off the right); near the middle it
 // widens until it covers everything, so the page can change unseen.
 const FRAGMENT_SHADER = `precision highp float;
-uniform vec2 res; uniform float t; uniform float p;
-uniform vec3 c0,c1,c2,c3;
-float h(vec2 q){return fract(sin(dot(q,vec2(127.1,311.7)))*43758.5453);}
-float n(vec2 q){vec2 i=floor(q),f=fract(q);f=f*f*(3.-2.*f);
-  return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
-vec3 pal(float x){x=fract(x)*4.;
-  vec3 a=x<1.?c0:x<2.?c1:x<3.?c2:c3; vec3 b=x<1.?c1:x<2.?c2:x<3.?c3:c0;
-  return mix(a,b,smoothstep(0.,1.,fract(x)));}
+uniform vec2 res; uniform float unit; uniform float t; uniform float p;
+${FOIL_GLSL}
 void main(){
   vec2 uv=gl_FragCoord.xy/res; uv.y=1.-uv.y;
   float cover=max(0.,1.-abs(p-.5)/.16); cover*=cover;
   float x=uv.x+sin(uv.y*5.+t*3.)*.035+(n(vec2(uv.y*3.,t*.8))-.5)*.12;
   float d=(x-mix(-.55,1.55,p))/(.24+cover*.9);
   float a=clamp(exp(-d*d)*1.25+cover*.25,0.,1.);
-  vec3 c=pal(x*.9+uv.y*.35+n(vec2(uv.x*res.x/res.y*4.,uv.y*4.)+t*.6)*.35+t*.15);
-  c+=pow(max(0.,1.-abs(d)*1.8),6.)*.18;
-  c=mix(vec3(dot(c,vec3(.333))),c,1.7);
-  c+=(h(gl_FragCoord.xy+fract(t))-.5)*.035;
+  vec3 c=foil(gl_FragCoord.xy/unit)+grain(gl_FragCoord.xy)*.04;
   gl_FragColor=vec4(c*a,a);
 }`;
 
@@ -94,14 +87,9 @@ function createBand() {
   gl.enableVertexAttribArray(position);
   gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
   const uniform = (name: string) => gl.getUniformLocation(program, name);
-  const style = getComputedStyle(document.documentElement);
-  FOIL_COLOR_TOKENS.forEach((token, index) => {
-    gl.uniform3f(
-      uniform(`c${index}`),
-      ...cssColorToRgb(style.getPropertyValue(token)),
-    );
-  });
+  applyFoilTokens(gl, program, getComputedStyle(document.documentElement));
   gl.uniform2f(uniform("res"), canvas.width, canvas.height);
+  gl.uniform1f(uniform("unit"), foilUnit(ratio));
   document.body.append(canvas);
 
   const start = performance.now();
@@ -115,6 +103,7 @@ function createBand() {
   const draw = (now: number) => {
     gl.uniform1f(uniform("t"), (now - start) / 1000);
     gl.uniform1f(uniform("p"), progress(now));
+    gl.uniform1f(uniform("loop"), foilLoopAt(false));
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     frame = requestAnimationFrame(draw);
   };
