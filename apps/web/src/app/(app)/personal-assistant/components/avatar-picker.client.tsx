@@ -103,9 +103,11 @@ function AvatarPickerSet({
    * Whatever goes wrong, the current set and pick stay on screen.
    */
   async function loadSet(refresh: boolean) {
+    // A rejected call (the browser lost the response) may still have drawn
+    // and billed on the server, so it is handled, and counted, as a failure.
     const result = await topUpSokoBotAvatarsAction({
       input: { take, excludeIds: [], fresh: refresh },
-    });
+    }).catch(() => ({ ok: false as const, error: { code: "REQUEST_FAILED" } }));
     if (refresh && (result.ok || !NO_WORK_ERROR_CODES.has(result.error.code))) {
       setRefreshes((count) => count + 1);
     }

@@ -9,6 +9,9 @@ import en from "@/messages/en.json";
 import { AvatarPicker } from "./avatar-picker.client";
 
 const topUpMock = vi.fn();
+const { toastErrorMock } = vi.hoisted(() => ({ toastErrorMock: vi.fn() }));
+
+vi.mock("sonner", () => ({ toast: { error: toastErrorMock } }));
 
 vi.mock("@/lib/actions/soko-bot/action", () => ({
   topUpSokoBotAvatarsAction: (...args: unknown[]) => topUpMock(...args),
@@ -54,6 +57,7 @@ function renderPicker() {
 describe("AvatarPicker", () => {
   beforeEach(() => {
     topUpMock.mockReset();
+    toastErrorMock.mockReset();
   });
 
   it("does not show Show others as busy while the first set loads", async () => {
@@ -348,6 +352,49 @@ describe("AvatarPicker", () => {
     expect(
       screen.getByText("That is all the new pictures for now. Pick one above."),
     ).toBeInTheDocument();
+    expect(topUpMock).toHaveBeenCalledTimes(5);
+  });
+
+  it("keeps the set and pick, and says so, when the request itself fails", async () => {
+    const user = userEvent.setup();
+    topUpMock
+      .mockResolvedValueOnce({ ok: true, value: avatars("a", "b") })
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<Harness />);
+    await user.click(await screen.findByRole("button", { name: "b" }));
+
+    await user.click(screen.getByRole("button", { name: "Show others" }));
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith("Could not load pictures."),
+    );
+    expect(pressed("b")).toBe("true");
+    expect(screen.getByRole("button", { name: "a" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Show others" })).toBeEnabled();
+  });
+
+  it("stops after four tries mixing lost requests, empty sets and errors", async () => {
+    const user = userEvent.setup();
+    topUpMock
+      .mockResolvedValueOnce({ ok: true, value: avatars("a") })
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce({ ok: true, value: [] })
+      .mockResolvedValueOnce({ ok: false, error: { code: "UNKNOWN" } })
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<Harness />);
+    await screen.findByRole("button", { name: "a" });
+
+    for (let i = 0; i < 4; i += 1) {
+      await user.click(screen.getByRole("button", { name: "Show others" }));
+      await waitFor(() => expect(topUpMock).toHaveBeenCalledTimes(i + 2));
+    }
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Show others" }),
+      ).toBeDisabled(),
+    );
+    expect(pressed("a")).toBe("true");
     expect(topUpMock).toHaveBeenCalledTimes(5);
   });
 
