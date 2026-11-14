@@ -13,9 +13,12 @@ import { advanceCmoProduction } from "@/services/cmo-production.service";
 import { requestCmoStrategy } from "@/services/cmo-strategy.service";
 import {
   approveMarketingStrategy,
+  isMarketingFilePiece,
   newestMarketingStrategy,
   parseMarketingPlan,
 } from "@/services/marketing-strategy.service";
+import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
+import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { SETTLED_TURN_STATUSES } from "@/services/soko-bot-lab-scenario.service";
 import { brandBrainChecks, strategyChecks } from "./cmo-brand-checks";
 import type {
@@ -25,13 +28,15 @@ import type {
   CaseStart,
 } from "./eval-case-runner";
 import {
-  CMO_COMMENT_BRAND,
+  CMO_CHAT_BRAND,
   CMO_EVAL_BRANDS,
   CMO_EVAL_COMMENTS,
+  type CmoChatSetup,
   type CmoEvalCase,
 } from "./eval-cmo-cases";
 import type { EvalLaneRecord } from "./eval-lanes.service";
 import brandBrains from "./fixtures/cmo-brand-brains.json";
+import monthPlans from "./fixtures/cmo-month-plans.json";
 
 /** Research reads a whole site; a plan is one long turn. */
 const CMO_TURN_TIMEOUT_MS = 45 * 60_000;
@@ -105,15 +110,26 @@ async function connectPlanChannels(
   }
 }
 
+/**
+ * A turn past its deadline is dead, and a preview has no cron to end it; left
+ * alone it would hold the lane for the rest of the run.
+ */
 async function cusoIsBusy(lane: EvalLaneRecord) {
-  return (
-    (await prisma.sokoBotTurn.count({
-      where: {
-        sokoBotId: lane.cusoBotId,
-        status: { in: ["QUEUED", "STARTING", "RUNNING", "CANCEL_REQUESTED"] },
-      },
-    })) > 0
-  );
+  const active = await prisma.sokoBotTurn.findMany({
+    where: {
+      sokoBotId: lane.cusoBotId,
+      status: { in: ["QUEUED", "STARTING", "RUNNING", "CANCEL_REQUESTED"] },
+    },
+    select: { id: true, deadlineAt: true },
+  });
+  const now = Date.now();
+  const dead = active.filter((turn) => turn.deadlineAt.getTime() <= now);
+  await Promise.all(dead.map((turn) => endTurn(turn.id)));
+  return active.length > dead.length;
+}
+
+function endTurn(turnId: string) {
+  return sokoBotControlPlane.expireTurn(turnId).catch(() => undefined);
 }
 
 /** The lane's Cuso Project pointed at the brand, with nothing an earlier case left. */
@@ -143,18 +159,44 @@ async function pointCusoAt(
 }
 
 /**
- * A published Instagram post with the eval comments under it, on the lane's
- * Cuso Project pointed at the comment brand. The post has no external id,
- * so collecting comments reads these and asks no network. Returns each
+ * The lane's Cuso Project as the chat brand, with its Brand Brain and its
+ * month as a draft; or, for a new client, a site that does not load and
+ * nothing learned.
+ */
+async function prepareCmoChat(lane: EvalLaneRecord, known: boolean) {
+  if (!known) {
+    await pointCusoAt(lane, { url: "https://acme-unknown.example" }, null);
+    return;
+  }
+  const brand = CMO_EVAL_BRANDS.find((b) => b.name === CMO_CHAT_BRAND);
+  if (!brand) throw new Error(`No CMO eval brand ${CMO_CHAT_BRAND}`);
+  const brain = (brandBrains as Record<string, unknown>)[CMO_CHAT_BRAND];
+  await pointCusoAt(lane, brand, brain ?? null);
+  const frozen = parseMarketingPlan(
+    (monthPlans as Record<string, unknown>)[CMO_CHAT_BRAND],
+  ) as MarketingStrategyPlan | null;
+  if (!frozen) return;
+  await prisma.marketingStrategy.create({
+    data: {
+      projectId: lane.cusoProjectId,
+      plan: monthPlanFromTomorrow(frozen, new Date()) as object,
+      authorSokoBotId: lane.cusoBotId,
+    },
+  });
+}
+
+/**
+ * Sets the lane up for a Cuso chat case. For the replies case: a published
+ * Instagram post with the eval comments under it. The post has no external
+ * id, so collecting comments reads these and asks no network. Returns each
  * comment's id by its key.
  */
-export async function prepareCmoComments(
+export async function prepareCmoChatCase(
   lane: EvalLaneRecord,
-): Promise<Record<string, string>> {
-  const brand = CMO_EVAL_BRANDS.find((b) => b.name === CMO_COMMENT_BRAND);
-  if (!brand) throw new Error(`No CMO eval brand ${CMO_COMMENT_BRAND}`);
-  const brain = (brandBrains as Record<string, unknown>)[CMO_COMMENT_BRAND];
-  await pointCusoAt(lane, brand, brain ?? null);
+  setup: CmoChatSetup,
+): Promise<{ comments?: Record<string, string> }> {
+  await prepareCmoChat(lane, setup !== "cmo-new-client");
+  if (setup !== "cmo-comments") return {};
   await prisma.socialComment.deleteMany({
     where: { projectId: lane.cusoProjectId },
   });
@@ -187,7 +229,7 @@ export async function prepareCmoComments(
     });
     ids[comment.key] = created.id;
   }
-  return ids;
+  return { comments: ids };
 }
 
 /**
@@ -277,6 +319,7 @@ export async function startCmoCase(
   const { turnId } = await requestCmoStrategy({
     userId: lane.userId,
     projectId: lane.cusoProjectId,
+    siteLanguage: evalCase.brand.siteLanguage,
   });
   return { kind: "started", turnId, state: {} };
 }
@@ -334,6 +377,17 @@ async function pollMonth(
   });
   const plan = parseMarketingPlan(version.plan) as MarketingStrategyPlan | null;
   const pieces = plan?.calendar.length ?? 0;
+  const files = await Promise.all(
+    (plan?.calendar ?? []).filter(isMarketingFilePiece).map(async (entry) => {
+      const text = await readMarketingPieceText(
+        { id: strategyId },
+        entry.id,
+      ).catch(() => null);
+      return text
+        ? `${entry.id} (${entry.channel}/${entry.format}): ${text}`
+        : null;
+    }),
+  );
   const written = posts.filter((post) => {
     const planning = post.planning as { brief?: unknown; title?: unknown };
     return post.text !== planning?.brief && post.text !== planning?.title;
@@ -397,6 +451,7 @@ async function pollMonth(
           (post) =>
             `${post.provider}${Array.isArray(post.media) && post.media.length ? " (with media)" : ""}: ${post.text}`,
         ),
+        files: files.filter((file) => file !== null),
       },
       turnIds: turns.map((turn) => turn.id),
     },
@@ -426,6 +481,7 @@ export async function pollCmoCase(
   if (!SETTLED_TURN_STATUSES.includes(turn.status)) {
     if (Date.now() - context.startedAt.getTime() < CMO_TURN_TIMEOUT_MS)
       return { kind: "waiting" };
+    await endTurn(result.turnId);
     return {
       kind: "done",
       outcome: {
@@ -464,6 +520,7 @@ export async function pollCmoCase(
         answer: turn.finalAnswer,
         summary: strategy?.summary ?? null,
         offer: strategy?.offer?.what ?? null,
+        coreOffer: strategy?.ladder?.core.what ?? null,
         contentLanguage: strategy?.contentLanguage ?? null,
         pillars: strategy?.pillars.map((pillar) => pillar.name),
         calendar: strategy?.calendar

@@ -172,6 +172,7 @@ function createTask() {
     description: null,
     status: TaskStatus.READY,
     priority: TaskPriority.NONE,
+    archivedAt: null,
     number: null,
     _count: {
       events: 0,

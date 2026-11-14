@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { keepAnswers } from "@/helpers/question-answers";
+import { detectSiteLanguage } from "@/lib/site-platform";
 import {
   cancelSocialPost,
   connectionFindMany,
@@ -97,7 +98,7 @@ const plan = (row: { plan: unknown }) => row.plan as typeof strategy;
 const approvedRows = () => strategyRows.filter((row) => row.approvedAt);
 
 vi.mock("@/lib/site-platform", () => ({
-  detectSiteLanguage: async () => "German",
+  detectSiteLanguage: vi.fn().mockResolvedValue("German"),
 }));
 
 describe("requestCmoStrategy", () => {
@@ -186,6 +187,26 @@ describe("requestCmoStrategy", () => {
 
     expect(JSON.stringify(startTurn.mock.lastCall)).toContain(
       "The website is written in German: set contentLanguage to German",
+    );
+  });
+
+  it("uses the frozen site language without reading the live German site", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+    vi.mocked(detectSiteLanguage).mockClear();
+
+    await requestCmoStrategy({
+      projectId: "project-1",
+      userId: "user-1",
+      siteLanguage: "English",
+    });
+
+    expect(detectSiteLanguage).not.toHaveBeenCalled();
+    const message = JSON.stringify(startTurn.mock.lastCall);
+    expect(message).toContain("set contentLanguage to English");
+    expect(message).toContain("This sets only contentLanguage");
+    expect(message).toContain(
+      "Write acme.io's marketing strategy for the four weeks",
     );
   });
 
@@ -473,6 +494,56 @@ describe("saving versions", () => {
     expect(plan(saved).previews).toEqual([preview]);
   });
 
+  it("keeps what Cuso fills with an empty list or text", async () => {
+    // A tool call fills every field: changing one channel's cadence sent the
+    // goals, the summary and the calendar empty and wiped them.
+    cusoFind.mockResolvedValue(HIRE);
+    seedStrategy(strategy);
+    const saved = await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { ...strategy, summary: "", goals: [], calendar: [] },
+      { turnId: "turn-1" },
+    );
+    expect(plan(saved).summary).toBe(strategy.summary);
+    expect(plan(saved).goals).toEqual(strategy.goals);
+    expect(plan(saved).calendar.map((entry) => entry.id)).toEqual(
+      strategy.calendar.map((entry) => entry.id),
+    );
+  });
+
+  it("empties a list Cuso names in clear, and only that one", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    const preview = {
+      kind: "post" as const,
+      channel: "linkedin",
+      title: "Sample",
+      body: "Text.",
+    };
+    seedStrategy({ ...strategy, previews: [preview] });
+    const saved = await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { ...strategy, previews: [], goals: [] },
+      { turnId: "turn-1", clear: ["previews"] },
+    );
+    expect(plan(saved).previews).toEqual([]);
+    expect(plan(saved).goals).toEqual(strategy.goals);
+  });
+
+  it("still lets an owner clear a list", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    seedStrategy({
+      ...strategy,
+      previews: [
+        { kind: "post", channel: "linkedin", title: "Sample", body: "Text." },
+      ],
+    });
+    const owner = await saveCmoStrategy(
+      { userId: "user-1", projectId: "project-1" },
+      { ...strategy, previews: [] },
+    );
+    expect(plan(owner).previews).toEqual([]);
+  });
+
   it("lets an owner save replace the calendar, including hidden days", async () => {
     cusoFind.mockResolvedValue(HIRE);
     seedStrategy(strategy);
@@ -577,6 +648,37 @@ describe("keepCalendarWork", () => {
       [entry("a", "2026-11-02", "Customer story")],
     );
     expect(kept[0]?.draft).toBe("Full text");
+  });
+
+  it("keeps every field a kept entry leaves out", () => {
+    const kept = keepCalendarWork(
+      [
+        {
+          ...entry("a", "2026-11-02", "Customer story", "Full text"),
+          imageFileId: "file-1",
+        },
+      ],
+      [entry("a", "2026-11-09", "Customer story")],
+    );
+    expect(kept[0]).toMatchObject({
+      date: "2026-11-09",
+      draft: "Full text",
+      imageFileId: "file-1",
+    });
+  });
+
+  it("leaves the old piece's files behind when the entry changes channel", () => {
+    const kept = keepCalendarWork(
+      [
+        {
+          ...entry("a", "2026-11-02", "Customer story", "Full text"),
+          imageFileId: "file-1",
+        },
+      ],
+      [{ ...entry("a", "2026-11-02", "Customer story"), channel: "x" }],
+    );
+    expect(kept[0]?.draft).toBe("Full text");
+    expect(kept[0]?.imageFileId).toBeUndefined();
   });
 
   it("drops a stale draft when the piece was rewritten", () => {

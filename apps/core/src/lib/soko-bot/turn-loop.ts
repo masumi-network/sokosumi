@@ -105,21 +105,42 @@ export class RuntimeEventLog {
   ) {}
 
   async append(event: RuntimeEvent): Promise<void> {
+    await this.appendUnless(event, []);
+  }
+
+  /**
+   * Appends unless the turn already holds one of these event types, checked
+   * under the same lock as the write. False when it was left out.
+   */
+  async appendUnless(
+    event: RuntimeEvent,
+    recorded: readonly string[],
+  ): Promise<boolean> {
     const queued = this.tail.then(
-      () => this.write(event),
-      () => this.write(event),
+      () => this.write(event, recorded),
+      () => this.write(event, recorded),
     );
     // A failed append must not cancel the ones queued behind it.
     this.tail = queued.catch(() => undefined);
     return queued;
   }
 
-  private async write(event: RuntimeEvent): Promise<void> {
-    await prisma.$transaction(async (tx) => {
+  private async write(
+    event: RuntimeEvent,
+    unless: readonly string[],
+  ): Promise<boolean> {
+    return prisma.$transaction(async (tx) => {
       const key = `soko-bot-runtime-event:${this.turnId}`;
       await tx.$executeRaw`
         SELECT pg_advisory_xact_lock(hashtextextended(${key}::TEXT, 0))
       `;
+      if (unless.length > 0) {
+        const held = await tx.sokoBotRuntimeEvent.findFirst({
+          where: { turnId: this.turnId, type: { in: [...unless] } },
+          select: { id: true },
+        });
+        if (held) return false;
+      }
       const latest = await tx.sokoBotRuntimeEvent.findFirst({
         where: { turnId: this.turnId },
         orderBy: { startIndex: "desc" },
@@ -136,6 +157,7 @@ export class RuntimeEventLog {
           occurredAt: new Date(event.meta.at),
         },
       });
+      return true;
     }, APPEND_TRANSACTION_OPTIONS);
   }
 }

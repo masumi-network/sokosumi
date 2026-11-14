@@ -314,6 +314,20 @@ describe("authorized chat results", () => {
       kind: "bot_schedule",
       status: "PAUSED",
       recurrence: null,
+      sourceHref: "/personal-assistant?schedule=follow-up",
+    });
+    // A card recorded with the old page link opens the schedule's row.
+    const [relinked] = await hydrateChatResultSnapshots(
+      [
+        {
+          ...followUp,
+          data: { ...followUp.data, sourceHref: "/personal-assistant" },
+        },
+      ],
+      "owner",
+    );
+    expect(relinked).toMatchObject({
+      sourceHref: "/personal-assistant?schedule=follow-up",
     });
     expect(botSchedule).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -2407,19 +2407,25 @@ describe("social post publisher service", () => {
         .mockResolvedValue(null);
     }
 
-    it("passes the stored media refs to the adapter without downloading them", async () => {
-      const second = { ...IMAGE_REF, name: "second.png" };
-      claimWithMedia([IMAGE_REF, second]);
-      const { publishDueSocialPosts } = await loadService();
+    it.each([2, 20])(
+      "passes all %s stored image refs to the adapter without downloading them",
+      async (count) => {
+        const media = Array.from({ length: count }, (_, index) => ({
+          ...IMAGE_REF,
+          name: `image-${index + 1}.png`,
+        }));
+        claimWithMedia(media);
+        const { publishDueSocialPosts } = await loadService();
 
-      const result = await publishDueSocialPosts(syncContext);
+        const result = await publishDueSocialPosts(syncContext);
 
-      expect(result).toMatchObject({ published: 1 });
-      expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
-      expect(publishXPostMock).toHaveBeenCalledWith(
-        expect.objectContaining({ media: [IMAGE_REF, second] }),
-      );
-    });
+        expect(result).toMatchObject({ published: 1 });
+        expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
+        expect(publishXPostMock).toHaveBeenCalledWith(
+          expect.objectContaining({ media }),
+        );
+      },
+    );
 
     it("does not contact the provider when coworker access is revoked before dispatch", async () => {
       socialPostFindFirstMock

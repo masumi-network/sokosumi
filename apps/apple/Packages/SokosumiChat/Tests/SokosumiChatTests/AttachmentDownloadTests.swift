@@ -45,6 +45,20 @@ private class AttachmentDownloadProtocol: URLProtocol, @unchecked Sendable {
   }
 }
 
+@Test func cappedDownloadStopsOverTheLimitWithoutALength() async throws {
+  let config = URLSessionConfiguration.ephemeral
+  config.protocolClasses = [AttachmentDownloadProtocol.self]
+  let session = URLSession(configuration: config)
+  defer { session.invalidateAndCancel() }
+  let url = try #require(URL(string: "https://example.com/file"))
+  let local = try await AttachmentDownload.fetch(url, maxBytes: 13, session: session)
+  defer { try? FileManager.default.removeItem(at: local) }
+  #expect(try String(contentsOf: local, encoding: .utf8) == "file contents")
+  await #expect(throws: AttachmentDownload.Failure.tooLarge) {
+    try await AttachmentDownload.fetch(url, maxBytes: 12, session: session)
+  }
+}
+
 @Test func attachmentTextDownloadMatchesWebDecodingAndErrors() async throws {
   let config = URLSessionConfiguration.ephemeral
   config.protocolClasses = [AttachmentDownloadProtocol.self]

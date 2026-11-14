@@ -22,6 +22,7 @@ function buildTask(
     organizationId: null,
     projectId: null,
     project: null,
+    archivedAt: null,
     owner: { id: "user-1", name: "Test User", image: null },
     userId: "user-1",
     user: { id: "user-1", name: "Test User", image: null },

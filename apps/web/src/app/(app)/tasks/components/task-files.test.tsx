@@ -5,7 +5,11 @@ import { Activity, StrictMode } from "react";
 import { toast } from "sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createTaskFilesArchive } from "@/app/tasks/utils/task-files-archive";
+import {
+  createFilesArchive,
+  MAX_ARCHIVE_BYTES,
+  MAX_ARCHIVE_FILES,
+} from "@/lib/files-archive";
 import en from "../../../../../messages/en.json";
 import { type TaskFileListItem, TaskFiles } from "./task-files";
 
@@ -13,11 +17,9 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn(), warning: vi.fn() },
 }));
 
-vi.mock("@/app/tasks/utils/task-files-archive", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("@/app/tasks/utils/task-files-archive")
-  >()),
-  createTaskFilesArchive: vi.fn(),
+vi.mock("@/lib/files-archive", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/files-archive")>()),
+  createFilesArchive: vi.fn(),
 }));
 
 vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
@@ -62,6 +64,7 @@ function filesView(
           Tasks: {
             TaskFileStatusBadge: { pending: "Pending", failed: "Failed" },
           },
+          FilesArchive: en.Components.FilesArchive,
         },
         App: {
           Tasks: {
@@ -300,7 +303,7 @@ describe("TaskFiles download all", () => {
 
   it("saves one zip of the ready files and names the ones left out", async () => {
     const user = userEvent.setup();
-    vi.mocked(createTaskFilesArchive).mockResolvedValue({
+    vi.mocked(createFilesArchive).mockResolvedValue({
       data: new ArrayBuffer(1),
       included: ["Report 0.pdf"],
       missing: ["Report 1.pdf"],
@@ -319,12 +322,14 @@ describe("TaskFiles download all", () => {
 
     await user.click(screen.getByRole("button", { name: "Download all" }));
 
-    expect(createTaskFilesArchive).toHaveBeenCalledWith(
+    expect(createFilesArchive).toHaveBeenCalledWith(
       [
         { name: a.name, fileUrl: a.fileUrl },
         { name: b.name, fileUrl: b.fileUrl },
       ],
       expect.any(AbortSignal),
+      MAX_ARCHIVE_BYTES,
+      MAX_ARCHIVE_FILES,
     );
     expect(click).toHaveBeenCalledOnce();
     expect(toast.warning).toHaveBeenCalledWith(
@@ -335,7 +340,7 @@ describe("TaskFiles download all", () => {
 
   it("zips a public share's files, which carry no status, by their links", async () => {
     const user = userEvent.setup();
-    vi.mocked(createTaskFilesArchive).mockResolvedValue({
+    vi.mocked(createFilesArchive).mockResolvedValue({
       data: new ArrayBuffer(1),
       included: ["Report 0.pdf", "Report 1.pdf"],
       missing: [],
@@ -356,9 +361,11 @@ describe("TaskFiles download all", () => {
 
     await user.click(screen.getByRole("button", { name: "Download all" }));
 
-    expect(createTaskFilesArchive).toHaveBeenCalledWith(
+    expect(createFilesArchive).toHaveBeenCalledWith(
       files.map(({ name, fileUrl }) => ({ name, fileUrl })),
       expect.any(AbortSignal),
+      MAX_ARCHIVE_BYTES,
+      MAX_ARCHIVE_FILES,
     );
     expect(click).toHaveBeenCalledOnce();
     expect(toast.warning).not.toHaveBeenCalled();
@@ -366,7 +373,7 @@ describe("TaskFiles download all", () => {
 
   it("says so when no file could be downloaded", async () => {
     const user = userEvent.setup();
-    vi.mocked(createTaskFilesArchive).mockResolvedValue({
+    vi.mocked(createFilesArchive).mockResolvedValue({
       data: null,
       included: [],
       missing: ["Report 0.pdf", "Report 1.pdf"],
@@ -394,11 +401,9 @@ describe("TaskFiles download all", () => {
   function pendingArchives() {
     const calls: Array<{
       signal: AbortSignal;
-      settle: (
-        archive: Awaited<ReturnType<typeof createTaskFilesArchive>>,
-      ) => void;
+      settle: (archive: Awaited<ReturnType<typeof createFilesArchive>>) => void;
     }> = [];
-    vi.mocked(createTaskFilesArchive).mockImplementation(
+    vi.mocked(createFilesArchive).mockImplementation(
       (_files, signal) =>
         new Promise((resolve, reject) => {
           if (!signal) throw new Error("expected a signal");
@@ -434,7 +439,7 @@ describe("TaskFiles download all", () => {
   it("saves nothing and says nothing when the zip finishes after the page was left", async () => {
     const user = userEvent.setup();
     const calls = pendingArchives();
-    vi.mocked(createTaskFilesArchive).mockImplementationOnce(
+    vi.mocked(createFilesArchive).mockImplementationOnce(
       (_files, signal) =>
         new Promise((resolve) => {
           if (!signal) throw new Error("expected a signal");

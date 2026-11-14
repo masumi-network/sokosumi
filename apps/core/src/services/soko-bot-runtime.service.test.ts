@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import { TaskStatus } from "@sokosumi/database";
+import { marketingStrategyPlanSchema } from "@sokosumi/soko-bot";
 import { socialProviderUnavailableMessage } from "@sokosumi/utils";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -11156,6 +11157,87 @@ describe("CMO record saves", () => {
     expect(tx.chatRoomMessage.upsert).not.toHaveBeenCalled();
   });
 
+  it.each([4, 5, 6])(
+    "reports duplicate ad titles on unapproved save %i without extending the semantic review budget",
+    async (saves) => {
+      toolCallCountMock.mockResolvedValueOnce(saves);
+      botFindUniqueMock.mockClear().mockResolvedValueOnce(null);
+      const strategy = marketingStrategyPlanSchema.parse({
+        month: "2026-11",
+        summary: "Explain the Email plan.",
+        goals: ["More trial starts"],
+        pillars: [],
+        channels: [],
+        calendar: ["2026-11-30", "2026-12-09"].map((date, index) => ({
+          id: `ad-${index}`,
+          date,
+          channel: "google_ads",
+          format: "search ad",
+          title: "Email prospecting search test",
+          status: "idea",
+        })),
+      });
+      const service = new SokoBotRuntimeService();
+      const review = await service["reviewCmoPlan"](
+        owner as never,
+        {
+          ...SCOPE,
+          capability: "save_strategy",
+          toolCallId: "strategy",
+          input: {},
+        },
+        {
+          approved: false,
+          projectId: "project-1",
+          executing: false,
+          strategy,
+          planSent: true,
+        },
+      );
+      expect(review).toMatchObject({
+        save: saves,
+        mainOffer: "skipped",
+        problems: expect.arrayContaining([
+          "2 calendar entries share a title (2026-11-30, 2026-12-09); give each piece its own message and title.",
+        ]),
+      });
+      expect(botFindUniqueMock).toHaveBeenCalledTimes(saves <= 4 ? 1 : 0);
+      botFindUniqueMock.mockReset();
+    },
+  );
+
+  it("leaves approved strategies outside the planning review", async () => {
+    toolCallCountMock.mockClear();
+    const service = new SokoBotRuntimeService();
+    const strategy = marketingStrategyPlanSchema.parse({
+      month: "2026-11",
+      summary: "The approved plan",
+      goals: ["More trials"],
+      pillars: [],
+      channels: [],
+      calendar: [],
+    });
+    await expect(
+      service["reviewCmoPlan"](
+        owner as never,
+        {
+          ...SCOPE,
+          capability: "save_strategy",
+          toolCallId: "strategy",
+          input: {},
+        },
+        {
+          approved: true,
+          projectId: "project-1",
+          executing: false,
+          strategy,
+          planSent: true,
+        },
+      ),
+    ).resolves.toBeNull();
+    expect(toolCallCountMock).not.toHaveBeenCalled();
+  });
+
   it("saves Cuso's plan as a new Marketing strategy version of his Project", async () => {
     const PROJECT = "01960001-0001-7001-8001-0000000000ab";
     const plan = {
@@ -11236,6 +11318,7 @@ describe("CMO record saves", () => {
       versionId: "strategy-2",
       approved: false,
     });
+    expect(result).not.toHaveProperty("firstUndrafted");
   });
 
   it("saves the Brand Brain to Cuso's Project", async () => {

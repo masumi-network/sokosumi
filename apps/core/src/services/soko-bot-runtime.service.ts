@@ -18,6 +18,7 @@ import {
   CMO_PRODUCTION_MEDIA_PER_RUN,
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoCalendarEntry,
+  cmoStrategySaveClears,
   cmoStrategySavePart,
   composeSystemPrompt,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
@@ -362,7 +363,7 @@ import {
   type CmoPlanReview,
   cmoDraftProblems,
   cmoPlanDrift,
-  cmoPlanProblems,
+  cmoPlanProblemsSince,
   cmoReplySafety,
 } from "@/services/cmo-plan-review.service";
 import { reportCmoUpdate } from "@/services/cmo-reports.service";
@@ -409,6 +410,7 @@ import {
 import {
   approvedMarketingStrategy,
   isMarketingFilePiece,
+  parseMarketingPlan,
   readMarketingPlan,
 } from "@/services/marketing-strategy.service";
 import { writeMarketingStrategyFiles } from "@/services/marketing-strategy-files.service";
@@ -5746,6 +5748,9 @@ export class SokoBotRuntimeService {
     plan: {
       /** The version saved is the approved one (pieces of the running plan). */
       approved: boolean;
+      projectId: string;
+      /** A rhythm or production turn: it built on the approved version. */
+      executing: boolean;
       strategy: MarketingStrategyPlan | null;
       planSent: boolean;
     },
@@ -5755,8 +5760,33 @@ export class SokoBotRuntimeService {
     const saves = await prisma.sokoBotToolCall.count({
       where: { turnId: authorized.turn.id, capability: "save_strategy" },
     });
-    if (saves > CMO_PLAN_REVIEWS_PER_TURN) return null;
-    const problems = cmoPlanProblems(strategy);
+    // Jev reads the first saves only; the rule checks cost nothing and run on
+    // a few more, so a late save still hears about a repeated title. Past
+    // that the review stops, so a plan that cannot be fixed still ends.
+    if (saves > 2 * CMO_PLAN_REVIEWS_PER_TURN) return null;
+    // The plan this turn built on, as it was before the turn touched it.
+    const before =
+      (plan.executing
+        ? await approvedMarketingStrategy(plan.projectId)
+        : null) ??
+      (await prisma.marketingStrategy.findFirst({
+        where: {
+          projectId: plan.projectId,
+          OR: [
+            { authorTurnId: null },
+            { authorTurnId: { not: authorized.turn.id } },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        select: { plan: true },
+      }));
+    const problems = cmoPlanProblemsSince(
+      strategy,
+      parseMarketingPlan(before?.plan),
+    );
+    if (saves > CMO_PLAN_REVIEWS_PER_TURN) {
+      return { save: saves, mainOffer: "skipped", problems };
+    }
     const bot = plan.planSent
       ? await prisma.sokoBot.findUnique({
           where: { id: authorized.turn.sokoBotId },
@@ -5882,11 +5912,30 @@ export class SokoBotRuntimeService {
             saveCmoStrategy(
               where,
               sent,
-              { turnId: authorized.turn.id, pieces, executing },
+              {
+                turnId: authorized.turn.id,
+                pieces,
+                executing,
+                clear: cmoStrategySaveClears(input.input),
+              },
               tx,
             ),
           );
           const approved = saved.approvedAt !== null;
+          // Fields sent empty were filler: say they stayed, so nobody reads
+          // the call as having cleared them.
+          const leftAsSaved = pieces
+            ? []
+            : Object.entries(sent)
+                .filter(
+                  ([key, value]) =>
+                    key !== "changes" &&
+                    key !== "calendar" &&
+                    !cmoStrategySaveClears(input.input).includes(key) &&
+                    (value === "" ||
+                      (Array.isArray(value) && value.length === 0)),
+                )
+                .map(([key]) => key);
           // Pieces that are not Social posts become the Project's Files.
           const filed =
             pieces && approved
@@ -5900,6 +5949,8 @@ export class SokoBotRuntimeService {
           const calendar = stored?.calendar ?? [];
           const review = await this.reviewCmoPlan(authorized, input, {
             approved,
+            projectId: saved.projectId,
+            executing,
             strategy: stored,
             planSent: sent.summary !== undefined,
           });
@@ -5931,8 +5982,9 @@ export class SokoBotRuntimeService {
               entries: calendar.length,
               drafted: calendar.filter(written).length,
               ...(filed > 0 ? { filed } : {}),
+              ...(leftAsSaved.length > 0 ? { leftAsSaved } : {}),
               undrafted: undrafted.length,
-              firstUndrafted: undrafted[0],
+              ...(undrafted[0] ? { firstUndrafted: undrafted[0] } : {}),
               ...(review ? { review } : {}),
               ...(review && review.problems.length > 0
                 ? {

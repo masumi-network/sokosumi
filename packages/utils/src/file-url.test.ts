@@ -9,6 +9,11 @@ describe("isFileLikeUrl", () => {
     expect(isFileLikeUrl("https://example.com/image.png")).toBe(true);
   });
 
+  it("recognizes recorded voice messages", () => {
+    expect(isFileLikeUrl("https://example.com/voice.m4a")).toBe(true);
+    expect(isFileLikeUrl("https://example.com/voice.weba")).toBe(true);
+  });
+
   it("recognizes /deliverables/ URLs without extensions", () => {
     expect(
       isFileLikeUrl("https://elena.sokosumi.com/deliverables/01a019d9"),

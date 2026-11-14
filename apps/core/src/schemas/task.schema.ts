@@ -337,6 +337,11 @@ const taskBaseSchema = z.object({
       "Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.",
     example: null,
   }),
+  archivedAt: dateTimeSchema.nullable().openapi({
+    description:
+      "When the Task was archived. Null unless it is archived; only archived reads (archived=true) return archived Tasks.",
+    example: null,
+  }),
   credits: z.number().openapi({ example: 5 }),
   events: z.array(taskEventSchema).openapi({ example: [] }),
   jobs: jobSummariesSchema.openapi({ example: [] }),

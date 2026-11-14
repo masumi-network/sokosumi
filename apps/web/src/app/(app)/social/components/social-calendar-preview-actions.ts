@@ -17,10 +17,16 @@ export const loadSocialCalendarPreview = withSession(
     const connections = await projectService.listSocialConnections(projectId);
     const post = await projectService.getSocialPost(projectId, postId);
     if (!post) throw new Error("Social post not found");
-    const queueSlots = await projectService.listSocialQueueSlots(projectId);
+    const [project, queueSlots] = await Promise.all([
+      projectService.getProjectById(projectId),
+      projectService.listSocialQueueSlots(projectId),
+    ]);
     return {
       post,
-      queueSlots: queueSlots.slots,
+      // A CMO Project's posts are read-only outside CMO, as on its own page.
+      // A Project that cannot be read offers no actions either.
+      readOnly: project?.cmo ?? true,
+      queueSlots: queueSlots?.slots,
       connections: connections.filter(
         (connection) => connection.status === "active",
       ),

@@ -7380,6 +7380,15 @@ export const TaskSchema = {
             description: 'Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.',
             example: null
         },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When the Task was archived. Null unless it is archived; only archived reads (archived=true) return archived Tasks.'
+        },
         credits: {
             type: 'number',
             example: 5
@@ -7475,6 +7484,7 @@ export const TaskSchema = {
         'runAt',
         'dueOn',
         'scheduleId',
+        'archivedAt',
         'credits',
         'events',
         'jobs',
@@ -38809,8 +38819,8 @@ export const CreateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 10,
-            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+            maxItems: 20,
+            description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
         },
         threadParts: {
             type: 'array',
@@ -38826,8 +38836,8 @@ export const CreateSocialPostRequestSchema = {
                         items: {
                             $ref: '#/components/schemas/SocialPostMediaRef'
                         },
-                        maxItems: 10,
-                        description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+                        maxItems: 20,
+                        description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
                     }
                 },
                 required: [
@@ -38936,8 +38946,8 @@ export const UpdateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 10,
-            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+            maxItems: 20,
+            description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
         },
         threadParts: {
             type: 'array',
@@ -38953,8 +38963,8 @@ export const UpdateSocialPostRequestSchema = {
                         items: {
                             $ref: '#/components/schemas/SocialPostMediaRef'
                         },
-                        maxItems: 10,
-                        description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+                        maxItems: 20,
+                        description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
                     }
                 },
                 required: [
@@ -53419,6 +53429,15 @@ export const TaskListItemSchema = {
             description: 'Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.',
             example: null
         },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When the Task was archived. Null unless it is archived; only archived reads (archived=true) return archived Tasks.'
+        },
         workspace: {
             $ref: '#/components/schemas/WorkspaceSummary'
         },
@@ -53468,6 +53487,7 @@ export const TaskListItemSchema = {
         'runAt',
         'dueOn',
         'scheduleId',
+        'archivedAt',
         'workspace',
         'jobsCount',
         'commentsCount'
@@ -56824,6 +56844,27 @@ export const WorkspaceCalendarSourceSchema = {
         'logoUrl',
         'paletteToken',
         'isSchedulable'
+    ]
+} as const;
+
+export const WorkspaceSocialPostSchema = {
+    type: 'object',
+    properties: {
+        post: {
+            $ref: '#/components/schemas/SocialPost'
+        },
+        projectName: {
+            type: 'string'
+        },
+        projectCmo: {
+            type: 'boolean',
+            description: 'The post\'s Project is a CMO Project, so its posts are read-only outside CMO (ADR 0066).'
+        }
+    },
+    required: [
+        'post',
+        'projectName',
+        'projectCmo'
     ]
 } as const;
 

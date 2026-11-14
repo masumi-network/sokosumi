@@ -118,6 +118,7 @@ function createTask(
     linksTo: unknown[];
     status: TaskStatus;
     runAt: Date | null;
+    archivedAt: Date | null;
   }>,
 ) {
   const ownerId = overrides?.ownerId ?? "user_123";
@@ -155,6 +156,7 @@ function createTask(
     visibility: TaskVisibility.PUBLIC,
     priority: TaskPriority.NONE,
     number: null,
+    archivedAt: overrides?.archivedAt ?? null,
     runAt: overrides?.runAt ?? null,
     events: [],
     jobs: [],
@@ -297,6 +299,53 @@ describe("GET /tasks/{id}", () => {
     expect(body.data.workspaceId).toBe(testWorkspaceId);
     expect(body.data.runAt).toBe("2030-01-07T09:00:00.000Z");
     expect(body.data.participants).toEqual([]);
+  });
+
+  it("reads an archived task only with archived=true, inside the workspace and visibility", async () => {
+    const archivedAt = new Date("2026-11-04T08:00:00.000Z");
+    viewerTaskIncludeResult = createTask({ archivedAt });
+
+    const app = createApp();
+    mountGetTaskById(app);
+
+    const response = await app.request("http://localhost/tsk_a?archived=true");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.archivedAt).toBe("2026-11-04T08:00:00.000Z");
+    expect(taskFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "tsk_a",
+          archivedAt: { not: null },
+          workspaceId: testWorkspaceId,
+          ...buildHumanTaskVisibilityWhere("user_123"),
+        },
+      }),
+    );
+  });
+
+  it("returns 404 for archived=true when no archived task matches", async () => {
+    taskFindFirstMock.mockResolvedValue(null);
+    const app = createApp();
+    mountGetTaskById(app);
+
+    const response = await app.request("http://localhost/tsk_a?archived=true");
+
+    expect(response.status).toBe(404);
+  });
+
+  it("refuses archived reads from coworkers", async () => {
+    const app = createApp({
+      actor: "coworker",
+      context: { userId: "user_123", organizationId: "org_123" },
+    });
+    mountGetTaskById(app);
+
+    const response = await app.request("http://localhost/tsk_a?archived=true");
+
+    expect(response.status).toBe(400);
+    expect(taskFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("lists the statuses the viewer may set by hand", async () => {

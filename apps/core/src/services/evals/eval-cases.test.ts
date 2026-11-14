@@ -126,6 +126,20 @@ const NOT_YET_COVERED = new Set([
 ]);
 
 describe("eval cases", () => {
+  it("freeze the site language separately from the expected language for every strategy", () => {
+    const strategies = EVAL_CASES.filter(
+      (evalCase) => evalCase.kind === "cmo-strategy",
+    );
+    expect(strategies.length).toBeGreaterThan(0);
+    for (const evalCase of strategies) {
+      expect(evalCase.brand.siteLanguage).toMatch(/^(English|German)$/);
+      if (evalCase.brand.contentLanguage)
+        expect(evalCase.brand.siteLanguage).toMatch(
+          new RegExp(evalCase.brand.contentLanguage, "i"),
+        );
+    }
+  });
+
   it("have unique ids", () => {
     const ids = EVAL_CASES.map((evalCase) => evalCase.id);
     expect(new Set(ids).size).toBe(ids.length);

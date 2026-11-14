@@ -30,7 +30,7 @@ export const ROOM_CONTENT_COLUMN_CLASSNAME =
 export const ROOM_MESSAGE_LIST_CONTENT_CLASSNAME = cn(
   CHAT_MESSAGE_LIST_CONTENT_CLASS,
   ROOM_CONTENT_COLUMN_CLASSNAME,
-  "px-5 pt-6 pb-2 md:pb-3",
+  "px-5 pt-6 pb-[calc(var(--room-composer-h,0px)+var(--spacing)*2)] md:pb-[calc(var(--room-composer-h,0px)+var(--spacing)*3)]",
 );
 
 interface MessageSkeletonRow {

@@ -91,6 +91,7 @@ private struct MessageMarkdownContent: View {
           }
         }
         .messageImageGallery(document.imageGallery)
+        .environment(\.showsVoiceTranscript, document.showsVoiceTranscript)
       } else {
         ProgressView()
           .controlSize(.small)
@@ -125,8 +126,13 @@ struct MarkdownBlocksView: View {
   }
 }
 
+extension EnvironmentValues {
+  @Entry var showsVoiceTranscript = false
+}
+
 private struct MarkdownBlockView: View {
   let block: MessageMarkdownBlock
+  @Environment(\.showsVoiceTranscript) private var showsVoiceTranscript
 
   var body: some View {
     switch block.kind {
@@ -152,6 +158,14 @@ private struct MarkdownBlockView: View {
     case let .codeBlock(languageHint):
       if let diagram = block.diagram {
         MermaidFigureView(diagram: diagram)
+      } else if showsVoiceTranscript, languageHint == "transcript" {
+        // A voice message's transcript (web `splitVoiceTranscript`): prose under the player, not code.
+        VStack(alignment: .leading, spacing: 4) {
+          Text("Transcript").font(.caption.weight(.medium)).foregroundStyle(.secondary)
+          Text(String(block.text.characters).trimmingCharacters(in: .whitespacesAndNewlines))
+            .textSelection(.enabled)
+            .fixedSize(horizontal: false, vertical: true)
+        }
       } else {
         MessageCodeBlock(source: String(block.text.characters), languageHint: languageHint)
       }
