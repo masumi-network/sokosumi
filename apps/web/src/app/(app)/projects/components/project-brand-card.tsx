@@ -380,7 +380,7 @@ export function ProjectBrandCard({
                 aria-describedby={
                   websiteError ? "project-brand-website-error" : undefined
                 }
-                className="min-w-0 flex-1 sm:h-8"
+                className="min-w-0 sm:h-8 sm:flex-1"
               />
               <Button
                 type="submit"

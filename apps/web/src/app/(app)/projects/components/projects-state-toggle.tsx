@@ -56,10 +56,12 @@ export function ProjectsStateToggle({
     >
       {PROJECTS_LIST_STATES.map((option) => (
         <ToggleGroupItem key={option} value={option}>
+          {/* Not on phones: the extra width squeezed the filter beside it;
+              the dimmed list and its bar still show the load there. */}
           {pending && option === state ? (
             <Loader2
               data-testid="projects-state-pending"
-              className="size-3.5 animate-spin motion-reduce:animate-pulse"
+              className="size-3.5 animate-spin motion-reduce:animate-pulse max-sm:hidden"
               aria-hidden
             />
           ) : null}
