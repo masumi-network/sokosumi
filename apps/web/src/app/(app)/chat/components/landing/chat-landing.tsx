@@ -2,6 +2,7 @@ import type { TaskActivitySummary } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import type { Coworker } from "@/app/chat/utils/types";
+import { FoilBackground } from "@/components/foil-background";
 import { SokosumiIcon } from "@/components/masumi-logos";
 
 import { ActivityTrend } from "./activity-trend";
@@ -50,7 +51,9 @@ export async function ChatLanding({
     // `-mx-4` cancels app-main `p-4` so the strip can use the full content
     // pane. No middle-column `px-*` / `max-w-*`: pad pitch + stats + CTA only.
     // Padding on an overflow-y ancestor clips edge faces.
-    <div className="-mx-4 flex h-full min-h-0 w-[calc(100%+2rem)] min-w-0 flex-1 flex-col items-stretch pt-10 lg:pt-16">
+    <div className="relative isolate -mx-4 flex h-full min-h-0 w-[calc(100%+2rem)] min-w-0 flex-1 flex-col items-stretch pt-10 lg:pt-16">
+      {/* Up through main's top padding, as on the Soko Bot Home. */}
+      <FoilBackground className="absolute inset-x-0 -top-4 -z-10 h-[42rem]" />
       <SokosumiIcon
         animated={false}
         className="text-foreground shrink-0 self-center"

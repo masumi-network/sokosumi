@@ -2,6 +2,7 @@ import type { TaskActivitySummary } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import type { Coworker } from "@/app/chat/utils/types";
+import { FoilBackground } from "@/components/foil-background";
 
 import { ActivityTrend } from "./activity-trend";
 import { buildActivityStats, resolveFeaturedCoworker } from "./landing-content";
@@ -49,7 +50,9 @@ export async function ChatLandingMobile({
   const stats = buildActivityStats(summary, isOrganizationWorkspace, t);
 
   return (
-    <section className="flex size-full min-h-0 min-w-0 flex-1 flex-col items-stretch pt-4 pb-3 text-center">
+    <section className="relative isolate flex size-full min-h-0 min-w-0 flex-1 flex-col items-stretch pt-4 pb-3 text-center">
+      {/* Bleeds through main's p-4 to its edges, as on the Soko Bot Home. */}
+      <FoilBackground className="absolute -inset-x-4 -top-4 -z-10 h-[42rem]" />
       <div className="app-scrollbar flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch overflow-y-auto py-4">
         <div className="my-auto flex w-full min-w-0 flex-col items-stretch">
           <h1 className="text-foreground shrink-0 px-4 text-2xl font-light text-balance tracking-tight">
