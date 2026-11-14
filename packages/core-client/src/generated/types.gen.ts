@@ -12768,6 +12768,10 @@ export type TaskListItem = {
     workspace: WorkspaceSummary;
     jobsCount: number;
     commentsCount: number;
+    /**
+     * When the Task last changed status, or its creation time if it never did.
+     */
+    statusSince: Date;
 };
 
 export type TaskActivitySummary = {
@@ -85679,6 +85683,10 @@ export type GetTasksData = {
          * Only Tasks due on or before this day (YYYY-MM-DD). Tasks without a due date are left out.
          */
         dueOnTo?: string;
+        /**
+         * Only Tasks whose status has not changed since this time, for work that has sat in one status a while.
+         */
+        statusBefore?: Date;
         /**
          * true lists archived Tasks instead, most recently archived first unless sort is given. People only; coworkers and Soko Bots get 400.
          */

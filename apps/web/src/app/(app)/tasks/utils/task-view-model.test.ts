@@ -15,6 +15,7 @@ function buildTask(
     id: "task-1",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    statusSince: new Date("2026-01-01T00:00:00.000Z"),
     ownerId: "user-1",
     organizationId: null,
     projectId: null,
@@ -91,6 +92,30 @@ describe("mapTaskToTaskWithCoworker", () => {
       { id: "user-2", name: "Ada", image: "https://img/ada.png", kind: "user" },
       { id: "user-3", name: "Bea", image: null, kind: "user" },
     ]);
+  });
+
+  it("dates statusSince from the list item or the latest status event", () => {
+    const listItem = buildTask(TaskStatus.READY, {
+      statusSince: new Date("2026-01-05T00:00:00.000Z"),
+    });
+    expect(map(listItem).statusSince).toBe("2026-01-05T00:00:00.000Z");
+
+    const { statusSince: _statusSince, ...rest } = listItem;
+    const detail = {
+      ...rest,
+      events: [
+        {
+          status: TaskStatus.READY,
+          createdAt: new Date("2026-01-03T00:00:00.000Z"),
+        },
+        {
+          status: null,
+          comment: "Hi",
+          createdAt: new Date("2026-01-09T00:00:00.000Z"),
+        },
+      ],
+    } as unknown as Task;
+    expect(map(detail).statusSince).toBe("2026-01-03T00:00:00.000Z");
   });
 
   it("maps queued tasks to backlog column", () => {

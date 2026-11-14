@@ -34,6 +34,7 @@ vi.mock("next-intl", async () => {
   const formatter = createTestFormatter({ locale: "en-US", timeZone: "UTC" });
   return {
     useFormatter: () => formatter,
+    useNow: () => new Date("2026-03-10T00:00:00.000Z"),
     useTranslations: () => (key: string, values?: Record<string, string>) =>
       values?.name
         ? `${key}:${values.name}`
@@ -42,6 +43,10 @@ vi.mock("next-intl", async () => {
           : key,
   };
 });
+
+vi.mock("@/components/time-ago", () => ({
+  TimeAgo: ({ date }: { date: string }) => <time>{date}</time>,
+}));
 
 vi.mock("@/components/aurora-orb", () => ({
   AssistantOrb: ({ seed, alt }: { seed: string | null; alt?: string }) => (
@@ -481,6 +486,31 @@ describe("TaskMetadata", () => {
       "data-current",
       "true",
     );
+  });
+});
+
+describe("TaskMetadata time in status", () => {
+  it("shows time in status under a read-only status", () => {
+    renderTaskMetadata({
+      task: {
+        ...createTask({ status: TaskStatus.INPUT_REQUIRED }),
+        statusSince: "2026-03-09T12:00:00.000Z",
+      },
+    });
+
+    expect(screen.getByText("label")).toBeVisible();
+    expect(screen.getByText("2026-03-09T12:00:00.000Z")).toBeTruthy();
+  });
+
+  it("shows nothing for a Task that is not waiting", () => {
+    renderTaskMetadata({
+      task: {
+        ...createTask({ status: TaskStatus.COMPLETED }),
+        statusSince: "2026-03-01T00:00:00.000Z",
+      },
+    });
+
+    expect(screen.queryByText("2026-03-01T00:00:00.000Z")).toBeNull();
   });
 });
 

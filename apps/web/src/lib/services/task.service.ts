@@ -36,6 +36,8 @@ interface ListTasksParams {
   scheduleId?: string;
   /** Only Tasks due on or before this day, `YYYY-MM-DD`. */
   dueOnTo?: string;
+  /** Only Tasks whose status has not changed since this time. */
+  statusBefore?: Date;
   /** Archived Tasks instead, most recently archived first. */
   archived?: boolean;
 }
@@ -151,6 +153,7 @@ export const taskService = (() => {
       projectId: params.projectId,
       scheduleId: params.scheduleId,
       dueOnTo: params.dueOnTo,
+      statusBefore: params.statusBefore,
       ...(params.archived ? { archived: "true" as const } : {}),
       q: params.q,
       scope: params.scope,

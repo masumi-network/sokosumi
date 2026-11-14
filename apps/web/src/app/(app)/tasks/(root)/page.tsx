@@ -51,6 +51,7 @@ interface TasksPageProps {
     status?: string | string[];
     projectId?: string | string[];
     visibility?: string | string[];
+    stuck?: string | string[];
     /** The retired Calendar tab (`tab=calendar`) moved to `/calendar`. */
     tab?: string | string[];
     date?: string;
@@ -117,6 +118,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     status,
     projectId,
     visibility,
+    stuck,
   } = resolvedSearchParams;
   const [
     t,
@@ -159,6 +161,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       status,
       projectId,
       visibility,
+      stuck,
     },
     activeOrganizationId,
   );
@@ -239,6 +242,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     status: activeFilters.status,
     projectId: activeFilters.projectId,
     visibility: activeFilters.visibility,
+    stuck: activeFilters.stuck,
     coworkersById,
     personalAssistantFallback: t("personalAssistant"),
   };

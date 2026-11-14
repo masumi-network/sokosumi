@@ -349,6 +349,10 @@ const taskListItemSchema = taskBaseSchema
   .extend({
     jobsCount: z.number().int().nonnegative().openapi({ example: 2 }),
     commentsCount: z.number().int().nonnegative().openapi({ example: 4 }),
+    statusSince: dateTimeSchema.openapi({
+      description:
+        "When the Task last changed status, or its creation time if it never did.",
+    }),
   })
   .openapi("TaskListItem");
 
