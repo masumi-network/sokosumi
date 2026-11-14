@@ -1,7 +1,7 @@
 "use client";
 
 import type { FileResource, HistoryItem } from "@sokosumi/core-client";
-import { FileText } from "lucide-react";
+import { CircleHelp, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   HistorySearchItemIcon,
@@ -10,6 +10,10 @@ import {
 } from "@/app/components/history-search-item";
 import { getHistorySearchItemHref } from "@/app/components/history-search-item-href";
 import { HistorySearchItemStatus } from "@/app/components/history-search-item-status";
+import {
+  matchSearchHelpTopics,
+  type SearchHelpTopic,
+} from "@/app/components/search-help-topics";
 import { useFileSearchGroup } from "@/app/components/use-file-search-group";
 import { useHistorySearchCorpus } from "@/app/components/use-history-search-corpus";
 import {
@@ -33,6 +37,7 @@ interface HistorySearchDialogLabels {
   filesGroup: string;
   filesSeeAll: string;
   filesFilenameMatch: string;
+  helpGroup: string;
 }
 
 interface HistorySearchDialogProps {
@@ -40,6 +45,8 @@ interface HistorySearchDialogProps {
   onOpenChange: (open: boolean) => void;
   labels: HistorySearchDialogLabels;
   activeOrganizationId: string | null;
+  /** Translated how-to answers for this workspace, matched against the query. */
+  helpTopics: readonly SearchHelpTopic[];
 }
 
 export function HistorySearchDialog({
@@ -47,6 +54,7 @@ export function HistorySearchDialog({
   onOpenChange,
   labels,
   activeOrganizationId,
+  helpTopics,
 }: HistorySearchDialogProps) {
   const router = useRouter();
   const { formatDateWithYear } = useLocalizedDateTime();
@@ -65,12 +73,21 @@ export function HistorySearchDialog({
     debouncedQuery: query,
   });
 
+  const matchedHelpTopics = matchSearchHelpTopics(query, helpTopics);
+
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
       reset();
     }
 
     onOpenChange(nextOpen);
+  }
+
+  function handleSelectHelpTopic(topic: SearchHelpTopic) {
+    handleOpenChange(false);
+    if (topic.href) {
+      router.push(topic.href);
+    }
   }
 
   function handleSelectFile(file: FileResource) {
@@ -107,6 +124,27 @@ export function HistorySearchDialog({
         onValueChange={setQuery}
       />
       <CommandList>
+        {matchedHelpTopics.length > 0 ? (
+          <CommandGroup heading={labels.helpGroup}>
+            {matchedHelpTopics.map((topic) => (
+              <CommandItem
+                key={topic.id}
+                value={`help:${topic.id}`}
+                onSelect={() => handleSelectHelpTopic(topic)}
+                className="flex items-start gap-2"
+              >
+                <CircleHelp aria-hidden className="mt-0.5 size-4" />
+                <div className="min-w-0 flex-1">
+                  <span className="block">{topic.title}</span>
+                  <span className="text-muted-foreground mt-0.5 block text-xs">
+                    {topic.answer}
+                  </span>
+                </div>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ) : null}
+
         {isLoading && history.length === 0 ? (
           <div className="text-muted-foreground px-2 py-6 text-center text-sm">
             {labels.loading}

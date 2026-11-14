@@ -5417,15 +5417,93 @@
     },
     "HistorySearchDialog": {
       "title": "Search",
-      "description": "Search for tasks, jobs, job results, images or files",
-      "searchPlaceholder": "Search...",
+      "description": "Search for tasks, jobs, images or files, or ask how to do something",
+      "searchPlaceholder": "Search, or ask how to…",
       "empty": "No results found",
       "loading": "Loading...",
       "error": "Failed to load results",
       "created": "Created",
       "filesGroup": "Files",
       "filesSeeAll": "See all files",
-      "filesFilenameMatch": "Filename match"
+      "filesFilenameMatch": "Filename match",
+      "helpGroup": "Help",
+      "help": {
+        "newTask": {
+          "title": "Give work to a Coworker",
+          "answer": "Press New task in the sidebar, pick a Coworker and describe what you need.",
+          "keywords": "task tasks new create start work delegate assign brief todo"
+        },
+        "coworkers": {
+          "title": "What Coworkers are",
+          "answer": "Coworkers are AI teammates you give Tasks to. Browse them under Agents.",
+          "keywords": "coworker coworkers agent agents ai bot hire teammate what"
+        },
+        "sokoBot": {
+          "title": "Set up your Soko Bot",
+          "answer": "Your Soko Bot is your own assistant. It plans work and hands Tasks to Coworkers for you.",
+          "keywords": "soko bot assistant personal setup helper manager"
+        },
+        "inviteTeammates": {
+          "title": "Invite teammates",
+          "answer": "Open Settings, then Organization, and use Invite member.",
+          "keywords": "invite teammate teammates team member members colleague people add user join"
+        },
+        "startTeam": {
+          "title": "Work with your team",
+          "answer": "Open the workspace menu at the top of the sidebar and create an organization, then invite people there.",
+          "keywords": "invite teammate teammates team member members colleague people organization company share"
+        },
+        "credits": {
+          "title": "Get more credits",
+          "answer": "Buy credits or change your plan under Billing. In an organization, owners and admins manage billing.",
+          "keywords": "credits credit buy pay payment billing plan subscription price top"
+        },
+        "connectAccounts": {
+          "title": "Connect Google or Microsoft",
+          "answer": "Link your Google or Microsoft account under Connections so your Soko Bot can use your mail and calendar.",
+          "keywords": "connect connection google microsoft gmail outlook email mail calendar account integration"
+        },
+        "uploadFiles": {
+          "title": "Upload and find files",
+          "answer": "Open Files and use Upload to add files or whole folders.",
+          "keywords": "file files upload document documents folder drive pdf share"
+        },
+        "addContacts": {
+          "title": "Add contacts",
+          "answer": "Open Contacts and press Add contact. Lists help you group people.",
+          "keywords": "contact contacts person people add crm lead customer list"
+        },
+        "schedules": {
+          "title": "Run a Task on a schedule",
+          "answer": "Open Schedules and press New schedule to have a Task start every day, week or month.",
+          "keywords": "schedule schedules repeat recurring every daily weekly monthly automatic routine"
+        },
+        "chatChannel": {
+          "title": "Start a chat channel",
+          "answer": "Open Chat and press Create channel to talk with your team and Coworkers.",
+          "keywords": "chat channel channels message talk room conversation"
+        },
+        "projects": {
+          "title": "Group work in a Project",
+          "answer": "Open Projects and press New project. Tasks, files and brand settings can belong to it.",
+          "keywords": "project projects group organize client folder brand"
+        },
+        "socialPosts": {
+          "title": "Plan a social post",
+          "answer": "Open Social posts and press New post to write, schedule and publish.",
+          "keywords": "social post posts linkedin twitter instagram publish schedule marketing"
+        },
+        "notifications": {
+          "title": "Choose your notifications",
+          "answer": "Pick which updates reach you, and how, under Settings, then Notifications.",
+          "keywords": "notification notifications alert alerts email push mute quiet settings"
+        },
+        "apiKeys": {
+          "title": "Create an API key",
+          "answer": "Make a key for scripts and tools under Developer, then API keys.",
+          "keywords": "api key keys developer token integration mcp script"
+        }
+      }
     },
     "NoticeDialog": {
       "defaultTitle": "Notice",

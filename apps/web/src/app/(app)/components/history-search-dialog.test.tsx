@@ -58,6 +58,7 @@ const labels = {
   filesGroup: "Files",
   filesSeeAll: "See all files",
   filesFilenameMatch: "Filename match",
+  helpGroup: "Help",
 };
 
 function createTaskItem(id: string, title: string): HistoryItem {
@@ -133,6 +134,7 @@ describe("HistorySearchDialog", () => {
         onOpenChange={vi.fn()}
         activeOrganizationId="org-1"
         labels={labels}
+        helpTopics={[]}
       />,
     );
 
@@ -153,6 +155,7 @@ describe("HistorySearchDialog", () => {
         onOpenChange={vi.fn()}
         activeOrganizationId={null}
         labels={labels}
+        helpTopics={[]}
       />,
     );
 
@@ -190,6 +193,7 @@ describe("HistorySearchDialog", () => {
         onOpenChange={vi.fn()}
         activeOrganizationId={null}
         labels={labels}
+        helpTopics={[]}
       />,
     );
 
@@ -229,6 +233,7 @@ describe("HistorySearchDialog", () => {
         onOpenChange={vi.fn()}
         activeOrganizationId="org-1"
         labels={labels}
+        helpTopics={[]}
       />,
     );
 
@@ -266,6 +271,7 @@ describe("HistorySearchDialog", () => {
         onOpenChange={vi.fn()}
         activeOrganizationId={null}
         labels={labels}
+        helpTopics={[]}
       />,
     );
 
@@ -296,6 +302,7 @@ describe("HistorySearchDialog", () => {
         onOpenChange={vi.fn()}
         activeOrganizationId={null}
         labels={labels}
+        helpTopics={[]}
       />,
     );
 
@@ -319,6 +326,7 @@ describe("HistorySearchDialog", () => {
         open
         onOpenChange={() => {}}
         labels={labels}
+        helpTopics={[]}
         activeOrganizationId={null}
       />,
     );
@@ -339,10 +347,60 @@ describe("HistorySearchDialog", () => {
         open
         onOpenChange={() => {}}
         labels={labels}
+        helpTopics={[]}
         activeOrganizationId={null}
       />,
     );
 
     expect(await screen.findByTitle("Created")).toBeInTheDocument();
+  });
+  it("answers a how-to question and opens the page it names", async () => {
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+
+    renderWithQuery(
+      <HistorySearchDialog
+        open
+        onOpenChange={onOpenChange}
+        activeOrganizationId="org-1"
+        labels={labels}
+        helpTopics={[
+          {
+            id: "inviteTeammates",
+            href: "/organization",
+            title: "Invite teammates",
+            answer: "Open Settings, then Organization.",
+            keywords: "invite teammate member",
+          },
+          {
+            id: "credits",
+            href: "/billing",
+            title: "Get more credits",
+            answer: "Buy credits under Billing.",
+            keywords: "credits buy",
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByText("Help")).not.toBeInTheDocument();
+
+    await user.type(
+      screen.getByPlaceholderText("Search history..."),
+      "how do I invite a teammate",
+    );
+
+    expect(screen.getByText("Help")).toBeInTheDocument();
+    expect(
+      screen.getByText("Open Settings, then Organization."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Get more credits")).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("Invite teammates"));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(pushMock).toHaveBeenCalledWith("/organization");
   });
 });
