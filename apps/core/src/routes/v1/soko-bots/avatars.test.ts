@@ -102,13 +102,13 @@ async function list(take = 6) {
   };
 }
 
-async function topUp(take = 6, excludeIds: string[] = []) {
+async function topUp(take = 6, excludeIds: string[] = [], fresh = false) {
   const response = await createApp().request(
     "http://localhost/avatars/top-up",
     {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ take, excludeIds }),
+      body: JSON.stringify({ take, excludeIds, fresh }),
     },
   );
   const body = await response.json();
@@ -237,35 +237,34 @@ describe("Soko Bot avatar picker", () => {
       );
     });
 
-    it("answers a refresh of a fully seen pool with a new set", async () => {
-      const seen = Array.from({ length: 6 }, () => store.seed().id);
+    it("draws a new set for Show others even when the pool is stocked", async () => {
+      const stocked = Array.from({ length: 30 }, () => store.seed().id);
 
-      const { status, avatars } = await topUp(6, seen);
+      const { status, avatars } = await topUp(6, [], true);
 
       expect(status).toBe(200);
       expect(generateTextMock).toHaveBeenCalledTimes(6);
       expect(avatars).toHaveLength(6);
-      expect(avatars?.some((one) => seen.includes(one.id))).toBe(false);
+      expect(avatars?.some((one) => stocked.includes(one.id))).toBe(false);
+      expect(store.avatars.every((row) => row.reservedAt === null)).toBe(true);
     });
 
-    it("answers a refresh with nothing new when its draw fails", async () => {
-      const seen = [store.seed().id];
+    it("answers Show others with nothing when its paid draw could not be stored", async () => {
+      store.seed();
       // Quiet the failure's log line; the outcome is what is checked.
       const error = vi.spyOn(console, "error").mockImplementation(() => {});
-      generateTextMock.mockRejectedValue(new Error("gateway down"));
+      putMock.mockRejectedValue(new Error("blob down"));
 
-      const { status, avatars } = await topUp(6, seen);
+      const { status, avatars } = await topUp(6, [], true);
 
+      // A 200: a draw was tried and may have been billed, so it is a spent try.
       expect(status).toBe(200);
       expect(avatars).toEqual([]);
-      // Only the probe was tried, and nothing blank is offered.
       expect(generateTextMock).toHaveBeenCalledTimes(1);
-      await expect(list()).resolves.toEqual({ status: 200, ids: seen });
       error.mockRestore();
     });
 
-    it("buys one set for repeated refreshes while that set is drawing", async () => {
-      const seen = [store.seed().id];
+    it("answers 409 and buys nothing while the user's own draw is in flight", async () => {
       let release: () => void = () => {};
       const drawing = new Promise<void>((resolve) => {
         release = resolve;
@@ -275,24 +274,32 @@ describe("Soko Bot avatar picker", () => {
         return { files: [{ mediaType: "image/png", uint8Array: drawnPng }] };
       });
 
-      // The first refresh waits on the image model; three more arrive meanwhile.
-      const first = topUp(6, seen);
+      const first = topUp(6, [], true);
       await vi.waitFor(() => expect(generateTextMock).toHaveBeenCalled());
-      for (let i = 0; i < 3; i += 1) {
-        expect((await topUp(6, seen)).avatars).toEqual([]);
-      }
+      const second = await topUp(6, [], true);
       release();
 
+      expect(second.status).toBe(409);
+      expect(second.body.kind).toBe("avatar_draw_busy");
       expect((await first).avatars).toHaveLength(6);
-      const paid = store.avatars.filter(
-        (row) => row.requestedByUserId === USER_ID,
-      );
-      expect(paid).toHaveLength(6);
       expect(generateTextMock).toHaveBeenCalledTimes(6);
     });
 
-    it("keeps concurrent refreshes under the hourly cap", async () => {
-      // Two left of the allowance, and three refreshes each short of six.
+    it("answers Show others 429 once the hourly allowance is spent", async () => {
+      for (let i = 0; i < LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR; i += 1) {
+        store.seed({ requestedByUserId: USER_ID, claimedBySokoBotId: `b${i}` });
+      }
+      store.seed();
+
+      const { status, body } = await topUp(6, [], true);
+
+      expect(status).toBe(429);
+      expect(body.kind).toBe("avatar_generation_rate_limited");
+      expect(generateTextMock).not.toHaveBeenCalled();
+    });
+
+    it("keeps concurrent Show others draws under the hourly cap", async () => {
+      // Two left of the allowance, and three refreshes each asking for six.
       for (
         let i = 0;
         i < LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR - 2;
@@ -300,9 +307,12 @@ describe("Soko Bot avatar picker", () => {
       ) {
         store.seed({ requestedByUserId: USER_ID, claimedBySokoBotId: `b${i}` });
       }
-      const seen = [store.seed().id];
 
-      await Promise.all([topUp(6, seen), topUp(6, seen), topUp(6, seen)]);
+      await Promise.all([
+        topUp(6, [], true),
+        topUp(6, [], true),
+        topUp(6, [], true),
+      ]);
 
       expect(generateTextMock).toHaveBeenCalledTimes(2);
     });

@@ -131,7 +131,7 @@ describe("AvatarPicker", () => {
 
     expect(await screen.findByRole("button", { name: "f" })).toBeTruthy();
     expect(topUpMock).toHaveBeenCalledWith({
-      input: { take: 6, excludeIds: [] },
+      input: { take: 6, excludeIds: [], fresh: false },
     });
     for (const name of ["a", "b", "c", "d", "e", "f"]) {
       expect(screen.getByRole("button", { name })).toBeTruthy();
@@ -147,7 +147,7 @@ describe("AvatarPicker", () => {
 
     expect(await screen.findByRole("button", { name: "e" })).toBeTruthy();
     expect(topUpMock).toHaveBeenCalledWith({
-      input: { take: 5, excludeIds: [] },
+      input: { take: 5, excludeIds: [], fresh: false },
     });
     expect(
       within(screen.getByRole("group", { name: "Pictures" })).getAllByRole(
@@ -183,7 +183,7 @@ describe("AvatarPicker", () => {
     expect(group.getAllByRole("button")).toHaveLength(6);
   });
 
-  it("shows six others on Show others, never the ones already seen", async () => {
+  it("asks Core to draw a new set on Show others and shows only that set", async () => {
     const user = userEvent.setup();
     topUpMock
       .mockResolvedValueOnce({
@@ -202,10 +202,7 @@ describe("AvatarPicker", () => {
     expect(await screen.findByRole("button", { name: "l" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "a" })).toBeNull();
     expect(topUpMock).toHaveBeenLastCalledWith({
-      input: {
-        take: 6,
-        excludeIds: expect.arrayContaining(["a", "b", "c", "d", "e", "f"]),
-      },
+      input: { take: 6, excludeIds: [], fresh: true },
     });
   });
 
@@ -321,6 +318,67 @@ describe("AvatarPicker", () => {
       screen.getByText("That is all the new pictures for now. Pick one above."),
     ).toBeInTheDocument();
     expect(topUpMock).toHaveBeenCalledTimes(5);
+  });
+
+  it("counts a try that drew nothing, since it may have been billed", async () => {
+    const user = userEvent.setup();
+    topUpMock
+      .mockResolvedValueOnce({ ok: true, value: avatars("a") })
+      // Two empty answers (the image was bought, storing it failed) and two
+      // failures: four tries spent.
+      .mockResolvedValueOnce({ ok: true, value: [] })
+      .mockResolvedValueOnce({ ok: false, error: { code: "UNKNOWN" } })
+      .mockResolvedValueOnce({ ok: true, value: [] })
+      .mockResolvedValueOnce({ ok: false, error: { code: "UNKNOWN" } });
+    render(<Harness />);
+    await screen.findByRole("button", { name: "a" });
+
+    for (let i = 0; i < 4; i += 1) {
+      await user.click(screen.getByRole("button", { name: "Show others" }));
+      await waitFor(() => expect(topUpMock).toHaveBeenCalledTimes(i + 2));
+    }
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Show others" }),
+      ).toBeDisabled(),
+    );
+    expect(pressed("a")).toBe("true");
+    // No "try again" once the tries are spent.
+    expect(
+      screen.getByText("That is all the new pictures for now. Pick one above."),
+    ).toBeInTheDocument();
+    expect(topUpMock).toHaveBeenCalledTimes(5);
+  });
+
+  it("gives a free retry when Core drew nothing", async () => {
+    const user = userEvent.setup();
+    topUpMock.mockResolvedValueOnce({ ok: true, value: avatars("a") });
+    for (const code of [
+      "SOKO_BOT_AVATAR_DRAW_BUSY",
+      "SOKO_BOT_AVATAR_RATE_LIMITED",
+      "SOKO_BOT_AVATAR_UNAVAILABLE",
+      "SOKO_BOT_AVATAR_DRAW_BUSY",
+    ]) {
+      topUpMock.mockResolvedValueOnce({ ok: false, error: { code } });
+    }
+    topUpMock.mockResolvedValueOnce({ ok: true, value: avatars("b") });
+    render(<Harness />);
+    await screen.findByRole("button", { name: "a" });
+
+    for (let i = 0; i < 4; i += 1) {
+      await user.click(screen.getByRole("button", { name: "Show others" }));
+      await waitFor(() => expect(topUpMock).toHaveBeenCalledTimes(i + 2));
+    }
+    expect(
+      await screen.findByText(
+        "No new pictures right now. Try again in a minute.",
+      ),
+    ).toBeInTheDocument();
+
+    // Four no-work answers spent no try: a fifth press still draws.
+    await user.click(screen.getByRole("button", { name: "Show others" }));
+    expect(await screen.findByRole("button", { name: "b" })).toBeTruthy();
   });
 
   it("shows only skeletons, and nothing to pick, while others load", async () => {

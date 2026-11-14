@@ -1,19 +1,3 @@
-/** Matches Core / the web action: more than this is invalid input. */
-export const AVATAR_EXCLUDE_CAP = 60;
-
-/** Wrap around before the next request would exceed the exclusion cap. */
-export function excludeIdsForAvatarRefresh(seen: string[]): string[] {
-  return seen.length >= AVATAR_EXCLUDE_CAP ? [] : seen;
-}
-
-export function nextSeenAvatars<T>(
-  previous: T[],
-  returned: T[],
-  usedExcludeIds: string[],
-): T[] {
-  return usedExcludeIds.length === 0 ? returned : [...previous, ...returned];
-}
-
 /**
  * A refresh comes back short when the hourly cap leaves fewer to draw. Fill
  * the rest of the row with avatars seen before, most recent first, so the row

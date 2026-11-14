@@ -10,7 +10,9 @@ import sharp from "sharp";
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
+  conflict,
   notFound,
+  serviceUnavailable,
   tooManyRequests,
   unprocessableEntity,
 } from "@/helpers/error";
@@ -41,6 +43,8 @@ const GENERATION_WINDOW_MS = 60 * 60 * 1000;
  * still finish; a refresh draws nothing rather than buying more.
  */
 const IN_FLIGHT_MS = 2 * GENERATION_TIMEOUT_MS;
+/** `kind` on the 409 for a fresh draw that reserved nothing. */
+const AVATAR_DRAW_BUSY_KIND = "avatar_draw_busy";
 
 /**
  * The Masumi Family palette (brand guide, "Color"), plus the two neutrals a
@@ -510,12 +514,31 @@ export async function generateAvatars(
   requestedByUserId: string,
   options: AvatarDrawOptions = {},
 ): Promise<number> {
+  const { drawnIds } = await drawAvatars(count, requestedByUserId, options);
+  return drawnIds.length;
+}
+
+/**
+ * What a run did: how many draws it reserved (zero means nothing was tried,
+ * so nothing was billed) and the ids of the avatars it published.
+ */
+interface AvatarDrawRun {
+  reserved: number;
+  drawnIds: string[];
+}
+
+async function drawAvatars(
+  count: number,
+  requestedByUserId: string,
+  options: AvatarDrawOptions = {},
+): Promise<AvatarDrawRun> {
   const reservations = await reserveDraws(
     Math.min(count, MAX_TOP_UP_PER_CALL),
     requestedByUserId,
     options,
   );
-  if (reservations.length === 0) return 0;
+  const reserved = reservations.length;
+  if (reserved === 0) return { reserved, drawnIds: [] };
 
   // Fill one before committing to the rest. The image model bills for an
   // image whether or not we manage to store it, so a misconfigured blob token
@@ -532,22 +555,21 @@ export async function generateAvatars(
     // The probe may have been billed, so its row stays and counts. The rest
     // were never attempted, so hand their draws and their allowance back.
     await releaseReservations(rest);
-    return 0;
+    return { reserved, drawnIds: [] };
   }
-  if (rest.length === 0) return 1;
 
   const results = await Promise.allSettled(rest.map(fillReservation));
-  let generated = 1;
-  for (const result of results) {
+  const drawnIds = [probe.id];
+  results.forEach((result, index) => {
     if (result.status === "fulfilled") {
-      generated += 1;
-      continue;
+      drawnIds.push(rest[index].id);
+      return;
     }
     console.warn("Soko Bot avatar generation failed", {
       error: errorText(result.reason),
     });
-  }
-  return generated;
+  });
+  return { reserved, drawnIds };
 }
 
 export interface AvailableAvatar {
@@ -642,15 +664,12 @@ async function sweepAndDraw(
 /**
  * Fill a short pool, then read it back. There is no cron: the picker asks to
  * fill the pool when it opens, so new avatars are drawn only when someone is
- * about to pick one.
+ * about to pick one. A first open waits for the drawing: it has nothing else
+ * to show.
  *
- * Both a first open and a "show others" refresh wait for the drawing, so a
- * refresh the user asked for comes back with new pictures rather than the same
- * set. The picker holds saving while it waits, and asks for at most four
- * refreshes per session; the hourly cap in `reserveDraws` (24 images, four
- * refreshes of six) is the server-side bound on what those refreshes buy.
- * A refresh draws nothing while one of the user's own runs is still in flight,
- * so a second tab or a repeated request cannot buy the same set twice.
+ * With `fresh` ("show others") the pool is not read at all: this draws `take`
+ * new avatars and answers with exactly those, so a refresh always shows
+ * pictures nobody has seen. See `drawFreshAvatars`.
  *
  * This spends image budget and writes rows, so it belongs behind a POST.
  * Decorative reads use `listAvailableAvatars` so a page render never waits on
@@ -658,15 +677,20 @@ async function sweepAndDraw(
  */
 export async function topUpAvailableAvatars(
   take: number,
-  options: { excludeIds?: string[]; requestedByUserId: string },
+  options: {
+    excludeIds?: string[];
+    fresh?: boolean;
+    requestedByUserId: string;
+  },
 ): Promise<AvailableAvatar[]> {
+  if (options.fresh) {
+    return await drawFreshAvatars(take, options.requestedByUserId);
+  }
   if (canDraw()) {
-    // Count what the caller has not seen yet. "Show others" hands back every
-    // id it has shown, so counting the whole pool found it full and never drew
-    // anything new. Handing ids back does let a caller drive the count to
-    // zero, and each image is billed, so that is spend on demand: what bounds
-    // it is `MAX_TOP_UP_PER_CALL` and the per-user hourly cap in
-    // `reserveDraws`.
+    // Count what the caller has not seen yet. Handing ids back does let a
+    // caller drive the count to zero, and each image is billed, so that is
+    // spend on demand: what bounds it is `MAX_TOP_UP_PER_CALL` and the
+    // per-user hourly cap in `reserveDraws`.
     const available = await prisma.sokoBotAvatar.count({
       where: unclaimedAvatarFilter(options.excludeIds),
     });
@@ -675,7 +699,6 @@ export async function topUpAvailableAvatars(
       const result = await sweepAndDraw(
         take - available,
         options.requestedByUserId,
-        { skipWhileInFlight: Boolean(options.excludeIds?.length) },
       );
       if (result) {
         // Neither a spent allowance nor a lost race says anything about what
@@ -690,6 +713,55 @@ export async function topUpAvailableAvatars(
     }
   }
   return await listAvailableAvatars(take, options);
+}
+
+/**
+ * Draw a new set for "show others" and answer with it.
+ *
+ * An answer means a draw was tried, and may have been billed, even when it is
+ * empty (the image model answered but storing failed). Every no-work outcome
+ * is an error instead, so the picker can tell a free retry from a spent turn:
+ * 429 when the hourly allowance is spent, 409 when nothing was reserved (one
+ * of the user's own draws is still in flight, a concurrent draw won the race,
+ * or the pool has no combination left), and 503 when this deployment cannot
+ * draw at all.
+ */
+async function drawFreshAvatars(
+  take: number,
+  requestedByUserId: string,
+): Promise<AvailableAvatar[]> {
+  if (!canDraw()) {
+    throw serviceUnavailable("New Soko Bot pictures cannot be drawn here.");
+  }
+  await sweepStaleReservations();
+  let run: AvatarDrawRun;
+  try {
+    // While one of the user's draws runs, a second tab or a repeated request
+    // reserves nothing rather than buying the same set twice.
+    run = await drawAvatars(take, requestedByUserId, {
+      skipWhileInFlight: true,
+    });
+  } catch (error) {
+    if (error instanceof AvatarGenerationCappedError) {
+      throw avatarGenerationCapped();
+    }
+    if (isRecoverableGenerationFailure(error)) throw drawBusy();
+    throw error;
+  }
+  if (run.reserved === 0) throw drawBusy();
+  if (run.drawnIds.length === 0) return [];
+  return await prisma.sokoBotAvatar.findMany({
+    where: { ...unclaimedAvatarFilter(), id: { in: run.drawnIds } },
+    orderBy: [{ createdAt: "desc" }],
+    select: { id: true, imageUrl: true, subject: true, background: true },
+  });
+}
+
+/** The 409 for a fresh draw that reserved nothing, so nothing was billed. */
+function drawBusy() {
+  return conflict("New pictures are already being drawn. Try again shortly.", {
+    kind: AVATAR_DRAW_BUSY_KIND,
+  });
 }
 
 /**

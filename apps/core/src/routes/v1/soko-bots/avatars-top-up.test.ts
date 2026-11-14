@@ -110,13 +110,14 @@ describe("Soko Bot avatar top-up", () => {
       {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ take: 6, excludeIds: [] }),
+        body: JSON.stringify({ take: 6, excludeIds: [], fresh: true }),
       },
     );
 
     expect(response.status).toBe(200);
     expect(topUpAvailableAvatarsMock).toHaveBeenCalledWith(6, {
       excludeIds: [],
+      fresh: true,
       // The session user, not the body. Generation is billed to whoever asked,
       // so the caller must not be able to name someone else.
       requestedByUserId: STUB_USER_ID,
@@ -137,6 +138,7 @@ describe("Soko Bot avatar top-up", () => {
     expect(response.status).toBe(200);
     expect(topUpAvailableAvatarsMock).toHaveBeenCalledWith(6, {
       excludeIds: [],
+      fresh: false,
       // The session user, not the body. Generation is billed to whoever asked,
       // so the caller must not be able to name someone else.
       requestedByUserId: STUB_USER_ID,
