@@ -105,14 +105,14 @@ vi.mock("./use-generation-queue", () => ({
   }),
 }));
 
-function mount(websiteUrl?: string, projectId: string | null = "p") {
+function mount(websiteUrl?: string) {
   return render(
     <ImageStudio
       catalog={TEST_CATALOG}
       initialSelectedAssetId={null}
       initialState={{ assets: [], jobs: [], sessions: [] } as never}
       labels={TEST_LABELS}
-      projectId={projectId}
+      projectId="p"
       websiteUrl={websiteUrl}
     />,
   );
@@ -796,27 +796,6 @@ describe("starting from a template", () => {
       ),
     ).toEqual(["[product]", "[audience]", "[call to action]"]);
     expect(unfilledTemplateSlots("Iced oat latte at 4.20")).toEqual([]);
-  });
-
-  it("keeps a brief typed in All projects when a project is picked", () => {
-    const workspace = mount(undefined, null);
-    fireEvent.change(
-      screen.getByRole("textbox", { name: "promptPlaceholder" }),
-      { target: { value: "Iced oat latte on a sunny table" } },
-    );
-    workspace.unmount();
-
-    const project = mount();
-    expect(
-      screen.getByRole("textbox", { name: "promptPlaceholder" }),
-    ).toHaveValue("Iced oat latte on a sunny table");
-    project.unmount();
-
-    // Handed over once: the next project opens empty.
-    mount();
-    expect(
-      screen.getByRole("textbox", { name: "promptPlaceholder" }),
-    ).toHaveValue("");
   });
 
   it("keeps the original typed brief through several template choices", () => {

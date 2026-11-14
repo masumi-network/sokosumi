@@ -93,8 +93,8 @@ import {
 } from "./studio-video-composer";
 import { StudioWebsiteTools } from "./studio-website-tools";
 import {
-  keepStudioWorkspaceBrief,
-  takeStudioWorkspaceBrief,
+  registerStudioWorkspaceBrief,
+  takeStudioBriefFor,
 } from "./studio-workspace-brief";
 import {
   creditsByAssetId,
@@ -225,14 +225,14 @@ export function ImageStudio({
   const [prompt, setPrompt] = useState("");
   const latestPrompt = useRef(prompt);
   latestPrompt.current = prompt;
-  // Picking or creating a project remounts the studio. A brief typed in the
-  // All-projects view moves with it instead of vanishing.
+  // Picking or creating a project here remounts the studio. A brief typed in
+  // the All-projects view moves to that project instead of vanishing.
   useMountEffect(() => {
-    const brief = takeStudioWorkspaceBrief();
+    const brief = takeStudioBriefFor(projectId);
     if (brief) setPrompt(brief);
-    return () => {
-      if (projectId === null) keepStudioWorkspaceBrief(latestPrompt.current);
-    };
+    return projectId === null
+      ? registerStudioWorkspaceBrief(() => latestPrompt.current)
+      : undefined;
   });
   const [draftProduct, setDraftProduct] = useState<StudioProductIdentity>();
   const productDetailsRef = useRef<string | null>(null);
@@ -654,6 +654,7 @@ export function ImageStudio({
       !supportsVariation(catalog, source.model)
     )
       return;
+    if (refuseUnfilledSlots([source.prompt], source)) return;
     const id = crypto.randomUUID();
     const job = from === "job" ? (source as StudioJob) : null;
     const inheritsCutout = job?.useProductCutout && job.parentAssetId !== null;
@@ -774,8 +775,29 @@ export function ImageStudio({
     requestAnimationFrame(() => promptRef.current?.focus());
   }
 
+  /**
+   * Templates leave slots such as "[product]" to fill in. Sent as they are,
+   * the model draws the brackets and the images are still charged, so a paid
+   * request whose brief still holds one stops here. A saved brief being
+   * repeated goes back into the composer to be finished.
+   */
+  function refuseUnfilledSlots(
+    prompts: string[],
+    saved?: StudioAsset | StudioJob,
+  ) {
+    const slots = unfilledTemplateSlots(prompts.join("\n"));
+    if (!slots.length) return false;
+    if (saved) {
+      setViewing(null);
+      reusePrompt(saved);
+    }
+    setActionError(t("templateSlotsUnfilled", { slots: slots.join(", ") }));
+    promptRef.current?.focus();
+    return true;
+  }
+
   /** Put an image's brief and frame back in the composer, ready to edit. */
-  function reusePrompt(asset: StudioAsset) {
+  function reusePrompt(asset: StudioAsset | StudioJob) {
     setBatchProducts([]);
     setDraftProduct(asset.product);
     setHasNewerSettings(true);
@@ -804,14 +826,7 @@ export function ImageStudio({
       setActionError(t("referencesAcrossProjects"));
       return;
     }
-    // Templates leave slots such as "[product]" to fill in. Sent as they are,
-    // the model draws the brackets and the images are still charged.
-    const slots = unfilledTemplateSlots(prompt);
-    if (slots.length) {
-      setActionError(t("templateSlotsUnfilled", { slots: slots.join(", ") }));
-      promptRef.current?.focus();
-      return;
-    }
+    if (refuseUnfilledSlots(requests.map((request) => request.prompt))) return;
     if (generationProjectId) {
       const headlines = requests.flatMap(({ exportHeadline }) =>
         exportHeadline ? [exportHeadline] : [],
@@ -951,6 +966,7 @@ export function ImageStudio({
     const projectForVideo = videoSource?.projectId ?? activeProjectId;
     if (!projectForVideo || !activeVideoDraft) return;
     const brief = prompt.trim();
+    if (refuseUnfilledSlots([brief])) return;
     // One key per press, reused if the same press is retried.
     const idempotencyKey = `ui:${crypto.randomUUID()}`;
     setActionError(null);

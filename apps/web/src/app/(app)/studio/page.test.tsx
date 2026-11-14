@@ -85,6 +85,10 @@ vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
   setScopeCreateOpen: setScopeCreateOpenMock,
 }));
 
+vi.mock("@/app/components/project-scope/use-project-scope", () => ({
+  useProjectScopeSwitch: () => ({ select: vi.fn() }),
+}));
+
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   useHasAnyScopeProject: useHasAnyScopeProjectMock,
 }));
@@ -149,7 +153,7 @@ describe("StudioPage", () => {
     expect(openProjectScopeMock).toHaveBeenCalledWith({
       required: true,
       reason: "App.Studio.pickBody",
-      onSelect: undefined,
+      onSelect: expect.any(Function),
       onCreated: expect.any(Function),
     });
     expect(openScopeCreateMock).not.toHaveBeenCalled();
@@ -178,7 +182,7 @@ describe("StudioPage", () => {
     expect(openProjectScopeMock).toHaveBeenCalledWith({
       required: true,
       reason: "App.Studio.pickBody",
-      onSelect: undefined,
+      onSelect: expect.any(Function),
       onCreated: expect.any(Function),
     });
     expect(openScopeCreateMock).toHaveBeenCalledExactlyOnceWith(button);
@@ -255,7 +259,7 @@ describe("StudioPage", () => {
     expect(openProjectScopeMock).toHaveBeenCalledWith({
       required: true,
       reason: "App.Studio.pickUnavailable",
-      onSelect: undefined,
+      onSelect: expect.any(Function),
       onCreated: expect.any(Function),
     });
     expect(openScopeCreateMock).not.toHaveBeenCalled();

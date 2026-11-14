@@ -83,7 +83,8 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         // queued request from the previous one can survive the switch. The
         // state hook resets on its own too; see `useStudioState`. The one
         // exception is a brief typed in the All-projects view, which moves to
-        // the project picked for it (`studio-workspace-brief.ts`).
+        // a project picked or created from its own prompt
+        // (`studio-workspace-brief.ts`).
         key={scopeId ?? "workspace"}
         labels={buildStudioLabels(t)}
         projectId={scopeId}
