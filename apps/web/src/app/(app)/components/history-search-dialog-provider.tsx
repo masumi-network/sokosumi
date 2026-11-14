@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { HistorySearchDialog } from "@/app/components/history-search-dialog";
+import { searchHelpTopicsForWorkspace } from "@/app/components/search-help-topics";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 
@@ -102,7 +103,17 @@ export function HistorySearchDialogProvider({
           filesGroup: tSearch("filesGroup"),
           filesSeeAll: tSearch("filesSeeAll"),
           filesFilenameMatch: tSearch("filesFilenameMatch"),
+          helpGroup: tSearch("helpGroup"),
         }}
+        helpTopics={searchHelpTopicsForWorkspace(activeOrganizationId).map(
+          ({ id, href }) => ({
+            id,
+            href,
+            title: tSearch(`help.${id}.title`),
+            answer: tSearch(`help.${id}.answer`),
+            keywords: tSearch(`help.${id}.keywords`),
+          }),
+        )}
       />
     </HistorySearchContext.Provider>
   );

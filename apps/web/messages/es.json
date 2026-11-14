@@ -5417,15 +5417,93 @@
     },
     "HistorySearchDialog": {
       "title": "Buscar",
-      "description": "Buscar tareas, trabajos, resultados de trabajos, imágenes o archivos",
-      "searchPlaceholder": "Buscar...",
+      "description": "Busca tareas, trabajos, imágenes o archivos, o pregunta cómo hacer algo",
+      "searchPlaceholder": "Busca o pregunta cómo hacer algo…",
       "empty": "No se encontraron resultados",
       "loading": "Cargando...",
       "error": "Error al cargar los resultados",
       "created": "Creado",
       "filesGroup": "Archivos",
       "filesSeeAll": "Ver todos los archivos",
-      "filesFilenameMatch": "Coincide el nombre"
+      "filesFilenameMatch": "Coincide el nombre",
+      "helpGroup": "Ayuda",
+      "help": {
+        "newTask": {
+          "title": "Dar trabajo a un Coworker",
+          "answer": "Pulsa Nueva tarea en la barra lateral, elige un Coworker y describe lo que necesitas.",
+          "keywords": "tarea tareas nueva crear empezar trabajo delegar asignar encargo"
+        },
+        "coworkers": {
+          "title": "Qué son los Coworkers",
+          "answer": "Los Coworkers son compañeros de IA a los que das tareas. Los encuentras en Agentes.",
+          "keywords": "coworker coworkers agente agentes ia bot compañero qué"
+        },
+        "sokoBot": {
+          "title": "Configura tu Soko Bot",
+          "answer": "Tu Soko Bot es tu propio asistente. Planifica el trabajo y pasa tareas a los Coworkers por ti.",
+          "keywords": "soko bot asistente personal configurar ayudante"
+        },
+        "inviteTeammates": {
+          "title": "Invitar a compañeros",
+          "answer": "Abre Configuración, luego Organización, y usa Invitar miembro.",
+          "keywords": "invitar compañero compañeros equipo miembro miembros colega gente añadir usuario"
+        },
+        "startTeam": {
+          "title": "Trabajar con tu equipo",
+          "answer": "Abre el menú del espacio de trabajo arriba en la barra lateral, crea una organización e invita a gente allí.",
+          "keywords": "invitar compañero compañeros equipo miembro miembros colega organización empresa compartir"
+        },
+        "credits": {
+          "title": "Conseguir más créditos",
+          "answer": "Compra créditos o cambia tu plan en Facturación. En una organización, propietarios y administradores gestionan la facturación.",
+          "keywords": "créditos crédito comprar pagar pago facturación plan suscripción precio recargar"
+        },
+        "connectAccounts": {
+          "title": "Conectar Google o Microsoft",
+          "answer": "Vincula tu cuenta de Google o Microsoft en Conexiones para que tu Soko Bot use tu correo y calendario.",
+          "keywords": "conectar conexión conexiones google microsoft gmail outlook correo email calendario cuenta integración"
+        },
+        "uploadFiles": {
+          "title": "Subir y encontrar archivos",
+          "answer": "Abre Archivos y usa Subir para añadir archivos o carpetas enteras.",
+          "keywords": "archivo archivos subir documento documentos carpeta compartir pdf"
+        },
+        "addContacts": {
+          "title": "Añadir contactos",
+          "answer": "Abre Contactos y pulsa Añadir contacto. Las listas te ayudan a agrupar personas.",
+          "keywords": "contacto contactos persona personas añadir crm cliente lista"
+        },
+        "schedules": {
+          "title": "Ejecutar una tarea según un horario",
+          "answer": "Abre Programaciones y pulsa Nueva programación para que una tarea empiece cada día, semana o mes.",
+          "keywords": "programación programaciones horario repetir recurrente diario semanal mensual automático"
+        },
+        "chatChannel": {
+          "title": "Abrir un canal de chat",
+          "answer": "Abre Chat y crea un canal para hablar con tu equipo y los Coworkers.",
+          "keywords": "chat canal canales mensaje hablar sala conversación"
+        },
+        "projects": {
+          "title": "Agrupar trabajo en un proyecto",
+          "answer": "Abre Proyectos y pulsa Nuevo proyecto. Tareas, archivos y ajustes de marca pueden pertenecer a él.",
+          "keywords": "proyecto proyectos agrupar organizar cliente carpeta marca"
+        },
+        "socialPosts": {
+          "title": "Planificar una publicación social",
+          "answer": "Abre Publicaciones sociales y pulsa Nueva publicación para escribir, programar y publicar.",
+          "keywords": "social publicación publicaciones post linkedin twitter instagram publicar programar marketing"
+        },
+        "notifications": {
+          "title": "Elegir tus notificaciones",
+          "answer": "Elige qué avisos te llegan, y cómo, en Configuración y luego Notificaciones.",
+          "keywords": "notificación notificaciones aviso avisos email push silenciar configuración"
+        },
+        "apiKeys": {
+          "title": "Crear una clave de API",
+          "answer": "Crea una clave para scripts y herramientas en Desarrollador y luego API Keys.",
+          "keywords": "api clave claves desarrollador token integración mcp script key"
+        }
+      }
     },
     "NoticeDialog": {
       "defaultTitle": "Aviso",

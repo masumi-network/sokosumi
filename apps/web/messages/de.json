@@ -5417,15 +5417,93 @@
     },
     "HistorySearchDialog": {
       "title": "Suche",
-      "description": "Suche nach Aufgaben, Jobs, Job-Ergebnissen, Bildern oder Dateien",
-      "searchPlaceholder": "Suchen...",
+      "description": "Suche nach Aufgaben, Jobs, Bildern oder Dateien oder frage, wie etwas geht",
+      "searchPlaceholder": "Suchen oder fragen, wie es geht…",
       "empty": "Keine Ergebnisse gefunden",
       "loading": "Lädt...",
       "error": "Ergebnisse konnten nicht geladen werden",
       "created": "Erstellt",
       "filesGroup": "Dateien",
       "filesSeeAll": "Alle Dateien ansehen",
-      "filesFilenameMatch": "Treffer im Dateinamen"
+      "filesFilenameMatch": "Treffer im Dateinamen",
+      "helpGroup": "Hilfe",
+      "help": {
+        "newTask": {
+          "title": "Einem Coworker Arbeit geben",
+          "answer": "Klicke in der Seitenleiste auf Neue Aufgabe, wähle einen Coworker und beschreibe, was du brauchst.",
+          "keywords": "aufgabe aufgaben neu erstellen anlegen arbeit delegieren zuweisen task"
+        },
+        "coworkers": {
+          "title": "Was Coworker sind",
+          "answer": "Coworker sind KI-Teammitglieder, denen du Aufgaben gibst. Du findest sie unter Agenten.",
+          "keywords": "coworker agent agenten ki bot teammitglied was"
+        },
+        "sokoBot": {
+          "title": "Deinen Soko Bot einrichten",
+          "answer": "Dein Soko Bot ist dein eigener Assistent. Er plant Arbeit und gibt Aufgaben für dich an Coworker weiter.",
+          "keywords": "soko bot assistent persönlich einrichten helfer"
+        },
+        "inviteTeammates": {
+          "title": "Teammitglieder einladen",
+          "answer": "Öffne Einstellungen, dann Organisation, und nutze Mitglied einladen.",
+          "keywords": "einladen team teammitglied mitglied mitglieder kollege kollegen leute hinzufügen benutzer"
+        },
+        "startTeam": {
+          "title": "Mit deinem Team arbeiten",
+          "answer": "Öffne das Workspace-Menü oben in der Seitenleiste, erstelle eine Organisation und lade dort Leute ein.",
+          "keywords": "einladen team teammitglied mitglied mitglieder kollege kollegen organisation firma teilen"
+        },
+        "credits": {
+          "title": "Mehr Credits bekommen",
+          "answer": "Kaufe Credits oder ändere deinen Plan unter Abrechnung. In einer Organisation verwalten Inhaber und Admins die Abrechnung.",
+          "keywords": "credits kredit kaufen bezahlen zahlung abrechnung plan abo preis aufladen"
+        },
+        "connectAccounts": {
+          "title": "Google oder Microsoft verbinden",
+          "answer": "Verknüpfe dein Google- oder Microsoft-Konto unter Verbindungen, damit dein Soko Bot Mail und Kalender nutzen kann.",
+          "keywords": "verbinden verbindung google microsoft gmail outlook mail email kalender konto integration"
+        },
+        "uploadFiles": {
+          "title": "Dateien hochladen und finden",
+          "answer": "Öffne Dateien und nutze Hochladen, um Dateien oder ganze Ordner hinzuzufügen.",
+          "keywords": "datei dateien hochladen dokument dokumente ordner teilen pdf"
+        },
+        "addContacts": {
+          "title": "Kontakte hinzufügen",
+          "answer": "Öffne Kontakte und klicke auf Kontakt hinzufügen. Mit Listen gruppierst du Personen.",
+          "keywords": "kontakt kontakte person personen hinzufügen crm kunde liste"
+        },
+        "schedules": {
+          "title": "Eine Aufgabe nach Zeitplan ausführen",
+          "answer": "Öffne Zeitpläne und klicke auf Neuer Zeitplan, damit eine Aufgabe täglich, wöchentlich oder monatlich startet.",
+          "keywords": "zeitplan zeitpläne wiederholen wiederkehrend täglich wöchentlich monatlich automatisch"
+        },
+        "chatChannel": {
+          "title": "Einen Chat-Kanal starten",
+          "answer": "Öffne Chat und erstelle einen Kanal, um mit deinem Team und Coworkern zu sprechen.",
+          "keywords": "chat kanal kanäle nachricht schreiben raum unterhaltung"
+        },
+        "projects": {
+          "title": "Arbeit in einem Projekt bündeln",
+          "answer": "Öffne Projekte und klicke auf Neues Projekt. Aufgaben, Dateien und Markeneinstellungen können dazugehören.",
+          "keywords": "projekt projekte gruppieren ordnen kunde ordner marke"
+        },
+        "socialPosts": {
+          "title": "Einen Social-Media-Beitrag planen",
+          "answer": "Öffne Social-Media-Beiträge und klicke auf Neuer Beitrag, um zu schreiben, zu planen und zu veröffentlichen.",
+          "keywords": "social beitrag beiträge post linkedin twitter instagram veröffentlichen planen marketing"
+        },
+        "notifications": {
+          "title": "Benachrichtigungen wählen",
+          "answer": "Wähle unter Einstellungen, dann Benachrichtigungen, welche Updates dich wie erreichen.",
+          "keywords": "benachrichtigung benachrichtigungen hinweis email push stumm einstellungen"
+        },
+        "apiKeys": {
+          "title": "Einen API-Schlüssel erstellen",
+          "answer": "Erstelle unter Entwickler, dann API-Keys, einen Schlüssel für Skripte und Tools.",
+          "keywords": "api schlüssel entwickler token integration mcp skript key"
+        }
+      }
     },
     "NoticeDialog": {
       "defaultTitle": "Hinweis",
