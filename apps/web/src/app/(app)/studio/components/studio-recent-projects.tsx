@@ -3,6 +3,7 @@
 import type { ImageStudioRecentProjects } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { handStudioBriefTo } from "@/app/projects/components/image-studio/studio-workspace-brief";
 import { assetContentUrl } from "@/app/projects/components/image-studio/types";
@@ -71,10 +72,7 @@ export function StudioRecentProjects({
                 if (!newTab) handStudioBriefTo(project.projectId);
               }}
             >
-              <img
-                alt=""
-                className="bg-muted size-16 shrink-0 rounded-lg object-cover sm:aspect-[4/3] sm:size-auto sm:w-full"
-                loading="lazy"
+              <RecentProjectThumb
                 src={assetContentUrl({
                   id: project.latestImageId,
                   projectId: project.projectId,
@@ -97,5 +95,29 @@ export function StudioRecentProjects({
         ))}
       </ul>
     </section>
+  );
+}
+
+const THUMB_CLASS =
+  "bg-muted size-16 shrink-0 rounded-lg object-cover sm:aspect-[4/3] sm:size-auto sm:w-full";
+
+/**
+ * The newest image, or the same muted tile when its bytes cannot be read, so
+ * a missing file never shows the browser's broken-image mark. The ref catches
+ * an image that failed before hydration, when `onError` was not listening yet.
+ */
+function RecentProjectThumb({ src }: { src: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <span aria-hidden className={THUMB_CLASS} />;
+  return (
+    <img
+      alt=""
+      className={THUMB_CLASS}
+      onError={() => setFailed(true)}
+      ref={(image) => {
+        if (image?.complete && image.naturalWidth === 0) setFailed(true);
+      }}
+      src={src}
+    />
   );
 }

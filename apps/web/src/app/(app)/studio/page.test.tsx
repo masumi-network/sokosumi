@@ -1,5 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { consumeStudioWebsiteDraftRequest } from "@/app/projects/components/image-studio/studio-website-intent";
 
@@ -99,6 +107,28 @@ vi.mock("@/app/components/project-scope/use-project-scope", () => ({
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   useHasAnyScopeProject: useHasAnyScopeProjectMock,
 }));
+
+// happy-dom fetches no image, so every <img> reads as finished and empty: a
+// failed load. A browser still loading it says `complete: false`.
+const IMAGE_COMPLETE = Object.getOwnPropertyDescriptor(
+  HTMLImageElement.prototype,
+  "complete",
+);
+beforeAll(() => {
+  Object.defineProperty(HTMLImageElement.prototype, "complete", {
+    configurable: true,
+    get: () => false,
+  });
+});
+afterAll(() => {
+  if (IMAGE_COMPLETE) {
+    Object.defineProperty(
+      HTMLImageElement.prototype,
+      "complete",
+      IMAGE_COMPLETE,
+    );
+  }
+});
 
 const PROJECT = {
   id: "project-1",

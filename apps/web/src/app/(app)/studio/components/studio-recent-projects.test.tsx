@@ -1,6 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { createFormatter } from "next-intl";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import {
   registerStudioWorkspaceBrief,
@@ -21,6 +29,28 @@ vi.mock("next-intl", async (importOriginal) => ({
 vi.mock("next/link", () => ({
   default: (props: React.ComponentProps<"a">) => <a {...props} />,
 }));
+
+// happy-dom fetches no image, so every <img> reads as finished and empty: a
+// failed load. A browser still loading it says `complete: false`.
+const IMAGE_COMPLETE = Object.getOwnPropertyDescriptor(
+  HTMLImageElement.prototype,
+  "complete",
+);
+beforeAll(() => {
+  Object.defineProperty(HTMLImageElement.prototype, "complete", {
+    configurable: true,
+    get: () => false,
+  });
+});
+afterAll(() => {
+  if (IMAGE_COMPLETE) {
+    Object.defineProperty(
+      HTMLImageElement.prototype,
+      "complete",
+      IMAGE_COMPLETE,
+    );
+  }
+});
 
 const PROJECTS = [
   {
@@ -66,6 +96,22 @@ describe("StudioRecentProjects", () => {
     fireEvent.click(renderCards(), init);
 
     expect(takeStudioBriefFor("project-1")).toBeNull();
+  });
+});
+
+describe("StudioRecentProjects thumbnail", () => {
+  it("keeps a plain tile, not a broken image, when the bytes cannot be read", () => {
+    const card = renderCards();
+    const image = card.querySelector("img");
+    expect(image).toHaveAttribute(
+      "src",
+      "/api/projects/project-1/image-studio/assets/asset-9/content",
+    );
+
+    fireEvent.error(image as HTMLImageElement);
+
+    expect(card.querySelector("img")).toBeNull();
+    expect(card).toHaveTextContent("Autumn menu");
   });
 });
 
