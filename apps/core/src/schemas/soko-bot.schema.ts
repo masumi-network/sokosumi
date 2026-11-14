@@ -380,16 +380,20 @@ export const updateSokoBotScheduleRequestSchema = z
     timezone: z.string().trim().min(1).max(100).optional(),
     cronExpression: z.string().trim().min(1).max(120).optional(),
     prompt: z.string().trim().min(1).max(20_000).optional(),
-    nextRun: z
+    run: z
       .object({
-        expectedAt: dateTimeSchema.openapi({
+        originalAt: dateTimeSchema.openapi({
           description:
-            "The next run the caller saw; a schedule whose next run changed since answers 409",
+            "The cron time the run belongs to (the Calendar entry's originalAt)",
         }),
-        action: z.enum(["skip", "move"]),
+        expectedAt: dateTimeSchema.nullable().openapi({
+          description:
+            "Where the caller saw the run, or null when they saw it skipped. A run that changed since answers 409",
+        }),
+        action: z.enum(["skip", "move", "restore"]),
         scheduledAt: dateTimeSchema.optional().openapi({
           description:
-            "For move: the new time, in the future and before the run after it",
+            "For move: the new time, in the future and within the next 90 days",
         }),
       })
       .strict()
@@ -400,7 +404,7 @@ export const updateSokoBotScheduleRequestSchema = z
       .optional()
       .openapi({
         description:
-          "Skip or move only the next run; the cron stays as it is. Sent alone.",
+          "Skip, move or restore one run; the cron stays as it is. Sent alone.",
       }),
   })
   .strict()
@@ -409,8 +413,8 @@ export const updateSokoBotScheduleRequestSchema = z
     "At least one field is required",
   )
   .refine(
-    (value) => !value.nextRun || Object.keys(value).length === 1,
-    "nextRun is sent alone",
+    (value) => !value.run || Object.keys(value).length === 1,
+    "run is sent alone",
   )
   .openapi("UpdateSokoBotScheduleRequest");
 

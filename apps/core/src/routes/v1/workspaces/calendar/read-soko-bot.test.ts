@@ -13,12 +13,13 @@ describe("runTimes", () => {
         timezone: "UTC",
         runOnce: false,
         nextRunAt: new Date("2026-05-20T12:00:00.000Z"),
+        runChanges: [],
       },
       FROM,
       TO,
       100,
     );
-    expect(times.map((t) => t.toISOString())).toEqual([
+    expect(times.map((t) => t.at.toISOString())).toEqual([
       "2026-06-01T12:00:00.000Z",
       "2026-06-02T12:00:00.000Z",
       "2026-06-03T12:00:00.000Z",
@@ -36,13 +37,14 @@ describe("runTimes", () => {
         timezone: "UTC",
         runOnce: false,
         nextRunAt: FROM,
+        runChanges: [],
       },
       FROM,
       TO,
       100,
     );
     expect(times).toHaveLength(100);
-    expect(times[0]).toEqual(FROM);
+    expect(times[0]?.at).toEqual(FROM);
   });
 
   it("shows a one-time run only inside the range", () => {
@@ -51,6 +53,7 @@ describe("runTimes", () => {
       timezone: "UTC",
       runOnce: true,
       nextRunAt: new Date(at),
+      runChanges: [],
     });
     expect(
       runTimes(once("2026-06-01T09:00:00.000Z"), FROM, TO, 1),
@@ -58,25 +61,7 @@ describe("runTimes", () => {
     expect(runTimes(once("2026-06-08T00:00:00.000Z"), FROM, TO, 1)).toEqual([]);
   });
 
-  it("starts at a next run moved off the cron, then follows the cron", () => {
-    const times = runTimes(
-      {
-        cronExpression: "0 12 * * *",
-        timezone: "UTC",
-        runOnce: false,
-        nextRunAt: new Date("2026-06-01T15:45:00.000Z"),
-      },
-      FROM,
-      new Date("2026-06-03T00:00:00.000Z"),
-      100,
-    );
-    expect(times.map((t) => t.toISOString())).toEqual([
-      "2026-06-01T15:45:00.000Z",
-      "2026-06-02T12:00:00.000Z",
-    ]);
-  });
-
-  it("shows only the stored next run for a cron it cannot read", () => {
+  it("shows nothing beyond the stored next run for a cron it cannot read", () => {
     expect(
       runTimes(
         {
@@ -84,11 +69,12 @@ describe("runTimes", () => {
           timezone: "UTC",
           runOnce: false,
           nextRunAt: FROM,
+          runChanges: [],
         },
         FROM,
         TO,
         100,
       ),
-    ).toEqual([FROM]);
+    ).toEqual([]);
   });
 });

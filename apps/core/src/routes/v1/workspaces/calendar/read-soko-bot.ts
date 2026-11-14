@@ -2,9 +2,13 @@ import type { Prisma, SokoBotScheduleRunStatus } from "@sokosumi/database";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 
 import { getEnv } from "@/config/env";
-import { computeNextRun } from "@/helpers/cron";
 import prisma from "@/lib/db/prisma";
+import {
+  type EffectiveRun,
+  effectiveRuns,
+} from "@/lib/soko-bot/schedule-run-changes";
 import { sokoBotRunCalendarItemSchema } from "@/schemas/workspace-calendar.schema";
+import { RUN_HORIZON_MS } from "@/services/task-schedule-runs.service";
 
 import {
   type CalendarEntry,
@@ -58,9 +62,11 @@ function visibleBotWhere(
  * come leave out a bot the runner would skip: paused by an admin or the
  * runtime, by its owner, or by the platform kill switch.
  *
- * Only a bot's next run can be moved or skipped (`canChange`): the scheduler
- * keeps one `nextRunAt` per schedule and walks the cron on from there. Cuso's
- * schedules are CMO's and stay read-only, as on his console.
+ * Runs still to come in the next 90 days, the Task Schedule planning window,
+ * can be moved, skipped or restored (`canChange`); a recurring schedule's
+ * moved and skipped runs come from its run changes, exactly as the scheduler
+ * fires them. Cuso's schedules are CMO's and stay read-only, as on his
+ * console.
  *
  * A schedule may fire every minute, so each one is walked from the page's
  * cursor and only as far as one page can use; later pages continue the walk.
@@ -84,6 +90,7 @@ export const readSokoBot: CalendarReader = async (ctx) => {
       cronExpression: true,
       runOnce: true,
       nextRunAt: true,
+      runChanges: { select: { originalAt: true, scheduledAt: true } },
       sokoBot: {
         select: {
           id: true,
@@ -106,6 +113,7 @@ export const readSokoBot: CalendarReader = async (ctx) => {
       )
     : query.from;
   const now = new Date();
+  const horizon = new Date(now.getTime() + RUN_HORIZON_MS);
   const killSwitch = getEnv().SOKO_BOT_PROACTIVE_PAUSED;
   const byId = new Map(schedules.map((schedule) => [schedule.id, schedule]));
   // A page holds at most `limit` entries after the cursor, plus every
@@ -122,7 +130,7 @@ export const readSokoBot: CalendarReader = async (ctx) => {
 
   function entry(
     schedule: (typeof schedules)[number],
-    at: Date,
+    { at, originalAt }: EffectiveRun,
     runState: "upcoming" | "running" | "done" | "failed",
   ): CalendarEntry {
     const bot = schedule.sokoBot;
@@ -142,11 +150,8 @@ export const readSokoBot: CalendarReader = async (ctx) => {
       shared,
       projectName: bot.project?.name ?? null,
       runState,
-      canChange:
-        runState === "upcoming" &&
-        !cuso &&
-        at.getTime() === schedule.nextRunAt.getTime() &&
-        at > now,
+      originalAt: originalAt.toISOString(),
+      canChange: runState === "upcoming" && !cuso && at > now && at <= horizon,
       ...calendarEntrySource({ workspaceId, projectId: bot.projectId }),
     });
   }
@@ -164,23 +169,30 @@ export const readSokoBot: CalendarReader = async (ctx) => {
         .flatMap((schedule) =>
           // The walk includes the cursor's own run, which the page then drops;
           // one more than a page beyond it tells whether another page follows.
-          runTimes(schedule, from, query.to, query.limit + 2).map((at) =>
-            entry(schedule, at, "upcoming"),
+          runTimes(schedule, from, query.to, query.limit + 2).map((run) =>
+            entry(schedule, run, "upcoming"),
           ),
         );
   const past = pastRuns.flatMap((run) => {
     const schedule = byId.get(run.scheduleId);
     return schedule
-      ? [entry(schedule, run.scheduledFor, RUN_STATE[run.status])]
+      ? [
+          entry(
+            schedule,
+            // History keeps the time a run fired, not the cron time it had.
+            { at: run.scheduledFor, originalAt: run.scheduledFor },
+            RUN_STATE[run.status],
+          ),
+        ]
       : [];
   });
   return pageInMemory([...past, ...upcoming], ctx);
 };
 
 /**
- * The schedule's first `max` run times in [from, to), as the scheduler fires
- * them: `nextRunAt` itself, even when moved off the cron, then the cron on
- * from there.
+ * The schedule's first `max` runs in [from, to), as the scheduler fires
+ * them: `nextRunAt` itself, even when moved off the cron, then the runs after
+ * it with their moves and skips. A one-time schedule runs at `nextRunAt` only.
  */
 export function runTimes(
   schedule: {
@@ -188,22 +200,18 @@ export function runTimes(
     timezone: string;
     runOnce: boolean;
     nextRunAt: Date;
+    runChanges: { originalAt: Date; scheduledAt: Date | null }[];
   },
   from: Date,
   to: Date,
   max: number,
-): Date[] {
-  const times: Date[] = [];
-  let next: Date | null = schedule.nextRunAt;
-  while (next && next < to && times.length < max) {
-    if (next >= from) times.push(next);
-    if (schedule.runOnce) break;
-    next = computeNextRun({
-      cron: schedule.cronExpression,
-      timezone: schedule.timezone,
-      // cron's next is strictly after its start, so jump close to `from`.
-      from: next < from ? new Date(from.getTime() - 1) : next,
-    });
+): EffectiveRun[] {
+  const first = schedule.nextRunAt;
+  if (schedule.runOnce) {
+    return first >= from && first < to
+      ? [{ at: first, originalAt: first }]
+      : [];
   }
-  return times;
+  const after = new Date(Math.max(from.getTime(), first.getTime()) - 1);
+  return effectiveRuns(schedule, schedule.runChanges, after, to, max);
 }

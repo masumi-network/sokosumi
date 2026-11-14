@@ -8831,7 +8831,11 @@ export type SokoBotRunCalendarItem = {
      */
     runState: 'upcoming' | 'running' | 'done' | 'failed';
     /**
-     * The bot's next run, which the caller may move or skip with the schedule's `nextRun`
+     * The cron time this run belongs to; differs from scheduledAt once moved
+     */
+    originalAt: Date;
+    /**
+     * A run still to come, in the next 90 days, that the caller may move, skip or restore with the schedule's `run`
      */
     canChange: boolean;
     sourceId: string;
@@ -12245,16 +12249,20 @@ export type UpdateSokoBotScheduleRequest = {
     cronExpression?: string;
     prompt?: string;
     /**
-     * Skip or move only the next run; the cron stays as it is. Sent alone.
+     * Skip, move or restore one run; the cron stays as it is. Sent alone.
      */
-    nextRun?: {
+    run?: {
         /**
-         * The next run the caller saw; a schedule whose next run changed since answers 409
+         * The cron time the run belongs to (the Calendar entry's originalAt)
          */
-        expectedAt: Date;
-        action: 'skip' | 'move';
+        originalAt: Date;
         /**
-         * For move: the new time, in the future and before the run after it
+         * Where the caller saw the run, or null when they saw it skipped. A run that changed since answers 409
+         */
+        expectedAt: Date | null;
+        action: 'skip' | 'move' | 'restore';
+        /**
+         * For move: the new time, in the future and within the next 90 days
          */
         scheduledAt?: Date;
     };

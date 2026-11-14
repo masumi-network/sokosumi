@@ -65,7 +65,7 @@ import {
 
 import {
   archiveSokoBotAction,
-  changeSokoBotNextRunAction,
+  changeSokoBotScheduleRunAction,
   createScopedSokoBotAction,
   createSokoBotAction,
   createSokoBotScheduleAction,
@@ -185,30 +185,27 @@ describe("soko-bot actions", () => {
     expect(serviceMock.createSchedule).not.toHaveBeenCalled();
   });
 
-  describe("changeSokoBotNextRunAction", () => {
+  describe("changeSokoBotScheduleRunAction", () => {
     const SCHEDULE_ID = "01960001-0001-7001-8001-0000000000cc";
     const BOT_ID = "01960001-0001-7001-8001-000000000001";
-    const expectedAt = new Date("2030-01-03T09:00:00.000Z");
+    const originalAt = new Date("2030-01-03T09:00:00.000Z");
     const skip = (botId?: string) =>
-      changeSokoBotNextRunAction({
+      changeSokoBotScheduleRunAction({
         botId,
         input: {
           scheduleId: SCHEDULE_ID,
-          expectedAt,
+          originalAt,
+          expectedAt: originalAt,
           change: { action: "skip" },
         },
       });
 
-    it("sends the change as the schedule's nextRun and refreshes the Calendar", async () => {
-      const nextRunAt = new Date("2030-01-04T09:00:00.000Z");
-      serviceMock.updateSchedule.mockResolvedValue({ nextRunAt });
-      await expect(skip(BOT_ID)).resolves.toEqual({
-        ok: true,
-        value: { nextRunAt },
-      });
+    it("sends the change as the schedule's run and refreshes the Calendar", async () => {
+      serviceMock.updateSchedule.mockResolvedValue({});
+      await expect(skip(BOT_ID)).resolves.toMatchObject({ ok: true });
       expect(serviceMock.updateSchedule).toHaveBeenCalledWith(
         SCHEDULE_ID,
-        { nextRun: { expectedAt, action: "skip" } },
+        { run: { originalAt, expectedAt: originalAt, action: "skip" } },
         BOT_ID,
       );
       expect(revalidatePathMock).toHaveBeenCalledWith("/calendar");
@@ -227,10 +224,11 @@ describe("soko-bot actions", () => {
     });
 
     it("refuses a move without a time before calling Core", async () => {
-      const result = await changeSokoBotNextRunAction({
+      const result = await changeSokoBotScheduleRunAction({
         input: {
           scheduleId: SCHEDULE_ID,
-          expectedAt,
+          originalAt,
+          expectedAt: null,
           change: { action: "move" },
         },
       });

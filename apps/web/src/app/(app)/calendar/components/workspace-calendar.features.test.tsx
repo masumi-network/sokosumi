@@ -36,12 +36,12 @@ interface FullCalendarProps {
 const {
   fullCalendarMock,
   filterDropdownMenuMock,
-  changeNextRunMock,
+  changeRunMock,
   toastSuccessMock,
 } = vi.hoisted(() => ({
   fullCalendarMock: vi.fn(),
   filterDropdownMenuMock: vi.fn(),
-  changeNextRunMock: vi.fn(),
+  changeRunMock: vi.fn(),
   toastSuccessMock: vi.fn(),
 }));
 
@@ -99,7 +99,7 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
 }));
 
 vi.mock("@/lib/actions/soko-bot/action", () => ({
-  changeSokoBotNextRunAction: changeNextRunMock,
+  changeSokoBotScheduleRunAction: changeRunMock,
 }));
 
 vi.mock("sonner", () => ({
@@ -224,6 +224,7 @@ const BOT_RUN: SokoBotRunCalendarItem = {
   shared: false,
   projectName: null,
   runState: "upcoming",
+  originalAt: new Date("2030-01-04T09:00:00.000Z"),
   canChange: false,
   sourceId: "workspace:workspace-1",
   sourceProjectId: null,
@@ -236,6 +237,7 @@ const SHARED_BOT_RUN: SokoBotRunCalendarItem = {
   id: "sokobot:schedule-2:2030-01-03T16:00:00.000Z",
   scheduledAt: new Date("2030-01-03T16:00:00.000Z"),
   scheduleId: "schedule-2",
+  originalAt: new Date("2030-01-03T16:00:00.000Z"),
   name: "Launch check",
   sokoBotId: "bot-2",
   botName: "Launch bot",
@@ -363,46 +365,44 @@ describe("WorkspaceCalendar features", () => {
       expect(link).toHaveTextContent("Launch bot · botRun.failed");
     });
 
-    it("skips a Soko Bot's next run from its menu and offers Undo", async () => {
+    it("skips a later Soko Bot run from its menu and Undo restores it", async () => {
       const user = userEvent.setup();
-      const following = new Date("2030-01-07T09:00:00.000Z");
-      changeNextRunMock.mockResolvedValue({
-        ok: true,
-        value: { nextRunAt: following },
-      });
+      changeRunMock.mockResolvedValue({ ok: true, value: undefined });
       renderCalendar({ items: [{ ...BOT_RUN, canChange: true }] });
 
       await user.click(
         screen.getByRole("button", { name: "Morning brief, show.sokoBot" }),
       );
+      expect(
+        screen.queryByRole("menuitem", { name: "event.restoreRun" }),
+      ).not.toBeInTheDocument();
       await user.click(screen.getByRole("menuitem", { name: "event.skipRun" }));
 
-      expect(changeNextRunMock).toHaveBeenCalledWith({
+      expect(changeRunMock).toHaveBeenCalledWith({
         botId: undefined,
         input: {
           scheduleId: "schedule-1",
+          originalAt: BOT_RUN.originalAt,
           expectedAt: BOT_RUN.scheduledAt,
           change: { action: "skip" },
         },
       });
       await vi.waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
       toastSuccessMock.mock.lastCall?.[1].action.onClick();
-      expect(changeNextRunMock).toHaveBeenLastCalledWith({
+      expect(changeRunMock).toHaveBeenLastCalledWith({
         botId: undefined,
         input: {
           scheduleId: "schedule-1",
-          expectedAt: following,
-          change: { action: "move", scheduledAt: BOT_RUN.scheduledAt },
+          originalAt: BOT_RUN.originalAt,
+          expectedAt: null,
+          change: { action: "restore" },
         },
       });
     });
 
-    it("moves a shared bot's next run through the move dialog", async () => {
+    it("moves a shared bot's run through the move dialog", async () => {
       const user = userEvent.setup();
-      changeNextRunMock.mockResolvedValue({
-        ok: true,
-        value: { nextRunAt: new Date("2030-01-03T18:30:00.000Z") },
-      });
+      changeRunMock.mockResolvedValue({ ok: true, value: undefined });
       renderCalendar({
         items: [{ ...SHARED_BOT_RUN, runState: "upcoming", canChange: true }],
       });
@@ -416,15 +416,44 @@ describe("WorkspaceCalendar features", () => {
       await user.type(input, "2030-01-03T18:30");
       await user.click(screen.getByRole("button", { name: "runMove.confirm" }));
 
-      expect(changeNextRunMock).toHaveBeenCalledWith({
+      expect(changeRunMock).toHaveBeenCalledWith({
         botId: "bot-2",
         input: {
           scheduleId: "schedule-2",
+          originalAt: SHARED_BOT_RUN.originalAt,
           expectedAt: SHARED_BOT_RUN.scheduledAt,
           change: {
             action: "move",
             scheduledAt: new Date("2030-01-03T18:30:00.000Z"),
           },
+        },
+      });
+    });
+
+    it("restores a moved run to its own time", async () => {
+      const user = userEvent.setup();
+      changeRunMock.mockResolvedValue({ ok: true, value: undefined });
+      const moved = {
+        ...BOT_RUN,
+        canChange: true,
+        scheduledAt: new Date("2030-01-03T14:00:00.000Z"),
+      };
+      renderCalendar({ items: [moved] });
+
+      await user.click(
+        screen.getByRole("button", { name: "Morning brief, show.sokoBot" }),
+      );
+      await user.click(
+        screen.getByRole("menuitem", { name: "event.restoreRun" }),
+      );
+
+      expect(changeRunMock).toHaveBeenCalledWith({
+        botId: undefined,
+        input: {
+          scheduleId: "schedule-1",
+          originalAt: BOT_RUN.originalAt,
+          expectedAt: moved.scheduledAt,
+          change: { action: "restore" },
         },
       });
     });

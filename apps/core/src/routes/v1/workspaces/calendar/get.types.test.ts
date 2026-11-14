@@ -580,6 +580,7 @@ describe("GET /workspaces/calendar types", () => {
     cronExpression: "0 9 * * 1-5",
     runOnce: false,
     nextRunAt: new Date("2026-06-02T07:00:00.000Z"),
+    runChanges: [],
     sokoBot: personalBot,
     ...patch,
   });
@@ -617,6 +618,7 @@ describe("GET /workspaces/calendar types", () => {
       shared: false,
       projectName: null,
       runState: "upcoming",
+      originalAt: "2026-06-02T07:00:00.000Z",
       canChange: true,
       sourceId: `workspace:${WORKSPACE_ID}`,
       sourceType: "WORKSPACE",
@@ -647,16 +649,10 @@ describe("GET /workspaces/calendar types", () => {
       "2026-06-04T07:00:00.000Z",
       "2026-06-05T07:00:00.000Z",
     ]);
-    // Only the next run of each schedule moves or skips.
+    // Every run still to come moves or skips, not only the next one.
     expect(
-      body.data
-        .filter((item: { canChange: boolean }) => item.canChange)
-        .map((item: { scheduledAt: string }) => item.scheduledAt),
-    ).toEqual([
-      "2026-06-02T07:00:00.000Z",
-      "2026-06-03T10:30:00.000Z",
-      "2026-06-03T16:00:00.000Z",
-    ]);
+      body.data.every((item: { canChange: boolean }) => item.canChange),
+    ).toBe(true);
     // The caller's personal bot, or a shared bot of an Organization
     // workspace. Never a built-in rhythm or a follow-up of a Task or Job.
     expect(mocks.botSchedules.mock.lastCall?.[0].where).toEqual({
@@ -747,14 +743,32 @@ describe("GET /workspaces/calendar types", () => {
     expect(scheduledAts(body)).toEqual(["2026-06-01T07:00:00.000Z"]);
   });
 
-  it("shows a moved next run at its new time, then the cron from there", async () => {
+  it("shows a moved run at its new time and leaves a skipped one out, as the scheduler fires them", async () => {
     mocks.botSchedules.mockResolvedValue([
-      botSchedule({ nextRunAt: new Date("2026-06-02T13:15:00.000Z") }),
+      botSchedule({
+        runChanges: [
+          // Wednesday's run moved to Tuesday afternoon; Thursday's skipped.
+          {
+            originalAt: new Date("2026-06-03T07:00:00.000Z"),
+            scheduledAt: new Date("2026-06-02T13:15:00.000Z"),
+          },
+          {
+            originalAt: new Date("2026-06-04T07:00:00.000Z"),
+            scheduledAt: null,
+          },
+        ],
+      }),
     ]);
     const { body } = await get("types=sokoBot");
-    expect(scheduledAts(body).slice(0, 2)).toEqual([
-      "2026-06-02T13:15:00.000Z",
-      "2026-06-03T07:00:00.000Z",
+    expect(
+      body.data.map((item: { scheduledAt: string; originalAt: string }) => [
+        item.scheduledAt,
+        item.originalAt,
+      ]),
+    ).toEqual([
+      ["2026-06-02T07:00:00.000Z", "2026-06-02T07:00:00.000Z"],
+      ["2026-06-02T13:15:00.000Z", "2026-06-03T07:00:00.000Z"],
+      ["2026-06-05T07:00:00.000Z", "2026-06-05T07:00:00.000Z"],
     ]);
   });
 

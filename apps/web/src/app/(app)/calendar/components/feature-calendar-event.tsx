@@ -140,6 +140,7 @@ export function isChangeableBotRun(
 
 export interface BotRunHandlers {
   onMoveBotRun: (item: ChangeableBotRun) => void;
+  onRestoreBotRun: (item: ChangeableBotRun) => void;
   onSkipBotRun: (item: ChangeableBotRun) => void;
 }
 
@@ -149,6 +150,7 @@ export function FeatureCalendarEvent({
   source,
   timeText,
   onMoveBotRun,
+  onRestoreBotRun,
   onSkipBotRun,
 }: Partial<BotRunHandlers> & {
   item: FeatureCalendarEntry;
@@ -190,9 +192,16 @@ export function FeatureCalendarEvent({
     source: t(`show.${calendarTypeOf(item)}`),
     task: title,
   });
-  // The next run opens a menu, as a Task Schedule Run does: move, skip, or
-  // open its schedule. The card is not the trigger, so a tap opens it too.
-  if (href && isChangeableBotRun(item) && onMoveBotRun && onSkipBotRun) {
+  // A run still to come opens a menu, as a Task Schedule Run does: move,
+  // skip, restore a moved one, or open its schedule. The card is not the
+  // trigger, so a tap opens it too.
+  if (
+    href &&
+    isChangeableBotRun(item) &&
+    onMoveBotRun &&
+    onRestoreBotRun &&
+    onSkipBotRun
+  ) {
     return (
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <div
@@ -219,6 +228,11 @@ export function FeatureCalendarEvent({
           <DropdownMenuItem onSelect={() => onSkipBotRun(item)}>
             {t("event.skipRun")}
           </DropdownMenuItem>
+          {item.originalAt.getTime() !== item.scheduledAt.getTime() ? (
+            <DropdownMenuItem onSelect={() => onRestoreBotRun(item)}>
+              {t("event.restoreRun")}
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem asChild>
             <Link href={href}>{t("event.openSchedule")}</Link>
           </DropdownMenuItem>

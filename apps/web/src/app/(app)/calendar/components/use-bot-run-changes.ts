@@ -3,16 +3,18 @@
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
-import { changeSokoBotNextRunAction } from "@/lib/actions/soko-bot/action";
+import { changeSokoBotScheduleRunAction } from "@/lib/actions/soko-bot/action";
 import type { ChangeableBotRun } from "./feature-calendar-event";
 import { useReportRunChangeFailure } from "./run-change";
 
-type NextRunChange = { action: "skip" } | { action: "move"; scheduledAt: Date };
+type BotRunChange =
+  | { action: "skip" | "restore" }
+  | { action: "move"; scheduledAt: Date };
 
 /**
- * Moves or skips a Soko Bot's next run, as the Calendar does a Task Schedule
- * Run. The action revalidates the Calendar, so the run shows at its new time
- * once Core accepted. A skip offers Undo, which moves the new next run back.
+ * Skips, moves or restores one Soko Bot run, as the Calendar does a Task
+ * Schedule Run. The action revalidates the Calendar, so the run shows where
+ * it now fires once Core accepted. A skip offers Undo.
  */
 export function useBotRunChanges() {
   const t = useTranslations("App.Calendar");
@@ -20,33 +22,42 @@ export function useBotRunChanges() {
 
   async function send(
     item: ChangeableBotRun,
-    expectedAt: Date,
-    change: NextRunChange,
-  ): Promise<Date | null> {
+    expectedAt: Date | null,
+    change: BotRunChange,
+  ): Promise<boolean> {
     try {
-      const result = await changeSokoBotNextRunAction({
+      const result = await changeSokoBotScheduleRunAction({
         botId: item.shared ? item.sokoBotId : undefined,
-        input: { scheduleId: item.scheduleId, expectedAt, change },
+        input: {
+          scheduleId: item.scheduleId,
+          originalAt: item.originalAt,
+          expectedAt,
+          change,
+        },
       });
-      if (result.ok) return result.value.nextRunAt;
+      if (result.ok) return true;
       reportRunChangeFailure(result.error.kind);
     } catch {
       reportRunChangeFailure("failed");
     }
-    return null;
+    return false;
   }
 
   async function skipBotRun(item: ChangeableBotRun) {
-    const nextRunAt = await send(item, item.scheduledAt, { action: "skip" });
-    if (!nextRunAt) return;
+    if (!(await send(item, item.scheduledAt, { action: "skip" }))) return;
     toast.success(t("event.runSkipped", { name: item.name }), {
       action: {
         label: t("event.undo"),
+        // A skipped run is shown nowhere (expected: null). Undo puts it back
+        // where it was before the skip, a moved run included.
         onClick: () =>
-          void send(item, nextRunAt, {
-            action: "move",
-            scheduledAt: item.scheduledAt,
-          }),
+          void send(
+            item,
+            null,
+            item.originalAt.getTime() === item.scheduledAt.getTime()
+              ? { action: "restore" }
+              : { action: "move", scheduledAt: item.scheduledAt },
+          ),
       },
     });
   }
@@ -55,5 +66,9 @@ export function useBotRunChanges() {
     void send(item, item.scheduledAt, { action: "move", scheduledAt });
   }
 
-  return { moveBotRun, skipBotRun };
+  function restoreBotRun(item: ChangeableBotRun) {
+    void send(item, item.scheduledAt, { action: "restore" });
+  }
+
+  return { moveBotRun, restoreBotRun, skipBotRun };
 }

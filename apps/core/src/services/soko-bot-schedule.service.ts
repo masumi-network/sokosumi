@@ -1,8 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
-import {
-  computeNextRun,
-  computeNextRunWithMinimumInterval,
-} from "@/helpers/cron";
+import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import { conflict } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
@@ -10,6 +7,13 @@ import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import {
+  effectiveRuns,
+  isCronTime,
+  nextEffectiveRun,
+  type ScheduleRunChange,
+} from "@/lib/soko-bot/schedule-run-changes";
+import { RUN_HORIZON_MS } from "@/services/task-schedule-runs.service";
 
 const MIN_SCHEDULE_INTERVAL_MS = 60_000;
 /** The owner's own schedules; the bot's system rhythms do not count. */
@@ -132,12 +136,8 @@ export interface UpdateSokoBotScheduleInput {
   timezone?: string;
   cronExpression?: string;
   prompt?: string;
-  /** Skip or move only the next run, which the caller saw at `expectedAt`. */
-  nextRun?: {
-    expectedAt: string;
-    action: "skip" | "move";
-    scheduledAt?: string;
-  };
+  /** Skip, move or restore one run, shown to the caller at `expectedAt`. */
+  run?: ScheduleRunChangeInput;
 }
 
 /**
@@ -281,6 +281,8 @@ export async function createSokoBotSchedule(
           nextRunAt,
           capabilityNames: [...(input.capabilityNames ?? [])],
           ...link,
+          // New timing: moved or skipped runs of the old one no longer apply.
+          runChanges: { deleteMany: {} },
         },
       });
     }
@@ -400,7 +402,7 @@ export async function updateSokoBotSchedule(
   const db = transaction ?? prisma;
   const schedule = await findScheduleForUser(input.userId, input, transaction);
   await requireSharedBotScheduleSeat(input.userId, schedule.sokoBotId, db);
-  if (input.nextRun) return changeNextRun(schedule, input.nextRun, db);
+  if (input.run) return changeScheduleRun(schedule, input.run, transaction);
   const timezone = input.timezone ?? schedule.timezone;
   const cronExpression = input.cronExpression ?? schedule.cronExpression;
   if (input.cronExpression) assertNoDayOrTrap(input.cronExpression);
@@ -414,6 +416,23 @@ export async function updateSokoBotSchedule(
       "Invalid cron expression, timezone, or interval below one minute",
     );
   }
+  const timingChanged =
+    input.timezone !== undefined || input.cronExpression !== undefined;
+  const reactivated =
+    input.enabled === true && !schedule.enabled && schedule.nextRunAt <= now;
+  // Turned back on: the next run counts the runs moved or skipped meanwhile.
+  const restartAt =
+    reactivated && !timingChanged
+      ? nextEffectiveRun(
+          { cronExpression, timezone },
+          await db.sokoBotScheduleRunChange.findMany({
+            where: { scheduleId: schedule.id },
+            select: { originalAt: true, scheduledAt: true },
+          }),
+          now,
+          nextRunAt,
+        )
+      : nextRunAt;
   const data = {
     name: input.name?.trim(),
     enabled: input.enabled,
@@ -425,11 +444,9 @@ export async function updateSokoBotSchedule(
     runOnce: input.cronExpression ? false : undefined,
     prompt: input.prompt?.trim(),
     nextRunAt:
-      input.timezone !== undefined ||
-      input.cronExpression !== undefined ||
-      (input.enabled === true && !schedule.enabled && schedule.nextRunAt <= now)
-        ? nextRunAt
-        : undefined,
+      timingChanged || reactivated ? (restartAt ?? nextRunAt) : undefined,
+    // New timing: moved or skipped runs of the old one no longer apply.
+    runChanges: timingChanged ? { deleteMany: {} } : undefined,
   };
   if (input.enabled === true && !schedule.enabled) {
     const mutate = async (tx: Prisma.TransactionClient) => {
@@ -457,78 +474,182 @@ export async function updateSokoBotSchedule(
   return db.sokoBotSchedule.update({ where: { id: schedule.id }, data });
 }
 
+/** One run's change from the Calendar; see the request schema. */
+export interface ScheduleRunChangeInput {
+  /** The cron time the run belongs to; for a one-time schedule, its time. */
+  originalAt: string;
+  /** Where the caller saw it run; null when they saw it skipped. */
+  expectedAt: string | null;
+  action: "skip" | "move" | "restore";
+  scheduledAt?: string;
+}
+
+const STALE_RUN = "The run changed; reload to see it";
+
 /**
- * Skips or moves the schedule's next run and leaves the cron as it is. The
- * scheduler fires `nextRunAt` and walks the cron on from there, so skipping
- * sets it to the run after, and a move stays before that run so none is
- * swallowed. The write holds only while `nextRunAt` is still the run the
- * caller saw: the scheduler's claim moves it the same way, so whichever
- * writes first wins and the other finds it changed.
+ * Skips, moves or restores one run and leaves the cron as it is, within the
+ * planning window Task Schedule Runs have. A recurring schedule keeps the
+ * change as a {@link ScheduleRunChange}; a one-time schedule just moves.
+ *
+ * The schedule row is locked first, and the scheduler's claim takes the same
+ * lock before it reads the changes and walks on. So either the claim runs
+ * first and this change sees the run fired (409), or the change commits
+ * first and the claim walks on with it. `expectedAt` refuses a change made
+ * on a stale Calendar the same way.
  */
-async function changeNextRun(
+async function changeScheduleRun(
   schedule: {
     id: string;
-    enabled: boolean;
-    runOnce: boolean;
-    nextRunAt: Date;
-    cronExpression: string;
-    timezone: string;
+    systemKey: string | null;
+    taskId: string | null;
+    jobId: string | null;
   },
-  change: NonNullable<UpdateSokoBotScheduleInput["nextRun"]>,
-  db: Prisma.TransactionClient | typeof prisma,
+  change: ScheduleRunChangeInput,
+  transaction?: Prisma.TransactionClient,
 ) {
-  const now = new Date();
-  const expectedAt = new Date(change.expectedAt);
-  if (
-    !schedule.enabled ||
-    schedule.nextRunAt.getTime() !== expectedAt.getTime() ||
-    schedule.nextRunAt <= now
-  ) {
-    throw conflict("The next run changed; reload to see it");
+  if (schedule.systemKey || schedule.taskId || schedule.jobId) {
+    throw new SokoBotScheduleValidationError(
+      "Only runs of schedules a member or the bot set up can be moved or skipped",
+    );
   }
-  const following = schedule.runOnce
-    ? null
-    : computeNextRun({
-        cron: schedule.cronExpression,
-        timezone: schedule.timezone,
-        from: schedule.nextRunAt,
+  const mutate = async (tx: Prisma.TransactionClient) => {
+    await tx.$queryRaw`
+      SELECT "id" FROM "soko_bot_schedule"
+      WHERE "id" = ${schedule.id}::uuid
+      FOR UPDATE
+    `;
+    const current = await tx.sokoBotSchedule.findUniqueOrThrow({
+      where: { id: schedule.id },
+      include: {
+        runChanges: { select: { originalAt: true, scheduledAt: true } },
+      },
+    });
+    const now = new Date();
+    const horizon = new Date(now.getTime() + RUN_HORIZON_MS);
+    const originalAt = new Date(change.originalAt);
+    const expectedAt = change.expectedAt ? new Date(change.expectedAt) : null;
+    if (!current.enabled) throw conflict(STALE_RUN);
+
+    if (current.runOnce) {
+      if (
+        originalAt.getTime() !== current.nextRunAt.getTime() ||
+        expectedAt?.getTime() !== current.nextRunAt.getTime() ||
+        current.nextRunAt <= now
+      ) {
+        throw conflict(STALE_RUN);
+      }
+      const at = new Date(change.scheduledAt ?? "");
+      if (change.action !== "move") {
+        throw new SokoBotScheduleValidationError(
+          "A one-time run cannot be skipped; switch the schedule off instead",
+        );
+      }
+      if (
+        Number.isNaN(at.getTime()) ||
+        at <= now ||
+        at.getTime() - now.getTime() > MAX_ONE_TIME_LEAD_MS
+      ) {
+        throw new SokoBotScheduleValidationError(
+          "Move the run to a time in the future, within a year",
+        );
+      }
+      // A one-time schedule's cron only mirrors its time for display.
+      return tx.sokoBotSchedule.update({
+        where: { id: current.id },
+        data: {
+          nextRunAt: at,
+          cronExpression: wallClockCron(at, current.timezone),
+        },
       });
-  let data: { nextRunAt: Date; cronExpression?: string };
-  if (change.action === "skip") {
-    if (!following) {
+    }
+
+    const existing = current.runChanges.find(
+      (row) => row.originalAt.getTime() === originalAt.getTime(),
+    );
+    if (!existing && !isCronTime(current, originalAt)) {
       throw new SokoBotScheduleValidationError(
-        "A one-time run cannot be skipped; switch the schedule off instead",
+        "The schedule has no run at originalAt",
       );
     }
-    data = { nextRunAt: following };
-  } else {
-    const at = new Date(change.scheduledAt ?? "");
+    // Where the run fires now; null when it is skipped.
+    const shownAt = existing ? existing.scheduledAt : originalAt;
     if (
-      Number.isNaN(at.getTime()) ||
-      at <= now ||
-      (following
-        ? at >= following
-        : at.getTime() - now.getTime() > MAX_ONE_TIME_LEAD_MS)
+      shownAt?.getTime() !== expectedAt?.getTime() ||
+      // A run that is due or fired belongs to the scheduler.
+      (shownAt && shownAt <= now)
     ) {
+      throw conflict(STALE_RUN);
+    }
+    if (shownAt && shownAt > horizon) {
       throw new SokoBotScheduleValidationError(
-        following
-          ? `Move the run to a time in the future and before the next one, ${following.toISOString()}`
-          : "Move the run to a time in the future, within a year",
+        "Only runs in the next 90 days can be moved or skipped",
       );
     }
-    // A one-time schedule's cron only mirrors its time for display.
-    data = schedule.runOnce
-      ? { nextRunAt: at, cronExpression: wallClockCron(at, schedule.timezone) }
-      : { nextRunAt: at };
-  }
-  const changed = await db.sokoBotSchedule.updateMany({
-    where: { id: schedule.id, enabled: true, nextRunAt: schedule.nextRunAt },
-    data,
-  });
-  if (changed.count === 0) {
-    throw conflict("The next run changed; reload to see it");
-  }
-  return db.sokoBotSchedule.findUniqueOrThrow({ where: { id: schedule.id } });
+
+    let target: Date | null;
+    if (change.action === "skip") {
+      if (!shownAt) throw conflict(STALE_RUN);
+      target = null;
+    } else if (change.action === "restore") {
+      if (originalAt <= now) {
+        throw new SokoBotScheduleValidationError(
+          "This run's own time has passed",
+        );
+      }
+      target = originalAt;
+    } else {
+      target = new Date(change.scheduledAt ?? "");
+      if (Number.isNaN(target.getTime()) || target <= now || target > horizon) {
+        throw new SokoBotScheduleValidationError(
+          "Move the run to a time in the future, within the next 90 days",
+        );
+      }
+    }
+    if (target && target.getTime() !== shownAt?.getTime()) {
+      const taken = effectiveRuns(
+        current,
+        current.runChanges,
+        new Date(target.getTime() - 1),
+        new Date(target.getTime() + 1),
+        2,
+      ).some((run) => run.originalAt.getTime() !== originalAt.getTime());
+      if (taken) {
+        throw new SokoBotScheduleValidationError(
+          "Another run of this schedule is already at that time",
+        );
+      }
+    }
+
+    const others = current.runChanges.filter((row) => row !== existing);
+    const backAtItsTime = target?.getTime() === originalAt.getTime();
+    const changes: ScheduleRunChange[] = backAtItsTime
+      ? others
+      : [...others, { originalAt, scheduledAt: target }];
+    if (backAtItsTime) {
+      await tx.sokoBotScheduleRunChange.deleteMany({
+        where: { scheduleId: current.id, originalAt },
+      });
+    } else {
+      await tx.sokoBotScheduleRunChange.upsert({
+        where: {
+          scheduleId_originalAt: { scheduleId: current.id, originalAt },
+        },
+        create: { scheduleId: current.id, originalAt, scheduledAt: target },
+        update: { scheduledAt: target },
+      });
+    }
+    // A due run is the scheduler's: it walks on from there with these
+    // changes. Otherwise the next run is the first one still to come.
+    const nextRunAt =
+      current.nextRunAt <= now
+        ? current.nextRunAt
+        : (nextEffectiveRun(current, changes, now) ?? current.nextRunAt);
+    return tx.sokoBotSchedule.update({
+      where: { id: current.id },
+      data: { nextRunAt },
+    });
+  };
+  return transaction ? mutate(transaction) : prisma.$transaction(mutate);
 }
 
 export async function deleteSokoBotSchedule(
@@ -591,6 +712,7 @@ export interface SokoBotSchedulePurgeResult {
   watchedWorkFinished: number;
   failedRecurring: number;
   settledRuns: number;
+  runChanges: number;
 }
 
 /**
@@ -684,5 +806,20 @@ export async function purgeSokoBotSchedules(
         })
       ).count
     : 0;
-  return { spentOneTime, watchedWorkFinished, failedRecurring, settledRuns };
+  // A change both of whose times passed no longer steers anything.
+  const runChanges = (
+    await prisma.sokoBotScheduleRunChange.deleteMany({
+      where: {
+        originalAt: { lt: retentionCutoff },
+        OR: [{ scheduledAt: null }, { scheduledAt: { lt: retentionCutoff } }],
+      },
+    })
+  ).count;
+  return {
+    spentOneTime,
+    watchedWorkFinished,
+    failedRecurring,
+    settledRuns,
+    runChanges,
+  };
 }

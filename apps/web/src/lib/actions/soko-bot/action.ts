@@ -287,47 +287,48 @@ export const updateSokoBotScheduleAction = withSession<
   }
 });
 
-const nextRunChangeSchema = z.object({
+const scheduleRunChangeSchema = z.object({
   scheduleId: z.string().uuid(),
-  expectedAt: z.date(),
+  /** The cron time the run belongs to. */
+  originalAt: z.date(),
+  /** Where the Calendar showed it; null when it showed it skipped. */
+  expectedAt: z.date().nullable(),
   change: z.discriminatedUnion("action", [
     z.object({ action: z.literal("skip") }),
+    z.object({ action: z.literal("restore") }),
     z.object({ action: z.literal("move"), scheduledAt: z.date() }),
   ]),
 });
 
-interface NextRunChangeParams extends BotScopedParams {
+interface ScheduleRunChangeParams extends BotScopedParams {
   input: unknown;
 }
 
-/** Why Core refused a next-run change, in the Calendar's Run change terms. */
-export interface SokoBotNextRunError {
+/** Why Core refused a run change, in the Calendar's Run change terms. */
+export interface SokoBotRunChangeError {
   kind: "stale" | "invalid_time" | "failed";
   message: string;
 }
 
-/**
- * Skips or moves a schedule's next run from the Calendar; the cron stays.
- * Answers the schedule's new next run, which an Undo must send as expected.
- */
-export const changeSokoBotNextRunAction = withSession<
-  NextRunChangeParams,
-  ActionResultDto<{ nextRunAt: Date }, SokoBotNextRunError>
+/** Skips, moves or restores one Soko Bot schedule run; the cron stays. */
+export const changeSokoBotScheduleRunAction = withSession<
+  ScheduleRunChangeParams,
+  ActionResultDto<void, SokoBotRunChangeError>
 >(async ({ input, botId }) => {
-  const parsed = nextRunChangeSchema.safeParse(input);
+  const parsed = scheduleRunChangeSchema.safeParse(input);
   const parsedBot = botIdSchema.safeParse(botId);
   if (!parsed.success || !parsedBot.success)
     return toActionResult(err({ kind: "failed", message: "Invalid input" }));
-  const { scheduleId, expectedAt, change } = parsed.data;
+  const { scheduleId, originalAt, expectedAt, change } = parsed.data;
   try {
-    const schedule = await sokoBotService.updateSchedule(
+    await sokoBotService.updateSchedule(
       scheduleId,
-      { nextRun: { expectedAt, ...change } },
+      { run: { originalAt, expectedAt, ...change } },
       parsedBot.data,
     );
     revalidate(parsedBot.data);
     revalidatePath("/calendar");
-    return toActionResult(ok({ nextRunAt: schedule.nextRunAt }));
+    return toActionResult(ok());
   } catch (error) {
     const status = error instanceof CoreApiRequestError ? error.status : null;
     return toActionResult(

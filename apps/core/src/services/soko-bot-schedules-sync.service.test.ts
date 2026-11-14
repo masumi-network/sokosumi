@@ -37,8 +37,13 @@ vi.mock("@/services/soko-bot-proactive.service", () => ({
   buildSystemBeatMessage: vi.fn(),
   stageSokoBotNudges: vi.fn(),
 }));
-vi.mock("@/helpers/cron", () => ({
+vi.mock("@/helpers/cron", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/cron")>()),
   computeNextRunWithMinimumInterval: computeNextRunMock,
+}));
+const { queryRawMock, runChangeFindManyMock } = vi.hoisted(() => ({
+  queryRawMock: vi.fn(),
+  runChangeFindManyMock: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -173,6 +178,8 @@ describe("SokoBotSchedulesSyncService", () => {
         Array.isArray(operation)
           ? Promise.all(operation)
           : operation({
+              $queryRaw: queryRawMock,
+              sokoBotScheduleRunChange: { findMany: runChangeFindManyMock },
               sokoBotSchedule: {
                 update: scheduleUpdateMock,
                 updateMany: scheduleUpdateManyMock,
@@ -185,6 +192,56 @@ describe("SokoBotSchedulesSyncService", () => {
     );
     startTurnMock.mockResolvedValue({ turnId: "turn_1", status: "RUNNING" });
     botFindUniqueMock.mockResolvedValue(personalBot);
+    runChangeFindManyMock.mockResolvedValue([]);
+  });
+
+  it("walks on past runs skipped or moved from the Calendar, under the schedule lock", async () => {
+    // Every minute: 12:01 is skipped, 12:03 moved to 12:01:30.
+    const dateNow = vi
+      .spyOn(Date, "now")
+      .mockReturnValue(new Date("2026-08-17T12:00:30.000Z").getTime());
+    computeNextRunMock.mockReturnValue(new Date("2026-08-17T12:01:00.000Z"));
+    runChangeFindManyMock.mockResolvedValue([
+      { originalAt: new Date("2026-08-17T12:01:00.000Z"), scheduledAt: null },
+      {
+        originalAt: new Date("2026-08-17T12:03:00.000Z"),
+        scheduledAt: new Date("2026-08-17T12:01:30.000Z"),
+      },
+    ]);
+
+    await new SokoBotSchedulesSyncService().syncDueSchedules({
+      shouldContinue: continueFor(1),
+    });
+
+    expect(queryRawMock.mock.invocationCallOrder[0]).toBeLessThan(
+      runChangeFindManyMock.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(runChangeFindManyMock).toHaveBeenCalledWith({
+      where: { scheduleId: dueSchedule.id },
+      select: { originalAt: true, scheduledAt: true },
+    });
+    expect(scheduleUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: dueSchedule.id, enabled: true, nextRunAt: scheduledFor },
+      data: {
+        nextRunAt: new Date("2026-08-17T12:01:30.000Z"),
+        lastRunAt: scheduledFor,
+      },
+    });
+    dateNow.mockRestore();
+  });
+
+  it("takes no Calendar lock for a built-in rhythm, which has no run changes", async () => {
+    dueScheduleFindFirstMock.mockResolvedValue({
+      ...dueSchedule,
+      systemKey: "standup",
+    });
+    await new SokoBotSchedulesSyncService().syncDueSchedules({
+      shouldContinue: continueFor(1),
+    });
+    // Claimed all the same, without the lock.
+    expect(scheduleUpdateManyMock).toHaveBeenCalled();
+    expect(queryRawMock).not.toHaveBeenCalled();
+    expect(runChangeFindManyMock).not.toHaveBeenCalled();
   });
 
   it("immediately enqueues a fresh turn for reconciliation", async () => {

@@ -411,9 +411,13 @@ export const sokoBotRunCalendarItemSchema = z
       description:
         "upcoming: still to come. running, done, failed: a run that started, from the bot's run history",
     }),
+    originalAt: dateTimeSchema.openapi({
+      description:
+        "The cron time this run belongs to; differs from scheduledAt once moved",
+    }),
     canChange: z.boolean().openapi({
       description:
-        "The bot's next run, which the caller may move or skip with the schedule's `nextRun`",
+        "A run still to come, in the next 90 days, that the caller may move, skip or restore with the schedule's `run`",
     }),
     sourceId: z.string(),
     sourceProjectId: z.uuid().nullable(),

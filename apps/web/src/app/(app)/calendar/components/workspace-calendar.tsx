@@ -1081,7 +1081,7 @@ export function WorkspaceCalendar({
   const [movingBotRun, setMovingBotRun] = useState<ChangeableBotRun | null>(
     null,
   );
-  const { moveBotRun, skipBotRun } = useBotRunChanges();
+  const { moveBotRun, restoreBotRun, skipBotRun } = useBotRunChanges();
   const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
   const calendarAccessGeneration = useRef(0);
   const hasActivatedRef = useRef(false);
@@ -1379,6 +1379,7 @@ export function WorkspaceCalendar({
     onSkipRun: (item) => changeShownRun(item, { action: "skip" }),
     onMoveBotRun: setMovingBotRun,
     onSkipBotRun: (item) => void skipBotRun(item),
+    onRestoreBotRun: restoreBotRun,
     onOpen: (path) => {
       // A task opened here offers Back to this view, period and filters.
       if (path.startsWith("/tasks/")) {

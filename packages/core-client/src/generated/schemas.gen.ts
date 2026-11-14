@@ -33064,9 +33064,15 @@ export const SokoBotRunCalendarItemSchema = {
             ],
             description: 'upcoming: still to come. running, done, failed: a run that started, from the bot\'s run history'
         },
+        originalAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'The cron time this run belongs to; differs from scheduledAt once moved'
+        },
         canChange: {
             type: 'boolean',
-            description: 'The bot\'s next run, which the caller may move or skip with the schedule\'s `nextRun`'
+            description: 'A run still to come, in the next 90 days, that the caller may move, skip or restore with the schedule\'s `run`'
         },
         sourceId: {
             type: 'string'
@@ -33101,6 +33107,7 @@ export const SokoBotRunCalendarItemSchema = {
         'shared',
         'projectName',
         'runState',
+        'originalAt',
         'canChange',
         'sourceId',
         'sourceProjectId',
@@ -47493,35 +47500,46 @@ export const UpdateSokoBotScheduleRequestSchema = {
             minLength: 1,
             maxLength: 20000
         },
-        nextRun: {
+        run: {
             type: 'object',
             properties: {
-                expectedAt: {
+                originalAt: {
                     type: 'string',
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z',
-                    description: 'The next run the caller saw; a schedule whose next run changed since answers 409'
+                    description: 'The cron time the run belongs to (the Calendar entry\'s originalAt)'
+                },
+                expectedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'Where the caller saw the run, or null when they saw it skipped. A run that changed since answers 409'
                 },
                 action: {
                     type: 'string',
                     enum: [
                         'skip',
-                        'move'
+                        'move',
+                        'restore'
                     ]
                 },
                 scheduledAt: {
                     type: 'string',
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z',
-                    description: 'For move: the new time, in the future and before the run after it'
+                    description: 'For move: the new time, in the future and within the next 90 days'
                 }
             },
             required: [
+                'originalAt',
                 'expectedAt',
                 'action'
             ],
             additionalProperties: false,
-            description: 'Skip or move only the next run; the cron stays as it is. Sent alone.'
+            description: 'Skip, move or restore one run; the cron stays as it is. Sent alone.'
         }
     },
     additionalProperties: false

@@ -17,6 +17,7 @@ import {
   isRetryableSokoBotRuntimeError,
   SokoBotRuntimeUnavailableError,
 } from "@/lib/soko-bot/runtime-errors";
+import { nextEffectiveRun } from "@/lib/soko-bot/schedule-run-changes";
 import {
   inheritedScheduleRoute,
   systemScheduleRoute,
@@ -275,17 +276,18 @@ export class SokoBotSchedulesSyncService {
     }
 
     const scheduledFor = due.nextRunAt;
-    const nextRunAt = due.runOnce
+    const walkFrom = new Date(Math.max(scheduledFor.getTime(), Date.now()));
+    const nextCronAt = due.runOnce
       ? scheduledFor
       : computeNextRunWithMinimumInterval(
           {
             cron: due.cronExpression,
             timezone: due.timezone,
-            from: new Date(Math.max(scheduledFor.getTime(), Date.now())),
+            from: walkFrom,
           },
           MIN_SCHEDULE_INTERVAL_MS,
         );
-    if (!nextRunAt) {
+    if (!nextCronAt) {
       await prisma.sokoBotSchedule.update({
         where: { id: due.id },
         data: {
@@ -299,6 +301,23 @@ export class SokoBotSchedulesSyncService {
     const leaseToken = randomUUID();
     const leaseExpiresAt = new Date(Date.now() + SCHEDULE_LEASE_MS);
     const claimed = await prisma.$transaction(async (tx) => {
+      let nextRunAt = nextCronAt;
+      // Only schedules a member or the bot set up have runs moved or skipped.
+      if (!due.runOnce && !due.systemKey && !due.taskId && !due.jobId) {
+        // Same lock a Calendar run change takes before it writes, so the
+        // walk below sees every run moved or skipped up to this claim.
+        await tx.$queryRaw`
+          SELECT "id" FROM "soko_bot_schedule"
+          WHERE "id" = ${due.id}::uuid
+          FOR UPDATE
+        `;
+        const changes = await tx.sokoBotScheduleRunChange.findMany({
+          where: { scheduleId: due.id },
+          select: { originalAt: true, scheduledAt: true },
+        });
+        nextRunAt =
+          nextEffectiveRun(due, changes, walkFrom, nextCronAt) ?? nextCronAt;
+      }
       const moved = await tx.sokoBotSchedule.updateMany({
         where: {
           id: due.id,
