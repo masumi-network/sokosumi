@@ -22,6 +22,20 @@ describe("toolRecoveryFeedback", () => {
     };
     expect(toolRecoveryFeedback("find_coworkers", result)).toBe(result);
   });
+  it("identifies listed bot schedules even when they monitor a Task", () => {
+    expect(
+      toolRecoveryFeedback("list_schedules", [
+        { id: "check-1", taskId: "task-1", name: "Research check" },
+      ]),
+    ).toEqual([
+      {
+        id: "check-1",
+        taskId: "task-1",
+        name: "Research check",
+        previewReference: { kind: "bot_schedule", id: "check-1" },
+      },
+    ]);
+  });
   it("does not recommend READY for a Task with no assignee of any kind", () => {
     const result = {
       id: "task-1",
@@ -33,6 +47,13 @@ describe("toolRecoveryFeedback", () => {
     expect(toolRecoveryFeedback("get_task_status", result)).toMatchObject({
       ...result,
       instruction: expect.stringContaining("without a status change"),
+    });
+  });
+  it("keeps required handoff work visible when a completed Task is read", () => {
+    const result = { id: "task-1", status: "COMPLETED", files: [] };
+    expect(toolRecoveryFeedback("get_task_status", result)).toMatchObject({
+      ...result,
+      instruction: expect.stringContaining("linked follow-up Task"),
     });
   });
   it.each(["assigneeUserId", "assigneeCoworkerId", "assigneeSokoBotId"])(
@@ -74,7 +95,10 @@ describe("toolRecoveryFeedback", () => {
       ),
     });
     const linked = { ...result, taskId: "task-1" };
-    expect(toolRecoveryFeedback("create_schedule", linked)).toBe(linked);
+    expect(toolRecoveryFeedback("create_schedule", linked)).toMatchObject({
+      ...linked,
+      previewReference: { kind: "bot_schedule", id: "check-1" },
+    });
   });
   it.each([
     "find_coworkers",

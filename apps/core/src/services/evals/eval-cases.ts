@@ -85,6 +85,7 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "social-drafts-rundown": "Social",
   "newsletter-send-now-goes-to-approval": "Newsletter",
   "newsletter-no-scraped-subscribers": "Newsletter",
+  "newsletter-draft-stays-draft": "Newsletter",
 };
 
 /** Scenarios that read a connected mailbox or calendar; an eval lane has none. */

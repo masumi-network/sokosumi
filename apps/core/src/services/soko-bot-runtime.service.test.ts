@@ -3792,6 +3792,8 @@ describe("SokoBotRuntimeService authorization", () => {
 });
 
 describe("SokoBotRuntimeService memory updates", () => {
+  const LAUNCH =
+    "Prepare the coworker marketplace launch for 26 December 2026.";
   const MUTE =
     "Do not send check-ins on the EU marketplace research brief or weekly launch reminders; Robin tracks both personally.";
   const GERMAN = "Write every Task for Hannah in German.";
@@ -3966,6 +3968,49 @@ describe("SokoBotRuntimeService memory updates", () => {
     ]);
   });
 
+  it.each([
+    { source: "SCHEDULE" },
+    { source: "CHAT", audience: "TEAMMATE" as const },
+    { source: "CHAT", chainDepth: 1 },
+  ])(
+    "retains an active launch goal during autonomous memory cleanup (%j)",
+    async (options) => {
+      turnFindUniqueMock.mockResolvedValue(memoryTurn(options));
+      transactionBotFindUniqueOrThrowMock.mockResolvedValue({
+        memoryVersion: 1,
+      });
+      transactionMemoryRevisionFindUniqueMock.mockResolvedValue({
+        sourceTurnId: "earlier_turn",
+        markdown: memoryMarkdown(LAUNCH),
+      });
+      await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_memory",
+        toolCallId: "memory_goals",
+        input: { markdown: memoryMarkdown("None") },
+      });
+      const saved = transactionMemoryRevisionCreateMock.mock.calls[0][0].data;
+      expect(parseSokoBotMemory(saved.markdown).activeGoals).toEqual([LAUNCH]);
+    },
+  );
+
+  it("lets a direct owner request clear an active goal", async () => {
+    turnFindUniqueMock.mockResolvedValue(memoryTurn());
+    transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 1 });
+    transactionMemoryRevisionFindUniqueMock.mockResolvedValue({
+      sourceTurnId: "earlier_turn",
+      markdown: memoryMarkdown(LAUNCH),
+    });
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "update_memory",
+      toolCallId: "memory_goals",
+      input: { markdown: memoryMarkdown("None") },
+    });
+    const saved = transactionMemoryRevisionCreateMock.mock.calls[0][0].data;
+    expect(parseSokoBotMemory(saved.markdown).activeGoals).toEqual([]);
+  });
+
   it("does not overwrite a missing current revision during dreaming", async () => {
     turnFindUniqueMock.mockResolvedValue(memoryTurn({ source: "SCHEDULE" }));
     transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 1 });
@@ -3989,6 +4034,24 @@ describe("SokoBotRuntimeService memory updates", () => {
     });
     await expect(savePreferences([GERMAN])).rejects.toThrow(
       "Existing preferences must be retained",
+    );
+    expect(transactionMemoryRevisionCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses to evict active goals when autonomous cleanup exceeds capacity", async () => {
+    turnFindUniqueMock.mockResolvedValue(memoryTurn({ source: "SCHEDULE" }));
+    transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 1 });
+    transactionMemoryRevisionFindUniqueMock.mockResolvedValue({
+      sourceTurnId: "earlier_turn",
+      markdown: memoryMarkdown(
+        Array.from(
+          { length: SOKO_BOT_MEMORY_LIMITS.maxEntriesPerSection },
+          (_, index) => `Standing goal ${index}.`,
+        ).join("\n- "),
+      ),
+    });
+    await expect(savePreferences([GERMAN])).rejects.toThrow(
+      "Existing active goals must be retained",
     );
     expect(transactionMemoryRevisionCreateMock).not.toHaveBeenCalled();
   });

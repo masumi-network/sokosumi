@@ -56,10 +56,10 @@ export async function updateMemory(
       (authorized.askedByKind === "OWNER" ||
         (Boolean(authorized.reader.sharedScope) &&
           authorized.askedByKind === "TEAMMATE"));
-    const preservePreferences = !directHumanRequest;
+    const preserveOwnerMemory = !directHumanRequest;
     const latestRevision =
       bot.memoryVersion > 0 &&
-      (preservePreferences ||
+      (preserveOwnerMemory ||
         bot.memoryVersion !== authorized.grant.memoryVersion)
         ? await tx.sokoBotMemoryRevision.findUnique({
             where: {
@@ -80,22 +80,22 @@ export async function updateMemory(
       }
     }
     let nextMarkdown = markdown;
-    if (preservePreferences && bot.memoryVersion > 0) {
+    if (preserveOwnerMemory && bot.memoryVersion > 0) {
       if (!latestRevision)
         throw new SokoBotRuntimeConflictError(
           "Current memory revision is unavailable",
         );
       // Background summaries can be clipped or incomplete. Only a direct human
-      // request can remove preferences from the current stored revision.
+      // request can remove preferences or goals from the current stored revision.
       const previous = parseSokoBotMemory(latestRevision.markdown);
       const next = parseSokoBotMemory(markdown);
-      next.preferences = [
-        ...new Set([...previous.preferences, ...next.preferences]),
-      ];
-      if (next.preferences.length > SOKO_BOT_MEMORY_LIMITS.maxEntriesPerSection)
-        throw new SokoBotRuntimeValidationError(
-          "Existing preferences must be retained; ask for a direct human memory update before replacing them",
-        );
+      for (const section of ["preferences", "activeGoals"] as const) {
+        next[section] = [...new Set([...previous[section], ...next[section]])];
+        if (next[section].length > SOKO_BOT_MEMORY_LIMITS.maxEntriesPerSection)
+          throw new SokoBotRuntimeValidationError(
+            `Existing ${section === "preferences" ? "preferences" : "active goals"} must be retained; ask for a direct human memory update before replacing them`,
+          );
+      }
       try {
         nextMarkdown = renderSokoBotMemory(next);
       } catch (error) {

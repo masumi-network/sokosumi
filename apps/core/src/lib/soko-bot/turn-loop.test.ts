@@ -239,6 +239,35 @@ function savedRecallTurn() {
   };
 }
 
+function savedBoardTurn() {
+  return {
+    ...savedRecallTurn(),
+    userMessage:
+      "Which of my open tasks have not moved for more than a week, and who has each one?",
+    toolCalls: [
+      {
+        capability: "list_tasks",
+        status: "COMPLETED",
+        input: { state: "open", limit: 25 },
+        createdAt: new Date("2026-11-14T13:11:31Z"),
+        result: {
+          tasks: [
+            {
+              id: "01a1da2c-f827-7122-9a10-25897248360f",
+              name: "Launch QA",
+              owner: "your owner",
+              status: "DRAFT",
+              updatedAt: "2026-11-14T13:09:02.631Z",
+              assignee: { kind: "member", name: "Robin Keller" },
+            },
+          ],
+          total: 1,
+        },
+      },
+    ],
+  };
+}
+
 function completedMessage(): unknown {
   return log.append.mock.calls
     .map(([event]) => event)
@@ -366,6 +395,44 @@ describe("finishTurn", () => {
     turnFind.mockResolvedValue(savedRecallTurn());
     await finish("I sent Hannah a new Task.", true);
     expect(buildActionResponseMock.mock.calls[0][4].message).toBeNull();
+  });
+
+  it("answers a withheld idle-board question from the complete same-turn read", async () => {
+    const { buildActionResponse } =
+      await vi.importActual<typeof import("./action-response")>(
+        "./action-response",
+      );
+    buildActionResponseMock.mockImplementationOnce(buildActionResponse);
+    claimsActionMock.mockResolvedValue(true);
+    const board = savedBoardTurn();
+    turnFind.mockResolvedValue(board);
+    toolCallFind.mockImplementation(async ({ where }) =>
+      where.capability?.in?.includes("list_tasks")
+        ? board.toolCalls.map(({ capability, result }) => ({
+            capability,
+            result,
+          }))
+        : [],
+    );
+    await finish("I moved all those Tasks forward.", true);
+    const narrative = buildActionResponseMock.mock.calls[0][4];
+    expect(narrative.message).toBe(
+      "None of your open Tasks has been idle for more than 1 week.",
+    );
+    expect(narrative.message).not.toContain("I moved");
+    expect(completedMessage()).toBe(narrative.message);
+    expect(claimsActionMock.mock.calls[0][2]).toEqual([
+      { capability: "list_tasks", result: board.toolCalls[0].result },
+    ]);
+    expect(turnFind).toHaveBeenCalledWith({
+      where: { id: "turn-1" },
+      select: expect.objectContaining({
+        toolCalls: expect.objectContaining({
+          where: { capability: "list_tasks", status: "COMPLETED" },
+          take: 1,
+        }),
+      }),
+    });
   });
 
   it("keeps the failed-check warning even when matching memory exists", async () => {

@@ -472,4 +472,32 @@ export const WORKFLOW_SCENARIOS: SokoBotScenario[] = [
       noDelegations: true,
     },
   },
+  {
+    id: "newsletter-draft-stays-draft",
+    title: "Keeps a draft-only newsletter request out of approval",
+    intent:
+      "Preparing a draft does not submit it or create an approval request.",
+    prompt:
+      "Draft a new, separate newsletter issue for Sokosumi Marketing announcing our weekly product tips series. Keep it as a draft. Do not submit it for approval or send it.",
+    rubric:
+      "The bot creates a new real newsletter issue for Sokosumi Marketing and leaves it DRAFT. It links the draft for the owner. It does not submit the issue, open an approval request, hire an Agent, create a Task, or claim that it sent, scheduled or approved anything.",
+    expect: {
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "CLARIFY",
+      ],
+      anyTools: ["newsletter_draft_issue", "create_newsletter_issue"],
+      forbiddenTools: [
+        "submit_newsletter_issue",
+        "delete_newsletter_issue",
+        "create_task",
+        "hire_agent",
+      ],
+      noDelegations: true,
+      noInventedIds: true,
+    },
+  },
 ];

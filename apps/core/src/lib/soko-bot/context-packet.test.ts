@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  historyFloorMock,
+  newsletterEnabledMock,
   agentCountMock,
   agentFindManyMock,
   billingMock,
@@ -24,6 +26,8 @@ const {
   userFindUniqueMock,
   workspaceFindFirstMock,
 } = vi.hoisted(() => ({
+  historyFloorMock: vi.fn(),
+  newsletterEnabledMock: vi.fn(),
   agentCountMock: vi.fn(),
   agentFindManyMock: vi.fn(),
   billingMock: vi.fn(),
@@ -46,6 +50,13 @@ const {
   userFindUniqueOrThrowMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
+}));
+
+vi.mock("@/lib/evals/eval-history", () => ({
+  evalHistoryFloor: historyFloorMock,
+}));
+vi.mock("@/lib/newsletter/feature", () => ({
+  isNewsletterWorkspaceEnabled: newsletterEnabledMock,
 }));
 
 vi.mock("@/helpers/subscription", () => ({
@@ -79,11 +90,8 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-import {
-  ContextPacketBuilder,
-  SOKO_BOT_CONTEXT_PACKET_MAX_BYTES,
-  triggerHints,
-} from "./context-packet";
+import { ContextPacketBuilder } from "./context-packet";
+import { SOKO_BOT_CONTEXT_PACKET_MAX_BYTES } from "./context-packet-format";
 
 const NOW = new Date("2026-08-18T10:00:00.000Z");
 const EARLIER = new Date("2026-08-17T10:00:00.000Z");
@@ -229,6 +237,8 @@ function recentTurn(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  historyFloorMock.mockResolvedValue(null);
+  newsletterEnabledMock.mockResolvedValue(false);
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
 
@@ -282,6 +292,57 @@ afterEach(() => {
 });
 
 describe("ContextPacketBuilder", () => {
+  it("reads and counts only the current eval world after its reset", async () => {
+    historyFloorMock.mockResolvedValue(EARLIER);
+    await new ContextPacketBuilder().build(buildInput());
+    expect(recentTurnFindManyMock.mock.calls[0][0].where.createdAt).toEqual({
+      gte: EARLIER,
+    });
+    expect(recentTurnCountMock.mock.calls[0][0].where).toEqual(
+      recentTurnFindManyMock.mock.calls[0][0].where,
+    );
+  });
+
+  it.each([true, false])(
+    "exposes newsletter presence subject to workspace access (%s)",
+    async (enabled) => {
+      newsletterEnabledMock.mockResolvedValue(enabled);
+      projectFindManyMock.mockResolvedValue([
+        { ...project("marketing"), newsletter: { id: "newsletter-1" } },
+        { ...project("outreach"), newsletter: null },
+      ]);
+      const { packet } = await new ContextPacketBuilder().build(buildInput());
+      expect(packet.projects.map((row) => row.newsletter)).toEqual([
+        { configured: true, available: enabled },
+        { configured: false, available: false },
+      ]);
+      expect(projectFindManyMock.mock.calls[0][0].select.newsletter).toEqual({
+        where: { workspaceId: buildInput().workspaceId },
+        select: { id: true },
+      });
+    },
+  );
+
+  it("includes availability on older authorized Projects carried by name", async () => {
+    newsletterEnabledMock.mockResolvedValue(true);
+    projectCountMock.mockResolvedValue(1);
+    projectFindManyMock.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
+        id: "older",
+        name: "Older Project",
+        newsletter: { id: "newsletter-1" },
+      },
+    ]);
+    const { packet } = await new ContextPacketBuilder().build(buildInput());
+    expect(packet.projects[0].newsletter).toEqual({
+      configured: true,
+      available: true,
+    });
+    expect(
+      projectFindManyMock.mock.calls[1][0].select.newsletter.where,
+    ).toEqual({ workspaceId: buildInput().workspaceId });
+  });
+
   it("prioritizes exact referents while retaining recent related tasks within the cap", async () => {
     taskFindManyMock
       .mockResolvedValueOnce([task("referenced")])
@@ -789,7 +850,12 @@ describe("ContextPacketBuilder", () => {
 
     expect(result.packet.projects).toEqual([
       expect.objectContaining({ id: "project-new", status: expect.anything() }),
-      { id: "project-quiet", name: "Outreach", trust: "untrusted-data" },
+      {
+        id: "project-quiet",
+        name: "Outreach",
+        newsletter: { configured: false, available: false },
+        trust: "untrusted-data",
+      },
     ]);
     expect(projectFindManyMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -1068,61 +1134,5 @@ describe("ContextPacketBuilder", () => {
     expect(result.packet.sourceCoverage?.calendar.availability).toBe(
       "NOT_FETCHED",
     );
-  });
-});
-
-describe("triggerHints", () => {
-  const typed = (classification: object, extra: object = {}) =>
-    triggerHints({
-      userId: "user-1",
-      sokoBotId: "bot-1",
-      workspaceId: "ws-1",
-      sharedScope: null,
-      source: "CHAT",
-      classification: { ...CLASSIFICATION, ...classification },
-      personAsked: true,
-      ...extra,
-    });
-
-  it("leaves an unsure route to the trigger, without telling the bot to act anyway", () => {
-    // "every tool is available" on a CLARIFY at 51% made the bot guess the
-    // client in the ambiguous-request scenario and create a Task.
-    expect(typed({ route: "CLARIFY", confidence: 0.51 })).toEqual([]);
-  });
-
-  it("turns likely signals into context, and a saved preference into a note", () => {
-    const hints = typed(
-      {
-        signals: {
-          refersToEarlier: 0.9,
-          statesPreference: 0.95,
-          aboutMail: 0.8,
-          aboutTasks: 0.05,
-        },
-      },
-      { capturedPreference: "Do not flag Make scenario errors." },
-    );
-    expect(hints.join("\n")).toMatch(/points back at earlier messages/);
-    expect(hints.join("\n")).toMatch(/about mail/);
-    expect(hints.join("\n")).toMatch(
-      /Saved to your memory's preferences .*"Do not flag Make scenario errors\."/,
-    );
-  });
-
-  it("adds nothing for a sure route, or for a turn nobody typed", () => {
-    expect(typed({})).toEqual([]);
-    expect(
-      typed(
-        {
-          signals: {
-            refersToEarlier: 0.9,
-            statesPreference: 0,
-            aboutMail: 0,
-            aboutTasks: 0,
-          },
-        },
-        { personAsked: false },
-      ),
-    ).toEqual([]);
   });
 });

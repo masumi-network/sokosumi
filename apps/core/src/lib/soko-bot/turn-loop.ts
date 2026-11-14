@@ -29,7 +29,7 @@ import {
 import { citationsIn, dropUnverifiedLinks } from "./citations";
 import { evaluationBinding, evaluationContext } from "./evaluation-dispatch";
 import { SOKO_BOT_ARCHIVE_GUIDANCE } from "./evaluation-preparation";
-import { memoryRecallResponse } from "./memory-recall-response";
+import { readAnswerResponse } from "./read-answer-response";
 import { tableCreationFeedback } from "./table-creation-feedback";
 import { toolRecoveryFeedback } from "./tool-recovery-feedback";
 
@@ -506,6 +506,7 @@ const CLAIM_CHECK_READS = new Set([
   "read_file",
   "list_files",
   "get_task_status",
+  "list_tasks",
   "get_job_status",
 ]);
 
@@ -584,7 +585,7 @@ async function ownerNarrative(
   });
   const recall =
     claim === true && evidence.confirmedChanges.length === 0
-      ? memoryRecallResponse(
+      ? readAnswerResponse(
           await prisma.sokoBotTurn.findUnique({
             where: { id: turnId },
             select: {
@@ -592,6 +593,18 @@ async function ownerNarrative(
               route: true,
               userMessage: true,
               contextSnapshot: { select: { packet: true } },
+              toolCalls: {
+                where: { capability: "list_tasks", status: "COMPLETED" },
+                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                take: 1,
+                select: {
+                  capability: true,
+                  status: true,
+                  input: true,
+                  result: true,
+                  createdAt: true,
+                },
+              },
             },
           }),
         )

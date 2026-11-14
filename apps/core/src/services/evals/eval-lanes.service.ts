@@ -1,11 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { FileSourceKind, FileSourceScope } from "@sokosumi/database";
+import {
+  FileResourceLifecycle,
+  FileSourceKind,
+  FileSourceScope,
+} from "@sokosumi/database";
 import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { del } from "@vercel/blob";
 import { z } from "zod";
 import { getEnv } from "@/config/env";
 import { getCredits } from "@/helpers/user";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import {
   EVAL_CONNECTED_ACCOUNT_PREFIX,
   forgetEvalWorkspaces,
@@ -424,14 +429,91 @@ export async function defaultEvalVersions() {
   };
 }
 
+/** Check persisted tenant ownership before any destructive fixture reset. */
+async function resetEvalTables(lane: EvalLaneRecord): Promise<void> {
+  await serializableTransaction(async (tx) => {
+    const registered = await tx.evalLane.findFirst({
+      where: {
+        lane: lane.lane,
+        userId: lane.userId,
+        organizationId: lane.organizationId,
+        workspaceId: lane.workspaceId,
+        sokoBotId: lane.sokoBotId,
+        cusoBotId: lane.cusoBotId,
+      },
+    });
+    if (!registered) throw new Error("Registered eval lane required");
+    const tenant = await tx.workspace.findFirst({
+      where: {
+        id: registered.workspaceId,
+        organizationId: registered.organizationId,
+        organization: {
+          slug: `sokosumi-evals-${registered.lane}`,
+          members: { some: { userId: registered.userId, role: "owner" } },
+        },
+      },
+      select: { id: true },
+    });
+    // Eval runs never wake the personal bot through crons. Keep it paused
+    // while removing its previous world's tables and retry keys.
+    const bot =
+      tenant &&
+      (await tx.sokoBot.updateMany({
+        where: {
+          id: registered.sokoBotId,
+          userId: registered.userId,
+          workspaceId: registered.workspaceId,
+          deletedAt: null,
+          archivedAt: null,
+        },
+        data: { proactivePaused: true },
+      }));
+    if (!bot?.count) throw new Error("Registered eval lane required");
+    const world = worldSchema.parse(registered.world);
+    const tableWhere = {
+      workspaceId: registered.workspaceId,
+      createdBy: {
+        in: [
+          registered.sokoBotId,
+          ...(registered.cusoBotId ? [registered.cusoBotId] : []),
+          registered.userId,
+          world.hannahUserId,
+          world.alexUserId,
+        ],
+      },
+    };
+    const tables = await tx.dataTable.findMany({
+      where: tableWhere,
+      select: { id: true },
+    });
+    await tx.fileResource.updateMany({
+      where: {
+        workspaceId: registered.workspaceId,
+        sourceKind: FileSourceKind.NATIVE_TABLE,
+        sourceId: { in: tables.map((table) => table.id) },
+        tombstonedAt: null,
+      },
+      data: {
+        lifecycle: FileResourceLifecycle.TOMBSTONED,
+        tombstonedAt: new Date(),
+        aclRevision: { increment: 1 },
+      },
+    });
+    // TableOperation cascades with its table. Historical turns, tool calls,
+    // eval results and their recorded outputs have no such cascade.
+    await tx.dataTable.deleteMany({ where: tableWhere });
+  }, "Eval fixture reset conflicted; retry the reset");
+}
+
 /**
  * Back to the seeded world before the Soko Bot cases: what earlier eval turns
- * made (Tasks, schedules, posts in the room, Drive files, drafts, contacts)
+ * made (Tasks, schedules, posts in the room, Drive files, drafts, contacts, tables)
  * goes, and memory starts empty. The seeded Projects, people and room stay.
  */
 export async function resetEvalLaneForSokoBot(
   lane: EvalLaneRecord,
 ): Promise<void> {
+  await resetEvalTables(lane);
   const { workspaceId, sokoBotId } = lane;
   await prisma.task.updateMany({
     where: { workspaceId, archivedAt: null },

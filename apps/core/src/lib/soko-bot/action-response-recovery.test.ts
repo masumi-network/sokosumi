@@ -210,6 +210,41 @@ describe("recovered action responses", () => {
     },
   );
 
+  it.each([false, true])(
+    "reconciles only the unchanged table after replacing a rejected retry key (changed: %s)",
+    async (changed) => {
+      const input = {
+        key: "findings-old",
+        title: "Reported findings",
+        columns: [{ id: "name", name: "Name" }],
+        rows: [{ values: { name: "Sokosumi" } }],
+      };
+      refusedThenCreated(
+        {
+          capability: "create_table",
+          input,
+          errorDetail: "Retry key was already used for different input",
+        },
+        {
+          capability: "create_table",
+          input: {
+            ...input,
+            key: "findings-current",
+            ...(changed
+              ? { rows: [{ values: { name: "Other research" } }] }
+              : {}),
+          },
+        },
+      );
+      const response = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "Done.",
+      );
+      expect(response.unfulfilledActions).toHaveLength(changed ? 1 : 0);
+    },
+  );
+
   it("does not report a refused attempt the bot then made good", async () => {
     refusedThenCreated({});
     const response = await buildActionResponse(prisma, "turn-current", "Done.");

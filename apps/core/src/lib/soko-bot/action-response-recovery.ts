@@ -7,6 +7,7 @@ type RecoveryCall = Pick<
 >;
 const MISSING_PROJECT = "Project not found";
 const UNASSIGNED_TABLE_TASK = "Task is not assigned to this actor";
+const REUSED_TABLE_RETRY_KEY = "Retry key was already used for different input";
 
 /** Whether `later` repeats every field `earlier` set, with the same value. */
 /**
@@ -52,6 +53,19 @@ export function correctedCreationInput(
     return false;
   const before = failed.input;
   const after = applied.input;
+  if (
+    failed.capability === "create_table" &&
+    failed.errorDetail === REUSED_TABLE_RETRY_KEY &&
+    typeof before.key === "string" &&
+    before.key.length > 0 &&
+    typeof after.key === "string" &&
+    after.key.length > 0 &&
+    before.key !== after.key
+  )
+    return (
+      canonicalActionJson({ ...before, key: after.key }) ===
+      canonicalActionJson(after)
+    );
   let removedField: string;
   if (
     requiresRecoveryRequester(failed) &&
