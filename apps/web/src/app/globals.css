@@ -307,7 +307,7 @@
   --scrim-strong: rgb(0 0 0 / 0.8); /* Alpha 20 */
   --media-ground: #000000; /* Black */
   /* The Home page's holographic foil (FoilBackground): four colours it loops
-     through, and how bright its creases and pointer shine get. */
+     through, and how bright its creases get. */
   --foil-1: #d9c8ff; /* Lilac */
   --foil-2: #b9dcff; /* Sky */
   --foil-3: #ffd3ee; /* Pink */
