@@ -45,6 +45,7 @@ import { v30 } from "./v30.js";
 import { v31 } from "./v31.js";
 import { v32 } from "./v32.js";
 import { v33 } from "./v33.js";
+import { v34 } from "./v34.js";
 
 /** Newest last. To iterate, add `vN.ts` and append it here. */
 export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
@@ -81,6 +82,7 @@ export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
   v31,
   v32,
   v33,
+  v34,
 ];
 export const DEFAULT_SOKO_BOT_VERSION_ID = "v33";
 

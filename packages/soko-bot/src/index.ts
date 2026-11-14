@@ -143,15 +143,14 @@ export type {
   SokoBotTurnGrantClaims,
 } from "./runtime.js";
 export { SOKO_BOT_TURN_TOKEN_HEADER } from "./runtime.js";
-export {
-  CMO_PLACEHOLDER_PATTERN,
-  CMO_SCENARIOS,
-  evaluateScenario,
-  type ScenarioCheck,
-  type ScenarioResult,
-  SOKO_BOT_SCENARIOS,
-  type SokoBotScenario,
-} from "./scenarios.js";
+export { CMO_PLACEHOLDER_PATTERN, CMO_SCENARIOS } from "./scenario-cmo.js";
+export { evaluateScenario } from "./scenario-evaluator.js";
+export type {
+  ScenarioCheck,
+  ScenarioResult,
+  SokoBotScenario,
+} from "./scenario-types.js";
+export { SOKO_BOT_SCENARIOS } from "./scenarios.js";
 export {
   isSokoBotSeoCapability,
   SOKO_BOT_SEO_CAPABILITIES,

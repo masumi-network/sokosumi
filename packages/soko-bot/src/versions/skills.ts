@@ -1,5 +1,6 @@
 import { CMO_SKILLS } from "./cmo-skills.js";
 import { COMPACT_SOKO_BOT_SKILLS } from "./compact-skills.js";
+import { V34_WORK_RELIABILITY_SKILL } from "./v34-corrections.js";
 
 /**
  * Skills are reusable instruction modules a version can include. Keep each
@@ -361,6 +362,7 @@ Prospects are people the owner finds interesting but nobody on the team has met 
 `,
   },
   ...COMPACT_SOKO_BOT_SKILLS,
+  V34_WORK_RELIABILITY_SKILL,
   {
     id: "jev-triage",
     name: "Triage with Jev",

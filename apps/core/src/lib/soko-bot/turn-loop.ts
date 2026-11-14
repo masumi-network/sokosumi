@@ -21,10 +21,15 @@ import {
   HELD_BACK_REPLY,
   parseActionNarrativeText,
 } from "./action-response";
-import { claimsAction } from "./answer-claims";
+import {
+  claimsAction,
+  MAX_READ_OBSERVATIONS,
+  type ReadObservation,
+} from "./answer-claims";
 import { citationsIn, dropUnverifiedLinks } from "./citations";
 import { evaluationBinding, evaluationContext } from "./evaluation-dispatch";
 import { SOKO_BOT_ARCHIVE_GUIDANCE } from "./evaluation-preparation";
+import { tableCreationFeedback } from "./table-creation-feedback";
 
 /**
  * The parts of a turn every runtime shares, whether the loop runs inside Core
@@ -450,7 +455,7 @@ export async function runTurnTool(input: {
     }),
   );
   const service = await runtimeService();
-  const result = await withTimeout(
+  const executed = await withTimeout(
     service.executeTool({
       sessionId: log.sessionId,
       turnId: log.turnId,
@@ -461,28 +466,63 @@ export async function runTurnTool(input: {
     TOOL_CALL_TIMEOUT_MS,
     capability,
   );
+  const result =
+    capability === "create_table"
+      ? tableCreationFeedback(input.toolInput, executed)
+      : executed;
   await log.append(runtimeEvent("action.result", { name: capability, callId }));
   return ACTION_CAPABILITIES.has(capability) || input.cite === false
     ? result
     : { evidenceToolCallId: callId, result };
 }
 
-/** The changes this turn's receipts confirm, as the answer names them. */
-async function confirmedChanges(turnId: string): Promise<string[]> {
-  const calls = await prisma.sokoBotToolCall.findMany({
-    where: {
-      turnId,
-      capability: { in: [...ACTION_CAPABILITIES] },
-      status: "COMPLETED",
-      disposition: { in: ["APPLIED", "ALREADY_SATISFIED"] },
-    },
-    select: { capability: true },
-  });
-  return [
-    ...new Set(
-      calls.map((call) => ACTION_LABELS[call.capability] ?? call.capability),
+const CLAIM_CHECK_READS = new Set([
+  "read_chat",
+  "list_chats",
+  "read_file",
+  "list_files",
+  "get_task_status",
+  "get_job_status",
+]);
+
+/** Receipts prove changes; successful reads explain whose activity a reply reports. */
+async function turnEvidence(turnId: string): Promise<{
+  confirmedChanges: string[];
+  readObservations: ReadObservation[];
+}> {
+  const [calls, reads] = await Promise.all([
+    prisma.sokoBotToolCall.findMany({
+      where: {
+        turnId,
+        status: "COMPLETED",
+        capability: { in: [...ACTION_CAPABILITIES] },
+        disposition: { in: ["APPLIED", "ALREADY_SATISFIED"] },
+      },
+      select: { capability: true },
+    }),
+    prisma.sokoBotToolCall.findMany({
+      where: {
+        turnId,
+        status: "COMPLETED",
+        capability: { in: [...CLAIM_CHECK_READS] },
+      },
+      orderBy: { createdAt: "desc" },
+      take: MAX_READ_OBSERVATIONS,
+      select: { capability: true, result: true },
+    }),
+  ]);
+  return {
+    confirmedChanges: [
+      ...new Set(
+        calls
+          .filter((call) => ACTION_CAPABILITIES.has(call.capability))
+          .map((call) => ACTION_LABELS[call.capability] ?? call.capability),
+      ),
+    ],
+    readObservations: reads.filter((call) =>
+      CLAIM_CHECK_READS.has(call.capability),
     ),
-  ];
+  };
 }
 
 /**
@@ -506,9 +546,11 @@ async function ownerNarrative(
         }
       : null);
   if (!narrative?.message) return narrative ?? undefined;
+  const evidence = await turnEvidence(turnId);
   const claim = await claimsAction(
     narrative.message,
-    await confirmedChanges(turnId),
+    evidence.confirmedChanges,
+    evidence.readObservations,
   );
   if (claim === false) return narrative;
   // Counted, never quoted: how often a reply is withheld is the signal.

@@ -7,6 +7,7 @@ const {
   turnFind,
   toolCallFind,
   eventTransaction,
+  executeToolMock,
 } = vi.hoisted(() => ({
   buildActionResponseMock: vi.fn(),
   claimsActionMock: vi.fn(),
@@ -14,6 +15,7 @@ const {
   turnFind: vi.fn(),
   toolCallFind: vi.fn(),
   eventTransaction: vi.fn(),
+  executeToolMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -23,7 +25,13 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: eventTransaction,
   },
 }));
-vi.mock("./answer-claims", () => ({ claimsAction: claimsActionMock }));
+vi.mock("./answer-claims", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./answer-claims")>()),
+  claimsAction: claimsActionMock,
+}));
+vi.mock("@/services/soko-bot-runtime.service", () => ({
+  sokoBotRuntimeService: { executeTool: executeToolMock },
+}));
 vi.mock("./action-response", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./action-response")>()),
   buildActionResponse: buildActionResponseMock,
@@ -34,6 +42,7 @@ import {
   finishTurn,
   latestExchange,
   RuntimeEventLog,
+  runTurnTool,
   runtimeEvent,
   sokoBotMaxSteps,
 } from "./turn-loop";
@@ -224,6 +233,26 @@ beforeEach(() => {
   );
 });
 
+describe("runTurnTool table creation", () => {
+  it("tells the model that successful creation already inserted its rows", async () => {
+    executeToolMock.mockResolvedValue({
+      table: { id: "table-1", title: "Launch research" },
+      url: "/drive/tables/table-1",
+    });
+    const result = await runTurnTool({
+      log: log as never,
+      capability: "create_table",
+      toolCallId: "create-1",
+      toolInput: { rows: [{ name: "A" }, { name: "B" }] },
+    });
+    expect(result).toMatchObject({
+      table: { id: "table-1", title: "Launch research" },
+      initialRowCount: 2,
+      instruction: expect.stringContaining("Do not insert those rows again"),
+    });
+  });
+});
+
 describe("finishTurn", () => {
   it("shows the message, not the JSON, when a plain turn replies in JSON", async () => {
     await finish(
@@ -260,6 +289,42 @@ describe("finishTurn", () => {
     expect(claimsActionMock).toHaveBeenCalledWith(
       "Wrap: two tasks done. I updated memory.",
       ["Updated memory"],
+      [],
+    );
+  });
+
+  it("gives the claim check chat observations without treating reads as changes", async () => {
+    const result = {
+      messages: [{ author: "Hannah", content: "Research is ready." }],
+    };
+    toolCallFind.mockResolvedValue([
+      { capability: "read_chat", result },
+      { capability: "update_memory", result: {} },
+    ]);
+    await finish("Hannah says the research is ready.", true);
+    expect(claimsActionMock).toHaveBeenCalledWith(
+      "Hannah says the research is ready.",
+      ["Updated memory"],
+      [{ capability: "read_chat", result }],
+    );
+    expect(toolCallFind).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          turnId: "turn-1",
+          status: "COMPLETED",
+        }),
+      }),
+    );
+    expect(toolCallFind).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 4,
+        select: { capability: true, result: true },
+        where: expect.objectContaining({
+          turnId: "turn-1",
+          status: "COMPLETED",
+          capability: { in: expect.arrayContaining(["read_chat"]) },
+        }),
+      }),
     );
   });
 

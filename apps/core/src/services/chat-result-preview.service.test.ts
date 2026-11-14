@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { notFound } from "@/helpers/error";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 
@@ -48,6 +49,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     project: { findMany: projects },
     socialPost: { findMany: socialPosts },
+    task: { findFirst: readTask },
     taskSchedule: { findFirst: taskSchedule },
     sokoBotSchedule: { findFirst: botSchedule },
     sokoBotPendingDecision: { findFirst: decision },
@@ -156,6 +158,69 @@ describe("authorized chat results", () => {
     expect(await hydrateChatResultSnapshots([snapshot], "other-user")).toEqual([
       { id, state: "unavailable" },
     ]);
+  });
+
+  it("previews an archived Task while retaining workspace and private-owner filters", async () => {
+    const archivedTask = { ...(await readTask()), archivedAt: capturedAt };
+    readTask.mockImplementation(async (query) => {
+      // Archived records are absent from the ordinary active-only Task reader.
+      if (!query.where) throw notFound("Task not found");
+      if (query.where.archivedAt === null) return null;
+      return archivedTask;
+    });
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "task", id: "task-1" },
+      actor,
+    });
+    expect(snapshot.data).toMatchObject({
+      title: "Launch campaign",
+      status: "ARCHIVED",
+      sourceHref: "/tasks/archived",
+    });
+    expect(snapshot.data.task).toBeNull();
+    expect(readTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "task-1",
+          workspaceId: "workspace",
+          OR: [
+            { visibility: "PUBLIC" },
+            { visibility: "PRIVATE", ownerId: "owner" },
+          ],
+        },
+      }),
+    );
+    readTask.mockResolvedValue(null);
+    expect(
+      await hydrateChatResultSnapshots([snapshot], "other-member"),
+    ).toEqual([{ id: snapshot.data.id, state: "unavailable" }]);
+    expect(readTask).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          workspaceId: "workspace",
+          OR: [
+            { visibility: "PUBLIC" },
+            { visibility: "PRIVATE", ownerId: "other-member" },
+          ],
+        }),
+      }),
+    );
+  });
+
+  it("refreshes a stored active Task card after the Task is archived", async () => {
+    const active = await readTask();
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "task", id: "task-1" },
+      actor,
+    });
+    readTask.mockResolvedValue({ ...active, archivedAt: capturedAt });
+    const [current] = await hydrateChatResultSnapshots([snapshot], "owner");
+    expect(current).toMatchObject({
+      state: "available",
+      status: "ARCHIVED",
+      sourceHref: "/tasks/archived",
+    });
+    expect("task" in current ? current.task : undefined).toBeNull();
   });
 
   it("keeps historical task state while showing the recorded input question", async () => {
