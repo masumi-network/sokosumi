@@ -332,6 +332,15 @@ describe("EditGoogleCampaignWizard", () => {
       ).toBeNull();
     });
 
+    it("lines the locked type row up with the other rows", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      await jump(user, "Review");
+
+      const row = (label: string) =>
+        screen.getByText(label, { selector: "dt" }).parentElement?.className;
+      expect(row("Campaign type")).toBe(row("Name"));
+    });
+
     it("keeps Save off and says so while nothing has changed", async () => {
       const user = renderEdit(SEARCH_VALUES);
       await jump(user, "Review");

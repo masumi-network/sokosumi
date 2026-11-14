@@ -720,6 +720,8 @@ function GoogleReviewStep({
         <AdsSection id="campaign-wizard-summary" title={t("review.title")}>
           <dl className="flex flex-col gap-3">
             <SummaryRow
+              // An edit keeps its type: never changed, but boxed like the rest.
+              changed={changes ? false : undefined}
               label={t("sections.type")}
               onEdit={typeLocked ? undefined : () => goTo("type")}
               value={t(`types.${values.type}`)}
