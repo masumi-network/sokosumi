@@ -4245,6 +4245,26 @@
             "pill": "Píldora"
           }
         }
+      },
+      "Health": {
+        "title": "Valoración",
+        "set": "Valorar el proyecto",
+        "change": "Cambiar",
+        "status": {
+          "ON_TRACK": "En marcha",
+          "AT_RISK": "En riesgo",
+          "OFF_TRACK": "Desviado"
+        },
+        "noteLabel": "Nota (opcional)",
+        "notePlaceholder": "¿Qué está pasando? Basta con una línea.",
+        "save": "Guardar",
+        "clear": "Quitar",
+        "saved": "Valoración guardada",
+        "cleared": "Valoración quitada",
+        "saveFailed": "No se pudo guardar la valoración. Inténtalo de nuevo.",
+        "setBy": "Valorado por {name}",
+        "setByUnknown": "Valorado",
+        "empty": "Nadie ha valorado aún este proyecto."
       }
     },
     "Studio": {

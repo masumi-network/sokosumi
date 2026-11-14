@@ -93,6 +93,7 @@ function buildProject(overrides?: Partial<{ id: string; name: string }>) {
     contextMd: null,
     contextMdUpdating: false,
     latestUpdate: null,
+    health: null,
     createdAt: new Date("2026-05-27T10:00:00.000Z"),
     updatedAt: new Date("2026-05-27T10:00:00.000Z"),
     ...overrides,
@@ -274,6 +275,51 @@ describe("project actions", () => {
       "project-1",
       { postingInstructionsMd: null },
     );
+  });
+
+  it("sets and clears project health through the project PATCH", async () => {
+    const { setProjectHealth } = await import("./action");
+    const health = {
+      status: "AT_RISK" as const,
+      note: "Waiting on the client",
+      setAt: new Date("2026-11-14T09:00:00.000Z"),
+      setByName: "Ana",
+    };
+    projectServiceMock.patchProject.mockResolvedValueOnce({
+      ...buildProject(),
+      health,
+    });
+
+    const saved = await setProjectHealth({
+      projectId: "project-1",
+      status: "AT_RISK",
+      note: "  Waiting on the client ",
+    });
+
+    expect(saved).toEqual({ ok: true, value: { health } });
+    expect(projectServiceMock.patchProject).toHaveBeenLastCalledWith(
+      "project-1",
+      { health: { status: "AT_RISK", note: "Waiting on the client" } },
+    );
+
+    projectServiceMock.patchProject.mockResolvedValueOnce({
+      ...buildProject(),
+      health: null,
+    });
+    await setProjectHealth({ projectId: "project-1", status: null });
+    expect(projectServiceMock.patchProject).toHaveBeenLastCalledWith(
+      "project-1",
+      { health: null },
+    );
+
+    projectServiceMock.patchProject.mockRejectedValueOnce(
+      new CoreApiRequestError("forbidden", { status: 403 }),
+    );
+    const failed = await setProjectHealth({
+      projectId: "project-1",
+      status: "ON_TRACK",
+    });
+    expect(failed.ok).toBe(false);
   });
 
   it("returns a Core error when saving posting instructions fails", async () => {

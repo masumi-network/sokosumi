@@ -47,10 +47,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const project = await createProject(workspaceContext.workspaceId, body);
     return created(
       c,
-      mapProjectForApi(project, {
-        // A new Project has no Cuso yet.
-        cmo: false,
-      }),
+      // A new Project has no health yet, so no setter to resolve.
+      mapProjectForApi(
+        { ...project, healthSetByUser: null },
+        {
+          // A new Project has no Cuso yet.
+          cmo: false,
+        },
+      ),
     );
   });
 }

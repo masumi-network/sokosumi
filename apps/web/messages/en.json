@@ -4245,6 +4245,26 @@
             "pill": "Pill"
           }
         }
+      },
+      "Health": {
+        "title": "Health",
+        "set": "Set health",
+        "change": "Change",
+        "status": {
+          "ON_TRACK": "On track",
+          "AT_RISK": "At risk",
+          "OFF_TRACK": "Off track"
+        },
+        "noteLabel": "Note (optional)",
+        "notePlaceholder": "What's going on? One line is enough.",
+        "save": "Save",
+        "clear": "Clear",
+        "saved": "Health saved",
+        "cleared": "Health cleared",
+        "saveFailed": "Could not save health. Try again.",
+        "setBy": "Set by {name}",
+        "setByUnknown": "Set",
+        "empty": "No one has set this project's health yet."
       }
     },
     "Studio": {

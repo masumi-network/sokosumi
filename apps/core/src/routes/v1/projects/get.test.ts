@@ -262,10 +262,13 @@ describe("GET /projects", () => {
         workspaceId: WORKSPACE_CONTEXT.workspaceId,
         id: { in: [sample.id] },
       },
-      include: createProjectListCountsInclude(
-        WORKSPACE_CONTEXT.workspaceId,
-        humanProjectReaderVisibility(USER_AUTH_CONTEXT.userId),
-      ),
+      include: {
+        ...createProjectListCountsInclude(
+          WORKSPACE_CONTEXT.workspaceId,
+          humanProjectReaderVisibility(USER_AUTH_CONTEXT.userId),
+        ),
+        healthSetByUser: { select: { name: true } },
+      },
     });
   });
 

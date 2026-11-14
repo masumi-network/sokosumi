@@ -28,6 +28,12 @@ vi.mock("@/app/projects/actions", () => ({
 
 vi.mock("@/lib/actions/project/action", () => ({ closeProject: vi.fn() }));
 
+vi.mock("@/app/projects/components/project-health", () => ({
+  ProjectHealthBadge: ({ status }: { status: string }) => (
+    <span data-testid="project-health-badge">{status}</span>
+  ),
+}));
+
 vi.mock("@/components/time-ago", () => ({
   TimeAgo: ({
     date,
@@ -95,6 +101,7 @@ const project = {
   contextMd: null,
   contextMdUpdating: false,
   latestUpdate: null,
+  health: null,
   createdAt: new Date("2026-08-16T10:00:00.000Z"),
   updatedAt: new Date("2026-08-16T10:00:00.000Z"),
   lastActivityAt: new Date("2026-08-20T09:30:00.000Z"),
@@ -202,6 +209,33 @@ describe("ProjectListItem", () => {
     );
 
     expect(screen.queryByText("—")).not.toBeInTheDocument();
+  });
+
+  it("shows the team's health on the card only once someone set it", () => {
+    const { rerender } = render(
+      <ProjectListItem project={project} labels={labels} />,
+    );
+    expect(
+      screen.queryByTestId("project-health-badge"),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <ProjectListItem
+        project={{
+          ...project,
+          health: {
+            status: "AT_RISK",
+            note: null,
+            setAt: new Date("2026-08-20T09:30:00.000Z"),
+            setByName: "Ana",
+          },
+        }}
+        labels={labels}
+      />,
+    );
+    expect(screen.getByTestId("project-health-badge")).toHaveTextContent(
+      "AT_RISK",
+    );
   });
 
   it("hides the jobs pill when the project has no jobs", () => {

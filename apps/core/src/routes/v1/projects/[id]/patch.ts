@@ -1,7 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -11,9 +12,10 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   mapProjectForApi,
   patchProjectRequestSchema,
+  projectApiInclude,
   projectSchema,
 } from "@/schemas/project.schema";
-import { updateProject } from "@/services/projects.service";
+import { setProjectHealth, updateProject } from "@/services/projects.service";
 
 const paramsSchema = z.object({
   id: z
@@ -30,7 +32,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "patch",
     path: "/{id}",
     description:
-      "Update a project's name, identifier, briefing, website, logo, default Studio logo placement, or social posting instructions. Null or blank postingInstructionsMd clears them. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.",
+      "Update a project's name, identifier, briefing, website, logo, default Studio logo placement, social posting instructions, or health (On track / At risk / Off track with a note; Core stamps who set it and when). Null or blank postingInstructionsMd clears them. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -47,7 +49,9 @@ const route = withOrganizationSlugHeaderParameter(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
-      409: jsonErrorResponse("Project identifier already in use"),
+      409: jsonErrorResponse(
+        "Project identifier already in use, or health set on a closing or closed Project",
+      ),
       422: jsonErrorResponse("Unprocessable Entity"),
     },
   }),
@@ -55,11 +59,26 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireOwnerUserContext(c.var.authContext);
+    const { userId } = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
-    const project = await updateProject(workspaceContext.workspaceId, id, body);
+    const { health, ...body } = c.req.valid("json");
+    const { workspaceId } = workspaceContext;
+    if (health !== undefined) {
+      await setProjectHealth(
+        workspaceId,
+        id,
+        health && { ...health, setByUserId: userId },
+      );
+    }
+    if (Object.values(body).some((value) => value !== undefined)) {
+      await updateProject(workspaceId, id, body);
+    }
+    const project = await prisma.project.findFirst({
+      where: { id, workspaceId },
+      include: projectApiInclude,
+    });
+    if (!project) throw notFound("Project not found");
     return ok(
       c,
       mapProjectForApi(project, {

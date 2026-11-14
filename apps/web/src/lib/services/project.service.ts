@@ -75,6 +75,7 @@ interface PatchProjectInput {
   logo?: string | null;
   studioLogoPosition?: PatchProjectRequest["studioLogoPosition"];
   postingInstructionsMd?: string | null;
+  health?: PatchProjectRequest["health"];
 }
 
 export const projectService = (() => {

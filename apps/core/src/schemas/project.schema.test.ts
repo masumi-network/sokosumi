@@ -1,9 +1,9 @@
-import type { Project as DatabaseProject } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createProjectRequestSchema,
   mapProjectForApi,
+  type ProjectApiRow,
   patchProjectRequestSchema,
 } from "./project.schema";
 
@@ -16,8 +16,8 @@ vi.mock("@/config/env", () => ({
 }));
 
 function createDatabaseProject(
-  overrides: Partial<DatabaseProject> = {},
-): DatabaseProject {
+  overrides: Partial<ProjectApiRow> = {},
+): ProjectApiRow {
   return {
     id: "22222222-2222-4222-8222-222222222222",
     workspaceId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
@@ -48,6 +48,11 @@ function createDatabaseProject(
     calendarRevision: 0,
     closingAt: null,
     closedAt: null,
+    health: null,
+    healthNote: null,
+    healthSetAt: null,
+    healthSetByUserId: null,
+    healthSetByUser: null,
     createdAt: new Date("2026-08-16T10:00:00.000Z"),
     updatedAt: new Date("2026-08-16T10:00:00.000Z"),
     ...overrides,
@@ -364,6 +369,57 @@ describe("project schemas", () => {
         cmo: false,
         now: new Date("2026-08-16T10:05:00.000Z"),
       }).contextMdUpdating,
+    ).toBe(false);
+  });
+
+  it("maps the team's health verdict and accepts it alone on PATCH", () => {
+    expect(
+      mapProjectForApi(createDatabaseProject(), { cmo: false }).health,
+    ).toBe(null);
+    const setAt = new Date("2026-08-17T09:00:00.000Z");
+    expect(
+      mapProjectForApi(
+        createDatabaseProject({
+          health: "AT_RISK",
+          healthNote: "Waiting on the client",
+          healthSetAt: setAt,
+          healthSetByUserId: "user_1",
+          healthSetByUser: { name: "Ana" },
+        }),
+        { cmo: false },
+      ).health,
+    ).toEqual({
+      status: "AT_RISK",
+      note: "Waiting on the client",
+      setAt: setAt.toISOString(),
+      setByName: "Ana",
+    });
+    // The setter deleted their account: the verdict stays, unattributed.
+    expect(
+      mapProjectForApi(
+        createDatabaseProject({
+          health: "ON_TRACK",
+          healthSetAt: setAt,
+          healthSetByUser: null,
+        }),
+        { cmo: false },
+      ).health?.setByName,
+    ).toBe(null);
+
+    expect(
+      patchProjectRequestSchema.parse({
+        health: { status: "OFF_TRACK", note: "  Late  " },
+      }).health,
+    ).toEqual({ status: "OFF_TRACK", note: "Late" });
+    expect(patchProjectRequestSchema.parse({ health: null }).health).toBe(null);
+    expect(
+      patchProjectRequestSchema.safeParse({ health: { status: "GREAT" } })
+        .success,
+    ).toBe(false);
+    expect(
+      patchProjectRequestSchema.safeParse({
+        health: { status: "ON_TRACK", note: "x".repeat(281) },
+      }).success,
     ).toBe(false);
   });
 });

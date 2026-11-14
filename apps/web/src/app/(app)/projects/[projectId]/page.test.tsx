@@ -88,6 +88,15 @@ vi.mock("@/app/projects/components/project-close-status", () => ({
   ),
 }));
 
+vi.mock("@/app/projects/components/project-health", () => ({
+  ProjectHealthSection: ({ readOnly }: { readOnly?: boolean }) => (
+    <div
+      data-testid="project-health"
+      data-read-only={String(Boolean(readOnly))}
+    />
+  ),
+}));
+
 vi.mock("@/app/projects/components/project-brand-card", () => ({
   ProjectBrandProvider: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
@@ -118,6 +127,7 @@ function buildProject() {
     contextMd: null,
     contextMdUpdating: false,
     latestUpdate: null,
+    health: null,
     projectRevision: 3,
     cmo: false,
     closingAt: null,
@@ -284,6 +294,10 @@ describe("ProjectDetailPage", () => {
         String(cmo),
       );
       expect(screen.getByTestId("brand-card")).toHaveAttribute(
+        "data-read-only",
+        String(cmo),
+      );
+      expect(screen.getByTestId("project-health")).toHaveAttribute(
         "data-read-only",
         String(cmo),
       );

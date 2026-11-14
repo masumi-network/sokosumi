@@ -7,6 +7,7 @@ import {
   ProjectDetailActions,
   type ProjectDetailActionsLabels,
 } from "@/app/projects/components/project-detail-actions";
+import { ProjectHealthBadge } from "@/app/projects/components/project-health";
 import {
   type ProjectResourceCountPillLabels,
   ProjectResourceCountPills,
@@ -132,11 +133,16 @@ export function ProjectListItem({
         ) : null}
 
         <div className="mt-auto flex min-w-0 items-center justify-between gap-2">
-          <ProjectResourceCountPills
-            taskCount={project.taskCount}
-            jobCount={project.jobCount}
-            labels={labels.counts}
-          />
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {project.health ? (
+              <ProjectHealthBadge status={project.health.status} />
+            ) : null}
+            <ProjectResourceCountPills
+              taskCount={project.taskCount}
+              jobCount={project.jobCount}
+              labels={labels.counts}
+            />
+          </div>
           {closedAt ? (
             <span className="text-muted-foreground ms-auto flex shrink-0 items-center gap-2 text-xs whitespace-nowrap">
               <Badge variant="secondary">{labels.closed}</Badge>

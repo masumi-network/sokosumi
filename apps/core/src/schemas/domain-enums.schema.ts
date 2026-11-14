@@ -12,6 +12,7 @@ import {
   OnChainJobStatus,
   PaymentType,
   ProjectEventKind,
+  ProjectHealth,
   RiskClassification,
   TaskPriority,
   TaskScheduleEndsMode,
@@ -85,6 +86,10 @@ export const jobTypeSchema = z.enum(JobType).openapi("JobType");
 export const projectEventKindSchema = z
   .enum(ProjectEventKind)
   .openapi("ProjectEventKind");
+
+export const projectHealthSchema = z
+  .enum(ProjectHealth)
+  .openapi("ProjectHealth");
 
 export const blobStatusSchema = z.enum(BlobStatus).openapi("BlobStatus");
 

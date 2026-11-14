@@ -17,6 +17,7 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   addProjectTaskRequestSchema,
   mapProjectForApi,
+  projectApiInclude,
   projectSchema,
 } from "@/schemas/project.schema";
 import { isCmoProject } from "@/services/cmo-cuso.service";
@@ -69,6 +70,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const project = await prisma.project.findFirst({
       where: { id: projectId, workspaceId },
+      include: projectApiInclude,
     });
     if (!project) {
       throw notFound("Project not found");

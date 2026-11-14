@@ -52,6 +52,7 @@ model User {
   taskScheduleRunsActed  TaskScheduleRun[]       @relation("TaskScheduleRunActor")
   projectCloseOperations ProjectCloseOperation[] @relation("ProjectCloseOperationActor")
   projectEventsActed     ProjectEvent[]          @relation("ProjectEventActor")
+  projectHealthsSet      Project[]               @relation("ProjectHealthSetBy")
 
   // Chat display preferences. Not delivery: these change what the reader sees,
   // never which notifications are created or sent.

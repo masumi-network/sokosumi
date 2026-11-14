@@ -47,6 +47,7 @@ function buildProject(overrides?: Partial<{ id: string; name: string }>) {
     contextMd: null,
     contextMdUpdating: false,
     latestUpdate: null,
+    health: null,
     createdAt: "2026-05-27T10:00:00.000Z",
     updatedAt: "2026-05-27T10:00:00.000Z",
     taskCount: 0,

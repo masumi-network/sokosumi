@@ -1,4 +1,4 @@
-import type { Prisma, Project } from "@sokosumi/database";
+import type { Prisma, Project, ProjectHealth } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, isOwnedProjectLogoUrl } from "@sokosumi/utils";
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
@@ -35,6 +35,39 @@ function identifierTaken(error: unknown): never {
         kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN,
       })
     : error;
+}
+
+/**
+ * Set or clear the team's health verdict. It is a note about the Project, not
+ * its content, so it leaves `projectRevision` and the Calendar alone: a close
+ * in progress compares that revision. A closing or closed Project keeps the
+ * verdict it closed with.
+ */
+export async function setProjectHealth(
+  workspaceId: string,
+  id: string,
+  health: {
+    status: ProjectHealth;
+    note?: string | null;
+    setByUserId: string;
+  } | null,
+): Promise<void> {
+  const { count } = await prisma.project.updateMany({
+    where: { id, workspaceId, closingAt: null, closedAt: null },
+    data: {
+      health: health?.status ?? null,
+      healthNote: health?.note?.trim() || null,
+      healthSetAt: health ? new Date() : null,
+      healthSetByUserId: health?.setByUserId ?? null,
+    },
+  });
+  if (count > 0) return;
+  const exists = await prisma.project.findFirst({
+    where: { id, workspaceId },
+    select: { id: true },
+  });
+  if (!exists) throw notFound("Project not found");
+  throw conflict("A closing or closed Project's health cannot change");
 }
 
 /** A project in the workspace, with its briefing stored as a file. */

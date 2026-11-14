@@ -4245,6 +4245,26 @@
             "pill": "Pille"
           }
         }
+      },
+      "Health": {
+        "title": "Einschätzung",
+        "set": "Einschätzung abgeben",
+        "change": "Ändern",
+        "status": {
+          "ON_TRACK": "Im Plan",
+          "AT_RISK": "Gefährdet",
+          "OFF_TRACK": "Nicht im Plan"
+        },
+        "noteLabel": "Notiz (optional)",
+        "notePlaceholder": "Was ist los? Eine Zeile reicht.",
+        "save": "Speichern",
+        "clear": "Entfernen",
+        "saved": "Einschätzung gespeichert",
+        "cleared": "Einschätzung entfernt",
+        "saveFailed": "Einschätzung konnte nicht gespeichert werden. Versuche es erneut.",
+        "setBy": "Gesetzt von {name}",
+        "setByUnknown": "Gesetzt",
+        "empty": "Noch niemand hat dieses Projekt eingeschätzt."
       }
     },
     "Studio": {

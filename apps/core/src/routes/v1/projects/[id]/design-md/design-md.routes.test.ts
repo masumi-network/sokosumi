@@ -150,6 +150,7 @@ describe("project DESIGN.md routes", () => {
         designMdUrl: DESIGN_MD_URL,
         designMdExtractionId: "extract_123",
       },
+      include: { healthSetByUser: { select: { name: true } } },
     });
   });
 
