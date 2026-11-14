@@ -657,7 +657,7 @@ describe("social posts service", () => {
 
     it("allows retry after the quoted post recovers without allowing cancellation to auto-resume", async () => {
       const failedQuote = {
-        ...draftPost,
+        ...scheduledPost,
         status: "FAILED",
         quotedPostId: TARGET_ID,
         quotedPost: {
@@ -1591,6 +1591,25 @@ describe("social posts service", () => {
     expect(socialPostFindManyMock).not.toHaveBeenCalled();
   });
 
+  it("lists every Project's posts in the workspace, and only that workspace", async () => {
+    const { listWorkspaceSocialPosts } = await loadService();
+
+    await listWorkspaceSocialPosts({
+      workspaceId: WORKSPACE_ID,
+      statuses: ["FAILED", "MISSED", "NEEDS_APPROVAL"],
+    });
+
+    const where = {
+      workspaceId: WORKSPACE_ID,
+      status: { in: ["FAILED", "MISSED", "NEEDS_APPROVAL"] },
+    };
+    expect(socialPostFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where }),
+    );
+    expect(socialPostCountMock).toHaveBeenCalledWith({ where });
+    expect(projectFindFirstMock).not.toHaveBeenCalled();
+  });
+
   it("lists a bounded page with derived capability flags", async () => {
     const { listSocialPosts } = await loadService();
 
@@ -1621,7 +1640,7 @@ describe("social posts service", () => {
         canEdit: true,
         canSchedule: true,
         canCancel: true,
-        canPublishNow: true,
+        canPublishNow: false,
         canApprove: false,
         canReject: false,
         canDuplicate: false,
@@ -1826,7 +1845,13 @@ describe("social posts service", () => {
     "sets canPublishNow $canPublishNow on a $provider draft",
     async ({ provider, media, canPublishNow }) => {
       socialPostFindManyMock.mockResolvedValue([
-        { ...draftPost, provider, media },
+        {
+          ...draftPost,
+          provider,
+          media,
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+          socialConnection: { ...scheduledPost.socialConnection, provider },
+        },
       ]);
       const { listSocialPosts } = await loadService();
 
@@ -1838,6 +1863,18 @@ describe("social posts service", () => {
       expect(posts[0]).toMatchObject({ canPublishNow });
     },
   );
+
+  it("does not offer Post now on a draft with no account", async () => {
+    socialPostFindManyMock.mockResolvedValue([draftPost]);
+    const { listSocialPosts } = await loadService();
+
+    const { posts } = await listSocialPosts({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+    });
+
+    expect(posts[0]).toMatchObject({ canEdit: true, canPublishNow: false });
+  });
 
   it("returns not found for a post in another Project", async () => {
     socialPostFindFirstMock.mockResolvedValue(null);

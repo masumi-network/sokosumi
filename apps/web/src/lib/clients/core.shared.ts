@@ -98,6 +98,7 @@ import type {
   GetTransactionsData,
   GetWorkspacesCalendarData,
   GetWorkspacesCalendarSourcesData,
+  GetWorkspacesSocialPostsData,
   ImportNewsletterSubscribersRequest,
   ListAdminTaskX402PaymentsData,
   ListChatPeopleData,
@@ -396,6 +397,7 @@ import {
   getWorkspacesCalendar as coreGetWorkspacesCalendar,
   getWorkspacesCalendarSources as coreGetWorkspacesCalendarSources,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
+  getWorkspacesSocialPosts as coreGetWorkspacesSocialPosts,
   listAdminAgents as coreListAdminAgents,
   listAdminBadgeCampaigns as coreListAdminBadgeCampaigns,
   listAdminInvoices as coreListAdminInvoices,
@@ -4456,6 +4458,21 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getWorkspacesSocialPosts(
+    query?: GetWorkspacesSocialPostsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetWorkspacesSocialPosts({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch workspace social posts",
+    );
+  }
+
   async function getProjectsByIdSocialConnectionsByConnectionIdSubscription(
     id: string,
     connectionId: string,
@@ -7236,6 +7253,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioJobsByJobIdCancel,
     postProjectsByIdImageStudioVideoJobs,
     getProjectsByIdSocialPosts,
+    getWorkspacesSocialPosts,
     getProjectsByIdSocialPostsStatistics,
     getProjectsByIdSocialQueueSlots,
     getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,

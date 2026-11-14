@@ -36,6 +36,7 @@ import type {
   StarredProject,
   TaskListItem,
   UpdateSocialPostRequest,
+  WorkspaceSocialPost,
 } from "@sokosumi/core-client";
 import type { CoreApiPagination } from "@/lib/clients/core.client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
@@ -375,6 +376,20 @@ export const projectService = (() => {
     };
   }
 
+  /** Posts of every Project in the active workspace, newest change first. */
+  async function listWorkspaceSocialPosts(
+    statuses: readonly SocialPostStatus[],
+  ): Promise<{ items: WorkspaceSocialPost[]; hasMore: boolean }> {
+    const result = await coreClient.getWorkspacesSocialPosts({
+      status: statuses.join(","),
+      limit: 50,
+    });
+    return {
+      items: result.data,
+      hasMore: Boolean(result.meta?.pagination?.nextCursor),
+    };
+  }
+
   async function listSocialAccountStatistics(
     projectId: string,
     params: {
@@ -482,11 +497,20 @@ export const projectService = (() => {
     return result.data;
   }
 
+  /** Null when the posting queue is not open to this user (Core answers 403). */
   async function listSocialQueueSlots(
     projectId: string,
-  ): Promise<SocialQueueSlots> {
-    const result = await coreClient.getProjectsByIdSocialQueueSlots(projectId);
-    return result.data;
+  ): Promise<SocialQueueSlots | null> {
+    try {
+      const result =
+        await coreClient.getProjectsByIdSocialQueueSlots(projectId);
+      return result.data;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 403) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async function replaceSocialQueueSlots(
@@ -749,6 +773,7 @@ export const projectService = (() => {
     retryProjectClose,
     cancelProjectCloseOwedWork,
     listSocialPosts,
+    listWorkspaceSocialPosts,
     listSocialPostStatistics,
     listSocialAccountStatistics,
     refreshSocialAccountStatistics,

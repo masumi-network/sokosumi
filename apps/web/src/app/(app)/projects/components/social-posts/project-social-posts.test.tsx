@@ -252,6 +252,11 @@ const MESSAGES: Record<string, string> = {
   "composer.unknownHandle": "Unknown X account",
   "composer.scheduledAt": "Scheduled time",
   "composer.saveDraft": "Save draft",
+  "toasts.draftTimeNotKept":
+    "Draft saved without its time. Edit it to pick the time again.",
+  "composer.keptOnDraft":
+    "Save draft keeps this time. Connect an account to schedule it.",
+  plannedFor: "Planned for {date}",
   "composer.save": "Save",
   "composer.schedule": "Schedule",
   "composer.reschedule": "Reschedule",
@@ -4104,6 +4109,162 @@ describe("ProjectSocialPosts", () => {
     expect(createProjectSocialPost).not.toHaveBeenCalled();
   });
 
+  it("keeps a picked time on a draft saved with no account, without scheduling it", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts connections={[]} posts={[]} projectId={PROJECT_ID} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Fresh");
+    await pickInAnHour(user, dialog);
+    expect(
+      within(dialog).getByTestId("social-post-kept-on-draft"),
+    ).toHaveTextContent(
+      "Save draft keeps this time. Connect an account to schedule it.",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() => {
+      expect(updateProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: "post-new",
+        scheduledAt: IN_AN_HOUR.toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        revision: 0,
+      });
+    });
+    // Created as a draft first: a time on create would schedule it.
+    expect(createProjectSocialPost).toHaveBeenCalledWith(
+      expect.not.objectContaining({ scheduledAt: expect.anything() }),
+    );
+    expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+    expect(publishProjectSocialPost).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "fails",
+      () =>
+        vi.mocked(updateProjectSocialPost).mockResolvedValueOnce({
+          ok: false,
+          error: { code: "INTERNAL_ERROR", message: "Core down" },
+        }),
+    ],
+    [
+      "rejects",
+      () =>
+        vi
+          .mocked(updateProjectSocialPost)
+          .mockRejectedValueOnce(new Error("network")),
+    ],
+  ])(
+    "saves a timed draft once when its time %s, so Save draft never makes a copy",
+    async (_outcome, failTime) => {
+      freezeClock();
+      failTime();
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = screen.getByRole("dialog");
+      await user.type(within(dialog).getByLabelText("Text"), "Fresh");
+      await pickInAnHour(user, dialog);
+      await user.click(
+        within(dialog).getByRole("button", { name: "Save draft" }),
+      );
+
+      // The draft exists: the composer closes and lists it, and says its
+      // time is missing, so there is no Save draft left to press twice.
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+      expect(createProjectSocialPost).toHaveBeenCalledTimes(1);
+      expect(updateProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({ postId: "post-new" }),
+      );
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Draft saved without its time. Edit it to pick the time again.",
+      );
+      expect(toastSuccessMock).toHaveBeenCalledWith("Draft saved.");
+      expect(screen.getByTestId("social-post-post-new")).toBeInTheDocument();
+      expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+    },
+  );
+
+  it("shows a draft's kept time and restores it when scheduling", async () => {
+    const user = userEvent.setup();
+    const keptAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({
+            scheduledAt: keptAt,
+            socialConnection: SCHEDULED_POST.socialConnection,
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("social-post-planned-post-draft"),
+    ).toHaveTextContent(
+      `Planned for ${createTestFormatter().dateTime(keptAt, "dateTime")}`,
+    );
+    await openRowMenu(user, "post-draft");
+    await user.click(screen.getByRole("menuitem", { name: "Schedule" }));
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByRole("button", {
+        name: `Schedule for ${createTestFormatter().dateTime(keptAt, "dateTime")}`,
+      }),
+    ).toBeEnabled();
+    expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+  });
+
+  it("keeps the time on an edited draft when saving", async () => {
+    const user = userEvent.setup();
+    const keptAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    keptAt.setSeconds(0, 0);
+    render(
+      <ProjectSocialPosts
+        connections={[]}
+        posts={[buildPost({ scheduledAt: keptAt })]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openRowMenu(user, "post-draft");
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "!");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() => {
+      expect(updateProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          postId: "post-draft",
+          scheduledAt: keptAt.toISOString(),
+        }),
+      );
+    });
+    expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+  });
+
   it("never saves a new draft with ⌘Enter in the schedule dialog", async () => {
     const user = userEvent.setup();
     render(
@@ -4672,6 +4833,27 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
   });
 
+  it("hides queueing when the posting queue is not open to the user", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).queryByRole("button", { name: "Add to queue" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("link", {
+        name: "Add queue times in accounts.",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   it("disables queueing without slots and links to accounts", async () => {
     const user = userEvent.setup();
     render(
@@ -4679,6 +4861,7 @@ describe("ProjectSocialPosts", () => {
         connections={[buildConnection()]}
         posts={[]}
         projectId={PROJECT_ID}
+        queueSlots={[]}
       />,
     );
     await user.click(screen.getByRole("button", { name: "New post" }));
@@ -4764,6 +4947,30 @@ describe("ProjectSocialPosts", () => {
         socialConnectionId: "connection-1",
       });
       expect(toastSuccessMock).toHaveBeenCalledWith("Added to the queue.");
+    },
+  );
+
+  it.each([false, true])(
+    "offers Retry in a shared preview only off a CMO Project (readOnly %s)",
+    (readOnly) => {
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[FAILED_POST]}
+          projectId={PROJECT_ID}
+          readOnly={readOnly}
+          selectedPostId={FAILED_POST.id}
+          previewOnly
+        />,
+      );
+      const dialog = screen.getByRole("dialog");
+      expect(
+        within(dialog).queryByRole("button", { name: "Retry" }) !== null,
+      ).toBe(!readOnly);
+      expect(
+        within(dialog).queryByRole("button", { name: /^Post actions/ }) !==
+          null,
+      ).toBe(!readOnly);
     },
   );
 

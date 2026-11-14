@@ -126,6 +126,7 @@ export type SocialPostComposerMode =
   | { kind: "schedule"; post: SocialPost };
 
 interface SocialPostComposerDialogProps {
+  /** Undefined when the posting queue is not open to this user. */
   queueSlots?: SocialQueueSlot[];
   connections: ProjectSocialConnection[];
   connectDisabled?: boolean;
@@ -164,7 +165,7 @@ function resolveTimezone(): string {
 
 export function SocialPostComposerDialog({
   connections: initialConnections,
-  queueSlots = [],
+  queueSlots,
   connectDisabled = false,
   mode,
   onConnectAccount,
@@ -408,7 +409,7 @@ export function SocialPostComposerDialog({
   const [scheduledAt, setScheduledAt] = useState<string | null>(() => {
     if (post?.scheduledAt) {
       if (
-        (post.status === "FAILED" || post.status === "MISSED") &&
+        post.status !== "SCHEDULED" &&
         post.scheduledAt.getTime() <=
           Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS
       ) {
@@ -678,7 +679,8 @@ export function SocialPostComposerDialog({
         !post.scheduledAt ||
         post.scheduledAt.getTime() <= quoteTime.getTime())
     );
-  const hasQueueSlots = queueSlots.length > 0;
+  const queueAvailable = queueSlots !== undefined;
+  const hasQueueSlots = (queueSlots?.length ?? 0) > 0;
   const canQueue =
     hasQueueSlots && textValid && mediaValid && connectionId !== "" && !isBusy;
   // Posting now is for a new post: the fastest path is open, type, post.
@@ -1051,6 +1053,13 @@ export function SocialPostComposerDialog({
     connections.length > 0 &&
     selectedConnections.length === 0;
 
+  // No account to schedule with: say that Save draft keeps the time.
+  const keepsTimeOnDraft =
+    !isScheduleOnly &&
+    primaryAction === "schedule" &&
+    scheduledAtValid &&
+    enabledConnections.length === 0;
+
   function runPrimary(): void {
     if (primaryAction === "schedule") void handleSchedule();
     else if (primaryAction === "publish") void handlePublishNow();
@@ -1059,6 +1068,13 @@ export function SocialPostComposerDialog({
 
   async function handleSaveDraft(): Promise<void> {
     if (!canSave) return;
+    // A draft keeps the time picked for it. Only Schedule makes it go out.
+    const keptTime =
+      scheduledAtValid &&
+      scheduledDate &&
+      (mode.kind === "create" || mode.post.status === "DRAFT")
+        ? { scheduledAt: scheduledDate.toISOString(), timezone: viewerTimezone }
+        : null;
     setPending("save");
     try {
       if (mode.kind === "edit") {
@@ -1071,6 +1087,7 @@ export function SocialPostComposerDialog({
           ...threadPayload,
           ...quotePayload,
           socialConnectionId: connectionIds[0] ?? null,
+          ...keptTime,
           revision: revisionRef.current,
         });
         if (!result.ok) {
@@ -1083,8 +1100,10 @@ export function SocialPostComposerDialog({
         return;
       }
 
-      const created = await createForEachAccount((socialConnectionId) =>
-        createProjectSocialPost({
+      const created = await createForEachAccount(async (socialConnectionId) => {
+        // A time on create schedules, so the draft is saved first and gets
+        // its time after, staying a draft.
+        const draft = await createProjectSocialPost({
           projectId,
           text: textFor(socialConnectionId).trim(),
           ...(trimmedFirstComment ? { firstComment: trimmedFirstComment } : {}),
@@ -1092,8 +1111,20 @@ export function SocialPostComposerDialog({
           ...threadPayload,
           ...quotePayload,
           socialConnectionId,
-        }),
-      );
+        });
+        if (!draft.ok || !keptTime) return draft;
+        const timed = await updateProjectSocialPost({
+          projectId,
+          postId: draft.value.id,
+          ...keptTime,
+          revision: draft.value.revision,
+        }).catch(() => null);
+        if (timed?.ok) return timed;
+        // The draft exists, so it counts as saved: Save draft again would
+        // make a second copy. Say the time is missing; Edit sets it again.
+        toast.error(t("toasts.draftTimeNotKept"));
+        return draft;
+      });
       if (created === 0) return;
       rememberCreateAccounts();
       toast.success(t("toasts.created", { count: created }));
@@ -1411,6 +1442,8 @@ export function SocialPostComposerDialog({
     <p className="text-destructive">{t("composer.scheduledAtTooSoon")}</p>
   ) : needsAccount ? (
     <p>{t("composer.pickAccount")}</p>
+  ) : keepsTimeOnDraft ? (
+    <p data-testid="social-post-kept-on-draft">{t("composer.keptOnDraft")}</p>
   ) : overFirstComment ? (
     <p
       className="text-destructive"
@@ -2218,7 +2251,7 @@ export function SocialPostComposerDialog({
               className="text-muted-foreground min-w-0 flex-1 text-sm"
             >
               {footerMessage}
-              {!hasQueueSlots ? (
+              {queueAvailable && !hasQueueSlots ? (
                 <p>
                   <Link
                     className="underline underline-offset-4"
@@ -2238,17 +2271,19 @@ export function SocialPostComposerDialog({
               ) : null}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!canQueue}
-                loading={pending === "queue"}
-                onClick={() => {
-                  void handleQueue();
-                }}
-              >
-                {t("composer.addToQueue")}
-              </Button>
+              {queueAvailable ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canQueue}
+                  loading={pending === "queue"}
+                  onClick={() => {
+                    void handleQueue();
+                  }}
+                >
+                  {t("composer.addToQueue")}
+                </Button>
+              ) : null}
               {!isScheduleOnly && primaryAction !== "save" ? (
                 <>
                   <Tooltip>

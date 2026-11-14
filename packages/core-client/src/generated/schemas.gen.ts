@@ -52764,6 +52764,27 @@ export const WorkspaceCalendarSourceSchema = {
     ]
 } as const;
 
+export const WorkspaceSocialPostSchema = {
+    type: 'object',
+    properties: {
+        post: {
+            $ref: '#/components/schemas/SocialPost'
+        },
+        projectName: {
+            type: 'string'
+        },
+        projectCmo: {
+            type: 'boolean',
+            description: 'The post\'s Project is a CMO Project, so its posts are read-only outside CMO (ADR 0066).'
+        }
+    },
+    required: [
+        'post',
+        'projectName',
+        'projectCmo'
+    ]
+} as const;
+
 export const CalendarIdentityLabelsSchema = {
     type: 'array',
     items: {

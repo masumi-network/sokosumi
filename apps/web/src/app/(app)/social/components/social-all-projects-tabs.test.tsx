@@ -35,11 +35,18 @@ vi.mock(
 
 import { SocialAllProjectsTabs } from "./social-all-projects-tabs";
 
-function renderTabs(searchParams = "", notice?: string, projectFailed = false) {
+function renderTabs(
+  searchParams = "",
+  notice?: string,
+  projectFailed = false,
+  attentionCount?: number | string,
+) {
   return render(
     <NuqsTestingAdapter searchParams={searchParams}>
       <SocialAllProjectsTabs
         actions={<button type="button">New post</button>}
+        attention={<p>Every project needs attention</p>}
+        attentionCount={attentionCount}
         calendar={<p>Calendar panel</p>}
         notice={notice}
         projectFailed={projectFailed}
@@ -64,7 +71,7 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.getByRole("button", { name: "New post" })).toBeVisible();
   });
 
-  it("asks for a project on Drafts, Needs attention and Accounts, and shows workspace Performance", async () => {
+  it("asks for a project on Drafts and Accounts, and shows every project's Needs attention and Performance", async () => {
     const user = userEvent.setup();
     renderTabs();
 
@@ -72,7 +79,10 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.getByText("choose a project for drafts")).toBeVisible();
 
     await user.click(screen.getByRole("tab", { name: "sections.attention" }));
-    expect(screen.getByText("choose a project for attention")).toBeVisible();
+    expect(screen.getByText("Every project needs attention")).toBeVisible();
+    expect(
+      screen.queryByText("choose a project for attention"),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "sections.statistics" }));
     expect(screen.getByText("workspace performance workspace-1")).toBeVisible();
@@ -95,7 +105,15 @@ describe("SocialAllProjectsTabs", () => {
     expect(
       screen.getByRole("tab", { name: "sections.attention" }),
     ).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByText("choose a project for attention")).toBeVisible();
+    expect(screen.getByText("Every project needs attention")).toBeVisible();
+  });
+
+  it("counts every project's posts that need attention on the tab", () => {
+    renderTabs("", undefined, false, "50+");
+
+    expect(
+      screen.getByRole("tab", { name: "sections.attention 50+" }),
+    ).toBeVisible();
   });
 
   it("falls back to the calendar when the URL names an unknown tab", () => {
@@ -199,8 +217,13 @@ describe("SocialAllProjectsTabs", () => {
     expect(screen.getByTestId("social-project-load-error")).toBeVisible();
     expect(screen.getByText("choose a project for accounts")).toBeVisible();
 
-    // Performance spans every project, so a failed project is not its news.
+    // Performance and Needs attention span every project, so a failed
+    // project is not their news.
     await user.click(screen.getByRole("tab", { name: "sections.statistics" }));
+    expect(
+      screen.queryByTestId("social-project-load-error"),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "sections.attention" }));
     expect(
       screen.queryByTestId("social-project-load-error"),
     ).not.toBeInTheDocument();
