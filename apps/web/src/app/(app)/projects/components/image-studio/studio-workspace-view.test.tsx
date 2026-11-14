@@ -9,6 +9,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectScopeRequired } from "@/app/components/project-scope/project-scope-required";
 
+import { StudioProjectScopePrompt } from "@/app/studio/components/studio-project-scope-prompt";
+
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
 import { STUDIO_TEMPLATES } from "./studio-templates";
@@ -21,6 +23,8 @@ import type { StudioAsset } from "./types";
 
 const mocks = vi.hoisted(() => ({
   enqueue: vi.fn(),
+  startVideo: vi.fn(),
+  select: vi.fn(),
   loadCatalog: vi.fn(),
   stateOptions: vi.fn(),
   replace: vi.fn(),
@@ -43,6 +47,7 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/lib/actions/image-studio/action", () => ({
+  startVideoGeneration: mocks.startVideo,
   requestImageJobCancel: vi.fn(),
   prepareStudioAssetSocialMedia: vi.fn(),
   writeStudioAssetCaption: vi.fn(),
@@ -58,15 +63,25 @@ vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
   setScopeCreateOpen: mocks.setScopeCreateOpen,
 }));
 
+vi.mock("@/app/components/project-scope/use-project-scope", () => ({
+  useProjectScopeSwitch: () => ({ select: mocks.select }),
+}));
+
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   useHasAnyScopeProject: mocks.useHasAnyScopeProject,
 }));
+
+/** A template brief with every "[slot]" filled in, ready to generate. */
+function fillSlots(prompt: string) {
+  return prompt.replace(/\[[^\]]+\]/g, "an oat latte");
+}
 
 /** What the studio asked the header's project selector for, most recently. */
 function lastRequest(): {
   required?: boolean;
   reason?: string;
   onSelect?: (projectId: string) => void;
+  onCreated?: (projectId: string, websiteUrl?: string | null) => void;
 } {
   const request = mocks.openProjectScope.mock.lastCall?.[0];
   if (!request) throw new Error("The project selector was not opened");
@@ -338,10 +353,12 @@ describe("the workspace view", () => {
     )!;
     const box = screen.getByRole("textbox", { name: "promptPlaceholder" });
     expect(box).toHaveValue(template.prompt);
+    const brief = fillSlots(template.prompt);
+    fireEvent.change(box, { target: { value: brief } });
     fireEvent.keyDown(box, { key: "Enter", metaKey: true });
     // Closed without a choice: the selector's request is simply never answered.
     expect(mocks.openProjectScope).toHaveBeenCalledTimes(1);
-    expect(box).toHaveValue(template.prompt);
+    expect(box).toHaveValue(brief);
     expect(screen.getByText("4:5 · 1K · png")).toBeInTheDocument();
     expect(mocks.enqueue).not.toHaveBeenCalled();
 
@@ -354,7 +371,7 @@ describe("the workspace view", () => {
     for (const request of requests) {
       expect(request).toMatchObject({
         projectId: "project-picked",
-        prompt: template.prompt,
+        prompt: brief,
         settings: { aspectRatio: "4:5", resolution: "1K", outputFormat: "png" },
       });
     }
@@ -441,6 +458,8 @@ describe("the workspace view", () => {
       }),
     );
     const box = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    const brief = fillSlots(template.prompt);
+    fireEvent.change(box, { target: { value: brief } });
     fireEvent.keyDown(box, { key: "Enter", metaKey: true });
     expect(mocks.enqueue).not.toHaveBeenCalled();
     pick("project-created");
@@ -449,7 +468,7 @@ describe("the workspace view", () => {
     for (const request of requests) {
       expect(request).toMatchObject({
         projectId: "project-created",
-        prompt: template.prompt,
+        prompt: brief,
         settings: { aspectRatio: "16:9" },
       });
     }
@@ -499,5 +518,142 @@ describe("the workspace view", () => {
 
     expect(mocks.enqueue).not.toHaveBeenCalled();
     expect(screen.getByText("referencesAcrossProjects")).toBeInTheDocument();
+  });
+});
+
+/**
+ * The page as `studio/page.tsx` draws it: one studio per scope, remounted by
+ * key when the project changes, with the page's own project prompt.
+ */
+function StudioPage({ scope }: { scope: string | null }) {
+  return (
+    <ImageStudio
+      catalog={TEST_CATALOG}
+      initialSelectedAssetId={null}
+      initialState={{ assets: [], jobs: [], nextCursor: null } as never}
+      key={scope ?? "workspace"}
+      labels={TEST_LABELS}
+      projectId={scope}
+      projectScopePrompt={
+        scope ? undefined : (
+          <StudioProjectScopePrompt
+            body="pickBody"
+            createActionLabel="startFromWebsite"
+          />
+        )
+      }
+    />
+  );
+}
+
+function typeBrief(value: string) {
+  fireEvent.change(screen.getByRole("textbox", { name: "promptPlaceholder" }), {
+    target: { value },
+  });
+}
+
+function brief() {
+  return screen.getByRole("textbox", { name: "promptPlaceholder" });
+}
+
+describe("a brief typed before choosing a project", () => {
+  it("moves to the project picked from the studio's prompt", () => {
+    const page = render(<StudioPage scope={null} />);
+    typeBrief("Iced oat latte on a sunny table");
+    fireEvent.click(screen.getByRole("button", { name: "selectProject" }));
+    pick("project-a");
+    expect(mocks.select).toHaveBeenCalledExactlyOnceWith("project-a");
+
+    page.rerender(<StudioPage scope="project-a" />);
+    expect(brief()).toHaveValue("Iced oat latte on a sunny table");
+  });
+
+  it("moves to a project created from the studio's prompt", () => {
+    const page = render(<StudioPage scope={null} />);
+    typeBrief("Iced oat latte on a sunny table");
+    fireEvent.click(screen.getByRole("button", { name: "startFromWebsite" }));
+    // `selectCreatedProject`: the request's onCreated, then its onSelect.
+    act(() => {
+      lastRequest().onCreated?.("project-new", null);
+      lastRequest().onSelect?.("project-new");
+    });
+    expect(mocks.select).toHaveBeenCalledExactlyOnceWith("project-new");
+
+    page.rerender(<StudioPage scope="project-new" />);
+    expect(brief()).toHaveValue("Iced oat latte on a sunny table");
+  });
+
+  it("stays behind when Studio is left and another project opened", () => {
+    const page = render(<StudioPage scope={null} />);
+    typeBrief("Unreleased product brief");
+    page.unmount();
+
+    render(<StudioPage scope="project-b" />);
+    expect(brief()).toHaveValue("");
+  });
+
+  it("never reaches a project other than the one picked, nor a later visit", () => {
+    const page = render(<StudioPage scope={null} />);
+    typeBrief("Unreleased product brief");
+    fireEvent.click(screen.getByRole("button", { name: "selectProject" }));
+    pick("workspace-a-project");
+    // Before Studio opens the pick, the person switches workspace and opens
+    // a project there.
+    page.unmount();
+
+    const other = render(<StudioPage scope="workspace-b-project" />);
+    expect(brief()).toHaveValue("");
+    other.unmount();
+
+    render(<StudioPage scope="workspace-a-project" />);
+    expect(brief()).toHaveValue("");
+  });
+});
+
+describe("unfilled template slots on every paid path", () => {
+  const SLOTTED = {
+    ...LAUNCH,
+    prompt: "Create a lifestyle feed ad for [product] aimed at [audience].",
+  } as StudioAsset;
+
+  it("does not start a video from a brief with slots, and does once filled", async () => {
+    mocks.startVideo.mockResolvedValue({ ok: true });
+    mount(LAUNCH.projectId, []);
+    fireEvent.click(screen.getByRole("button", { name: "templates" }));
+    fireEvent.click(screen.getByRole("button", { name: "social-post" }));
+    fireEvent.click(screen.getByRole("radio", { name: "modeVideo" }));
+    const box = screen.getByRole("textbox", { name: "videoPromptPlaceholder" });
+    fireEvent.keyDown(box, { key: "Enter", metaKey: true });
+    expect(mocks.startVideo).not.toHaveBeenCalled();
+    expect(screen.getByText("templateSlotsUnfilled")).toBeInTheDocument();
+    expect(box).toHaveFocus();
+
+    fireEvent.change(box, { target: { value: "An oat latte, slow pour" } });
+    fireEvent.keyDown(box, { key: "Enter", metaKey: true });
+    await waitFor(() => expect(mocks.startVideo).toHaveBeenCalledTimes(1));
+    expect(mocks.startVideo.mock.calls[0][0]).toMatchObject({
+      prompt: "An oat latte, slow pour",
+    });
+  });
+
+  it("puts a saved brief with slots in the composer instead of repeating it", () => {
+    mount(SLOTTED.projectId, [SLOTTED]);
+    fireEvent.click(screen.getByRole("button", { name: "regenerate" }));
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+    expect(screen.getByText("templateSlotsUnfilled")).toBeInTheDocument();
+    expect(brief()).toHaveValue(SLOTTED.prompt);
+    expect(brief()).toHaveFocus();
+
+    fireEvent.click(screen.getByRole("button", { name: "reroll" }));
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("still repeats a saved brief without slots", () => {
+    mount(LAUNCH.projectId, [LAUNCH]);
+    fireEvent.click(screen.getByRole("button", { name: "reroll" }));
+    expect(mocks.enqueue).toHaveBeenCalledTimes(1);
+    expect(mocks.enqueue.mock.calls[0][0][0]).toMatchObject({
+      prompt: LAUNCH.prompt,
+    });
   });
 });
