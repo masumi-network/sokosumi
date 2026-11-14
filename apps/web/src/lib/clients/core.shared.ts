@@ -296,6 +296,7 @@ import {
   getEnterpriseContractsByIdPeriodsPreview as coreGetEnterpriseContractsByIdPeriodsPreview,
   getHistory as coreGetHistory,
   getImageStudioCatalog as coreGetImageStudioCatalog,
+  getImageStudioRecentProjects as coreGetImageStudioRecentProjects,
   getImageStudioState as coreGetImageStudioState,
   getInvitationsById as coreGetInvitationsById,
   getJobs as coreGetJobs,
@@ -4196,6 +4197,16 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  /** The workspace's three projects with the newest Studio images. */
+  async function getImageStudioRecentProjects() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetImageStudioRecentProjects({ client, cache: "no-store" }),
+      "Failed to fetch recent Studio projects",
+    );
+  }
+
   /** The studio across every project in the session's workspace. */
   async function getImageStudioState(query?: GetImageStudioStateData["query"]) {
     return executeCoreOperation(
@@ -7235,6 +7246,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdAdsMarketAds,
     getProjectsByIdSocialConnections,
     getImageStudioCatalog,
+    getImageStudioRecentProjects,
     getImageStudioState,
     attachStudioProductPhoto,
     getStudioProductCatalog,

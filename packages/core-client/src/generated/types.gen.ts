@@ -6268,6 +6268,16 @@ export type ProjectImageJob = {
     refunded: boolean;
 };
 
+export type ImageStudioRecentProjects = {
+    projects: Array<{
+        projectId: string;
+        projectName: string;
+        imageCount: number;
+        latestAt: Date;
+        latestImageId: string;
+    }>;
+};
+
 export type NewsletterAvailability = {
     enabled: boolean;
 };
@@ -46699,6 +46709,85 @@ export type GetImageStudioStateResponses = {
 };
 
 export type GetImageStudioStateResponse = GetImageStudioStateResponses[keyof GetImageStudioStateResponses];
+
+export type GetImageStudioRecentProjectsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/image-studio/recent-projects';
+};
+
+export type GetImageStudioRecentProjectsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetImageStudioRecentProjectsError = GetImageStudioRecentProjectsErrors[keyof GetImageStudioRecentProjectsErrors];
+
+export type GetImageStudioRecentProjectsResponses = {
+    /**
+     * Recent Studio projects
+     */
+    200: {
+        data: ImageStudioRecentProjects;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetImageStudioRecentProjectsResponse = GetImageStudioRecentProjectsResponses[keyof GetImageStudioRecentProjectsResponses];
 
 export type GetNewsletterAvailabilityData = {
     body?: never;

@@ -22074,6 +22074,50 @@ export const ProjectImageJobSchema = {
     ]
 } as const;
 
+export const ImageStudioRecentProjectsSchema = {
+    type: 'object',
+    properties: {
+        projects: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    projectId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    projectName: {
+                        type: 'string'
+                    },
+                    imageCount: {
+                        type: 'integer',
+                        minimum: 1
+                    },
+                    latestAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    latestImageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    }
+                },
+                required: [
+                    'projectId',
+                    'projectName',
+                    'imageCount',
+                    'latestAt',
+                    'latestImageId'
+                ]
+            }
+        }
+    },
+    required: [
+        'projects'
+    ]
+} as const;
+
 export const NewsletterAvailabilitySchema = {
     type: 'object',
     properties: {
