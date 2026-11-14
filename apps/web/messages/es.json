@@ -8610,6 +8610,7 @@
       "uploadSuccess": "DESIGN.md subido",
       "uploadError": "No se pudo subir el DESIGN.md",
       "uploadRejected": "Archivo no aceptado",
+      "uploadEmpty": "El archivo está vacío. Elige un DESIGN.md con contenido.",
       "removeSelectedUpload": "Eliminar archivo seleccionado",
       "descriptionPersonal": "Crea y gestiona el DESIGN.md usado para tareas de tu workspace personal.",
       "descriptionOrganization": "Crea y gestiona el DESIGN.md usado para tareas de esta organización.",
