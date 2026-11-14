@@ -1,6 +1,6 @@
 "use client";
 
-import type { CmoOverview } from "@sokosumi/core-client";
+import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 
 import { Loader2 } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
@@ -8,6 +8,7 @@ import { AGENT_NAME } from "../../lib/agent";
 import type { BrandBrain } from "../../lib/brand-sections";
 import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
 import type { CusoMessage } from "../../lib/chat-messages";
+import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import { strategyApproved } from "../../lib/strategy";
 import {
   type AdActions,
@@ -22,6 +23,12 @@ import { StartOver } from "../start-over";
 import { StatusText } from "../status";
 import { MeasureFunnel } from "../strategy-core";
 import { SubmitButton } from "../submit-button";
+import { type StartTopUp, TopUpButton } from "../top-up";
+import {
+  type ChangePlan,
+  type OpenPortal,
+  SubscriptionCard,
+} from "./subscription-card";
 
 interface PageProps {
   overview: CmoOverview;
@@ -433,14 +440,34 @@ export function SettingsPage({
   email,
   startOver,
   signOut,
+  topUp,
+  plans,
+  changePlan,
+  openPortal,
+  subscribe,
 }: PageProps & {
   name: string;
   email: string;
   startOver: () => Promise<string | null>;
   signOut: () => Promise<void>;
+  /** The top-up checkout, or null when this Cuso may not top up. */
+  topUp: StartTopUp | null;
+  /** The CMO plans; read only for a viewer who may change the plan. */
+  plans: CmoSubscriptionPlan[];
+  changePlan: ChangePlan;
+  openPortal: OpenPortal;
+  /** Starts the CMO plan checkout. */
+  subscribe: StartTopUp;
 }) {
   return (
     <div className="page-body">
+      <SubscriptionCard
+        billing={overview.billing}
+        plans={plans}
+        changePlan={changePlan}
+        openPortal={openPortal}
+        subscribe={subscribe}
+      />
       <section className="card">
         <h3>Credits</h3>
         <div className="li">
@@ -450,14 +477,12 @@ export function SettingsPage({
             </span>{" "}
             <span className="note">credits available</span>
           </span>
-          <a
-            className="button button-secondary button-small"
-            href={overview.subscribeUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Top up
-          </a>
+          {topUp ? (
+            <TopUpButton
+              startTopUp={topUp}
+              className="button button-secondary button-small"
+            />
+          ) : null}
         </div>
       </section>
       <section className="card">
@@ -507,6 +532,7 @@ export function SettingsPage({
         <StartOver
           className="button button-secondary button-small"
           startOver={startOver}
+          subscribed={cusoSubscribed(overview)}
         />
       </section>
       <section className="card">

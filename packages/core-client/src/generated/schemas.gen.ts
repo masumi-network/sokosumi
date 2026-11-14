@@ -42224,7 +42224,8 @@ export const CmoOverviewSchema = {
             description: 'Cuso\'s first look at the business: still running, failed or stuck (offer a retry), or done.'
         },
         subscriptionActive: {
-            type: 'boolean'
+            type: 'boolean',
+            description: 'Whether Cuso may work: his Project has an active CMO subscription (a scheduled cancel counts until the period ends), he is still in free hiring, or he holds Tester credits that are not used up. False means paused, even when the Organization credit pool has credits; `billing.status` says whether a payment failed.'
         },
         viewerCanApprove: {
             type: 'boolean',
@@ -42266,9 +42267,10 @@ export const CmoOverviewSchema = {
                 'brandBrain',
                 'strategy',
                 'accounts',
+                'checkout',
                 'done'
             ],
-            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them. CMO opens on the chat once done.'
+            description: 'Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the checkout until his Project has a CMO subscription. CMO opens on the chat once done.'
         },
         routines: {
             type: 'array',
@@ -44315,23 +44317,35 @@ export const CmoOverviewSchema = {
         mailingListSize: {
             type: 'integer'
         },
-        subscribeUrl: {
-            type: 'string'
-        },
         billing: {
             type: 'object',
             properties: {
-                plan: {
+                tier: {
                     anyOf: [
                         {
                             type: 'string'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ],
+                    description: 'The CMO plan\'s tier, as its Polar product names it.'
+                },
+                interval: {
+                    anyOf: [
+                        {
+                            type: 'string',
+                            enum: [
+                                'month',
+                                'year'
+                            ]
                         },
                         {
                             type: 'null'
                         }
                     ]
                 },
-                subscriptionStatus: {
+                status: {
                     anyOf: [
                         {
                             type: 'string'
@@ -44339,17 +44353,64 @@ export const CmoOverviewSchema = {
                         {
                             type: 'null'
                         }
+                    ],
+                    description: 'Polar\'s subscription status, as sent.'
+                },
+                periodEnd: {
+                    anyOf: [
+                        {
+                            type: 'string',
+                            format: 'date-time',
+                            example: '2021-01-01T00:00:00.000Z'
+                        },
+                        {
+                            type: 'null'
+                        }
                     ]
+                },
+                cancelAtPeriodEnd: {
+                    type: 'boolean'
+                },
+                pendingTier: {
+                    anyOf: [
+                        {
+                            type: 'string'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ],
+                    description: 'The tier a scheduled downgrade moves to at period end.'
                 },
                 availableCredits: {
                     type: 'number'
+                },
+                viewerCanManage: {
+                    type: 'boolean',
+                    description: 'Whether this member may change the plan and open the customer portal: the organization\'s owners and admins only.'
+                },
+                hasTesterCredits: {
+                    type: 'boolean',
+                    description: 'This Cuso was granted Tester credits (by a tester, or at a hire before CMO plans), spent or not, so his hiring ends without a checkout.'
+                },
+                maySkipSubscription: {
+                    type: 'boolean',
+                    description: 'The caller is on CMO_SUBSCRIPTION_SKIP_ALLOWLIST and nothing pays for this Cuso (no active CMO subscription, no Tester credits left): CMO offers to continue without a subscription.'
                 }
             },
             required: [
-                'plan',
-                'subscriptionStatus',
-                'availableCredits'
-            ]
+                'tier',
+                'interval',
+                'status',
+                'periodEnd',
+                'cancelAtPeriodEnd',
+                'pendingTier',
+                'availableCredits',
+                'viewerCanManage',
+                'hasTesterCredits',
+                'maySkipSubscription'
+            ],
+            description: 'Cuso\'s CMO plan, read from his Project\'s CMO subscription that has not ended; the plan fields are null without one.'
         },
         posts: {
             type: 'object',
@@ -44417,7 +44478,6 @@ export const CmoOverviewSchema = {
         'measurement',
         'production',
         'mailingListSize',
-        'subscribeUrl',
         'billing',
         'posts',
         'createdAt'
@@ -46543,6 +46603,79 @@ export const CmoProductionSchema = {
     description: 'After approval Cuso makes the whole month at once: how many of its pieces are made.'
 } as const;
 
+export const CmoOnboardingConflictErrorSchema = {
+    type: 'object',
+    properties: {
+        error: {
+            type: 'string',
+            example: 'Unauthorized'
+        },
+        message: {
+            type: 'string',
+            example: 'Authentication required'
+        },
+        kind: {
+            type: 'string',
+            example: 'organization_not_found'
+        },
+        retryAfterSeconds: {
+            type: 'integer',
+            minimum: 0,
+            example: 7
+        },
+        unpaidCuso: {
+            type: 'object',
+            properties: {
+                projectId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                businessName: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'projectId',
+                'businessName'
+            ],
+            description: 'The person\'s live Cuso that nobody paid for yet, to continue there instead.'
+        },
+        meta: {
+            type: 'object',
+            properties: {
+                timestamp: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                requestId: {
+                    type: 'string',
+                    example: '5091b3ea-994f-4417-8e04-2efc05dd8673'
+                },
+                path: {
+                    type: 'string',
+                    example: '/v1/agents'
+                },
+                method: {
+                    type: 'string',
+                    example: 'GET'
+                }
+            },
+            required: [
+                'timestamp',
+                'requestId',
+                'path',
+                'method'
+            ]
+        }
+    },
+    required: [
+        'error',
+        'message',
+        'meta'
+    ]
+} as const;
+
 export const CmoOnboardingRequestSchema = {
     type: 'object',
     properties: {
@@ -46560,6 +46693,46 @@ export const CmoOnboardingRequestSchema = {
     },
     required: [
         'websiteUrl'
+    ]
+} as const;
+
+export const CmoSubscriptionPlanSchema = {
+    type: 'object',
+    properties: {
+        tier: {
+            type: 'string',
+            minLength: 1,
+            description: 'The plan\'s tier, as its Polar product names it.'
+        },
+        name: {
+            type: 'string'
+        },
+        interval: {
+            type: 'string',
+            enum: [
+                'month',
+                'year'
+            ]
+        },
+        credits: {
+            type: 'integer',
+            description: 'Credits granted every month, on a yearly plan too.'
+        },
+        priceAmount: {
+            type: 'integer',
+            description: 'Price per interval in the currency\'s minor unit.'
+        },
+        currency: {
+            type: 'string'
+        }
+    },
+    required: [
+        'tier',
+        'name',
+        'interval',
+        'credits',
+        'priceAmount',
+        'currency'
     ]
 } as const;
 
@@ -46667,6 +46840,18 @@ export const CmoPieceTextSchema = {
     ]
 } as const;
 
+export const CmoCheckoutSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string'
+        }
+    },
+    required: [
+        'url'
+    ]
+} as const;
+
 export const CmoMeasurementConnectSchema = {
     type: 'object',
     properties: {
@@ -46688,6 +46873,35 @@ export const CmoTurnStartedSchema = {
     },
     required: [
         'turnId'
+    ]
+} as const;
+
+export const CmoPlanChangeSchema = {
+    type: 'object',
+    properties: {
+        change: {
+            type: 'string',
+            enum: [
+                'upgrade',
+                'downgrade',
+                'kept'
+            ]
+        }
+    },
+    required: [
+        'change'
+    ]
+} as const;
+
+export const CmoCustomerPortalSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string'
+        }
+    },
+    required: [
+        'url'
     ]
 } as const;
 
@@ -46719,6 +46933,18 @@ export const CmoStrategyRequestSchema = {
             maxLength: 1000
         }
     }
+} as const;
+
+export const CmoTopUpCheckoutSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string'
+        }
+    },
+    required: [
+        'url'
+    ]
 } as const;
 
 export const SokoBotApiKeySchema = {
@@ -51750,7 +51976,7 @@ export const TransactionHistoryTopUpItemSchema = {
                 'string',
                 'null'
             ],
-            description: '`CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE). Null when no bucket records one.',
+            description: '`CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE, POLAR_SUBSCRIPTION_MONTH, PROJECT_TOP_UP, CMO_TESTER_CREDITS). Null when no bucket records one.',
             example: 'STRIPE_TOPUP'
         },
         refundedJobId: {

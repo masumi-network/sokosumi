@@ -1,9 +1,14 @@
 import { createRoute } from "@hono/zod-openapi";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import {
+  jsonContent,
+  jsonErrorResponse,
+  jsonSuccessResponse,
+} from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
+  cmoOnboardingConflictSchema,
   cmoOnboardingRequestSchema,
   cmoOverviewSchema,
 } from "@/schemas/cmo.schema";
@@ -30,9 +35,11 @@ const route = createRoute({
     403: jsonErrorResponse(
       "Forbidden - Not on the hire allowlist (cmo_hire_not_allowed), not a member of the organization (organization_membership_required), no Seat in it (organization_seat_required), or the organization limit is reached (organization_limit_reached)",
     ),
-    409: jsonErrorResponse(
-      "Conflict - The organization is out of credits (insufficient_balance)",
-    ),
+    409: {
+      description:
+        "Conflict - The person already hired a Cuso nobody paid for (cmo_unpaid_cuso); `unpaidCuso` names him",
+      content: jsonContent(cmoOnboardingConflictSchema),
+    },
   },
 });
 

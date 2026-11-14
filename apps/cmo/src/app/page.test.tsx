@@ -88,7 +88,11 @@ function cuso(projectId: string) {
     createdAt: new Date(),
   };
 }
-const hired = (projectId: string) => ({ projectId, onboardingStep: "done" });
+const hired = (projectId: string) => ({
+  projectId,
+  onboardingStep: "done",
+  billing: { tier: null, viewerCanManage: false },
+});
 
 function userAnswer(firstName: string | null, lastName: string | null) {
   return {

@@ -320,6 +320,9 @@ importers:
       '@openrouter/ai-sdk-provider':
         specifier: 3.1.0
         version: 3.1.0(ai@7.0.171(zod@4.6.7))(zod@4.6.7)
+      '@polar-sh/sdk':
+        specifier: 1.1.0
+        version: 1.1.0(@opentelemetry/api@1.10.0)(ioredis@6.0.0(supports-color@8.1.1))
       '@scalar/hono-api-reference':
         specifier: 0.12.20
         version: 0.12.20(hono@4.13.18)
@@ -2850,6 +2853,30 @@ packages:
       react-dom:
         optional: true
       shiki:
+        optional: true
+
+  '@polar-sh/sdk@1.1.0':
+    resolution: {integrity: sha512-Nv999RRY7sE5XdBggCctVv8rYJQWwFk4Hq7yEtaRG6FQCzEyWYxn1Ksi9VGevZSEF7edwZSyOiYuJ9VaYAdpCw==}
+    engines: {node: '>=24'}
+    peerDependencies:
+      '@opentelemetry/api': ^1.9.1
+      '@opentelemetry/otlp-transformer': ^0.223.0
+      '@opentelemetry/resources': ^2.12.0
+      '@opentelemetry/sdk-metrics': ^2.12.0
+      '@opentelemetry/sdk-trace': ^2.12.0
+      ioredis: ^5.11.0
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+      '@opentelemetry/otlp-transformer':
+        optional: true
+      '@opentelemetry/resources':
+        optional: true
+      '@opentelemetry/sdk-metrics':
+        optional: true
+      '@opentelemetry/sdk-trace':
+        optional: true
+      ioredis:
         optional: true
 
   '@primer/octicons@19.28.1':
@@ -11534,6 +11561,11 @@ snapshots:
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
       shiki: 4.5.0
+
+  '@polar-sh/sdk@1.1.0(@opentelemetry/api@1.10.0)(ioredis@6.0.0(supports-color@8.1.1))':
+    optionalDependencies:
+      '@opentelemetry/api': 1.10.0
+      ioredis: 6.0.0(supports-color@8.1.1)
 
   '@primer/octicons@19.28.1':
     dependencies:

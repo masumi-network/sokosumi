@@ -149,6 +149,30 @@ describe("Newsletter environment", () => {
   );
 });
 
+describe("Polar environment", () => {
+  it("allows a deployment without Polar settings", () => {
+    vi.stubEnv("POLAR_ACCESS_TOKEN", undefined);
+    vi.stubEnv("POLAR_WEBHOOK_SECRET", undefined);
+    vi.stubEnv("POLAR_ENVIRONMENT", undefined);
+
+    const env = validateEnv();
+
+    expect(env.POLAR_ACCESS_TOKEN).toBeUndefined();
+    expect(env.POLAR_WEBHOOK_SECRET).toBeUndefined();
+    expect(env.POLAR_ENVIRONMENT).toBeUndefined();
+  });
+
+  it.each(["sandbox", "production"])("accepts the %s environment", (value) => {
+    vi.stubEnv("POLAR_ENVIRONMENT", value);
+    expect(validateEnv().POLAR_ENVIRONMENT).toBe(value);
+  });
+
+  it("rejects an unknown environment", () => {
+    vi.stubEnv("POLAR_ENVIRONMENT", "staging");
+    expectInvalidEnvironment("POLAR_ENVIRONMENT");
+  });
+});
+
 describe("CMO hire allowlist", () => {
   it.each([
     [undefined, []],
@@ -161,6 +185,14 @@ describe("CMO hire allowlist", () => {
   ])("parses %j as %j", (value, entries) => {
     vi.stubEnv("CMO_HIRE_ALLOWLIST", value);
     expect(validateEnv().CMO_HIRE_ALLOWLIST).toEqual(entries);
+  });
+
+  it("parses the subscription skip allowlist the same way", () => {
+    vi.stubEnv("CMO_SUBSCRIPTION_SKIP_ALLOWLIST", " Tester@Acme.io , @QA.io,");
+    expect(validateEnv().CMO_SUBSCRIPTION_SKIP_ALLOWLIST).toEqual([
+      "tester@acme.io",
+      "@qa.io",
+    ]);
   });
 });
 

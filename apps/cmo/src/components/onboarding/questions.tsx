@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 
 import { StatusDisc } from "../status";
 import { SubmitButton } from "../submit-button";
+import type { SkipSubscription, StartTopUp } from "../top-up";
 import { Refusal } from "./refusal";
 
 /**
@@ -230,11 +231,21 @@ export function QuestionCard({
 
 interface RetryButtonProps {
   onRetry: () => Promise<string | null>;
-  topUpUrl: string;
+  /** The top-up checkout, or null when this Cuso may not top up. */
+  topUp: StartTopUp | null;
+  /** The plan checkout, set when Cuso is paused without a CMO plan. */
+  subscribe?: StartTopUp | null;
+  /** Continues without a subscription, for a tester Core allows it. */
+  skip?: SkipSubscription | null;
 }
 
 /** Starts the work again; a refusal (such as no credits) comes back as text. */
-export function RetryButton({ onRetry, topUpUrl }: RetryButtonProps) {
+export function RetryButton({
+  onRetry,
+  topUp,
+  subscribe = null,
+  skip = null,
+}: RetryButtonProps) {
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   return (
@@ -251,7 +262,14 @@ export function RetryButton({ onRetry, topUpUrl }: RetryButtonProps) {
       >
         {pending ? "Starting…" : "Try again"}
       </button>
-      {refusal ? <Refusal text={refusal} topUpUrl={topUpUrl} /> : null}
+      {refusal ? (
+        <Refusal
+          text={refusal}
+          topUp={topUp}
+          subscribe={subscribe}
+          skip={skip}
+        />
+      ) : null}
     </div>
   );
 }

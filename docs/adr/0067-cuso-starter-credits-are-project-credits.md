@@ -1,6 +1,6 @@
 # Cuso's starter credits are Project credits
 
-- Status: Accepted
+- Status: Accepted. Amended by [ADR 0068](0068-cmo-sells-its-plans-through-polar.md): a hire no longer grants Starter credits, and Project credits also come from a CMO subscription and Project top-ups, which expire. The Starter credits granted before are Tester credits now, with their own credit bucket type.
 - Date: 2026-11-11
 
 Each hire grants 10,000 **Starter credits** ([ADR 0065](0065-a-cuso-hire-goes-into-a-new-or-an-existing-organization.md)). They went into the **Organization credit pool**, never expired, and paid for any Sokosumi work in the organization, so a hire, Start over, hire loop turned them into general credits. They are now **Project credits**: the organization still owns them, but only a charge for the hired Cuso's Project can spend them, and they end with that Cuso.

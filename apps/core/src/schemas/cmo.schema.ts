@@ -7,6 +7,7 @@ import {
 } from "@sokosumi/soko-bot";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { errorResponseWithExtensionsSchema } from "@/helpers/error";
 import { marketingStrategyVersionSchema } from "@/schemas/marketing-strategy.schema";
 import { CMO_ONBOARDING_STEPS } from "@/services/cmo-overview.service";
 
@@ -27,6 +28,22 @@ export const cmoOnboardingRequestSchema = z
       ),
   })
   .openapi("CmoOnboardingRequest");
+
+/** A refused hire; `unpaidCuso` comes with `kind: cmo_unpaid_cuso`. */
+export const cmoOnboardingConflictSchema = errorResponseWithExtensionsSchema(
+  {
+    unpaidCuso: z
+      .object({
+        projectId: z.string().uuid(),
+        businessName: z.string(),
+      })
+      .optional()
+      .describe(
+        "The person's live Cuso that nobody paid for yet, to continue there instead.",
+      ),
+  },
+  "CmoOnboardingConflictError",
+);
 
 /** One Cuso of the caller's, as CMO's Cuso picker lists him. */
 export const cmoCusoSchema = z
@@ -117,6 +134,27 @@ export const cmoAdBudgetRequestSchema = z
 export const cmoStrategyRequestSchema = z
   .object({ note: z.string().trim().max(1_000).optional() })
   .openapi("CmoStrategyRequest");
+
+/** A CMO plan as Polar sells it (ADR 0068); not the marketing plan above. */
+export const cmoSubscriptionPlanSchema = z
+  .object({
+    tier: z
+      .string()
+      .min(1)
+      .describe("The plan's tier, as its Polar product names it."),
+    name: z.string(),
+    interval: z.enum(["month", "year"]),
+    credits: z
+      .number()
+      .int()
+      .describe("Credits granted every month, on a yearly plan too."),
+    priceAmount: z
+      .number()
+      .int()
+      .describe("Price per interval in the currency's minor unit."),
+    currency: z.string(),
+  })
+  .openapi("CmoSubscriptionPlan");
 
 /** The Project of the Cuso a CMO route acts on. */
 export const cmoProjectParamsSchema = z.object({
@@ -293,7 +331,11 @@ export const cmoOverviewSchema = z
       .describe(
         "Cuso's first look at the business: still running, failed or stuck (offer a retry), or done.",
       ),
-    subscriptionActive: z.boolean(),
+    subscriptionActive: z
+      .boolean()
+      .describe(
+        "Whether Cuso may work: his Project has an active CMO subscription (a scheduled cancel counts until the period ends), he is still in free hiring, or he holds Tester credits that are not used up. False means paused, even when the Organization credit pool has credits; `billing.status` says whether a payment failed.",
+      ),
     viewerCanApprove: z
       .boolean()
       .describe(
@@ -305,7 +347,7 @@ export const cmoOverviewSchema = z
     onboardingStep: z
       .enum(CMO_ONBOARDING_STEPS)
       .describe(
-        "Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them. CMO opens on the chat once done.",
+        "Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the checkout until his Project has a CMO subscription. CMO opens on the chat once done.",
       ),
     routines: z.array(cmoRoutineSchema),
     brandBrain: z.union([brandBrainSchema, z.null()]),
@@ -361,12 +403,40 @@ export const cmoOverviewSchema = z
       "After approval Cuso makes the whole month at once: how many of its pieces are made.",
     ),
     mailingListSize: z.number().int(),
-    subscribeUrl: z.string(),
-    billing: z.object({
-      plan: z.union([z.string(), z.null()]),
-      subscriptionStatus: z.union([z.string(), z.null()]),
-      availableCredits: z.number(),
-    }),
+    billing: z
+      .object({
+        tier: z
+          .union([z.string(), z.null()])
+          .describe("The CMO plan's tier, as its Polar product names it."),
+        interval: z.union([z.enum(["month", "year"]), z.null()]),
+        status: z
+          .union([z.string(), z.null()])
+          .describe("Polar's subscription status, as sent."),
+        periodEnd: z.union([dateTimeSchema, z.null()]),
+        cancelAtPeriodEnd: z.boolean(),
+        pendingTier: z
+          .union([z.string(), z.null()])
+          .describe("The tier a scheduled downgrade moves to at period end."),
+        availableCredits: z.number(),
+        viewerCanManage: z
+          .boolean()
+          .describe(
+            "Whether this member may change the plan and open the customer portal: the organization's owners and admins only.",
+          ),
+        hasTesterCredits: z
+          .boolean()
+          .describe(
+            "This Cuso was granted Tester credits (by a tester, or at a hire before CMO plans), spent or not, so his hiring ends without a checkout.",
+          ),
+        maySkipSubscription: z
+          .boolean()
+          .describe(
+            "The caller is on CMO_SUBSCRIPTION_SKIP_ALLOWLIST and nothing pays for this Cuso (no active CMO subscription, no Tester credits left): CMO offers to continue without a subscription.",
+          ),
+      })
+      .describe(
+        "Cuso's CMO plan, read from his Project's CMO subscription that has not ended; the plan fields are null without one.",
+      ),
     posts: z.object({
       draft: z.number(),
       scheduled: z.number(),

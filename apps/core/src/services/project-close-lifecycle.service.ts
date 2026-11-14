@@ -11,6 +11,10 @@ import type {
   ProjectCloseStatus,
 } from "@/schemas/project-close.schema";
 
+import {
+  revokeProjectCusoSubscription,
+  revokeSubscriptionsLeftByEnding,
+} from "@/services/polar-subscription-end.service";
 import { retireProjectSocialConnectionsForClose } from "@/services/project-social-connections.service";
 import { archiveProjectSokoBotsForClose } from "@/services/project-soko-bots-close.service";
 
@@ -184,42 +188,77 @@ async function isRecoveryReplay(
   return true;
 }
 
+type CloseRequestProject = Pick<
+  Awaited<ReturnType<typeof requireLockedProject>>,
+  "closingAt" | "closedAt" | "closeOperation" | "projectRevision"
+>;
+
+/**
+ * The close this request replays, or null when it may start one; throws the
+ * 409 it is refused with.
+ */
+async function replayedClose(
+  client: Prisma.TransactionClient,
+  project: CloseRequestProject,
+  input: ProjectCloseRequest,
+  reason: string | null,
+): Promise<CloseRequestProject["closeOperation"]> {
+  if (project.closeOperation) {
+    if (
+      project.closeOperation.id === input.operationId &&
+      project.closeOperation.reason === reason
+    ) {
+      return project.closeOperation;
+    }
+    throw conflict("Project close has already been requested");
+  }
+  if (project.closingAt || project.closedAt) {
+    throw conflict("Project is already closing or closed");
+  }
+  assertExpectedRevision(
+    input.expectedProjectRevision,
+    project.projectRevision,
+  );
+
+  const reusedOperation = await client.projectCloseOperation.findUnique({
+    where: { id: input.operationId },
+    select: { id: true },
+  });
+  if (reusedOperation) {
+    throw conflict("Idempotency key was already used for another operation");
+  }
+  return null;
+}
+
 export async function requestProjectClose(
   scope: ProjectCloseScope,
   input: ProjectCloseRequest,
 ): Promise<ProjectCloseStatus> {
+  const reason = normalizeOptionalReason(input.reason);
+  // The close archives Cuso with the Project's other bots, so Polar stops
+  // charging first (ADR 0068). A failure throws and nothing closes. A
+  // request the close would refuse is refused before Polar is called; the
+  // transaction checks again under its locks.
+  const current = await prisma.project.findFirst({
+    where: { id: scope.projectId, workspaceId: scope.workspaceId },
+    select: {
+      projectRevision: true,
+      closingAt: true,
+      closedAt: true,
+      closeOperation: true,
+    },
+  });
+  if (!current) throw notFound("Project not found");
+  if (!(await replayedClose(prisma, current, input, reason))) {
+    await revokeProjectCusoSubscription(scope.projectId, scope.workspaceId);
+  }
   let mentionMessageIds: string[] = [];
   const status = await serializableTransaction(async (tx) => {
     mentionMessageIds = [];
     const project = await requireLockedProject(tx, scope);
-    const reason = normalizeOptionalReason(input.reason);
-    if (project.closeOperation) {
-      if (
-        project.closeOperation.id === input.operationId &&
-        project.closeOperation.reason === reason
-      ) {
-        return await mapStatus(
-          tx,
-          project.closeOperation,
-          project.projectRevision,
-        );
-      }
-      throw conflict("Project close has already been requested");
-    }
-    if (project.closingAt || project.closedAt) {
-      throw conflict("Project is already closing or closed");
-    }
-    assertExpectedRevision(
-      input.expectedProjectRevision,
-      project.projectRevision,
-    );
-
-    const reusedOperation = await tx.projectCloseOperation.findUnique({
-      where: { id: input.operationId },
-      select: { id: true },
-    });
-    if (reusedOperation) {
-      throw conflict("Idempotency key was already used for another operation");
+    const replayed = await replayedClose(tx, project, input, reason);
+    if (replayed) {
+      return await mapStatus(tx, replayed, project.projectRevision);
     }
 
     const cutoffAt = new Date();
@@ -262,6 +301,7 @@ export async function requestProjectClose(
 
     return await mapStatus(tx, operation, updated.projectRevision);
   }, "Project changed during close request");
+  await revokeSubscriptionsLeftByEnding(scope.projectId);
   if (mentionMessageIds.length > 0) {
     await publishChatRoomMentionStatuses(mentionMessageIds);
   }

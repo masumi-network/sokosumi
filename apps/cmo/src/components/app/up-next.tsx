@@ -6,6 +6,7 @@ import { channelLabel, relativeDay } from "../../lib/calendar";
 import { productionShare, productionSteps } from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
 import { ChannelIcon } from "../channel-icon";
+import { type StartTopUp, TopUpButton } from "../top-up";
 
 interface UpNextProps {
   overview: CmoOverview;
@@ -14,6 +15,8 @@ interface UpNextProps {
   /** Cancels the entry's post and takes it out of the plan. */
   pause: (id: string) => Promise<void>;
   close: () => void;
+  /** The top-up checkout, or null when this Cuso may not top up. */
+  topUp: StartTopUp | null;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -78,9 +81,12 @@ export function UpNext({
   compose,
   pause,
   close,
+  topUp,
 }: UpNextProps) {
   const working = overview.botStatus === "RUNNING";
-  const paused = overview.billing.availableCredits <= 0;
+  // Out of credits, or paused without a paid CMO plan (the banner says why).
+  const paused =
+    overview.billing.availableCredits <= 0 || !overview.subscriptionActive;
   const runningToday = overview.upNext.filter((item) => item.date === today);
   const comingUp = overview.upNext.filter((item) => item.date !== today);
   const making =
@@ -104,6 +110,12 @@ export function UpNext({
       </div>
       <div className="ub">
         <MonthProduction production={overview.production} />
+        {overview.billing.availableCredits <= 0 && topUp ? (
+          <section className="ugroup">
+            <span className="label">Paused: out of credits</span>
+            <TopUpButton startTopUp={topUp} />
+          </section>
+        ) : null}
         {empty ? (
           <div className="empty">
             <span className="shape" aria-hidden="true" />

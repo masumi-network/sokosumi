@@ -6,7 +6,9 @@ import {
   getEmailLocale,
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
+import { APIError } from "better-auth/api";
 import { organization } from "better-auth/plugins";
+import { HTTPException } from "hono/http-exception";
 import { stripeClient } from "@/clients/stripe.client";
 import { LIMITS, TIME } from "@/config/constants";
 import { getWebAppBaseUrl } from "@/config/env";
@@ -18,12 +20,17 @@ import {
   publishOrganizationExitChatRevocation,
 } from "@/helpers/chat-room-organization-exit";
 import {
+  evaluateOrganizationDeletion,
+  throwIfOrganizationDeletionBlocked,
+} from "@/helpers/deletion-evaluate";
+import {
   applyDesignMdMetadataGuardToOrganizationCreate,
   applyDesignMdMetadataGuardToOrganizationUpdate,
 } from "@/helpers/design-md-metadata-auth";
 import { prepareOrganizationForDeletion } from "@/helpers/organization-deletion";
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import prisma from "@/lib/db/prisma";
+import { revokeOrganizationCusoSubscriptions } from "@/services/polar-subscription-end.service";
 import { disconnectLeaverSokoBotIntegrationsBestEffort } from "@/services/soko-bot-integration-leaver.service";
 
 async function ensureWorkspaceForCreatedOrganization(organization: {
@@ -172,6 +179,21 @@ export function createAuthOrganizationPlugin() {
         ]);
       },
       beforeDeleteOrganization: async ({ organization, user }) => {
+        // Polar stops charging for its Cusos first (ADR 0068), so a refused
+        // revoke deletes nothing. A deletion refused anyway is refused before
+        // it: the check repeats under the deletion's locks.
+        throwIfOrganizationDeletionBlocked(
+          await evaluateOrganizationDeletion(organization.id, user.id, prisma),
+        );
+        try {
+          await revokeOrganizationCusoSubscriptions(organization.id);
+        } catch (error) {
+          if (!(error instanceof HTTPException)) throw error;
+          throw new APIError("SERVICE_UNAVAILABLE", {
+            code: "CMO_SUBSCRIPTION_REVOKE_FAILED",
+            message: error.message,
+          });
+        }
         organization.stripeCustomerId = await prepareOrganizationForDeletion(
           organization.id,
           user.id,

@@ -32,6 +32,17 @@ const optInPostgresFiles = [
   "src/helpers/transaction-history.postgres.test.ts",
   "src/helpers/history-sort-at.postgres.test.ts",
   "src/helpers/soko-bot-owner-scope.postgres.test.ts",
+  "src/helpers/cuso-project-credits.postgres.test.ts",
+  "src/routes/v1/webhooks/polar.postgres.test.ts",
+  "src/routes/v1/webhooks/polar-refund.postgres.test.ts",
+  "src/routes/v1/webhooks/polar.renewals.postgres.test.ts",
+  "src/routes/v1/webhooks/polar-top-up.postgres.test.ts",
+  "src/services/polar-credit-grant.postgres.test.ts",
+  "src/services/cmo-free-hiring.postgres.test.ts",
+  "src/services/cmo-tester-credits.postgres.test.ts",
+  "src/services/polar-plan-change.postgres.test.ts",
+  "src/services/polar-subscription-end.postgres.test.ts",
+  "src/services/polar-yearly-grant-sync.postgres.test.ts",
 ];
 
 const optInIntegrationFiles = [

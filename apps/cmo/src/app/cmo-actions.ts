@@ -11,6 +11,8 @@ import {
   type CmoCusoList,
   type CmoMeasurement,
   type CmoOverview,
+  type CmoSubscriptionPlan,
+  changeCmoPlanForProject,
   chooseCmoAdAccountForProject,
   completeSokoBotIntegrationAuth,
   confirmCmoBrandBrainForProject,
@@ -28,6 +30,8 @@ import {
   listCmoAdCampaignsForProject,
   listCmoAdChoicesForProject,
   listCmoCusos,
+  listCmoPlans,
+  openCmoCustomerPortalForProject,
   pauseCmoCalendarEntryForProject,
   postChatsRoomsByIdMessages,
   postComposioCallbackComplete,
@@ -38,8 +42,11 @@ import {
   revertCmoUpdateForProject,
   setCmoAdBudgetForProject,
   setCmoAdCampaignStatusForProject,
+  skipCmoSubscriptionForProject,
   startCmoOnboarding,
   startCmoOverForProject,
+  startCmoPlanCheckoutForProject,
+  startCmoTopUpForProject,
   updateCmoBrandBrainForProject,
 } from "@sokosumi/core-client";
 import {
@@ -51,7 +58,6 @@ import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AGENT_NAME } from "../lib/agent";
-import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import { coreForCurrentUser } from "../lib/core";
 import { INVITE_ONLY_NOTE, INVITE_ONLY_TITLE } from "../lib/invite-only";
@@ -63,6 +69,7 @@ import {
   skippedStepsCookie,
   withSkippedSteps,
 } from "../lib/skipped-steps";
+import { VIEW_PATHS } from "../lib/views";
 
 async function requireCore() {
   const core = await coreForCurrentUser();
@@ -159,8 +166,8 @@ export interface OnboardFormState {
   /** Where Cuso goes: an organization's id, or "" for a new organization. */
   organizationId?: string;
   errors: { websiteUrl?: string; form?: string };
-  /** Out of credits: where to top up before starting again. */
-  topUpUrl?: string;
+  /** Refused for an unpaid Cuso: where to continue with him instead. */
+  unpaidCuso?: { href: string; businessName: string };
 }
 
 /** What the start form says for each refusal Core declares, by its kind. */
@@ -208,13 +215,22 @@ export async function onboard(
       error && typeof error === "object" && "kind" in error
         ? String(error.kind)
         : undefined;
-    if (kind === CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE) {
+    const unpaid =
+      kind === CORE_API_ERROR_KINDS.CMO_UNPAID_CUSO &&
+      error &&
+      "unpaidCuso" in error
+        ? error.unpaidCuso
+        : undefined;
+    if (unpaid) {
       return {
         ...result,
         errors: {
-          form: "That organization is out of credits. Top up on Sokosumi, then press Start again.",
+          form: `Your ${AGENT_NAME} for ${unpaid.businessName} is not subscribed yet. Subscribe there, or start him over, before you hire another.`,
         },
-        topUpUrl: `${readSokosumiAppBaseUrl()}/billing`,
+        unpaidCuso: {
+          href: `/?project=${encodeURIComponent(unpaid.projectId)}`,
+          businessName: unpaid.businessName,
+        },
       };
     }
     const refusal = kind ? HIRE_REFUSALS[kind as CoreApiErrorKind] : undefined;
@@ -497,9 +513,10 @@ export async function setAdBudget(
 }
 
 /**
- * The founder moved on from the Accounts step, the last one: CMO opens on the
- * chat. A connection already counts; skipping is kept in CMO's cookie. It
- * goes to the app's home, not back to the address it came from: back from a
+ * The founder moved on from the Accounts step: the checkout comes next
+ * (ADR 0068), or the chat for a Cuso with Tester credits. A
+ * connection already counts; skipping is kept in CMO's cookie. It goes to
+ * the app's home, not back to the address it came from: back from a
  * connection, that address keeps the Accounts step open.
  */
 export async function finishAccounts(projectId: string): Promise<never> {
@@ -538,6 +555,12 @@ export async function startOver(projectId: string): Promise<string | null> {
   // A person who may not hire goes to the Cusos left, or the invite-only page.
   const list = await loadCusos().catch(() => undefined);
   redirect(list?.mayHire === false ? "/?cusos=1" : "/?hire=1");
+}
+
+/** The CMO plans, for the checkout step; none when Core cannot read them from Polar. */
+export async function loadPlans(): Promise<CmoSubscriptionPlan[]> {
+  const { data } = await listCmoPlans(await requireCore());
+  return data?.data ?? [];
 }
 
 /** The contact list Cuso writes the newsletter for; Core counts it by this name. */
@@ -839,6 +862,132 @@ export async function connectMeasurement(
     return { url: null, error: errorText(error, "Could not start connecting") };
   }
   return { url: data.data.redirectUrl, error: null };
+}
+
+/**
+ * Starts Polar's hosted checkout for this Cuso's CMO plan; the browser goes
+ * to the returned URL. After paying, Polar sends the person back to the home
+ * page, which shows the confirming state (`step=subscribed`) until the
+ * payment is in; its back link leads to the plans without that marker.
+ */
+export async function startPlanCheckout(
+  projectId: string,
+  interval: CmoSubscriptionPlan["interval"],
+  /** The plan Polar opens on; without one, the cheapest. */
+  tier?: string,
+): Promise<{ url: string | null; error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await startCmoPlanCheckoutForProject({
+    ...core,
+    path: { projectId },
+    body: {
+      interval,
+      tier,
+      returnUrl: await callbackUrl("/", {
+        project: projectId,
+        step: "subscribed",
+      }),
+      // Back without paying: the plans again, not the confirming state.
+      backUrl: await callbackUrl("/", { project: projectId }),
+    },
+  });
+  if (!data) {
+    return {
+      url: null,
+      error: errorText(error, "Could not open the checkout"),
+    };
+  }
+  return { url: data.data.url, error: null };
+}
+
+/**
+ * Starts Polar's checkout for a Project top-up of this Cuso; the browser goes
+ * to the returned URL and comes back to this Cuso.
+ */
+export async function startTopUp(
+  projectId: string,
+): Promise<{ url: string | null; error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await startCmoTopUpForProject({
+    ...core,
+    path: { projectId },
+    body: { returnUrl: await callbackUrl("/", { project: projectId }) },
+  });
+  if (!data) {
+    return {
+      url: null,
+      error: errorText(error, "Could not open the checkout"),
+    };
+  }
+  return { url: data.data.url, error: null };
+}
+
+/**
+ * A tester continues this Cuso without a subscription: Core gives his Project
+ * Tester credits. A refusal comes back as text.
+ */
+export async function skipSubscription(projectId: string): Promise<{
+  error: string | null;
+}> {
+  const core = await requireCore();
+  const { data, error } = await skipCmoSubscriptionForProject({
+    ...core,
+    path: { projectId },
+  });
+  if (!data) {
+    return {
+      error: errorText(error, "Could not continue without a subscription"),
+    };
+  }
+  return { error: null };
+}
+
+/**
+ * Moves this Cuso to another tier of his interval (owners and admins). An
+ * upgrade applies at once; a downgrade at the next renewal. His current tier
+ * while a downgrade is pending keeps the plan.
+ */
+export async function changePlan(
+  projectId: string,
+  tier: string,
+): Promise<{
+  change: "upgrade" | "downgrade" | "kept" | null;
+  error: string | null;
+}> {
+  const core = await requireCore();
+  const { data, error } = await changeCmoPlanForProject({
+    ...core,
+    path: { projectId },
+    body: { tier },
+  });
+  if (!data) {
+    return {
+      change: null,
+      error: errorText(error, "Could not change the plan"),
+    };
+  }
+  return { change: data.data.change, error: null };
+}
+
+/**
+ * Opens Polar's customer portal for this Cuso's organization (owners and
+ * admins); it links back to Settings.
+ */
+export async function openPortal(
+  projectId: string,
+): Promise<{ url: string | null; error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await openCmoCustomerPortalForProject({
+    ...core,
+    path: { projectId },
+    body: {
+      returnUrl: await callbackUrl(VIEW_PATHS.settings, { project: projectId }),
+    },
+  });
+  if (!data) {
+    return { url: null, error: errorText(error, "Could not open billing") };
+  }
+  return { url: data.data.url, error: null };
 }
 
 /** Finishes a measurement connection after the founder signed in. */
