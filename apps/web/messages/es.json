@@ -4929,7 +4929,8 @@
             "description1": "Línea de descripción 1",
             "description2": "Línea de descripción 2",
             "add": "Añadir enlace de sitio",
-            "remove": "Quitar enlace de sitio {number}"
+            "remove": "Quitar enlace de sitio {number}",
+            "label": "Enlaces de sitio"
           },
           "callouts": {
             "title": "Textos destacados (opcional)",
@@ -5164,6 +5165,16 @@
         "errors": {
           "conflict": "Esta campaña no se puede editar aquí.",
           "failed": "No se pudieron guardar los cambios"
+        },
+        "changes": {
+          "submitCount": "Guardar {count, plural, one {# cambio} other {# cambios}}",
+          "changed": "Cambiado",
+          "was": "Antes:",
+          "now": "Ahora:",
+          "none": "Aún no hay cambios. Cambia un paso para guardar.",
+          "removed": "Eliminado",
+          "added": "Añadido",
+          "empty": "Ninguno"
         }
       },
       "market": {
@@ -5208,6 +5219,7 @@
           },
           "trendLabel": "Búsquedas al mes durante 12 meses, de {from} a {to}",
           "searchesPerMonth": "{count} búsquedas al mes",
+          "noSearchData": "Sin datos de búsqueda",
           "emptyTitle": "No se encontraron palabras clave en tendencia para este mercado",
           "emptyBody": "Prueba con otras palabras clave u otro país."
         },
@@ -5240,7 +5252,10 @@
             "keywords": "No se pudieron cargar las palabras clave",
             "ads": "No se pudieron cargar los anuncios"
           }
-        }
+        },
+        "updating": "Actualizando palabras clave en tendencia…",
+        "stale": "Estos resultados son anteriores a tu último guardado.",
+        "refresh": "Actualizar resultados"
       },
       "accounts": {
         "emptyTitle": "Aún no hay cuentas publicitarias conectadas",
