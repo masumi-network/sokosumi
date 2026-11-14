@@ -21,6 +21,7 @@ import { citationsIn, dropUnverifiedLinks } from "./citations";
 import { evaluationBinding, evaluationContext } from "./evaluation-dispatch";
 import { SOKO_BOT_ARCHIVE_GUIDANCE } from "./evaluation-preparation";
 import { ownerNarrative } from "./owner-narrative";
+import { savedPreferenceResponse } from "./saved-preference-response";
 import { tableCreationFeedback } from "./table-creation-feedback";
 import { toolRecoveryFeedback } from "./tool-recovery-feedback";
 
@@ -36,6 +37,10 @@ import { toolRecoveryFeedback } from "./tool-recovery-feedback";
  */
 const REPLY_LANGUAGE_GUIDANCE =
   "Reply in the language of the owner's latest message. Earlier messages, stand-ups, schedule prompts and packets in another language do not change that.";
+
+/** The saved-preference receipt is rendered by Core, not model prose. */
+const SAVED_PREFERENCE_GUIDANCE =
+  "Core verified a saved preference for this turn. Core will show its confirmation. Do not repeat or translate that confirmation. If saving it was the owner's only request, use REPORT with a null message when a structured final response is required. If the owner also requested other work or answers, complete those parts and report their results. A language preference for a recipient applies only to the stated deliverables; it does not change the language of your reply to the owner.";
 
 /** Upper bound on model steps in one 15-minute turn. */
 export const SOKO_BOT_MAX_STEPS = 40;
@@ -284,6 +289,7 @@ export function contextBlock(
   packet: unknown,
   renderedPacket: string,
   now = Date.now(),
+  hasSavedPreferenceProof = false,
 ): string[] {
   return [
     "",
@@ -292,6 +298,7 @@ export function contextBlock(
     renderedPacket,
     ...latestExchange(packet, now),
     "",
+    ...(hasSavedPreferenceProof ? [SAVED_PREFERENCE_GUIDANCE] : []),
     REPLY_LANGUAGE_GUIDANCE,
   ];
 }
@@ -316,6 +323,12 @@ export async function prepareTurn(
   )
     throw new Error("Evaluation requires an owner turn");
   const context = await service.getContext({ sessionId, turnId });
+  const hasSavedPreferenceProof =
+    (await savedPreferenceResponse(prisma, {
+      source: authorized.turn.source,
+      sokoBotId: authorized.turn.sokoBotId,
+      contextSnapshot: { packet: context.packet },
+    })) !== null;
   const version = await resolveRunnableSokoBotVersion(
     authorized.turn.versionId ?? null,
   );
@@ -354,6 +367,8 @@ export async function prepareTurn(
     ...contextBlock(
       context.packet,
       JSON.stringify(evaluationContext(context.packet)),
+      Date.now(),
+      hasSavedPreferenceProof,
     ),
   ].join("\n");
   return {

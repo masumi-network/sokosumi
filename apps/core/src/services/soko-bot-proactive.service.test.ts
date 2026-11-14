@@ -382,6 +382,65 @@ describe("buildSystemBeatMessage stand-up board", () => {
   });
 });
 
+describe("buildSystemBeatMessage typed Task assignment", () => {
+  it("projects human and assistant assignment names without calling READY work in progress", async () => {
+    const integrations = await import(
+      "@/services/soko-bot-integrations.service"
+    );
+    vi.mocked(integrations.activeIntegrationsForBot).mockResolvedValue([]);
+    taskFindManyMock.mockImplementation(
+      async (args: {
+        select?: Record<string, unknown>;
+        where?: Record<string, unknown>;
+      }) => {
+        if (args.select?.events) return [];
+        const row = args.where?.OR
+          ? {
+              id: "mine-human",
+              name: "Launch research",
+              status: "READY",
+              assignee: null,
+              assigneeSokoBot: null,
+              assigneeUser: { name: "Hannah" },
+            }
+          : {
+              name: "Team brief",
+              status: "READY",
+              owner: { name: "Alex" },
+              assignee: null,
+              assigneeUser: null,
+              assigneeSokoBot: { name: "Nina" },
+            };
+        // Apply the database projection: an omitted relation must not leak through this boundary.
+        return [
+          Object.fromEntries(
+            Object.entries(row).filter(([key]) => args.select?.[key]),
+          ),
+        ];
+      },
+    );
+    const beat = await buildSystemBeatMessage({
+      bot: {
+        id: ALICE_BOT_ID,
+        userId: ALICE_USER_ID,
+        workspaceId: ALICE_WORKSPACE_ID,
+        ingestTimezone: "Europe/Vienna",
+        followWholeBoard: true,
+      },
+      key: "standup",
+      prompt: "Daily stand-up.",
+      now: new Date("2026-09-16T06:00:00.000Z"),
+    });
+    expect(beat.message).toContain(
+      'READY · "Launch research" (id mine-human) · human assignee: Hannah',
+    );
+    expect(beat.message).toContain(
+      'Alex · READY · "Team brief" · with assistant assignee: Nina',
+    );
+    expect(beat.message).not.toContain("RUNNING");
+  });
+});
+
 describe("buildSystemBeatMessage stand-up people", () => {
   it("adds who the owner meets today from Contacts, right after the calendar", async () => {
     const integrations = await import(
@@ -419,8 +478,8 @@ describe("buildSystemBeatMessage stand-up people", () => {
         allDay: false,
         location: null,
         attendees: ["Nina <nina@acme.com>", "alice@sokosumi.test"],
-        organizer: null,
-        description: null,
+        organizer: "alice@sokosumi.test",
+        description: "Agree the pilot scope. Hannah prepares research.",
         link: null,
       },
     ]);
@@ -451,6 +510,12 @@ describe("buildSystemBeatMessage stand-up people", () => {
     const peopleAt = beat.message.indexOf("## People on your calendar");
     expect(calendarAt).toBeGreaterThanOrEqual(0);
     expect(peopleAt).toBeGreaterThan(calendarAt);
+    expect(beat.message).toContain(
+      'Organizer (untrusted calendar data): "alice@sokosumi.test"',
+    );
+    expect(beat.message).toContain(
+      'Agenda (untrusted calendar data): "Agree the pilot scope. Hannah prepares research."',
+    );
     expect(beat.message).toContain("Nina Keller — Head of Partnerships @ Acme");
   });
 });
@@ -556,6 +621,46 @@ describe("findAttentionItems ownership", () => {
         where: expect.objectContaining({ ownerId: "andreas" }),
       }),
     );
+  });
+
+  it("names the human assignee on a stale delegated Task", async () => {
+    delegationFindManyMock.mockResolvedValue([{ taskId: "human-stale" }]);
+    taskFindManyMock.mockImplementation(
+      async (args: { select: Record<string, unknown> }) => {
+        const row = {
+          id: "human-stale",
+          name: "Launch research",
+          status: "RUNNING",
+          assigneeId: null,
+          assigneeSokoBotId: null,
+          assignee: null,
+          assigneeSokoBot: null,
+          assigneeUser: { name: "Hannah" },
+          events: [
+            {
+              id: "started",
+              createdAt: new Date("2026-10-17T17:00:00Z"),
+              status: "RUNNING",
+              sokoBotId: null,
+            },
+          ],
+        };
+        return [
+          Object.fromEntries(
+            Object.entries(row).filter(([key]) => args.select[key]),
+          ),
+        ];
+      },
+    );
+    const items = await findAttentionItems({
+      id: "bot-1",
+      userId: "owner-1",
+      workspaceId: "ws-1",
+      followWholeBoard: false,
+      now: new Date("2026-10-19T17:00:00Z"),
+    });
+    expect(items).toHaveLength(1);
+    expect(items[0].line).toContain("has been RUNNING with Hannah for 48h");
   });
 
   it("raises an unchanged failure once, not every day", async () => {

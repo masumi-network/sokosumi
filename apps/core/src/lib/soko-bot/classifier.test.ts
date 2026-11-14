@@ -66,6 +66,7 @@ describe("Jev route selection", () => {
     expect(result.classification.route).toBe(route);
     expect(result.classification.confidence).toBe(0.98);
     expect(result.model).toBe(SOKO_BOT_ROUTE_MODEL);
+    expect(result.version).toBe("soko-bot-classifier-jev-v2");
     expect(result.failed).toBe(false);
   });
 

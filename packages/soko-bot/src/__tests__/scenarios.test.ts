@@ -40,10 +40,16 @@ const byId = (id: string): SokoBotScenario => {
 };
 
 describe("owner-chat route hints", () => {
+  const budgetInputRequest =
+    "I found a marketplace option for competitor and market analysis at a fixed 10 credits per study; other options are 100 credits. Before I set up a recurring paid trigger, please define what counts as a competitor mention, how often to repeat a study for the same competitor, and your spending limit per study and per month (or tell me you want approval before each study).";
   const budgetQuestions = [
     "I can treat each competitor mention in your mail as the trigger, but I need a spending limit before setting up recurring paid research. What maximum credits may I spend per month, and what maximum credits per study?",
     "I can set this up, but recurring Agent studies spend credits. What spending cap should I use—per study or per period—and, if it’s a period cap, how often should it renew? I haven’t set up the standing rule or commissioned a study.",
     "I can set this up, but automatic Agent commissions need a spending limit. What maximum should I use per study and per month?",
+    budgetInputRequest,
+    "Please specify the maximum credits per study before I set this up.",
+    "Please provide your monthly spending cap before I commission research.",
+    "Please choose a spending cap or approval before each study.",
   ];
 
   it.each(budgetQuestions)(
@@ -68,12 +74,30 @@ describe("owner-chat route hints", () => {
       byId("expensive-work-asks-first"),
       turn({
         route: "HIRE_AGENT",
-        finalAnswer: budgetQuestions[0],
+        finalAnswer: budgetInputRequest,
         toolCalls: [call(capability)],
       }),
     );
     expect(result.passed).toBeLessThan(result.total);
   });
+
+  it.each([
+    "I defined a limit of 10 credits for you.",
+    "I will specify a monthly cap and start the studies.",
+    "Please wait while I commission the study.",
+    "Please hire an Agent for every competitor mention.",
+  ])(
+    "does not mistake a statement or execution request for clarification: %s",
+    (finalAnswer) => {
+      const result = evaluateScenario(
+        byId("expensive-work-asks-first"),
+        turn({ route: "HIRE_AGENT", finalAnswer }),
+      );
+      expect(
+        result.checks.find((check) => check.label === "Asks a question")?.pass,
+      ).toBe(false);
+    },
+  );
 
   it("still rejects accepting the automation without asking", () => {
     const result = evaluateScenario(
@@ -94,7 +118,7 @@ describe("owner-chat route hints", () => {
       byId("expensive-work-asks-first"),
       turn({
         route: "HIRE_AGENT",
-        finalAnswer: budgetQuestions[0],
+        finalAnswer: budgetInputRequest,
         toolCalls: [call("create_task", { id: "study-task" })],
         delegations: [
           {
@@ -109,6 +133,62 @@ describe("owner-chat route hints", () => {
     );
     expect(result.passed).toBeLessThan(result.total);
   });
+
+  const ownerSeoWrites = [
+    ["seo-add-page", "add_seo_page"],
+    ["seo-save-page-group", "save_seo_scope"],
+    ["seo-save-keyword", "save_seo_keyword"],
+    ["seo-confirm-competitor", "save_seo_competitor"],
+    ["seo-recommendation-task", "create_seo_action_task"],
+    ["seo-record-page-change", "record_seo_page_change"],
+  ] as const;
+
+  it.each(ownerSeoWrites)(
+    "accepts the %s action with a clarification-route hint",
+    (scenarioId, capability) => {
+      const result = evaluateScenario(
+        byId(scenarioId),
+        turn({
+          route: "CLARIFY",
+          toolCalls: [call("get_seo_workspace"), call(capability)],
+        }),
+      );
+      expect(result.passed).toBe(result.total);
+    },
+  );
+
+  it.each(ownerSeoWrites)(
+    "rejects %s when the requested write was not completed",
+    (scenarioId, capability) => {
+      for (const toolCalls of [
+        [call("get_seo_workspace")],
+        [call("get_seo_workspace"), { ...call(capability), status: "FAILED" }],
+      ]) {
+        const result = evaluateScenario(
+          byId(scenarioId),
+          turn({ route: "CLARIFY", toolCalls }),
+        );
+        expect(result.passed).toBeLessThan(result.total);
+      }
+    },
+  );
+
+  it.each(ownerSeoWrites)(
+    "still rejects an unrelated hire route for %s",
+    (scenarioId, capability) => {
+      const result = evaluateScenario(
+        byId(scenarioId),
+        turn({
+          route: "HIRE_AGENT",
+          toolCalls: [call("get_seo_workspace"), call(capability)],
+        }),
+      );
+      expect(
+        result.checks.find((check) => check.label.startsWith("Route ∈"))?.pass,
+      ).toBe(false);
+      expect(result.passed).toBeLessThan(result.total);
+    },
+  );
 
   const draftTools = [
     call("list_project_social_accounts"),

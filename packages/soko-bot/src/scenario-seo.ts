@@ -12,6 +12,8 @@ export const SEO_EVAL_CAPABILITIES = {
   "seo-statistics-disconnected": "list_seo_statistics_properties",
 } as const;
 
+// Human CHAT routes are hints. Required actions and Core's saved-record checks
+// still prove completion when Jev records CLARIFY for an authorized save.
 export const SEO_SCENARIOS: SokoBotScenario[] = [
   {
     id: "seo-workspace-read",
@@ -38,7 +40,7 @@ export const SEO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Reads the SEO workspace and calls add_seo_page with the supplied URL and label, relationship related, and the actual saved home page ID. Reports the saved page without claiming an audit ran.",
     expect: {
-      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "CLARIFY", "MIXED"],
       tools: ["get_seo_workspace", "add_seo_page"],
       noDelegations: true,
       noInventedIds: true,
@@ -53,7 +55,7 @@ export const SEO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Calls get_seo_workspace and save_seo_scope with the exact supplied group name and both real page IDs, no other page. Reports a saved page group, not a completed audit.",
     expect: {
-      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "CLARIFY", "MIXED"],
       tools: ["get_seo_workspace", "save_seo_scope"],
       noDelegations: true,
       noInventedIds: true,
@@ -69,7 +71,7 @@ export const SEO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Reads the SEO workspace and calls save_seo_keyword with the supplied keyword, US, en, high, saved true and the actual pricing page ID. It reports the saved choice without inventing volume or rank.",
     expect: {
-      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "CLARIFY", "MIXED"],
       tools: ["get_seo_workspace", "save_seo_keyword"],
       noDelegations: true,
       noInventedIds: true,
@@ -85,7 +87,7 @@ export const SEO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Reads the SEO workspace and calls save_seo_competitor with the exact supplied URL and confirmed true. It describes this as the owner's choice, not a measured search competitor or completed analysis.",
     expect: {
-      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "CLARIFY", "MIXED"],
       tools: ["get_seo_workspace", "save_seo_competitor"],
       noDelegations: true,
       noInventedIds: true,
@@ -101,7 +103,13 @@ export const SEO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Calls get_seo_workspace and create_seo_action_task with the real observationId and actionId. Exactly one linked Task exists, DRAFT and unassigned, with source evidence. The answer links the Task and does not claim implementation or SEO improvement.",
     expect: {
-      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "CLARIFY",
+        "MIXED",
+      ],
       tools: ["get_seo_workspace", "create_seo_action_task"],
       forbiddenTools: ["assign_task", "hire_agent"],
       noInventedIds: true,
@@ -117,7 +125,7 @@ export const SEO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Reads the saved pages and calls record_seo_page_change for only the pricing page with the supplied occurredAt, title and note. Reports a recorded owner change, without claiming verification, attribution, or improved traffic.",
     expect: {
-      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "CLARIFY", "MIXED"],
       tools: ["get_seo_workspace", "record_seo_page_change"],
       noDelegations: true,
       noInventedIds: true,

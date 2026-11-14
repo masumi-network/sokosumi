@@ -2,12 +2,12 @@ import { randomUUID } from "node:crypto";
 import {
   SEO_EVAL_CAPABILITIES,
   SOKO_BOT_SCENARIOS,
-  type SokoBotSeoCapability,
+  type SokoBotCapability,
 } from "@sokosumi/soko-bot";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
-import { runSeoTool } from "@/lib/soko-bot/seo-tools";
-import type { SeoActor } from "@/schemas/project-seo.schema";
+import { loadLabScenarioTurn } from "@/services/soko-bot-lab-scenario.service";
+import { SokoBotRuntimeService } from "@/services/soko-bot-runtime.service";
 import { type EvalLaneRecord, ensureEvalLanes } from "./eval-lanes.service";
 import { seoEvalChecks } from "./eval-seo-checks";
 import {
@@ -40,6 +40,9 @@ const enabled =
 const resultIds: string[] = [];
 const runIds: string[] = [];
 const turnIds: string[] = [];
+const unrelatedTaskIds: string[] = [];
+const unrelatedKeywordIds: string[] = [];
+const TEST_TURN_LEASE_MS = 60_000;
 let lane: EvalLaneRecord;
 
 async function prepare(caseId: string) {
@@ -70,17 +73,6 @@ async function prepare(caseId: string) {
     ...prepared,
     resultId: result.id,
     fixture: prepared.state.seoFixture as SeoEvalFixture,
-  };
-}
-
-function actor(fixture: SeoEvalFixture): SeoActor {
-  return {
-    owner: { kind: "project", id: fixture.projectId },
-    userId: lane.userId,
-    workspaceId: lane.workspaceId,
-    organizationId: lane.organizationId,
-    sokoBotId: lane.sokoBotId,
-    privateMetricsAllowed: true,
   };
 }
 
@@ -139,7 +131,11 @@ function mutationInput(caseId: string, fixture: SeoEvalFixture) {
   }
 }
 
-async function turn(resultId: string, clientTurnId = `lab:eval:${resultId}`) {
+async function turn(
+  resultId: string,
+  clientTurnId = `lab:eval:${resultId}`,
+  capabilities: SokoBotCapability[] = [],
+) {
   const created = await prisma.sokoBotTurn.create({
     data: {
       sokoBotId: lane.sokoBotId,
@@ -148,8 +144,23 @@ async function turn(resultId: string, clientTurnId = `lab:eval:${resultId}`) {
       requestedByUserId: lane.userId,
       clientTurnId,
       userMessage: "SEO fixture test",
-      capabilityNames: [],
-      deadlineAt: new Date(Date.now() + 60_000),
+      capabilityNames: capabilities,
+      versionId: "v40",
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + TEST_TURN_LEASE_MS),
+      leaseExpiresAt: new Date(Date.now() + TEST_TURN_LEASE_MS),
+      contextSnapshot: {
+        create: {
+          generatedAt: new Date(),
+          schemaVersion: 1,
+          hash: "seo-eval-persisted-regression",
+          packet: { memory: { version: 0 } },
+          byteSize: 0,
+          tokenEstimate: 0,
+          counts: {},
+          omissions: {},
+        },
+      },
     },
   });
   turnIds.push(created.id);
@@ -170,13 +181,20 @@ describe.skipIf(!enabled)(
         select: { taskId: true },
       });
       await prisma.task.deleteMany({
-        where: { id: { in: links.map((link) => link.taskId) } },
+        where: {
+          id: {
+            in: [...links.map((link) => link.taskId), ...unrelatedTaskIds],
+          },
+        },
       });
       await prisma.projectSeoActionTask.deleteMany({
         where: { observationId: { in: resultIds } },
       });
       await prisma.projectSeoObservation.deleteMany({
         where: { id: { in: resultIds } },
+      });
+      await prisma.projectSeoKeyword.deleteMany({
+        where: { id: { in: unrelatedKeywordIds } },
       });
       await prisma.sokoBotTurn.deleteMany({ where: { id: { in: turnIds } } });
       await prisma.evalRun.deleteMany({ where: { id: { in: runIds } } });
@@ -187,34 +205,28 @@ describe.skipIf(!enabled)(
       "%s requires a real scoped result from %s",
       async (caseId, capability) => {
         const prepared = await prepare(caseId);
-        const toolCalls: {
-          capability: string;
-          status: string;
-          input: unknown;
-          result: unknown;
-        }[] = [];
+        const service = new SokoBotRuntimeService();
+        const turnId = await turn(prepared.resultId, undefined, [
+          "get_seo_workspace",
+          capability,
+          "get_task_status",
+          "save_seo_keyword",
+        ]);
+        const request = { turnId, sessionId: `seo-eval-${turnId}` };
         const before = await seoEvalChecks(
           caseId,
           lane,
-          { toolCalls },
+          await loadLabScenarioTurn(turnId),
           prepared.state,
         );
         expect(before.some((check) => !check.pass)).toBe(true);
-        const call = async (name: SokoBotSeoCapability, input: unknown) => {
-          const result = await runSeoTool(
-            name,
-            input,
-            actor(prepared.fixture),
-            {},
-          );
-          toolCalls.push({
+        const call = (name: SokoBotCapability, input: unknown) =>
+          service.executeTool({
+            ...request,
             capability: name,
-            status: "COMPLETED",
+            toolCallId: randomUUID(),
             input,
-            result,
           });
-          return result;
-        };
         if (
           capability !== "get_seo_workspace" &&
           capability !== "list_seo_statistics_properties"
@@ -223,13 +235,62 @@ describe.skipIf(!enabled)(
             projectId: prepared.fixture.projectId,
           });
         await call(capability, mutationInput(caseId, prepared.fixture));
+        if (caseId === "seo-recommendation-task") {
+          const link = await prisma.projectSeoActionTask.findFirstOrThrow({
+            where: {
+              observationId: prepared.fixture.resultId,
+              projectId: prepared.fixture.projectId,
+            },
+          });
+          await call("get_task_status", { taskId: link.taskId });
+        }
+        const stored = await loadLabScenarioTurn(turnId);
         const checks = await seoEvalChecks(
           caseId,
           lane,
-          { toolCalls },
+          stored,
           prepared.state,
         );
         expect(checks.filter((check) => !check.pass)).toEqual([]);
+        if (
+          capability !== "get_seo_workspace" &&
+          capability !== "list_seo_statistics_properties"
+        ) {
+          const effect = stored.toolCalls.find(
+            (entry) => entry.capability === capability,
+          );
+          expect(effect).toMatchObject({
+            status: "COMPLETED",
+            result: {
+              id: expect.any(String),
+              projectId: prepared.fixture.projectId,
+            },
+          });
+          expect(effect?.result).not.toHaveProperty("result");
+          const forgedProject = {
+            ...stored,
+            toolCalls: stored.toolCalls.map((entry) =>
+              entry === effect
+                ? {
+                    ...entry,
+                    result: {
+                      ...(entry.result as object),
+                      projectId: randomUUID(),
+                    },
+                  }
+                : entry,
+            ),
+          };
+          expect(
+            (
+              await seoEvalChecks(caseId, lane, forgedProject, prepared.state)
+            ).find(
+              (check) =>
+                check.label ===
+                "One real scoped SEO effect matches the request",
+            )?.pass,
+          ).toBe(false);
+        }
         const retry = await prepareSeoEvalCase(
           lane,
           prepared.scenario,
@@ -237,10 +298,60 @@ describe.skipIf(!enabled)(
         );
         expect(retry.state).toEqual(prepared.state);
         expect(
-          (await seoEvalChecks(caseId, lane, { toolCalls }, retry.state)).every(
+          (await seoEvalChecks(caseId, lane, stored, retry.state)).every(
             (check) => check.pass,
           ),
         ).toBe(true);
+        if (caseId === "seo-recommendation-task") {
+          const unrelated = await prisma.task.create({
+            data: {
+              name: "Unrelated fixture draft",
+              workspaceId: lane.workspaceId,
+              projectId: prepared.fixture.projectId,
+              ownerId: lane.userId,
+              creatorUserId: lane.userId,
+            },
+          });
+          unrelatedTaskIds.push(unrelated.id);
+          await call("get_task_status", { taskId: unrelated.id });
+          const withUnrelatedRead = await seoEvalChecks(
+            caseId,
+            lane,
+            await loadLabScenarioTurn(turnId),
+            prepared.state,
+          );
+          expect(withUnrelatedRead.filter((check) => !check.pass)).toEqual([
+            expect.objectContaining({
+              label: "Only the requested SEO operation and safe reads",
+              actual: "get_task_status",
+            }),
+          ]);
+          await call("save_seo_keyword", {
+            ...mutationInput("seo-save-keyword", prepared.fixture),
+            keyword: `unrelated fixture ${prepared.resultId}`,
+          });
+          const withMutation = await loadLabScenarioTurn(turnId);
+          const unrelatedKeyword = withMutation.toolCalls.find(
+            (entry) => entry.capability === "save_seo_keyword",
+          );
+          expect(unrelatedKeyword).toMatchObject({
+            status: "COMPLETED",
+            result: { id: expect.any(String) },
+          });
+          unrelatedKeywordIds.push(
+            (unrelatedKeyword?.result as { id: string }).id,
+          );
+          expect(
+            (
+              await seoEvalChecks(caseId, lane, withMutation, prepared.state)
+            ).filter((check) => !check.pass),
+          ).toEqual([
+            expect.objectContaining({
+              label: "Only the requested SEO operation and safe reads",
+              actual: "get_task_status, save_seo_keyword",
+            }),
+          ]);
+        }
       },
     );
 
@@ -251,7 +362,7 @@ describe.skipIf(!enabled)(
           capability: "save_seo_keyword",
           status: "COMPLETED",
           input: mutationInput("seo-save-keyword", prepared.fixture),
-          result: { result: { id: randomUUID() } },
+          result: { id: randomUUID(), projectId: prepared.fixture.projectId },
         },
       ];
       expect(

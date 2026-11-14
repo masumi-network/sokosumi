@@ -31,6 +31,7 @@ import {
   READ_OBSERVATION_CAPABILITIES,
 } from "./read-observations";
 import { savedPreferenceResponse } from "./saved-preference-response";
+import { workspaceWriteConfirmations } from "./workspace-write-confirmation";
 
 /** Turns an owner asked for; the rest the bot started itself. */
 const OWNER_STARTED_SOURCES = new Set(["CHAT", "ADMIN_RETRY"]);
@@ -197,10 +198,20 @@ export async function buildActionResponse(
   actionRequested = false,
   narrativeInput?: unknown,
 ) {
-  const calls = await tx.sokoBotToolCall.findMany({
-    where: { turnId, capability: { in: [...ACTION_CAPABILITIES] } },
+  const collectedCalls = await tx.sokoBotToolCall.findMany({
+    where: {
+      turnId,
+      capability: { in: [...ACTION_CAPABILITIES, "workspace_write"] },
+    },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
+  // Sandbox writes carry a local runner result, never a Core action receipt.
+  const workspaceCalls = collectedCalls.filter(
+    (call) => call.capability === "workspace_write",
+  );
+  const calls = collectedCalls.filter(
+    (call) => call.capability !== "workspace_write",
+  );
   const replayIds = calls.flatMap((call) =>
     call.replayedReceiptId ? [call.replayedReceiptId] : [],
   );
@@ -407,6 +418,12 @@ export async function buildActionResponse(
     );
     return ownerStarted;
   };
+  if (
+    workspaceCalls.length &&
+    !reportedByCard &&
+    OWNER_STARTED_SOURCES.has((await turnInfo())?.source ?? "")
+  )
+    actionText.push(...workspaceWriteConfirmations(workspaceCalls));
   const ownerAsked = unfulfilledActions.some(
     (action) => action.reason !== "UNKNOWN",
   )

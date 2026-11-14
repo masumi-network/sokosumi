@@ -17,7 +17,7 @@ import {
 } from "./eval-seo-fixtures";
 
 const stateSchema = z.object({ seoFixture: seoEvalFixtureSchema });
-const storedId = z.object({ result: z.object({ id: z.uuid() }) });
+const storedReceipt = z.object({ id: z.uuid(), projectId: z.uuid() });
 const workspacePages = z.object({
   pages: z.array(z.object({ id: z.uuid(), url: z.string() })),
 });
@@ -88,6 +88,38 @@ async function registeredFixture(
   return project ? fixture : null;
 }
 
+async function recommendationTaskId(
+  fixture: SeoEvalFixture,
+  id: string,
+  lane: EvalLaneRecord,
+) {
+  const link = await prisma.projectSeoActionTask.findFirst({
+    where: {
+      id,
+      projectId: fixture.projectId,
+      auditId: null,
+      observationId: fixture.resultId,
+      actionId: SEO_EVAL_EXPECTED.actionId,
+    },
+  });
+  if (!link) return null;
+  const task = await prisma.task.findFirst({
+    where: {
+      id: link.taskId,
+      workspaceId: lane.workspaceId,
+      projectId: fixture.projectId,
+      visibility: "PUBLIC",
+      archivedAt: null,
+      status: "DRAFT",
+      assigneeId: null,
+      assigneeUserId: null,
+      assigneeSokoBotId: null,
+    },
+    select: { id: true, description: true },
+  });
+  return task?.description?.includes(fixture.resultId) ? task.id : null;
+}
+
 async function storedPostcondition(
   caseId: string,
   fixture: SeoEvalFixture,
@@ -133,28 +165,8 @@ async function storedPostcondition(
         competitor.confirmed
       );
     }
-    case "seo-recommendation-task": {
-      const link = await prisma.projectSeoActionTask.findFirst({ where });
-      if (
-        link?.observationId !== fixture.resultId ||
-        link.actionId !== SEO_EVAL_EXPECTED.actionId
-      )
-        return false;
-      const task = await prisma.task.findFirst({
-        where: {
-          id: link.taskId,
-          workspaceId: lane.workspaceId,
-          projectId: fixture.projectId,
-        },
-      });
-      return (
-        task?.status === "DRAFT" &&
-        !task.assigneeId &&
-        !task.assigneeUserId &&
-        !task.assigneeSokoBotId &&
-        !!task.description?.includes(fixture.resultId)
-      );
-    }
+    case "seo-recommendation-task":
+      return (await recommendationTaskId(fixture, id, lane)) !== null;
     case "seo-record-page-change": {
       const observation = await prisma.projectSeoObservation.findFirst({
         where,
@@ -196,17 +208,42 @@ export async function seoEvalChecks(
       ),
     ];
   const capability = capabilityFor(scenarioId);
+  const completed = turn.toolCalls.filter(
+    (call) => call.capability === capability && call.status === "COMPLETED",
+  );
+  const ids = [
+    ...new Set(
+      completed.flatMap((call) => {
+        const parsed = storedReceipt.safeParse(call.result);
+        return parsed.success && parsed.data.projectId === fixture.projectId
+          ? [parsed.data.id]
+          : [];
+      }),
+    ),
+  ];
+  const createdTaskId =
+    scenarioId === "seo-recommendation-task" && ids.length === 1
+      ? await recommendationTaskId(fixture, ids[0]!, lane)
+      : null;
   const allowed = new Set([
     capability,
     "get_seo_workspace",
     ...NO_EFFECT_TOOLS,
   ]);
-  const unexpected = turn.toolCalls.filter(
-    (call) => !allowed.has(call.capability),
-  );
-  const completed = turn.toolCalls.filter(
-    (call) => call.capability === capability && call.status === "COMPLETED",
-  );
+  const unexpected = turn.toolCalls.filter((call) => {
+    if (allowed.has(call.capability)) return false;
+    // Only a read of this fixture's verified draft may follow its creation.
+    return !(
+      createdTaskId &&
+      call.capability === "get_task_status" &&
+      call.status === "COMPLETED" &&
+      z
+        .object({ taskId: z.literal(createdTaskId) })
+        .strict()
+        .safeParse(call.input).success &&
+      z.object({ id: z.literal(createdTaskId) }).safeParse(call.result).success
+    );
+  });
   const callsUseProject = turn.toolCalls
     .filter(
       (call) =>
@@ -281,14 +318,6 @@ export async function seoEvalChecks(
       ),
     );
   } else {
-    const ids = [
-      ...new Set(
-        completed.flatMap((call) => {
-          const parsed = storedId.safeParse(call.result);
-          return parsed.success ? [parsed.data.result.id] : [];
-        }),
-      ),
-    ];
     const persisted =
       ids.length === 1 &&
       (await storedPostcondition(scenarioId, fixture, ids[0]!, lane));

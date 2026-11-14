@@ -121,7 +121,7 @@ describe("authoritative action responses", () => {
     expect(db.sokoBotToolCall.findMany).toHaveBeenCalledWith({
       where: {
         turnId: "turn-current",
-        capability: { in: [...ACTION_CAPABILITIES] },
+        capability: { in: [...ACTION_CAPABILITIES, "workspace_write"] },
       },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });

@@ -7,6 +7,7 @@ import { V37_WORK_COMPLETION_SKILL } from "./v37-corrections.js";
 import { V38_VERIFIED_STATE_SKILL } from "./v38-corrections.js";
 import { V39_RESOURCE_IDENTITY_SKILL } from "./v39-corrections.js";
 import { V40_VERIFIED_FOLLOW_THROUGH_SKILL } from "./v40-corrections.js";
+import { V41_PROACTIVE_EVIDENCE_SKILL } from "./v41-corrections.js";
 
 /**
  * Skills are reusable instruction modules a version can include. Keep each
@@ -375,6 +376,7 @@ Prospects are people the owner finds interesting but nobody on the team has met 
   V38_VERIFIED_STATE_SKILL,
   V39_RESOURCE_IDENTITY_SKILL,
   V40_VERIFIED_FOLLOW_THROUGH_SKILL,
+  V41_PROACTIVE_EVIDENCE_SKILL,
   {
     id: "jev-triage",
     name: "Triage with Jev",
