@@ -49442,6 +49442,12 @@ export const TaskListItemSchema = {
             type: 'integer',
             minimum: 0,
             example: 4
+        },
+        statusSince: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the Task last changed status, or its creation time if it never did.'
         }
     },
     required: [
@@ -49481,7 +49487,8 @@ export const TaskListItemSchema = {
         'archivedAt',
         'workspace',
         'jobsCount',
-        'commentsCount'
+        'commentsCount',
+        'statusSince'
     ]
 } as const;
 

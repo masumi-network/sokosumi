@@ -657,6 +657,7 @@ export function TasksView({
           status: routeFilters.status,
           projectId: routeFilters.projectId,
           visibility: routeFilters.visibility,
+          stuck: routeFilters.stuck,
         });
         setItems((prev) => appendUniqueTasks(prev, result.tasks));
         const nextCursor = result.nextCursor;
@@ -700,6 +701,7 @@ export function TasksView({
       routeFilters.projectId,
       routeFilters.scope,
       routeFilters.status,
+      routeFilters.stuck,
       routeFilters.visibility,
     ],
   );
@@ -723,6 +725,7 @@ export function TasksView({
         status: routeFilters.status,
         projectId: routeFilters.projectId,
         visibility: routeFilters.visibility,
+        stuck: routeFilters.stuck,
       });
       setItems((prev) => appendUniqueTasks(prev, result.tasks));
       const nextCursor = result.nextCursor;
@@ -745,6 +748,7 @@ export function TasksView({
     routeFilters.projectId,
     routeFilters.scope,
     routeFilters.status,
+    routeFilters.stuck,
     routeFilters.visibility,
   ]);
 

@@ -5463,6 +5463,7 @@ const taskListItemSchemaResponseTransformer = (data: any) => {
     if (data.archivedAt) {
         data.archivedAt = new Date(data.archivedAt);
     }
+    data.statusSince = new Date(data.statusSince);
     return data;
 };
 

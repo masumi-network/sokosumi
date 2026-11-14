@@ -1898,7 +1898,9 @@
         "removeFilter": "Quitar filtro {filter}",
         "clear": "Borrar filtros",
         "noMatchesTitle": "Ninguna Task coincide con estos filtros",
-        "noMatchesDescription": "Quita un filtro o bórralos todos para volver a ver tus Tasks."
+        "noMatchesDescription": "Quita un filtro o bórralos todos para volver a ver tus Tasks.",
+        "stuck": "Atascadas {days}+ días",
+        "stuckHint": "Tareas en espera cuyo estado no ha cambiado en {days} días o más"
       },
       "Detail": {
         "back": "Volver a Tasks",
@@ -2483,6 +2485,11 @@
           "finance": "Finanzas",
           "qa": "Revisión y QA"
         }
+      },
+      "StatusAge": {
+        "label": "Tiempo en este estado:",
+        "stuck": "Atascada",
+        "since": "En este estado desde"
       }
     },
     "Projects": {

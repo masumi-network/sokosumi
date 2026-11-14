@@ -30,6 +30,7 @@ describe("tasks-filters", () => {
       status: null,
       projectId: null,
       visibility: null,
+      stuck: false,
     });
   });
 
@@ -43,6 +44,7 @@ describe("tasks-filters", () => {
       status: null,
       projectId: null,
       visibility: null,
+      stuck: false,
     });
   });
 
@@ -55,6 +57,7 @@ describe("tasks-filters", () => {
       status: null,
       projectId: null,
       visibility: null,
+      stuck: false,
     });
   });
 
@@ -121,6 +124,7 @@ describe("tasks-filters", () => {
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
       visibility: null,
+      stuck: false,
     });
 
     expect(
@@ -133,6 +137,7 @@ describe("tasks-filters", () => {
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
       visibility: null,
+      stuck: false,
     });
   });
 
@@ -156,6 +161,7 @@ describe("tasks-filters", () => {
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
       visibility: null,
+      stuck: false,
     });
 
     expect(
@@ -170,6 +176,7 @@ describe("tasks-filters", () => {
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
       visibility: null,
+      stuck: false,
     });
   });
 
@@ -192,6 +199,7 @@ describe("tasks-filters", () => {
       status: null,
       projectId: null,
       visibility: null,
+      stuck: false,
     });
   });
 
@@ -210,6 +218,7 @@ describe("tasks-filters", () => {
       status: null,
       projectId: PROJECT_ID,
       visibility: null,
+      stuck: false,
     });
 
     expect(
@@ -227,6 +236,7 @@ describe("tasks-filters", () => {
       status: null,
       projectId: null,
       visibility: null,
+      stuck: false,
     });
   });
 
@@ -249,6 +259,7 @@ describe("tasks-filters", () => {
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
       visibility: null,
+      stuck: false,
     });
   });
 
@@ -271,6 +282,7 @@ describe("tasks-filters", () => {
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
       visibility: null,
+      stuck: false,
     });
   });
 
@@ -290,6 +302,7 @@ describe("tasks-filters", () => {
         status: TaskStatus.READY,
         projectId: PROJECT_ID,
         visibility: null,
+        stuck: false,
       },
       "org-1",
     );
@@ -316,6 +329,7 @@ describe("tasks-filters", () => {
       status: null,
       projectId: null,
       visibility: null,
+      stuck: false,
     });
   });
 
@@ -336,6 +350,7 @@ describe("tasks-filters", () => {
         status: null,
         projectId: null,
         visibility: null,
+        stuck: false,
       },
       "org-1",
     );
@@ -355,11 +370,12 @@ describe("tasks-filters", () => {
           status: TaskStatus.READY,
           projectId: PROJECT_ID,
           visibility: null,
+          stuck: false,
         },
         "org-1",
       ),
     ).toBe(
-      "org-1:workspace:coworker-1:READY:33333333-3333-4333-8333-333333333333:all",
+      "org-1:workspace:coworker-1:READY:33333333-3333-4333-8333-333333333333:all:any",
     );
   });
 
@@ -372,6 +388,7 @@ describe("tasks-filters", () => {
       status: null,
       projectId: null,
       visibility: null,
+      stuck: false,
     };
 
     it("shows the indicator for org boards with owned scope", () => {
@@ -460,6 +477,7 @@ describe("tasks-filters", () => {
         status: null,
         projectId: null,
         visibility: null,
+        stuck: false,
       },
       "org-1",
     );
@@ -475,6 +493,7 @@ describe("tasks-filters", () => {
         status: null,
         projectId: null,
         visibility: TaskVisibility.PRIVATE,
+        stuck: false,
       },
       "org-1",
     );
@@ -504,6 +523,7 @@ describe("tasks-filters", () => {
           status: null,
           projectId: null,
           visibility: TaskVisibility.PRIVATE,
+          stuck: false,
         },
         "org-1",
       ),
@@ -547,9 +567,30 @@ describe("hasClearableTasksFilters and clearTasksFilters", () => {
           status: TaskStatus.FAILED,
           projectId: PROJECT_ID,
           visibility: TaskVisibility.PRIVATE,
+          stuck: false,
         },
         "org-1",
       ),
     ).toEqual({ ...defaults, projectId: PROJECT_ID });
+  });
+
+  it("reads, writes and clears the Stuck filter", () => {
+    const filters = parseTasksFilters({ stuck: "1" }, "org-1");
+    expect(filters.stuck).toBe(true);
+    expect(parseTasksFilters({ stuck: "yes" }, "org-1").stuck).toBe(false);
+    expect(hasClearableTasksFilters(filters, "org-1")).toBe(true);
+
+    const params = buildTasksFiltersSearchParams(
+      new URLSearchParams(),
+      filters,
+      "org-1",
+    );
+    expect(params.get("stuck")).toBe("1");
+
+    const cleared = clearTasksFilters(filters, "org-1");
+    expect(cleared.stuck).toBe(false);
+    expect(
+      buildTasksFiltersSearchParams(params, cleared, "org-1").has("stuck"),
+    ).toBe(false);
   });
 });

@@ -178,6 +178,7 @@ function createTask() {
       events: 0,
       jobs: 0,
     },
+    events: [] as Array<{ createdAt: Date }>,
     workspace: {
       id: "11111111-1111-7111-8111-111111111111",
       organizationId: "org_123",
@@ -390,7 +391,13 @@ describe("GET /tasks", () => {
 
     expect(response.status).toBe(200);
     const include = taskFindManyMock.mock.calls[0]?.[0]?.include;
-    expect(include).not.toHaveProperty("events");
+    // Only the latest status change, for how long the Task has sat in it.
+    expect(include.events).toEqual({
+      where: { status: { not: null } },
+      orderBy: { createdAt: "desc" },
+      take: 1,
+      select: { createdAt: true },
+    });
     expect(include).not.toHaveProperty("jobs");
     expect(include).not.toHaveProperty("linksFrom");
     expect(include).not.toHaveProperty("linksTo");
@@ -435,6 +442,59 @@ describe("GET /tasks", () => {
       jobsCount: 0,
       participants: [],
     });
+  });
+
+  it("dates statusSince by the latest status change, else by creation", async () => {
+    taskFindManyMock.mockResolvedValue([
+      {
+        ...createTask(),
+        id: "tsk_changed",
+        events: [{ createdAt: new Date("2026-03-28T08:00:00.000Z") }],
+      },
+      createTask(),
+    ]);
+    taskCountMock.mockResolvedValue(2);
+
+    const response = await createApp().request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: Array<{ statusSince: string }>;
+    };
+    expect(body.data.map((task) => task.statusSince)).toEqual([
+      "2026-03-28T08:00:00.000Z",
+      "2026-03-25T10:00:00.000Z",
+    ]);
+  });
+
+  it("keeps only Tasks whose status has not changed since statusBefore", async () => {
+    const cutoff = new Date("2026-11-11T09:00:00.000Z");
+    const response = await createApp().request(
+      `http://localhost/?statusBefore=${cutoff.toISOString()}&status=READY`,
+    );
+
+    expect(response.status).toBe(200);
+    const statusAge = {
+      createdAt: { lt: cutoff },
+      events: {
+        none: { status: { not: null }, createdAt: { gte: cutoff } },
+      },
+    };
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining(statusAge) }),
+    );
+    expect(taskCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining(statusAge),
+    });
+  });
+
+  it("rejects a statusBefore that is not a date-time", async () => {
+    const response = await createApp().request(
+      "http://localhost/?statusBefore=yesterday",
+    );
+
+    expect(response.status).toBe(422);
+    expect(taskFindManyMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker requests that include DRAFT", async () => {

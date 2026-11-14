@@ -21,6 +21,15 @@ function getCommentsCount(events: TaskEvent[]): number {
   return events.filter((event) => Boolean(event.comment)).length;
 }
 
+/** When the latest status event happened, else `fallback`. */
+function latestStatusChange(events: TaskEvent[], fallback: Date): Date {
+  return events.reduce(
+    (latest, event) =>
+      event.status && event.createdAt > latest ? event.createdAt : latest,
+    fallback,
+  );
+}
+
 function parseAgentMentions(
   description: string | null | undefined,
   agentsById: Map<string, CoreAgentDto>,
@@ -173,6 +182,10 @@ export function mapTaskToTaskWithCoworker(
   const createdAt = task.createdAt.toISOString();
   const updatedAt = task.updatedAt.toISOString();
   const runAt = task.runAt?.toISOString() ?? null;
+  const statusSince =
+    "statusSince" in task
+      ? task.statusSince
+      : latestStatusChange(task.events, task.createdAt);
 
   return {
     id: task.id,
@@ -188,6 +201,7 @@ export function mapTaskToTaskWithCoworker(
     updatedAt,
     runAt,
     dueOn: task.dueOn,
+    statusSince: statusSince.toISOString(),
     jobsCount: "jobsCount" in task ? task.jobsCount : task.jobs.length,
     assignee,
     participants: task.participants.map(({ user }) => ({

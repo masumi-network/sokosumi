@@ -1898,7 +1898,9 @@
         "removeFilter": "Remove filter {filter}",
         "clear": "Clear filters",
         "noMatchesTitle": "No tasks match these filters",
-        "noMatchesDescription": "Remove a filter or clear them all to see your tasks again."
+        "noMatchesDescription": "Remove a filter or clear them all to see your tasks again.",
+        "stuck": "Stuck {days}+ days",
+        "stuckHint": "Waiting Tasks whose status has not changed for {days} days or more"
       },
       "Detail": {
         "back": "Back to tasks",
@@ -2483,6 +2485,11 @@
           "finance": "Finance",
           "qa": "Review & QA"
         }
+      },
+      "StatusAge": {
+        "label": "Time in this status:",
+        "stuck": "Stuck",
+        "since": "In this status since"
       }
     },
     "Projects": {

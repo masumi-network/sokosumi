@@ -255,6 +255,7 @@ const EMPTY_FILTERS: TasksFilters = {
   status: null,
   projectId: null,
   visibility: null,
+  stuck: false,
 };
 
 function renderBoard(
