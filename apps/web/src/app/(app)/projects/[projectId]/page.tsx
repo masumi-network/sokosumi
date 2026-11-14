@@ -8,6 +8,7 @@ import {
 import { ProjectBriefing } from "@/app/projects/components/project-briefing";
 import { ProjectCloseStatusCard } from "@/app/projects/components/project-close-status";
 import { ProjectHeaderActions } from "@/app/projects/components/project-header-actions";
+import { ProjectHealthSection } from "@/app/projects/components/project-health";
 import { ProjectLatestUpdate } from "@/app/projects/components/project-latest-update";
 import {
   ProjectStatusStrip,
@@ -129,6 +130,16 @@ export default async function ProjectDetailPage({
               }}
             />
           ) : null}
+
+          <ProjectHealthSection
+            projectId={project.id}
+            health={project.health}
+            readOnly={
+              project.cmo ||
+              project.closingAt != null ||
+              project.closedAt != null
+            }
+          />
 
           {project.latestUpdate ? (
             <ProjectLatestUpdate

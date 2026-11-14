@@ -485,6 +485,14 @@ model Project {
   closingAt        DateTime?
   closedAt         DateTime?
 
+  // The team's own verdict on the Project, set by hand. latestUpdateMd is the
+  // generated summary; this is what a person says about it. The setter's name
+  // is a snapshot of who said it, so a later rename does not rewrite history.
+  health          ProjectHealth?
+  healthNote      String?
+  healthSetAt     DateTime?
+  healthSetByName String?
+
   dataTables       DataTable[]
   jobs             Job[]
   tasks            Task[]
@@ -3725,6 +3733,12 @@ model ProjectCloseOperation {
   @@index([state, nextAttemptAt])
   @@index([actorUserId])
   @@map("project_close_operation")
+}
+
+enum ProjectHealth {
+  ON_TRACK
+  AT_RISK
+  OFF_TRACK
 }
 
 enum ProjectEventKind {

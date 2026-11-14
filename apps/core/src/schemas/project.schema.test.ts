@@ -48,6 +48,10 @@ function createDatabaseProject(
     calendarRevision: 0,
     closingAt: null,
     closedAt: null,
+    health: null,
+    healthNote: null,
+    healthSetAt: null,
+    healthSetByName: null,
     createdAt: new Date("2026-08-16T10:00:00.000Z"),
     updatedAt: new Date("2026-08-16T10:00:00.000Z"),
     ...overrides,
@@ -364,6 +368,45 @@ describe("project schemas", () => {
         cmo: false,
         now: new Date("2026-08-16T10:05:00.000Z"),
       }).contextMdUpdating,
+    ).toBe(false);
+  });
+
+  it("maps the team's health verdict and accepts it alone on PATCH", () => {
+    expect(
+      mapProjectForApi(createDatabaseProject(), { cmo: false }).health,
+    ).toBe(null);
+    const setAt = new Date("2026-08-17T09:00:00.000Z");
+    expect(
+      mapProjectForApi(
+        createDatabaseProject({
+          health: "AT_RISK",
+          healthNote: "Waiting on the client",
+          healthSetAt: setAt,
+          healthSetByName: "Ana",
+        }),
+        { cmo: false },
+      ).health,
+    ).toEqual({
+      status: "AT_RISK",
+      note: "Waiting on the client",
+      setAt: setAt.toISOString(),
+      setByName: "Ana",
+    });
+
+    expect(
+      patchProjectRequestSchema.parse({
+        health: { status: "OFF_TRACK", note: "  Late  " },
+      }).health,
+    ).toEqual({ status: "OFF_TRACK", note: "Late" });
+    expect(patchProjectRequestSchema.parse({ health: null }).health).toBe(null);
+    expect(
+      patchProjectRequestSchema.safeParse({ health: { status: "GREAT" } })
+        .success,
+    ).toBe(false);
+    expect(
+      patchProjectRequestSchema.safeParse({
+        health: { status: "ON_TRACK", note: "x".repeat(281) },
+      }).success,
     ).toBe(false);
   });
 });

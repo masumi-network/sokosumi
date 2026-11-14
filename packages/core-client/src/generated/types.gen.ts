@@ -7208,6 +7208,24 @@ export type ProjectLatestUpdate = {
     updatedAt: Date;
 };
 
+export type ProjectHealthState = {
+    status: ProjectHealth;
+    note: string | null;
+    setAt: Date;
+    /**
+     * Name of the person who set it, as it was then.
+     */
+    setByName: string | null;
+};
+
+export const ProjectHealth = {
+    ON_TRACK: 'ON_TRACK',
+    AT_RISK: 'AT_RISK',
+    OFF_TRACK: 'OFF_TRACK'
+} as const;
+
+export type ProjectHealth = typeof ProjectHealth[keyof typeof ProjectHealth];
+
 export const StudioLogoPosition = {
     TOP_LEFT: 'top-left',
     TOP_RIGHT: 'top-right',
@@ -7253,6 +7271,10 @@ export type Project = {
      * Weekly activity report markdown. Null until a valid report is generated.
      */
     latestUpdate: ProjectLatestUpdate | null;
+    /**
+     * The team's own On track / At risk / Off track verdict, set by hand. Null until someone sets it.
+     */
+    health: ProjectHealthState | null;
     websiteUrl: string | null;
     logo: string | null;
     /**
@@ -10679,6 +10701,15 @@ export type PatchProjectRequest = {
      * Markdown guidance for drafting this Project's social posts. Null or blank clears it.
      */
     postingInstructionsMd?: string | null;
+    /**
+     * Set the Project's health with an optional note, or null to clear it. Core records who set it and when.
+     */
+    health?: SetProjectHealthRequest | null;
+};
+
+export type SetProjectHealthRequest = {
+    status: ProjectHealth;
+    note?: string | null;
 };
 
 export type PublicNewsletter = {

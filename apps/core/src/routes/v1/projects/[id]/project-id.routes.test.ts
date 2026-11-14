@@ -37,6 +37,7 @@ const {
   deleteProjectBriefingBlobMock,
   ensureProjectFilesTokenMock,
   uploadProjectBriefingFileMock,
+  userFindUniqueMock,
 } = vi.hoisted(() => ({
   deliverCalendarInvalidationsNowMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
@@ -52,6 +53,7 @@ const {
   deleteProjectBriefingBlobMock: vi.fn(),
   ensureProjectFilesTokenMock: vi.fn(),
   uploadProjectBriefingFileMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/calendar-invalidation", () => ({
@@ -69,6 +71,7 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: transactionMock,
     $queryRaw: queryRawMock,
     sokoBot: { findFirst: async () => null, findMany: async () => [] },
+    user: { findUnique: userFindUniqueMock },
     project: {
       findFirst: projectFindFirstMock,
       updateMany: projectUpdateManyMock,
@@ -642,6 +645,89 @@ describe("PATCH /projects/{id}", () => {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Hijack" }),
+    });
+    expect(res.status).toBe(403);
+    expect(projectUpdateManyMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /projects/{id} health", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+  });
+
+  it("stamps who set the health and when", async () => {
+    userFindUniqueMock.mockResolvedValue({ name: "Ana" });
+    const setAt = new Date("2026-11-14T09:00:00.000Z");
+    projectFindFirstMock.mockResolvedValue({
+      ...sampleProject,
+      health: "AT_RISK",
+      healthNote: "Waiting on the client",
+      healthSetAt: setAt,
+      healthSetByName: "Ana",
+    });
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        health: { status: "AT_RISK", note: "Waiting on the client" },
+      }),
+    });
+    expect(res.status).toBe(200);
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "user_123" },
+      select: { name: true },
+    });
+    expect(projectUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
+      data: expect.objectContaining({
+        health: "AT_RISK",
+        healthNote: "Waiting on the client",
+        healthSetAt: expect.any(Date),
+        healthSetByName: "Ana",
+      }),
+    });
+    const body = (await res.json()) as { data: { health: unknown } };
+    expect(body.data.health).toEqual({
+      status: "AT_RISK",
+      note: "Waiting on the client",
+      setAt: setAt.toISOString(),
+      setByName: "Ana",
+    });
+  });
+
+  it("clears the health with null", async () => {
+    projectFindFirstMock.mockResolvedValue(sampleProject);
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ health: null }),
+    });
+    expect(res.status).toBe(200);
+    expect(userFindUniqueMock).not.toHaveBeenCalled();
+    expect(projectUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
+      data: expect.objectContaining({
+        health: null,
+        healthNote: null,
+        healthSetAt: null,
+        healthSetByName: null,
+      }),
+    });
+  });
+
+  it("rejects a coworker key", async () => {
+    const app = createApp(COWORKER_CONTEXT_AUTH);
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ health: { status: "ON_TRACK" } }),
     });
     expect(res.status).toBe(403);
     expect(projectUpdateManyMock).not.toHaveBeenCalled();

@@ -8,6 +8,8 @@ import type {
   Project,
   ProjectCloseStatus,
   ProjectContextMd,
+  ProjectHealth,
+  ProjectHealthState,
   ProjectSocialConnection,
   SocialPost,
   SocialPostMediaRef,
@@ -64,6 +66,13 @@ interface UpdateProjectPostingInstructionsParameters
   projectId: string;
   /** Markdown; blank clears it. */
   postingInstructionsMd: string;
+}
+
+interface SetProjectHealthParameters extends AuthenticatedRequest {
+  projectId: string;
+  /** Null clears the Project's health. */
+  status: ProjectHealth | null;
+  note?: string;
 }
 
 interface ResolveProjectSiteIconParameters extends AuthenticatedRequest {
@@ -408,6 +417,23 @@ export const updateProjectPostingInstructions = withSession<
     );
   } catch (error) {
     console.error("Failed to update project posting instructions", error);
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const setProjectHealth = withSession<
+  SetProjectHealthParameters,
+  ActionResultDto<{ health: ProjectHealthState | null }, ActionError>
+>(async ({ projectId, status, note }) => {
+  try {
+    const project = await projectService.patchProject(projectId, {
+      health: status ? { status, note: note?.trim() || null } : null,
+    });
+
+    revalidateProjectMutationRoutes(projectId);
+    return toActionResult(ok({ health: project.health }));
+  } catch (error) {
+    console.error("Failed to set project health", error);
     return toActionResult(err(toCoreApiActionError(error)));
   }
 });

@@ -1,4 +1,4 @@
-import type { Prisma, Project } from "@sokosumi/database";
+import type { Prisma, Project, ProjectHealth } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, isOwnedProjectLogoUrl } from "@sokosumi/utils";
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
@@ -27,6 +27,12 @@ export interface UpdateProjectInput {
   studioLogoPosition?: StudioLogoPosition | null;
   identifier?: string;
   postingInstructionsMd?: string | null;
+  /** Null clears it. `setByName` is who set it, stored as it is now. */
+  health?: {
+    status: ProjectHealth;
+    note?: string | null;
+    setByName: string | null;
+  } | null;
 }
 
 function identifierTaken(error: unknown): never {
@@ -99,6 +105,12 @@ export async function updateProject(
     data.studioLogoPosition = input.studioLogoPosition;
   if (input.postingInstructionsMd !== undefined) {
     data.postingInstructionsMd = input.postingInstructionsMd?.trim() || null;
+  }
+  if (input.health !== undefined) {
+    data.health = input.health?.status ?? null;
+    data.healthNote = input.health?.note?.trim() || null;
+    data.healthSetAt = input.health ? new Date() : null;
+    data.healthSetByName = input.health?.setByName ?? null;
   }
   const existing = await prisma.project.findFirst({
     where: { id, workspaceId },

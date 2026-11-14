@@ -128,6 +128,7 @@ const project = {
   contextMd: null,
   contextMdUpdating: false,
   latestUpdate: null,
+  health: null,
   createdAt: new Date("2026-09-01T10:00:00.000Z"),
   updatedAt: new Date("2026-09-18T10:00:00.000Z"),
   lastActivityAt: new Date("2026-09-18T10:00:00.000Z"),

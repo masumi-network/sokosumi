@@ -19,6 +19,7 @@ import { isProjectMemoryConfigured } from "@/lib/project-memory-config";
 import {
   agentJobStatusSchema,
   projectEventKindSchema,
+  projectHealthSchema,
   sokosumiJobStatusSchema,
   taskEventStatusSchema,
   taskStatusSchema,
@@ -159,6 +160,27 @@ export const projectLatestUpdateSchema = z
   })
   .openapi("ProjectLatestUpdate");
 
+export const PROJECT_HEALTH_NOTE_MAX_LENGTH = 280;
+
+export const projectHealthStateSchema = z
+  .object({
+    status: projectHealthSchema,
+    note: z.string().nullable().openapi({ example: "Waiting on the client" }),
+    setAt: dateTimeSchema,
+    setByName: z.string().nullable().openapi({
+      description: "Name of the person who set it, as it was then.",
+      example: "Ana Ruiz",
+    }),
+  })
+  .openapi("ProjectHealthState");
+
+export const setProjectHealthRequestSchema = z
+  .object({
+    status: projectHealthSchema,
+    note: z.string().trim().max(PROJECT_HEALTH_NOTE_MAX_LENGTH).nullish(),
+  })
+  .openapi("SetProjectHealthRequest");
+
 export const projectSummarySchema = z
   .object({
     id: z.string().uuid().openapi({
@@ -199,6 +221,11 @@ export const projectSchema = z
     latestUpdate: z.union([projectLatestUpdateSchema, z.null()]).openapi({
       description:
         "Weekly activity report markdown. Null until a valid report is generated.",
+      example: null,
+    }),
+    health: z.union([projectHealthStateSchema, z.null()]).openapi({
+      description:
+        "The team's own On track / At risk / Off track verdict, set by hand. Null until someone sets it.",
       example: null,
     }),
     websiteUrl: z.url().nullable().openapi({ example: "https://example.com" }),
@@ -464,6 +491,13 @@ export const patchProjectRequestSchema = z
         description:
           "Markdown guidance for drafting this Project's social posts. Null or blank clears it.",
       }),
+    health: z
+      .union([setProjectHealthRequestSchema, z.null()])
+      .optional()
+      .openapi({
+        description:
+          "Set the Project's health with an optional note, or null to clear it. Core records who set it and when.",
+      }),
   })
   .superRefine((data, ctx) => {
     if (
@@ -474,12 +508,13 @@ export const patchProjectRequestSchema = z
       data.websiteUrl === undefined &&
       data.logo === undefined &&
       data.studioLogoPosition === undefined &&
-      data.postingInstructionsMd === undefined
+      data.postingInstructionsMd === undefined &&
+      data.health === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "Provide at least one of name, identifier, briefing, description, websiteUrl, logo, studioLogoPosition, or postingInstructionsMd",
+          "Provide at least one of name, identifier, briefing, description, websiteUrl, logo, studioLogoPosition, postingInstructionsMd, or health",
         path: [],
       });
     }
@@ -609,6 +644,15 @@ export function mapProjectForApi(
           }
         : null,
     briefingUrl: project.briefingUrl,
+    health:
+      project.health && project.healthSetAt
+        ? {
+            status: project.health,
+            note: project.healthNote,
+            setAt: project.healthSetAt,
+            setByName: project.healthSetByName,
+          }
+        : null,
     websiteUrl: project.websiteUrl,
     logo: project.logo,
     studioLogoPosition:

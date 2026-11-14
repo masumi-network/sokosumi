@@ -4245,6 +4245,26 @@
             "pill": "Píldora"
           }
         }
+      },
+      "Health": {
+        "title": "Estado",
+        "set": "Definir estado",
+        "change": "Cambiar",
+        "status": {
+          "ON_TRACK": "En marcha",
+          "AT_RISK": "En riesgo",
+          "OFF_TRACK": "Desviado"
+        },
+        "noteLabel": "Nota (opcional)",
+        "notePlaceholder": "¿Qué está pasando? Basta con una línea.",
+        "save": "Guardar",
+        "clear": "Quitar",
+        "saved": "Estado guardado",
+        "cleared": "Estado quitado",
+        "saveFailed": "No se pudo guardar el estado. Inténtalo de nuevo.",
+        "setBy": "Definido por {name}",
+        "setByUnknown": "Definido",
+        "empty": "Nadie ha definido aún el estado de este proyecto."
       }
     },
     "Studio": {

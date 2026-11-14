@@ -24766,6 +24766,50 @@ export const ProjectLatestUpdateSchema = {
     ]
 } as const;
 
+export const ProjectHealthStateSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            $ref: '#/components/schemas/ProjectHealth'
+        },
+        note: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Waiting on the client'
+        },
+        setAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        setByName: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Name of the person who set it, as it was then.',
+            example: 'Ana Ruiz'
+        }
+    },
+    required: [
+        'status',
+        'note',
+        'setAt',
+        'setByName'
+    ]
+} as const;
+
+export const ProjectHealthSchema = {
+    type: 'string',
+    enum: [
+        'ON_TRACK',
+        'AT_RISK',
+        'OFF_TRACK'
+    ]
+} as const;
+
 export const StudioLogoPositionSchema = {
     type: 'string',
     enum: [
@@ -24910,6 +24954,18 @@ export const ProjectSchema = {
             description: 'Weekly activity report markdown. Null until a valid report is generated.',
             example: null
         },
+        health: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectHealthState'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'The team\'s own On track / At risk / Off track verdict, set by hand. Null until someone sets it.',
+            example: null
+        },
         websiteUrl: {
             type: [
                 'string',
@@ -25040,6 +25096,7 @@ export const ProjectSchema = {
         'briefing',
         'briefingUrl',
         'latestUpdate',
+        'health',
         'websiteUrl',
         'logo',
         'designMd',
@@ -40025,8 +40082,38 @@ export const PatchProjectRequestSchema = {
             maxLength: 20000,
             description: 'Markdown guidance for drafting this Project\'s social posts. Null or blank clears it.',
             example: '# Posting instructions\n\nTone: friendly, concise.\n\n## X\n\nOne hashtag max.'
+        },
+        health: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SetProjectHealthRequest'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Set the Project\'s health with an optional note, or null to clear it. Core records who set it and when.'
         }
     }
+} as const;
+
+export const SetProjectHealthRequestSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            $ref: '#/components/schemas/ProjectHealth'
+        },
+        note: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 280
+        }
+    },
+    required: [
+        'status'
+    ]
 } as const;
 
 export const PublicNewsletterSchema = {

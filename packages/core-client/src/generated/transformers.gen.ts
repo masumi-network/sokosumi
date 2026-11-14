@@ -3194,6 +3194,11 @@ const projectLatestUpdateSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const projectHealthStateSchemaResponseTransformer = (data: any) => {
+    data.setAt = new Date(data.setAt);
+    return data;
+};
+
 const projectContextMdMetadataSchemaResponseTransformer = (data: any) => {
     data.updatedAt = new Date(data.updatedAt);
     return data;
@@ -3202,6 +3207,9 @@ const projectContextMdMetadataSchemaResponseTransformer = (data: any) => {
 const projectSchemaResponseTransformer = (data: any) => {
     if (data.latestUpdate) {
         data.latestUpdate = projectLatestUpdateSchemaResponseTransformer(data.latestUpdate);
+    }
+    if (data.health) {
+        data.health = projectHealthStateSchemaResponseTransformer(data.health);
     }
     if (data.contextMd) {
         data.contextMd = projectContextMdMetadataSchemaResponseTransformer(data.contextMd);

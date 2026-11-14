@@ -4245,6 +4245,26 @@
             "pill": "Pille"
           }
         }
+      },
+      "Health": {
+        "title": "Status",
+        "set": "Status setzen",
+        "change": "Ändern",
+        "status": {
+          "ON_TRACK": "Im Plan",
+          "AT_RISK": "Gefährdet",
+          "OFF_TRACK": "Nicht im Plan"
+        },
+        "noteLabel": "Notiz (optional)",
+        "notePlaceholder": "Was ist los? Eine Zeile reicht.",
+        "save": "Speichern",
+        "clear": "Entfernen",
+        "saved": "Status gespeichert",
+        "cleared": "Status entfernt",
+        "saveFailed": "Status konnte nicht gespeichert werden. Versuche es erneut.",
+        "setBy": "Gesetzt von {name}",
+        "setByUnknown": "Gesetzt",
+        "empty": "Noch niemand hat den Status dieses Projekts gesetzt."
       }
     },
     "Studio": {

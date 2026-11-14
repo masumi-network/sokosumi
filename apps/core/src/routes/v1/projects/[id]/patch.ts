@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -30,7 +31,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "patch",
     path: "/{id}",
     description:
-      "Update a project's name, identifier, briefing, website, logo, default Studio logo placement, or social posting instructions. Null or blank postingInstructionsMd clears them. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.",
+      "Update a project's name, identifier, briefing, website, logo, default Studio logo placement, social posting instructions, or health (On track / At risk / Off track with a note; Core stamps who set it and when). Null or blank postingInstructionsMd clears them. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -55,11 +56,22 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireOwnerUserContext(c.var.authContext);
+    const { userId } = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
-    const project = await updateProject(workspaceContext.workspaceId, id, body);
+    const { health, ...body } = c.req.valid("json");
+    const setBy = health
+      ? await prisma.user.findUnique({
+          where: { id: userId },
+          select: { name: true },
+        })
+      : null;
+    const project = await updateProject(workspaceContext.workspaceId, id, {
+      ...body,
+      ...(health !== undefined
+        ? { health: health && { ...health, setByName: setBy?.name ?? null } }
+        : {}),
+    });
     return ok(
       c,
       mapProjectForApi(project, {
