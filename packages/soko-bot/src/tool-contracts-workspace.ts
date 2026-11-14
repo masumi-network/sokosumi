@@ -263,8 +263,14 @@ export const sokoBotSearchInboxInputSchema = z.object({
 });
 
 export const sokoBotReadEmailInputSchema = z.object({
-  provider: z.string(),
-  messageId: z.string(),
+  provider: z
+    .string()
+    .describe("The mailbox provider, separate from messageId."),
+  messageId: z
+    .string()
+    .describe(
+      "The exact raw message ID from search_inbox or a packet's read_email reference. Do not prefix it with the provider.",
+    ),
 });
 
 /** Short enough to stay a cheap judgement, long enough for a page of mail. */

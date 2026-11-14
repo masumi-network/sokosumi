@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { sokoBotReadEmailInputSchema } from "@sokosumi/soko-bot";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
@@ -20,6 +21,7 @@ vi.mock("@/config/env", () => ({
 }));
 
 import { withEvaluationActor } from "@/lib/soko-bot/evaluation-dispatch";
+import { triagedMailLines } from "@/lib/soko-bot/mail-triage";
 import {
   executeIntegrationTool,
   listIntegrationTools,
@@ -191,6 +193,50 @@ describe("persisted actor-scoped mailbox integration adapters", () => {
     );
     expect(outputs[0]).not.toEqual(outputs[1]);
     expect(db.sokoBotIntegration.findMany).not.toHaveBeenCalled();
+    expect(external.getComposio).not.toHaveBeenCalled();
+    expect(external.fetch).not.toHaveBeenCalled();
+  });
+
+  it("renders provider-normalized mail as exact read_email inputs without accepting prefixed or foreign IDs", async () => {
+    const binding = bindings[0]!;
+    binding.caseId = "standup-with-inbox";
+    binding.source = "SCHEDULE";
+    await withEvaluationActor(actor(binding), async () => {
+      const [mailbox] = await activeIntegrationsForBot(
+        binding.sokoBotId,
+        "email",
+      );
+      const messages = await fetchInboxMessages(mailbox!, { limit: 10 });
+      const message = messages[0]!;
+      const packet = triagedMailLines({
+        timeZone: "Europe/Berlin",
+        limit: 10,
+        mail: [
+          { message, tag: "NOTABLE", probability: 0.99, matchesRule: false },
+        ],
+      }).join("\n");
+      const reference = packet.match(/\[read_email (\{.+\})\]/)?.[1];
+      expect(reference).toBeDefined();
+      const input = sokoBotReadEmailInputSchema.parse(JSON.parse(reference!));
+      expect(input).toEqual({ provider: "gmail", messageId: message.id });
+      const [resolved] = await activeIntegrationsForBot(
+        binding.sokoBotId,
+        "email",
+        input.provider,
+      );
+      expect((await fetchInboxMessage(resolved!, input.messageId)).id).toBe(
+        message.id,
+      );
+      for (const foreignId of [
+        `gmail:${message.id}`,
+        `eval-mail:${bindings[1]!.resultId}:headline`,
+        "not-a-returned-message",
+      ]) {
+        await expect(fetchInboxMessage(resolved!, foreignId)).rejects.toThrow(
+          "message ID is not in this result",
+        );
+      }
+    });
     expect(external.getComposio).not.toHaveBeenCalled();
     expect(external.fetch).not.toHaveBeenCalled();
   });

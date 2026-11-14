@@ -21,6 +21,68 @@ import {
 import { type RuntimeOperations } from "./operations";
 import { MAX_BOT_COMMENTS_PER_TASK_PER_DAY } from "./task-policy";
 
+/** Table publication is bookkeeping, not the turn's recovery comment. */
+function isTablePublicationComment(
+  event: { id: string; comment: string | null },
+  taskId: string,
+  botId: string,
+): boolean {
+  const match = /^\[Open table\]\(\/drive\/tables\/([0-9a-f-]+)\)$/.exec(
+    event.comment ?? "",
+  );
+  const tableId = z.uuid().safeParse(match?.[1]);
+  return (
+    tableId.success &&
+    event.comment === `[Open table](/drive/tables/${tableId.data})` &&
+    event.id === uuidv5(`table-created:task:${taskId}:${botId}`, tableId.data)
+  );
+}
+
+/** Only a committed comment receipt and its real event can satisfy recovery. */
+async function priorEventComment(
+  tx: Prisma.TransactionClient,
+  turnId: string,
+  botId: string,
+  taskId: string,
+) {
+  const receipts = await tx.sokoBotToolCall.findMany({
+    where: {
+      turnId,
+      actorBotId: botId,
+      targetId: taskId,
+      capability: "reply_to_task",
+      status: "COMPLETED",
+      disposition: "APPLIED",
+      verification: "LOCAL_TRANSACTION",
+      committedAt: { not: null },
+      effectEventId: { not: null },
+    },
+    select: { input: true, effectEventId: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+  const eventIds = receipts.flatMap((receipt) => {
+    const input = replyToTaskInputSchema.safeParse(receipt.input);
+    return input.success &&
+      input.data.taskId === taskId &&
+      !input.data.status &&
+      receipt.effectEventId
+      ? [receipt.effectEventId]
+      : [];
+  });
+  if (!eventIds.length) return null;
+  const events = await tx.taskEvent.findMany({
+    where: { id: { in: eventIds }, taskId, sokoBotId: botId, status: null },
+    select: { id: true, comment: true },
+  });
+  return (
+    events.find(
+      (event) =>
+        event.comment?.trim() &&
+        !isTablePublicationComment(event, taskId, botId),
+    ) ?? null
+  );
+}
+
 /** Progress a Task this Soko Bot is assigned to; no credits involved. */
 export async function updateAssignedTask(
   runtime: RuntimeOperations,
@@ -224,6 +286,44 @@ export async function replyToTask(
       throw new SokoBotRuntimeValidationError(
         "Task not found; copy its id exactly from list_tasks or get_task_status",
       );
+    if (
+      authorized.turn.source === "EVENT" &&
+      !input.status &&
+      !options?.publicationId
+    ) {
+      const previous = await priorEventComment(
+        tx,
+        authorized.turn.id,
+        authorized.turn.sokoBotId,
+        task.id,
+      );
+      if (previous) {
+        const result = {
+          id: task.id,
+          name: task.name,
+          status: task.status,
+          commented: false,
+          alreadyCommented: true,
+          eventId: previous.id,
+          statusChanged: false,
+        };
+        // The old event is proven above. Do not enqueue its publication again.
+        await commitActionReceipt(tx, {
+          turnId: authorized.turn.id,
+          toolCallId,
+          actorBotId: authorized.turn.sokoBotId,
+          targetId: task.id,
+          disposition: "ALREADY_SATISFIED",
+          result: persistedToolResult(result),
+        });
+        return {
+          result,
+          eventId: previous.id,
+          ownerId: task.ownerId,
+          eventStatus: null,
+        };
+      }
+    }
     if (!input.status && !options?.publicationId) {
       const events = await tx.taskEvent.findMany({
         where: {
@@ -234,21 +334,10 @@ export async function replyToTask(
         },
         select: { id: true, comment: true },
       });
-      const recent = events.filter((event) => {
-        const match = /^\[Open table\]\(\/drive\/tables\/([0-9a-f-]+)\)$/.exec(
-          event.comment ?? "",
-        );
-        const tableId = z.uuid().safeParse(match?.[1]);
-        return (
-          !tableId.success ||
-          event.comment !== `[Open table](/drive/tables/${tableId.data})` ||
-          event.id !==
-            uuidv5(
-              `table-created:task:${task.id}:${authorized.turn.sokoBotId}`,
-              tableId.data,
-            )
-        );
-      }).length;
+      const recent = events.filter(
+        (event) =>
+          !isTablePublicationComment(event, task.id, authorized.turn.sokoBotId),
+      ).length;
       if (recent >= MAX_BOT_COMMENTS_PER_TASK_PER_DAY) {
         throw new SokoBotRuntimeValidationError(
           `You already commented ${recent} times on this Task today; hold further comments unless they are urgent`,

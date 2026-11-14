@@ -6,8 +6,11 @@ import {
 } from "@sokosumi/soko-bot";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
+import { judgeEvalScenarioTurn } from "@/services/soko-bot-lab-judge.service";
 import { loadLabScenarioTurn } from "@/services/soko-bot-lab-scenario.service";
 import { SokoBotRuntimeService } from "@/services/soko-bot-runtime.service";
+import { pollEvalCase } from "./eval-case-runner";
+import type { EvalCase } from "./eval-cases";
 import { type EvalLaneRecord, ensureEvalLanes } from "./eval-lanes.service";
 import { seoEvalChecks } from "./eval-seo-checks";
 import {
@@ -32,6 +35,10 @@ vi.mock("@/helpers/notification-email-dispatch", async (importOriginal) => ({
 vi.mock("@/lib/ably/publish", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ably/publish")>()),
   publishTaskEventData: vi.fn(async () => undefined),
+}));
+
+vi.mock("@/services/soko-bot-lab-judge.service", () => ({
+  judgeEvalScenarioTurn: vi.fn(async () => null),
 }));
 
 const enabled =
@@ -245,6 +252,14 @@ describe.skipIf(!enabled)(
           await call("get_task_status", { taskId: link.taskId });
         }
         const stored = await loadLabScenarioTurn(turnId);
+        expect(stored.createdAt).toEqual(
+          (
+            await prisma.sokoBotTurn.findUniqueOrThrow({
+              where: { id: turnId },
+              select: { createdAt: true },
+            })
+          ).createdAt,
+        );
         const checks = await seoEvalChecks(
           caseId,
           lane,
@@ -354,6 +369,57 @@ describe.skipIf(!enabled)(
         }
       },
     );
+
+    it("preserves real failed-turn diagnostics and reports infrastructure before SEO scoring", async () => {
+      const prepared = await prepare("seo-save-keyword");
+      const turnId = await turn(prepared.resultId);
+      const errorDetail =
+        "API key budget exceeded. Current spend: $400.12, limit: $400.00.";
+      await prisma.sokoBotTurn.update({
+        where: { id: turnId },
+        data: {
+          status: "FAILED",
+          errorKind: "GatewayInternalServerError",
+          errorDetail,
+        },
+      });
+      const loaded = await loadLabScenarioTurn(turnId);
+      expect(loaded).toMatchObject({
+        errorKind: "GatewayInternalServerError",
+        errorDetail,
+      });
+      const result = await pollEvalCase(
+        {
+          kind: "scenario",
+          id: prepared.scenario.id,
+          suite: "soko-bot",
+          bot: "soko-bot",
+          scenario: prepared.scenario,
+        } as EvalCase,
+        lane,
+        { turnId, state: prepared.state },
+        {
+          resultId: prepared.resultId,
+          firstOfSuite: false,
+          startedAt: new Date(),
+        },
+      );
+      expect(result).toMatchObject({
+        kind: "done",
+        outcome: {
+          status: "ERROR",
+          checks: [],
+          turnIds: [turnId],
+          output: {
+            infrastructure: {
+              code: "provider_budget_exhausted",
+              detail: errorDetail,
+            },
+          },
+        },
+      });
+      expect(judgeEvalScenarioTurn).not.toHaveBeenCalled();
+    });
 
     it("does not accept a successful tool name with no stored effect or a forged lane", async () => {
       const prepared = await prepare("seo-save-keyword");

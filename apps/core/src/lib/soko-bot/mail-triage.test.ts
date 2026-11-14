@@ -344,7 +344,9 @@ describe("triagedMailLines", () => {
     }).join("\n");
     expect(lines).toContain("### Urgent (1)");
     expect(lines).toContain("### Already answered by the owner (1)");
-    expect(lines).toMatch(/\[gmail:a1\] · you replied .*09:30/);
+    expect(lines).toMatch(
+      /\[read_email \{"provider":"gmail","messageId":"a1"\}\] · you replied .*09:30/,
+    );
     expect(lines).not.toContain("### Not triaged");
   });
 
@@ -366,15 +368,19 @@ describe("triagedMailLines", () => {
       lines.indexOf("### Notable (1)"),
     );
     expect(lines).toContain(
-      "**Subject u1** — Subject u1 [gmail:u1] · urgent 90%",
+      '**Subject u1** — Subject u1 [read_email {"provider":"gmail","messageId":"u1"}] · urgent 90%',
     );
-    expect(lines).toContain("[gmail:n1] · notable 90%");
+    expect(lines).toContain(
+      '[read_email {"provider":"gmail","messageId":"n1"}] · notable 90%',
+    );
     expect(lines).toContain(
       "### Bulk (3)\n- GitHub ×2, newsletter@substack.com (search_inbox to read any of them)",
     );
     expect(lines).not.toContain("Subject b1");
     expect(lines).toContain("### Not triaged (1)");
-    expect(lines).toMatch(/\[gmail:x1\]$/m);
+    expect(lines).toMatch(
+      /\[read_email \{"provider":"gmail","messageId":"x1"\}\]$/m,
+    );
   });
 
   it("lists rule-matching mail first and in full, even when bulk", () => {
@@ -389,7 +395,9 @@ describe("triagedMailLines", () => {
     expect(lines).toContain(
       "### Matches a saved rule of the owner's: act on it (1)",
     );
-    expect(lines).toContain("[gmail:inv] · bulk 90%");
+    expect(lines).toContain(
+      '[read_email {"provider":"gmail","messageId":"inv"}] · bulk 90%',
+    );
     expect(lines).toContain("### Bulk (1)");
   });
 

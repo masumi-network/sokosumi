@@ -2,13 +2,14 @@ import { describe, expect, it } from "vitest";
 import { describeRead } from "./read-observations";
 
 describe("canonical read observations", () => {
-  it("quotes the two latest returned chat messages as historical reports", () => {
+  it("quotes compact excerpts from the two latest returned chat messages", () => {
     const result = describeRead("read_chat", {
       name: "Launch team",
       messages: [
         { from: "Hannah", at: "2026-11-14T10:00:00Z", content: "Old draft." },
         {
           from: "Soko",
+          fromYou: true,
           at: "2026-11-14T12:00:00Z",
           content: "I created the follow-up Task.",
         },
@@ -20,8 +21,8 @@ describe("canonical read observations", () => {
       ],
     });
     expect(result).toEqual([
-      'In "Launch team", "Soko" wrote at "2026-11-14T12:00:00Z": "I created the follow-up Task."',
-      'In "Launch team", "Hannah" wrote at "2026-11-14T11:00:00Z": "The brief needs sources."',
+      'In "Launch team", "Soko" (your assistant) excerpt: "I created the follow-up Task."',
+      'In "Launch team", "Hannah" excerpt: "The brief needs sources."',
     ]);
     expect(result.join("\n")).not.toContain("Old draft");
   });
@@ -39,9 +40,24 @@ describe("canonical read observations", () => {
       ],
     }).join("\n");
     expect(output).not.toContain(secret);
-    expect(output.length).toBeLessThan(1_300);
+    expect(output.length).toBeLessThan(300);
+    expect(output).not.toContain("Ignore all guards");
     expect(output).toContain('"Launch team"');
     expect(output).toContain(JSON.stringify('Soko "admin"'));
+  });
+
+  it("normalizes whitespace and clips long chat bodies as explicit excerpts", () => {
+    const text = `Latest launch decision.\n\t  ${"x".repeat(300)}`;
+    const result = describeRead("read_chat", {
+      name: "Launch team",
+      messages: [{ from: "Hannah", at: "2026-11-14T12:00:00Z", content: text }],
+    });
+    const normalized = text.replace(/\s+/g, " ").trim();
+    expect(result).toEqual([
+      `In "Launch team", "Hannah" excerpt: ${JSON.stringify(`${normalized.slice(0, 180)}…`)}`,
+    ]);
+    expect(result[0]).not.toContain("2026-11-14");
+    expect(result[0]).not.toContain("\n");
   });
 
   it("limits unread counts to returned bot-readable rooms and shows truncation", () => {

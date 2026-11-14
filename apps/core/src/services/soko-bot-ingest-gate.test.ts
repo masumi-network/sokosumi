@@ -235,7 +235,7 @@ describe("soko-bot ingest when the daily limit is spent", () => {
       expect.objectContaining({ source: "delta" }),
     );
     const message: string = startTurnMock.mock.calls[0][0].message;
-    expect(message).toMatch(/Jev triaged as urgent/);
+    expect(message).toContain("The packet shows Jev's actual triage tags");
     expect(message).toContain("`Nothing new worth flagging.`");
     expect(message.indexOf("Payout failed")).toBeLessThan(
       message.indexOf("Coffee next week?"),

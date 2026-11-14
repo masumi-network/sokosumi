@@ -88,7 +88,7 @@ describe("soko-bot ingest", () => {
     expect(message).toContain("triaged by Jev");
     expect(message).toContain("a guide, not a fact");
     expect(message).toContain(
-      "**Contract draft** — Can you review by Friday? [gmail:m1] · urgent 90%",
+      '**Contract draft** — Can you review by Friday? [read_email {"provider":"gmail","messageId":"m1"}] · urgent 90%',
     );
   });
 
@@ -164,7 +164,9 @@ describe("soko-bot ingest", () => {
     });
     expect(message).toContain("`save_email_attachment`");
     expect(message).toContain("Matches a saved rule");
-    expect(message).toContain("[gmail:inv]");
+    expect(message).toContain(
+      '[read_email {"provider":"gmail","messageId":"inv"}]',
+    );
   });
 
   it("says so when a delta packet is empty", () => {

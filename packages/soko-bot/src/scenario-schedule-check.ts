@@ -1,7 +1,8 @@
 import type { ScenarioCheck, SokoBotLabTurn } from "./scenario-types.js";
 
 const MINUTE_MS = 60_000;
-// Leave room for tool execution between the owner's request and persistence.
+// Relative requests start at the owner's turn, before model or tool latency.
+// Keep the existing allowance for minute-level scheduling precision.
 const SCHEDULE_TIMING_TOLERANCE_MS = 2 * MINUTE_MS;
 
 function object(value: unknown): Record<string, unknown> | null {
@@ -91,8 +92,8 @@ export function oneTimeTaskCheck(
     const { input, result } = schedule;
     const requestedAt = timestamp(input.runAt);
     const nextRunAt = timestamp(result.nextRunAt);
-    const persistedAt = timestamp(result.updatedAt ?? result.createdAt);
-    const delay = nextRunAt - persistedAt;
+    const requestedFrom = timestamp(turn.createdAt);
+    const delay = nextRunAt - requestedFrom;
     valid =
       result.enabled === true &&
       result.runOnce === true &&

@@ -667,11 +667,13 @@ function taskCheck(
 function checkBack(
   calls: SokoBotLabTurn["toolCalls"],
   route: SokoBotLabTurn["route"] = "MANAGE_WORK",
+  turnOverrides: Partial<SokoBotLabTurn> = {},
 ) {
   return evaluateScenario(
     byId("check-back-later"),
     turn({
       route,
+      createdAt: "2026-11-14T00:00:00Z",
       finalAnswer: "I will check the x402 Task in ten minutes.",
       contextPacket: {
         tasks: [
@@ -680,11 +682,43 @@ function checkBack(
         ],
       },
       toolCalls: calls,
+      ...turnOverrides,
     }),
   );
 }
 
 describe("one-time Task follow-up checks", () => {
+  it("measures ten minutes from the owner turn even when persistence is delayed four minutes", () => {
+    const result = checkBack([
+      taskCheck({
+        createdAt: "2026-11-14T00:04:00Z",
+        updatedAt: "2026-11-14T00:04:00Z",
+      }),
+    ]);
+    expect(result.passed).toBe(result.total);
+  });
+
+  it("rejects ten minutes from delayed persistence when that misses the owner's requested time", () => {
+    const result = checkBack([
+      taskCheck(
+        {
+          createdAt: "2026-11-14T00:04:00Z",
+          updatedAt: "2026-11-14T00:04:00Z",
+          nextRunAt: "2026-11-14T00:14:00Z",
+        },
+        { runAt: "2026-11-14T00:14:00Z" },
+      ),
+    ]);
+    expect(result.passed).toBeLessThan(result.total);
+  });
+
+  it("does not substitute schedule persistence for a missing owner-turn timestamp", () => {
+    const result = checkBack([taskCheck()], "MANAGE_WORK", {
+      createdAt: undefined,
+    });
+    expect(result.passed).toBeLessThan(result.total);
+  });
+
   it.each(["MANAGE_WORK", "CLARIFY"] as const)(
     "accepts a persisted one-time schedule for the requested Task on %s",
     (route) => {

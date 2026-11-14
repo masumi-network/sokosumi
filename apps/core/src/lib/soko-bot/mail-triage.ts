@@ -5,8 +5,8 @@ import {
 
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
-
 import { evaluateWithJev, type JevAnswer, SOKO_BOT_JEV_MODEL } from "./jev";
+import { mailReadReference } from "./mail-read-reference";
 
 export const MAIL_TRIAGE_TAGS = ["URGENT", "NOTABLE", "BULK"] as const;
 export type MailTriageTag = (typeof MAIL_TRIAGE_TAGS)[number];
@@ -335,7 +335,7 @@ function mailLine(
 ): string {
   const { message } = item;
   const snippet = message.snippet.replace(/\s+/g, " ").slice(0, snippetLength);
-  return `- ${receivedAt(message.receivedAt, timeZone)} · ${message.unread ? "unread" : "read"} · from ${message.from} · **${message.subject || "(no subject)"}**${snippet ? ` — ${snippet}` : ""} [${message.provider}:${message.id}]${item.tag ? ` · ${item.tag.toLowerCase()}${percent(item.probability)}` : ""}${message.repliedAt ? ` · you replied ${receivedAt(message.repliedAt, timeZone)}` : ""}`;
+  return `- ${receivedAt(message.receivedAt, timeZone)} · ${message.unread ? "unread" : "read"} · from ${message.from} · **${message.subject || "(no subject)"}**${snippet ? ` — ${snippet}` : ""} [${mailReadReference(message)}]${item.tag ? ` · ${item.tag.toLowerCase()}${percent(item.probability)}` : ""}${message.repliedAt ? ` · you replied ${receivedAt(message.repliedAt, timeZone)}` : ""}`;
 }
 
 /**

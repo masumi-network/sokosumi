@@ -15,7 +15,7 @@ export const READ_OBSERVATION_CAPABILITIES = [
 const MAX_CHAT_MESSAGES = 2;
 const MAX_UNREAD_ROOMS = 5;
 const MAX_CHAT_LABEL_LENGTH = 120;
-const MAX_CHAT_MESSAGE_LENGTH = 1_000;
+const MAX_CHAT_MESSAGE_LENGTH = 180;
 const MAX_STORED_CHAT_ITEMS = 100;
 
 const chatRead = z.object({
@@ -24,6 +24,7 @@ const chatRead = z.object({
     .array(
       z.object({
         from: z.string(),
+        fromYou: z.boolean().optional(),
         at: z.string().datetime({ offset: true }),
         content: z.string(),
       }),
@@ -45,7 +46,7 @@ const unreadChats = z.object({
 
 /** Redact the whole value before clipping, so a partial secret is never shown. */
 function quoteChat(value: string, maxLength = MAX_CHAT_LABEL_LENGTH): string {
-  const safe = redactSokoBotSensitiveText(value).replace(/[\r\n]+/g, " ");
+  const safe = redactSokoBotSensitiveText(value).replace(/\s+/g, " ").trim();
   return JSON.stringify(
     safe.length > maxLength ? `${safe.slice(0, maxLength)}…` : safe,
   );
@@ -78,7 +79,7 @@ function describeChatRead(capability: string, value: unknown): string[] {
     return [`No messages were returned from ${quoteChat(parsed.data.name)}.`];
   return messages.map(
     (message) =>
-      `In ${quoteChat(parsed.data.name)}, ${quoteChat(message.from)} wrote at ${JSON.stringify(message.at)}: ${quoteChat(message.content, MAX_CHAT_MESSAGE_LENGTH)}`,
+      `In ${quoteChat(parsed.data.name)}, ${quoteChat(message.from)}${message.fromYou ? " (your assistant)" : ""} excerpt: ${quoteChat(message.content, MAX_CHAT_MESSAGE_LENGTH)}`,
   );
 }
 

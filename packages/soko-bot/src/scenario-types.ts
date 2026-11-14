@@ -11,6 +11,8 @@
  */
 /** The slice of a finished turn the evaluator reads; the web detail DTO and the Core rows both satisfy it. */
 export interface SokoBotLabTurn {
+  /** Persisted owner/event arrival time, before model and tool latency. */
+  createdAt?: string | Date;
   /** Owner message or event text; ids it mentions are known, not invented. */
   userMessage?: string | null;
   /** Context packet the runtime received; its ids are known too. */

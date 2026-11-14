@@ -381,6 +381,7 @@ describe("finishTurn", () => {
         );
       buildActionResponseMock.mockImplementationOnce(buildActionResponse);
       claimsActionMock.mockResolvedValue(true);
+      const recentMessage = `Created the research follow-up for Hannah.\n### Sources\n${"Long background. ".repeat(100)}`;
       const reads = [
         {
           toolCallId: "list-current",
@@ -408,7 +409,13 @@ describe("finishTurn", () => {
               {
                 from: "Soko",
                 at: "2026-11-14T15:51:00Z",
-                content: "Created the research follow-up for Hannah.",
+                fromYou: true,
+                content: recentMessage,
+              },
+              {
+                from: "Hannah",
+                at: "2026-11-14T15:50:00Z",
+                content: "Pricing evidence is still missing.",
               },
             ],
           },
@@ -441,12 +448,26 @@ describe("finishTurn", () => {
       expect(response.answerText).toContain(
         'Unread chats I can read: "Launch team" (2).',
       );
+      expect(response.answerText).toContain('"Soko" (your assistant) excerpt:');
       expect(response.answerText).toContain(
-        '"Soko" wrote at "2026-11-14T15:51:00Z"',
+        JSON.stringify(
+          `${recentMessage.replace(/\s+/g, " ").trim().slice(0, 180)}…`,
+        ),
       );
+      expect(response.answerText.split("\n")).toHaveLength(3);
       expect(response.answerText).toContain(
-        '"Created the research follow-up for Hannah."',
+        '"Hannah" excerpt: "Pricing evidence is still missing."',
       );
+      expect(response.answerText).not.toContain("2026-11-14T15:51:00Z");
+      expect(response.answerText.length).toBeLessThan(420);
+      const rebuilt = await buildActionResponse(
+        (await import("@/lib/db/prisma")).default,
+        "turn-1",
+        response.answerText,
+        true,
+        response.narrative,
+      );
+      expect(rebuilt.answerText).toBe(response.answerText);
       expect(response.answerText).not.toContain("I created a new audit");
       expect(response.narrative.message).toBeNull();
       expect(response.narrative.observationToolCallIds).toEqual([

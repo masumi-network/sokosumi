@@ -5,6 +5,7 @@ import type {
 import { upcomingFollowUps } from "@sokosumi/soko-bot";
 import { FREEMAIL_DOMAINS } from "@/lib/contacts/capture-filters";
 import prisma from "@/lib/db/prisma";
+import { mailReadReference } from "@/lib/soko-bot/mail-read-reference";
 import { rhythmTaskScope } from "@/lib/soko-bot/rhythm-task-scope";
 import { contactLinesByEmail } from "@/services/contacts-context.service";
 import {
@@ -126,7 +127,7 @@ function when(date: string, timeZone: string): string {
 }
 
 function mailLine(message: SokoBotInboxMessage, timeZone: string): string {
-  return `- ${when(message.receivedAt, timeZone)} · from ${message.from} · **${message.subject || "(no subject)"}** — ${message.snippet.replace(/\s+/g, " ").slice(0, 140)} [${message.provider}:${message.id}]`;
+  return `- ${when(message.receivedAt, timeZone)} · from ${message.from} · **${message.subject || "(no subject)"}** — ${message.snippet.replace(/\s+/g, " ").slice(0, 140)} [${mailReadReference(message)}]`;
 }
 
 function emailOf(value: string): string | null {
@@ -380,7 +381,7 @@ async function followUpChaser(
         .slice(0, 10)
         .map(
           (m) =>
-            `- ${when(m.receivedAt, bot.ingestTimezone)} · to ${m.to.slice(0, 3).join(", ")} · **${m.subject || "(no subject)"}** — ${m.snippet.replace(/\s+/g, " ").slice(0, 140)} [${m.provider}:${m.id}]`,
+            `- ${when(m.receivedAt, bot.ingestTimezone)} · to ${m.to.slice(0, 3).join(", ")} · **${m.subject || "(no subject)"}** — ${m.snippet.replace(/\s+/g, " ").slice(0, 140)} [${mailReadReference(m)}]`,
         ),
       "",
     );

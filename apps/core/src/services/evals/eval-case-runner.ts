@@ -26,6 +26,7 @@ import {
   prepareCmoChatCase,
   startCmoCase,
 } from "./eval-cmo-runner";
+import { infrastructureCaseOutcome } from "./eval-infrastructure";
 import {
   type EvalLaneRecord,
   resetEvalLaneForSokoBot,
@@ -229,6 +230,12 @@ async function pollScenario(
       outcome: caseError("The turn did not settle in 20 minutes", [turnId]),
     };
   }
+  const infrastructure = infrastructureCaseOutcome(
+    turnId,
+    turn,
+    scenarioOutput(turn),
+  );
+  if (infrastructure) return { kind: "done", outcome: infrastructure };
   const result = evaluateScenario(scenario, turn);
   const seoChecks = await seoEvalChecks(scenario.id, lane, turn, state);
   result.checks.push(...seoChecks);
