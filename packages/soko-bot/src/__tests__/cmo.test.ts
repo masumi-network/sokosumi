@@ -12,8 +12,9 @@ import {
 } from "../cmo.js";
 import { SOKO_BOT_CMO_CAPABILITIES } from "../policy.js";
 import { marketingStrategyPlanSchema } from "../project-marketing.js";
-import { CMO_SCENARIOS, evaluateScenario } from "../scenarios.js";
-import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
+import { CMO_SCENARIOS } from "../scenario-cmo.js";
+import { evaluateScenario } from "../scenario-evaluator.js";
+import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-descriptions.js";
 import {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,

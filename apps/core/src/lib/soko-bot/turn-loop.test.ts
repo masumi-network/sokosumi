@@ -7,6 +7,7 @@ const {
   turnFind,
   toolCallFind,
   eventTransaction,
+  executeToolMock,
 } = vi.hoisted(() => ({
   buildActionResponseMock: vi.fn(),
   claimsActionMock: vi.fn(),
@@ -14,6 +15,7 @@ const {
   turnFind: vi.fn(),
   toolCallFind: vi.fn(),
   eventTransaction: vi.fn(),
+  executeToolMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -23,7 +25,13 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: eventTransaction,
   },
 }));
-vi.mock("./answer-claims", () => ({ claimsAction: claimsActionMock }));
+vi.mock("./answer-claims", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./answer-claims")>()),
+  claimsAction: claimsActionMock,
+}));
+vi.mock("@/services/soko-bot-runtime.service", () => ({
+  sokoBotRuntimeService: { executeTool: executeToolMock },
+}));
 vi.mock("./action-response", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./action-response")>()),
   buildActionResponse: buildActionResponseMock,
@@ -34,6 +42,7 @@ import {
   finishTurn,
   latestExchange,
   RuntimeEventLog,
+  runTurnTool,
   runtimeEvent,
   sokoBotMaxSteps,
 } from "./turn-loop";
@@ -209,6 +218,56 @@ function finish(text: string, requiresActionProof: boolean) {
   });
 }
 
+function savedRecallTurn() {
+  return {
+    source: "CHAT",
+    route: "DIRECT_RESPONSE",
+    userMessage: "What did I tell you about Tasks for Hannah?",
+    contextSnapshot: {
+      packet: {
+        trigger: {
+          source: "CHAT",
+          route: "DIRECT_RESPONSE",
+          askedBy: { kind: "OWNER" },
+        },
+        memory: {
+          markdown:
+            "# Soko Bot memory\n\n## Preferences\n- Write every Task for Hannah in German.",
+        },
+      },
+    },
+  };
+}
+
+function savedBoardTurn() {
+  return {
+    ...savedRecallTurn(),
+    userMessage:
+      "Which of my open tasks have not moved for more than a week, and who has each one?",
+    toolCalls: [
+      {
+        capability: "list_tasks",
+        status: "COMPLETED",
+        input: { state: "open", limit: 25 },
+        createdAt: new Date("2026-11-14T13:11:31Z"),
+        result: {
+          tasks: [
+            {
+              id: "01a1da2c-f827-7122-9a10-25897248360f",
+              name: "Launch QA",
+              owner: "your owner",
+              status: "DRAFT",
+              updatedAt: "2026-11-14T13:09:02.631Z",
+              assignee: { kind: "member", name: "Robin Keller" },
+            },
+          ],
+          total: 1,
+        },
+      },
+    ],
+  };
+}
+
 function completedMessage(): unknown {
   return log.append.mock.calls
     .map(([event]) => event)
@@ -219,9 +278,68 @@ beforeEach(() => {
   vi.clearAllMocks();
   claimsActionMock.mockResolvedValue(false);
   toolCallFind.mockResolvedValue([]);
+  turnFind.mockResolvedValue(null);
   buildActionResponseMock.mockImplementation(
     async (_tx, _turnId, text: string) => ({ answerText: text }),
   );
+});
+
+describe("runTurnTool table creation", () => {
+  it("tells the model to retry an empty directory search", async () => {
+    executeToolMock.mockResolvedValue({ people: [], coworkers: [] });
+    await expect(
+      runTurnTool({
+        log: log as never,
+        capability: "find_coworkers",
+        toolCallId: "directory-1",
+        toolInput: { query: "research" },
+      }),
+    ).resolves.toMatchObject({
+      evidenceToolCallId: "directory-1",
+      result: {
+        people: [],
+        coworkers: [],
+        instruction: expect.stringContaining("Retry without a query"),
+      },
+    });
+  });
+
+  it("does not invite a preview after a confirmed schedule deletion", async () => {
+    executeToolMock.mockResolvedValue({
+      id: "deleted-1",
+      name: "Old check",
+      deleted: true,
+    });
+    await expect(
+      runTurnTool({
+        log: log as never,
+        capability: "delete_schedule",
+        toolCallId: "delete-1",
+        toolInput: { scheduleId: "deleted-1" },
+      }),
+    ).resolves.toMatchObject({
+      id: "deleted-1",
+      instruction: expect.stringContaining("do not call preview_result"),
+    });
+  });
+
+  it("tells the model that successful creation already inserted its rows", async () => {
+    executeToolMock.mockResolvedValue({
+      table: { id: "table-1", title: "Launch research" },
+      url: "/drive/tables/table-1",
+    });
+    const result = await runTurnTool({
+      log: log as never,
+      capability: "create_table",
+      toolCallId: "create-1",
+      toolInput: { rows: [{ name: "A" }, { name: "B" }] },
+    });
+    expect(result).toMatchObject({
+      table: { id: "table-1", title: "Launch research" },
+      initialRowCount: 2,
+      instruction: expect.stringContaining("Do not insert those rows again"),
+    });
+  });
 });
 
 describe("finishTurn", () => {
@@ -251,6 +369,81 @@ describe("finishTurn", () => {
     });
   });
 
+  it("answers a suppressed owner recall from matching saved memory, not the model's claim", async () => {
+    const { buildActionResponse } =
+      await vi.importActual<typeof import("./action-response")>(
+        "./action-response",
+      );
+    buildActionResponseMock.mockImplementationOnce(buildActionResponse);
+    claimsActionMock.mockResolvedValue(true);
+    turnFind.mockResolvedValue(savedRecallTurn());
+    await finish("I created a German Task for Hannah.", true);
+    const narrative = buildActionResponseMock.mock.calls[0][4];
+    expect(narrative.message).toBe(
+      "Saved memory:\n> Write every Task for Hannah in German.",
+    );
+    expect(narrative.message).not.toContain("I created");
+    expect(completedMessage()).toBe(narrative.message);
+    expect(turnUpdate.mock.calls[0][0].data.responseContract.answerText).toBe(
+      narrative.message,
+    );
+  });
+
+  it("does not replace a mutation report with a memory quotation", async () => {
+    claimsActionMock.mockResolvedValue(true);
+    toolCallFind.mockResolvedValue([{ capability: "update_memory" }]);
+    turnFind.mockResolvedValue(savedRecallTurn());
+    await finish("I sent Hannah a new Task.", true);
+    expect(buildActionResponseMock.mock.calls[0][4].message).toBeNull();
+  });
+
+  it("answers a withheld idle-board question from the complete same-turn read", async () => {
+    const { buildActionResponse } =
+      await vi.importActual<typeof import("./action-response")>(
+        "./action-response",
+      );
+    buildActionResponseMock.mockImplementationOnce(buildActionResponse);
+    claimsActionMock.mockResolvedValue(true);
+    const board = savedBoardTurn();
+    turnFind.mockResolvedValue(board);
+    toolCallFind.mockImplementation(async ({ where }) =>
+      where.capability?.in?.includes("list_tasks")
+        ? board.toolCalls.map(({ capability, result }) => ({
+            capability,
+            result,
+          }))
+        : [],
+    );
+    await finish("I moved all those Tasks forward.", true);
+    const narrative = buildActionResponseMock.mock.calls[0][4];
+    expect(narrative.message).toBe(
+      "None of your open Tasks has been idle for more than 1 week.",
+    );
+    expect(narrative.message).not.toContain("I moved");
+    expect(completedMessage()).toBe(narrative.message);
+    expect(claimsActionMock.mock.calls[0][2]).toEqual([
+      { capability: "list_tasks", result: board.toolCalls[0].result },
+    ]);
+    expect(turnFind).toHaveBeenCalledWith({
+      where: { id: "turn-1" },
+      select: expect.objectContaining({
+        toolCalls: expect.objectContaining({
+          where: { capability: "list_tasks", status: "COMPLETED" },
+          take: 1,
+        }),
+      }),
+    });
+  });
+
+  it("keeps the failed-check warning even when matching memory exists", async () => {
+    claimsActionMock.mockResolvedValue(null);
+    turnFind.mockResolvedValue(savedRecallTurn());
+    await finish("Hannah's Tasks are in German.", true);
+    const message = buildActionResponseMock.mock.calls[0][4].message;
+    expect(message).toContain("could not be checked");
+    expect(message).not.toContain("German");
+  });
+
   it("lets the message report the changes its receipts confirm", async () => {
     toolCallFind.mockResolvedValue([
       { capability: "update_memory" },
@@ -260,6 +453,42 @@ describe("finishTurn", () => {
     expect(claimsActionMock).toHaveBeenCalledWith(
       "Wrap: two tasks done. I updated memory.",
       ["Updated memory"],
+      [],
+    );
+  });
+
+  it("gives the claim check chat observations without treating reads as changes", async () => {
+    const result = {
+      messages: [{ author: "Hannah", content: "Research is ready." }],
+    };
+    toolCallFind.mockResolvedValue([
+      { capability: "read_chat", result },
+      { capability: "update_memory", result: {} },
+    ]);
+    await finish("Hannah says the research is ready.", true);
+    expect(claimsActionMock).toHaveBeenCalledWith(
+      "Hannah says the research is ready.",
+      ["Updated memory"],
+      [{ capability: "read_chat", result }],
+    );
+    expect(toolCallFind).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          turnId: "turn-1",
+          status: "COMPLETED",
+        }),
+      }),
+    );
+    expect(toolCallFind).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 4,
+        select: { capability: true, result: true },
+        where: expect.objectContaining({
+          turnId: "turn-1",
+          status: "COMPLETED",
+          capability: { in: expect.arrayContaining(["read_chat"]) },
+        }),
+      }),
     );
   });
 

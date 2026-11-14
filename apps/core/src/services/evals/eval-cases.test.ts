@@ -83,7 +83,6 @@ const NOT_YET_COVERED = new Set([
   "preview_newsletter_issue",
   "preview_newsletter_signup_form",
   "preview_result",
-  "provide_job_input",
   "read_email",
   "read_integration_tool",
   "read_memory",
@@ -111,6 +110,18 @@ const NOT_YET_COVERED = new Set([
   "workspace_read",
   "workspace_search",
   "write_table_rows",
+  // Native SEO tools: their eval cases are a follow-up.
+  "get_seo_workspace",
+  "list_seo_statistics_properties",
+  "add_seo_page",
+  "save_seo_scope",
+  "save_seo_keyword",
+  "save_seo_competitor",
+  "import_seo_audit",
+  "request_seo_analysis",
+  "create_seo_action_task",
+  "sync_seo_statistics",
+  "record_seo_page_change",
 ]);
 
 describe("eval cases", () => {

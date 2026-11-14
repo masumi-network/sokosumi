@@ -40,8 +40,16 @@ vi.mock("@/services/soko-bot-integrations.service", async (importOriginal) => ({
   >()),
   fetchInboxPage: mocks.fetchInboxPage,
   fetchCalendarPage: mocks.fetchCalendarPage,
-  runIntegrationTool: mocks.runIntegrationTool,
 }));
+vi.mock(
+  "@/services/composio-integration-tools.service",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/services/composio-integration-tools.service")
+    >()),
+    runIntegrationTool: mocks.runIntegrationTool,
+  }),
+);
 vi.mock("@/lib/contacts/capture-judge", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/contacts/capture-judge")>()),
   judgeRoleInboxes: mocks.judgeRoleInboxes,

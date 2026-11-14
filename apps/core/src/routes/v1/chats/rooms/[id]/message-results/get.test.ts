@@ -29,6 +29,8 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 vi.mock("@/services/chat-result-preview.service", () => ({
   hydrateChatResultSnapshots: mocks.hydrate,
+}));
+vi.mock("@/services/chat-result-hydration", () => ({
   preloadChatResultHydration: mocks.preload,
 }));
 const roomId = "00000000-0000-4000-8000-000000000001";

@@ -14,6 +14,7 @@ describe("GET /composio/callback", () => {
       "same-origin-allow-popups",
     );
     expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(html).toContain("<script>");
     expect(html).toContain("BroadcastChannel");
     expect(html).not.toContain("connection received");

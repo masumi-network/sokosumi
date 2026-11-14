@@ -60,7 +60,7 @@ const ROUTE_CRITERIA: Record<SokoBotRoute, string> = {
 };
 
 const WRITE_SCOPE_CRITERIA = {
-  WORK: "changes existing Tasks, Jobs or Projects, draft Tasks included, such as archiving, cancelling, reassigning or cleaning them up",
+  WORK: "changes Tasks, Jobs or Projects, draft Tasks included, such as archiving, cancelling, reassigning or cleaning them up; or saves SEO pages, page groups, keywords or competitors, imports an SEO report, refreshes private SEO statistics, or turns SEO recommendations into Tasks",
   SCHEDULE:
     "the assistant's own reminders, check-ins or recurring prompt schedules, including its daily stand-up and weekly wrap; not social media posts or calendar events",
   SOCIAL:

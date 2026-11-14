@@ -36,6 +36,8 @@ const ACTION_RESULTS: Record<string, ChatResultReference["kind"]> = {
   save_email_attachment: "file",
   hire_agent: "job",
   provide_job_input: "job",
+  request_seo_analysis: "task",
+  create_seo_action_task: "task",
 };
 
 /** Fallback for omitted preview calls; only committed receipts identify resources. */
@@ -101,9 +103,17 @@ export async function prepareTurnActionResultPreviews(
         : null;
     if (call.capability === "provide_job_input" && !jobInput) continue;
     const project = z.object({ projectId: z.string() }).safeParse(call.result);
+    const seoTask = ["request_seo_analysis", "create_seo_action_task"].includes(
+      call.capability,
+    )
+      ? z.object({ taskId: z.string() }).safeParse(call.result)
+      : null;
+    if (seoTask && !seoTask.success) continue;
     const parsed = chatResultReferenceSchema.safeParse({
       kind,
-      id: jobInput?.event.jobId ?? call.targetId,
+      id: seoTask?.success
+        ? seoTask.data.taskId
+        : (jobInput?.event.jobId ?? call.targetId),
       ...(kind === "social_post" || kind === "studio_job"
         ? { projectId: project.success ? project.data.projectId : undefined }
         : {}),

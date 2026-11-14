@@ -678,9 +678,11 @@ body:has(vercel-live-feedback) main[data-app-main] {
   scroll-padding-block-end: calc(5rem + env(safe-area-inset-bottom));
 }
 
+/* Room only: on a page taller than the view the inner column overflows, so the spacer can lie over its rows. */
 body:has(vercel-live-feedback) main[data-app-main]::after {
   content: "";
   flex: 0 0 calc(5rem + env(safe-area-inset-bottom));
+  pointer-events: none;
 }
 
 @utility container {
@@ -834,6 +836,119 @@ body:has(vercel-live-feedback) main[data-app-main]::after {
 
 @utility content-rise {
   animation: content-in-rise 200ms ease-out both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation-name: content-in;
+  }
+}
+
+/* Staged entrance: each direct child rises in a step after the one before
+   it. From the ninth on, children come in with the eighth, so a long list
+   does not keep the reader waiting. The index inherits, so a mark inside a
+   child (a bar, a dot) can start with its row. A parent sets the step with
+   [--stagger-step:40ms]. Runs once on mount: a refetch does not replay it.
+   The new animations fill backwards only: each waits in its first frame
+   and leaves no transform or clip on the element when it ends. */
+@utility stagger {
+  & > * {
+    --stagger-index: 8;
+    animation: content-in-rise 240ms cubic-bezier(0.2, 0, 0, 1) backwards;
+    animation-delay: calc(var(--stagger-index) * var(--stagger-step, 60ms));
+  }
+  & > :nth-child(1) {
+    --stagger-index: 0;
+  }
+  & > :nth-child(2) {
+    --stagger-index: 1;
+  }
+  & > :nth-child(3) {
+    --stagger-index: 2;
+  }
+  & > :nth-child(4) {
+    --stagger-index: 3;
+  }
+  & > :nth-child(5) {
+    --stagger-index: 4;
+  }
+  & > :nth-child(6) {
+    --stagger-index: 5;
+  }
+  & > :nth-child(7) {
+    --stagger-index: 6;
+  }
+  & > :nth-child(8) {
+    --stagger-index: 7;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    & > * {
+      animation-name: content-in;
+      animation-delay: 0ms;
+    }
+  }
+}
+
+/* The delay of a mark inside a staged row: it starts just after its row. */
+@utility stagger-delay {
+  animation-delay: calc(
+    var(--stagger-index, 0) *
+    var(--stagger-step, 60ms) +
+    80ms
+  );
+}
+
+@keyframes bar-grow {
+  from {
+    scale: 0 1;
+  }
+  to {
+    scale: 1 1;
+  }
+}
+
+/* A bar grows from its baseline on the left. */
+@utility bar-grow {
+  transform-origin: left;
+  animation: bar-grow 500ms cubic-bezier(0.2, 0, 0, 1) backwards;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes chart-wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+
+/* A chart draws from the first day to the last. */
+@utility chart-wipe {
+  animation: chart-wipe 700ms cubic-bezier(0.2, 0, 0, 1) backwards;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: content-in 200ms ease-out both;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    scale: 0.25;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+/* A dot of a plot comes in from its centre. The scale property leaves the
+   transform of its position alone. */
+@utility pop-in {
+  animation: pop-in 300ms cubic-bezier(0.2, 0, 0, 1) backwards;
 
   @media (prefers-reduced-motion: reduce) {
     animation-name: content-in;

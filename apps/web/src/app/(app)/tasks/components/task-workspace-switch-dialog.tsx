@@ -1,127 +1,37 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
-import type { OrganizationRecord } from "@sokosumi/core-client";
-import type { SessionUser } from "@sokosumi/utils";
-import { ArrowRight } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
-import { toast } from "sonner";
-import { WorkspaceAvatar } from "@/app/components/user-avatar/workspace-avatar";
-import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+  type WorkspaceSwitchAccounts,
+  WorkspaceSwitchDialog,
+  workspaceSwitchAccountName,
+} from "@/app/components/user-avatar/workspace-switch-dialog";
 
-interface TaskWorkspaceSwitchDialogProps {
-  currentAccountName: string;
-  currentOrganization: OrganizationRecord | null;
-  sessionUser: SessionUser;
+interface TaskWorkspaceSwitchDialogProps extends WorkspaceSwitchAccounts {
   taskName: string;
-  targetOrganization: OrganizationRecord | null;
-  targetOrganizationId: string | null;
-  targetAccountName: string;
-  successMessage: string;
 }
 
 export function TaskWorkspaceSwitchDialog({
-  currentAccountName,
-  currentOrganization,
-  sessionUser,
   taskName,
-  targetOrganization,
-  targetOrganizationId,
-  targetAccountName,
-  successMessage,
+  ...accounts
 }: TaskWorkspaceSwitchDialogProps) {
   const t = useTranslations("App.Tasks.Detail.workspaceSwitchPrompt");
-  const router = useRouter();
-  const { handleSelectWorkspace, isPending } = useWorkspaceSwitcher();
-
-  const handleCancel = () => {
-    if (window.history.length > 1) {
-      router.back();
-      return;
-    }
-
-    router.push("/tasks");
-  };
-
-  const handleSwitchWorkspace = async () => {
-    try {
-      await handleSelectWorkspace(targetOrganizationId, {
+  return (
+    <WorkspaceSwitchDialog
+      {...accounts}
+      title={t("title")}
+      description={t.rich("description", {
+        account: accounts.targetAccountName,
+        accountName: workspaceSwitchAccountName,
+        taskName,
+      })}
+      stayHref="/tasks"
+      switchChoices={{
         shouldRedirectAgentJobsBasePath: false,
         shouldRedirectTaskDetailPath: false,
-        successMessage,
-      });
-    } catch (error) {
-      Sentry.captureException(error, {
-        extra: {
-          targetOrganizationId,
-          taskName,
-        },
-        tags: { context: "task_workspace_switch_dialog" },
-      });
-      toast.error(t("switchError"));
-    }
-  };
-
-  return (
-    <AlertDialog open>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{t("title")}</AlertDialogTitle>
-          <div
-            aria-label={t("avatarTransition", {
-              currentAccount: currentAccountName,
-              targetAccount: targetAccountName,
-            })}
-            className="flex items-center justify-center gap-3 py-2"
-          >
-            <WorkspaceAvatar
-              className="size-10 md:size-10"
-              logoSize={20}
-              organization={currentOrganization}
-              sessionUser={sessionUser}
-            />
-            <ArrowRight
-              aria-hidden
-              className="text-muted-foreground size-4 shrink-0"
-            />
-            <WorkspaceAvatar
-              className="size-10 md:size-10"
-              logoSize={20}
-              organization={targetOrganization}
-              sessionUser={sessionUser}
-            />
-          </div>
-          <AlertDialogDescription>
-            {t.rich("description", {
-              account: targetAccountName,
-              accountName: (chunks: ReactNode) => (
-                <span className="text-foreground font-semibold">{chunks}</span>
-              ),
-              taskName,
-            })}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending} onClick={handleCancel}>
-            {t("cancel")}
-          </AlertDialogCancel>
-          <Button loading={isPending} onClick={handleSwitchWorkspace}>
-            {t("confirm")}
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      }}
+      errorContext="task_workspace_switch_dialog"
+      errorExtra={{ taskName }}
+    />
   );
 }

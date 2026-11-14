@@ -37,6 +37,7 @@ const {
     const status = t.status as string | undefined;
     return {
       ...t,
+      workspaceId: (t.workspace as { id: string }).id,
       visibility: (t.visibility as string | undefined) ?? "PUBLIC",
       priority: (t.priority as string | undefined) ?? "NONE",
       number: (t.number as number | null | undefined) ?? null,

@@ -2,7 +2,11 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import { TaskStatus } from "@sokosumi/database";
-import { marketingStrategyPlanSchema } from "@sokosumi/soko-bot";
+import {
+  marketingStrategyPlanSchema,
+  parseSokoBotMemory,
+  SOKO_BOT_MEMORY_LIMITS,
+} from "@sokosumi/soko-bot";
 import { socialProviderUnavailableMessage } from "@sokosumi/utils";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -111,6 +115,8 @@ const {
   notifyTaskStatusEventMock,
   publishTaskEventDataMock,
   publishChatRoomMessageRealtimeByIdMock,
+  seoReadMock,
+  runtimeEventCreateMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
@@ -242,9 +248,12 @@ const {
   notifyTaskStatusEventMock: vi.fn(),
   publishTaskEventDataMock: vi.fn(),
   publishChatRoomMessageRealtimeByIdMock: vi.fn(),
+  seoReadMock: vi.fn(),
+  runtimeEventCreateMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+vi.mock("@/lib/soko-bot/seo-tools", () => ({ runSeoTool: seoReadMock }));
 vi.mock("@/lib/soko-bot/voiceover", () => ({
   speakVoiceover: speakMock,
   VoiceoverRefusedError: class VoiceoverRefusedError extends Error {},
@@ -474,6 +483,7 @@ vi.mock("@/lib/db/prisma", () => ({
       update: turnUpdateMock,
       updateMany: turnUpdateManyMock,
     },
+    sokoBotRuntimeEvent: { findFirst: runtimeEventFindFirstMock },
     sokoBotToolCall: {
       count: toolCallCountMock,
       create: toolCallCreateMock,
@@ -497,10 +507,10 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: jobInputFindManyMock,
       findUnique: jobInputFindUniqueMock,
     },
-    sokoBotRuntimeEvent: { findFirst: runtimeEventFindFirstMock },
     workspace: {
       findFirst: workspaceFindFirstMock,
       findUnique: workspaceFindUniqueMock,
+      findUniqueOrThrow: workspaceFindUniqueMock,
     },
     member: { findFirst: memberFindFirstMock, findMany: memberFindManyMock },
   },
@@ -515,6 +525,7 @@ vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: serializableTransactionMock.mockImplementation(
     async (operation) =>
       operation({
+        projectSeoAnalysis: { findUnique: async () => null },
         $queryRaw: transactionTurnLockMock,
         sokoBot: {
           findFirst: transactionBotFindFirstMock,
@@ -671,6 +682,12 @@ import {
   MAX_CHAT_CHAIN_DEPTH,
   ROOM_BOT_MESSAGES_PER_HOUR,
 } from "@/lib/soko-bot/chat-chain";
+import {
+  RuntimeEventLog,
+  runTurnTool,
+  SokoBotTaintedActionError,
+  WEB_TAINT_EVENT,
+} from "@/lib/soko-bot/turn-loop";
 import { VoiceoverRefusedError } from "@/lib/soko-bot/voiceover";
 import {
   isSokoBotDecisionTargetAllowed,
@@ -869,6 +886,94 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "PENDING",
       expiresAt: new Date(Date.now() + 60_000),
     });
+  });
+
+  it("marks SEO workspace reads and replays as untrusted before another unapproved paid request", async () => {
+    const projectId = "01960001-0001-7001-8001-000000000099";
+    const input = { projectId };
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      source: "RHYTHM",
+      chainDepth: 0,
+      askedByUserId: null,
+      parentTurnId: null,
+      capabilityNames: ["get_seo_workspace", "request_seo_analysis"],
+      contextSnapshot: { id: DECISION_ID, packet: { memory: { version: 1 } } },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    workspaceFindUniqueMock
+      .mockResolvedValueOnce({ organizationId: null })
+      .mockResolvedValueOnce({ organizationId: null });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    seoReadMock.mockResolvedValue({
+      observations: [{ source: "seo_coworker" }],
+      findings: [{ evidence: ["External page text"] }],
+    });
+    runtimeEventFindFirstMock.mockImplementation(() => {
+      const latest = runtimeEventCreateMock.mock.calls.at(-1)?.[0]?.data;
+      return latest
+        ? { id: "runtime-event", startIndex: latest.startIndex }
+        : null;
+    });
+    const eventTransaction = async (
+      operation: (tx: unknown) => Promise<unknown>,
+    ) =>
+      operation({
+        $executeRaw: vi.fn(),
+        sokoBotRuntimeEvent: {
+          findFirst: runtimeEventFindFirstMock,
+          create: runtimeEventCreateMock,
+        },
+      });
+    transactionMock
+      .mockImplementationOnce(eventTransaction)
+      .mockImplementationOnce(eventTransaction);
+    const service = new SokoBotRuntimeService();
+    await service.executeTool({
+      ...SCOPE,
+      capability: "get_seo_workspace",
+      toolCallId: "seo-read",
+      input,
+    });
+    expect(runtimeEventCreateMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: WEB_TAINT_EVENT,
+          data: { source: "seo_workspace" },
+        }),
+      }),
+    );
+    toolCallFindUniqueMock.mockResolvedValue({
+      status: "COMPLETED",
+      capability: "get_seo_workspace",
+      inputHash: createHash("sha256")
+        .update(canonicalJson(input))
+        .digest("hex"),
+    });
+    await service.executeTool({
+      ...SCOPE,
+      capability: "get_seo_workspace",
+      toolCallId: "seo-read",
+      input,
+    });
+    expect(runtimeEventCreateMock).toHaveBeenCalledTimes(2);
+    await expect(
+      runTurnTool({
+        log: new RuntimeEventLog(SCOPE.turnId, SCOPE.sessionId),
+        capability: "request_seo_analysis",
+        toolCallId: "unapproved-paid-request",
+        toolInput: { projectId },
+      }),
+    ).rejects.toThrow(SokoBotTaintedActionError);
+    expect(seoReadMock).toHaveBeenCalledTimes(2);
   });
 
   it.each(["OWNER", "TEAMMATE", "ASSISTANT"] as const)(
@@ -3424,6 +3529,95 @@ describe("SokoBotRuntimeService authorization", () => {
     });
   });
 
+  describe("resuming a human-assigned Task", () => {
+    function resume() {
+      return new SokoBotRuntimeService()["replyToTask"](
+        {
+          turn: {
+            id: SCOPE.turnId,
+            sokoBotId: SCOPE.sokoBotId,
+            actingUserId: SCOPE.userId,
+            requestedByUserId: SCOPE.userId,
+            workspaceId: SCOPE.workspaceId,
+          },
+          reader: {
+            userId: SCOPE.userId,
+            audience: undefined,
+            sharedScope: null,
+          },
+        } as never,
+        {
+          taskId: "task_1",
+          comment: "Use accessible sources and label gaps.",
+          status: "READY",
+        },
+        "call_resume_human",
+      );
+    }
+
+    it("reads the human assignee and delivers recovery guidance with READY", async () => {
+      transactionTaskFindFirstMock.mockResolvedValue({
+        id: "task_1",
+        name: "Research",
+        ownerId: SCOPE.userId,
+        status: TaskStatus.FAILED,
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: "human_1",
+      });
+      await expect(resume()).resolves.toMatchObject({
+        id: "task_1",
+        status: TaskStatus.READY,
+        commented: true,
+        statusChanged: true,
+      });
+      expect(transactionTaskFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: expect.objectContaining({ assigneeUserId: true }),
+          where: expect.objectContaining({
+            workspaceId: SCOPE.workspaceId,
+            archivedAt: null,
+          }),
+        }),
+      );
+      expect(transactionTaskEventCreateMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          status: TaskStatus.READY,
+          comment: "Use accessible sources and label gaps.",
+        }),
+        select: { id: true },
+      });
+      expect(applyGuardedTaskStatusUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          expectedStatus: TaskStatus.FAILED,
+          eventStatus: TaskStatus.READY,
+        }),
+      );
+    });
+
+    it("still refuses to resume a Task with no kind of assignee", async () => {
+      transactionTaskFindFirstMock.mockResolvedValue({
+        id: "task_1",
+        name: "Research",
+        ownerId: SCOPE.userId,
+        status: TaskStatus.FAILED,
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+      });
+      await expect(resume()).rejects.toThrow("Task has no assignee");
+      expect(transactionTaskEventCreateMock).not.toHaveBeenCalled();
+      expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("does not resume a human-assigned Task outside the reader's visibility", async () => {
+      transactionTaskFindFirstMock.mockResolvedValue(null);
+      await expect(resume()).rejects.toThrow("Task not found");
+      expect(transactionTaskEventCreateMock).not.toHaveBeenCalled();
+      expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
+    });
+  });
+
   it("resumes its own assigned Task and fans out the soko bot event", async () => {
     transactionTaskFindFirstMock.mockResolvedValue({
       id: "task_1",
@@ -3598,14 +3792,29 @@ describe("SokoBotRuntimeService authorization", () => {
 });
 
 describe("SokoBotRuntimeService memory updates", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    getEnvMock.mockReturnValue({
-      SOKO_BOT_ENABLED: true,
-      SOKO_BOT_EVE_PROJECT_ID: "prj_soko_bot",
-      SOKO_BOT_EVE_ENVIRONMENT: "production",
-    });
-    turnFindUniqueMock.mockResolvedValue({
+  const LAUNCH =
+    "Prepare the coworker marketplace launch for 26 December 2026.";
+  const MUTE =
+    "Do not send check-ins on the EU marketplace research brief or weekly launch reminders; Robin tracks both personally.";
+  const GERMAN = "Write every Task for Hannah in German.";
+  function withPreferences(preferences: string[]) {
+    return memoryMarkdown("Research").replace(
+      "## Preferences\n- None",
+      `## Preferences\n${preferences.map((line) => `- ${line}`).join("\n")}`,
+    );
+  }
+  function memoryTurn(
+    options: {
+      source?: string;
+      audience?: "OWNER" | "TEAMMATE" | "ASSISTANT";
+      chainDepth?: number;
+      shared?: boolean;
+      memoryVersion?: number;
+    } = {},
+  ) {
+    return {
+      source: options.source ?? "CHAT",
+      chainDepth: options.chainDepth ?? 0,
       userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
@@ -3614,7 +3823,10 @@ describe("SokoBotRuntimeService memory updates", () => {
       capabilityNames: ["update_memory"],
       contextSnapshot: {
         id: "01960001-0001-7001-8001-000000000004",
-        packet: { memory: { version: 1 } },
+        packet: {
+          memory: { version: options.memoryVersion ?? 1 },
+          trigger: { askedBy: { kind: options.audience ?? "OWNER" } },
+        },
       },
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
@@ -3622,10 +3834,32 @@ describe("SokoBotRuntimeService memory updates", () => {
       deadlineAt: new Date(Date.now() + 60_000),
       leaseExpiresAt: new Date(Date.now() + 60_000),
       sokoBot: {
+        userId: options.shared ? null : SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        projectId: null,
         archivedAt: null,
         status: "RUNNING",
       },
+    };
+  }
+  async function savePreferences(preferences: string[]) {
+    return new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "update_memory",
+      toolCallId: "memory_preferences",
+      input: { markdown: withPreferences(preferences) },
     });
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    availabilityMock.mockResolvedValue({ disabled: false });
+    getEnvMock.mockReturnValue({
+      SOKO_BOT_ENABLED: true,
+      SOKO_BOT_EVE_PROJECT_ID: "prj_soko_bot",
+      SOKO_BOT_EVE_ENVIRONMENT: "production",
+    });
+    turnFindUniqueMock.mockResolvedValue(memoryTurn());
     toolCallFindUniqueMock.mockResolvedValue(null);
     toolCallCreateMock.mockResolvedValue({});
     toolCallUpdateMock.mockResolvedValue({});
@@ -3641,6 +3875,185 @@ describe("SokoBotRuntimeService memory updates", () => {
     transactionTurnFindFirstMock.mockResolvedValue({ id: SCOPE.turnId });
     transactionBotUpdateMock.mockResolvedValue({});
     transactionToolCallUpdateMock.mockResolvedValue({});
+    transactionMemoryRevisionFindUniqueMock.mockResolvedValue(null);
+    transactionMemoryRevisionCreateMock.mockImplementation(
+      async ({ data }) => ({
+        id: "memory_revision",
+        ...data,
+      }),
+    );
+  });
+
+  it.each([
+    { source: "SCHEDULE" },
+    { source: "CHAT", audience: "TEAMMATE" as const },
+    { source: "CHAT", audience: "ASSISTANT" as const },
+    { source: "CHAT", chainDepth: 1 },
+  ])(
+    "keeps owner preferences outside a direct owner request (%j)",
+    async (options) => {
+      turnFindUniqueMock.mockResolvedValue(memoryTurn(options));
+      transactionBotFindUniqueOrThrowMock.mockResolvedValue({
+        memoryVersion: 1,
+      });
+      transactionMemoryRevisionFindUniqueMock.mockResolvedValue({
+        sourceTurnId: "earlier_turn",
+        markdown: withPreferences([MUTE]),
+      });
+      await savePreferences([GERMAN]);
+      const saved = transactionMemoryRevisionCreateMock.mock.calls[0][0].data;
+      expect(parseSokoBotMemory(saved.markdown).preferences).toEqual([
+        MUTE,
+        GERMAN,
+      ]);
+      expect(saved.hash).toBe(
+        createHash("sha256").update(saved.markdown).digest("hex"),
+      );
+    },
+  );
+
+  it.each([
+    { audience: "OWNER" as const },
+    { audience: "TEAMMATE" as const, shared: true },
+  ])(
+    "allows a direct human request to replace its preferences (%j)",
+    async (options) => {
+      turnFindUniqueMock.mockResolvedValue(memoryTurn(options));
+      transactionBotFindUniqueOrThrowMock.mockResolvedValue({
+        memoryVersion: 1,
+      });
+      transactionMemoryRevisionFindUniqueMock.mockResolvedValue({
+        sourceTurnId: "earlier_turn",
+        markdown: withPreferences([MUTE]),
+      });
+      await savePreferences([GERMAN]);
+      const saved = transactionMemoryRevisionCreateMock.mock.calls[0][0].data;
+      expect(parseSokoBotMemory(saved.markdown).preferences).toEqual([GERMAN]);
+    },
+  );
+
+  it("preserves preferences from the latest same-turn revision during dreaming", async () => {
+    turnFindUniqueMock.mockResolvedValue(memoryTurn({ source: "SCHEDULE" }));
+    transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 2 });
+    transactionMemoryRevisionFindUniqueMock.mockResolvedValue({
+      sourceTurnId: SCOPE.turnId,
+      markdown: withPreferences([MUTE, "Keep replies brief."]),
+    });
+    await savePreferences([GERMAN]);
+    const saved = transactionMemoryRevisionCreateMock.mock.calls[0][0].data;
+    expect(parseSokoBotMemory(saved.markdown).preferences).toEqual([
+      MUTE,
+      "Keep replies brief.",
+      GERMAN,
+    ]);
+    expect(
+      transactionMemoryRevisionFindUniqueMock.mock.calls[0][0].where,
+    ).toEqual({
+      sokoBotId_version: { sokoBotId: SCOPE.sokoBotId, version: 2 },
+    });
+  });
+
+  it("keeps each exact preference once when dreaming includes it already", async () => {
+    turnFindUniqueMock.mockResolvedValue(memoryTurn({ source: "SCHEDULE" }));
+    transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 1 });
+    transactionMemoryRevisionFindUniqueMock.mockResolvedValue({
+      sourceTurnId: "earlier_turn",
+      markdown: withPreferences([MUTE]),
+    });
+    await savePreferences([MUTE, GERMAN]);
+    const saved = transactionMemoryRevisionCreateMock.mock.calls[0][0].data;
+    expect(parseSokoBotMemory(saved.markdown).preferences).toEqual([
+      MUTE,
+      GERMAN,
+    ]);
+  });
+
+  it.each([
+    { source: "SCHEDULE" },
+    { source: "CHAT", audience: "TEAMMATE" as const },
+    { source: "CHAT", chainDepth: 1 },
+  ])(
+    "retains an active launch goal during autonomous memory cleanup (%j)",
+    async (options) => {
+      turnFindUniqueMock.mockResolvedValue(memoryTurn(options));
+      transactionBotFindUniqueOrThrowMock.mockResolvedValue({
+        memoryVersion: 1,
+      });
+      transactionMemoryRevisionFindUniqueMock.mockResolvedValue({
+        sourceTurnId: "earlier_turn",
+        markdown: memoryMarkdown(LAUNCH),
+      });
+      await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_memory",
+        toolCallId: "memory_goals",
+        input: { markdown: memoryMarkdown("None") },
+      });
+      const saved = transactionMemoryRevisionCreateMock.mock.calls[0][0].data;
+      expect(parseSokoBotMemory(saved.markdown).activeGoals).toEqual([LAUNCH]);
+    },
+  );
+
+  it("lets a direct owner request clear an active goal", async () => {
+    turnFindUniqueMock.mockResolvedValue(memoryTurn());
+    transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 1 });
+    transactionMemoryRevisionFindUniqueMock.mockResolvedValue({
+      sourceTurnId: "earlier_turn",
+      markdown: memoryMarkdown(LAUNCH),
+    });
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "update_memory",
+      toolCallId: "memory_goals",
+      input: { markdown: memoryMarkdown("None") },
+    });
+    const saved = transactionMemoryRevisionCreateMock.mock.calls[0][0].data;
+    expect(parseSokoBotMemory(saved.markdown).activeGoals).toEqual([]);
+  });
+
+  it("does not overwrite a missing current revision during dreaming", async () => {
+    turnFindUniqueMock.mockResolvedValue(memoryTurn({ source: "SCHEDULE" }));
+    transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 1 });
+    await expect(savePreferences([GERMAN])).rejects.toThrow(
+      "Current memory revision is unavailable",
+    );
+    expect(transactionMemoryRevisionCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses to evict stored preferences when a background merge exceeds capacity", async () => {
+    turnFindUniqueMock.mockResolvedValue(memoryTurn({ source: "SCHEDULE" }));
+    transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 1 });
+    transactionMemoryRevisionFindUniqueMock.mockResolvedValue({
+      sourceTurnId: "earlier_turn",
+      markdown: withPreferences(
+        Array.from(
+          { length: SOKO_BOT_MEMORY_LIMITS.maxEntriesPerSection },
+          (_, index) => `Standing preference ${index}.`,
+        ),
+      ),
+    });
+    await expect(savePreferences([GERMAN])).rejects.toThrow(
+      "Existing preferences must be retained",
+    );
+    expect(transactionMemoryRevisionCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses to evict active goals when autonomous cleanup exceeds capacity", async () => {
+    turnFindUniqueMock.mockResolvedValue(memoryTurn({ source: "SCHEDULE" }));
+    transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 1 });
+    transactionMemoryRevisionFindUniqueMock.mockResolvedValue({
+      sourceTurnId: "earlier_turn",
+      markdown: memoryMarkdown(
+        Array.from(
+          { length: SOKO_BOT_MEMORY_LIMITS.maxEntriesPerSection },
+          (_, index) => `Standing goal ${index}.`,
+        ).join("\n- "),
+      ),
+    });
+    await expect(savePreferences([GERMAN])).rejects.toThrow(
+      "Existing active goals must be retained",
+    );
+    expect(transactionMemoryRevisionCreateMock).not.toHaveBeenCalled();
   });
 
   it("rejects secret-bearing memory before persistence", async () => {
@@ -3702,7 +4115,7 @@ describe("SokoBotRuntimeService memory updates", () => {
       where: {
         sokoBotId_version: { sokoBotId: SCOPE.sokoBotId, version: 2 },
       },
-      select: { sourceTurnId: true },
+      select: expect.objectContaining({ sourceTurnId: true }),
     });
     expect(transactionMemoryRevisionCreateMock).toHaveBeenNthCalledWith(
       2,
@@ -3730,6 +4143,19 @@ describe("SokoBotRuntimeService memory updates", () => {
       }),
     ).rejects.toThrow(SokoBotRuntimeConflictError);
 
+    expect(transactionMemoryRevisionCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a current memory version older than the turn snapshot", async () => {
+    turnFindUniqueMock.mockResolvedValue(memoryTurn({ memoryVersion: 2 }));
+    transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 1 });
+    transactionMemoryRevisionFindUniqueMock.mockResolvedValue({
+      sourceTurnId: SCOPE.turnId,
+      markdown: withPreferences([MUTE]),
+    });
+    await expect(savePreferences([GERMAN])).rejects.toThrow(
+      SokoBotRuntimeConflictError,
+    );
     expect(transactionMemoryRevisionCreateMock).not.toHaveBeenCalled();
   });
 });

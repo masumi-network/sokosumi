@@ -13,6 +13,7 @@ import { SENTRY_TUNNEL_PATH } from "@/config/sentry-tunnel";
 import {
   COMPOSIO_BOT_VERIFIER_PATH,
   COMPOSIO_CALLBACK_PATH,
+  COMPOSIO_MANAGED_RETURN_PATH,
   COMPOSIO_OWNER_VERIFICATION_PARAM,
 } from "@/lib/composio/oauth-popup-protocol";
 import {
@@ -64,9 +65,12 @@ const EXCLUDED_PATHS = [
   "/maintenance",
 ];
 
-// These documents relay OAuth results only. Core still authenticates and
-// authorizes the initiating owner before it redeems or finalizes consent.
-const COMPOSIO_CONNECTION_DOCUMENT_PATHS = new Set([
+// Consent documents contain no workspace data. Their server actions still
+// require the authenticated initiating viewer and workspace. Match exactly so
+// callback credentials cannot enter a sign-in URL after a session expires.
+const OAUTH_CONNECTION_DOCUMENT_PATHS = new Set([
+  COMPOSIO_MANAGED_RETURN_PATH,
+  "/seo/connections/return",
   "/composio/callback",
   "/composio/handoff",
 ]);
@@ -152,7 +156,7 @@ export async function proxy(request: NextRequest) {
     return relay;
   }
   if (
-    COMPOSIO_CONNECTION_DOCUMENT_PATHS.has(pathname) ||
+    OAUTH_CONNECTION_DOCUMENT_PATHS.has(pathname) ||
     EXCLUDED_PATHS.some((path) => pathname.startsWith(path))
   ) {
     return response;

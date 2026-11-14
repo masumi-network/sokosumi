@@ -5389,7 +5389,8 @@
             "work": "Work",
             "records": "Records",
             "marketing": "Marketing"
-          }
+          },
+          "seo": "SEO"
         },
         "ChatLists": {
           "title": "Recent chats",
@@ -11422,6 +11423,1363 @@
         "nobody": "Nobody yet",
         "more": "and {count} more"
       }
+    },
+    "Seo": {
+      "title": "SEO",
+      "intro": "See what changed, what needs work, and what to check next.",
+      "edit": "Edit",
+      "pickTitle": "SEO audits",
+      "pickBody": "Keep related pages, checks, statistics, actions and chat together in an audit.",
+      "pickUnavailable": "This audit is unavailable. Open another audit.",
+      "errorTitle": "Failed to load SEO",
+      "errorBody": "Refresh this audit or return to the audit list.",
+      "retry": "Try again",
+      "loading": "Loading SEO results",
+      "refreshFailed": "Failed to refresh results. Try again.",
+      "saveFailed": "Failed to save. Check the fields and try again.",
+      "notEnoughCredits": "Not enough credits for this check. Top up your credits and try again.",
+      "conflict": "The data changed. Refresh results before trying again.",
+      "saved": "Changes saved",
+      "readOnly": "You can view this audit. You do not have permission to edit it.",
+      "dispatchPaused": "New checks, paid search data and scheduled checks are off in this workspace. Statistics from Google still work.",
+      "empty": "No checks yet",
+      "emptyBody": "Run a check to see its findings, keywords and competitors.",
+      "none": "Not available",
+      "notChecked": "Not checked",
+      "source": "Source",
+      "observed": "Last checked",
+      "coverage": "Coverage",
+      "openTask": "Open task",
+      "close": "Close",
+      "cancel": "Cancel",
+      "save": "Save",
+      "search": "Search",
+      "more": "Load more",
+      "allPagesCount": "{count, plural, one {All pages} other {All # pages}}",
+      "page": "Page",
+      "scope": "Pages",
+      "dateFrom": "Activity from",
+      "dateTo": "Activity to",
+      "invalidDates": "Choose an end date on or after the start date.",
+      "manage": "Manage SEO",
+      "addPage": "Add a page",
+      "createScope": "Save page selection",
+      "editScope": "Edit page selection",
+      "runAnalysis": "Run a check",
+      "runFullAudit": "Run full audit",
+      "runPageCheck": "Run page check",
+      "syncStatistics": "Sync statistics",
+      "noPages": "Add a page to start",
+      "noPagesBody": "Pages define what each check and statistic covers.",
+      "all": "All",
+      "related": "Related page",
+      "url": "Page URL",
+      "label": "Page name",
+      "relatedTo": "Related to",
+      "notRelated": "Not related to another page",
+      "optional": "Optional",
+      "name": "Selection name",
+      "selectPages": "Select pages",
+      "scopeVersion": "Selection version {version}",
+      "scopeHelp": "Save a selection of related pages for repeated checks. Each run records the pages it covers.",
+      "pageHelp": "Add the exact page URL. Adding a page does not run a check.",
+      "tabs": {
+        "actions": "Actions",
+        "agent": "Agent",
+        "traffic": "Traffic",
+        "rankings": "Rankings"
+      },
+      "overview": {
+        "measurements": "Traffic",
+        "not_connected": "No traffic statistics are saved for these pages yet. Choose an account to load them.",
+        "unavailable": "Statistics are unavailable. Check the connection here, then try again.",
+        "partial": "Some statistics are missing. Open each source to see which.",
+        "available": "Statistics are available for the stated periods.",
+        "priority": "Recommended actions",
+        "findings": "Issues with no fix yet",
+        "audits": "Captured results",
+        "findingsCount": "{count, plural, one {# finding} other {# findings}}",
+        "auditsCount": "{count, plural, one {# captured result} other {# captured results}}",
+        "coverageCounts": "Tests: {checked} with a result, {skipped} without a result, {failed} unavailable",
+        "moduleCoverage": "Optional checks: {notRequested} not requested, {failed} unavailable",
+        "noFindings": "No findings for these pages",
+        "noFindingsBody": "Run a check to inspect its evidence. Missing checks are not passing checks.",
+        "manageConnections": "Set up statistics",
+        "dailyTrend": "Daily trend",
+        "noDailyTrend": "This source did not include daily measurements for the selected period.",
+        "measurementDetails": "About this data",
+        "timeZone": "Reporting time zone: {timeZone}",
+        "trafficSetup": "See how these pages perform",
+        "trafficSetupBody": "Set up statistics to see which searches show these pages and how often people click them.",
+        "trafficSyncBody": "Search Console is connected. Sync statistics to see which searches show these pages and how often people click them. Google Analytics adds visits and page views.",
+        "recentChecks": "Recent checks",
+        "noMeasuredReports": "No reports measured in these activity dates",
+        "noMeasuredReportsBody": "Clear activity dates to see reports from other dates. Statistics keep their own reporting period.",
+        "clearActivityDates": "Clear activity dates",
+        "noFixes": "No fixes recommended from these checks",
+        "noFixesBody": "These checks did not produce a recommended fix. They cover only the selected pages and checks, not your whole site or search performance.",
+        "failedCheck": "<prefix>Not passed:</prefix> {name}",
+        "checkedOn": "Checked",
+        "diagnostics": "Title, description and other page details",
+        "perDay": "{metric} per day",
+        "chartHint": "Use the left and right arrow keys to move between days.",
+        "positionAxis": "Position 1 is at the top. A lower position is better. Days without impressions have no position.",
+        "dailyValues": "Daily values",
+        "day": "Day",
+        "synced": "Last synced",
+        "windowDays": "Last 7 days: {current}. Previous 7 days: {previous}. Both end on the newest day Google reported.",
+        "noComparison": "Not enough days to compare",
+        "weekCompare": "{period}: {current} · week before: {previous}",
+        "weekBetter": "{period}: {current} · week before: {previous}, better",
+        "weekWorse": "{period}: {current} · week before: {previous}, worse",
+        "reportDelay": "Google reports search data a few days late.",
+        "tooFewToCompareRates": "Too few impressions to compare weeks for {which, select, ctr {click-through rate} position {average position} other {click-through rate and average position}}.",
+        "pickTile": "Select a number above to chart it.",
+        "tooFewToCompare": "{period}: {current, plural, one {# impression} other {# impressions}}. Week before: {previous}. Too few to compare weeks.",
+        "noteCount": "{count, plural, one {# note} other {# notes}}",
+        "fromCheck": "From the check on <date></date>",
+        "pageMeasurements": "Measurements",
+        "pageNotes": "Notes ({count})",
+        "references": "{count, plural, one {# source} other {# sources}}",
+        "noteRule": "Rule not met: “{name}”",
+        "notesNotCounted": "not counted as issues",
+        "askAgent": "Ask the agent",
+        "askAboutNote": "A check flagged “{name}” on my page. What does it mean, and should I change anything?",
+        "showAll": "Show all",
+        "showLess": "Show less",
+        "askAboutNoteOnPage": "A check flagged “{name}” on {url}. What does it mean, and should I change anything?",
+        "insideToolRanges": "{total, plural, one {within the tool range} other {within all # tool ranges}}",
+        "outsideToolRanges": "{total, plural, one {outside the tool range ({tools})} other {outside {outside} of # tool ranges ({tools})}}",
+        "referencesAndRules": "Sources and rule IDs",
+        "ruleIds": "Rule IDs: {ids}",
+        "rulesOnly": "Rule IDs",
+        "toolRanges": "Ranges SEO tools use: {ranges}",
+        "positionHint": "1 is the top result",
+        "noteFound": "Found: {found}",
+        "suggestionCount": "{count, plural, one {# suggestion} other {# suggestions}}",
+        "noteRuleName": "Rule: “{name}”",
+        "suggestion": "Suggestion:",
+        "periodCompare": "Previous {days, plural, one {day} other {# days}}: {previous} ({change})",
+        "periodBetter": "Previous {days, plural, one {day} other {# days}}: {previous}, better now",
+        "periodWorse": "Previous {days, plural, one {day} other {# days}}: {previous}, worse now",
+        "periodSame": "Previous {days, plural, one {day} other {# days}}: {previous}, no change",
+        "changeMarker": "Recorded change on {day}: {changes}",
+        "points": "{value} pp",
+        "googleUpdate": "Google: {name}, {from} to {to}",
+        "googleUpdateOpen": "Google: {name}, {from} to {to}, still rolling out",
+        "googleUpdateDay": "Google: {name}, {day}",
+        "googleUpdatesAsOf": "Google updates known until {day}"
+      },
+      "keywords": {
+        "title": "Keywords",
+        "edit": "Edit keyword",
+        "empty": "No tracked keywords yet",
+        "emptyBody": "Track a search in the Traffic tab, or run a check to find keywords.",
+        "emptyBodyOff": "Track a keyword to save its Search Console position at each sync.",
+        "suggest": {
+          "title": "{count, plural, one {Google already shows you for # search} other {Google already shows you for # searches}}",
+          "body": "Track one to save its Search Console position at each sync.",
+          "position": "Average position {position}",
+          "more": "{count, plural, one {See # more search in Traffic} other {See # more searches in Traffic}}"
+        },
+        "add": "Track a keyword",
+        "keyword": "Keyword",
+        "market": "Market",
+        "volume": "Searches a month",
+        "volumeUnit": "{count, plural, one {search a month} other {searches a month}}",
+        "position": "Position",
+        "priority": "Priority",
+        "rowActions": "Actions for {keyword}",
+        "save": "Track",
+        "unsave": "Stop tracking",
+        "ranked": "Position {position}",
+        "noMatch": "No tracked or checked keyword matches this search",
+        "readFailed": "No position read",
+        "notFound": "Not found",
+        "unavailable": "Not checked yet",
+        "country": "Country code",
+        "language": "Language code",
+        "target": "Target page",
+        "anyPage": "No target page",
+        "help": "Best ideas first. Track one to see its Google position after every check. Tracking is free.",
+        "dialogHelp": "Tracking a keyword is free. It does not start paid position checks.",
+        "searchPlaceholder": "Filter queries and keywords",
+        "searchConsoleAverage": "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
+        "searchConsoleNote": "Search Console average, all countries",
+        "notListed": "Not in Search Console's list",
+        "notInKeptRows": "Not in the first {count} rows kept",
+        "trendShow": "Daily positions",
+        "trendEmpty": "No Search Console impressions in any country",
+        "trendNotRequested": "Not read in the last sync. Up to 25 tracked keywords get daily positions.",
+        "trendLabel": "Average position for “{keyword}”",
+        "trendNoImpressions": "No impressions",
+        "summary": "In Google's top results for {found} of {read, plural, one {# checked keyword} other {# checked keywords}}",
+        "firstPage": "{count} on the first page",
+        "more": "{count, plural, one {Show # more keyword} other {Show # more keywords}}",
+        "conversion": {
+          "title": "Chance to convert",
+          "feature": "Feature: <feature></feature>",
+          "phrase": {
+            "low": "Low chance to convert",
+            "medium": "Medium chance to convert",
+            "high": "High chance to convert"
+          },
+          "note": "Chance to convert is the check's estimate, from what the searcher looks for and how well your product fits. It is not a measured rate.",
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low"
+        },
+        "ideas": {
+          "title": "{count, plural, one {# keyword idea} other {# keyword ideas}}",
+          "why": "Why it is listed",
+          "source": {
+            "gap": "From competitors",
+            "opportunity": "Related search"
+          },
+          "short": "Ideas",
+          "more": "{count, plural, one {Show # more idea} other {Show # more ideas}}"
+        },
+        "addButton": "Add a keyword",
+        "keywordAndPage": "Keyword and its page",
+        "readOn": "Last position check",
+        "checks": "{count, plural, one {View the position check} other {View the position checks}}",
+        "nextFixes": "{count, plural, one {Next step: # fix} other {Next step: # fixes}}",
+        "searchKeywords": "Filter keywords",
+        "map": {
+          "title": "Keyword opportunities",
+          "subtitle": "Monthly searches against how hard it is to rank. Top left is best.",
+          "checked": "Your keywords",
+          "idea": "Idea",
+          "hint": "Use the left and right arrow keys to move between keywords, and + or - to zoom.",
+          "axis": "Difficulty",
+          "difficulty": "Difficulty {value} of 100",
+          "top10": "{clicks, plural, =0 {Top 10: no extra clicks} one {Top 10: +# click a month} other {Top 10: +# clicks a month}}",
+          "top3": "{clicks, plural, =0 {Top 3: no extra clicks} one {Top 3: +# click a month} other {Top 3: +# clicks a month}}",
+          "gain": "Extra clicks at top 3",
+          "table": "Show as a table",
+          "source": "Clicks are estimates from monthly searches and the share of clicks per Google place (Advanced Web Ranking, July 2026). Difficulty comes from DataForSEO.",
+          "zoomIn": "Zoom in",
+          "zoomOut": "Zoom out",
+          "zoomReset": "Show the whole map"
+        },
+        "historyShow": "History",
+        "historyPaidTitle": "Positions in paid checks",
+        "historyPaidNote": "Each point is one check of the search results on that day.",
+        "historyPaidLabel": "{device, select, mobile {Mobile} desktop {Desktop} other {All devices}}: position in paid checks for “{keyword}”",
+        "historyNotInRange": "Not in the checked results",
+        "historyPaidAxis": "Position 1 is at the top. A lower position is better. A check that did not find the page in its results has no position.",
+        "historyGscTitle": "Search Console average position, daily",
+        "historyGscNote": "An average over all impressions of the day, not one check.",
+        "serp": {
+          "title": "Search results in paid checks",
+          "note": "What the results page showed on each check, newest first.",
+          "check": "Check",
+          "aiOverview": "AI Overview",
+          "featured": "Featured snippet",
+          "peopleAlsoAsk": "People also ask",
+          "features": "Other features",
+          "suspect": "The read looked wrong and was not used",
+          "ai": {
+            "cited": "Cites the page",
+            "shown": "Shown, page not cited",
+            "absent": "None",
+            "not_checked": "AI Overview not checked",
+            "undetermined": "Citation not determined",
+            "cited_checked": "Cites a checked page",
+            "other_page": "Checked for another page"
+          },
+          "snippet": {
+            "owned": "The page's site",
+            "checked_site": "A checked site",
+            "other": "Another site",
+            "none": "None"
+          },
+          "paa": {
+            "owned": "Links the page's site",
+            "checked_site": "Links a checked site",
+            "shown": "Shown",
+            "none": "None"
+          },
+          "feature": {
+            "video": "Videos",
+            "short_videos": "Short videos",
+            "images": "Images",
+            "local_pack": "Local pack",
+            "top_stories": "Top stories",
+            "discussions_and_forums": "Discussions and forums",
+            "shopping": "Shopping",
+            "knowledge_graph": "Knowledge panel"
+          },
+          "otherFeatures": "{count, plural, one {# other} other {# others}}",
+          "noFeatures": "None"
+        },
+        "difficulty": {
+          "title": "Difficulty",
+          "easy": "Easy",
+          "medium": "Medium",
+          "hard": "Hard",
+          "phrase": {
+            "easy": "Easy to rank",
+            "medium": "Medium difficulty",
+            "hard": "Hard to rank"
+          }
+        }
+      },
+      "competitors": {
+        "title": "Competitors",
+        "checkedBetween": "Position checks {from} to {to}",
+        "nextActions": "{places, select, yes {{count, plural, one {Next step: # place to show the product} other {Next step: # places to show the product}}} other {{count, plural, one {Next step: # action from the keyword strategy} other {Next step: # actions from the keyword strategy}}}}",
+        "empty": "No competitors yet",
+        "emptyBody": "Run a check for suggested search competitors, or add a competitor to your list.",
+        "emptyBodyOff": "A competitor you add is saved here. Its ranks and backlinks need paid search data, which is off in this workspace.",
+        "add": "Add a competitor",
+        "suggested": "From the search results",
+        "confirm": "Confirm competitor",
+        "unconfirm": "Stop tracking",
+        "rank": "Best position",
+        "backlinks": "Backlinks",
+        "excluded": "This candidate cannot be confirmed.",
+        "noMatch": "No competitor matches this search",
+        "help": "Sites in Google's results for your keywords",
+        "rowActions": "Actions for {url}",
+        "yourPages": "{count, plural, one {Your page} other {Your pages}}",
+        "compare": "Compare with my page",
+        "compareDraft": "Compare my page with {url}. What does it do better for the same searches, and what should I change first?",
+        "paidOff": "Rank and backlink numbers need paid search data, which is off in this workspace.",
+        "more": "{count, plural, one {Show # more site} other {Show # more sites}}",
+        "site": "Site",
+        "morePages": "{count, plural, one {# more page of this site} other {# more pages of this site}}",
+        "positionOf": "Position {rank}",
+        "domainsOf": "{count, plural, one {# linking site} other {# linking sites}}",
+        "platforms": "{count, plural, one {# other site in the results} other {# other sites in the results}}",
+        "platformsHelp": "Video sites, forums, stores and help pages. They hold a place in the results, but they are not rivals of your site.",
+        "dialogHelp": "Add a site you compete with. It stays on this list as your competitor.",
+        "searchPlaceholder": "Filter sites",
+        "rankHint": "Best position: the highest place one page of this site holds for one of your keywords.",
+        "domainsShort": "Linking sites"
+      },
+      "actions": {
+        "title": "Actions",
+        "empty": "No recommended actions",
+        "emptyBody": "Actions come from issues a check finds and from your Search Console searches. Run a check, or ask the SEO agent what to do next.",
+        "emptyBodyOff": "Actions come from issues a check finds and from your Search Console searches. Ask the SEO agent what to do next.",
+        "createTask": "Create draft task",
+        "why": "Why this matters",
+        "effect": "Expected effect",
+        "whyDetails": "Reason and evidence",
+        "effort": "Effort",
+        "before": "Before",
+        "after": "Suggested change",
+        "noBefore": "No previous value recorded",
+        "recommended": "Recommended",
+        "task_created": "Draft task created",
+        "implemented": "Implemented",
+        "verified": "Verified",
+        "help": "An action counts as verified when the newest check of the same page no longer finds the issue.",
+        "noFixes": "No fixes recommended from these checks",
+        "noFixesBody": "The last check found nothing to fix. Sync statistics or check more pages to find new work.",
+        "checksIncomplete": "These checks are incomplete",
+        "checksIncompleteBody": "Some requested checks could not be completed. Review Check details before deciding what to do next.",
+        "unplannedIssues": "No recommended actions yet",
+        "unplannedIssuesBody": "These checks found issues but did not include recommended actions. Review the findings or ask the SEO agent what to do next.",
+        "fixesTitle": "Fixes for the issues",
+        "fixesHelp": "A check found an issue on the page. Fixing it needs a recheck to verify.",
+        "opportunitiesTitle": "Suggestions from search data",
+        "opportunitiesHelp": "Search Console data points to these. They are not errors and promise no traffic.",
+        "noOpportunitiesBody": "The last check found nothing to fix. The Overview lists what the SEO agent suggests next.",
+        "kind": {
+          "fix": "Confirmed issue",
+          "opportunity": "Suggestion"
+        },
+        "problem": "{check}. Found: {found}",
+        "impactLine": "{level}: {hint}"
+      },
+      "pages": {
+        "title": "Pages",
+        "groups": "Saved page selections",
+        "relationship": "Relationship",
+        "selected": "Selected",
+        "chooseSelection": "View selection",
+        "version": "Version {version}",
+        "count": "{count, plural, one {# page} other {# pages}}",
+        "topPages": "Top pages",
+        "topPagesHelp": "Clicks and impressions per page from the listed Search Console queries. Queries Google hides are not counted.",
+        "queryCount": "Queries",
+        "topQuery": "Top query",
+        "lastCheck": "Last check",
+        "issues": "{count, plural, =0 {no issues} one {# issue} other {# issues}}",
+        "notChecked": "Not checked yet",
+        "notCheckedInDates": "No check in these dates",
+        "checkIncomplete": "check incomplete",
+        "home": "Home page"
+      },
+      "timeline": {
+        "title": "History",
+        "runNewCheck": "Run a new check",
+        "statuses": {
+          "requested": "Requested",
+          "running": "Running",
+          "failed": "Failed",
+          "partial": "Partial",
+          "unavailable": "Unavailable"
+        },
+        "empty": "No checks or changes for these pages yet",
+        "emptyBody": "Checks, page selections, tasks and failed syncs will appear here.",
+        "emptyOff": "Nothing recorded for these pages",
+        "emptyBodyOff": "Page selections, tasks and failed syncs appear here.",
+        "details": "Work details",
+        "graphLabel": "SEO activity, newest first",
+        "auditRun": "Audit results",
+        "checkRun": "Check results",
+        "recheckRun": "Recheck results",
+        "analysisRequested": "Check requested",
+        "metricsSynced": "Statistics synced",
+        "actionLinked": "Action Task linked",
+        "scopeChanged": "Page selection changed",
+        "pageChanged": "Page change recorded",
+        "checkSummary": "{checked, plural, one {# test} other {# tests}}",
+        "sourceDetails": "Details",
+        "resultsSaved": "Results saved",
+        "incomplete": "Some requested work could not be completed.",
+        "showAll": "Show all {count} events",
+        "metricsSyncedTimes": "{count, plural, one {Statistics synced} other {Statistics synced # times}}",
+        "metricsFailedTimes": "{count, plural, one {Statistics sync failed} other {Statistics sync failed # times}}",
+        "result": "{count, plural, =0 {No issues found} one {# issue found} other {# issues found}}",
+        "cleanChecks": "No issues in {count} checks",
+        "earlierRules": "Some earlier checks ran {counts} tests.",
+        "rulesSkipped": "{count, plural, one {# test gave no result} other {# tests gave no result}}",
+        "rulesUnavailable": "{count} unavailable",
+        "optionalUnavailable": "{count, plural, one {# optional check unavailable} other {# optional checks unavailable}}",
+        "viewResults": "View results",
+        "checkSummaryEach": "{checked, plural, one {# test} other {# tests}} each",
+        "device": "{device, select, mobile {mobile} desktop {desktop} other {{device}}}",
+        "viewEachResult": "{count, plural, one {Show # check} other {Show # checks}}"
+      },
+      "analysis": {
+        "title": "Run a check",
+        "description": "The agent starts with these settings. Existing results remain available while it runs.",
+        "options": "Change options",
+        "summary": {
+          "keywordCount": "{count} keywords"
+        },
+        "kind": "Check type",
+        "page_check": "Page check",
+        "rankings": "Keyword positions",
+        "links": "Backlink overview",
+        "audit_lite": "Audit lite",
+        "audit_full": "Full audit",
+        "keywords": "Keywords, one per line",
+        "competitors": "Competitor URLs, one per line",
+        "country": "Search country",
+        "language": "Search language",
+        "devices": "Devices",
+        "mobile": "Mobile",
+        "desktop": "Desktop",
+        "htmlOnly": "Reads the selected pages’ HTML. This check uses no paid search data or model calls.",
+        "maxCredits": "Up to {credits, plural, =1 {# credit} other {# credits}}",
+        "maxCreditsPerRun": "Up to {credits, plural, =1 {# credit} other {# credits}} per run",
+        "htmlService": "This check service supports HTML page checks. Search data and full audits are unavailable here.",
+        "submit": "Start check",
+        "queued": "Check requested",
+        "alreadyRunning": "A check is running. Wait for its result before you start the next one.",
+        "noPermission": "A check cannot be requested for these pages.",
+        "running": "Checks in progress",
+        "requested": "Requested",
+        "completed": "Completed",
+        "failed": "Failed",
+        "invalid": "Check the page selection, keywords, market and devices. Full audits accept one keyword and both devices.",
+        "keywordsHelp": "Enter up to 20 keywords, each with up to 80 characters.",
+        "fullHelp": "Full audits accept one keyword and both devices. Each selected page keeps the same market.",
+        "serviceUnavailable": "Checks are unavailable in this workspace. Return to the audit.",
+        "returnToAudit": "Return to audit",
+        "modules": "Checks to include",
+        "moduleNames": {
+          "page_inspect": "Page inspection",
+          "keyword_refresh": "Keyword positions",
+          "links_refresh": "Backlink overview"
+        },
+        "budgetTooLow": "Select fewer keywords and competitor pages.",
+        "scopeTooLarge": "Choose a single page or a group with up to {count} pages for this check."
+      },
+      "statistics": {
+        "title": "Sync statistics",
+        "description": "Read measurements through your connected account for the selected pages.",
+        "provider": "Source",
+        "ga4": "Google Analytics",
+        "search_console": "Search Console",
+        "property": "Property",
+        "chooseProperty": "Choose a property",
+        "channel": "Traffic",
+        "channelAll": "All website traffic",
+        "channelOrganic": "Organic search",
+        "submit": "Sync statistics",
+        "propertiesLoading": "Loading authorized properties",
+        "propertiesFailed": "Failed to load properties. Try again.",
+        "noProperties": "No authorized properties available.",
+        "ownerOnly": "Statistics use the account and access of the person who syncs them.",
+        "shared": "Saved statistics are shared within this audit in your organization. Your Google account stays under your control.",
+        "synced": "Statistics synced",
+        "readsSearch": "Reads the last {days} days of Google search data.",
+        "readsOrganic": "Reads the last {days} days of organic search traffic.",
+        "readsAll": "Reads the last {days} days of all website traffic.",
+        "channelAny": "All measured segments",
+        "connectTitle": "Set up statistics",
+        "connectFirst": "Connect {provider} first. You can then sync its statistics here.",
+        "channelAiAssistant": "AI assistants (ChatGPT, Gemini, Copilot)",
+        "readsAiAssistant": "Reads the last {days} days of visits from AI assistants such as ChatGPT, Gemini and Copilot."
+      },
+      "metrics": {
+        "page_views": "Page views",
+        "active_users": "Active users",
+        "landing_sessions": "Landing sessions",
+        "engagement_rate": "Engagement rate",
+        "clicks": "Search clicks",
+        "impressions": "Search impressions",
+        "ctr": "Click-through rate",
+        "average_position": "Average position",
+        "position": "Average position"
+      },
+      "severity": {
+        "critical": "Critical impact",
+        "major": "High impact",
+        "minor": "Low impact"
+      },
+      "severityHint": {
+        "critical": "The page cannot appear in search results.",
+        "major": "A Google ranking rule is not met, or the page loses a search feature.",
+        "minor": "A rule for the look of the search result or for user experience is not met."
+      },
+      "priority": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "coverageStatus": {
+        "complete": "Complete",
+        "partial": "Partial data",
+        "unavailable": "Unavailable"
+      },
+      "invalidFilters": "These page or date filters are invalid. Clear them to choose a new scope.",
+      "resetFilters": "Clear filters",
+      "selectPagesLimit": "Select between 1 and {count} pages.",
+      "monitor": {
+        "unavailable": "Scheduled checks are unavailable here. Return to the audit.",
+        "title": "Scheduled checks",
+        "create": "Schedule checks",
+        "description": "The agent repeats this check on a schedule. You can pause or end it at any time.",
+        "created": "SEO monitoring scheduled",
+        "next": "Next run",
+        "manage": "Manage task schedule",
+        "createAnother": "Schedule another check",
+        "blocked": {
+          "readOnly": "You can see these checks. Only an editor can schedule or change them.",
+          "service": "Scheduled checks are unavailable in this workspace.",
+          "noPages": "Select at least one page to schedule checks."
+        },
+        "last": "Last run",
+        "lastStatus": {
+          "requested": "Requested",
+          "running": "Running",
+          "completed": "Completed",
+          "failed": "Failed"
+        },
+        "noRunYet": "No run yet",
+        "pausedNext": "Paused. No run is planned.",
+        "left": "Runs left",
+        "leftCount": "{count, plural, =0 {None} one {# run} other {# runs}}",
+        "leftUntil": "Until",
+        "leftUntilStopped": "Until someone stops it",
+        "pagesDiffer": "The selected page group changed after this check was scheduled. It still checks its {count, plural, one {# saved page} other {# saved pages}}. Schedule a new check for the current pages.",
+        "runNow": "Run now",
+        "pause": "Pause",
+        "resume": "Resume",
+        "edit": "Edit schedule",
+        "end": "End",
+        "endTitle": "End this scheduled check?",
+        "endBody": "No more runs start. Saved results stay. You cannot restart an ended check.",
+        "endConfirm": "End check",
+        "saveRule": "Save schedule",
+        "cancel": "Cancel",
+        "belowReleased": "This check already ran {count, plural, one {# time} other {# times}}. Choose a higher count, or let it run until someone stops it.",
+        "done": {
+          "update": "Schedule saved",
+          "pause": "Scheduled check paused",
+          "resume": "Scheduled check resumed",
+          "end": "Scheduled check ended",
+          "runNow": "Check requested"
+        },
+        "change": {
+          "none": "No earlier result to compare yet.",
+          "notComparable": "The last two results used another market or rule set, so they are not compared.",
+          "same": "No change since the last run.",
+          "summary": "Since the last run: {parts}",
+          "newFailures": "{count, plural, one {# new failure} other {# new failures}}",
+          "fixed": "{count} fixed",
+          "drops": "{count, plural, one {# ranking drop} other {# ranking drops}}",
+          "rises": "{count, plural, one {# ranking gain} other {# ranking gains}}",
+          "newFailuresTitle": "Now failing",
+          "fixedTitle": "Fixed",
+          "movesTitle": "Ranking moves",
+          "move": "{keyword}: position {from} → {to}",
+          "band": "A ranking move counts only when it is larger than normal search noise: 2 places in the top 3, 5 in the top 10, 7 in the top 20."
+        },
+        "plan": {
+          "daily": "every day at {time}",
+          "weekly": "every {days} at {time}",
+          "monthly": "on day {day} of each month at {time}",
+          "other": "on its saved schedule",
+          "sentence": "{check} for {pages, plural, one {# saved page} other {# saved pages}}, {when} ({zone}).",
+          "untilStopped": "Runs until someone stops it.",
+          "endsAfter": "{count, plural, one {Ends after # scheduled run.} other {Ends after # scheduled runs.}}",
+          "interval": "every {days} days at {time}",
+          "endsOn": "Ends on {date}."
+        },
+        "onceADay": "A page check runs at most once a day, at one time."
+      },
+      "pageChange": {
+        "title": "Record a change",
+        "description": "Add a dated note for these pages. This records what changed outside Sokosumi and keeps the original entry.",
+        "summary": "What changed?",
+        "occurredAt": "When (device local time)",
+        "note": "Details (optional)",
+        "recorded": "Page change recorded",
+        "invalid": "Choose a valid date and at least one page."
+      },
+      "historyLimited": "Showing the latest {limit} checks and the latest {limit} syncs for these pages. Earlier history is not included.",
+      "audits": {
+        "create": "Create audit",
+        "saved": "Saved audits",
+        "updated": "Updated",
+        "created": "Created",
+        "projectWorkspace": "Project SEO workspace",
+        "emptyBody": "Create an audit and add its first page. You can add related pages later.",
+        "createHelp": "Add a public page URL. This saves the page without running a paid check.",
+        "name": "Audit name",
+        "firstPage": "First page URL",
+        "createFailed": "Could not create the audit. Check the name and URL, then try again.",
+        "all": "All audits",
+        "nameHelp": "Optional. Leave it empty to use the page's domain.",
+        "urlPlaceholder": "https://example.com/page",
+        "onboarding": {
+          "eyebrow": "SEO agent",
+          "title": "Start your first SEO audit",
+          "titleProject": "Start this project's first SEO audit",
+          "body": "Your agent tracks rankings, finds page issues and drafts fixes. You approve each one.",
+          "addTitle": "Add a page",
+          "addBody": "Start with one public page. You can add related pages later.",
+          "connectTitle": "Connect Google",
+          "connectBody": "Connect Google to see the searches and clicks of your page. You do this after you create the audit.",
+          "checkTitle": "Run the first check",
+          "checkBody": "The agent reads your pages, finds issues and drafts fixes.",
+          "trust": "Saving a page is free. Paid checks only run when you start them.",
+          "steps": "Setup steps"
+        }
+      },
+      "chat": {
+        "title": "Ask the SEO agent",
+        "description": "The agent suggests actions; you approve each one.",
+        "question": "Your question",
+        "send": "Send question",
+        "working": "Reading audit results",
+        "replied": "The SEO agent replied.",
+        "failed": "The reply could not be completed. Try again.",
+        "loadFailed": "Could not load this conversation. Try again.",
+        "pages": "{count, plural, one {# page} other {# pages}}",
+        "private": "This conversation and your connected statistics are visible only to you.",
+        "shared": "This conversation and saved statistics are shared within this audit in your organization.",
+        "you": "You",
+        "member": "Member",
+        "open": "Open {action}",
+        "auditRequired": "Open an audit to ask the SEO agent.",
+        "dailyLimit": "You have reached today’s SEO chat limit. Try again tomorrow.",
+        "createTask": "Create draft task: {title}",
+        "showMore": "Show full question",
+        "showLess": "Show less",
+        "loadingHistory": "Loading the chat",
+        "placeholder": "Ask a question",
+        "suggestions": "Suggested questions",
+        "privateShort": "Only you can read this chat",
+        "sharedShort": "Shared in your organization",
+        "asked": "Question sent. The SEO agent is working.",
+        "tooLong": "Your question is over {limit, number} characters. Shorten it and send it again."
+      },
+      "connections": {
+        "connect": "Connect {provider}",
+        "connected": "{provider} connected",
+        "disconnect": "Disconnect {provider}",
+        "disconnectTitle": "Disconnect {provider}?",
+        "disconnectBody": "You cannot start a new sync with this account, in any audit of this workspace, until you connect it again. Statistics that are already saved stay.",
+        "unavailable": "Connections are unavailable in this environment.",
+        "loadFailed": "Could not check this connection. Try again.",
+        "connectFailed": "Could not connect {provider}. Try again.",
+        "disconnectFailed": "Could not disconnect {provider}. Try again.",
+        "popupBlocked": "Allow popups to connect {provider}, then try again.",
+        "inFlight": "Finish the open connection window first.",
+        "timeout": "The connection timed out. Try again.",
+        "pending": "Finish approval in the connection window. If approval is complete, retry verification.",
+        "changeAccount": "Switch account",
+        "disconnectAccount": "Disconnect",
+        "resume": "Retry {provider} verification",
+        "restart": "Start a new {provider} connection",
+        "reconnect": "Reconnect {provider}",
+        "needsReconnect": "Google access for {provider} has expired or was removed. Reconnect to read statistics.",
+        "viewerChanged": "Your account or workspace changed. Return to the audit and connect again.",
+        "signInRequired": "Sign in again, then reconnect your Google account.",
+        "accessDenied": "This account cannot connect statistics in this workspace. Check your workspace access.",
+        "expired": "This connection attempt expired or was replaced. Start a new connection from the audit.",
+        "activationPending": "Google approval is not ready yet. Retry verification, or start a new connection.",
+        "consentFailed": "Google approval did not finish. Return to the audit and try again.",
+        "temporarilyUnavailable": "The connection service is temporarily unavailable. Retry verification in a moment.",
+        "callbackTitle": "Connect SEO statistics",
+        "callbackWorking": "Verifying your Google approval",
+        "callbackDone": "Your account is connected. Return to the audit to choose a property and sync statistics.",
+        "returnToAudit": "Return to audit",
+        "invalidCallback": "This return link has no valid SEO connection context. Start a connection from the audit.",
+        "connectGoogle": "Connect Google",
+        "analyticsNext": "Google asks for approval two times: first for Search Console, then for Google Analytics.",
+        "analyticsOff": "Google Analytics is not connected. Visits and page views stay empty."
+      },
+      "unavailableTitle": "SEO unavailable in this Workspace",
+      "unavailableBody": "This audit or selection is not available in the current Workspace. Check the Workspace in the sidebar or open the audit list.",
+      "auditNotHereTitle": "This audit is not available in this workspace",
+      "projectNotHereTitle": "This project is not available in this workspace",
+      "notHereBody": "It may belong to another workspace. Switch workspace in the sidebar, or open the audits of this workspace.",
+      "workspaceSwitchPrompt": {
+        "title": "This audit is in another workspace",
+        "description": "\"{auditName}\" is in the <accountName>{account}</accountName> workspace. Switch workspace to open it, or add a new page in this workspace.",
+        "stay": "Add a new page"
+      },
+      "openAllPages": "Open all pages",
+      "queries": {
+        "title": "Search Console queries",
+        "help": "Search Console queries: the Google searches that showed these pages. Impressions count how often a page was shown, not search volume. Position is the average for the period.",
+        "lastSynced": "Last synced",
+        "truncated": "Only the first {count} rows by clicks are kept",
+        "notLoaded": "No query rows saved yet",
+        "notLoadedBody": "Your saved statistics are from before searches were collected. Sync statistics to load them.",
+        "notConnected": "Search Console is not connected",
+        "notConnectedBody": "Connect Search Console to see which searches show these pages.",
+        "notSynced": "No search statistics yet",
+        "notSyncedBody": "Search Console is connected. Sync statistics to see which searches show these pages.",
+        "connect": "Connect Search Console",
+        "query": "Query",
+        "clicks": "Search clicks",
+        "impressions": "Search impressions",
+        "ctr": "Click-through rate",
+        "position": "Average position",
+        "rowActions": "Row actions",
+        "tracked": "Tracked",
+        "track": "Track",
+        "trackLabel": "Track {query} as a keyword",
+        "noMatch": "No query matches this filter",
+        "noMatchBody": "Clear the filter to see every saved query row.",
+        "empty": "Search Console returned no query rows",
+        "emptyBody": "Google showed no attributable searches for these pages in this period. Anonymized queries are never listed.",
+        "hiddenImpressions": "Google shows the search words for only {listed, number} of your {total, number} impressions. It hides rare searches for privacy.",
+        "buckets": {
+          "label": "Queries by average position",
+          "top3": "Top 3",
+          "top10": "4-10",
+          "top20": "11-20",
+          "rest": "21+"
+        },
+        "sortBy": "Sort by",
+        "sortHighest": "{column}, highest first",
+        "sortLowest": "{column}, lowest first",
+        "sortBest": "{column}, best first",
+        "sortWorst": "{column}, worst first"
+      },
+      "agent": {
+        "ask": "Ask the SEO agent",
+        "title": "SEO agent",
+        "refreshing": "The agent is refreshing Search Console.",
+        "refreshFailed": "Search Console could not be refreshed. Use “Sync now” to try again.",
+        "nextTitle": "The agent proposes",
+        "nothingNext": "Nothing is waiting. The agent syncs Search Console when you open this audit and the data is older than a day.",
+        "steps": {
+          "refresh": {
+            "stale": "Search Console data is older than a day. Sync it to see current searches.",
+            "no_queries": "Load the searches behind your Search Console totals, so the agent can suggest work."
+          },
+          "connect": {
+            "search_console": "Connect Google to see which searches show these pages and how often people click them.",
+            "ga4": "Connect Google Analytics to measure visits and page views."
+          },
+          "sync": {
+            "search_console": "Search Console is connected. Sync statistics to see which searches show these pages and how often people click them.",
+            "ga4": "Google Analytics is connected. Sync statistics to measure visits and page views."
+          },
+          "competitors": {
+            "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
+            "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
+          },
+          "strategy": "{places, select, yes {{count, plural, one {# place to show the product} other {# places to show the product}}} other {{count, plural, one {# action} other {# actions}} from the keyword strategy}}"
+        },
+        "prompts": {
+          "first": "What should I do first?",
+          "unranked": "Why are my pages not in Google's top results?",
+          "queries": "Which searches bring people to these pages?",
+          "competitors": "What do you know about my competitors?",
+          "measure": "The check measured “{name}” on {url} as {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. Draft a change and suggest it as an action I can approve.",
+          "track": "Which keyword ideas should I track?",
+          "howToDo": "How do I make this change?",
+          "whyFirst": "Why is this the first step?",
+          "whichPage": "Which page should I change first?",
+          "howLong": "How long until Google shows a change?",
+          "moreClicks": "Which of these searches could bring more clicks?",
+          "whyKeywords": "Why these keywords?",
+          "theyDo": "What do they do that my pages do not?",
+          "simpler": "Explain that in simpler words"
+        },
+        "researchCompetitors": "Research competitors",
+        "verdict": {
+          "issues": "{count, plural, one {# issue to fix} other {# issues to fix}}",
+          "waiting": "{count, plural, one {# suggestion to review} other {# suggestions to review}}",
+          "clear": "No issues found in the last check",
+          "noCheck": "No check yet. Run one to find issues.",
+          "noCheckOff": "No check yet",
+          "fixes": "{count, plural, one {# fix to make} other {# fixes to make}}",
+          "clearRarelyShown": "{pages, plural, one {Your page passes the last check, but Google rarely shows it yet} other {Your pages pass the last check, but Google rarely shows them yet}}"
+        },
+        "lastCheckOn": "Last check",
+        "askHow": "Draft a plan",
+        "traffic": "Google search on {pages, plural, one {this page} other {these # pages}}: {clicks, plural, one {# click} other {# clicks}}, {impressions, plural, one {# impression} other {# impressions}}",
+        "openTraffic": "Open traffic",
+        "openRankings": "Open rankings",
+        "toSteps": "Start with the first step",
+        "draftFix": "Ask the agent for a fix",
+        "moreSteps": "{count, plural, one {Show # more step} other {Show # more steps}}",
+        "moreActions": "{kind, select, fix {{count, plural, one {# more fix} other {# more fixes}}} other {{count, plural, one {# more action} other {# more actions}}}}",
+        "statisticsMissing": "Statistics are not set up",
+        "demand": {
+          "title": "Checked keywords with the most searches",
+          "unit": "Searches a month",
+          "position": "Position {position}"
+        }
+      },
+      "scopeFilters": "Filters",
+      "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
+      "runs": {
+        "label": "Checks",
+        "running": "Running",
+        "left": "about {minutes} min left",
+        "late": "longer than usual",
+        "earlier": "Earlier check ({day}).",
+        "showDay": "Show the check from {day}",
+        "latest": "Show the latest",
+        "inRange": "in the date range",
+        "dates": "Other dates",
+        "checkDay": "Day with a check",
+        "shown": "Showing {range}.",
+        "shownUntil": "Showing up to {day}.",
+        "scheduled": "Scheduled",
+        "next": "Next check"
+      },
+      "filterDates": "Filter by date",
+      "syncNow": "Sync now",
+      "breakdown": {
+        "title": "Countries and devices",
+        "help": "Google search totals for these pages by searcher country and by device.",
+        "country": "Country",
+        "device": "Device",
+        "unknownCountry": "Unknown country",
+        "devices": {
+          "desktop": "Desktop",
+          "mobile": "Mobile",
+          "tablet": "Tablet"
+        },
+        "more": "{count, plural, one {# more country} other {# more countries}} with fewer clicks.",
+        "truncated": "Only the first {count} rows by clicks were read. More can exist.",
+        "unlisted": {
+          "country": "Google gives a country for only {listed, number} of your {total, number} impressions.",
+          "device": "Google gives a device for only {listed, number} of your {total, number} impressions.",
+          "both": "Google gives a country and a device for only {listed, number} of your {total, number} impressions."
+        }
+      },
+      "index": {
+        "title": "Google index",
+        "help": "Whether Google keeps each page in its search index, from Search Console URL Inspection.",
+        "checked": "status read",
+        "state": {
+          "indexed": "Indexed",
+          "warnings": "Indexed, with warnings",
+          "notIndexed": "Not indexed",
+          "unknown": "Index status unknown"
+        },
+        "google": "Google says: “{words}”",
+        "lastCrawl": "Last crawl:",
+        "otherCanonical": "Google chose another canonical page:",
+        "unanswered": "{count, plural, one {No index status yet for # page in view.} other {No index status yet for # pages in view.}}"
+      },
+      "setup": {
+        "title": "Set up this audit",
+        "steps": "Setup steps",
+        "done": "done",
+        "page": "Add a page",
+        "pageDone": "Page added",
+        "pageBody": "Add the public page you want to rank.",
+        "pageDoneBody": "{count, plural, one {# page is in this audit.} other {# pages are in this audit.}} You can add more pages later.",
+        "audit": "Run the first audit",
+        "auditBody": "The agent checks your pages, reads your keyword positions and competitors, and drafts fixes. You approve each one.",
+        "check": "Run the first check",
+        "checkBody": "The agent reads your pages, finds issues and drafts fixes. You approve each one.",
+        "checkRunning": "The agent is checking your pages. You can leave this page: the results show here when the check is done.",
+        "checkStarted": "Started {when}.",
+        "checkStartedNow": "Started just now.",
+        "checkRunningBadge": "Check running",
+        "checkFailed": "The last check did not finish. Run it again.",
+        "checkEnded": "The check ended.",
+        "checkLeft": "About {minutes, plural, one {# minute} other {# minutes}} left (estimate).",
+        "checkLate": "It takes longer than usual.",
+        "checkProgress": "Progress of the check (estimate)"
+      },
+      "strategy": {
+        "title": "Keyword strategy",
+        "from": "From the check of",
+        "verdict": {
+          "keep": "Keep these keywords",
+          "outOfReach": "Most searches of these keywords are out of reach for the site",
+          "lowDemand": "These keywords have few searches",
+          "notDetermined": "The audit could not give a keyword result",
+          "narrow": "A narrower niche is in the site's reach",
+          "move": "A near market is in the site's reach",
+          "noFit": "None of the niches the audit read fits the site"
+        },
+        "reach": {
+          "inReach": "In reach",
+          "outOfReach": "Out of reach",
+          "notDetermined": "Reach not determined"
+        },
+        "groups": "{first, select, true {{count, plural, one {# group of similar keywords} other {# groups of similar keywords}}} other {{count, plural, one {# group} other {# groups}}}}",
+        "reachCount": {
+          "ranks": "{groups} {count, plural, one {ranks} other {rank}} now",
+          "inReach": "{groups} {count, plural, one {is} other {are}} in reach",
+          "open": "{groups} {count, plural, one {has} other {have}} a forum in the results",
+          "outOfReach": "{groups} {count, plural, one {is} other {are}} out of reach",
+          "notDetermined": "{groups} {count, plural, one {has} other {have}} no known reach"
+        },
+        "moving": "{count, plural, one {Searches change for # group} other {Searches change for # groups}}",
+        "reachHelp": {
+          "ranks": "A group ranks when a page of the site is in the results or in the featured snippet.",
+          "inReach": "A group is in reach when the referring domains of the site are close to those of the weakest top-10 page the audit could count.",
+          "open": "A forum in the search results is a sign that the results are open to new pages."
+        },
+        "trend": {
+          "falling": "Searches are falling",
+          "rising": "Searches are rising"
+        },
+        "targetType": {
+          "appStore": "App store",
+          "directory": "Directory",
+          "forum": "Forum",
+          "list": "List of products",
+          "video": "Video"
+        },
+        "targetState": {
+          "links": "Links to the site",
+          "mentioned": "Names the product without a link",
+          "notMentioned": "Does not name the product"
+        },
+        "actions": {
+          "title": "Actions from the keyword strategy",
+          "more": "{count, plural, one {Show # more action} other {Show # more actions}}",
+          "limit": "Limit",
+          "prompt": "The site audit recommends: “{title}”. Draft a plan with the steps in order.{hasLimit, select, yes { Keep to this limit: {limit}} other {}}{count, plural, =0 {} one { The place: {targets}} other { The places: {targets}}}",
+          "place": "Place"
+        },
+        "placeForm": {
+          "community": "Community",
+          "launch": "Launch site",
+          "listing": "Listing",
+          "post": "Post",
+          "article": "Article",
+          "video": "Video"
+        },
+        "places": {
+          "title": "Promotion places",
+          "help": "Why the audit has no action or no ready text for some places."
+        },
+        "draft": {
+          "title": "Suggested text",
+          "help": "The site audit wrote this text. Read it and the rules of the place before you post it.",
+          "copy": "Copy text",
+          "copied": "Text copied",
+          "copyError": "Could not copy the text"
+        },
+        "links": {
+          "title": "Where to show the product",
+          "task": {
+            "post": "Post in {site}",
+            "answer": "Answer a question on {site}",
+            "submit": "Submit the product to {site}",
+            "store": "Get listed on {site}",
+            "link": "Ask {site} for a link",
+            "listing": "Ask {site} to list the product"
+          },
+          "ease": {
+            "easy": "Easy",
+            "medium": "Medium",
+            "hard": "Hard"
+          },
+          "reach": "Seen in {seen, plural, one {# Google result} other {# Google results}}",
+          "more": "{count, plural, one {Show # more place} other {Show # more places}}",
+          "reason": {
+            "text": "You post it yourself, and the audit wrote the text.",
+            "self": "You post or submit it yourself.",
+            "answer": "Only as an answer to a question the product solves.",
+            "review": "The store reviews the app before it shows it.",
+            "mention": "The page names the product already: ask for a link.",
+            "author": "The page's author decides."
+          }
+        }
+      },
+      "summary": {
+        "issues": "Issues",
+        "issuesNone": "None found",
+        "severityCount": "{count} {severity, select, critical {critical} major {high impact} other {low impact}}",
+        "keywords": "Keywords in Google's top results",
+        "of": "of {total}",
+        "searches": "Searches for your keywords",
+        "searchesFor": "For {keywords} of {of} checked keywords",
+        "tests": "Tests completed",
+        "testsNoResult": "{count, plural, one {# test gave no result} other {# tests gave no result}}",
+        "testsAll": "Every test gave a result",
+        "aMonth": "a month",
+        "depth": "{same, select, yes {Results read per keyword: {max}} other {Results read per keyword: {min} to {max}}}"
+      },
+      "traffic": {
+        "searchType": "Search type",
+        "searchTypes": {
+          "web": "Web",
+          "image": "Image",
+          "video": "Video",
+          "news": "News tab",
+          "discover": "Discover",
+          "googleNews": "Google News"
+        },
+        "keyEvents": "Key events (organic)",
+        "noKeyEvents": "Google Analytics recorded no key events for these pages. Set up key events there to see conversions here.",
+        "keyEventsAiAssistant": "Key events (AI assistants)",
+        "aiAssistants": "AI assistants",
+        "aiAssistantsHelp": "Visits in Google Analytics' AI Assistant channel (ChatGPT, Perplexity, Gemini, Copilot and others) by the page they landed on",
+        "aiAssistantsTruncated": "Only the first rows were kept, so the totals can be higher",
+        "assistant": "Assistant",
+        "landingPage": "Landing page",
+        "sessions": "Sessions",
+        "keyEventsShort": "Key events",
+        "noAiData": "No AI Assistant channel data",
+        "noAiDataBody": "Google Analytics reported no sessions in its AI Assistant channel for these pages in this period.",
+        "brandSplit": "Brand split",
+        "brandViews": {
+          "all": "All queries",
+          "branded": "Branded",
+          "non_branded": "Non-branded"
+        },
+        "brandTotals": "Listed queries: {branded} clicks branded, {nonBranded} clicks non-branded",
+        "editBrandTerms": "Edit brand terms",
+        "addBrandTerms": "Add brand terms",
+        "brandTerms": "Brand terms",
+        "brandTermsHelp": "One term per line. A query that holds a term as whole words counts as branded. In Chinese, Japanese, Korean or Thai, a query that contains the term counts. Case and Latin accents do not matter.",
+        "saveBrandTerms": "Save brand terms",
+        "cancelBrandTerms": "Cancel",
+        "brandSaved": "Brand terms saved",
+        "noQueryData": "This search type has no query data",
+        "noQueryDataBody": "Query rows are not read for Discover and Google News. Clicks and impressions for this type show above.",
+        "keyEventsNotRead": "Not read: shares a landing path with another selected page"
+      },
+      "export": {
+        "csv": "Download CSV",
+        "action": "Action",
+        "kind": "Type",
+        "status": "Status",
+        "csvLabel": "Download CSV: {table}"
+      },
+      "datePresets": {
+        "label": "Quick periods",
+        "days": "Last {count} days"
+      },
+      "improve": {
+        "catalog": {
+          "title": "What the agent cannot do yet",
+          "help": "Features the SEO agent does not have yet."
+        },
+        "groups": {
+          "technical": "Technical",
+          "content": "Content",
+          "keywords": "Keywords and ranks",
+          "links": "Links",
+          "local": "Local",
+          "measurement": "Measurement and conversion",
+          "ai": "AI search",
+          "workflow": "Workflow and automation"
+        },
+        "request": "Copy request",
+        "requestLabel": "Copy request: {title}",
+        "requestText": "Feature request for the SEO agent, item {id}: {title}. What is missing: {missing}",
+        "copied": "Request copied. Send it to the Sokosumi team.",
+        "copyFailed": "Could not copy the request.",
+        "gaps": {
+          "title": "What this audit could not see",
+          "noSearchConsole": "No Search Console data: clicks, searches and Google's index state are not measured.",
+          "noAnalytics": "No Google Analytics data: visits and key events are not measured.",
+          "statisticsUnavailable": "The last statistics sync could not read the data.",
+          "queryFailed": "One Google read failed in the last sync. Some days have no value.",
+          "noAggregate": "Search Console returned no totals in the last sync.",
+          "queryRows": "Search Console search rows were unavailable in the last sync.",
+          "keywordSeries": "Daily positions of tracked keywords were unavailable in the last sync.",
+          "breakdown": "Totals by country or by device were unavailable in the last sync.",
+          "indexStatus": "Google's index status was unavailable for one or more pages in the last sync.",
+          "analyticsTimeZone": "Google Analytics did not return the property time zone in the last sync. Period comparisons are limited.",
+          "analyticsNoAggregate": "Google Analytics returned no totals in the last sync.",
+          "analyticsThresholding": "Google Analytics reported thresholding or data loss in the last sync. Some values are left out.",
+          "analyticsSampling": "Analytics reported sampled data. Totals and daily values are estimates.",
+          "analyticsTruncated": "Google Analytics cut the daily values in the last sync. Some days are left out.",
+          "analyticsLandingPages": "Google Analytics key events per landing page were unavailable in the last sync.",
+          "analyticsSharedLandingPath": "Key events per landing page were not read in the last sync for pages that share a path on different hosts.",
+          "keywordRowsCut": "Search Console kept only the first {count} daily keyword rows in the last sync. Some days can be missing.",
+          "keywordsLeftOut": "Daily positions were not read in the last sync for {count, plural, one {# tracked keyword} other {# tracked keywords}}{shown, plural, =0 {.} other {: {names}{more, plural, =0 {.} other { and # more.}}}}",
+          "note": "Note of the last sync: {note}",
+          "queriesTruncated": "Search Console lists only the top {count} search rows. Rarer searches are left out.",
+          "noCheck": "No check has run on these pages yet.",
+          "notChecked": "{count, plural, one {# test} other {# tests}} of the last check had no result.",
+          "failed": "{count, plural, one {# test} other {# tests}} of the last check were unavailable.",
+          "modulesNotRequested": "Optional checks not requested in the last check: {names}.",
+          "modulesFailed": "Optional checks unavailable in the last check: {names}.",
+          "paidOff": "Search volumes and live ranks need paid search data, which is off for these pages.",
+          "historyLimited": "Only the latest {limit} checks and the latest {limit} syncs are loaded. Earlier history is not included."
+        },
+        "fix": {
+          "connect_search_console": "Set up statistics",
+          "connect_ga4": "Set up statistics",
+          "sync": "Sync statistics",
+          "run_check": "Run a check"
+        },
+        "items": {
+          "1": {
+            "title": "Full-site crawl",
+            "missing": "Only the pages you add are checked, not every page of the site."
+          },
+          "2": {
+            "title": "Site-wide broken links and redirect chains",
+            "missing": "Broken links and redirect chains are not listed for the whole site."
+          },
+          "3": {
+            "title": "Index coverage for all URLs",
+            "missing": "Google's index state does not show for every page of the site."
+          },
+          "4": {
+            "title": "Orphan pages",
+            "missing": "No list of pages that no other page links to."
+          },
+          "5": {
+            "title": "Near-duplicate pages",
+            "missing": "No list of pages with almost the same text."
+          },
+          "6": {
+            "title": "Core Web Vitals in the SEO tab",
+            "missing": "Loading speed and layout scores do not show in the SEO tab."
+          },
+          "7": {
+            "title": "Site migration check",
+            "missing": "No check of the redirects of a domain or URL move."
+          },
+          "8": {
+            "title": "Googlebot crawl data",
+            "missing": "No import of server logs or of the Crawl Stats report."
+          },
+          "9": {
+            "title": "Content brief for a target keyword",
+            "missing": "No outline of what a new page for a keyword should cover."
+          },
+          "10": {
+            "title": "Body text drafts and rewrites",
+            "missing": "The agent drafts titles and descriptions only, not body text."
+          },
+          "11": {
+            "title": "Content refresh queue",
+            "missing": "No list of older pages to update first."
+          },
+          "12": {
+            "title": "Cannibalization from Search Console",
+            "missing": "No list of searches where two of your pages compete."
+          },
+          "13": {
+            "title": "Author, About and Contact signals",
+            "missing": ""
+          },
+          "14": {
+            "title": "Publication date checks",
+            "missing": ""
+          },
+          "15": {
+            "title": "Topic cluster map",
+            "missing": "No map of the site's topics and of the topics with no page."
+          },
+          "16": {
+            "title": "Rank history for tracked keywords",
+            "missing": ""
+          },
+          "17": {
+            "title": "SERP features over time",
+            "missing": ""
+          },
+          "18": {
+            "title": "City-level rank",
+            "missing": "Ranks are read per country only, not per city."
+          },
+          "19": {
+            "title": "Share of voice",
+            "missing": ""
+          },
+          "20": {
+            "title": "Branded and non-branded traffic split",
+            "missing": ""
+          },
+          "21": {
+            "title": "Seasonality",
+            "missing": "Each keyword shows one monthly search count and its trend, not the 12 months behind it."
+          },
+          "22": {
+            "title": "Search intent and conversion class per keyword",
+            "missing": "Keywords have a chance to convert, but no label for what the searcher wants to do."
+          },
+          "23": {
+            "title": "Own backlink profile",
+            "missing": "Your pages show how many sites link to them, not which links they are."
+          },
+          "24": {
+            "title": "New and lost referring domains",
+            "missing": "No list of domains that started or stopped linking to the site."
+          },
+          "25": {
+            "title": "Link intersect",
+            "missing": "No list of domains that link to competitors but not to the site."
+          },
+          "26": {
+            "title": "Unlinked brand mentions",
+            "missing": "No search for pages that name the brand without a link."
+          },
+          "27": {
+            "title": "Anchor text profile",
+            "missing": "No view of the anchor texts of inbound links."
+          },
+          "28": {
+            "title": "Outreach tracker",
+            "missing": "Post texts can be copied, but pitches and won links are not tracked."
+          },
+          "29": {
+            "title": "Business Profile connection",
+            "missing": "No connection to Google Business Profile."
+          },
+          "30": {
+            "title": "Review monitoring and reply drafts",
+            "missing": "No list of new Google reviews and no reply drafts."
+          },
+          "31": {
+            "title": "Local pack grid",
+            "missing": "No map pack rank at points around the business."
+          },
+          "32": {
+            "title": "Search Console history past 16 months",
+            "missing": "A sync reads the last 90 days. No history is kept past 16 months."
+          },
+          "33": {
+            "title": "Traffic and rank drop alerts",
+            "missing": "No alert is sent when traffic or ranks drop."
+          },
+          "34": {
+            "title": "Google update markers on charts",
+            "missing": ""
+          },
+          "35": {
+            "title": "Organic conversions per landing page",
+            "missing": "Revenue per landing page does not show. Key events show only in the Top pages table, which needs Search Console query rows and 2 or more pages, and only after they are set up in Google Analytics."
+          },
+          "36": {
+            "title": "Before and after impact per action",
+            "missing": "No clicks and position before and after a done action in the tab."
+          },
+          "37": {
+            "title": "Discover, News, Image and Video performance",
+            "missing": ""
+          },
+          "38": {
+            "title": "Export and date presets",
+            "missing": "No comparison with the same period last year. The countries and devices, competitors, keyword ideas and AI assistants tables have no CSV download. The CSV separator follows the app language, not the computer's region."
+          },
+          "39": {
+            "title": "AI Overview citation history",
+            "missing": "AI Overviews that Google loads after the page are not checked, because that read costs extra."
+          },
+          "40": {
+            "title": "AI assistant referral traffic",
+            "missing": ""
+          },
+          "41": {
+            "title": "Brand mentions in LLM answers",
+            "missing": "No check if AI answers name the brand."
+          },
+          "42": {
+            "title": "Apply fixes in the CMS or as a pull request",
+            "missing": "Fixes are not written to the CMS or sent as a pull request."
+          },
+          "43": {
+            "title": "Weekly digest",
+            "missing": "No weekly email or message with the main changes."
+          },
+          "44": {
+            "title": "Recheck and recrawl after a fix",
+            "missing": "No automatic recheck and index check after a fix is done."
+          },
+          "45": {
+            "title": "Shareable client report",
+            "missing": "No read-only link or PDF of the audit for clients."
+          }
+        }
+      },
+      "shareOfVoice": {
+        "title": "Share of voice",
+        "description": "Estimated share of organic clicks over the tracked keywords in the week of {week}, from {count, plural, one {# keyword read} other {# keyword reads}}. Each keyword counts the same.",
+        "site": "Your pages",
+        "others": "Other sites",
+        "unattributed": "Results without a known site",
+        "change": "{points} pts",
+        "changeNote": "Points: change since the week of {week}.",
+        "method": "An estimate, not a measurement: each organic result gets the click-through rate of its rank (Advanced Web Ranking, July 2026).",
+        "weekly": "Weekly values",
+        "week": "Week of",
+        "siteShare": "Your pages' share"
+      },
+      "keywordReach": {
+        "searches": "{count, plural, one {# search} other {# searches}} a month",
+        "searchesBoth": "{count, plural, one {# search} other {# searches}} a month ({suggested, number} in keyword suggestions)",
+        "position": "position {position}",
+        "reach": {
+          "ranks": "Ranks",
+          "inReach": "In reach",
+          "open": "A forum in the results",
+          "outOfReach": "Out of reach",
+          "notDetermined": "Reach not determined"
+        },
+        "features": {
+          "title": "Best search of each feature",
+          "help": "For each feature: the search with most searches that no keyword group holds, and its reach."
+        },
+        "rivals": {
+          "title": "Keywords of competing products",
+          "help": "The keywords each competing product ranks for, most searches first.",
+          "topic": "Keywords with a word of your topic ({words}):",
+          "word": "“{word}”",
+          "noTopic": "No keyword has a word of your topic ({words}).",
+          "other": "{count, plural, one {# keyword has} other {# keywords have}} none of these words: other products of the site, or product names",
+          "otherOne": "{count, plural, one {# keyword does} other {# keywords do}} not have this word: other products of the site, or product names",
+          "more": "{count} more in the site report"
+        },
+        "ideas": {
+          "title": "Article ideas",
+          "help": "Searches that your users make before they need the product. An article on them brings readers who may need it later."
+        }
+      }
     }
   },
   "Share": {
@@ -11667,7 +13025,8 @@
         "scheduleOccurrenceChangedByMember": "A teammate changed an occurrence of {taskName}",
         "assigned": "You were assigned {taskName}",
         "participantAdded": "You were added to {taskName} as a participant",
-        "followUp": "{taskName} is still waiting for you"
+        "followUp": "{taskName} is still waiting for you",
+        "seoMonitorWorse": "{taskName}: the newest scheduled SEO result got worse. New failures: {newFailures}. Ranking drops: {drops}."
       },
       "Billing": {
         "lowBalance": "Your credits are running low: {credits} left",

@@ -96,6 +96,18 @@ describe("ProjectScopeGuard", () => {
     );
   });
 
+  it("keeps an open SEO Audit when it drops the Audit's unknown project", async () => {
+    // After a workspace switch the Audit's page asks what to do; the list would hide that.
+    setPage("/seo", "projectId=p-gone&auditId=a1&tab=health");
+
+    renderWithClient(() => <ProjectScopeGuard />);
+
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith("/seo?auditId=a1&tab=health"),
+    );
+    expect(mocks.replace).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps a known project", async () => {
     mocks.project.current = { id: "p-live", name: "Live" };
     setPage("/tasks", "projectId=p-live");

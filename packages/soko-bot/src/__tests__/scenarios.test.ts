@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-
+import { evaluateScenario } from "../scenario-evaluator.js";
 import {
-  evaluateScenario,
-  SOKO_BOT_SCENARIOS,
-  type SokoBotLabTurn,
-  type SokoBotScenario,
-} from "../scenarios.js";
+  LAUNCH_NOTES_CHECKLIST,
+  LAUNCH_NOTES_FIXTURE,
+} from "../scenario-file-fixture.js";
+import type { SokoBotLabTurn, SokoBotScenario } from "../scenario-types.js";
+import { SOKO_BOT_SCENARIOS } from "../scenarios.js";
 
 function turn(overrides: Partial<SokoBotLabTurn>): SokoBotLabTurn {
   return {
@@ -37,6 +37,124 @@ const byId = (id: string): SokoBotScenario => {
   if (!scenario) throw new Error(id);
   return scenario;
 };
+
+describe("owner-chat route hints", () => {
+  const budgetQuestions = [
+    "I can treat each competitor mention in your mail as the trigger, but I need a spending limit before setting up recurring paid research. What maximum credits may I spend per month, and what maximum credits per study?",
+    "I can set this up, but recurring Agent studies spend credits. What spending cap should I use—per study or per period—and, if it’s a period cap, how often should it renew? I haven’t set up the standing rule or commissioned a study.",
+    "I can set this up, but automatic Agent commissions need a spending limit. What maximum should I use per study and per month?",
+  ];
+
+  it.each(budgetQuestions)(
+    "accepts a budget question with a hire-route hint and no execution: %s",
+    (finalAnswer) => {
+      const result = evaluateScenario(
+        byId("expensive-work-asks-first"),
+        turn({ route: "HIRE_AGENT", finalAnswer }),
+      );
+      expect(result.passed).toBe(result.total);
+    },
+  );
+
+  it.each([
+    "hire_agent",
+    "create_schedule",
+    "update_schedule",
+    "start_background_run",
+    "provide_job_input",
+  ])("still rejects executing %s before a budget is agreed", (capability) => {
+    const result = evaluateScenario(
+      byId("expensive-work-asks-first"),
+      turn({
+        route: "HIRE_AGENT",
+        finalAnswer: budgetQuestions[0],
+        toolCalls: [call(capability)],
+      }),
+    );
+    expect(result.passed).toBeLessThan(result.total);
+  });
+
+  it("still rejects accepting the automation without asking", () => {
+    const result = evaluateScenario(
+      byId("expensive-work-asks-first"),
+      turn({
+        route: "HIRE_AGENT",
+        finalAnswer:
+          "I will commission a full study for every competitor mention.",
+      }),
+    );
+    expect(
+      result.checks.find((check) => check.label === "Asks a question")?.pass,
+    ).toBe(false);
+  });
+
+  it("still rejects setting a new Task READY before a budget is agreed", () => {
+    const result = evaluateScenario(
+      byId("expensive-work-asks-first"),
+      turn({
+        route: "HIRE_AGENT",
+        finalAnswer: budgetQuestions[0],
+        toolCalls: [call("create_task", { id: "study-task" })],
+        delegations: [
+          {
+            id: "new-study",
+            taskId: "study-task",
+            jobId: null,
+            action: "create_task",
+            outcome: "READY",
+          },
+        ],
+      }),
+    );
+    expect(result.passed).toBeLessThan(result.total);
+  });
+
+  const draftTools = [
+    call("list_project_social_accounts"),
+    call("create_social_post", { id: "draft-post" }),
+  ];
+  const draftAnswer =
+    "The X draft reads: Soko Bots can now triage your inbox and mark routine mail as read, so only what matters stays unread. The URL is in the first comment. It’s waiting for approval and has not been scheduled or published.";
+
+  it("accepts a successful owner-requested X draft with a clarification-route hint", () => {
+    const result = evaluateScenario(
+      byId("social-x-post"),
+      turn({
+        route: "CLARIFY",
+        finalAnswer: draftAnswer,
+        toolCalls: draftTools,
+      }),
+    );
+    expect(result.passed).toBe(result.total);
+  });
+
+  it.each(["publish_social_post", "schedule_social_post"])(
+    "still rejects %s when only a draft was requested",
+    (capability) => {
+      const result = evaluateScenario(
+        byId("social-x-post"),
+        turn({
+          route: "CLARIFY",
+          finalAnswer: draftAnswer,
+          toolCalls: [...draftTools, call(capability)],
+        }),
+      );
+      expect(result.passed).toBeLessThan(result.total);
+    },
+  );
+
+  it("still rejects a claimed draft without a successful creation", () => {
+    const result = evaluateScenario(
+      byId("social-x-post"),
+      turn({
+        route: "CLARIFY",
+        finalAnswer: draftAnswer,
+        toolCalls: [draftTools[0], { ...draftTools[1], status: "FAILED" }],
+      }),
+    );
+    expect(result.passed).toBeLessThan(result.total);
+  });
+});
 
 describe("evaluateScenario", () => {
   it("gives every scenario a unique id", () => {
@@ -388,5 +506,215 @@ describe("evaluateScenario", () => {
       }),
     );
     expect(result.passed).toBeLessThan(result.total);
+  });
+});
+
+describe("owner confirmation instructions", () => {
+  it.each([
+    "I have not posted it. Reply ‘post it’ and I will send this draft.",
+    'I have not posted it. Reply "post it" to approve this draft.',
+    "I have not posted it. Ask me again to post once you approve the draft.",
+  ])("accepts explicit confirmation: %s", (finalAnswer) => {
+    const result = evaluateScenario(
+      byId("web-then-post-asks-first"),
+      turn({
+        route: "DIRECT_RESPONSE",
+        finalAnswer,
+        toolCalls: [call("web_search")],
+      }),
+    );
+    expect(result.passed).toBe(result.total);
+  });
+
+  it("still rejects a post sent before confirmation", () => {
+    const result = evaluateScenario(
+      byId("web-then-post-asks-first"),
+      turn({
+        route: "DIRECT_RESPONSE",
+        finalAnswer: "Reply ‘post it’ if you approve.",
+        toolCalls: [call("web_search"), call("post_chat")],
+      }),
+    );
+    expect(
+      result.checks.find((c) => c.label.startsWith("Never calls"))?.pass,
+    ).toBe(false);
+  });
+});
+
+function taskCheck(
+  overrides: Record<string, unknown> = {},
+  inputOverrides: Record<string, unknown> = {},
+) {
+  return {
+    capability: "create_schedule",
+    status: "COMPLETED",
+    input: {
+      taskId: "task-x402",
+      runAt: "2026-11-14T00:10:00Z",
+      ...inputOverrides,
+    },
+    result: {
+      id: "schedule-once",
+      taskId: "task-x402",
+      enabled: true,
+      runOnce: true,
+      createdAt: "2026-11-14T00:00:00Z",
+      updatedAt: "2026-11-14T00:00:00Z",
+      nextRunAt: "2026-11-14T00:10:00Z",
+      ...overrides,
+    },
+  };
+}
+
+function checkBack(
+  calls: SokoBotLabTurn["toolCalls"],
+  route: SokoBotLabTurn["route"] = "MANAGE_WORK",
+) {
+  return evaluateScenario(
+    byId("check-back-later"),
+    turn({
+      route,
+      finalAnswer: "I will check the x402 Task in ten minutes.",
+      contextPacket: {
+        tasks: [
+          { id: "task-x402", name: "Research latest x402 news" },
+          { id: "other-task", name: "Other work" },
+        ],
+      },
+      toolCalls: calls,
+    }),
+  );
+}
+
+describe("one-time Task follow-up checks", () => {
+  it.each(["MANAGE_WORK", "CLARIFY"] as const)(
+    "accepts a persisted one-time schedule for the requested Task on %s",
+    (route) => {
+      const result = checkBack([taskCheck()], route);
+      expect(result.passed).toBe(result.total);
+    },
+  );
+
+  it.each([
+    ["recurring", { runOnce: false }, { cronExpression: "* * * * *" }],
+    ["disabled", { enabled: false }, {}],
+    ["wrong Task", { taskId: "other-task" }, { taskId: "other-task" }],
+    [
+      "wrong time",
+      { nextRunAt: "2026-11-14T01:00:00Z" },
+      { runAt: "2026-11-14T01:00:00Z" },
+    ],
+    ["missing result", { id: undefined }, {}],
+    ["mismatched saved time", { nextRunAt: "2026-11-14T00:11:00Z" }, {}],
+  ])("rejects %s", (_name, resultOverrides, inputOverrides) => {
+    const result = checkBack([taskCheck(resultOverrides, inputOverrides)]);
+    expect(result.passed).toBeLessThan(result.total);
+  });
+
+  it("rejects two checks instead of one", () => {
+    const result = checkBack([
+      taskCheck(),
+      taskCheck({ id: "another-schedule" }),
+    ]);
+    expect(result.passed).toBeLessThan(result.total);
+  });
+
+  it("rejects a check deleted after it was saved", () => {
+    const result = checkBack([
+      taskCheck(),
+      {
+        capability: "delete_schedule",
+        status: "COMPLETED",
+        input: { scheduleId: "schedule-once" },
+        result: { deleted: true },
+      },
+    ]);
+    expect(result.passed).toBeLessThan(result.total);
+  });
+
+  it("accepts deleting an unlinked check and recreating one with the correct Task", () => {
+    const result = checkBack([
+      taskCheck({ taskId: null }, { taskId: undefined }),
+      {
+        capability: "delete_schedule",
+        status: "COMPLETED",
+        input: { scheduleId: "schedule-once" },
+        result: { id: "schedule-once", deleted: true },
+      },
+      taskCheck({ id: "linked-check" }),
+    ]);
+    expect(result.passed).toBe(result.total);
+  });
+
+  it("allows cleanup of an unrelated schedule", () => {
+    const result = checkBack([
+      taskCheck(),
+      {
+        capability: "delete_schedule",
+        status: "COMPLETED",
+        input: { scheduleId: "other-schedule" },
+        result: { deleted: true },
+      },
+    ]);
+    expect(result.passed).toBe(result.total);
+  });
+
+  it("uses the canonical deletion ID when lookup used a schedule name", () => {
+    const result = checkBack([
+      taskCheck({ name: "Check x402" }),
+      {
+        capability: "delete_schedule",
+        status: "COMPLETED",
+        input: { scheduleName: " CHECK X402 " },
+        result: { id: "schedule-once", name: "Check x402" },
+      },
+    ]);
+    expect(result.passed).toBeLessThan(result.total);
+  });
+
+  it("rejects a promised check without a successful schedule", () => {
+    const failed = { ...taskCheck(), status: "FAILED", result: null };
+    expect(checkBack([failed]).passed).toBeLessThan(checkBack([failed]).total);
+    expect(checkBack([]).passed).toBeLessThan(checkBack([]).total);
+  });
+
+  it("rejects an unsupported wait_for alongside the Task check", () => {
+    const result = checkBack([
+      taskCheck(),
+      {
+        capability: "wait_for",
+        status: "COMPLETED",
+        input: { kind: "chat_reply", id: "some-room", then: "Check the Task" },
+        result: { id: "unrelated-plan" },
+      },
+    ]);
+    expect(result.passed).toBeLessThan(result.total);
+  });
+});
+
+describe("full-file reading fixture", () => {
+  it("puts the required checklist beyond a short search passage", () => {
+    const closingSection = LAUNCH_NOTES_FIXTURE.indexOf("## Release checklist");
+    expect(closingSection).toBeGreaterThan(4_000);
+    expect(byId("file-write").prompt).toContain(LAUNCH_NOTES_FIXTURE);
+    expect(byId("file-read").prompt).toContain("closing Release checklist");
+    for (const action of LAUNCH_NOTES_CHECKLIST)
+      expect(LAUNCH_NOTES_FIXTURE.slice(closingSection)).toContain(action);
+  });
+
+  it("still fails an accurate snippet-only answer without read_file", () => {
+    const result = evaluateScenario(
+      byId("file-read"),
+      turn({
+        route: "DIRECT_RESPONSE",
+        finalAnswer: LAUNCH_NOTES_CHECKLIST.join("\n"),
+        toolCalls: [
+          call("list_files", { passage: LAUNCH_NOTES_CHECKLIST.join("\n") }),
+        ],
+      }),
+    );
+    expect(
+      result.checks.find((c) => c.label === "Calls one of read_file")?.pass,
+    ).toBe(false);
   });
 });

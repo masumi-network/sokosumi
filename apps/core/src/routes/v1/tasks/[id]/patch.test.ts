@@ -118,6 +118,7 @@ function createTaskApi(projectId: string | null = null) {
     id: "tsk_123",
     createdAt: "2026-04-02T08:00:00.000Z",
     updatedAt: "2026-04-02T08:00:00.000Z",
+    workspaceId: WORKSPACE_ID,
     ownerId: "user_123",
     organizationId: "org_123",
     projectId,
@@ -363,6 +364,7 @@ describe("PATCH /tasks/{id}", () => {
     mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
+        projectSeoAnalysis: { findUnique: async () => null },
         project: {
           findFirst: projectFindFirstMock,
         },
@@ -789,6 +791,7 @@ describe("PATCH /tasks/{id}", () => {
       mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
       prismaTransactionMock.mockImplementation(async (callback) => {
         return await callback({
+          projectSeoAnalysis: { findUnique: async () => null },
           project: { findFirst: projectFindFirstMock },
           task: { update: taskUpdateMock },
         });
@@ -1252,6 +1255,7 @@ describe("PATCH /tasks/{id} Queued Task with a Run at (ADR 0041)", () => {
     mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
+        projectSeoAnalysis: { findUnique: async () => null },
         project: { findFirst: projectFindFirstMock },
         task: { update: taskUpdateMock },
         taskEvent: { create: taskEventCreateMock },
@@ -1363,6 +1367,7 @@ describe("PATCH /tasks/{id} Run at", () => {
     mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
+        projectSeoAnalysis: { findUnique: async () => null },
         project: { findFirst: projectFindFirstMock },
         task: { update: taskUpdateMock },
         taskEvent: { create: taskEventCreateMock },
@@ -1576,6 +1581,7 @@ describe("PATCH /tasks/{id} Seat check of the Owner (ADR 0057)", () => {
     mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
+        projectSeoAnalysis: { findUnique: async () => null },
         project: { findFirst: projectFindFirstMock },
         task: { update: taskUpdateMock },
       });

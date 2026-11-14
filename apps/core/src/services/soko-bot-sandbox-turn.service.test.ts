@@ -1,3 +1,4 @@
+import { projectSokoBotWebEvidence } from "@sokosumi/soko-bot";
 import { createGateway, stepCountIs, tool } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -156,6 +157,7 @@ describe("sandbox turn service", () => {
     findFirstEventMock.mockResolvedValue(null);
     turnFindUniqueMock.mockResolvedValue(null);
     createEventMock.mockResolvedValue({});
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
     authorizeMock.mockResolvedValue({
       turn: { id: claims.turnId, versionId: "v16" },
       grant: {
@@ -675,6 +677,10 @@ describe("sandbox turn service", () => {
         result: {
           output: '{"url":"https://example.com","status":200,"text":"Hi"}',
           sources: ["https://example.com"],
+          evidenceVisibility: {
+            complete: false,
+            reasons: ["legacy_web_output"],
+          },
         },
       },
     });
@@ -715,6 +721,52 @@ describe("sandbox turn service", () => {
       expect.objectContaining({
         where: expect.objectContaining({ toolCallId: "c11" }),
       }),
+    );
+  });
+
+  it("stores exactly the safe web projection the runner returned to its model", async () => {
+    const output = projectSokoBotWebEvidence(
+      {
+        results: [
+          { text: "Price EUR24/month." },
+          { api_key: "synthetic-test-secret-only" },
+        ],
+      },
+      ["https://example.com/pricing"],
+    );
+    await recordSandboxActionResult(claims, {
+      name: "web_search",
+      toolCallId: "same-view",
+      status: "completed",
+      output: JSON.stringify(output),
+      sources: output.sources,
+    });
+    const saved = toolCallUpdateManyMock.mock.calls.at(-1)?.[0].data.result;
+    expect(saved.output).toEqual(output);
+    expect(saved.sources).toEqual(output.sources);
+    expect(JSON.stringify(saved)).not.toContain("synthetic-test-secret-only");
+    expect(Buffer.byteLength(JSON.stringify(saved))).toBeLessThanOrEqual(
+      16_384,
+    );
+    expect(
+      events().findLast((event) => event.type === "action.result")?.data.output,
+    ).toEqual(output);
+  });
+
+  it("rejects an unrecorded result when a sandbox call ID is reused", async () => {
+    toolCallUpdateManyMock.mockResolvedValueOnce({ count: 0 });
+    await expect(
+      recordSandboxActionResult(claims, {
+        name: "web_fetch",
+        toolCallId: "already-settled",
+        status: "completed",
+        output: JSON.stringify(
+          projectSokoBotWebEvidence({ text: "A different price EUR42." }, []),
+        ),
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(events().some((event) => event.type === "action.result")).toBe(
+      false,
     );
   });
 

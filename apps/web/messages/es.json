@@ -5389,7 +5389,8 @@
             "work": "Trabajo",
             "records": "Registros",
             "marketing": "Marketing"
-          }
+          },
+          "seo": "SEO"
         },
         "ChatLists": {
           "title": "Chats recientes",
@@ -11422,6 +11423,1363 @@
         "nobody": "Nadie todavía",
         "more": "y {count} más"
       }
+    },
+    "Seo": {
+      "title": "SEO",
+      "intro": "Consulta los cambios, el trabajo pendiente y las próximas comprobaciones.",
+      "edit": "Editar",
+      "pickTitle": "Auditorías SEO",
+      "pickBody": "Reúne páginas relacionadas, comprobaciones, estadísticas, acciones y chat en una auditoría.",
+      "pickUnavailable": "Esta auditoría no está disponible. Abre otra auditoría.",
+      "errorTitle": "No se pudo cargar SEO",
+      "errorBody": "Actualiza esta auditoría o vuelve a la lista de auditorías.",
+      "retry": "Intentar de nuevo",
+      "loading": "Cargando resultados de SEO",
+      "refreshFailed": "No se pudieron actualizar los resultados. Inténtalo de nuevo.",
+      "saveFailed": "No se pudo guardar. Revisa los campos e inténtalo de nuevo.",
+      "notEnoughCredits": "No hay créditos suficientes para esta revisión. Recarga créditos e inténtalo de nuevo.",
+      "conflict": "Los datos han cambiado. Actualiza los resultados antes de volver a intentarlo.",
+      "saved": "Cambios guardados",
+      "readOnly": "Puedes consultar esta auditoría. No tienes permiso para editarla.",
+      "dispatchPaused": "Las comprobaciones nuevas, los datos de búsqueda de pago y las comprobaciones programadas están desactivados en este espacio de trabajo. Las estadísticas de Google siguen funcionando.",
+      "empty": "Todavía no hay comprobaciones",
+      "emptyBody": "Ejecuta una comprobación para consultar sus resultados, palabras clave y competidores.",
+      "none": "No disponible",
+      "notChecked": "Sin comprobar",
+      "source": "Fuente",
+      "observed": "Última comprobación",
+      "coverage": "Cobertura",
+      "openTask": "Abrir tarea",
+      "close": "Cerrar",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "search": "Buscar",
+      "more": "Cargar más",
+      "allPagesCount": "{count, plural, one {Todas las páginas} other {Las # páginas}}",
+      "page": "Página",
+      "scope": "Páginas",
+      "dateFrom": "Actividad desde",
+      "dateTo": "Actividad hasta",
+      "invalidDates": "Elige una fecha final igual o posterior a la inicial.",
+      "manage": "Gestionar SEO",
+      "addPage": "Añadir una página",
+      "createScope": "Guardar selección de páginas",
+      "editScope": "Editar selección de páginas",
+      "runAnalysis": "Iniciar comprobación",
+      "runFullAudit": "Iniciar auditoría completa",
+      "runPageCheck": "Iniciar comprobación de página",
+      "syncStatistics": "Sincronizar estadísticas",
+      "noPages": "Añade una página para empezar",
+      "noPagesBody": "Las páginas definen qué abarcan las comprobaciones y las estadísticas.",
+      "all": "Todas",
+      "related": "Página relacionada",
+      "url": "URL de la página",
+      "label": "Nombre de la página",
+      "relatedTo": "Relacionada con",
+      "notRelated": "No relacionada con otra página",
+      "optional": "Opcional",
+      "name": "Nombre de la selección",
+      "selectPages": "Seleccionar páginas",
+      "scopeVersion": "Versión de la selección {version}",
+      "scopeHelp": "Guarda una selección de páginas relacionadas para repetir comprobaciones. Cada ejecución registra las páginas que abarca.",
+      "pageHelp": "Añade la URL exacta. Añadir una página no inicia una comprobación.",
+      "tabs": {
+        "actions": "Acciones",
+        "agent": "Agente",
+        "traffic": "Tráfico",
+        "rankings": "Posiciones"
+      },
+      "overview": {
+        "measurements": "Tráfico",
+        "not_connected": "Todavía no hay estadísticas de tráfico guardadas para estas páginas. Elige una cuenta para cargarlas.",
+        "unavailable": "Las estadísticas no están disponibles. Revisa aquí la conexión e inténtalo de nuevo.",
+        "partial": "Faltan algunas estadísticas. Abre cada fuente para ver cuáles.",
+        "available": "Hay estadísticas disponibles para los periodos indicados.",
+        "priority": "Acciones recomendadas",
+        "findings": "Problemas aún sin solución",
+        "audits": "Resultados capturados",
+        "findingsCount": "{count, plural, one {# hallazgo} other {# hallazgos}}",
+        "auditsCount": "{count, plural, one {# resultado capturado} other {# resultados capturados}}",
+        "coverageCounts": "Pruebas: {checked} con resultado, {skipped} sin resultado, {failed} no disponibles",
+        "moduleCoverage": "Comprobaciones opcionales: {notRequested} no solicitadas, {failed} no disponibles",
+        "noFindings": "No hay hallazgos para estas páginas",
+        "noFindingsBody": "Inicia una comprobación para consultar la evidencia. Una comprobación ausente no equivale a una comprobación superada.",
+        "manageConnections": "Configurar estadísticas",
+        "dailyTrend": "Evolución diaria",
+        "noDailyTrend": "Esta fuente no incluye mediciones diarias del período seleccionado.",
+        "measurementDetails": "Sobre estos datos",
+        "timeZone": "Zona horaria del informe: {timeZone}",
+        "trafficSetup": "Consulta el rendimiento de estas páginas",
+        "trafficSetupBody": "Configura las estadísticas para ver qué búsquedas muestran estas páginas y cuántas veces se hace clic en ellas.",
+        "trafficSyncBody": "Search Console está conectado. Sincroniza las estadísticas para ver qué búsquedas muestran estas páginas y cuántas veces se hace clic en ellas. Google Analytics añade visitas y páginas vistas.",
+        "recentChecks": "Comprobaciones recientes",
+        "noMeasuredReports": "No hay informes medidos en estas fechas de actividad",
+        "noMeasuredReportsBody": "Borra las fechas de actividad para ver informes de otras fechas. Las estadísticas conservan su propio periodo de informe.",
+        "clearActivityDates": "Borrar fechas de actividad",
+        "noFixes": "Estas comprobaciones no recomiendan correcciones",
+        "noFixesBody": "Estas comprobaciones no propusieron una corrección. Solo cubren las páginas y comprobaciones seleccionadas, no todo el sitio ni su rendimiento en búsquedas.",
+        "failedCheck": "<prefix>No superada:</prefix> {name}",
+        "checkedOn": "Comprobado el",
+        "diagnostics": "Título, descripción y otros detalles de la página",
+        "perDay": "{metric} por día",
+        "chartHint": "Use las flechas izquierda y derecha para moverse entre los días.",
+        "positionAxis": "La posición 1 está arriba. Una posición más baja es mejor. Los días sin impresiones no tienen posición.",
+        "dailyValues": "Valores diarios",
+        "day": "Día",
+        "synced": "Última sincronización",
+        "windowDays": "Últimos 7 días: {current}. 7 días anteriores: {previous}. Ambos terminan en el día más reciente que informó Google.",
+        "noComparison": "No hay días suficientes para comparar",
+        "weekCompare": "{period}: {current} · semana anterior: {previous}",
+        "weekBetter": "{period}: {current} · semana anterior: {previous}, mejor",
+        "weekWorse": "{period}: {current} · semana anterior: {previous}, peor",
+        "reportDelay": "Google informa los datos de búsqueda con unos días de retraso.",
+        "tooFewToCompareRates": "Muy pocas impresiones para comparar entre semanas {which, select, ctr {el porcentaje de clics} position {la posición media} other {el porcentaje de clics y la posición media}}.",
+        "pickTile": "Elige un número de arriba para verlo en el gráfico.",
+        "tooFewToCompare": "{period}: {current, plural, one {# impresión} other {# impresiones}}. Semana anterior: {previous}. Muy pocas para comparar semanas.",
+        "noteCount": "{count, plural, one {# nota} other {# notas}}",
+        "fromCheck": "De la comprobación del <date></date>",
+        "pageMeasurements": "Mediciones",
+        "pageNotes": "Notas ({count})",
+        "references": "{count, plural, one {# fuente} other {# fuentes}}",
+        "noteRule": "Regla no cumplida: «{name}»",
+        "notesNotCounted": "no cuentan como problemas",
+        "askAgent": "Preguntar al agente",
+        "askAboutNote": "Una comprobación marcó «{name}» en mi página. ¿Qué significa y debería cambiar algo?",
+        "showAll": "Mostrar todo",
+        "showLess": "Mostrar menos",
+        "askAboutNoteOnPage": "Una comprobación marcó «{name}» en {url}. ¿Qué significa y debería cambiar algo?",
+        "insideToolRanges": "{total, plural, one {dentro del rango de la herramienta} other {dentro de los # rangos de herramientas}}",
+        "outsideToolRanges": "{total, plural, one {fuera del rango de la herramienta ({tools})} other {fuera de {outside} de # rangos de herramientas ({tools})}}",
+        "referencesAndRules": "Fuentes e ID de reglas",
+        "ruleIds": "ID de reglas: {ids}",
+        "rulesOnly": "ID de reglas",
+        "toolRanges": "Rangos que usan las herramientas SEO: {ranges}",
+        "positionHint": "1 es el primer resultado",
+        "noteFound": "Encontrado: {found}",
+        "suggestionCount": "{count, plural, one {# sugerencia} other {# sugerencias}}",
+        "noteRuleName": "Regla: «{name}»",
+        "suggestion": "Sugerencia:",
+        "periodCompare": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous} ({change})",
+        "periodBetter": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora mejor",
+        "periodWorse": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora peor",
+        "periodSame": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, sin cambio",
+        "changeMarker": "Cambio registrado el {day}: {changes}",
+        "points": "{value} p. p.",
+        "googleUpdate": "Google: {name}, del {from} al {to}",
+        "googleUpdateOpen": "Google: {name}, del {from} al {to}, aún en despliegue",
+        "googleUpdateDay": "Google: {name}, {day}",
+        "googleUpdatesAsOf": "Actualizaciones de Google conocidas hasta el {day}"
+      },
+      "keywords": {
+        "title": "Palabras clave",
+        "edit": "Editar palabra clave",
+        "empty": "Todavía no hay palabras clave seguidas",
+        "emptyBody": "Sigue una búsqueda en la pestaña Tráfico o ejecuta una comprobación para encontrar palabras clave.",
+        "emptyBodyOff": "Sigue una palabra clave para guardar su posición de Search Console en cada sincronización.",
+        "suggest": {
+          "title": "{count, plural, one {Google ya te muestra para # búsqueda} other {Google ya te muestra para # búsquedas}}",
+          "body": "Sigue una para guardar su posición de Search Console en cada sincronización.",
+          "position": "Posición media {position}",
+          "more": "{count, plural, one {Ver # búsqueda más en Tráfico} other {Ver # búsquedas más en Tráfico}}"
+        },
+        "add": "Seguir una palabra clave",
+        "keyword": "Palabra clave",
+        "market": "Mercado",
+        "volume": "Búsquedas al mes",
+        "volumeUnit": "{count, plural, one {búsqueda al mes} other {búsquedas al mes}}",
+        "position": "Posición",
+        "priority": "Prioridad",
+        "rowActions": "Acciones para {keyword}",
+        "save": "Seguir",
+        "unsave": "Dejar de seguir",
+        "ranked": "Posición {position}",
+        "noMatch": "Ninguna palabra clave seguida o comprobada coincide con la búsqueda",
+        "readFailed": "No se leyó ninguna posición",
+        "notFound": "No encontrada",
+        "unavailable": "Aún sin comprobar",
+        "country": "Código de país",
+        "language": "Código de idioma",
+        "target": "Página de destino",
+        "anyPage": "Sin página de destino",
+        "help": "Las mejores ideas primero. Sigue una para ver su posición en Google después de cada comprobación. El seguimiento es gratis.",
+        "dialogHelp": "Seguir una palabra clave es gratis. No inicia ninguna comprobación de posiciones con coste.",
+        "searchPlaceholder": "Filtrar consultas y palabras clave",
+        "searchConsoleAverage": "{position} de media · {count, plural, one {# impresión} other {# impresiones}}",
+        "searchConsoleNote": "Promedio de Search Console, todos los países",
+        "notListed": "No figura en la lista de Search Console",
+        "notInKeptRows": "No está entre las primeras {count} filas guardadas",
+        "trendShow": "Posiciones diarias",
+        "trendEmpty": "Sin impresiones de Search Console en ningún país",
+        "trendNotRequested": "No se leyó en la última sincronización. Hasta 25 palabras clave seguidas reciben posiciones diarias.",
+        "trendLabel": "Posición media de «{keyword}»",
+        "trendNoImpressions": "Sin impresiones",
+        "summary": "En los primeros resultados de Google para {found} de {read, plural, one {# palabra clave comprobada} other {# palabras clave comprobadas}}",
+        "firstPage": "{count} en la primera página",
+        "more": "{count, plural, one {Mostrar # palabra clave más} other {Mostrar # palabras clave más}}",
+        "conversion": {
+          "title": "Probabilidad de conversión",
+          "feature": "Función: <feature></feature>",
+          "phrase": {
+            "low": "Probabilidad de conversión baja",
+            "medium": "Probabilidad de conversión media",
+            "high": "Probabilidad de conversión alta"
+          },
+          "note": "La probabilidad de conversión es una estimación de la comprobación: según lo que busca la persona y lo bien que encaja tu producto. No es una tasa medida.",
+          "high": "Alta",
+          "medium": "Media",
+          "low": "Baja"
+        },
+        "ideas": {
+          "title": "{count, plural, one {# idea de palabra clave} other {# ideas de palabras clave}}",
+          "why": "Por qué aparece",
+          "source": {
+            "gap": "De la competencia",
+            "opportunity": "Búsqueda relacionada"
+          },
+          "short": "Ideas",
+          "more": "{count, plural, one {Mostrar # idea más} other {Mostrar # ideas más}}"
+        },
+        "addButton": "Añadir una palabra clave",
+        "keywordAndPage": "Palabra clave y su página",
+        "readOn": "Última comprobación de posiciones",
+        "checks": "{count, plural, one {Ver la comprobación de posiciones} other {Ver las comprobaciones de posiciones}}",
+        "nextFixes": "{count, plural, one {Siguiente paso: # corrección} other {Siguiente paso: # correcciones}}",
+        "searchKeywords": "Filtrar palabras clave",
+        "map": {
+          "title": "Oportunidades de palabras clave",
+          "subtitle": "Búsquedas al mes frente a la dificultad. Arriba a la izquierda es lo mejor.",
+          "checked": "Sus palabras clave",
+          "idea": "Idea",
+          "hint": "Use las flechas izquierda y derecha para moverse entre las palabras clave, y + o - para hacer zoom.",
+          "axis": "Dificultad",
+          "difficulty": "Dificultad {value} de 100",
+          "top10": "{clicks, plural, =0 {Top 10: sin clics adicionales} one {Top 10: +# clic al mes} other {Top 10: +# clics al mes}}",
+          "top3": "{clicks, plural, =0 {Top 3: sin clics adicionales} one {Top 3: +# clic al mes} other {Top 3: +# clics al mes}}",
+          "gain": "Clics adicionales en el top 3",
+          "table": "Mostrar como tabla",
+          "source": "Los clics son estimaciones a partir de las búsquedas mensuales y la cuota de clics de cada puesto de Google (Advanced Web Ranking, julio de 2026). La dificultad viene de DataForSEO.",
+          "zoomIn": "Acercar",
+          "zoomOut": "Alejar",
+          "zoomReset": "Mostrar todo el mapa"
+        },
+        "historyShow": "Historial",
+        "historyPaidTitle": "Posiciones en comprobaciones de pago",
+        "historyPaidNote": "Cada punto es una comprobación de los resultados de búsqueda de ese día.",
+        "historyPaidLabel": "{device, select, mobile {Móvil} desktop {Escritorio} other {Todos los dispositivos}}: posición en comprobaciones de pago para «{keyword}»",
+        "historyNotInRange": "No está en los resultados comprobados",
+        "historyPaidAxis": "La posición 1 está arriba. Una posición más baja es mejor. Una comprobación que no encontró la página en sus resultados no tiene posición.",
+        "historyGscTitle": "Posición media en Search Console, diaria",
+        "historyGscNote": "Una media de todas las impresiones del día, no una sola comprobación.",
+        "serp": {
+          "title": "Resultados de búsqueda en comprobaciones de pago",
+          "note": "Lo que mostró la página de resultados en cada comprobación, la más reciente primero.",
+          "check": "Comprobación",
+          "aiOverview": "AI Overview",
+          "featured": "Fragmento destacado",
+          "peopleAlsoAsk": "Más preguntas",
+          "features": "Otros elementos",
+          "suspect": "La lectura parecía errónea y no se usó",
+          "ai": {
+            "cited": "Cita la página",
+            "shown": "Se muestra, la página no se cita",
+            "absent": "Ninguno",
+            "not_checked": "AI Overview no comprobado",
+            "undetermined": "Cita no determinada",
+            "cited_checked": "Cita una página comprobada",
+            "other_page": "Comprobado para otra página"
+          },
+          "snippet": {
+            "owned": "El sitio de la página",
+            "checked_site": "Un sitio comprobado",
+            "other": "Otro sitio",
+            "none": "Ninguno"
+          },
+          "paa": {
+            "owned": "Enlaza el sitio de la página",
+            "checked_site": "Enlaza un sitio comprobado",
+            "shown": "Se muestra",
+            "none": "Ninguno"
+          },
+          "feature": {
+            "video": "Vídeos",
+            "short_videos": "Vídeos cortos",
+            "images": "Imágenes",
+            "local_pack": "Paquete local",
+            "top_stories": "Noticias destacadas",
+            "discussions_and_forums": "Debates y foros",
+            "shopping": "Shopping",
+            "knowledge_graph": "Panel de conocimiento"
+          },
+          "otherFeatures": "{count, plural, one {# más} other {# más}}",
+          "noFeatures": "Ninguno"
+        },
+        "difficulty": {
+          "title": "Dificultad",
+          "easy": "Fácil",
+          "medium": "Media",
+          "hard": "Difícil",
+          "phrase": {
+            "easy": "Fácil de posicionar",
+            "medium": "Dificultad media",
+            "hard": "Difícil de posicionar"
+          }
+        }
+      },
+      "competitors": {
+        "title": "Competidores",
+        "checkedBetween": "Comprobaciones de posiciones del {from} al {to}",
+        "nextActions": "{places, select, yes {{count, plural, one {Siguiente paso: # sitio donde mostrar el producto} other {Siguiente paso: # sitios donde mostrar el producto}}} other {{count, plural, one {Siguiente paso: # acción de la estrategia de palabras clave} other {Siguiente paso: # acciones de la estrategia de palabras clave}}}}",
+        "empty": "Todavía no hay competidores",
+        "emptyBody": "Ejecuta una comprobación para ver sugerencias o añade un competidor a tu lista.",
+        "emptyBodyOff": "El competidor que añadas se guarda aquí. Sus posiciones y backlinks necesitan datos de búsqueda de pago, que están desactivados en este espacio de trabajo.",
+        "add": "Añadir un competidor",
+        "suggested": "De los resultados de búsqueda",
+        "confirm": "Confirmar competidor",
+        "unconfirm": "Dejar de seguir",
+        "rank": "Mejor posición",
+        "backlinks": "Enlaces entrantes",
+        "excluded": "No se puede confirmar este candidato.",
+        "noMatch": "Ningún competidor coincide con esta búsqueda",
+        "help": "Sitios en los resultados de Google para tus palabras clave",
+        "rowActions": "Acciones para {url}",
+        "yourPages": "{count, plural, one {Tu página} other {Tus páginas}}",
+        "compare": "Comparar con mi página",
+        "compareDraft": "Compara mi página con {url}. ¿Qué hace mejor para las mismas búsquedas y qué debería cambiar primero?",
+        "paidOff": "Las cifras de posición y backlinks necesitan datos de búsqueda de pago, que están desactivados en este espacio de trabajo.",
+        "more": "{count, plural, one {Mostrar # sitio más} other {Mostrar # sitios más}}",
+        "site": "Sitio",
+        "morePages": "{count, plural, one {# página más de este sitio} other {# páginas más de este sitio}}",
+        "positionOf": "Posición {rank}",
+        "domainsOf": "{count, plural, one {# sitio que enlaza} other {# sitios que enlazan}}",
+        "platforms": "{count, plural, one {# sitio más en los resultados} other {# sitios más en los resultados}}",
+        "platformsHelp": "Sitios de vídeo, foros, tiendas y páginas de ayuda. Ocupan un lugar en los resultados, pero no son rivales de tu sitio.",
+        "dialogHelp": "Añade un sitio con el que compites. Se queda en esta lista como tu competidor.",
+        "searchPlaceholder": "Filtrar sitios",
+        "rankHint": "Mejor posición: el lugar más alto que ocupa una página de este sitio para una de tus palabras clave.",
+        "domainsShort": "Sitios que enlazan"
+      },
+      "actions": {
+        "title": "Acciones",
+        "empty": "No hay acciones recomendadas",
+        "emptyBody": "Las acciones salen de los problemas que encuentra una comprobación y de tus búsquedas de Search Console. Ejecuta una comprobación o pregunta al agente SEO qué hacer a continuación.",
+        "emptyBodyOff": "Las acciones salen de los problemas que encuentra una comprobación y de tus búsquedas de Search Console. Pregunta al agente SEO qué hacer a continuación.",
+        "createTask": "Crear borrador de tarea",
+        "why": "Por qué es importante",
+        "effect": "Efecto esperado",
+        "whyDetails": "Motivo y pruebas",
+        "effort": "Esfuerzo",
+        "before": "Antes",
+        "after": "Cambio sugerido",
+        "noBefore": "No se registró un valor anterior",
+        "recommended": "Recomendada",
+        "task_created": "Borrador de tarea creado",
+        "implemented": "Implementada",
+        "verified": "Verificada",
+        "help": "Una acción cuenta como verificada cuando la comprobación más reciente de la misma página ya no encuentra el problema.",
+        "noFixes": "Estas comprobaciones no recomiendan correcciones",
+        "noFixesBody": "La última comprobación no encontró nada que corregir. Sincroniza estadísticas o comprueba más páginas para encontrar trabajo nuevo.",
+        "checksIncomplete": "Estas comprobaciones están incompletas",
+        "checksIncompleteBody": "No se pudieron completar algunas comprobaciones solicitadas. Revisa los detalles de las comprobaciones antes de decidir el siguiente paso.",
+        "unplannedIssues": "Todavía no hay acciones recomendadas",
+        "unplannedIssuesBody": "Estas comprobaciones encontraron problemas, pero no incluyeron acciones recomendadas. Revisa los hallazgos o pregunta al agente SEO cuál es el siguiente paso.",
+        "fixesTitle": "Correcciones de los problemas",
+        "fixesHelp": "Una comprobación encontró un problema en la página. Tras corregirlo, hace falta una nueva comprobación para verificarlo.",
+        "opportunitiesTitle": "Sugerencias de los datos de búsqueda",
+        "opportunitiesHelp": "Los datos de Search Console apuntan a esto. No son errores y no prometen tráfico.",
+        "noOpportunitiesBody": "La última comprobación no encontró nada que corregir. El resumen muestra lo que el agente SEO sugiere a continuación.",
+        "kind": {
+          "fix": "Problema confirmado",
+          "opportunity": "Sugerencia"
+        },
+        "problem": "{check}. Hallazgo: {found}",
+        "impactLine": "{level}: {hint}"
+      },
+      "pages": {
+        "title": "Páginas",
+        "groups": "Selecciones de páginas guardadas",
+        "relationship": "Relación",
+        "selected": "Seleccionada",
+        "chooseSelection": "Ver selección",
+        "version": "Versión {version}",
+        "count": "{count, plural, one {# página} other {# páginas}}",
+        "topPages": "Páginas principales",
+        "topPagesHelp": "Clics e impresiones por página de las consultas de Search Console mostradas. No se cuentan las consultas que Google oculta.",
+        "queryCount": "Consultas",
+        "topQuery": "Consulta principal",
+        "lastCheck": "Última comprobación",
+        "issues": "{count, plural, =0 {sin problemas} one {# problema} other {# problemas}}",
+        "notChecked": "Aún sin comprobar",
+        "notCheckedInDates": "Sin comprobación en estas fechas",
+        "checkIncomplete": "comprobación incompleta",
+        "home": "Página de inicio"
+      },
+      "timeline": {
+        "title": "Historial",
+        "runNewCheck": "Ejecutar una nueva comprobación",
+        "statuses": {
+          "requested": "Solicitada",
+          "running": "En curso",
+          "failed": "Fallida",
+          "partial": "Parcial",
+          "unavailable": "No disponible"
+        },
+        "empty": "Aún no hay comprobaciones ni cambios para estas páginas",
+        "emptyBody": "Aquí aparecerán las comprobaciones, selecciones de páginas, tareas y sincronizaciones fallidas.",
+        "emptyOff": "No hay nada registrado para estas páginas",
+        "emptyBodyOff": "Aquí aparecen las selecciones de páginas, las tareas y las sincronizaciones fallidas.",
+        "details": "Detalles del trabajo",
+        "graphLabel": "Actividad SEO, lo más reciente primero",
+        "auditRun": "Resultados de la auditoría",
+        "checkRun": "Resultados de la comprobación",
+        "recheckRun": "Resultados de la nueva comprobación",
+        "analysisRequested": "Comprobación solicitada",
+        "metricsSynced": "Estadísticas sincronizadas",
+        "actionLinked": "Tarea de acción vinculada",
+        "scopeChanged": "Selección de páginas cambiada",
+        "pageChanged": "Cambio de página registrado",
+        "checkSummary": "{checked, plural, one {# prueba} other {# pruebas}}",
+        "sourceDetails": "Detalles",
+        "resultsSaved": "Resultados guardados",
+        "incomplete": "No se pudo completar parte del trabajo solicitado.",
+        "showAll": "Mostrar los {count} eventos",
+        "metricsSyncedTimes": "{count, plural, one {Estadísticas sincronizadas} other {Estadísticas sincronizadas # veces}}",
+        "metricsFailedTimes": "{count, plural, one {La sincronización de estadísticas falló} other {La sincronización de estadísticas falló # veces}}",
+        "result": "{count, plural, =0 {No se encontraron problemas} one {# problema encontrado} other {# problemas encontrados}}",
+        "cleanChecks": "Sin problemas en {count} comprobaciones",
+        "earlierRules": "Algunas comprobaciones anteriores hicieron {counts} pruebas.",
+        "rulesSkipped": "{count, plural, one {# prueba sin resultado} other {# pruebas sin resultado}}",
+        "rulesUnavailable": "{count, plural, one {# no disponible} other {# no disponibles}}",
+        "optionalUnavailable": "{count, plural, one {# comprobación opcional no disponible} other {# comprobaciones opcionales no disponibles}}",
+        "viewResults": "Ver resultados",
+        "checkSummaryEach": "{checked, plural, one {# prueba} other {# pruebas}} cada una",
+        "device": "{device, select, mobile {móvil} desktop {ordenador} other {{device}}}",
+        "viewEachResult": "{count, plural, one {Mostrar # comprobación} other {Mostrar # comprobaciones}}"
+      },
+      "analysis": {
+        "title": "Iniciar comprobación",
+        "description": "El agente empieza con estos ajustes. Los resultados existentes siguen disponibles mientras se ejecuta.",
+        "options": "Cambiar opciones",
+        "summary": {
+          "keywordCount": "{count} palabras clave"
+        },
+        "kind": "Tipo de comprobación",
+        "page_check": "Comprobación de página",
+        "rankings": "Posiciones de palabras clave",
+        "links": "Resumen de enlaces entrantes",
+        "audit_lite": "Audit Lite",
+        "audit_full": "Auditoría completa",
+        "keywords": "Palabras clave, una por línea",
+        "competitors": "URL de competidores, una por línea",
+        "country": "País de búsqueda",
+        "language": "Idioma de búsqueda",
+        "devices": "Dispositivos",
+        "mobile": "Móvil",
+        "desktop": "Ordenador",
+        "htmlOnly": "Lee el HTML de las páginas seleccionadas. Esta comprobación no usa datos de búsqueda de pago ni llamadas a modelos.",
+        "maxCredits": "Hasta {credits, plural, =1 {# crédito} other {# créditos}}",
+        "maxCreditsPerRun": "Hasta {credits, plural, =1 {# crédito} other {# créditos}} por ejecución",
+        "htmlService": "Este servicio admite comprobaciones de páginas HTML. Los datos de búsqueda y las auditorías completas no están disponibles aquí.",
+        "submit": "Iniciar comprobación",
+        "queued": "Comprobación solicitada",
+        "alreadyRunning": "Hay una comprobación en curso. Espera su resultado antes de iniciar la siguiente.",
+        "noPermission": "No se puede solicitar una comprobación para estas páginas.",
+        "running": "Comprobaciones en curso",
+        "requested": "Solicitada",
+        "completed": "Completada",
+        "failed": "Fallida",
+        "invalid": "Revisa las páginas, palabras clave, mercado y dispositivos. Las auditorías completas admiten una palabra clave y ambos dispositivos.",
+        "keywordsHelp": "Introduce hasta 20 palabras clave, con un máximo de 80 caracteres cada una.",
+        "fullHelp": "Las auditorías completas admiten una palabra clave y ambos dispositivos. Todas las páginas seleccionadas usan el mismo mercado.",
+        "serviceUnavailable": "Las comprobaciones no están disponibles en este espacio de trabajo. Vuelve a la auditoría.",
+        "returnToAudit": "Volver a la auditoría",
+        "modules": "Revisiones incluidas",
+        "moduleNames": {
+          "page_inspect": "Inspección de página",
+          "keyword_refresh": "Posiciones de palabras clave",
+          "links_refresh": "Resumen de enlaces entrantes"
+        },
+        "budgetTooLow": "Selecciona menos palabras clave y páginas competidoras.",
+        "scopeTooLarge": "Para esta revisión, elige una página o un grupo de hasta {count} páginas."
+      },
+      "statistics": {
+        "title": "Sincronizar estadísticas",
+        "description": "Consulta mediciones de las páginas seleccionadas mediante tu cuenta conectada.",
+        "provider": "Fuente",
+        "ga4": "Google Analytics",
+        "search_console": "Search Console",
+        "property": "Propiedad",
+        "chooseProperty": "Elige una propiedad",
+        "channel": "Tráfico",
+        "channelAll": "Todo el tráfico del sitio",
+        "channelOrganic": "Búsqueda orgánica",
+        "submit": "Sincronizar estadísticas",
+        "propertiesLoading": "Cargando propiedades autorizadas",
+        "propertiesFailed": "No se pudieron cargar las propiedades. Inténtalo de nuevo.",
+        "noProperties": "No hay propiedades autorizadas disponibles.",
+        "ownerOnly": "Las estadísticas usan la cuenta y los permisos de la persona que las sincroniza.",
+        "shared": "Las estadísticas guardadas se comparten en esta auditoría de tu organización. Tu cuenta de Google sigue bajo tu control.",
+        "synced": "Estadísticas sincronizadas",
+        "readsSearch": "Lee los últimos {days} días de datos de búsqueda de Google.",
+        "readsOrganic": "Lee los últimos {days} días de tráfico de búsqueda orgánica.",
+        "readsAll": "Lee los últimos {days} días de todo el tráfico del sitio.",
+        "channelAny": "Todos los segmentos medidos",
+        "connectTitle": "Configurar estadísticas",
+        "connectFirst": "Conecta primero {provider}. Después sincronizas aquí sus estadísticas.",
+        "channelAiAssistant": "Asistentes de IA (ChatGPT, Gemini, Copilot)",
+        "readsAiAssistant": "Lee los últimos {days} días de visitas desde asistentes de IA como ChatGPT, Gemini y Copilot."
+      },
+      "metrics": {
+        "page_views": "Vistas de página",
+        "active_users": "Usuarios activos",
+        "landing_sessions": "Sesiones de entrada",
+        "engagement_rate": "Tasa de interacción",
+        "clicks": "Clics de búsqueda",
+        "impressions": "Impresiones de búsqueda",
+        "ctr": "Porcentaje de clics",
+        "average_position": "Posición media",
+        "position": "Posición media"
+      },
+      "severity": {
+        "critical": "Impacto crítico",
+        "major": "Impacto alto",
+        "minor": "Impacto bajo"
+      },
+      "severityHint": {
+        "critical": "La página no puede aparecer en los resultados de búsqueda.",
+        "major": "No se cumple una regla de posicionamiento de Google, o la página pierde una función de búsqueda.",
+        "minor": "No se cumple una regla sobre el aspecto del resultado de búsqueda o sobre la experiencia de uso."
+      },
+      "priority": {
+        "low": "Baja",
+        "medium": "Media",
+        "high": "Alta"
+      },
+      "coverageStatus": {
+        "complete": "Completa",
+        "partial": "Datos parciales",
+        "unavailable": "No disponible"
+      },
+      "invalidFilters": "Los filtros de páginas o fechas no son válidos. Bórralos para elegir otro ámbito.",
+      "resetFilters": "Borrar filtros",
+      "selectPagesLimit": "Selecciona entre 1 y {count} páginas.",
+      "monitor": {
+        "unavailable": "Las comprobaciones programadas no están disponibles aquí. Vuelve a la auditoría.",
+        "title": "Comprobaciones programadas",
+        "create": "Programar revisiones",
+        "description": "El agente repite esta revisión según un plan. Puedes pausarla o terminarla en cualquier momento.",
+        "created": "Seguimiento SEO programado",
+        "next": "Próxima ejecución",
+        "manage": "Gestionar plan de tareas",
+        "createAnother": "Programar otra revisión",
+        "blocked": {
+          "readOnly": "Puedes ver estas revisiones. Solo un editor puede programarlas o cambiarlas.",
+          "service": "Las revisiones programadas no están disponibles en este espacio de trabajo.",
+          "noPages": "Selecciona al menos una página para programar revisiones."
+        },
+        "last": "Última ejecución",
+        "lastStatus": {
+          "requested": "Solicitada",
+          "running": "En curso",
+          "completed": "Completada",
+          "failed": "Fallida"
+        },
+        "noRunYet": "Aún no hay ejecuciones",
+        "pausedNext": "En pausa. No hay ejecución prevista.",
+        "left": "Ejecuciones restantes",
+        "leftCount": "{count, plural, =0 {Ninguna} one {# ejecución} other {# ejecuciones}}",
+        "leftUntil": "Hasta",
+        "leftUntilStopped": "Hasta que alguien la detenga",
+        "pagesDiffer": "El grupo de páginas seleccionado cambió después de programar esta revisión. Sigue revisando sus {count, plural, one {# página guardada} other {# páginas guardadas}}. Programa una revisión nueva para las páginas actuales.",
+        "runNow": "Ejecutar ahora",
+        "pause": "Pausar",
+        "resume": "Reanudar",
+        "edit": "Editar plan",
+        "end": "Finalizar",
+        "endTitle": "¿Finalizar esta revisión programada?",
+        "endBody": "No se inician más ejecuciones. Los resultados guardados se conservan. No puedes reiniciar una revisión finalizada.",
+        "endConfirm": "Finalizar revisión",
+        "saveRule": "Guardar plan",
+        "cancel": "Cancelar",
+        "belowReleased": "Esta revisión ya se ejecutó {count, plural, one {# vez} other {# veces}}. Elige un número mayor o deja que siga hasta que alguien la detenga.",
+        "done": {
+          "update": "Plan guardado",
+          "pause": "Revisión programada en pausa",
+          "resume": "Revisión programada reanudada",
+          "end": "Revisión programada finalizada",
+          "runNow": "Revisión solicitada"
+        },
+        "change": {
+          "none": "Aún no hay un resultado anterior para comparar.",
+          "notComparable": "Los dos últimos resultados usaron otro mercado u otro conjunto de reglas, así que no se comparan.",
+          "same": "Sin cambios desde la última ejecución.",
+          "summary": "Desde la última ejecución: {parts}",
+          "newFailures": "{count, plural, one {# fallo nuevo} other {# fallos nuevos}}",
+          "fixed": "{count, plural, one {# corregido} other {# corregidos}}",
+          "drops": "{count, plural, one {# caída de posición} other {# caídas de posición}}",
+          "rises": "{count, plural, one {# subida de posición} other {# subidas de posición}}",
+          "newFailuresTitle": "Ahora fallan",
+          "fixedTitle": "Corregidos",
+          "movesTitle": "Cambios de posición",
+          "move": "{keyword}: posición {from} → {to}",
+          "band": "Un cambio de posición cuenta solo si supera el ruido normal de búsqueda: 2 puestos en el top 3, 5 en el top 10, 7 en el top 20."
+        },
+        "plan": {
+          "daily": "cada día a las {time}",
+          "weekly": "cada {days} a las {time}",
+          "monthly": "el día {day} de cada mes a las {time}",
+          "other": "según su plan guardado",
+          "sentence": "{check} de {pages, plural, one {# página guardada} other {# páginas guardadas}}, {when} ({zone}).",
+          "untilStopped": "Se ejecuta hasta que alguien la detenga.",
+          "endsAfter": "{count, plural, one {Termina tras # ejecución programada.} other {Termina tras # ejecuciones programadas.}}",
+          "interval": "cada {days} días a las {time}",
+          "endsOn": "Termina el {date}."
+        },
+        "onceADay": "Una comprobación de página se ejecuta como máximo una vez al día, a una hora."
+      },
+      "pageChange": {
+        "title": "Registrar un cambio",
+        "description": "Añade una nota con fecha para estas páginas. Registra los cambios hechos fuera de Sokosumi y conserva la entrada original.",
+        "summary": "¿Qué cambió?",
+        "occurredAt": "Cuándo (hora local del dispositivo)",
+        "note": "Detalles (opcional)",
+        "recorded": "Cambio de página registrado",
+        "invalid": "Elige una fecha válida y al menos una página."
+      },
+      "historyLimited": "Se muestran las últimas {limit} comprobaciones y las últimas {limit} sincronizaciones de estas páginas. El historial anterior no se incluye.",
+      "audits": {
+        "create": "Crear auditoría",
+        "saved": "Auditorías guardadas",
+        "updated": "Actualizada",
+        "created": "Creada",
+        "projectWorkspace": "Espacio SEO del proyecto",
+        "emptyBody": "Crea una auditoría y añade su primera página. Puedes añadir páginas relacionadas después.",
+        "createHelp": "Añade la URL de una página pública. Esto guarda la página sin iniciar una comprobación de pago.",
+        "name": "Nombre de la auditoría",
+        "firstPage": "URL de la primera página",
+        "createFailed": "No se pudo crear la auditoría. Revisa el nombre y la URL e inténtalo de nuevo.",
+        "all": "Todas las auditorías",
+        "nameHelp": "Opcional. Déjalo vacío para usar el dominio de la página.",
+        "urlPlaceholder": "https://example.com/pagina",
+        "onboarding": {
+          "eyebrow": "Agente SEO",
+          "title": "Empieza tu primera auditoría SEO",
+          "titleProject": "Empieza la primera auditoría SEO de este proyecto",
+          "body": "Tu agente sigue las posiciones, encuentra problemas en las páginas y prepara correcciones. Tú apruebas cada una.",
+          "addTitle": "Añade una página",
+          "addBody": "Empieza con una página pública. Puedes añadir páginas relacionadas después.",
+          "connectTitle": "Conecta Google",
+          "connectBody": "Conecta Google para ver las búsquedas y los clics de tu página. Lo haces después de crear la auditoría.",
+          "checkTitle": "Inicia la primera comprobación",
+          "checkBody": "El agente lee tus páginas, encuentra problemas y prepara correcciones.",
+          "trust": "Guardar una página es gratis. Las comprobaciones de pago solo se ejecutan cuando tú las inicias.",
+          "steps": "Pasos de configuración"
+        }
+      },
+      "chat": {
+        "title": "Preguntar al agente SEO",
+        "description": "El agente propone acciones; tú apruebas cada una.",
+        "question": "Tu pregunta",
+        "send": "Enviar pregunta",
+        "working": "Leyendo resultados de la auditoría",
+        "replied": "El agente SEO respondió.",
+        "failed": "No se pudo completar la respuesta. Inténtalo de nuevo.",
+        "loadFailed": "No se pudo cargar esta conversación. Inténtalo de nuevo.",
+        "pages": "{count, plural, one {# página} other {# páginas}}",
+        "private": "Solo tú puedes ver esta conversación y las estadísticas de tus cuentas conectadas.",
+        "shared": "Esta conversación y las estadísticas guardadas se comparten en esta auditoría de tu organización.",
+        "you": "Tú",
+        "member": "Miembro",
+        "open": "Abrir {action}",
+        "auditRequired": "Abre una auditoría para preguntar al agente SEO.",
+        "dailyLimit": "Has alcanzado el límite diario del chat SEO. Inténtalo de nuevo mañana.",
+        "createTask": "Crear borrador de tarea: {title}",
+        "showMore": "Mostrar la pregunta completa",
+        "showLess": "Mostrar menos",
+        "loadingHistory": "Cargando el chat",
+        "placeholder": "Haz una pregunta",
+        "suggestions": "Preguntas sugeridas",
+        "privateShort": "Solo tú puedes leer este chat",
+        "sharedShort": "Compartido en tu organización",
+        "asked": "Pregunta enviada. El agente SEO está trabajando.",
+        "tooLong": "Tu pregunta supera los {limit, number} caracteres. Acórtala y envíala de nuevo."
+      },
+      "connections": {
+        "connect": "Conectar {provider}",
+        "connected": "{provider} conectado",
+        "disconnect": "Desconectar {provider}",
+        "disconnectTitle": "¿Desconectar {provider}?",
+        "disconnectBody": "No podrás iniciar una nueva sincronización con esta cuenta, en ninguna auditoría de este espacio de trabajo, hasta que la vuelvas a conectar. Las estadísticas ya guardadas se conservan.",
+        "unavailable": "Las conexiones no están disponibles en este entorno.",
+        "loadFailed": "No se pudo comprobar esta conexión. Inténtalo de nuevo.",
+        "connectFailed": "No se pudo conectar {provider}. Inténtalo de nuevo.",
+        "disconnectFailed": "No se pudo desconectar {provider}. Inténtalo de nuevo.",
+        "popupBlocked": "Permite las ventanas emergentes para conectar {provider} e inténtalo de nuevo.",
+        "inFlight": "Termina primero la conexión en la ventana abierta.",
+        "timeout": "La conexión ha tardado demasiado. Inténtalo de nuevo.",
+        "pending": "Completa la autorización en la ventana de conexión. Después, reintenta la verificación si hace falta.",
+        "changeAccount": "Cambiar de cuenta",
+        "disconnectAccount": "Desconectar",
+        "resume": "Reintentar la verificación de {provider}",
+        "restart": "Iniciar una nueva conexión de {provider}",
+        "reconnect": "Volver a conectar {provider}",
+        "needsReconnect": "El acceso de Google para {provider} caducó o fue retirado. Vuelve a conectar la cuenta.",
+        "viewerChanged": "Tu cuenta o espacio de trabajo cambió. Vuelve a la auditoría e inicia la conexión de nuevo.",
+        "signInRequired": "Inicia sesión de nuevo y vuelve a conectar tu cuenta de Google.",
+        "accessDenied": "Esta cuenta no puede conectar estadísticas aquí. Comprueba tu acceso al espacio de trabajo.",
+        "expired": "Este intento de conexión caducó o fue sustituido. Inicia una nueva conexión desde la auditoría.",
+        "activationPending": "La autorización de Google aún no está lista. Reintenta la verificación o inicia una nueva conexión.",
+        "consentFailed": "La autorización de Google no terminó. Vuelve a la auditoría e inténtalo de nuevo.",
+        "temporarilyUnavailable": "El servicio de conexión no está disponible temporalmente. Reintenta la verificación en un momento.",
+        "callbackTitle": "Conectar estadísticas SEO",
+        "callbackWorking": "Verificando tu autorización de Google",
+        "callbackDone": "Tu cuenta está conectada. Vuelve a la auditoría, elige una propiedad y sincroniza las estadísticas.",
+        "returnToAudit": "Volver a la auditoría",
+        "invalidCallback": "Este enlace no tiene un contexto de conexión SEO válido. Inicia la conexión desde la auditoría.",
+        "connectGoogle": "Conectar Google",
+        "analyticsNext": "Google pide tu aprobación dos veces: primero para Search Console y después para Google Analytics.",
+        "analyticsOff": "Google Analytics no está conectado. Las visitas y las páginas vistas quedan vacías."
+      },
+      "unavailableTitle": "SEO no está disponible en este Workspace",
+      "unavailableBody": "Esta auditoría o selección no está disponible en el Workspace actual. Revisa el Workspace en la barra lateral o abre la lista de auditorías.",
+      "auditNotHereTitle": "Esta auditoría no está disponible en este espacio de trabajo",
+      "projectNotHereTitle": "Este proyecto no está disponible en este espacio de trabajo",
+      "notHereBody": "Puede pertenecer a otro espacio de trabajo. Cambia de espacio de trabajo en la barra lateral o abre las auditorías de este espacio de trabajo.",
+      "workspaceSwitchPrompt": {
+        "title": "Esta auditoría está en otro espacio de trabajo",
+        "description": "“{auditName}” está en el espacio de trabajo <accountName>{account}</accountName>. Cambia de espacio de trabajo para abrirla, o añade una página nueva en este espacio de trabajo.",
+        "stay": "Añadir una página nueva"
+      },
+      "openAllPages": "Abrir todas las páginas",
+      "queries": {
+        "title": "Consultas de Search Console",
+        "help": "Consultas de Search Console: las búsquedas de Google que mostraron estas páginas. Las impresiones cuentan cuántas veces se mostró una página, no el volumen de búsqueda. La posición es la media del periodo.",
+        "lastSynced": "Última sincronización",
+        "truncated": "Solo se guardan las primeras {count} filas por clics",
+        "notLoaded": "Aún no hay consultas guardadas",
+        "notLoadedBody": "Tus estadísticas guardadas son anteriores a la recogida de búsquedas. Sincroniza las estadísticas para cargarlas.",
+        "notConnected": "Search Console no está conectado",
+        "notConnectedBody": "Conecta Search Console para ver qué búsquedas muestran estas páginas.",
+        "notSynced": "Aún no hay estadísticas de búsqueda",
+        "notSyncedBody": "Search Console está conectado. Sincroniza las estadísticas para ver qué búsquedas muestran estas páginas.",
+        "connect": "Conectar Search Console",
+        "query": "Consulta",
+        "clicks": "Clics de búsqueda",
+        "impressions": "Impresiones de búsqueda",
+        "ctr": "Porcentaje de clics",
+        "position": "Posición media",
+        "rowActions": "Acciones de la fila",
+        "tracked": "Seguida",
+        "track": "Seguir",
+        "trackLabel": "Seguir {query} como palabra clave",
+        "noMatch": "Ninguna consulta coincide con el filtro",
+        "noMatchBody": "Borra el filtro para ver todas las consultas guardadas.",
+        "empty": "Search Console no devolvió consultas",
+        "emptyBody": "Google no mostró búsquedas atribuibles para estas páginas en este periodo. Las consultas anonimizadas nunca aparecen.",
+        "hiddenImpressions": "Google muestra los términos de búsqueda solo de {listed, number} de tus {total, number} impresiones. Oculta las búsquedas poco frecuentes por privacidad.",
+        "buckets": {
+          "label": "Consultas por posición media",
+          "top3": "Top 3",
+          "top10": "4-10",
+          "top20": "11-20",
+          "rest": "21+"
+        },
+        "sortBy": "Ordenar por",
+        "sortHighest": "{column}, de mayor a menor",
+        "sortLowest": "{column}, de menor a mayor",
+        "sortBest": "{column}, mejor primero",
+        "sortWorst": "{column}, peor primero"
+      },
+      "agent": {
+        "ask": "Preguntar al agente SEO",
+        "title": "Agente SEO",
+        "refreshing": "El agente está actualizando Search Console.",
+        "refreshFailed": "No se pudo actualizar Search Console. Usa «Sincronizar ahora» para intentarlo de nuevo.",
+        "nextTitle": "El agente propone",
+        "nothingNext": "No hay nada pendiente. El agente sincroniza Search Console cuando abres esta auditoría y los datos tienen más de un día.",
+        "steps": {
+          "refresh": {
+            "stale": "Los datos de Search Console tienen más de un día. Sincronízalos para ver las búsquedas actuales.",
+            "no_queries": "Carga las búsquedas detrás de tus totales de Search Console para que el agente pueda sugerir trabajo."
+          },
+          "connect": {
+            "search_console": "Conecta Google para ver qué búsquedas muestran estas páginas y cuántas veces se hace clic en ellas.",
+            "ga4": "Conecta Google Analytics para medir visitas y páginas vistas."
+          },
+          "sync": {
+            "search_console": "Search Console está conectado. Sincroniza las estadísticas para ver qué búsquedas muestran estas páginas y cuántas veces se hace clic en ellas.",
+            "ga4": "Google Analytics está conectado. Sincroniza las estadísticas para medir visitas y páginas vistas."
+          },
+          "competitors": {
+            "available": "Aún no se ha investigado ningún competidor. Una comprobación con datos de búsqueda de pago encuentra las páginas que posicionan para tus palabras clave.",
+            "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."
+          },
+          "strategy": "{places, select, yes {{count, plural, one {# sitio donde mostrar el producto} other {# sitios donde mostrar el producto}}} other {{count, plural, one {# acción} other {# acciones}} de la estrategia de palabras clave}}"
+        },
+        "prompts": {
+          "first": "¿Qué debo hacer primero?",
+          "unranked": "¿Por qué mis páginas no están en los primeros resultados de Google?",
+          "queries": "¿Qué búsquedas traen personas a estas páginas?",
+          "competitors": "¿Qué sabes de mis competidores?",
+          "measure": "La comprobación midió «{name}» en {url}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. Prepara un cambio y proponlo como una acción que pueda aprobar.",
+          "track": "¿Qué ideas de palabras clave debo seguir?",
+          "howToDo": "¿Cómo hago este cambio?",
+          "whyFirst": "¿Por qué es este el primer paso?",
+          "whichPage": "¿Qué página debo cambiar primero?",
+          "howLong": "¿Cuánto tarda Google en mostrar un cambio?",
+          "moreClicks": "¿Cuáles de estas búsquedas podrían traer más clics?",
+          "whyKeywords": "¿Por qué estas palabras clave?",
+          "theyDo": "¿Qué hacen ellos que mis páginas no hacen?",
+          "simpler": "Explícalo con palabras más sencillas"
+        },
+        "researchCompetitors": "Investigar competidores",
+        "verdict": {
+          "issues": "{count, plural, one {# problema por corregir} other {# problemas por corregir}}",
+          "waiting": "{count, plural, one {# sugerencia por revisar} other {# sugerencias por revisar}}",
+          "clear": "Sin problemas en la última comprobación",
+          "noCheck": "Aún no hay comprobación. Inicia una para encontrar problemas.",
+          "noCheckOff": "Aún no hay comprobación",
+          "fixes": "{count, plural, one {# corrección pendiente} other {# correcciones pendientes}}",
+          "clearRarelyShown": "{pages, plural, one {Tu página pasa la última comprobación, pero Google aún la muestra poco} other {Tus páginas pasan la última comprobación, pero Google aún las muestra poco}}"
+        },
+        "lastCheckOn": "Última comprobación",
+        "askHow": "Preparar un plan",
+        "traffic": "En Google para {pages, plural, one {esta página} other {estas # páginas}}: {clicks, plural, one {# clic} other {# clics}}, {impressions, plural, one {# impresión} other {# impresiones}}",
+        "openTraffic": "Abrir tráfico",
+        "openRankings": "Abrir posiciones",
+        "toSteps": "Empezar por el primer paso",
+        "draftFix": "Pedir una corrección al agente",
+        "moreSteps": "{count, plural, one {Mostrar # paso más} other {Mostrar # pasos más}}",
+        "moreActions": "{kind, select, fix {{count, plural, one {# corrección más} other {# correcciones más}}} other {{count, plural, one {# acción más} other {# acciones más}}}}",
+        "statisticsMissing": "Las estadísticas no están configuradas",
+        "demand": {
+          "title": "Palabras clave comprobadas con más búsquedas",
+          "unit": "Búsquedas al mes",
+          "position": "Posición {position}"
+        }
+      },
+      "scopeFilters": "Filtros",
+      "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
+      "runs": {
+        "label": "Comprobaciones",
+        "running": "En curso",
+        "left": "quedan unos {minutes} min",
+        "late": "más de lo habitual",
+        "earlier": "Comprobación anterior ({day}).",
+        "showDay": "Mostrar la comprobación del {day}",
+        "latest": "Ver la más reciente",
+        "inRange": "en el rango de fechas",
+        "dates": "Otras fechas",
+        "checkDay": "Día con comprobación",
+        "shown": "Mostrando {range}.",
+        "shownUntil": "Mostrando hasta {day}.",
+        "scheduled": "Programada",
+        "next": "Próxima comprobación"
+      },
+      "filterDates": "Filtrar por fecha",
+      "syncNow": "Sincronizar ahora",
+      "breakdown": {
+        "title": "Países y dispositivos",
+        "help": "Totales de búsqueda de Google de estas páginas por país de quien busca y por dispositivo.",
+        "country": "País",
+        "device": "Dispositivo",
+        "unknownCountry": "País desconocido",
+        "devices": {
+          "desktop": "Escritorio",
+          "mobile": "Móvil",
+          "tablet": "Tableta"
+        },
+        "more": "{count, plural, one {# país más} other {# países más}} con menos clics.",
+        "truncated": "Solo se leyeron las primeras {count} filas por clics. Puede haber más.",
+        "unlisted": {
+          "country": "Google indica el país solo para {listed, number} de tus {total, number} impresiones.",
+          "device": "Google indica el dispositivo solo para {listed, number} de tus {total, number} impresiones.",
+          "both": "Google indica el país y el dispositivo solo para {listed, number} de tus {total, number} impresiones."
+        }
+      },
+      "index": {
+        "title": "Índice de Google",
+        "help": "Si Google mantiene cada página en su índice de búsqueda, según la inspección de URL de Search Console.",
+        "checked": "estado leído",
+        "state": {
+          "indexed": "Indexada",
+          "warnings": "Indexada, con advertencias",
+          "notIndexed": "No indexada",
+          "unknown": "Estado de índice desconocido"
+        },
+        "google": "Google indica: «{words}»",
+        "lastCrawl": "Último rastreo:",
+        "otherCanonical": "Google eligió otra página canónica:",
+        "unanswered": "{count, plural, one {Aún no hay estado de indexación para # página de la vista.} other {Aún no hay estado de indexación para # páginas de la vista.}}"
+      },
+      "setup": {
+        "title": "Configura esta auditoría",
+        "steps": "Pasos de configuración",
+        "done": "hecho",
+        "page": "Añade una página",
+        "pageDone": "Página añadida",
+        "pageBody": "Añade la página pública que quieres posicionar.",
+        "pageDoneBody": "{count, plural, one {# página está en esta auditoría.} other {# páginas están en esta auditoría.}} Puedes añadir más páginas después.",
+        "audit": "Inicia la primera auditoría",
+        "auditBody": "El agente comprueba tus páginas, lee las posiciones de tus palabras clave y tus competidores, y prepara correcciones. Tú apruebas cada una.",
+        "check": "Inicia la primera comprobación",
+        "checkBody": "El agente lee tus páginas, encuentra problemas y prepara correcciones. Tú apruebas cada una.",
+        "checkRunning": "El agente está comprobando tus páginas. Puedes salir de esta página: los resultados aparecen aquí cuando termina la comprobación.",
+        "checkStarted": "Iniciada {when}.",
+        "checkStartedNow": "Iniciada ahora mismo.",
+        "checkRunningBadge": "Comprobación en curso",
+        "checkFailed": "La última comprobación no terminó. Iníciala de nuevo.",
+        "checkEnded": "La comprobación terminó.",
+        "checkLeft": "Quedan unos {minutes, plural, one {# minuto} other {# minutos}} (estimación).",
+        "checkLate": "Tarda más de lo habitual.",
+        "checkProgress": "Progreso de la comprobación (estimación)"
+      },
+      "strategy": {
+        "title": "Estrategia de palabras clave",
+        "from": "De la comprobación del",
+        "verdict": {
+          "keep": "Mantén estas palabras clave",
+          "outOfReach": "La mayoría de las búsquedas de estas palabras clave están fuera del alcance del sitio",
+          "lowDemand": "Estas palabras clave tienen pocas búsquedas",
+          "notDetermined": "La auditoría no pudo dar un resultado de palabras clave",
+          "narrow": "Un nicho más estrecho está al alcance del sitio",
+          "move": "Un mercado cercano está al alcance del sitio",
+          "noFit": "Ninguno de los nichos que leyó la auditoría encaja con el sitio"
+        },
+        "reach": {
+          "inReach": "Al alcance",
+          "outOfReach": "Fuera de alcance",
+          "notDetermined": "Alcance no determinado"
+        },
+        "groups": "{first, select, true {{count, plural, one {# grupo de palabras clave parecidas} other {# grupos de palabras clave parecidas}}} other {{count, plural, one {# grupo} other {# grupos}}}}",
+        "reachCount": {
+          "ranks": "{groups} ya {count, plural, one {posiciona} other {posicionan}}",
+          "inReach": "{groups} {count, plural, one {está} other {están}} al alcance",
+          "open": "{groups} {count, plural, one {tiene} other {tienen}} un foro en los resultados",
+          "outOfReach": "{groups} {count, plural, one {está} other {están}} fuera de alcance",
+          "notDetermined": "{groups} {count, plural, one {no tiene} other {no tienen}} un alcance conocido"
+        },
+        "moving": "{count, plural, one {Las búsquedas cambian en # grupo} other {Las búsquedas cambian en # grupos}}",
+        "reachHelp": {
+          "ranks": "Un grupo posiciona cuando una página del sitio está en los resultados o en el fragmento destacado.",
+          "inReach": "Un grupo está al alcance cuando los dominios de referencia del sitio están cerca de los de la página más débil del top 10 que la auditoría pudo contar.",
+          "open": "Un foro en los resultados de búsqueda es una señal de que los resultados están abiertos a páginas nuevas."
+        },
+        "trend": {
+          "falling": "Las búsquedas bajan",
+          "rising": "Las búsquedas suben"
+        },
+        "targetType": {
+          "appStore": "Tienda de apps",
+          "directory": "Directorio",
+          "forum": "Foro",
+          "list": "Lista de productos",
+          "video": "Vídeo"
+        },
+        "targetState": {
+          "links": "Enlaza al sitio",
+          "mentioned": "Nombra el producto sin enlace",
+          "notMentioned": "No nombra el producto"
+        },
+        "actions": {
+          "title": "Acciones de la estrategia de palabras clave",
+          "more": "{count, plural, one {Mostrar # acción más} other {Mostrar # acciones más}}",
+          "limit": "Límite",
+          "prompt": "La auditoría del sitio recomienda: «{title}». Redacta un plan con los pasos en orden.{hasLimit, select, yes { Respeta este límite: {limit}} other {}}{count, plural, =0 {} one { El lugar: {targets}} other { Los lugares: {targets}}}",
+          "place": "Lugar"
+        },
+        "placeForm": {
+          "community": "Comunidad",
+          "launch": "Sitio de lanzamiento",
+          "listing": "Ficha",
+          "post": "Publicación",
+          "article": "Artículo",
+          "video": "Vídeo"
+        },
+        "places": {
+          "title": "Lugares de promoción",
+          "help": "Por qué la auditoría del sitio no tiene acción ni texto listo para algunos lugares. Las notas están en inglés."
+        },
+        "draft": {
+          "title": "Texto sugerido",
+          "help": "La auditoría del sitio escribió este texto. Léelo y lee las normas del lugar antes de publicarlo.",
+          "copy": "Copiar texto",
+          "copied": "Texto copiado",
+          "copyError": "No se pudo copiar el texto"
+        },
+        "links": {
+          "title": "Dónde mostrar el producto",
+          "task": {
+            "post": "Publicar en {site}",
+            "answer": "Responder una pregunta en {site}",
+            "submit": "Enviar el producto a {site}",
+            "store": "Aparecer en {site}",
+            "link": "Pedir un enlace a {site}",
+            "listing": "Pedir a {site} que incluya el producto"
+          },
+          "ease": {
+            "easy": "Fácil",
+            "medium": "Intermedio",
+            "hard": "Difícil"
+          },
+          "reach": "Visto en {seen, plural, one {# resultado de Google} other {# resultados de Google}}",
+          "more": "{count, plural, one {Mostrar # sitio más} other {Mostrar # sitios más}}",
+          "reason": {
+            "text": "Lo publicas tú, y la auditoría escribió el texto.",
+            "self": "Lo publicas o lo envías tú.",
+            "answer": "Solo como respuesta a una pregunta que el producto resuelve.",
+            "review": "La tienda revisa la app antes de mostrarla.",
+            "mention": "La página ya nombra el producto: pide un enlace.",
+            "author": "Decide quien escribe la página."
+          }
+        }
+      },
+      "summary": {
+        "issues": "Problemas",
+        "issuesNone": "Ninguno encontrado",
+        "severityCount": "{count} {severity, select, critical {{count, plural, one {crítico} other {críticos}}} major {de impacto alto} other {de impacto bajo}}",
+        "keywords": "Palabras clave en los primeros resultados de Google",
+        "of": "de {total}",
+        "searches": "Búsquedas de tus palabras clave",
+        "searchesFor": "Para {keywords} de {of} palabras clave comprobadas",
+        "tests": "Pruebas completadas",
+        "testsNoResult": "{count, plural, one {# prueba sin resultado} other {# pruebas sin resultado}}",
+        "testsAll": "Todas las pruebas tienen resultado",
+        "aMonth": "al mes",
+        "depth": "{same, select, yes {Resultados leídos por palabra clave: {max}} other {Resultados leídos por palabra clave: {min} a {max}}}"
+      },
+      "traffic": {
+        "searchType": "Tipo de búsqueda",
+        "searchTypes": {
+          "web": "Web",
+          "image": "Imágenes",
+          "video": "Vídeos",
+          "news": "Pestaña Noticias",
+          "discover": "Discover",
+          "googleNews": "Google Noticias"
+        },
+        "keyEvents": "Eventos clave (orgánico)",
+        "noKeyEvents": "Google Analytics no registró eventos clave para estas páginas. Configura eventos clave allí para ver las conversiones aquí.",
+        "keyEventsAiAssistant": "Eventos clave (asistentes de IA)",
+        "aiAssistants": "Asistentes de IA",
+        "aiAssistantsHelp": "Visitas del canal «AI Assistant» de Google Analytics (ChatGPT, Perplexity, Gemini, Copilot y otros) según la página de entrada",
+        "aiAssistantsTruncated": "Solo se guardaron las primeras filas, así que los totales pueden ser mayores",
+        "assistant": "Asistente",
+        "landingPage": "Página de entrada",
+        "sessions": "Sesiones",
+        "keyEventsShort": "Eventos clave",
+        "noAiData": "Sin datos del canal «AI Assistant»",
+        "noAiDataBody": "Google Analytics no registró sesiones en su canal «AI Assistant» para estas páginas en este periodo.",
+        "brandSplit": "División por marca",
+        "brandViews": {
+          "all": "Todas las consultas",
+          "branded": "De marca",
+          "non_branded": "Sin marca"
+        },
+        "brandTotals": "Consultas listadas: {branded} clics de marca, {nonBranded} clics sin marca",
+        "editBrandTerms": "Editar términos de marca",
+        "addBrandTerms": "Añadir términos de marca",
+        "brandTerms": "Términos de marca",
+        "brandTermsHelp": "Un término por línea. Una consulta que contiene un término como palabras completas cuenta como de marca. En chino, japonés, coreano o tailandés, cuenta cualquier consulta que contenga el término. Las mayúsculas y los acentos latinos no importan.",
+        "saveBrandTerms": "Guardar términos de marca",
+        "cancelBrandTerms": "Cancelar",
+        "brandSaved": "Términos de marca guardados",
+        "noQueryData": "Este tipo de búsqueda no tiene datos de consultas",
+        "noQueryDataBody": "Para Discover y Google News no se leen consultas. Los clics y las impresiones de este tipo aparecen arriba.",
+        "keyEventsNotRead": "No leído: comparte una ruta de página de destino con otra página seleccionada"
+      },
+      "export": {
+        "csv": "Descargar CSV",
+        "action": "Acción",
+        "kind": "Tipo",
+        "status": "Estado",
+        "csvLabel": "Descargar CSV: {table}"
+      },
+      "datePresets": {
+        "label": "Periodos rápidos",
+        "days": "Últimos {count} días"
+      },
+      "improve": {
+        "catalog": {
+          "title": "Lo que el agente aún no puede hacer",
+          "help": "Funciones que el agente SEO aún no tiene."
+        },
+        "groups": {
+          "technical": "Técnica",
+          "content": "Contenido",
+          "keywords": "Palabras clave y posiciones",
+          "links": "Enlaces",
+          "local": "Local",
+          "measurement": "Medición y conversión",
+          "ai": "Búsqueda con IA",
+          "workflow": "Flujo de trabajo y automatización"
+        },
+        "request": "Copiar solicitud",
+        "requestLabel": "Copiar solicitud: {title}",
+        "requestText": "Solicitud de función para el agente SEO, punto {id}: {title}. Lo que falta: {missing}",
+        "copied": "Solicitud copiada. Envíala al equipo de Sokosumi.",
+        "copyFailed": "No se pudo copiar la solicitud.",
+        "gaps": {
+          "title": "Lo que esta auditoría no pudo ver",
+          "noSearchConsole": "No hay datos de Search Console: no se miden los clics, las búsquedas ni el estado en el índice de Google.",
+          "noAnalytics": "No hay datos de Google Analytics: no se miden las visitas ni los eventos clave.",
+          "statisticsUnavailable": "La última sincronización de estadísticas no pudo leer los datos.",
+          "queryFailed": "Una lectura de Google falló en la última sincronización. Algunos días no tienen valor.",
+          "noAggregate": "Search Console no devolvió totales en la última sincronización.",
+          "queryRows": "Las filas de búsqueda de Search Console no estaban disponibles en la última sincronización.",
+          "keywordSeries": "Las posiciones diarias de las palabras clave seguidas no estaban disponibles en la última sincronización.",
+          "breakdown": "Los totales por país o por dispositivo no estaban disponibles en la última sincronización.",
+          "indexStatus": "El estado en el índice de Google no estaba disponible para una o más páginas en la última sincronización.",
+          "analyticsTimeZone": "Google Analytics no devolvió la zona horaria de la propiedad en la última sincronización. Las comparaciones de periodos son limitadas.",
+          "analyticsNoAggregate": "Google Analytics no devolvió totales en la última sincronización.",
+          "analyticsThresholding": "Google Analytics aplicó umbrales o perdió datos en la última sincronización. Faltan algunos valores.",
+          "analyticsSampling": "Analytics informó de datos basados en una muestra. Los totales y los valores diarios son estimaciones.",
+          "analyticsTruncated": "Google Analytics recortó los valores diarios en la última sincronización. Faltan algunos días.",
+          "analyticsLandingPages": "Los eventos clave por página de destino de Google Analytics no estaban disponibles en la última sincronización.",
+          "analyticsSharedLandingPath": "En la última sincronización no se leyeron los eventos clave por página de destino de las páginas que comparten una ruta en distintos hosts.",
+          "keywordRowsCut": "Search Console solo conservó las primeras {count} filas diarias de palabras clave en la última sincronización. Pueden faltar algunos días.",
+          "keywordsLeftOut": "En la última sincronización no se leyeron las posiciones diarias de {count, plural, one {# palabra clave seguida} other {# palabras clave seguidas}}{shown, plural, =0 {.} other {: {names}{more, plural, =0 {.} other { y # más.}}}}",
+          "note": "Nota de la última sincronización: {note}",
+          "queriesTruncated": "Search Console solo lista las primeras {count} filas de búsqueda. Las búsquedas menos frecuentes quedan fuera.",
+          "noCheck": "Aún no se ha hecho ninguna comprobación en estas páginas.",
+          "notChecked": "{count, plural, one {# prueba} other {# pruebas}} de la última comprobación no tuvieron resultado.",
+          "failed": "{count, plural, one {# prueba} other {# pruebas}} de la última comprobación no estaban disponibles.",
+          "modulesNotRequested": "Comprobaciones opcionales no solicitadas en la última comprobación: {names}.",
+          "modulesFailed": "Comprobaciones opcionales no disponibles en la última comprobación: {names}.",
+          "paidOff": "Los volúmenes de búsqueda y las posiciones actuales necesitan datos de búsqueda de pago, que están desactivados para estas páginas.",
+          "historyLimited": "Solo se cargan las últimas {limit} comprobaciones y las últimas {limit} sincronizaciones. El historial anterior no se incluye."
+        },
+        "fix": {
+          "connect_search_console": "Configurar estadísticas",
+          "connect_ga4": "Configurar estadísticas",
+          "sync": "Sincronizar estadísticas",
+          "run_check": "Iniciar comprobación"
+        },
+        "items": {
+          "1": {
+            "title": "Rastreo de todo el sitio",
+            "missing": "Solo se comprueban las páginas que añades, no todas las páginas del sitio."
+          },
+          "2": {
+            "title": "Enlaces rotos y cadenas de redirecciones de todo el sitio",
+            "missing": "Los enlaces rotos y las cadenas de redirección no se listan para todo el sitio."
+          },
+          "3": {
+            "title": "Cobertura del índice de todas las URL",
+            "missing": "El estado de indexación de Google no se muestra para cada página del sitio."
+          },
+          "4": {
+            "title": "Páginas huérfanas",
+            "missing": "No hay lista de páginas a las que ninguna otra página enlaza."
+          },
+          "5": {
+            "title": "Páginas casi duplicadas",
+            "missing": "No hay lista de páginas con casi el mismo texto."
+          },
+          "6": {
+            "title": "Core Web Vitals en la pestaña SEO",
+            "missing": "Las puntuaciones de velocidad de carga y de diseño no se muestran en la pestaña SEO."
+          },
+          "7": {
+            "title": "Comprobación de una migración del sitio",
+            "missing": "No hay una comprobación de las redirecciones al mover un dominio o unas URL."
+          },
+          "8": {
+            "title": "Datos de rastreo de Googlebot",
+            "missing": "No hay importación de registros del servidor ni del informe de estadísticas de rastreo."
+          },
+          "9": {
+            "title": "Brief de contenido para una palabra clave",
+            "missing": "No hay un esquema de lo que debe cubrir una página nueva para una palabra clave."
+          },
+          "10": {
+            "title": "Borradores y reescrituras del texto principal",
+            "missing": "El agente redacta solo títulos y descripciones, no el texto principal."
+          },
+          "11": {
+            "title": "Cola de actualización de contenido",
+            "missing": "No hay lista de páginas antiguas que actualizar primero."
+          },
+          "12": {
+            "title": "Canibalización desde Search Console",
+            "missing": "No hay lista de búsquedas en las que compiten dos de tus páginas."
+          },
+          "13": {
+            "title": "Señales de autor, Quiénes somos y Contacto",
+            "missing": ""
+          },
+          "14": {
+            "title": "Comprobación de fechas de publicación",
+            "missing": ""
+          },
+          "15": {
+            "title": "Mapa de grupos de temas",
+            "missing": "No hay un mapa de los temas del sitio ni de los temas sin página."
+          },
+          "16": {
+            "title": "Historial de posiciones de las palabras clave seguidas",
+            "missing": ""
+          },
+          "17": {
+            "title": "Funciones de la SERP a lo largo del tiempo",
+            "missing": ""
+          },
+          "18": {
+            "title": "Posición por ciudad",
+            "missing": "Las posiciones se leen solo por país, no por ciudad."
+          },
+          "19": {
+            "title": "Cuota de visibilidad",
+            "missing": ""
+          },
+          "20": {
+            "title": "Tráfico de marca y de otras búsquedas",
+            "missing": ""
+          },
+          "21": {
+            "title": "Estacionalidad",
+            "missing": "Cada palabra clave muestra un volumen de búsqueda mensual y su tendencia, no los 12 meses anteriores."
+          },
+          "22": {
+            "title": "Intención de búsqueda y clase de conversión por palabra clave",
+            "missing": "Las palabras clave tienen una probabilidad de conversión, pero no una etiqueta de lo que quiere hacer la persona que busca."
+          },
+          "23": {
+            "title": "Perfil de backlinks propio",
+            "missing": "Tus páginas muestran cuántos sitios enlazan a ellas, no qué enlaces son."
+          },
+          "24": {
+            "title": "Dominios de referencia nuevos y perdidos",
+            "missing": "No hay una lista de los dominios que empezaron o dejaron de enlazar al sitio."
+          },
+          "25": {
+            "title": "Intersección de enlaces",
+            "missing": "No hay una lista de los dominios que enlazan a la competencia pero no al sitio."
+          },
+          "26": {
+            "title": "Menciones de la marca sin enlace",
+            "missing": "No hay una búsqueda de páginas que nombran la marca sin un enlace."
+          },
+          "27": {
+            "title": "Perfil de textos de anclaje",
+            "missing": "No hay una vista de los textos de anclaje de los enlaces entrantes."
+          },
+          "28": {
+            "title": "Seguimiento de contactos",
+            "missing": "Los textos de las publicaciones se pueden copiar, pero no se siguen las propuestas ni los enlaces conseguidos."
+          },
+          "29": {
+            "title": "Conexión con el Perfil de Empresa",
+            "missing": "No hay conexión con el Perfil de Empresa de Google."
+          },
+          "30": {
+            "title": "Seguimiento de reseñas y borradores de respuesta",
+            "missing": "No hay una lista de reseñas nuevas de Google ni borradores de respuesta."
+          },
+          "31": {
+            "title": "Cuadrícula del paquete local",
+            "missing": "No hay una posición en el mapa en puntos alrededor del negocio."
+          },
+          "32": {
+            "title": "Historial de Search Console de más de 16 meses",
+            "missing": "Una sincronización lee los últimos 90 días. No se guarda historial más allá de 16 meses."
+          },
+          "33": {
+            "title": "Alertas de caída de tráfico y posiciones",
+            "missing": "No se envía ninguna alerta cuando bajan el tráfico o las posiciones."
+          },
+          "34": {
+            "title": "Marcas de actualizaciones de Google en los gráficos",
+            "missing": ""
+          },
+          "35": {
+            "title": "Conversiones orgánicas por página de destino",
+            "missing": "No se muestran los ingresos por página de destino. Los eventos clave solo se muestran en la tabla Páginas principales, que necesita filas de consultas de Search Console y 2 o más páginas, y solo cuando están configurados en Google Analytics."
+          },
+          "36": {
+            "title": "Impacto antes y después por acción",
+            "missing": "La pestaña no muestra clics y posición antes y después de una acción hecha."
+          },
+          "37": {
+            "title": "Rendimiento en Discover, Noticias, Imágenes y Vídeos",
+            "missing": ""
+          },
+          "38": {
+            "title": "Exportación y periodos predefinidos",
+            "missing": "No hay una comparación con el mismo periodo del año anterior. Las tablas de países y dispositivos, competidores, ideas de palabras clave y asistentes de IA no tienen descarga CSV. El separador del CSV sigue el idioma de la aplicación, no la región del ordenador."
+          },
+          "39": {
+            "title": "Historial de citas en resúmenes de IA",
+            "missing": "No se comprueban los resúmenes de IA que Google carga después de la página, porque esa lectura cuesta más."
+          },
+          "40": {
+            "title": "Tráfico desde asistentes de IA",
+            "missing": ""
+          },
+          "41": {
+            "title": "Menciones de la marca en respuestas de modelos de IA",
+            "missing": "No hay una comprobación de si las respuestas de IA nombran la marca."
+          },
+          "42": {
+            "title": "Aplicar correcciones en el CMS o como pull request",
+            "missing": "Las correcciones no se escriben en el CMS ni se envían como pull request."
+          },
+          "43": {
+            "title": "Resumen semanal",
+            "missing": "No hay un correo ni un mensaje semanal con los cambios principales."
+          },
+          "44": {
+            "title": "Nueva comprobación y rastreo tras una corrección",
+            "missing": "No hay una nueva comprobación automática ni una comprobación del índice tras una corrección hecha."
+          },
+          "45": {
+            "title": "Informe para clientes que se puede compartir",
+            "missing": "No hay un enlace de solo lectura ni un PDF de la auditoría para clientes."
+          }
+        }
+      },
+      "shareOfVoice": {
+        "title": "Cuota de voz",
+        "description": "Cuota estimada de clics orgánicos en las palabras clave seguidas en la semana del {week}, a partir de {count, plural, one {# lectura de palabra clave} other {# lecturas de palabras clave}}. Cada palabra clave cuenta igual.",
+        "site": "Tus páginas",
+        "others": "Otros sitios",
+        "unattributed": "Resultados sin sitio conocido",
+        "change": "{points} pts",
+        "changeNote": "Puntos: cambio desde la semana del {week}.",
+        "method": "Una estimación, no una medición: cada resultado orgánico recibe el porcentaje de clics de su posición (Advanced Web Ranking, julio de 2026).",
+        "weekly": "Valores semanales",
+        "week": "Semana del",
+        "siteShare": "Cuota de tus páginas"
+      },
+      "keywordReach": {
+        "searches": "{count, plural, one {# búsqueda} other {# búsquedas}} al mes",
+        "searchesBoth": "{count, plural, one {# búsqueda} other {# búsquedas}} al mes ({suggested, number} en las sugerencias de keywords)",
+        "position": "posición {position}",
+        "reach": {
+          "ranks": "Posiciona",
+          "inReach": "Al alcance",
+          "open": "Un foro en los resultados",
+          "outOfReach": "Fuera de alcance",
+          "notDetermined": "Alcance no determinado"
+        },
+        "features": {
+          "title": "Mejor búsqueda de cada función",
+          "help": "Para cada función: la búsqueda con más búsquedas que ningún grupo de keywords contiene, y su alcance."
+        },
+        "rivals": {
+          "title": "Keywords de productos competidores",
+          "help": "Las keywords para las que posiciona cada producto competidor, primero las de más búsquedas.",
+          "topic": "Keywords con una palabra de tu tema ({words}):",
+          "word": "«{word}»",
+          "noTopic": "Ninguna keyword tiene una palabra de tu tema ({words}).",
+          "other": "{count, plural, one {# keyword no tiene} other {# keywords no tienen}} ninguna de estas palabras: otros productos del sitio o nombres de productos",
+          "otherOne": "{count, plural, one {# keyword no tiene} other {# keywords no tienen}} esta palabra: otros productos del sitio o nombres de productos",
+          "more": "{count} más en el informe del sitio"
+        },
+        "ideas": {
+          "title": "Ideas para artículos",
+          "help": "Búsquedas que tus usuarios hacen antes de necesitar el producto. Un artículo sobre ellas trae lectores que pueden necesitarlo más tarde."
+        }
+      }
     }
   },
   "Share": {
@@ -11667,7 +13025,8 @@
         "scheduleOccurrenceChangedByMember": "Un miembro del equipo cambió una ocurrencia de {taskName}",
         "assigned": "Se te asignó {taskName}",
         "participantAdded": "Te añadieron a {taskName} como participante",
-        "followUp": "{taskName} sigue esperándote"
+        "followUp": "{taskName} sigue esperándote",
+        "seoMonitorWorse": "{taskName}: el último resultado SEO programado empeoró. Fallos nuevos: {newFailures}. Caídas de posición: {drops}."
       },
       "Billing": {
         "lowBalance": "Tus créditos se están agotando: quedan {credits}",

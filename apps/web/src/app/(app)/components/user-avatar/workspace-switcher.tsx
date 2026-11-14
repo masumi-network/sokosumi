@@ -8,6 +8,7 @@ import {
   CHAT_WELCOME_PATH,
   roomIdFromPath,
 } from "@/app/chat/utils/chat-route-base";
+import { PROJECT_SCOPE_PARAM } from "@/app/components/project-scope/project-scope-href";
 import {
   activateOrganizationWorkspace,
   isUserNotMemberOfOrganizationError,
@@ -34,6 +35,21 @@ export function getTaskDetailBasePath(pathname: string): string | null {
   return "/tasks";
 }
 
+/**
+ * An Audit and a Project belong to one workspace, so the selection in the SEO
+ * page's query does not survive a switch. An open Audit stays in the address
+ * with its tab and filters, without its Project: its page then asks whether to
+ * switch back or to start in the new workspace.
+ */
+export function getSeoBasePath(pathname: string, search = ""): string | null {
+  if (pathname !== "/seo") return null;
+  const params = new URLSearchParams(search);
+  if (!params.has("auditId")) return "/seo";
+  // The header clears a Project the new workspace cannot see, and would open the list.
+  params.delete(PROJECT_SCOPE_PARAM);
+  return `/seo?${params}`;
+}
+
 export function getOrganizationSettingsPath(
   pathname: string,
   organizationId?: string | null,
@@ -53,11 +69,15 @@ export function getOrganizationSettingsPath(
   return "/organization";
 }
 
-interface SwitchOrganizationWorkspaceOptions {
+/** What the caller of a switch decides: the path redirects to skip, and the success text. */
+export interface WorkspaceSwitchChoices {
   shouldRedirectAgentJobsBasePath?: boolean;
   shouldRedirectTaskDetailPath?: boolean;
   shouldRedirectOrganizationSettingsPath?: boolean;
   successMessage?: string;
+}
+
+interface SwitchOrganizationWorkspaceOptions extends WorkspaceSwitchChoices {
   router?: AppRouterInstance;
   pathname?: string;
   startTransition?: (callback: () => void) => void;
@@ -142,6 +162,21 @@ export async function switchOrganizationWorkspace(
     }
   }
 
+  if (options?.router && options?.pathname) {
+    // Without this a Project of the old workspace stays in the address and the page says it is unavailable.
+    const seoBasePath = getSeoBasePath(
+      options.pathname,
+      window.location.search,
+    );
+    if (seoBasePath) {
+      runRouterTransition(() => {
+        options.router?.replace(seoBasePath);
+        options.router?.refresh();
+      }, options.startTransition);
+      return;
+    }
+  }
+
   const shouldRedirectOrganizationSettingsPath =
     options?.shouldRedirectOrganizationSettingsPath ?? true;
   if (
@@ -192,12 +227,7 @@ export function useWorkspaceSwitcher() {
 
   const handleSelectWorkspace = (
     organizationId: string | null,
-    options?: {
-      shouldRedirectAgentJobsBasePath?: boolean;
-      shouldRedirectTaskDetailPath?: boolean;
-      shouldRedirectOrganizationSettingsPath?: boolean;
-      successMessage?: string;
-    },
+    options?: WorkspaceSwitchChoices,
   ): Promise<void> => {
     setIsActivating(true);
 

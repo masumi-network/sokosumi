@@ -1,0 +1,41 @@
+/// One person's native SEO consent, reusable across Audits in this Workspace.
+/// Tokens remain in Composio. DISCONNECTED also prevents reuse of a personal-bot account.
+model SeoConnection {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  workspaceId       String    @db.Uuid
+  userId            String
+  provider          String
+  status            String    @default("INHERIT")
+  revision          Int       @default(0)
+  composioAccountId String?   @unique
+  entityId          String?
+  authConfigId      String?
+  connectedAt       DateTime?
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId, provider])
+  @@map("seo_connection")
+}
+
+/// A single owner-bound OAuth attempt. Only the latest revision can become selected.
+model SeoConnectionIntent {
+  connectionId       String    @id
+  createdAt          DateTime  @default(now())
+  workspaceId        String    @db.Uuid
+  userId             String
+  provider           String
+  toolkit            String
+  authConfigId       String
+  connectorEntityId  String
+  executorEntityId   String
+  expectedRevision   Int
+  expiresAt          DateTime
+  callbackRedeemedAt DateTime?
+  finalizedAt        DateTime?
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, userId, provider, expiresAt])
+  @@map("seo_connection_intent")
+}

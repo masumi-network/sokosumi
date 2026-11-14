@@ -1,0 +1,638 @@
+"use client";
+
+import { ChevronDown, WandSparkles } from "lucide-react";
+import Link from "next/link";
+import { useFormatter, useTranslations } from "next-intl";
+import {
+  type ReactNode,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import { Button } from "@/components/ui/button";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
+import { cn } from "@/lib/utils";
+import {
+  checkName,
+  measuresOutsideToolRanges,
+  measureValue,
+  noteFinding,
+  pageDetailGuidance,
+  pageDetailGuidanceRows,
+  pageDetailReferences,
+  pageDetailRuleCodes,
+  seoOverviewModel,
+  toolRangeFit,
+  toolRangesList,
+  withoutRuleCodes,
+} from "./seo-overview-model";
+import { SeoPages } from "./seo-pages";
+import { seoCheckRunning } from "./seo-setup-model";
+import {
+  SeoDate,
+  SeoFoldSummary,
+  SeoPageLink,
+  SeoSection,
+  SeoSeverity,
+  SeoSource,
+  SeoState,
+  seoPageLabel,
+  seoPageName,
+  seoSiteUrl,
+} from "./seo-shared";
+import { useSeoTileDay } from "./seo-summary-tiles";
+import { SeoTimeline } from "./seo-timeline";
+import type { SeoWorkspaceModel } from "./use-seo-workspace";
+
+type Diagnostic = ReturnType<typeof seoOverviewModel>["diagnostics"][number];
+
+/** A note value longer than this (a whole keywords tag) starts folded to three lines. */
+const NOTE_VALUE_FOLD_CHARS = 120;
+
+/** One measured value or note: its name, the page when that tells rows apart, its value and the check's guidance. */
+function PageDetail({
+  finding,
+  data,
+  dated,
+  showGuidance,
+  suggested,
+  offersFix,
+  onAsk,
+}: {
+  finding: Diagnostic;
+  data: SeoWorkspaceModel["data"];
+  /** Rows from several checks keep their own date and record. */
+  dated: boolean;
+  /** The same rule on several pages carries the same guidance; the first row shows it. */
+  showGuidance: boolean;
+  /** A row of a measurement the Agent tab counts as a suggestion; it carries the "Suggestion:" mark. */
+  suggested: boolean;
+  /** The suggestion's first row offers "Draft a fix"; its other device rows do not repeat it. */
+  offersFix: boolean;
+  /** Opens the agent chat with this row's question or fix request as a draft; absent without a chat. */
+  onAsk?: (question: string) => void;
+}) {
+  const t = useTranslations("App.Seo");
+  const format = useFormatter();
+  const headingId = useId();
+  const valueId = useId();
+  const pageLabelId = useId();
+  const [fullValue, setFullValue] = useState(false);
+  const valueRef = useRef<HTMLParagraphElement>(null);
+  const [clamped, setClamped] = useState(false);
+  const name = checkName(finding.title);
+  const first = finding.evidence[0];
+  const measure = finding.severity === "measure";
+  const guidance = showGuidance ? pageDetailGuidance(finding.evidence) : [];
+  const value = measure && first ? measureValue(name, first) : undefined;
+  // Each page's value gets its own fit, though only the first row shows the ranges.
+  const fit = value
+    ? toolRangeFit(value, pageDetailGuidance(finding.evidence))
+    : null;
+  // A note leads with what the check found on the page; its rule name can read as the opposite.
+  // A long finding stays a foldable value under the rule, not a heading.
+  const split =
+    !measure && first !== undefined ? noteFinding(first) : undefined;
+  const note =
+    split && split.found.length <= NOTE_VALUE_FOLD_CHARS ? split : undefined;
+  const detail = note ? note.detail : measure ? undefined : first;
+  const foldable =
+    detail !== undefined && detail.length > NOTE_VALUE_FOLD_CHARS;
+  // With one page there is nothing to tell apart, unless the row is for a page removed since.
+  const showPage =
+    data.pages.length > 1 || finding.pageUrl !== data.pages[0]?.url;
+  // The toggle shows only once the clamp cuts the text. A closed fold has no size,
+  // so the check runs again when it opens.
+  useLayoutEffect(() => {
+    const element = valueRef.current;
+    // New text in the same box does not resize it, so the text itself starts a new check.
+    if (!foldable || fullValue || !element || !detail) return;
+    // Once cut, the toggle stays: dropping it on a resize would drop the focus on it.
+    const check = () =>
+      setClamped((cut) => cut || element.scrollHeight > element.clientHeight);
+    check();
+    // Without an observer the fold cannot be measured again; keep the toggle so the text can open.
+    if (typeof ResizeObserver === "undefined") {
+      setClamped(true);
+      return;
+    }
+    const observer = new ResizeObserver(check);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [foldable, fullValue, detail]);
+  const toggle = foldable && clamped;
+  // A note can always be asked about; a measurement only when some tool range leaves it out.
+  const ask = measure ? (offersFix ? onAsk : undefined) : onAsk;
+  return (
+    <li className="space-y-1">
+      {measure ? (
+        // A measurement is one line; its value drops the words its name already says.
+        <p className="text-sm break-words">
+          <span id={headingId} className="font-medium">
+            {name}:
+          </span>{" "}
+          <span className="text-muted-foreground">{value ?? t("none")}</span>
+          {fit ? (
+            // Google sets no limit for these; the tools' ranges say whether a value stands out.
+            <span>
+              {" · "}
+              {suggested ? `${t("overview.suggestion")} ` : null}
+              {fit.outside.length
+                ? t("overview.outsideToolRanges", {
+                    outside: fit.outside.length,
+                    total: fit.total,
+                    tools: format.list(fit.outside),
+                  })
+                : t("overview.insideToolRanges", { total: fit.total })}
+            </span>
+          ) : null}
+        </p>
+      ) : (
+        <>
+          {/* The heading is the check's own finding; the rule name, e.g. "No meta keywords", follows it. */}
+          <h4 id={headingId} className="text-sm font-medium break-words">
+            {note
+              ? t("overview.noteFound", { found: note.found })
+              : t("overview.noteRule", { name })}
+          </h4>
+          {note ? (
+            <p className="text-muted-foreground text-xs">
+              {t("overview.noteRuleName", { name })}
+            </p>
+          ) : null}
+          {detail ? (
+            <p
+              id={valueId}
+              ref={valueRef}
+              className={cn(
+                "text-muted-foreground text-sm break-words",
+                foldable && !fullValue && "line-clamp-3",
+              )}
+            >
+              {detail}
+            </p>
+          ) : null}
+        </>
+      )}
+      {/* The check's own guidance: Google's rule, then what tools use. */}
+      {guidance.length ? (
+        <ul className="text-muted-foreground space-y-0.5 text-xs">
+          {guidance.map((line, index) => (
+            <li key={`${index}:${line}`} className="break-words">
+              {toolRangesList(line) === undefined
+                ? withoutRuleCodes(line)
+                : t("overview.toolRanges", {
+                    ranges: toolRangesList(line) ?? "",
+                  })}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {toggle || ask || showPage ? (
+        // One row keeps the controls apart and the page link off the buttons.
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          {toggle ? (
+            <button
+              type="button"
+              aria-expanded={fullValue}
+              aria-controls={valueId}
+              aria-describedby={headingId}
+              onClick={() => setFullValue((open) => !open)}
+              className="focus-visible:ring-ring -my-3 rounded-sm py-3 text-xs underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
+            >
+              {t(fullValue ? "overview.showLess" : "overview.showAll")}
+            </button>
+          ) : null}
+          {ask ? (
+            <Button
+              variant="outline"
+              size="sm"
+              // Many rows have this button; their name and page tell them apart.
+              aria-describedby={
+                showPage ? `${headingId} ${pageLabelId}` : headingId
+              }
+              onClick={() =>
+                ask(
+                  // The same request as the Agent tab's "Draft a fix" step.
+                  measure
+                    ? t("agent.prompts.measure", {
+                        name,
+                        value: value ?? "",
+                        tools: format.list(fit?.outside ?? []),
+                        count: fit?.outside.length ?? 0,
+                        url: finding.pageUrl,
+                      })
+                    : showPage
+                      ? t("overview.askAboutNoteOnPage", {
+                          name,
+                          url: finding.pageUrl,
+                        })
+                      : t("overview.askAboutNote", { name }),
+                )
+              }
+            >
+              <WandSparkles />
+              {t(measure ? "agent.draftFix" : "overview.askAgent")}
+            </Button>
+          ) : null}
+          {showPage ? (
+            <>
+              <span id={pageLabelId} className="sr-only">
+                {finding.pageUrl}
+              </span>
+              <SeoPageLink
+                url={finding.pageUrl}
+                site={seoSiteUrl(data)}
+                label={seoPageLabel(data, finding.pageUrl)}
+              />
+            </>
+          ) : null}
+        </div>
+      ) : null}
+      {dated ? (
+        // The date is the link to the check; its hit area grows down, off the page link over it.
+        <div className="text-muted-foreground flex flex-wrap gap-3 pt-2 text-xs">
+          <SeoSource observationId={finding.observationId} workspace={data}>
+            <SeoDate value={finding.observedAt} />
+          </SeoSource>
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+/** The words that start every row of a list ("Not passed:"): quiet, so the part that differs leads. */
+const quietPrefix = (chunks: ReactNode) => (
+  <span className="text-muted-foreground font-normal">{chunks}</span>
+);
+
+/** Site health: what the checks found, page by page and over time. */
+export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
+  const t = useTranslations("App.Seo");
+  const { data } = model;
+  const overview = seoOverviewModel(data);
+  const sameDayAsTile = useSeoTileDay(data);
+  const checkRunning = seoCheckRunning(data);
+  // History rows carry their own check's coverage; only checks without a row are listed here.
+  const onTimeline = new Set(data.timeline.map((event) => event.observationId));
+  const offTimeline = data.observations.filter(
+    (observation) => !onTimeline.has(observation.id),
+  );
+  // Rows from one check share its date and record; say them once above the rows.
+  const oneCheck =
+    !offTimeline.length &&
+    new Set(overview.diagnostics.map((finding) => finding.observationId))
+      .size === 1
+      ? overview.diagnostics[0]
+      : undefined;
+  // The check's own time; its rows may carry later times per device.
+  const checkedAt = (finding: (typeof overview.diagnostics)[number]) =>
+    data.observations.find(
+      (observation) => observation.id === finding.observationId,
+    )?.observedAt ?? finding.observedAt;
+  const oneCheckAt = oneCheck ? checkedAt(oneCheck) : null;
+  // Measurements report a value; notes are rules the check flagged that do not count as issues.
+  const measures = overview.diagnostics.filter(
+    (finding) => finding.severity === "measure",
+  );
+  const notes = overview.diagnostics.filter(
+    (finding) => finding.severity !== "measure",
+  );
+  const flagged = notes.length;
+  // The Agent tab's suggestions: the newest check's values outside a tool range.
+  const suggestionList = measuresOutsideToolRanges(overview.diagnostics);
+  const suggestions = suggestionList.length;
+  const suggestedRows = new Set(
+    suggestionList.flatMap((suggestion) => suggestion.findingIds),
+  );
+  // One fix per suggestion: its first row carries the button, so devices do not repeat it.
+  const fixRows = new Set(
+    suggestionList.map((suggestion) => suggestion.findingIds[0]),
+  );
+  const references = pageDetailReferences(
+    overview.diagnostics.map((finding) => ({
+      name: checkName(finding.title),
+      evidence: finding.evidence,
+    })),
+  );
+  const guidanceRows = pageDetailGuidanceRows(
+    overview.diagnostics.map((finding) => ({
+      id: finding.id,
+      name: checkName(finding.title),
+      evidence: finding.evidence,
+    })),
+  );
+  // Rule IDs leave the shown guidance and fold with the sources.
+  const ruleCodes = pageDetailRuleCodes(
+    overview.diagnostics
+      .filter((finding) => guidanceRows.has(finding.id))
+      .flatMap((finding) => pageDetailGuidance(finding.evidence)),
+  );
+  // A question or fix request goes to the agent's chat as a draft; the owner sends it.
+  const askAgent = data.auditId
+    ? (question: string) => model.openChat(question)
+    : undefined;
+  return (
+    <div className="space-y-5">
+      {overview.unplanned.length ? (
+        <SeoSection title={t("overview.findings")}>
+          {/* One list, one row per issue that no action fixes: the row opens its evidence. */}
+          <ul
+            className={cn(
+              HOLDER_ITEM_CLASS,
+              "stagger divide-y [--stagger-step:40ms]",
+            )}
+          >
+            {overview.unplanned.map((finding) => {
+              // A test name alone reads like a pass, so the row says it did not pass.
+              return (
+                <li key={finding.id}>
+                  <details className="group text-sm">
+                    <summary className="focus-visible:ring-ring grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-start sm:grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 gap-y-0.5 rounded-sm px-4 py-2.5 group-open:pb-1 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+                      {/* Plain wrap, as an action title: balanced lines ended the first line at half the row. */}
+                      <h3 className="font-medium text-wrap break-words">
+                        {/* The same words start every row: they are quiet, the name of the check is the bright part. */}
+                        {t.rich("overview.failedCheck", {
+                          name: checkName(finding.title),
+                          prefix: quietPrefix,
+                        })}
+                      </h3>
+                      {/* On a phone the impact label is the row's last line: beside the title it broke the title
+                          into three lines. The open row has it under its page link there, so the lines keep the
+                          order of the closed row: title, page, impact. */}
+                      <span className="flex max-sm:col-start-1 max-sm:row-start-3 max-sm:group-open:hidden">
+                        <SeoSeverity severity={finding.severity} />
+                      </span>
+                      <ChevronDown
+                        aria-hidden
+                        className="text-muted-foreground mt-0.5 size-4 shrink-0 transition-transform duration-150 ease-out group-open:rotate-180 motion-reduce:transition-none"
+                      />
+                      <span className="text-muted-foreground col-span-2 text-xs [overflow-wrap:anywhere] max-sm:truncate sm:col-span-3">
+                        {/* Both devices is the usual case and says nothing; one device does. */}
+                        {finding.devices.length === 1
+                          ? t(`analysis.${finding.devices[0]}`)
+                          : null}
+                        {/* The open row has the link to the page. */}
+                        <span className="group-open:hidden">
+                          {finding.devices.length === 1 ? " · " : null}
+                          {seoPageLabel(data, finding.pageUrl) ??
+                            seoPageName(
+                              finding.pageUrl,
+                              seoSiteUrl(data),
+                              t("pages.home"),
+                            )}
+                        </span>
+                      </span>
+                    </summary>
+                    <div className="text-muted-foreground space-y-3 px-4 pb-3">
+                      {/* The page keeps its place under the title, as in an open action card: there it is the link. */}
+                      <div className="flex flex-col items-start gap-0.5">
+                        <SeoPageLink
+                          url={finding.pageUrl}
+                          site={seoSiteUrl(data)}
+                          label={seoPageLabel(data, finding.pageUrl)}
+                          quiet
+                        />
+                        <span className="flex sm:hidden">
+                          <SeoSeverity severity={finding.severity} />
+                        </span>
+                      </div>
+                      <ul className="list-disc space-y-1 ps-4">
+                        {finding.evidence.map((evidence, index) => (
+                          <li
+                            key={`${index}:${evidence}`}
+                            className="break-words"
+                          >
+                            {evidence}
+                          </li>
+                        ))}
+                      </ul>
+                      {/* The tests tile at the top of the tab dates the last check: a finding of that day repeats no date
+                          (the date of the tile opens the results of that check). An older finding has its date,
+                          with a word, and the date is the link to its check. */}
+                      {sameDayAsTile(checkedAt(finding)) ? null : (
+                        <p className="text-xs">
+                          <SeoSource
+                            observationId={finding.observationId}
+                            workspace={data}
+                          >
+                            {t("overview.checkedOn")}{" "}
+                            <SeoDate value={checkedAt(finding)} day />
+                          </SeoSource>
+                        </p>
+                      )}
+                    </div>
+                  </details>
+                </li>
+              );
+            })}
+          </ul>
+        </SeoSection>
+      ) : null}
+      {/* The empty Actions list above says it already: only there, with no action and no strategy step. */}
+      {overview.hasFailedChecks &&
+      !(
+        overview.emptyState === "incomplete" &&
+        !overview.actions.length &&
+        !data.strategy?.actions.length
+      ) ? (
+        <p className="text-muted-foreground px-2 text-sm">
+          {t("actions.checksIncompleteBody")}
+        </p>
+      ) : null}
+      {overview.recentChecks.length ? (
+        <SeoSection title={t("overview.recentChecks")}>
+          {overview.recentChecks.map((item) => (
+            <div
+              key={item.id}
+              className={cn(
+                HOLDER_ITEM_CLASS,
+                "flex flex-wrap items-center justify-between gap-3 p-4",
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">
+                  {t(`analysis.${item.kind}`)}
+                </span>
+                <SeoState>{t(`analysis.${item.status}`)}</SeoState>
+              </div>
+              {item.taskId ? (
+                <Link
+                  href={`/tasks/${encodeURIComponent(item.taskId)}`}
+                  className="text-sm underline underline-offset-4"
+                >
+                  {t("openTask")}
+                </Link>
+              ) : null}
+            </div>
+          ))}
+        </SeoSection>
+      ) : null}
+      <SeoPages model={model} />
+      {overview.diagnostics.length || offTimeline.length ? (
+        <details className={cn(HOLDER_CLASS, "group/details text-sm")}>
+          {/* The same shape as an issue row: the name, its counts as marks, and the arrow at the end. */}
+          <summary
+            className={cn(
+              "focus-visible:ring-ring grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 rounded-sm px-2 py-2 focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden",
+              (suggestions || flagged) &&
+                "sm:grid-cols-[minmax(0,1fr)_auto_auto]",
+            )}
+          >
+            <h2 className="min-w-0 text-sm font-semibold">
+              {t("overview.diagnostics")}
+            </h2>
+            {suggestions || flagged ? (
+              // On a phone the counts are a line of their own under the name.
+              // Plain muted counts: outlined pills read as more controls in the row.
+              <span className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 text-sm max-sm:order-last max-sm:col-span-2">
+                {suggestions ? (
+                  <span>
+                    {t("overview.suggestionCount", { count: suggestions })}
+                  </span>
+                ) : null}
+                {suggestions && flagged ? <span aria-hidden>·</span> : null}
+                {flagged ? (
+                  <span>{t("overview.noteCount", { count: flagged })}</span>
+                ) : null}
+              </span>
+            ) : null}
+            <ChevronDown
+              aria-hidden
+              className="text-muted-foreground size-4 shrink-0 transition-transform duration-150 ease-out group-open/details:rotate-180 motion-reduce:transition-none"
+            />
+          </summary>
+          <div className={cn(HOLDER_ITEM_CLASS, "mt-2 space-y-4 p-4")}>
+            {oneCheck ? (
+              // The date of the tests tile, the check's History row or its page card links its results.
+              <p className="text-muted-foreground text-xs">
+                {t.rich("overview.fromCheck", {
+                  date: () => <SeoDate value={oneCheckAt} />,
+                })}
+              </p>
+            ) : null}
+            {offTimeline.map((observation) => (
+              <div
+                key={observation.id}
+                className="text-muted-foreground space-y-2"
+              >
+                <p>
+                  {t("overview.coverageCounts", {
+                    checked: observation.coverage.checked,
+                    skipped: observation.coverage.skipped,
+                    failed: observation.coverage.failed,
+                  })}
+                </p>
+                {observation.coverage.modules ? (
+                  <p>
+                    {t("overview.moduleCoverage", {
+                      notRequested: observation.coverage.modules.notRequested,
+                      failed: observation.coverage.modules.failed,
+                    })}
+                  </p>
+                ) : null}
+                <div className="flex flex-wrap gap-3 text-xs">
+                  <SeoSource observationId={observation.id} workspace={data}>
+                    <SeoDate value={observation.observedAt} />
+                  </SeoSource>
+                </div>
+              </div>
+            ))}
+            {measures.length ? (
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold">
+                  {t("overview.pageMeasurements")}
+                </h3>
+                <ul className="space-y-3">
+                  {measures.map((finding) => (
+                    <PageDetail
+                      key={finding.id}
+                      finding={finding}
+                      data={data}
+                      dated={!oneCheck}
+                      showGuidance={guidanceRows.has(finding.id)}
+                      suggested={suggestedRows.has(finding.id)}
+                      offersFix={fixRows.has(finding.id)}
+                      onAsk={askAgent}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {notes.length ? (
+              <section className="space-y-2">
+                {/* Notes do not count toward the verdict; say so where they are listed. */}
+                <h3 className="text-sm">
+                  <span className="font-semibold">
+                    {t("overview.pageNotes", { count: notes.length })}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {t("overview.notesNotCounted")}
+                  </span>
+                </h3>
+                <ul className="space-y-3">
+                  {notes.map((finding) => (
+                    <PageDetail
+                      key={finding.id}
+                      finding={finding}
+                      data={data}
+                      dated={!oneCheck}
+                      showGuidance={guidanceRows.has(finding.id)}
+                      suggested={false}
+                      offersFix={false}
+                      onAsk={askAgent}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {/* Rows show their value and guidance; provenance folds once. */}
+            {references.length || ruleCodes.length ? (
+              <details className="text-muted-foreground text-sm">
+                <SeoFoldSummary className="py-2.5">
+                  {references.length && ruleCodes.length
+                    ? t("overview.referencesAndRules")
+                    : references.length
+                      ? t("overview.references", { count: references.length })
+                      : t("overview.rulesOnly")}
+                </SeoFoldSummary>
+                <ul className="list-disc space-y-1 ps-4 pt-1">
+                  {references.map((reference) => (
+                    <li key={reference.line} className="break-words">
+                      {reference.names.length
+                        ? `${reference.names.join(", ")}: ${reference.line}`
+                        : reference.line}
+                    </li>
+                  ))}
+                  {ruleCodes.length ? (
+                    <li className="break-words">
+                      {t("overview.ruleIds", { ids: ruleCodes.join(", ") })}
+                    </li>
+                  ) : null}
+                </ul>
+              </details>
+            ) : null}
+          </div>
+        </details>
+      ) : null}
+      {/* History is the last block of the tab: the issues, the pages and the page details are the result. */}
+      <SeoTimeline
+        // With several pages each page row gives its last check: its issues, and its day and the results link
+        // when the check is not the one the tests tile dates and links.
+        // With one page only the History row links the results.
+        summarized={data.pages.length > 1}
+        workspace={data}
+        onRetry={
+          data.availableActions.canRequestAnalysis && !checkRunning
+            ? () => model.setDialog("analysis")
+            : undefined
+        }
+      />
+    </div>
+  );
+}

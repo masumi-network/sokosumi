@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { SOKO_BOT_ROUTES } from "./policy.js";
+import { SOKO_BOT_MEMORY_LIMITS, SOKO_BOT_ROUTES } from "./policy.js";
 import type { SokoBotContextPacket } from "./runtime.js";
 
 const jsonObjectSchema = z.record(z.string(), z.json());
@@ -12,6 +12,18 @@ const sokoBotContextPacketTriggerSchema = z.object({
   requestedOutcome: z.string(),
   unsureRoute: z.enum(SOKO_BOT_ROUTES).optional(),
   hints: z.array(z.string()).optional(),
+  savedPreference: z
+    .object({
+      instruction: z
+        .string()
+        .min(1)
+        .max(SOKO_BOT_MEMORY_LIMITS.maxEntryLength)
+        .refine((line) => !/[\r\n]/.test(line)),
+      memoryRevisionId: z.uuid(),
+      memoryVersion: z.number().int().positive(),
+      memoryHash: z.string().min(1),
+    })
+    .optional(),
   askedBy: z.object({
     kind: z.enum(["OWNER", "TEAMMATE", "ASSISTANT"]),
     name: z.string().nullable(),

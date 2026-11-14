@@ -1,4 +1,6 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
+import { afterAll, describe, expect, it, vi } from "vitest";
+import { createDataTable } from "@/helpers/data-table";
 import prisma from "@/lib/db/prisma";
 import {
   evalCoworkerRefusal,
@@ -6,7 +8,10 @@ import {
   globalCoworkersFor,
   isEvalWorkspace,
 } from "@/lib/evals/eval-guard";
+import { evalHistoryFloor } from "@/lib/evals/eval-history";
 import { isNewsletterWorkspaceEnabled } from "@/lib/newsletter/feature";
+import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
+import { dreaming } from "@/services/soko-bot-dreaming.service";
 import { createSokoBotSchedule } from "@/services/soko-bot-schedule.service";
 import {
   ensureEvalLanes,
@@ -14,6 +19,8 @@ import {
   prepareEvalLane,
   resetEvalLaneForSokoBot,
 } from "./eval-lanes.service";
+
+vi.mock("@vercel/blob", () => ({ del: vi.fn().mockResolvedValue(undefined) }));
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -242,5 +249,332 @@ describe.skipIf(!enabled)("eval lanes", () => {
     expect(messages.every((message) => message.senderSokoBotId === null)).toBe(
       true,
     );
+  });
+
+  it("resets only registered lane-owned tables and retry keys, retaining historical diagnostics", async () => {
+    const [lane, other] = await ensureEvalLanes(2);
+    if (!lane || !other) throw new Error("no lanes");
+    const actor = {
+      workspaceId: lane.workspaceId,
+      userId: lane.userId,
+      actorId: lane.sokoBotId,
+      actorKind: "sokoBot" as const,
+      ownerChat: true,
+    };
+    const input = {
+      key: `reset-table-${randomUUID()}`,
+      title: "First run",
+      description: "",
+      columns: [
+        {
+          name: "Finding",
+          type: "text" as const,
+          description: "",
+          options: [],
+        },
+      ],
+      rows: [],
+    };
+    const table = await createDataTable(actor, input);
+    const foreignCreator = await prisma.dataTable.create({
+      data: {
+        workspaceId: lane.workspaceId,
+        createdBy: other.sokoBotId,
+        title: "Foreign creator",
+      },
+    });
+    const foreignWorkspace = await prisma.dataTable.create({
+      data: {
+        workspaceId: other.workspaceId,
+        createdBy: lane.sokoBotId,
+        title: "Foreign workspace",
+      },
+    });
+    const file = await prisma.fileResource.create({
+      data: {
+        workspaceId: lane.workspaceId,
+        sourceKind: "NATIVE_TABLE",
+        sourceScope: "ORGANIZATION",
+        sourceId: table.id,
+        ownerOrganizationId: lane.organizationId,
+        displayName: table.title,
+        normalizedName: table.title.toLowerCase(),
+      },
+    });
+    const turn = await prisma.sokoBotTurn.create({
+      data: {
+        sokoBotId: lane.sokoBotId,
+        workspaceId: lane.workspaceId,
+        source: "CHAT",
+        status: "COMPLETED",
+        capabilityNames: ["create_table"],
+        clientTurnId: `lab:retained-${randomUUID()}`,
+        userMessage: "Create a table",
+        deadlineAt: new Date(),
+        toolCalls: {
+          create: {
+            toolCallId: "table",
+            capability: "create_table",
+            inputHash: "test",
+            status: "COMPLETED",
+            targetId: table.id,
+            result: { id: table.id },
+          },
+        },
+      },
+    });
+    const run = await prisma.evalRun.create({
+      data: {
+        trigger: "MANUAL",
+        suites: ["soko-bot"],
+        repeats: 1,
+        environment: "local",
+        results: {
+          create: {
+            caseId: "table-from-chat",
+            suite: "soko-bot",
+            repeat: 1,
+            position: 1,
+            turnId: turn.id,
+            status: "PASSED",
+            output: { tableId: table.id },
+          },
+        },
+      },
+    });
+    await resetEvalLaneForSokoBot(lane);
+    expect(
+      await prisma.dataTable.findUnique({ where: { id: table.id } }),
+    ).toBeNull();
+    expect(
+      await prisma.tableOperation.count({
+        where: {
+          workspaceId: lane.workspaceId,
+          actorId: lane.sokoBotId,
+          key: input.key,
+        },
+      }),
+    ).toBe(0);
+    expect(
+      (await prisma.fileResource.findUniqueOrThrow({ where: { id: file.id } }))
+        .lifecycle,
+    ).toBe("TOMBSTONED");
+    expect(
+      await prisma.dataTable.count({
+        where: { id: { in: [foreignCreator.id, foreignWorkspace.id] } },
+      }),
+    ).toBe(2);
+    expect(
+      await prisma.sokoBotTurn.findUnique({ where: { id: turn.id } }),
+    ).not.toBeNull();
+    expect(
+      await prisma.sokoBotToolCall.count({
+        where: { turnId: turn.id, targetId: table.id },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.evalResult.count({
+        where: { runId: run.id, turnId: turn.id },
+      }),
+    ).toBe(1);
+    const next = await createDataTable(actor, {
+      ...input,
+      title: "Next run, different input",
+    });
+    expect(next.id).not.toBe(table.id);
+  });
+
+  it("refuses a forged lane tenant or owner before changing fixture data", async () => {
+    const [lane, other] = await ensureEvalLanes(2);
+    if (!lane || !other) throw new Error("no lanes");
+    const task = await prisma.task.create({
+      data: {
+        name: "Must survive forged reset",
+        workspaceId: other.workspaceId,
+        ownerId: other.userId,
+        organizationId: other.organizationId,
+      },
+    });
+    await expect(
+      resetEvalLaneForSokoBot({ ...lane, workspaceId: other.workspaceId }),
+    ).rejects.toThrow("Registered eval lane required");
+    await expect(
+      resetEvalLaneForSokoBot({ ...lane, userId: other.userId }),
+    ).rejects.toThrow("Registered eval lane required");
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: task.id } }))
+        .archivedAt,
+    ).toBeNull();
+    const ownerWhere = {
+      userId_organizationId: {
+        userId: lane.userId,
+        organizationId: lane.organizationId,
+      },
+    };
+    await prisma.member.update({ where: ownerWhere, data: { role: "member" } });
+    try {
+      await expect(resetEvalLaneForSokoBot(lane)).rejects.toThrow(
+        "Registered eval lane required",
+      );
+    } finally {
+      await prisma.member.update({
+        where: ownerWhere,
+        data: { role: "owner" },
+      });
+    }
+  });
+
+  it("seeds owner-confirmed team roles into current memory after each reset", async () => {
+    const [lane] = await ensureEvalLanes(1);
+    if (!lane) throw new Error("no lane");
+    for (let resetIndex = 0; resetIndex < 2; resetIndex += 1) {
+      await resetEvalLaneForSokoBot(lane);
+      const bot = await prisma.sokoBot.findUniqueOrThrow({
+        where: { id: lane.sokoBotId },
+      });
+      const current = await prisma.sokoBotMemoryRevision.findUniqueOrThrow({
+        where: {
+          sokoBotId_version: {
+            sokoBotId: lane.sokoBotId,
+            version: bot.memoryVersion,
+          },
+        },
+      });
+      expect(current.source).toBe("eval_fixture");
+      expect(current.markdown).toContain(
+        "Robin Keller confirmed these team roles: Hannah Weber handles research; Alex Kim handles writing.",
+      );
+      expect(current.hash).toBe(bot.memoryHash);
+      const reset = await prisma.sokoBotMemoryRevision.findFirstOrThrow({
+        where: { sokoBotId: lane.sokoBotId, source: "user_reset" },
+        orderBy: { version: "desc" },
+      });
+      expect(current.version).toBe(reset.version + 1);
+      expect(
+        await evalHistoryFloor({
+          workspaceId: lane.workspaceId,
+          sokoBotId: lane.sokoBotId,
+        }),
+      ).toEqual(reset.createdAt);
+    }
+  });
+
+  it("limits history only for the registered bot in its eval workspace", async () => {
+    const [lane, other] = await ensureEvalLanes(2);
+    if (!lane || !other) throw new Error("no lanes");
+    await resetEvalLaneForSokoBot(lane);
+    const reset = await prisma.sokoBotMemoryRevision.findFirstOrThrow({
+      where: { sokoBotId: lane.sokoBotId, source: "user_reset" },
+      orderBy: { version: "desc" },
+    });
+    expect(
+      await evalHistoryFloor({
+        workspaceId: lane.workspaceId,
+        sokoBotId: lane.sokoBotId,
+      }),
+    ).toEqual(reset.createdAt);
+    expect(
+      await evalHistoryFloor({
+        workspaceId: other.workspaceId,
+        sokoBotId: lane.sokoBotId,
+      }),
+    ).toBeNull();
+    expect(
+      await evalHistoryFloor({
+        workspaceId: randomUUID(),
+        sokoBotId: lane.sokoBotId,
+      }),
+    ).toBeNull();
+  });
+
+  it("builds fresh context and dreams from real retained history and the seeded newsletter", async () => {
+    const [lane] = await ensureEvalLanes(1);
+    if (!lane) throw new Error("no lane");
+    await resetEvalLaneForSokoBot(lane);
+    const floor = await evalHistoryFloor({
+      workspaceId: lane.workspaceId,
+      sokoBotId: lane.sokoBotId,
+    });
+    if (!floor) throw new Error("missing reset floor");
+    const historical = await prisma.sokoBotTurn.create({
+      data: {
+        sokoBotId: lane.sokoBotId,
+        workspaceId: lane.workspaceId,
+        requestedByUserId: lane.userId,
+        source: "CHAT",
+        status: "COMPLETED",
+        clientTurnId: `lab:old-context-${randomUUID()}`,
+        capabilityNames: [],
+        userMessage: "Historical world question",
+        finalAnswer: "Historical world answer",
+        createdAt: new Date(floor.getTime() - 1_000),
+        completedAt: new Date(floor.getTime() - 1_000),
+        deadlineAt: floor,
+      },
+    });
+    const current = await prisma.sokoBotTurn.create({
+      data: {
+        sokoBotId: lane.sokoBotId,
+        workspaceId: lane.workspaceId,
+        requestedByUserId: lane.userId,
+        source: "CHAT",
+        status: "COMPLETED",
+        clientTurnId: `lab:current-context-${randomUUID()}`,
+        capabilityNames: [],
+        userMessage: "Current eval world question",
+        finalAnswer: "Current eval world answer",
+        createdAt: new Date(floor.getTime() + 1),
+        completedAt: new Date(),
+        deadlineAt: new Date(),
+      },
+    });
+    const { packet, counts } = await new ContextPacketBuilder().build({
+      userId: lane.userId,
+      workspaceId: lane.workspaceId,
+      sokoBotId: lane.sokoBotId,
+      sharedScope: null,
+      source: "CHAT",
+      classification: {
+        schemaVersion: 1,
+        route: "DIRECT_RESPONSE",
+        confidence: 1,
+        rationaleSummary: "Read current context",
+        requestedOutcome: "Read current context",
+        candidateProjectIds: [],
+        candidateCoworkerIds: [],
+        candidateAgentIds: [],
+        requiresClarification: false,
+        requiresApproval: false,
+      },
+    });
+    expect(packet.recentTurns.map((turn) => turn.id)).toEqual([current.id]);
+    expect(counts.recentTurns).toBe(1);
+    expect(
+      packet.projects
+        .filter(
+          (project) => (project.newsletter as { available: boolean }).available,
+        )
+        .map((project) => project.id),
+    ).toEqual([lane.world.marketingProjectId]);
+    expect(
+      packet.projects.some(
+        (project) =>
+          project.id === lane.cusoProjectId && project.name === "Eval brand",
+      ),
+    ).toBe(true);
+    const dream = await dreaming(
+      {
+        id: lane.sokoBotId,
+        userId: lane.userId,
+        workspaceId: lane.workspaceId,
+        ingestTimezone: "UTC",
+      },
+      new Date(),
+    );
+    expect(dream.lines.join("\n")).toContain("Current eval world question");
+    expect(dream.lines.join("\n")).not.toContain("Historical world question");
+    expect(
+      await prisma.sokoBotTurn.findUnique({ where: { id: historical.id } }),
+    ).not.toBeNull();
   });
 });

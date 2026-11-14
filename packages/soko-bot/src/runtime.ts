@@ -43,6 +43,13 @@ export interface SokoBotContextPacket {
      * preference it saved. Context to weigh, never a limit on the turn.
      */
     hints?: string[];
+    /** Core capture from this message, linked to its persisted revision. */
+    savedPreference?: {
+      instruction: string;
+      memoryRevisionId: string;
+      memoryVersion: number;
+      memoryHash: string;
+    };
     /**
      * Who is on the other side of this turn. The turn always runs as the
      * owner — their bot, their credits — so `actor` is the owner whatever

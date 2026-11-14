@@ -1,0 +1,27 @@
+/// PRIVATE replies remain personal. SHARED organization replies belong to the authorized Audit context.
+model SeoAuditChatTurn {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  auditId        String    @db.Uuid
+  audit          SeoAudit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Author attribution is independent of visibility. Legacy personal replies are never published by migration.
+  visibility     String    @default("PRIVATE")
+  idempotencyKey String
+  requestHash    String
+  question       String
+  response       String?
+  actions        Json      @default("[]")
+  scopeSnapshot  Json
+  status         String    @default("running")
+  model          String
+  costUsd        Float     @default(0)
+  leaseExpiresAt DateTime
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+
+  @@unique([auditId, userId, idempotencyKey])
+  @@index([auditId, userId, createdAt])
+  @@index([auditId, userId, status])
+  @@map("seo_audit_chat_turn")
+}

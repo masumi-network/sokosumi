@@ -26,6 +26,7 @@ import {
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
+import { requireSeoTaskExecutionUnchanged } from "@/helpers/seo-task-execution";
 import { requireTaskAssignableSokoBot } from "@/helpers/soko-bot-task-assign";
 import {
   mapTask,
@@ -358,6 +359,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
+      await requireSeoTaskExecutionUnchanged(tx, task, {
+        description: nextDescription,
+        projectId,
+        ...(assigneeWrite ?? {}),
+      });
       let updatedTask = await tx.task.update({
         where: {
           id,

@@ -1,0 +1,40 @@
+import "server-only";
+
+import { unstable_rethrow } from "next/navigation";
+import { loadWorkspaceSwitchAccounts } from "@/app/components/user-avatar/workspace-switch-accounts";
+import { getSession } from "@/lib/auth/auth.server";
+import type { SeoOwner } from "@/lib/seo/owner";
+import { seoService } from "@/lib/services/seo.service";
+import type { SeoWorkspaceSwitchDialogProps } from "./components/seo-workspace-switch-dialog";
+import { seoAuditMayBeElsewhere } from "./seo-load-error-model";
+
+/**
+ * The switch that opens an Audit link, when the Audit is in another workspace
+ * of this reader. Null when there is nothing to switch to: the page then
+ * keeps its "not available" text.
+ */
+export async function seoAuditSwitchFor(
+  owner: SeoOwner | undefined,
+  status: number | undefined,
+): Promise<SeoWorkspaceSwitchDialogProps | null> {
+  if (!owner || !seoAuditMayBeElsewhere(owner, status)) return null;
+  const [mapping, session] = await Promise.all([
+    seoService.getAuditWorkspaceMapping(owner.id),
+    getSession(),
+  ]);
+  if (!mapping || !session) return null;
+  const targetOrganizationId = mapping.organizationId ?? null;
+  // The Audit is in this workspace: the failed read is not a wrong workspace.
+  if ((session.session.activeOrganizationId ?? null) === targetOrganizationId)
+    return null;
+  try {
+    return {
+      ...(await loadWorkspaceSwitchAccounts(session, targetOrganizationId)),
+      auditName: mapping.name,
+    };
+  } catch (error) {
+    // A failed read of the reader's organizations must not replace the page's own text with an error page.
+    unstable_rethrow(error);
+    return null;
+  }
+}

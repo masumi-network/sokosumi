@@ -12,6 +12,7 @@ import {
   Mail,
   Megaphone,
   Repeat,
+  SearchCheck,
   Share2,
   Users,
 } from "lucide-react";
@@ -215,6 +216,13 @@ function ScopedMenuItems({
       label: t("social"),
       Icon: Share2,
       feature: AnnouncedFeature.SOCIAL,
+      group: "marketing",
+    },
+    {
+      key: "seo",
+      href: "/seo",
+      label: t("seo"),
+      Icon: SearchCheck,
       group: "marketing",
     },
     {

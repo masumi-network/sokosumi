@@ -7,6 +7,8 @@ import {
 import { describe, expect, it } from "vitest";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 
+const TEST_WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
+
 function buildTask(
   status: TaskStatus,
   overrides?: Partial<TaskListItem>,
@@ -15,6 +17,7 @@ function buildTask(
     id: "task-1",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    workspaceId: TEST_WORKSPACE_ID,
     ownerId: "user-1",
     organizationId: null,
     projectId: null,
@@ -53,7 +56,7 @@ function buildTask(
     grantResumeStatus: null,
     pendingVendorGrantId: null,
     workspace: {
-      id: "11111111-1111-7111-8111-111111111111",
+      id: TEST_WORKSPACE_ID,
       organizationId: null,
       organization: null,
     },

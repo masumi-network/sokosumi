@@ -1,4 +1,6 @@
-import { getWebAppBaseUrl } from "@/config/env";
+import { getEnv } from "@/config/env";
+
+const NATIVE_SEO_CALLBACK_PATH = "/seo/connections/callback";
 
 /**
  * Composio returns every sign-in to Web's callback verifier, whatever return
@@ -12,8 +14,14 @@ export function composioHandoffUrl(input: {
   connectionId?: string;
 }): string {
   if (!input.returnUrl) return input.redirectUrl;
-  const web = getWebAppBaseUrl();
-  if (new URL(input.returnUrl).origin === new URL(web).origin) {
+  // The verifier is fixed to the canonical Web host, including for previews.
+  const web = getEnv().WEB_APP_BASE_URL;
+  const returnAddress = new URL(input.returnUrl);
+  // Native SEO redeems consent in its callback before notifying the opener.
+  if (
+    returnAddress.origin === new URL(web).origin &&
+    returnAddress.pathname !== NATIVE_SEO_CALLBACK_PATH
+  ) {
     return input.redirectUrl;
   }
   const handoff = new URL("/composio/handoff", web);

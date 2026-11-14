@@ -7,12 +7,14 @@ interface DailyBarChartProps {
   label: string;
   points: { date: string; value: number | null }[];
   unavailable: string;
+  formatValue?: (value: number) => string;
 }
 
 export function DailyBarChart({
   label,
   points,
   unavailable,
+  formatValue,
 }: DailyBarChartProps) {
   const format = useFormatter();
   const peak = Math.max(0, ...points.map((point) => point.value ?? 0));
@@ -26,7 +28,9 @@ export function DailyBarChart({
     });
   }
   function valueLabel(value: number | null) {
-    return value == null ? unavailable : format.number(value);
+    return value == null
+      ? unavailable
+      : (formatValue?.(value) ?? format.number(value));
   }
   return (
     <figure className="min-w-0 space-y-3" aria-label={label}>

@@ -1021,9 +1021,14 @@ describe("SokoBotControlPlane lifecycle", () => {
         signals: { statesPreference: 0.92, refersToEarlier: 0.88 },
       }),
     );
-    capturePreferenceMock.mockResolvedValueOnce(
-      "Do not flag Make scenario errors or DigitalOcean deployment failures.",
-    );
+    const capturedPreference = {
+      instruction:
+        "Do not flag Make scenario errors or DigitalOcean deployment failures.",
+      memoryRevisionId: "01960001-0001-7001-8001-000000000003",
+      memoryVersion: 1,
+      memoryHash: "captured-hash",
+    };
+    capturePreferenceMock.mockResolvedValueOnce(capturedPreference);
     botFindFirstMock.mockResolvedValue(adminBot());
     botFindUniqueMock.mockResolvedValue(adminBot());
     turnFindUniqueMock.mockResolvedValue(null);
@@ -1063,8 +1068,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(builder.build).toHaveBeenCalledWith(
       expect.objectContaining({
         personAsked: true,
-        capturedPreference:
-          "Do not flag Make scenario errors or DigitalOcean deployment failures.",
+        capturedPreference,
       }),
     );
   });
