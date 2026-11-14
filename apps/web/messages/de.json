@@ -3314,6 +3314,7 @@
           "notSet": "Nicht eingerichtet",
           "generate": "Aus Website erstellen",
           "missingWebsite": "Füge eine Projektwebsite hinzu, bevor du Markenkontext erstellst.",
+          "websiteInvalid": "Gib eine Website wie example.com ein.",
           "open": "Öffnen",
           "edit": "Bearbeiten",
           "remove": "Entfernen",

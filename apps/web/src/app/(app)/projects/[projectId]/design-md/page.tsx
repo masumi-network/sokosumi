@@ -85,6 +85,7 @@ export default async function ProjectDesignPage({
           <ProjectBrandCard
             readOnly={project.cmo}
             projectId={project.id}
+            projectName={project.name}
             websiteUrl={project.websiteUrl}
           />
 

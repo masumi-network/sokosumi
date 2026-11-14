@@ -1,6 +1,7 @@
 "use client";
 
 import type { ProjectDesignMd } from "@sokosumi/core-client";
+import { normalizeWebsiteUrl } from "@sokosumi/utils";
 import {
   ExternalLink,
   FileText,
@@ -11,9 +12,11 @@ import {
   Upload,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   createContext,
+  type FormEvent,
   type ReactNode,
   useCallback,
   useContext,
@@ -52,7 +55,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { removeProjectDesignMd } from "@/lib/actions/project/action";
+import { Input } from "@/components/ui/input";
+import {
+  removeProjectDesignMd,
+  updateProject,
+} from "@/lib/actions/project/action";
 
 interface ProjectBrandProviderProps {
   autoStart?: boolean;
@@ -70,6 +77,8 @@ interface ProjectBrandDashboardValue {
 
 interface ProjectBrandCardProps {
   projectId: string;
+  /** Saving a website goes through `updateProject`, which needs the name. */
+  projectName: string;
   websiteUrl?: string | null;
   /** A CMO Project: CMO writes its DESIGN.md, so the card only opens it. */
   readOnly?: boolean;
@@ -172,6 +181,7 @@ export function ProjectBrandProvider({
 
 export function ProjectBrandCard({
   projectId,
+  projectName,
   websiteUrl,
   readOnly = false,
 }: ProjectBrandCardProps) {
@@ -186,11 +196,47 @@ export function ProjectBrandCard({
     [projectId],
   );
   const hasWebsite = Boolean(websiteUrl);
-  const menuBusy = generation.isRunning || isRemoving || isUploading;
+  const router = useRouter();
+  const tWebsite = useTranslations("App.Projects.Wizard.name");
+  const [website, setWebsite] = useState("");
+  const [websiteError, setWebsiteError] = useState<string | null>(null);
+  const [isSavingWebsite, startSaveWebsite] = useTransition();
+  const menuBusy =
+    generation.isRunning || isRemoving || isUploading || isSavingWebsite;
 
   function handleGenerate() {
     if (!websiteUrl) return;
     void generation.generate({ force: true, url: websiteUrl });
+  }
+
+  // Saving the website is all this does: the provider starts generation on
+  // its own once the page re-renders with a website and no DESIGN.md, the
+  // same path a website added in the wizard or Edit takes.
+  function handleSaveWebsite(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const url = normalizeWebsiteUrl(website);
+    if (!url) {
+      setWebsiteError(t("brandCard.websiteInvalid"));
+      return;
+    }
+    setWebsiteError(null);
+    startSaveWebsite(async () => {
+      try {
+        const result = await updateProject({
+          projectId,
+          name: projectName,
+          websiteUrl: url,
+        });
+        if (!result.ok) {
+          setWebsiteError(t("errors.update"));
+          return;
+        }
+        // Keep the button busy until the page has the website.
+        startSaveWebsite(() => router.refresh());
+      } catch {
+        setWebsiteError(t("errors.update"));
+      }
+    });
   }
 
   function handleRemove() {
@@ -319,7 +365,55 @@ export function ProjectBrandCard({
           </Badge>
         </div>
 
-        {!hasWebsite && !readOnly ? (
+        {!hasWebsite && !readOnly && !designMd && !generation.isRunning ? (
+          <form noValidate onSubmit={handleSaveWebsite} className="space-y-2">
+            <label
+              htmlFor="project-brand-website"
+              className="text-muted-foreground block text-xs"
+            >
+              {t("brandCard.missingWebsite")}
+            </label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="project-brand-website"
+                inputMode="url"
+                autoComplete="url"
+                placeholder={tWebsite("websitePlaceholder")}
+                value={website}
+                onChange={(event) => {
+                  setWebsite(event.target.value);
+                  setWebsiteError(null);
+                }}
+                disabled={isSavingWebsite}
+                aria-invalid={Boolean(websiteError)}
+                aria-describedby={
+                  websiteError ? "project-brand-website-error" : undefined
+                }
+                className="min-w-0 flex-1 sm:h-8"
+              />
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                loading={isSavingWebsite}
+                disabled={menuBusy}
+                className="h-10 sm:h-8"
+              >
+                <RefreshCw aria-hidden />
+                {t("brandCard.generate")}
+              </Button>
+            </div>
+            {websiteError ? (
+              <p
+                id="project-brand-website-error"
+                className="text-destructive text-xs"
+                role="alert"
+              >
+                {websiteError}
+              </p>
+            ) : null}
+          </form>
+        ) : !hasWebsite && !readOnly ? (
           <p className="text-muted-foreground text-xs">
             {t("brandCard.missingWebsite")}
           </p>

@@ -6,7 +6,10 @@ import {
   ProjectBrandCard,
   ProjectBrandProvider,
 } from "@/app/projects/components/project-brand-card";
-import { removeProjectDesignMd } from "@/lib/actions/project/action";
+import {
+  removeProjectDesignMd,
+  updateProject,
+} from "@/lib/actions/project/action";
 
 const { generateMock, refreshMock, resumeMock } = vi.hoisted(() => ({
   generateMock: vi.fn(),
@@ -32,7 +35,9 @@ const MESSAGES: Record<string, string> = {
   "brandCard.removeDialog.description":
     "This removes the project's DESIGN.md file.",
   "brandCard.removeDialog.cancel": "Cancel",
+  "brandCard.websiteInvalid": "Enter a website like example.com.",
   "errors.brand": "Couldn't update project brand context",
+  "errors.update": "Failed to update project",
 };
 
 vi.mock("next/navigation", () => ({
@@ -49,6 +54,7 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/actions/project/action", () => ({
   removeProjectDesignMd: vi.fn(),
+  updateProject: vi.fn(),
 }));
 
 vi.mock("@/components/design-md/design-md-upload-trigger", () => ({
@@ -112,7 +118,11 @@ function renderBrandDashboard({
       initialDesignMd={designMd}
       websiteUrl={websiteUrl}
     >
-      <ProjectBrandCard projectId="project-1" websiteUrl={websiteUrl} />
+      <ProjectBrandCard
+        projectId="project-1"
+        projectName="Spring Launch"
+        websiteUrl={websiteUrl}
+      />
     </ProjectBrandProvider>,
   );
 }
@@ -262,12 +272,17 @@ describe("ProjectBrandCard", () => {
     });
   });
 
-  it("drops generation and explains when website is missing", async () => {
+  it("asks for the website in the card when it is missing", async () => {
     renderBrandDashboard({ designMd: null, websiteUrl: null });
 
     expect(
-      screen.queryByRole("button", { name: "Generate from website" }),
-    ).toBeNull();
+      screen.getByRole("textbox", {
+        name: "Add a project website before generating brand context.",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Generate from website" }),
+    ).toHaveAttribute("type", "submit");
     expect(screen.getByRole("button", { name: "Upload" })).toBeInTheDocument();
     // Choosing Upload leaves no empty button row above the upload form.
     await userEvent
@@ -278,6 +293,82 @@ describe("ProjectBrandCard", () => {
     expect(
       screen.getByTestId("project-brand-card").querySelector(".flex-wrap"),
     ).toBeNull();
+    expect(
+      screen.getByText(
+        "Add a project website before generating brand context.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("saves the website and lets the page start generation", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateProject).mockResolvedValue({
+      ok: true,
+      value: { projectId: "project-1" },
+    } as Awaited<ReturnType<typeof updateProject>>);
+    renderBrandDashboard({ designMd: null, websiteUrl: null });
+
+    await user.type(screen.getByRole("textbox"), "springtea.example");
+    await user.click(
+      screen.getByRole("button", { name: "Generate from website" }),
+    );
+
+    await waitFor(() =>
+      expect(updateProject).toHaveBeenCalledWith({
+        projectId: "project-1",
+        name: "Spring Launch",
+        websiteUrl: "https://springtea.example/",
+      }),
+    );
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
+    // The provider starts it once the refreshed page passes the website in.
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("explains an invalid website without saving", async () => {
+    const user = userEvent.setup();
+    renderBrandDashboard({ designMd: null, websiteUrl: null });
+
+    await user.type(screen.getByRole("textbox"), "acme");
+    await user.click(
+      screen.getByRole("button", { name: "Generate from website" }),
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Enter a website like example.com.",
+    );
+    expect(screen.getByRole("textbox")).toHaveAttribute("aria-invalid", "true");
+    expect(updateProject).not.toHaveBeenCalled();
+
+    await user.clear(screen.getByRole("textbox"));
+    await user.click(
+      screen.getByRole("button", { name: "Generate from website" }),
+    );
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(updateProject).not.toHaveBeenCalled();
+  });
+
+  it("shows the save error in the card when the update fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateProject).mockRejectedValue(new Error("Forbidden"));
+    renderBrandDashboard({ designMd: null, websiteUrl: null });
+
+    await user.type(screen.getByRole("textbox"), "example.com");
+    await user.click(
+      screen.getByRole("button", { name: "Generate from website" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Failed to update project",
+    );
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the website hint, without a field, once a DESIGN.md is uploaded", () => {
+    renderBrandDashboard({ websiteUrl: null });
+
+    expect(screen.queryByRole("textbox")).toBeNull();
     expect(
       screen.getByText(
         "Add a project website before generating brand context.",

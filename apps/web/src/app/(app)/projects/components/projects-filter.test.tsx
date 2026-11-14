@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { startTransition } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectsFilter } from "@/app/projects/components/projects-filter";
@@ -36,7 +37,9 @@ describe("ProjectsFilter", () => {
   });
 
   it("writes what the user types to the q search param", async () => {
-    render(<ProjectsFilter labels={labels} />);
+    render(
+      <ProjectsFilter labels={labels} startTransition={startTransition} />,
+    );
 
     await userEvent.type(screen.getByLabelText("Filter projects"), "aut");
 
@@ -44,7 +47,9 @@ describe("ProjectsFilter", () => {
   });
 
   it("refetches in a transition so the field is not replaced by the page skeleton", () => {
-    render(<ProjectsFilter labels={labels} />);
+    render(
+      <ProjectsFilter labels={labels} startTransition={startTransition} />,
+    );
 
     expect(useQueryStateMock).toHaveBeenCalledWith(
       "q",
@@ -57,7 +62,9 @@ describe("ProjectsFilter", () => {
   });
 
   it("offers no clear button until something is typed", () => {
-    render(<ProjectsFilter labels={labels} />);
+    render(
+      <ProjectsFilter labels={labels} startTransition={startTransition} />,
+    );
 
     expect(
       screen.queryByRole("button", { name: "Clear filter" }),
@@ -66,7 +73,9 @@ describe("ProjectsFilter", () => {
 
   it("clears the param when the clear button is used", async () => {
     queryStateRef.current = "autumn";
-    render(<ProjectsFilter labels={labels} />);
+    render(
+      <ProjectsFilter labels={labels} startTransition={startTransition} />,
+    );
 
     await userEvent.click(screen.getByRole("button", { name: "Clear filter" }));
 
@@ -76,7 +85,9 @@ describe("ProjectsFilter", () => {
 
   it("clears the param on Escape", async () => {
     queryStateRef.current = "autumn";
-    render(<ProjectsFilter labels={labels} />);
+    render(
+      <ProjectsFilter labels={labels} startTransition={startTransition} />,
+    );
 
     await userEvent.type(screen.getByLabelText("Filter projects"), "{Escape}");
 

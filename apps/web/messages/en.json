@@ -3314,6 +3314,7 @@
           "notSet": "Not set",
           "generate": "Generate from website",
           "missingWebsite": "Add a project website before generating brand context.",
+          "websiteInvalid": "Enter a website like example.com.",
           "open": "Open",
           "edit": "Edit",
           "remove": "Remove",
