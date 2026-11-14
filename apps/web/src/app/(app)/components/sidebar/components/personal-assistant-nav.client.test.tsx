@@ -412,12 +412,14 @@ describe("PersonalAssistantNav live status", () => {
 
     recovered = true;
     document.dispatchEvent(new Event("visibilitychange"));
-    await waitFor(() =>
+    // The row renders before its effect publishes recovery to the chat store.
+    // Wait for both subscribers instead of assuming they commit together.
+    await waitFor(() => {
       expect(screen.getByRole("link", { name: /Mo/ })).toHaveAccessibleName(
         /ready/,
-      ),
-    );
-    expect(direct).toHaveTextContent("Presence.online");
-    expect(direct).not.toHaveTextContent("ERROR");
+      );
+      expect(direct).toHaveTextContent("Presence.online");
+      expect(direct).not.toHaveTextContent("ERROR");
+    });
   });
 });
