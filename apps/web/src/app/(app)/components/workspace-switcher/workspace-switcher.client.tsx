@@ -25,6 +25,7 @@ import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspa
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
+import { sweepWorkspace } from "@/lib/workspace-sweep";
 import type { WorkspaceSwitcherPlacement } from "./workspace-switcher-skeleton";
 
 type WorkspaceChoice = "personal" | "organization";
@@ -121,7 +122,8 @@ export function WorkspaceSwitcherProvider({
   );
   const tIdentity = useTranslations("WorkspaceGate.Identity");
   const { data: clientSession } = useSession();
-  const { isPending, handleSelectWorkspace } = useWorkspaceSwitcher();
+  const { isPending, handleSelectWorkspace, whenSettled } =
+    useWorkspaceSwitcher();
   const {
     Component: CreateOrganizationModal,
     showModal: showCreateOrganizationModal,
@@ -214,7 +216,11 @@ export function WorkspaceSwitcherProvider({
       return;
     }
     setOpenPlacement(null);
-    handleSelectWorkspace(workspaceId);
+    void sweepWorkspace(async () => {
+      const settled = whenSettled();
+      await handleSelectWorkspace(workspaceId);
+      await settled;
+    });
   }
 
   async function activateCreatedPersonalWorkspace(): Promise<void> {

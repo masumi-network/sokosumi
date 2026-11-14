@@ -6,7 +6,12 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
-const FOIL_COLOR_TOKENS = ["--foil-1", "--foil-2", "--foil-3", "--foil-4"];
+export const FOIL_COLOR_TOKENS = [
+  "--foil-1",
+  "--foil-2",
+  "--foil-3",
+  "--foil-4",
+];
 
 const VERTEX_SHADER = `attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}`;
 
@@ -45,7 +50,7 @@ export function FoilBackground({ className }: { className?: string }) {
     const canvas = canvasRef.current;
     const gl = canvas?.getContext("webgl");
     if (!canvas || !gl) return;
-    const program = linkProgram(gl);
+    const program = linkProgram(gl, VERTEX_SHADER, FRAGMENT_SHADER);
     if (!program) return;
 
     const buffer = gl.createBuffer();
@@ -148,11 +153,16 @@ export function FoilBackground({ className }: { className?: string }) {
   );
 }
 
-function linkProgram(gl: WebGLRenderingContext): WebGLProgram | null {
+/** Compiles and links a shader pair and puts it in use; null if it fails. */
+export function linkProgram(
+  gl: WebGLRenderingContext,
+  vertexShader: string,
+  fragmentShader: string,
+): WebGLProgram | null {
   const program = gl.createProgram();
   for (const [type, source] of [
-    [gl.VERTEX_SHADER, VERTEX_SHADER],
-    [gl.FRAGMENT_SHADER, FRAGMENT_SHADER],
+    [gl.VERTEX_SHADER, vertexShader],
+    [gl.FRAGMENT_SHADER, fragmentShader],
   ] as const) {
     const shader = gl.createShader(type);
     if (!shader) return null;
