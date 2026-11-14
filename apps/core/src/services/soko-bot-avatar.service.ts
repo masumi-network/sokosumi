@@ -36,8 +36,8 @@ import {
  * topped up when it runs low so onboarding always has choices.
  */
 
-/** The fal image model that draws the pool (Nano Banana 2, the studio default). */
-const AVATAR_MODEL = imageModel("gemini-flash").generateEndpoint;
+/** The fal endpoint that draws the pool (Nano Banana 2, the studio default). */
+const avatarEndpoint = () => imageModel("gemini-flash").generateEndpoint;
 const GENERATION_TIMEOUT_MS = 60_000;
 const MAX_TOP_UP_PER_CALL = 6;
 const GENERATION_WINDOW_MS = 60 * 60 * 1000;
@@ -279,9 +279,10 @@ async function nextAvatarDraws(
 async function generateImage(prompt: string): Promise<Buffer> {
   const key = getEnv().FAL_KEY;
   if (!key) throw new Error("FAL_KEY is not configured");
+  const endpoint = avatarEndpoint();
   // One synchronous call, no retry. Each call is billed. A hidden retry would
   // be a second paid image the hourly cap cannot see.
-  const response = await fetch(`https://fal.run/${AVATAR_MODEL}`, {
+  const response = await fetch(`https://fal.run/${endpoint}`, {
     method: "POST",
     headers: {
       authorization: `Key ${key}`,
@@ -297,7 +298,7 @@ async function generateImage(prompt: string): Promise<Buffer> {
           seed: null,
           imageUrls: [],
         },
-        AVATAR_MODEL,
+        endpoint,
       ),
     ),
     signal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
@@ -428,7 +429,7 @@ async function reserveDraws(
           subject: draw.subject.subject,
           background: draw.background.name,
           seed: draw.seed,
-          model: AVATAR_MODEL,
+          model: avatarEndpoint(),
           // Filled in once the image exists. `reservedAt` keeps the row out of
           // every read until then, so nobody sees or claims a blank avatar.
           imageUrl: "",
@@ -822,7 +823,7 @@ async function reserveRestyle(subjectName: string): Promise<AvatarReservation> {
         subject: draw.subject.subject,
         background: draw.background.name,
         seed: draw.seed,
-        model: AVATAR_MODEL,
+        model: avatarEndpoint(),
         imageUrl: "",
         reservedAt: new Date(),
       },
