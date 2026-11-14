@@ -8,6 +8,23 @@ import {
   verifyTaskArchiveReceipt,
 } from "./action-receipts";
 
+import {
+  correctedCreationInput,
+  inputCovers,
+  requiresRecoveryRequester,
+} from "./action-response-recovery";
+import {
+  actionTarget,
+  attemptedTarget,
+  collapseActionLines,
+  countedLabel,
+  linkText,
+  missedTasks,
+  TASK_TARGET_CAPABILITIES,
+  taskLabels,
+  UNDONE_TASK_VERBS,
+} from "./action-response-targets";
+
 /** Turns an owner asked for; the rest the bot started itself. */
 const OWNER_STARTED_SOURCES = new Set(["CHAT", "ADMIN_RETRY"]);
 
@@ -98,290 +115,6 @@ function actionLabel(call: { capability: string; result?: unknown }): string {
   )
     return "Updated file";
   return ACTION_LABELS[call.capability] ?? call.capability;
-}
-
-const NEWSLETTER_ISSUE_CAPABILITIES = new Set([
-  "create_newsletter_issue",
-  "update_newsletter_issue",
-  "delete_newsletter_issue",
-  "submit_newsletter_issue",
-]);
-
-const NEWSLETTER_SUBSCRIBER_CAPABILITIES = new Set([
-  "add_newsletter_subscriber",
-  "import_newsletter_subscribers",
-  "add_newsletter_subscribers_from_contacts",
-  "update_newsletter_subscriber",
-  "remove_newsletter_subscriber",
-]);
-
-const TABLE_CAPABILITIES = new Set([
-  "create_table",
-  "write_table_rows",
-  "update_table_columns",
-]);
-
-const CONTACT_CAPABILITIES = new Set([
-  "upsert_contact",
-  "update_contact",
-  "log_contact_interaction",
-  "merge_contacts",
-  "manage_contact_lists",
-  "find_people",
-  "enrich_contact",
-]);
-
-/** The contact or list a contacts receipt names, from its stored result. */
-function contactTarget(result: unknown): string {
-  const named = z
-    .union([
-      z.object({ contact: z.object({ name: z.string().min(1) }) }),
-      z.object({ name: z.string().min(1) }),
-    ])
-    .safeParse(result);
-  if (!named.success) return "";
-  return linkText(
-    "contact" in named.data ? named.data.contact.name : named.data.name,
-  );
-}
-
-const AD_CAMPAIGN_CAPABILITIES = new Set([
-  "create_ad_campaign",
-  "update_ad_campaign",
-  "edit_ad_campaign",
-]);
-
-const SOCIAL_POST_CAPABILITIES = new Set([
-  "create_social_post",
-  "update_social_post",
-  "schedule_social_post",
-  "cancel_social_post",
-  "publish_social_post",
-]);
-
-const TASK_TARGET_CAPABILITIES = new Set([
-  "create_task",
-  "update_task",
-  "archive_task",
-  "assign_task",
-  "reply_to_task",
-  "update_assigned_task",
-]);
-
-interface TaskLabel {
-  name: string;
-  assignee: string | null;
-}
-
-/** Names come from the stored task, never from the model's narration. */
-async function taskLabels(
-  tx: Prisma.TransactionClient,
-  ids: string[],
-): Promise<Map<string, TaskLabel>> {
-  if (!ids.length) return new Map();
-  const tasks = await tx.task.findMany({
-    where: { id: { in: [...new Set(ids)] } },
-    select: {
-      id: true,
-      name: true,
-      assignee: { select: { name: true } },
-      assigneeUser: { select: { name: true } },
-      assigneeSokoBot: { select: { name: true } },
-    },
-  });
-  return new Map(
-    tasks.map((task) => [
-      task.id,
-      {
-        name: task.name,
-        assignee:
-          task.assignee?.name ??
-          task.assigneeUser?.name ??
-          task.assigneeSokoBot?.name ??
-          null,
-      },
-    ]),
-  );
-}
-
-/** Literal text inside markdown: a Task called "[TEST] Launch" keeps its brackets. */
-function linkText(value: string): string {
-  return value.slice(0, 120).replace(/[[\]\\]/g, "\\$&");
-}
-
-function actionTarget(
-  call: { capability: string; targetId: string | null; result?: unknown },
-  tasks: Map<string, TaskLabel>,
-  jobAgents: Map<string, string>,
-  assignedTaskIds: ReadonlySet<string | null>,
-): string {
-  const id = call.targetId ?? "";
-  if (call.capability === "newsletter_draft_issue") {
-    const issue = z.object({ projectId: z.uuid() }).safeParse(call.result);
-    return issue.success
-      ? `([Review draft](/newsletter/issues/${encodeURIComponent(id)}?projectId=${encodeURIComponent(issue.data.projectId)}&draftedBySokoBot=true))`
-      : "";
-  }
-  if (NEWSLETTER_ISSUE_CAPABILITIES.has(call.capability)) {
-    const issue = z.object({ projectId: z.uuid() }).safeParse(call.result);
-    if (!issue.success) return "";
-    const query = `?projectId=${encodeURIComponent(issue.data.projectId)}`;
-    // A deleted issue has no editor left to open.
-    return call.capability === "delete_newsletter_issue"
-      ? `([Open issues](/newsletter/issues${query}))`
-      : `([Open issue](/newsletter/issues/${encodeURIComponent(id)}${query}))`;
-  }
-  if (call.capability === "update_newsletter_settings") {
-    const newsletter = z.object({ projectId: z.uuid() }).safeParse(call.result);
-    return newsletter.success
-      ? `([Open settings](/newsletter/settings?projectId=${encodeURIComponent(newsletter.data.projectId)}))`
-      : "";
-  }
-  if (NEWSLETTER_SUBSCRIBER_CAPABILITIES.has(call.capability)) {
-    const subscribers = z
-      .object({ projectId: z.uuid() })
-      .safeParse(call.result);
-    return subscribers.success
-      ? `([Open subscribers](/newsletter/subscribers?projectId=${encodeURIComponent(subscribers.data.projectId)}))`
-      : "";
-  }
-  if (TABLE_CAPABILITIES.has(call.capability))
-    return `([Open table](/drive/tables/${encodeURIComponent(id)}))`;
-  if (CONTACT_CAPABILITIES.has(call.capability))
-    return contactTarget(call.result);
-  if (
-    call.capability === "create_project" ||
-    call.capability === "update_project"
-  ) {
-    const project = z
-      .object({ name: z.string().min(1) })
-      .safeParse(call.result);
-    return project.success
-      ? `[${linkText(project.data.name)}](/projects/${encodeURIComponent(id)})`
-      : "";
-  }
-  if (SOCIAL_POST_CAPABILITIES.has(call.capability)) {
-    const post = z
-      .object({ projectId: z.string().min(1) })
-      .safeParse(call.result);
-    return post.success
-      ? `([Open post](/social?projectId=${encodeURIComponent(post.data.projectId)}&postId=${encodeURIComponent(id)}))`
-      : "";
-  }
-  if (AD_CAMPAIGN_CAPABILITIES.has(call.capability)) {
-    const campaign = z
-      .object({ link: z.string().startsWith("/ads/campaigns/") })
-      .safeParse(call.result);
-    return campaign.success ? `([Open campaign](${campaign.data.link}))` : "";
-  }
-  if (
-    call.capability === "generate_image" ||
-    call.capability === "generate_video"
-  ) {
-    const studio = z
-      .object({ studioUrl: z.string().startsWith("/studio?") })
-      .safeParse(call.result);
-    if (studio.success)
-      return `([Open in Content Studio](${studio.data.studioUrl}))`;
-  }
-  if (
-    call.capability === "upload_file" ||
-    call.capability === "generate_voiceover"
-  ) {
-    const file = z
-      .object({ filename: z.string().min(1) })
-      .safeParse(call.result);
-    if (!file.success) return "";
-    // Older receipts hold the blob URL and get their card from the line below.
-    return id.startsWith("https://")
-      ? linkText(file.data.filename)
-      : `[${linkText(file.data.filename)}](/drive/files/${encodeURIComponent(id)})`;
-  }
-  if (call.capability === "hire_agent") {
-    const agentId = jobAgents.get(id);
-    return agentId
-      ? `([Open job](/agents/${encodeURIComponent(agentId)}/jobs/${encodeURIComponent(id)}))`
-      : "";
-  }
-  const task = tasks.get(id);
-  // Anything else is named by its label alone: a raw id tells the owner
-  // nothing.
-  if (!task) return "";
-  const link = `[${linkText(task.name)}](/tasks/${encodeURIComponent(id)})`;
-  // Who got it is half of what the owner asked for. A Task created with its
-  // assignee says so on the create line; one assigned afterwards on its own.
-  const namesAssignee =
-    call.capability === "assign_task" ||
-    (call.capability === "create_task" && !assignedTaskIds.has(id));
-  return namesAssignee && task.assignee
-    ? `${link} → ${linkText(task.assignee)}`
-    : link;
-}
-
-/** Names are listed up to this many; past it a count says enough. */
-const MAX_NAMED_TARGETS = 5;
-
-/**
- * What the owner asked for on a Task, said as not done ("Couldn't archive …")
- * or, when it ran but left no proof, as unconfirmed ("Couldn't confirm I
- * archived …").
- */
-const UNDONE_TASK_VERBS: Record<string, [string, string]> = {
-  create_task: ["create", "created"],
-  update_task: ["update", "updated"],
-  archive_task: ["archive", "archived"],
-  assign_task: ["assign", "assigned"],
-  reply_to_task: ["comment on", "commented on"],
-  update_assigned_task: ["update", "updated"],
-};
-
-/** The target a call was aimed at, even one refused before it had a receipt. */
-function attemptedTarget(call: {
-  targetId: string | null;
-  input?: unknown;
-}): string | null {
-  return (
-    call.targetId ??
-    z.object({ taskId: z.string().min(1) }).safeParse(call.input).data
-      ?.taskId ??
-    null
-  );
-}
-
-/** "a Task", one linked Task, or a count that names a few. */
-function missedTasks(links: string[]): string {
-  if (links.length === 1) return links[0] || "a Task";
-  const label = `${links.length} Tasks`;
-  return links.every(Boolean) && links.length <= MAX_NAMED_TARGETS
-    ? `${label}: ${links.join(", ")}`
-    : label;
-}
-
-/** "Archived task" ×4 → "Archived 4 Tasks"; other labels keep a count. */
-function countedLabel(label: string, count: number): string {
-  if (count === 1) return label;
-  const task = /^(.*) task$/i.exec(label);
-  return task ? `${task[1]} ${count} Tasks` : `${label} (${count}×)`;
-}
-
-function collapseActionLines(
-  lines: { head: string; target: string }[],
-): string[] {
-  const groups = new Map<string, string[]>();
-  for (const { head, target } of lines) {
-    const targets = groups.get(head) ?? [];
-    if (!targets.includes(target)) targets.push(target);
-    groups.set(head, targets);
-  }
-  return [...groups].map(([head, targets]) => {
-    if (targets.length === 1)
-      return `${[head, targets[0]].filter(Boolean).join(" ")}.`;
-    const named = targets.filter(Boolean);
-    const label = countedLabel(head, targets.length);
-    return named.length && targets.length <= MAX_NAMED_TARGETS
-      ? `${label}: ${named.join(", ")}.`
-      : `${label}.`;
-  });
 }
 
 const QUESTIONS = {
@@ -588,23 +321,6 @@ function describeRead(capability: string, value: unknown): string[] {
   return observations;
 }
 
-/** Whether `later` repeats every field `earlier` set, with the same value. */
-/**
- * What a file's name is chosen by. A voice-over refused because its filename
- * was taken, then made again under a new name, read "Not confirmed: made
- * voice-over." beneath the finished video.
- */
-const FILE_NAMING_KEYS = new Set(["filename", "overwrite"]);
-
-function inputCovers(later: unknown, earlier: unknown): boolean {
-  if (!isPlainObject(later) || !isPlainObject(earlier)) return false;
-  return Object.entries(earlier).every(
-    ([key, value]) =>
-      FILE_NAMING_KEYS.has(key) ||
-      JSON.stringify(later[key]) === JSON.stringify(value),
-  );
-}
-
 /** Whether a Cuso turn filed its report as a chat card (report_update). */
 async function cmoReportedByCard(
   tx: Prisma.TransactionClient,
@@ -639,10 +355,6 @@ async function cmoSavedRecord(
   return saves > 0;
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /** Model text cannot confer evidence. Replays reference original committed proof. */
 export async function buildActionResponse(
   tx: Prisma.TransactionClient,
@@ -658,32 +370,38 @@ export async function buildActionResponse(
   const replayIds = calls.flatMap((call) =>
     call.replayedReceiptId ? [call.replayedReceiptId] : [],
   );
-  const turn = replayIds.length
-    ? await tx.sokoBotTurn.findUnique({
-        where: { id: turnId },
-        select: {
-          sokoBotId: true,
-          workspaceId: true,
-          intentId: true,
-          intentRevision: true,
-        },
-      })
-    : null;
-  const prior = turn
-    ? await tx.sokoBotToolCall.findMany({
-        where: {
-          id: { in: replayIds },
-          actorBotId: turn.sokoBotId,
-          turn: {
-            sokoBotId: turn.sokoBotId,
-            workspaceId: turn.workspaceId,
-            ...(turn.intentId
-              ? { intentId: turn.intentId, intentRevision: turn.intentRevision }
-              : { id: turnId }),
+  const turn =
+    replayIds.length || calls.some(requiresRecoveryRequester)
+      ? await tx.sokoBotTurn.findUnique({
+          where: { id: turnId },
+          select: {
+            sokoBotId: true,
+            workspaceId: true,
+            intentId: true,
+            intentRevision: true,
+            requestedByUserId: true,
           },
-        },
-      })
-    : [];
+        })
+      : null;
+  const prior =
+    turn && replayIds.length
+      ? await tx.sokoBotToolCall.findMany({
+          where: {
+            id: { in: replayIds },
+            actorBotId: turn.sokoBotId,
+            turn: {
+              sokoBotId: turn.sokoBotId,
+              workspaceId: turn.workspaceId,
+              ...(turn.intentId
+                ? {
+                    intentId: turn.intentId,
+                    intentRevision: turn.intentRevision,
+                  }
+                : { id: turnId }),
+            },
+          },
+        })
+      : [];
   const linkedPrior = prior.filter((source) =>
     calls.some(
       (call) =>
@@ -722,7 +440,8 @@ export async function buildActionResponse(
         applied.capability === call.capability &&
         applied.createdAt > call.createdAt &&
         ((call.targetId !== null && applied.targetId === call.targetId) ||
-          inputCovers(applied.input, call.input)),
+          inputCovers(applied.input, call.input) ||
+          correctedCreationInput(call, applied, turn?.requestedByUserId)),
     );
   const unfulfilledActions = calls
     .filter(
@@ -846,16 +565,33 @@ export async function buildActionResponse(
   );
   const unfulfilledGroups = new Map<
     string,
-    { reason: string; action: string; ran: boolean; targets: Set<string> }
+    {
+      reason: string;
+      action: string;
+      ran: boolean;
+      earlierAttempt: boolean;
+      targets: Set<string>;
+    }
   >();
   for (const action of unfulfilledActions) {
     if (action.reason !== "UNKNOWN" && !ownerAsked) continue;
     const didRun = ranIds.has(action.receiptId);
-    const key = `${action.reason}:${didRun}:${action.action}`;
+    const failedCall = calls.find((call) => call.id === action.receiptId);
+    const earlierAttempt =
+      action.reason !== "UNKNOWN" &&
+      !!failedCall &&
+      unique.some(
+        (call) =>
+          call.turnId === turnId &&
+          call.capability === action.action &&
+          call.createdAt > failedCall.createdAt,
+      );
+    const key = `${action.reason}:${didRun}:${action.action}:${earlierAttempt}`;
     const group = unfulfilledGroups.get(key) ?? {
       reason: action.reason,
       action: action.action,
       ran: didRun,
+      earlierAttempt,
       targets: new Set<string>(),
     };
     group.targets.add(
@@ -863,7 +599,13 @@ export async function buildActionResponse(
     );
     unfulfilledGroups.set(key, group);
   }
-  for (const { reason, action, ran, targets } of unfulfilledGroups.values()) {
+  for (const {
+    reason,
+    action,
+    ran,
+    earlierAttempt,
+    targets,
+  } of unfulfilledGroups.values()) {
     const label = countedLabel(
       (ACTION_LABELS[action] ?? action).toLowerCase(),
       targets.size,
@@ -880,14 +622,16 @@ export async function buildActionResponse(
           ),
         ),
       );
-    actionText.push(
+    const failureLine =
       reason === "UNKNOWN"
         ? `I couldn't confirm whether this went through: ${label}. Check before trying again.`
         : !verbs
           ? `Not confirmed: ${label}.`
           : ran
             ? `Couldn't confirm I ${verbs[1]} ${what()}.`
-            : `Couldn't ${verbs[0]} ${what()}.`,
+            : `Couldn't ${verbs[0]} ${what()}.`;
+    actionText.push(
+      earlierAttempt ? `Earlier attempt: ${failureLine}` : failureLine,
     );
   }
   const narrative =

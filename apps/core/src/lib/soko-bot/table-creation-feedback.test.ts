@@ -20,6 +20,9 @@ describe("tableCreationFeedback", () => {
     expect((feedback as { instruction: string }).instruction).toContain(
       "Do not insert those rows again",
     );
+    expect((feedback as { instruction: string }).instruction).toContain(
+      "Do not call preview_result for a table",
+    );
   });
 
   it("identifies an empty table without implying any inserted rows", () => {

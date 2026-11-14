@@ -22,6 +22,33 @@ describe("toolRecoveryFeedback", () => {
     };
     expect(toolRecoveryFeedback("find_coworkers", result)).toBe(result);
   });
+  it("does not recommend READY for a Task with no assignee of any kind", () => {
+    const result = {
+      id: "task-1",
+      status: "INPUT_REQUIRED",
+      assigneeUserId: null,
+      assigneeCoworkerId: null,
+      assigneeSokoBotId: null,
+    };
+    expect(toolRecoveryFeedback("get_task_status", result)).toMatchObject({
+      ...result,
+      instruction: expect.stringContaining("without a status change"),
+    });
+  });
+  it.each(["assigneeUserId", "assigneeCoworkerId", "assigneeSokoBotId"])(
+    "does not call a Task unassigned when %s is present",
+    (field) => {
+      const result = {
+        id: "task-1",
+        status: "INPUT_REQUIRED",
+        assigneeUserId: null,
+        assigneeCoworkerId: null,
+        assigneeSokoBotId: null,
+        [field]: "assignee-1",
+      };
+      expect(toolRecoveryFeedback("get_task_status", result)).toBe(result);
+    },
+  );
   it("distinguishes a deleted schedule from an available preview", () => {
     const feedback = toolRecoveryFeedback("delete_schedule", {
       id: "deleted-1",
@@ -49,11 +76,13 @@ describe("toolRecoveryFeedback", () => {
     const linked = { ...result, taskId: "task-1" };
     expect(toolRecoveryFeedback("create_schedule", linked)).toBe(linked);
   });
-  it.each(["find_coworkers", "delete_schedule", "create_schedule"])(
-    "does not invent success for %s",
-    (capability) => {
-      const result = { error: "unavailable" };
-      expect(toolRecoveryFeedback(capability, result)).toBe(result);
-    },
-  );
+  it.each([
+    "find_coworkers",
+    "get_task_status",
+    "delete_schedule",
+    "create_schedule",
+  ])("does not invent success for %s", (capability) => {
+    const result = { error: "unavailable" };
+    expect(toolRecoveryFeedback(capability, result)).toBe(result);
+  });
 });

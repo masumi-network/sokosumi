@@ -250,7 +250,13 @@ export const WORKFLOW_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "The bot saved one enabled, one-time follow-up schedule about ten minutes later for the x402 research Task and told the owner it will look again. A recurring schedule, a background run that polls, the wrong Task or time, or a promise without a successful schedule result is wrong.",
     expect: {
-      routes: ["MANAGE_WORK", "DELEGATE_TASK", "DIRECT_RESPONSE", "MIXED"],
+      routes: [
+        "MANAGE_WORK",
+        "DELEGATE_TASK",
+        "DIRECT_RESPONSE",
+        "MIXED",
+        "CLARIFY",
+      ],
       anyTools: ["create_schedule", "update_schedule"],
       // wait_for handles jobs, chat replies and connections, not Task timers.
       forbiddenTools: ["start_background_run", "hire_agent", "wait_for"],

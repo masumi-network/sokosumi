@@ -566,11 +566,14 @@ function taskCheck(
   };
 }
 
-function checkBack(calls: SokoBotLabTurn["toolCalls"]) {
+function checkBack(
+  calls: SokoBotLabTurn["toolCalls"],
+  route: SokoBotLabTurn["route"] = "MANAGE_WORK",
+) {
   return evaluateScenario(
     byId("check-back-later"),
     turn({
-      route: "MANAGE_WORK",
+      route,
       finalAnswer: "I will check the x402 Task in ten minutes.",
       contextPacket: {
         tasks: [
@@ -584,10 +587,13 @@ function checkBack(calls: SokoBotLabTurn["toolCalls"]) {
 }
 
 describe("one-time Task follow-up checks", () => {
-  it("accepts a persisted one-time schedule for the requested Task", () => {
-    const result = checkBack([taskCheck()]);
-    expect(result.passed).toBe(result.total);
-  });
+  it.each(["MANAGE_WORK", "CLARIFY"] as const)(
+    "accepts a persisted one-time schedule for the requested Task on %s",
+    (route) => {
+      const result = checkBack([taskCheck()], route);
+      expect(result.passed).toBe(result.total);
+    },
+  );
 
   it.each([
     ["recurring", { runOnce: false }, { cronExpression: "* * * * *" }],

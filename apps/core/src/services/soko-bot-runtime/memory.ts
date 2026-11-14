@@ -3,6 +3,7 @@ import {
   sokoBotMemoryUpdateInputSchema as memoryUpdateInputSchema,
   parseSokoBotMemory,
   renderSokoBotMemory,
+  SOKO_BOT_MEMORY_LIMITS,
 } from "@sokosumi/soko-bot";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
@@ -37,7 +38,6 @@ export async function updateMemory(
       error instanceof Error ? error.message : "Soko Bot memory is invalid",
     );
   }
-  const hash = hashMemory(markdown);
   return serializableTransaction(async (tx) => {
     await runtime.requireMutationAuthority(
       tx,
@@ -49,23 +49,62 @@ export async function updateMemory(
       where: { id: authorized.turn.sokoBotId },
       select: { memoryVersion: true },
     });
-    if (bot.memoryVersion !== authorized.grant.memoryVersion) {
-      const latestRevision =
-        bot.memoryVersion > authorized.grant.memoryVersion
-          ? await tx.sokoBotMemoryRevision.findUnique({
-              where: {
-                sokoBotId_version: {
-                  sokoBotId: authorized.turn.sokoBotId,
-                  version: bot.memoryVersion,
-                },
+    const directHumanRequest =
+      authorized.turn.source === "CHAT" &&
+      authorized.turn.chainDepth === 0 &&
+      authorized.turn.requestedByUserId !== null &&
+      (authorized.askedByKind === "OWNER" ||
+        (Boolean(authorized.reader.sharedScope) &&
+          authorized.askedByKind === "TEAMMATE"));
+    const preservePreferences = !directHumanRequest;
+    const latestRevision =
+      bot.memoryVersion > 0 &&
+      (preservePreferences ||
+        bot.memoryVersion !== authorized.grant.memoryVersion)
+        ? await tx.sokoBotMemoryRevision.findUnique({
+            where: {
+              sokoBotId_version: {
+                sokoBotId: authorized.turn.sokoBotId,
+                version: bot.memoryVersion,
               },
-              select: { sourceTurnId: true },
-            })
-          : null;
-      if (latestRevision?.sourceTurnId !== authorized.turn.id) {
+            },
+            select: { sourceTurnId: true, markdown: true },
+          })
+        : null;
+    if (bot.memoryVersion !== authorized.grant.memoryVersion) {
+      if (
+        bot.memoryVersion < authorized.grant.memoryVersion ||
+        latestRevision?.sourceTurnId !== authorized.turn.id
+      ) {
         throw new SokoBotRuntimeConflictError("Memory changed during turn");
       }
     }
+    let nextMarkdown = markdown;
+    if (preservePreferences && bot.memoryVersion > 0) {
+      if (!latestRevision)
+        throw new SokoBotRuntimeConflictError(
+          "Current memory revision is unavailable",
+        );
+      // Background summaries can be clipped or incomplete. Only a direct human
+      // request can remove preferences from the current stored revision.
+      const previous = parseSokoBotMemory(latestRevision.markdown);
+      const next = parseSokoBotMemory(markdown);
+      next.preferences = [
+        ...new Set([...previous.preferences, ...next.preferences]),
+      ];
+      if (next.preferences.length > SOKO_BOT_MEMORY_LIMITS.maxEntriesPerSection)
+        throw new SokoBotRuntimeValidationError(
+          "Existing preferences must be retained; ask for a direct human memory update before replacing them",
+        );
+      try {
+        nextMarkdown = renderSokoBotMemory(next);
+      } catch (error) {
+        throw new SokoBotRuntimeValidationError(
+          error instanceof Error ? error.message : "Soko Bot memory is invalid",
+        );
+      }
+    }
+    const hash = hashMemory(nextMarkdown);
     const version = bot.memoryVersion + 1;
     const revision = await tx.sokoBotMemoryRevision.create({
       data: {
@@ -73,7 +112,7 @@ export async function updateMemory(
         sourceTurnId: authorized.turn.id,
         version,
         hash,
-        markdown,
+        markdown: nextMarkdown,
         source: "runtime",
       },
       select: { id: true, version: true, hash: true, markdown: true },

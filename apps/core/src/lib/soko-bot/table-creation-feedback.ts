@@ -17,6 +17,6 @@ export function tableCreationFeedback(
   return {
     ...created.data,
     initialRowCount,
-    instruction: `Table created with ${initialRowCount} initial rows already inserted. Present its link now. Do not insert those rows again. Query the table before adding further rows; patch existing rows when correcting them.`,
+    instruction: `Table created with ${initialRowCount} initial rows already inserted. Present its link now. Do not call preview_result for a table; its ID is not a Drive file ID. Do not insert those rows again. Query the table before adding further rows; patch existing rows when correcting them.`,
   };
 }

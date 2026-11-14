@@ -12,12 +12,30 @@ const deletedSchedule = z
 const unlinkedSchedule = z
   .object({ id: z.string().min(1), taskId: z.null() })
   .passthrough();
+const unassignedTask = z
+  .object({
+    id: z.string().min(1),
+    status: z.enum(["DRAFT", "INPUT_REQUIRED", "FAILED"]),
+    assigneeUserId: z.null(),
+    assigneeCoworkerId: z.null(),
+    assigneeSokoBotId: z.null(),
+  })
+  .passthrough();
 
 /** Clarify a successful tool result without changing its facts or authority. */
 export function toolRecoveryFeedback(
   capability: string,
   result: unknown,
 ): unknown {
+  if (capability === "get_task_status") {
+    const task = unassignedTask.safeParse(result);
+    if (task.success)
+      return {
+        ...task.data,
+        instruction:
+          "This Task has no assignee of any kind. Deliver answers or recovery guidance with reply_to_task without a status change. Do not request READY until an assignee is confirmed. Use assign_task only with a verified suitable assignee; ask the owner when that choice is unresolved.",
+      };
+  }
   if (capability === "find_coworkers") {
     const directory = directoryResult.safeParse(result);
     if (
