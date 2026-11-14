@@ -4929,7 +4929,8 @@
             "description1": "Description line 1",
             "description2": "Description line 2",
             "add": "Add sitelink",
-            "remove": "Remove sitelink {number}"
+            "remove": "Remove sitelink {number}",
+            "label": "Sitelinks"
           },
           "callouts": {
             "title": "Callouts (optional)",
@@ -5164,6 +5165,16 @@
         "errors": {
           "conflict": "This campaign can't be edited here.",
           "failed": "Failed to save changes"
+        },
+        "changes": {
+          "submitCount": "Save {count, plural, one {# change} other {# changes}}",
+          "changed": "Changed",
+          "was": "Was:",
+          "now": "Now:",
+          "none": "Nothing has changed yet. Change a step to save.",
+          "removed": "Removed",
+          "added": "Added",
+          "empty": "None"
         }
       },
       "market": {
@@ -5208,6 +5219,7 @@
           },
           "trendLabel": "Monthly searches over 12 months, from {from} to {to}",
           "searchesPerMonth": "{count} searches a month",
+          "noSearchData": "No search data",
           "emptyTitle": "No trending keywords found for this market",
           "emptyBody": "Try other keywords or another country."
         },
@@ -5240,7 +5252,10 @@
             "keywords": "Failed to load keywords",
             "ads": "Failed to load ads"
           }
-        }
+        },
+        "updating": "Updating trending keywords…",
+        "stale": "These results are from before your last save.",
+        "refresh": "Refresh results"
       },
       "accounts": {
         "emptyTitle": "No ad accounts connected yet",
