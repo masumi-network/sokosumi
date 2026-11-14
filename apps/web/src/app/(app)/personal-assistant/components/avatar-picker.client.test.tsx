@@ -229,6 +229,42 @@ describe("AvatarPicker", () => {
     expect(names).toEqual(["g", "h", "f", "e", "d", "c"]);
   });
 
+  it("says so when Show others has nothing new, and drops the note once new ones come", async () => {
+    const user = userEvent.setup();
+    topUpMock
+      .mockResolvedValueOnce({
+        ok: true,
+        value: avatars("a", "b", "c", "d", "e", "f"),
+      })
+      // Nothing unseen: the picker starts over with the same set.
+      .mockResolvedValueOnce({ ok: true, value: [] })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: avatars("a", "b", "c", "d", "e", "f"),
+      })
+      .mockResolvedValueOnce({ ok: true, value: avatars("g") });
+    renderPicker();
+    await screen.findByRole("button", { name: "a" });
+    expect(
+      screen.getByText("Pick one, or ask for other options."),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Show others" }));
+
+    expect(
+      await screen.findByText(
+        "No new pictures right now. Try again in a minute.",
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Show others" }));
+
+    expect(await screen.findByRole("button", { name: "g" })).toBeTruthy();
+    expect(
+      screen.getByText("Pick one, or ask for other options."),
+    ).toBeInTheDocument();
+  });
+
   it("shows only skeletons, and nothing to pick, while others load", async () => {
     const user = userEvent.setup();
     const onLoadingChange = vi.fn();

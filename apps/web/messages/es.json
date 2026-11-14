@@ -10140,6 +10140,7 @@
         "lastRun": "Última",
         "failures": "Fallos",
         "disabled": "deshabilitada",
+        "yourTime": "({datetime} en tu hora)",
         "enable": "Habilitar programación",
         "disable": "Deshabilitar programación",
         "delete": "Eliminar",
@@ -10410,8 +10411,8 @@
           "tokenSplit": "{input} entrada · {output} salida",
           "modelCost": "Coste del modelo",
           "modelCostHint": "Lo que costaron los tokens, antes del mínimo por turno",
-          "creditSplit": "{own} en sus propios turnos · {delegated} en Coworkers y Agents",
-          "creditsOwnOnly": "Todo en sus propios turnos"
+          "creditSplit": "{own} del propio asistente · {delegated} en Coworkers y Agents",
+          "creditsOwnOnly": "Nada gastado en Coworkers ni Agents"
         },
         "Connectors": {
           "title": "Herramientas",
@@ -10428,6 +10429,7 @@
         "current": "Imagen actual",
         "hint": "Elige una o pide otras opciones.",
         "showOthers": "Ver otras",
+        "noneNew": "Ahora no hay imágenes nuevas. Inténtalo de nuevo en un minuto.",
         "pictures": "Imágenes",
         "loadError": "No se pudieron cargar las imágenes.",
         "rateLimited": "Has pedido demasiadas imágenes nuevas. Inténtalo de nuevo más tarde."

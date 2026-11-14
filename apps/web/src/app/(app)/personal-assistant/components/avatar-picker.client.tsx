@@ -55,6 +55,9 @@ function AvatarPickerSet({
   const [seen, setSeen] = useState<SokoBotAvatar[]>([]);
   const [isPending, startTransition] = useTransition();
   const [loaded, setLoaded] = useState(false);
+  // "Show others" found nothing unseen and started over: the set looks the
+  // same, so say why instead of seeming to do nothing.
+  const [noneNew, setNoneNew] = useState(false);
   // The current picture takes one tile, so the set shrinks by one and the
   // tiles still fill whole rows (six wide, or two rows of three).
   const take = currentImageUrl ? PAGE_SIZE - 1 : PAGE_SIZE;
@@ -108,6 +111,7 @@ function AvatarPickerSet({
         ? fresh
         : fillAvatarRow(fresh, seen, take);
     setAvatars(next);
+    setNoneNew(wrappedAround);
     // A new bot starts with a picture; picking another stays one click.
     // The pick must stay on screen: after "show others" a pick from the
     // old set may be gone, so fall back to the current picture or the first.
@@ -173,7 +177,9 @@ function AvatarPickerSet({
           : null}
       </div>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-muted-foreground text-xs">{t("hint")}</p>
+        <p aria-live="polite" className="text-muted-foreground text-xs">
+          {noneNew ? t("noneNew") : t("hint")}
+        </p>
         <Button
           type="button"
           variant="ghost"
