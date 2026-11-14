@@ -182,6 +182,7 @@ function createTaskApi(projectId: string | null = null) {
     share: null,
     links: [],
     files: [],
+    archivedAt: null,
     runAt: null,
     dueOn: null,
     scheduleId: null,

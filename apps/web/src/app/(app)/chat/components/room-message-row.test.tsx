@@ -247,6 +247,7 @@ function renderRow({
   onRemoveOutbound,
   onJumpToQuotedMessage,
   onSendToSelf,
+  isSelfDirect,
   showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
@@ -277,6 +278,7 @@ function renderRow({
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   onJumpToQuotedMessage?: (messageId: string) => void;
   onSendToSelf?: (message: ChatRoomMessage) => void;
+  isSelfDirect?: boolean;
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
   editDraft?: string;
@@ -307,6 +309,7 @@ function renderRow({
       onRemoveOutbound={onRemoveOutbound}
       onJumpToQuotedMessage={onJumpToQuotedMessage}
       onSendToSelf={onSendToSelf}
+      isSelfDirect={isSelfDirect}
       showOutboundSentTick={showOutboundSentTick}
       isEditing={isEditing}
       editDraft={editDraft}
@@ -2637,6 +2640,35 @@ describe("ChatMessageRow", () => {
       expect.objectContaining({ id: "message-1" }),
     );
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("asks to delete a private note in the Self Direct", async () => {
+    const user = userEvent.setup();
+
+    renderRow({
+      currentUserId: "user-1",
+      onDelete: vi.fn(),
+      onQuote: vi.fn(),
+      isSelfDirect: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Message.delete",
+      }),
+    );
+
+    const confirmDialog = await screen.findByRole("alertdialog");
+    expect(
+      within(confirmDialog).getByText("Message.deleteNoteTitle"),
+    ).toBeInTheDocument();
+    expect(
+      within(confirmDialog).getByText("Message.deleteNoteConfirm"),
+    ).toBeInTheDocument();
+    expect(
+      within(confirmDialog).queryByText("Message.deleteConfirm"),
+    ).not.toBeInTheDocument();
   });
 
   it("cancels delete without calling onDelete", async () => {

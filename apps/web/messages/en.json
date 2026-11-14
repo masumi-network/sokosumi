@@ -892,6 +892,21 @@
       "loading": "Loading document…",
       "fetchError": "This document couldn't be loaded."
     },
+    "VoicePlayer": {
+      "play": "Play {name}",
+      "pause": "Pause",
+      "seek": "Playback position",
+      "position": "{current} of {total}",
+      "speed": "Playback speed {rate}×",
+      "download": "Download {name}",
+      "transcript": "Transcript",
+      "addTranscript": "Add transcript",
+      "editTranscript": "Edit transcript",
+      "transcriptHint": "Type what was said. It is saved in this message, so everyone in this conversation can read and search it. Leave it empty to remove the transcript.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "transcriptNotSaved": "The transcript was not saved. Try again in a moment, or shorten it if the message is too long."
+    },
     "SokoBot": {
       "BotStatus": {
         "IDLE": "Idle",
@@ -1032,6 +1047,8 @@
       "retry": "Retry",
       "open": "Open source",
       "openLabel": "Open source: {title}",
+      "openSchedule": "View in schedules",
+      "openScheduleLabel": "View {title} in schedules",
       "openJob": "Open job",
       "jobHint": {
         "started": "Starting the job.",
@@ -1143,6 +1160,11 @@
       "description": "CMO runs this Project, so changes happen in CMO. Here you can read it.",
       "open": "Open in CMO",
       "newTab": "(opens in a new tab)"
+    },
+    "FilesArchive": {
+      "failed": "Couldn't download the files. Try again, or open them one by one.",
+      "partial": "Downloaded {included} of {total} files. Not included: {names}{more, plural, =0 {} one { and # more} other { and # more}}. Open them one by one.",
+      "empty": "There are no files to download yet."
     }
   },
   "Join": {
@@ -1719,6 +1741,7 @@
           "placeholder": "Ask {name}…",
           "sendFailed": "Could not send your message. Please try again.",
           "quietDay": "Nothing moved yet. Ask {name} to start something.",
+          "newSchedule": "New schedule for {name}",
           "open": "Open",
           "suggestions": {
             "catchUp": "Catch me up",
@@ -1777,7 +1800,19 @@
         "restoreNamed": "Restore {name}",
         "restored": "{name} is back on the board",
         "open": "Open",
-        "restoreError": "Couldn't restore this task. Try again."
+        "restoreError": "Couldn't restore this task. Try again.",
+        "searchLabel": "Search archived tasks",
+        "searchPlaceholder": "Search by name",
+        "noMatches": "No archived tasks match “{query}”.",
+        "noProject": "No project",
+        "archivedOn": "Archived {date}",
+        "readOnly": "Archived tasks are read-only. Restore this one to edit or run it."
+      },
+      "NotFound": {
+        "title": "This task isn’t here",
+        "description": "It may have been archived or deleted, or it belongs to another workspace. Archived tasks can be restored.",
+        "archived": "Archived tasks",
+        "back": "Back to tasks"
       },
       "Columns": {
         "backlog": "Backlog",
@@ -1906,9 +1941,7 @@
         "expand": "Expand",
         "collapse": "Show less",
         "downloadAll": {
-          "button": "Download all",
-          "failed": "Couldn't download the files. Try again, or open them one by one.",
-          "partial": "Downloaded {included} of {total} files. Not included: {names}{more, plural, =0 {} one { and # more} other { and # more}}. Open them one by one."
+          "button": "Download all"
         },
         "actorCoworker": "Coworker",
         "actorUser": "User",
@@ -2164,7 +2197,15 @@
         "close": "Close",
         "privateLabel": "Private",
         "privateDescription": "Hidden from other workspace members. Still visible to you, your Soko Bot, and the assigned coworker.",
-        "privateOtherPeopleHint": "Private tasks cannot go to other people. Turn Private off to assign a teammate."
+        "privateOtherPeopleHint": "Private tasks cannot go to other people. Turn Private off to assign a teammate.",
+        "Progress": {
+          "title": "Creating your task…",
+          "naming": "Name it from your details",
+          "tagging": "Suggest tags",
+          "tagsReady": "Tags suggested",
+          "saving": "Save the task",
+          "keepOpen": "Keep this open until it says Task created."
+        }
       },
       "EditTask": {
         "title": "Edit task",
@@ -8951,7 +8992,14 @@
         "removeAttachment": "Remove {name}",
         "attachmentFallback": "file",
         "showFormatting": "Show formatting",
-        "hideFormatting": "Hide formatting"
+        "hideFormatting": "Hide formatting",
+        "recordVoice": "Record a voice message",
+        "stopVoice": "Stop and attach",
+        "cancelVoice": "Discard recording",
+        "voiceRecording": "Recording voice message",
+        "voiceBlocked": "Allow microphone access in your browser to record a voice message.",
+        "voiceFailed": "Recording stopped. Try again.",
+        "voiceFileName": "Voice message {time}"
       },
       "Skills": {
         "add": "Add a skill",
@@ -9102,6 +9150,8 @@
       "Message": {
         "delete": "Delete",
         "deleteConfirm": "Delete this message? Others will see that it was deleted.",
+        "deleteNoteTitle": "Delete this note?",
+        "deleteNoteConfirm": "It's removed for good. Only you could see it.",
         "deleted": "This message was deleted",
         "deleteError": "Could not delete the message. Try again.",
         "restored": "The message is back in the conversation.",
@@ -9488,7 +9538,7 @@
         "Decisions": {
           "open": "Decisions",
           "title": "Decisions",
-          "empty": "No decisions here yet. Messages like \"Decided: we launch Monday\" collect here.",
+          "empty": "No decisions here yet. We find them in channels and in chats with other people who allow it. Notes to yourself are never tagged.",
           "loadOlder": "Load older",
           "note": "We find these for you. If one is wrong, open its message and click the × on the tag.",
           "description": "Decisions found in your chats, newest first, including ones you already read.",
@@ -9547,6 +9597,13 @@
       "myDrive": "My files",
       "uploadButton": "Upload",
       "uploadingProgress": "{progress}%",
+      "uploadFilesOption": "Files",
+      "uploadFolderOption": "Folder",
+      "filesUploaded": "{count, plural, one {Uploaded # file} other {Uploaded # files}}",
+      "dropToUpload": "Drop files or folders to upload",
+      "folderUploaded": "{count, plural, one {Uploaded # file to {folder}} other {Uploaded # files to {folder}}}",
+      "folderUploadSkipped": "{count, plural, one {# file was not uploaded. Files skips unsupported types, files over 100 MB, names already in the folder and anything past 500 files.} other {# files were not uploaded. Files skips unsupported types, files over 100 MB, names already in the folder and anything past 500 files.}}",
+      "folderUploadNothing": "This folder has no files that can be uploaded.",
       "emptyTitle": "No files yet",
       "emptyDescription": "Upload your first file to get started",
       "searchPlaceholder": "Search files...",
@@ -9635,6 +9692,9 @@
       "deleteFolderError": "Failed to delete folder",
       "moveFolderError": "Failed to move folder",
       "moveFolderAction": "Move folder",
+      "downloadFolderButton": "Download",
+      "downloadFolderAction": "Download {name} as a zip",
+      "downloadFolderRoomsLeftOut": "Data rooms are not in the zip: {names}. Their files stay private to the people let in.",
       "moveFileError": "Failed to move file",
       "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "No task files yet",
@@ -11407,6 +11467,7 @@
       "open": "Open",
       "download": "Download",
       "downloadFile": "Download {name}",
+      "downloadAll": "Download all",
       "truncated": "Showing the first 2,000 files of this folder.",
       "emptyFolder": "This folder is empty.",
       "errors": {

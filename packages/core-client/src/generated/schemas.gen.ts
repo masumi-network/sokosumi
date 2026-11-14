@@ -7375,6 +7375,15 @@ export const TaskSchema = {
             description: 'Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.',
             example: null
         },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When the Task was archived. Null unless it is archived; only archived reads (archived=true) return archived Tasks.'
+        },
         credits: {
             type: 'number',
             example: 5
@@ -7469,6 +7478,7 @@ export const TaskSchema = {
         'runAt',
         'dueOn',
         'scheduleId',
+        'archivedAt',
         'credits',
         'events',
         'jobs',
@@ -49411,6 +49421,15 @@ export const TaskListItemSchema = {
             description: 'Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.',
             example: null
         },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When the Task was archived. Null unless it is archived; only archived reads (archived=true) return archived Tasks.'
+        },
         workspace: {
             $ref: '#/components/schemas/WorkspaceSummary'
         },
@@ -49459,6 +49478,7 @@ export const TaskListItemSchema = {
         'runAt',
         'dueOn',
         'scheduleId',
+        'archivedAt',
         'workspace',
         'jobsCount',
         'commentsCount'

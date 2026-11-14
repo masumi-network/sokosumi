@@ -17,6 +17,7 @@ import {
   evalEnvironment,
   prNumberFromCommitMessage,
 } from "@/lib/evals/eval-environment";
+import { sokoBotTurnsSyncService } from "@/services/soko-bot-turns-sync.service";
 import {
   isRunnableSokoBotVersionId,
   resolveSokoBotVersion,
@@ -38,6 +39,7 @@ import {
   defaultEvalVersions,
   EVAL_LANE_COUNT,
   ensureEvalLanes,
+  evalLaneBotIds,
   getEvalLane,
   pauseEvalLanes,
   prepareEvalLane,
@@ -397,6 +399,29 @@ export async function tickEvalRuns(
     runId: run.id,
     completed: await completeIfDone(run),
   };
+}
+
+/** One invocation's worth: Vercel ends Core at 300 seconds. */
+const LANE_TURN_SYNC_MS = 240_000;
+
+/**
+ * Keeps reading the lanes' running turns until they settle, as the minute
+ * cron does on mainnet. Where there is no cron, the request that started a
+ * turn reads it for five minutes at most; a longer turn then never settled,
+ * so a month's production run stayed running and its case timed out.
+ */
+export async function syncEvalLaneTurns(runId: string): Promise<void> {
+  const run = await prisma.evalRun.findUnique({
+    where: { id: runId },
+    select: { repeats: true },
+  });
+  if (!run) return;
+  const abortSignal = AbortSignal.timeout(LANE_TURN_SYNC_MS);
+  await sokoBotTurnsSyncService.syncActiveTurns({
+    abortSignal,
+    shouldContinue: () => !abortSignal.aborted,
+    sokoBotIds: await evalLaneBotIds(run.repeats),
+  });
 }
 
 export async function cancelEvalRun(runId: string) {

@@ -88,6 +88,7 @@ import type {
   GetProjectsStatsData,
   GetPublicNewslettersByPublicSlugIssuesData,
   GetShareByTokenError,
+  GetTasksByIdData,
   GetTasksByIdEventsData,
   GetTasksData,
   GetTasksSchedulesByIdRunsData,
@@ -650,6 +651,9 @@ function transformTaskListResponseEnvelope(data: any) {
     if (item.runAt) {
       item.runAt = toDate(item.runAt);
     }
+    if (item.archivedAt) {
+      item.archivedAt = toDate(item.archivedAt);
+    }
 
     return item;
   });
@@ -667,6 +671,9 @@ function transformTaskResponseEnvelope(data: any) {
   task.updatedAt = toDate(task.updatedAt);
   if (task.runAt) {
     task.runAt = toDate(task.runAt);
+  }
+  if (task.archivedAt) {
+    task.archivedAt = toDate(task.archivedAt);
   }
   task.events = task.events.map((event: any) => ({
     ...event,
@@ -2343,13 +2350,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getTaskById(id: string) {
+  async function getTaskById(id: string, query?: GetTasksByIdData["query"]) {
     return executeCoreOperation(
       getClient,
       (client) =>
         coreGetTasksById({
           client,
           path: { id },
+          query,
           cache: "no-store",
           responseTransformer: async (data) =>
             transformTaskResponseEnvelope(data),

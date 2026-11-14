@@ -825,6 +825,9 @@ const taskSchemaResponseTransformer = (data: any) => {
     if (data.runAt) {
         data.runAt = new Date(data.runAt);
     }
+    if (data.archivedAt) {
+        data.archivedAt = new Date(data.archivedAt);
+    }
     data.events = data.events.map((item: any) => taskEventSchemaResponseTransformer(item));
     data.jobs = data.jobs.map((item: any) => jobSummarySchemaResponseTransformer(item));
     if (data.share) {
@@ -5456,6 +5459,9 @@ const taskListItemSchemaResponseTransformer = (data: any) => {
     data.participants = data.participants.map((item: any) => taskParticipantSchemaResponseTransformer(item));
     if (data.runAt) {
         data.runAt = new Date(data.runAt);
+    }
+    if (data.archivedAt) {
+        data.archivedAt = new Date(data.archivedAt);
     }
     return data;
 };

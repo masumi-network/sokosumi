@@ -1891,6 +1891,10 @@ export type Task = {
      * Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.
      */
     scheduleId: string | null;
+    /**
+     * When the Task was archived. Null unless it is archived; only archived reads (archived=true) return archived Tasks.
+     */
+    archivedAt: Date | null;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -12747,6 +12751,10 @@ export type TaskListItem = {
      * Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.
      */
     scheduleId: string | null;
+    /**
+     * When the Task was archived. Null unless it is archived; only archived reads (archived=true) return archived Tasks.
+     */
+    archivedAt: Date | null;
     workspace: WorkspaceSummary;
     jobsCount: number;
     commentsCount: number;
@@ -88298,11 +88306,31 @@ export type GetTasksByIdData = {
          */
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * true reads an archived Task instead, read-only, with the same access as the archived list. People only; coworkers and Soko Bots get 400.
+         */
+        archived?: 'true' | 'false';
+    };
     url: '/tasks/{id}';
 };
 
 export type GetTasksByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */

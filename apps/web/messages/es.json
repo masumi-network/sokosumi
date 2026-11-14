@@ -884,6 +884,21 @@
       "loading": "Cargando documento…",
       "fetchError": "No se pudo cargar este documento."
     },
+    "VoicePlayer": {
+      "play": "Reproducir {name}",
+      "pause": "Pausar",
+      "seek": "Posición de reproducción",
+      "position": "{current} de {total}",
+      "speed": "Velocidad de reproducción {rate}×",
+      "download": "Descargar {name}",
+      "transcript": "Transcripción",
+      "addTranscript": "Añadir transcripción",
+      "editTranscript": "Editar transcripción",
+      "transcriptHint": "Escribe lo que se dijo. Se guarda en este mensaje, así que todas las personas de esta conversación pueden leerlo y buscarlo. Déjalo vacío para quitar la transcripción.",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "transcriptNotSaved": "La transcripción no se guardó. Vuelve a intentarlo en un momento o acórtala si el mensaje es demasiado largo."
+    },
     "UserCombobox": {
       "placeholder": "Select a user",
       "search": "Search users by name or email…",
@@ -1032,6 +1047,8 @@
       "retry": "Reintentar",
       "open": "Abrir origen",
       "openLabel": "Abrir origen: {title}",
+      "openSchedule": "Ver en programaciones",
+      "openScheduleLabel": "Ver {title} en programaciones",
       "openJob": "Abrir job",
       "jobHint": {
         "started": "Iniciando el job.",
@@ -1143,6 +1160,11 @@
       "description": "CMO gestiona este proyecto, así que los cambios se hacen en CMO. Aquí puedes consultarlo.",
       "open": "Abrir en CMO",
       "newTab": "(se abre en una pestaña nueva)"
+    },
+    "FilesArchive": {
+      "failed": "No se pudieron descargar los archivos. Inténtalo de nuevo o ábrelos uno a uno.",
+      "partial": "Se descargaron {included} de {total} archivos. No incluidos: {names}{more, plural, =0 {} one { y # más} other { y # más}}. Ábrelos uno a uno.",
+      "empty": "Aún no hay archivos para descargar."
     }
   },
   "Join": {
@@ -1719,6 +1741,7 @@
           "placeholder": "Pregunta a {name}…",
           "sendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
           "quietDay": "Todavía no se ha movido nada. Pide a {name} que empiece algo.",
+          "newSchedule": "Nueva programación para {name}",
           "open": "Abrir",
           "suggestions": {
             "catchUp": "Ponme al día",
@@ -1777,7 +1800,19 @@
         "restoreNamed": "Restaurar {name}",
         "restored": "{name} ha vuelto al tablero",
         "open": "Abrir",
-        "restoreError": "No se pudo restaurar la tarea. Inténtalo de nuevo."
+        "restoreError": "No se pudo restaurar la tarea. Inténtalo de nuevo.",
+        "searchLabel": "Buscar tareas archivadas",
+        "searchPlaceholder": "Buscar por nombre",
+        "noMatches": "Ninguna tarea archivada coincide con «{query}».",
+        "noProject": "Sin proyecto",
+        "archivedOn": "Archivada el {date}",
+        "readOnly": "Las tareas archivadas son de solo lectura. Restaura esta para editarla o ejecutarla."
+      },
+      "NotFound": {
+        "title": "Esta tarea no está aquí",
+        "description": "Puede que se haya archivado o eliminado, o que pertenezca a otro espacio de trabajo. Las tareas archivadas se pueden restaurar.",
+        "archived": "Tareas archivadas",
+        "back": "Volver a las tareas"
       },
       "Columns": {
         "backlog": "Pendiente",
@@ -1905,9 +1940,7 @@
         "expand": "Expandir",
         "collapse": "Contraer",
         "downloadAll": {
-          "button": "Descargar todo",
-          "failed": "No se pudieron descargar los archivos. Inténtalo de nuevo o ábrelos uno a uno.",
-          "partial": "Se descargaron {included} de {total} archivos. No incluidos: {names}{more, plural, =0 {} one { y # más} other { y # más}}. Ábrelos uno a uno."
+          "button": "Descargar todo"
         },
         "actorCoworker": "Coworker",
         "actorUser": "Usuario",
@@ -2164,7 +2197,15 @@
         "close": "Cerrar",
         "privateLabel": "Privada",
         "privateDescription": "Oculta para el resto de miembros del workspace. Sigue visible para ti, tu Soko Bot y el coworker asignado.",
-        "privateOtherPeopleHint": "Las tareas privadas no pueden asignarse a otras personas. Desactiva Privada para asignar a un compañero."
+        "privateOtherPeopleHint": "Las tareas privadas no pueden asignarse a otras personas. Desactiva Privada para asignar a un compañero.",
+        "Progress": {
+          "title": "Creando tu tarea…",
+          "naming": "Ponerle nombre a partir de tus detalles",
+          "tagging": "Sugerir etiquetas",
+          "tagsReady": "Etiquetas sugeridas",
+          "saving": "Guardar la tarea",
+          "keepOpen": "Mantén esto abierto hasta que diga Tarea creada."
+        }
       },
       "EditTask": {
         "title": "Editar Task",
@@ -8951,7 +8992,14 @@
         "removeAttachment": "Eliminar {name}",
         "attachmentFallback": "file",
         "showFormatting": "Mostrar formato",
-        "hideFormatting": "Ocultar formato"
+        "hideFormatting": "Ocultar formato",
+        "recordVoice": "Grabar un mensaje de voz",
+        "stopVoice": "Detener y adjuntar",
+        "cancelVoice": "Descartar grabación",
+        "voiceRecording": "Grabando mensaje de voz",
+        "voiceBlocked": "Permite el acceso al micrófono en tu navegador para grabar un mensaje de voz.",
+        "voiceFailed": "La grabación se detuvo. Inténtalo de nuevo.",
+        "voiceFileName": "Mensaje de voz {time}"
       },
       "Skills": {
         "add": "Añadir una skill",
@@ -9102,6 +9150,8 @@
       "Message": {
         "delete": "Eliminar",
         "deleteConfirm": "¿Eliminar este mensaje? Los demás verán que fue eliminado.",
+        "deleteNoteTitle": "¿Eliminar esta nota?",
+        "deleteNoteConfirm": "Se elimina para siempre. Solo tú podías verla.",
         "deleted": "Este mensaje fue eliminado",
         "deleteError": "No se pudo eliminar el mensaje. Inténtalo de nuevo.",
         "restored": "El mensaje vuelve a estar en la conversación.",
@@ -9488,7 +9538,7 @@
         "Decisions": {
           "open": "Decisiones",
           "title": "Decisiones",
-          "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
+          "empty": "Aún no hay decisiones aquí. Las encontramos en canales y en chats con otras personas que lo permiten. Las notas para ti mismo nunca se etiquetan.",
           "loadOlder": "Cargar anteriores",
           "note": "Las encontramos por ti. Si una es incorrecta, abre su mensaje y haz clic en la × de la etiqueta.",
           "description": "Decisiones encontradas en tus chats, las más recientes primero, también las que ya leíste.",
@@ -9547,6 +9597,13 @@
       "myDrive": "Mis archivos",
       "uploadButton": "Subir",
       "uploadingProgress": "{progress}%",
+      "uploadFilesOption": "Archivos",
+      "uploadFolderOption": "Carpeta",
+      "filesUploaded": "{count, plural, one {# archivo subido} other {# archivos subidos}}",
+      "dropToUpload": "Suelta archivos o carpetas para subirlos",
+      "folderUploaded": "{count, plural, one {Se subió # archivo a {folder}} other {Se subieron # archivos a {folder}}}",
+      "folderUploadSkipped": "{count, plural, one {# archivo no se subió. Archivos omite tipos no compatibles, archivos de más de 100 MB, nombres que ya están en la carpeta y todo lo que pase de 500 archivos.} other {# archivos no se subieron. Archivos omite tipos no compatibles, archivos de más de 100 MB, nombres que ya están en la carpeta y todo lo que pase de 500 archivos.}}",
+      "folderUploadNothing": "Esta carpeta no tiene archivos que se puedan subir.",
       "emptyTitle": "Aún no hay archivos",
       "emptyDescription": "Sube tu primer archivo para comenzar",
       "searchPlaceholder": "Buscar archivos...",
@@ -9635,6 +9692,9 @@
       "deleteFolderError": "Error al eliminar carpeta",
       "moveFolderError": "Error al mover carpeta",
       "moveFolderAction": "Mover carpeta",
+      "downloadFolderButton": "Descargar",
+      "downloadFolderAction": "Descargar {name} como zip",
+      "downloadFolderRoomsLeftOut": "Las salas de datos no están en el zip: {names}. Sus archivos siguen siendo privados para las personas con acceso.",
       "moveFileError": "Error al mover archivo",
       "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "Aún no hay archivos de tareas",
@@ -11407,6 +11467,7 @@
       "open": "Abrir",
       "download": "Descargar",
       "downloadFile": "Descargar {name}",
+      "downloadAll": "Descargar todo",
       "truncated": "Se muestran los primeros 2.000 archivos de esta carpeta.",
       "emptyFolder": "Esta carpeta está vacía.",
       "errors": {
