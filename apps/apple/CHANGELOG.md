@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.3.0](https://github.com/masumi-network/sokosumi/compare/macos-v1.2.0...macos-v1.3.0) (2026-11-14)
+
+
+### Features
+
+* **chat:** record a voice message in the room composer ([#7208](https://github.com/masumi-network/sokosumi/issues/7208)) ([02f2c36](https://github.com/masumi-network/sokosumi/commit/02f2c36b8d9853a2f8409c15df8680c65c45bd5e))
+* **chat:** scope chat rooms by who is in them ([#6675](https://github.com/masumi-network/sokosumi/issues/6675)) ([4a4be69](https://github.com/masumi-network/sokosumi/commit/4a4be692e13363c7fb1bc6d194eef989e78f4d8f))
+* **social:** allow up to 20 images per X post ([#7207](https://github.com/masumi-network/sokosumi/issues/7207)) ([bb5af43](https://github.com/masumi-network/sokosumi/commit/bb5af43b96da167be9df111bb87b6550b4da4722))
+* **soko-bot:** original-style avatars again, crafted style removed ([#6962](https://github.com/masumi-network/sokosumi/issues/6962)) ([b1d5182](https://github.com/masumi-network/sokosumi/commit/b1d5182e82c8157fa298da338621d6c63adb1831))
+* **web:** add design system preview to admin ([#6676](https://github.com/masumi-network/sokosumi/issues/6676)) ([384b721](https://github.com/masumi-network/sokosumi/commit/384b721dba6d1610506ae7bfa64a7f35db2c8813))
+
+
+### Bug Fixes
+
+* **apple:** collapse long bodies with a large image behind Show more ([#6638](https://github.com/masumi-network/sokosumi/issues/6638)) ([ed2c1b3](https://github.com/masumi-network/sokosumi/commit/ed2c1b304803eeb36d5e4dff5fd6707bd830ec05))
+* **apple:** make a quoted message's attachment tiles respond to a click ([#6804](https://github.com/masumi-network/sokosumi/issues/6804)) ([da19302](https://github.com/masumi-network/sokosumi/commit/da193024eae90b59d3e568e87d94cdf72c4a8d9e))
+* **apple:** show every attachment of a quoted message ([#6799](https://github.com/masumi-network/sokosumi/issues/6799)) ([efe6934](https://github.com/masumi-network/sokosumi/commit/efe693407d5f04c2b0e05ac1bf1df5f26290792e))
+* **chat:** move New to the end of the Unread divider ([#6734](https://github.com/masumi-network/sokosumi/issues/6734)) ([c7b3a6e](https://github.com/masumi-network/sokosumi/commit/c7b3a6e58f8cc59744f089816c3a3667b81f07c7))
+
 ## [1.2.0](https://github.com/masumi-network/sokosumi/compare/macos-v1.1.1...macos-v1.2.0) (2026-10-19)
 
 
