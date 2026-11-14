@@ -35,6 +35,7 @@ import {
   evalCase,
   selectEvalCases,
 } from "./eval-cases";
+import { stopPendingAfterBudgetError } from "./eval-infrastructure";
 import {
   defaultEvalVersions,
   EVAL_LANE_COUNT,
@@ -298,6 +299,7 @@ async function startNextCase(
   repeat: number,
   lane: Awaited<ReturnType<typeof getEvalLane>>,
 ): Promise<"none" | "busy" | "started" | "settled"> {
+  if (await stopPendingAfterBudgetError(runId, repeat)) return "none";
   const next = await prisma.evalResult.findFirst({
     where: { runId, repeat, status: "PENDING" },
     orderBy: { position: "asc" },
