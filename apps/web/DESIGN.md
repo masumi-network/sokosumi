@@ -324,9 +324,10 @@ Borders first (guide 5.5). No glow, no blur. Shadows stop at `shadow-lg`.
   `backdrop-blur` and `blur-*` are out everywhere; the guard fails on them. A floating chip
   over content is `bg-popover border`, opaque. Mobile chrome is opaque `bg-background`.
 - **Z-index:** no formal ladder. **`z-50` is the standard overlay layer** (dropdowns, popovers,
-  modals); `z-10` for local stacking. Two surfaces sit above it on purpose: the mobile search
-  takeover (`z-[60]`, over the `z-50` header) and the cookie banner (`z-[100]`, over every
-  overlay). Nothing else goes above `z-50`; the guard holds that list.
+  modals); `z-10` for local stacking. Three surfaces sit above it on purpose: the mobile search
+  takeover (`z-[60]`, over the `z-50` header), the workspace sweep (`z-[70]`, over the dialog it
+  closes) and the cookie banner (`z-[100]`, over every overlay). Nothing else goes above `z-50`;
+  the guard holds that list.
 
 ## Shapes
 
