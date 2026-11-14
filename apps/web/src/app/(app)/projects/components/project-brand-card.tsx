@@ -12,7 +12,6 @@ import {
   Upload,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   createContext,
@@ -77,8 +76,6 @@ interface ProjectBrandDashboardValue {
 
 interface ProjectBrandCardProps {
   projectId: string;
-  /** Saving a website goes through `updateProject`, which needs the name. */
-  projectName: string;
   websiteUrl?: string | null;
   /** A CMO Project: CMO writes its DESIGN.md, so the card only opens it. */
   readOnly?: boolean;
@@ -131,10 +128,9 @@ export function ProjectBrandProvider({
   const generation = useDesignMdGeneration({
     messages,
     onCompleted: handleCompleted,
-    onJobStarted: (job) =>
-      websiteUrl
-        ? savePendingProjectBrandJob(projectId, { ...job, url: websiteUrl })
-        : undefined,
+    // The job's own URL: a website just saved in the card is not in the
+    // props yet when its generation starts.
+    onJobStarted: (job) => savePendingProjectBrandJob(projectId, job),
     onSettled: () => clearPendingProjectBrandJob(projectId),
     owner,
   });
@@ -181,7 +177,6 @@ export function ProjectBrandProvider({
 
 export function ProjectBrandCard({
   projectId,
-  projectName,
   websiteUrl,
   readOnly = false,
 }: ProjectBrandCardProps) {
@@ -196,7 +191,6 @@ export function ProjectBrandCard({
     [projectId],
   );
   const hasWebsite = Boolean(websiteUrl);
-  const router = useRouter();
   const tWebsite = useTranslations("App.Projects.Wizard.name");
   const [website, setWebsite] = useState("");
   const [websiteError, setWebsiteError] = useState<string | null>(null);
@@ -209,9 +203,10 @@ export function ProjectBrandCard({
     void generation.generate({ force: true, url: websiteUrl });
   }
 
-  // Saving the website is all this does: the provider starts generation on
-  // its own once the page re-renders with a website and no DESIGN.md, the
-  // same path a website added in the wizard or Edit takes.
+  // An explicit Generate: save only the website (a name from this render
+  // could undo someone's rename), then start generation here. Marking the
+  // auto-start as used keeps the provider from starting a second one when
+  // the revalidated page passes the website in.
   function handleSaveWebsite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const url = normalizeWebsiteUrl(website);
@@ -222,17 +217,13 @@ export function ProjectBrandCard({
     setWebsiteError(null);
     startSaveWebsite(async () => {
       try {
-        const result = await updateProject({
-          projectId,
-          name: projectName,
-          websiteUrl: url,
-        });
+        const result = await updateProject({ projectId, websiteUrl: url });
         if (!result.ok) {
           setWebsiteError(t("errors.update"));
           return;
         }
-        // Keep the button busy until the page has the website.
-        startSaveWebsite(() => router.refresh());
+        markProjectBrandAutoStartAttempted(projectId);
+        void generation.generate({ force: true, url });
       } catch {
         setWebsiteError(t("errors.update"));
       }

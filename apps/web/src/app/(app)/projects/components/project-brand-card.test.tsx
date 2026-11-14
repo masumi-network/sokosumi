@@ -111,20 +111,39 @@ function renderBrandDashboard({
   designMd?: { extractionId: string | null; url: string } | null;
   websiteUrl?: string | null;
 } = {}) {
-  return render(
+  const tree = (url: string | null | undefined) => (
     <ProjectBrandProvider
       autoStart={autoStart}
       projectId="project-1"
       initialDesignMd={designMd}
-      websiteUrl={websiteUrl}
+      websiteUrl={url}
     >
-      <ProjectBrandCard
-        projectId="project-1"
-        projectName="Spring Launch"
-        websiteUrl={websiteUrl}
-      />
-    </ProjectBrandProvider>,
+      <ProjectBrandCard projectId="project-1" websiteUrl={url} />
+    </ProjectBrandProvider>
   );
+  const view = render(tree(websiteUrl));
+  return {
+    ...view,
+    /** The revalidated page passing a newly saved website back in. */
+    rerenderWithWebsite: (url: string) => view.rerender(tree(url)),
+  };
+}
+
+async function submitWebsite(
+  user: ReturnType<typeof userEvent.setup>,
+  value: string,
+) {
+  await user.type(screen.getByRole("textbox"), value);
+  await user.click(
+    screen.getByRole("button", { name: "Generate from website" }),
+  );
+}
+
+function mockSavedWebsite() {
+  vi.mocked(updateProject).mockResolvedValue({
+    ok: true,
+    value: { projectId: "project-1" },
+  } as Awaited<ReturnType<typeof updateProject>>);
 }
 
 async function openBrandMenu(user: ReturnType<typeof userEvent.setup>) {
@@ -300,30 +319,80 @@ describe("ProjectBrandCard", () => {
     ).toBeInTheDocument();
   });
 
-  it("saves the website and lets the page start generation", async () => {
+  it("saves only the website, then generates exactly once", async () => {
     const user = userEvent.setup();
-    vi.mocked(updateProject).mockResolvedValue({
-      ok: true,
-      value: { projectId: "project-1" },
-    } as Awaited<ReturnType<typeof updateProject>>);
-    renderBrandDashboard({ designMd: null, websiteUrl: null });
+    mockSavedWebsite();
+    const view = renderBrandDashboard({ designMd: null, websiteUrl: null });
 
-    await user.type(screen.getByRole("textbox"), "springtea.example");
-    await user.click(
-      screen.getByRole("button", { name: "Generate from website" }),
-    );
+    await submitWebsite(user, "springtea.example");
 
+    // No name: one from this render could undo a rename made meanwhile.
     await waitFor(() =>
       expect(updateProject).toHaveBeenCalledWith({
         projectId: "project-1",
-        name: "Spring Launch",
         websiteUrl: "https://springtea.example/",
       }),
     );
-    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
-    // The provider starts it once the refreshed page passes the website in.
-    expect(generateMock).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(generateMock).toHaveBeenCalledWith({
+        force: true,
+        url: "https://springtea.example/",
+      }),
+    );
+
+    view.rerenderWithWebsite("https://springtea.example/");
+    await waitFor(() => expect(generateMock).toHaveBeenCalledOnce());
+    expect(refreshMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("generates from a website saved after an existing brand was removed", async () => {
+    const user = userEvent.setup();
+    vi.mocked(removeProjectDesignMd).mockResolvedValue({
+      projectId: "project-1",
+    });
+    mockSavedWebsite();
+    const view = renderBrandDashboard({ websiteUrl: null });
+
+    await openBrandMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: /Remove/ }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Remove",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Not set")).toBeInTheDocument(),
+    );
+    // Removing still suppresses the passive auto-start.
+    expect(generateMock).not.toHaveBeenCalled();
+
+    await submitWebsite(user, "example.com");
+    await waitFor(() =>
+      expect(generateMock).toHaveBeenCalledWith({
+        force: true,
+        url: "https://example.com/",
+      }),
+    );
+
+    view.rerenderWithWebsite("https://example.com/");
+    await waitFor(() => expect(generateMock).toHaveBeenCalledOnce());
+  });
+
+  it("shows the save error and skips generation when the update is refused", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateProject).mockResolvedValue({
+      ok: false,
+      error: { kind: "identifier_invalid" },
+    } as Awaited<ReturnType<typeof updateProject>>);
+    renderBrandDashboard({ designMd: null, websiteUrl: null });
+
+    await submitWebsite(user, "example.com");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Failed to update project",
+    );
+    expect(generateMock).not.toHaveBeenCalled();
   });
 
   it("explains an invalid website without saving", async () => {
