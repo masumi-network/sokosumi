@@ -4,7 +4,11 @@ import {
   GOOGLE_DISPLAY_LIMITS,
   type GoogleDisplayFormValues,
 } from "./google-display";
-import { displayImageKey } from "./google-display-images";
+import {
+  displayImageKey,
+  type FormDisplayImage,
+  isKeptImage,
+} from "./google-display-images";
 import { formatGoogleKeyword, parseGoogleKeywords } from "./google-keywords";
 import {
   filledCallouts,
@@ -104,7 +108,7 @@ export function googleFormValuesFromDetails({
   };
 }
 
-/** The parts of a campaign the edit review names, one row each. */
+/** The parts of a campaign the edit review names, one row each, in order. */
 export const GOOGLE_FORM_CHANGES = [
   "name",
   "dailyBudget",
@@ -113,23 +117,64 @@ export const GOOGLE_FORM_CHANGES = [
   "languages",
   "keywords",
   "finalUrl",
-  "ad",
+  "path",
+  "businessName",
+  "headlines",
+  "longHeadline",
+  "descriptions",
+  "sitelinks",
+  "callouts",
+  "images",
 ] as const;
 export type GoogleFormChange = (typeof GOOGLE_FORM_CHANGES)[number];
 
-function filledTexts(texts: readonly string[]): string[] {
-  return texts.map((text) => text.trim()).filter(Boolean);
+/** An ad image as the review shows it; `key` tells it apart. */
+export interface GoogleFormImage {
+  key: string;
+  role: FormDisplayImage["role"];
+  url: string;
+  /** A new file's name; a kept image has none. */
+  name?: string;
 }
 
 /**
  * What each part means, not how it is typed: trimmed text, a budget as a
- * number, targets and keywords as sorted sets, blank ad rows left out.
+ * number, lists as sorted sets with blank rows left out. A part the type does
+ * not have is empty. Lists are what the review compares item by item.
  */
-function meaning(values: GoogleFormValues): Record<GoogleFormChange, unknown> {
+export interface GoogleFormMeaning {
+  name: string;
+  dailyBudget: number;
+  schedule: [string, string];
+  locations: string[];
+  languages: string[];
+  keywords: string[];
+  finalUrl: string;
+  /** "shoes/sale": the display path after the domain. */
+  path: string;
+  businessName: string;
+  headlines: string[];
+  longHeadline: string;
+  descriptions: string[];
+  /** "Sale · https://example.com/sale · Up to 50% off" */
+  sitelinks: string[];
+  callouts: string[];
+  images: GoogleFormImage[];
+}
+
+function filledTexts(texts: readonly string[]): string[] {
+  return texts
+    .map((text) => text.trim())
+    .filter(Boolean)
+    .sort();
+}
+
+export function googleFormMeaning(values: GoogleFormValues): GoogleFormMeaning {
   const ids = (targets: readonly { id: string }[]) =>
     targets.map(({ id }) => id).sort();
   const search = values.type === "SEARCH";
   const path1 = values.path1.trim();
+  const path2 = values.path2.trim();
   return {
     name: values.name.trim(),
     dailyBudget: Number(values.dailyBudget),
@@ -142,24 +187,34 @@ function meaning(values: GoogleFormValues): Record<GoogleFormChange, unknown> {
           .sort()
       : [],
     finalUrl: values.finalUrl.trim(),
-    ad: search
-      ? {
-          path1,
-          path2: path1 ? values.path2.trim() : "",
-          headlines: filledTexts(values.headlines),
-          descriptions: filledTexts(values.descriptions),
-          sitelinks: filledSitelinks(values.sitelinks),
-          callouts: filledCallouts(values.callouts),
-        }
-      : {
-          businessName: values.businessName.trim(),
-          headlines: filledTexts(values.displayHeadlines),
-          longHeadline: values.longHeadline.trim(),
-          descriptions: filledTexts(values.displayDescriptions),
-          images: values.images
-            .map((image) => `${image.role}:${displayImageKey(image)}`)
-            .sort(),
-        },
+    path: search && path1 ? [path1, path2].filter(Boolean).join("/") : "",
+    businessName: search ? "" : values.businessName.trim(),
+    headlines: filledTexts(search ? values.headlines : values.displayHeadlines),
+    longHeadline: search ? "" : values.longHeadline.trim(),
+    descriptions: filledTexts(
+      search ? values.descriptions : values.displayDescriptions,
+    ),
+    sitelinks: search
+      ? filledSitelinks(values.sitelinks)
+          .map(({ text, finalUrl, description1, description2 }) =>
+            [text, finalUrl, description1, description2]
+              .filter(Boolean)
+              .join(" · "),
+          )
+          .sort()
+      : [],
+    callouts: search ? filledCallouts(values.callouts).sort() : [],
+    images: search
+      ? []
+      : values.images
+          .map((image) => ({
+            key: `${image.role}:${displayImageKey(image)}`,
+            role: image.role,
+            ...(isKeptImage(image)
+              ? { url: image.url }
+              : { url: image.fileUrl, name: image.name }),
+          }))
+          .sort((a, b) => a.key.localeCompare(b.key)),
   };
 }
 
@@ -168,9 +223,32 @@ export function googleFormChanges(
   before: GoogleFormValues,
   after: GoogleFormValues,
 ): GoogleFormChange[] {
-  const was = meaning(before);
-  const now = meaning(after);
+  const was = googleFormMeaning(before);
+  const now = googleFormMeaning(after);
   return GOOGLE_FORM_CHANGES.filter(
     (part) => JSON.stringify(was[part]) !== JSON.stringify(now[part]),
   );
+}
+
+/**
+ * What a list edit removed and added, item by item: a replaced item is one of
+ * each, a repeated item counts once per copy.
+ */
+export function googleListChanges<T>(
+  before: readonly T[],
+  after: readonly T[],
+  key: (item: T) => string = String,
+): { removed: T[]; added: T[] } {
+  const missing = (items: readonly T[], others: readonly T[]) => {
+    const left = new Map<string, number>();
+    for (const other of others) {
+      left.set(key(other), (left.get(key(other)) ?? 0) + 1);
+    }
+    return items.filter((item) => {
+      const count = left.get(key(item)) ?? 0;
+      left.set(key(item), count - 1);
+      return count <= 0;
+    });
+  };
+  return { removed: missing(before, after), added: missing(after, before) };
 }

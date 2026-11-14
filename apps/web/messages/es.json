@@ -4905,7 +4905,8 @@
             "description1": "Línea de descripción 1",
             "description2": "Línea de descripción 2",
             "add": "Añadir enlace de sitio",
-            "remove": "Quitar enlace de sitio {number}"
+            "remove": "Quitar enlace de sitio {number}",
+            "label": "Enlaces de sitio"
           },
           "callouts": {
             "title": "Textos destacados (opcional)",
@@ -5146,8 +5147,10 @@
           "changed": "Cambiado",
           "was": "Antes:",
           "now": "Ahora:",
-          "ad": "Textos o imágenes editados",
-          "none": "Aún no hay cambios. Cambia un paso para guardar."
+          "none": "Aún no hay cambios. Cambia un paso para guardar.",
+          "removed": "Eliminado",
+          "added": "Añadido",
+          "empty": "Ninguno"
         }
       },
       "market": {
@@ -5226,7 +5229,9 @@
             "ads": "No se pudieron cargar los anuncios"
           }
         },
-        "updating": "Actualizando palabras clave en tendencia…"
+        "updating": "Actualizando palabras clave en tendencia…",
+        "stale": "Estos resultados son anteriores a tu último guardado.",
+        "refresh": "Actualizar resultados"
       },
       "accounts": {
         "emptyTitle": "Aún no hay cuentas publicitarias conectadas",

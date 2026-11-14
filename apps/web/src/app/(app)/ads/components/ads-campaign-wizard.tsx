@@ -20,6 +20,7 @@ import {
 import * as z from "zod";
 import { TaskFormModalHeaderStart } from "@/app/tasks/components/task-form-modal";
 import { Button } from "@/components/ui/button";
+import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import {
   Form,
   FormControl,
@@ -53,8 +54,11 @@ import { driveImagesOnly } from "@/lib/ads/google-display-images";
 import {
   EMPTY_GOOGLE_VALUES,
   type GoogleFormChange,
+  type GoogleFormImage,
   type GoogleFormValues,
   googleFormChanges,
+  googleFormMeaning,
+  googleListChanges,
 } from "@/lib/ads/google-form-values";
 import { parseGoogleKeywords } from "@/lib/ads/google-keywords";
 import {
@@ -452,6 +456,7 @@ function SummaryRow({
   value,
   previous,
   changed,
+  items,
   onEdit,
 }: {
   label: string;
@@ -460,6 +465,8 @@ function SummaryRow({
   previous?: string;
   /** Set on an edit only: marks the row an edit changes. */
   changed?: boolean;
+  /** A list edit's removed and added items, each with its own key. */
+  items?: ListItemChanges;
   onEdit?: () => void;
 }) {
   const t = useTranslations("App.Ads.newCampaign.review");
@@ -496,6 +503,7 @@ function SummaryRow({
         ) : (
           value
         )}
+        {items ? <ListChanges {...items} /> : null}
       </dd>
       {onEdit ? (
         <Button
@@ -510,6 +518,78 @@ function SummaryRow({
         </Button>
       ) : null}
     </div>
+  );
+}
+
+interface ChangedItem {
+  key: string;
+  node: ReactNode;
+}
+
+interface ListItemChanges {
+  removed: ChangedItem[];
+  added: ChangedItem[];
+}
+
+/** A list edit, item by item: what it removes, struck through, then adds. */
+function ListChanges({ removed, added }: ListItemChanges) {
+  const t = useTranslations("App.Ads.editCampaign.changes");
+  const group = (
+    kind: "removed" | "added",
+    list: ChangedItem[],
+    Mark: "del" | "ins",
+  ) =>
+    list.length > 0 ? (
+      <div className="flex flex-col gap-1">
+        <span className="text-muted-foreground text-xs">{t(kind)}</span>
+        <ul className="flex flex-wrap items-start gap-x-3 gap-y-1">
+          {list.map(({ key, node }) => (
+            <li className="min-w-0" key={key}>
+              <Mark
+                className={cn(
+                  Mark === "del" ? "text-muted-foreground" : "no-underline",
+                )}
+              >
+                {node}
+              </Mark>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : null;
+
+  return (
+    <div className="mt-1 flex flex-col gap-2">
+      {group("removed", removed, "del")}
+      {group("added", added, "ins")}
+    </div>
+  );
+}
+
+/** Text items as changed items: each copy keyed by its text and position. */
+function textItems(
+  before: readonly string[],
+  after: readonly string[],
+): ListItemChanges {
+  const { removed, added } = googleListChanges(before, after);
+  const keyed = (list: string[]) =>
+    list.map((text, index) => ({ key: `${index}:${text}`, node: text }));
+  return { removed: keyed(removed), added: keyed(added) };
+}
+
+/** An ad image in a review list: its thumbnail and its role. */
+function ReviewImage({ image }: { image: GoogleFormImage }) {
+  const t = useTranslations("App.Ads.newCampaign.ad.images");
+  const role = t(`roles.${image.role}`);
+  return (
+    <span className="flex w-20 flex-col items-center gap-1">
+      <FileChipMiniPreview
+        fileName={image.name ?? t("kept", { role })}
+        mediaType="image/*"
+        url={image.url}
+      />
+      <span className="text-xs">{role}</span>
+    </span>
   );
 }
 
@@ -536,6 +616,37 @@ function useMoney(currency: string) {
   const formatter = useFormatter();
   return (value: string) =>
     formatter.number(Number(value), { style: "currency", currency });
+}
+
+/** The ad's parts an edit names on their own row, after the final URL. */
+const AD_TEXT_PARTS = ["path", "businessName", "longHeadline"] as const;
+const AD_LIST_PARTS = [
+  "headlines",
+  "descriptions",
+  "sitelinks",
+  "callouts",
+] as const;
+const AD_PART_LABELS = {
+  path: "ad.displayPath",
+  businessName: "ad.businessName",
+  longHeadline: "ad.longHeadline",
+  headlines: "ad.headlines.label",
+  descriptions: "ad.descriptions.label",
+  sitelinks: "ad.sitelinks.label",
+  callouts: "ad.callouts.label",
+} as const;
+
+function imageItems(
+  before: readonly GoogleFormImage[],
+  after: readonly GoogleFormImage[],
+): ListItemChanges {
+  const { removed, added } = googleListChanges(before, after, ({ key }) => key);
+  const keyed = (list: GoogleFormImage[]) =>
+    list.map((image) => ({
+      key: image.key,
+      node: <ReviewImage image={image} />,
+    }));
+  return { removed: keyed(removed), added: keyed(added) };
 }
 
 /** The last step: the ad as it could look, then what will be saved. */
@@ -571,6 +682,8 @@ function GoogleReviewStep({
   const before = changes?.before;
   /** On an edit, whether a part changed; undefined on a new campaign. */
   const changed = (part: GoogleFormChange) => changes?.parts.includes(part);
+  const was = before && googleFormMeaning(before);
+  const now = googleFormMeaning(values);
 
   return (
     <>
@@ -636,6 +749,11 @@ function GoogleReviewStep({
             {search ? (
               <SummaryRow
                 changed={changed("keywords")}
+                items={
+                  was && changed("keywords")
+                    ? textItems(was.keywords, now.keywords)
+                    : undefined
+                }
                 label={t("keywords.label")}
                 onEdit={() => goTo("keywords")}
                 previous={before && keywordCount(before.keywords)}
@@ -649,12 +767,37 @@ function GoogleReviewStep({
               previous={before?.finalUrl.trim()}
               value={values.finalUrl.trim()}
             />
-            {changed("ad") ? (
+            {was
+              ? AD_TEXT_PARTS.filter(changed).map((part) => (
+                  <SummaryRow
+                    changed
+                    key={part}
+                    label={t(AD_PART_LABELS[part])}
+                    onEdit={() => goTo("ad")}
+                    previous={was[part] || tEdit("empty")}
+                    value={now[part] || tEdit("empty")}
+                  />
+                ))
+              : null}
+            {was
+              ? AD_LIST_PARTS.filter(changed).map((part) => (
+                  <SummaryRow
+                    changed
+                    items={textItems(was[part], now[part])}
+                    key={part}
+                    label={t(AD_PART_LABELS[part])}
+                    onEdit={() => goTo("ad")}
+                    value=""
+                  />
+                ))
+              : null}
+            {was && changed("images") ? (
               <SummaryRow
                 changed
-                label={t("steps.ad")}
+                items={imageItems(was.images, now.images)}
+                label={t("ad.images.label")}
                 onEdit={() => goTo("ad")}
-                value={tEdit("ad")}
+                value=""
               />
             ) : null}
           </dl>

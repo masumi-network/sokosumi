@@ -3,18 +3,35 @@
 import type { AdMarketProfile } from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { createContext, type ReactNode, use, useEffect, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  use,
+  useEffect,
+  useState,
+  useTransition,
+} from "react";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /** Long enough for the slowest refresh seen; then the page asks once more. */
 export const MARKET_REFRESH_WAIT_MS = 30_000;
 
+/**
+ * How the results relate to the last save: current, being updated, or still
+ * from before it once the wait ran out.
+ */
+type MarketResultsState = "current" | "updating" | "stale";
+
 interface MarketRefresh {
-  /** The saved profile while the page still shows the one before it. */
-  pending: AdMarketProfile | null;
+  /** Core's last saved profile while the page still shows an older one. */
+  saved: AdMarketProfile | null;
+  results: MarketResultsState;
   /** Called with Core's saved profile once a save succeeds. */
-  saved: (profile: AdMarketProfile) => void;
+  onSaved: (profile: AdMarketProfile) => void;
+  /** Asks the page for the saved market's results again. */
+  refresh: () => void;
 }
 
 const MarketRefreshContext = createContext<MarketRefresh | null>(null);
@@ -30,8 +47,10 @@ function time(updatedAt: AdMarketProfile["updatedAt"] | string): number {
 /**
  * Bridges a market save and the page catching up. A save returns before the
  * refreshed results render, so until the page shows a profile at least as new
- * as the saved one, the save is pending. A refresh that never lands stops
- * waiting after `MARKET_REFRESH_WAIT_MS` and asks the page again.
+ * as the saved one, the saved profile stands in for the summary and the
+ * results are updating. After `MARKET_REFRESH_WAIT_MS` the page is asked once
+ * more; if it still lags, the results are stale and can be refreshed by hand.
+ * The saved profile is never dropped: Core confirmed it.
  */
 export function AdsMarketRefresh({
   children,
@@ -42,62 +61,100 @@ export function AdsMarketRefresh({
   shownUpdatedAt: AdMarketProfile["updatedAt"] | string | null;
 }) {
   const router = useRouter();
-  const [saved, setSaved] = useState<AdMarketProfile | null>(null);
-  const pending =
-    saved &&
-    (shownUpdatedAt === null || time(shownUpdatedAt) < time(saved.updatedAt))
-      ? saved
+  const [confirmed, setConfirmed] = useState<AdMarketProfile | null>(null);
+  const [waited, setWaited] = useState(false);
+  const [refreshing, startRefresh] = useTransition();
+  const saved =
+    confirmed &&
+    (shownUpdatedAt === null ||
+      time(shownUpdatedAt) < time(confirmed.updatedAt))
+      ? confirmed
       : null;
 
   useEffect(() => {
-    if (!pending) return;
+    if (!saved || waited) return;
     const id = setTimeout(() => {
-      setSaved(null);
-      router.refresh();
+      setWaited(true);
+      startRefresh(() => router.refresh());
     }, MARKET_REFRESH_WAIT_MS);
     return () => clearTimeout(id);
-  }, [pending, router]);
+  }, [saved, waited, router]);
+
+  const results: MarketResultsState = !saved
+    ? "current"
+    : waited && !refreshing
+      ? "stale"
+      : "updating";
 
   return (
-    <MarketRefreshContext value={{ pending, saved: setSaved }}>
+    <MarketRefreshContext
+      value={{
+        saved,
+        results,
+        onSaved: (profile) => {
+          setWaited(false);
+          setConfirmed(profile);
+        },
+        refresh: () => startRefresh(() => router.refresh()),
+      }}
+    >
       {children}
     </MarketRefreshContext>
   );
 }
 
 /**
- * The market's results while a save is pending: dimmed and busy, under a line
- * that says they are being updated. The status region is always there, so the
- * line is announced when it appears.
+ * The market's results after a save: dimmed and busy under an updating line
+ * until the saved market's results arrive; dimmed under a stale line with a
+ * Refresh button when they are late. The status region is always there, so
+ * each line is announced when it appears.
  */
 export function AdsMarketUpdating({ children }: { children: ReactNode }) {
   const t = useTranslations("App.Ads.market");
-  const updating = useMarketRefresh()?.pending != null;
+  const refresh = useMarketRefresh();
+  const results = refresh?.results ?? "current";
 
   return (
     <div className="flex flex-col">
       <div
-        className={cn("text-muted-foreground text-sm", updating && "mb-4")}
-        role="status"
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-x-4 gap-y-2",
+          results !== "current" && "mb-4",
+        )}
       >
-        {updating ? (
-          <>
-            <p>{t("updating")}</p>
-            <div
-              aria-hidden
-              className="text-foreground relative mt-2 h-0.5 overflow-hidden"
-            >
-              <span className="animate-button-loading-sweep absolute top-0 left-0 h-0 w-2/5 border-t-2 border-current motion-reduce:w-full motion-reduce:animate-pulse" />
-            </div>
-          </>
+        <div className="text-muted-foreground min-w-0 text-sm" role="status">
+          {results === "updating" ? (
+            <>
+              <p>{t("updating")}</p>
+              <div
+                aria-hidden
+                className="text-foreground relative mt-2 h-0.5 overflow-hidden"
+              >
+                <span className="animate-button-loading-sweep absolute top-0 left-0 h-0 w-2/5 border-t-2 border-current motion-reduce:w-full motion-reduce:animate-pulse" />
+              </div>
+            </>
+          ) : results === "stale" ? (
+            <p>{t("stale")}</p>
+          ) : null}
+        </div>
+        {results === "stale" ? (
+          <Button
+            onClick={refresh?.refresh}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            {t("refresh")}
+          </Button>
         ) : null}
       </div>
       <div
-        aria-busy={updating}
+        aria-busy={results === "updating"}
         className={cn(
           "transition-opacity duration-200 motion-reduce:transition-none",
-          updating && "opacity-50",
+          results !== "current" && "opacity-50",
         )}
+        data-results={results}
         data-testid="ads-market-results"
       >
         {children}

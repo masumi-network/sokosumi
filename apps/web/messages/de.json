@@ -4905,7 +4905,8 @@
             "description1": "Beschreibungszeile 1",
             "description2": "Beschreibungszeile 2",
             "add": "Sitelink hinzufügen",
-            "remove": "Sitelink {number} entfernen"
+            "remove": "Sitelink {number} entfernen",
+            "label": "Sitelinks"
           },
           "callouts": {
             "title": "Zusatzinformationen (optional)",
@@ -5146,8 +5147,10 @@
           "changed": "Geändert",
           "was": "Vorher:",
           "now": "Jetzt:",
-          "ad": "Texte oder Bilder bearbeitet",
-          "none": "Noch keine Änderungen. Speichern ist möglich, sobald sich etwas ändert."
+          "none": "Noch keine Änderungen. Speichern ist möglich, sobald sich etwas ändert.",
+          "removed": "Entfernt",
+          "added": "Hinzugefügt",
+          "empty": "Keine"
         }
       },
       "market": {
@@ -5226,7 +5229,9 @@
             "ads": "Anzeigen konnten nicht geladen werden"
           }
         },
-        "updating": "Trend-Keywords werden aktualisiert…"
+        "updating": "Trend-Keywords werden aktualisiert…",
+        "stale": "Diese Ergebnisse stammen von vor deiner letzten Speicherung.",
+        "refresh": "Ergebnisse aktualisieren"
       },
       "accounts": {
         "emptyTitle": "Noch keine Werbekonten verbunden",

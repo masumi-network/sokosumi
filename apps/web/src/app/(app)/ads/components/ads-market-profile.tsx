@@ -70,7 +70,7 @@ export function AdsMarketProfile({
 }: AdsMarketProfileProps) {
   const t = useTranslations("App.Ads.market");
   const locale = useLocale();
-  const pending = useMarketRefresh()?.pending;
+  const saved = useMarketRefresh()?.saved;
   const [open, setOpen] = useState(false);
 
   if (!formProps.profile) {
@@ -88,7 +88,7 @@ export function AdsMarketProfile({
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
       <p className="text-muted-foreground min-w-0 text-sm">
-        {pending ? marketSummary(pending, locale) : summary}
+        {saved ? marketSummary(saved, locale) : summary}
       </p>
       <Button
         size="sm"
@@ -154,7 +154,7 @@ function MarketProfileForm({
         setFailed(true);
         return;
       }
-      refresh?.saved(result.value.profile);
+      refresh?.onSaved(result.value.profile);
       toast.success(t("success"));
       onDone?.();
     } catch {

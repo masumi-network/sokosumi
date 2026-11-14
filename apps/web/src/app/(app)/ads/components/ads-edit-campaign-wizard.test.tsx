@@ -165,6 +165,18 @@ const goTo = (step: Step) =>
   screen.getByRole("button", { name: new RegExp(`^Go to ${step}`) });
 const jump = (user: User, step: Step) => user.click(goTo(step));
 
+/** A Review row by its label, from its Changed mark. */
+const changedRow = (label: string) =>
+  screen
+    .getAllByText("Changed")
+    .map((mark) => mark.closest("div") as HTMLElement)
+    .find((row) => row.querySelector("dt")?.textContent?.startsWith(label));
+/** The struck (`del`) or new (`ins`) values in a Review row. */
+const marked = (row: HTMLElement | undefined, tag: "del" | "ins") =>
+  Array.from(row?.querySelectorAll(tag) ?? []).map((item) =>
+    item.textContent?.replace(/^(Was|Now): /, ""),
+  );
+
 /** Makes one change, so there is something to save. */
 const change = (user: User) => user.type(nameInput(), "!");
 
@@ -352,7 +364,7 @@ describe("EditGoogleCampaignWizard", () => {
       ).toBeVisible();
     });
 
-    it("counts each changed part, ad text included", async () => {
+    it("counts each changed part and shows the old and new headline", async () => {
       const user = renderEdit(SEARCH_VALUES);
       await change(user);
       await jump(user, "Ad");
@@ -362,8 +374,58 @@ describe("EditGoogleCampaignWizard", () => {
       expect(
         screen.getByRole("button", { name: "Save 2 changes" }),
       ).toBeEnabled();
-      expect(screen.getByText("Text or images edited")).toBeVisible();
       expect(screen.getAllByText("Changed")).toHaveLength(2);
+      const headlines = changedRow("Headlines");
+      expect(headlines).toHaveTextContent("Removed");
+      expect(marked(headlines, "del")).toEqual(["One"]);
+      expect(marked(headlines, "ins")).toEqual(["One!"]);
+    });
+
+    it("names a replaced keyword when the count stays the same", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      await jump(user, "Keywords");
+      const keywords = screen.getByRole("textbox", { name: "Keywords" });
+      await user.clear(keywords);
+      await user.type(keywords, 'running shoes{Enter}"road shoes"');
+      await jump(user, "Review");
+
+      const row = changedRow("Keywords");
+      expect(row).toHaveTextContent("2 keywords");
+      expect(marked(row, "del")).toEqual(['"trail shoes"']);
+      expect(marked(row, "ins")).toEqual(['"road shoes"']);
+      expect(
+        screen.getByRole("button", { name: "Save 1 change" }),
+      ).toBeEnabled();
+    });
+
+    it("shows a changed sitelink and display path, old and new", async () => {
+      const user = renderEdit({
+        ...SEARCH_VALUES,
+        sitelinks: [
+          {
+            text: "Sale",
+            finalUrl: "https://example.com/sale",
+            description1: "",
+            description2: "",
+          },
+        ],
+      });
+      await jump(user, "Ad");
+      await user.type(screen.getByLabelText("Path 2"), "sale");
+      await user.click(screen.getByRole("button", { name: /^Sitelinks/ }));
+      const text = screen.getByLabelText("Link text");
+      await user.clear(text);
+      await user.type(text, "Outlet");
+      await jump(user, "Review");
+
+      expect(marked(changedRow("Display path"), "del")).toEqual(["shoes"]);
+      expect(marked(changedRow("Display path"), "ins")).toEqual(["shoes/sale"]);
+      expect(marked(changedRow("Sitelinks"), "del")).toEqual([
+        "Sale · https://example.com/sale",
+      ]);
+      expect(marked(changedRow("Sitelinks"), "ins")).toEqual([
+        "Outlet · https://example.com/sale",
+      ]);
     });
 
     it("is back to no changes once an edit is reverted", async () => {
@@ -614,6 +676,36 @@ describe("EditGoogleCampaignWizard", () => {
         screen.getByText("Landscape 1 · Square 1 · 2 of 6 images"),
       ).toBeVisible();
       expect(screen.getByLabelText("Business name")).toHaveValue("Acme");
+    });
+
+    it("shows a replaced image as removed and added on Review", async () => {
+      const user = renderEdit(DISPLAY_VALUES);
+      await jump(user, "Ad");
+      await user.click(
+        screen.getByRole("button", {
+          name: "Remove Current image (Landscape)",
+        }),
+      );
+      const file = new File(["x"], "wide.png", { type: "image/png" });
+      Object.defineProperty(file, "size", { value: 1000 });
+      await user.upload(screen.getByLabelText("Image files"), file);
+      await screen.findByRole("img", { name: "wide.png" });
+      await jump(user, "Review");
+
+      const row = changedRow("Images") as HTMLElement;
+      const removed = row.querySelector("del") as HTMLElement;
+      const added = row.querySelector("ins") as HTMLElement;
+      expect(
+        within(removed).getByRole("img", { name: "Current image (Landscape)" }),
+      ).toHaveAttribute("src", KEPT_LANDSCAPE.url);
+      expect(removed).toHaveTextContent("Landscape");
+      expect(
+        within(added).getByRole("img", { name: "wide.png" }),
+      ).toBeVisible();
+      expect(row.querySelectorAll("del, ins")).toHaveLength(2);
+      expect(
+        screen.getByRole("button", { name: "Save 1 change" }),
+      ).toBeEnabled();
     });
 
     it("sends the images it kept as asset and role", async () => {

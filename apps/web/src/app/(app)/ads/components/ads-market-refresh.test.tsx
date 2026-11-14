@@ -124,24 +124,66 @@ describe("a market save while the page catches up", () => {
     expect(status()).toHaveTextContent("Updating trending keywords…");
   });
 
-  it("stops waiting and asks the page again when the refresh never lands", async () => {
+  /** Saves, then lets the wait for the page run out with it still behind. */
+  async function saveAndOutwait() {
     saveMock.mockResolvedValue({ ok: true, value: { profile: SAVED } });
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const user = userEvent.setup({
         advanceTimers: vi.advanceTimersByTime.bind(vi),
       });
-      render(page(SHOWN));
+      const view = render(page(SHOWN));
       await saveWithoutTrailShoes(user);
       expect(results()).toHaveAttribute("aria-busy", "true");
 
       act(() => vi.advanceTimersByTime(MARKET_REFRESH_WAIT_MS));
+      return { user: userEvent.setup(), ...view };
     } finally {
       vi.useRealTimers();
     }
+  }
+
+  it("keeps the saved summary and marks the results stale when the refresh never lands", async () => {
+    await saveAndOutwait();
 
     expect(refreshMock).toHaveBeenCalledTimes(1);
-    expect(status()).toBeEmptyDOMElement();
+    expect(screen.getByText(NEW_SUMMARY)).toBeVisible();
+    expect(screen.queryByText(OLD_SUMMARY)).toBeNull();
+    expect(status()).toHaveTextContent(
+      "These results are from before your last save.",
+    );
     expect(results()).toHaveAttribute("aria-busy", "false");
+    expect(results()).toHaveAttribute("data-results", "stale");
+    expect(results()).toHaveTextContent("old results");
+  });
+
+  it("refreshes stale results on request and clears once the saved market's arrive", async () => {
+    const { user, rerender } = await saveAndOutwait();
+    refreshMock.mockClear();
+
+    await user.click(screen.getByRole("button", { name: "Refresh results" }));
+
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+    rerender(page(SAVED));
+    expect(status()).toBeEmptyDOMElement();
+    expect(results()).toHaveAttribute("data-results", "current");
+    expect(results()).toHaveTextContent("new results");
+    expect(screen.getByText(NEW_SUMMARY)).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Refresh results" }),
+    ).toBeNull();
+  });
+
+  it("waits afresh after another save while stale", async () => {
+    const { user } = await saveAndOutwait();
+    const later = { ...SAVED, updatedAt: new Date("2026-10-01T10:09:00Z") };
+    saveMock.mockResolvedValue({ ok: true, value: { profile: later } });
+
+    await user.click(screen.getByRole("button", { name: "Edit market" }));
+    await user.click(screen.getByRole("button", { name: "Save market" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    expect(status()).toHaveTextContent("Updating trending keywords…");
+    expect(results()).toHaveAttribute("aria-busy", "true");
   });
 });

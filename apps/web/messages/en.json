@@ -4905,7 +4905,8 @@
             "description1": "Description line 1",
             "description2": "Description line 2",
             "add": "Add sitelink",
-            "remove": "Remove sitelink {number}"
+            "remove": "Remove sitelink {number}",
+            "label": "Sitelinks"
           },
           "callouts": {
             "title": "Callouts (optional)",
@@ -5146,8 +5147,10 @@
           "changed": "Changed",
           "was": "Was:",
           "now": "Now:",
-          "ad": "Text or images edited",
-          "none": "Nothing has changed yet. Change a step to save."
+          "none": "Nothing has changed yet. Change a step to save.",
+          "removed": "Removed",
+          "added": "Added",
+          "empty": "None"
         }
       },
       "market": {
@@ -5226,7 +5229,9 @@
             "ads": "Failed to load ads"
           }
         },
-        "updating": "Updating trending keywords…"
+        "updating": "Updating trending keywords…",
+        "stale": "These results are from before your last save.",
+        "refresh": "Refresh results"
       },
       "accounts": {
         "emptyTitle": "No ad accounts connected yet",
