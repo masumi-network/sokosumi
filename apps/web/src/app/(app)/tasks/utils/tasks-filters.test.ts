@@ -579,6 +579,10 @@ describe("hasClearableTasksFilters and clearTasksFilters", () => {
     expect(filters.stuck).toBe(true);
     expect(parseTasksFilters({ stuck: "yes" }, "org-1").stuck).toBe(false);
     expect(hasClearableTasksFilters(filters, "org-1")).toBe(true);
+    // Stuck is its own toggle, not part of the Filters menu dot.
+    expect(hasActiveTasksFilters({ ...filters, scope: "owned" }, null)).toBe(
+      false,
+    );
 
     const params = buildTasksFiltersSearchParams(
       new URLSearchParams(),

@@ -446,8 +446,7 @@ export function hasActiveTasksFilters(
       filters.assigneeSokoBotId ||
       filters.assigneeUserId ||
       filters.status ||
-      filters.visibility === TaskVisibility.PRIVATE ||
-      filters.stuck,
+      filters.visibility === TaskVisibility.PRIVATE,
   );
 
   if (activeOrganizationId !== null) {
