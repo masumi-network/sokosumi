@@ -215,7 +215,11 @@ describe("sandbox turn service", () => {
       CMO_AI_GATEWAY_API_KEY: "cmo-key",
       EVALS_AI_GATEWAY_API_KEY: "evals-key",
     };
-    turnFindUniqueMock.mockResolvedValue({ clientTurnId, versionId: "v16" });
+    turnFindUniqueMock.mockResolvedValue({
+      clientTurnId,
+      versionId: "v16",
+      workspaceId: "ws-1",
+    });
     fetchMock.mockResolvedValue(gatewayAnswer());
     await proxySandboxModelCall(claims, modelRequest());
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -226,7 +230,11 @@ describe("sandbox turn service", () => {
 
   it("keeps the shared key for every turn until a purpose key is set", async () => {
     for (const clientTurnId of ["chat:1", "cmo-daily-run:1", "lab:eval:r1"]) {
-      turnFindUniqueMock.mockResolvedValue({ clientTurnId, versionId: "v16" });
+      turnFindUniqueMock.mockResolvedValue({
+        clientTurnId,
+        versionId: "v16",
+        workspaceId: "ws-1",
+      });
       fetchMock.mockResolvedValue(gatewayAnswer());
       await proxySandboxModelCall(claims, modelRequest());
     }

@@ -54,14 +54,21 @@ export function aiGateway(purpose: AiGatewayPurpose = "default") {
 }
 
 /**
- * Turn spend line: eval turns (`lab:eval:`) win over everything, then CMO
- * (`cmo-` / `cmo:` turn ids, or a CMO-profile version), else Soko Bot.
+ * Turn spend line: eval turns win over everything, then CMO (`cmo-` / `cmo:`
+ * turn ids, or a CMO-profile version), else Soko Bot. A turn is an eval when
+ * its id starts `lab:` or it runs in an eval lane's workspace (`inEvalLane`):
+ * the CMO cases and background children start with other ids, so the
+ * workspace is the one marker every eval turn carries.
  */
 export function sokoBotTurnPurpose(
-  turn: { clientTurnId?: string | null; versionId?: string | null } | null,
+  turn: {
+    clientTurnId?: string | null;
+    versionId?: string | null;
+    inEvalLane?: boolean;
+  } | null,
 ): "soko-bot" | "cmo" | "evals" {
   const id = turn?.clientTurnId ?? "";
-  if (id.startsWith("lab:eval:")) return "evals";
+  if (turn?.inEvalLane || id.startsWith("lab:")) return "evals";
   if (
     id.startsWith("cmo-") ||
     id.startsWith("cmo:") ||

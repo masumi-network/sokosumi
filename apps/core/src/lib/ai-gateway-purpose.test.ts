@@ -1,9 +1,13 @@
 import { createGateway, gateway } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { envMock, findUniqueMock } = vi.hoisted(() => ({
+const { envMock, findUniqueMock, evalWorkspaceMock } = vi.hoisted(() => ({
   envMock: vi.fn(),
   findUniqueMock: vi.fn(),
+  evalWorkspaceMock: vi.fn(),
+}));
+vi.mock("@/lib/evals/eval-guard", () => ({
+  isEvalWorkspace: evalWorkspaceMock,
 }));
 
 vi.mock("ai", async (importOriginal) => {
@@ -122,23 +126,84 @@ describe("sokoBotTurnPurpose", () => {
     ).toBe("cmo");
   });
 
-  it("sends every other turn to soko-bot, lab runs included", () => {
+  it("sends every lab: turn to evals", () => {
+    for (const id of ["lab:event:t1", "lab:ingest:b:1", "lab:eval:r1"])
+      expect(sokoBotTurnPurpose({ clientTurnId: id })).toBe("evals");
+  });
+
+  it("sends every other turn to soko-bot", () => {
     expect(sokoBotTurnPurpose({ clientTurnId: "chat:1" })).toBe("soko-bot");
-    expect(sokoBotTurnPurpose({ clientTurnId: "lab:event:t1" })).toBe(
-      "soko-bot",
-    );
     expect(sokoBotTurnPurpose(null)).toBe("soko-bot");
   });
 
-  it("loads the turn row", async () => {
-    findUniqueMock.mockResolvedValue({
-      clientTurnId: "lab:eval:r2",
-      versionId: null,
+  describe("loading the turn", () => {
+    const load = (
+      turn: { clientTurnId: string; versionId: string | null },
+      inEvalLane: boolean,
+    ) => {
+      findUniqueMock.mockResolvedValue({ ...turn, workspaceId: "ws-1" });
+      evalWorkspaceMock.mockResolvedValue(inEvalLane);
+      return loadSokoBotTurnPurpose("t1");
+    };
+
+    it("reads the turn and its workspace", async () => {
+      await load({ clientTurnId: "chat:1", versionId: null }, false);
+      expect(findUniqueMock).toHaveBeenCalledWith({
+        where: { id: "t1" },
+        select: { clientTurnId: true, versionId: true, workspaceId: true },
+      });
+      expect(evalWorkspaceMock).toHaveBeenCalledWith("ws-1");
     });
-    await expect(loadSokoBotTurnPurpose("t1")).resolves.toBe("evals");
-    expect(findUniqueMock).toHaveBeenCalledWith({
-      where: { id: "t1" },
-      select: { clientTurnId: true, versionId: true },
+
+    it("bills a lane's CMO turns (cmo: ids, CMO version) to evals", async () => {
+      await expect(
+        load(
+          {
+            clientTurnId: "cmo:strategy:b1:1",
+            versionId: CMO_SOKO_BOT_VERSION_ID,
+          },
+          true,
+        ),
+      ).resolves.toBe("evals");
+    });
+
+    it("bills a lane's background children to evals", async () => {
+      await expect(
+        load({ clientTurnId: "background:t0:research", versionId: null }, true),
+      ).resolves.toBe("evals");
+      await expect(
+        load(
+          {
+            clientTurnId: "background:t0:month",
+            versionId: CMO_SOKO_BOT_VERSION_ID,
+          },
+          true,
+        ),
+      ).resolves.toBe("evals");
+    });
+
+    it("leaves production turns alone", async () => {
+      await expect(
+        load({ clientTurnId: "chat:1", versionId: null }, false),
+      ).resolves.toBe("soko-bot");
+      await expect(
+        load(
+          {
+            clientTurnId: "cmo:strategy:b1:1",
+            versionId: CMO_SOKO_BOT_VERSION_ID,
+          },
+          false,
+        ),
+      ).resolves.toBe("cmo");
+      await expect(
+        load(
+          {
+            clientTurnId: "background:t0:month",
+            versionId: CMO_SOKO_BOT_VERSION_ID,
+          },
+          false,
+        ),
+      ).resolves.toBe("cmo");
     });
   });
 });

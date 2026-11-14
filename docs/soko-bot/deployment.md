@@ -29,7 +29,7 @@ To split Gateway spend, set any of these optional keys; each falls back to
   or eval.
 - `CMO_AI_GATEWAY_API_KEY` — Cuso turns: a CMO-profile version, or a turn id
   starting `cmo-` or `cmo:`.
-- `EVALS_AI_GATEWAY_API_KEY` — eval bot turns (turn id `lab:eval:`, which wins
+- `EVALS_AI_GATEWAY_API_KEY` — eval bot turns (turn id `lab:`, or any turn in an eval lane workspace, including CMO and background turns; wins
   over CMO) and the lab judge.
 - `PROJECT_MEMORY_AI_GATEWAY_API_KEY` — project memory refresh and the weekly
   report; also what turns the memory feature on, with Blob storage.
