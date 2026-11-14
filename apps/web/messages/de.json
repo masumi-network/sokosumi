@@ -5184,6 +5184,7 @@
           },
           "trendLabel": "Suchen pro Monat über 12 Monate, von {from} auf {to}",
           "searchesPerMonth": "{count} Suchen pro Monat",
+          "noSearchData": "Keine Suchdaten",
           "emptyTitle": "Für diesen Markt wurden keine Trend-Keywords gefunden",
           "emptyBody": "Probiere andere Keywords oder ein anderes Land."
         },

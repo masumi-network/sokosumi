@@ -88,7 +88,8 @@ describe("AdsMarketKeywordList", () => {
     expect(running).toHaveTextContent("12,100 searches a month");
     expect(running).toHaveTextContent("High · $0.40–$1.20");
     expect(within(running).getByRole("img")).toBeVisible();
-    expect(sparse).toHaveTextContent("— searches a month");
+    expect(sparse).toHaveTextContent("No search data");
+    expect(sparse).not.toHaveTextContent("searches a month");
     expect(within(sparse).queryByRole("img")).toBeNull();
   });
 
