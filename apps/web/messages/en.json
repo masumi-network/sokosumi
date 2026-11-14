@@ -892,6 +892,21 @@
       "loading": "Loading document…",
       "fetchError": "This document couldn't be loaded."
     },
+    "VoicePlayer": {
+      "play": "Play {name}",
+      "pause": "Pause",
+      "seek": "Playback position",
+      "position": "{current} of {total}",
+      "speed": "Playback speed {rate}×",
+      "download": "Download {name}",
+      "transcript": "Transcript",
+      "addTranscript": "Add transcript",
+      "editTranscript": "Edit transcript",
+      "transcriptHint": "Type what was said. It is saved in this message, so everyone in this conversation can read and search it. Leave it empty to remove the transcript.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "transcriptNotSaved": "The transcript was not saved. Try again in a moment, or shorten it if the message is too long."
+    },
     "SokoBot": {
       "BotStatus": {
         "IDLE": "Idle",
@@ -1032,6 +1047,8 @@
       "retry": "Retry",
       "open": "Open source",
       "openLabel": "Open source: {title}",
+      "openSchedule": "View in schedules",
+      "openScheduleLabel": "View {title} in schedules",
       "openJob": "Open job",
       "jobHint": {
         "started": "Starting the job.",
@@ -1724,6 +1741,7 @@
           "placeholder": "Ask {name}…",
           "sendFailed": "Could not send your message. Please try again.",
           "quietDay": "Nothing moved yet. Ask {name} to start something.",
+          "newSchedule": "New schedule for {name}",
           "open": "Open",
           "suggestions": {
             "catchUp": "Catch me up",
@@ -1782,7 +1800,19 @@
         "restoreNamed": "Restore {name}",
         "restored": "{name} is back on the board",
         "open": "Open",
-        "restoreError": "Couldn't restore this task. Try again."
+        "restoreError": "Couldn't restore this task. Try again.",
+        "searchLabel": "Search archived tasks",
+        "searchPlaceholder": "Search by name",
+        "noMatches": "No archived tasks match “{query}”.",
+        "noProject": "No project",
+        "archivedOn": "Archived {date}",
+        "readOnly": "Archived tasks are read-only. Restore this one to edit or run it."
+      },
+      "NotFound": {
+        "title": "This task isn’t here",
+        "description": "It may have been archived or deleted, or it belongs to another workspace. Archived tasks can be restored.",
+        "archived": "Archived tasks",
+        "back": "Back to tasks"
       },
       "Columns": {
         "backlog": "Backlog",
@@ -2167,7 +2197,15 @@
         "close": "Close",
         "privateLabel": "Private",
         "privateDescription": "Hidden from other workspace members. Still visible to you, your Soko Bot, and the assigned coworker.",
-        "privateOtherPeopleHint": "Private tasks cannot go to other people. Turn Private off to assign a teammate."
+        "privateOtherPeopleHint": "Private tasks cannot go to other people. Turn Private off to assign a teammate.",
+        "Progress": {
+          "title": "Creating your task…",
+          "naming": "Name it from your details",
+          "tagging": "Suggest tags",
+          "tagsReady": "Tags suggested",
+          "saving": "Save the task",
+          "keepOpen": "Keep this open until it says Task created."
+        }
       },
       "EditTask": {
         "title": "Edit task",
@@ -2862,7 +2900,8 @@
           "pickAccount": "Pick an account to post to.",
           "tooLong": "Text length is over the limit.",
           "addToQueue": "Add to queue",
-          "queueEmptyHint": "Add queue times in accounts."
+          "queueEmptyHint": "Add queue times in accounts.",
+          "keptOnDraft": "Save draft keeps this time. Connect an account to schedule it."
         },
         "cancelDialog": {
           "title": "Cancel this post?",
@@ -2894,7 +2933,8 @@
           "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}",
           "duplicated": "Draft created.",
           "queued": "{count, plural, one {Added to the queue.} other {# posts added to the queue.}}",
-          "approved": "Post approved."
+          "approved": "Post approved.",
+          "draftTimeNotKept": "Draft saved without its time. Edit it to pick the time again."
         },
         "needsReconnect": "Account needs reconnecting",
         "needsReconnectLink": "Reconnect the account",
@@ -3243,7 +3283,8 @@
           "failed": "The post it quotes failed to publish",
           "cancelled": "The quoted post was cancelled",
           "waiting": "Waiting for the quoted post"
-        }
+        },
+        "plannedFor": "Planned for {date}"
       },
       "Detail": {
         "back": "Back to projects",
@@ -5270,10 +5311,6 @@
         "title": "Choose a project",
         "body": "Then connect accounts."
       },
-      "attentionNeedProject": {
-        "title": "Needs attention",
-        "body": "Choose a project to see posts that failed or were missed."
-      },
       "draftsNeedProject": {
         "title": "Drafts",
         "body": "Choose a project to see and finish its drafts."
@@ -5286,6 +5323,15 @@
       "statisticsNeedProject": {
         "title": "Choose a project to see performance",
         "body": "Account performance belongs to a project. Choose one to evaluate its connected accounts and published content."
+      },
+      "attentionAll": {
+        "label": "Posts that need attention in every project",
+        "empty": "Nothing needs attention in any project.",
+        "waitingApproval": "Waiting for approval",
+        "review": "Review",
+        "open": "Open",
+        "actionFor": "{action}: post in {project}",
+        "more": "Showing the latest {count}. Choose a project to see all of its posts."
       }
     },
     "Error": {
@@ -8946,7 +8992,14 @@
         "removeAttachment": "Remove {name}",
         "attachmentFallback": "file",
         "showFormatting": "Show formatting",
-        "hideFormatting": "Hide formatting"
+        "hideFormatting": "Hide formatting",
+        "recordVoice": "Record a voice message",
+        "stopVoice": "Stop and attach",
+        "cancelVoice": "Discard recording",
+        "voiceRecording": "Recording voice message",
+        "voiceBlocked": "Allow microphone access in your browser to record a voice message.",
+        "voiceFailed": "Recording stopped. Try again.",
+        "voiceFileName": "Voice message {time}"
       },
       "Skills": {
         "add": "Add a skill",

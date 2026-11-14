@@ -884,6 +884,21 @@
       "loading": "Dokument wird geladen…",
       "fetchError": "Dieses Dokument konnte nicht geladen werden."
     },
+    "VoicePlayer": {
+      "play": "{name} abspielen",
+      "pause": "Pause",
+      "seek": "Wiedergabeposition",
+      "position": "{current} von {total}",
+      "speed": "Wiedergabegeschwindigkeit {rate}×",
+      "download": "{name} herunterladen",
+      "transcript": "Transkript",
+      "addTranscript": "Transkript hinzufügen",
+      "editTranscript": "Transkript bearbeiten",
+      "transcriptHint": "Schreibe auf, was gesagt wurde. Es wird in dieser Nachricht gespeichert, sodass alle in dieser Unterhaltung es lesen und durchsuchen können. Lass das Feld leer, um das Transkript zu entfernen.",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "transcriptNotSaved": "Das Transkript wurde nicht gespeichert. Versuche es gleich noch einmal oder kürze es, falls die Nachricht zu lang ist."
+    },
     "UserCombobox": {
       "placeholder": "Select a user",
       "search": "Search users by name or email…",
@@ -1032,6 +1047,8 @@
       "retry": "Erneut versuchen",
       "open": "Quelle öffnen",
       "openLabel": "Quelle öffnen: {title}",
+      "openSchedule": "In Zeitplänen ansehen",
+      "openScheduleLabel": "{title} in Zeitplänen ansehen",
       "openJob": "Job öffnen",
       "jobHint": {
         "started": "Der Job wird gestartet.",
@@ -1724,6 +1741,7 @@
           "placeholder": "Frag {name}…",
           "sendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
           "quietDay": "Noch hat sich nichts bewegt. Bitte {name}, etwas anzustoßen.",
+          "newSchedule": "Neuer Zeitplan für {name}",
           "open": "Öffnen",
           "suggestions": {
             "catchUp": "Bring mich auf den Stand",
@@ -1782,7 +1800,19 @@
         "restoreNamed": "{name} wiederherstellen",
         "restored": "{name} ist wieder auf dem Board",
         "open": "Öffnen",
-        "restoreError": "Die Aufgabe konnte nicht wiederhergestellt werden. Versuche es erneut."
+        "restoreError": "Die Aufgabe konnte nicht wiederhergestellt werden. Versuche es erneut.",
+        "searchLabel": "Archivierte Aufgaben durchsuchen",
+        "searchPlaceholder": "Nach Name suchen",
+        "noMatches": "Keine archivierten Aufgaben passen zu „{query}“.",
+        "noProject": "Kein Projekt",
+        "archivedOn": "Archiviert am {date}",
+        "readOnly": "Archivierte Aufgaben sind schreibgeschützt. Stelle diese wieder her, um sie zu bearbeiten oder auszuführen."
+      },
+      "NotFound": {
+        "title": "Diese Aufgabe ist nicht da",
+        "description": "Sie wurde vielleicht archiviert oder gelöscht, oder sie gehört zu einem anderen Workspace. Archivierte Aufgaben lassen sich wiederherstellen.",
+        "archived": "Archivierte Aufgaben",
+        "back": "Zurück zu den Aufgaben"
       },
       "Columns": {
         "backlog": "Backlog",
@@ -2167,7 +2197,15 @@
         "close": "Schließen",
         "privateLabel": "Privat",
         "privateDescription": "Für andere Workspace-Mitglieder ausgeblendet. Weiterhin sichtbar für dich, deinen Soko Bot und den zugewiesenen Coworker.",
-        "privateOtherPeopleHint": "Private Aufgaben können nicht an andere Personen gehen. Schalte Privat aus, um ein Teammitglied zuzuweisen."
+        "privateOtherPeopleHint": "Private Aufgaben können nicht an andere Personen gehen. Schalte Privat aus, um ein Teammitglied zuzuweisen.",
+        "Progress": {
+          "title": "Aufgabe wird erstellt…",
+          "naming": "Name aus deinen Angaben ableiten",
+          "tagging": "Tags vorschlagen",
+          "tagsReady": "Tags vorgeschlagen",
+          "saving": "Aufgabe speichern",
+          "keepOpen": "Lass dieses Fenster offen, bis „Aufgabe erstellt“ erscheint."
+        }
       },
       "EditTask": {
         "title": "Task bearbeiten",
@@ -2862,7 +2900,8 @@
           "pickAccount": "Wähle ein Konto, auf dem gepostet wird.",
           "tooLong": "Die Textlänge überschreitet das Limit.",
           "addToQueue": "Zur Warteschlange",
-          "queueEmptyHint": "Zeiten unter Konten hinzufügen."
+          "queueEmptyHint": "Zeiten unter Konten hinzufügen.",
+          "keptOnDraft": "Entwurf speichern behält diese Zeit. Verbinde ein Konto, um ihn zu planen."
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
@@ -2894,7 +2933,8 @@
           "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}",
           "duplicated": "Entwurf erstellt.",
           "queued": "{count, plural, one {Zur Warteschlange hinzugefügt.} other {# Beiträge zur Warteschlange hinzugefügt.}}",
-          "approved": "Beitrag genehmigt."
+          "approved": "Beitrag genehmigt.",
+          "draftTimeNotKept": "Entwurf ohne seine Zeit gespeichert. Bearbeite ihn, um die Zeit erneut zu wählen."
         },
         "needsReconnect": "Konto muss neu verbunden werden",
         "needsReconnectLink": "Konto erneut verbinden",
@@ -3243,7 +3283,8 @@
           "failed": "Der zitierte Beitrag konnte nicht veröffentlicht werden",
           "cancelled": "Der zitierte Beitrag wurde abgesagt",
           "waiting": "Wartet auf den zitierten Beitrag"
-        }
+        },
+        "plannedFor": "Geplant für {date}"
       },
       "Detail": {
         "back": "Zurück zu Projekten",
@@ -5270,10 +5311,6 @@
         "title": "Wähle ein Projekt",
         "body": "Dann verbinde Konten."
       },
-      "attentionNeedProject": {
-        "title": "Braucht Aufmerksamkeit",
-        "body": "Wähle ein Projekt, um fehlgeschlagene oder verpasste Beiträge zu sehen."
-      },
       "draftsNeedProject": {
         "title": "Entwürfe",
         "body": "Wähle ein Projekt, um seine Entwürfe anzusehen und fertigzustellen."
@@ -5286,6 +5323,15 @@
       "statisticsNeedProject": {
         "title": "Wähle ein Projekt, um die Leistung zu sehen",
         "body": "Die Kontoleistung gehört zu einem Projekt. Wähle eines, um seine verbundenen Konten und veröffentlichten Inhalte zu bewerten."
+      },
+      "attentionAll": {
+        "label": "Beiträge, die in allen Projekten Aufmerksamkeit brauchen",
+        "empty": "In keinem Projekt braucht etwas Aufmerksamkeit.",
+        "waitingApproval": "Wartet auf Freigabe",
+        "review": "Prüfen",
+        "open": "Öffnen",
+        "actionFor": "{action}: Beitrag in {project}",
+        "more": "Die neuesten {count} werden angezeigt. Wähle ein Projekt, um alle seine Beiträge zu sehen."
       }
     },
     "Error": {
@@ -8946,7 +8992,14 @@
         "removeAttachment": "{name} entfernen",
         "attachmentFallback": "file",
         "showFormatting": "Formatierung anzeigen",
-        "hideFormatting": "Formatierung ausblenden"
+        "hideFormatting": "Formatierung ausblenden",
+        "recordVoice": "Sprachnachricht aufnehmen",
+        "stopVoice": "Beenden und anhängen",
+        "cancelVoice": "Aufnahme verwerfen",
+        "voiceRecording": "Sprachnachricht wird aufgenommen",
+        "voiceBlocked": "Erlaube den Mikrofonzugriff im Browser, um eine Sprachnachricht aufzunehmen.",
+        "voiceFailed": "Aufnahme abgebrochen. Versuche es erneut.",
+        "voiceFileName": "Sprachnachricht {time}"
       },
       "Skills": {
         "add": "Skill hinzufügen",

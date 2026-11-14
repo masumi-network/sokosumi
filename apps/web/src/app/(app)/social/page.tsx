@@ -18,10 +18,12 @@ import {
   SECTION_STATUSES,
 } from "@/app/projects/components/social-posts/constants";
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
+import { SocialLoadError } from "@/app/projects/components/social-posts/social-load-error";
 import { CmoProjectBanner } from "@/components/cmo-project-banner";
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
+import { SocialAllProjectsAttention } from "./components/social-all-projects-attention";
 import { SocialAllProjectsTabs } from "./components/social-all-projects-tabs";
 import { SocialCalendarPreviewProvider } from "./components/social-calendar-preview";
 import { SocialComposeProvider } from "./components/social-compose-context";
@@ -30,6 +32,15 @@ import { SocialPageShell } from "./components/social-page-shell";
 
 // Wait for the current session and project access before rendering.
 export const instant = false;
+
+/**
+ * All projects' Needs attention: what a project lists there (failed and
+ * missed) plus posts waiting for someone's approval.
+ */
+const ALL_PROJECTS_ATTENTION_STATUSES = [
+  ...SECTION_STATUSES.attention,
+  "NEEDS_APPROVAL",
+] as const;
 
 /** Social's calendar shows Social posts and asks Core for nothing else. */
 const SOCIAL_CALENDAR_TYPES: readonly CalendarType[] = ["social"];
@@ -87,7 +98,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
   }
 
   if (!project) {
-    const [calendar, sokoBot] = await Promise.all([
+    const [calendar, sokoBot, attention] = await Promise.all([
       // Drop an id the workspace no longer has, or the calendar would filter
       // to a project that is not there.
       loadWorkspaceCalendarPage({
@@ -98,6 +109,9 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
         types: SOCIAL_CALENDAR_TYPES,
       }),
       sokoBotService.getMine().catch(() => null),
+      projectService
+        .listWorkspaceSocialPosts(ALL_PROJECTS_ATTENTION_STATUSES)
+        .catch(() => null),
     ]);
     return (
       <SocialPageShell title={t("title")}>
@@ -109,6 +123,21 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
                   project={null}
                   sokoBotId={sokoBot?.id ?? null}
                 />
+              }
+              attention={
+                attention ? (
+                  <SocialAllProjectsAttention
+                    hasMore={attention.hasMore}
+                    items={attention.items}
+                  />
+                ) : (
+                  <SocialLoadError kind="attention" />
+                )
+              }
+              attentionCount={
+                attention?.items.length
+                  ? `${attention.items.length}${attention.hasMore ? "+" : ""}`
+                  : undefined
               }
               calendar={<SocialCalendar calendar={calendar} />}
               notice={
@@ -131,7 +160,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     selectedPostResult,
     calendarResult,
     sokoBot,
-    queueSlots,
+    queueResult,
   ] = await Promise.all([
     Promise.all(
       SECTION_ORDER.map(async (section) => {
@@ -172,11 +201,16 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
         return { failed: true as const, calendar: null };
       }),
     sokoBotService.getMine().catch(() => null),
-    projectService.listSocialQueueSlots(project.id).catch(() => null),
+    projectService
+      .listSocialQueueSlots(project.id)
+      .then((queueSlots) => ({ failed: false as const, queueSlots }))
+      .catch(() => ({ failed: true as const, queueSlots: null })),
   ]);
   const { connections, failed: accountsFailed } = connectionsResult;
   const { calendar, failed: calendarFailed } = calendarResult;
   const { post: selectedPost, failed: selectedPostFailed } = selectedPostResult;
+  // Null queue slots without a failure: the posting queue is not open to this user.
+  const { queueSlots, failed: queueFailed } = queueResult;
   // Count every affected scheduled/failed post, including later list pages.
   // A failed read here only shortens the reconnect counts; Social stays up.
   const affectedPosts: SocialPost[] = [...pages[1].posts];
@@ -266,7 +300,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             accountCount={managedAccountCount}
             managedConnections={connections}
             affectedPosts={affectedPosts}
-            accountsFailed={accountsFailed || queueSlots === null}
+            accountsFailed={accountsFailed || queueFailed}
             calendarFailed={calendarFailed}
             connections={activeConnections}
             failedSections={SECTION_ORDER.filter(

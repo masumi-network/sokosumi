@@ -122,6 +122,7 @@ function createTask() {
     description: null,
     status: TaskStatus.RUNNING,
     priority: "NONE",
+    archivedAt: null,
     number: null,
     events: [],
     jobs: [],

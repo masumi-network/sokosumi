@@ -88,6 +88,7 @@ import type {
   GetProjectsStatsData,
   GetPublicNewslettersByPublicSlugIssuesData,
   GetShareByTokenError,
+  GetTasksByIdData,
   GetTasksByIdEventsData,
   GetTasksData,
   GetTasksSchedulesByIdRunsData,
@@ -97,6 +98,7 @@ import type {
   GetTransactionsData,
   GetWorkspacesCalendarData,
   GetWorkspacesCalendarSourcesData,
+  GetWorkspacesSocialPostsData,
   ImportNewsletterSubscribersRequest,
   ListAdminTaskX402PaymentsData,
   ListChatPeopleData,
@@ -395,6 +397,7 @@ import {
   getWorkspacesCalendar as coreGetWorkspacesCalendar,
   getWorkspacesCalendarSources as coreGetWorkspacesCalendarSources,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
+  getWorkspacesSocialPosts as coreGetWorkspacesSocialPosts,
   listAdminAgents as coreListAdminAgents,
   listAdminBadgeCampaigns as coreListAdminBadgeCampaigns,
   listAdminInvoices as coreListAdminInvoices,
@@ -648,6 +651,9 @@ function transformTaskListResponseEnvelope(data: any) {
     if (item.runAt) {
       item.runAt = toDate(item.runAt);
     }
+    if (item.archivedAt) {
+      item.archivedAt = toDate(item.archivedAt);
+    }
 
     return item;
   });
@@ -665,6 +671,9 @@ function transformTaskResponseEnvelope(data: any) {
   task.updatedAt = toDate(task.updatedAt);
   if (task.runAt) {
     task.runAt = toDate(task.runAt);
+  }
+  if (task.archivedAt) {
+    task.archivedAt = toDate(task.archivedAt);
   }
   task.events = task.events.map((event: any) => ({
     ...event,
@@ -2341,13 +2350,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getTaskById(id: string) {
+  async function getTaskById(id: string, query?: GetTasksByIdData["query"]) {
     return executeCoreOperation(
       getClient,
       (client) =>
         coreGetTasksById({
           client,
           path: { id },
+          query,
           cache: "no-store",
           responseTransformer: async (data) =>
             transformTaskResponseEnvelope(data),
@@ -4445,6 +4455,21 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch Project social posts",
+    );
+  }
+
+  async function getWorkspacesSocialPosts(
+    query?: GetWorkspacesSocialPostsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetWorkspacesSocialPosts({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch workspace social posts",
     );
   }
 
@@ -7228,6 +7253,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioJobsByJobIdCancel,
     postProjectsByIdImageStudioVideoJobs,
     getProjectsByIdSocialPosts,
+    getWorkspacesSocialPosts,
     getProjectsByIdSocialPostsStatistics,
     getProjectsByIdSocialQueueSlots,
     getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,

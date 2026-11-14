@@ -8,6 +8,7 @@ import mountGetActiveWorkspaceCalendar from "./calendar/get.js";
 import mountGetWorkspaceCalendarSources from "./calendar/sources/get.js";
 import mountPostWorkspaceDesignMdAdHoc from "./design-md/adhoc/post.js";
 import mountGetWorkspaceDesignMd from "./design-md/get.js";
+import mountListWorkspaceSocialPosts from "./social-posts/get.js";
 
 const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
 
@@ -15,6 +16,7 @@ mountPostWorkspaceDesignMdAdHoc(app);
 mountGetWorkspaceDesignMd(app);
 mountGetActiveWorkspaceCalendar(app);
 mountGetWorkspaceCalendarSources(app);
+mountListWorkspaceSocialPosts(app);
 mountPostCalendarIdentityLabels(app);
 mountGetWorkspaceById(app);
 mountListWorkspaceSocialAccountStatistics(app);

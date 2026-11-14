@@ -111,6 +111,7 @@ export function ThreadPanel({
   onOpenDirectMessage,
   openingDirectParticipantKey = null,
   onStartEdit,
+  onSaveTranscript,
   onDelete,
   onRemoveUnfurl,
   onRetryOutbound,
@@ -171,6 +172,7 @@ export function ThreadPanel({
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
   openingDirectParticipantKey?: string | null;
   onStartEdit?: (message: ChatRoomMessage) => void;
+  onSaveTranscript?: (message: ChatRoomMessage, transcript: string) => boolean;
   onDelete?: (message: ChatRoomMessage) => void;
   onRemoveUnfurl?: (message: ChatRoomMessage, url: string) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
@@ -256,6 +258,7 @@ export function ThreadPanel({
     return {
       currentUserId,
       onStartEdit,
+      onSaveTranscript,
       onDelete,
       onRemoveUnfurl,
       isEditing,

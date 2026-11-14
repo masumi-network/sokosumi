@@ -884,6 +884,21 @@
       "loading": "Cargando documento…",
       "fetchError": "No se pudo cargar este documento."
     },
+    "VoicePlayer": {
+      "play": "Reproducir {name}",
+      "pause": "Pausar",
+      "seek": "Posición de reproducción",
+      "position": "{current} de {total}",
+      "speed": "Velocidad de reproducción {rate}×",
+      "download": "Descargar {name}",
+      "transcript": "Transcripción",
+      "addTranscript": "Añadir transcripción",
+      "editTranscript": "Editar transcripción",
+      "transcriptHint": "Escribe lo que se dijo. Se guarda en este mensaje, así que todas las personas de esta conversación pueden leerlo y buscarlo. Déjalo vacío para quitar la transcripción.",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "transcriptNotSaved": "La transcripción no se guardó. Vuelve a intentarlo en un momento o acórtala si el mensaje es demasiado largo."
+    },
     "UserCombobox": {
       "placeholder": "Select a user",
       "search": "Search users by name or email…",
@@ -1032,6 +1047,8 @@
       "retry": "Reintentar",
       "open": "Abrir origen",
       "openLabel": "Abrir origen: {title}",
+      "openSchedule": "Ver en programaciones",
+      "openScheduleLabel": "Ver {title} en programaciones",
       "openJob": "Abrir job",
       "jobHint": {
         "started": "Iniciando el job.",
@@ -1724,6 +1741,7 @@
           "placeholder": "Pregunta a {name}…",
           "sendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
           "quietDay": "Todavía no se ha movido nada. Pide a {name} que empiece algo.",
+          "newSchedule": "Nueva programación para {name}",
           "open": "Abrir",
           "suggestions": {
             "catchUp": "Ponme al día",
@@ -1782,7 +1800,19 @@
         "restoreNamed": "Restaurar {name}",
         "restored": "{name} ha vuelto al tablero",
         "open": "Abrir",
-        "restoreError": "No se pudo restaurar la tarea. Inténtalo de nuevo."
+        "restoreError": "No se pudo restaurar la tarea. Inténtalo de nuevo.",
+        "searchLabel": "Buscar tareas archivadas",
+        "searchPlaceholder": "Buscar por nombre",
+        "noMatches": "Ninguna tarea archivada coincide con «{query}».",
+        "noProject": "Sin proyecto",
+        "archivedOn": "Archivada el {date}",
+        "readOnly": "Las tareas archivadas son de solo lectura. Restaura esta para editarla o ejecutarla."
+      },
+      "NotFound": {
+        "title": "Esta tarea no está aquí",
+        "description": "Puede que se haya archivado o eliminado, o que pertenezca a otro espacio de trabajo. Las tareas archivadas se pueden restaurar.",
+        "archived": "Tareas archivadas",
+        "back": "Volver a las tareas"
       },
       "Columns": {
         "backlog": "Pendiente",
@@ -2167,7 +2197,15 @@
         "close": "Cerrar",
         "privateLabel": "Privada",
         "privateDescription": "Oculta para el resto de miembros del workspace. Sigue visible para ti, tu Soko Bot y el coworker asignado.",
-        "privateOtherPeopleHint": "Las tareas privadas no pueden asignarse a otras personas. Desactiva Privada para asignar a un compañero."
+        "privateOtherPeopleHint": "Las tareas privadas no pueden asignarse a otras personas. Desactiva Privada para asignar a un compañero.",
+        "Progress": {
+          "title": "Creando tu tarea…",
+          "naming": "Ponerle nombre a partir de tus detalles",
+          "tagging": "Sugerir etiquetas",
+          "tagsReady": "Etiquetas sugeridas",
+          "saving": "Guardar la tarea",
+          "keepOpen": "Mantén esto abierto hasta que diga Tarea creada."
+        }
       },
       "EditTask": {
         "title": "Editar Task",
@@ -2862,7 +2900,8 @@
           "pickAccount": "Elige una cuenta en la que publicar.",
           "tooLong": "La longitud del texto supera el límite.",
           "addToQueue": "Añadir a la cola",
-          "queueEmptyHint": "Añade horarios en Cuentas."
+          "queueEmptyHint": "Añade horarios en Cuentas.",
+          "keptOnDraft": "Guardar borrador conserva esta hora. Conecta una cuenta para programarlo."
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
@@ -2894,7 +2933,8 @@
           "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}",
           "duplicated": "Borrador creado.",
           "queued": "{count, plural, one {Añadida a la cola.} other {# publicaciones añadidas a la cola.}}",
-          "approved": "Publicación aprobada."
+          "approved": "Publicación aprobada.",
+          "draftTimeNotKept": "Borrador guardado sin su hora. Edítalo para volver a elegir la hora."
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
         "needsReconnectLink": "Volver a conectar la cuenta",
@@ -3243,7 +3283,8 @@
           "failed": "No se pudo publicar la publicación citada",
           "cancelled": "La publicación citada se canceló",
           "waiting": "Esperando a la publicación citada"
-        }
+        },
+        "plannedFor": "Previsto para {date}"
       },
       "Detail": {
         "back": "Volver a proyectos",
@@ -5270,10 +5311,6 @@
         "title": "Elige un proyecto",
         "body": "Luego conecta cuentas."
       },
-      "attentionNeedProject": {
-        "title": "Requiere atención",
-        "body": "Elige un proyecto para ver las publicaciones que fallaron o se omitieron."
-      },
       "draftsNeedProject": {
         "title": "Borradores",
         "body": "Elige un proyecto para ver y terminar sus borradores."
@@ -5286,6 +5323,15 @@
       "statisticsNeedProject": {
         "title": "Elige un proyecto para ver el rendimiento",
         "body": "El rendimiento de las cuentas pertenece a un proyecto. Elige uno para evaluar sus cuentas conectadas y su contenido publicado."
+      },
+      "attentionAll": {
+        "label": "Publicaciones que requieren atención en todos los proyectos",
+        "empty": "Nada requiere atención en ningún proyecto.",
+        "waitingApproval": "Esperando aprobación",
+        "review": "Revisar",
+        "open": "Abrir",
+        "actionFor": "{action}: publicación en {project}",
+        "more": "Se muestran las {count} más recientes. Elige un proyecto para ver todas sus publicaciones."
       }
     },
     "Error": {
@@ -8946,7 +8992,14 @@
         "removeAttachment": "Eliminar {name}",
         "attachmentFallback": "file",
         "showFormatting": "Mostrar formato",
-        "hideFormatting": "Ocultar formato"
+        "hideFormatting": "Ocultar formato",
+        "recordVoice": "Grabar un mensaje de voz",
+        "stopVoice": "Detener y adjuntar",
+        "cancelVoice": "Descartar grabación",
+        "voiceRecording": "Grabando mensaje de voz",
+        "voiceBlocked": "Permite el acceso al micrófono en tu navegador para grabar un mensaje de voz.",
+        "voiceFailed": "La grabación se detuvo. Inténtalo de nuevo.",
+        "voiceFileName": "Mensaje de voz {time}"
       },
       "Skills": {
         "add": "Añadir una skill",

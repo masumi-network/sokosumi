@@ -41,6 +41,8 @@ export const FILE_EXTENSION_ALLOWLIST = new Set([
   "mp3",
   "mp4",
   "wav",
+  "m4a",
+  "weba",
   "mov",
 ]);
 

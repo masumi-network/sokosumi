@@ -194,6 +194,16 @@ export const taskService = (() => {
     }
   }
 
+  /** An archived Task, read-only; null when there is none to read. */
+  async function getArchivedTask(taskId: string): Promise<Task | null> {
+    try {
+      const result = await coreClient.getTaskById(taskId, { archived: "true" });
+      return result.data;
+    } catch {
+      return null;
+    }
+  }
+
   async function listTaskEvents(
     taskId: string,
     params: { cursor?: string | null; limit?: number } = {},
@@ -448,6 +458,7 @@ export const taskService = (() => {
     getWorkspaceCalendarSources,
     listTasks,
     getTaskById,
+    getArchivedTask,
     getTaskWorkspace,
     listTaskEvents,
     listTaskEventsBefore,

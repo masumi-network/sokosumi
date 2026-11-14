@@ -1891,6 +1891,10 @@ export type Task = {
      * Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.
      */
     scheduleId: string | null;
+    /**
+     * When the Task was archived. Null unless it is archived; only archived reads (archived=true) return archived Tasks.
+     */
+    archivedAt: Date | null;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -12831,6 +12835,10 @@ export type TaskListItem = {
      * Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.
      */
     scheduleId: string | null;
+    /**
+     * When the Task was archived. Null unless it is archived; only archived reads (archived=true) return archived Tasks.
+     */
+    archivedAt: Date | null;
     workspace: WorkspaceSummary;
     jobsCount: number;
     commentsCount: number;
@@ -14024,6 +14032,15 @@ export type WorkspaceCalendarSource = {
      * Latest SCHEDULED or SENDING Newsletter issue in this Project and requested scope. Present only when Social posts are included (interactive Calendar).
      */
     latestScheduledNewsletterIssueAt?: Date | null;
+};
+
+export type WorkspaceSocialPost = {
+    post: SocialPost;
+    projectName: string;
+    /**
+     * The post's Project is a CMO Project, so its posts are read-only outside CMO (ADR 0066).
+     */
+    projectCmo: boolean;
 };
 
 export type CalendarIdentityLabels = Array<CalendarIdentityLabel>;
@@ -88967,11 +88984,31 @@ export type GetTasksByIdData = {
          */
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * true reads an archived Task instead, read-only, with the same access as the archived list. People only; coworkers and Soko Bots get 400.
+         */
+        archived?: 'true' | 'false';
+    };
     url: '/tasks/{id}';
 };
 
 export type GetTasksByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -94874,6 +94911,136 @@ export type GetWorkspacesCalendarSourcesResponses = {
 };
 
 export type GetWorkspacesCalendarSourcesResponse = GetWorkspacesCalendarSourcesResponses[keyof GetWorkspacesCalendarSourcesResponses];
+
+export type GetWorkspacesSocialPostsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * UUID of the last Social post from the previous page
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        /**
+         * Comma-separated Social post statuses to include
+         */
+        status?: string;
+    };
+    url: '/workspaces/social-posts';
+};
+
+export type GetWorkspacesSocialPostsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspacesSocialPostsError = GetWorkspacesSocialPostsErrors[keyof GetWorkspacesSocialPostsErrors];
+
+export type GetWorkspacesSocialPostsResponses = {
+    /**
+     * Social posts with their Project
+     */
+    200: {
+        data: Array<WorkspaceSocialPost>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetWorkspacesSocialPostsResponse = GetWorkspacesSocialPostsResponses[keyof GetWorkspacesSocialPostsResponses];
 
 export type PostWorkspacesByIdCalendarIdentityLabelsData = {
     body?: CalendarIdentityLabelsRequest;

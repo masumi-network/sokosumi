@@ -39,10 +39,17 @@ public struct MessageAttachment: Hashable, Sendable {
     return documentPreviewKind == nil ? .link : .documentViewer
   }
 
+  /// Whether AVFoundation can play the file. It opens web voice messages recorded as MP4 (`.m4a`, AAC or Opus)
+  /// but not WebM (`.weba` from Firefox, `.webm`): checked against Chrome and Firefox recordings on macOS 27.
+  public var playsNatively: Bool {
+    let ext = url.pathExtension.isEmpty ? (filename as NSString).pathExtension : url.pathExtension
+    return !["weba", "webm"].contains(ext.lowercased())
+  }
+
   public init?(url: URL, label: String, kindHint: Kind? = nil) {
     guard ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host != nil else { return nil }
     let ext = url.pathExtension.lowercased()
-    let extensions: Set = ["png", "jpg", "jpeg", "webp", "svg", "gif", "pdf", "txt", "md", "markdown", "rtf", "csv", "json", "xml", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip", "tar", "gz", "mp3", "mp4", "wav", "mov"]
+    let extensions: Set = ["png", "jpg", "jpeg", "webp", "svg", "gif", "pdf", "txt", "md", "markdown", "rtf", "csv", "json", "xml", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip", "tar", "gz", "mp3", "m4a", "weba", "mp4", "wav", "mov"]
     guard kindHint != nil || (url.fragment == nil && (extensions.contains(ext) || url.path.contains("/deliverables/"))) else { return nil }
     self.url = url
     filename = label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? url.lastPathComponent : label
@@ -50,7 +57,7 @@ public struct MessageAttachment: Hashable, Sendable {
     // Filename/extension beat an img/video tag so `![clip](file.mp4)` matches web.
     if ["png", "jpg", "jpeg", "webp", "svg", "gif", "bmp", "heic", "heif"].contains(hint) {
       kind = .image
-    } else if ["mp3", "wav", "m4a", "ogg", "aac", "flac"].contains(hint) {
+    } else if ["mp3", "wav", "m4a", "weba", "ogg", "aac", "flac"].contains(hint) {
       kind = .audio
     } else if ["mp4", "mov", "webm", "m4v"].contains(hint) {
       kind = .video

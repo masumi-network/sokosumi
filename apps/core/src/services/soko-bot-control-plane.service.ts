@@ -1465,10 +1465,13 @@ export class SokoBotControlPlane {
     // low-balance check publishes over realtime and must not run for a
     // charge that rolled back. Reset per attempt: a serialization retry
     // starts over and must not carry the rolled-back attempt's charge.
-    let chargedUserId: string | null = null;
+    let chargedWallet: {
+      userId: string;
+      organizationId: string | null;
+    } | null = null;
 
     return serializableTransaction(async (tx) => {
-      chargedUserId = null;
+      chargedWallet = null;
       const turn = await tx.sokoBotTurn.findUnique({
         where: { id: input.turnId },
         select: {
@@ -1519,8 +1522,14 @@ export class SokoBotControlPlane {
         },
         tx,
       );
-      if (usageCharge.chargedCents > 0n) {
-        chargedUserId = sokoBotActingUserId(turn);
+      const chargedUserId = sokoBotActingUserId(turn);
+      if (usageCharge.chargedCents > 0n && chargedUserId) {
+        // The wallet the turn drew on: a bot in an Organization workspace
+        // bills the Organization, not the member's personal wallet.
+        chargedWallet = {
+          userId: chargedUserId,
+          organizationId: usageCharge.organizationId,
+        };
       }
       // Runtime work already happened before settlement. A late billing
       // shortfall must be visible and block later funded turns, but discarding
@@ -1662,11 +1671,8 @@ export class SokoBotControlPlane {
       async (settled) => {
         // On the charge alone: a settlement that lost its lease after the
         // usage was recorded still committed that charge.
-        if (chargedUserId) {
-          await notifyLowBalanceAfterCharge({
-            userId: chargedUserId,
-            organizationId: null,
-          });
+        if (chargedWallet) {
+          await notifyLowBalanceAfterCharge(chargedWallet);
         }
         if (settled) {
           waitUntil(
