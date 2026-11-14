@@ -26,7 +26,7 @@ export function TaskStatusAge({
   className,
 }: TaskStatusAgeProps) {
   const t = useTranslations("App.Tasks.StatusAge");
-  // Ticks so a card left open turns Stuck without a reload.
+  // Ticks so a card left open counts up and turns Stuck without a reload.
   const now = useNow({ updateInterval: 60_000 });
   if (!WAITING_COLUMN_IDS.includes(getColumnId(status))) return null;
   const stuck = new Date(statusSince) < stuckCutoff(now);
@@ -55,6 +55,7 @@ export function TaskStatusAge({
         addSuffix={false}
         strict
         titlePrefix={t("since")}
+        now={now}
         className="truncate tabular-nums"
       />
     </span>

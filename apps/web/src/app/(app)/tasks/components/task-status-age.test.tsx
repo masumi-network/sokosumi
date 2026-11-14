@@ -12,7 +12,9 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/components/time-ago", () => ({
-  TimeAgo: ({ date }: { date: string }) => <time>{date}</time>,
+  TimeAgo: ({ date, now }: { date: string; now?: Date }) => (
+    <time data-now={now?.toISOString()}>{date}</time>
+  ),
 }));
 
 describe("TaskStatusAge", () => {
@@ -26,7 +28,11 @@ describe("TaskStatusAge", () => {
 
     expect(screen.getByText("label")).toHaveClass("sr-only");
     expect(screen.queryByText("stuck")).toBeNull();
-    expect(screen.getByText("2026-11-14T11:58:00.000Z")).toBeTruthy();
+    // Counts from the ticking clock, so the label moves on a page left open.
+    expect(screen.getByText("2026-11-14T11:58:00.000Z")).toHaveAttribute(
+      "data-now",
+      NOW.toISOString(),
+    );
   });
 
   it("says Stuck after three days in one status", () => {
