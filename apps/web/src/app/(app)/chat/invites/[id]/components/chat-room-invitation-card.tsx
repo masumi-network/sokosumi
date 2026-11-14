@@ -49,7 +49,6 @@ export default function ChatRoomInvitationCard({
     toast.success(t("Actions.Success.accept"));
     notifyOrganizationChatRoomsChanged({ joinedRoomId: result.value.roomId });
     router.push(`/chat/rooms/${encodeURIComponent(result.value.roomId)}`);
-    router.refresh();
   };
 
   const handleDecline = async () => {
@@ -66,7 +65,6 @@ export default function ChatRoomInvitationCard({
     toast.success(t("Actions.Success.decline"));
     notifyOrganizationChatRoomsChanged();
     router.push("/");
-    router.refresh();
   };
 
   if (invitation.status === "accepted") {

@@ -48,7 +48,7 @@ describe("RenameSokoBotForm", () => {
     );
   });
 
-  it("saves the trimmed name for the shared bot shown and refreshes", async () => {
+  it("saves the trimmed name for the shared bot shown without a second page render", async () => {
     const user = userEvent.setup();
     renderForm(BOT_ID);
     const input = screen.getByLabelText("Name");
@@ -57,7 +57,7 @@ describe("RenameSokoBotForm", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(renameMock).toHaveBeenCalledWith({ name: "Nova", botId: BOT_ID });
-    expect(refreshMock).toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("says why a blank name is refused, without calling Core", async () => {

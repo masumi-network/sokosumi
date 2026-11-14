@@ -1,11 +1,10 @@
 import type { SessionUser } from "@sokosumi/utils";
 import { Suspense } from "react";
 import WorkspaceSwitcherMenu from "@/app/components/workspace-switcher/workspace-switcher-menu.client";
-import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
-import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import { getPrivateCachedChatListChrome } from "./private-sidebar-cache";
+import { loadSidebarChatList } from "./private-sidebar-cache";
 import Sidebar from "./sidebar";
 import { SidebarChatListSkeleton } from "./sidebar/components/sidebar-chat-list-skeleton";
+import { SidebarChatList } from "./sidebar-chat-list.client";
 import SidebarDeferredAccount, {
   SidebarAccountChipFallback,
 } from "./sidebar-deferred-account";
@@ -72,33 +71,22 @@ async function PrivateCachedSidebarRooms({
   // Shared private-cache slice with `/chat` (SOK-779). Personal coworker
   // directs exist with no active org; Core returns those when organization
   // context is null. Guest rooms (any host org) are mixed into the list.
-  const chatListChrome = await getPrivateCachedChatListChrome({
+  // The rows wait for the rooms only. Archived rooms and the owner/admin
+  // flag follow as a promise, so a slow read of either holds nothing back.
+  const { rooms, deferred } = await loadSidebarChatList({
     userId,
     activeOrganizationId,
   });
 
-  const { members } = chatListChrome;
-  const chatRooms = chatListChrome.chatRoomsPage.rooms;
-  const archivedChatRooms = chatListChrome.archivedChatRoomsPage.rooms;
-
-  const isOrgOwnerOrAdmin = Boolean(
-    activeOrganizationId &&
-      members.some(
-        (membership) =>
-          membership.organizationId === activeOrganizationId &&
-          isOrganizationOwnerOrAdmin(membership.role),
-      ),
-  );
-
   return (
-    <OrganizationChatList
-      key={activeOrganizationId ?? "personal"}
-      rooms={chatRooms}
-      archivedRooms={archivedChatRooms}
+    <SidebarChatList
+      // The viewer is part of the key: what one viewer was allowed to see
+      // must not stay on screen while the next viewer's read is pending.
+      key={`${userId}:${activeOrganizationId ?? "personal"}`}
+      rooms={rooms}
+      deferred={deferred}
       currentUserId={userId}
       organizationId={activeOrganizationId}
-      isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
-      withChatsHeading
     />
   );
 }

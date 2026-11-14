@@ -25,7 +25,11 @@ const {
   mentionFindFirstMock,
   prismaTransactionMock,
   waitUntilMock,
+  turnFindUniqueMock,
+  turnUpdateManyMock,
 } = vi.hoisted(() => ({
+  turnFindUniqueMock: vi.fn(),
+  turnUpdateManyMock: vi.fn(),
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
@@ -81,6 +85,10 @@ const tx = {
   chatRoomMention: {
     updateMany: mentionUpdateManyMock,
     findFirst: mentionFindFirstMock,
+  },
+  sokoBotTurn: {
+    findUnique: turnFindUniqueMock,
+    updateMany: turnUpdateManyMock,
   },
 };
 
@@ -190,6 +198,42 @@ describe("POST /chats/rooms/:id/messages/:messageId/mentions/:mentionId/retry", 
     mentionFindFirstMock.mockResolvedValue(null);
     messageFindUniqueOrThrowMock.mockResolvedValue(mappedMessage);
     waitUntilMock.mockImplementation(() => {});
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnUpdateManyMock.mockResolvedValue({ count: 1 });
+  });
+
+  it("lets go of the failed Soko Bot turn so the retry starts its own", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      id: "turn_failed",
+      status: "FAILED",
+      deliveries: [],
+    });
+
+    const response = await retryMention();
+
+    expect(response.status).toBe(200);
+    expect(turnUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: "turn_failed",
+        chatMentionId: MENTION_ID,
+        status: "FAILED",
+      },
+      data: { chatMentionId: null },
+    });
+    expect(dispatchChatRoomMention).toHaveBeenCalledWith(MENTION_ID);
+  });
+
+  it.each([
+    ["completed", { status: "COMPLETED", deliveries: [] }],
+    ["still delivering", { status: "FAILED", deliveries: [{ id: "d1" }] }],
+    ["still running", { status: "RUNNING", deliveries: [] }],
+  ])("keeps a turn that is %s on the mention", async (_label, turn) => {
+    turnFindUniqueMock.mockResolvedValue({ id: "turn_1", ...turn });
+
+    const response = await retryMention();
+
+    expect(response.status).toBe(200);
+    expect(turnUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("resets a failed mention to pending, publishes status, and redispatches", async () => {

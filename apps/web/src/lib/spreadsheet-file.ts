@@ -28,6 +28,8 @@ export interface Spreadsheet {
   rows: SpreadsheetCell[][];
   /** Rows or columns past the caps were left out. */
   truncated: boolean;
+  /** Pictures on the sheet as data URLs, such as the charts Google Sheets exports. */
+  images: string[];
 }
 
 const XLSX_TYPE =
@@ -68,6 +70,7 @@ function capped(name: string, rows: SpreadsheetCell[][]): Spreadsheet {
     name,
     rows: rows.slice(0, MAX_ROWS).map((row) => row.slice(0, MAX_COLUMNS)),
     truncated: wide || rows.length > MAX_ROWS,
+    images: [],
   };
 }
 
@@ -137,20 +140,66 @@ async function readXlsx(bytes: ArrayBuffer): Promise<Spreadsheet[]> {
     )?.value;
     const target = targets.get(id ?? "");
     if (!target) continue;
-    const path = target.startsWith("/")
-      ? target.slice(1)
-      : `xl/${target.replace(/^\.\//, "")}`;
+    const path = resolvePart("xl/workbook.xml", target);
     const doc = await part(zip, path);
     if (!doc) continue;
-    out.push(
-      readSheet(sheet.getAttribute("name") ?? "", doc, {
+    out.push({
+      ...readSheet(sheet.getAttribute("name") ?? "", doc, {
         strings,
         styles,
         date1904,
       }),
-    );
+      images: await sheetImages(zip, path),
+    });
   }
   return out;
+}
+
+/** A relationship target, relative to the part that names it, as a zip path. */
+function resolvePart(from: string, target: string): string {
+  if (target.startsWith("/")) return target.slice(1);
+  const parts = from.split("/").slice(0, -1);
+  for (const segment of target.split("/")) {
+    if (segment === "..") parts.pop();
+    else if (segment && segment !== ".") parts.push(segment);
+  }
+  return parts.join("/");
+}
+
+/** The parts `path` points at with relationships of `type`. */
+async function related(
+  zip: JSZip,
+  path: string,
+  type: string,
+): Promise<string[]> {
+  const slash = path.lastIndexOf("/");
+  const rels = await part(
+    zip,
+    `${path.slice(0, slash)}/_rels/${path.slice(slash + 1)}.rels`,
+  );
+  return (rels ? elements(rels, "Relationship") : [])
+    .filter((rel) => (rel.getAttribute("Type") ?? "").endsWith(`/${type}`))
+    .map((rel) => resolvePart(path, rel.getAttribute("Target") ?? ""));
+}
+
+const PICTURE_TYPES: Record<string, string> = {
+  png: "image/png",
+  jpeg: "image/jpeg",
+  jpg: "image/jpeg",
+  gif: "image/gif",
+};
+const MAX_IMAGES_PER_SHEET = 10;
+
+async function sheetImages(zip: JSZip, sheetPath: string): Promise<string[]> {
+  const images: string[] = [];
+  for (const drawing of await related(zip, sheetPath, "drawing"))
+    for (const media of await related(zip, drawing, "image")) {
+      const type = PICTURE_TYPES[media.split(".").pop()?.toLowerCase() ?? ""];
+      const file = zip.file(media);
+      if (!type || !file || images.length >= MAX_IMAGES_PER_SHEET) continue;
+      images.push(`data:${type};base64,${await file.async("base64")}`);
+    }
+  return images;
 }
 
 async function readStyles(zip: JSZip): Promise<CellStyle[]> {
@@ -235,6 +284,7 @@ function readSheet(
     name,
     rows: grid.map((cells) => visible.map((index) => cells[index] ?? EMPTY)),
     truncated,
+    images: [],
   };
 }
 

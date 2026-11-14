@@ -25,6 +25,8 @@ export interface TaskAssigneeView {
  */
 export interface TaskWithCoworker {
   id: string;
+  /** A create request is on the wire: the row has no page and cannot move. */
+  isPending?: boolean;
   /** Short id such as SOK-12; null for tasks without a project. */
   identifier: string | null;
   name: string;

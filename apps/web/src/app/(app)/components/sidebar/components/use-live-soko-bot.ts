@@ -1,6 +1,7 @@
 import { SokoBotStatus } from "@sokosumi/core-client";
 import { useEffect, useState } from "react";
 import { z } from "zod";
+import { publishFailedSokoBotId } from "@/components/chat/personal-assistant-chrome-store";
 
 const ACTIVITY_ENDPOINT = "/api/personal-assistant/activity";
 /**
@@ -30,7 +31,9 @@ type LiveFields = Omit<
  * navigation, so without this the row never changes.
  * Asks only while the tab is visible, and a failed ask keeps what it knows.
  */
-export function useLiveSokoBot<Bot extends LiveFields>(bot: Bot): Bot {
+export function useLiveSokoBot<Bot extends LiveFields & { id: string }>(
+  bot: Bot,
+): Bot {
   const [live, setLive] = useState<Partial<LiveFields> | null>(null);
   const [prevBot, setPrevBot] = useState(bot);
 
@@ -79,5 +82,14 @@ export function useLiveSokoBot<Bot extends LiveFields>(bot: Bot): Bot {
     };
   }, []);
 
-  return live ? { ...bot, ...live } : bot;
+  const current = live ? { ...bot, ...live } : bot;
+  // The chat list's Direct with this bot says what this row says: from the
+  // server's status until a poll answers, and kept when a poll fails.
+  const failedId = current.status === SokoBotStatus.ERROR ? current.id : null;
+  useEffect(() => {
+    publishFailedSokoBotId(failedId);
+    return () => publishFailedSokoBotId(null);
+  }, [failedId]);
+
+  return current;
 }

@@ -290,10 +290,9 @@ export function OrganizationChatList({
   const [pendingDeleteRoom, setPendingDeleteRoom] = useState<ChatRoom | null>(
     null,
   );
-  const [respondingInvitation, setRespondingInvitation] = useState<{
-    id: string;
-    action: "accept" | "decline";
-  } | null>(null);
+  const [respondingInvitation, setRespondingInvitation] = useState<
+    string | null
+  >(null);
   const [_isRestoring, startRestoreTransition] = useTransition();
   const [_isDeleting, startDeleteTransition] = useTransition();
   const [_isRespondingInvite, startInviteResponseTransition] = useTransition();
@@ -312,7 +311,6 @@ export function OrganizationChatList({
       toast.success(tActions("restoreSuccess", { name: room.name }));
       upsertRoomToTop(result.value);
       router.push(`/chat/rooms/${result.value.id}`);
-      router.refresh();
     });
   }
 
@@ -332,7 +330,6 @@ export function OrganizationChatList({
       }
       toast.success(tActions("deleteSuccess", { name: room.name }));
       setArchivedRows((current) => current.filter((row) => row.id !== room.id));
-      router.refresh();
     });
   }
 
@@ -340,7 +337,7 @@ export function OrganizationChatList({
     if (respondingInvitation) {
       return;
     }
-    setRespondingInvitation({ id: invitation.id, action: "accept" });
+    setRespondingInvitation(invitation.id);
     startInviteResponseTransition(async () => {
       const result = await acceptChatRoomInvitationAction(invitation.id);
       if (!result.ok) {
@@ -361,7 +358,6 @@ export function OrganizationChatList({
         replaceAllRooms(roomsResult.value.rooms, requestRevision);
       }
       router.push(`/chat/rooms/${invitation.roomId}`);
-      router.refresh();
     });
   }
 
@@ -369,19 +365,25 @@ export function OrganizationChatList({
     if (respondingInvitation) {
       return;
     }
-    setRespondingInvitation({ id: invitation.id, action: "decline" });
+    setRespondingInvitation(invitation.id);
+    const without = (rows: ChatRoomInvitation[]) =>
+      rows.filter((row) => row.id !== invitation.id);
+    const index = pendingRows.indexOf(invitation);
+    // The row leaves at once. A rejected call is a failed decline too.
+    setPendingRows(without);
     startInviteResponseTransition(async () => {
-      const result = await declineChatRoomInvitationAction(invitation.id);
-      setRespondingInvitation(null);
-      if (!result.ok) {
-        toast.error(result.error.message || tExternal("declineError"));
-        return;
-      }
-      toast.success(tExternal("declineSuccess"));
-      setPendingRows((current) =>
-        current.filter((row) => row.id !== invitation.id),
+      const result = await declineChatRoomInvitationAction(invitation.id).catch(
+        () => null,
       );
-      router.refresh();
+      setRespondingInvitation(null);
+      // Without again: a list read during the write can bring the row back.
+      setPendingRows((rows) =>
+        result?.ok
+          ? without(rows)
+          : without(rows).toSpliced(index, 0, invitation),
+      );
+      if (result?.ok) toast.success(tExternal("declineSuccess"));
+      else toast.error(result?.error.message || tExternal("declineError"));
     });
   }
 
@@ -899,12 +901,7 @@ export function OrganizationChatList({
               <SidebarMenu className="gap-0">
                 {pendingRows.map((invitation) => {
                   const anyBusy = respondingInvitation !== null;
-                  const acceptBusy =
-                    respondingInvitation?.id === invitation.id &&
-                    respondingInvitation.action === "accept";
-                  const declineBusy =
-                    respondingInvitation?.id === invitation.id &&
-                    respondingInvitation.action === "decline";
+                  const acceptBusy = respondingInvitation === invitation.id;
                   const invitationLabel = tExternal("pendingAria", {
                     name: invitation.roomName,
                     organization: invitation.organizationName,
@@ -946,7 +943,6 @@ export function OrganizationChatList({
                               variant="outline"
                               className="h-6 px-2 text-xs"
                               disabled={anyBusy}
-                              loading={declineBusy}
                               onClick={() =>
                                 handleDeclineInvitation(invitation)
                               }

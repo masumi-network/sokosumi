@@ -1022,20 +1022,20 @@ export async function listChatRoomThreadListPage(
 ): Promise<ChatRoomThreadListPage> {
   const { cursor, limit } = options;
 
-  const unreadAggregates = cursor
-    ? []
-    : await getChatRoomThreadAggregates(roomId, userId, tx, {
-        unreadOnly: true,
-      });
-
-  const recencyPlus = await getChatRoomThreadAggregates(roomId, userId, tx, {
-    recency: { cursor, limit },
-  });
-  const hasMore = recencyPlus.length > limit;
-  const recencyAggregates = recencyPlus.slice(0, limit);
-
-  const countRows = await tx.$queryRawUnsafe<Array<{ count: number | bigint }>>(
-    `
+  // Three reads of the same replies; none needs another's answer. The one
+  // caller reads through `prisma`. On an interactive transaction these would
+  // have to run one after the other.
+  const [unreadAggregates, recencyPlus, countRows] = await Promise.all([
+    cursor
+      ? []
+      : getChatRoomThreadAggregates(roomId, userId, tx, {
+          unreadOnly: true,
+        }),
+    getChatRoomThreadAggregates(roomId, userId, tx, {
+      recency: { cursor, limit },
+    }),
+    tx.$queryRawUnsafe<Array<{ count: number | bigint }>>(
+      `
     SELECT COUNT(*)::int AS count FROM (
       SELECT parent.id
       FROM "chat_room_message" reply
@@ -1051,8 +1051,11 @@ export async function listChatRoomThreadListPage(
       HAVING COUNT(reply.id) >= 1
     ) threads
     `,
-    roomId,
-  );
+      roomId,
+    ),
+  ]);
+  const hasMore = recencyPlus.length > limit;
+  const recencyAggregates = recencyPlus.slice(0, limit);
 
   const items = await mapThreadAggregates(roomId, userId, tx, [
     ...unreadAggregates,

@@ -19,7 +19,27 @@ const {
     listSocialConnections: vi.fn(),
     listSocialPosts: vi.fn(),
     listSocialQueueSlots: vi.fn(),
+    listWorkspaceSocialPosts: vi.fn(),
   },
+}));
+
+vi.mock("./components/social-all-projects-attention", () => ({
+  SocialAllProjectsAttention: (props: {
+    items: { post: { id: string } }[];
+    hasMore: boolean;
+  }) => (
+    <div
+      data-testid="social-all-attention"
+      data-has-more={String(props.hasMore)}
+      data-posts={props.items.map(({ post }) => post.id).join(",")}
+    />
+  ),
+}));
+
+vi.mock("@/app/projects/components/social-posts/social-load-error", () => ({
+  SocialLoadError: ({ kind }: { kind: string }) => (
+    <div data-testid={`social-load-error-${kind}`} />
+  ),
 }));
 
 vi.mock("./components/social-calendar-preview", () => ({
@@ -149,6 +169,8 @@ vi.mock("@/app/projects/components/project-posting-instructions", () => ({
 vi.mock("./components/social-all-projects-tabs", () => ({
   SocialAllProjectsTabs: (props: {
     actions: React.ReactNode;
+    attention: React.ReactNode;
+    attentionCount?: number | string;
     calendar: React.ReactNode;
     notice?: string;
     projectFailed?: boolean;
@@ -156,9 +178,11 @@ vi.mock("./components/social-all-projects-tabs", () => ({
   }) => (
     <div
       data-testid="social-all-projects-tabs"
+      data-attention-count={String(props.attentionCount ?? "")}
       data-workspace={props.workspaceId}
     >
       {props.actions}
+      {props.attention}
       {props.calendar}
       {props.projectFailed ? (
         <div data-testid="social-project-load-error">project failed</div>
@@ -253,6 +277,10 @@ describe("SocialPage", () => {
     });
     loadWorkspaceCalendarPageMock.mockResolvedValue(CALENDAR);
     sokoBotGetMineMock.mockResolvedValue({ id: "bot-1" });
+    projectServiceMock.listWorkspaceSocialPosts.mockResolvedValue({
+      items: [],
+      hasMore: false,
+    });
   });
 
   it.each([
@@ -389,6 +417,46 @@ describe("SocialPage", () => {
     expect(projectServiceMock.listSocialPosts).not.toHaveBeenCalled();
     const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
     await expect(searchParams).resolves.toMatchObject({ view: "week" });
+  });
+
+  it("lists every project's failed, missed and approval posts under Needs attention", async () => {
+    projectServiceMock.listWorkspaceSocialPosts.mockResolvedValue({
+      items: [
+        { post: { id: "failed" }, projectName: "Launch plan" },
+        { post: { id: "approval" }, projectName: "Autumn menu" },
+      ],
+      hasMore: true,
+    });
+    await visit();
+
+    expect(projectServiceMock.listWorkspaceSocialPosts).toHaveBeenCalledWith([
+      "FAILED",
+      "MISSED",
+      "NEEDS_APPROVAL",
+    ]);
+    const list = screen.getByTestId("social-all-attention");
+    expect(list).toHaveAttribute("data-posts", "failed,approval");
+    expect(list).toHaveAttribute("data-has-more", "true");
+    expect(screen.getByTestId("social-all-projects-tabs")).toHaveAttribute(
+      "data-attention-count",
+      "2+",
+    );
+  });
+
+  it("keeps Social up when every project's Needs attention fails to load", async () => {
+    projectServiceMock.listWorkspaceSocialPosts.mockRejectedValue(
+      new Error("Core down"),
+    );
+    await visit();
+
+    expect(
+      screen.getByTestId("social-load-error-attention"),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
+    expect(screen.getByTestId("social-all-projects-tabs")).toHaveAttribute(
+      "data-attention-count",
+      "",
+    );
   });
 
   it("offers Soko Bot as not set up when the reader has none", async () => {
@@ -633,6 +701,18 @@ describe("SocialPage", () => {
     );
     expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
     expect(projectServiceMock.listSocialPosts).toHaveBeenCalled();
+  });
+
+  it("shows accounts when the posting queue is not open to the user", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialQueueSlots.mockResolvedValue(null);
+
+    await visit({ projectId: "project-1" });
+
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-accounts-failed",
+      "false",
+    );
   });
 
   /**

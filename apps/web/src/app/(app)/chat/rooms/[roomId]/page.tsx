@@ -96,13 +96,7 @@ function progressiveRoomOpen(shell: ChatRoomShellProps) {
 export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
   await connection();
 
-  const [{ roomId }, activeOrganization, session] = await Promise.all([
-    params,
-    userService.getActiveOrganization(),
-    getSession(),
-  ]);
-
-  const currentUserId = session?.user.id ?? "";
+  const { roomId } = await params;
 
   // Core path params are UUIDs — invalid ids 400 before 404. Redirect without
   // calling getRoom / roster / history so Instant composer is not followed by
@@ -111,13 +105,32 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
     redirect(ROOM_UNAVAILABLE_HREF);
   }
 
-  const activeOrganizationId = activeOrganization?.id ?? null;
+  // The room read needs only its id, so it does not wait for the organization.
   // Channel settings gate on the caller's own membership, never on the org
   // roster: that list streams in after the shell paints and soft-fails to [].
-  const [selectedRoom, activeMember] = await Promise.all([
-    chatRoomService.getRoom(roomId),
-    readMyMember(activeOrganizationId),
-  ]);
+  const [session, selectedRoom, [activeOrganization, activeMember]] =
+    await Promise.all([
+      getSession(),
+      chatRoomService.getRoom(roomId),
+      // The membership read needs only the session's organization id, so it
+      // runs next to the organization read instead of after it. A member of
+      // an organization Core no longer shows the caller counts as none.
+      userService
+        .getActiveOrganizationId()
+        .then((organizationId) =>
+          Promise.all([
+            userService.getActiveOrganization(),
+            readMyMember(organizationId),
+          ]),
+        )
+        .then(
+          ([organization, member]) =>
+            [organization, organization ? member : null] as const,
+        ),
+    ]);
+
+  const currentUserId = session?.user.id ?? "";
+  const activeOrganizationId = activeOrganization?.id ?? null;
 
   if (!selectedRoom) {
     redirect(ROOM_UNAVAILABLE_HREF);

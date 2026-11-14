@@ -52,6 +52,8 @@ export default function mount(app: OpenAPIHono) {
         dataRoomViewSchema.parse({
           ...base,
           state: viewer.kind === "closed" ? viewer.reason : "out",
+          // The note is for the people let in, like the files.
+          welcomeNote: null,
           viewer: null,
           rows: [],
         }),
@@ -65,6 +67,7 @@ export default function mount(app: OpenAPIHono) {
       dataRoomViewSchema.parse({
         ...base,
         state: "in",
+        welcomeNote: room.welcomeNote,
         viewer: { email: viewer.member.email, name: viewer.member.name },
         rows: buildDataRoomTree({ files, order, member: viewer.member }).map(
           toDataRoomTreeRowDto,

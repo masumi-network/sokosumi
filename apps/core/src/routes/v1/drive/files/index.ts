@@ -5,6 +5,7 @@ import mountPatch from "./[id]/patch.js";
 import mountContent from "./content.js";
 import mountFinalize from "./finalize.js";
 import mountGet from "./get.js";
+import mountGoogleSheets from "./google-sheets.js";
 import mountMove from "./move.js";
 import mountPost from "./post.js";
 
@@ -12,6 +13,7 @@ const app = createNestedOpenAPIHono();
 
 mountPost(app);
 mountFinalize(app);
+mountGoogleSheets(app);
 mountGet(app);
 mountContent(app);
 mountMove(app);

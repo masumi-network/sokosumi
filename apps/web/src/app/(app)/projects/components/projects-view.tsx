@@ -66,7 +66,7 @@ export interface ProjectsViewLabels {
   cmo: string;
   /**
    * Each card's menu: Pin or Unpin, Hide or Show, and Close. Its writes
-   * refresh the page, so a new Pin re-sorts the Open view.
+   * revalidate the page, so a new Pin re-sorts the Open view.
    */
   actions: Omit<ProjectDetailActionsLabels, "edit">;
   state: ProjectsStateToggleLabels;

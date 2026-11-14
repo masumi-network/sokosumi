@@ -5,6 +5,11 @@ import type {
   ChatCatchUpSummary,
   ChatCatchUpTopic,
 } from "@sokosumi/core-client";
+import {
+  useIsMutating,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { Check, CheckCheck, ChevronDown, Hash, Send } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useNow, useTranslations } from "next-intl";
@@ -17,7 +22,10 @@ import {
 import { setChatSignalLoopAction } from "@/app/chat/signal-actions";
 import { chatRoomHref } from "@/app/chat/utils/chat-route-base";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
-import { DueLabel } from "@/components/chat/signals/catch-up-summary-body";
+import {
+  DueLabel,
+  withoutCatchUpRooms,
+} from "@/components/chat/signals/catch-up-summary-body";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,12 +48,25 @@ function unreadRoomIds(summary: ChatCatchUpSummary): string[] {
   ];
 }
 
-/** Reads each room in full: its messages and its Threads. */
+/** The query that holds the page's summary. */
+export const CATCH_UP_SUMMARY_QUERY_KEY = ["chat-catch-up-summary"];
+
+/** One Mark read at a time: every button that starts one waits on it. */
+const MARK_READ_MUTATION_KEY = ["chat-catch-up-mark-read"];
+
+/**
+ * Reads each room in full: its messages and its Threads. The rooms leave
+ * the page at once; a refused or failed write puts them back and says so.
+ */
 function useMarkRead(onDone: () => void) {
   const t = useTranslations("App.Channels.Signals");
-  const [isMarking, startMarking] = useTransition();
-  const markRead = (roomIds: readonly string[]) =>
-    startMarking(async () => {
+  const queryClient = useQueryClient();
+  const isMarking = useIsMutating({ mutationKey: MARK_READ_MUTATION_KEY }) > 0;
+  const { mutate } = useMutation({
+    mutationKey: MARK_READ_MUTATION_KEY,
+    // Offline, the write must fail now and put the rooms back, not wait.
+    networkMode: "always",
+    mutationFn: async (roomIds: readonly string[]) => {
       const result = await markAllChatUnreadReadAction(
         roomIds.map((roomId) => ({
           roomId,
@@ -53,10 +74,41 @@ function useMarkRead(onDone: () => void) {
           lookThreads: true,
         })),
       );
-      if (!result.ok) toast.error(t("markAllReadError"));
+      if (!result.ok) throw new Error("Mark read was refused");
+    },
+    onMutate: (roomIds) => {
+      const before = queryClient.getQueryData<ChatCatchUpSummary>(
+        CATCH_UP_SUMMARY_QUERY_KEY,
+      );
+      if (before) {
+        // A summary read that is still out would put the rooms back.
+        void queryClient.cancelQueries({
+          queryKey: CATCH_UP_SUMMARY_QUERY_KEY,
+        });
+        queryClient.setQueryData(
+          CATCH_UP_SUMMARY_QUERY_KEY,
+          withoutCatchUpRooms(before, roomIds),
+        );
+      }
+      return before;
+    },
+    onError: (_error, _roomIds, before) => {
+      if (before) {
+        queryClient.setQueryData(CATCH_UP_SUMMARY_QUERY_KEY, before);
+      }
+      toast.error(t("markAllReadError"));
+    },
+    onSettled: () => {
       notifyOrganizationChatRoomsChanged({ collections: ["active"] });
       onDone();
-    });
+    },
+  });
+  const markRead = (roomIds: readonly string[]) => {
+    // Asked of the cache, which knows of a write before `isMarking` does.
+    if (queryClient.isMutating({ mutationKey: MARK_READ_MUTATION_KEY }) === 0) {
+      mutate(roomIds);
+    }
+  };
   return { isMarking, markRead };
 }
 
@@ -150,7 +202,10 @@ export function BriefingHeader({
             </p>
           ) : null}
         </div>
-        {roomIds.length > 0 ? (
+        {/* While this header is on the page, the button stays for its write:
+            focus and the spinner live here. With nothing else written, the
+            page says caught up and the header leaves with it. */}
+        {roomIds.length > 0 || isMarking ? (
           <Button
             className="shrink-0 self-start"
             loading={isMarking}

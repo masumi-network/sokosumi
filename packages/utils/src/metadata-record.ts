@@ -39,13 +39,13 @@ export function parseMetadataRecord(metadata: unknown): MetadataRecord | null {
   }
 }
 
-export function normalizeMetadataRecord(
+function normalizeMetadataRecord(
   metadata: MetadataRecord | null | undefined,
 ): MetadataRecord {
   return metadata ?? {};
 }
 
-export function stringifyMetadataRecord(
+function stringifyMetadataRecord(
   metadata: MetadataRecord,
 ): MetadataRecord | null {
   return Object.keys(metadata).length > 0 ? metadata : null;

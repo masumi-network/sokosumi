@@ -7,7 +7,7 @@ import {
 } from "@sokosumi/core-client";
 import { Mail, Plus } from "lucide-react";
 import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import { useRef, useState, useTransition } from "react";
 import { EmptyState } from "@/components/common/empty-state";
@@ -23,6 +23,7 @@ import { IssueDeleteButton } from "./issue-delete-button";
 import {
   IssueDeliveryOutcome,
   IssueStatusBadge,
+  IssueWhen,
 } from "./issue-delivery-status";
 import { NewIssueDialog } from "./new-issue-dialog";
 import { issueSearchParams } from "./search-params";
@@ -42,7 +43,6 @@ export function Issues({
   readOnly?: boolean;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
-  const format = useFormatter();
   const [dialogOpen, setDialogOpen] = useState(false);
   const newButton = useRef<HTMLButtonElement>(null);
   const [pending, startTransition] = useTransition();
@@ -120,29 +120,7 @@ export function Issues({
                       </Link>
                     </h4>
                     <IssueStatusBadge issue={issue} />
-                    <p className="text-muted-foreground text-sm wrap-anywhere">
-                      {issue.sentAt
-                        ? t("sentAt", {
-                            date: format.dateTime(issue.sentAt, "dateTime"),
-                          })
-                        : issue.scheduledAt
-                          ? t("Lifecycle.scheduled", {
-                              date: format.dateTime(
-                                issue.scheduledAt,
-                                "dateTime",
-                                {
-                                  timeZone: issue.timezone ?? "UTC",
-                                },
-                              ),
-                              timezone: issue.timezone ?? "UTC",
-                            })
-                          : t("updated", {
-                              date: format.dateTime(
-                                issue.updatedAt,
-                                "dateTime",
-                              ),
-                            })}
-                    </p>
+                    <IssueWhen issue={issue} />
                   </div>
                   {readOnly ? null : (
                     <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">

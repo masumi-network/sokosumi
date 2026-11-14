@@ -418,6 +418,16 @@ function Row({
   );
 }
 
+/**
+ * The phone's main mode switch keeps its 28px pill but takes a 44px tap target
+ * below `md`: a transparent `::after` centred like `hit-area`, which stops at
+ * 40px. The composer toolbar scrolls sideways, so it clips anything outside
+ * its rows; the group's `py-2` makes its row tall enough to hold the target.
+ * Desktop is untouched.
+ */
+const MODE_TAP_TARGET_CLASS =
+  "relative max-md:after:absolute max-md:after:inset-[min(0px,calc((100%_-_var(--spacing)*11)_/_2))]";
+
 /** Image or Video: which composer is docked. */
 export function StudioModeSwitch({
   labels,
@@ -431,7 +441,7 @@ export function StudioModeSwitch({
   return (
     <div
       aria-label={labels.studioMode}
-      className="flex shrink-0 items-center gap-1"
+      className="flex shrink-0 items-center gap-1 max-md:py-2"
       role="radiogroup"
     >
       {(
@@ -442,7 +452,7 @@ export function StudioModeSwitch({
       ).map(([value, label]) => (
         <button
           aria-checked={mode === value}
-          className={chipClass(mode === value)}
+          className={cn(chipClass(mode === value), MODE_TAP_TARGET_CLASS)}
           key={value}
           onClick={() => onModeChange(value)}
           role="radio"

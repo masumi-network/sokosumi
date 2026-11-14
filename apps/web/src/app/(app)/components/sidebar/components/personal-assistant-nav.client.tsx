@@ -197,8 +197,9 @@ function LiveSokoBotRow({ bot: rendered }: { bot: SidebarSokoBotLive }) {
 /**
  * What the bot is doing, in the tone the Soko Bot status badge paints it.
  * The words are the sidebar's where a row says more than the badge's one
- * word ("Working now", "Needs attention", when an idle bot was last active),
- * and the badge's own where they agree ("Paused").
+ * word ("Working now", when an idle bot was last active), and the badge's
+ * own where they agree ("Paused", "Couldn't reply"): a failed reply reads the
+ * same here, on the bot's page and on its Direct in the chat list.
  */
 function StatusLine({ bot }: { bot: SidebarSokoBotLive }) {
   const t = useTranslations("App.Sidebar.Content.SokoBot");
@@ -206,7 +207,7 @@ function StatusLine({ bot }: { bot: SidebarSokoBotLive }) {
   const text: Record<SokoBotStatus, ReactNode> = {
     [SokoBotStatus.RUNNING]: t("workingNow"),
     [SokoBotStatus.PAUSED]: tStatus(SokoBotStatus.PAUSED),
-    [SokoBotStatus.ERROR]: t("needsAttention"),
+    [SokoBotStatus.ERROR]: tStatus(SokoBotStatus.ERROR),
     [SokoBotStatus.IDLE]: bot.lastActivityAt ? (
       <LastActive at={bot.lastActivityAt} />
     ) : (

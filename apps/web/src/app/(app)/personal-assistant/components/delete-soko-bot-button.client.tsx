@@ -47,7 +47,6 @@ export function DeleteSokoBotButton({ botName }: { botName: string | null }) {
       setOpen(false);
       toast.success(t("deleted"));
       if (botId) router.push(SOKO_BOTS_ROUTE);
-      else router.refresh();
     });
   }
 

@@ -46,22 +46,24 @@ export default async function ProjectDetailPage({
     projectService.listRecentActivity(WORKSPACE_COLUMN_ROWS, project.id),
   );
 
-  const [closeStatus, stats, t, formatter] = await Promise.all([
-    project.closingAt || project.closedAt
-      ? projectService.getProjectCloseStatus(project.id)
-      : Promise.resolve(null),
-    // Without counts the strip is left out rather than showing zeros.
-    projectService
-      .getProjectsStats([project.id])
-      .then(([entry]) => entry ?? null)
-      .catch((error: unknown) => {
-        console.warn("Project Overview task counts failed", { error });
-        return null;
-      }),
-    getTranslations("App.Projects.Detail"),
-    getFormatter(),
-  ]);
-  const workspaceLabels = await getProjectWorkspaceLabels();
+  const [closeStatus, stats, t, formatter, workspaceLabels] = await Promise.all(
+    [
+      project.closingAt || project.closedAt
+        ? projectService.getProjectCloseStatus(project.id)
+        : Promise.resolve(null),
+      // Without counts the strip is left out rather than showing zeros.
+      projectService
+        .getProjectsStats([project.id])
+        .then(([entry]) => entry ?? null)
+        .catch((error: unknown) => {
+          console.warn("Project Overview task counts failed", { error });
+          return null;
+        }),
+      getTranslations("App.Projects.Detail"),
+      getFormatter(),
+      getProjectWorkspaceLabels(),
+    ],
+  );
 
   return (
     <ProjectWorkspaceShell

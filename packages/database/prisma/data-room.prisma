@@ -35,6 +35,8 @@ model DataRoom {
 
   /// Shown to viewers; the folder's name when null.
   title              String?
+  /// The note on the room's Welcome page; no note when null.
+  welcomeNote        String?
   /// A Drive file id of an image in the room's Drive, shown beside the title.
   logoFileId         String?   @db.Uuid
   /// Anyone whose address is at one of these domains may let themselves in.

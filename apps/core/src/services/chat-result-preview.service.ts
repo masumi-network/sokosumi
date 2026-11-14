@@ -736,7 +736,8 @@ export async function resolveChatResultReference(
           : null,
         status: schedule.enabled ? "ACTIVE" : "PAUSED",
         summary: schedule.prompt.slice(0, 4000),
-        sourceHref: "/personal-assistant",
+        // The bot's page scrolls to this schedule and highlights it.
+        sourceHref: `/personal-assistant?schedule=${encodeURIComponent(schedule.id)}`,
         scheduledAt: schedule.nextRunAt,
         timezone: schedule.timezone,
         recurrence: schedule.runOnce ? null : schedule.cronExpression,
@@ -1016,6 +1017,10 @@ export async function hydrateChatResultSnapshots(
                 details: current.data.details,
                 outputs: current.data.outputs,
               }
+            : {}),
+          // Cards recorded before follow-ups linked to their row open it too.
+          ...(snapshot.data.kind === "bot_schedule"
+            ? { sourceHref: current.data.sourceHref }
             : {}),
           // A report the owner reverted says so on its card.
           ...(snapshot.data.kind === "cmo_report"

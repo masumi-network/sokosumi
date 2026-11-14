@@ -43,10 +43,36 @@ const GENERATION_WINDOW_MS = 60 * 60 * 1000;
  */
 const IN_FLIGHT_MS = 2 * GENERATION_TIMEOUT_MS;
 
+/**
+ * The Masumi Family palette (brand guide, "Color"), plus the two neutrals a
+ * character needs. Avatars use nothing else, so a bot looks like the product
+ * it lives in. `family` groups colours too close to tell apart: a character
+ * never sits on a background of its own family.
+ */
+const PALETTE = {
+  crimsonPurple: { name: "crimson purple", hex: "#460A23", family: "dark" },
+  irisFlower: { name: "iris flower pink", hex: "#FF51FF", family: "pink" },
+  electricPink: { name: "electric pink", hex: "#FA008C", family: "pink" },
+  vividSakura: { name: "vivid sakura pink", hex: "#FF6ED2", family: "pink" },
+  peachBlossom: { name: "peach blossom pink", hex: "#FFC8F0", family: "pink" },
+  sand: { name: "sand", hex: "#D7BE8C", family: "sand" },
+  persimmon: { name: "persimmon orange", hex: "#FF6400", family: "warm" },
+  scarlet: { name: "scarlet red", hex: "#FA140A", family: "warm" },
+  goldenYellow: { name: "golden yellow", hex: "#FFD300", family: "yellow" },
+  white: { name: "white", hex: "#FFFFFF", family: "light" },
+  ink: { name: "ink black", hex: "#0C0C0C", family: "dark" },
+} as const;
+
+type PaletteColor = (typeof PALETTE)[keyof typeof PALETTE];
+
 interface AvatarSubject {
   subject: string;
   feature: string;
-  colors: string;
+  /** The colour most of the character is drawn in. */
+  body: PaletteColor;
+  /** The second colour, and what it is used for. */
+  mark: PaletteColor;
+  markFor: string;
 }
 
 /** Subjects a personal project manager can plausibly be, each with one defining feature. */
@@ -54,118 +80,139 @@ const SUBJECTS: readonly AvatarSubject[] = [
   {
     subject: "owl",
     feature: "two large round tufted ear-bumps",
-    colors:
-      "warm cream (#F4EBDD) body and deep ink (#1E1B2E) for the face mask and eyes",
+    body: PALETTE.peachBlossom,
+    mark: PALETTE.crimsonPurple,
+    markFor: "the face mask and eyes",
   },
   {
     subject: "fox",
     feature: "two large rounded ears",
-    colors:
-      "warm apricot (#F09A5A) body and deep plum ink (#2B1E3A) for the eyes and muzzle patch",
+    body: PALETTE.persimmon,
+    mark: PALETTE.white,
+    markFor: "the muzzle patch and eyes",
   },
   {
     subject: "round helper robot",
     feature: "one broad rounded visor face",
-    colors:
-      "soft porcelain white (#F3F1EC) body and deep navy ink (#1B2140) for the visor and eyes",
+    body: PALETTE.white,
+    mark: PALETTE.ink,
+    markFor: "the visor and eyes",
   },
   {
     subject: "bear cub",
     feature: "two small round ears",
-    colors:
-      "cocoa brown (#8B5E3C) body and pale cream (#F7EFE3) for the muzzle patch and eyes",
+    body: PALETTE.sand,
+    mark: PALETTE.crimsonPurple,
+    markFor: "the muzzle patch and eyes",
   },
   {
     subject: "whale",
     feature: "one broad rounded tail fin",
-    colors:
-      "soft ocean blue (#5B8DEF) body and pale cream (#F4F1EA) for the belly and eyes",
+    body: PALETTE.irisFlower,
+    mark: PALETTE.white,
+    markFor: "the belly and eyes",
   },
   {
     subject: "cat",
     feature: "two rounded ears",
-    colors:
-      "charcoal (#2F2F38) body and warm cream (#F5EDE0) for the muzzle patch and eyes",
+    body: PALETTE.ink,
+    mark: PALETTE.peachBlossom,
+    markFor: "the muzzle patch and eyes",
   },
   {
     subject: "penguin",
     feature: "one small rounded beak",
-    colors:
-      "deep ink (#1F2233) body and soft white (#F6F5F0) for the belly patch and eyes",
+    body: PALETTE.ink,
+    mark: PALETTE.white,
+    markFor: "the belly patch and eyes",
   },
   {
     subject: "sloth",
     feature: "one broad rounded face mask",
-    colors:
-      "warm taupe (#A98F72) body and cream (#F3EAD9) for the face mask and eyes",
+    body: PALETTE.sand,
+    mark: PALETTE.white,
+    markFor: "the face mask and eyes",
   },
   {
     subject: "axolotl",
     feature: "two rounded external gill puffs",
-    colors:
-      "soft pink (#F3A6B8) body and deep berry ink (#4A2138) for the eyes and tiny mouth",
+    body: PALETTE.vividSakura,
+    mark: PALETTE.crimsonPurple,
+    markFor: "the eyes and tiny mouth",
   },
   {
     subject: "frog",
     feature: "two large round eye bumps",
-    colors:
-      "leaf green (#7BB662) body and cream (#F5F1DF) for the belly and eyes",
+    body: PALETTE.goldenYellow,
+    mark: PALETTE.crimsonPurple,
+    markFor: "the eyes and tiny mouth",
   },
   {
     subject: "elephant",
     feature: "two big round ears",
-    colors:
-      "dusty blue-gray (#8D9AB3) body and pale blush (#F5E4E0) for the inner ears and eyes",
+    body: PALETTE.peachBlossom,
+    mark: PALETTE.electricPink,
+    markFor: "the inner ears and eyes",
   },
   {
     subject: "koala",
     feature: "two big fluffy round ears",
-    colors:
-      "soft gray (#B8B5B0) body and deep ink (#26242C) for the nose patch and eyes",
+    body: PALETTE.white,
+    mark: PALETTE.crimsonPurple,
+    markFor: "the nose patch and eyes",
   },
   {
     subject: "duckling",
     feature: "one small rounded bill",
-    colors:
-      "sunny yellow (#F2C94C) body and warm orange (#E07A2F) for the bill and eyes",
+    body: PALETTE.goldenYellow,
+    mark: PALETTE.persimmon,
+    markFor: "the bill and eyes",
   },
   {
     subject: "hedgehog",
     feature: "one rounded quill cap",
-    colors: "chestnut (#8F5B3C) quill cap and cream (#F6EBDA) face",
+    body: PALETTE.crimsonPurple,
+    mark: PALETTE.peachBlossom,
+    markFor: "the face",
   },
   {
     subject: "rabbit",
     feature: "two tall rounded ears",
-    colors:
-      "soft white (#F5F2EC) body and dusty rose (#C98A8A) for the inner ears and eyes",
+    body: PALETTE.white,
+    mark: PALETTE.vividSakura,
+    markFor: "the inner ears and eyes",
   },
   {
     subject: "otter",
     feature: "one small rounded muzzle patch",
-    colors:
-      "warm brown (#7C5A3E) body and cream (#F4E9D6) for the muzzle patch and eyes",
+    body: PALETTE.sand,
+    mark: PALETTE.white,
+    markFor: "the muzzle patch and eyes",
   },
 ] as const;
 
-interface AvatarBackground {
-  name: string;
-  hex: string;
-}
+type AvatarBackground = PaletteColor;
 
-/** Muted, clearly chromatic backgrounds; the brand wisteria is one of them, not the default for all. */
+/** Every palette colour is a background; the neutrals are not. */
 const BACKGROUNDS: readonly AvatarBackground[] = [
-  { name: "gently muted lavender purple", hex: "#7A5AD6" },
-  { name: "gently muted sage green", hex: "#8FB59C" },
-  { name: "gently muted slate blue", hex: "#6B7FB3" },
-  { name: "gently muted peach", hex: "#E8B79A" },
-  { name: "gently muted teal", hex: "#5FA8A3" },
-  { name: "gently muted mustard", hex: "#D9B24C" },
-  { name: "gently muted dusty rose", hex: "#D98C9E" },
-  { name: "gently muted mint", hex: "#9CCFB8" },
-  { name: "gently muted terracotta", hex: "#D27D5B" },
-  { name: "gently muted periwinkle", hex: "#8C93D9" },
+  PALETTE.irisFlower,
+  PALETTE.goldenYellow,
+  PALETTE.crimsonPurple,
+  PALETTE.peachBlossom,
+  PALETTE.persimmon,
+  PALETTE.vividSakura,
+  PALETTE.sand,
+  PALETTE.electricPink,
+  PALETTE.scarlet,
 ] as const;
+
+/** A character on a background of its own colour family cannot be read. */
+function readableOn(subject: AvatarSubject, background: AvatarBackground) {
+  return (
+    subject.body.family !== background.family &&
+    subject.mark.hex !== background.hex
+  );
+}
 
 /** One avatar to draw: what it shows, and the corner it emerges from. */
 interface AvatarDraw {
@@ -179,10 +226,10 @@ function buildAvatarPrompt(input: AvatarDraw): string {
   const side = input.corner === "lower-left" ? "left" : "right";
   return [
     "Create one complete full-bleed 1:1 square image.",
-    `Background: fill the entire square with solid ${input.background.name} (like ${input.background.hex} with slightly lowered saturation). Keep that color visible in every open area and in the corners not occupied by the character; the ${input.corner} corner must be occupied by the character.`,
+    `Background: fill the entire square with solid ${input.background.name}, exactly ${input.background.hex}. Keep that color visible in every open area and in the corners not occupied by the character; the ${input.corner} corner must be occupied by the character.`,
     `Subject: place one extremely simplified, cute, endearing ${input.subject.subject} character on the background, reduced to one soft rounded continuous silhouette and one defining feature: ${input.subject.feature}.`,
     "Complexity: use only 4–7 large basic shapes and at most two broad internal color regions. Use two simple eyes and add one tiny mouth only when it helps the expression. Remove every nonessential line, outline, anatomical detail, texture, and decoration. Keep the character readable at 32 × 32.",
-    `Color behavior: use exactly three semantic colors in the complete image: exactly two character base colors plus the background color. Character colors: ${input.subject.colors}. Reuse those two colors for facial marks. Keep the character, facial marks, and background clearly separated.`,
+    `Color behavior: use exactly three semantic colors in the complete image: exactly two character base colors plus the background color. Character colors: ${input.subject.body.name} (${input.subject.body.hex}) for the body and ${input.subject.mark.name} (${input.subject.mark.hex}) for ${input.subject.markFor}. Use these exact colors and no other hue. Reuse those two colors for facial marks. Keep the character, facial marks, and background clearly separated.`,
     `Composition: keep the character upright and emerging from the ${input.corner} corner, filling about 85–95% of the square so it remains visually dominant. Cropping at the bottom or ${side} side is welcome when it strengthens the corner emergence. Preserve both paired identifying features. Never center or bottom-center the character.`,
     "Style: make simplification, cuteness, and lovable baby-like appeal the strongest qualities. Use large soft forms, compact proportions, thick rounded contours, and an ultra-clean graphic treatment. Prefer one clear shape over several explanatory details. Add an extremely, extremely subtle, almost imperceptible sense of depth through a barely-there neo-skeuomorphic treatment.",
     "Finish: show only the character on the full-canvas background, with clean surfaces and normal square outer corners.",
@@ -194,6 +241,7 @@ function buildAvatarPrompt(input: AvatarDraw): string {
 async function nextAvatarDraws(
   count: number,
   client: Prisma.TransactionClient | typeof prisma = prisma,
+  subjects: readonly AvatarSubject[] = SUBJECTS,
 ): Promise<AvatarDraw[]> {
   const existing = await client.sokoBotAvatar.findMany({
     select: { subject: true, background: true, seed: true },
@@ -205,11 +253,11 @@ async function nextAvatarDraws(
   // Walk subject × background diagonally so consecutive draws differ in both,
   // then bump the seed once the grid is exhausted.
   for (let seed = 1; draws.length < count && seed < 1_000; seed += 1) {
-    for (let i = 0; i < SUBJECTS.length && draws.length < count; i += 1) {
-      const subject = SUBJECTS[i]!;
+    for (let i = 0; i < subjects.length && draws.length < count; i += 1) {
+      const subject = subjects[i]!;
       const background = BACKGROUNDS[(i + seed) % BACKGROUNDS.length]!;
       const key = `${subject.subject}|${background.name}|${seed}`;
-      if (used.has(key)) continue;
+      if (used.has(key) || !readableOn(subject, background)) continue;
       used.add(key);
       draws.push({
         subject,
@@ -543,6 +591,9 @@ function avatarGenerationCapped() {
 function unclaimedAvatarFilter(excludeIds?: string[]) {
   return {
     claimedBySokoBotId: null,
+    // Avatars drawn before the brand palette stay with the bots that claimed
+    // them and are no longer offered.
+    background: { in: BACKGROUNDS.map((background) => background.name) },
     // A reserved row has no image yet. Counting it as available would let the
     // pool look full while every slot in it is still in flight.
     reservedAt: null,
@@ -732,4 +783,81 @@ export async function claimAvatar(
         run,
         "Another avatar change is running. Try again.",
       );
+}
+
+/** Claimed avatars drawn before the brand palette. */
+const BEFORE_PALETTE = {
+  claimedBySokoBotId: { not: null },
+  reservedAt: null,
+  background: { notIn: BACKGROUNDS.map((background) => background.name) },
+};
+
+/** Hold one palette draw of a bot's own character, charged to no user. */
+async function reserveRestyle(subjectName: string): Promise<AvatarReservation> {
+  const subject = SUBJECTS.find((one) => one.subject === subjectName);
+  return await serializableTransaction(async (tx) => {
+    const [draw] = await nextAvatarDraws(1, tx, subject ? [subject] : SUBJECTS);
+    if (!draw) throw new Error(`No palette draw left for ${subjectName}`);
+    const row = await tx.sokoBotAvatar.create({
+      data: {
+        subject: draw.subject.subject,
+        background: draw.background.name,
+        seed: draw.seed,
+        model: AVATAR_MODEL,
+        imageUrl: "",
+        reservedAt: new Date(),
+      },
+      select: { id: true },
+    });
+    return { id: row.id, draw };
+  }, "Another avatar top-up is running. Try again.");
+}
+
+/**
+ * Redraw avatars from before the brand palette: each bot keeps its character
+ * and gets it on a palette background. One call redraws at most `limit`; the
+ * caller repeats until `remaining` is zero. A bot whose draw fails keeps its
+ * old avatar and is picked up by the next call.
+ */
+export async function restyleAvatars(
+  limit: number,
+): Promise<{ restyled: number; remaining: number }> {
+  let restyled = 0;
+  if (canDraw()) {
+    const old = await prisma.sokoBotAvatar.findMany({
+      where: BEFORE_PALETTE,
+      take: limit,
+      select: { subject: true, claimedBySokoBotId: true },
+    });
+    // One at a time: two draws of the same character would otherwise pick the
+    // same free combination and one would lose on the unique index.
+    const held: Array<{ sokoBotId: string; reservation: AvatarReservation }> =
+      [];
+    for (const row of old) {
+      if (!row.claimedBySokoBotId) continue;
+      held.push({
+        sokoBotId: row.claimedBySokoBotId,
+        reservation: await reserveRestyle(row.subject),
+      });
+    }
+    const results = await Promise.allSettled(
+      held.map(async ({ sokoBotId, reservation }) => {
+        await fillReservation(reservation);
+        await claimAvatar(sokoBotId, reservation.id);
+      }),
+    );
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        restyled += 1;
+        continue;
+      }
+      console.warn("Soko Bot avatar restyle failed", {
+        error: errorText(result.reason),
+      });
+    }
+  }
+  return {
+    restyled,
+    remaining: await prisma.sokoBotAvatar.count({ where: BEFORE_PALETTE }),
+  };
 }

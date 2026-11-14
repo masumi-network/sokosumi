@@ -20,7 +20,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
-  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -39,6 +38,11 @@ import {
 } from "@/app/tasks/types/task-board";
 import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import { mergeTasksOnServerRefresh } from "@/app/tasks/utils/merge-tasks-on-server-refresh";
+import { buildPendingTask } from "@/app/tasks/utils/pending-created-task";
+import {
+  appendUniqueTasks,
+  buildInitialColumnCursorById,
+} from "@/app/tasks/utils/task-pages";
 import {
   buildTasksFiltersSearchParams,
   clearTasksFilters,
@@ -87,6 +91,7 @@ import {
 import { TasksMobileCreateFabSlot } from "./tasks-mobile-create-fab-slot";
 import { focusToolbarControl } from "./tasks-view-filters";
 import { TasksViewToolbarActions } from "./tasks-view-toolbar-actions";
+import { usePendingCreatedTasks } from "./use-pending-created-tasks";
 
 interface PendingBoardReopen {
   taskId: string;
@@ -297,6 +302,14 @@ export function TasksView({
   const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
   const itemsRef = useRef(items);
   itemsRef.current = items;
+  // Drag, merge and paging keep reading `items`: a pending row is display only.
+  const shownItems = usePendingCreatedTasks(
+    items,
+    useCallback(
+      (input) => buildPendingTask(input, { coworkerOptions, projectOptions }),
+      [coworkerOptions, projectOptions],
+    ),
+  );
   const columnCursorByIdRef = useRef(columnCursorById);
   columnCursorByIdRef.current = columnCursorById;
   // Every setListCursor / setIsLoadingListMore call writes these refs directly.
@@ -383,7 +396,9 @@ export function TasksView({
     tasks,
   ]);
 
-  useEffect(() => {
+  // Before paint: the commit that brings new rows also drops a pending row,
+  // and the board must not show a frame without either.
+  useLayoutEffect(() => {
     const isListView = defaultViewMode === "list";
     const serverTasks = tasks.filter((task) => !isTaskArchived(task.id));
     const next = mergeTasksOnServerRefresh({
@@ -811,7 +826,7 @@ export function TasksView({
 
   // Only once the server answered for these filters, so a stale board never says "no match".
   const showFilteredEmpty =
-    items.length === 0 &&
+    shownItems.length === 0 &&
     isTaskPaginationInSync &&
     hasClearableTasksFilters(routeFilters, activeOrganizationId);
 
@@ -888,7 +903,7 @@ export function TasksView({
               >
                 {viewMode === "board" ? (
                   <KanbanBoard
-                    tasks={items}
+                    tasks={shownItems}
                     columns={columns}
                     columnHiddenCountById={columnHiddenById}
                     columnFooterById={columnFooterById}
@@ -904,7 +919,7 @@ export function TasksView({
                   />
                 ) : (
                   <TaskListView
-                    tasks={items}
+                    tasks={shownItems}
                     footer={listFooter}
                     compact={density === "compact"}
                     statusLabels={labels.filters.statusOptions}
@@ -942,7 +957,7 @@ export function TasksView({
               </DndContext>
             ) : viewMode === "board" ? (
               <KanbanBoard
-                tasks={items}
+                tasks={shownItems}
                 columns={columns}
                 columnHiddenCountById={columnHiddenById}
                 columnFooterById={columnFooterById}
@@ -956,7 +971,7 @@ export function TasksView({
               />
             ) : (
               <TaskListView
-                tasks={items}
+                tasks={shownItems}
                 footer={listFooter}
                 compact={density === "compact"}
                 statusLabels={labels.filters.statusOptions}
@@ -1015,27 +1030,5 @@ export function TasksView({
         isPending={isReopenPending}
       />
     </CreateTaskModalProvider>
-  );
-}
-
-function appendUniqueTasks(
-  prevTasks: TaskWithCoworker[],
-  newTasks: TaskWithCoworker[],
-) {
-  const existingIds = new Set(prevTasks.map((task) => task.id));
-  const uniqueNewTasks = newTasks.filter((task) => !existingIds.has(task.id));
-  return [...prevTasks, ...uniqueNewTasks];
-}
-
-function buildInitialColumnCursorById(
-  columns: KanbanColumnDefinition[],
-  initialColumnNextCursorById: Record<KanbanColumnId, string | null>,
-): Record<KanbanColumnId, string | null> {
-  return columns.reduce(
-    (acc, column) => {
-      acc[column.id] = initialColumnNextCursorById[column.id] ?? null;
-      return acc;
-    },
-    {} as Record<KanbanColumnId, string | null>,
   );
 }

@@ -7,12 +7,14 @@ import { CoreApiRequestError } from "@/lib/clients/core.request";
 
 const {
   getSessionResultMock,
+  getRoomMock,
   listRoomsMock,
   listArchivedMock,
   listElsewhereMock,
   listPendingMock,
 } = vi.hoisted(() => ({
   getSessionResultMock: vi.fn(),
+  getRoomMock: vi.fn(),
   listRoomsMock: vi.fn(),
   listArchivedMock: vi.fn(),
   listElsewhereMock: vi.fn(),
@@ -23,6 +25,7 @@ vi.mock("@/lib/auth/auth.server", () => ({
 }));
 vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
+    getRoom: getRoomMock,
     listRooms: listRoomsMock,
     listArchivedRooms: listArchivedMock,
     listElsewhereRooms: listElsewhereMock,
@@ -48,6 +51,37 @@ describe("GET /api/chat/rooms", () => {
     });
     listArchivedMock.mockResolvedValue({ rooms: [], nextCursor: null });
     listPendingMock.mockResolvedValue([]);
+  });
+
+  it("answers the one room a message event named, not the list", async () => {
+    const roomId = "0198c3a2-7b1e-7c44-9d0a-3f5e6a7b8c9d";
+    getRoomMock.mockResolvedValue({ id: roomId });
+    const result = await GET(
+      new NextRequest(`https://app.test/api/chat/rooms?roomId=${roomId}`),
+    );
+    expect(result.status).toBe(200);
+    expect(await result.json()).toMatchObject({ data: { id: roomId } });
+    expect(getRoomMock).toHaveBeenCalledExactlyOnceWith(roomId);
+    expect(listRoomsMock).not.toHaveBeenCalled();
+  });
+
+  it("answers null for a room the reader can no longer open", async () => {
+    getRoomMock.mockResolvedValue(null);
+    const result = await GET(
+      new NextRequest(
+        "https://app.test/api/chat/rooms?roomId=0198c3a2-7b1e-7c44-9d0a-3f5e6a7b8c9d",
+      ),
+    );
+    expect(result.status).toBe(200);
+    expect(await result.json()).toMatchObject({ data: null });
+  });
+
+  it("refuses a room id that is not a UUID before asking Core", async () => {
+    const result = await GET(
+      new NextRequest("https://app.test/api/chat/rooms?roomId=..%2Fadmin"),
+    );
+    expect(result.status).toBe(400);
+    expect(getRoomMock).not.toHaveBeenCalled();
   });
 
   it("answers Elsewhere rooms as Core lists them", async () => {
@@ -83,6 +117,112 @@ describe("GET /api/chat/rooms", () => {
       ).toHaveBeenCalledOnce();
     },
   );
+
+  describe("several collections at once", () => {
+    function requestMany(collections: string) {
+      return new NextRequest(
+        `https://app.test/api/chat/rooms?collections=${collections}`,
+      );
+    }
+
+    it("answers each in its own envelope behind one session read", async () => {
+      listPendingMock.mockResolvedValue([{ id: "invite-1" }]);
+      const result = await GET(requestMany("active,invitations"));
+      expect(result.status).toBe(200);
+      expect(getSessionResultMock).toHaveBeenCalledOnce();
+      expect(await result.json()).toMatchObject({
+        data: {
+          active: {
+            data: [{ id: "room-1" }],
+            meta: { pagination: { nextCursor: null } },
+          },
+          invitations: { data: [{ id: "invite-1" }] },
+        },
+      });
+      expect(listArchivedMock).not.toHaveBeenCalled();
+    });
+
+    it("answers null for one failed collection and keeps the others", async () => {
+      listPendingMock.mockRejectedValue(
+        new CoreApiRequestError("boom", { status: 500 }),
+      );
+      const result = await GET(requestMany("active,invitations"));
+      expect(result.status).toBe(200);
+      expect(await result.json()).toMatchObject({
+        data: { active: { data: [{ id: "room-1" }] }, invitations: null },
+      });
+    });
+
+    it("throttles the whole answer when one collection is throttled", async () => {
+      listPendingMock.mockRejectedValue(
+        new CoreApiRequestError("slow down", {
+          status: 429,
+          retryAfterSeconds: 7,
+        }),
+      );
+      const result = await GET(requestMany("active,invitations"));
+      expect(result.status).toBe(429);
+      expect(result.headers.get("retry-after")).toBe("7");
+    });
+
+    it("marks a read that never reached Core and keeps the others", async () => {
+      listPendingMock.mockRejectedValue(new CoreApiRequestError("timeout"));
+      const result = await GET(requestMany("active,invitations"));
+      expect(result.status).toBe(200);
+      expect(await result.json()).toMatchObject({
+        data: {
+          active: { data: [{ id: "room-1" }] },
+          invitations: { stalled: true },
+        },
+      });
+    });
+
+    it("answers null, not a stall, for a part that threw a redirect", async () => {
+      listPendingMock.mockRejectedValue(
+        Object.assign(new Error("NEXT_REDIRECT"), {
+          digest: "NEXT_REDIRECT;replace;/signin;307;",
+        }),
+      );
+      const result = await GET(requestMany("active,invitations"));
+      expect(result.status).toBe(200);
+      expect(await result.json()).toMatchObject({
+        data: { active: { data: [{ id: "room-1" }] }, invitations: null },
+      });
+    });
+
+    it("answers the throttle even when a stall failed first", async () => {
+      listRoomsMock.mockRejectedValue(new CoreApiRequestError("timeout"));
+      listPendingMock.mockImplementation(
+        () =>
+          new Promise((_resolve, reject) =>
+            setTimeout(
+              () =>
+                reject(
+                  new CoreApiRequestError("slow down", {
+                    status: 429,
+                    retryAfterSeconds: 7,
+                  }),
+                ),
+              5,
+            ),
+          ),
+      );
+      const result = await GET(requestMany("active,invitations"));
+      expect(result.status).toBe(429);
+      expect(result.headers.get("retry-after")).toBe("7");
+    });
+
+    it("rejects an unknown collection before fetching", async () => {
+      expect((await GET(requestMany("active,everything"))).status).toBe(400);
+      expect(listRoomsMock).not.toHaveBeenCalled();
+    });
+
+    it("answers 401 for all of them without a session", async () => {
+      getSessionResultMock.mockResolvedValue(ok(null));
+      expect((await GET(requestMany("active,invitations"))).status).toBe(401);
+      expect(listRoomsMock).not.toHaveBeenCalled();
+    });
+  });
 
   it("rejects unknown collections before fetching", async () => {
     expect((await GET(request("everything"))).status).toBe(400);

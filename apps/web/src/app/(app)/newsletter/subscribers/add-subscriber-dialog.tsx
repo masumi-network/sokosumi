@@ -5,7 +5,6 @@ import {
   NewsletterConsent,
   NewsletterSubscriberStatus,
 } from "@sokosumi/core-client";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -48,7 +47,6 @@ export function AddSubscriberDialog({
   onCloseAutoFocus,
 }: AddSubscriberDialogProps) {
   const t = useTranslations("App.Projects.Newsletter.Subscribers");
-  const router = useRouter();
   const form = useForm<NewsletterSubscriberValues>({
     resolver: zodResolver(newsletterSubscriberSchema(t)),
     defaultValues: { email: "", name: "", consentConfirmed: false },
@@ -92,7 +90,6 @@ export function AddSubscriberDialog({
             : "Add.success",
         ),
       );
-      router.refresh();
       onClose();
     } catch {
       form.setError("root", { message: t("Add.error") });

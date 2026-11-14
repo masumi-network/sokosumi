@@ -2257,6 +2257,34 @@ export const AdminSokoBotVersionMigrationRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const RestyleSokoBotAvatarsResultSchema = {
+    type: 'object',
+    properties: {
+        restyled: {
+            type: 'integer'
+        },
+        remaining: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'restyled',
+        'remaining'
+    ]
+} as const;
+
+export const RestyleSokoBotAvatarsRequestSchema = {
+    type: 'object',
+    properties: {
+        limit: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 10,
+            default: 6
+        }
+    }
+} as const;
+
 export const AdminSokoBotChatRoomSchema = {
     type: 'object',
     properties: {
@@ -7347,6 +7375,15 @@ export const TaskSchema = {
             description: 'Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.',
             example: null
         },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When the Task was archived. Null unless it is archived; only archived reads (archived=true) return archived Tasks.'
+        },
         credits: {
             type: 'number',
             example: 5
@@ -7441,6 +7478,7 @@ export const TaskSchema = {
         'runAt',
         'dueOn',
         'scheduleId',
+        'archivedAt',
         'credits',
         'events',
         'jobs',
@@ -16901,6 +16939,16 @@ export const DataRoomSchema = {
                 }
             ]
         },
+        welcomeNote: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         logoFileId: {
             anyOf: [
                 {
@@ -16949,6 +16997,7 @@ export const DataRoomSchema = {
         'storage',
         'token',
         'title',
+        'welcomeNote',
         'logoFileId',
         'allowedDomains',
         'expiresAt',
@@ -17189,9 +17238,6 @@ export const DataRoomTreeRowSchema = {
                     type: 'null'
                 }
             ]
-        },
-        isNew: {
-            type: 'boolean'
         }
     },
     required: [
@@ -17203,8 +17249,7 @@ export const DataRoomTreeRowSchema = {
         'resourceId',
         'sizeBytes',
         'mimeType',
-        'updatedAt',
-        'isNew'
+        'updatedAt'
     ]
 } as const;
 
@@ -17248,6 +17293,17 @@ export const UpdateDataRoomRequestSchema = {
                 {
                     type: 'string',
                     maxLength: 200
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        welcomeNote: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 5000
                 },
                 {
                     type: 'null'
@@ -17807,6 +17863,98 @@ export const CreateDriveFileUploadSessionRequestSchema = {
         'filename',
         'contentType',
         'size',
+        'scope'
+    ]
+} as const;
+
+export const DriveGoogleSheetSchema = {
+    type: 'object',
+    properties: {
+        resourceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The copy\'s file id'
+        },
+        pathname: {
+            type: 'string',
+            example: 'drive/organizations/org_123/Finance/Model.pdf',
+            description: 'The copy\'s Blob pathname'
+        },
+        name: {
+            type: 'string',
+            example: 'Model.pdf'
+        },
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
+            description: 'The sheet in Google Sheets'
+        },
+        syncedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When Sokosumi last read the sheet'
+        },
+        error: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: [
+                        'not_shared',
+                        'too_large',
+                        'failed'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Why the last refresh failed (the copy stays as it was), or null.'
+        }
+    },
+    required: [
+        'resourceId',
+        'pathname',
+        'name',
+        'url',
+        'syncedAt',
+        'error'
+    ]
+} as const;
+
+export const LinkDriveGoogleSheetRequestSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000,
+            example: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit',
+            description: 'The sheet\'s address. Its sharing must be \'Anyone with the link can view\'.'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string',
+            description: 'Organization ID (required when scope=org)'
+        },
+        folder: {
+            type: 'string',
+            maxLength: 1000,
+            example: 'Finance',
+            description: 'Folder to put the copy in; the Drive root when omitted'
+        }
+    },
+    required: [
+        'url',
         'scope'
     ]
 } as const;
@@ -38665,8 +38813,8 @@ export const CreateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 10,
-            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+            maxItems: 20,
+            description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
         },
         threadParts: {
             type: 'array',
@@ -38682,8 +38830,8 @@ export const CreateSocialPostRequestSchema = {
                         items: {
                             $ref: '#/components/schemas/SocialPostMediaRef'
                         },
-                        maxItems: 10,
-                        description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+                        maxItems: 20,
+                        description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
                     }
                 },
                 required: [
@@ -38792,8 +38940,8 @@ export const UpdateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 10,
-            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+            maxItems: 20,
+            description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
         },
         threadParts: {
             type: 'array',
@@ -38809,8 +38957,8 @@ export const UpdateSocialPostRequestSchema = {
                         items: {
                             $ref: '#/components/schemas/SocialPostMediaRef'
                         },
-                        maxItems: 10,
-                        description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+                        maxItems: 20,
+                        description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
                     }
                 },
                 required: [
@@ -41425,6 +41573,16 @@ export const DataRoomViewSchema = {
         title: {
             type: 'string'
         },
+        welcomeNote: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         hasLogo: {
             type: 'boolean'
         },
@@ -41473,6 +41631,7 @@ export const DataRoomViewSchema = {
     required: [
         'state',
         'title',
+        'welcomeNote',
         'hasLogo',
         'allowDownload',
         'watermark',
@@ -46902,6 +47061,32 @@ export const SokoBotStateSchema = {
             items: {
                 $ref: '#/components/schemas/SharedSokoBotSummary'
             }
+        },
+        lastFailure: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                roomId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uuid'
+                },
+                messageId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'roomId',
+                'messageId'
+            ]
         }
     },
     required: [
@@ -49236,6 +49421,15 @@ export const TaskListItemSchema = {
             description: 'Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.',
             example: null
         },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When the Task was archived. Null unless it is archived; only archived reads (archived=true) return archived Tasks.'
+        },
         workspace: {
             $ref: '#/components/schemas/WorkspaceSummary'
         },
@@ -49284,6 +49478,7 @@ export const TaskListItemSchema = {
         'runAt',
         'dueOn',
         'scheduleId',
+        'archivedAt',
         'workspace',
         'jobsCount',
         'commentsCount'
@@ -52566,6 +52761,27 @@ export const WorkspaceCalendarSourceSchema = {
         'logoUrl',
         'paletteToken',
         'isSchedulable'
+    ]
+} as const;
+
+export const WorkspaceSocialPostSchema = {
+    type: 'object',
+    properties: {
+        post: {
+            $ref: '#/components/schemas/SocialPost'
+        },
+        projectName: {
+            type: 'string'
+        },
+        projectCmo: {
+            type: 'boolean',
+            description: 'The post\'s Project is a CMO Project, so its posts are read-only outside CMO (ADR 0066).'
+        }
+    },
+    required: [
+        'post',
+        'projectName',
+        'projectCmo'
     ]
 } as const;
 

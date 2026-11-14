@@ -63,7 +63,14 @@ interface TaskScheduleActionsProps {
    */
   canDeleteUnowned?: boolean;
   onChanged?: () => void;
+  /**
+   * Runs inside the transition of a pause or resume, before the request, so
+   * the owner of `schedule` can show the new state at once.
+   */
+  onStateChanging?: (action: ScheduleToggleAction) => void;
 }
+
+export type ScheduleToggleAction = Exclude<TaskScheduleStateAction, "end">;
 
 const STATE_ACTION_TOAST = {
   pause: "paused",
@@ -84,6 +91,7 @@ export function TaskScheduleActions({
   canCreatePrivate,
   canDeleteUnowned = false,
   onChanged,
+  onStateChanging,
 }: TaskScheduleActionsProps) {
   const t = useTranslations("App.Tasks.Schedules");
   const tActions = useTranslations("App.Tasks.Schedules.Actions");
@@ -101,8 +109,9 @@ export function TaskScheduleActions({
   const canDelete = schedule.ownerId !== null || canDeleteUnowned;
 
   function refreshAfterChange() {
-    if (onChanged) onChanged();
-    else router.refresh();
+    // The schedule actions revalidate, so their response already carries the
+    // page. A parent that keeps extra client state resets it in `onChanged`.
+    onChanged?.();
   }
 
   function reportError(error: TaskScheduleActionError) {
@@ -113,6 +122,8 @@ export function TaskScheduleActions({
 
   function handleStateAction(action: TaskScheduleStateAction) {
     startTransition(async () => {
+      // End is not shown early: its dialog stays open until the answer.
+      if (action !== "end") onStateChanging?.(action);
       const result = await changeTaskScheduleState({
         scheduleId: schedule.id,
         action,

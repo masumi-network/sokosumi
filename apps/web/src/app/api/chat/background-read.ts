@@ -7,13 +7,27 @@ import {
 import { CHAT_READ_THROTTLE_FALLBACK_SECONDS } from "@/lib/chat/chat-read-throttle";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 
-interface BackgroundChatReadPage {
+export interface BackgroundChatReadPage {
   data: unknown;
   /** Present for list reads so the generated transformer shape holds. */
   pagination?: {
     nextCursor: string | null;
     limit: number;
     firstUnreadMessageId?: string | null;
+  };
+}
+
+/** The Core response envelope a background read answers with. */
+export function backgroundChatReadEnvelope(page: BackgroundChatReadPage) {
+  return {
+    data: page.data,
+    meta: {
+      timestamp: new Date(),
+      requestId: crypto.randomUUID(),
+      ...(page.pagination && {
+        pagination: { cursor: null, ...page.pagination },
+      }),
+    },
   };
 }
 
@@ -42,19 +56,9 @@ export async function respondToBackgroundChatRead(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const page = await read();
-    return NextResponse.json(
-      {
-        data: page.data,
-        meta: {
-          timestamp: new Date(),
-          requestId: crypto.randomUUID(),
-          ...(page.pagination && {
-            pagination: { cursor: null, ...page.pagination },
-          }),
-        },
-      },
-      { headers: { "Cache-Control": "no-store" } },
-    );
+    return NextResponse.json(backgroundChatReadEnvelope(page), {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     // Core's server client may throw a sign-in redirect. A background read
     // must return a failed response, never sign-in HTML as successful data.

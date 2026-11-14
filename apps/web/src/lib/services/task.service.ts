@@ -194,6 +194,16 @@ export const taskService = (() => {
     }
   }
 
+  /** An archived Task, read-only; null when there is none to read. */
+  async function getArchivedTask(taskId: string): Promise<Task | null> {
+    try {
+      const result = await coreClient.getTaskById(taskId, { archived: "true" });
+      return result.data;
+    } catch {
+      return null;
+    }
+  }
+
   async function listTaskEvents(
     taskId: string,
     params: { cursor?: string | null; limit?: number } = {},
@@ -209,61 +219,6 @@ export const taskService = (() => {
     return {
       events: result.data,
       pagination: result.meta.pagination,
-    };
-  }
-
-  /**
-   * Load every TaskEvent page (oldest → newest) for Activities.
-   */
-  async function listAllTaskEvents(taskId: string): Promise<{
-    events: TaskEvent[];
-    pagination: TaskEventsPaginationMetadata;
-  }> {
-    const events: TaskEvent[] = [];
-    let cursor: string | undefined;
-    let pagination: TaskEventsPaginationMetadata | null = null;
-
-    for (;;) {
-      const page = await listTaskEvents(taskId, {
-        cursor,
-        limit: 100,
-      });
-      events.push(...page.events);
-      pagination = page.pagination;
-      const next = page.pagination.nextCursor;
-      if (!next || next === cursor) {
-        break;
-      }
-      cursor = next;
-    }
-
-    if (!pagination) {
-      throw new Error("Failed to list task events");
-    }
-
-    return { events, pagination };
-  }
-
-  /**
-   * Initial Activities window: all non-comment events + the newest 5 comments.
-   * Older comments load on expand via `listTaskEventsBefore`.
-   */
-  async function listTaskActivityFeed(taskId: string): Promise<{
-    events: TaskEvent[];
-    pagination: TaskEventsPaginationMetadata;
-  }> {
-    const { events, pagination } = await listAllTaskEvents(taskId);
-    if (pagination.commentCount <= 5) {
-      return { events, pagination };
-    }
-
-    const comments = events.filter((event) => event.comment != null);
-    const keepCommentIds = new Set(comments.slice(-5).map((event) => event.id));
-    return {
-      events: events.filter(
-        (event) => event.comment == null || keepCommentIds.has(event.id),
-      ),
-      pagination,
     };
   }
 
@@ -503,10 +458,9 @@ export const taskService = (() => {
     getWorkspaceCalendarSources,
     listTasks,
     getTaskById,
+    getArchivedTask,
     getTaskWorkspace,
     listTaskEvents,
-    listAllTaskEvents,
-    listTaskActivityFeed,
     listTaskEventsBefore,
     createTask,
     suggestTaskTags,

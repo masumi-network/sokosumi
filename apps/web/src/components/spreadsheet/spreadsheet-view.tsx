@@ -95,8 +95,22 @@ export function SpreadsheetView({ sheets }: { sheets: Spreadsheet[] }) {
         </Tabs>
       ) : null}
 
+      {sheet.images.map((src, index) => (
+        // Not `next/image`: a data URL read from the workbook, not an asset.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          // Pictures have no identity beyond their place on the sheet.
+          key={index}
+          src={src}
+          alt={sheet.name || t("sheet", { number: active + 1 })}
+          className="max-w-full rounded-md border"
+        />
+      ))}
+
       {sheet.rows.length === 0 ? (
-        <p className="text-muted-foreground text-sm">{t("empty")}</p>
+        sheet.images.length === 0 ? (
+          <p className="text-muted-foreground text-sm">{t("empty")}</p>
+        ) : null
       ) : (
         <div className="max-h-[70dvh] overflow-auto rounded-md border">
           <table className="w-max min-w-full border-collapse text-sm">

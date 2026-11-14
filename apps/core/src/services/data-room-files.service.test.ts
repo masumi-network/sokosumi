@@ -65,37 +65,13 @@ describe("buildDataRoomTree", () => {
     const rows = buildDataRoomTree({
       files,
       order: new Map(),
-      member: { folderPaths: ["Legal"], previousVisitAt: null },
+      member: { folderPaths: ["Legal"] },
     });
     expect(rows.map((row) => row.path)).toEqual([
       "Legal",
       "Legal/Articles.pdf",
       "Legal/NDA.pdf",
     ]);
-  });
-
-  it("marks what changed since the previous visit, and the folders holding it", () => {
-    const rows = buildDataRoomTree({
-      files,
-      order: new Map(),
-      member: {
-        folderPaths: [],
-        previousVisitAt: new Date("2026-11-05T00:00:00.000Z"),
-      },
-    });
-    expect(rows.filter((row) => row.isNew).map((row) => row.path)).toEqual([
-      "Legal",
-      "Legal/NDA.pdf",
-    ]);
-  });
-
-  it("marks nothing new on a first visit", () => {
-    const rows = buildDataRoomTree({
-      files,
-      order: new Map(),
-      member: { folderPaths: [], previousVisitAt: null },
-    });
-    expect(rows.some((row) => row.isNew)).toBe(false);
   });
 });
 

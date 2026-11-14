@@ -9,6 +9,7 @@ import type {
 } from "@sokosumi/core-client";
 import type { ContactQuery } from "@/lib/services/contacts.client";
 import { isUuidString } from "@/lib/utils/uuid";
+import { UNACCENT_RULES } from "./unaccent-rules";
 
 /** The smart presets at the top of the rail, as list query params (design.md). */
 export const CONTACT_PRESETS = {
@@ -82,21 +83,74 @@ export function contactQuery(view: ContactView): ContactQuery {
   return query;
 }
 
-/** The rows Core's `search` would keep, judged on the client: name, organization or any channel value. */
+const UNACCENT = new Map(
+  UNACCENT_RULES.split("\n").map((line) => {
+    const [from = "", to = ""] = line.split("\t");
+    return [from, to];
+  }),
+);
+
+/** One character as Core's `lower(unaccent(…))` reads it: "Æ" is "ae". */
+function foldForSearch(char: string): string {
+  return (UNACCENT.get(char) ?? char).toLowerCase();
+}
+
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/**
+ * Where `search` sits in `text`, as Core's location search compares them
+ * (case and accents aside: "zurich" in "Zürich", "aero" in "Ærø"), as
+ * [start, end) offsets into `text` widened to whole characters as seen, or null.
+ */
+export function searchMatchRange(
+  text: string,
+  search: string,
+): [number, number] | null {
+  const needle = Array.from(search.trim(), foldForSearch).join("");
+  if (!needle) return null;
+  let folded = "";
+  // The offset in `text` each folded unit came from.
+  const source: number[] = [];
+  let offset = 0;
+  for (const char of text) {
+    const part = foldForSearch(char);
+    folded += part;
+    for (let unit = 0; unit < part.length; unit++) source.push(offset);
+    offset += char.length;
+  }
+  const at = folded.indexOf(needle);
+  if (at < 0) return null;
+  const first = source[at] ?? 0;
+  const last = source[at + needle.length - 1] ?? first;
+  let start = 0;
+  let end = text.length;
+  // A match inside "Æ" or before a combining accent marks the whole letter.
+  for (const { index, segment } of GRAPHEMES.segment(text)) {
+    if (index <= first) start = index;
+    if (index <= last) end = index + segment.length;
+  }
+  return [start, end];
+}
+
+/** The rows Core's `search` would keep, judged on the client: name, organization, any channel value, or location without accents. */
 export function matchesContactSearch(
   contact: {
     name: string;
     organization: string | null;
+    location: string | null;
     channels: ContactChannel[];
   },
   search: string,
 ): boolean {
   const needle = search.trim().toLowerCase();
-  return [
-    contact.name,
-    contact.organization,
-    ...contact.channels.map((channel) => channel.value),
-  ].some((value) => value?.toLowerCase().includes(needle));
+  return (
+    [
+      contact.name,
+      contact.organization,
+      ...contact.channels.map((channel) => channel.value),
+    ].some((value) => value?.toLowerCase().includes(needle)) ||
+    (!!contact.location && !!searchMatchRange(contact.location, search))
+  );
 }
 
 /**

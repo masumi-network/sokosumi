@@ -196,6 +196,31 @@ export function roomAttentionAfterRead(
   };
 }
 
+/**
+ * What Mark all as read leaves of a room before Core answers. `readRoom`
+ * reads the channel as `roomAttentionAfterRead` does; `lookThreads` Looks
+ * every Thread, so Thread unread and the room's unread Threads go too.
+ */
+export function roomAttentionAfterReads<T extends RoomUnreadSummary>(
+  room: T,
+  reads: { readRoom: boolean; lookThreads: boolean },
+): T {
+  const read = reads.readRoom
+    ? { ...room, ...roomAttentionAfterRead(room) }
+    : room;
+  if (!reads.lookThreads) return read;
+  return {
+    ...read,
+    unreadCount: read.channelUnreadCount ?? 0,
+    threadUnreadCount: 0,
+    // Asked in a Thread or in the channel, either read has now seen it.
+    unreadNeedsYouCount: 0,
+    unreadThreadCount: 0,
+    unreadThreadMentionCount: 0,
+    unreadThreads: [],
+  };
+}
+
 /** What a closed sidebar section holds for the reader, or null for nothing. */
 export type SectionAttention = "mention" | "unread" | null;
 

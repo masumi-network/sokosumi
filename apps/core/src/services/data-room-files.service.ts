@@ -47,8 +47,6 @@ export interface DataRoomTreeRow {
   /** "1", "1.2", "1.2.3": the index a data room is read and cited by. */
   number: string;
   file?: DataRoomFile;
-  /** Changed since the viewer's previous visit. */
-  isNew: boolean;
 }
 
 export function dataRoomPrefix(
@@ -151,7 +149,7 @@ export function buildDataRoomTree(input: {
   files: readonly DataRoomFile[];
   /** The owner's order: position by path; unlisted paths sort after, by name. */
   order: ReadonlyMap<string, number>;
-  member?: Pick<DataRoomMember, "folderPaths" | "previousVisitAt">;
+  member?: Pick<DataRoomMember, "folderPaths">;
 }): DataRoomTreeRow[] {
   const root: TreeNode = { name: "", path: "", children: new Map() };
   for (const file of input.files) {
@@ -173,10 +171,8 @@ export function buildDataRoomTree(input: {
     });
   }
 
-  const since = input.member?.previousVisitAt ?? null;
   const rows: DataRoomTreeRow[] = [];
-  const walk = (node: TreeNode, depth: number, prefix: string): boolean => {
-    let anyNew = false;
+  const walk = (node: TreeNode, depth: number, prefix: string): void => {
     const children = [...node.children.values()].sort((a, b) => {
       const folderFirst = Number(Boolean(a.file)) - Number(Boolean(b.file));
       if (folderFirst !== 0) return folderFirst;
@@ -188,8 +184,6 @@ export function buildDataRoomTree(input: {
     children.forEach((child, index) => {
       const number = prefix ? `${prefix}.${index + 1}` : String(index + 1);
       if (child.file) {
-        const isNew = since !== null && child.file.updatedAt > since;
-        anyNew ||= isNew;
         rows.push({
           kind: "file",
           path: child.path,
@@ -197,23 +191,18 @@ export function buildDataRoomTree(input: {
           depth,
           number,
           file: child.file,
-          isNew,
         });
         return;
       }
-      const row: DataRoomTreeRow = {
+      rows.push({
         kind: "folder",
         path: child.path,
         name: child.name,
         depth,
         number,
-        isNew: false,
-      };
-      rows.push(row);
-      row.isNew = walk(child, depth + 1, number);
-      anyNew ||= row.isNew;
+      });
+      walk(child, depth + 1, number);
     });
-    return anyNew;
   };
   walk(root, 0, "");
   return rows;

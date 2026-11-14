@@ -303,7 +303,7 @@ describe("NewsletterSettingsForm", () => {
       }),
     );
     expect(mocks.success).toHaveBeenCalledWith("Newsletter settings saved");
-    expect(mocks.refresh).toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
     expect(
       screen.queryByRole("heading", { name: "Set up your newsletter" }),
     ).not.toBeInTheDocument();

@@ -2,12 +2,12 @@ import JSZip from "jszip";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  createTaskFilesArchive,
-  MAX_TASK_ARCHIVE_FILES,
+  createFilesArchive,
+  MAX_ARCHIVE_FILES,
   readWithinBudget,
   safeFileName,
   uniqueArchiveName,
-} from "./task-files-archive";
+} from "./files-archive";
 
 function file(name: string) {
   return { name, fileUrl: `https://blob.test/${encodeURIComponent(name)}` };
@@ -32,7 +32,7 @@ function streamedResponse(chunks: number, size: number, init?: ResponseInit) {
   return { response: new Response(body, init), pulls };
 }
 
-describe("task files archive", () => {
+describe("files archive", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -90,7 +90,7 @@ describe("task files archive", () => {
       .mockResolvedValueOnce(new Response("two"));
     vi.stubGlobal("fetch", fetchFile);
 
-    const archive = await createTaskFilesArchive([
+    const archive = await createFilesArchive([
       file("a.txt"),
       file("missing.txt"),
       file("blocked.txt"),
@@ -111,28 +111,58 @@ describe("task files archive", () => {
     expect(await zip.file("a (2).txt")?.async("text")).toBe("two");
   });
 
+  it("keeps each file in its folder, made safe, with names distinct per folder", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.includes("lost")
+          ? new Response("gone", { status: 404 })
+          : new Response("x"),
+      ),
+    );
+
+    const archive = await createFilesArchive([
+      file("logo.png"),
+      { ...file("logo.png"), folder: "Brand" },
+      { ...file("Logo.png"), folder: "Brand" },
+      { ...file("a.txt"), folder: "../Brand/x:y" },
+      { ...file("lost.txt"), folder: "Brand" },
+    ]);
+
+    const zip = await JSZip.loadAsync(archive.data ?? new ArrayBuffer(0));
+    expect(
+      Object.keys(zip.files).filter((path) => !zip.files[path].dir),
+    ).toEqual([
+      "logo.png",
+      "Brand/logo.png",
+      "Brand/Logo (2).png",
+      "folder/Brand/x-y/a.txt",
+    ]);
+    expect(archive.missing).toEqual(["Brand/lost.txt"]);
+  });
+
   it("returns no zip when nothing could be added", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(new Response("", { status: 403 })),
     );
-    const archive = await createTaskFilesArchive([file("a"), file("b")]);
+    const archive = await createFilesArchive([file("a"), file("b")]);
     expect(archive).toEqual({ data: null, included: [], missing: ["a", "b"] });
   });
 
   it("lists files over the count limit as not included", async () => {
     const fetchFile = vi.fn(async () => new Response("x"));
     vi.stubGlobal("fetch", fetchFile);
-    const files = Array.from({ length: MAX_TASK_ARCHIVE_FILES + 2 }, (_, i) =>
+    const files = Array.from({ length: MAX_ARCHIVE_FILES + 2 }, (_, i) =>
       file(`f${i}`),
     );
-    const archive = await createTaskFilesArchive(files);
-    expect(archive.included).toHaveLength(MAX_TASK_ARCHIVE_FILES);
+    const archive = await createFilesArchive(files);
+    expect(archive.included).toHaveLength(MAX_ARCHIVE_FILES);
     expect(archive.missing).toEqual([
-      `f${MAX_TASK_ARCHIVE_FILES}`,
-      `f${MAX_TASK_ARCHIVE_FILES + 1}`,
+      `f${MAX_ARCHIVE_FILES}`,
+      `f${MAX_ARCHIVE_FILES + 1}`,
     ]);
-    expect(fetchFile).toHaveBeenCalledTimes(MAX_TASK_ARCHIVE_FILES);
+    expect(fetchFile).toHaveBeenCalledTimes(MAX_ARCHIVE_FILES);
   });
 
   it("refuses a body declared over budget without reading it", async () => {
@@ -166,7 +196,7 @@ describe("task files archive", () => {
         .mockResolvedValueOnce(second.response)
         .mockResolvedValueOnce(third.response),
     );
-    const archive = await createTaskFilesArchive(
+    const archive = await createFilesArchive(
       [file("small"), file("huge"), file("fits")],
       undefined,
       6,
@@ -187,7 +217,7 @@ describe("task files archive", () => {
       }),
     );
     await expect(
-      createTaskFilesArchive([file("a"), file("b")], controller.signal),
+      createFilesArchive([file("a"), file("b")], controller.signal),
     ).rejects.toThrow("Aborted");
   });
 
@@ -202,7 +232,7 @@ describe("task files archive", () => {
       }),
     );
     await expect(
-      createTaskFilesArchive([file("a")], controller.signal),
+      createFilesArchive([file("a")], controller.signal),
     ).rejects.toThrow();
   });
 
@@ -217,7 +247,7 @@ describe("task files archive", () => {
       return new ArrayBuffer(1);
     });
     await expect(
-      createTaskFilesArchive([file("a")], controller.signal),
+      createFilesArchive([file("a")], controller.signal),
     ).rejects.toThrow();
   });
 });

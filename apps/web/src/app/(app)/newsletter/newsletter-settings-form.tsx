@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Newsletter } from "@sokosumi/core-client";
 import { Mail } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -67,7 +66,6 @@ export function NewsletterSettingsForm({
 }: NewsletterSettingsFormProps) {
   const t = useTranslations("App.Projects.Newsletter");
   const validationT = useTranslations("App.Projects.Newsletter.Validation");
-  const router = useRouter();
   const [publicSlug, setPublicSlug] = useState(newsletter?.publicSlug);
   const form = useForm<NewsletterSettingsValues>({
     resolver: zodResolver(newsletterSettingsSchema(validationT)),
@@ -107,7 +105,6 @@ export function NewsletterSettingsForm({
       setPublicSlug(result.value.publicSlug);
       form.reset(values);
       toast.success(t("success"));
-      router.refresh();
     } catch {
       form.setError("root", { message: t("error") });
     }

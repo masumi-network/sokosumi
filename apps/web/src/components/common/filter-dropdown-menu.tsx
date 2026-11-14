@@ -126,7 +126,6 @@ export function FilterDropdownMenu({
 
   return (
     <>
-      {/* Desktop dropdown - hidden on mobile */}
       <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
         <DropdownMenuTrigger asChild className="hidden sm:flex">
           <Button

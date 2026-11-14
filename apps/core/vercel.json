@@ -54,6 +54,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/sync/drive-google-sheets",
+      "schedule": "*/10 * * * *"
+    },
+    {
       "path": "/sync/agents-summary",
       "schedule": "*/5 * * * *"
     },

@@ -27,6 +27,7 @@ describe("message namespaces", () => {
     "gives public share pages the %s Download all copy and no other App copy",
     (_, messages) => {
       const picked = pickMessages(messages, SHARE_MESSAGE_PATHS);
+      expect(picked.Components).toEqual(messages.Components);
       expect(picked.App).toEqual({
         Tasks: {
           Detail: { downloadAll: messages.App.Tasks.Detail.downloadAll },
@@ -34,8 +35,11 @@ describe("message namespaces", () => {
       });
       expect(Object.keys(messages.App.Tasks.Detail.downloadAll)).toEqual([
         "button",
+      ]);
+      expect(Object.keys(messages.Components.FilesArchive)).toEqual([
         "failed",
         "partial",
+        "empty",
       ]);
     },
   );

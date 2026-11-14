@@ -24,6 +24,9 @@ export interface SokoBotUsageChargeResult {
   chargedCents: bigint;
   expectedCents: bigint;
   shortfall: boolean;
+  /** The wallet the charge drew on: its organization, null for a personal
+   * one. Null too when the turn had nothing to charge. */
+  organizationId: string | null;
 }
 
 function sokoBotTurnUsageIdempotencyKey(turnId: string): string {
@@ -411,7 +414,12 @@ async function chargeSokoBotUsage(
 ): Promise<SokoBotUsageChargeResult> {
   const { expectedCents, idempotencyKey } = input;
   if (expectedCents <= 0n) {
-    return { chargedCents: 0n, expectedCents, shortfall: false };
+    return {
+      chargedCents: 0n,
+      expectedCents,
+      shortfall: false,
+      organizationId: null,
+    };
   }
 
   const existing = await tx.sokoBotUsage.findUnique({
@@ -421,13 +429,14 @@ async function chargeSokoBotUsage(
         idempotencyKey,
       },
     },
-    select: { cents: true },
+    select: { cents: true, organizationId: true },
   });
   if (existing) {
     return {
       chargedCents: existing.cents,
       expectedCents,
       shortfall: existing.cents < expectedCents,
+      organizationId: existing.organizationId,
     };
   }
 
@@ -442,7 +451,7 @@ async function chargeSokoBotUsage(
   );
   const chargedCents = balance < expectedCents ? balance : expectedCents;
   if (chargedCents <= 0n) {
-    return { chargedCents: 0n, expectedCents, shortfall: true };
+    return { chargedCents: 0n, expectedCents, shortfall: true, organizationId };
   }
   const consumptions = await creditBucketRepository.prepareConsumption(
     input.userId,
@@ -475,5 +484,6 @@ async function chargeSokoBotUsage(
     chargedCents,
     expectedCents,
     shortfall: chargedCents < expectedCents,
+    organizationId,
   };
 }

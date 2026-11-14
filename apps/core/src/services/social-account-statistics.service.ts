@@ -201,6 +201,7 @@ function accountFromRecord(record: StatisticsConnection) {
     postCount: record._count.accountPosts,
     sync: socialSyncReadModel({
       status: record.status,
+      provider: record.provider,
       performanceHeadFetchedAt: record.performanceHeadFetchedAt,
       performanceRefreshAttemptedAt: record.performanceRefreshAttemptedAt,
       performanceRefreshRequestedAt: record.performanceRefreshRequestedAt,

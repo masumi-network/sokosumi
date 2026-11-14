@@ -1,6 +1,7 @@
 import { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import { Pin } from "lucide-react";
 import Link from "next/link";
+import { useOptimistic } from "react";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import {
   ProjectDetailActions,
@@ -10,6 +11,7 @@ import {
   type ProjectResourceCountPillLabels,
   ProjectResourceCountPills,
 } from "@/app/projects/components/project-resource-count-pills";
+import type { ProjectMenuChange } from "@/app/projects/components/use-project-menu-actions";
 import {
   PROJECTS_CARD_CLASS,
   PROJECTS_CARD_LAYOUT_CLASS,
@@ -58,7 +60,19 @@ export function ProjectListItem({
   const closedAt = project.closedAt;
   // A Closed card shows no Pin: the Closed view never sorts by one. A Hidden
   // project has none, since hiding unpinned it.
-  const isPinned = !closedAt && project.starredAt != null;
+  const savedIsPinned = !closedAt && project.starredAt != null;
+  // What the card's own menu changed, shown before Core answers. A Hide or a
+  // Show moves the card to the other view, so here it leaves this list. React
+  // drops the change when the write ends: with the revalidated list, or
+  // alone when the write failed.
+  const [{ isPinned, isListed }, showChange] = useOptimistic(
+    { isPinned: savedIsPinned, isListed: true },
+    (shown, change: ProjectMenuChange) =>
+      change === "hide" || change === "show"
+        ? { ...shown, isListed: false }
+        : { ...shown, isPinned: change === "pin" },
+  );
+  if (!isListed) return null;
 
   return (
     // The card holds the link and the menu side by side: the link fills the
@@ -153,6 +167,7 @@ export function ProjectListItem({
           isHidden={hidden}
           isPinned={isPinned}
           readOnly={project.cmo}
+          onChanging={showChange}
           labels={labels.actions}
           triggerClassName={cn(
             "text-muted-foreground hover:text-foreground absolute end-2 top-2 size-8 rounded-full md:size-8",

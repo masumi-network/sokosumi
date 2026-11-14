@@ -42,7 +42,10 @@ vi.mock("@/lib/db/prisma", () => {
       findFirst: findFirstEventMock,
       count: countEventMock,
     },
-    sokoBotTurn: { findUnique: turnFindUniqueMock },
+    sokoBotTurn: {
+      findUnique: turnFindUniqueMock,
+      findUniqueOrThrow: vi.fn().mockResolvedValue({ userMessage: "Hello" }),
+    },
     sokoBotToolCall: {
       upsert: toolCallUpsertMock,
       updateMany: toolCallUpdateManyMock,
@@ -74,8 +77,12 @@ vi.mock("@/services/soko-bot-version.service", () => ({
 vi.mock("@/lib/soko-bot/sandbox/sandbox-runtime", () => ({
   stopTurnSandbox: vi.fn(),
 }));
+vi.mock("@/services/soko-bot-control-plane.service", () => ({
+  sokoBotControlPlane: { reconcileTurn: vi.fn() },
+}));
 
 import {
+  failSandboxTurn,
   grantSandboxUpload,
   proxySandboxModelCall,
   recordSandboxAction,
@@ -964,5 +971,49 @@ describe("sandbox turn service", () => {
       }),
     ).rejects.toThrow("ask the owner in chat");
     expect(executeToolMock).not.toHaveBeenCalled();
+  });
+
+  describe("a runner's failure report", () => {
+    const died = { code: "runner_exited", message: "exit code 1" };
+    const recorded = (...types: string[]) =>
+      findFirstEventMock.mockImplementation(
+        async ({ where }: { where: { type?: string | { in: string[] } } }) => {
+          const asked =
+            typeof where.type === "string"
+              ? [where.type]
+              : (where.type?.in ?? []);
+          return asked.some((type) => types.includes(type))
+            ? { id: "event" }
+            : null;
+        },
+      );
+    const types = () => events().map((event) => event.type);
+
+    it("announces a turn that never started, so the failure settles it", async () => {
+      recorded();
+      await failSandboxTurn(claims, died);
+      expect(types()).toEqual([
+        "session.started",
+        "turn.started",
+        "message.received",
+        "turn.failed",
+        "session.waiting",
+      ]);
+    });
+
+    it("fails a started turn once", async () => {
+      recorded("turn.started");
+      await failSandboxTurn(claims, died);
+      expect(types()).toEqual(["turn.failed", "session.waiting"]);
+    });
+
+    it.each(["turn.completed", "turn.failed"])(
+      "keeps a recorded %s and still closes the turn",
+      async (outcome) => {
+        recorded("turn.started", outcome);
+        await failSandboxTurn(claims, died);
+        expect(types()).toEqual(["session.waiting"]);
+      },
+    );
   });
 });

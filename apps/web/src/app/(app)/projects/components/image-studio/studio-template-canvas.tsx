@@ -2,42 +2,17 @@
 
 import { Pause, Play } from "lucide-react";
 import Image from "next/image";
-import { type PointerEvent, useRef, useState } from "react";
+import { type PointerEvent, useLayoutEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { cn } from "@/lib/utils";
 
+import { STUDIO_EMPTY_ADS } from "./studio-empty-ads";
 import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
+import { buildStudioWall, getStudioWallTransform } from "./studio-wall-layout";
 import type { StudioLabels } from "./types";
 
-const TILES = [
-  [-0.04, 0.05, 4, 12, true],
-  [0.14, 0.13, 0, 10, false],
-  [0.36, 0.06, 3, 13, true],
-  [0.58, 0.12, 4, 17, false],
-  [0.83, 0.1, 2, 16, false],
-  [1.02, 0.16, 1, 10, true],
-  [0.07, 0.45, 1, 14, false],
-  [0.25, 0.42, 2, 11, true],
-  [0.45, 0.47, 0, 9, true],
-  [0.72, 0.38, 1, 10, true],
-  [0.93, 0.48, 3, 13, false],
-  [-0.03, 0.77, 0, 9, true],
-  [0.15, 0.85, 2, 12, true],
-  [0.32, 0.88, 4, 17, false],
-  [0.56, 0.83, 3, 13, false],
-  [0.74, 0.86, 0, 10, true],
-  [0.9, 0.89, 1, 15, false],
-] as const;
-
-const WRAP_MARGIN = 156;
 const DRAG_THRESHOLD = 6;
-
-function wrap(value: number, size: number) {
-  const period = size + WRAP_MARGIN * 2;
-  return ((((value + WRAP_MARGIN) % period) + period) % period) - WRAP_MARGIN;
-}
 
 interface Drag {
   id: number;
@@ -55,30 +30,32 @@ export function StudioTemplateCanvas({
   onApplyTemplate: (template: StudioTemplate) => void;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const tilesRef = useRef<(HTMLDivElement | null)[]>([]);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const columnsRef = useRef<(HTMLDivElement | null)[]>([]);
   const offset = useRef({ x: 0, y: 0 });
-  const size = useRef({ width: 0, height: 0 });
+  const [wall, setWall] = useState(() =>
+    buildStudioWall({ width: 0, height: 0 }),
+  );
+  const wallRef = useRef(wall);
   const drag = useRef<Drag | null>(null);
   const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
 
   function paint() {
-    const { width, height } = size.current;
-    // On phones, crop into the same arrangement to leave space between cards.
-    const sceneWidth = Math.max(width, 660);
-    const sceneHeight = Math.max(height, 540);
-    const sceneLeft = (width - sceneWidth) / 2;
-    const sceneTop = (height - sceneHeight) / 2;
-
-    TILES.forEach(([x, y], index) => {
-      const tile = tilesRef.current[index];
-      if (!tile) return;
-      const left =
-        sceneLeft + wrap(x * sceneWidth + offset.current.x, sceneWidth);
-      const top =
-        sceneTop + wrap(y * sceneHeight + offset.current.y, sceneHeight);
-      tile.style.transform = `translate3d(${left - x * width}px, ${top - y * height}px, 0)`;
+    const current = wallRef.current;
+    const { x, columnY } = getStudioWallTransform(current, offset.current);
+    if (rowRef.current)
+      rowRef.current.style.transform = `translate3d(${x}px, 0, 0)`;
+    columnsRef.current.forEach((column, index) => {
+      if (column)
+        column.style.transform = `translate3d(0, ${columnY[index % current.columns.length]}px, 0)`;
     });
   }
+
+  useLayoutEffect(() => {
+    wallRef.current = wall;
+    paint();
+  }, [wall]);
 
   function pan(x: number, y: number) {
     offset.current.x += x;
@@ -90,8 +67,13 @@ export function StudioTemplateCanvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const resize = () => {
-      size.current = { width: canvas.clientWidth, height: canvas.clientHeight };
-      paint();
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      setWall((current) =>
+        current.width === width && current.height === height
+          ? current
+          : buildStudioWall({ width, height }),
+      );
     };
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
@@ -104,14 +86,37 @@ export function StudioTemplateCanvas({
         event.deltaMode === WheelEvent.DOM_DELTA_LINE
           ? 16
           : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
-            ? size.current.height
+            ? wallRef.current.height
             : 1;
       pan(-event.deltaX * factor, -event.deltaY * factor);
     }
 
+    const motion = window.matchMedia("(prefers-reduced-motion: no-preference)");
+    let frame = 0;
+    let lastTime: number | null = null;
+
+    function drift(time: number) {
+      if (lastTime !== null && !pausedRef.current && !drag.current) {
+        const seconds = Math.min(time - lastTime, 64) / 1000;
+        pan(seconds * 12, seconds * 4);
+      }
+      lastTime = time;
+      frame = requestAnimationFrame(drift);
+    }
+
+    function updateMotion() {
+      cancelAnimationFrame(frame);
+      lastTime = null;
+      if (motion.matches) frame = requestAnimationFrame(drift);
+    }
+
+    updateMotion();
+    motion.addEventListener("change", updateMotion);
     canvas.addEventListener("wheel", handleWheel, { passive: false });
     return () => {
       observer.disconnect();
+      cancelAnimationFrame(frame);
+      motion.removeEventListener("change", updateMotion);
       canvas.removeEventListener("wheel", handleWheel);
     };
   });
@@ -162,9 +167,9 @@ export function StudioTemplateCanvas({
       event.clientX - current.x,
       event.clientY - current.y,
     );
-    const tile = TILES[current.tile];
+    const tile = STUDIO_EMPTY_ADS[current.tile];
     if (distance < DRAG_THRESHOLD && tile)
-      onApplyTemplate(STUDIO_TEMPLATES[tile[2]]);
+      onApplyTemplate(STUDIO_TEMPLATES[tile.templateIndex]);
   }
 
   return (
@@ -182,56 +187,70 @@ export function StudioTemplateCanvas({
         onPointerUp={handlePointerUp}
         ref={canvasRef}
       >
-        {TILES.map(([x, y, templateIndex, width, distant], index) => {
-          const template = STUDIO_TEMPLATES[templateIndex];
-          const aspectRatio = template.aspectRatio.replace(":", " / ");
-          return (
-            <div
-              className="absolute -translate-x-1/2 -translate-y-1/2"
-              data-studio-tile={index}
-              key={`${x}:${y}`}
-              ref={(node) => {
-                tilesRef.current[index] = node;
-              }}
-              style={{
-                left: `${x * 100}%`,
-                top: `${y * 100}%`,
-                width: `clamp(5rem, ${width * 0.95}vw, ${width}rem)`,
-              }}
-            >
+        <div
+          className="absolute top-0 left-0 flex"
+          data-studio-row=""
+          dir="ltr"
+          ref={rowRef}
+          style={{ width: wall.horizontalCopies * wall.periodX }}
+        >
+          {Array.from({ length: wall.horizontalCopies }, (_, copy) =>
+            wall.columns.map((column, columnIndex) => (
               <div
-                className={cn(
-                  "border-border bg-background motion-safe:animate-studio-template-float group-data-interacting/canvas:[animation-play-state:paused] group-data-[paused=true]/canvas:[animation-play-state:paused] relative overflow-hidden rounded-xl border motion-safe:hover:[animation-play-state:paused]",
-                  distant
-                    ? "opacity-55 hover:opacity-100"
-                    : "opacity-90 hover:opacity-100",
-                )}
+                className="relative shrink-0"
+                data-studio-column={columnIndex}
+                key={`${copy}:${columnIndex}`}
+                ref={(node) => {
+                  columnsRef.current[copy * wall.columns.length + columnIndex] =
+                    node;
+                }}
                 style={{
-                  aspectRatio,
-                  animationDelay: `${-index * 1.9}s`,
-                  animationDuration: `${11 + (index % 5) * 2}s`,
+                  width: wall.columnWidth,
+                  marginRight: wall.gap,
                 }}
               >
-                <Image
-                  alt=""
-                  className="pointer-events-none object-cover"
-                  draggable={false}
-                  fill
-                  sizes={`(max-width: 640px) 80px, ${width * 0.95}vw`}
-                  src={`/studio/templates/${template.id}.jpg`}
-                />
+                {Array.from({ length: column.verticalCopies }, (_, repeat) =>
+                  column.cards.map(({ adIndex, y, height }) => {
+                    const { src, templateIndex } = STUDIO_EMPTY_ADS[adIndex];
+                    const template = STUDIO_TEMPLATES[templateIndex];
+                    return (
+                      <div
+                        className="border-border bg-background absolute left-0 w-full overflow-hidden rounded-xl border opacity-80 hover:opacity-100"
+                        data-studio-tile={adIndex}
+                        key={`${repeat}:${adIndex}`}
+                        style={{
+                          top: repeat * column.period + y,
+                          height,
+                          aspectRatio: template.aspectRatio.replace(":", " / "),
+                        }}
+                      >
+                        <Image
+                          alt=""
+                          className="pointer-events-none object-cover"
+                          draggable={false}
+                          fill
+                          sizes={`${wall.columnWidth}px`}
+                          src={src}
+                        />
+                      </div>
+                    );
+                  }),
+                )}
               </div>
-            </div>
-          );
-        })}
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--card-background)_15%,transparent_71%)]" />
+            )),
+          )}
+        </div>
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--card-background)_15%,transparent_71%)] max-sm:bg-[radial-gradient(ellipse_at_center,var(--card-background)_40%,transparent_90%)]" />
       </div>
       <Button
         aria-label={
           paused ? labels.resumeTemplateMotion : labels.pauseTemplateMotion
         }
         className="absolute end-3 bottom-3 z-10 motion-reduce:hidden md:end-5 md:bottom-5"
-        onClick={() => setPaused((value) => !value)}
+        onClick={() => {
+          pausedRef.current = !pausedRef.current;
+          setPaused(pausedRef.current);
+        }}
         size="icon"
         type="button"
         variant="outline"

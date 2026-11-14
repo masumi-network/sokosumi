@@ -189,7 +189,7 @@ describe("AddRoomMembersDialog", () => {
       });
     });
     expect(onOpenChange).toHaveBeenCalledWith(false);
-    expect(refreshMock).toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("asks for a pick instead of sending an empty add", async () => {

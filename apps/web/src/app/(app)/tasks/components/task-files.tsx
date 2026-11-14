@@ -7,16 +7,12 @@ import type {
 } from "@sokosumi/core-client";
 import { DownloadIcon, FileIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { toast } from "sonner";
-import {
-  createTaskFilesArchive,
-  safeFileName,
-  type TaskArchiveFile,
-} from "@/app/tasks/utils/task-files-archive";
+import { useId, useLayoutEffect, useState } from "react";
 import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { TaskFileStatusBadge } from "@/components/tasks/task-file-status-badge";
 import { Button } from "@/components/ui/button";
+import { useFilesArchiveDownload } from "@/hooks/use-files-archive-download";
+import type { ArchiveFile } from "@/lib/files-archive";
 
 export type TaskFileListItem =
   | Pick<TaskFile, "id" | "name" | "fileUrl" | "size" | "mimeType" | "status">
@@ -32,8 +28,6 @@ interface TaskFilesProps {
   downloadAllName?: string;
   className?: string;
 }
-
-const LISTED_MISSING_NAMES = 5;
 
 function hasStatus(file: TaskFileListItem): file is TaskFile {
   return "status" in file;
@@ -142,65 +136,12 @@ function TaskFilesContent({
 
 interface DownloadAllButtonProps {
   name: string;
-  files: TaskArchiveFile[];
+  files: ArchiveFile[];
 }
 
 function DownloadAllButton({ name, files }: DownloadAllButtonProps) {
   const t = useTranslations("App.Tasks.Detail.downloadAll");
-  const [downloading, setDownloading] = useState(false);
-  const downloadAbort = useRef<AbortController | null>(null);
-  // Next keeps a left Task page in Activity: its effects clean up but its
-  // state stays, so a running download is cancelled and the button freed.
-  useEffect(
-    () => () => {
-      downloadAbort.current?.abort();
-      downloadAbort.current = null;
-      setDownloading(false);
-    },
-    [],
-  );
-
-  async function handleDownloadAll() {
-    const controller = new AbortController();
-    downloadAbort.current = controller;
-    setDownloading(true);
-    try {
-      const archive = await createTaskFilesArchive(files, controller.signal);
-      // Cancelled while the zip was being made: no file and no toast.
-      if (controller.signal.aborted) return;
-      if (!archive.data) {
-        toast.error(t("failed"));
-        return;
-      }
-      const url = URL.createObjectURL(
-        new Blob([archive.data], { type: "application/zip" }),
-      );
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${safeFileName(name, "files")}.zip`;
-      link.click();
-      // Allow the browser to begin saving before releasing the blob.
-      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
-      if (archive.missing.length > 0) {
-        toast.warning(
-          t("partial", {
-            included: archive.included.length,
-            total: files.length,
-            names: archive.missing.slice(0, LISTED_MISSING_NAMES).join(", "),
-            more: Math.max(0, archive.missing.length - LISTED_MISSING_NAMES),
-          }),
-          { duration: 15_000 },
-        );
-      }
-    } catch {
-      if (!controller.signal.aborted) toast.error(t("failed"));
-    } finally {
-      if (downloadAbort.current === controller) {
-        downloadAbort.current = null;
-        setDownloading(false);
-      }
-    }
-  }
+  const { downloading, download } = useFilesArchiveDownload();
 
   return (
     <Button
@@ -208,7 +149,7 @@ function DownloadAllButton({ name, files }: DownloadAllButtonProps) {
       variant="outline"
       className="h-7 rounded-full px-3 text-xs font-semibold"
       loading={downloading}
-      onClick={handleDownloadAll}
+      onClick={() => void download(name, () => files)}
     >
       <DownloadIcon className="size-3.5" aria-hidden />
       {t("button")}

@@ -222,7 +222,8 @@ private func realtimeState(
   _ responses: [(Int, String)],
   instanceId: String = "inst_test00000001",
   realtime: (@Sendable () -> any RealtimeConnection)? = nil,
-  presenter: (any ChatNotificationPresenting)? = nil
+  presenter: (any ChatNotificationPresenting)? = nil,
+  now: @escaping () -> Date = Date.init
 ) throws -> (WorkspaceState, AuthState, RealtimeScriptedTransport) { // swiftlint:disable:this large_tuple
   let transport = RealtimeScriptedTransport(responses)
   let client = try Client.core(baseURL: #require(URL(string: "https://core.example/v1")), transport: transport)
@@ -236,6 +237,7 @@ private func realtimeState(
     instanceStore: MemoryRealtimeClientInstanceIdStore(stored: instanceId),
     realtimeConnectionFactory: realtime,
     notificationPresenter: presenter,
+    now: now,
     sleep: recoveryTimersNeverFire
   )
   state.setWindowVisible(true, window: realtimeWindow)
@@ -1476,6 +1478,36 @@ struct WorkspaceRealtimeTests {
     #expect(state.presence.organizationId == nil)
     #expect(state.presence.selfPresence == .online)
     #expect(fake.publishedPresence.count == 3)
+  }
+
+  @Test func presenceAndTypingHonorTheInjectedClock() async throws {
+    let fixed = Date(timeIntervalSince1970: 1_700_000_000)
+    var clock = fixed
+    let fake = FakeRealtimeConnection()
+    let (state, _, _) = try realtimeState([
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: []))
+    ], realtime: { fake }, now: { clock })
+    await state.reload()
+    await waitForRealtimeIdle(state)
+    #expect(fake.publishedPresence.last?.lastActiveAt == fixed)
+
+    clock = fixed.addingTimeInterval(1)
+    state.recordPresenceActivity()
+    state.setWindowVisible(false, window: realtimeWindow)
+    #expect(fake.publishedPresence.last?.lastActiveAt == clock)
+    #expect(fake.publishedPresence.last?.visible == false)
+
+    // Pat's heartbeat expires on the injected clock one second after Kim's arrives. A sweep
+    // that reads the wall clock would drop Kim too: that clock is years past `fixed`.
+    state.watchRoom(roomA)
+    state.applyTyping(roomId: roomA, signal: .init(userId: "pat", state: .started), now: fixed.addingTimeInterval(-12))
+    state.applyTyping(roomId: roomA, signal: .init(userId: "kim", state: .started), now: fixed.addingTimeInterval(-1))
+    #expect(state.typing.typistIds == ["pat", "kim"])
+    for _ in 0 ..< 150 where state.typing.typistIds != ["kim"] {
+      try await Task.sleep(for: .milliseconds(20))
+    }
+    #expect(state.typing.typistIds == ["kim"])
   }
 
   @Test func notificationBannersFollowFocusPermissionAndReads() async throws {

@@ -2,11 +2,7 @@ import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-clie
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import {
-  loadMoreProjects,
-  pinProjectAction,
-  showProjectAction,
-} from "@/app/projects/actions";
+import { loadMoreProjects } from "@/app/projects/actions";
 import { ProjectsView } from "@/app/projects/components/projects-view";
 import {
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
@@ -374,37 +370,5 @@ describe("ProjectsView Hidden view", () => {
       screen.queryByRole("menuitem", { name: "Pin" }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Show" })).toBeInTheDocument();
-  });
-
-  it("refetches the page once a Show lands, so the card leaves the view", async () => {
-    const user = userEvent.setup();
-    vi.mocked(showProjectAction).mockResolvedValue({
-      projectId: "project-1",
-      hiddenAt: null,
-    });
-    refreshMock.mockClear();
-    renderView({ state: "hidden" });
-
-    await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Show" }));
-
-    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
-  });
-});
-
-describe("ProjectsView Pin re-sort", () => {
-  it("refetches the server-ordered page once a Pin lands", async () => {
-    vi.mocked(pinProjectAction).mockResolvedValue(
-      undefined as unknown as Awaited<ReturnType<typeof pinProjectAction>>,
-    );
-    refreshMock.mockClear();
-    const user = userEvent.setup();
-    renderView();
-
-    await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Pin" }));
-
-    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
-    expect(pinProjectAction).toHaveBeenCalledWith({ projectId: "project-1" });
   });
 });

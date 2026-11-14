@@ -291,30 +291,29 @@ async function endOfDay(bot: RhythmBot, dayStart: Date): Promise<RhythmPacket> {
   const events =
     (await calendar(bot, tomorrow, new Date(tomorrow.getTime() + DAY_MS), 5)) ??
     [];
-  const lines: string[] = [];
-  if (done.length > 0) {
-    lines.push("## Done today");
-    lines.push(
-      ...done.map(
-        (task) =>
-          `- "${task.name ?? "Untitled task"}"${task.assignee ? ` · ${task.assignee.name}` : ""}`,
-      ),
-      "",
-    );
-  }
-  if (waiting.length > 0) {
-    lines.push(
-      ownerUserId === null ? "## Waiting on the team" : "## Waiting on you",
-    );
-    lines.push(
-      ...waiting.map(
-        (task) =>
-          `- "${task.name ?? "Untitled task"}" (id ${task.id})${task.assignee ? ` · asked by ${task.assignee.name}` : ""}`,
-      ),
-      "",
-    );
-  }
   const timed = events.filter((event) => !event.allDay);
+  if (done.length + waiting.length + timed.length === 0)
+    return { lines: [], skip: true };
+  // An empty section is stated, never left out: with only "Tomorrow" in the
+  // packet a bot went looking and reported a teammate's Tasks as its owner's.
+  const lines: string[] = [
+    "## Done today",
+    ...(done.length > 0
+      ? done.map(
+          (task) =>
+            `- "${task.name ?? "Untitled task"}"${task.assignee ? ` · ${task.assignee.name}` : ""}`,
+        )
+      : ["- Nothing."]),
+    "",
+    ownerUserId === null ? "## Waiting on the team" : "## Waiting on you",
+    ...(waiting.length > 0
+      ? waiting.map(
+          (task) =>
+            `- "${task.name ?? "Untitled task"}" (id ${task.id})${task.assignee ? ` · asked by ${task.assignee.name}` : ""}`,
+        )
+      : ["- Nothing."]),
+    "",
+  ];
   if (timed.length > 0) {
     lines.push(`## Tomorrow (${bot.ingestTimezone})`);
     lines.push(
@@ -325,7 +324,7 @@ async function endOfDay(bot: RhythmBot, dayStart: Date): Promise<RhythmPacket> {
       "",
     );
   }
-  return { lines, skip: lines.length === 0 };
+  return { lines, skip: false };
 }
 
 /**

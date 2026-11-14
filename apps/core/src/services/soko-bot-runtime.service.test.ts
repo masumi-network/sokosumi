@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import { TaskStatus } from "@sokosumi/database";
+import { marketingStrategyPlanSchema } from "@sokosumi/soko-bot";
 import { socialProviderUnavailableMessage } from "@sokosumi/utils";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -1666,6 +1667,56 @@ describe("SokoBotRuntimeService authorization", () => {
       byName: "Lili, Albina's assistant",
     });
 
+    // A teammate's Task and comment are theirs, not this bot's owner's.
+    taskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: "READY",
+      ownerId: "user_2",
+      owner: { name: "Patrick" },
+      events: [
+        {
+          id: "event-3",
+          status: null,
+          comment: "Implement the proposals, then merge.",
+          createdAt: new Date(0),
+          coworkerId: null,
+          userId: "user_2",
+          sokoBotId: null,
+          sokoBot: null,
+          user: { name: "Patrick" },
+        },
+        {
+          id: "event-4",
+          status: null,
+          comment: "Looks good.",
+          createdAt: new Date(1),
+          coworkerId: null,
+          userId: SCOPE.userId,
+          sokoBotId: null,
+          sokoBot: null,
+          user: { name: "Sandro" },
+        },
+      ],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+    });
+    const teammateRead = await service["readTask"](
+      {
+        turn: { ...SCOPE, id: SCOPE.turnId, actingUserId: SCOPE.userId },
+        askedByKind: "OWNER",
+        reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
+      } as never,
+      "task_1",
+    );
+    expect(teammateRead?.owner).toBe("Patrick, a teammate (not your owner)");
+    expect(teammateRead?.events).toMatchObject([
+      { by: "owner" },
+      { by: "teammate", byName: "Patrick" },
+    ]);
+    expect(teammateRead?.events[0]).not.toHaveProperty("byName");
+
     // A shared assistant has no owner to be named with.
     taskFindFirstMock.mockResolvedValue({
       id: "task_1",
@@ -1965,6 +2016,8 @@ describe("SokoBotRuntimeService authorization", () => {
         name: "Launch announcement copy",
         status: "DRAFT",
         updatedAt,
+        ownerId: "user_2",
+        owner: { name: "Patrick" },
         assignee: null,
         assigneeUser: null,
         assigneeSokoBot: null,
@@ -1992,6 +2045,7 @@ describe("SokoBotRuntimeService authorization", () => {
           id: "task-1",
           name: "Launch announcement copy",
           status: "DRAFT",
+          owner: "Patrick, a teammate (not your owner)",
           assignee: null,
           project: null,
           idleDays: 5,
@@ -5506,6 +5560,45 @@ describe("post_chat chain depth", () => {
       content: "@jarvis the date is confirmed",
     });
 
+    expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+  });
+
+  it("refuses to post its answer a second time into the chat it was asked in", async () => {
+    // Asked in a thread, the bot answered there and posted the same text into
+    // the channel with post_chat.
+    armPostChat(0);
+    const authorized = {
+      turn: { ...SCOPE_TURN, chainDepth: 0, source: "CHAT" },
+    } as never;
+
+    await expect(
+      new SokoBotRuntimeService()["postChat"](authorized, {
+        toolCallId: "call_1",
+        roomId: "room_1",
+        content: "Yes, X posts can include GIFs.",
+      }),
+    ).rejects.toThrow(/posted for you in this chat/i);
+    expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
+
+    // Summoning a Coworker there is a message of its own.
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      toolCallId: "call_2",
+      roomId: "room_1",
+      content: "@jarvis can you check the upload?",
+    });
+    expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+
+    // So is a post into another room.
+    transactionChatMessageCreateMock.mockClear();
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
+      chatMention: { message: { roomId: "room_asked_in" } },
+    });
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      toolCallId: "call_3",
+      roomId: "room_1",
+      content: "Sharing the answer here.",
+    });
     expect(transactionChatMessageCreateMock).toHaveBeenCalled();
   });
 
@@ -10963,6 +11056,87 @@ describe("CMO record saves", () => {
     expect(tx.chatRoomMessage.upsert).not.toHaveBeenCalled();
   });
 
+  it.each([4, 5, 6])(
+    "reports duplicate ad titles on unapproved save %i without extending the semantic review budget",
+    async (saves) => {
+      toolCallCountMock.mockResolvedValueOnce(saves);
+      botFindUniqueMock.mockClear().mockResolvedValueOnce(null);
+      const strategy = marketingStrategyPlanSchema.parse({
+        month: "2026-11",
+        summary: "Explain the Email plan.",
+        goals: ["More trial starts"],
+        pillars: [],
+        channels: [],
+        calendar: ["2026-11-30", "2026-12-09"].map((date, index) => ({
+          id: `ad-${index}`,
+          date,
+          channel: "google_ads",
+          format: "search ad",
+          title: "Email prospecting search test",
+          status: "idea",
+        })),
+      });
+      const service = new SokoBotRuntimeService();
+      const review = await service["reviewCmoPlan"](
+        owner as never,
+        {
+          ...SCOPE,
+          capability: "save_strategy",
+          toolCallId: "strategy",
+          input: {},
+        },
+        {
+          approved: false,
+          projectId: "project-1",
+          executing: false,
+          strategy,
+          planSent: true,
+        },
+      );
+      expect(review).toMatchObject({
+        save: saves,
+        mainOffer: "skipped",
+        problems: expect.arrayContaining([
+          "2 calendar entries share a title (2026-11-30, 2026-12-09); give each piece its own message and title.",
+        ]),
+      });
+      expect(botFindUniqueMock).toHaveBeenCalledTimes(saves <= 4 ? 1 : 0);
+      botFindUniqueMock.mockReset();
+    },
+  );
+
+  it("leaves approved strategies outside the planning review", async () => {
+    toolCallCountMock.mockClear();
+    const service = new SokoBotRuntimeService();
+    const strategy = marketingStrategyPlanSchema.parse({
+      month: "2026-11",
+      summary: "The approved plan",
+      goals: ["More trials"],
+      pillars: [],
+      channels: [],
+      calendar: [],
+    });
+    await expect(
+      service["reviewCmoPlan"](
+        owner as never,
+        {
+          ...SCOPE,
+          capability: "save_strategy",
+          toolCallId: "strategy",
+          input: {},
+        },
+        {
+          approved: true,
+          projectId: "project-1",
+          executing: false,
+          strategy,
+          planSent: true,
+        },
+      ),
+    ).resolves.toBeNull();
+    expect(toolCallCountMock).not.toHaveBeenCalled();
+  });
+
   it("saves Cuso's plan as a new Marketing strategy version of his Project", async () => {
     const PROJECT = "01960001-0001-7001-8001-0000000000ab";
     const plan = {
@@ -11043,6 +11217,7 @@ describe("CMO record saves", () => {
       versionId: "strategy-2",
       approved: false,
     });
+    expect(result).not.toHaveProperty("firstUndrafted");
   });
 
   it("saves the Brand Brain to Cuso's Project", async () => {
