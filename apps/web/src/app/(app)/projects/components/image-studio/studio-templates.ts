@@ -43,3 +43,11 @@ export const STUDIO_TEMPLATES = [
 
 export type StudioTemplate = (typeof STUDIO_TEMPLATES)[number];
 export type StudioTemplateId = StudioTemplate["id"];
+
+/**
+ * The slots a template brief still asks the person to fill, such as
+ * "[product]" or "[call to action]", in order and without repeats.
+ */
+export function unfilledTemplateSlots(prompt: string): string[] {
+  return [...new Set(prompt.match(/\[[a-z][a-z ,]*\]/g))];
+}

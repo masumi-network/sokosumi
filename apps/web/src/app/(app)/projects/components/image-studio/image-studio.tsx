@@ -84,7 +84,7 @@ import { StudioLightbox } from "./studio-lightbox";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
 import { StudioProjectToolbar } from "./studio-project-toolbar";
 import { StudioTemplateCanvas } from "./studio-template-canvas";
-import type { StudioBrief } from "./studio-templates";
+import { type StudioBrief, unfilledTemplateSlots } from "./studio-templates";
 import {
   StudioModeSwitch,
   StudioVideoComposer,
@@ -92,6 +92,10 @@ import {
   videoDraftFor,
 } from "./studio-video-composer";
 import { StudioWebsiteTools } from "./studio-website-tools";
+import {
+  keepStudioWorkspaceBrief,
+  takeStudioWorkspaceBrief,
+} from "./studio-workspace-brief";
 import {
   creditsByAssetId,
   elapsedByAssetId,
@@ -219,6 +223,17 @@ export function ImageStudio({
   const assistantTriggerRef = useRef<HTMLButtonElement>(null);
   const assistantCloseRef = useRef<HTMLButtonElement>(null);
   const [prompt, setPrompt] = useState("");
+  const latestPrompt = useRef(prompt);
+  latestPrompt.current = prompt;
+  // Picking or creating a project remounts the studio. A brief typed in the
+  // All-projects view moves with it instead of vanishing.
+  useMountEffect(() => {
+    const brief = takeStudioWorkspaceBrief();
+    if (brief) setPrompt(brief);
+    return () => {
+      if (projectId === null) keepStudioWorkspaceBrief(latestPrompt.current);
+    };
+  });
   const [draftProduct, setDraftProduct] = useState<StudioProductIdentity>();
   const productDetailsRef = useRef<string | null>(null);
   const [batchProducts, setBatchProducts] = useState<StudioBatchProduct[]>([]);
@@ -787,6 +802,14 @@ export function ImageStudio({
     setTemplateUndo(null);
     if (referenceProjectIds.size > 1) {
       setActionError(t("referencesAcrossProjects"));
+      return;
+    }
+    // Templates leave slots such as "[product]" to fill in. Sent as they are,
+    // the model draws the brackets and the images are still charged.
+    const slots = unfilledTemplateSlots(prompt);
+    if (slots.length) {
+      setActionError(t("templateSlotsUnfilled", { slots: slots.join(", ") }));
+      promptRef.current?.focus();
       return;
     }
     if (generationProjectId) {

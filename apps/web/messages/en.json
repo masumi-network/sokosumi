@@ -4584,6 +4584,7 @@
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "pickForGeneration": "Which project do these images go to?",
       "referencesAcrossProjects": "References have to come from one project. Deselect the images from other projects, then generate again.",
+      "templateSlotsUnfilled": "Fill in {slots} in the brief, then generate again.",
       "scopeLabel": "Project",
       "title": "Content Studio",
       "selectAllModels": "Select all",

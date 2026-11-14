@@ -63,6 +63,11 @@ vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
 }));
 
 /** What the studio asked the header's project selector for, most recently. */
+/** A template brief with every "[slot]" filled in, ready to generate. */
+function fillSlots(prompt: string) {
+  return prompt.replace(/\[[^\]]+\]/g, "an oat latte");
+}
+
 function lastRequest(): {
   required?: boolean;
   reason?: string;
@@ -338,10 +343,12 @@ describe("the workspace view", () => {
     )!;
     const box = screen.getByRole("textbox", { name: "promptPlaceholder" });
     expect(box).toHaveValue(template.prompt);
+    const brief = fillSlots(template.prompt);
+    fireEvent.change(box, { target: { value: brief } });
     fireEvent.keyDown(box, { key: "Enter", metaKey: true });
     // Closed without a choice: the selector's request is simply never answered.
     expect(mocks.openProjectScope).toHaveBeenCalledTimes(1);
-    expect(box).toHaveValue(template.prompt);
+    expect(box).toHaveValue(brief);
     expect(screen.getByText("4:5 · 1K · png")).toBeInTheDocument();
     expect(mocks.enqueue).not.toHaveBeenCalled();
 
@@ -354,7 +361,7 @@ describe("the workspace view", () => {
     for (const request of requests) {
       expect(request).toMatchObject({
         projectId: "project-picked",
-        prompt: template.prompt,
+        prompt: brief,
         settings: { aspectRatio: "4:5", resolution: "1K", outputFormat: "png" },
       });
     }
@@ -441,6 +448,8 @@ describe("the workspace view", () => {
       }),
     );
     const box = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    const brief = fillSlots(template.prompt);
+    fireEvent.change(box, { target: { value: brief } });
     fireEvent.keyDown(box, { key: "Enter", metaKey: true });
     expect(mocks.enqueue).not.toHaveBeenCalled();
     pick("project-created");
@@ -449,7 +458,7 @@ describe("the workspace view", () => {
     for (const request of requests) {
       expect(request).toMatchObject({
         projectId: "project-created",
-        prompt: template.prompt,
+        prompt: brief,
         settings: { aspectRatio: "16:9" },
       });
     }

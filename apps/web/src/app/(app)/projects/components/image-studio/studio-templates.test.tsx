@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
-import { STUDIO_TEMPLATES } from "./studio-templates";
+import { STUDIO_TEMPLATES, unfilledTemplateSlots } from "./studio-templates";
 import { requestStudioWebsiteDraftOnOpen } from "./studio-website-intent";
 import type { StudioAsset } from "./types";
 
@@ -55,6 +55,7 @@ const mocks = vi.hoisted(() => ({
   prepareWebsiteDraft: vi.fn(),
   loadProducts: vi.fn(),
   saveProducts: vi.fn(),
+  enqueue: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
@@ -99,19 +100,19 @@ vi.mock("./use-generation-queue", () => ({
   useGenerationQueue: () => ({
     failed: [],
     queued: [],
-    enqueue: vi.fn(),
+    enqueue: mocks.enqueue,
     waitingForSlot: false,
   }),
 }));
 
-function mount(websiteUrl?: string) {
+function mount(websiteUrl?: string, projectId: string | null = "p") {
   return render(
     <ImageStudio
       catalog={TEST_CATALOG}
       initialSelectedAssetId={null}
       initialState={{ assets: [], jobs: [], sessions: [] } as never}
       labels={TEST_LABELS}
-      projectId="p"
+      projectId={projectId}
       websiteUrl={websiteUrl}
     />,
   );
@@ -771,6 +772,51 @@ describe("starting from a template", () => {
     expect(
       screen.queryByRole("button", { name: "undoTemplate" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("refuses to generate while the brief still has template slots", () => {
+    mocks.enqueue.mockClear();
+    mount();
+    pickTemplate("ad");
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
+    expect(screen.getByText("templateSlotsUnfilled")).toBeInTheDocument();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+    expect(prompt).toHaveFocus();
+
+    fireEvent.change(prompt, { target: { value: "Iced oat latte, square" } });
+    fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
+    expect(mocks.enqueue).toHaveBeenCalled();
+  });
+
+  it("names each unfilled slot once, in order", () => {
+    expect(
+      unfilledTemplateSlots(
+        "Ad for [product] aimed at [audience]. Show [product], add [call to action].",
+      ),
+    ).toEqual(["[product]", "[audience]", "[call to action]"]);
+    expect(unfilledTemplateSlots("Iced oat latte at 4.20")).toEqual([]);
+  });
+
+  it("keeps a brief typed in All projects when a project is picked", () => {
+    const workspace = mount(undefined, null);
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "promptPlaceholder" }),
+      { target: { value: "Iced oat latte on a sunny table" } },
+    );
+    workspace.unmount();
+
+    const project = mount();
+    expect(
+      screen.getByRole("textbox", { name: "promptPlaceholder" }),
+    ).toHaveValue("Iced oat latte on a sunny table");
+    project.unmount();
+
+    // Handed over once: the next project opens empty.
+    mount();
+    expect(
+      screen.getByRole("textbox", { name: "promptPlaceholder" }),
+    ).toHaveValue("");
   });
 
   it("keeps the original typed brief through several template choices", () => {
