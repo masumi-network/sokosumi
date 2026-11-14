@@ -5140,6 +5140,14 @@
         "errors": {
           "conflict": "This campaign can't be edited here.",
           "failed": "Failed to save changes"
+        },
+        "changes": {
+          "submitCount": "Save {count, plural, one {# change} other {# changes}}",
+          "changed": "Changed",
+          "was": "Was:",
+          "now": "Now:",
+          "ad": "Text or images edited",
+          "none": "Nothing has changed yet. Change a step to save."
         }
       },
       "market": {
@@ -5217,7 +5225,8 @@
             "keywords": "Failed to load keywords",
             "ads": "Failed to load ads"
           }
-        }
+        },
+        "updating": "Updating trending keywords…"
       },
       "accounts": {
         "emptyTitle": "No ad accounts connected yet",

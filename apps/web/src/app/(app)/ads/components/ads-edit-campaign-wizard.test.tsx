@@ -148,7 +148,8 @@ function renderEdit(initialValues: GoogleFormValues, started = false) {
 }
 
 const nameInput = () => screen.getByLabelText("Name");
-const save = () => screen.getByRole("button", { name: "Save changes" });
+const save = () =>
+  screen.getByRole("button", { name: /^Save (changes|\d+ changes?)$/ });
 const sent = () => editMock.mock.calls[0]?.[0];
 const stepBar = () => screen.getByRole("list", { name: "Steps" });
 /** The bar's step names: each item's hidden text, minus "Go to". */
@@ -163,6 +164,9 @@ const currentStep = () => screen.getByRole("listitem", { current: "step" });
 const goTo = (step: Step) =>
   screen.getByRole("button", { name: new RegExp(`^Go to ${step}`) });
 const jump = (user: User, step: Step) => user.click(goTo(step));
+
+/** Makes one change, so there is something to save. */
+const change = (user: User) => user.type(nameInput(), "!");
 
 /** Opens Review and saves from there. */
 async function saveFromReview(user: User) {
@@ -297,6 +301,7 @@ describe("EditGoogleCampaignWizard", () => {
   describe("the review", () => {
     it("tells the type without an Edit button, and says saving sends the ad back to review", async () => {
       const user = renderEdit(SEARCH_VALUES);
+      await change(user);
       await jump(user, "Review");
 
       expect(screen.getByText("Campaign type")).toBeVisible();
@@ -313,6 +318,70 @@ describe("EditGoogleCampaignWizard", () => {
       expect(
         screen.queryByRole("button", { name: "Create campaign" }),
       ).toBeNull();
+    });
+
+    it("keeps Save off and says so while nothing has changed", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      await jump(user, "Review");
+
+      expect(
+        screen.getByRole("button", { name: "Save changes" }),
+      ).toBeDisabled();
+      expect(
+        screen.getByText("Nothing has changed yet. Change a step to save."),
+      ).toBeVisible();
+      expect(screen.queryByText("Changed")).toBeNull();
+    });
+
+    it("marks a changed row with its old and new value and counts it", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      const budget = screen.getByLabelText(/^Daily budget/);
+      await user.clear(budget);
+      await user.type(budget, "30");
+      await jump(user, "Review");
+
+      expect(
+        screen.getByRole("button", { name: "Save 1 change" }),
+      ).toBeEnabled();
+      const row = screen.getByText("Changed").closest("div") as HTMLElement;
+      expect(row).toHaveTextContent("Daily budget");
+      expect(row.querySelector("del")).toHaveTextContent("Was: $25.50");
+      expect(row.querySelector("ins")).toHaveTextContent("Now: $30.00");
+      expect(
+        screen.getByText("Saving sends the ad back to Google's review."),
+      ).toBeVisible();
+    });
+
+    it("counts each changed part, ad text included", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      await change(user);
+      await jump(user, "Ad");
+      await user.type(screen.getAllByLabelText(/^Headline/)[0]!, "!");
+      await jump(user, "Review");
+
+      expect(
+        screen.getByRole("button", { name: "Save 2 changes" }),
+      ).toBeEnabled();
+      expect(screen.getByText("Text or images edited")).toBeVisible();
+      expect(screen.getAllByText("Changed")).toHaveLength(2);
+    });
+
+    it("is back to no changes once an edit is reverted", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      await change(user);
+      await jump(user, "Review");
+      expect(
+        screen.getByRole("button", { name: "Save 1 change" }),
+      ).toBeEnabled();
+
+      await jump(user, "Basics");
+      await user.type(nameInput(), "{Backspace}  ");
+      await jump(user, "Review");
+
+      expect(
+        screen.getByRole("button", { name: "Save changes" }),
+      ).toBeDisabled();
+      expect(screen.queryByText("Changed")).toBeNull();
     });
 
     it("tells a Display campaign's type too", async () => {
@@ -350,6 +419,7 @@ describe("EditGoogleCampaignWizard", () => {
         ],
       });
 
+      await change(user);
       await saveFromReview(user);
 
       const sitelinks = await screen.findByRole("button", {
@@ -406,6 +476,7 @@ describe("EditGoogleCampaignWizard", () => {
       editMock.mockResolvedValue({ ok: true, value: undefined });
       const user = renderEdit(SEARCH_VALUES, true);
 
+      await change(user);
       await saveFromReview(user);
 
       await waitFor(() => expect(editMock).toHaveBeenCalledTimes(1));
@@ -433,6 +504,7 @@ describe("EditGoogleCampaignWizard", () => {
       );
       const user = renderEdit(SEARCH_VALUES);
 
+      await change(user);
       await saveFromReview(user);
 
       await waitFor(() => expect(onBusyChange).toHaveBeenCalledWith(true));
@@ -467,6 +539,7 @@ describe("EditGoogleCampaignWizard", () => {
       editMock.mockResolvedValue(refused(409, "Campaign can't be edited here"));
       const user = renderEdit(SEARCH_VALUES);
 
+      await change(user);
       await saveFromReview(user);
 
       const alert = await screen.findByRole("alert");
@@ -481,6 +554,7 @@ describe("EditGoogleCampaignWizard", () => {
       editMock.mockResolvedValue(refused(409, "Ad connection is not active"));
       const user = renderEdit(SEARCH_VALUES);
 
+      await change(user);
       await saveFromReview(user);
 
       const alert = await screen.findByRole("alert");
@@ -497,6 +571,7 @@ describe("EditGoogleCampaignWizard", () => {
         editMock.mockResolvedValue(refused(status));
         const user = renderEdit(SEARCH_VALUES);
 
+        await change(user);
         await saveFromReview(user);
 
         const alert = await screen.findByRole("alert");
@@ -509,6 +584,7 @@ describe("EditGoogleCampaignWizard", () => {
       editMock.mockRejectedValue(new Error("network"));
       const user = renderEdit(SEARCH_VALUES);
 
+      await change(user);
       await saveFromReview(user);
 
       expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -544,6 +620,7 @@ describe("EditGoogleCampaignWizard", () => {
       editMock.mockResolvedValue({ ok: true, value: undefined });
       const user = renderEdit(DISPLAY_VALUES, true);
 
+      await change(user);
       await saveFromReview(user);
 
       await waitFor(() => expect(editMock).toHaveBeenCalledTimes(1));

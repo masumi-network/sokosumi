@@ -4,8 +4,11 @@ import {
   GOOGLE_DISPLAY_LIMITS,
   type GoogleDisplayFormValues,
 } from "./google-display";
-import { formatGoogleKeyword } from "./google-keywords";
+import { displayImageKey } from "./google-display-images";
+import { formatGoogleKeyword, parseGoogleKeywords } from "./google-keywords";
 import {
+  filledCallouts,
+  filledSitelinks,
   GOOGLE_SEARCH_LIMITS,
   type GoogleSearchFormValues,
 } from "./google-search";
@@ -99,4 +102,75 @@ export function googleFormValuesFromDetails({
       url,
     })),
   };
+}
+
+/** The parts of a campaign the edit review names, one row each. */
+export const GOOGLE_FORM_CHANGES = [
+  "name",
+  "dailyBudget",
+  "schedule",
+  "locations",
+  "languages",
+  "keywords",
+  "finalUrl",
+  "ad",
+] as const;
+export type GoogleFormChange = (typeof GOOGLE_FORM_CHANGES)[number];
+
+function filledTexts(texts: readonly string[]): string[] {
+  return texts.map((text) => text.trim()).filter(Boolean);
+}
+
+/**
+ * What each part means, not how it is typed: trimmed text, a budget as a
+ * number, targets and keywords as sorted sets, blank ad rows left out.
+ */
+function meaning(values: GoogleFormValues): Record<GoogleFormChange, unknown> {
+  const ids = (targets: readonly { id: string }[]) =>
+    targets.map(({ id }) => id).sort();
+  const search = values.type === "SEARCH";
+  const path1 = values.path1.trim();
+  return {
+    name: values.name.trim(),
+    dailyBudget: Number(values.dailyBudget),
+    schedule: [values.startDate, values.endDate],
+    locations: ids(values.locations),
+    languages: ids(values.languages),
+    keywords: search
+      ? parseGoogleKeywords(values.keywords)
+          .keywords.map(formatGoogleKeyword)
+          .sort()
+      : [],
+    finalUrl: values.finalUrl.trim(),
+    ad: search
+      ? {
+          path1,
+          path2: path1 ? values.path2.trim() : "",
+          headlines: filledTexts(values.headlines),
+          descriptions: filledTexts(values.descriptions),
+          sitelinks: filledSitelinks(values.sitelinks),
+          callouts: filledCallouts(values.callouts),
+        }
+      : {
+          businessName: values.businessName.trim(),
+          headlines: filledTexts(values.displayHeadlines),
+          longHeadline: values.longHeadline.trim(),
+          descriptions: filledTexts(values.displayDescriptions),
+          images: values.images
+            .map((image) => `${image.role}:${displayImageKey(image)}`)
+            .sort(),
+        },
+  };
+}
+
+/** The parts an edit changes, in review order; none when it means the same. */
+export function googleFormChanges(
+  before: GoogleFormValues,
+  after: GoogleFormValues,
+): GoogleFormChange[] {
+  const was = meaning(before);
+  const now = meaning(after);
+  return GOOGLE_FORM_CHANGES.filter(
+    (part) => JSON.stringify(was[part]) !== JSON.stringify(now[part]),
+  );
 }

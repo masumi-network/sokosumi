@@ -5140,6 +5140,14 @@
         "errors": {
           "conflict": "Diese Kampagne kann hier nicht bearbeitet werden.",
           "failed": "Änderungen konnten nicht gespeichert werden"
+        },
+        "changes": {
+          "submitCount": "{count, plural, one {# Änderung} other {# Änderungen}} speichern",
+          "changed": "Geändert",
+          "was": "Vorher:",
+          "now": "Jetzt:",
+          "ad": "Texte oder Bilder bearbeitet",
+          "none": "Noch keine Änderungen. Speichern ist möglich, sobald sich etwas ändert."
         }
       },
       "market": {
@@ -5217,7 +5225,8 @@
             "keywords": "Keywords konnten nicht geladen werden",
             "ads": "Anzeigen konnten nicht geladen werden"
           }
-        }
+        },
+        "updating": "Trend-Keywords werden aktualisiert…"
       },
       "accounts": {
         "emptyTitle": "Noch keine Werbekonten verbunden",

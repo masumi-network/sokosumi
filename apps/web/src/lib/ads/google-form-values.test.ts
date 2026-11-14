@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   EMPTY_GOOGLE_VALUES,
+  googleFormChanges,
   googleFormValuesFromDetails,
 } from "./google-form-values";
 
@@ -193,5 +194,52 @@ describe("googleFormValuesFromDetails", () => {
 
     expect(values.finalUrl).toBe("");
     expect(values.headlines).toEqual(EMPTY_GOOGLE_VALUES.headlines);
+  });
+});
+
+describe("googleFormChanges", () => {
+  const before = googleFormValuesFromDetails(BASE);
+
+  it("finds nothing in the campaign as it is", () => {
+    expect(googleFormChanges(before, before)).toEqual([]);
+  });
+
+  it("ignores edits that mean the same", () => {
+    const germany = { id: "2276", name: "Germany" };
+    const wide = { ...before, locations: [...before.locations, germany] };
+    const after = {
+      ...wide,
+      name: `  ${before.name} `,
+      dailyBudget: "25.50",
+      locations: [germany, ...before.locations],
+      keywords: `\n${before.keywords.split("\n").reverse().join("\n")}\n`,
+      finalUrl: ` ${before.finalUrl}`,
+      headlines: [...before.headlines, "  "],
+    };
+    expect(googleFormChanges(wide, after)).toEqual([]);
+  });
+
+  it("names each changed part in review order", () => {
+    const after = {
+      ...before,
+      dailyBudget: "30",
+      name: "Summer sale",
+      endDate: "",
+      headlines: ["Something new", ...before.headlines.slice(1)],
+    };
+    expect(googleFormChanges(before, after)).toEqual([
+      "name",
+      "dailyBudget",
+      "schedule",
+      "ad",
+    ]);
+  });
+
+  it("is back to no changes once an edit is reverted", () => {
+    const changed = { ...before, dailyBudget: "40" };
+    expect(googleFormChanges(before, changed)).toEqual(["dailyBudget"]);
+    expect(
+      googleFormChanges(before, { ...changed, dailyBudget: "25.5" }),
+    ).toEqual([]);
   });
 });

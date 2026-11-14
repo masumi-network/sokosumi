@@ -5,6 +5,7 @@ import { marketOptions, marketSummary } from "@/lib/ads/market";
 import { adsService } from "@/lib/services/ads.service";
 import { AdsErrorState } from "./ads-error-state";
 import { AdsMarketProfile } from "./ads-market-profile";
+import { AdsMarketRefresh, AdsMarketUpdating } from "./ads-market-refresh";
 import { AdsMarketResults } from "./ads-market-results";
 import { AdsRowsSkeleton } from "./ads-skeleton";
 
@@ -40,26 +41,30 @@ export async function AdsMarketSection({
 
   const { profile } = loaded.value;
   return (
-    <div className="flex flex-col gap-10">
-      {readOnly ? (
-        profile ? (
-          <p className="text-muted-foreground text-sm">
-            {marketSummary(profile, locale)}
-          </p>
-        ) : null
-      ) : (
-        <AdsMarketProfile
-          {...marketOptions(locale)}
-          profile={profile}
-          projectId={projectId}
-          summary={profile ? marketSummary(profile, locale) : null}
-        />
-      )}
-      {profile ? (
-        <Suspense fallback={<AdsRowsSkeleton />}>
-          <AdsMarketResults projectId={projectId} />
-        </Suspense>
-      ) : null}
-    </div>
+    <AdsMarketRefresh shownUpdatedAt={profile?.updatedAt ?? null}>
+      <div className="flex flex-col gap-10">
+        {readOnly ? (
+          profile ? (
+            <p className="text-muted-foreground text-sm">
+              {marketSummary(profile, locale)}
+            </p>
+          ) : null
+        ) : (
+          <AdsMarketProfile
+            {...marketOptions(locale)}
+            profile={profile}
+            projectId={projectId}
+            summary={profile ? marketSummary(profile, locale) : null}
+          />
+        )}
+        {profile ? (
+          <AdsMarketUpdating>
+            <Suspense fallback={<AdsRowsSkeleton />}>
+              <AdsMarketResults projectId={projectId} />
+            </Suspense>
+          </AdsMarketUpdating>
+        ) : null}
+      </div>
+    </AdsMarketRefresh>
   );
 }

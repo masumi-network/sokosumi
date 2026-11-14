@@ -5140,6 +5140,14 @@
         "errors": {
           "conflict": "Esta campaña no se puede editar aquí.",
           "failed": "No se pudieron guardar los cambios"
+        },
+        "changes": {
+          "submitCount": "Guardar {count, plural, one {# cambio} other {# cambios}}",
+          "changed": "Cambiado",
+          "was": "Antes:",
+          "now": "Ahora:",
+          "ad": "Textos o imágenes editados",
+          "none": "Aún no hay cambios. Cambia un paso para guardar."
         }
       },
       "market": {
@@ -5217,7 +5225,8 @@
             "keywords": "No se pudieron cargar las palabras clave",
             "ads": "No se pudieron cargar los anuncios"
           }
-        }
+        },
+        "updating": "Actualizando palabras clave en tendencia…"
       },
       "accounts": {
         "emptyTitle": "Aún no hay cuentas publicitarias conectadas",
