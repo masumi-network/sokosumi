@@ -10140,6 +10140,7 @@
         "lastRun": "Last",
         "failures": "Failures",
         "disabled": "disabled",
+        "yourTime": "({datetime} your time)",
         "enable": "Enable schedule",
         "disable": "Disable schedule",
         "delete": "Delete",
@@ -10410,8 +10411,8 @@
           "tokenSplit": "{input} in · {output} out",
           "modelCost": "Model cost",
           "modelCostHint": "What the tokens cost, before the per-turn minimum",
-          "creditSplit": "{own} on its own turns · {delegated} on Coworkers and Agents",
-          "creditsOwnOnly": "All on its own turns"
+          "creditSplit": "{own} by the assistant itself · {delegated} on Coworkers and Agents",
+          "creditsOwnOnly": "Nothing spent on Coworkers or Agents"
         },
         "Connectors": {
           "title": "Tools",
@@ -10428,6 +10429,7 @@
         "current": "Current picture",
         "hint": "Pick one, or ask for other options.",
         "showOthers": "Show others",
+        "noneNew": "No new pictures right now. Try again in a minute.",
         "pictures": "Pictures",
         "loadError": "Could not load pictures.",
         "rateLimited": "Too many new pictures requested. Try again later."

@@ -10140,6 +10140,7 @@
         "lastRun": "Letzter",
         "failures": "Fehler",
         "disabled": "deaktiviert",
+        "yourTime": "({datetime} bei dir)",
         "enable": "Zeitplan aktivieren",
         "disable": "Zeitplan deaktivieren",
         "delete": "Löschen",
@@ -10410,8 +10411,8 @@
           "tokenSplit": "{input} rein · {output} raus",
           "modelCost": "Modellkosten",
           "modelCostHint": "Was die Tokens gekostet haben, vor dem Mindestbetrag pro Durchlauf",
-          "creditSplit": "{own} für eigene Durchläufe · {delegated} für Coworker und Agents",
-          "creditsOwnOnly": "Alles für eigene Durchläufe"
+          "creditSplit": "{own} vom Assistenten selbst · {delegated} für Coworker und Agents",
+          "creditsOwnOnly": "Nichts für Coworker oder Agents ausgegeben"
         },
         "Connectors": {
           "title": "Tools",
@@ -10428,6 +10429,7 @@
         "current": "Aktuelles Bild",
         "hint": "Wähle eines oder lass dir andere zeigen.",
         "showOthers": "Andere zeigen",
+        "noneNew": "Gerade keine neuen Bilder. Versuch es in einer Minute noch einmal.",
         "pictures": "Bilder",
         "loadError": "Bilder konnten nicht geladen werden.",
         "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal."
