@@ -62,6 +62,22 @@ import {
 } from "./acting-scope";
 import { type RuntimeOperations } from "./operations";
 
+const PROJECT_UNAVAILABLE = "That Project is not one your owner can open.";
+const PROJECT_READ_INSTRUCTION =
+  "This result describes only this Project. Compare project.id and project.name with the Project the owner requested before continuing. If they differ, select the correct authorized Project and read it. Missing accounts, instructions or posts here say nothing about another Project.";
+
+async function requireSocialProjectIdentity(input: {
+  projectId: string;
+  workspaceId: string;
+}) {
+  const project = await prisma.project.findFirst({
+    where: { id: input.projectId, workspaceId: input.workspaceId },
+    select: { id: true, name: true },
+  });
+  if (!project) throw new SokoBotRuntimeValidationError(PROJECT_UNAVAILABLE);
+  return { id: project.id, name: project.name };
+}
+
 /** Social tools use the turn's owner/workspace, never actor fields from model input. */
 export async function requireSocialAccess(
   runtime: RuntimeOperations,
@@ -141,6 +157,8 @@ export async function executeSocialTool(
         socialProviderWorkspaceForProject(project),
       );
       return {
+        project: await requireSocialProjectIdentity({ ...params, workspaceId }),
+        instruction: PROJECT_READ_INSTRUCTION,
         enabledProviders,
         // Read before drafting: how a good post reads on each network.
         writingGuides: Object.fromEntries(
@@ -187,13 +205,15 @@ export async function executeSocialTool(
       await runtime.requireSocialAccess(authorized);
       const project = await prisma.project.findFirst({
         where: { id: params.projectId, workspaceId },
-        select: { postingInstructionsMd: true },
+        select: { id: true, name: true, postingInstructionsMd: true },
       });
       if (!project)
-        throw new SokoBotRuntimeValidationError(
-          "That Project is not one your owner can open.",
-        );
-      return projectPostingInstructionsSchema.parse(project);
+        throw new SokoBotRuntimeValidationError(PROJECT_UNAVAILABLE);
+      return {
+        ...projectPostingInstructionsSchema.parse(project),
+        project: { id: project.id, name: project.name },
+        instruction: PROJECT_READ_INSTRUCTION,
+      };
     }
     case "list_social_posts": {
       const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_social_posts.parse(
@@ -203,6 +223,8 @@ export async function executeSocialTool(
       const result = await listSocialPosts({ ...params, workspaceId });
       return {
         ...result,
+        project: await requireSocialProjectIdentity({ ...params, workspaceId }),
+        instruction: PROJECT_READ_INSTRUCTION,
         posts: result.posts.map((post) => socialPostSchema.parse(post)),
       };
     }

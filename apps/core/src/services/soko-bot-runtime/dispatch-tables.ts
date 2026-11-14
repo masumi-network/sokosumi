@@ -207,7 +207,7 @@ export async function dispatchTablesTools(
       if (input.capability === "create_table") {
         const table = await createDataTable(
           scopedActor,
-          normalizeCreateTableInput(input.input),
+          normalizeCreateTableInput(input.input, scopedActor),
           complete,
         );
         return {

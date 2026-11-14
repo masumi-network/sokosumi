@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { SokoBotCapability } from "@sokosumi/soko-bot";
-import { CHAT_MENTION_MESSAGE_KEY } from "@sokosumi/utils";
+import {
+  CHAT_MENTION_MESSAGE_KEY,
+  createDataTableSchema,
+} from "@sokosumi/utils";
 import { v5 as uuidv5 } from "uuid";
 import {
   afterAll,
@@ -13,11 +16,13 @@ import {
 } from "vitest";
 import { z } from "zod";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
+import { createDataTable, type TableActor } from "@/helpers/data-table";
 import { dispatchNotificationPublish } from "@/helpers/notification-publish";
 import { publishNotificationEvent } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { actionInputHash } from "@/lib/soko-bot/action-receipts";
 import { deliverSokoBotEffect } from "@/services/soko-bot-effect-outbox.service";
+import { normalizeCreateTableInput } from "@/services/soko-bot-runtime/table-create-input";
 import {
   type AuthorizedSokoBotRuntime,
   SokoBotRuntimeService,
@@ -276,39 +281,145 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
       };
     }
 
-    it("persists named initial values and evidence and replays the exact request", async () => {
+    it.each([true, false])(
+      "persists named initial values and replays them (supplied column IDs: %s)",
+      async (suppliedColumnIds) => {
+        const { runtime, request } = await setup();
+        const input = createInput();
+        const body = {
+          ...input,
+          columns: suppliedColumnIds
+            ? input.columns
+            : [{ name: "Company", type: "text" }],
+          rows: [
+            {
+              values: { Company: "Sokosumi" },
+              evidence: { Company: [{ url: "https://sokosumi.com" }] },
+            },
+          ],
+        };
+        const call = {
+          ...request,
+          capability: "create_table" as const,
+          input: body,
+        };
+        const result = createdSchema.parse(await runtime.executeTool(call));
+        const columnId = result.table.columns[0].id;
+        if (suppliedColumnIds) expect(columnId).toBe(input.columns[0].id);
+        const rows = await prisma.tableRow.findMany({
+          where: { tableId: result.table.id },
+        });
+        expect(rows).toHaveLength(1);
+        expect(rows[0].values).toEqual({ [columnId]: "Sokosumi" });
+        expect(rows[0].evidence).toEqual({
+          [columnId]: [{ url: "https://sokosumi.com" }],
+        });
+        expect(
+          createdSchema.parse(await runtime.executeTool(call)).table.id,
+        ).toBe(result.table.id);
+        expect(
+          createdSchema.parse(
+            await runtime.executeTool({ ...call, toolCallId: randomUUID() }),
+          ).table.id,
+        ).toBe(result.table.id);
+        await expect(
+          runtime.executeTool({
+            ...call,
+            toolCallId: randomUUID(),
+            input: { ...body, title: "Changed payload" },
+          }),
+        ).rejects.toThrow("Retry key was already used for different input");
+        expect(
+          await prisma.tableRow.count({ where: { tableId: result.table.id } }),
+        ).toBe(1);
+      },
+    );
+
+    it("replays earlier id-less empty creates without changing the operation request", async () => {
       const { runtime, request } = await setup();
-      const input = createInput(),
-        columnId = input.columns[0].id;
+      const actor: TableActor = {
+        workspaceId,
+        userId,
+        actorId: sokoBotId,
+        actorKind: "sokoBot",
+        ownerChat: true,
+      };
       const body = {
-        ...input,
-        rows: [
+        ...createInput(),
+        columns: [{ name: "Company", type: "text" }],
+      };
+      // An earlier runtime committed these omitted IDs before the normalizer
+      // gained automatic IDs for named initial cells.
+      const earlier = await createDataTable(
+        actor,
+        createDataTableSchema.parse(body),
+      );
+      const replay = createdSchema.parse(
+        await runtime.executeTool({
+          ...request,
+          capability: "create_table",
+          input: body,
+        }),
+      );
+      expect(replay.table.id).toBe(earlier.id);
+      expect(replay.table.columns[0].id).toBe(earlier.columns[0].id);
+    });
+
+    it("isolates same-key name-only creates across principals and workspaces", async () => {
+      const otherUserId = randomUUID();
+      await prisma.user.create({
+        data: {
+          id: otherUserId,
+          name: "Other table owner",
+          email: `${otherUserId}@fixture.invalid`,
+          emailVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+      try {
+        const otherWorkspace = await prisma.workspace.create({
+          data: { userId: otherUserId },
+        });
+        const body = {
+          ...createInput(),
+          columns: [{ name: "Company", type: "text" }],
+          rows: [{ values: { Company: "Sokosumi" } }],
+        };
+        const actors: TableActor[] = [
           {
-            values: { Company: "Sokosumi" },
-            evidence: { Company: [{ url: "https://sokosumi.com" }] },
+            workspaceId,
+            userId,
+            actorId: sokoBotId,
+            actorKind: "sokoBot",
+            ownerChat: true,
           },
-        ],
-      };
-      const call = {
-        ...request,
-        capability: "create_table" as const,
-        input: body,
-      };
-      const result = createdSchema.parse(await runtime.executeTool(call));
-      const rows = await prisma.tableRow.findMany({
-        where: { tableId: result.table.id },
-      });
-      expect(rows).toHaveLength(1);
-      expect(rows[0].values).toEqual({ [columnId]: "Sokosumi" });
-      expect(rows[0].evidence).toEqual({
-        [columnId]: [{ url: "https://sokosumi.com" }],
-      });
-      expect(
-        createdSchema.parse(await runtime.executeTool(call)).table.id,
-      ).toBe(result.table.id);
-      expect(
-        await prisma.tableRow.count({ where: { tableId: result.table.id } }),
-      ).toBe(1);
+          { workspaceId, userId, actorId: userId, actorKind: "user" },
+          {
+            workspaceId: otherWorkspace.id,
+            userId: otherUserId,
+            actorId: otherUserId,
+            actorKind: "user",
+          },
+        ];
+        const ids = new Set<string>();
+        for (const actor of actors) {
+          const normalized = normalizeCreateTableInput(body, actor);
+          const created = await createDataTable(actor, normalized);
+          ids.add(created.columns[0].id);
+          const replay = await createDataTable(
+            actor,
+            normalizeCreateTableInput(body, actor),
+          );
+          expect(replay.id).toBe(created.id);
+          expect(
+            await prisma.tableRow.count({ where: { tableId: created.id } }),
+          ).toBe(1);
+        }
+        expect(ids.size).toBe(actors.length);
+      } finally {
+        await prisma.user.delete({ where: { id: otherUserId } });
+      }
     });
     it("keeps same-chat post_chat blocked when raw input spoofs an internal publication ID", async () => {
       const { runtime, request, turn } = await setup();

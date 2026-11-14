@@ -980,6 +980,8 @@ describe("authoritative action responses", () => {
               "list_project_social_accounts",
               "list_social_posts",
               "get_social_post",
+              "list_chats",
+              "read_chat",
             ],
           },
           status: "COMPLETED",
@@ -1127,6 +1129,76 @@ describe("authoritative action responses", () => {
       `Saved preference: ${JSON.stringify(preference)}.`,
     );
     expect(response.appliedReceiptIds).toEqual([]);
+  });
+
+  it("does not render foreign-turn or failed chat reads supplied as observation references", async () => {
+    const rows = [
+      receipt({
+        turnId: "other-turn",
+        toolCallId: "foreign-read",
+        capability: "read_chat",
+        result: {
+          name: "Private room",
+          messages: [
+            {
+              from: "Owner",
+              at: "2026-11-14T12:00:00Z",
+              content: "Private notes",
+            },
+          ],
+        },
+      }),
+      receipt({
+        toolCallId: "failed-read",
+        capability: "read_chat",
+        status: "FAILED",
+        result: {
+          name: "Failed room",
+          messages: [
+            {
+              from: "Owner",
+              at: "2026-11-14T12:00:00Z",
+              content: "Unconfirmed notes",
+            },
+          ],
+        },
+      }),
+    ];
+    db.sokoBotToolCall.findMany.mockImplementation(async ({ where }) =>
+      rows.filter(
+        (row) =>
+          (!where.turnId || row.turnId === where.turnId) &&
+          (!where.status || row.status === where.status) &&
+          (!where.capability?.in ||
+            where.capability.in.includes(row.capability)) &&
+          (!where.toolCallId?.in ||
+            where.toolCallId.in.includes(row.toolCallId)),
+      ),
+    );
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "",
+      true,
+      {
+        kind: "REPORT",
+        message: null,
+        question: null,
+        observationToolCallIds: ["foreign-read", "failed-read"],
+      },
+    );
+    expect(response.observations).toEqual([]);
+    expect(response.answerText).not.toContain("Private notes");
+    expect(response.answerText).not.toContain("Unconfirmed notes");
+    expect(db.sokoBotToolCall.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          turnId: "turn-current",
+          status: "COMPLETED",
+          toolCallId: { in: ["foreign-read", "failed-read"] },
+        }),
+      }),
+    );
   });
 
   it("reports a verified schedule pause without depending on model wording", async () => {

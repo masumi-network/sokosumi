@@ -6,6 +6,7 @@ const {
   turnUpdate,
   turnFind,
   toolCallFind,
+  toolCallFirst,
   eventTransaction,
   executeToolMock,
 } = vi.hoisted(() => ({
@@ -14,6 +15,7 @@ const {
   turnUpdate: vi.fn(),
   turnFind: vi.fn(),
   toolCallFind: vi.fn(),
+  toolCallFirst: vi.fn(),
   eventTransaction: vi.fn(),
   executeToolMock: vi.fn(),
 }));
@@ -21,7 +23,7 @@ const {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { update: turnUpdate, findUnique: turnFind },
-    sokoBotToolCall: { findMany: toolCallFind },
+    sokoBotToolCall: { findMany: toolCallFind, findFirst: toolCallFirst },
     $transaction: eventTransaction,
   },
 }));
@@ -278,6 +280,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   claimsActionMock.mockResolvedValue(false);
   toolCallFind.mockResolvedValue([]);
+  toolCallFirst.mockResolvedValue(null);
   turnFind.mockResolvedValue(null);
   buildActionResponseMock.mockImplementation(
     async (_tx, _turnId, text: string) => ({ answerText: text }),
@@ -368,6 +371,101 @@ describe("finishTurn", () => {
       message: null,
     });
   });
+
+  it.each(["rejected prose", "blank report", "empty final"])(
+    "keeps verified chat observations for a read-only recap (%s)",
+    async (mode) => {
+      const { buildActionResponse } =
+        await vi.importActual<typeof import("./action-response")>(
+          "./action-response",
+        );
+      buildActionResponseMock.mockImplementationOnce(buildActionResponse);
+      claimsActionMock.mockResolvedValue(true);
+      const reads = [
+        {
+          toolCallId: "list-current",
+          capability: "list_chats",
+          status: "COMPLETED",
+          result: {
+            ownerUnread: [
+              {
+                roomId: "room-1",
+                name: "Launch team",
+                unread: 2,
+                youAreMember: true,
+              },
+            ],
+          },
+        },
+        {
+          toolCallId: "chat-current",
+          capability: "read_chat",
+          status: "COMPLETED",
+          result: {
+            name: "Launch team",
+            roomId: "room-1",
+            messages: [
+              {
+                from: "Soko",
+                at: "2026-11-14T15:51:00Z",
+                content: "Created the research follow-up for Hannah.",
+              },
+            ],
+          },
+        },
+      ];
+      toolCallFind.mockImplementation(async ({ where }) => {
+        if (where.toolCallId) return reads;
+        if (!where.capability) return reads;
+        if (where.capability.in.includes("read_chat")) return reads;
+        return [];
+      });
+      turnFind.mockResolvedValue({
+        ...savedRecallTurn(),
+        userMessage: "Summarise the latest chat.",
+      });
+      await finish(
+        mode === "rejected prose"
+          ? "I created a new audit and sent a private email."
+          : mode === "empty final"
+            ? ""
+            : JSON.stringify({
+                kind: "REPORT",
+                message: null,
+                question: null,
+                observationToolCallIds: [],
+              }),
+        true,
+      );
+      const response = turnUpdate.mock.calls[0][0].data.responseContract;
+      expect(response.answerText).toContain(
+        'Unread chats I can read: "Launch team" (2).',
+      );
+      expect(response.answerText).toContain(
+        '"Soko" wrote at "2026-11-14T15:51:00Z"',
+      );
+      expect(response.answerText).toContain(
+        '"Created the research follow-up for Hannah."',
+      );
+      expect(response.answerText).not.toContain("I created a new audit");
+      expect(response.narrative.message).toBeNull();
+      expect(response.narrative.observationToolCallIds).toEqual([
+        "list-current",
+        "chat-current",
+      ]);
+      if (mode !== "rejected prose")
+        expect(claimsActionMock).not.toHaveBeenCalled();
+      expect(toolCallFind).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            turnId: "turn-1",
+            status: "COMPLETED",
+            toolCallId: { in: ["list-current", "chat-current"] },
+          }),
+        }),
+      );
+    },
+  );
 
   it("answers a suppressed owner recall from matching saved memory, not the model's claim", async () => {
     const { buildActionResponse } =
@@ -482,7 +580,7 @@ describe("finishTurn", () => {
     expect(toolCallFind).toHaveBeenCalledWith(
       expect.objectContaining({
         take: 4,
-        select: { capability: true, result: true },
+        select: { capability: true, result: true, toolCallId: true },
         where: expect.objectContaining({
           turnId: "turn-1",
           status: "COMPLETED",

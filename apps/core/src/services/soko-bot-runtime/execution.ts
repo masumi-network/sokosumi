@@ -287,7 +287,7 @@ export async function executeTool(
         let key: string;
         let request: unknown;
         if (input.capability === "create_table") {
-          const body = normalizeCreateTableInput(input.input);
+          const body = normalizeCreateTableInput(input.input, actor);
           key = body.key;
           request = { create: body };
         } else {

@@ -1,7 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import { getSokoBotVersion, isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
 import { z } from "zod";
-import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
 
 import {
   ACTION_CAPABILITIES,
@@ -25,6 +24,10 @@ import {
   taskLabels,
   UNDONE_TASK_VERBS,
 } from "./action-response-targets";
+import {
+  describeRead,
+  READ_OBSERVATION_CAPABILITIES,
+} from "./read-observations";
 import { savedPreferenceResponse } from "./saved-preference-response";
 
 /** Turns an owner asked for; the rest the bot started itself. */
@@ -173,165 +176,6 @@ export function parseActionNarrativeText(text: string) {
   } catch {
     return null;
   }
-}
-
-// These are persisted authorized read fields, not model-authored narration.
-const readObservationSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().nullable().optional(),
-  status: z.string().optional(),
-  project: z.object({ name: z.string() }).nullable().optional(),
-  assignee: z.object({ name: z.string().nullable() }).nullable().optional(),
-  events: z
-    .array(
-      z.object({
-        status: z.string().nullable().optional(),
-        comment: z.string().nullable().optional(),
-        by: z.string().optional(),
-        inputSchema: z.unknown().optional(),
-      }),
-    )
-    .optional(),
-  fulfillment: z
-    .object({
-      state: z.enum([
-        "UNKNOWN",
-        "IN_PROGRESS",
-        "FULFILLED",
-        "PARTIAL",
-        "BLOCKED",
-        "FAILED",
-        "CANCELLED",
-      ]),
-      blockerKind: z.string().nullable(),
-      remainingSteps: z.array(z.string()),
-      acceptanceCriteria: z
-        .array(z.object({ id: z.string(), description: z.string().optional() }))
-        .optional(),
-    })
-    .optional(),
-  links: z
-    .array(
-      z.object({
-        relation: z.string(),
-        direction: z.string(),
-        note: z.string().nullable().optional(),
-        task: z.object({ name: z.string(), status: z.string() }),
-      }),
-    )
-    .optional(),
-});
-
-function quoteRead(value: string) {
-  return JSON.stringify(value.slice(0, 600));
-}
-
-const socialAccountObservationSchema = z.object({
-  id: z.string(),
-  provider: z.string(),
-  externalHandle: z.string().nullable(),
-  status: z.string(),
-  connectedAt: z.string().nullable(),
-  disconnectedAt: z.string().nullable(),
-  // Absent from tool calls stored before accounts carried limits.
-  textLimit: z.number().int().optional(),
-});
-
-const socialPostObservationSchema = z.object({
-  id: z.string(),
-  provider: z.string(),
-  text: z.string(),
-  status: z.string(),
-  revision: z.number().int().nonnegative(),
-  scheduledAt: z.string().nullable(),
-  timezone: z.string().nullable(),
-  publishedUrl: z.string().nullable(),
-  socialConnection: z
-    .object({ externalHandle: z.string().nullable(), status: z.string() })
-    .nullable()
-    .optional(),
-  threadPartCount: z.number().int().optional(),
-  quotedPostId: z.string().nullable().optional(),
-});
-
-function describeSocialPost(read: z.infer<typeof socialPostObservationSchema>) {
-  return `Observed social post ${quoteRead(read.id)}: platform ${quoteRead(read.provider)}, status ${quoteRead(read.status)}, revision ${read.revision}. Text: ${quoteRead(read.text)}. Scheduled at: ${quoteRead(read.scheduledAt ?? "not scheduled")}; time zone: ${quoteRead(read.timezone ?? "not set")}.${read.socialConnection ? ` Account: ${quoteRead(read.socialConnection.externalHandle ?? "unknown handle")}, status ${quoteRead(read.socialConnection.status)}.` : ""}${read.threadPartCount && read.threadPartCount > 1 ? ` Thread of ${read.threadPartCount} posts.` : ""}${read.quotedPostId ? ` Quotes post ${quoteRead(read.quotedPostId)}.` : ""}${read.publishedUrl ? ` Published URL: ${quoteRead(read.publishedUrl)}.` : ""}`;
-}
-
-function describeRead(capability: string, value: unknown): string[] {
-  if (capability === "list_project_social_accounts") {
-    const accounts = z.array(socialAccountObservationSchema);
-    // Stored tool calls from before workspace availability contain the array directly.
-    const parsed = z
-      .union([
-        accounts,
-        z.object({ accounts }).transform((result) => result.accounts),
-      ])
-      .safeParse(value);
-    if (!parsed.success) return [];
-    return [
-      `Showing ${parsed.data.length} of ${parsed.data.length} returned social accounts.`,
-      ...parsed.data.map(
-        (read) =>
-          `Observed social account ${quoteRead(read.id)}: platform ${quoteRead(read.provider)}, handle ${quoteRead(read.externalHandle ?? "unknown handle")}, status ${quoteRead(read.status)}. Connected at: ${quoteRead(read.connectedAt ?? "not recorded")}; disconnected at: ${quoteRead(read.disconnectedAt ?? "not recorded")}.${read.textLimit ? ` Text limit: ${read.textLimit} characters.` : ""}`,
-      ),
-    ];
-  }
-  if (capability === "list_social_posts") {
-    const parsed = z
-      .object({
-        posts: z.array(socialPostObservationSchema),
-        pagination: cursorPaginationMetaSchema,
-      })
-      .safeParse(value);
-    if (!parsed.success) return [];
-    return [
-      `Showing ${Math.min(parsed.data.posts.length, 5)} of ${parsed.data.posts.length} returned social posts (${parsed.data.pagination.total} total).${parsed.data.pagination.nextCursor ? " More posts are available." : ""}`,
-      ...parsed.data.posts.slice(0, 5).map(describeSocialPost),
-    ];
-  }
-  if (capability === "get_social_post") {
-    const parsed = socialPostObservationSchema.safeParse(value);
-    return parsed.success ? [describeSocialPost(parsed.data)] : [];
-  }
-  const parsed = readObservationSchema.safeParse(value);
-  if (!parsed.success) return [];
-  const read = parsed.data;
-  const isTask = capability === "get_task_status";
-  const event = isTask ? read.events?.at(-1) : read.events?.[0];
-  const status = read.status ?? event?.status;
-  const observations: string[] = [];
-  if (read.name && status)
-    observations.push(
-      `Observed ${isTask ? "task" : "job"} ${quoteRead(read.name)}: status ${quoteRead(status)}.`,
-    );
-  if (read.project)
-    observations.push(`Recorded project: ${quoteRead(read.project.name)}.`);
-  if (read.assignee?.name)
-    observations.push(`Recorded assignee: ${quoteRead(read.assignee.name)}.`);
-  if (event?.comment)
-    observations.push(
-      `Latest reported task update (${quoteRead(event.by ?? "unknown author")}): ${quoteRead(event.comment)}.`,
-    );
-  if (!isTask && (status === "AWAITING_INPUT" || status === "input_required"))
-    observations.push(
-      "The latest job event is awaiting input; completion is not verified.",
-    );
-  if (read.fulfillment) {
-    for (const id of read.fulfillment.remainingSteps.slice(0, 4)) {
-      const criterion = read.fulfillment.acceptanceCriteria?.find(
-        (item) => item.id === id,
-      );
-      observations.push(
-        `Not confirmed yet: ${quoteRead(criterion?.description ?? id)}.`,
-      );
-    }
-  }
-  for (const link of (read.links ?? []).slice(0, 4))
-    observations.push(
-      `Recorded task relationship ${quoteRead(link.relation)} (${quoteRead(link.direction)}): ${quoteRead(link.task.name)}, status ${quoteRead(link.task.status)}.${link.note ? ` Reported note: ${quoteRead(link.note)}.` : ""}`,
-    );
-  return observations;
 }
 
 /** Model text cannot confer evidence. Replays reference original committed proof. */
@@ -640,13 +484,7 @@ export async function buildActionResponse(
         turnId,
         toolCallId: { in: narrative.observationToolCallIds },
         capability: {
-          in: [
-            "get_task_status",
-            "get_job_status",
-            "list_project_social_accounts",
-            "list_social_posts",
-            "get_social_post",
-          ],
+          in: [...READ_OBSERVATION_CAPABILITIES],
         },
         status: "COMPLETED",
       },
@@ -695,7 +533,7 @@ export async function buildActionResponse(
     (!calls.length &&
       !actionText.length &&
       (narrative?.kind === "SILENT" ||
-        isSokoBotSilentAnswer(answerText) ||
+        (isSokoBotSilentAnswer(answerText) && !narrativeText.length) ||
         (actionRequested && nothingToSay && !(await isOwnerStarted())))) ||
     (onlyMemory &&
       !question &&

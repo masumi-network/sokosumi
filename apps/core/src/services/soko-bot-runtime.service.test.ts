@@ -7200,6 +7200,11 @@ describe("Soko Bot project social tools", () => {
     social.owner.mockResolvedValue({ banned: false, banExpires: null });
     social.seat.mockResolvedValue(undefined);
     social.project.mockResolvedValue({ workspace: { organization: null } });
+    social.postingInstructions.mockResolvedValue({
+      id: projectId,
+      name: "Launch Project",
+      postingInstructionsMd: null,
+    });
     social.xTiers.mockResolvedValue(new Map());
     social.listAccounts.mockResolvedValue([
       {
@@ -7310,6 +7315,8 @@ describe("Soko Bot project social tools", () => {
         workspaceId: SCOPE.workspaceId,
       });
       expect(result).toEqual({
+        project: { id: projectId, name: "Launch Project" },
+        instruction: expect.stringContaining("only this Project"),
         enabledProviders: ["x", "youtube", "linkedin", "instagram", "facebook"],
         writingGuides: {
           youtube: expect.arrayContaining([
@@ -7333,6 +7340,8 @@ describe("Soko Bot project social tools", () => {
 
   it("reads the Project's posting instructions in the turn's workspace", async () => {
     social.postingInstructions.mockResolvedValue({
+      id: projectId,
+      name: "Launch Project",
       postingInstructionsMd: "Tone: warm\n\n## X\nOne hashtag",
     });
 
@@ -7345,9 +7354,11 @@ describe("Soko Bot project social tools", () => {
 
     expect(social.postingInstructions).toHaveBeenCalledWith({
       where: { id: projectId, workspaceId: SCOPE.workspaceId },
-      select: { postingInstructionsMd: true },
+      select: { id: true, name: true, postingInstructionsMd: true },
     });
     expect(result).toEqual({
+      project: { id: projectId, name: "Launch Project" },
+      instruction: expect.stringContaining("only this Project"),
       postingInstructionsMd: "Tone: warm\n\n## X\nOne hashtag",
     });
     expect(social.owner).toHaveBeenCalled();

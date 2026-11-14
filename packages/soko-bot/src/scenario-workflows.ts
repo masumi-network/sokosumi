@@ -231,7 +231,7 @@ export const WORKFLOW_SCENARIOS: SokoBotScenario[] = [
     prompt:
       "Who on my team handles research, and who writes? Just tell me, don't assign anything.",
     rubric:
-      "The bot called find_coworkers and answered from what it returned: Hannah Weber does research and Alex Kim writes, or it says plainly whom it could not place. It names nobody the tool did not return and creates or assigns nothing.",
+      "The bot called find_coworkers in this turn to check current membership and names. Human teammates are in people; AI Coworkers are in coworkers. An empty coworkers list does not mean there are no human teammates. The directory returns names and membership, not job roles. Use owner-provided role context when available, attributed to the owner: Hannah Weber does research and Alex Kim writes. Otherwise say plainly whom it could not place. It names nobody the lookup did not return and creates or assigns nothing. Remembered roles never replace the required current lookup.",
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "CLARIFY"],
       tools: ["find_coworkers"],
