@@ -41,4 +41,19 @@ describe("findBareHttpUrlHits", () => {
       ["https://example.com/c.pdf"],
     );
   });
+
+  it.each(["”", "’"])(
+    "keeps the closing smart quote %s outside a bare URL",
+    (quote) => {
+      const url = "https://example.org/report?page=2";
+      expect(findBareHttpUrlHits(`Source: ${url}${quote}.`)).toEqual([
+        { url, start: 8, end: 8 + url.length + 2 },
+      ]);
+    },
+  );
+
+  it("preserves internal Unicode apostrophes and encoded quote characters", () => {
+    const url = "https://example.org/d’Art?q=O’Reilly&quote=%27%22";
+    expect(findBareHttpUrlHits(`Read ${url}.`)[0]?.url).toBe(url);
+  });
 });

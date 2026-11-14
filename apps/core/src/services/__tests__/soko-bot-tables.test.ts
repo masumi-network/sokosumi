@@ -44,6 +44,7 @@ const sessionId = "tables-test";
 const authorized: AuthorizedSokoBotRuntime = {
   toolCallLimit: 64,
   turn: {
+    clientTurnId: "ordinary-runtime-test",
     id: turnId,
     actingUserId: userId,
     requestedByUserId: userId,
@@ -118,6 +119,7 @@ describe("Soko Bot table dispatch", () => {
       queuedAt: new Date().toISOString(),
       queuedMentions: 0,
       deliveryStatus: "QUEUED",
+      roomName: "Launch team",
     });
     runtime["postChat"] = post;
     const table = { id: randomUUID(), title: "Company research" };
@@ -210,6 +212,7 @@ describe("Soko Bot table dispatch", () => {
       queuedAt: new Date().toISOString(),
       queuedMentions: 0,
       deliveryStatus: "QUEUED",
+      roomName: "Launch team",
     });
     runtime["postChat"] = post;
     const table = { id: randomUUID(), title: "Research" };

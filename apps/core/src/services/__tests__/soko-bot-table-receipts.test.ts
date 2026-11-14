@@ -49,6 +49,7 @@ const sessionId = "tables-test";
 const authorized: AuthorizedSokoBotRuntime = {
   toolCallLimit: 64,
   turn: {
+    clientTurnId: "ordinary-runtime-test",
     id: turnId,
     actingUserId: userId,
     requestedByUserId: userId,

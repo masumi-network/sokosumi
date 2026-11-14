@@ -65,6 +65,12 @@ interface EvaluationActor {
   source: string | null;
 }
 const actorStorage = new AsyncLocalStorage<EvaluationActor>();
+
+/** Trusted server context only; fixture readers still verify persisted ownership. */
+export function currentEvaluationActor(): Readonly<EvaluationActor> | null {
+  const actor = actorStorage.getStore();
+  return actor ? { ...actor } : null;
+}
 type PrepareStepInput = Parameters<PrepareStepFunction<ToolSet>>[0];
 type EvaluationStep = Pick<PrepareStepInput["steps"][number], "content">;
 

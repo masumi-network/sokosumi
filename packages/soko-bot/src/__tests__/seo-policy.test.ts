@@ -12,6 +12,69 @@ import {
 } from "../seo.js";
 
 describe("SEO capability boundaries", () => {
+  it("accepts the AI Assistant traffic slice for workspace reads and GA4 syncs", () => {
+    const projectId = "11111111-1111-4111-8111-111111111111";
+    expect(
+      SOKO_BOT_SEO_INPUT_SCHEMAS.get_seo_workspace.safeParse({
+        projectId,
+        channel: "ai_assistant",
+      }).success,
+    ).toBe(true);
+    expect(
+      SOKO_BOT_SEO_INPUT_SCHEMAS.sync_seo_statistics.safeParse({
+        projectId,
+        provider: "ga4",
+        propertyId: "properties/123",
+        channel: "ai_assistant",
+        from: "2026-01-01",
+        to: "2026-01-31",
+      }).success,
+    ).toBe(true);
+  });
+
+  it.each(["web", "image", "video", "news", "discover", "googleNews"])(
+    "accepts the %s Search Console slice without losing it",
+    (searchType) => {
+      const projectId = "11111111-1111-4111-8111-111111111111";
+      const read = { projectId, searchType };
+      expect(SOKO_BOT_SEO_INPUT_SCHEMAS.get_seo_workspace.parse(read)).toEqual(
+        read,
+      );
+      const sync = {
+        projectId,
+        provider: "search_console",
+        propertyId: "sc-domain:example.org",
+        from: "2026-01-01",
+        to: "2026-01-31",
+        channel: "organic",
+        searchType,
+      };
+      expect(
+        SOKO_BOT_SEO_INPUT_SCHEMAS.sync_seo_statistics.parse(sync),
+      ).toEqual(sync);
+    },
+  );
+
+  it("refuses unsupported provider and traffic slice combinations", () => {
+    const base = {
+      projectId: "11111111-1111-4111-8111-111111111111",
+      propertyId: "properties/123",
+      from: "2026-01-01",
+      to: "2026-01-31",
+    };
+    const sync = SOKO_BOT_SEO_INPUT_SCHEMAS.sync_seo_statistics;
+    expect(
+      sync.safeParse({ ...base, provider: "ga4", searchType: "image" }).success,
+    ).toBe(false);
+    expect(
+      sync.safeParse({
+        ...base,
+        provider: "search_console",
+        channel: "ai_assistant",
+      }).success,
+    ).toBe(false);
+  });
+
   it("accepts the worker's 90-minute full-audit envelope and rejects a longer one", () => {
     const request = {
       projectId: "11111111-1111-4111-8111-111111111111",

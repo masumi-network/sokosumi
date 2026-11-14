@@ -5,6 +5,12 @@ import {
   simulatedEvalTool,
 } from "@/lib/evals/eval-guard";
 import {
+  scopesMailboxFixture,
+  withEvalScenarioTurn,
+} from "@/lib/evals/scenario-turn";
+import { assertSeoEvalCapability } from "@/services/evals/eval-seo-fixtures";
+import {
+  type AuthorizedSokoBotRuntime,
   type ExecuteSokoBotToolInput,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
@@ -24,7 +30,19 @@ export async function executeAuthorizedTool(
   raw: ExecuteSokoBotToolInput,
 ): Promise<unknown> {
   const authorized = await runtime.authorize(raw);
+  await assertSeoEvalCapability(raw.turnId, raw.capability);
+  const dispatch = () => dispatchAuthorizedTool(runtime, raw, authorized);
+  return authorized.turn.clientTurnId?.startsWith("lab:eval:") &&
+    scopesMailboxFixture(raw.capability)
+    ? withEvalScenarioTurn(raw.turnId, dispatch, raw.capability)
+    : dispatch();
+}
 
+async function dispatchAuthorizedTool(
+  runtime: RuntimeOperations,
+  raw: ExecuteSokoBotToolInput,
+  authorized: AuthorizedSokoBotRuntime,
+): Promise<unknown> {
   const input = {
     ...raw,
     input: await runtime.resolveTaskIds(authorized, raw.input),

@@ -114,6 +114,10 @@ export interface SokoBotActionContext {
 }
 
 export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
+  turn: SokoBotActionContext["turn"] & {
+    /** Persisted by authorization, so ordinary calls need no fixture lookup. */
+    clientTurnId: string;
+  };
   grant: SokoBotTurnGrantClaims;
   toolCallLimit: number;
   askedByKind?: SokoBotPacketAudience;

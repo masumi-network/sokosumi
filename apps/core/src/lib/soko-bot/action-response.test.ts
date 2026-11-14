@@ -249,6 +249,28 @@ describe("authoritative action responses", () => {
     },
   );
 
+  it("retains other verified action lines when an autonomous report also updates memory", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({ capability: "update_memory", targetId: "memory-one" }),
+      receipt({
+        id: "task-receipt",
+        capability: "create_task",
+        targetId: "task-one",
+      }),
+    ]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({ source: "SCHEDULE" });
+    const result = await buildActionResponse(prisma, "turn-current", "", true, {
+      kind: "REPORT",
+      message: "The launch needs a decision.",
+      question: null,
+      observationToolCallIds: [],
+    });
+    expect(result.answerText).toBe(
+      "Updated memory.\nCreated task.\n\nThe launch needs a decision.",
+    );
+    expect(result.appliedReceiptIds).toEqual(["receipt-one", "task-receipt"]);
+  });
+
   it.each([
     { status: "PENDING" as const },
     { status: "FAILED" as const },
@@ -1323,6 +1345,105 @@ describe("authoritative action responses", () => {
       "Your invoice rule never fired this week.",
     );
   });
+
+  it.each(["SCHEDULE", "INGEST", "EVENT"])(
+    "keeps an autonomous %s report's structure without a memory bookkeeping prefix",
+    async (source) => {
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+        receipt({ capability: "update_memory", targetId: "memory-one" }),
+      ]);
+      db.sokoBotTurn.findUnique.mockResolvedValue({ source });
+      const message =
+        "The launch work needs a decision.\nNumbers: 3 completed.";
+      const result = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "",
+        true,
+        {
+          kind: "REPORT",
+          message,
+          question: null,
+          observationToolCallIds: [],
+        },
+      );
+      expect(result.answerText).toBe(message);
+      expect(result.appliedReceiptIds).toEqual(["receipt-one"]);
+    },
+  );
+
+  it.each([
+    [
+      "CHAT",
+      "COMPLETED",
+      "APPLIED",
+      "LOCAL_TRANSACTION",
+      "Owner report",
+      "Updated memory.\n\nOwner report",
+    ],
+    [
+      "SCHEDULE",
+      "FAILED",
+      "REJECTED",
+      "NONE",
+      "Weekly report",
+      "Weekly report",
+    ],
+    [
+      "SCHEDULE",
+      "COMPLETED",
+      "UNKNOWN",
+      "NONE",
+      "Weekly report",
+      "I couldn't confirm whether this went through: updated memory. Check before trying again.\n\nWeekly report",
+    ],
+    [
+      "SCHEDULE",
+      "COMPLETED",
+      "APPLIED",
+      "LOCAL_TRANSACTION",
+      "",
+      "Nothing to add.",
+    ],
+  ] as const)(
+    "retains memory evidence for source %s, status %s and disposition %s",
+    async (source, status, disposition, verification, message, expected) => {
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+        receipt({
+          capability: "update_memory",
+          targetId: "memory-one",
+          status,
+          disposition,
+          verification,
+        }),
+      ]);
+      db.sokoBotTurn.findUnique.mockResolvedValue({ source });
+      const result = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "",
+        true,
+        {
+          kind: "REPORT",
+          message,
+          question: null,
+          observationToolCallIds: [],
+        },
+      );
+      expect(result.answerText).toBe(expected);
+      expect(result.unfulfilledActions).toEqual(
+        disposition === "APPLIED"
+          ? []
+          : [
+              {
+                action: "update_memory",
+                receiptId: "receipt-one",
+                reason: disposition === "UNKNOWN" ? "UNKNOWN" : "NOT_VERIFIED",
+              },
+            ],
+      );
+    },
+  );
 
   it("drops a held-back reply on a turn the bot started itself", async () => {
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);

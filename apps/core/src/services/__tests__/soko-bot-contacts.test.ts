@@ -56,6 +56,7 @@ const actor = { workspaceId, userId, sokoBotId };
 const authorized: AuthorizedSokoBotRuntime = {
   toolCallLimit: 64,
   turn: {
+    clientTurnId: "ordinary-runtime-test",
     id: turnId,
     actingUserId: userId,
     requestedByUserId: userId,

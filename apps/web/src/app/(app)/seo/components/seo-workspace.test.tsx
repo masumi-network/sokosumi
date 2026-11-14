@@ -2367,6 +2367,41 @@ describe("SEO workspace integration", () => {
     expect(screen.getByText(/: 140 · week before: 140$/)).toBeVisible();
   });
 
+  it("reports no weekly position change when formatted values are equal", () => {
+    const workspace = seoTestWorkspace();
+    const days = Array.from({ length: 14 }, (_, day) =>
+      new Date(Date.UTC(2026, 9, day + 1)).toISOString().slice(0, 10),
+    );
+    const base = { ...seoTestMetric(), from: days[0], to: days[13] };
+    workspace.metrics = [
+      {
+        ...base,
+        id: "sync:impressions",
+        key: "impressions",
+        value: 1414,
+        points: days.map((date) => ({ date, value: 101 })),
+      },
+      {
+        ...base,
+        id: "sync:position",
+        key: "position",
+        unit: "position",
+        value: 3.825,
+        points: days.map((date, day) => ({
+          date,
+          value: day < 7 ? 3.8 : 3.8499999999999996,
+        })),
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=traffic");
+    expect(screen.getByText(/: 3\.8 · week before: 3\.8$/)).toBeVisible();
+    expect(screen.queryByText(/week before: 3\.8, (better|worse)$/)).toBeNull();
+  });
+
   it("marks a recorded page change on the traffic chart and names it", () => {
     const workspace = seoTestWorkspace();
     const days = Array.from({ length: 14 }, (_, day) =>

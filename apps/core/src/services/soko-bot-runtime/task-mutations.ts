@@ -382,6 +382,9 @@ export async function assignTask(
       name: task.name,
       status: task.status,
       assigneeId: task.assigneeId,
+      assigneeCoworkerId: task.assigneeId,
+      assigneeUserId: task.assigneeUserId,
+      assigneeSokoBotId: task.assigneeSokoBotId,
     };
     await tx.sokoBotDelegation.create({
       data: {

@@ -6,6 +6,7 @@ import {
 } from "../scenario-file-fixture.js";
 import type { SokoBotLabTurn, SokoBotScenario } from "../scenario-types.js";
 import { SOKO_BOT_SCENARIOS } from "../scenarios.js";
+import { SOKO_BOT_SEO_WRITE_CAPABILITIES } from "../seo.js";
 
 function turn(overrides: Partial<SokoBotLabTurn>): SokoBotLabTurn {
   return {
@@ -157,6 +158,23 @@ describe("owner-chat route hints", () => {
 });
 
 describe("evaluateScenario", () => {
+  it.each(SOKO_BOT_SEO_WRITE_CAPABILITIES)(
+    "rejects %s as a mutation during a quiet stand-up",
+    (capability) => {
+      const result = evaluateScenario(
+        byId("quiet-standup"),
+        turn({
+          finalAnswer: "Nothing to add.",
+          toolCalls: [call(capability)],
+        }),
+      );
+      expect(
+        result.checks.find((check) => check.label === "Changes nothing"),
+      ).toMatchObject({ pass: false });
+      expect(result.passed).toBeLessThan(result.total);
+    },
+  );
+
   it("gives every scenario a unique id", () => {
     // The count is incidental and changed every time a scenario was added;
     // uniqueness is what the lab actually depends on to address a scenario.

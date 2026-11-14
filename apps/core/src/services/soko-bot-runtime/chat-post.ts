@@ -299,6 +299,9 @@ export async function postChat(
       queuedMentions: mentionedCoworkerIds.length + mentionedSokoBotIds.length,
       deliveryStatus: "QUEUED",
       ...input.via?.result,
+      roomName: room.name,
+      // An existing publication may have different content from this retry.
+      ...(!replayedPublication ? { queuedContent: input.content } : {}),
     };
     const receipt = await commitActionReceipt(tx, {
       turnId: authorized.turn.id,

@@ -1,8 +1,10 @@
 import { FOUNDATION_SCENARIOS } from "./scenario-foundations.js";
+import { SEO_SCENARIOS } from "./scenario-seo.js";
 import type { SokoBotScenario } from "./scenario-types.js";
 import { WORKFLOW_SCENARIOS } from "./scenario-workflows.js";
 
 export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
   ...FOUNDATION_SCENARIOS,
   ...WORKFLOW_SCENARIOS,
+  ...SEO_SCENARIOS,
 ];

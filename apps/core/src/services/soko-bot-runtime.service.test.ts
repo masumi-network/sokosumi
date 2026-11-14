@@ -843,6 +843,8 @@ describe("SokoBotRuntimeService authorization", () => {
         name: args.data.name,
         status: args.data.status,
         assigneeId: args.data.assigneeId,
+        assigneeUserId: args.data.assigneeUserId,
+        assigneeSokoBotId: args.data.assigneeSokoBotId,
       }),
     );
     transactionTaskUpdateMock.mockImplementation(
@@ -851,6 +853,8 @@ describe("SokoBotRuntimeService authorization", () => {
         name: args.data.name ?? "Launch",
         status: args.data.status ?? TaskStatus.DRAFT,
         assigneeId: args.data.assigneeId ?? null,
+        assigneeUserId: args.data.assigneeUserId ?? null,
+        assigneeSokoBotId: args.data.assigneeSokoBotId ?? null,
       }),
     );
     transactionWorkspaceFindFirstMock.mockResolvedValue({
@@ -1281,6 +1285,7 @@ describe("SokoBotRuntimeService authorization", () => {
       eveSessionId: SCOPE.sessionId,
       status: "RUNNING",
       versionId: "inbox-tuned",
+      clientTurnId: "lab:eval:01960001-0001-7001-8001-000000000099",
       source: "SCHEDULE",
       createdAt: new Date(),
       deadlineAt: new Date(Date.now() + 60_000),
@@ -1299,6 +1304,9 @@ describe("SokoBotRuntimeService authorization", () => {
 
     expect(authorized.turn.versionId).toBe("inbox-tuned");
     expect(authorized.turn.source).toBe("SCHEDULE");
+    expect(authorized.turn.clientTurnId).toBe(
+      "lab:eval:01960001-0001-7001-8001-000000000099",
+    );
   });
 
   it("denies Context reads while cancellation settles", async () => {
@@ -2799,6 +2807,9 @@ describe("SokoBotRuntimeService authorization", () => {
       name: "Launch",
       status: TaskStatus.DRAFT,
       assigneeId: null,
+      assigneeCoworkerId: null,
+      assigneeUserId: null,
+      assigneeSokoBotId: null,
     });
     expect(transactionTaskCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -67,6 +67,7 @@ describe.skipIf(!databaseUrl)(
       vi.spyOn(service, "authorize").mockImplementation(async () => ({
         toolCallLimit: 64,
         turn: {
+          clientTurnId: "ordinary-runtime-test",
           id: turnId,
           actingUserId: userId,
           requestedByUserId: userId,

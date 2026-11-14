@@ -18,6 +18,8 @@ const directoryResult = z
     coworkers: z.array(z.unknown()),
   })
   .passthrough();
+const directoryPerson = z.object({ userId: z.string().min(1) }).passthrough();
+const directoryCoworker = z.object({ id: z.string().min(1) }).passthrough();
 const deletedSchedule = z
   .object({ id: z.string().min(1), deleted: z.literal(true) })
   .passthrough();
@@ -37,6 +39,20 @@ const unassignedTask = z
 const completedTask = z
   .object({ id: z.string().min(1), status: z.literal("COMPLETED") })
   .passthrough();
+const assignedFailedTask = z
+  .object({
+    id: z.string().min(1),
+    status: z.literal("FAILED"),
+    assigneeUserId: z.string().min(1).nullable(),
+    assigneeCoworkerId: z.string().min(1).nullable(),
+    assigneeSokoBotId: z.string().min(1).nullable(),
+  })
+  .passthrough()
+  .refine((task) =>
+    Boolean(
+      task.assigneeUserId || task.assigneeCoworkerId || task.assigneeSokoBotId,
+    ),
+  );
 
 /** Clarify a successful tool result without changing its facts or authority. */
 export function toolRecoveryFeedback(
@@ -77,6 +93,13 @@ export function toolRecoveryFeedback(
         instruction:
           "This Task has no assignee of any kind. Deliver answers or recovery guidance with reply_to_task without a status change. Do not request READY until an assignee is confirmed. Use assign_task only with a verified suitable assignee; ask the owner when that choice is unresolved.",
       };
+    const failed = assignedFailedTask.safeParse(result);
+    if (failed.success)
+      return {
+        ...failed.data,
+        instruction:
+          "This Task is FAILED and has a verified assignee. A comment alone does not restart it. If safe recovery can proceed within the owner's authorized scope, send the recovery guidance through reply_to_task with status READY, or create a linked assigned follow-up when the scope must change. Keep only work that depends on an unresolved owner choice blocked. If no safe recovery can proceed, keep it blocked and say why. Do not claim a restart until the status change succeeds; keep required progress checks active.",
+      };
     const completed = completedTask.safeParse(result);
     if (completed.success)
       return {
@@ -98,6 +121,30 @@ export function toolRecoveryFeedback(
           "No directory entries matched. Human team search matches names or email, not job roles. Retry without a query, or resolve each person's name separately, before concluding nobody is available. Past Task assignments can describe past work, but do not establish a current general role.",
       };
     }
+    if (directory.success)
+      return {
+        ...directory.data,
+        people: directory.data.people.map((entry) => {
+          const person = directoryPerson.safeParse(entry);
+          return person.success
+            ? {
+                ...person.data,
+                taskAssignment: { memberId: person.data.userId },
+              }
+            : entry;
+        }),
+        coworkers: directory.data.coworkers.map((entry) => {
+          const coworker = directoryCoworker.safeParse(entry);
+          return coworker.success
+            ? {
+                ...coworker.data,
+                taskAssignment: { coworkerId: coworker.data.id },
+              }
+            : entry;
+        }),
+        instruction:
+          "Copy the selected entry's taskAssignment fields into create_task or assign_task. Human people use memberId; AI Coworkers use coworkerId. Do not put a human userId in coworkerId. Directory membership does not establish a person's job role; attribute owner-supplied roles to the owner.",
+      };
   }
   if (capability === "delete_schedule") {
     const deleted = deletedSchedule.safeParse(result);
@@ -122,7 +169,7 @@ export function toolRecoveryFeedback(
         instruction:
           "This is a bot_schedule, including when it monitors a Task. Copy previewReference when calling preview_result. task_schedule identifies a separate Task Schedule resource, not these bot follow-ups." +
           (saved.success
-            ? " This schedule was saved without a linked Task. If the owner's request monitors a Task, delete this unlinked check and use create_schedule with the verified taskId and requested runAt. update_schedule cannot change a Task link or one-time runAt. Verify the deletion before recreating the check. Mentioning the Task only in the prompt does not link it. Ordinary reminders need no Task link."
+            ? " This schedule was saved without a linked Task. If the owner's request monitors one Task, delete this unlinked check and use create_schedule with the verified taskId and requested runAt. update_schedule cannot change a Task link or one-time runAt. Verify the deletion before recreating the check. Mentioning the Task only in the prompt does not link it. For a group check, keep taskId omitted and include every verified Task ID in the prompt; linking only one Task would stop the whole check when that Task finishes. Ordinary reminders need no Task link."
             : ""),
       };
   }

@@ -146,6 +146,7 @@ export type {
 export { SOKO_BOT_TURN_TOKEN_HEADER } from "./runtime.js";
 export { CMO_PLACEHOLDER_PATTERN, CMO_SCENARIOS } from "./scenario-cmo.js";
 export { evaluateScenario } from "./scenario-evaluator.js";
+export { SEO_EVAL_CAPABILITIES } from "./scenario-seo.js";
 export type {
   ScenarioCheck,
   ScenarioResult,

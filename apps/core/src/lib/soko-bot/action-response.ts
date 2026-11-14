@@ -20,6 +20,8 @@ import {
   countedLabel,
   linkText,
   missedTasks,
+  scheduleTaskId,
+  seoTaskLabels,
   TASK_TARGET_CAPABILITIES,
   taskLabels,
   UNDONE_TASK_VERBS,
@@ -38,6 +40,15 @@ export const HELD_BACK_REPLY =
   "I held back this reply because it could not be checked just now.";
 
 export const ACTION_LABELS: Record<string, string> = {
+  add_seo_page: "Added SEO page",
+  save_seo_scope: "Saved SEO page group",
+  save_seo_keyword: "Saved SEO keyword",
+  save_seo_competitor: "Saved SEO competitor",
+  import_seo_audit: "Imported SEO audit",
+  request_seo_analysis: "Requested SEO analysis",
+  create_seo_action_task: "Created SEO action task",
+  sync_seo_statistics: "Synced SEO statistics",
+  record_seo_page_change: "Recorded SEO page change",
   newsletter_draft_issue: "Drafted newsletter issue for review",
   create_newsletter_issue: "Created newsletter draft",
   update_newsletter_issue: "Updated newsletter issue",
@@ -291,11 +302,12 @@ export async function buildActionResponse(
     calls.map((call) => [call.id, attemptedTarget(call)]),
   );
   const tasks = await taskLabels(tx, [
-    ...unique.flatMap((call) =>
-      TASK_TARGET_CAPABILITIES.has(call.capability) && call.targetId
-        ? [call.targetId]
-        : [],
-    ),
+    ...unique.flatMap((call) => {
+      const id = TASK_TARGET_CAPABILITIES.has(call.capability)
+        ? call.targetId
+        : scheduleTaskId(call);
+      return id ? [id] : [];
+    }),
     ...unfulfilledActions.flatMap((action) => {
       const target = unfulfilledTargets.get(action.receiptId);
       return TASK_TARGET_CAPABILITIES.has(action.action) && target
@@ -303,6 +315,7 @@ export async function buildActionResponse(
         : [];
     }),
   ]);
+  const seoTasks = await seoTaskLabels(tx, turnId, unique);
   const hiredJobIds = unique.flatMap((call) =>
     call.capability === "hire_agent" && call.targetId ? [call.targetId] : [],
   );
@@ -330,7 +343,8 @@ export async function buildActionResponse(
           ? "Already satisfied"
           : actionLabel(call)
       }`,
-      target: actionTarget(call, tasks, jobAgents, assignedTaskIds),
+      target: actionTarget(call, tasks, jobAgents, assignedTaskIds, seoTasks),
+      identity: call.targetId ?? call.id,
     })),
   );
   // Cuso reports through a card in the founder's chat. Once he filed one this
@@ -529,6 +543,14 @@ export async function buildActionResponse(
     calls.length > 0 &&
     calls.every((call) => call.capability === "update_memory") &&
     !(await isOwnerStarted());
+  // Bookkeeping must not precede the headline of an autonomous report.
+  // Keep its receipts and retain every unconfirmed or unknown effect.
+  const memoryBookkeepingReport =
+    onlyMemory &&
+    unique.length > 0 &&
+    unfulfilledActions.length === 0 &&
+    narrative?.kind === "REPORT" &&
+    !!message;
   const silent =
     (!calls.length &&
       !actionText.length &&
@@ -548,7 +570,7 @@ export async function buildActionResponse(
       ? "Nothing to add."
       : calls.length || actionText.length || narrativeText.length
         ? [
-            actionText.join("\n"),
+            memoryBookkeepingReport ? "" : actionText.join("\n"),
             reportedByCard ? "" : attachments.join("\n"),
             narrativeText.join("\n"),
           ]

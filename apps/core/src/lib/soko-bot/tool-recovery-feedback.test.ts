@@ -39,12 +39,50 @@ describe("toolRecoveryFeedback", () => {
       instruction: expect.stringContaining("Retry without a query"),
     });
   });
-  it("preserves a successful lookup unchanged", () => {
+  it("gives a human's exact Task assignment field without changing directory data", () => {
     const result = {
       people: [{ userId: "hannah", name: "Hannah" }],
       coworkers: [],
     };
-    expect(toolRecoveryFeedback("find_coworkers", result)).toBe(result);
+    expect(toolRecoveryFeedback("find_coworkers", result)).toMatchObject({
+      people: [
+        {
+          userId: "hannah",
+          name: "Hannah",
+          taskAssignment: { memberId: "hannah" },
+        },
+      ],
+      coworkers: [],
+    });
+    expect(result.people[0]).not.toHaveProperty("taskAssignment");
+  });
+  it("keeps human and AI Coworker IDs in distinct assignment fields", () => {
+    expect(
+      toolRecoveryFeedback("find_coworkers", {
+        people: [{ userId: "human-id", name: "Hannah" }],
+        coworkers: [{ id: "worker-id", name: "Research worker" }],
+      }),
+    ).toMatchObject({
+      people: [{ taskAssignment: { memberId: "human-id" } }],
+      coworkers: [{ taskAssignment: { coworkerId: "worker-id" } }],
+      instruction: expect.stringContaining(
+        "Do not put a human userId in coworkerId",
+      ),
+    });
+  });
+  it("does not invent assignment IDs for malformed directory entries", () => {
+    const person = { name: "Hannah", userId: "" };
+    const coworker = { name: "Worker" };
+    expect(
+      toolRecoveryFeedback("find_coworkers", {
+        people: [person],
+        coworkers: [coworker],
+      }),
+    ).toEqual({
+      people: [person],
+      coworkers: [coworker],
+      instruction: expect.any(String),
+    });
   });
   it("identifies listed bot schedules even when they monitor a Task", () => {
     expect(
@@ -80,6 +118,23 @@ describe("toolRecoveryFeedback", () => {
       instruction: expect.stringContaining("linked follow-up Task"),
     });
   });
+  it.each(["assigneeUserId", "assigneeCoworkerId", "assigneeSokoBotId"])(
+    "explains that safe recovery of a FAILED Task with %s needs a confirmed restart",
+    (field) => {
+      const result = {
+        id: "task-1",
+        status: "FAILED",
+        assigneeUserId: null,
+        assigneeCoworkerId: null,
+        assigneeSokoBotId: null,
+        [field]: "assignee-1",
+      };
+      expect(toolRecoveryFeedback("get_task_status", result)).toMatchObject({
+        ...result,
+        instruction: expect.stringContaining("reply_to_task with status READY"),
+      });
+    },
+  );
   it.each(["assigneeUserId", "assigneeCoworkerId", "assigneeSokoBotId"])(
     "does not call a Task unassigned when %s is present",
     (field) => {

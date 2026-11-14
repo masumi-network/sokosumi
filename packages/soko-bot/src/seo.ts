@@ -1,4 +1,9 @@
-import { SEO_FULL_AUDIT_MAX_SECONDS, SEO_MIN_AUDIT_USD } from "@sokosumi/utils";
+import {
+  SEO_FULL_AUDIT_MAX_SECONDS,
+  SEO_MIN_AUDIT_USD,
+  SEO_SEARCH_TYPES,
+  SEO_TRAFFIC_CHANNELS,
+} from "@sokosumi/utils";
 import { z } from "zod";
 
 const projectId = z.string().uuid();
@@ -119,7 +124,8 @@ export const SOKO_BOT_SEO_INPUT_SCHEMAS = {
       pageIds: pageIds.optional(),
       from: date.optional(),
       to: date.optional(),
-      channel: z.enum(["all", "organic"]).optional(),
+      channel: z.enum(SEO_TRAFFIC_CHANNELS).optional(),
+      searchType: z.enum(SEO_SEARCH_TYPES).optional(),
     })
     .strict()
     .refine(
@@ -244,9 +250,19 @@ export const SOKO_BOT_SEO_INPUT_SCHEMAS = {
       ...scope,
       from: date,
       to: date,
-      channel: z.enum(["all", "organic"]).default("all"),
+      channel: z.enum(SEO_TRAFFIC_CHANNELS).default("all"),
+      searchType: z.enum(SEO_SEARCH_TYPES).default("web"),
     })
     .strict()
+    .refine(
+      (input) =>
+        input.searchType === "web" || input.provider === "search_console",
+      "Only Search Console reads a search type",
+    )
+    .refine(
+      (input) => input.channel !== "ai_assistant" || input.provider === "ga4",
+      "Only Google Analytics reads the AI Assistant channel",
+    )
     .refine(exclusiveScope, "Choose pages or a saved scope")
     .refine(
       frozenScope,
@@ -263,7 +279,7 @@ export const SOKO_BOT_SEO_INPUT_SCHEMAS = {
 
 export const SOKO_BOT_SEO_DESCRIPTIONS = {
   get_seo_workspace:
-    "Read SEO pages, page groups, keywords, competitors, evidence, recommendations and timeline for the selected Sokosumi project. Call related-page collections page groups, and analysis runs or reports audits. Source dates and coverage remain explicit. Private Google statistics appear only in the owner's private personal Soko Bot context. This does not refresh any data or spend provider usage.",
+    "Read SEO pages, page groups, keywords, competitors, evidence, recommendations and timeline for the selected Sokosumi project. Filter Analytics by channel, including ai_assistant, and Search Console by searchType. Call related-page collections page groups, and analysis runs or reports audits. Source dates and coverage remain explicit. Private Google statistics appear only in the owner's private personal Soko Bot context. This does not refresh any data or spend provider usage.",
   list_seo_statistics_properties:
     "List Analytics or Search Console properties available through this owner's personal Soko Bot native connection. This does not create a connection. Use the returned property ID; never guess it.",
   add_seo_page:
@@ -281,7 +297,7 @@ export const SOKO_BOT_SEO_DESCRIPTIONS = {
   create_seo_action_task:
     "Turn a stored public SEO recommendation into an evidence-linked Task. Use its observationId and actionId from get_seo_workspace. Reuse the idempotencyKey on retries. Task completion means implemented; verification requires a compatible Recheck.",
   sync_seo_statistics:
-    "Read measured page views, users and scoped sessions, or Search Console performance, through the owner's existing personal Soko Bot connection. Use a property returned by list_seo_statistics_properties. Dates and page scope are explicit. Google data stays private and never enters the external SEO Coworker's Task.",
+    "Read measured page views, users and scoped sessions, or Search Console performance, through the owner's existing personal Soko Bot connection. Use a property returned by list_seo_statistics_properties. Analytics accepts all, organic or ai_assistant channel slices; only Search Console accepts a non-web searchType. Dates and page scope are explicit. Google data stays private and never enters the external SEO Coworker's Task.",
   record_seo_page_change:
     "Record the owner's reported change on selected SEO pages with its actual date and evidence note. This adds a manual timeline entry. It does not verify implementation, attribution or SEO improvement. Reuse the idempotencyKey on retries.",
 } as const;

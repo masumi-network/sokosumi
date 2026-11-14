@@ -5,6 +5,7 @@ import type {
   SokoBotLabTurn,
   SokoBotScenario,
 } from "./scenario-types.js";
+import { SOKO_BOT_SEO_WRITE_CAPABILITIES } from "./seo.js";
 
 function calledTools(turn: SokoBotLabTurn): Set<string> {
   const names = new Set(turn.toolCalls.map((call) => call.capability));
@@ -35,6 +36,7 @@ const EMPTY_PROMISE =
 
 /** Anything that changes state the owner would notice. */
 const MUTATING_TOOLS = new Set([
+  ...SOKO_BOT_SEO_WRITE_CAPABILITIES,
   "create_task",
   "update_task",
   "assign_task",

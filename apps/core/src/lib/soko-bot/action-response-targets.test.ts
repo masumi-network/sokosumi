@@ -44,6 +44,378 @@ describe("action lines the owner reads", () => {
     vi.resetAllMocks();
   });
 
+  const seoProjectId = "01a0f400-0000-7000-8000-000000000001";
+  const seoTargetId = "01a0f400-0000-7000-8000-000000000002";
+  const seoTaskId = "01a0f400-0000-7000-8000-000000000003";
+  const seoLink = `/seo?projectId=${seoProjectId}&view=project`;
+  const seoLabels = {
+    add_seo_page: "Added SEO page",
+    save_seo_scope: "Saved SEO page group",
+    save_seo_keyword: "Saved SEO keyword",
+    save_seo_competitor: "Saved SEO competitor",
+    import_seo_audit: "Imported SEO audit",
+    request_seo_analysis: "Requested SEO analysis",
+    create_seo_action_task: "Created SEO action task",
+    sync_seo_statistics: "Synced SEO statistics",
+    record_seo_page_change: "Recorded SEO page change",
+  };
+
+  it.each(Object.entries(seoLabels))(
+    "renders %s from its committed SEO receipt without model action claims",
+    async (capability, label) => {
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+        receipt({
+          capability,
+          targetId: seoTargetId,
+          input: { projectId: "model-project", link: "https://evil.example" },
+          result: { projectId: seoProjectId, id: seoTargetId, link: seoLink },
+        }),
+      ]);
+      const result = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "",
+        true,
+        {
+          kind: "REPORT",
+          message: null,
+          question: null,
+          observationToolCallIds: [],
+        },
+      );
+      expect(result.answerText).toBe(`${label} ([Open SEO](${seoLink})).`);
+      expect(result.answerText).not.toContain("model-project");
+    },
+  );
+
+  it.each(["create_seo_action_task", "request_seo_analysis"])(
+    "links %s to the returned Task, scoped to its project and turn workspace",
+    async (capability) => {
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+        receipt({
+          capability,
+          targetId: seoTargetId,
+          result: {
+            projectId: seoProjectId,
+            id: seoTargetId,
+            taskId: seoTaskId,
+            link: seoLink,
+          },
+        }),
+      ]);
+      db.sokoBotTurn.findUnique.mockResolvedValue({
+        workspaceId: "workspace-one",
+      });
+      db.task.findMany.mockResolvedValueOnce([
+        { id: seoTaskId, projectId: seoProjectId, name: "Fix [launch] title" },
+      ]);
+      const result = await buildActionResponse(prisma, "turn-current", "");
+      expect(db.task.findMany).toHaveBeenCalledWith({
+        where: {
+          workspaceId: "workspace-one",
+          visibility: "PUBLIC",
+          OR: [{ id: seoTaskId, projectId: seoProjectId }],
+        },
+        select: { id: true, name: true, projectId: true },
+      });
+      expect(result.answerText).toContain(
+        `[Fix \\[launch\\] title](/tasks/${seoTaskId})`,
+      );
+      expect(result.answerText).not.toContain(`/tasks/${seoTargetId}`);
+      expect(result.answerText).toContain(`([Open SEO](${seoLink}))`);
+    },
+  );
+
+  it("does not reveal private or out-of-scope SEO Task names or invent a Task link", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "create_seo_action_task",
+        targetId: seoTargetId,
+        input: { taskId: "private-task", name: "Private task name" },
+        result: {
+          projectId: seoProjectId,
+          id: seoTargetId,
+          taskId: seoTaskId,
+          link: seoLink,
+        },
+      }),
+    ]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      workspaceId: "workspace-one",
+    });
+    db.task.findMany.mockResolvedValueOnce([]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      `Created SEO action task ([Open SEO](${seoLink})).`,
+    );
+    expect(result.answerText).not.toContain("Private task name");
+    expect(result.answerText).not.toContain("/tasks/");
+  });
+
+  it("does not use a saved Task field on a non-Task SEO operation", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "save_seo_keyword",
+        targetId: seoTargetId,
+        result: {
+          projectId: seoProjectId,
+          id: seoTargetId,
+          taskId: seoTaskId,
+          link: seoLink,
+        },
+      }),
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      `Saved SEO keyword ([Open SEO](${seoLink})).`,
+    );
+    expect(db.task.findMany).not.toHaveBeenCalled();
+  });
+
+  it("keeps the Task link hidden when the owning turn cannot be read", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "create_seo_action_task",
+        targetId: seoTargetId,
+        result: {
+          projectId: seoProjectId,
+          id: seoTargetId,
+          taskId: seoTaskId,
+          link: seoLink,
+        },
+      }),
+    ]);
+    db.sokoBotTurn.findUnique.mockResolvedValue(null);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      `Created SEO action task ([Open SEO](${seoLink})).`,
+    );
+    expect(db.task.findMany).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {},
+    { projectId: seoProjectId, id: "different-target", link: seoLink },
+    { projectId: seoProjectId, id: seoTargetId, link: "https://evil.example" },
+    {
+      projectId: seoProjectId,
+      id: seoTargetId,
+      link: `${seoLink}&next=https://evil.example`,
+    },
+    {
+      projectId: "../private",
+      id: seoTargetId,
+      link: "/seo?projectId=../private&view=project",
+    },
+  ])("keeps malformed and legacy SEO results label-only: %j", async (saved) => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "add_seo_page",
+        targetId: seoTargetId,
+        input: { projectId: seoProjectId, link: seoLink },
+        result: saved,
+      }),
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe("Added SEO page.");
+    expect(db.task.findMany).not.toHaveBeenCalled();
+  });
+
+  it("quotes only the committed queued chat text and names delivery as pending", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "post_chat",
+        targetId: "message-one",
+        input: { content: "Wrong retry text" },
+        result: {
+          messageId: "message-one",
+          roomName: "Launch team",
+          queuedContent: "The preview is ready for review.",
+          deliveryStatus: "QUEUED",
+        },
+      }),
+    ]);
+    const result = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "Everything was delivered.",
+    );
+    expect(result.answerText).toBe(
+      'Queued chat message in "Launch team": "The preview is ready for review." (delivery pending).',
+    );
+  });
+
+  it.each([
+    {
+      messageId: "other-message",
+      roomName: "Wrong room",
+      queuedContent: "Wrong text",
+      deliveryStatus: "QUEUED",
+    },
+    {
+      messageId: "message-one",
+      roomName: "Launch team",
+      deliveryStatus: "QUEUED",
+    },
+    {
+      messageId: "message-one",
+      roomName: "Launch team",
+      queuedContent: "Wrong state",
+      deliveryStatus: "SENT",
+    },
+  ])(
+    "does not invent queued chat content from old or mismatched results: %j",
+    async (saved) => {
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+        receipt({
+          capability: "post_chat",
+          targetId: "message-one",
+          input: { content: "Unverified input" },
+          result: saved,
+        }),
+      ]);
+      const result = await buildActionResponse(prisma, "turn-current", "");
+      expect(result.answerText).toBe("Queued chat message.");
+    },
+  );
+
+  it.each([false, true])(
+    "bounds and redacts saved chat text before quoting it as literal text (secret: %s)",
+    async (hasSecret) => {
+      const secret = "sk-live-abcdefghijklmnopqrstuvwxyz0123456789";
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+        receipt({
+          capability: "post_chat",
+          targetId: "message-one",
+          result: {
+            messageId: "message-one",
+            roomName: "Launch\nteam",
+            queuedContent: hasSecret
+              ? `api key: ${secret}`
+              : `[claim](https://example.com) ${"x".repeat(1_100)}`,
+            deliveryStatus: "QUEUED",
+          },
+        }),
+      ]);
+      const result = await buildActionResponse(prisma, "turn-current", "");
+      expect(result.answerText).not.toContain(secret);
+      expect(result.answerText).toContain('"Launch team"');
+      expect(result.answerText).toContain(
+        hasSecret ? "Sensitive value removed" : "\\[claim\\]",
+      );
+      expect(result.answerText.length).toBeLessThan(1_200);
+      expect(result.answerText).toContain("delivery pending");
+    },
+  );
+
+  it("names the verified one-time check, its Task and exact saved run time", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "create_schedule",
+        targetId: "schedule-one",
+        result: {
+          id: "schedule-one",
+          name: "Research check",
+          taskId: "task-one",
+          nextRunAt: "2026-11-14T17:34:00.000Z",
+          timezone: "Europe/Berlin",
+          runOnce: true,
+          enabled: true,
+        },
+      }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([
+      {
+        id: "task-one",
+        name: "Research brief",
+        assignee: null,
+        assigneeUser: null,
+        assigneeSokoBot: null,
+      },
+    ]);
+    const result = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "I will check next month.",
+    );
+    expect(result.answerText).toBe(
+      'Configured schedule "Research check" for [Research brief](/tasks/task-one), once at 2026-11-14T17:34:00.000Z (time zone Europe/Berlin).',
+    );
+    expect(db.task.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ["task-one"] } } }),
+    );
+  });
+
+  it("counts separate deleted schedules and names them without dead preview links", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        id: "receipt-a",
+        capability: "delete_schedule",
+        targetId: "schedule-a",
+        result: { id: "schedule-a", name: "Daily check", deleted: true },
+      }),
+      receipt({
+        id: "receipt-b",
+        capability: "delete_schedule",
+        targetId: "schedule-b",
+        result: { id: "schedule-b", name: "Weekly check", deleted: true },
+      }),
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      'Deleted 2 schedules: "Daily check", "Weekly check".',
+    );
+  });
+
+  it("counts legacy nameless deletions by target rather than their empty display text", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        id: "receipt-a",
+        capability: "delete_schedule",
+        targetId: "schedule-a",
+      }),
+      receipt({
+        id: "receipt-b",
+        capability: "delete_schedule",
+        targetId: "schedule-b",
+      }),
+      receipt({
+        id: "receipt-c",
+        capability: "delete_schedule",
+        targetId: "schedule-b",
+      }),
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe("Deleted 2 schedules.");
+  });
+
+  it("does not claim a paused schedule will run or copy an unmatched result", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "update_schedule",
+        targetId: "schedule-one",
+        input: { enabled: false },
+        result: {
+          id: "schedule-one",
+          name: "Research check",
+          nextRunAt: "2026-11-14T17:34:00.000Z",
+          timezone: "Europe/Berlin",
+          enabled: false,
+        },
+      }),
+      receipt({
+        id: "mismatch",
+        capability: "create_schedule",
+        targetId: "schedule-two",
+        result: { id: "another-schedule", name: "Wrong check", enabled: true },
+      }),
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      'Paused schedule "Research check".\nConfigured schedule.',
+    );
+  });
+
   it("links a verified newsletter draft to the editor for human review", async () => {
     const projectId = "11111111-1111-4111-8111-111111111111";
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([

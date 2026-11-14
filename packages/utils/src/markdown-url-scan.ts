@@ -21,6 +21,8 @@ const TRAILING_PUNCTUATION_CHARS = new Set([
   ")",
   "}",
   "]",
+  "’",
+  "”",
 ]);
 
 function isBareUrlStopChar(ch: string): boolean {

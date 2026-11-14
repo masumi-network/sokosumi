@@ -1,4 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
+import {
+  redactSokoBotSensitiveText,
+  SOKO_BOT_SEO_WRITE_CAPABILITIES,
+} from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { newsletterIssueLink } from "./newsletter-issue-link";
 
@@ -61,6 +65,54 @@ const SOCIAL_POST_CAPABILITIES = new Set([
   "publish_social_post",
 ]);
 
+const SCHEDULE_CAPABILITIES = new Set([
+  "create_schedule",
+  "update_schedule",
+  "delete_schedule",
+]);
+const MAX_ACTION_NAME_LENGTH = 120;
+const MAX_QUEUED_CHAT_CONTENT_LENGTH = 1_000;
+const queuedChatResult = z.object({
+  messageId: z.string().min(1),
+  roomName: z.string().min(1),
+  queuedContent: z.string().min(1),
+  deliveryStatus: z.literal("QUEUED"),
+});
+const scheduleResult = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  taskId: z.string().min(1).nullable().optional(),
+  nextRunAt: z.string().datetime({ offset: true }).optional(),
+  timezone: z.string().min(1).optional(),
+  runOnce: z.boolean().optional(),
+  enabled: z.boolean().optional(),
+});
+
+/** Redact before clipping, and keep saved text literal inside Markdown. */
+function quoteResultText(value: string, maxLength: number): string {
+  const safe = redactSokoBotSensitiveText(value).replace(/[\r\n]+/g, " ");
+  const bounded =
+    safe.length > maxLength ? `${safe.slice(0, maxLength)}...` : safe;
+  return JSON.stringify(bounded).replace(/[\\`*_[\]<>]/g, "\\$&");
+}
+
+/** Only committed schedule results can name the work that a check watches. */
+export function scheduleTaskId(call: {
+  capability: string;
+  targetId: string | null;
+  result?: unknown;
+}): string | null {
+  if (
+    !SCHEDULE_CAPABILITIES.has(call.capability) ||
+    call.capability === "delete_schedule"
+  )
+    return null;
+  const schedule = scheduleResult.safeParse(call.result);
+  return schedule.success && schedule.data.id === call.targetId
+    ? (schedule.data.taskId ?? null)
+    : null;
+}
+
 export const TASK_TARGET_CAPABILITIES = new Set([
   "create_task",
   "update_task",
@@ -106,6 +158,60 @@ export async function taskLabels(
   );
 }
 
+const SEO_WRITE_CAPABILITIES = new Set<string>(SOKO_BOT_SEO_WRITE_CAPABILITIES);
+const SEO_TASK_CAPABILITIES = new Set([
+  "request_seo_analysis",
+  "create_seo_action_task",
+]);
+const seoReceiptResult = z.object({
+  projectId: z.uuid(),
+  id: z.uuid(),
+  taskId: z.uuid().optional(),
+  link: z.string(),
+});
+
+/** Only the locally committed result can identify the Project and optional Task. */
+function seoReceipt(call: {
+  capability: string;
+  targetId: string | null;
+  result?: unknown;
+}) {
+  if (!SEO_WRITE_CAPABILITIES.has(call.capability)) return null;
+  const saved = seoReceiptResult.safeParse(call.result);
+  if (!saved.success || saved.data.id !== call.targetId) return null;
+  const link = `/seo?projectId=${encodeURIComponent(saved.data.projectId)}&view=project`;
+  return saved.data.link === link ? saved.data : null;
+}
+
+/** SEO receipt targets name domain records, not Tasks. Resolve only the returned public Task in this scope. */
+export async function seoTaskLabels(
+  tx: Prisma.TransactionClient,
+  turnId: string,
+  calls: { capability: string; targetId: string | null; result?: unknown }[],
+): Promise<Map<string, string>> {
+  const targets = calls.flatMap((call) => {
+    const saved = SEO_TASK_CAPABILITIES.has(call.capability)
+      ? seoReceipt(call)
+      : null;
+    return saved?.taskId
+      ? [{ id: saved.taskId, projectId: saved.projectId }]
+      : [];
+  });
+  if (!targets.length) return new Map();
+  const turn = await tx.sokoBotTurn.findUnique({
+    where: { id: turnId },
+    select: { workspaceId: true },
+  });
+  if (!turn) return new Map();
+  const tasks = await tx.task.findMany({
+    where: { workspaceId: turn.workspaceId, visibility: "PUBLIC", OR: targets },
+    select: { id: true, name: true, projectId: true },
+  });
+  return new Map(
+    tasks.map((task) => [`${task.projectId}:${task.id}`, task.name]),
+  );
+}
+
 /** Literal text inside markdown: a Task called "[TEST] Launch" keeps its brackets. */
 export function linkText(value: string): string {
   return value.slice(0, 120).replace(/[[\]\\]/g, "\\$&");
@@ -116,8 +222,50 @@ export function actionTarget(
   tasks: Map<string, TaskLabel>,
   jobAgents: Map<string, string>,
   assignedTaskIds: ReadonlySet<string | null>,
+  seoTasks: ReadonlyMap<string, string> = new Map(),
 ): string {
   const id = call.targetId ?? "";
+  if (SEO_WRITE_CAPABILITIES.has(call.capability)) {
+    const saved = seoReceipt(call);
+    if (!saved) return "";
+    const name =
+      saved.taskId && SEO_TASK_CAPABILITIES.has(call.capability)
+        ? seoTasks.get(`${saved.projectId}:${saved.taskId}`)
+        : null;
+    const task =
+      name && saved.taskId
+        ? `[${linkText(name)}](/tasks/${encodeURIComponent(saved.taskId)}) `
+        : "";
+    return `${task}([Open SEO](${saved.link}))`;
+  }
+
+  if (call.capability === "post_chat") {
+    const chat = queuedChatResult.safeParse(call.result);
+    return chat.success && chat.data.messageId === id
+      ? `in ${quoteResultText(chat.data.roomName, MAX_ACTION_NAME_LENGTH)}: ${quoteResultText(chat.data.queuedContent, MAX_QUEUED_CHAT_CONTENT_LENGTH)} (delivery pending)`
+      : "";
+  }
+  if (SCHEDULE_CAPABILITIES.has(call.capability)) {
+    const schedule = scheduleResult.safeParse(call.result);
+    if (!schedule.success || schedule.data.id !== id) return "";
+    const saved = schedule.data;
+    const name = quoteResultText(saved.name, MAX_ACTION_NAME_LENGTH);
+    if (call.capability === "delete_schedule") return name;
+    const task = saved.taskId ? tasks.get(saved.taskId) : null;
+    const work =
+      task && saved.taskId
+        ? ` for [${linkText(task.name)}](/tasks/${encodeURIComponent(saved.taskId)})`
+        : "";
+    const time =
+      saved.enabled === true && saved.nextRunAt && saved.timezone
+        ? `, ${saved.runOnce ? "once" : "next run"} at ${new Date(saved.nextRunAt).toISOString()} (time zone ${redactSokoBotSensitiveText(
+            saved.timezone,
+          )
+            .replace(/[\r\n]+/g, " ")
+            .slice(0, 100)})`
+        : "";
+    return `${name}${work}${time}`;
+  }
   if (call.capability === "newsletter_draft_issue") {
     const issue = z.object({ projectId: z.uuid() }).safeParse(call.result);
     return issue.success
@@ -263,19 +411,25 @@ export function missedTasks(links: string[]): string {
 export function countedLabel(label: string, count: number): string {
   if (count === 1) return label;
   const task = /^(.*) task$/i.exec(label);
-  return task ? `${task[1]} ${count} Tasks` : `${label} (${count}×)`;
+  const schedule = /^(.*) schedule$/i.exec(label);
+  return task
+    ? `${task[1]} ${count} Tasks`
+    : schedule
+      ? `${schedule[1]} ${count} schedules`
+      : `${label} (${count}×)`;
 }
 
 export function collapseActionLines(
-  lines: { head: string; target: string }[],
+  lines: { head: string; target: string; identity?: string }[],
 ): string[] {
-  const groups = new Map<string, string[]>();
-  for (const { head, target } of lines) {
-    const targets = groups.get(head) ?? [];
-    if (!targets.includes(target)) targets.push(target);
+  const groups = new Map<string, Map<string, string>>();
+  for (const { head, target, identity } of lines) {
+    const targets = groups.get(head) ?? new Map<string, string>();
+    targets.set(identity ?? target, target);
     groups.set(head, targets);
   }
-  return [...groups].map(([head, targets]) => {
+  return [...groups].map(([head, entries]) => {
+    const targets = [...entries.values()];
     if (targets.length === 1)
       return `${[head, targets[0]].filter(Boolean).join(" ")}.`;
     const named = targets.filter(Boolean);

@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { SEO_SEARCH_TYPES, SEO_TRAFFIC_CHANNELS } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 
 /**
@@ -6,7 +7,6 @@ import { dateTimeSchema } from "@/helpers/datetime";
  * "AI Assistant" default channel group (ChatGPT, Gemini, Copilot and others).
  * Search Console reads are organic search only.
  */
-export const SEO_TRAFFIC_CHANNELS = ["all", "organic", "ai_assistant"] as const;
 export const seoTrafficChannelSchema = z.enum(SEO_TRAFFIC_CHANNELS);
 export type SeoTrafficChannel = z.infer<typeof seoTrafficChannelSchema>;
 
@@ -14,14 +14,6 @@ export type SeoTrafficChannel = z.infer<typeof seoTrafficChannelSchema>;
  * Search Console search types, as the Search Analytics `type` field names them.
  * `news` is the News tab of Google Search; `googleNews` is news.google.com and the Google News app.
  */
-export const SEO_SEARCH_TYPES = [
-  "web",
-  "image",
-  "video",
-  "news",
-  "discover",
-  "googleNews",
-] as const;
 export const seoSearchTypeSchema = z.enum(SEO_SEARCH_TYPES);
 export type SeoSearchType = z.infer<typeof seoSearchTypeSchema>;
 

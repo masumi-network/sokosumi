@@ -14,6 +14,11 @@ import { adProviderForToolkit } from "@/config/ads-providers";
 import { socialProviderForToolkit } from "@/config/social-providers";
 import prisma from "@/lib/db/prisma";
 import {
+  isMailboxFixtureAccount,
+  mailboxFixtureCatalog,
+  mailboxFixtureIntegrations,
+} from "@/lib/evals/mailbox-integration-adapter";
+import {
   executeIntegrationTool as execute,
   SokoBotIntegrationError,
 } from "@/services/composio-integration-tools.service";
@@ -102,6 +107,8 @@ export async function searchSokoBotIntegrationCatalog(
   query: string,
   limit = 20,
 ): Promise<SokoBotIntegrationCatalogEntry[]> {
+  const fixtures = await mailboxFixtureCatalog(query, limit);
+  if (fixtures) return fixtures;
   if (!catalogCache || Date.now() - catalogCache.at > CATALOG_TTL_MS) {
     const entries = await loadCatalog();
     if (!entries) return curatedCatalog(query, limit);
@@ -194,6 +201,12 @@ export async function activeIntegrationsForBot(
   kind?: "email" | "calendar" | "generic",
   providerId?: string,
 ): Promise<ActiveIntegration[]> {
+  const fixtures = await mailboxFixtureIntegrations(
+    sokoBotId,
+    kind,
+    providerId,
+  );
+  if (fixtures) return fixtures;
   const rows = await prisma.sokoBotIntegration.findMany({
     where: {
       sokoBotId,
@@ -663,6 +676,7 @@ export async function fetchCalendarEvents(
   options: { from: Date; to: Date; limit: number },
 ): Promise<SokoBotCalendarEvent[]> {
   const { events } = await fetchCalendarPage(integration, options);
+  if (isMailboxFixtureAccount(integration)) return events;
   // A calendar is read inside the stand-up, meeting prep and briefings, not
   // by the hourly mail ingest, so the read itself records that it worked.
   try {

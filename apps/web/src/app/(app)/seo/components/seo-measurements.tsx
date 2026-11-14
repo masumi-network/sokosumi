@@ -121,8 +121,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
     if (isRate(key) && !enoughImpressions)
       return { text: t("overview.noComparison"), Icon: null, muted: true };
     // Judge the change between the values as shown: equal shown values are no change.
-    const scale = 10 ** (unit === "count" ? 0 : unit === "ratio" ? 3 : 1);
-    const shown = (value: number) => Math.round(value * scale) / scale;
+    const shown = (value: number) => seoShownValue(value, unit);
     const delta = shown(shown(week.current) - shown(week.previous));
     const values = {
       period: compared ? windowLabel(compared.current) : "",

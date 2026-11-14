@@ -110,21 +110,32 @@ const NOT_YET_COVERED = new Set([
   "workspace_read",
   "workspace_search",
   "write_table_rows",
-  // Native SEO tools: their eval cases are a follow-up.
-  "get_seo_workspace",
-  "list_seo_statistics_properties",
-  "add_seo_page",
-  "save_seo_scope",
-  "save_seo_keyword",
-  "save_seo_competitor",
+  // These provider-backed SEO tools have isolated integration tests, not model cases.
   "import_seo_audit",
   "request_seo_analysis",
-  "create_seo_action_task",
   "sync_seo_statistics",
-  "record_seo_page_change",
 ]);
 
 describe("eval cases", () => {
+  it("requires real calls for the eight SEO cases that need no provider", () => {
+    const expected = {
+      "seo-workspace-read": "get_seo_workspace",
+      "seo-add-page": "add_seo_page",
+      "seo-save-page-group": "save_seo_scope",
+      "seo-save-keyword": "save_seo_keyword",
+      "seo-confirm-competitor": "save_seo_competitor",
+      "seo-recommendation-task": "create_seo_action_task",
+      "seo-record-page-change": "record_seo_page_change",
+      "seo-statistics-disconnected": "list_seo_statistics_properties",
+    };
+    for (const [id, capability] of Object.entries(expected)) {
+      const found = EVAL_CASES.find((entry) => entry.id === id);
+      expect(found, id).toMatchObject({ kind: "scenario", area: "SEO" });
+      if (found?.kind === "scenario")
+        expect(found.scenario.expect.tools, id).toContain(capability);
+    }
+  });
+
   it("freeze the site language separately from the expected language for every strategy", () => {
     const strategies = EVAL_CASES.filter(
       (evalCase) => evalCase.kind === "cmo-strategy",

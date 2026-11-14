@@ -124,6 +124,7 @@ const SUBSCRIBER_ID = NEWSLETTER_SUBSCRIBER.id;
 const SUBSCRIBERS_URL = `/newsletter/subscribers?projectId=${NEWSLETTER_PROJECT_ID}`;
 const AUTHORIZED: AuthorizedSokoBotRuntime = {
   turn: {
+    clientTurnId: "ordinary-runtime-test",
     id: "turn",
     sokoBotId: BOT_ID,
     actingUserId: "user",

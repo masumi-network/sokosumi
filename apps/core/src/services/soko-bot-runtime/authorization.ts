@@ -48,6 +48,7 @@ export async function authorize(
     where: { id: input.turnId },
     select: {
       id: true,
+      clientTurnId: true,
       sokoBotId: true,
       requestedByUserId: true,
       workspaceId: true,
@@ -218,6 +219,7 @@ export async function authorize(
     askedByKind: sokoBotTurnAudience(turn),
     reader: sokoBotTurnReaderOf(turn),
     turn: {
+      clientTurnId: turn.clientTurnId,
       id: turn.id,
       sokoBotId: turn.sokoBotId,
       actingUserId,

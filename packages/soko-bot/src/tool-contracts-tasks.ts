@@ -71,17 +71,31 @@ export const sokoBotAgentIdInputSchema = z
  */
 export const sokoBotFollowUpSchema = z.string().trim().min(1).max(2_000);
 
+const COWORKER_ASSIGNMENT_DESCRIPTION =
+  "AI Coworker id from find_coworkers.coworkers, or its taskAssignment.coworkerId. Never a human userId; use memberId for people.";
+const MEMBER_ASSIGNMENT_DESCRIPTION =
+  "Human teammate userId from find_coworkers.people, or its taskAssignment.memberId. Never put this value in coworkerId.";
+
 export const sokoBotCreateTaskInputSchema = z
   .object({
     triggeringTaskId: z.string().min(1).optional(),
     name: z.string().trim().min(1).max(160),
     description: z.string().trim().max(20_000).nullable().optional(),
     projectId: z.string().uuid().nullable().optional(),
-    coworkerId: z.string().min(1).nullable().optional(),
+    coworkerId: z
+      .string()
+      .min(1)
+      .nullable()
+      .optional()
+      .describe(COWORKER_ASSIGNMENT_DESCRIPTION),
     /** The owner does it themselves (pay, sign, decide); not with coworkerId. */
     assignToOwner: z.literal(true).optional(),
     /** A teammate does it: their userId from find_coworkers `people`. */
-    memberId: z.string().min(1).optional(),
+    memberId: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(MEMBER_ASSIGNMENT_DESCRIPTION),
     status: z.enum(["DRAFT", "READY"]).default("DRAFT"),
     /** Drive files (ids from upload_file or list_files) to attach as the Task's inputs. */
     fileIds: z.array(z.string().uuid()).max(10).optional(),
@@ -121,9 +135,17 @@ export const sokoBotArchiveTaskInputSchema = z
 export const sokoBotAssignTaskInputSchema = z
   .object({
     taskId: z.string().min(1),
-    coworkerId: z.string().min(1).optional(),
+    coworkerId: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(COWORKER_ASSIGNMENT_DESCRIPTION),
     assignToOwner: z.literal(true).optional(),
-    memberId: z.string().min(1).optional(),
+    memberId: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(MEMBER_ASSIGNMENT_DESCRIPTION),
     ready: z.boolean().default(true),
     followUp: sokoBotFollowUpSchema.optional(),
   })

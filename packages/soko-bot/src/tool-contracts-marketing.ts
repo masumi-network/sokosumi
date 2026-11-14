@@ -214,7 +214,12 @@ export const socialPostThreadPartsSchema = z
 export const socialPostScheduledAtSchema = z.iso.datetime({ offset: true });
 
 /** Keeps a link in the post body, which is refused unless the owner asked for it there. */
-export const socialPostLinkInPostSchema = z.boolean().optional();
+export const socialPostLinkInPostSchema = z
+  .boolean()
+  .optional()
+  .describe(
+    "Set true only when the owner explicitly requested a link in the post body. A request to include a URL does not authorize body placement; otherwise put it in firstComment and omit this field.",
+  );
 
 export const socialPostTimezoneSchema = z.string().refine(isValidTimezone, {
   message: "timezone must be a valid IANA time zone",
