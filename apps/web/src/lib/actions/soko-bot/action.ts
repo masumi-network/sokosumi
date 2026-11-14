@@ -287,6 +287,59 @@ export const updateSokoBotScheduleAction = withSession<
   }
 });
 
+const nextRunChangeSchema = z.object({
+  scheduleId: z.string().uuid(),
+  expectedAt: z.date(),
+  change: z.discriminatedUnion("action", [
+    z.object({ action: z.literal("skip") }),
+    z.object({ action: z.literal("move"), scheduledAt: z.date() }),
+  ]),
+});
+
+interface NextRunChangeParams extends BotScopedParams {
+  input: unknown;
+}
+
+/** Why Core refused a next-run change, in the Calendar's Run change terms. */
+export interface SokoBotNextRunError {
+  kind: "stale" | "invalid_time" | "failed";
+  message: string;
+}
+
+/**
+ * Skips or moves a schedule's next run from the Calendar; the cron stays.
+ * Answers the schedule's new next run, which an Undo must send as expected.
+ */
+export const changeSokoBotNextRunAction = withSession<
+  NextRunChangeParams,
+  ActionResultDto<{ nextRunAt: Date }, SokoBotNextRunError>
+>(async ({ input, botId }) => {
+  const parsed = nextRunChangeSchema.safeParse(input);
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsed.success || !parsedBot.success)
+    return toActionResult(err({ kind: "failed", message: "Invalid input" }));
+  const { scheduleId, expectedAt, change } = parsed.data;
+  try {
+    const schedule = await sokoBotService.updateSchedule(
+      scheduleId,
+      { nextRun: { expectedAt, ...change } },
+      parsedBot.data,
+    );
+    revalidate(parsedBot.data);
+    revalidatePath("/calendar");
+    return toActionResult(ok({ nextRunAt: schedule.nextRunAt }));
+  } catch (error) {
+    const status = error instanceof CoreApiRequestError ? error.status : null;
+    return toActionResult(
+      err({
+        kind:
+          status === 409 ? "stale" : status === 422 ? "invalid_time" : "failed",
+        message: error instanceof Error ? error.message : "Request failed",
+      }),
+    );
+  }
+});
+
 interface ScheduleIdParams extends BotScopedParams {
   scheduleId: unknown;
 }

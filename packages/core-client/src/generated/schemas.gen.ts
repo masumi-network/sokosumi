@@ -33029,16 +33029,54 @@ export const SokoBotRunCalendarItemSchema = {
         scheduleId: {
             type: 'string',
             format: 'uuid',
-            description: 'The caller\'s own Soko Bot schedule that runs at this time'
+            description: 'The Soko Bot schedule that runs, or ran, at this time'
         },
         name: {
             type: 'string'
+        },
+        sokoBotId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        botName: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        shared: {
+            type: 'boolean',
+            description: 'A Project or workspace bot every member sees; false for the caller\'s own personal bot'
+        },
+        projectName: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        runState: {
+            type: 'string',
+            enum: [
+                'upcoming',
+                'running',
+                'done',
+                'failed'
+            ],
+            description: 'upcoming: still to come. running, done, failed: a run that started, from the bot\'s run history'
+        },
+        canChange: {
+            type: 'boolean',
+            description: 'The bot\'s next run, which the caller may move or skip with the schedule\'s `nextRun`'
         },
         sourceId: {
             type: 'string'
         },
         sourceProjectId: {
-            type: 'null'
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
         },
         sourceWorkspaceId: {
             type: 'string',
@@ -33047,7 +33085,8 @@ export const SokoBotRunCalendarItemSchema = {
         sourceType: {
             type: 'string',
             enum: [
-                'WORKSPACE'
+                'WORKSPACE',
+                'PROJECT'
             ]
         }
     },
@@ -33057,6 +33096,12 @@ export const SokoBotRunCalendarItemSchema = {
         'scheduledAt',
         'scheduleId',
         'name',
+        'sokoBotId',
+        'botName',
+        'shared',
+        'projectName',
+        'runState',
+        'canChange',
         'sourceId',
         'sourceProjectId',
         'sourceWorkspaceId',
@@ -47447,6 +47492,36 @@ export const UpdateSokoBotScheduleRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 20000
+        },
+        nextRun: {
+            type: 'object',
+            properties: {
+                expectedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'The next run the caller saw; a schedule whose next run changed since answers 409'
+                },
+                action: {
+                    type: 'string',
+                    enum: [
+                        'skip',
+                        'move'
+                    ]
+                },
+                scheduledAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'For move: the new time, in the future and before the run after it'
+                }
+            },
+            required: [
+                'expectedAt',
+                'action'
+            ],
+            additionalProperties: false,
+            description: 'Skip or move only the next run; the cron stays as it is. Sent alone.'
         }
     },
     additionalProperties: false

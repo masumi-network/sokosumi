@@ -225,10 +225,10 @@ export function requestsFeatures(
 
 /**
  * The Calendar reads one feature at a time (Tasks, Social posts, Newsletter
- * issues, Contact follow-ups, the Marketing plan, the caller's Soko Bot
- * runs) and pages their entries together by time, then id. Task-only filters
- * leave out every other feature, and so does a workspace source except for
- * Contacts and the Soko Bot.
+ * issues, Contact follow-ups, the Marketing plan, Soko Bot runs) and pages
+ * their entries together by time, then id. Task-only filters leave out every
+ * other feature, and so does a workspace source except for Contacts and Soko
+ * Bot runs.
  */
 export async function readWorkspaceCalendar(
   workspaceId: string,
@@ -250,7 +250,7 @@ export async function readWorkspaceCalendar(
     newsletter: fromProjects,
     marketing: fromProjects && query.scope !== "owned",
     contacts: !options.projectId && !hasTaskOnlyFilter,
-    sokoBot: !options.projectId && !hasTaskOnlyFilter,
+    sokoBot: !hasTaskOnlyFilter,
   };
   const types = requestedTypes(query).filter((type) => applies[type]);
 

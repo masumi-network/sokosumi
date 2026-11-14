@@ -10679,6 +10679,11 @@
         "cancel": "Cancelar",
         "invalid": "Elige una fecha y hora válidas.",
         "past": "Elige una hora en el futuro."
+      },
+      "botRun": {
+        "running": "En curso",
+        "done": "Hecho",
+        "failed": "Falló"
       }
     },
     "You": {

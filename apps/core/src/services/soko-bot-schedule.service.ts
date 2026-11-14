@@ -1,5 +1,9 @@
 import type { Prisma } from "@sokosumi/database";
-import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
+import {
+  computeNextRun,
+  computeNextRunWithMinimumInterval,
+} from "@/helpers/cron";
+import { conflict } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
@@ -128,6 +132,12 @@ export interface UpdateSokoBotScheduleInput {
   timezone?: string;
   cronExpression?: string;
   prompt?: string;
+  /** Skip or move only the next run, which the caller saw at `expectedAt`. */
+  nextRun?: {
+    expectedAt: string;
+    action: "skip" | "move";
+    scheduledAt?: string;
+  };
 }
 
 /**
@@ -390,6 +400,7 @@ export async function updateSokoBotSchedule(
   const db = transaction ?? prisma;
   const schedule = await findScheduleForUser(input.userId, input, transaction);
   await requireSharedBotScheduleSeat(input.userId, schedule.sokoBotId, db);
+  if (input.nextRun) return changeNextRun(schedule, input.nextRun, db);
   const timezone = input.timezone ?? schedule.timezone;
   const cronExpression = input.cronExpression ?? schedule.cronExpression;
   if (input.cronExpression) assertNoDayOrTrap(input.cronExpression);
@@ -444,6 +455,80 @@ export async function updateSokoBotSchedule(
         );
   }
   return db.sokoBotSchedule.update({ where: { id: schedule.id }, data });
+}
+
+/**
+ * Skips or moves the schedule's next run and leaves the cron as it is. The
+ * scheduler fires `nextRunAt` and walks the cron on from there, so skipping
+ * sets it to the run after, and a move stays before that run so none is
+ * swallowed. The write holds only while `nextRunAt` is still the run the
+ * caller saw: the scheduler's claim moves it the same way, so whichever
+ * writes first wins and the other finds it changed.
+ */
+async function changeNextRun(
+  schedule: {
+    id: string;
+    enabled: boolean;
+    runOnce: boolean;
+    nextRunAt: Date;
+    cronExpression: string;
+    timezone: string;
+  },
+  change: NonNullable<UpdateSokoBotScheduleInput["nextRun"]>,
+  db: Prisma.TransactionClient | typeof prisma,
+) {
+  const now = new Date();
+  const expectedAt = new Date(change.expectedAt);
+  if (
+    !schedule.enabled ||
+    schedule.nextRunAt.getTime() !== expectedAt.getTime() ||
+    schedule.nextRunAt <= now
+  ) {
+    throw conflict("The next run changed; reload to see it");
+  }
+  const following = schedule.runOnce
+    ? null
+    : computeNextRun({
+        cron: schedule.cronExpression,
+        timezone: schedule.timezone,
+        from: schedule.nextRunAt,
+      });
+  let data: { nextRunAt: Date; cronExpression?: string };
+  if (change.action === "skip") {
+    if (!following) {
+      throw new SokoBotScheduleValidationError(
+        "A one-time run cannot be skipped; switch the schedule off instead",
+      );
+    }
+    data = { nextRunAt: following };
+  } else {
+    const at = new Date(change.scheduledAt ?? "");
+    if (
+      Number.isNaN(at.getTime()) ||
+      at <= now ||
+      (following
+        ? at >= following
+        : at.getTime() - now.getTime() > MAX_ONE_TIME_LEAD_MS)
+    ) {
+      throw new SokoBotScheduleValidationError(
+        following
+          ? `Move the run to a time in the future and before the next one, ${following.toISOString()}`
+          : "Move the run to a time in the future, within a year",
+      );
+    }
+    // A one-time schedule's cron only mirrors its time for display.
+    data = schedule.runOnce
+      ? { nextRunAt: at, cronExpression: wallClockCron(at, schedule.timezone) }
+      : { nextRunAt: at };
+  }
+  const changed = await db.sokoBotSchedule.updateMany({
+    where: { id: schedule.id, enabled: true, nextRunAt: schedule.nextRunAt },
+    data,
+  });
+  if (changed.count === 0) {
+    throw conflict("The next run changed; reload to see it");
+  }
+  return db.sokoBotSchedule.findUniqueOrThrow({ where: { id: schedule.id } });
 }
 
 export async function deleteSokoBotSchedule(

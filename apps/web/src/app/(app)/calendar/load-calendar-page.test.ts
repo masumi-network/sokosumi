@@ -214,7 +214,7 @@ describe("loadWorkspaceCalendarPage", () => {
     expect(getProjectCalendarMock).toHaveBeenCalledWith(
       PROJECT.id,
       expect.objectContaining({
-        types: "tasks,social,newsletter,marketing",
+        types: "tasks,social,newsletter,marketing,sokoBot",
         timeZone: "Europe/Berlin",
       }),
     );

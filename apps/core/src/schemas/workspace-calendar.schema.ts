@@ -397,13 +397,28 @@ export const sokoBotRunCalendarItemSchema = z
     id: z.string(),
     scheduledAt: dateTimeSchema,
     scheduleId: z.uuid().openapi({
-      description: "The caller's own Soko Bot schedule that runs at this time",
+      description: "The Soko Bot schedule that runs, or ran, at this time",
     }),
     name: z.string(),
+    sokoBotId: z.uuid(),
+    botName: z.string().nullable(),
+    shared: z.boolean().openapi({
+      description:
+        "A Project or workspace bot every member sees; false for the caller's own personal bot",
+    }),
+    projectName: z.string().nullable(),
+    runState: z.enum(["upcoming", "running", "done", "failed"]).openapi({
+      description:
+        "upcoming: still to come. running, done, failed: a run that started, from the bot's run history",
+    }),
+    canChange: z.boolean().openapi({
+      description:
+        "The bot's next run, which the caller may move or skip with the schedule's `nextRun`",
+    }),
     sourceId: z.string(),
-    sourceProjectId: z.null(),
+    sourceProjectId: z.uuid().nullable(),
     sourceWorkspaceId: z.uuid(),
-    sourceType: z.literal("WORKSPACE"),
+    sourceType: z.enum(["WORKSPACE", "PROJECT"]),
   })
   .openapi("SokoBotRunCalendarItem");
 

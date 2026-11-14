@@ -380,11 +380,37 @@ export const updateSokoBotScheduleRequestSchema = z
     timezone: z.string().trim().min(1).max(100).optional(),
     cronExpression: z.string().trim().min(1).max(120).optional(),
     prompt: z.string().trim().min(1).max(20_000).optional(),
+    nextRun: z
+      .object({
+        expectedAt: dateTimeSchema.openapi({
+          description:
+            "The next run the caller saw; a schedule whose next run changed since answers 409",
+        }),
+        action: z.enum(["skip", "move"]),
+        scheduledAt: dateTimeSchema.optional().openapi({
+          description:
+            "For move: the new time, in the future and before the run after it",
+        }),
+      })
+      .strict()
+      .refine(
+        (value) => (value.action === "move") === Boolean(value.scheduledAt),
+        "scheduledAt goes with move, and only with move",
+      )
+      .optional()
+      .openapi({
+        description:
+          "Skip or move only the next run; the cron stays as it is. Sent alone.",
+      }),
   })
   .strict()
   .refine(
     (value) => Object.keys(value).length > 0,
     "At least one field is required",
+  )
+  .refine(
+    (value) => !value.nextRun || Object.keys(value).length === 1,
+    "nextRun is sent alone",
   )
   .openapi("UpdateSokoBotScheduleRequest");
 

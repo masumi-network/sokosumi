@@ -26,12 +26,13 @@ describe("availableCalendarTypes", () => {
     ]);
   });
 
-  it("hides Follow-ups and the Soko Bot under a Project, as Core does", () => {
+  it("hides Follow-ups under a Project, as Core does", () => {
     expect(availableCalendarTypes(true, { projectId: "project-1" })).toEqual([
       "tasks",
       "social",
       "newsletter",
       "marketing",
+      "sokoBot",
     ]);
   });
 
@@ -51,7 +52,7 @@ describe("availableCalendarTypes", () => {
         projectId: "project-1",
         scope: "owned",
       }),
-    ).toEqual(["tasks", "social"]);
+    ).toEqual(["tasks", "social", "sokoBot"]);
   });
 });
 
@@ -62,6 +63,6 @@ describe("selectedCalendarTypes", () => {
         ["contacts"],
         availableCalendarTypes(true, { projectId: "project-1" }),
       ),
-    ).toEqual(["tasks", "social", "newsletter", "marketing"]);
+    ).toEqual(["tasks", "social", "newsletter", "marketing", "sokoBot"]);
   });
 });

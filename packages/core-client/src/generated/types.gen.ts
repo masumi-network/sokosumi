@@ -8815,14 +8815,29 @@ export type SokoBotRunCalendarItem = {
     id: string;
     scheduledAt: Date;
     /**
-     * The caller's own Soko Bot schedule that runs at this time
+     * The Soko Bot schedule that runs, or ran, at this time
      */
     scheduleId: string;
     name: string;
+    sokoBotId: string;
+    botName: string | null;
+    /**
+     * A Project or workspace bot every member sees; false for the caller's own personal bot
+     */
+    shared: boolean;
+    projectName: string | null;
+    /**
+     * upcoming: still to come. running, done, failed: a run that started, from the bot's run history
+     */
+    runState: 'upcoming' | 'running' | 'done' | 'failed';
+    /**
+     * The bot's next run, which the caller may move or skip with the schedule's `nextRun`
+     */
+    canChange: boolean;
     sourceId: string;
-    sourceProjectId: null;
+    sourceProjectId: string | null;
     sourceWorkspaceId: string;
-    sourceType: 'WORKSPACE';
+    sourceType: 'WORKSPACE' | 'PROJECT';
 };
 
 export type ProjectCloseStatus = {
@@ -12229,6 +12244,20 @@ export type UpdateSokoBotScheduleRequest = {
     timezone?: string;
     cronExpression?: string;
     prompt?: string;
+    /**
+     * Skip or move only the next run; the cron stays as it is. Sent alone.
+     */
+    nextRun?: {
+        /**
+         * The next run the caller saw; a schedule whose next run changed since answers 409
+         */
+        expectedAt: Date;
+        action: 'skip' | 'move';
+        /**
+         * For move: the new time, in the future and before the run after it
+         */
+        scheduledAt?: Date;
+    };
 };
 
 export type ResolveSokoBotDecisionRequest = {
@@ -79740,6 +79769,21 @@ export type UpdateMySokoBotScheduleErrors = {
         };
     };
     /**
+     * The next run changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unprocessable Entity
      */
     422: {
@@ -83795,7 +83839,7 @@ export type UpdateSokoBotScheduleErrors = {
         };
     };
     /**
-     * CMO project is read-only
+     * CMO project is read-only, or the next run changed
      */
     409: {
         error: string;

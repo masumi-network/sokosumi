@@ -9,6 +9,7 @@ import type {
 } from "@sokosumi/core-client";
 import {
   CalendarClock,
+  Ellipsis,
   FileText,
   type LucideIcon,
   Mail,
@@ -16,9 +17,16 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { calendarTypeOf } from "@/app/calendar/calendar-types";
 import { newsletterHref } from "@/app/newsletter/newsletter-tabs";
-import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 import { SourceMarker } from "./source-marker";
 
@@ -38,8 +46,14 @@ export function calendarCardClassName(interactive: boolean): string {
   );
 }
 
+/** A Soko Bot run's state, said on its card; a run still to come says nothing. */
+type BotRunStateLabel = (state: "running" | "done" | "failed") => string;
+
 /** What each kind shows and where it opens: the one place to add a feature. */
-function featureEventView(item: FeatureCalendarEntry): {
+function featureEventView(
+  item: FeatureCalendarEntry,
+  botRunState?: BotRunStateLabel,
+): {
   Icon: LucideIcon;
   title: string;
   detail: string | null;
@@ -91,9 +105,18 @@ function featureEventView(item: FeatureCalendarEntry): {
       return {
         Icon: CalendarClock,
         title: item.name,
-        detail: null,
-        href: `${SOKO_BOT_ROUTE}?schedule=${encodeURIComponent(item.scheduleId)}`,
-        project: null,
+        // A shared bot names itself: a workspace may hold several.
+        detail:
+          [
+            item.shared ? item.botName : null,
+            item.runState !== "upcoming" && botRunState
+              ? botRunState(item.runState)
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · ") || null,
+        href: `${sokoBotConsoleRoute(item.shared ? item.sokoBotId : null)}?schedule=${encodeURIComponent(item.scheduleId)}`,
+        project: item.projectName,
         allDay: false,
         start: item.scheduledAt.toISOString(),
       };
@@ -106,18 +129,38 @@ export function featureEntryPlacement(item: FeatureCalendarEntry) {
   return { title, allDay, start };
 }
 
+/** The Soko Bot's next run, which the viewer may move or skip. */
+export type ChangeableBotRun = SokoBotRunCalendarItem & { canChange: true };
+
+export function isChangeableBotRun(
+  item: FeatureCalendarEntry,
+): item is ChangeableBotRun {
+  return item.kind === "sokoBotRun" && item.canChange;
+}
+
+export interface BotRunHandlers {
+  onMoveBotRun: (item: ChangeableBotRun) => void;
+  onSkipBotRun: (item: ChangeableBotRun) => void;
+}
+
 /** A Newsletter issue, Contact follow-up, Marketing piece or Soko Bot run: title and time. */
 export function FeatureCalendarEvent({
   item,
   source,
   timeText,
-}: {
+  onMoveBotRun,
+  onSkipBotRun,
+}: Partial<BotRunHandlers> & {
   item: FeatureCalendarEntry;
   source: WorkspaceCalendarSource | undefined;
   timeText: string | undefined;
 }) {
   const t = useTranslations("App.Calendar");
-  const { Icon, title, detail, href, project, allDay } = featureEventView(item);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { Icon, title, detail, href, project, allDay } = featureEventView(
+    item,
+    (state) => t(`botRun.${state}`),
+  );
   const content = (
     <>
       <span className="flex w-full min-w-0 items-center gap-1">
@@ -147,6 +190,42 @@ export function FeatureCalendarEvent({
     source: t(`show.${calendarTypeOf(item)}`),
     task: title,
   });
+  // The next run opens a menu, as a Task Schedule Run does: move, skip, or
+  // open its schedule. The card is not the trigger, so a tap opens it too.
+  if (href && isChangeableBotRun(item) && onMoveBotRun && onSkipBotRun) {
+    return (
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <div
+          className={calendarCardClassName(true)}
+          data-testid="calendar-event"
+          onClick={() => setMenuOpen(true)}
+        >
+          {content}
+          <DropdownMenuTrigger asChild>
+            <button
+              aria-label={accessibleName}
+              className="text-muted-foreground press hover:bg-muted hover:text-foreground focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
+              onClick={(event) => event.stopPropagation()}
+              type="button"
+            >
+              <Ellipsis aria-hidden className="size-4" />
+            </button>
+          </DropdownMenuTrigger>
+        </div>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => onMoveBotRun(item)}>
+            {t("event.moveRun")}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onSkipBotRun(item)}>
+            {t("event.skipRun")}
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href={href}>{t("event.openSchedule")}</Link>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
   if (!href) {
     return (
       <div

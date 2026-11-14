@@ -24,6 +24,7 @@ const { serviceMock, revalidatePathMock, MockCoreApiRequestError } = vi.hoisted(
         reactivate: vi.fn(),
         resetMemory: vi.fn(),
         rename: vi.fn(),
+        updateSchedule: vi.fn(),
       },
       revalidatePathMock: vi.fn(),
       MockCoreApiRequestError,
@@ -64,6 +65,7 @@ import {
 
 import {
   archiveSokoBotAction,
+  changeSokoBotNextRunAction,
   createScopedSokoBotAction,
   createSokoBotAction,
   createSokoBotScheduleAction,
@@ -181,6 +183,60 @@ describe("soko-bot actions", () => {
     });
     expect(bad.ok).toBe(false);
     expect(serviceMock.createSchedule).not.toHaveBeenCalled();
+  });
+
+  describe("changeSokoBotNextRunAction", () => {
+    const SCHEDULE_ID = "01960001-0001-7001-8001-0000000000cc";
+    const BOT_ID = "01960001-0001-7001-8001-000000000001";
+    const expectedAt = new Date("2030-01-03T09:00:00.000Z");
+    const skip = (botId?: string) =>
+      changeSokoBotNextRunAction({
+        botId,
+        input: {
+          scheduleId: SCHEDULE_ID,
+          expectedAt,
+          change: { action: "skip" },
+        },
+      });
+
+    it("sends the change as the schedule's nextRun and refreshes the Calendar", async () => {
+      const nextRunAt = new Date("2030-01-04T09:00:00.000Z");
+      serviceMock.updateSchedule.mockResolvedValue({ nextRunAt });
+      await expect(skip(BOT_ID)).resolves.toEqual({
+        ok: true,
+        value: { nextRunAt },
+      });
+      expect(serviceMock.updateSchedule).toHaveBeenCalledWith(
+        SCHEDULE_ID,
+        { nextRun: { expectedAt, action: "skip" } },
+        BOT_ID,
+      );
+      expect(revalidatePathMock).toHaveBeenCalledWith("/calendar");
+    });
+
+    it.each([
+      [409, "stale"],
+      [422, "invalid_time"],
+      [500, "failed"],
+    ])("maps Core %i to %s", async (status, kind) => {
+      serviceMock.updateSchedule.mockRejectedValue(
+        new MockCoreApiRequestError("no", status),
+      );
+      const result = await skip();
+      expect(result).toMatchObject({ ok: false, error: { kind } });
+    });
+
+    it("refuses a move without a time before calling Core", async () => {
+      const result = await changeSokoBotNextRunAction({
+        input: {
+          scheduleId: SCHEDULE_ID,
+          expectedAt,
+          change: { action: "move" },
+        },
+      });
+      expect(result).toMatchObject({ ok: false, error: { kind: "failed" } });
+      expect(serviceMock.updateSchedule).not.toHaveBeenCalled();
+    });
   });
 
   it("topUpSokoBotAvatarsAction refuses a take above one generation batch", async () => {

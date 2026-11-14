@@ -100,6 +100,7 @@ describe("schedules of a shared bot", () => {
     cronExpression: "0 9 * * 1",
     prompt: "How is it going?",
     enabled: true,
+    runOnce: false,
     nextRunAt: new Date("2099-01-01T09:00:00.000Z"),
     systemKey: null,
   });
@@ -173,6 +174,7 @@ describe("schedules of a shared bot", () => {
     },
   );
   const scheduleUpdate = vi.fn();
+  const scheduleUpdateMany = vi.fn();
   const scheduleDelete = vi.fn();
   const scheduleCreate = vi.fn();
   const botFindUnique = vi.fn(async (args: { where: { id: string } }) => ({
@@ -186,6 +188,8 @@ describe("schedules of a shared bot", () => {
       findFirst: scheduleFindFirst,
       findMany: scheduleFindMany,
       update: scheduleUpdate,
+      updateMany: scheduleUpdateMany,
+      findUniqueOrThrow: vi.fn(async () => SHARED),
       delete: scheduleDelete,
       create: scheduleCreate,
       count: vi.fn().mockResolvedValue(0),
@@ -207,6 +211,115 @@ describe("schedules of a shared bot", () => {
       ...data,
     }));
     scheduleCreate.mockImplementation(async ({ data }) => data);
+    scheduleUpdateMany.mockResolvedValue({ count: 1 });
+  });
+
+  describe("moving or skipping the next run", () => {
+    // 2099-01-01 is a Thursday; the cron runs Mondays at 09:00 UTC.
+    const NEXT = "2099-01-01T09:00:00.000Z";
+    const FOLLOWING = new Date("2099-01-05T09:00:00.000Z");
+    const nextRun = (
+      row: typeof SHARED,
+      change: { action: "skip" | "move"; scheduledAt?: string },
+      userId = "member_2",
+      expectedAt = NEXT,
+    ) =>
+      updateSokoBotSchedule(
+        { userId, ...turnRef(row), nextRun: { expectedAt, ...change } },
+        tx,
+      );
+
+    it("lets any member with access skip a shared bot's next run to the run after", async () => {
+      await nextRun(SHARED, { action: "skip" });
+      expect(scheduleUpdateMany).toHaveBeenCalledWith({
+        where: { id: SHARED.id, enabled: true, nextRunAt: new Date(NEXT) },
+        data: { nextRunAt: FOLLOWING },
+      });
+      expect(scheduleUpdate).not.toHaveBeenCalled();
+    });
+
+    it("moves the next run to a time before the run after it", async () => {
+      await nextRun(
+        PERSONAL,
+        {
+          action: "move",
+          scheduledAt: "2099-01-03T15:30:00.000Z",
+        },
+        "owner_1",
+      );
+      expect(scheduleUpdateMany).toHaveBeenCalledWith({
+        where: { id: PERSONAL.id, enabled: true, nextRunAt: new Date(NEXT) },
+        data: { nextRunAt: new Date("2099-01-03T15:30:00.000Z") },
+      });
+    });
+
+    it.each([
+      ["onto the run after it", FOLLOWING.toISOString()],
+      ["past the run after it", "2099-01-09T09:00:00.000Z"],
+      ["into the past", "2020-01-01T09:00:00.000Z"],
+    ])("refuses a move %s, so no run is swallowed", async (_label, at) => {
+      await expect(
+        nextRun(SHARED, { action: "move", scheduledAt: at }),
+      ).rejects.toThrow(SokoBotScheduleValidationError);
+      expect(scheduleUpdateMany).not.toHaveBeenCalled();
+    });
+
+    it("answers 409 when the next run is no longer the one the caller saw", async () => {
+      await expect(
+        nextRun(
+          SHARED,
+          { action: "skip" },
+          "member_2",
+          "2099-01-08T09:00:00.000Z",
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(scheduleUpdateMany).not.toHaveBeenCalled();
+      // The scheduler claimed it between the read and the write.
+      scheduleUpdateMany.mockResolvedValueOnce({ count: 0 });
+      await expect(nextRun(SHARED, { action: "skip" })).rejects.toMatchObject({
+        status: 409,
+      });
+    });
+
+    it.each([
+      ["a non-member", "outsider", SHARED],
+      ["another member's personal bot", "member_2", PERSONAL],
+    ])("finds no schedule for %s", async (_label, userId, row) => {
+      await expect(nextRun(row, { action: "skip" }, userId)).rejects.toThrow(
+        SokoBotScheduleNotFoundError,
+      );
+      expect(scheduleUpdateMany).not.toHaveBeenCalled();
+    });
+
+    it("refuses a member without a Seat on a shared bot", async () => {
+      vi.mocked(requireAssignedOrganizationSeat).mockRejectedValueOnce(
+        new Error("An assigned seat is required"),
+      );
+      await expect(nextRun(SHARED, { action: "skip" })).rejects.toThrow(
+        "An assigned seat is required",
+      );
+      expect(scheduleUpdateMany).not.toHaveBeenCalled();
+    });
+
+    it("moves a one-time run with its display cron and never skips it", async () => {
+      // A one-time run moves at most a year ahead.
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2098-12-31T00:00:00.000Z"));
+      scheduleFindFirst.mockResolvedValueOnce({ ...SHARED, runOnce: true });
+      await nextRun(SHARED, {
+        action: "move",
+        scheduledAt: "2099-03-04T10:15:00.000Z",
+      });
+      expect(scheduleUpdateMany.mock.lastCall?.[0].data).toEqual({
+        nextRunAt: new Date("2099-03-04T10:15:00.000Z"),
+        cronExpression: "15 10 4 3 *",
+      });
+      scheduleFindFirst.mockResolvedValueOnce({ ...SHARED, runOnce: true });
+      await expect(nextRun(SHARED, { action: "skip" })).rejects.toThrow(
+        /cannot be skipped/,
+      );
+      vi.useRealTimers();
+    });
   });
 
   it("lets any member with access edit and delete a schedule another member wrote", async () => {

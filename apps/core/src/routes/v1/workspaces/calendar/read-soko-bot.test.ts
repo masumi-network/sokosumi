@@ -58,7 +58,25 @@ describe("runTimes", () => {
     expect(runTimes(once("2026-06-08T00:00:00.000Z"), FROM, TO, 1)).toEqual([]);
   });
 
-  it("shows nothing for a cron it cannot read", () => {
+  it("starts at a next run moved off the cron, then follows the cron", () => {
+    const times = runTimes(
+      {
+        cronExpression: "0 12 * * *",
+        timezone: "UTC",
+        runOnce: false,
+        nextRunAt: new Date("2026-06-01T15:45:00.000Z"),
+      },
+      FROM,
+      new Date("2026-06-03T00:00:00.000Z"),
+      100,
+    );
+    expect(times.map((t) => t.toISOString())).toEqual([
+      "2026-06-01T15:45:00.000Z",
+      "2026-06-02T12:00:00.000Z",
+    ]);
+  });
+
+  it("shows only the stored next run for a cron it cannot read", () => {
     expect(
       runTimes(
         {
@@ -71,6 +89,6 @@ describe("runTimes", () => {
         TO,
         100,
       ),
-    ).toEqual([]);
+    ).toEqual([FROM]);
   });
 });
