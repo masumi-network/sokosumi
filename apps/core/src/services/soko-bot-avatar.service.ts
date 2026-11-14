@@ -4,7 +4,6 @@ import type { Prisma } from "@sokosumi/database";
 
 import { put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
-import { createGateway, generateText } from "ai";
 import { HTTPException } from "hono/http-exception";
 import sharp from "sharp";
 
@@ -22,6 +21,12 @@ import {
   CONCURRENCY_CONFLICT_KIND,
   serializableTransaction,
 } from "@/lib/db/transaction";
+import { imageModel } from "@/lib/image-studio/catalog";
+import {
+  buildFalInput,
+  downloadMedia,
+  parseMedia,
+} from "@/lib/image-studio/fal-client";
 
 /**
  * Soko Bot avatar pool. Images follow the "IP as logo" recipe
@@ -31,8 +36,8 @@ import {
  * topped up when it runs low so onboarding always has choices.
  */
 
-/** The AI Gateway image model that draws the pool. */
-const AVATAR_MODEL = "google/gemini-3.1-flash-image";
+/** The fal image model that draws the pool (Nano Banana 2, the studio default). */
+const AVATAR_MODEL = imageModel("gemini-flash").generateEndpoint;
 const GENERATION_TIMEOUT_MS = 60_000;
 const MAX_TOP_UP_PER_CALL = 6;
 const GENERATION_WINDOW_MS = 60 * 60 * 1000;
@@ -270,29 +275,43 @@ async function nextAvatarDraws(
   return draws;
 }
 
-/** One image from the Gateway image model, as PNG or whatever it answers with. */
+/** One image from the fal image model, as PNG or whatever it answers with. */
 async function generateImage(prompt: string): Promise<Buffer> {
-  const apiKey = getEnv().AI_GATEWAY_API_KEY;
-  if (!apiKey) throw new Error("AI_GATEWAY_API_KEY is not configured");
-  const result = await generateText({
-    model: createGateway({ apiKey }).languageModel(AVATAR_MODEL),
-    prompt,
-    providerOptions: {
-      google: {
-        responseModalities: ["TEXT", "IMAGE"],
-        imageConfig: { aspectRatio: "1:1" },
-      },
+  const key = getEnv().FAL_KEY;
+  if (!key) throw new Error("FAL_KEY is not configured");
+  // One synchronous call, no retry. Each call is billed. A hidden retry would
+  // be a second paid image the hourly cap cannot see.
+  const response = await fetch(`https://fal.run/${AVATAR_MODEL}`, {
+    method: "POST",
+    headers: {
+      authorization: `Key ${key}`,
+      "content-type": "application/json",
     },
-    // Each call is billed. A hidden retry would be a second paid image the
-    // hourly cap cannot see.
-    maxRetries: 0,
-    abortSignal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
+    body: JSON.stringify(
+      buildFalInput(
+        {
+          prompt,
+          aspectRatio: "1:1",
+          resolution: "1K",
+          outputFormat: "png",
+          seed: null,
+          imageUrls: [],
+        },
+        AVATAR_MODEL,
+      ),
+    ),
+    signal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
   });
-  const image = result.files.find((file) =>
-    file.mediaType.startsWith("image/"),
-  );
+  if (!response.ok) {
+    throw new Error(`The image model answered ${response.status}`);
+  }
+  const [image] = parseMedia(await response.json().catch(() => null));
   if (!image) throw new Error("The image model returned no image");
-  return Buffer.from(image.uint8Array);
+  const { bytes } = await downloadMedia(
+    image.url,
+    LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES,
+  );
+  return Buffer.from(bytes);
 }
 
 /**
@@ -338,10 +357,10 @@ interface AvatarReservation {
 /** Thrown when the caller has no hourly allowance left. Nothing is billed. */
 class AvatarGenerationCappedError extends Error {}
 
-/** Whether the pool can draw at all: it needs the Gateway and a blob store. */
+/** Whether the pool can draw at all: it needs fal and a blob store. */
 function canDraw(): boolean {
   const env = getEnv();
-  return Boolean(env.AI_GATEWAY_API_KEY && env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(env.FAL_KEY && env.BLOB_READ_WRITE_TOKEN);
 }
 
 /** How a draw treats the caller's runs that are still in flight. */

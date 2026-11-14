@@ -30,11 +30,11 @@ Optional, per network:
 - `COMPOSIO_API_KEY` — brokers OAuth for Gmail, Outlook and Calendar
   integrations. Without it, integrations are unavailable and the rest of the
   bot still works.
-- Avatars: the pool draws through `AI_GATEWAY_API_KEY` and stores to
+- Avatars: the pool draws through `FAL_KEY` and stores to
   `BLOB_READ_WRITE_TOKEN`. Without either the pool stays empty, the picker
   offers no pictures and the sidebar shows a plain icon.
   There is no avatar cron: opening the picker draws new avatars with
-  `google/gemini-3.1-flash-image` when the pool runs low, capped at 24 per user
+  `fal-ai/gemini-3.1-flash-image-preview` when the pool runs low, capped at 24 per user
   per hour.
 - `AI_GATEWAY_API_KEY` — also routes every turn. Jev (`typesafe-ai/jev`)
   picks the route through the Gateway evaluation API. It has no EU region, so
@@ -91,8 +91,8 @@ keep `soko-bots/avatars/{key}-{hash12}.png`; new ones are stored as
 `soko-bot-avatars/`. Chat files stay under `soko-bots/{uuid}/chats/`.
 
 `GET /v1/soko-bots/avatars` is the picker HTTP API. It is not the Blob folder.
-No cron tops up the pool: the picker's top-up draws new avatars through the
-AI Gateway (`AI_GATEWAY_API_KEY`) on demand.
+No cron tops up the pool: the picker's top-up draws new avatars through
+fal (`FAL_KEY`) on demand.
 
 If Blob still has objects under `soko-bot-avatars/`, copy them, then delete
 the old prefix after DB URLs are clean:
