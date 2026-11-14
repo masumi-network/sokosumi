@@ -4390,6 +4390,10 @@
       "copiesFromProducts": "Define las copias de cada producto en Productos.",
       "emptyTitle": "Crea tu primer anuncio",
       "emptyBody": "Elige una plantilla y completa los detalles, o escribe tu propio briefing.",
+      "RecentProjects": {
+        "title": "Continúa donde lo dejaste",
+        "imageCount": "{count, plural, one {# imagen} other {# imágenes}}"
+      },
       "pauseTemplateMotion": "Pausar las vistas previas flotantes",
       "resumeTemplateMotion": "Reanudar las vistas previas flotantes",
       "CreativeStart": {

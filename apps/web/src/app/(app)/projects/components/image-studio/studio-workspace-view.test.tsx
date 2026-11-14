@@ -657,3 +657,35 @@ describe("unfilled template slots on every paid path", () => {
     });
   });
 });
+
+describe("All projects in a workspace with Studio images", () => {
+  it("shows recent projects in place of the first-ad hero and sample ads", () => {
+    render(
+      <ImageStudio
+        catalog={TEST_CATALOG}
+        initialSelectedAssetId={null}
+        initialState={{ assets: [], jobs: [], nextCursor: null }}
+        labels={TEST_LABELS}
+        projectId={null}
+        projectScopePrompt={
+          <ProjectScopeRequired body="Pick a project" variant="action" />
+        }
+        recentProjects={<h2>Recent work</h2>}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Recent work" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "emptyTitle" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "pauseTemplateMotion" }),
+    ).not.toBeInTheDocument();
+    // Choosing or starting a project stays one click away.
+    expect(
+      screen.getByRole("button", { name: "selectProject" }),
+    ).toBeInTheDocument();
+  });
+});
