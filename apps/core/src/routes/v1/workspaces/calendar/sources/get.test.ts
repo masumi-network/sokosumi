@@ -185,7 +185,7 @@ describe("GET /workspaces/calendar/sources", () => {
             isSchedulable: false,
           },
         ],
-        features: ["tasks", "social", "contacts", "marketing"],
+        features: ["tasks", "social", "contacts", "marketing", "sokoBot"],
       },
       meta: expect.objectContaining({ requestId: "req_calendar_sources" }),
     });
@@ -269,6 +269,7 @@ describe("GET /workspaces/calendar/sources", () => {
       "newsletter",
       "contacts",
       "marketing",
+      "sokoBot",
     ]);
   });
 

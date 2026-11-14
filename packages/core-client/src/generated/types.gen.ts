@@ -8633,7 +8633,7 @@ export type ProjectDesignMdWrite = {
 export type WorkspaceCalendarEntry = {
     scheduledAt: Date;
     originalScheduledAt?: Date | null;
-} & (WorkspaceCalendarItem | SocialPostCalendarItem | NewsletterIssueCalendarItem | ContactFollowUpCalendarItem | MarketingPieceCalendarItem);
+} & (WorkspaceCalendarItem | SocialPostCalendarItem | NewsletterIssueCalendarItem | ContactFollowUpCalendarItem | MarketingPieceCalendarItem | SokoBotRunCalendarItem);
 
 export type WorkspaceCalendarItem = {
     /**
@@ -8808,6 +8808,21 @@ export type MarketingPieceCalendarItem = {
     sourceProjectId: string;
     sourceWorkspaceId: string;
     sourceType: 'PROJECT';
+};
+
+export type SokoBotRunCalendarItem = {
+    kind: 'sokoBotRun';
+    id: string;
+    scheduledAt: Date;
+    /**
+     * The caller's own Soko Bot schedule that runs at this time
+     */
+    scheduleId: string;
+    name: string;
+    sourceId: string;
+    sourceProjectId: null;
+    sourceWorkspaceId: string;
+    sourceType: 'WORKSPACE';
 };
 
 export type ProjectCloseStatus = {
@@ -13924,7 +13939,7 @@ export type WorkspaceCalendarSourcesResponse = {
     /**
      * Calendar features this viewer may show. Web offers only these in the Show filter.
      */
-    features: Array<'tasks' | 'social' | 'newsletter' | 'contacts' | 'marketing'>;
+    features: Array<'tasks' | 'social' | 'newsletter' | 'contacts' | 'marketing' | 'sokoBot'>;
 };
 
 export type WorkspaceCalendarSource = {

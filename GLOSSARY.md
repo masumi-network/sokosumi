@@ -193,7 +193,7 @@ _Avoid_: Participant (when meaning a Task), follower, watcher
 ### Calendar
 
 **Calendar**:
-A destination of its own in the sidebar (`/calendar`) that shows everything with a date. Each feature is a filter on it, chosen with Show: Tasks (Runs and Run at), Social posts, Newsletter, Follow-ups and Marketing plan. It follows the Project scope. Social embeds it locked to Social posts.
+A destination of its own in the sidebar (`/calendar`) that shows everything with a date. Each feature is a filter on it, chosen with Show: Tasks (Runs and Run at), Social posts, Newsletter, Follow-ups, Marketing plan and Soko Bot (the coming runs of your own Soko Bot's schedules, never its built-in rhythms or follow-ups). It follows the Project scope. Social embeds it locked to Social posts.
 _Avoid_: Tasks calendar tab, content calendar (one calendar per feature)
 
 ### Social publishing

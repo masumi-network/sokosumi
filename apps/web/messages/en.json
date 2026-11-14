@@ -10573,7 +10573,8 @@
         "social": "Social posts",
         "newsletter": "Newsletter",
         "contacts": "Follow-ups",
-        "marketing": "Marketing plan"
+        "marketing": "Marketing plan",
+        "sokoBot": "Soko Bot"
       },
       "source": {
         "WORKSPACE": "Workspace",

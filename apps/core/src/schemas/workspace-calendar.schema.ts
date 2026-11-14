@@ -25,6 +25,7 @@ export const CALENDAR_TYPES = [
   "newsletter",
   "contacts",
   "marketing",
+  "sokoBot",
 ] as const;
 export type CalendarType = (typeof CALENDAR_TYPES)[number];
 
@@ -390,6 +391,22 @@ export const marketingPieceCalendarItemSchema = z
   })
   .openapi("MarketingPieceCalendarItem");
 
+export const sokoBotRunCalendarItemSchema = z
+  .object({
+    kind: z.literal("sokoBotRun"),
+    id: z.string(),
+    scheduledAt: dateTimeSchema,
+    scheduleId: z.uuid().openapi({
+      description: "The caller's own Soko Bot schedule that runs at this time",
+    }),
+    name: z.string(),
+    sourceId: z.string(),
+    sourceProjectId: z.null(),
+    sourceWorkspaceId: z.uuid(),
+    sourceType: z.literal("WORKSPACE"),
+  })
+  .openapi("SokoBotRunCalendarItem");
+
 // Keep dates outside the union so the generated client transforms every entry type.
 export const workspaceCalendarEntrySchema = z
   .object({
@@ -403,6 +420,7 @@ export const workspaceCalendarEntrySchema = z
       newsletterIssueCalendarItemSchema,
       contactFollowUpCalendarItemSchema,
       marketingPieceCalendarItemSchema,
+      sokoBotRunCalendarItemSchema,
     ]),
   )
   .openapi("WorkspaceCalendarEntry");

@@ -39,6 +39,7 @@ import {
   type WorkspaceCalendarReadQuery,
 } from "./read-shared.js";
 import { readSocial } from "./read-social.js";
+import { readSokoBot } from "./read-soko-bot.js";
 import { readTasks } from "./read-tasks.js";
 import {
   getCalendarBrowseEnd,
@@ -53,6 +54,7 @@ const READERS: Record<CalendarType, CalendarReader> = {
   newsletter: readNewsletter,
   contacts: readContacts,
   marketing: readMarketing,
+  sokoBot: readSokoBot,
 };
 
 export async function getCalendarAccessWhere(
@@ -223,9 +225,10 @@ export function requestsFeatures(
 
 /**
  * The Calendar reads one feature at a time (Tasks, Social posts, Newsletter
- * issues, Contact follow-ups, the Marketing plan) and pages their entries
- * together by time, then id. Task-only filters leave out every other
- * feature, and so does a workspace source except for Contacts.
+ * issues, Contact follow-ups, the Marketing plan, the caller's Soko Bot
+ * runs) and pages their entries together by time, then id. Task-only filters
+ * leave out every other feature, and so does a workspace source except for
+ * Contacts and the Soko Bot.
  */
 export async function readWorkspaceCalendar(
   workspaceId: string,
@@ -247,6 +250,7 @@ export async function readWorkspaceCalendar(
     newsletter: fromProjects,
     marketing: fromProjects && query.scope !== "owned",
     contacts: !options.projectId && !hasTaskOnlyFilter,
+    sokoBot: !options.projectId && !hasTaskOnlyFilter,
   };
   const types = requestedTypes(query).filter((type) => applies[type]);
 

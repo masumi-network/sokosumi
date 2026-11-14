@@ -32367,6 +32367,9 @@ export const WorkspaceCalendarEntrySchema = {
                 },
                 {
                     $ref: '#/components/schemas/MarketingPieceCalendarItem'
+                },
+                {
+                    $ref: '#/components/schemas/SokoBotRunCalendarItem'
                 }
             ]
         }
@@ -32999,6 +33002,61 @@ export const MarketingPieceCalendarItemSchema = {
         'status',
         'fileId',
         'projectName',
+        'sourceId',
+        'sourceProjectId',
+        'sourceWorkspaceId',
+        'sourceType'
+    ]
+} as const;
+
+export const SokoBotRunCalendarItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'sokoBotRun'
+            ]
+        },
+        id: {
+            type: 'string'
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        scheduleId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The caller\'s own Soko Bot schedule that runs at this time'
+        },
+        name: {
+            type: 'string'
+        },
+        sourceId: {
+            type: 'string'
+        },
+        sourceProjectId: {
+            type: 'null'
+        },
+        sourceWorkspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceType: {
+            type: 'string',
+            enum: [
+                'WORKSPACE'
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'id',
+        'scheduledAt',
+        'scheduleId',
+        'name',
         'sourceId',
         'sourceProjectId',
         'sourceWorkspaceId',
@@ -52681,7 +52739,8 @@ export const WorkspaceCalendarSourcesResponseSchema = {
                     'social',
                     'newsletter',
                     'contacts',
-                    'marketing'
+                    'marketing',
+                    'sokoBot'
                 ],
                 description: 'A Calendar feature the Show filter can include'
             },

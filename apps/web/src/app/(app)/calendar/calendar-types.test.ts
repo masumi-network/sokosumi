@@ -12,6 +12,7 @@ describe("availableCalendarTypes", () => {
       "newsletter",
       "contacts",
       "marketing",
+      "sokoBot",
     ]);
   });
 
@@ -21,10 +22,11 @@ describe("availableCalendarTypes", () => {
       "social",
       "contacts",
       "marketing",
+      "sokoBot",
     ]);
   });
 
-  it("hides Follow-ups under a Project, as Core does", () => {
+  it("hides Follow-ups and the Soko Bot under a Project, as Core does", () => {
     expect(availableCalendarTypes(true, { projectId: "project-1" })).toEqual([
       "tasks",
       "social",
@@ -39,6 +41,7 @@ describe("availableCalendarTypes", () => {
       "social",
       "newsletter",
       "contacts",
+      "sokoBot",
     ]);
   });
 
