@@ -125,7 +125,11 @@ export function AdsMarketKeywordList({
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{keyword.keyword}</p>
               <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-                {t("searchesPerMonth", { count: count(keyword.searchVolume) })}
+                {keyword.searchVolume === null
+                  ? t("noSearchData")
+                  : t("searchesPerMonth", {
+                      count: formatter.number(keyword.searchVolume),
+                    })}
               </p>
               {priceLine(keyword) ? (
                 <p className="text-muted-foreground text-xs tabular-nums">
