@@ -52,7 +52,8 @@ interface CreateProjectParameters extends AuthenticatedRequest {
 
 interface UpdateProjectParameters extends AuthenticatedRequest {
   projectId: string;
-  name: string;
+  /** Omit to leave the name alone, e.g. a website-only save. */
+  name?: string;
   identifier?: string;
   briefing?: string | null;
   websiteUrl?: string | null;
@@ -221,6 +222,8 @@ function normalizeOptionalWebsiteUrl(
 function revalidateProjectMutationRoutes(projectId: string) {
   revalidatePath("/projects");
   revalidatePath(`/projects/${projectId}`);
+  // The Brand card also lives here and reads the website.
+  revalidatePath(`/projects/${projectId}/design-md`);
 }
 
 function revalidateProjectCloseRoutes(projectId: string) {
@@ -347,11 +350,12 @@ export const updateProject = withSession<
   ProjectMutationResult<{ projectId: string }>
 >(async ({ projectId, name, identifier, briefing, websiteUrl, logo }) => {
   const normalizedProjectId = projectId.trim();
-  const normalizedName = normalizeProjectName(name);
+  const normalizedName =
+    name !== undefined ? normalizeProjectName(name) : undefined;
   if (!normalizedProjectId) {
     throw new Error("Project required");
   }
-  if (!normalizedName) {
+  if (normalizedName === "") {
     throw new Error("Name required");
   }
 
@@ -367,7 +371,7 @@ export const updateProject = withSession<
 
   try {
     await projectService.patchProject(normalizedProjectId, {
-      name: normalizedName,
+      ...(normalizedName !== undefined ? { name: normalizedName } : {}),
       ...(normalizedIdentifier ? { identifier: normalizedIdentifier } : {}),
       ...(briefing !== undefined
         ? { briefing: normalizeProjectBriefing(briefing) }
