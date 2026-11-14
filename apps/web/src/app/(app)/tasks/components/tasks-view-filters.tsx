@@ -1,7 +1,13 @@
 "use client";
 
 import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
-import { Building2, CircleDashed, Eye, Sparkles } from "lucide-react";
+import {
+  Building2,
+  CircleDashed,
+  Eye,
+  Hourglass,
+  Sparkles,
+} from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo } from "react";
@@ -16,6 +22,7 @@ import {
   getTasksFiltersFromSearchParams,
   hasActiveTasksFilters,
   type ProjectFilterOption,
+  STUCK_AFTER_DAYS,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
 import {
@@ -343,6 +350,16 @@ export function TasksViewFilters({
           {labels.assignedToMe}
         </Button>
       ) : null}
+      <Button
+        variant={filters.stuck ? "secondary" : "outline"}
+        size="sm"
+        aria-pressed={filters.stuck}
+        title={t("stuckHint", { days: STUCK_AFTER_DAYS })}
+        onClick={() => handleFilterChange({ stuck: !filters.stuck })}
+      >
+        <Hourglass aria-hidden />
+        {t("stuck", { days: STUCK_AFTER_DAYS })}
+      </Button>
       <FilterDropdownMenu
         buttonLabel={labels.title}
         searchPlaceholder={labels.searchPlaceholder}

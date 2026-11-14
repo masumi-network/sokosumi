@@ -14,6 +14,7 @@ import { TaskMetaDetails } from "./task-meta";
 import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskRunAtBadge } from "./task-run-at-badge";
+import { TaskStatusAge } from "./task-status-age";
 import { TaskStatusBadge } from "./task-status-badge";
 import { TaskTags } from "./task-tags";
 
@@ -36,6 +37,7 @@ export interface TaskCardData
     | "tags"
     | "runAt"
     | "dueOn"
+    | "statusSince"
   > {}
 interface TaskCardProps {
   task: TaskCardData;
@@ -77,6 +79,13 @@ export function TaskCard({
             label={statusLabels?.[task.status]}
             className="w-fit rounded-sm"
           />
+          {task.statusSince && !task.isPending ? (
+            <TaskStatusAge
+              status={task.status}
+              statusSince={task.statusSince}
+              className="me-auto"
+            />
+          ) : null}
           <TaskPrivateIndicator visibility={task.visibility} />
         </div>
         <h3

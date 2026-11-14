@@ -54,6 +54,8 @@ export interface TaskWithCoworker {
   runAt?: string | null;
   /** `YYYY-MM-DD` the Task should be done by. */
   dueOn?: string | null;
+  /** ISO time the Task last changed status, or was created. */
+  statusSince?: string;
 }
 
 export type KanbanColumnId =

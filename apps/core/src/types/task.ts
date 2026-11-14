@@ -103,6 +103,13 @@ export const taskListInclude = {
       jobs: true,
     },
   },
+  // The latest status change, for how long the Task has been in its status.
+  events: {
+    where: { status: { not: null } },
+    orderBy: { createdAt: "desc" },
+    take: 1,
+    select: { createdAt: true },
+  },
 } as const;
 
 export const taskInclude = {

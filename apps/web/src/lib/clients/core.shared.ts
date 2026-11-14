@@ -648,6 +648,9 @@ function transformTaskListResponseEnvelope(data: any) {
   data.data = (data.data ?? []).map((item: any) => {
     item.createdAt = toDate(item.createdAt);
     item.updatedAt = toDate(item.updatedAt);
+    if (item.statusSince) {
+      item.statusSince = toDate(item.statusSince);
+    }
     if (item.runAt) {
       item.runAt = toDate(item.runAt);
     }

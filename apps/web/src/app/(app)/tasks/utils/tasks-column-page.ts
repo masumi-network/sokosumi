@@ -9,9 +9,10 @@ import type {
 import { resolveMentionedAgentsById } from "@/app/tasks/utils/mentioned-agents";
 import { getColumnListQueryOptions } from "@/app/tasks/utils/task-column";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
-import type {
-  TasksScope,
-  TasksVisibilityFilter,
+import {
+  stuckCutoff,
+  type TasksScope,
+  type TasksVisibilityFilter,
 } from "@/app/tasks/utils/tasks-filters";
 import { taskService } from "@/lib/services/task.service";
 
@@ -28,6 +29,7 @@ interface GetTasksColumnPageParams {
   status: TaskStatus | null;
   projectId: string | null;
   visibility: TasksVisibilityFilter;
+  stuck?: boolean;
   coworkersById: Map<string, Coworker>;
   personalAssistantFallback: string;
 }
@@ -50,10 +52,11 @@ export async function getTasksColumnPage({
   status,
   projectId,
   visibility,
+  stuck = false,
   coworkersById,
   personalAssistantFallback,
 }: GetTasksColumnPageParams): Promise<GetTasksColumnPageResult> {
-  const { statuses } = getColumnListQueryOptions(columnId, status);
+  const { statuses } = getColumnListQueryOptions(columnId, status, stuck);
 
   if (statuses.length === 0) {
     return {
@@ -71,6 +74,7 @@ export async function getTasksColumnPage({
     assigneeUserId: assigneeUserId ?? undefined,
     projectId: projectId ?? undefined,
     ...(visibility ? { visibility } : {}),
+    ...(stuck ? { statusBefore: stuckCutoff(new Date()) } : {}),
     cursor,
     limit,
   });
