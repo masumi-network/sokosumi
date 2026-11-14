@@ -21,6 +21,11 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   },
 }));
 
+vi.mock("@/lib/utils/file-search.client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/utils/file-search.client")>()),
+  fetchFileSearchPage: async () => ({ items: [] }),
+}));
+
 vi.mock("@/components/agents/agent-icon", () => ({
   AgentIcon: () => <span data-testid="agent-icon" />,
 }));
@@ -392,7 +397,7 @@ describe("HistorySearchDialog", () => {
       "how do I invite a teammate",
     );
 
-    expect(screen.getByText("Help")).toBeInTheDocument();
+    expect(await screen.findByText("Help")).toBeInTheDocument();
     expect(
       screen.getByText("Open Settings, then Organization."),
     ).toBeInTheDocument();
@@ -402,5 +407,93 @@ describe("HistorySearchDialog", () => {
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(pushMock).toHaveBeenCalledWith("/organization");
+  });
+  it("keeps Enter on a record that arrives after a matching help topic", async () => {
+    let resolveSearch: ((value: { data: HistoryItem[] }) => void) | undefined;
+    getHistoryMock.mockImplementation(({ q }: { q?: string } = {}) =>
+      q
+        ? new Promise((resolve) => {
+            resolveSearch = resolve;
+          })
+        : Promise.resolve({ data: [] }),
+    );
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+
+    renderWithQuery(
+      <HistorySearchDialog
+        open
+        onOpenChange={vi.fn()}
+        activeOrganizationId="org-1"
+        labels={labels}
+        helpTopics={[
+          {
+            id: "projects",
+            href: "/projects",
+            title: "Group work in a Project",
+            answer: "Open Projects.",
+            keywords: "project client brief",
+          },
+        ]}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText("Search history...");
+    await user.type(input, "client brief");
+    await act(async () => {
+      vi.advanceTimersByTime(HISTORY_SEARCH_DEBOUNCE_MS);
+    });
+
+    // The record search is still running: Help waits instead of taking the
+    // selection Enter would act on.
+    expect(screen.queryByText("Help")).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveSearch?.({ data: [createTaskItem("task-brief", "Client brief")] });
+    });
+
+    expect(await screen.findByText("Help")).toBeInTheDocument();
+    expect(screen.getByText("Client brief")).toBeInTheDocument();
+
+    await user.keyboard("{Enter}");
+
+    expect(pushMock).toHaveBeenCalledTimes(1);
+    expect(pushMock).not.toHaveBeenCalledWith("/projects");
+    expect(pushMock.mock.calls[0]?.[0]).toContain("task-brief");
+  });
+
+  it("keeps an answer without a page on screen when picked", async () => {
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+
+    renderWithQuery(
+      <HistorySearchDialog
+        open
+        onOpenChange={onOpenChange}
+        activeOrganizationId={null}
+        labels={labels}
+        helpTopics={[
+          {
+            id: "startTeam",
+            href: null,
+            title: "Work with your team",
+            answer: "Create an organization from the workspace menu.",
+            keywords: "invite team",
+          },
+        ]}
+      />,
+    );
+
+    await user.type(screen.getByPlaceholderText("Search history..."), "invite");
+    await user.click(await screen.findByText("Work with your team"));
+
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Create an organization from the workspace menu."),
+    ).toBeInTheDocument();
   });
 });

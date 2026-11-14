@@ -5417,7 +5417,7 @@
     },
     "HistorySearchDialog": {
       "title": "Suche",
-      "description": "Suche nach Aufgaben, Jobs, Bildern oder Dateien oder frage, wie etwas geht",
+      "description": "Suche nach Aufgaben, Jobs, Job-Ergebnissen, Bildern oder Dateien oder frage, wie etwas geht",
       "searchPlaceholder": "Suchen oder fragen, wie es geht…",
       "empty": "Keine Ergebnisse gefunden",
       "loading": "Lädt...",

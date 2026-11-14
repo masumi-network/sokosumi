@@ -70,6 +70,8 @@ export function useHistorySearchCorpus({
 
   return {
     query,
+    /** The query the shown results answer; trails `query` while typing. */
+    debouncedQuery,
     setQuery,
     history: data ?? [],
     error: isError ? errorLabel : null,

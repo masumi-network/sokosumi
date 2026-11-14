@@ -5417,7 +5417,7 @@
     },
     "HistorySearchDialog": {
       "title": "Search",
-      "description": "Search for tasks, jobs, images or files, or ask how to do something",
+      "description": "Search for tasks, jobs, job results, images or files, or ask how to do something",
       "searchPlaceholder": "Search, or ask how to…",
       "empty": "No results found",
       "loading": "Loading...",

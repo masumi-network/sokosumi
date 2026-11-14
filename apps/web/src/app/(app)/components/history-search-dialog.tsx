@@ -59,7 +59,7 @@ export function HistorySearchDialog({
   const router = useRouter();
   const { formatDateWithYear } = useLocalizedDateTime();
   const showOwner = activeOrganizationId !== null;
-  const { query, setQuery, history, error, isLoading, reset } =
+  const { query, debouncedQuery, setQuery, history, error, isLoading, reset } =
     useHistorySearchCorpus({
       open,
       activeOrganizationId,
@@ -67,13 +67,20 @@ export function HistorySearchDialog({
     });
   // The Files group shares the dialog's debounced query. A failure here
   // hides the group; it never takes the other sections down with it.
-  const { files } = useFileSearchGroup({
+  const { files, isLoading: filesLoading } = useFileSearchGroup({
     open,
     activeOrganizationId,
     debouncedQuery: query,
   });
 
-  const matchedHelpTopics = matchSearchHelpTopics(query, helpTopics);
+  // Help sits below the records and mounts only once they have settled for
+  // the same query. cmdk keeps the first item it selected, so Help showing
+  // up before late record hits would take Enter away from record search.
+  const recordsSettled =
+    !isLoading && !filesLoading && debouncedQuery === query.trim();
+  const matchedHelpTopics = recordsSettled
+    ? matchSearchHelpTopics(debouncedQuery, helpTopics)
+    : [];
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
@@ -84,10 +91,12 @@ export function HistorySearchDialog({
   }
 
   function handleSelectHelpTopic(topic: SearchHelpTopic) {
-    handleOpenChange(false);
-    if (topic.href) {
-      router.push(topic.href);
+    // An answer without a page is the whole help: keep it on screen.
+    if (!topic.href) {
+      return;
     }
+    handleOpenChange(false);
+    router.push(topic.href);
   }
 
   function handleSelectFile(file: FileResource) {
@@ -124,27 +133,6 @@ export function HistorySearchDialog({
         onValueChange={setQuery}
       />
       <CommandList>
-        {matchedHelpTopics.length > 0 ? (
-          <CommandGroup heading={labels.helpGroup}>
-            {matchedHelpTopics.map((topic) => (
-              <CommandItem
-                key={topic.id}
-                value={`help:${topic.id}`}
-                onSelect={() => handleSelectHelpTopic(topic)}
-                className="flex items-start gap-2"
-              >
-                <CircleHelp aria-hidden className="mt-0.5 size-4" />
-                <div className="min-w-0 flex-1">
-                  <span className="block">{topic.title}</span>
-                  <span className="text-muted-foreground mt-0.5 block text-xs">
-                    {topic.answer}
-                  </span>
-                </div>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        ) : null}
-
         {isLoading && history.length === 0 ? (
           <div className="text-muted-foreground px-2 py-6 text-center text-sm">
             {labels.loading}
@@ -221,6 +209,27 @@ export function HistorySearchDialog({
             >
               {labels.filesSeeAll}
             </CommandItem>
+          </CommandGroup>
+        ) : null}
+
+        {matchedHelpTopics.length > 0 ? (
+          <CommandGroup heading={labels.helpGroup}>
+            {matchedHelpTopics.map((topic) => (
+              <CommandItem
+                key={topic.id}
+                value={`help:${topic.id}`}
+                onSelect={() => handleSelectHelpTopic(topic)}
+                className="flex items-start gap-2"
+              >
+                <CircleHelp aria-hidden className="mt-0.5 size-4" />
+                <div className="min-w-0 flex-1">
+                  <span className="block">{topic.title}</span>
+                  <span className="text-muted-foreground mt-0.5 block text-xs">
+                    {topic.answer}
+                  </span>
+                </div>
+              </CommandItem>
+            ))}
           </CommandGroup>
         ) : null}
       </CommandList>

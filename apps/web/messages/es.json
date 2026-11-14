@@ -5417,7 +5417,7 @@
     },
     "HistorySearchDialog": {
       "title": "Buscar",
-      "description": "Busca tareas, trabajos, imágenes o archivos, o pregunta cómo hacer algo",
+      "description": "Busca tareas, trabajos, resultados de trabajos, imágenes o archivos, o pregunta cómo hacer algo",
       "searchPlaceholder": "Busca o pregunta cómo hacer algo…",
       "empty": "No se encontraron resultados",
       "loading": "Cargando...",
