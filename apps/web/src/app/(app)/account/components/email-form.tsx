@@ -80,7 +80,11 @@ export function EmailForm({ currentEmail, emailChange }: EmailFormProps) {
     handledReturnRef.current = true;
     if (changedTo) {
       toast.success(t("changed", { email: changedTo }));
-      void authClient.$fetch("/email-change/acknowledge", { method: "POST" });
+      // An empty JSON body: Core answers a POST without one with 415.
+      void authClient.$fetch("/email-change/acknowledge", {
+        method: "POST",
+        body: {},
+      });
     } else if (searchParams.has("error")) {
       toast.error(t("linkFailed"));
     }
@@ -136,7 +140,7 @@ export function EmailForm({ currentEmail, emailChange }: EmailFormProps) {
     try {
       const result = await authClient.$fetch<{ cancelled: boolean }>(
         "/email-change/cancel",
-        { method: "POST" },
+        { method: "POST", body: {} },
       );
       if (result.error) {
         toast.error(t("cancelError"));

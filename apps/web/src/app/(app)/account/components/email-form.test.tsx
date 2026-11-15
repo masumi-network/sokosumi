@@ -111,6 +111,7 @@ describe("EmailForm", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith("/email-change/cancel", {
         method: "POST",
+        body: {},
       });
       expect(toast.success).toHaveBeenCalledWith("cancelled");
     });
@@ -154,6 +155,7 @@ describe("EmailForm", () => {
     );
     expect(fetchMock).toHaveBeenCalledWith("/email-change/acknowledge", {
       method: "POST",
+      body: {},
     });
     expect(replaceMock).toHaveBeenCalledWith("/account");
   });
