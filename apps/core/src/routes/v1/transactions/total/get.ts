@@ -11,7 +11,10 @@ import {
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { transactionTotalSchema } from "@/schemas/transaction-history.schema";
-import { transactionFilterQuerySchema } from "../query.js";
+import {
+  requireLedgerTaskFilter,
+  transactionFilterQuerySchema,
+} from "../query.js";
 
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
@@ -31,6 +34,7 @@ const route = withOrganizationSlugHeaderParameter(
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Task not found"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -41,6 +45,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const query = c.req.valid("query");
+    await requireLedgerTaskFilter(
+      workspaceContext,
+      userContext.userId,
+      query.taskId,
+    );
 
     const total = await sumTransactionHistory(
       {

@@ -60,13 +60,17 @@ export const historyService = (() => {
       projectId: params.projectId,
       q: params.q,
       scope: params.scope,
+      taskId: params.taskId,
       types: params.types,
     });
 
     return result.data;
   }
 
-  /** Net credits one Task took in the active workspace, with its row count. */
+  /**
+   * Net credits one Task took in the active workspace, with its row count.
+   * Spend billed to another workspace (before the Task moved) is not in it.
+   */
   async function getTaskTotal(
     taskId: string,
   ): Promise<{ credits: number; count: number }> {

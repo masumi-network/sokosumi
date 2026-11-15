@@ -10,12 +10,16 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { prismaQueryRawMock } = vi.hoisted(() => ({
+const { prismaQueryRawMock, taskFindFirstMock } = vi.hoisted(() => ({
   prismaQueryRawMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: { $queryRaw: prismaQueryRawMock },
+  default: {
+    $queryRaw: prismaQueryRawMock,
+    task: { findFirst: taskFindFirstMock },
+  },
 }));
 
 function createApp() {
@@ -47,6 +51,8 @@ function boundValues(): unknown[] {
 describe("GET /transactions/total", () => {
   beforeEach(() => {
     prismaQueryRawMock.mockReset();
+    taskFindFirstMock.mockReset();
+    taskFindFirstMock.mockResolvedValue({ id: "task_123" });
   });
 
   it("returns the net credits and row count for one Task", async () => {
@@ -61,6 +67,27 @@ describe("GET /transactions/total", () => {
     expect(response.status).toBe(200);
     expect(body.data).toEqual({ credits: 1, count: 2 });
     expect(JSON.stringify(boundValues())).toContain("task_123");
+    // Only a Task the member may open in this workspace.
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        id: "task_123",
+        archivedAt: null,
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        OR: [
+          { visibility: "PUBLIC" },
+          { visibility: "PRIVATE", ownerId: "user_123" },
+        ],
+      }),
+    });
+  });
+
+  it("refuses a Task the member may not open without reading the ledger", async () => {
+    taskFindFirstMock.mockResolvedValue(null);
+
+    const response = await createApp().request("/total?taskId=task_123");
+
+    expect(response.status).toBe(404);
+    expect(prismaQueryRawMock).not.toHaveBeenCalled();
   });
 
   it("returns zero when nothing matches", async () => {

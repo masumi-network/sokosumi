@@ -2119,9 +2119,9 @@
         "unsubscribe": "Unsubscribe",
         "subscribeError": "Couldn’t subscribe. Try again.",
         "removeParticipantError": "Couldn’t remove participant. Try again.",
-        "credits": "Credits",
-        "creditsUsed": "{credits, plural, one {# credit used} other {# credits used}}",
-        "noCreditsUsed": "No credits used"
+        "credits": "Credits used in this workspace",
+        "creditsUsed": "{credits, plural, one {# credit used in this workspace} other {# credits used in this workspace}}",
+        "noCreditsUsed": "No credits used in this workspace"
       },
       "NewTask": {
         "ContextAttachments": {

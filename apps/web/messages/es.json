@@ -2119,9 +2119,9 @@
         "unsubscribe": "Cancelar suscripción",
         "subscribeError": "No se pudo suscribir. Inténtalo de nuevo.",
         "removeParticipantError": "No se pudo quitar al participante. Inténtalo de nuevo.",
-        "credits": "Créditos",
-        "creditsUsed": "{credits, plural, one {# crédito usado} other {# créditos usados}}",
-        "noCreditsUsed": "Sin créditos usados"
+        "credits": "Créditos usados en este espacio de trabajo",
+        "creditsUsed": "{credits, plural, one {# crédito usado en este espacio de trabajo} other {# créditos usados en este espacio de trabajo}}",
+        "noCreditsUsed": "Sin créditos usados en este espacio de trabajo"
       },
       "NewTask": {
         "ContextAttachments": {

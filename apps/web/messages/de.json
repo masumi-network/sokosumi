@@ -2119,9 +2119,9 @@
         "unsubscribe": "Abbestellen",
         "subscribeError": "Abonnieren fehlgeschlagen. Bitte erneut versuchen.",
         "removeParticipantError": "Beteiligte Person konnte nicht entfernt werden. Versuche es erneut.",
-        "credits": "Credits",
-        "creditsUsed": "{credits, plural, one {# Credit verbraucht} other {# Credits verbraucht}}",
-        "noCreditsUsed": "Keine Credits verbraucht"
+        "credits": "In diesem Workspace verbrauchte Credits",
+        "creditsUsed": "{credits, plural, one {# Credit in diesem Workspace verbraucht} other {# Credits in diesem Workspace verbraucht}}",
+        "noCreditsUsed": "Keine Credits in diesem Workspace verbraucht"
       },
       "NewTask": {
         "ContextAttachments": {

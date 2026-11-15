@@ -11,6 +11,7 @@ import {
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
+  requireLedgerTaskFilter,
   toInstantRange,
   transactionDateRangeQuerySchema,
   transactionFilterQuerySchema,
@@ -36,16 +37,22 @@ const route = withOrganizationSlugHeaderParameter(
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Task not found"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
 );
 
 export default function mount(app: OpenAPIHonoWithAuth) {
-  app.openapi(route, (c) => {
+  app.openapi(route, async (c) => {
     const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { from, to, projectId, ...filters } = c.req.valid("query");
+    await requireLedgerTaskFilter(
+      workspaceContext,
+      userContext.userId,
+      filters.taskId,
+    );
     const range = toInstantRange({ from, to });
 
     if (!range) {
