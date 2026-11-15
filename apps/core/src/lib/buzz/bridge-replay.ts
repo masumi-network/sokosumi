@@ -25,10 +25,15 @@ export function isBridgeReplay(
 }
 
 /** Who a replay token is for: a person, or a Coworker (a Buzz agent). */
-export function bridgeReplayActor(
-  actor: { userId: string } | { coworkerId: string },
-): string {
-  return "userId" in actor ? actor.userId : `coworker:${actor.coworkerId}`;
+type ReplayActor =
+  | { userId: string }
+  | { coworkerId: string }
+  | { sokoBotId: string };
+
+export function bridgeReplayActor(actor: ReplayActor): string {
+  if ("userId" in actor) return actor.userId;
+  if ("coworkerId" in actor) return `coworker:${actor.coworkerId}`;
+  return `soko-bot:${actor.sokoBotId}`;
 }
 
 /**
@@ -38,7 +43,7 @@ export function bridgeReplayActor(
  */
 export function mayUseClientMessageId(
   clientMessageId: string | null | undefined,
-  actor: { userId: string } | { coworkerId: string },
+  actor: ReplayActor,
   header: string | undefined,
 ): boolean {
   if (!clientMessageId?.trim().startsWith("buzz:")) return true;

@@ -112,10 +112,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       isSokoBotAuthContext(authContext)
     ) {
       if (
-        isCoworkerAuthContext(authContext) &&
         !mayUseClientMessageId(
           body.clientMessageId,
-          { coworkerId: authContext.coworkerId },
+          isCoworkerAuthContext(authContext)
+            ? { coworkerId: authContext.coworkerId }
+            : { sokoBotId: authContext.sokoBotId },
           c.req.header(BUZZ_BRIDGE_REPLAY_HEADER),
         )
       ) {

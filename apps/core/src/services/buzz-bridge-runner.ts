@@ -581,6 +581,8 @@ export async function runBuzzBridge(options: {
   let memberSweepFrom = Math.floor(Math.random() * 1_000_000);
   // Upkeep gets this long per pass; messages are delivered between passes.
   const SWEEP_BUDGET_MS = 20_000;
+  // Outbox delivery per pass; the loop comes back to it within a second.
+  const DRAIN_BUDGET_MS = 10_000;
   const within = (until: number) => () =>
     Date.now() < until && options.shouldContinue();
   while (!stopping && options.shouldContinue()) {
@@ -689,14 +691,16 @@ export async function runBuzzBridge(options: {
           }
         }
       }
+      // Readers first, then a bounded pass of the outbox: neither direction
+      // can hold the other up.
+      await refreshSubscriptions();
       for (const outcome of await drainBuzzOutbox({
-        shouldContinue: options.shouldContinue,
+        shouldContinue: within(Date.now() + DRAIN_BUDGET_MS),
       })) {
         if (outcome.result !== "unchanged" && outcome.result !== "skipped") {
           log(`out ${outcome.key.slice(0, 13)} → ${outcome.result}`);
         }
       }
-      await refreshSubscriptions();
       await saveCursors();
     } catch (error) {
       log("loop error", error instanceof Error ? error.message : error);

@@ -208,11 +208,22 @@ async function importMessage(
 ): Promise<boolean> {
   // Imported by an earlier pass that stopped before linking it: link that
   // event (never a second copy); the outbox brings it up to date.
+  const author = authorOf(message);
+  // Timeline notices have no author; Buzz shows its own.
+  if (!author || !message.content.trim()) return false;
+  // A person's own Buzz agent signs with a key Sokosumi does not hold.
+  if ("coworkerId" in author && (await isPersonalAgent(author.coworkerId))) {
+    return false;
+  }
+  const identity = await ensureIdentity(author);
+  // A key Sokosumi does not hold signed it on Buzz already.
+  if (isExternal(identity)) return false;
   const earlier = await importedEventOf(
     client,
     communityId,
     channelId,
     message.id,
+    identity.pubkey,
   );
   if (earlier) {
     checkpoint();
@@ -250,17 +261,6 @@ async function importMessage(
     ]);
     return true;
   }
-  const author = authorOf(message);
-  // Timeline notices have no author; Buzz shows its own.
-  if (!author || !message.content.trim()) return false;
-  // A person's own Buzz agent signs with a key Sokosumi does not hold.
-  if ("coworkerId" in author && (await isPersonalAgent(author.coworkerId))) {
-    return false;
-  }
-  const identity = await ensureIdentity(author);
-  // A key Sokosumi does not hold signed it on Buzz already.
-  if (isExternal(identity)) return false;
-
   let root: { eventId: string; createdAt: number } | null = null;
   if (message.parentMessageId) {
     const parent = await prisma.buzzMessageLink.findUnique({
@@ -411,13 +411,20 @@ async function importedEventOf(
   communityId: string,
   channelId: string,
   messageId: string,
+  /** Signed by its author's key, which only Sokosumi holds: anyone can tag. */
+  authorPubkey: string,
 ): Promise<string | null> {
   const found = await client.query<{ id: Buffer }>(
     `SELECT id FROM events
       WHERE community_id = $1 AND channel_id = $2 AND kind = 9
-        AND tags @> $3::jsonb
+        AND pubkey = $4 AND tags @> $3::jsonb
       LIMIT 1`,
-    [communityId, channelId, JSON.stringify([["sokosumi", messageId]])],
+    [
+      communityId,
+      channelId,
+      JSON.stringify([["sokosumi", messageId]]),
+      hex(authorPubkey),
+    ],
   );
   return found.rows[0]?.id.toString("hex") ?? null;
 }
@@ -475,17 +482,31 @@ async function deleteUnlinkedCopies(
       deletedAt: { not: null },
       buzzLink: null,
     },
-    select: { id: true },
+    select: {
+      id: true,
+      senderUserId: true,
+      senderSokoBotId: true,
+      senderCoworkerId: true,
+    },
+    orderBy: { deletedAt: "desc" },
+    take: 100,
   });
   for (const message of deleted) {
+    const author = authorOf(message);
+    const identity = author
+      ? await prisma.buzzIdentity.findUnique({ where: author })
+      : null;
+    if (!identity) continue;
+    checkpoint();
     await client.query(
       `UPDATE events SET deleted_at = now()
         WHERE community_id = $1 AND channel_id = $2 AND kind = 9
-          AND deleted_at IS NULL AND tags @> $3::jsonb`,
+          AND deleted_at IS NULL AND pubkey = $4 AND tags @> $3::jsonb`,
       [
         communityId,
         input.channelId,
         JSON.stringify([["sokosumi", message.id]]),
+        hex(identity.pubkey),
       ],
     );
   }
