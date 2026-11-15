@@ -16,6 +16,9 @@ import type { Event } from "nostr-tools/pure";
 import { getEnv } from "@/config/env";
 import { relayHttpOrigin, signEvent } from "@/lib/buzz/relay-client";
 
+/** A file copied from Buzz, as a Coworker's stream takes it. */
+export type CopiedFile = { url: string; mediaType: string; filename: string };
+
 export type MediaOwner =
   | { kind: "user"; userId: string }
   | { kind: "coworker"; coworkerId: string };
@@ -75,6 +78,7 @@ function blossomGet(secretKey: Uint8Array, sha256: string, host: string) {
 async function copyMedia(input: {
   url: string;
   eventId: string;
+  copied?: CopiedFile[];
   readerKeys: Uint8Array[];
   owner: MediaOwner;
   roomId: string;
@@ -131,6 +135,12 @@ async function copyMedia(input: {
         response.headers.get("content-type") ?? "application/octet-stream",
       token,
     });
+    input.copied?.push({
+      url: blob.url,
+      mediaType:
+        response.headers.get("content-type") ?? "application/octet-stream",
+      filename: fileName,
+    });
     return blob.url;
   }
   return null;
@@ -143,6 +153,8 @@ async function copyMedia(input: {
  * relay link; a failure that may pass throws, so the event is tried again.
  */
 export async function withSokosumiMedia(input: {
+  /** Collects the files copied, for a Coworker's stream. */
+  copied?: CopiedFile[];
   content: string;
   event: Event;
   relayUrl: string;

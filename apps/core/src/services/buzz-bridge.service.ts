@@ -40,6 +40,7 @@ import {
   readInbound,
 } from "@/lib/buzz/events";
 import {
+  type CopiedFile,
   fitToSokosumi,
   type MediaOwner,
   withSokosumiMedia,
@@ -2384,7 +2385,12 @@ export async function reconcileMessage(
  * become Buzz mentions (`nostr:npub…`, the person's own app key when linked),
  * or the name for someone with no Buzz key.
  */
-export async function buzzContentOf(content: string): Promise<string> {
+export async function buzzContentOf(original: string): Promise<string> {
+  // Links within Sokosumi (a shared Task: `/tasks/<id>`) point there.
+  const origin = getEnv().WEB_APP_BASE_URL?.replace(/\/$/, "");
+  const content = origin
+    ? original.replace(/\]\((\/(?!\/)[^)\s]*)\)/g, `](${origin}$1)`)
+    : original;
   const keys = readChatMentionKeys(content).filter((key) => key !== "all");
   if (keys.length === 0) return content;
   // People may have 32-character auth ids; Soko Bot ids are uuids.
@@ -3031,6 +3037,8 @@ async function postToCoworkerDirect(input: {
   roomId: string;
   clientMessageId: string;
   content: string;
+  /** Files it carried, which the Coworker takes as files, not links. */
+  files?: CopiedFile[];
   parentMessageId: string | undefined;
   eventId: string;
   signerPubkey: string | null;
@@ -3080,7 +3088,15 @@ async function postToCoworkerDirect(input: {
             {
               id: input.clientMessageId,
               role: "user",
-              parts: [{ type: "text", text: input.content }],
+              parts: [
+                { type: "text", text: input.content },
+                ...(input.files ?? []).map((file) => ({
+                  type: "file",
+                  url: file.url,
+                  mediaType: file.mediaType,
+                  filename: file.filename,
+                })),
+              ],
             },
           ],
           ...(input.parentMessageId
@@ -3260,6 +3276,17 @@ function errorKindOf(body: unknown): string | undefined {
  * no new key would be taken either and the change is given up for good.
  */
 async function dropBridgeKey(identity: BuzzIdentity) {
+  if (identity.userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: identity.userId },
+      select: { banned: true, banExpires: true },
+    });
+    // Banned (or gone): a new key would be refused too, so this change is
+    // given up instead of holding everyone's later ones back.
+    if (!user || !isActiveUser(user)) {
+      throw new CoreRejectedError(410, "This person can no longer post");
+    }
+  }
   if (identity.coworkerId) {
     const agent = await prisma.coworker.findUnique({
       where: { id: identity.coworkerId },
@@ -3345,6 +3372,7 @@ async function withMediaCopied(
   content: string,
   event: Event,
   input: { channelId: string; roomId: string; author: BuzzIdentity },
+  copied?: CopiedFile[],
 ) {
   const owner: MediaOwner = input.author.userId
     ? { kind: "user", userId: input.author.userId }
@@ -3369,6 +3397,7 @@ async function withMediaCopied(
   if (!channel) return fit(content);
   const relayUrl = channel.community.relayUrl;
   const withMedia = await withSokosumiMedia({
+    copied,
     content,
     event,
     relayUrl,
@@ -3511,10 +3540,12 @@ export async function applyInboundEvent(
           return keysOf(identity).map((pubkey) => [pubkey, name] as const);
         }),
       );
+      const files: CopiedFile[] = [];
       const content = await withMediaCopied(
         readableContent(change.content, (pubkey) => names.get(pubkey)),
         event,
         { channelId: channel.channelId, roomId: channel.roomId, author },
+        files,
       );
       const clientMessageId = `buzz:${event.id}`;
       // A one-on-one Direct with a Coworker is answered through the room's
@@ -3527,6 +3558,7 @@ export async function applyInboundEvent(
           roomId: channel.roomId,
           clientMessageId,
           content,
+          files,
           parentMessageId,
           eventId: event.id,
           signerPubkey,

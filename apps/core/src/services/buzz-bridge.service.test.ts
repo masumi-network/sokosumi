@@ -245,6 +245,10 @@ describe("applyInboundEvent", () => {
   });
 
   it("drops a bridge key Core no longer takes, so the next try mints a new one", async () => {
+    db.user.findUnique.mockResolvedValueOnce({
+      banned: false,
+      banExpires: null,
+    });
     db.buzzIdentity.findFirst.mockResolvedValueOnce({ ...bob });
     db.buzzChannel.findUnique.mockResolvedValue({
       roomId: "room",
@@ -1744,6 +1748,18 @@ describe("buzzContentOf", () => {
       `@${agent}:buzz-d64f20d52d985e4c hi, ask @${alice} too`,
     );
     expect(text).toBe(`nostr:${npubEncode(BOT_PUBKEY)} hi, ask @Alice too`);
+  });
+
+  it("points links within Sokosumi at Sokosumi", async () => {
+    env.value = { ...env.value, WEB_APP_BASE_URL: "https://app.example.org/" };
+    await expect(
+      buzzContentOf(
+        "Shared [SOK-1 Fix login](/tasks/abc) and [x](https://y.z)",
+      ),
+    ).resolves.toBe(
+      "Shared [SOK-1 Fix login](https://app.example.org/tasks/abc) and [x](https://y.z)",
+    );
+    env.value = { ...env.value, WEB_APP_BASE_URL: undefined };
   });
 
   it("leaves a message without mentions alone", async () => {
