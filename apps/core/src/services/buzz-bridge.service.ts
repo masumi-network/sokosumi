@@ -1383,8 +1383,18 @@ export async function enableBuzzForOrganization(organizationId: string) {
   });
 }
 
+/** The organizations that go on Buzz by themselves; null for every one. */
+function autoOrganizationSlugs(): string[] | null {
+  const value = getEnv().BUZZ_AUTO_ORGANIZATIONS;
+  if (!value) return null;
+  return value
+    .split(",")
+    .map((slug) => slug.trim())
+    .filter(Boolean);
+}
+
 /**
- * Every organization chats on Buzz: gives each one without a community its
+ * Every organization chats on Buzz (or only those `BUZZ_AUTO_ORGANIZATIONS` names): gives each one without a community its
  * own (a batch at a time), then creates up to `limit` of those not yet on the
  * relay. Returns how many it created there.
  */
@@ -1393,8 +1403,9 @@ export async function provisionBuzzCommunities(
   shouldContinue: () => boolean = () => true,
 ): Promise<number> {
   const config = requireConfig();
+  const only = autoOrganizationSlugs();
   const missing = await prisma.organization.findMany({
-    where: { buzzCommunity: null },
+    where: { buzzCommunity: null, ...(only ? { slug: { in: only } } : {}) },
     select: { id: true },
     take: 200,
   });

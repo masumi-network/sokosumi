@@ -80,6 +80,34 @@ header, which Railway passes through unchanged.
 Generate the operator key once (`node -e` with `nostr-tools`, or
 `buzz-admin generate-key`) and keep its secret only in Vercel.
 
+### What runs where
+
+Railway project `sokosumi-buzz` (workspace utxo AG), one environment per
+Sokosumi, each with its own relay, Postgres, Redis, bucket (`ams`), keys and
+domain:
+
+| Railway environment | Domain (and `*.` wildcard)  | Core that uses it                           |
+| ------------------- | --------------------------- | ------------------------------------------- |
+| `production`        | `chat.sokosumi.com`         | `sokosumi-core-mainnet`, Production         |
+| `preprod`           | `chat.preprod.sokosumi.com` | `sokosumi-core-preprod`, Production         |
+| `preview`           | `chat-preview.sokosumi.com` | `sokosumi-core-mainnet` Preview, per branch |
+
+DNS for `sokosumi.com` is Vercel DNS (team masumi): per domain a CNAME, the
+wildcard CNAME, `_acme-challenge` (wildcard certificate) and
+`_railway-verify` (TXT). Railway-specific settings beyond the table above:
+`RAILWAY_RUN_UID=0` (the image runs as a user that cannot write the
+`/data/git` volume), `BUZZ_GIT_REPO_PATH=/data/git`, `BUZZ_S3_ENDPOINT`
+`https://t3.storageapi.dev` with `BUZZ_S3_ADDRESSING_STYLE=virtual` and
+`BUZZ_S3_REGION=auto`, `PORT` and `BUZZ_BIND_ADDR` on 3000. Postgres has a TCP
+proxy so Core's history import reaches it (`BUZZ_RELAY_DATABASE_URL` with
+`sslmode=require`).
+
+Previews are copies of production's database: a preview puts only the
+organizations `BUZZ_AUTO_ORGANIZATIONS` names on Buzz (comma-separated slugs),
+so production's chats never reach the preview relay. Previews have no crons;
+a preview's bridge runs when `/sync/buzz` is called with a branch-scoped
+`CRON_SECRET`.
+
 ## Core on Vercel
 
 | Variable                      | Value                                                                                                        |
@@ -89,6 +117,7 @@ Generate the operator key once (`node -e` with `nostr-tools`, or
 | `BUZZ_KEY_ENCRYPTION_SECRET`  | 32+ random characters; encrypts people's Nostr keys and bridge API keys. Never rotate without re-encrypting. |
 | `BUZZ_OPERATOR_API_ORIGIN`    | `https://operator.chat.sokosumi.com`                                                                         |
 | `BUZZ_RELAY_DATABASE_URL`     | the relay's Postgres, public URL with TLS                                                                    |
+| `BUZZ_AUTO_ORGANIZATIONS`     | previews only: the test organizations' slugs; unset, every organization goes on Buzz                         |
 
 The `/sync/buzz` cron is in `apps/core/vercel.json`; the function's 300 s limit
 is why a run lasts 240 s (the rest lets the change being applied finish).

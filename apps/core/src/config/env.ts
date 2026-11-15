@@ -402,6 +402,13 @@ const baseEnvSchema = z.object({
    *   of each room's history (the relay takes no event older than 15 minutes).
    */
   BUZZ_COMMUNITY_URL_TEMPLATE: z.string().min(1).optional(),
+  /**
+   * Comma-separated organization slugs that go on Buzz by themselves. Unset,
+   * every organization does. Test deployments name their test organizations,
+   * so a copy of production's chats never reaches a test relay. Owners and
+   * admins can still put any other organization on Buzz.
+   */
+  BUZZ_AUTO_ORGANIZATIONS: z.string().min(1).optional(),
   BUZZ_OPERATOR_API_ORIGIN: z.url().optional(),
   BUZZ_RELAY_DATABASE_URL: z.string().min(1).optional(),
   BUZZ_OPERATOR_SECRET_KEY: z

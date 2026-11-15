@@ -2117,6 +2117,26 @@ describe("communities", () => {
     expect(db.buzzCommunity.update).toHaveBeenCalledTimes(2);
   });
 
+  it("puts only the named organizations on Buzz by themselves when a deployment names them", async () => {
+    env.value = {
+      ...env.value,
+      BUZZ_COMMUNITY_URL_TEMPLATE: "wss://{slug}.chat.example",
+      BUZZ_OPERATOR_API_ORIGIN: undefined,
+      BUZZ_AUTO_ORGANIZATIONS: "test-co, other-test",
+    };
+    db.organization.findMany.mockResolvedValueOnce([]);
+    await provisionBuzzCommunities();
+    expect(db.organization.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          buzzCommunity: null,
+          slug: { in: ["test-co", "other-test"] },
+        },
+      }),
+    );
+    env.value = { ...env.value, BUZZ_AUTO_ORGANIZATIONS: undefined };
+  });
+
   it("never adopts a community someone else left on the relay: moves to its own host", async () => {
     env.value = {
       ...env.value,
