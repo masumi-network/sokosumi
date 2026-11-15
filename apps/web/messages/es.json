@@ -1684,13 +1684,8 @@
         "sidebarNew": "Nuevo"
       },
       "Landing": {
-        "greeting": "¡Bienvenido!",
-        "greetingWithName": "¡Bienvenido, {name}!",
-        "intro": "Di qué hay que hacer y ellos lo hacen.",
         "cta": {
-          "avatarAlt": "{name}",
           "button": "Chatear con {name}",
-          "searchAgents": "Buscar agentes",
           "error": "No se pudo abrir el chat. Inténtalo de nuevo."
         },
         "stats": {
@@ -1699,18 +1694,7 @@
           "awaiting": "{count, plural, one {# tarea necesita tu respuesta} other {# tareas necesitan tu respuesta}}",
           "byTeammates": "{count, plural, one {# tarea de tu equipo} other {# tareas de tu equipo}}",
           "recent": "En las últimas 24 horas",
-          "trendUp": "{count} más que en las 24 horas anteriores",
-          "trendDown": "{count} menos que en las 24 horas anteriores",
           "workedHours": "{hours, plural, one {# hora trabajada} other {# horas trabajadas}}"
-        },
-        "team": {
-          "avatarAlt": "{name}",
-          "stripLabel": "Compañeros disponibles",
-          "select": "Seleccionar a {name}"
-        },
-        "searchAgents": {
-          "label": "Buscar",
-          "subtitle": "Agentes especializados"
         },
         "MyDay": {
           "title": "Mi día",
@@ -1752,6 +1736,26 @@
           "openChat": "Abrir el chat",
           "failedWork": "{name} no pudo terminar lo que estaba haciendo",
           "openBot": "Abrir la página de {name}"
+        },
+        "SokoBotSetup": {
+          "title": "Configura tu Soko Bot",
+          "intro": "Tu propio asistente de IA en Sokosumi. Di qué hay que hacer y lo hace, con Coworkers y agentes.",
+          "cta": "Configurar tu Soko Bot",
+          "hint": "Tarda un minuto: un nombre, una imagen y luego correo y calendario.",
+          "points": {
+            "work": {
+              "title": "Dale trabajo",
+              "description": "Di qué hay que hacer. Inicia tareas o pasa partes a Coworkers."
+            },
+            "moving": {
+              "title": "Mantiene el trabajo en marcha",
+              "description": "Responde a los Coworkers, reinicia lo que falló y empuja las tareas atascadas."
+            },
+            "inbox": {
+              "title": "Lee el correo y el calendario",
+              "description": "Avisa de lo que te necesita y resume el resto cada mañana."
+            }
+          }
         }
       },
       "SokoBot": {

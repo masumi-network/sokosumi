@@ -36,7 +36,7 @@ export function AssistantCreateStep({
               {t("later")}
             </Link>
           </Button>
-          {/* Home does not offer the bot again, so say where it is. */}
+          {/* Say where to find the bot again; Home offers it too. */}
           <p
             id={laterHintId}
             className="text-muted-foreground text-center text-sm text-pretty"

@@ -1684,13 +1684,8 @@
         "sidebarNew": "New"
       },
       "Landing": {
-        "greeting": "Welcome!",
-        "greetingWithName": "Welcome, {name}!",
-        "intro": "Say what needs doing and they get it done.",
         "cta": {
-          "avatarAlt": "{name}",
           "button": "Chat with {name}",
-          "searchAgents": "Search agents",
           "error": "Could not open the chat. Please try again."
         },
         "stats": {
@@ -1699,18 +1694,7 @@
           "awaiting": "{count, plural, one {# task needs your input} other {# tasks need your input}}",
           "byTeammates": "{count, plural, one {# task from your team} other {# tasks from your team}}",
           "recent": "In the last 24 hours",
-          "trendUp": "{count} more than the previous 24 hours",
-          "trendDown": "{count} fewer than the previous 24 hours",
           "workedHours": "{hours, plural, one {# hour worked} other {# hours worked}}"
-        },
-        "team": {
-          "avatarAlt": "{name}",
-          "stripLabel": "Available coworkers",
-          "select": "Select {name}"
-        },
-        "searchAgents": {
-          "label": "Search",
-          "subtitle": "Specialized agents"
         },
         "MyDay": {
           "title": "My day",
@@ -1752,6 +1736,26 @@
           "openChat": "Open the chat",
           "failedWork": "{name} couldn't finish what it was working on",
           "openBot": "Open {name}'s page"
+        },
+        "SokoBotSetup": {
+          "title": "Set up your Soko Bot",
+          "intro": "Your own AI assistant in Sokosumi. Say what needs doing and it gets it done, with Coworkers and agents.",
+          "cta": "Set up your Soko Bot",
+          "hint": "Takes a minute: a name, a picture, then mail and calendar.",
+          "points": {
+            "work": {
+              "title": "Hand it work",
+              "description": "Say what needs doing. It starts Tasks or passes parts to Coworkers."
+            },
+            "moving": {
+              "title": "It keeps work moving",
+              "description": "It answers Coworkers, restarts what failed and nudges stuck Tasks."
+            },
+            "inbox": {
+              "title": "It reads mail and calendar",
+              "description": "It flags what needs you and sums up the rest each morning."
+            }
+          }
         }
       },
       "SokoBot": {

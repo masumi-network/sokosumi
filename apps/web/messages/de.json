@@ -1684,13 +1684,8 @@
         "sidebarNew": "Neu"
       },
       "Landing": {
-        "greeting": "Willkommen!",
-        "greetingWithName": "Willkommen, {name}!",
-        "intro": "Sag, was zu tun ist, und sie erledigen es.",
         "cta": {
-          "avatarAlt": "{name}",
           "button": "Mit {name} chatten",
-          "searchAgents": "Agenten suchen",
           "error": "Chat konnte nicht geöffnet werden. Bitte versuche es erneut."
         },
         "stats": {
@@ -1699,18 +1694,7 @@
           "awaiting": "{count, plural, one {# Aufgabe braucht dich} other {# Aufgaben brauchen dich}}",
           "byTeammates": "{count, plural, one {# Aufgabe von deinem Team} other {# Aufgaben von deinem Team}}",
           "recent": "In den letzten 24 Stunden",
-          "trendUp": "{count} mehr als in den vorherigen 24 Stunden",
-          "trendDown": "{count} weniger als in den vorherigen 24 Stunden",
           "workedHours": "{hours, plural, one {# Stunde gearbeitet} other {# Stunden gearbeitet}}"
-        },
-        "team": {
-          "avatarAlt": "{name}",
-          "stripLabel": "Verfügbare Coworker",
-          "select": "{name} auswählen"
-        },
-        "searchAgents": {
-          "label": "Suchen",
-          "subtitle": "Spezialisierte Agenten"
         },
         "MyDay": {
           "title": "Mein Tag",
@@ -1752,6 +1736,26 @@
           "openChat": "Chat öffnen",
           "failedWork": "{name} konnte die letzte Arbeit nicht abschließen",
           "openBot": "Seite von {name} öffnen"
+        },
+        "SokoBotSetup": {
+          "title": "Richte deinen Soko Bot ein",
+          "intro": "Dein eigener KI-Assistent in Sokosumi. Sag, was zu tun ist, und er erledigt es mit Coworkern und Agenten.",
+          "cta": "Soko Bot einrichten",
+          "hint": "Dauert eine Minute: ein Name, ein Bild, dann Mail und Kalender.",
+          "points": {
+            "work": {
+              "title": "Gib ihm Arbeit",
+              "description": "Sag, was zu tun ist. Er startet Aufgaben oder gibt Teile an Coworker weiter."
+            },
+            "moving": {
+              "title": "Er hält die Arbeit in Gang",
+              "description": "Er antwortet Coworkern, startet Fehlgeschlagenes neu und stupst festhängende Aufgaben an."
+            },
+            "inbox": {
+              "title": "Er liest Mail und Kalender",
+              "description": "Er meldet, was dich braucht, und fasst den Rest jeden Morgen zusammen."
+            }
+          }
         }
       },
       "SokoBot": {

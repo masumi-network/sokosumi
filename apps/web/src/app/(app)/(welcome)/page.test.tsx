@@ -8,9 +8,8 @@ const listMessages = vi.fn();
 const listImportantMessages = vi.fn();
 const sokoBotHome = vi.fn();
 const needsYouPanel = vi.fn();
-const chatLanding = vi.fn();
+const sokoBotSetup = vi.fn();
 const getWorkspaceAccess = vi.fn();
-const listCoworkers = vi.fn(async (_capability: string) => []);
 const getActivitySummary = vi.fn(async (_query: { scope: string }) => ({
   awaitingInput: 2,
 }));
@@ -68,11 +67,6 @@ vi.mock("@/lib/services/chat-room.service", () => ({
     listImportantMessages: () => listImportantMessages(),
   },
 }));
-vi.mock("@/lib/services/coworker.service", () => ({
-  coworkerService: {
-    listCoworkers: (capability: string) => listCoworkers(capability),
-  },
-}));
 vi.mock("@/lib/services/task.service", () => ({
   taskService: {
     getActivitySummary: (query: { scope: string }) => getActivitySummary(query),
@@ -93,21 +87,6 @@ vi.mock("@/lib/services/task.service", () => ({
 vi.mock("@/app/chat/components/chat-landing-notice", () => ({
   ChatLandingNotice: () => null,
 }));
-vi.mock("@/app/chat/components/landing/chat-landing", () => ({
-  ChatLanding: (props: {
-    myDay?: React.ReactNode;
-    needsYou?: React.ReactNode;
-  }) => {
-    chatLanding(props);
-    return (
-      <div>
-        coworker welcome
-        {props.myDay}
-        {props.needsYou}
-      </div>
-    );
-  },
-}));
 vi.mock("@/lib/services/notification.service", () => ({
   notificationService: { listNeedsYou: () => listNeedsYou() },
 }));
@@ -123,8 +102,11 @@ vi.mock("@/app/projects/components/workspace-column", () => ({
     return <div>needs you</div>;
   },
 }));
-vi.mock("@/app/chat/components/landing/chat-landing.mobile", () => ({
-  ChatLandingMobile: () => null,
+vi.mock("./components/soko-bot-setup", () => ({
+  SokoBotSetup: (props: unknown) => {
+    sokoBotSetup(props);
+    return <div>soko bot setup</div>;
+  },
 }));
 vi.mock("./components/soko-bot-home", () => ({
   SokoBotHome: (props: unknown) => {
@@ -196,52 +178,27 @@ describe("WelcomePage", () => {
 
     await expect(renderPage()).rejects.toThrow("NEXT_REDIRECT /setup");
     expect(getMine).not.toHaveBeenCalled();
-    expect(listCoworkers).not.toHaveBeenCalled();
     expect(getActivitySummary).not.toHaveBeenCalled();
     expect(listNeedsYou).not.toHaveBeenCalled();
     expect(loadMyDay).not.toHaveBeenCalled();
     expect(listProjects).not.toHaveBeenCalled();
-    expect(chatLanding).not.toHaveBeenCalled();
+    expect(sokoBotSetup).not.toHaveBeenCalled();
   });
 
-  it("puts My day, due by the reader's own day, on the coworker welcome", async () => {
+  it("offers to set up a Soko Bot to a user without one", async () => {
     getMine.mockResolvedValue(null);
     await renderPage();
-
-    expect(screen.getByText("my day")).toBeTruthy();
-    expect(loadMyDay).toHaveBeenCalledWith("2026-11-10");
-  });
-
-  it("keeps the coworker welcome without a Soko Bot", async () => {
-    getMine.mockResolvedValue(null);
-    await renderPage();
-    expect(screen.getByText("coworker welcome")).toBeTruthy();
+    expect(screen.getByText("soko bot setup")).toBeTruthy();
+    expect(sokoBotSetup).toHaveBeenCalledWith({ userId: "user-1" });
     expect(sokoBotHome).not.toHaveBeenCalled();
+    expect(screen.queryByText("my day")).toBeNull();
+    expect(screen.queryByText("needs you")).toBeNull();
   });
 
-  it("puts the quiet Needs you under the coworker welcome", async () => {
-    getMine.mockResolvedValue(null);
-    await renderPage();
-
-    expect(screen.getByText("needs you")).toBeTruthy();
-    expect(needsYouPanel).toHaveBeenCalledTimes(1);
-    expect(needsYouPanel).toHaveBeenCalledWith(
-      expect.objectContaining({ quiet: true }),
-    );
-    // The first page of projects is read next to the rows, not after them.
-    const [{ projects }] = needsYouPanel.mock.calls[0] as [
-      { projects: Promise<unknown> },
-    ];
-    expect(listProjects).toHaveBeenCalledWith({ limit: 20 });
-    await expect(projects).resolves.toEqual({
-      "project-1": { name: "Launch", logo: null },
-    });
-  });
-
-  it("keeps the coworker welcome when the bot cannot be read", async () => {
+  it("offers the setup when the bot cannot be read", async () => {
     getMine.mockRejectedValue(new Error("feature off"));
     await renderPage();
-    expect(screen.getByText("coworker welcome")).toBeTruthy();
+    expect(screen.getByText("soko bot setup")).toBeTruthy();
   });
 
   it("starts every read that needs no bot before the bot read answers", async () => {
@@ -257,11 +214,10 @@ describe("WelcomePage", () => {
     expect(loadMyDay).toHaveBeenCalled();
     expect(listNeedsYou).toHaveBeenCalled();
     expect(getActivitySummary).toHaveBeenCalledWith({ scope: "owned" });
-    expect(listCoworkers).toHaveBeenCalledWith("chat");
 
     answerBot(null);
     await page;
-    expect(screen.getByText("coworker welcome")).toBeTruthy();
+    expect(screen.getByText("soko bot setup")).toBeTruthy();
   });
 
   it("counts the whole workspace's day in an org", async () => {
@@ -270,26 +226,6 @@ describe("WelcomePage", () => {
     await renderPage();
 
     expect(getActivitySummary).toHaveBeenCalledWith({ scope: "workspace" });
-  });
-
-  it("still fails the coworker welcome when coworkers cannot be read", async () => {
-    getMine.mockResolvedValue(null);
-    listCoworkers.mockRejectedValueOnce(new Error("core down"));
-
-    await expect(renderPage()).rejects.toThrow("core down");
-  });
-
-  it("shows the bot home when only the coworker read fails", async () => {
-    getMine.mockResolvedValue({
-      id: "bot-1",
-      name: "Joseph",
-      avatarSeed: null,
-      avatarImageUrl: null,
-    });
-    listCoworkers.mockRejectedValueOnce(new Error("core down"));
-
-    await renderPage();
-    expect(screen.getByText("bot home")).toBeTruthy();
   });
 
   it("shows the bot home with its room and the team's day", async () => {
@@ -320,8 +256,10 @@ describe("WelcomePage", () => {
       }),
     );
     expect(needsYouPanel).toHaveBeenCalledWith(
-      expect.objectContaining({ lead: undefined }),
+      expect.objectContaining({ lead: undefined, quiet: true }),
     );
+    // The first page of projects is read next to the rows, not after them.
+    expect(listProjects).toHaveBeenCalledWith({ limit: 20 });
   });
 
   describe("a bot whose last turn failed", () => {
