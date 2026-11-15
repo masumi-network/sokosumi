@@ -1,4 +1,4 @@
-import { gateway } from "ai";
+import { type AiGatewayPurpose, aiGateway } from "@/lib/ai-gateway-purpose";
 import {
   recordSandboxAction,
   recordSandboxActionResult,
@@ -25,6 +25,7 @@ export async function runInProcessWebTool(input: {
   toolInput: unknown;
   model: string;
   inferenceRegion?: "eu" | "us";
+  purpose: AiGatewayPurpose;
 }): Promise<unknown> {
   const claims = {
     sessionId: input.sessionId,
@@ -50,11 +51,12 @@ export async function runInProcessWebTool(input: {
         ? await fetchWebPage(input.toolInput as { url: string })
         : await searchWeb(
             (input.toolInput as { query: string }).query,
-            gateway,
+            aiGateway(input.purpose),
             sokoBotModelRequest({
               role: "agent",
               model: input.model,
               inferenceRegion: input.inferenceRegion,
+              purpose: input.purpose,
             }).model,
             // Billed and broken down as search, not as the agent's own model.
             (result) =>
