@@ -369,8 +369,10 @@ describe("SEO load recovery", () => {
           createdAt: new Date("2026-01-01T12:00:00Z"),
         },
       ];
-      const read = vi.fn(async () =>
-        Response.json({ error: "SEO unavailable" }, { status: 404 }),
+      const read = vi.fn(async (url: string) =>
+        url.startsWith("/api/seo/connections/")
+          ? Response.json({ status: "not_connected" })
+          : Response.json({ error: "SEO unavailable" }, { status: 404 }),
       );
       vi.stubGlobal("fetch", read);
       const queryClient = client();
@@ -384,7 +386,11 @@ describe("SEO load recovery", () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(31_000);
       });
-      expect(read).toHaveBeenCalledOnce();
+      expect(
+        read.mock.calls.filter(([url]) =>
+          url.startsWith(`/api/seo/audits/${SEO_TEST_AUDIT}`),
+        ),
+      ).toHaveLength(1);
     } finally {
       vi.useRealTimers();
     }
