@@ -1,4 +1,5 @@
-import { PrismaRaw as Prisma } from "@sokosumi/database/client";
+import type { Prisma } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import {
   buildOrganizationDriveFolderPrefix,
   buildUserDriveFolderPrefix,
@@ -74,16 +75,41 @@ export async function setDriveStar(input: {
     return;
   }
   const hidden = await hiddenFoldersOf(store);
-  if (
-    insideHiddenRoom(hidden, where.folderPath) ||
-    !(await driveHasAny(folderPrefixOf(store, where.folderPath)))
-  )
+  if (insideHiddenRoom(hidden, where.folderPath))
     throw notFound("Folder not found");
-  await prisma.driveStar.upsert({
-    where: { userId_workspaceId_folderPath: where },
-    create: where,
-    update: {},
+  // Check and write under the folder-star lock, so a folder that moves or is
+  // deleted meanwhile either takes this star along or is already gone.
+  await withFolderStarLock(workspaceId, async (tx) => {
+    if (!(await driveHasAny(folderPrefixOf(store, where.folderPath))))
+      throw notFound("Folder not found");
+    await tx.driveStar.upsert({
+      where: { userId_workspaceId_folderPath: where },
+      create: where,
+      update: {},
+    });
   });
+}
+
+/**
+ * One workspace's folder-star writes, one at a time: starring a folder, and
+ * moving or deleting the stars of a folder that moved or went away. A star
+ * request checks that the folder exists and writes inside it; maintenance
+ * runs after the blobs moved, so it either sees that star or makes the check
+ * fail. Unstarring needs no lock: deleting a row locks the row.
+ */
+function withFolderStarLock<T>(
+  workspaceId: string,
+  operation: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  return prisma.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`
+        SELECT pg_advisory_xact_lock(hashtextextended(${`drive-star-folders:${workspaceId}`}::TEXT, 0))`;
+      return operation(tx);
+    },
+    // The star check lists blobs inside the transaction.
+    { maxWait: 10_000, timeout: 30_000 },
+  );
 }
 
 /**
@@ -151,15 +177,16 @@ function underFolder(workspaceId: string, folderPath: string) {
  * Keeps everyone's stars on a folder that moved or was renamed, its subfolders
  * included. Call once the move has succeeded, beside `rebaseDriveFolderShares`.
  *
- * Two statements in one transaction, never a read followed by per-row writes,
- * because other people star and unstar while the folder moves:
- * - a star already on the destination (someone starred the moved folder
- *   before this ran) is kept; a copy that would duplicate it is dropped
- *   (`ON CONFLICT DO NOTHING`), which also waits out a concurrent insert;
- * - an unstar committed first is simply not copied; one still in flight is
- *   waited for by the delete, which then removes nothing, so the move never
- *   fails on a row that vanished;
- * - running it again, as a retried move does, finds nothing left to copy.
+ * One statement under the folder-star lock: the rows it deletes are exactly
+ * the rows it copies (`DELETE … RETURNING` feeds the `INSERT`), so nothing
+ * committed between a copy and a delete can be dropped. Meanwhile:
+ * - a star already on the destination is kept, and a copy that would
+ *   duplicate it is dropped (`ON CONFLICT DO NOTHING`);
+ * - an unstar committed first is not there to copy; one still in flight
+ *   holds its row, the delete waits for it and then skips the row, so it is
+ *   not copied either; one that rolls back leaves the row to be moved;
+ * - a star request is serialized by the lock (see `withFolderStarLock`);
+ * - running it again, as a retried move does, finds nothing left to move.
  *
  * Paths are compared with `left()`, not `LIKE`, so `%` and `_` in a folder
  * name match only themselves, and lengths come from PostgreSQL so they count
@@ -173,19 +200,22 @@ export async function rebaseDriveFolderStars(input: {
   const from = normalizeDriveFolderPath(input.fromFolderPath);
   const to = normalizeDriveFolderPath(input.toFolderPath);
   if (!from || !to || from === to) return;
-  const underFrom = Prisma.sql`"workspaceId" = ${input.workspaceId}::uuid
+  const underFrom = PrismaRaw.sql`"workspaceId" = ${input.workspaceId}::uuid
     AND ("folderPath" = ${from}
       OR left("folderPath", length(${from}) + 1) = ${`${from}/`})`;
-  await prisma.$transaction([
-    prisma.$executeRaw`
+  await withFolderStarLock(
+    input.workspaceId,
+    (tx) => tx.$executeRaw`
+      WITH moved AS (
+        DELETE FROM drive_star WHERE ${underFrom}
+        RETURNING "createdAt", "userId", "workspaceId", "folderPath"
+      )
       INSERT INTO drive_star (id, "createdAt", "userId", "workspaceId", "folderPath")
       SELECT gen_random_uuid(), "createdAt", "userId", "workspaceId",
         ${to} || substr("folderPath", length(${from}) + 1)
-      FROM drive_star
-      WHERE ${underFrom}
+      FROM moved
       ON CONFLICT ("userId", "workspaceId", "folderPath") DO NOTHING`,
-    prisma.$executeRaw`DELETE FROM drive_star WHERE ${underFrom}`,
-  ]);
+  );
 }
 
 /** Removes everyone's stars on a deleted folder and its subfolders. */
@@ -195,9 +225,11 @@ export async function deleteDriveFolderStars(input: {
 }): Promise<void> {
   const folderPath = normalizeDriveFolderPath(input.folderPath);
   if (!folderPath) return;
-  await prisma.driveStar.deleteMany({
-    where: underFolder(input.workspaceId, folderPath),
-  });
+  await withFolderStarLock(input.workspaceId, (tx) =>
+    tx.driveStar.deleteMany({
+      where: underFolder(input.workspaceId, folderPath),
+    }),
+  );
 }
 
 /** Data room folders of this store the person is not let into. */

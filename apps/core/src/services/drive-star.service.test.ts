@@ -1,12 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const db = vi.hoisted(() => ({
-  driveStar: {
-    upsert: vi.fn(),
-    findMany: vi.fn(),
-    deleteMany: vi.fn(),
-  },
-}));
+const db = vi.hoisted(() => {
+  const client = {
+    driveStar: {
+      upsert: vi.fn(),
+      findMany: vi.fn(),
+      deleteMany: vi.fn(),
+    },
+    // The folder-star lock; drive-star.postgres.test.ts covers it for real.
+    $executeRaw: vi.fn(),
+    $transaction: async (operation: (tx: unknown) => unknown) =>
+      operation(client),
+  };
+  return client;
+});
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
 const search = vi.hoisted(() => ({
   loadLiveResources: vi.fn(),
