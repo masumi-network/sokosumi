@@ -312,7 +312,12 @@ async function tellRefusalOnBuzz(
       pendingEvent: event as unknown as object,
     },
   });
-  const sent = await deliver(relayUrl, event);
+  const sent = await deliver(relayUrl, event, (fresh) =>
+    prisma.buzzMessageLink.update({
+      where: { messageId: message.id },
+      data: { eventId: fresh.id, pendingEvent: fresh as unknown as object },
+    }),
+  );
   await prisma.buzzMessageLink.update({
     where: { messageId: message.id },
     data: { pendingEvent: PrismaNull.DbNull, eventId: sent.id },
@@ -2031,7 +2036,15 @@ export async function reconcileMessage(
     // A refusal Sokosumi decided but could not deliver yet.
     const unsent = asPending(link?.pendingEvent);
     if (link && unsent) {
-      const sent = await deliver(relayUrl, unsent);
+      const messageLinkId = message.id;
+      // A copy signed afresh (too old for the relay) is recorded first, so a
+      // lost answer from the relay never sends a second one.
+      const sent = await deliver(relayUrl, unsent, (fresh) =>
+        prisma.buzzMessageLink.update({
+          where: { messageId: messageLinkId },
+          data: { eventId: fresh.id, pendingEvent: fresh as unknown as object },
+        }),
+      );
       link = await prisma.buzzMessageLink.update({
         where: { messageId: message.id },
         data: { pendingEvent: PrismaNull.DbNull, eventId: sent.id },

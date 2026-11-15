@@ -487,7 +487,7 @@ async function deleteUnlinkedCopies(
     message_id: string | null;
   }>(
     `SELECT id, pubkey,
-            jsonb_path_query_first(tags, '$[*] ? (@[0] == "sokosumi")[1]') #>> '{}' AS message_id
+            jsonb_path_query_first(tags, 'strict $[*] ? (@[0] == "sokosumi")[1]') #>> '{}' AS message_id
        FROM events
       WHERE community_id = $1 AND channel_id = $2 AND kind = 9
         AND deleted_at IS NULL AND tags @> '[["sokosumi"]]'::jsonb`,

@@ -9,7 +9,7 @@ import {
 
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
-import { forbidden } from "@/helpers/error";
+import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
@@ -82,6 +82,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const { roomId, note: rawNote = "", clientMessageId } = c.req.valid("json");
+    // buzz: ids name Buzz events: only the Buzz bridge claims one.
+    if (clientMessageId.startsWith("buzz:")) {
+      throw badRequest("Client message ids starting with buzz: are reserved");
+    }
     // What the attempt is, as sent; rendered content changes with the Task.
     const attempt = { taskId: id, note: rawNote.trim() };
 
