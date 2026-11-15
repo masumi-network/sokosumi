@@ -134,16 +134,27 @@ export function coreRequester(baseUrl: string): CoreRequest {
     streamed,
     headers,
   }) => {
-    const response = await fetch(new URL(path, baseUrl), {
-      method,
-      headers: {
-        ...headers,
-        authorization: `Bearer ${apiKey}`,
-        ...(body === undefined ? {} : { "content-type": "application/json" }),
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(timeoutMs ?? 30_000),
-    });
+    // Core answers (or starts a stream) within 30 s, whatever follows: a run
+    // never waits longer than that on one request before it can stop. A
+    // stream may then take up to `timeoutMs` to read, in the background.
+    const answered = new AbortController();
+    const startBy = setTimeout(() => answered.abort(), 30_000);
+    const reading = AbortSignal.timeout(timeoutMs ?? 30_000);
+    let response: Response;
+    try {
+      response = await fetch(new URL(path, baseUrl), {
+        method,
+        headers: {
+          ...headers,
+          authorization: `Bearer ${apiKey}`,
+          ...(body === undefined ? {} : { "content-type": "application/json" }),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: AbortSignal.any([answered.signal, reading]),
+      });
+    } finally {
+      clearTimeout(startBy);
+    }
     // A stream has started once its headers are in: answer then, and keep
     // reading it so the answer is not cut off and a failure is seen.
     if (streamed && response.ok) {
