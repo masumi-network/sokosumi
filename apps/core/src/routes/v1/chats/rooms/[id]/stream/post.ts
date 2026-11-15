@@ -52,6 +52,10 @@ import {
   ensureThreadProviderConversation,
   THREAD_PROVIDER_CONVERSATION_ID_KEY,
 } from "@/helpers/room-stream-thread";
+import {
+  BUZZ_BRIDGE_REPLAY_HEADER,
+  mayUseClientMessageId,
+} from "@/lib/buzz/bridge-replay";
 import { isBuzzAgentBaseUrl } from "@/lib/buzz/events";
 import prisma from "@/lib/db/prisma";
 import { tryUseLogger } from "@/lib/evlog";
@@ -245,6 +249,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireOwnedRoomStreamFileParts(uiMessages, userContext.userId, room.id);
 
     const lastMessage = messages[messages.length - 1]!;
+    if (
+      !mayUseClientMessageId(
+        typeof lastMessage.id === "string" ? lastMessage.id : null,
+        { userId: userContext.userId },
+        c.req.header(BUZZ_BRIDGE_REPLAY_HEADER),
+      )
+    ) {
+      throw badRequest("Client message ids starting with buzz: are reserved");
+    }
     const lastUserMessageText =
       lastMessage.role === "user" || lastMessage.role === "system"
         ? (() => {

@@ -730,10 +730,25 @@ describe("POST /chats/rooms/{id}/messages", () => {
       const response = await app.request(`/${ROOM_ID}/messages`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ content: "hello", clientMessageId: "buzz:x" }),
+        body: JSON.stringify({ content: "hello", clientMessageId: "client-x" }),
       });
 
       expect(response.status).toBe(409);
+      expect(messageCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("keeps buzz: client ids for the Buzz bridge, so no one claims another's Buzz message", async () => {
+      for (const auth of [coworkerAuthContext, userAuthContext]) {
+        const response = await createApp(auth).request(`/${ROOM_ID}/messages`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            content: "hello",
+            clientMessageId: `buzz:${"a".repeat(64)}`,
+          }),
+        });
+        expect(response.status).toBe(400);
+      }
       expect(messageCreateMock).not.toHaveBeenCalled();
     });
 

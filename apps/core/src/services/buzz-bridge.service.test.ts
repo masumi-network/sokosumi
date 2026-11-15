@@ -1794,7 +1794,7 @@ describe("linkBuzzApp", () => {
     ]);
     expect(db.buzzIdentity.updateMany).toHaveBeenCalledWith({
       where: { id: "identity-bob", appPubkey: null },
-      data: { appPubkey: APP_PUBKEY, appAuthTag: tag, profileHash: null },
+      data: { appPubkey: APP_PUBKEY, appAuthTag: tag },
     });
     expect(db.buzzCommunityMember.deleteMany).toHaveBeenCalledWith({
       where: { identityId: "identity-bob" },

@@ -15,6 +15,7 @@ import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import {
   BUZZ_BRIDGE_REPLAY_HEADER,
+  bridgeReplayActor,
   bridgeReplayToken,
 } from "@/lib/buzz/bridge-replay";
 import {
@@ -693,29 +694,39 @@ export async function syncBuzzAgents(
   const unread = new Set<string>();
   // Left for lack of time (a relay that failed was tried: the sweep goes on).
   const notReached = new Set<string>();
-  for (const [relayUrl, keys] of keysByRelay) {
-    if (scope.shouldContinue?.() === false) {
-      unread.add(relayUrl);
-      notReached.add(relayUrl);
-      continue;
+  // Eight relays at a time, in people's order: one person in many
+  // communities does not hold the sweep for long.
+  const relays = [...keysByRelay];
+  let next = 0;
+  const readRelays = async () => {
+    for (;;) {
+      const entry = relays[next++];
+      if (!entry) return;
+      const [relayUrl, keys] = entry;
+      if (scope.shouldContinue?.() === false) {
+        unread.add(relayUrl);
+        notReached.add(relayUrl);
+        continue;
+      }
+      let agents: Map<string, FoundAgent & { ownerKey: string }>;
+      try {
+        agents = await ownedAgents(relayUrl, [...keys]);
+      } catch (error) {
+        // Asked for one person (say for an invite naming a new agent): they
+        // need it to work, so it fails for them, to be retried.
+        if (scope.identityId) throw error;
+        unread.add(relayUrl);
+        console.error(`Buzz agents on ${relayUrl} not read`, error);
+        continue;
+      }
+      for (const [pubkey, agent] of agents) {
+        const owned = agentsByOwnerKey.get(agent.ownerKey) ?? new Map();
+        owned.set(pubkey, agent);
+        agentsByOwnerKey.set(agent.ownerKey, owned);
+      }
     }
-    let agents: Map<string, FoundAgent & { ownerKey: string }>;
-    try {
-      agents = await ownedAgents(relayUrl, [...keys]);
-    } catch (error) {
-      // Asked for one person (say for an invite naming a new agent): they
-      // need it to work, so it fails for them, to be retried.
-      if (scope.identityId) throw error;
-      unread.add(relayUrl);
-      console.error(`Buzz agents on ${relayUrl} not read`, error);
-      continue;
-    }
-    for (const [pubkey, agent] of agents) {
-      const owned = agentsByOwnerKey.get(agent.ownerKey) ?? new Map();
-      owned.set(pubkey, agent);
-      agentsByOwnerKey.set(agent.ownerKey, owned);
-    }
-  }
+  };
+  await Promise.all(Array.from({ length: 8 }, readRelays));
   const changed: string[] = [];
   const applied = new Set<string>();
   for (const { owner, memberships, communities } of people) {
@@ -1106,11 +1117,7 @@ export async function linkBuzzApp(userId: string, input: string) {
     // Only onto no key: two links at once cannot both win.
     prisma.buzzIdentity.updateMany({
       where: { id: identity.id, appPubkey: null },
-      data: {
-        appPubkey: owner,
-        appAuthTag: tag as string[],
-        profileHash: null,
-      },
+      data: { appPubkey: owner, appAuthTag: tag as string[] },
     }),
     // Re-admit both keys to every community the person is in.
     prisma.buzzCommunityMember.deleteMany({
@@ -1152,11 +1159,12 @@ export async function unlinkBuzzApp(userId: string) {
   if (!identity) return;
   await prisma.buzzIdentity.update({
     where: { id: identity.id },
-    data: {
-      appPubkey: null,
-      appAuthTag: PrismaNull.DbNull,
-      profileHash: null,
-    },
+    data: { appPubkey: null, appAuthTag: PrismaNull.DbNull },
+  });
+  // Their name loses "(via Sokosumi)" again in every community.
+  await prisma.buzzCommunityMember.updateMany({
+    where: { identityId: identity.id },
+    data: { profileHash: null },
   });
   // Its agents were theirs through that key.
   const agents = await prisma.coworker.findMany({
@@ -1467,18 +1475,28 @@ async function ensureCommunityMember(
 }
 
 async function ensureProfile(
-  relayUrl: string,
+  community: { id: string; relayUrl: string },
   identity: BuzzIdentity,
   profile: { name: string; picture?: string | null; bot?: boolean },
 ) {
   // A Buzz agent's profile is its owner's app's to publish.
   if (isExternal(identity)) return;
   const draft = profileDraft(profile);
-  const hash = contentHash(`${relayUrl}\n${draft.content}`);
-  if (identity.profileHash === hash) return;
-  await publish(relayUrl, identitySecretKey(identity), draft);
-  await prisma.buzzIdentity.update({
-    where: { id: identity.id },
+  const hash = contentHash(draft.content);
+  // Per community: each has the profile as it was last published there.
+  const membership = await prisma.buzzCommunityMember.findUnique({
+    where: {
+      communityId_identityId: {
+        communityId: community.id,
+        identityId: identity.id,
+      },
+    },
+    select: { profileHash: true },
+  });
+  if (membership?.profileHash === hash) return;
+  await publish(community.relayUrl, identitySecretKey(identity), draft);
+  await prisma.buzzCommunityMember.updateMany({
+    where: { communityId: community.id, identityId: identity.id },
     data: { profileHash: hash },
   });
 }
@@ -1565,7 +1583,7 @@ export async function syncRoomChannel(roomId: string) {
     if (!isActiveUser(member.user)) continue;
     const identity = await ensureIdentity({ userId: member.userId });
     await ensureCommunityMember(community.id, relayUrl, identity);
-    await ensureProfile(relayUrl, identity, {
+    await ensureProfile(community, identity, {
       // Their own app key carries their Buzz profile; this one is Sokosumi's.
       name: identity.appPubkey
         ? `${member.user.name} (via Sokosumi)`
@@ -1577,7 +1595,7 @@ export async function syncRoomChannel(roomId: string) {
   for (const member of room.sokoBotMembers) {
     const identity = await ensureIdentity({ sokoBotId: member.sokoBotId });
     await ensureCommunityMember(community.id, relayUrl, identity);
-    await ensureProfile(relayUrl, identity, {
+    await ensureProfile(community, identity, {
       name: sokoBotDisplayName(member.sokoBot),
       picture: member.sokoBot.avatarImageUrl,
       bot: true,
@@ -1594,7 +1612,7 @@ export async function syncRoomChannel(roomId: string) {
     if (isBuzzAgentBaseUrl(member.coworker.baseURL) && !owner) continue;
     const identity = await ensureIdentity({ coworkerId: member.coworkerId });
     await ensureCommunityMember(community.id, relayUrl, identity);
-    await ensureProfile(relayUrl, identity, {
+    await ensureProfile(community, identity, {
       name: member.coworker.name,
       picture: member.coworker.image,
       bot: true,
@@ -2104,6 +2122,19 @@ export async function reconcileMessage(
       });
       if (!original)
         throw new Error(`Buzz event ${eventId.slice(0, 8)} not found`);
+      // Only the author's own message in this channel (the id is checked
+      // when it is set, too).
+      if (
+        original.kind !== BUZZ_KIND.message ||
+        !original.tags.some(
+          (tag) => tag[0] === "h" && tag[1] === channel.channelId,
+        ) ||
+        !keysOf(authorIdentity).includes(original.pubkey)
+      ) {
+        throw new Error(
+          `Buzz event ${eventId.slice(0, 8)} is not this author's message`,
+        );
+      }
       link = await prisma.buzzMessageLink.upsert({
         where: { messageId: message.id },
         create: {
@@ -3039,7 +3070,13 @@ async function sendAs(
   request: Omit<Parameters<CoreRequest>[0], "apiKey">,
 ) {
   checkpoint();
-  const replay = identity.userId ? bridgeReplayToken(identity.userId) : null;
+  const replay = identity.userId
+    ? bridgeReplayToken(identity.userId)
+    : identity.coworkerId
+      ? bridgeReplayToken(
+          bridgeReplayActor({ coworkerId: identity.coworkerId }),
+        )
+      : null;
   const response = await core({
     ...request,
     apiKey: await bridgeApiKeyFor(identity),

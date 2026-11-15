@@ -46,8 +46,6 @@ model BuzzIdentity {
   /// from a Buzz client, so their message takes the same path as one typed in
   /// Sokosumi (mentions, bot replies, notifications). People only.
   encryptedApiKey    String?
-  /// Hash of the kind:0 profile last published, to republish only on change.
-  profileHash        String?
   /// When the person last did something from a Buzz app (with either key):
   /// how Sokosumi knows they are connected.
   lastActiveOnBuzzAt DateTime?
@@ -77,6 +75,9 @@ model BuzzCommunityMember {
   community   BuzzCommunity @relation(fields: [communityId], references: [id], onDelete: Cascade)
   identityId  String        @db.Uuid
   identity    BuzzIdentity  @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  /// Hash of the kind:0 profile last published in this community, to
+  /// republish only on change.
+  profileHash String?
   createdAt   DateTime      @default(now())
 
   @@id([communityId, identityId])

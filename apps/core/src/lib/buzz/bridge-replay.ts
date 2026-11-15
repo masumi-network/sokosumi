@@ -23,3 +23,24 @@ export function isBridgeReplay(
   if (!expected || !header || header.length !== expected.length) return false;
   return timingSafeEqual(Buffer.from(header), Buffer.from(expected));
 }
+
+/** Who a replay token is for: a person, or a Coworker (a Buzz agent). */
+export function bridgeReplayActor(
+  actor: { userId: string } | { coworkerId: string },
+): string {
+  return "userId" in actor ? actor.userId : `coworker:${actor.coworkerId}`;
+}
+
+/**
+ * A `buzz:<event id>` client message id names a Buzz event; only the bridge
+ * may claim one, for the actor it replays, or someone could claim another
+ * person's event before it arrives.
+ */
+export function mayUseClientMessageId(
+  clientMessageId: string | null | undefined,
+  actor: { userId: string } | { coworkerId: string },
+  header: string | undefined,
+): boolean {
+  if (!clientMessageId?.trim().startsWith("buzz:")) return true;
+  return isBridgeReplay(bridgeReplayActor(actor), header);
+}

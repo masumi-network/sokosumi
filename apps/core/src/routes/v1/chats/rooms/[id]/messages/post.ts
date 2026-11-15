@@ -12,11 +12,15 @@ import {
 import { emitChatMentionNotifications } from "@/helpers/chat-mention-notifications";
 import { emitChatRoomMessageCreatedEffects } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
-import { conflict } from "@/helpers/error";
+import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
+import {
+  BUZZ_BRIDGE_REPLAY_HEADER,
+  mayUseClientMessageId,
+} from "@/lib/buzz/bridge-replay";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -107,6 +111,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       isCoworkerAuthContext(authContext) ||
       isSokoBotAuthContext(authContext)
     ) {
+      if (
+        isCoworkerAuthContext(authContext) &&
+        !mayUseClientMessageId(
+          body.clientMessageId,
+          { coworkerId: authContext.coworkerId },
+          c.req.header(BUZZ_BRIDGE_REPLAY_HEADER),
+        )
+      ) {
+        throw badRequest("Client message ids starting with buzz: are reserved");
+      }
       // A replay of an agent's post (say the bridge lost Core's answer) is the
       // same message, not a second one.
       if (body.clientMessageId) {
@@ -297,6 +311,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const userContext = requireUserAuthContext(authContext);
+    if (
+      !mayUseClientMessageId(
+        body.clientMessageId,
+        { userId: userContext.userId },
+        c.req.header(BUZZ_BRIDGE_REPLAY_HEADER),
+      )
+    ) {
+      throw badRequest("Client message ids starting with buzz: are reserved");
+    }
     // Read from GitHub before the transaction, which must not wait on it.
     const skills = await resolveAttachedSkills(body.skillIds);
     const trimmedClientId =
