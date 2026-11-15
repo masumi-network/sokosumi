@@ -436,7 +436,7 @@ describe("schedules of a shared bot", () => {
       expect(queryRaw).not.toHaveBeenCalled();
     });
 
-    it("moves a one-time run with its display cron and never skips it", async () => {
+    it("moves a one-time run with its display cron", async () => {
       locked = { ...SHARED, runOnce: true, nextRunAt: NEXT };
       await change(SHARED, {
         originalAt: NEXT,
@@ -445,12 +445,50 @@ describe("schedules of a shared bot", () => {
         scheduledAt: new Date("2099-03-04T10:15:00.000Z"),
       });
       expect(lastSchedule().data).toEqual({
+        enabled: true,
         nextRunAt: new Date("2099-03-04T10:15:00.000Z"),
         cronExpression: "15 10 4 3 *",
       });
+    });
+
+    it("skips a one-time run by switching it off, and Undo switches it back on", async () => {
+      locked = { ...SHARED, runOnce: true, nextRunAt: NEXT };
+      await change(SHARED, {
+        originalAt: NEXT,
+        expectedAt: NEXT,
+        action: "skip",
+      });
+      expect(lastSchedule().data).toEqual({ enabled: false });
+
+      locked = { ...locked, enabled: false };
+      // Seen skipped: a second skip or a stale view is refused.
       await expect(
         change(SHARED, { originalAt: NEXT, expectedAt: NEXT, action: "skip" }),
-      ).rejects.toThrow(/cannot be skipped/);
+      ).rejects.toMatchObject({ status: 409 });
+      await change(SHARED, {
+        originalAt: NEXT,
+        expectedAt: null,
+        action: "restore",
+      });
+      expect(lastSchedule().data).toEqual({ enabled: true });
+    });
+
+    it("never changes a one-time run that already ran", async () => {
+      locked = {
+        ...SHARED,
+        runOnce: true,
+        enabled: false,
+        lastRunAt: NEXT,
+        nextRunAt: NEXT,
+      };
+      await expect(
+        change(SHARED, {
+          originalAt: NEXT,
+          expectedAt: null,
+          action: "restore",
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(scheduleUpdate).not.toHaveBeenCalled();
     });
 
     it("drops moved and skipped runs when the cron changes", async () => {

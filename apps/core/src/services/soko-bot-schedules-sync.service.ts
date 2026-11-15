@@ -315,8 +315,12 @@ export class SokoBotSchedulesSyncService {
           where: { scheduleId: due.id },
           select: { originalAt: true, scheduledAt: true },
         });
+        // Cron runs a late claim missed coalesce into `nextCronAt`, but a
+        // moved run after this one fires even when its time already passed:
+        // moves walk from `scheduledFor`, cron times from `nextCronAt`.
         nextRunAt =
-          nextEffectiveRun(due, changes, walkFrom, nextCronAt) ?? nextCronAt;
+          nextEffectiveRun(due, changes, scheduledFor, nextCronAt) ??
+          nextCronAt;
       }
       const moved = await tx.sokoBotSchedule.updateMany({
         where: {

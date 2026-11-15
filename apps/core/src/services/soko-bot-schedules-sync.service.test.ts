@@ -230,6 +230,32 @@ describe("SokoBotSchedulesSyncService", () => {
     dateNow.mockRestore();
   });
 
+  it("keeps a moved run whose time passed before a late claim", async () => {
+    // Claimed at 12:05 for 12:00; 14:00 was moved to 12:01, already due.
+    const dateNow = vi
+      .spyOn(Date, "now")
+      .mockReturnValue(new Date("2026-08-17T12:05:00.000Z").getTime());
+    runChangeFindManyMock.mockResolvedValue([
+      {
+        originalAt: new Date("2026-08-17T14:00:00.000Z"),
+        scheduledAt: new Date("2026-08-17T12:01:00.000Z"),
+      },
+    ]);
+
+    await new SokoBotSchedulesSyncService().syncDueSchedules({
+      shouldContinue: continueFor(1),
+    });
+
+    expect(scheduleUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: dueSchedule.id, enabled: true, nextRunAt: scheduledFor },
+      data: {
+        nextRunAt: new Date("2026-08-17T12:01:00.000Z"),
+        lastRunAt: scheduledFor,
+      },
+    });
+    dateNow.mockRestore();
+  });
+
   it("takes no Calendar lock for a built-in rhythm, which has no run changes", async () => {
     dueScheduleFindFirstMock.mockResolvedValue({
       ...dueSchedule,

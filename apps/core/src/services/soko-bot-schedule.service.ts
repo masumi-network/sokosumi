@@ -528,22 +528,48 @@ async function changeScheduleRun(
     const horizon = new Date(now.getTime() + RUN_HORIZON_MS);
     const originalAt = new Date(change.originalAt);
     const expectedAt = change.expectedAt ? new Date(change.expectedAt) : null;
-    if (!current.enabled) throw conflict(STALE_RUN);
-
     if (current.runOnce) {
+      // A skipped one-time run is its schedule switched off with the time
+      // kept, so the scheduler never claims it and Undo switches it back on.
+      // A spent one (`lastRunAt`) is history.
+      const shownAt = current.enabled ? current.nextRunAt : null;
       if (
+        current.lastRunAt ||
         originalAt.getTime() !== current.nextRunAt.getTime() ||
-        expectedAt?.getTime() !== current.nextRunAt.getTime() ||
+        expectedAt?.getTime() !== shownAt?.getTime() ||
         current.nextRunAt <= now
       ) {
         throw conflict(STALE_RUN);
       }
-      const at = new Date(change.scheduledAt ?? "");
-      if (change.action !== "move") {
+      if (change.action === "skip") {
+        if (!shownAt) throw conflict(STALE_RUN);
+        return tx.sokoBotSchedule.update({
+          where: { id: current.id },
+          data: { enabled: false },
+        });
+      }
+      // Switching a skipped run back on counts as activating the schedule.
+      if (
+        !shownAt &&
+        (await tx.sokoBotSchedule.count({
+          where: {
+            sokoBotId: current.sokoBotId,
+            enabled: true,
+            systemKey: null,
+          },
+        })) >= MAX_ACTIVE_SOKO_BOT_SCHEDULES
+      ) {
         throw new SokoBotScheduleValidationError(
-          "A one-time run cannot be skipped; switch the schedule off instead",
+          `Soko Bot supports at most ${MAX_ACTIVE_SOKO_BOT_SCHEDULES} active schedules`,
         );
       }
+      if (change.action === "restore") {
+        return tx.sokoBotSchedule.update({
+          where: { id: current.id },
+          data: { enabled: true },
+        });
+      }
+      const at = new Date(change.scheduledAt ?? "");
       if (
         Number.isNaN(at.getTime()) ||
         at <= now ||
@@ -557,11 +583,13 @@ async function changeScheduleRun(
       return tx.sokoBotSchedule.update({
         where: { id: current.id },
         data: {
+          enabled: true,
           nextRunAt: at,
           cronExpression: wallClockCron(at, current.timezone),
         },
       });
     }
+    if (!current.enabled) throw conflict(STALE_RUN);
 
     const existing = current.runChanges.find(
       (row) => row.originalAt.getTime() === originalAt.getTime(),
@@ -700,8 +728,6 @@ export function listSokoBotSchedules(sokoBotId: string) {
 
 /** How long a disabled schedule and a settled run stay visible. */
 export const SOKO_BOT_SCHEDULE_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
-/** A spent one-time schedule waits this long, so its run's reply still names it. */
-export const SPENT_ONE_TIME_GRACE_MS = 60 * 60 * 1_000;
 const PURGE_BATCH = 200;
 const RUN_PURGE_BATCH = 1_000;
 const ACTIVE_RUN_STATUSES = ["PENDING", "CLAIMED", "RUNNING"] as const;
@@ -719,8 +745,8 @@ export interface SokoBotSchedulePurgeResult {
  * Removes schedules nobody will run again, so a bot that sets many one-time
  * follow-ups does not leave a disabled row behind for each:
  *
- * - one-time schedules whose run completed, after a short grace, or after
- *   the retention window when the run failed (kept for an admin retry);
+ * - one-time schedules whose run settled, after the retention window, so
+ *   the Calendar shows the run for a week and an admin can retry a failure;
  * - schedules watching a Task or Job that finished;
  * - recurring schedules the failure budget switched off, after retention.
  *
@@ -731,7 +757,6 @@ export interface SokoBotSchedulePurgeResult {
 export async function purgeSokoBotSchedules(
   now = new Date(),
 ): Promise<SokoBotSchedulePurgeResult> {
-  const graceCutoff = new Date(now.getTime() - SPENT_ONE_TIME_GRACE_MS);
   const retentionCutoff = new Date(
     now.getTime() - SOKO_BOT_SCHEDULE_RETENTION_MS,
   );
@@ -756,13 +781,8 @@ export async function purgeSokoBotSchedules(
     runOnce: true,
     enabled: false,
     lastRunAt: { not: null },
-    OR: [
-      {
-        updatedAt: { lt: graceCutoff },
-        runs: { every: { status: "COMPLETED" } },
-      },
-      { updatedAt: { lt: retentionCutoff } },
-    ],
+    // Its run row is the Calendar's history of it, kept as long as any run.
+    updatedAt: { lt: retentionCutoff },
   });
   const watchedWorkFinished = await purge({
     OR: [

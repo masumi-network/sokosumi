@@ -1,7 +1,9 @@
 /**
  * Calendar run changes against a real PostgreSQL: the scheduler fires a moved
- * run once at its new time, never a skipped one, keeps the cron, and the
- * row lock orders a change against another change and against a claim.
+ * run once at its new time, even when it claims late, never a skipped one,
+ * keeps the cron, and the row lock orders a change against another change and
+ * against a claim. A one-time run can be skipped and put back, and a spent
+ * one stays in the Calendar's history for the retention window.
  * RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… pnpm --filter @sokosumi/core test src/services/soko-bot-schedule-run-changes.postgres.test.ts
  */
 import { randomUUID } from "node:crypto";
@@ -16,6 +18,7 @@ import {
 } from "vitest";
 
 import prisma from "@/lib/db/prisma";
+import { readSokoBot } from "@/routes/v1/workspaces/calendar/read-soko-bot";
 
 vi.mock("@/services/soko-bot-proactive.service", async (original) => ({
   ...(await original<object>()),
@@ -25,6 +28,8 @@ vi.mock("@/services/soko-bot-proactive.service", async (original) => ({
 import { sokoBotControlPlane } from "./soko-bot-control-plane.service";
 import {
   createSokoBotSchedule,
+  purgeSokoBotSchedules,
+  SOKO_BOT_SCHEDULE_RETENTION_MS,
   updateSokoBotSchedule,
 } from "./soko-bot-schedule.service";
 import { SokoBotSchedulesSyncService } from "./soko-bot-schedules-sync.service";
@@ -114,12 +119,27 @@ describe.skipIf(!enabled)("Soko Bot schedule run changes", () => {
     await prisma.$disconnect();
   });
 
-  const change = (run: {
-    originalAt: string;
-    expectedAt: string | null;
-    action: "skip" | "move" | "restore";
-    scheduledAt?: string;
-  }) => updateSokoBotSchedule({ userId, scheduleId, run });
+  const change = (
+    run: {
+      originalAt: string;
+      expectedAt: string | null;
+      action: "skip" | "move" | "restore";
+      scheduledAt?: string;
+    },
+    id = scheduleId,
+  ) => updateSokoBotSchedule({ userId, scheduleId: id, run });
+
+  const oneTime = async (name: string, runAt: string) =>
+    (
+      await createSokoBotSchedule({
+        userId,
+        workspaceId,
+        name,
+        timezone: "UTC",
+        runAt,
+        prompt: "Remind me.",
+      })
+    ).id;
 
   /** Runs the scheduler at `iso`, the way the cron tick does. */
   async function tick(iso: string) {
@@ -130,10 +150,10 @@ describe.skipIf(!enabled)("Soko Bot schedule run changes", () => {
     });
   }
 
-  const firedAt = async () =>
+  const firedAt = async (id = scheduleId) =>
     (
       await prisma.sokoBotScheduleRun.findMany({
-        where: { scheduleId },
+        where: { scheduleId: id },
         orderBy: { scheduledFor: "asc" },
         select: { scheduledFor: true },
       })
@@ -220,5 +240,112 @@ describe.skipIf(!enabled)("Soko Bot schedule run changes", () => {
     ).toEqual(at("2030-01-07T03:00:00.000Z"));
     await tick("2030-01-07T02:00:05.000Z");
     expect(await firedAt()).toEqual(["2030-01-07T01:00:00.000Z"]);
+  });
+
+  it("fires a moved run once when the scheduler claims the run before it late", async () => {
+    // 03:00 moved to 01:01; the first tick comes only at 01:01:05.
+    await change({
+      originalAt: "2030-01-07T03:00:00.000Z",
+      expectedAt: "2030-01-07T03:00:00.000Z",
+      action: "move",
+      scheduledAt: "2030-01-07T01:01:00.000Z",
+    });
+    for (const iso of [
+      "2030-01-07T01:01:05.000Z",
+      "2030-01-07T01:01:10.000Z",
+      "2030-01-07T02:00:05.000Z",
+      "2030-01-07T03:00:05.000Z",
+      "2030-01-07T03:00:10.000Z",
+    ]) {
+      await tick(iso);
+    }
+    expect(await firedAt()).toEqual([
+      "2030-01-07T01:00:00.000Z",
+      "2030-01-07T01:01:00.000Z",
+      "2030-01-07T02:00:00.000Z",
+    ]);
+  });
+
+  it("never claims a skipped one-time run, and fires it once after Undo", async () => {
+    const skipped = await oneTime(
+      "Skipped reminder",
+      "2030-01-07T01:30:00.000Z",
+    );
+    const undone = await oneTime("Undone reminder", "2030-01-07T01:45:00.000Z");
+    for (const id of [skipped, undone]) {
+      const at =
+        id === skipped
+          ? "2030-01-07T01:30:00.000Z"
+          : "2030-01-07T01:45:00.000Z";
+      await change({ originalAt: at, expectedAt: at, action: "skip" }, id);
+    }
+    await change(
+      {
+        originalAt: "2030-01-07T01:45:00.000Z",
+        expectedAt: null,
+        action: "restore",
+      },
+      undone,
+    );
+    await tick("2030-01-07T02:00:05.000Z");
+    await tick("2030-01-07T02:00:10.000Z");
+    expect(await firedAt(skipped)).toEqual([]);
+    expect(await firedAt(undone)).toEqual(["2030-01-07T01:45:00.000Z"]);
+  });
+
+  it("keeps a done one-time run on the Calendar for the retention window", async () => {
+    const reminder = await oneTime(
+      "Morning reminder",
+      "2030-01-07T00:45:00.000Z",
+    );
+    await prisma.sokoBotSchedule.update({
+      where: { id: scheduleId },
+      data: { enabled: false },
+    });
+    await tick("2030-01-07T00:45:05.000Z");
+    expect(
+      await prisma.sokoBotScheduleRun.findMany({
+        where: { scheduleId: reminder },
+        select: { status: true },
+      }),
+    ).toEqual([{ status: "COMPLETED" }]);
+
+    const calendar = () =>
+      readSokoBot({
+        workspaceId,
+        userId,
+        query: {
+          from: at("2030-01-07T00:00:00.000Z"),
+          to: at("2030-01-08T00:00:00.000Z"),
+          cursor: null,
+          requestedCursor: null,
+          limit: 50,
+          scope: "workspace",
+        },
+        options: {},
+      });
+    const shown = async () =>
+      (await calendar()).items.flatMap((item) =>
+        item.kind === "sokoBotRun" && item.scheduleId === reminder
+          ? [item.runState]
+          : [],
+      );
+
+    // Hours later, past the old one-hour cleanup: still there, done.
+    const later = new Date(Date.now() + 3 * 60 * 60 * 1_000);
+    await purgeSokoBotSchedules(later);
+    expect(await shown()).toEqual(["done"]);
+
+    // Just inside the week: still there.
+    const weekLater = new Date(Date.now() + SOKO_BOT_SCHEDULE_RETENTION_MS);
+    await purgeSokoBotSchedules(new Date(weekLater.getTime() - 60_000));
+    expect(await shown()).toEqual(["done"]);
+
+    // Past the week: gone with its run.
+    expect(
+      (await purgeSokoBotSchedules(new Date(weekLater.getTime() + 60_000)))
+        .spentOneTime,
+    ).toBe(1);
+    expect(await shown()).toEqual([]);
   });
 });
