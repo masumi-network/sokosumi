@@ -199,3 +199,16 @@ model BuzzOutbox {
   @@index([nextAttemptAt])
   @@map("buzz_outbox")
 }
+
+/// A workspace grant the personal-agents switch made itself, with the time it
+/// was decided: one a person decided later (or whose decider's account is
+/// gone) no longer matches, and the switch never undoes it.
+model BuzzAutoAccess {
+  coworkerId  String
+  workspaceId String   @db.Uuid
+  decidedAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@id([coworkerId, workspaceId])
+  @@map("buzz_auto_access")
+}

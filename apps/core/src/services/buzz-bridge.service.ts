@@ -834,28 +834,44 @@ export async function syncBuzzAgents(
           where,
         });
         if (existingAccess) {
-          // The switch's own grants and revocations have no resolver; one a
-          // person made (say the owner revoking it) stays as they left it.
-          const bySwitch = existingAccess.resolvedById === null;
-          const reopen =
-            existingAccess.status === "PENDING" ||
-            (existingAccess.status === "REVOKED" && bySwitch);
-          if (granted && reopen) {
+          // Granted by the switch only while it is as the switch left it: a
+          // decision a person made later (even one whose account is gone
+          // since) is theirs, and the switch never undoes it.
+          const auto = await prisma.buzzAutoAccess.findUnique({
+            where: {
+              coworkerId_workspaceId: {
+                coworkerId: coworkerId as string,
+                workspaceId,
+              },
+            },
+          });
+          const bySwitch = auto
+            ? existingAccess.resolvedAt?.getTime() === auto.decidedAt.getTime()
+            : false;
+          if (granted && existingAccess.status === "PENDING") {
             // Only while it is still as read: a person who decided meanwhile
             // (an admin denying it) keeps their decision.
-            await prisma.coworkerWorkspaceAccess.updateMany({
+            const decidedAt = new Date();
+            const grantedNow = await prisma.coworkerWorkspaceAccess.updateMany({
               where: {
                 coworkerId: coworkerId as string,
                 workspaceId,
-                status: existingAccess.status,
+                status: "PENDING",
                 resolvedById: existingAccess.resolvedById,
               },
               data: {
                 status: "GRANTED",
                 resolvedById: null,
-                resolvedAt: new Date(),
+                resolvedAt: decidedAt,
               },
             });
+            if (grantedNow.count > 0) {
+              await rememberAutoAccess(
+                coworkerId as string,
+                workspaceId,
+                decidedAt,
+              );
+            }
           } else if (
             !granted &&
             existingAccess.status === "GRANTED" &&
@@ -905,6 +921,7 @@ export async function syncBuzzAgents(
           }
           continue;
         }
+        const decidedAt = new Date();
         const created = await prisma.coworkerWorkspaceAccess.create({
           data: {
             coworkerId: coworkerId as string,
@@ -914,11 +931,18 @@ export async function syncBuzzAgents(
               ? {
                   status: "GRANTED" as const,
                   resolvedById: null,
-                  resolvedAt: new Date(),
+                  resolvedAt: decidedAt,
                 }
               : { status: "PENDING" as const }),
           },
         });
+        if (granted) {
+          await rememberAutoAccess(
+            coworkerId as string,
+            workspaceId,
+            decidedAt,
+          );
+        }
         if (!granted) {
           await notifyWorkspaceApproversOfPendingCoworkerAccess({
             coworkerId: created.coworkerId,
@@ -1051,6 +1075,19 @@ export async function removeAgentsWithoutOwner() {
 }
 
 /** The person's Buzz agents Sokosumi knows, for Connections. */
+/** Records a grant the personal-agents switch made, by its decision time. */
+function rememberAutoAccess(
+  coworkerId: string,
+  workspaceId: string,
+  decidedAt: Date,
+) {
+  return prisma.buzzAutoAccess.upsert({
+    where: { coworkerId_workspaceId: { coworkerId, workspaceId } },
+    create: { coworkerId, workspaceId, decidedAt },
+    update: { decidedAt },
+  });
+}
+
 async function agentsOf(identityId: string) {
   const agents = await prisma.buzzIdentity.findMany({
     where: { ownerIdentityId: identityId, coworker: { archivedAt: null } },
@@ -3207,8 +3244,38 @@ function errorKindOf(body: unknown): string | undefined {
   return typeof kind === "string" ? kind : undefined;
 }
 
-/** A bridge key Core no longer takes: the next try mints a new one. */
+/**
+ * A bridge key Core no longer takes: the next try mints a new one, unless the
+ * agent itself may no longer act (archived, its owner banned or gone), when
+ * no new key would be taken either and the change is given up for good.
+ */
 async function dropBridgeKey(identity: BuzzIdentity) {
+  if (identity.coworkerId) {
+    const agent = await prisma.coworker.findUnique({
+      where: { id: identity.coworkerId },
+      select: {
+        archivedAt: true,
+        buzzIdentity: {
+          select: {
+            ownerIdentity: {
+              select: { user: { select: { banned: true, banExpires: true } } },
+            },
+          },
+        },
+      },
+    });
+    const owner = agent?.buzzIdentity?.ownerIdentity?.user;
+    if (
+      !agent ||
+      agent.archivedAt ||
+      (isExternal(identity) && (!owner || !isActiveUser(owner)))
+    ) {
+      throw new CoreRejectedError(
+        410,
+        "This agent can no longer post to Sokosumi",
+      );
+    }
+  }
   await prisma.buzzIdentity.update({
     where: { id: identity.id },
     data: { encryptedApiKey: null },

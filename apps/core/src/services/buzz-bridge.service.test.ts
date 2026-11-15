@@ -41,6 +41,7 @@ const db = vi.hoisted(() => {
     chatRoomMessage: model(),
     buzzCommunityMember: model(),
     buzzUndoneEvent: model(),
+    buzzAutoAccess: model(),
     apikey: model(),
     coworker: model(),
     vendor: model(),
@@ -1102,10 +1103,14 @@ describe("a person's own Buzz agents", () => {
         archivedAt: null,
       },
     });
+    // Granted by the switch: its record matches the grant's decision.
+    const decidedAt = new Date("2026-11-01T00:00:00Z");
     db.coworkerWorkspaceAccess.findUnique.mockResolvedValue({
       status: "GRANTED",
       resolvedById: null,
+      resolvedAt: decidedAt,
     });
+    db.buzzAutoAccess.findUnique.mockResolvedValue({ decidedAt });
     db.coworkerWorkspaceAccess.update.mockResolvedValue({
       id: "access",
       coworkerId: "cw-agent",
