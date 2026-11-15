@@ -132,7 +132,7 @@ export async function SokoBotHome({
           <BotFace
             imageUrl={bot.avatarImageUrl}
             seed={botFaceSeed(bot, ownerId)}
-            className="size-12"
+            className="border-background size-14 rounded-full border-4 shadow-md"
           />
           <h1 className="text-foreground text-3xl font-normal tracking-tight text-balance md:text-4xl">
             {userName ? t("headingWithName", { name: userName }) : t("heading")}

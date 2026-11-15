@@ -1,45 +1,49 @@
 import { render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { cssColorToRgb, FoilBackground, foilLoopAt } from "./foil-background";
+import {
+  cssColorToRgb,
+  GradientBackground,
+  gradientLoopAt,
+} from "./gradient-background";
 
-describe("FoilBackground", () => {
+describe("GradientBackground", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
   it("is a decorative canvas that draws nothing without WebGL", () => {
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
-    const { container } = render(<FoilBackground className="h-10" />);
+    const { container } = render(<GradientBackground className="h-10" />);
     const canvas = container.querySelector("canvas");
     expect(canvas).toHaveAttribute("aria-hidden", "true");
     expect(canvas).toHaveClass("pointer-events-none", "h-10");
   });
 });
 
-describe("foilLoopAt", () => {
+describe("gradientLoopAt", () => {
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it("follows the wall clock, so a remount carries on where the foil was", () => {
+  it("follows the wall clock, so a remount carries on where the gradient was", () => {
     vi.useFakeTimers();
     vi.setSystemTime(60_000);
-    expect(foilLoopAt(false)).toBe(0.25);
+    expect(gradientLoopAt(false)).toBe(0.25);
   });
 
   it("comes back to the start after one turn, with no jump", () => {
     vi.useFakeTimers();
     vi.setSystemTime(240_000 * 7 - 1);
-    expect(foilLoopAt(false)).toBeCloseTo(1, 4);
+    expect(gradientLoopAt(false)).toBeCloseTo(1, 4);
     vi.setSystemTime(240_000 * 7);
-    expect(foilLoopAt(false)).toBe(0);
+    expect(gradientLoopAt(false)).toBe(0);
   });
 
   it("holds still under reduced motion", () => {
     vi.useFakeTimers();
     vi.setSystemTime(60_000);
-    expect(foilLoopAt(true)).toBe(0);
+    expect(gradientLoopAt(true)).toBe(0);
   });
 });
 

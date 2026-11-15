@@ -1684,13 +1684,8 @@
         "sidebarNew": "Neu"
       },
       "Landing": {
-        "greeting": "Willkommen!",
-        "greetingWithName": "Willkommen, {name}!",
-        "intro": "Sag, was zu tun ist, und sie erledigen es.",
         "cta": {
-          "avatarAlt": "{name}",
           "button": "Mit {name} chatten",
-          "searchAgents": "Agenten suchen",
           "error": "Chat konnte nicht geöffnet werden. Bitte versuche es erneut."
         },
         "stats": {
@@ -1699,18 +1694,7 @@
           "awaiting": "{count, plural, one {# Aufgabe braucht dich} other {# Aufgaben brauchen dich}}",
           "byTeammates": "{count, plural, one {# Aufgabe von deinem Team} other {# Aufgaben von deinem Team}}",
           "recent": "In den letzten 24 Stunden",
-          "trendUp": "{count} mehr als in den vorherigen 24 Stunden",
-          "trendDown": "{count} weniger als in den vorherigen 24 Stunden",
           "workedHours": "{hours, plural, one {# Stunde gearbeitet} other {# Stunden gearbeitet}}"
-        },
-        "team": {
-          "avatarAlt": "{name}",
-          "stripLabel": "Verfügbare Coworker",
-          "select": "{name} auswählen"
-        },
-        "searchAgents": {
-          "label": "Suchen",
-          "subtitle": "Spezialisierte Agenten"
         },
         "MyDay": {
           "title": "Mein Tag",
@@ -1752,6 +1736,11 @@
           "openChat": "Chat öffnen",
           "failedWork": "{name} konnte die letzte Arbeit nicht abschließen",
           "openBot": "Seite von {name} öffnen"
+        },
+        "SokoBotSetup": {
+          "title": "Hol dir deinen persönlichen Assistenz-Agenten",
+          "intro": "Er kümmert sich um deine Aufgaben, Mails und deinen Kalender.",
+          "cta": "Jetzt einrichten"
         }
       },
       "SokoBot": {
@@ -10117,9 +10106,7 @@
         "nameHint": "Dein eigener KI-Assistent in Sokosumi. Du kannst ihn später umbenennen.",
         "continue": "Weiter",
         "back": "Zurück",
-        "pictureTitle": "Wähle ein Bild für {name}",
-        "createWithoutPicture": "Ohne Bild erstellen",
-        "createWithoutPictureHint": "{name} startet mit seiner Farbkugel. Ein Bild fügst du jederzeit in den Einstellungen hinzu."
+        "pictureTitle": "Wähle ein Bild für {name}"
       },
       "Memory": {
         "title": "Gedächtnis",

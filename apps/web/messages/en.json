@@ -1684,13 +1684,8 @@
         "sidebarNew": "New"
       },
       "Landing": {
-        "greeting": "Welcome!",
-        "greetingWithName": "Welcome, {name}!",
-        "intro": "Say what needs doing and they get it done.",
         "cta": {
-          "avatarAlt": "{name}",
           "button": "Chat with {name}",
-          "searchAgents": "Search agents",
           "error": "Could not open the chat. Please try again."
         },
         "stats": {
@@ -1699,18 +1694,7 @@
           "awaiting": "{count, plural, one {# task needs your input} other {# tasks need your input}}",
           "byTeammates": "{count, plural, one {# task from your team} other {# tasks from your team}}",
           "recent": "In the last 24 hours",
-          "trendUp": "{count} more than the previous 24 hours",
-          "trendDown": "{count} fewer than the previous 24 hours",
           "workedHours": "{hours, plural, one {# hour worked} other {# hours worked}}"
-        },
-        "team": {
-          "avatarAlt": "{name}",
-          "stripLabel": "Available coworkers",
-          "select": "Select {name}"
-        },
-        "searchAgents": {
-          "label": "Search",
-          "subtitle": "Specialized agents"
         },
         "MyDay": {
           "title": "My day",
@@ -1752,6 +1736,11 @@
           "openChat": "Open the chat",
           "failedWork": "{name} couldn't finish what it was working on",
           "openBot": "Open {name}'s page"
+        },
+        "SokoBotSetup": {
+          "title": "Get your Personal Assistant Agent",
+          "intro": "It runs your Tasks, mail and calendar for you.",
+          "cta": "Set it up"
         }
       },
       "SokoBot": {
@@ -10117,9 +10106,7 @@
         "nameHint": "Your own AI assistant in Sokosumi. You can rename it later.",
         "continue": "Continue",
         "back": "Back",
-        "pictureTitle": "Pick a picture for {name}",
-        "createWithoutPicture": "Create without a picture",
-        "createWithoutPictureHint": "{name} starts with its color orb. Add a picture any time in its settings."
+        "pictureTitle": "Pick a picture for {name}"
       },
       "Memory": {
         "title": "Memory",
