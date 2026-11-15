@@ -605,6 +605,9 @@ function DrivePageWorkspace({
     // Core moves a room's path with a rename or move of it or of a folder
     // above it; stale paths would mark the wrong folder as a data room.
     await queryClient.invalidateQueries({ queryKey: ["drive", "data-rooms"] });
+    // Stars too: Core moves folder stars with a rename or move and drops
+    // them with a delete, and a deleted file's star goes with it.
+    await queryClient.invalidateQueries({ queryKey: ["drive", "stars"] });
   }
 
   const loadTasksItems = useCallback(async () => {

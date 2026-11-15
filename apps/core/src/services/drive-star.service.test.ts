@@ -4,7 +4,6 @@ const db = vi.hoisted(() => ({
   driveStar: {
     upsert: vi.fn(),
     findMany: vi.fn(),
-    update: vi.fn(),
     deleteMany: vi.fn(),
   },
 }));
@@ -25,7 +24,6 @@ vi.mock("@/lib/data-room-visibility", async (importOriginal) => ({
 import {
   deleteDriveFolderStars,
   listDriveStars,
-  rebaseDriveFolderStars,
   setDriveStar,
 } from "./drive-star.service";
 
@@ -186,50 +184,8 @@ describe("listDriveStars", () => {
   });
 });
 
+// Rebase runs as SQL; drive-star.postgres.test.ts covers it on PostgreSQL.
 describe("folder stars follow the folder", () => {
-  it("moves stars on the folder and its subfolders to the new path", async () => {
-    db.driveStar.findMany.mockResolvedValue([
-      { id: "s-1", folderPath: "Finance" },
-      { id: "s-2", folderPath: "Finance/Q4" },
-    ]);
-
-    await rebaseDriveFolderStars({
-      workspaceId: "ws-1",
-      fromFolderPath: "Finance/",
-      toFolderPath: "Archive/Finance",
-    });
-
-    // Nothing lives at the new path yet (the move checked), so a star
-    // there is left over from a folder that went away; it would collide.
-    expect(db.driveStar.deleteMany).toHaveBeenCalledWith({
-      where: {
-        workspaceId: "ws-1",
-        OR: [
-          { folderPath: "Archive/Finance" },
-          { folderPath: { startsWith: "Archive/Finance/" } },
-        ],
-      },
-    });
-    expect(db.driveStar.findMany).toHaveBeenCalledWith({
-      where: {
-        workspaceId: "ws-1",
-        OR: [
-          { folderPath: "Finance" },
-          { folderPath: { startsWith: "Finance/" } },
-        ],
-      },
-      select: { id: true, folderPath: true },
-    });
-    expect(db.driveStar.update).toHaveBeenCalledWith({
-      where: { id: "s-1" },
-      data: { folderPath: "Archive/Finance" },
-    });
-    expect(db.driveStar.update).toHaveBeenCalledWith({
-      where: { id: "s-2" },
-      data: { folderPath: "Archive/Finance/Q4" },
-    });
-  });
-
   it("removes stars on a deleted folder and its subfolders", async () => {
     await deleteDriveFolderStars({ workspaceId: "ws-1", folderPath: "Old/" });
 

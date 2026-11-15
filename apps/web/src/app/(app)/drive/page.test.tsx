@@ -16,6 +16,7 @@ const useSessionMock = vi.fn();
 const listDriveItemsMock = vi.fn();
 const patchDriveFoldersRenameMock = vi.fn();
 const patchDriveFilesMoveMock = vi.fn();
+const getDriveStarsMock = vi.fn();
 const postDriveFoldersMock = vi.fn();
 const getUsersByIdOrganizationsMock = vi.fn();
 const replaceMock = vi.fn();
@@ -138,6 +139,8 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
 vi.mock("@sokosumi/core-client", () => ({
   deleteDriveFilesDelete: vi.fn(),
   deleteDriveFoldersDelete: vi.fn(),
+  getDriveStars: (...args: unknown[]) => getDriveStarsMock(...args),
+  putDriveStars: vi.fn(),
   getUsersByIdOrganizations: (...args: unknown[]) =>
     getUsersByIdOrganizationsMock(...args),
   patchDriveFilesMove: (...args: unknown[]) => patchDriveFilesMoveMock(...args),
@@ -445,6 +448,10 @@ describe("DrivePage workspace remount", () => {
     fetchDataRoomsMock.mockReset();
     fetchDataRoomsMock.mockResolvedValue([]);
     patchDriveFoldersRenameMock.mockResolvedValue({});
+    getDriveStarsMock.mockReset();
+    getDriveStarsMock.mockResolvedValue({
+      data: { data: { folders: [], files: [] } },
+    });
     getUsersByIdOrganizationsMock.mockResolvedValue({
       data: {
         data: [
@@ -478,6 +485,35 @@ describe("DrivePage workspace remount", () => {
       expect(screen.queryByTestId("files-delete-folder")).toBeNull();
     });
     expect(patchDriveFoldersRenameMock).not.toHaveBeenCalled();
+  });
+
+  it("asks for the stars again after a folder is renamed", async () => {
+    // Core moves a folder's stars with it. A Starred list still holding the
+    // old path would open a folder that is gone and call the renamed one
+    // unstarred.
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+    getDriveStarsMock.mockResolvedValue({
+      data: {
+        data: { folders: [{ path: "Reports", name: "Reports" }], files: [] },
+      },
+    });
+    vi.stubGlobal("prompt", () => "Q4 Reports");
+
+    renderDrive();
+    const star = await screen.findByTestId("files-star-folder");
+    await waitFor(() =>
+      expect(star).toHaveAttribute("aria-label", "unstarItem"),
+    );
+    const callsBefore = getDriveStarsMock.mock.calls.length;
+
+    await userEvent.click(screen.getByTestId("files-rename-folder"));
+
+    await waitFor(() => expect(patchDriveFoldersRenameMock).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(getDriveStarsMock.mock.calls.length).toBeGreaterThan(callsBefore),
+    );
+    vi.unstubAllGlobals();
   });
 
   it("drops the folder query when the active organization changes", async () => {

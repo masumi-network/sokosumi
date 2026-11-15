@@ -1,9 +1,10 @@
+import { PrismaRaw as Prisma } from "@sokosumi/database/client";
 import {
   buildOrganizationDriveFolderPrefix,
   buildUserDriveFolderPrefix,
   normalizeDriveFolderPath,
 } from "@sokosumi/utils";
-
+import pLimit from "p-limit";
 import { notFound } from "@/helpers/error";
 import type { FileRequestContext } from "@/helpers/file-workspace";
 import {
@@ -22,8 +23,8 @@ import {
   loadLiveResources,
 } from "@/services/file-search.service";
 
-/** The most stars one person keeps in one workspace's list. */
-const MAX_STARS = 50;
+/** Folder existence checks in flight at once while listing. */
+const FOLDER_CHECKS_AT_ONCE = 8;
 
 export interface DriveStars {
   folders: { path: string; name: string }[];
@@ -96,7 +97,9 @@ export async function listDriveStars(
   const stars = await prisma.driveStar.findMany({
     where: { userId: store.actor.userId, workspaceId: store.workspaceId },
     orderBy: { createdAt: "desc" },
-    take: MAX_STARS,
+    // ponytail: every star, unpaged. The list is complete membership: the
+    // Star toggles read it, so a cut-off list would call a starred item
+    // unstarred. Page it if people start keeping hundreds.
     select: { resourceId: true, folderPath: true },
   });
 
@@ -116,9 +119,14 @@ export async function listDriveStars(
       actor: store.actor,
       resourceIds,
     }),
-    Promise.all(
-      candidateFolders.map((path) => driveHasAny(folderPrefixOf(store, path))),
-    ),
+    (() => {
+      const limit = pLimit(FOLDER_CHECKS_AT_ONCE);
+      return Promise.all(
+        candidateFolders.map((path) =>
+          limit(() => driveHasAny(folderPrefixOf(store, path))),
+        ),
+      );
+    })(),
   ]);
   const files = await hydrateResources({ resources, query: null });
   const rank = new Map(resourceIds.map((id, index) => [id, index]));
@@ -142,6 +150,20 @@ function underFolder(workspaceId: string, folderPath: string) {
 /**
  * Keeps everyone's stars on a folder that moved or was renamed, its subfolders
  * included. Call once the move has succeeded, beside `rebaseDriveFolderShares`.
+ *
+ * Two statements in one transaction, never a read followed by per-row writes,
+ * because other people star and unstar while the folder moves:
+ * - a star already on the destination (someone starred the moved folder
+ *   before this ran) is kept; a copy that would duplicate it is dropped
+ *   (`ON CONFLICT DO NOTHING`), which also waits out a concurrent insert;
+ * - an unstar committed first is simply not copied; one still in flight is
+ *   waited for by the delete, which then removes nothing, so the move never
+ *   fails on a row that vanished;
+ * - running it again, as a retried move does, finds nothing left to copy.
+ *
+ * Paths are compared with `left()`, not `LIKE`, so `%` and `_` in a folder
+ * name match only themselves, and lengths come from PostgreSQL so they count
+ * characters the way `substr` does.
  */
 export async function rebaseDriveFolderStars(input: {
   workspaceId: string;
@@ -151,22 +173,19 @@ export async function rebaseDriveFolderStars(input: {
   const from = normalizeDriveFolderPath(input.fromFolderPath);
   const to = normalizeDriveFolderPath(input.toFolderPath);
   if (!from || !to || from === to) return;
-  // The move refused an existing destination, so a star already there is
-  // left from a folder that went away. It would collide with the rebase.
-  await prisma.driveStar.deleteMany({
-    where: underFolder(input.workspaceId, to),
-  });
-  const stars = await prisma.driveStar.findMany({
-    where: underFolder(input.workspaceId, from),
-    select: { id: true, folderPath: true },
-  });
-  for (const star of stars) {
-    const rest = (star.folderPath ?? "").slice(from.length);
-    await prisma.driveStar.update({
-      where: { id: star.id },
-      data: { folderPath: `${to}${rest}` },
-    });
-  }
+  const underFrom = Prisma.sql`"workspaceId" = ${input.workspaceId}::uuid
+    AND ("folderPath" = ${from}
+      OR left("folderPath", length(${from}) + 1) = ${`${from}/`})`;
+  await prisma.$transaction([
+    prisma.$executeRaw`
+      INSERT INTO drive_star (id, "createdAt", "userId", "workspaceId", "folderPath")
+      SELECT gen_random_uuid(), "createdAt", "userId", "workspaceId",
+        ${to} || substr("folderPath", length(${from}) + 1)
+      FROM drive_star
+      WHERE ${underFrom}
+      ON CONFLICT ("userId", "workspaceId", "folderPath") DO NOTHING`,
+    prisma.$executeRaw`DELETE FROM drive_star WHERE ${underFrom}`,
+  ]);
 }
 
 /** Removes everyone's stars on a deleted folder and its subfolders. */

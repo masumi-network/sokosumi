@@ -5,6 +5,7 @@ import {
   getDriveStars,
   putDriveStars,
 } from "@sokosumi/core-client";
+import { normalizeDriveFolderPath } from "@sokosumi/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -50,8 +51,13 @@ export function useDriveStars(
 
   return {
     stars,
-    isFolderStarred: (path: string) =>
-      stars?.folders.some((folder) => folder.path === path) ?? false,
+    // Core returns normalized paths; a hand-typed `?folder=/a/b/` is not.
+    isFolderStarred: (path: string) => {
+      const normalized = normalizeDriveFolderPath(path);
+      return (
+        stars?.folders.some((folder) => folder.path === normalized) ?? false
+      );
+    },
     isFileStarred: (resourceId: string) =>
       stars?.files.some((file) => file.id === resourceId) ?? false,
     setStarred: (target: DriveStarTarget, starred: boolean) =>

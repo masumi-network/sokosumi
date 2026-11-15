@@ -74,10 +74,11 @@ const { tombstoneManyMock, reconcileMovesMock, tombstoneOneMock } = vi.hoisted(
 vi.mock("@/services/drive-share.service", () => ({
   rebaseDriveFolderShares: vi.fn(async () => undefined),
 }));
-vi.mock("@/services/drive-star.service", () => ({
+const stars = vi.hoisted(() => ({
   rebaseDriveFolderStars: vi.fn(async () => undefined),
   deleteDriveFolderStars: vi.fn(async () => undefined),
 }));
+vi.mock("@/services/drive-star.service", () => stars);
 vi.mock("@/services/file-catalog.service", () => ({
   tombstoneDriveUploadResources: tombstoneManyMock,
   tombstoneDriveUploadResource: tombstoneOneMock,
@@ -208,6 +209,10 @@ describe("folder delete", () => {
       scope: "user",
       pathnames: [`${PREFIX}q1.md`, `${PREFIX}q2.md`],
     });
+    expect(stars.deleteDriveFolderStars).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      folderPath: "reports",
+    });
   });
 
   it("does not reach the catalog when there was nothing to delete", async () => {
@@ -337,6 +342,11 @@ describe("folder rename", () => {
         toPathname: "drive/users/user_123/archive/q1.md",
       },
     ]);
+    expect(stars.rebaseDriveFolderStars).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      fromFolderPath: "reports",
+      toFolderPath: "archive",
+    });
   });
 
   it("reconciles what moved when one file fails part-way", async () => {
