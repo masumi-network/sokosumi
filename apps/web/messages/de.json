@@ -11071,6 +11071,11 @@
       "bulk": {
         "label": "Ausgewählte Kontakte",
         "selected": "{count} ausgewählt",
+        "setStage": "Beziehung festlegen",
+        "stageSet": "{count, plural, =1 {1 Kontakt auf {stage} gesetzt} other {# Kontakte auf {stage} gesetzt}}",
+        "stageUndone": "{count, plural, =1 {Beziehung von 1 Kontakt wiederhergestellt} other {Beziehungen von # Kontakten wiederhergestellt}}",
+        "stageUndonePartly": "{count, plural, =0 {Nichts wiederhergestellt: alle {total} Kontakte wurden inzwischen geändert} other {# von {total} Kontakten wiederhergestellt; die übrigen wurden inzwischen geändert}}",
+        "undo": "Rückgängig",
         "addToList": "Zu Liste hinzufügen",
         "removeFromList": "Aus Liste entfernen",
         "copyEmails": "E-Mails kopieren",

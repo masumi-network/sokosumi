@@ -8,6 +8,7 @@ import type {
 } from "@sokosumi/core-client";
 import {
   ChevronDown,
+  CircleDot,
   Copy,
   GitMerge,
   ListFilter,
@@ -250,6 +251,7 @@ export function ContactsBulkBar({
   count,
   lists,
   viewList,
+  onSetStage,
   onAddToList,
   onRemoveFromList,
   onCopyEmails,
@@ -260,6 +262,7 @@ export function ContactsBulkBar({
   lists: ContactList[];
   /** The manual list on screen, offered first for removal. */
   viewList: ContactList | null;
+  onSetStage: (stage: ContactStage) => void;
   onAddToList: (list: ContactList) => void;
   onRemoveFromList: (list: ContactList) => void;
   onCopyEmails: () => void;
@@ -267,6 +270,7 @@ export function ContactsBulkBar({
   onClear: () => void;
 }) {
   const t = useTranslations("App.Contacts");
+  const stageOptions = useStageOptions();
   const manual = lists.filter((list) => list.kind === "manual");
   const removable = viewList
     ? [viewList, ...manual.filter((list) => list.id !== viewList.id)]
@@ -283,6 +287,25 @@ export function ContactsBulkBar({
       <span className="me-2 shrink-0 text-sm font-medium tabular-nums">
         {t("bulk.selected", { count })}
       </span>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="ghost" className={action}>
+            <CircleDot aria-hidden className="size-4" />
+            {t("bulk.setStage")}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="start"
+          className="max-h-96 min-w-48 overflow-y-auto"
+        >
+          <DropdownMenuRadioGroup
+            value=""
+            onValueChange={(stage) => onSetStage(stage as ContactStage)}
+          >
+            <GroupedRadioItems options={stageOptions} />
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="sm" variant="ghost" className={action}>
