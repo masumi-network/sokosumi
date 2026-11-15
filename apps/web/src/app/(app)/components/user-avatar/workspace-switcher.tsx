@@ -97,9 +97,10 @@ export async function switchOrganizationWorkspace(
   options?: SwitchOrganizationWorkspaceOptions,
 ): Promise<void> {
   let appliedOrganizationId = organizationId;
+  let rendered: boolean;
 
   try {
-    await activateOrganizationWorkspace(organizationId);
+    rendered = await activateOrganizationWorkspace(organizationId);
   } catch (error) {
     if (!isUserNotMemberOfOrganizationError(error) || organizationId === null) {
       throw error;
@@ -108,9 +109,15 @@ export async function switchOrganizationWorkspace(
     // Better Auth clears the session org in the adapter, then 403s without
     // updating the cookie. Finish the personal switch so preferred org,
     // chrome cache, and `/organization` match membership.
-    await activateOrganizationWorkspace(null);
+    rendered = await activateOrganizationWorkspace(null);
     appliedOrganizationId = null;
   }
+
+  // The preferred-workspace action already sent the page rendered for the new
+  // workspace; refreshing as well rendered the whole app twice per switch.
+  const refreshUnlessRendered = () => {
+    if (!rendered) options?.router?.refresh();
+  };
 
   if (options?.successMessage && appliedOrganizationId === organizationId) {
     toast.success(options.successMessage);
@@ -123,7 +130,7 @@ export async function switchOrganizationWorkspace(
     if (jobsBasePath) {
       runRouterTransition(() => {
         options.router?.replace(jobsBasePath);
-        options.router?.refresh();
+        refreshUnlessRendered();
       }, options.startTransition);
       return;
     }
@@ -136,7 +143,7 @@ export async function switchOrganizationWorkspace(
     if (taskDetailBasePath) {
       runRouterTransition(() => {
         options.router?.replace(taskDetailBasePath);
-        options.router?.refresh();
+        refreshUnlessRendered();
       }, options.startTransition);
       return;
     }
@@ -156,7 +163,7 @@ export async function switchOrganizationWorkspace(
     if (organizationSettingsPath) {
       runRouterTransition(() => {
         options.router?.replace(organizationSettingsPath);
-        options.router?.refresh();
+        refreshUnlessRendered();
       }, options.startTransition);
       return;
     }
@@ -172,12 +179,12 @@ export async function switchOrganizationWorkspace(
   ) {
     runRouterTransition(() => {
       options.router?.replace(CHAT_WELCOME_PATH);
-      options.router?.refresh();
+      refreshUnlessRendered();
     }, options.startTransition);
     return;
   }
 
-  if (options?.router) {
+  if (options?.router && !rendered) {
     runRouterTransition(() => {
       options.router?.refresh();
     }, options.startTransition);

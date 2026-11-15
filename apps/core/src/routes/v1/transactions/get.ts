@@ -31,7 +31,10 @@ import {
   transactionHistoryListSchema,
 } from "@/schemas/transaction-history.schema";
 
-import { transactionFilterQuerySchema } from "./query.js";
+import {
+  requireLedgerTaskFilter,
+  transactionFilterQuerySchema,
+} from "./query.js";
 
 const query = transactionFilterQuerySchema.extend(
   cursorPaginationQuerySchema.shape,
@@ -56,6 +59,7 @@ const route = withOrganizationSlugHeaderParameter(
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Task not found"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -66,12 +70,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const queryParams = c.req.valid("query");
+    await requireLedgerTaskFilter(
+      workspaceContext,
+      userContext.userId,
+      queryParams.taskId,
+    );
     const { cursor, take } = parseCursorPagination(queryParams);
     const params = {
       kinds: queryParams.types,
       projectId:
         queryParams.projectId === "null" ? null : queryParams.projectId,
       q: queryParams.q,
+      taskId: queryParams.taskId,
       scope: queryParams.scope,
       userContext,
       workspaceContext,
