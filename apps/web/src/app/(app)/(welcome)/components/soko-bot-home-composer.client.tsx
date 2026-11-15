@@ -131,8 +131,11 @@ export function SokoBotHomeComposer({
       {/* Bleeds through main's p-4 to its edges, behind the greeting. */}
       <GradientBackground className="absolute -inset-x-4 -top-4 -z-10 h-[42rem]" />
       {/* The composer sits a little above the middle of the screen, as on a
-          chat entry page; the day's list starts below the fold's edge. */}
-      <div className="flex w-full max-w-3xl flex-col gap-8 pt-[14dvh] md:pt-[22dvh]">
+          chat entry page; the day's list starts below the fold's edge.
+          On a phone the floating tab bar covers the bottom of the screen, so
+          the composer sits higher and the day's first row starts above the
+          bar instead of under it, where a tap lands on Chats. */}
+      <div className="flex w-full max-w-3xl flex-col gap-8 pt-4 md:pt-[22dvh]">
         {header}
         <div className="flex flex-col gap-4">
           <RoomComposer
@@ -167,7 +170,7 @@ export function SokoBotHomeComposer({
           </div>
         </div>
       </div>
-      <div className="w-full max-w-3xl pt-16 pb-10">{children}</div>
+      <div className="w-full max-w-3xl pt-10 pb-10 md:pt-16">{children}</div>
     </div>
   );
 }

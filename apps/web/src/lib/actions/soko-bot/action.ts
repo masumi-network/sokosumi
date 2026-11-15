@@ -32,7 +32,9 @@ import {
 } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import {
+  SOKO_BOT_AVATAR_DRAW_BUSY_ERROR_CODE,
   SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
+  SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE,
   SOKO_BOT_BUSY_ERROR_CODE,
   SOKO_BOTS_ROUTE,
   sokoBotConsoleRoute,
@@ -52,6 +54,7 @@ const createSokoBotSchema = z.object({
 const avatarListSchema = z.object({
   take: z.number().int().min(1).max(6).default(6),
   excludeIds: z.array(z.string().uuid()).max(60).default([]),
+  fresh: z.boolean().default(false),
 });
 
 const startTurnSchema = z.object({
@@ -99,11 +102,18 @@ function invalidInput(): ActionError {
 // A spent hourly allowance is a wait, not a breakage. Give the picker its own
 // code so it can say so instead of showing the generic load failure.
 function mapAvatarTopUpError(error: unknown): ActionError {
-  if (error instanceof CoreApiRequestError && error.status === 429) {
-    return {
-      code: SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
-      message: error.message,
-    };
+  if (error instanceof CoreApiRequestError) {
+    // Each of these means nothing was drawn or billed, so the picker can
+    // offer a free retry instead of spending one of its turns.
+    const code =
+      error.status === 409
+        ? SOKO_BOT_AVATAR_DRAW_BUSY_ERROR_CODE
+        : error.status === 429
+          ? SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE
+          : error.status === 503
+            ? SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE
+            : null;
+    if (code) return { code, message: error.message };
   }
   return toCoreApiActionError(error);
 }
@@ -357,6 +367,7 @@ export const topUpSokoBotAvatarsAction = withSession<
     const avatars = await sokoBotService.topUpAvatars(
       parsed.data.take,
       parsed.data.excludeIds,
+      parsed.data.fresh,
     );
     return toActionResult(ok(avatars));
   } catch (error) {

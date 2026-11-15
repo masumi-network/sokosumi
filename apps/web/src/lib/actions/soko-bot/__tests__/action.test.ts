@@ -56,7 +56,9 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
 
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
+  SOKO_BOT_AVATAR_DRAW_BUSY_ERROR_CODE,
   SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
+  SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE,
   SOKO_BOT_BUSY_ERROR_CODE,
   SOKO_BOT_ROUTE,
   SOKO_BOTS_ROUTE,
@@ -110,6 +112,29 @@ describe("soko-bot actions", () => {
     if (!result.ok) {
       expect(result.error.code).toBe(SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE);
     }
+  });
+
+  it("topUpSokoBotAvatarsAction maps Core's no-work answers to their own codes", async () => {
+    // The picker gives these a free retry: Core drew nothing for them.
+    for (const [status, code] of [
+      [409, SOKO_BOT_AVATAR_DRAW_BUSY_ERROR_CODE],
+      [503, SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE],
+    ] as const) {
+      serviceMock.topUpAvatars.mockRejectedValueOnce(
+        new MockCoreApiRequestError("No draw", status),
+      );
+      const result = await topUpSokoBotAvatarsAction({
+        input: { take: 6, fresh: true },
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.code).toBe(code);
+    }
+  });
+
+  it("topUpSokoBotAvatarsAction passes fresh through to Core", async () => {
+    serviceMock.topUpAvatars.mockResolvedValue([]);
+    await topUpSokoBotAvatarsAction({ input: { take: 6, fresh: true } });
+    expect(serviceMock.topUpAvatars).toHaveBeenCalledWith(6, [], true);
   });
 
   it("topUpSokoBotAvatarsAction leaves other Core failures generic", async () => {

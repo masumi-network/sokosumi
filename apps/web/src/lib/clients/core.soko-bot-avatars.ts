@@ -20,6 +20,7 @@ export function createSokoBotAvatarClient(getClient: GetCoreClient) {
   async function topUpSokoBotAvatars(body: {
     take?: number;
     excludeIds?: string[];
+    fresh?: boolean;
   }) {
     return executeCoreOperation(
       getClient,

@@ -79992,6 +79992,7 @@ export type TopUpSokoBotAvatarsData = {
     body: {
         take?: number;
         excludeIds?: Array<string>;
+        fresh?: boolean;
     };
     path?: never;
     query?: never;
@@ -80048,6 +80049,21 @@ export type TopUpSokoBotAvatarsErrors = {
      * Too Many Requests
      */
     429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
         error: string;
         message: string;
         kind?: string;
