@@ -700,27 +700,14 @@ export async function syncBuzzAgents(
       agentsByOwnerKey.set(agent.ownerKey, owned);
     }
   }
-  // The sweep goes on after the last person whose relays were all read
-  // (relays are read in people's order); a page read whole goes on to the
-  // next one, or starts over after the last.
-  if (scope.progress) {
-    let reached: string | null = null;
-    let whole = true;
-    for (const { owner, communities } of people) {
-      if (communities.some(({ relayUrl }) => notReached.has(relayUrl))) {
-        whole = false;
-        break;
-      }
-      reached = owner.id;
-    }
-    scope.progress.after = whole
-      ? scope.limit && owners.length === scope.limit
-        ? reached
-        : null
-      : (reached ?? scope.progress.after);
-  }
   const changed: string[] = [];
+  const applied = new Set<string>();
   for (const { owner, memberships, communities } of people) {
+    // Stopped (out of time, or the lease is gone): the rest is the next
+    // sweep's.
+    if (scope.shouldContinue?.() === false) break;
+    // Checked only between people, so one begun is seen to the end.
+    applied.add(owner.id);
     const userId = owner.userId as string;
     const found = new Map<string, FoundAgent>(
       keysOf(owner).flatMap((key) => [
@@ -915,6 +902,28 @@ export async function syncBuzzAgents(
       await resyncRoomsWithCoworkers(gone.map((agent) => agent.id));
       changed.push(`archived:${gone.length}`);
     }
+  }
+  // The sweep goes on after the last person whose relays were all read and
+  // whose agents were all seen to (relays are read in people's order); a
+  // page done whole goes on to the next one, or starts over after the last.
+  if (scope.progress) {
+    let reached: string | null = null;
+    let whole = true;
+    for (const { owner, communities } of people) {
+      if (
+        !applied.has(owner.id) ||
+        communities.some(({ relayUrl }) => notReached.has(relayUrl))
+      ) {
+        whole = false;
+        break;
+      }
+      reached = owner.id;
+    }
+    scope.progress.after = whole
+      ? scope.limit && owners.length === scope.limit
+        ? reached
+        : null
+      : (reached ?? scope.progress.after);
   }
   return changed;
 }
@@ -3570,7 +3579,10 @@ export async function deleteChannelsOfDeletedRooms(
       await prisma.buzzChannel.delete({ where: { id: channel.id } });
       deleted += 1;
     } catch (error) {
-      // Kept, and tried again on the next sweep; the others go on.
+      // Kept, and tried again after the others (to the back of the queue).
+      await prisma.buzzChannel
+        .update({ where: { id: channel.id }, data: { updatedAt: new Date() } })
+        .catch(() => {});
       console.error(
         `Buzz channel ${channel.channelId.slice(0, 8)} of a deleted room not deleted`,
         error,

@@ -43,6 +43,8 @@ const LEASE_KEY = "buzz-bridge";
 // covers one published late with an old time, and some clock skew.
 const CATCH_UP_WINDOW_S = 16 * 60;
 const AGENT_SWEEP_KEY = "buzz-agent-sweep";
+// Subscriptions opened at once: each first reads its backlog.
+const OPEN_CONCURRENCY = 10;
 // A run that stops renewing (its function was killed) frees the lease this
 // soon, so the next run takes over within a minute.
 const LEASE_TIMEOUT_MS = 60_000;
@@ -76,10 +78,12 @@ export async function runLeasedBuzzBridge(options: {
   }
   const held = lock;
   let holding = true;
+  let renewedAt = Date.now();
   const renewal = setInterval(() => {
     syncLockService.renewLock(held.key, held.ownerToken).then(
       (renewed) => {
-        if (!renewed) {
+        if (renewed) renewedAt = Date.now();
+        else {
           holding = false;
           options.log("lease lost to another run; stopping");
         }
@@ -95,8 +99,11 @@ export async function runLeasedBuzzBridge(options: {
     await runBuzzBridge({
       core: options.core,
       log: options.log,
+      // Stops well before a lease it could not renew runs out, so another
+      // run never takes over while this one still writes.
       shouldContinue: () =>
         holding &&
+        Date.now() - renewedAt < LEASE_TIMEOUT_MS - LEASE_RENEW_MS &&
         Date.now() < options.until &&
         options.shouldContinue?.() !== false,
     });
@@ -486,6 +493,12 @@ export async function runBuzzBridge(options: {
     for (const communityId of expected.keys()) {
       if (!communityIds.has(communityId)) expected.delete(communityId);
     }
+    const toOpen: {
+      community: (typeof communities)[number];
+      reader: (typeof communities)[number]["readers"][number];
+      slot: string;
+      key: string;
+    }[] = [];
     for (const community of communities) {
       expected.set(
         community.communityId,
@@ -494,14 +507,24 @@ export async function runBuzzBridge(options: {
         ),
       );
       for (const reader of community.readers) {
-        if (!options.shouldContinue()) return;
         const slot = `${community.communityId}:${reader.readerId}`;
         const key = reader.channelIds.toSorted().join(",");
         const current = live.get(slot);
         if (current?.key === key || opening.has(slot)) continue;
         const retry = reconnect.get(slot);
         if (!current && retry && Date.now() < retry.at) continue;
-        current?.subscription.close();
+        toOpen.push({ community, reader, slot, key });
+      }
+    }
+    // A few at a time, in no fixed order: a run that must stop before all
+    // are open leaves different ones for the next run, never the same.
+    toOpen.sort(() => Math.random() - 0.5);
+    const openOne = async () => {
+      for (;;) {
+        const next = toOpen.pop();
+        if (!next || !options.shouldContinue()) return;
+        const { community, reader, slot, key } = next;
+        live.get(slot)?.subscription.close();
         live.delete(slot);
         opening.add(slot);
         try {
@@ -518,7 +541,8 @@ export async function runBuzzBridge(options: {
           opening.delete(slot);
         }
       }
-    }
+    };
+    await Promise.all(Array.from({ length: OPEN_CONCURRENCY }, openOne));
   }
 
   const stop = () => {

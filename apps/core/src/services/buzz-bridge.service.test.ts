@@ -1038,14 +1038,17 @@ describe("a person's own Buzz agents", () => {
     db.workspace.findMany.mockResolvedValue([]);
     db.coworker.findMany.mockResolvedValue([]);
     relay.queryEvents.mockResolvedValue([]);
-    // Time for one relay: the sweep goes on after A, not B.
-    let reads = 1;
+    // Time to read one relay (A's), not B's: the sweep goes on after A.
+    const answers = [true, false, true, true];
     const progress = { after: "identity-0" as string | null };
     await syncBuzzAgents({
       progress,
       limit: 2,
-      shouldContinue: () => reads-- > 0,
+      shouldContinue: () => answers.shift() ?? true,
     });
+    expect(progress.after).toBe("identity-a");
+    // Stopped before seeing to anyone: it stays where it was.
+    await syncBuzzAgents({ progress, limit: 2, shouldContinue: () => false });
     expect(progress.after).toBe("identity-a");
     // All read on a full page: on to the next page.
     await syncBuzzAgents({ progress, limit: 2, shouldContinue: () => true });
