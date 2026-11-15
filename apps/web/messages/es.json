@@ -1739,22 +1739,24 @@
         },
         "SokoBotSetup": {
           "title": "Configura tu Soko Bot",
-          "intro": "Tu propio asistente de IA en Sokosumi. Di qué hay que hacer y lo hace, con Coworkers y agentes.",
-          "cta": "Configurar tu Soko Bot",
-          "hint": "Tarda un minuto: un nombre, una imagen y luego correo y calendario.",
-          "points": {
-            "work": {
-              "title": "Dale trabajo",
-              "description": "Di qué hay que hacer. Inicia tareas o pasa partes a Coworkers."
-            },
-            "moving": {
-              "title": "Mantiene el trabajo en marcha",
-              "description": "Responde a los Coworkers, reinicia lo que falló y empuja las tareas atascadas."
-            },
-            "inbox": {
-              "title": "Lee el correo y el calendario",
-              "description": "Avisa de lo que te necesita y resume el resto cada mañana."
-            }
+          "cta": "Configurarlo",
+          "chat": {
+            "caption": "Pídele lo que sea",
+            "ask": "Planifica nuestro lanzamiento",
+            "reply": "Hecho. 3 tareas iniciadas."
+          },
+          "tasks": {
+            "caption": "Hace el trabajo",
+            "brief": "Redactar el briefing",
+            "research": "Buscar locales",
+            "book": "Reservar un fotógrafo"
+          },
+          "inbox": {
+            "caption": "Lee tu bandeja de entrada",
+            "mail": "Novedades para inversores",
+            "needsYou": "Te necesita",
+            "meeting": "10:00 Revisión de diseño",
+            "prepReady": "Preparado"
           }
         }
       },

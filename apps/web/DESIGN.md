@@ -461,10 +461,11 @@ prop/state-driven.
 - **No glow or blur** (guide 5.5): depth comes from borders and, for floating overlays, a shadow up to `shadow-lg`.
 - **Generative art** is on-brand (agents create visuals from words). **Photography** is organic
   and natural — abstract macro, grain, brand-tinted, depth-of-field softness; avoid harsh stock.
-- **Holographic foil** (`FoilBackground`) is the one generative surface in product chrome: behind
-  the Home greeting only, fading to the white page before the day's list. It drifts slowly, does
-  not react to the pointer, and holds still under reduced motion. Colours are the `--foil-*`
-  tokens; don't add it to other pages.
+- **Home gradient** (`GradientBackground`) is the one generative surface in product chrome: behind
+  the Home greeting only, fading to the white page before the day's list. Big soft blobs that
+  drift slowly, don't react to the pointer, and hold still under reduced motion. The workspace
+  sweep is a band of the same gradient. Colours are the `--gradient-*` tokens; don't add it to
+  other pages.
 - **Decorative grid** lines may appear subtly on calm backgrounds; never compete with ink.
 - In product: offer previews are **content-aware mocks** (slide/doc/chart/checklist/code/
   wireframe/video/text), not fake content; coworker avatars are shown whole.

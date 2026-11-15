@@ -1739,22 +1739,24 @@
         },
         "SokoBotSetup": {
           "title": "Set up your Soko Bot",
-          "intro": "Your own AI assistant in Sokosumi. Say what needs doing and it gets it done, with Coworkers and agents.",
-          "cta": "Set up your Soko Bot",
-          "hint": "Takes a minute: a name, a picture, then mail and calendar.",
-          "points": {
-            "work": {
-              "title": "Hand it work",
-              "description": "Say what needs doing. It starts Tasks or passes parts to Coworkers."
-            },
-            "moving": {
-              "title": "It keeps work moving",
-              "description": "It answers Coworkers, restarts what failed and nudges stuck Tasks."
-            },
-            "inbox": {
-              "title": "It reads mail and calendar",
-              "description": "It flags what needs you and sums up the rest each morning."
-            }
+          "cta": "Set it up",
+          "chat": {
+            "caption": "Ask it anything",
+            "ask": "Plan our launch",
+            "reply": "On it. 3 Tasks started."
+          },
+          "tasks": {
+            "caption": "It runs the work",
+            "brief": "Draft the brief",
+            "research": "Research venues",
+            "book": "Book a photographer"
+          },
+          "inbox": {
+            "caption": "It reads your inbox",
+            "mail": "Investor update",
+            "needsYou": "Needs you",
+            "meeting": "10:00 Design review",
+            "prepReady": "Prep ready"
           }
         }
       },
