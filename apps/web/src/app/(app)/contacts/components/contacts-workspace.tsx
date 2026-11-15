@@ -396,9 +396,10 @@ export function ContactsWorkspace({
                 void bulk(
                   async () => {
                     await contactsService.setStage(selected, next);
-                    // Under a stage filter the changed rows leave the view;
-                    // keeping them selected would act on rows nobody sees.
-                    if (stage) setSelected([]);
+                    // A stage filter or a smart list can drop the changed
+                    // rows from view; keeping them selected would act on
+                    // rows nobody sees.
+                    setSelected([]);
                   },
                   t("bulk.stageSet", {
                     count: selected.length,
