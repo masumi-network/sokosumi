@@ -158,6 +158,16 @@ describe("authMiddleware", () => {
           select: {
             archivedAt: true,
             vendorId: true,
+            baseURL: true,
+            buzzIdentity: {
+              select: {
+                ownerIdentity: {
+                  select: {
+                    user: { select: { banned: true, banExpires: true } },
+                  },
+                },
+              },
+            },
           },
         },
         sokoBot: {
