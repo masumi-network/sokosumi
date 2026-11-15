@@ -8633,6 +8633,7 @@ export type ProjectDesignMdWrite = {
 export type WorkspaceCalendarEntry = {
     scheduledAt: Date;
     originalScheduledAt?: Date | null;
+    originalAt?: Date;
 } & (WorkspaceCalendarItem | SocialPostCalendarItem | NewsletterIssueCalendarItem | ContactFollowUpCalendarItem | MarketingPieceCalendarItem | SokoBotRunCalendarItem);
 
 export type WorkspaceCalendarItem = {

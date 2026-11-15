@@ -7,6 +7,10 @@ import type {
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@sokosumi/core-client";
+import {
+  getProjectsByIdCalendarResponseTransformer,
+  getWorkspacesCalendarResponseTransformer,
+} from "@sokosumi/core-client/transformers";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter, type UrlUpdateEvent } from "nuqs/adapters/testing";
@@ -399,6 +403,49 @@ describe("WorkspaceCalendar features", () => {
         },
       });
     });
+
+    it.each([
+      ["workspace", getWorkspacesCalendarResponseTransformer],
+      ["Project", getProjectsByIdCalendarResponseTransformer],
+    ])(
+      "draws and restores a moved run straight from the %s Calendar's JSON",
+      async (_endpoint, transform) => {
+        const user = userEvent.setup();
+        changeRunMock.mockResolvedValue({ ok: true, value: undefined });
+        // The wire carries ISO strings; the generated client revives dates.
+        const raw = JSON.parse(
+          JSON.stringify({
+            data: [
+              {
+                ...BOT_RUN,
+                canChange: true,
+                scheduledAt: new Date("2030-01-03T14:00:00.000Z"),
+              },
+            ],
+            meta: { timestamp: "2030-01-01T00:00:00.000Z" },
+          }),
+        );
+        const { data } = await transform(raw);
+        expect(data[0]?.originalAt).toEqual(BOT_RUN.originalAt);
+        renderCalendar({ items: data });
+
+        await user.click(
+          screen.getByRole("button", { name: "Morning brief, show.sokoBot" }),
+        );
+        await user.click(
+          screen.getByRole("menuitem", { name: "event.restoreRun" }),
+        );
+        expect(changeRunMock).toHaveBeenCalledWith({
+          botId: undefined,
+          input: {
+            scheduleId: "schedule-1",
+            originalAt: BOT_RUN.originalAt,
+            expectedAt: new Date("2030-01-03T14:00:00.000Z"),
+            change: { action: "restore" },
+          },
+        });
+      },
+    );
 
     it("moves a shared bot's run through the move dialog", async () => {
       const user = userEvent.setup();

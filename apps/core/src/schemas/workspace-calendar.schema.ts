@@ -431,6 +431,8 @@ export const workspaceCalendarEntrySchema = z
   .object({
     scheduledAt: dateTimeSchema,
     originalScheduledAt: dateTimeSchema.nullable().optional(),
+    // Soko Bot runs' `originalAt`, repeated here so the client revives it.
+    originalAt: dateTimeSchema.optional(),
   })
   .and(
     z.union([

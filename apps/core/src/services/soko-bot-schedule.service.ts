@@ -489,13 +489,14 @@ const STALE_RUN = "The run changed; reload to see it";
 /**
  * Skips, moves or restores one run and leaves the cron as it is, within the
  * planning window Task Schedule Runs have. A recurring schedule keeps the
- * change as a {@link ScheduleRunChange}; a one-time schedule just moves.
+ * change as a {@link ScheduleRunChange}; a one-time schedule moves, or is switched off and on.
  *
  * The schedule row is locked first, and the scheduler's claim takes the same
  * lock before it reads the changes and walks on. So either the claim runs
  * first and this change sees the run fired (409), or the change commits
  * first and the claim walks on with it. `expectedAt` refuses a change made
- * on a stale Calendar the same way.
+ * on a stale Calendar the same way. A one-time run is skipped by switching
+ * its schedule off with the time kept, and put back by switching it on.
  */
 async function changeScheduleRun(
   schedule: {
@@ -677,7 +678,12 @@ async function changeScheduleRun(
       data: { nextRunAt },
     });
   };
-  return transaction ? mutate(transaction) : prisma.$transaction(mutate);
+  // Serializable, as every activation is: switching a skipped one-time run
+  // back on counts the active schedules, and two concurrent ones must not
+  // both pass the cap.
+  return transaction
+    ? mutate(transaction)
+    : serializableTransaction(mutate, STALE_RUN);
 }
 
 export async function deleteSokoBotSchedule(

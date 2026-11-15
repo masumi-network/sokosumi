@@ -2,8 +2,9 @@
  * Calendar run changes against a real PostgreSQL: the scheduler fires a moved
  * run once at its new time, even when it claims late, never a skipped one,
  * keeps the cron, and the row lock orders a change against another change and
- * against a claim. A one-time run can be skipped and put back, and a spent
- * one stays in the Calendar's history for the retention window.
+ * against a claim. A one-time run can be skipped and put back, two Undos at
+ * once never pass the active-schedule cap together, and a spent one stays in
+ * the Calendar's history for the retention window.
  * RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… pnpm --filter @sokosumi/core test src/services/soko-bot-schedule-run-changes.postgres.test.ts
  */
 import { randomUUID } from "node:crypto";
@@ -28,6 +29,7 @@ vi.mock("@/services/soko-bot-proactive.service", async (original) => ({
 import { sokoBotControlPlane } from "./soko-bot-control-plane.service";
 import {
   createSokoBotSchedule,
+  MAX_ACTIVE_SOKO_BOT_SCHEDULES,
   purgeSokoBotSchedules,
   SOKO_BOT_SCHEDULE_RETENTION_MS,
   updateSokoBotSchedule,
@@ -347,5 +349,87 @@ describe.skipIf(!enabled)("Soko Bot schedule run changes", () => {
         .spentOneTime,
     ).toBe(1);
     expect(await shown()).toEqual([]);
+  });
+
+  it("lets only one of two concurrent one-time Undos take the last active slot", async () => {
+    // The hourly schedule and eight more are active; A and B are skipped.
+    for (let i = 0; i < MAX_ACTIVE_SOKO_BOT_SCHEDULES - 2; i++) {
+      await createSokoBotSchedule({
+        userId,
+        workspaceId,
+        name: `Filler ${i}`,
+        timezone: "UTC",
+        cronExpression: "0 9 * * *",
+        prompt: "Check in.",
+      });
+    }
+    const times = ["2030-01-07T05:00:00.000Z", "2030-01-07T06:00:00.000Z"];
+    const ids: string[] = [];
+    for (const [i, time] of times.entries()) {
+      const id = await oneTime(`Reminder ${i}`, time);
+      await change({ originalAt: time, expectedAt: time, action: "skip" }, id);
+      ids.push(id);
+    }
+    const active = () =>
+      prisma.sokoBotSchedule.count({
+        where: { sokoBotId: botId, enabled: true, systemKey: null },
+      });
+    expect(await active()).toBe(MAX_ACTIVE_SOKO_BOT_SCHEDULES - 1);
+
+    // Both Undos count the active schedules before either switches its own
+    // on: the interleaving where a plain transaction lets both through.
+    let counted = 0;
+    let release: () => void = () => {};
+    const bothCounted = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const transaction = prisma.$transaction.bind(prisma);
+    vi.spyOn(prisma, "$transaction").mockImplementation(((
+      callback: (tx: unknown) => Promise<unknown>,
+      options: unknown,
+    ) =>
+      transaction(
+        (tx) =>
+          callback(
+            new Proxy(tx, {
+              get: (target, key) =>
+                key === "sokoBotSchedule"
+                  ? new Proxy(target.sokoBotSchedule, {
+                      get: (model, method) =>
+                        method === "count"
+                          ? async (args: never) => {
+                              const n = await model.count(args);
+                              if (++counted === 2) release();
+                              if (counted <= 2) {
+                                await Promise.race([
+                                  bothCounted,
+                                  new Promise((r) => setTimeout(r, 2_000)),
+                                ]);
+                              }
+                              return n;
+                            }
+                          : Reflect.get(model, method),
+                    })
+                  : Reflect.get(target, key),
+            }),
+          ),
+        options as never,
+      )) as never);
+
+    const results = await Promise.allSettled(
+      ids.map((id, i) =>
+        change(
+          {
+            originalAt: times[i] as string,
+            expectedAt: null,
+            action: "restore",
+          },
+          id,
+        ),
+      ),
+    );
+    expect(counted).toBeGreaterThanOrEqual(2);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(await active()).toBe(MAX_ACTIVE_SOKO_BOT_SCHEDULES);
   });
 });

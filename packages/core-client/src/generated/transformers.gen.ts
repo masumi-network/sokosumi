@@ -3395,6 +3395,9 @@ const workspaceCalendarEntrySchemaResponseTransformer = (data: any) => {
     if (data.originalScheduledAt) {
         data.originalScheduledAt = new Date(data.originalScheduledAt);
     }
+    if (data.originalAt) {
+        data.originalAt = new Date(data.originalAt);
+    }
     return data;
 };
 
