@@ -312,8 +312,13 @@ export async function runBuzzBridge(options: {
             );
           }
           if (ok || failedAnswers + 1 >= ANSWER_ATTEMPTS) {
-            if (!ok)
+            if (!ok) {
               log(`in  kind ${event.kind} ${id} answer failed, giving up`);
+              // Recorded, so a later run catching up does not ask again.
+              await markBuzzQuestionAnswered(event.id).catch((error) =>
+                log(`in  ${id} giving up not recorded`, error),
+              );
+            }
             finish(communityId, event);
             return;
           }

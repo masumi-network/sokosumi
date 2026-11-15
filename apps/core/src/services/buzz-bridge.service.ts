@@ -2192,15 +2192,23 @@ export async function reconcileMessage(
     );
     return "deleted";
   } else if (!message.deletedAt && link.contentHash !== hash) {
+    // Always after the last edit it sent, even one re-signed in this very
+    // second after an outage: Buzz orders edits by time, then id.
     const event = signEvent(
-      vouched(
-        authorIdentity,
-        editDraft({
-          channelId: channel.channelId,
-          eventId: link.eventId,
-          content: await buzzContentOf(message.content),
-        }),
-      ),
+      {
+        ...vouched(
+          authorIdentity,
+          editDraft({
+            channelId: channel.channelId,
+            eventId: link.eventId,
+            content: await buzzContentOf(message.content),
+          }),
+        ),
+        created_at: Math.max(
+          Math.floor(Date.now() / 1000),
+          link.lastEditAt + 1,
+        ),
+      },
       authorKey,
     );
     await decideAndDeliver(event, {

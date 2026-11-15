@@ -14,7 +14,12 @@
  * message already linked is skipped and the relay ignores an event it has.
  */
 import type pg from "pg";
-import { contentHash, messageDraft, reactionDraft } from "@/lib/buzz/events";
+import {
+  BUZZ_AGENT_URL_PREFIX,
+  contentHash,
+  messageDraft,
+  reactionDraft,
+} from "@/lib/buzz/events";
 import { signEvent } from "@/lib/buzz/relay-client";
 import { relayDatabase } from "@/lib/buzz/relay-database";
 import prisma from "@/lib/db/prisma";
@@ -119,11 +124,29 @@ async function importChannel(
         createdAt: { lt: input.before },
         deletedAt: null,
         buzzLink: null,
+        // Only what can be imported, so what never can is not scanned again
+        // on every pass: authored, not empty, not a personal agent's (its
+        // key is in its owner's Buzz app).
+        content: { not: "" },
+        OR: [
+          { senderUserId: { not: null } },
+          { senderSokoBotId: { not: null } },
+          {
+            senderCoworkerId: { not: null },
+            senderCoworker: {
+              NOT: { baseURL: { startsWith: BUZZ_AGENT_URL_PREFIX } },
+            },
+          },
+        ],
         ...(after
           ? {
-              OR: [
-                { createdAt: { gt: after.createdAt } },
-                { createdAt: after.createdAt, id: { gt: after.id } },
+              AND: [
+                {
+                  OR: [
+                    { createdAt: { gt: after.createdAt } },
+                    { createdAt: after.createdAt, id: { gt: after.id } },
+                  ],
+                },
               ],
             }
           : {}),
@@ -189,14 +212,35 @@ async function importMessage(
     message.id,
   );
   if (earlier) {
-    await prisma.buzzMessageLink.create({
-      data: {
-        messageId: message.id,
-        eventId: earlier,
-        contentHash: "",
-        channelId,
-      },
-    });
+    const reactionLinks = await importedReactionsOf(
+      client,
+      communityId,
+      earlier,
+      message.reactions,
+    );
+    await prisma.$transaction([
+      prisma.buzzMessageLink.create({
+        data: {
+          messageId: message.id,
+          eventId: earlier,
+          contentHash: "",
+          channelId,
+        },
+      }),
+      ...reactionLinks.map((link) =>
+        prisma.buzzReactionLink.upsert({
+          where: {
+            messageId_identityId_emoji: {
+              messageId: message.id,
+              identityId: link.identityId,
+              emoji: link.emoji,
+            },
+          },
+          create: { messageId: message.id, ...link },
+          update: {},
+        }),
+      ),
+    ]);
     await prisma.buzzOutbox.create({
       data: { roomId: message.roomId, messageId: message.id },
     });
@@ -320,31 +364,37 @@ async function importMessage(
     throw error;
   }
 
-  // Linked after the relay has it: a run that stops in between imports the
-  // message again, which the relay takes as the event it already has.
-  await prisma.buzzMessageLink.create({
-    data: {
-      messageId: message.id,
-      eventId: event.id,
-      contentHash: contentHash(message.content),
-      channelId,
-    },
-  });
-  for (const reaction of reactions) {
-    await prisma.buzzReactionLink
-      .create({
-        data: {
+  // Linked after the relay has it, message and reactions together: a run
+  // that stops in between finds the event on the relay next time and links
+  // it then (see importedEventOf).
+  await prisma.$transaction([
+    prisma.buzzMessageLink.create({
+      data: {
+        messageId: message.id,
+        eventId: event.id,
+        contentHash: contentHash(message.content),
+        channelId,
+      },
+    }),
+    ...reactions.map((reaction) =>
+      prisma.buzzReactionLink.upsert({
+        where: {
+          messageId_identityId_emoji: {
+            messageId: message.id,
+            identityId: reaction.identity.id,
+            emoji: reaction.emoji,
+          },
+        },
+        create: {
           messageId: message.id,
           identityId: reaction.identity.id,
           emoji: reaction.emoji,
           eventId: reaction.event.id,
         },
-      })
-      .catch((error: unknown) => {
-        // Linked already by an earlier, interrupted import.
-        if ((error as { code?: string }).code !== "P2002") throw error;
-      });
-  }
+        update: {},
+      }),
+    ),
+  ]);
   return true;
 }
 
@@ -363,6 +413,39 @@ async function importedEventOf(
     [communityId, channelId, JSON.stringify([["sokosumi", messageId]])],
   );
   return found.rows[0]?.id.toString("hex") ?? null;
+}
+
+/** The reactions an earlier import wrote for this message, as links. */
+async function importedReactionsOf(
+  client: RelayClient,
+  communityId: string,
+  eventId: string,
+  reactions: { userId: string; emoji: string }[],
+) {
+  const links: { identityId: string; emoji: string; eventId: string }[] = [];
+  for (const reaction of reactions) {
+    const identity = await ensureIdentity({ userId: reaction.userId });
+    const found = await client.query<{ id: Buffer }>(
+      `SELECT id FROM events
+        WHERE community_id = $1 AND kind = 7 AND pubkey = $2 AND content = $3
+          AND tags @> $4::jsonb
+        LIMIT 1`,
+      [
+        communityId,
+        hex(identity.pubkey),
+        reaction.emoji,
+        JSON.stringify([["e", eventId]]),
+      ],
+    );
+    const id = found.rows[0]?.id.toString("hex");
+    if (id)
+      links.push({
+        identityId: identity.id,
+        emoji: reaction.emoji,
+        eventId: id,
+      });
+  }
+  return links;
 }
 
 /**
