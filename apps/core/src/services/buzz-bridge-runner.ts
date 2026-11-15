@@ -627,6 +627,7 @@ export async function runBuzzBridge(options: {
             progress: agentSweep,
             limit: 200,
             shouldContinue: within(Date.now() + SWEEP_BUDGET_MS),
+            mayWrite: options.shouldContinue,
           });
           await prisma.syncMetadata.upsert({
             where: { key: AGENT_SWEEP_KEY },

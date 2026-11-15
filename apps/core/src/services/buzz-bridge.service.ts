@@ -641,6 +641,11 @@ export async function syncBuzzAgents(
     limit?: number;
     /** Relays not read in time count as unread: their people keep agents. */
     shouldContinue?: () => boolean;
+    /**
+     * False once the run must stop (its end, or the lease gone): what was
+     * read is seen to until then, so every sweep gets somewhere.
+     */
+    mayWrite?: () => boolean;
   } = {},
 ) {
   // An agent's owner is the key the person's Buzz app signs in with: the one
@@ -705,7 +710,7 @@ export async function syncBuzzAgents(
   for (const { owner, memberships, communities } of people) {
     // Stopped (out of time, or the lease is gone): the rest is the next
     // sweep's.
-    if (scope.shouldContinue?.() === false) break;
+    if (scope.mayWrite?.() === false) break;
     // Checked only between people, so one begun is seen to the end.
     applied.add(owner.id);
     const userId = owner.userId as string;
@@ -799,8 +804,15 @@ export async function syncBuzzAgents(
             existingAccess.status === "PENDING" ||
             (existingAccess.status === "REVOKED" && bySwitch);
           if (granted && reopen) {
-            await prisma.coworkerWorkspaceAccess.update({
-              where,
+            // Only while it is still as read: a person who decided meanwhile
+            // (an admin denying it) keeps their decision.
+            await prisma.coworkerWorkspaceAccess.updateMany({
+              where: {
+                coworkerId: coworkerId as string,
+                workspaceId,
+                status: existingAccess.status,
+                resolvedById: existingAccess.resolvedById,
+              },
               data: {
                 status: "GRANTED",
                 resolvedById: null,
