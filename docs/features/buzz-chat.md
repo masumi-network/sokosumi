@@ -15,13 +15,30 @@ Buzz app ──wss──▶ relay (Railway)  ◀── operator API, events ─�
 - **Communities**: one per organization, `wss://{label}.chat.sokosumi.com`,
   created by Core through the relay's operator API. The label is the slug, or
   a DNS-safe form of it plus part of the organization id.
-- **Bridge**: `GET /sync/buzz` (cron, every minute) runs the bridge for 270 s
+- **Bridge**: `GET /sync/buzz` (cron, every minute) runs the bridge for 240 s
   under a 90 s lease renewed every 15 s (a run stops once a renewal is 45 s overdue), so one run is active and the next
   takes over within about a second. Inbound events missed in between are
   caught up from each community's saved cursor.
 - **History**: when a room first reaches Buzz, its earlier messages are
   written into the relay's Postgres (the relay refuses events more than
   15 minutes old), signed by their authors at their original time, read.
+
+## What crosses
+
+| In Sokosumi                                       | On Buzz                                                          |
+| ------------------------------------------------- | ---------------------------------------------------------------- |
+| Messages, edits, deletions, threads               | Both ways                                                        |
+| Reactions                                         | Both ways, a Buzz agent's included                               |
+| Mentions                                          | Both ways (`nostr:npub…` ↔ `@name`)                              |
+| Files                                             | Buzz files are copied into Sokosumi; Sokosumi files are links    |
+| Quotes, attached skills, result cards             | Text: the quote above, skills and card links below               |
+| Directs between people of different organizations | In the oldest community one of them is in; the others are guests |
+| Pins                                              | Sokosumi only: Buzz pins are per person, not per channel         |
+| Read state                                        | Not shared: Buzz keeps it encrypted to the person's own key      |
+| Mobile push                                       | Needs the relay's push gateway (Block's APNs app)                |
+
+A result card on Buzz is a link without its title (a title may be private to
+some readers); Sokosumi checks access when it is opened.
 
 ## Relay on Railway
 
@@ -81,8 +98,8 @@ is why a run lasts 240 s (the rest lets the change being applied finish).
 1. Deploy the relay; check `https://chat.sokosumi.com/_readiness` and that
    `https://operator.chat.sokosumi.com/operator/communities` answers 401
    (unsigned) rather than 404.
-2. Set the Vercel variables and deploy Core (the migration
-   `20261115100000_buzz_production` runs with it).
+2. Set the Vercel variables and deploy Core (the migrations
+   `20261115131501_buzz_bridge` to `20261115131523_buzz_agent_reactions` run with it).
 3. The first runs give every organization a community (25 created per
    30-second sweep: about half an hour for 1,300), put each room on Buzz
    (50 per sweep) and import its history (3 rooms per sweep). Watch the
