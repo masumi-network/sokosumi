@@ -843,6 +843,13 @@
           "OUT_OF_CREDITS": "Abrir",
           "GRANT_PENDING": "Abrir"
         }
+      },
+      "DataRoomQuestions": {
+        "heading": "{count, plural, one {# pregunta de la sala de datos espera respuesta} other {# preguntas de las salas de datos esperan respuesta}}",
+        "loadError": "No se pudieron cargar las preguntas de las salas de datos",
+        "byline": "{who} sobre {document} en {room}",
+        "action": "Responder",
+        "showOlder": "Mostrar preguntas anteriores"
       }
     },
     "HashValue": {
@@ -11063,6 +11070,11 @@
       "bulk": {
         "label": "Contactos seleccionados",
         "selected": "{count} seleccionados",
+        "setStage": "Cambiar relación",
+        "stageSet": "{count, plural, =1 {1 contacto cambiado a {stage}} other {# contactos cambiados a {stage}}}",
+        "stageUndone": "{count, plural, =1 {Relación de 1 contacto restaurada} other {Relaciones de # contactos restauradas}}",
+        "stageUndonePartly": "{count, plural, =0 {No se restauró nada: los {total} contactos cambiaron desde entonces} other {Se restauraron # de {total} contactos; el resto cambió desde entonces}}",
+        "undo": "Deshacer",
         "addToList": "Añadir a una lista",
         "removeFromList": "Quitar de una lista",
         "copyEmails": "Copiar correos",
