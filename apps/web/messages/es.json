@@ -1573,6 +1573,11 @@
         "label": "Créditos gastados por día, últimos 30 días",
         "total": "{count} créditos gastados en los últimos 30 días",
         "day": "{date}: {count} créditos"
+      },
+      "TaskFilter": {
+        "label": "Créditos de {task}",
+        "unknownTask": "esta tarea",
+        "clear": "Ver todas las transacciones"
       }
     },
     "Chat": {
@@ -1738,7 +1743,7 @@
           "openBot": "Abrir la página de {name}"
         },
         "SokoBotSetup": {
-          "title": "Consigue tu agente asistente personal",
+          "title": "Consigue tu Soko Bot",
           "intro": "Se ocupa de tus tareas, tu correo y tu calendario.",
           "cta": "Configurarlo"
         }
@@ -2113,7 +2118,10 @@
         "subscribe": "Suscribirse",
         "unsubscribe": "Cancelar suscripción",
         "subscribeError": "No se pudo suscribir. Inténtalo de nuevo.",
-        "removeParticipantError": "No se pudo quitar al participante. Inténtalo de nuevo."
+        "removeParticipantError": "No se pudo quitar al participante. Inténtalo de nuevo.",
+        "credits": "Créditos usados en este espacio de trabajo",
+        "creditsUsed": "{credits, plural, one {# crédito usado en este espacio de trabajo} other {# créditos usados en este espacio de trabajo}}",
+        "noCreditsUsed": "Sin créditos usados en este espacio de trabajo"
       },
       "NewTask": {
         "ContextAttachments": {
@@ -9022,13 +9030,7 @@
         "attachmentFallback": "file",
         "showFormatting": "Mostrar formato",
         "hideFormatting": "Ocultar formato",
-        "recordVoice": "Grabar un mensaje de voz",
-        "stopVoice": "Detener y adjuntar",
-        "cancelVoice": "Descartar grabación",
-        "voiceRecording": "Grabando mensaje de voz",
-        "voiceBlocked": "Permite el acceso al micrófono en tu navegador para grabar un mensaje de voz.",
         "voiceFailed": "La grabación se detuvo. Inténtalo de nuevo.",
-        "voiceFileName": "Mensaje de voz {time}",
         "dictate": "Dictar",
         "stopDictation": "Detener y escribirlo",
         "cancelDictation": "Descartar dictado",
@@ -11813,7 +11815,7 @@
     "Assistant": {
       "metadataTitle": "Configura tu asistente",
       "later": "Más tarde",
-      "laterHint": "Puedes configurarlo en cualquier momento desde Soko Bots.",
+      "laterHint": "Puedes configurarlo en cualquier momento desde Inicio.",
       "skip": "Omitir",
       "continue": "Continuar"
     }

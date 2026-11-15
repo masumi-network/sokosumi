@@ -1573,6 +1573,11 @@
         "label": "Credits spent per day, last 30 days",
         "total": "{count} credits spent in the last 30 days",
         "day": "{date}: {count} credits"
+      },
+      "TaskFilter": {
+        "label": "Credits for {task}",
+        "unknownTask": "this Task",
+        "clear": "Show all transactions"
       }
     },
     "Chat": {
@@ -1738,7 +1743,7 @@
           "openBot": "Open {name}'s page"
         },
         "SokoBotSetup": {
-          "title": "Get your Personal Assistant Agent",
+          "title": "Get your Soko Bot",
           "intro": "It runs your Tasks, mail and calendar for you.",
           "cta": "Set it up"
         }
@@ -2113,7 +2118,10 @@
         "subscribe": "Subscribe",
         "unsubscribe": "Unsubscribe",
         "subscribeError": "Couldn’t subscribe. Try again.",
-        "removeParticipantError": "Couldn’t remove participant. Try again."
+        "removeParticipantError": "Couldn’t remove participant. Try again.",
+        "credits": "Credits used in this workspace",
+        "creditsUsed": "{credits, plural, one {# credit used in this workspace} other {# credits used in this workspace}}",
+        "noCreditsUsed": "No credits used in this workspace"
       },
       "NewTask": {
         "ContextAttachments": {
@@ -9022,13 +9030,7 @@
         "attachmentFallback": "file",
         "showFormatting": "Show formatting",
         "hideFormatting": "Hide formatting",
-        "recordVoice": "Record a voice message",
-        "stopVoice": "Stop and attach",
-        "cancelVoice": "Discard recording",
-        "voiceRecording": "Recording voice message",
-        "voiceBlocked": "Allow microphone access in your browser to record a voice message.",
         "voiceFailed": "Recording stopped. Try again.",
-        "voiceFileName": "Voice message {time}",
         "dictate": "Dictate",
         "stopDictation": "Stop and type it",
         "cancelDictation": "Discard dictation",
@@ -11813,7 +11815,7 @@
     "Assistant": {
       "metadataTitle": "Set up your assistant",
       "later": "Later",
-      "laterHint": "Set it up any time from Soko Bots.",
+      "laterHint": "Set it up any time from Home.",
       "skip": "Skip",
       "continue": "Continue"
     }

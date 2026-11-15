@@ -80,8 +80,11 @@ export class RoomTranscriptCache {
   readonly prefix: readonly string[];
   private valid = true;
   private readonly revoked = new Set<string>();
+  /** Whether the cache was cleared before, so what read it needs a repaint. */
   activate() {
+    const cleared = !this.valid;
     this.valid = true;
+    return cleared;
   }
   available(roomId: string) {
     return this.valid && !this.revoked.has(roomId);

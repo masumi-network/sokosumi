@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { SOKO_BOT_FROM_HOME_ROUTE } from "@/lib/soko-bot/constants";
 import {
   resolveMobileAppBackTarget,
   shouldShowMobileBottomNav,
@@ -103,6 +104,13 @@ describe("mobile-app-chrome", () => {
         href: "/chat",
         labelKey: "backToChats",
       });
+    });
+
+    it("sends Soko Bot setup opened from Home back to Home", () => {
+      const fromHome = new URL(SOKO_BOT_FROM_HOME_ROUTE, "https://x.test");
+      expect(
+        resolveMobileAppBackTarget(fromHome.pathname, fromHome.searchParams),
+      ).toEqual({ href: "/", labelKey: "goHome" });
     });
 
     it("sends an agent's jobs back to that agent, not the catalog", () => {

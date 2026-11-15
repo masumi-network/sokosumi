@@ -1573,6 +1573,11 @@
         "label": "Ausgegebene Credits pro Tag, letzte 30 Tage",
         "total": "{count} Credits in den letzten 30 Tagen ausgegeben",
         "day": "{date}: {count} Credits"
+      },
+      "TaskFilter": {
+        "label": "Credits für {task}",
+        "unknownTask": "diese Aufgabe",
+        "clear": "Alle Transaktionen anzeigen"
       }
     },
     "Chat": {
@@ -1738,7 +1743,7 @@
           "openBot": "Seite von {name} öffnen"
         },
         "SokoBotSetup": {
-          "title": "Hol dir deinen persönlichen Assistenz-Agenten",
+          "title": "Hol dir deinen Soko Bot",
           "intro": "Er kümmert sich um deine Aufgaben, Mails und deinen Kalender.",
           "cta": "Jetzt einrichten"
         }
@@ -2113,7 +2118,10 @@
         "subscribe": "Abonnieren",
         "unsubscribe": "Abbestellen",
         "subscribeError": "Abonnieren fehlgeschlagen. Bitte erneut versuchen.",
-        "removeParticipantError": "Beteiligte Person konnte nicht entfernt werden. Versuche es erneut."
+        "removeParticipantError": "Beteiligte Person konnte nicht entfernt werden. Versuche es erneut.",
+        "credits": "In diesem Workspace verbrauchte Credits",
+        "creditsUsed": "{credits, plural, one {# Credit in diesem Workspace verbraucht} other {# Credits in diesem Workspace verbraucht}}",
+        "noCreditsUsed": "Keine Credits in diesem Workspace verbraucht"
       },
       "NewTask": {
         "ContextAttachments": {
@@ -9022,13 +9030,7 @@
         "attachmentFallback": "file",
         "showFormatting": "Formatierung anzeigen",
         "hideFormatting": "Formatierung ausblenden",
-        "recordVoice": "Sprachnachricht aufnehmen",
-        "stopVoice": "Beenden und anhängen",
-        "cancelVoice": "Aufnahme verwerfen",
-        "voiceRecording": "Sprachnachricht wird aufgenommen",
-        "voiceBlocked": "Erlaube den Mikrofonzugriff im Browser, um eine Sprachnachricht aufzunehmen.",
         "voiceFailed": "Aufnahme abgebrochen. Versuche es erneut.",
-        "voiceFileName": "Sprachnachricht {time}",
         "dictate": "Diktieren",
         "stopDictation": "Beenden und eintippen",
         "cancelDictation": "Diktat verwerfen",
@@ -11813,7 +11815,7 @@
     "Assistant": {
       "metadataTitle": "Assistenten einrichten",
       "later": "Später",
-      "laterHint": "Du kannst ihn jederzeit unter Soko Bots einrichten.",
+      "laterHint": "Du kannst ihn jederzeit auf der Startseite einrichten.",
       "skip": "Überspringen",
       "continue": "Weiter"
     }
