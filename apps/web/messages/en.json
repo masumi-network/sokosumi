@@ -7541,11 +7541,22 @@
       "Email": {
         "title": "Change email",
         "description": "Update your email address",
+        "descriptionWithCurrent": "Signed in as {email}. We email a link to the new address to confirm the change.",
         "newEmail": "New email",
         "currentPassword": "Current password",
         "submit": "Update email",
-        "success": "Email updated successfully",
-        "error": "Failed to update email"
+        "success": "Check {email} for a link to confirm your new address.",
+        "error": "Failed to update email",
+        "pendingBadge": "Waiting for you",
+        "pendingDescription": "Open the link we sent to this address to finish the change.",
+        "resend": "Send again",
+        "cancel": "Cancel change",
+        "cancelled": "Email change cancelled. The link no longer works.",
+        "cancelError": "Couldn't cancel the email change. Try again.",
+        "changed": "Your email is now {email}.",
+        "linkFailed": "That link no longer works. Ask for a new one below.",
+        "statusUnavailable": "Couldn't check for a waiting email change. Reload to try again.",
+        "cancelTooLate": "This change was already confirmed or has expired, so there is nothing to cancel."
       },
       "Password": {
         "title": "Change password",
@@ -8206,17 +8217,17 @@
         }
       },
       "VendorGrants": {
-        "title": "Vendor workspace access",
-        "description": "Approve vendor workspace access for your personal workspace (read, comment, and create tasks).",
-        "vendorsTitle": "Vendors",
-        "vendorsEmpty": "No vendor grants yet.",
+        "title": "Who can work in your workspace",
+        "description": "Partners you allow can see the tasks in your personal workspace, comment on them and create new ones.",
+        "vendorsTitle": "Partners",
+        "vendorsEmpty": "No partner has access.",
         "statusPending": "Pending",
         "statusGranted": "Granted",
         "statusDenied": "Denied",
         "statusRevoked": "Revoked",
-        "grantFormTitle": "Grant access proactively",
+        "grantFormTitle": "Add a partner",
         "GrantForm": {
-          "vendorLabel": "Vendor",
+          "vendorLabel": "Partner",
           "workspaceAccessHint": "Grants full workspace access: read, comment on, and create tasks.",
           "submit": "Grant access",
           "success": "Vendor access granted",
@@ -8225,17 +8236,20 @@
         "Actions": {
           "approve": "Approve",
           "deny": "Deny",
-          "revoke": "Revoke",
+          "revoke": "Remove access",
           "approveSuccess": "Vendor access approved",
           "denySuccess": "Vendor access denied",
-          "revokeSuccess": "Vendor access revoked",
+          "revokeSuccess": "Access removed",
           "approveError": "Failed to approve vendor access",
           "denyError": "Failed to deny vendor access",
-          "revokeError": "Failed to revoke vendor access",
+          "revokeError": "Couldn't remove access",
           "grant": "Grant",
           "grantSuccess": "Vendor access granted",
           "grantError": "Failed to grant vendor access"
-        }
+        },
+        "permissionWorkspace": "Can read, comment, create",
+        "grantedSince": "Has access since {date}. You can remove it at any time.",
+        "grantedOnRequest": "Asked for access, approved {date}. You can remove it at any time."
       },
       "CoworkerAccess": {
         "title": "Coworker early access",
@@ -8409,7 +8423,10 @@
             "grant": "Grant",
             "grantSuccess": "Vendor access granted",
             "grantError": "Failed to grant vendor access"
-          }
+          },
+          "permissionWorkspace": "Can read, comment, create",
+          "grantedSince": "Has access since {date}.",
+          "grantedOnRequest": "Asked for access, approved {date}."
         },
         "CoworkerAccess": {
           "title": "Coworker early access",

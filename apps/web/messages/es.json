@@ -7505,11 +7505,22 @@
       "Email": {
         "title": "Cambiar email",
         "description": "Actualizar tu dirección de email",
+        "descriptionWithCurrent": "Has iniciado sesión como {email}. Enviamos un enlace a la nueva dirección para confirmar el cambio.",
         "newEmail": "Nuevo email",
         "currentPassword": "Contraseña actual",
         "submit": "Actualizar email",
-        "success": "Email actualizado correctamente",
-        "error": "No se pudo actualizar el email"
+        "success": "Abre el enlace que enviamos a {email} para confirmar tu nueva dirección.",
+        "error": "No se pudo actualizar el email",
+        "pendingBadge": "Esperando tu confirmación",
+        "pendingDescription": "Abre el enlace que enviamos a esta dirección para terminar el cambio.",
+        "resend": "Enviar de nuevo",
+        "cancel": "Cancelar cambio",
+        "cancelled": "Cambio de correo cancelado. El enlace ya no funciona.",
+        "cancelError": "No se pudo cancelar el cambio de correo. Inténtalo de nuevo.",
+        "changed": "Tu correo ahora es {email}.",
+        "linkFailed": "Ese enlace ya no funciona. Pide uno nuevo abajo.",
+        "statusUnavailable": "No se pudo comprobar si hay un cambio de correo pendiente. Recarga para intentarlo de nuevo.",
+        "cancelTooLate": "Este cambio ya se confirmó o caducó, así que no hay nada que cancelar."
       },
       "Password": {
         "title": "Cambiar contraseña",
@@ -8170,17 +8181,17 @@
         }
       },
       "VendorGrants": {
-        "title": "Acceso de proveedores al espacio de trabajo",
-        "description": "Aprueba el acceso de proveedores al espacio de trabajo personal (leer, comentar y crear tareas).",
-        "vendorsTitle": "Proveedores",
-        "vendorsEmpty": "Aún no hay permisos de proveedor.",
+        "title": "Quién puede trabajar en tu espacio de trabajo",
+        "description": "Los socios que permitas pueden ver las tareas de tu espacio de trabajo personal, comentarlas y crear nuevas.",
+        "vendorsTitle": "Socios",
+        "vendorsEmpty": "Ningún socio tiene acceso.",
         "statusPending": "Pendiente",
         "statusGranted": "Concedido",
         "statusDenied": "Denegado",
         "statusRevoked": "Revocado",
-        "grantFormTitle": "Conceder acceso de forma proactiva",
+        "grantFormTitle": "Añadir un socio",
         "GrantForm": {
-          "vendorLabel": "Proveedor",
+          "vendorLabel": "Socio",
           "workspaceAccessHint": "Concede acceso completo al espacio de trabajo: leer, comentar y crear tareas.",
           "submit": "Conceder acceso",
           "success": "Acceso de proveedor concedido",
@@ -8189,17 +8200,20 @@
         "Actions": {
           "approve": "Aprobar",
           "deny": "Denegar",
-          "revoke": "Revocar",
+          "revoke": "Quitar acceso",
           "approveSuccess": "Acceso de proveedor aprobado",
           "denySuccess": "Acceso de proveedor denegado",
-          "revokeSuccess": "Acceso de proveedor revocado",
+          "revokeSuccess": "Acceso quitado",
           "approveError": "No se pudo aprobar el acceso de proveedor",
           "denyError": "No se pudo denegar el acceso de proveedor",
-          "revokeError": "No se pudo revocar el acceso de proveedor",
+          "revokeError": "No se pudo quitar el acceso",
           "grant": "Conceder",
           "grantSuccess": "Acceso de proveedor concedido",
           "grantError": "No se pudo conceder acceso de proveedor"
-        }
+        },
+        "permissionWorkspace": "Puede leer, comentar, crear",
+        "grantedSince": "Tiene acceso desde el {date}. Puedes quitarlo cuando quieras.",
+        "grantedOnRequest": "Pidió acceso, aprobado el {date}. Puedes quitarlo cuando quieras."
       },
       "CoworkerAccess": {
         "title": "Acceso anticipado de coworker",
@@ -8373,7 +8387,10 @@
             "grant": "Conceder",
             "grantSuccess": "Acceso de proveedor concedido",
             "grantError": "No se pudo conceder acceso de proveedor"
-          }
+          },
+          "permissionWorkspace": "Puede leer, comentar, crear",
+          "grantedSince": "Tiene acceso desde el {date}.",
+          "grantedOnRequest": "Pidió acceso, aprobado el {date}."
         },
         "CoworkerAccess": {
           "title": "Acceso anticipado de coworker",
