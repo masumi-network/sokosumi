@@ -1,4 +1,6 @@
 export const SOKO_BOT_ROUTE = "/personal-assistant";
+/** Setup opened from Home; the phone back control returns to Home. */
+export const SOKO_BOT_FROM_HOME_ROUTE = `${SOKO_BOT_ROUTE}?from=home`;
 /** Team overview: everyone in the workspace and their Soko Bots. */
 export const SOKO_BOTS_ROUTE = "/soko-bots";
 

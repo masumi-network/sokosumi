@@ -47,6 +47,7 @@ import {
   ComposerWysiwygEditor,
   type ComposerWysiwygEditorHandle,
 } from "@/components/chat/composer-wysiwyg-editor";
+import { DictationButton } from "@/components/chat/dictation-button";
 import {
   ROOM_COMPOSER_TEXTAREA_CLASSNAME,
   ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
@@ -57,7 +58,6 @@ import {
 import { ComposerSkillChips } from "@/components/chat/skill-chip";
 import { SkillPicker } from "@/components/chat/skill-picker";
 import { StickerPicker } from "@/components/chat/sticker-picker";
-import { VoiceMessageRecorder } from "@/components/chat/voice-message-recorder";
 import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -98,8 +98,6 @@ import { RoomMessageMarkdown } from "./room-mention-markdown";
 
 export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
-  /** A voice message's words, added to the message on send. */
-  transcript?: string | null;
 }
 
 /** Shell drop zones + Quote/Thread callers reuse this surface. */
@@ -110,6 +108,8 @@ export interface RoomComposerHandle {
 
 /** Edits made in the editor itself, so a focused editor shows them. */
 export interface RoomComposerEditHandle extends RoomComposerHandle {
+  /** Focus with the caret after the text, to keep typing on from it. */
+  focusAtEnd: () => void;
   insertText: (text: string) => void;
   /** Remove the last occurrence of `text`; false when it is not in the editor. */
   removeLastText: (text: string) => boolean;
@@ -364,8 +364,6 @@ export function RoomComposer({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isUploadingFilesRef = useRef(false);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
-  // Settles when the running upload ends, so a voice recording can wait for it.
-  const uploadIdleRef = useRef<Promise<void>>(Promise.resolve());
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
@@ -488,24 +486,18 @@ export function RoomComposer({
   );
 
   const handleFilesSelected = useCallback(
-    async (
-      files: FileList | File[] | null,
-    ): Promise<RoomComposerAttachment[]> => {
-      if (!allowAttachments) return [];
+    async (files: FileList | File[] | null): Promise<boolean> => {
+      if (!allowAttachments) return false;
 
       const selectedFiles = Array.from(files ?? []).filter(
         (file) => file.size > 0,
       );
       if (selectedFiles.length === 0 || isUploadingFilesRef.current) {
-        return [];
+        return false;
       }
 
       isUploadingFilesRef.current = true;
       setIsUploadingFiles(true);
-      let markUploadIdle = () => {};
-      uploadIdleRef.current = new Promise((resolve) => {
-        markUploadIdle = resolve;
-      });
 
       try {
         const uploaded = await uploadComposeAttachments(selectedFiles, {
@@ -536,14 +528,13 @@ export function RoomComposer({
         toast.success(
           tToolbar("uploaded", { count: uploadedAttachments.length }),
         );
-        return uploadedAttachments;
+        return uploadedAttachments.length > 0;
       } catch {
         // Error toast is handled by uploadComposeAttachments.
-        return [];
+        return false;
       } finally {
         isUploadingFilesRef.current = false;
         setIsUploadingFiles(false);
-        markUploadIdle();
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -551,27 +542,6 @@ export function RoomComposer({
     },
     [allowAttachments, onAttachmentsChange, roomId, tToolbar],
   );
-
-  // Send waits for the words, so the message carries what was said.
-  async function attachVoiceRecording(file: File) {
-    setIsTranscribing(true);
-    try {
-      const transcript = transcribeVoiceRecording(file).catch(() => null);
-      // A paperclip, paste or Drive upload may still run; never drop the recording.
-      while (isUploadingFilesRef.current) await uploadIdleRef.current;
-      const [attachment] = await handleFilesSelected([file]);
-      const text = await transcript;
-      if (attachment && text) {
-        onAttachmentsChange((current) =>
-          current.map((item) =>
-            item.url === attachment.url ? { ...item, transcript: text } : item,
-          ),
-        );
-      }
-    } finally {
-      setIsTranscribing(false);
-    }
-  }
 
   async function dictate(file: File) {
     setIsTranscribing(true);
@@ -598,7 +568,7 @@ export function RoomComposer({
     const uploaded = await handleFilesSelected([
       createRoomComposerOverflowMarkdownFile(value),
     ]);
-    if (uploaded.length > 0) {
+    if (uploaded) {
       onValueChange("");
     }
   }
@@ -611,6 +581,9 @@ export function RoomComposer({
       },
       focus: () => {
         editorRef.current?.focus();
+      },
+      focusAtEnd: () => {
+        editorRef.current?.focusAtEnd();
       },
       insertText: (text) => {
         editorRef.current?.insertText(text);
@@ -696,20 +669,33 @@ export function RoomComposer({
           contentOverLimit
         }
         toolbarEnd={
-          showContentCount ? (
-            <span
-              className={cn(
-                "text-xs tabular-nums",
-                contentOverLimit ? "text-destructive" : "text-muted-foreground",
-              )}
-              aria-live="polite"
-            >
-              {t("composerCharacterCount", {
-                count: composedContent.length,
-                max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
-              })}
-            </span>
-          ) : undefined
+          <>
+            {showContentCount ? (
+              <span
+                className={cn(
+                  "text-xs tabular-nums",
+                  contentOverLimit
+                    ? "text-destructive"
+                    : "text-muted-foreground",
+                )}
+                aria-live="polite"
+              >
+                {t("composerCharacterCount", {
+                  count: composedContent.length,
+                  max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+                })}
+              </span>
+            ) : null}
+            <DictationButton
+              buttonClassName={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+              disabled={isTranscribing}
+              loading={isTranscribing}
+              onRecordingChange={setIsRecordingVoice}
+              onRecorded={(file) => {
+                void dictate(file);
+              }}
+            />
+          </>
         }
         belowEditor={
           contentOverLimit ? (
@@ -806,26 +792,8 @@ export function RoomComposer({
                     <Paperclip className="size-4" aria-hidden />
                   </Button>
                 </AttachmentSubmenu>
-                <VoiceMessageRecorder
-                  buttonClassName={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-                  disabled={isUploadingFiles || isTranscribing}
-                  onRecordingChange={setIsRecordingVoice}
-                  onRecorded={(file) => {
-                    void attachVoiceRecording(file);
-                  }}
-                />
               </>
             ) : null}
-            <VoiceMessageRecorder
-              kind="dictation"
-              buttonClassName={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-              disabled={isTranscribing}
-              loading={isTranscribing}
-              onRecordingChange={setIsRecordingVoice}
-              onRecorded={(file) => {
-                void dictate(file);
-              }}
-            />
             <Button
               type="button"
               variant="ghost"

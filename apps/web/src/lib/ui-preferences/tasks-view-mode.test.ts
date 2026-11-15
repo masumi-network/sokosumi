@@ -42,6 +42,23 @@ describe("preferTasksListFromDeviceType", () => {
 });
 
 describe("resolveDefaultTasksViewMode", () => {
+  it("opens the view a link asks for over a saved List and the phone default", () => {
+    expect(
+      resolveDefaultTasksViewMode({
+        requested: "board",
+        persisted: "list",
+        preferList: false,
+      }),
+    ).toBe("board");
+    expect(
+      resolveDefaultTasksViewMode({
+        requested: "board",
+        persisted: null,
+        preferList: true,
+      }),
+    ).toBe("board");
+  });
+
   it("prefers persisted cookie over device default", () => {
     expect(
       resolveDefaultTasksViewMode({

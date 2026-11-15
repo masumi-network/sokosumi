@@ -13,6 +13,7 @@ import {
   TaskActivitySection,
 } from "@/app/tasks/components/task-activity";
 import { TaskContextSection } from "@/app/tasks/components/task-context-section";
+import { TaskCreditsUsed } from "@/app/tasks/components/task-credits-used";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
 import { mapVisibleTaskLinks } from "@/app/tasks/components/task-detail-api-types";
@@ -514,6 +515,15 @@ async function TaskMetadataSection({
               <TaskFromSchedule scheduleId={task.scheduleId} />
             </Suspense>
           ) : null
+        }
+        credits={
+          // Admin and developer views inspect someone else's Task; the
+          // ledger read is the viewer's own workspace, so it would mislead.
+          forceReadOnly ? null : (
+            <Suspense fallback={null}>
+              <TaskCreditsUsed taskId={task.id} />
+            </Suspense>
+          )
         }
         labels={{
           privateBadge: t("privateBadge"),

@@ -14,6 +14,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import {
@@ -122,8 +123,10 @@ export function SokoBotHomeComposer({
   }
 
   function suggest(prompt: string) {
-    setValue(prompt);
-    composerRef.current?.focus();
+    // Commit the prompt before placing the caret: a plain focus left it at
+    // the start, so typing went in front of the prompt.
+    flushSync(() => setValue(prompt));
+    composerRef.current?.focusAtEnd();
   }
 
   return (

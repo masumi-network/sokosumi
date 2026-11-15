@@ -25,7 +25,6 @@ import type {
   NormalizedMention,
 } from "@/components/ui/mention-textarea-utils";
 import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
-import { setVoiceTranscript } from "@/lib/utils/voice-message";
 import { chatRoomHref } from "../utils/chat-route-base";
 
 /**
@@ -263,30 +262,9 @@ export function appendComposerBlock(value: string, block: string): string {
 
 /**
  * Build POST message content from composer text + attachment chips.
- * Chips stay out of the textarea; markdown links are appended on send, and a
- * voice message's transcript after them (a message holds one).
+ * Chips stay out of the textarea; markdown links are appended on send.
  */
 export function buildRoomComposerMessageContent(
-  value: string,
-  attachments: readonly {
-    fileName: string;
-    url: string;
-    transcript?: string | null;
-  }[],
-  formatAttachmentMarkdown: (fileName: string, url: string) => string,
-): string {
-  const content = joinComposerTextAndAttachments(
-    value,
-    attachments,
-    formatAttachmentMarkdown,
-  );
-  const transcript = attachments.find(
-    (attachment) => attachment.transcript,
-  )?.transcript;
-  return transcript ? setVoiceTranscript(content, transcript) : content;
-}
-
-function joinComposerTextAndAttachments(
   value: string,
   attachments: readonly { fileName: string; url: string }[],
   formatAttachmentMarkdown: (fileName: string, url: string) => string,

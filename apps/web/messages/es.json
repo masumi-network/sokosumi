@@ -1573,6 +1573,11 @@
         "label": "Créditos gastados por día, últimos 30 días",
         "total": "{count} créditos gastados en los últimos 30 días",
         "day": "{date}: {count} créditos"
+      },
+      "TaskFilter": {
+        "label": "Créditos de {task}",
+        "unknownTask": "esta tarea",
+        "clear": "Ver todas las transacciones"
       }
     },
     "Chat": {
@@ -1692,6 +1697,8 @@
           "completed": "{count, plural, one {# tarea completada} other {# tareas completadas}}",
           "worked": "{minutes, plural, one {# minuto trabajado} other {# minutos trabajados}}",
           "awaiting": "{count, plural, one {# tarea necesita tu respuesta} other {# tareas necesitan tu respuesta}}",
+          "awaitingTeam": "{count, plural, one {# tarea necesita respuesta} other {# tareas necesitan respuesta}}",
+          "needsYou": "{count, plural, one {# solicitud te necesita} other {# solicitudes te necesitan}}",
           "byTeammates": "{count, plural, one {# tarea de tu equipo} other {# tareas de tu equipo}}",
           "recent": "En las últimas 24 horas",
           "workedHours": "{hours, plural, one {# hora trabajada} other {# horas trabajadas}}"
@@ -1738,7 +1745,7 @@
           "openBot": "Abrir la página de {name}"
         },
         "SokoBotSetup": {
-          "title": "Consigue tu agente asistente personal",
+          "title": "Consigue tu Soko Bot",
           "intro": "Se ocupa de tus tareas, tu correo y tu calendario.",
           "cta": "Configurarlo"
         }
@@ -2113,7 +2120,10 @@
         "subscribe": "Suscribirse",
         "unsubscribe": "Cancelar suscripción",
         "subscribeError": "No se pudo suscribir. Inténtalo de nuevo.",
-        "removeParticipantError": "No se pudo quitar al participante. Inténtalo de nuevo."
+        "removeParticipantError": "No se pudo quitar al participante. Inténtalo de nuevo.",
+        "credits": "Créditos usados en este espacio de trabajo",
+        "creditsUsed": "{credits, plural, one {# crédito usado en este espacio de trabajo} other {# créditos usados en este espacio de trabajo}}",
+        "noCreditsUsed": "Sin créditos usados en este espacio de trabajo"
       },
       "NewTask": {
         "ContextAttachments": {
@@ -7277,16 +7287,16 @@
       "Evals": {
         "title": "Evals",
         "description": "{sokoBot} Soko Bot and {cmo} CMO cases. They run every day on mainnet against what main deployed, and by hand after a merge or while you develop.",
-        "noHistory": "No daily runs yet",
-        "historyLabel": "Pass rate in the last {count} daily runs",
-        "noDailyRuns": "No daily run has finished yet.",
+        "noHistory": "No weekly runs yet",
+        "historyLabel": "Pass rate in the last {count} weekly runs",
+        "noDailyRuns": "No weekly run has finished yet.",
         "trendBarTitle": "{rate} passed ({passed} of {scored})",
-        "noRuns": "No eval run yet. Start one, or wait for the daily run.",
+        "noRuns": "No eval run yet. Start one, or wait for the weekly run.",
         "wasRate": "was {rate}",
         "noCasesMatch": "No case matches this filter.",
         "runTitle": "{trigger} run, {when}",
-        "comparedWith": "Compared with the daily run of {when}",
-        "noBaseline": "No daily run before this one to compare with.",
+        "comparedWith": "Compared with the weekly run of {when}",
+        "noBaseline": "No weekly run before this one to compare with.",
         "openCases": "{count, plural, one {# case to go} other {# cases to go}}",
         "passedOf": "{passed} of {scored} passed",
         "suiteFilter": "Suite",
@@ -7346,7 +7356,7 @@
           "sokoBot": "Soko Bot",
           "cmo": "CMO",
           "repeats": "Repeats",
-          "repeatsHint": "The daily run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
+          "repeatsHint": "The weekly run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
           "cases": "Only these cases",
           "casesPlaceholder": "ambiguous-request, cmo-strategy-cal-com",
           "casesHint": "Leave empty to run every case of the suites.",
@@ -9039,13 +9049,7 @@
         "attachmentFallback": "file",
         "showFormatting": "Mostrar formato",
         "hideFormatting": "Ocultar formato",
-        "recordVoice": "Grabar un mensaje de voz",
-        "stopVoice": "Detener y adjuntar",
-        "cancelVoice": "Descartar grabación",
-        "voiceRecording": "Grabando mensaje de voz",
-        "voiceBlocked": "Permite el acceso al micrófono en tu navegador para grabar un mensaje de voz.",
         "voiceFailed": "La grabación se detuvo. Inténtalo de nuevo.",
-        "voiceFileName": "Mensaje de voz {time}",
         "dictate": "Dictar",
         "stopDictation": "Detener y escribirlo",
         "cancelDictation": "Descartar dictado",
@@ -9781,6 +9785,7 @@
       "recentsTagFilterEmpty": "Aún no hay etiquetas. Los archivos se etiquetan al procesarse.",
       "recentsEmptyTitle": "No hay archivos recientes",
       "recentsEmptyDescription": "Los archivos que subas o recibas de tareas aparecerán aquí",
+      "recentsEmptyOpenWorkspace": "Abrir espacio de trabajo",
       "loadRecentsError": "No se pudieron cargar los archivos recientes",
       "loadMoreRecentsError": "No se pudieron cargar más archivos recientes",
       "viewList": "Lista",
@@ -10761,6 +10766,7 @@
       "noFileChosen": "Ningún archivo seleccionado",
       "csvLimit": "Hasta 5 MB, 10.000 filas y 100 columnas. La primera fila contiene los nombres de las columnas.",
       "mapping": "Asignar columnas y vista previa",
+      "numberGuess": "Todas las celdas con contenido son números, por eso empieza como Número. Cámbialo si los dígitos son un código.",
       "columnName": "Nombre de columna",
       "type": "Tipo",
       "options": "Opciones (separadas por punto y coma)",
@@ -11828,7 +11834,7 @@
     "Assistant": {
       "metadataTitle": "Configura tu asistente",
       "later": "Más tarde",
-      "laterHint": "Puedes configurarlo en cualquier momento desde Soko Bots.",
+      "laterHint": "Puedes configurarlo en cualquier momento desde Inicio.",
       "skip": "Omitir",
       "continue": "Continuar"
     }
