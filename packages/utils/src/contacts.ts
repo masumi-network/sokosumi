@@ -407,6 +407,25 @@ export const contactListMembersSchema = z
     "Add or remove at least one contact",
   );
 
+/** A company list is always manual: no smart filter. */
+export const companyListInputSchema = contactListInputSchema.omit({
+  smartFilter: true,
+});
+
+export const companyListUpdateSchema = contactListUpdateSchema.omit({
+  smartFilter: true,
+});
+
+export const companyListMembersSchema = z
+  .object({
+    add: z.array(z.uuid()).max(500).default([]),
+    remove: z.array(z.uuid()).max(500).default([]),
+  })
+  .refine(
+    (value) => value.add.length + value.remove.length > 0,
+    "Add or remove at least one company",
+  );
+
 export const mergeContactsSchema = z
   .object({
     winnerId: z.uuid(),
