@@ -10112,6 +10112,15 @@
           "saved": "Settings saved",
           "saveFailed": "Could not save the settings"
         }
+      },
+      "Stars": {
+        "heading": "Starred",
+        "star": "Star",
+        "unstar": "Unstar",
+        "starItem": "Star {name}",
+        "unstarItem": "Unstar {name}",
+        "starError": "Could not star it. Try again.",
+        "unstarError": "Could not unstar it. Try again."
       }
     },
     "SokoBot": {

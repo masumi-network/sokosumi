@@ -194,6 +194,7 @@ model Workspace {
   fileLineages       FileLineage[]
   fileCollections    FileCollection[]
   driveShares        DriveShare[]
+  driveStars         DriveStar[]
   dataRooms          DataRoom[]
   fileAdmissions     FileAuthorizationAdmission[]
   fileResultWindows  FileResultWindow[]
@@ -5815,6 +5816,7 @@ model FileResource {
   overrides              FileFieldOverride[]
   jobs                   FileIndexJob[]
   shares                 DriveShare[]
+  stars                  DriveStar[]
   /// The Marketing strategy pieces written as this file.
   marketingStrategyFiles MarketingStrategyFile[]
   googleSheet            DriveGoogleSheet?
@@ -6349,6 +6351,33 @@ model DriveShare {
   @@unique([workspaceId, sourceScope, ownerId, folderPath])
   @@index([workspaceId, sourceScope, ownerId])
   @@map("drive_share")
+}
+
+/// A file or folder one person starred in one Files workspace, listed under
+/// Starred at the top of Recents. A file is its catalog id, so the star follows
+/// the file through moves and renames. A folder is its path in the workspace's
+/// store, rebased with the folder like a folder link (`DriveShare`).
+model DriveStar {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// Exactly one of `resourceId` and `folderPath` is set.
+  resourceId String?       @db.Uuid
+  resource   FileResource? @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  /// Normalized folder path within the store.
+  folderPath String?
+
+  @@unique([userId, workspaceId, resourceId])
+  @@unique([userId, workspaceId, folderPath])
+  @@index([workspaceId, folderPath])
+  @@index([resourceId])
+  @@map("drive_star")
 }
 
 /// A draft the bot wrote in the owner's mailbox. Sending one is allowed only

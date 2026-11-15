@@ -9,6 +9,7 @@ import recentsRouter from "./recents/index.js";
 import resourcesRouter from "./resources/index.js";
 import searchRouter from "./search/index.js";
 import sharesRouter from "./shares/index.js";
+import starsRouter from "./stars/index.js";
 import tablesRouter from "./tables/index.js";
 import tasksRouter from "./tasks/index.js";
 
@@ -26,6 +27,7 @@ app.route("/recents", recentsRouter);
 app.route("/resources", resourcesRouter);
 app.route("/search", searchRouter);
 app.route("/shares", sharesRouter);
+app.route("/stars", starsRouter);
 app.route("/tables", tablesRouter);
 app.route("/tasks", tasksRouter);
 

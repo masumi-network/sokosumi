@@ -48,6 +48,7 @@ import {
   rebaseDataRooms,
 } from "@/services/data-room-paths.service";
 import { rebaseDriveFolderShares } from "@/services/drive-share.service";
+import { rebaseDriveFolderStars } from "@/services/drive-star.service";
 import { reconcileDriveUploadMoves } from "@/services/file-catalog.service";
 
 const route = withCoworkerContextHeaderParameters(
@@ -356,11 +357,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const failed = outcomes.find((outcome) => outcome.status === "rejected");
       if (failed) throw failed.reason;
 
-      // A link to this folder, or one inside it, follows it to its new place.
+      // A link or star on this folder, or one inside it, follows it to its
+      // new place.
       await rebaseDriveFolderShares({
-        workspaceId: await workspaceIdFor(scope),
+        workspaceId,
         scope,
         ownerId,
+        fromFolderPath: sourceFolderPath,
+        toFolderPath: newFolderPath,
+      });
+      await rebaseDriveFolderStars({
+        workspaceId,
         fromFolderPath: sourceFolderPath,
         toFolderPath: newFolderPath,
       });

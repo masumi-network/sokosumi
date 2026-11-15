@@ -10112,6 +10112,15 @@
           "saved": "Ajustes guardados",
           "saveFailed": "No se pudieron guardar los ajustes"
         }
+      },
+      "Stars": {
+        "heading": "Destacados",
+        "star": "Destacar",
+        "unstar": "Quitar de destacados",
+        "starItem": "Destacar {name}",
+        "unstarItem": "Quitar {name} de destacados",
+        "starError": "No se pudo destacar. Inténtalo de nuevo.",
+        "unstarError": "No se pudo quitar de destacados. Inténtalo de nuevo."
       }
     },
     "SokoBot": {

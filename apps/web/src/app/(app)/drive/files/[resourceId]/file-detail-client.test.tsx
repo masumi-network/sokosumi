@@ -40,6 +40,12 @@ vi.mock("@/app/drive/components/drive-file-preview", () => ({
 vi.mock("@/app/drive/components/drive-file-snippet", () => ({
   DriveFileSnippet: () => null,
 }));
+vi.mock("@/app/drive/components/use-drive-stars", () => ({
+  useDriveStars: () => ({
+    isFileStarred: () => false,
+    setStarred: vi.fn(),
+  }),
+}));
 vi.mock("next-intl", () => ({
   // Values are echoed, not dropped. A stub that returned the key alone
   // made every interpolated string look identical, so a message whose

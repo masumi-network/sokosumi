@@ -10,6 +10,7 @@ import {
   FolderOpen,
   Link2,
   MoreHorizontal,
+  Star,
   Table2,
   Trash2,
   Upload,
@@ -93,6 +94,8 @@ interface DriveRecentsPanelProps {
   onUpload: () => void;
   uploading: boolean;
   onOpenWorkspace: () => void;
+  isFileStarred: (resourceId: string) => boolean;
+  onSetFileStarred: (resourceId: string, starred: boolean) => void;
 }
 
 function toDriveFileItem(
@@ -138,8 +141,11 @@ export function DriveRecentsPanel({
   onUpload,
   uploading,
   onOpenWorkspace,
+  isFileStarred,
+  onSetFileStarred,
 }: DriveRecentsPanelProps): ReactElement {
   const t = useTranslations("App.Drive");
+  const tStars = useTranslations("App.Drive.Stars");
   const formatter = useFormatter();
   const { locale } = useLocalizedDateTime();
   const [items, setItems] = useState<DriveRecentsItem[]>([]);
@@ -381,6 +387,10 @@ export function DriveRecentsPanel({
                     item.activityAt,
                   );
 
+                  const resourceId = item.resourceId;
+                  const starred = resourceId
+                    ? isFileStarred(resourceId)
+                    : false;
                   const driveFileActions = isEditing ? null : (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -422,6 +432,22 @@ export function DriveRecentsPanel({
                           <Folder className="size-4" aria-hidden />
                           {t("moveAction")}
                         </DropdownMenuItem>
+                        {resourceId ? (
+                          <DropdownMenuItem
+                            onSelect={() =>
+                              onSetFileStarred(resourceId, !starred)
+                            }
+                          >
+                            <Star
+                              className={cn(
+                                "size-4",
+                                starred && "fill-current",
+                              )}
+                              aria-hidden
+                            />
+                            {tStars(starred ? "unstar" : "star")}
+                          </DropdownMenuItem>
+                        ) : null}
                         {item.resourceId ? (
                           <DropdownMenuItem
                             onSelect={() => {

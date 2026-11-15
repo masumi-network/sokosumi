@@ -1,7 +1,7 @@
 "use client";
 
 import type { FileResource } from "@sokosumi/core-client";
-import { Check, Loader2, RotateCcw } from "lucide-react";
+import { Check, Loader2, RotateCcw, Star } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
@@ -14,11 +14,13 @@ import {
 import { toast } from "sonner";
 import { DriveFilePreview } from "@/app/drive/components/drive-file-preview";
 import { DriveFileSnippet } from "@/app/drive/components/drive-file-snippet";
+import { useDriveStars } from "@/app/drive/components/use-drive-stars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { useSession } from "@/lib/auth/auth.client";
+import { cn } from "@/lib/utils";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import {
   decideSuggestion,
@@ -97,6 +99,9 @@ export function FileDetailView({
   const { data: session, isPending: sessionPending } = useSession();
   const activeOrganizationId = session?.session?.activeOrganizationId ?? null;
   const driveStore = driveStoreForActiveWorkspace(activeOrganizationId);
+  // Not before the session is known: the store would be the personal one.
+  const driveStars = useDriveStars(driveStore, { enabled: !sessionPending });
+  const tStars = useTranslations("App.Drive.Stars");
   const store: FileStore =
     driveStore.scope === "org"
       ? { scope: "org", organizationId: driveStore.organizationId }
@@ -267,6 +272,7 @@ export function FileDetailView({
   // Computed here rather than inline, so the clamp it carries has one
   // place to live and one place to be read.
   const partialPercent = coveragePercent(resource.extractionCoverage);
+  const starred = driveStars.isFileStarred(resourceId);
   const Heading = headingAs;
 
   return (
@@ -288,6 +294,24 @@ export function FileDetailView({
             {` · ${t(`source.${resource.sourceKind}`)}`}
           </p>
         </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="ms-auto shrink-0 gap-1.5"
+          aria-label={tStars(starred ? "unstarItem" : "starItem", {
+            name: resource.displayName,
+          })}
+          onClick={() => driveStars.setStarred({ resourceId }, !starred)}
+        >
+          <Star
+            className={cn("size-4", starred && "fill-current")}
+            aria-hidden
+          />
+          <span className="hidden sm:inline">
+            {tStars(starred ? "unstar" : "star")}
+          </span>
+        </Button>
       </div>
 
       <DriveFilePreview

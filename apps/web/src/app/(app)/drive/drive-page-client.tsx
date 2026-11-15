@@ -33,6 +33,7 @@ import {
   MoreHorizontal,
   Pencil,
   Search,
+  Star,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -84,6 +85,7 @@ import {
   DriveSortControl,
   DriveSortMenuItems,
 } from "@/app/drive/components/drive-sort-control";
+import { DriveStarredSection } from "@/app/drive/components/drive-starred-section";
 import { DriveTablesFilters } from "@/app/drive/components/drive-tables-filters";
 import { DriveTasksFilters } from "@/app/drive/components/drive-tasks-filters";
 import {
@@ -99,6 +101,7 @@ import {
   type DrivePrimaryView,
   DriveViewTabs,
 } from "@/app/drive/components/drive-view-tabs";
+import { useDriveStars } from "@/app/drive/components/use-drive-stars";
 import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
 import { TableList } from "@/app/drive/tables/table-list";
 import { PROJECTS_LIST_CARD_MIN_H_CLASS } from "@/app/projects/constants";
@@ -295,6 +298,7 @@ function DrivePageWorkspace({
   defaultFilesViewMode,
 }: DrivePageWorkspaceProps): ReactElement {
   const t = useTranslations("App.Drive");
+  const tStars = useTranslations("App.Drive.Stars");
   const formatter = useFormatter();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
@@ -418,6 +422,7 @@ function DrivePageWorkspace({
   }
 
   const driveStore = driveStoreForActiveWorkspace(activeOrganizationId);
+  const driveStars = useDriveStars(driveStore);
   const scope = driveStore.scope;
   const folderParam = driveNavQuery.folder ?? searchParams.get("folder") ?? "";
   /**
@@ -1675,8 +1680,30 @@ function DrivePageWorkspace({
     : null;
   const folderName = facetFolder.split("/").at(-1) ?? facetFolder;
   const facetFolderRoom = dataRoomOf(dataRoomsQuery.data ?? [], facetFolder);
+  const folderStarred = driveStars.isFolderStarred(facetFolder);
   const folderActions = facetFolderItem ? (
     <>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="gap-1.5"
+        data-testid="files-star-folder"
+        aria-label={tStars(folderStarred ? "unstarItem" : "starItem", {
+          name: folderName,
+        })}
+        onClick={() =>
+          driveStars.setStarred({ folderPath: facetFolder }, !folderStarred)
+        }
+      >
+        <Star
+          className={cn("size-4", folderStarred && "fill-current")}
+          aria-hidden
+        />
+        <span className="hidden @lg:inline">
+          {tStars(folderStarred ? "unstar" : "star")}
+        </span>
+      </Button>
       <Button
         type="button"
         size="sm"
@@ -2099,6 +2126,17 @@ function DrivePageWorkspace({
         </div>
       )}
 
+      {/* Hidden while searching or filtering: the list below is then an
+          answer to that query, and stars are not part of it. */}
+      {isRecentsView &&
+      driveStars.stars &&
+      !debouncedSearchQuery.trim() &&
+      driveNavQuery.tags.length === 0 ? (
+        <DriveStarredSection
+          stars={driveStars.stars}
+          onUnstar={(target) => driveStars.setStarred(target, false)}
+        />
+      ) : null}
       {isTablesView ? (
         <TableList
           archived={tablesArchived}
@@ -2107,6 +2145,10 @@ function DrivePageWorkspace({
         />
       ) : isRecentsView ? (
         <DriveRecentsPanel
+          isFileStarred={driveStars.isFileStarred}
+          onSetFileStarred={(resourceId, starred) =>
+            driveStars.setStarred({ resourceId }, starred)
+          }
           driveStore={driveStore}
           activeOrganizationId={activeOrganizationId}
           searchQuery={debouncedSearchQuery}

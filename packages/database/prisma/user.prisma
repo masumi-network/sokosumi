@@ -140,6 +140,7 @@ model User {
   sokoBots                 SokoBot[]                 @relation("SokoBotOwner")
   createdSokoBots          SokoBot[]                 @relation("SokoBotCreatedBy")
   hermesPendingConnections HermesPendingConnection[]
+  driveStars               DriveStar[]
   authoredSokoBotVersions  SokoBotAuthoredVersion[]  @relation("SokoBotAuthoredVersionAuthor")
 
   @@unique([email])

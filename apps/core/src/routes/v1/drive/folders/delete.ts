@@ -19,6 +19,7 @@ import {
 import { deleteDriveFolderRequestSchema } from "@/schemas/drive-file.schema";
 import { requireNotCmoDriveFile } from "@/services/cmo-cuso.service";
 import { deleteDataRoomsUnder } from "@/services/data-room-paths.service";
+import { deleteDriveFolderStars } from "@/services/drive-star.service";
 import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 
 const route = withCoworkerContextHeaderParameters(
@@ -161,6 +162,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     await deleteDataRoomsUnder({ scope, ownerId, folderPath });
+    await deleteDriveFolderStars({
+      workspaceId: workspace.workspaceId,
+      folderPath,
+    });
 
     return empty(c);
   });

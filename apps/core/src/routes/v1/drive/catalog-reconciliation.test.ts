@@ -74,6 +74,10 @@ const { tombstoneManyMock, reconcileMovesMock, tombstoneOneMock } = vi.hoisted(
 vi.mock("@/services/drive-share.service", () => ({
   rebaseDriveFolderShares: vi.fn(async () => undefined),
 }));
+vi.mock("@/services/drive-star.service", () => ({
+  rebaseDriveFolderStars: vi.fn(async () => undefined),
+  deleteDriveFolderStars: vi.fn(async () => undefined),
+}));
 vi.mock("@/services/file-catalog.service", () => ({
   tombstoneDriveUploadResources: tombstoneManyMock,
   tombstoneDriveUploadResource: tombstoneOneMock,

@@ -10112,6 +10112,15 @@
           "saved": "Einstellungen gespeichert",
           "saveFailed": "Einstellungen konnten nicht gespeichert werden"
         }
+      },
+      "Stars": {
+        "heading": "Markiert",
+        "star": "Markieren",
+        "unstar": "Markierung entfernen",
+        "starItem": "{name} markieren",
+        "unstarItem": "Markierung von {name} entfernen",
+        "starError": "Konnte nicht markiert werden. Versuche es erneut.",
+        "unstarError": "Markierung konnte nicht entfernt werden. Versuche es erneut."
       }
     },
     "SokoBot": {

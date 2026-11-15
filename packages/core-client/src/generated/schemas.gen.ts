@@ -19561,6 +19561,78 @@ export const UpsertDriveShareRequestSchema = {
     ]
 } as const;
 
+export const DriveStarsSchema = {
+    type: 'object',
+    properties: {
+        folders: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    path: {
+                        type: 'string',
+                        example: 'Finance/Board'
+                    },
+                    name: {
+                        type: 'string',
+                        example: 'Board'
+                    }
+                },
+                required: [
+                    'path',
+                    'name'
+                ]
+            }
+        },
+        files: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/FileResource'
+            }
+        }
+    },
+    required: [
+        'folders',
+        'files'
+    ]
+} as const;
+
+export const SetDriveStarRequestSchema = {
+    type: 'object',
+    properties: {
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        resourceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Catalog id of the file to star or unstar.'
+        },
+        folderPath: {
+            type: 'string',
+            maxLength: 1000,
+            description: 'Folder to star or unstar, e.g. "Finance/Board".',
+            example: 'Finance/Board'
+        },
+        starred: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'scope',
+        'starred'
+    ]
+} as const;
+
 export const DataTableSchema = {
     type: 'object',
     properties: {
