@@ -25,15 +25,18 @@ export const COMPOSIO_OWNER_VERIFICATION_PARAM =
  */
 export const COMPOSIO_MANAGED_RETURN_PATH = "/seo/connections/callback";
 /**
- * Preprod's Web host, and Web's Preprod pull-request previews. Preprod can
- * return there, so a preview can finish a connection. A preview runs the code
- * of its branch, so this trusts every branch that gets a Preprod preview; no
- * other network does. The host is named, not read from the environment: this
- * page is built one time, and an unset variable must not open Mainnet.
+ * Each canonical Web origin returns consent only to its own network's Web
+ * branch previews. This trusts branches deployed as previews on that network,
+ * including Mainnet. It never permits a cross-network credential handoff.
+ * The origins are fixed, not read from the environment: an unset variable
+ * must not expand the credential boundary.
  */
-const PREPROD_WEB_HOST = "preprod.sokosumi.com";
+const PREPROD_WEB_ORIGIN = "https://preprod.sokosumi.com";
 const PREPROD_PREVIEW_HOST =
   /^sokosumi-app-preprod-git-[a-z0-9-]+\.preview\.sokosumi\.com$/;
+const MAINNET_WEB_ORIGIN = "https://app.sokosumi.com";
+const MAINNET_PREVIEW_HOST =
+  /^sokosumi-app-mainnet-git-[a-z0-9-]+\.preview\.sokosumi\.com$/;
 const SOKOSUMI_HOST = /(^|\.)sokosumi\.com$/;
 
 /**
@@ -218,7 +221,7 @@ var validPopupNonce=handoff&&(handoff.popupNonce===null||handoff.popupNonce===un
 if(handoff&&typeof handoff.returnUrl==="string"&&typeof handoff.at==="number"&&Number.isFinite(handoff.at)&&handoff.at<=now&&now-handoff.at<${COMPOSIO_HANDOFF_TTL_MS}&&validConnection&&validPopupNonce&&(!namedNonce||handoff.popupNonce===namedNonce)){
 var candidate=new URL(handoff.returnUrl);
 var here=candidate.origin===window.location.origin;
-var preview=window.location.hostname===${JSON.stringify(PREPROD_WEB_HOST)}&&candidate.port===""&&new RegExp(${JSON.stringify(PREPROD_PREVIEW_HOST.source)}).test(candidate.hostname);
+var preview=candidate.port===""&&((window.location.origin===${JSON.stringify(PREPROD_WEB_ORIGIN)}&&new RegExp(${JSON.stringify(PREPROD_PREVIEW_HOST.source)}).test(candidate.hostname))||(window.location.origin===${JSON.stringify(MAINNET_WEB_ORIGIN)}&&new RegExp(${JSON.stringify(MAINNET_PREVIEW_HOST.source)}).test(candidate.hostname)));
 var redeems=candidate.pathname===${JSON.stringify(COMPOSIO_MANAGED_RETURN_PATH)}&&(here||preview);
 var sokosumi=new RegExp(${JSON.stringify(SOKOSUMI_HOST.source)}).test(candidate.hostname);
 if((${returnUrlValidator})(candidate,${allowLocalReturn})&&(!sokosumi||redeems))back=candidate;

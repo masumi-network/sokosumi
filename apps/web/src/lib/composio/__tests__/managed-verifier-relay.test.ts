@@ -162,6 +162,86 @@ describe("managed verifier cross-protocol relay", () => {
     },
   );
 
+  describe("Mainnet native Preview returns", () => {
+    const mainnetOrigin = "https://app.sokosumi.com";
+    const mainnetPreview =
+      "https://sokosumi-app-mainnet-git-feat-seo-workspace.preview.sokosumi.com";
+
+    it.each([
+      mainnetPreview,
+      "https://sokosumi-app-mainnet-git-fix-google-42.preview.sokosumi.com",
+    ])("redeems consent on the matching Web branch alias %s", (origin) => {
+      const flow = browser("", mainnetOrigin);
+      const back = new URL(nativeReturn.pathname + nativeReturn.search, origin);
+      flow.handoff(back);
+      flow.callback();
+      expect(flow.redirected).toHaveLength(1);
+      const target = flow.redirected[0];
+      expect(target.origin + target.pathname).toBe(
+        origin + nativeReturn.pathname,
+      );
+      expect(target.searchParams.get("session_uri")).toBe(SESSION_URI);
+      expect(target.searchParams.get("connected_account_id")).toBe(
+        CONNECTION_ID,
+      );
+      expect(target.searchParams.get("seo_state")).toBe(REMOTE_NONCE);
+      expect(target.searchParams.get("viewer")).toBe("alice");
+      expect(target.searchParams.get("provider")).toBe("ga4");
+      expect(flow.broadcast).toEqual([]);
+      expect(flow.openerMessage).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      FEATURE_ORIGIN + nativeReturn.pathname,
+      "https://sokosumi-core-mainnet-git-feat-seo-workspace.preview.sokosumi.com" +
+        nativeReturn.pathname,
+      "https://sokosumi-app-mainnet-random123.preview.sokosumi.com" +
+        nativeReturn.pathname,
+      "https://x.sokosumi-app-mainnet-git-test.preview.sokosumi.com" +
+        nativeReturn.pathname,
+      mainnetPreview + ".attacker.invalid" + nativeReturn.pathname,
+      mainnetPreview + ":8443" + nativeReturn.pathname,
+      mainnetPreview + "/seo",
+      mainnetPreview + nativeReturn.pathname + "/extra",
+      mainnetPreview.replace("https:", "http:") + nativeReturn.pathname,
+    ])("keeps Mainnet consent away from %s", (target) => {
+      const flow = browser("", mainnetOrigin);
+      flow.handoff(new URL(target));
+      flow.callback();
+      expectSessionKept(flow);
+    });
+
+    it.each([
+      "https://app.sokosumi.com:8443",
+      "http://app.sokosumi.com",
+      "https://docs.sokosumi.com",
+    ])(
+      "refuses the Mainnet relay from a different canonical origin %s",
+      (origin) => {
+        const flow = browser("", origin);
+        flow.handoff(new URL(nativeReturn.pathname, mainnetPreview));
+        flow.callback();
+        expectSessionKept(flow);
+      },
+    );
+
+    it("keeps mismatched account credentials out of a Mainnet Preview", () => {
+      const flow = browser("", mainnetOrigin);
+      const back = new URL(
+        nativeReturn.pathname + nativeReturn.search,
+        mainnetPreview,
+      );
+      flow.handoff(back);
+      flow.window.location.search = `?${new URLSearchParams({ session_uri: SESSION_URI, connected_account_id: "ca_other_owner" })}`;
+      flow.callback();
+      const target = flow.redirected[0];
+      expect(target.origin).toBe(mainnetPreview);
+      expect(target.searchParams.get("status")).toBe("error");
+      expect(target.searchParams.get("error")).toBe("connection_mismatch");
+      expect(target.searchParams.has("session_uri")).toBe(false);
+    });
+  });
+
   // The rule does not depend on the page the script runs at: Composio's fixed
   // return page is a setting of the Composio project.
   describe("where a session may go", () => {
