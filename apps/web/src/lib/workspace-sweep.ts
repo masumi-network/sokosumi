@@ -9,6 +9,10 @@ import {
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const COVER_MS = 650;
 const REVEAL_MS = 750;
+// The longest the band covers the page. A switch re-renders the whole page on
+// the server, which can take seconds; past this the band reveals and the new
+// workspace lands in place, as it did before the sweep.
+const MAX_HOLD_MS = 1200;
 
 // A wavy band of the Home gradient, with a soft light along its middle. `p`
 // moves its centre across the screen (0 off the left, 0.5 the middle, 1 off
@@ -33,7 +37,7 @@ let sweeping = false;
 /**
  * Sweeps a gradient band over the screen around a change of workspace: it covers
  * the page, holds while `change` runs (a switch is a server round trip, so it
- * can take a second), then reveals the new workspace. Only for a switch
+ * can take a second) but no longer than {@link MAX_HOLD_MS}, then reveals. Only for a switch
  * someone asked for: the workspace menu and finishing the Create workspace
  * wizard. Under reduced motion, without WebGL, or while a sweep already runs,
  * `change` just runs. The promise carries `change`'s own result.
@@ -48,14 +52,17 @@ export async function sweepWorkspace(
   if (!band) return change();
 
   sweeping = true;
+  let changed: Promise<void> | undefined;
   try {
     await band.moveTo(0.5, COVER_MS);
-    await change();
+    changed = change();
+    await Promise.race([changed, wait(MAX_HOLD_MS)]);
   } finally {
     await band.moveTo(1, REVEAL_MS);
     band.remove();
     sweeping = false;
   }
+  await changed;
 }
 
 function createBand() {
@@ -116,7 +123,7 @@ function createBand() {
     moveTo(to: number, ms: number) {
       const now = performance.now();
       move = { from: progress(now), to, at: now, ms };
-      return new Promise<void>((resolve) => setTimeout(resolve, ms));
+      return wait(ms);
     },
     remove() {
       cancelAnimationFrame(frame);
@@ -124,4 +131,8 @@ function createBand() {
       gl.getExtension("WEBGL_lose_context")?.loseContext();
     },
   };
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }

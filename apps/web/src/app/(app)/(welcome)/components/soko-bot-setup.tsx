@@ -18,10 +18,10 @@ export async function SokoBotSetup({ avatars }: { avatars: SokoBotAvatar[] }) {
   const middle = Math.floor(avatars.length / 2);
 
   return (
-    <div className="relative isolate flex min-h-full w-full min-w-0 flex-1 flex-col items-center px-4">
+    <div className="relative isolate flex min-h-full w-full min-w-0 flex-1 flex-col items-center justify-center px-4">
       {/* Bleeds through main's p-4 to its edges, as on the Soko Bot Home. */}
       <GradientBackground className="absolute -inset-x-4 -top-4 -z-10 h-[42rem]" />
-      <div className="flex w-full max-w-3xl flex-col items-center gap-8 pt-[12dvh] pb-10 text-center md:pt-[18dvh]">
+      <div className="flex w-full max-w-3xl flex-col items-center gap-8 py-10 text-center">
         {avatars.length > 0 ? (
           <div aria-hidden className="flex items-center -space-x-3">
             {avatars.map((avatar, index) => {
