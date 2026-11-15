@@ -34,6 +34,9 @@ if (!existsSync(envPath)) {
     BUZZ_AUTO_MIGRATE: "true",
     BUZZ_GIT_CONFORMANCE_PROBE: "false",
     BUZZ_PUSH_ENABLED: "false",
+    // The operator key signs every community's channel and membership changes.
+    BUZZ_RATE_LIMIT_HUMAN_API_CALLS_PER_MIN: "6000",
+    BUZZ_RATE_LIMIT_HUMAN_MESSAGES_PER_MIN: "6000",
     RUST_LOG: "buzz_relay=info,buzz_db=warn,buzz_auth=info",
     RELAY_OWNER_PUBKEY: getPublicKey(operator),
     // One relay, a community per organization, created by Core through the

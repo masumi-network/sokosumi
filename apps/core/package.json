@@ -32,6 +32,7 @@
     "write-openapi-snapshot": "turbo run build prisma:generate --filter=@sokosumi/core^... --output-logs=errors-only && tsx scripts/write-openapi-snapshot.mts",
     "image-studio:refresh-catalog": "tsx scripts/refresh-fal-catalog.mts",
     "bench:coworker-chat": "tsx --env-file=.env scripts/bench-coworker-chat.mts",
+    "buzz:e2e": "tsx --env-file=.env scripts/buzz-e2e.mts",
     "buzz:bridge": "tsx --env-file=.env scripts/buzz-bridge.mts",
     "soko-bot:copy-avatars": "tsx --env-file=.env scripts/copy-soko-bot-avatars.mts",
     "soko-bot:judge-eval": "tsx --env-file=.env scripts/soko-bot-judge-eval.mts",

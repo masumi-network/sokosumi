@@ -34,6 +34,7 @@ import {
   readableContent,
   readInbound,
 } from "@/lib/buzz/events";
+import { withSokosumiMedia } from "@/lib/buzz/media";
 import { attestedOwner, authTagOwner } from "@/lib/buzz/owner-attestation";
 import {
   BuzzRelayRejectedError,
@@ -2930,6 +2931,45 @@ export class BuzzTargetPendingError extends Error {
   }
 }
 
+/**
+ * The message's text with the files it carries on the relay copied into
+ * Sokosumi. They are read as the operator, or in a DM with the keys Sokosumi
+ * keeps of its people, and become the author's chat files.
+ */
+async function withMediaCopied(
+  content: string,
+  event: Event,
+  input: { channelId: string; roomId: string; author: BuzzIdentity },
+) {
+  if (
+    !/\/media\/[0-9a-f]{64}/i.test(event.content) &&
+    !event.tags.some((tag) => tag[0] === "imeta")
+  ) {
+    return content;
+  }
+  const channel = await prisma.buzzChannel.findUnique({
+    where: { channelId: input.channelId },
+    select: { membersHash: true, community: { select: { relayUrl: true } } },
+  });
+  if (!channel) return content;
+  const relayUrl = channel.community.relayUrl;
+  return withSokosumiMedia({
+    content,
+    event,
+    relayUrl,
+    roomId: input.roomId,
+    readerKeys: [
+      requireConfig().operatorSecretKey,
+      ...(isDirect(channel)
+        ? await directMessageSigners(relayUrl, input.channelId)
+        : []),
+    ],
+    owner: input.author.userId
+      ? { kind: "user", userId: input.author.userId }
+      : { kind: "coworker", coworkerId: input.author.coworkerId ?? "" },
+  });
+}
+
 /** Replays one Buzz event as the person who wrote it. */
 export async function applyInboundEvent(
   event: Event,
@@ -3058,8 +3098,10 @@ export async function applyInboundEvent(
           return keysOf(identity).map((pubkey) => [pubkey, name] as const);
         }),
       );
-      const content = readableContent(change.content, (pubkey) =>
-        names.get(pubkey),
+      const content = await withMediaCopied(
+        readableContent(change.content, (pubkey) => names.get(pubkey)),
+        event,
+        { channelId: channel.channelId, roomId: channel.roomId, author },
       );
       const clientMessageId = `buzz:${event.id}`;
       // A one-on-one Direct with a Coworker is answered through the room's
@@ -3147,6 +3189,7 @@ export async function applyInboundEvent(
           lastEditAt: true,
           lastEditEventId: true,
           deleted: true,
+          channelId: true,
           message: { select: { roomId: true, deletedAt: true } },
         },
       });
@@ -3163,7 +3206,15 @@ export async function applyInboundEvent(
         (event.created_at === link.lastEditAt &&
           (link.lastEditEventId === null || event.id < link.lastEditEventId));
       if (!newer) return "echo";
-      const content = await namedContent(change.content);
+      const content = await withMediaCopied(
+        await namedContent(change.content),
+        event,
+        {
+          channelId: link.channelId ?? channelId ?? "",
+          roomId: link.message.roomId,
+          author,
+        },
+      );
       const hash = contentHash(content);
       if (link.contentHash !== hash) {
         await sendAs(core, author, {

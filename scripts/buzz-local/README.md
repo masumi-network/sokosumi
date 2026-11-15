@@ -87,25 +87,29 @@ Connections → Buzz (`ws://localhost:3400` locally), and import your secret key
 
 ## Production shape
 
-One relay deployment serves every organization: a community per host
-(`BUZZ_COMMUNITY_URL_TEMPLATE=wss://{slug}.chat.sokosumi.com`), shared Postgres
-with a `community_id` and row-level security. Creating a community on a
-multi-community relay (`POST /operator/communities`) is not wired here: the
-local relay has one community. The worker must run somewhere long-lived
-(Railway), not on Vercel.
+One relay (Railway) serves every organization, a community per host; Core
+creates them, runs the bridge from its `/sync/buzz` cron and imports history.
+See [docs/features/buzz-chat.md](../../docs/features/buzz-chat.md).
+
+Locally, `setup.mjs` configures the same: an operator API on
+`operator.localhost:3400` and communities on `{slug}.localhost:3400`. The relay
+derives every community's scheme from `RELAY_URL`, so with a `wss://` one
+(Tailscale) the `ws://*.localhost` communities refuse signed HTTP calls; give
+such a community a second `tailscale serve` port instead, as the e2e setup does.
 
 ## Known limits
 
-- History before a room is linked stays in Sokosumi: the relay refuses events
-  more than a few minutes old, so a backfill needs a relay-side import.
-- Files travel as the links in the message text; no Blossom upload or `imeta`.
+- History is imported into the relay's database when a room reaches Buzz
+  (the relay refuses events more than 15 minutes old through its API).
+- Files: Sokosumi's chat files are public links Buzz shows as they are. A file
+  attached in Buzz (on the relay, readable only by members) is copied into the
+  author's Sokosumi chat files and the message points there.
 - Pins, read state, quotes, result cards and attached skills are Sokosumi-only;
   Buzz shows the message text.
 - Messages from people Sokosumi does not know are ignored; only Sokosumi
   identities are community members.
 - A person's bridge API key appears in their API keys as "Buzz bridge"; it is a
   full user key.
-- Run one worker; two would each send their own copy of an inbound change.
 - A linked app key: what it writes is the person's in Sokosumi, but what they
   write in Sokosumi reaches Buzz from Sokosumi's key, named "<name> (via
   Sokosumi)", since Sokosumi never holds their own key. Sokosumi cannot edit or
