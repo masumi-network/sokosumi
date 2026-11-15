@@ -336,6 +336,45 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
     expect(messageUpdateManyMock).not.toHaveBeenCalled();
   });
 
+  it("lets a coworker delete only its own messages", async () => {
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "coworker_1",
+      vendorId: "vendor_1",
+    } as AuthVariables["authContext"]);
+    const remove = () =>
+      app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, { method: "DELETE" });
+
+    expect((await remove()).status).toBe(403);
+    expect(messageUpdateManyMock).not.toHaveBeenCalled();
+    expect(roomFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          coworkerMembers: { some: { coworkerId: "coworker_1" } },
+        }),
+      }),
+    );
+
+    messageFindFirstMock.mockReset();
+    messageFindFirstMock.mockResolvedValue(
+      baseMessage({
+        senderUserId: null,
+        senderUser: null,
+        senderCoworkerId: "coworker_1",
+        senderCoworker: {
+          id: "coworker_1",
+          name: "Elena",
+          slug: "elena",
+          caption: null,
+          image: null,
+        },
+        pins: [],
+      }),
+    );
+    expect((await remove()).status).toBe(200);
+    expect(messageUpdateManyMock).toHaveBeenCalled();
+  });
+
   it("is idempotent when the author deletes an already-deleted message", async () => {
     const tombstone = baseMessage({
       content: "",

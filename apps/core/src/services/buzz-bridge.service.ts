@@ -1975,7 +1975,12 @@ export async function reconcileMessage(
     link.signerPubkey &&
     (message.deletedAt ? !link.deleted : link.contentHash !== hash)
   ) {
-    // Written with the person's own app key: only they can change it on Buzz.
+    // Written with the person's own app key: only they can edit it on Buzz
+    // (Core refuses edits to it from Sokosumi), but a channel admin may
+    // take it down.
+    if (message.deletedAt && !link.deleted) {
+      await adminDeleteOnBuzz(relayUrl, channel, link.eventId);
+    }
     link = await prisma.buzzMessageLink.update({
       where: { messageId: message.id },
       data: { contentHash: hash, deleted: Boolean(message.deletedAt) },
@@ -2877,9 +2882,15 @@ export async function applyInboundEvent(
   if (!author) return "ignored";
   const agent = Boolean(author.coworkerId) && isExternal(author);
   if (!author.userId && !agent) return "ignored";
-  // An agent only posts: Core lets Coworkers write messages, not edit,
-  // delete or react.
-  if (agent && change.type !== "message") return "ignored";
+  // An agent posts, edits and deletes its own messages; Core keeps reactions
+  // and membership to people.
+  if (
+    agent &&
+    change.type !== "message" &&
+    change.type !== "edit" &&
+    change.type !== "delete"
+  )
+    return "ignored";
   // Seen on Buzz: the person is connected (refreshed at most every minute).
   // Not from an edit or deletion signed with the key Sokosumi keeps: those
   // are Sokosumi's own, coming back.
@@ -3359,24 +3370,67 @@ async function directMessageSigners(relayUrl: string, channelId: string) {
 }
 
 /** Deletes a group with the first of these keys the relay lets do it. */
-async function deleteGroup(
+function deleteGroup(
   relayUrl: string,
   channelId: string,
   signers: Uint8Array[],
 ) {
-  let refusal: unknown = new Error("No key that may delete this channel");
+  // A deleted group is not archived again.
+  return publishWithFirstAllowed(
+    relayUrl,
+    channelId,
+    signers,
+    { kind: BUZZ_KIND.deleteChannel, content: "", tags: [["h", channelId]] },
+    { reArchive: false },
+  );
+}
+
+/**
+ * Takes down a message someone wrote with their own Buzz app, which only an
+ * admin of its channel (Sokosumi, or a DM's opener) may delete for them.
+ */
+async function adminDeleteOnBuzz(
+  relayUrl: string,
+  channel: { channelId: string; membersHash: string | null },
+  eventId: string,
+) {
+  const config = requireConfig();
+  await publishWithFirstAllowed(
+    relayUrl,
+    channel.channelId,
+    [
+      config.operatorSecretKey,
+      ...(isDirect(channel)
+        ? await directMessageSigners(relayUrl, channel.channelId)
+        : []),
+    ],
+    {
+      kind: BUZZ_KIND.adminDelete,
+      content: "",
+      tags: [
+        ["h", channel.channelId],
+        ["e", eventId],
+      ],
+    },
+  );
+}
+
+/** Publishes with the first of these keys the relay accepts it from. */
+async function publishWithFirstAllowed(
+  relayUrl: string,
+  channelId: string,
+  signers: Uint8Array[],
+  draft: EventDraft,
+  options: { reArchive?: boolean } = {},
+) {
+  let refusal: unknown = new Error("No key that may do this in the channel");
   for (const secretKey of signers) {
     try {
       await whileOpen(
         relayUrl,
         channelId,
-        () =>
-          publish(relayUrl, secretKey, {
-            kind: BUZZ_KIND.deleteChannel,
-            content: "",
-            tags: [["h", channelId]],
-          }),
-        { reArchive: false },
+        () => publish(relayUrl, secretKey, draft),
+        options,
       );
       return;
     } catch (error) {

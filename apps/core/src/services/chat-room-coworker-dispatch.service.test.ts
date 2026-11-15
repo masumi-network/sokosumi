@@ -279,7 +279,7 @@ describe("a mention of someone else's personal agent via Buzz", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           content:
-            "I'm Olivia's personal agent via Buzz, so I only answer Olivia.",
+            "I'm Olivia's personal agent, so I only take requests from Olivia. Ask Olivia, or mention a shared Coworker instead.",
         }),
       }),
     );

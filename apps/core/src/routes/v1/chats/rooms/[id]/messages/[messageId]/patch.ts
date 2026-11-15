@@ -11,7 +11,10 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  isCoworkerAuthContext,
+  requireUserAuthContext,
+} from "@/middleware/auth";
 import {
   chatRoomMessageSchema,
   updateChatRoomMessageRequestSchema,
@@ -22,6 +25,7 @@ import { scheduleChatRoomMessageUnfurls } from "@/services/chat-room-message-unf
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
+  requireChatRoomCoworkerAccess,
   requireChatRoomUserWriteAccess,
   withChatRoomReplyCount,
 } from "../../../helpers";
@@ -73,14 +77,23 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserAuthContext(c.var.authContext);
+    // A Coworker edits only its own messages (a Buzz agent editing on Buzz).
+    const coworkerId = isCoworkerAuthContext(c.var.authContext)
+      ? c.var.authContext.coworkerId
+      : null;
+    const userContext = coworkerId
+      ? null
+      : requireUserAuthContext(c.var.authContext);
+    const userId = userContext?.userId ?? null;
+    const authenticationMethod = userContext?.authenticationMethod;
     const { id, messageId } = c.req.valid("param");
     const body = c.req.valid("json");
 
     let contentChanged = false;
 
     const message = await prisma.$transaction(async (tx) => {
-      await requireChatRoomUserWriteAccess(id, userContext.userId, tx);
+      if (coworkerId) await requireChatRoomCoworkerAccess(id, coworkerId, tx);
+      else if (userId) await requireChatRoomUserWriteAccess(id, userId, tx);
 
       const existing = await tx.chatRoomMessage.findFirst({
         where: {
@@ -96,16 +109,33 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       assertChatRoomContentMessage(existing.metadata);
 
-      if (existing.senderCoworkerId) {
+      if (coworkerId) {
+        if (existing.senderCoworkerId !== coworkerId) {
+          throw forbidden("A coworker can only edit its own messages");
+        }
+      } else if (existing.senderCoworkerId) {
         throw forbidden("Coworker messages cannot be edited");
-      }
-
-      if (existing.senderUserId !== userContext.userId) {
+      } else if (existing.senderUserId !== userId) {
         throw forbidden("You can only edit your own messages");
       }
 
       if (existing.deletedAt != null) {
         throw forbidden("Deleted messages cannot be edited");
+      }
+
+      // Written in the person's own Buzz app: only that app can change it on
+      // Buzz, so editing it here would make the two disagree. The bridge
+      // replaying the app's own edits signs in with an API key.
+      if (
+        userId &&
+        authenticationMethod !== "api_key" &&
+        (await tx.buzzMessageLink.count({
+          where: { messageId: existing.id, signerPubkey: { not: null } },
+        })) > 0
+      ) {
+        throw forbidden(
+          "You wrote this message in the Buzz app. Edit it there.",
+        );
       }
 
       if (existing.content === body.content) {
@@ -143,7 +173,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       chatRoomMessageSchema.parse(
         mapChatRoomMessage(
           await withChatRoomReplyCount(prisma, message),
-          userContext.userId,
+          userId ?? undefined,
         ),
       ),
     );

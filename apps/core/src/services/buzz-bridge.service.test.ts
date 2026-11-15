@@ -793,7 +793,7 @@ describe("a person's own Buzz agents", () => {
     });
   });
 
-  it("posts what an agent writes as its Coworker, and never edits it from Sokosumi", async () => {
+  it("posts what an agent writes as its Coworker", async () => {
     db.buzzIdentity.findFirst.mockResolvedValue(agentIdentity);
     core.mockResolvedValueOnce({
       status: 201,
@@ -845,6 +845,65 @@ describe("a person's own Buzz agents", () => {
     expect(core).toHaveBeenCalledWith(
       expect.objectContaining({
         body: expect.objectContaining({ content: "hi @user-bob" }),
+      }),
+    );
+  });
+
+  it("carries an agent's edits and deletions of its own messages to Sokosumi", async () => {
+    db.buzzIdentity.findFirst.mockResolvedValue(agentIdentity);
+    db.chatRoomMessage.findUnique.mockReset();
+    const target = "e".repeat(64);
+    // Only the agent's message is linked; its edit and deletion are new.
+    db.buzzMessageLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId === target
+          ? {
+              messageId: "agent-message",
+              contentHash: "old",
+              lastEditAt: 0,
+              lastEditEventId: null,
+              deleted: false,
+              message: { roomId: "room", deletedAt: null },
+            }
+          : null,
+    );
+    const edit = nostrEvent(
+      {
+        kind: 40003,
+        tags: [
+          ["h", CHANNEL],
+          ["e", target],
+        ],
+        content: "done: all tests pass",
+      },
+      AGENT_KEY,
+    );
+    await expect(applyInboundEvent(edit, core)).resolves.toBe("edited");
+    expect(core).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        apiKey: "coworker_agent-key",
+        method: "PATCH",
+        path: "/v1/chats/rooms/room/messages/agent-message",
+        body: { content: "done: all tests pass" },
+      }),
+    );
+    const deletion = nostrEvent(
+      {
+        kind: 5,
+        tags: [
+          ["h", CHANNEL],
+          ["e", target],
+        ],
+        content: "",
+      },
+      AGENT_KEY,
+    );
+    await expect(applyInboundEvent(deletion, core)).resolves.toBe("deleted");
+    expect(core).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        apiKey: "coworker_agent-key",
+        method: "DELETE",
+        path: "/v1/chats/rooms/room/messages/agent-message",
       }),
     );
   });

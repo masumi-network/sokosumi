@@ -48,7 +48,7 @@ Sokosumi Web ─┐                              ┌─ Buzz app (signs in with 
   needs approval first and those granted by the switch leave. Buzz desktop
   agents answer only their owner (they run as them), which is why you use Buzz
   as you; a reply comes back as the Coworker. Anyone else who mentions one is
-  told so: the agent replies in Sokosumi ("I only answer …"), and Sokosumi posts
+  told so: the agent replies in Sokosumi ("I only take requests from …"), and Sokosumi posts
   the same in the Buzz thread.
 - **Coworkers and Soko Bots** each speak on Buzz with their own key. A
   mention from Buzz runs Sokosumi's usual dispatch, and a message from Buzz in
@@ -111,8 +111,8 @@ local relay has one community. The worker must run somewhere long-lived
   Sokosumi)", since Sokosumi never holds their own key. Sokosumi cannot edit or
   delete on Buzz what the app key wrote. Directs opened before the link stay
   without the app key (a Buzz DM's people are fixed).
-- A Buzz agent only posts into Sokosumi: its edits, deletes and reactions
-  stay on Buzz (Core takes none of those from a Coworker).
+- A Buzz agent's reactions stay on Buzz: Sokosumi keeps reactions to people. Its
+  messages, edits and deletions reach Sokosumi.
 - Linking proves the key joined with an invite issued after the request, not
   which invite: someone could paste another person's `npub` and forward them
   the invite, and their Buzz messages would then count as the requester's. Two

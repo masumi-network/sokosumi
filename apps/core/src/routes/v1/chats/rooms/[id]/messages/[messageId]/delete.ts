@@ -16,19 +16,23 @@ import { publishChatRoomPinnedMessageRealtime } from "@/helpers/chat-room-pinned
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { deleteChatRoomFilesIfOwned } from "@/lib/blob";
+import { type ChatRoomFileOwner, deleteChatRoomFilesIfOwned } from "@/lib/blob";
 import { deleteChatRoomUnfurlSnapshotsIfOwned } from "@/lib/chat-unfurl-snapshot";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  isCoworkerAuthContext,
+  requireUserAuthContext,
+} from "@/middleware/auth";
 import { chatRoomMessageSchema } from "@/schemas/chat-room.schema";
 
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
+  requireChatRoomCoworkerAccess,
   requireChatRoomUserMembership,
   withChatRoomReplyCount,
 } from "../../../helpers";
@@ -76,12 +80,20 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserAuthContext(c.var.authContext);
+    // A Coworker deletes only its own messages (a Buzz agent deleting on Buzz).
+    const authContext = c.var.authContext;
+    const fileOwner: ChatRoomFileOwner = isCoworkerAuthContext(authContext)
+      ? { kind: "coworker", coworkerId: authContext.coworkerId }
+      : { kind: "user", userId: requireUserAuthContext(authContext).userId };
+    const coworkerId =
+      fileOwner.kind === "coworker" ? fileOwner.coworkerId : null;
+    const userId = fileOwner.kind === "user" ? fileOwner.userId : null;
     const { id, messageId } = c.req.valid("param");
 
     const { message, newlySoftDeleted, unpinned, blobCleanup } =
       await prisma.$transaction(async (tx) => {
-        await requireChatRoomUserMembership(id, userContext.userId, tx);
+        if (coworkerId) await requireChatRoomCoworkerAccess(id, coworkerId, tx);
+        else if (userId) await requireChatRoomUserMembership(id, userId, tx);
 
         const existing = await tx.chatRoomMessage.findFirst({
           where: { id: messageId, roomId: id },
@@ -93,7 +105,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         assertChatRoomContentMessage(existing.metadata);
 
-        if (existing.senderUserId !== userContext.userId) {
+        if (
+          coworkerId
+            ? existing.senderCoworkerId !== coworkerId
+            : existing.senderUserId !== userId
+        ) {
           throw forbidden("You can only delete your own messages");
         }
 
@@ -193,7 +209,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       waitUntil(
         deleteChatRoomFilesIfOwned(
           blobCleanup.chatFileUrls,
-          { kind: "user", userId: userContext.userId },
+          fileOwner,
           message.roomId,
         ),
       );
@@ -243,7 +259,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       chatRoomMessageSchema.parse(
         mapChatRoomMessage(
           await withChatRoomReplyCount(prisma, message),
-          userContext.userId,
+          userId ?? undefined,
         ),
       ),
     );

@@ -74,7 +74,9 @@ const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440001";
 const USER_ID = "user_123";
 const OTHER_USER_ID = "user_456";
 
+const buzzLinkCountMock = vi.fn().mockResolvedValue(0);
 const tx = {
+  buzzMessageLink: { count: buzzLinkCountMock },
   chatRoom: {
     findFirst: roomFindFirstMock,
   },
@@ -155,6 +157,7 @@ async function patchMessage(body: unknown, auth = userAuthContext) {
 describe("PATCH /chats/rooms/:id/messages/:messageId", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    buzzLinkCountMock.mockResolvedValue(0);
     prismaTransactionMock.mockImplementation(
       async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx),
     );
@@ -302,14 +305,47 @@ describe("PATCH /chats/rooms/:id/messages/:messageId", () => {
     expect(messageFindFirstMock).not.toHaveBeenCalled();
   });
 
-  it("returns 403 for coworker actors", async () => {
-    const response = await patchMessage(
+  it("lets a coworker edit only its own messages", async () => {
+    const own = {
+      ...mappedMessage,
+      senderUserId: null,
+      senderCoworkerId: "coworker_1",
+      senderUser: null,
+      senderCoworker: {
+        id: "coworker_1",
+        name: "Elena",
+        slug: "elena",
+        caption: null,
+        image: null,
+      },
+    };
+    messageFindFirstMock.mockResolvedValue(mappedMessage);
+    const someoneElses = await patchMessage(
       { content: "hello fixed" },
       coworkerAuthContext,
     );
+    expect(someoneElses.status).toBe(403);
+    expect(messageUpdateMock).not.toHaveBeenCalled();
+    expect(roomFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          coworkerMembers: { some: { coworkerId: "coworker_1" } },
+        }),
+      }),
+    );
 
-    expect(response.status).toBe(403);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    messageFindFirstMock.mockResolvedValue(own);
+    messageUpdateMock.mockResolvedValue({ ...own, content: "hello fixed" });
+    const ownEdit = await patchMessage(
+      { content: "hello fixed" },
+      coworkerAuthContext,
+    );
+    expect(ownEdit.status).toBe(200);
+    expect(messageUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ content: "hello fixed" }),
+      }),
+    );
   });
 
   it("returns 403 when the caller is not the message author", async () => {
@@ -350,6 +386,22 @@ describe("PATCH /chats/rooms/:id/messages/:messageId", () => {
 
     expect(response.status).toBe(403);
     expect(messageUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses an edit from the app to a message written in the Buzz app, and lets the bridge replay one", async () => {
+    buzzLinkCountMock.mockResolvedValue(1);
+    const fromApp = await patchMessage({ content: "hello fixed" });
+    expect(fromApp.status).toBe(403);
+    expect(await fromApp.text()).toContain(
+      "You wrote this message in the Buzz app. Edit it there.",
+    );
+    expect(messageUpdateMock).not.toHaveBeenCalled();
+
+    const fromBridge = await patchMessage(
+      { content: "hello fixed" },
+      { ...userAuthContext, authenticationMethod: "api_key" },
+    );
+    expect(fromBridge.status).toBe(200);
   });
 
   it("returns 403 when the message is soft-deleted", async () => {

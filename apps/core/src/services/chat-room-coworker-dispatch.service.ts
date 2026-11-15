@@ -175,11 +175,11 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
           parentMessageId:
             mention.message.parentMessageId ?? mention.message.id,
           senderCoworkerId: agent.id,
-          content: `I'm ${owner.name}'s personal agent via Buzz, so I only answer ${owner.name}.`,
+          content: `I'm ${owner.name}'s personal agent, so I only take requests from ${owner.name}. Ask ${owner.name}, or mention a shared Coworker instead.`,
           metadata: {
             [PERSONAL_AGENT_REFUSAL]: true,
             // What Sokosumi says on Buzz, where the agent cannot speak for itself.
-            [PERSONAL_AGENT_REFUSAL_NOTICE]: `${agent.name} only answers ${owner.name}: it is their personal agent via Buzz.`,
+            [PERSONAL_AGENT_REFUSAL_NOTICE]: `${agent.name} is ${owner.name}'s personal agent and only takes requests from ${owner.name}. Ask ${owner.name}, or mention a shared Coworker instead.`,
           },
         },
         select: { id: true },
