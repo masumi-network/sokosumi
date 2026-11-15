@@ -48,6 +48,14 @@ it("guesses Number only when every filled cell converts without loss", () => {
   expect(isNumericCsvColumn("amount", ["1", "007"])).toBe(false);
   expect(isNumericCsvColumn("amount", ["1234567890123456"])).toBe(false);
   expect(isNumericCsvColumn("amount", ["123456789012345"])).toBe(true);
+  // Nonzero decimals that underflow to zero or go subnormal stay Text.
+  const tiny = `0.${"0".repeat(323)}1`;
+  expect(Number(tiny)).toBe(0);
+  expect(isNumericCsvColumn("amount", [tiny])).toBe(false);
+  expect(isNumericCsvColumn("amount", [`-${tiny}`])).toBe(false);
+  expect(isNumericCsvColumn("amount", [`0.${"0".repeat(309)}1`])).toBe(false);
+  expect(isNumericCsvColumn("amount", [`0.${"0".repeat(306)}1`])).toBe(true);
+  expect(isNumericCsvColumn("amount", ["0", "0.000", "-0"])).toBe(true);
   // Identifier headers keep their digits as text.
   for (const header of [
     "id",

@@ -403,6 +403,33 @@ it("CSV import presets Number for numeric columns and lets people override it", 
   expect(revenue).toHaveValue("text");
   expect(screen.queryByText("numberGuess")).not.toBeInTheDocument();
 });
+it("CSV import keeps a tiny decimal as text and imports guessed numbers as numbers", async () => {
+  f.create.mockResolvedValue({ id: f.column.tableId });
+  f.batch.mockResolvedValue({ rows: [] });
+  render(<TableCreateDialog workspaceId={null} />);
+  fireEvent.click(screen.getByRole("button", { name: "newTable" }));
+  fireEvent.change(screen.getByLabelText("title"), {
+    target: { value: "Amounts" },
+  });
+  const tiny = `0.${"0".repeat(323)}1`;
+  const csv = `amount,count\n${tiny},5\n,7`;
+  fireEvent.change(screen.getByLabelText("importCsv"), {
+    target: { files: [{ size: csv.length, text: async () => csv }] },
+  });
+  await waitFor(() => expect(screen.getAllByLabelText("type")).toHaveLength(2));
+  const [amount, count] = screen.getAllByLabelText("type");
+  expect(amount).toHaveValue("text");
+  expect(count).toHaveValue("number");
+  fireEvent.click(screen.getByRole("button", { name: "create" }));
+  await waitFor(() => expect(f.batch).toHaveBeenCalledOnce());
+  const [amountId, countId] = f.create.mock.calls[0][0].columns.map(
+    (column: { id: string }) => column.id,
+  );
+  expect(f.batch.mock.calls[0][1].insert).toEqual([
+    { values: { [amountId]: tiny, [countId]: 5 }, evidence: {} },
+    { values: { [amountId]: null, [countId]: 7 }, evidence: {} },
+  ]);
+});
 it("F3: definitive create rejection releases the create attempt", async () => {
   f.create.mockRejectedValueOnce({ error: "Forbidden", message: "Rejected" });
   render(<TableCreateDialog workspaceId={null} />);
