@@ -84,7 +84,7 @@ export function AccountSettings({
           firstName={userFirstName ?? ""}
           lastName={userLastName ?? ""}
         />
-        <EmailForm />
+        <EmailForm currentEmail={userEmail} />
         <div className="md:col-span-2">
           {credentialAccountsLoadError ? (
             credentialAccountsLoadError

@@ -7495,10 +7495,11 @@
       "Email": {
         "title": "E-Mail ändern",
         "description": "Deine E-Mail-Adresse aktualisieren",
+        "descriptionWithCurrent": "Angemeldet als {email}. Wir senden einen Link an die neue Adresse, um die Änderung zu bestätigen.",
         "newEmail": "Neue E-Mail",
         "currentPassword": "Aktuelles Passwort",
         "submit": "E-Mail aktualisieren",
-        "success": "E-Mail erfolgreich aktualisiert",
+        "success": "Öffne den Link, den wir an {email} gesendet haben, um die neue Adresse zu bestätigen.",
         "error": "E-Mail konnte nicht aktualisiert werden"
       },
       "Password": {

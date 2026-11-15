@@ -54,7 +54,10 @@ async function AccountPageContent() {
     getTranslations("App.Account.BillingDetails"),
     getTranslations("App.Account.Delete"),
     listUserAccounts(),
-    getSession(),
+    // Fresh read: DESIGN.md uploads and saves write the user's metadata in
+    // Core, which the session cookie cache does not see for up to five
+    // minutes, so the file row would offer the old file.
+    getSession({ refresh: true }),
     cookies(),
     coreClient.getMyBillingDetails().then(
       (response) => ({ data: response.data }),

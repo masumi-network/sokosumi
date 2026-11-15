@@ -7495,10 +7495,11 @@
       "Email": {
         "title": "Cambiar email",
         "description": "Actualizar tu dirección de email",
+        "descriptionWithCurrent": "Has iniciado sesión como {email}. Enviamos un enlace a la nueva dirección para confirmar el cambio.",
         "newEmail": "Nuevo email",
         "currentPassword": "Contraseña actual",
         "submit": "Actualizar email",
-        "success": "Email actualizado correctamente",
+        "success": "Abre el enlace que enviamos a {email} para confirmar tu nueva dirección.",
         "error": "No se pudo actualizar el email"
       },
       "Password": {

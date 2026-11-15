@@ -29,7 +29,12 @@ import { changeEmail } from "@/lib/auth/auth.client";
 import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
 import { type EmailFormSchemaType, emailFormSchema } from "@/lib/schemas/auth";
 
-export function EmailForm() {
+interface EmailFormProps {
+  /** The address the account signs in with today. */
+  currentEmail?: string;
+}
+
+export function EmailForm({ currentEmail }: EmailFormProps) {
   const t = useTranslations("App.Account.Email");
   const router = useRouter();
   const {
@@ -62,7 +67,9 @@ export function EmailForm() {
         );
         toast.error(errorMessage);
       } else {
-        toast.success(t("success"));
+        // Better Auth only sends a link to the new address; the email changes
+        // when that link is opened, so this is not a success yet.
+        toast.success(t("success", { email: values.email }));
         form.reset();
         router.refresh();
       }
@@ -78,7 +85,11 @@ export function EmailForm() {
           <fieldset className="space-y-6" disabled={isSubmitting}>
             <CardHeader>
               <CardTitle>{t("title")}</CardTitle>
-              <CardDescription>{t("description")}</CardDescription>
+              <CardDescription>
+                {currentEmail
+                  ? t("descriptionWithCurrent", { email: currentEmail })
+                  : t("description")}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField

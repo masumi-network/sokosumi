@@ -7531,10 +7531,11 @@
       "Email": {
         "title": "Change email",
         "description": "Update your email address",
+        "descriptionWithCurrent": "Signed in as {email}. We email a link to the new address to confirm the change.",
         "newEmail": "New email",
         "currentPassword": "Current password",
         "submit": "Update email",
-        "success": "Email updated successfully",
+        "success": "Check {email} for a link to confirm your new address.",
         "error": "Failed to update email"
       },
       "Password": {
