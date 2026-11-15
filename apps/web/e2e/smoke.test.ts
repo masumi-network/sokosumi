@@ -24,6 +24,7 @@ const KNOWN_ERROR = /Refused to execute script .*%2F[0-9a-f]{16}%2Fscript\.js/;
 let browser: Browser;
 before(async () => {
   mkdirSync(RESULTS_DIR, { recursive: true });
+  console.log(`E2E_BASE_URL=${BASE_URL}`);
   browser = await chromium.launch();
 });
 after(() => browser.close());

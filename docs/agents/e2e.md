@@ -2,7 +2,7 @@
 
 Required before changing `apps/web/e2e/` or running it. Paths are relative to the repository root.
 
-The harness in `apps/web/e2e/` drives a real browser against a deployed Web app with Playwright (already locked in `apps/web`) and `node:test`. It adds no dependencies and runs in no CI job yet; a preview-CI job is a follow-up.
+The harness in `apps/web/e2e/` drives a real browser against a deployed Web app with Playwright (already locked in `apps/web`) and `node:test`. It uses `node:test`, not Vitest, so `Test Web` never runs it without a target URL. It adds no dependencies and runs in no CI job yet; a preview-CI job is a follow-up.
 
 ## Run
 
