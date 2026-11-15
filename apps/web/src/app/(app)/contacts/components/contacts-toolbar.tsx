@@ -9,6 +9,7 @@ import type {
 import {
   ChevronDown,
   CircleDot,
+  Copy,
   GitMerge,
   ListFilter,
   ListMinus,
@@ -253,6 +254,7 @@ export function ContactsBulkBar({
   onSetStage,
   onAddToList,
   onRemoveFromList,
+  onCopyEmails,
   onMerge,
   onClear,
 }: {
@@ -263,6 +265,7 @@ export function ContactsBulkBar({
   onSetStage: (stage: ContactStage) => void;
   onAddToList: (list: ContactList) => void;
   onRemoveFromList: (list: ContactList) => void;
+  onCopyEmails: () => void;
   onMerge: () => void;
   onClear: () => void;
 }) {
@@ -345,6 +348,15 @@ export function ContactsBulkBar({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+      <Button
+        size="sm"
+        variant="ghost"
+        className={action}
+        onClick={onCopyEmails}
+      >
+        <Copy aria-hidden className="size-4" />
+        {t("bulk.copyEmails")}
+      </Button>
       <Button
         size="sm"
         variant="ghost"

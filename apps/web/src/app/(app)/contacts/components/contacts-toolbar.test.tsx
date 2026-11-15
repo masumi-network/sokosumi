@@ -16,6 +16,7 @@ describe("ContactsBulkBar", () => {
         lists={[]}
         viewList={null}
         onSetStage={onSetStage}
+        onCopyEmails={vi.fn()}
         onAddToList={vi.fn()}
         onRemoveFromList={vi.fn()}
         onMerge={vi.fn()}

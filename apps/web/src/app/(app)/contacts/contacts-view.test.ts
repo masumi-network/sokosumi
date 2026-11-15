@@ -5,6 +5,7 @@ import {
   type ContactView,
   channelHref,
   channelLabel,
+  contactEmails,
   contactQuery,
   coreErrorOf,
   daysSince,
@@ -121,6 +122,18 @@ describe("email and reply", () => {
     ).toBe("a@x.co");
     expect(primaryEmail([channel("b@x.co", false)])).toBe("b@x.co");
     expect(primaryEmail([channel("+41790000000", true, "PHONE")])).toBeNull();
+  });
+
+  it("collects one address per contact for copying, skipping those without", () => {
+    expect(
+      contactEmails([
+        { channels: [channel("b@x.co", false), channel("a@x.co", true)] },
+        { channels: [channel("A@X.co", true)] },
+        { channels: [channel("+41790000000", true, "PHONE")] },
+        { channels: [] },
+        { channels: [channel("c@x.co", false)] },
+      ]),
+    ).toEqual({ emails: ["a@x.co", "c@x.co"], skipped: 2 });
   });
 
   it("counts whole days waited, never below zero", () => {
