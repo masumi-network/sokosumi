@@ -8932,7 +8932,8 @@
         "copyIdentity": "Copy your Buzz identity",
         "personalAgent": "Personal agent",
         "copyAgentKey": "Copy {name}'s Buzz key",
-        "organizationDescription": "This organization's chats are also on Buzz: members chat in the same rooms from the Buzz app."
+        "organizationDescription": "This organization's chats are also on Buzz: members chat in the same rooms from the Buzz app.",
+        "communitiesTitle": "Communities"
       }
     },
     "Channels": {

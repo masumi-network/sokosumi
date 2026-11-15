@@ -8887,7 +8887,8 @@
         "copyIdentity": "Copiar tu identidad de Buzz",
         "personalAgent": "Agente personal",
         "copyAgentKey": "Copiar la clave de Buzz de {name}",
-        "organizationDescription": "Los chats de esta organización también están en Buzz: los miembros chatean en las mismas salas desde la app de Buzz."
+        "organizationDescription": "Los chats de esta organización también están en Buzz: los miembros chatean en las mismas salas desde la app de Buzz.",
+        "communitiesTitle": "Comunidades"
       }
     },
     "Coworkers": {

@@ -3,7 +3,6 @@
 import { Check, Copy } from "lucide-react";
 import {
   motion,
-  useMotionTemplate,
   useMotionValue,
   useReducedMotion,
   useSpring,
@@ -15,7 +14,7 @@ import { toast } from "sonner";
 import { BUZZ_COLORS, BuzzMark } from "@/components/buzz/buzz-brand";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-const { yellow, ink, paleBee } = BUZZ_COLORS;
+const { yellow, ink } = BUZZ_COLORS;
 /** Critically damped: the card follows the pointer and settles without bounce. */
 const TILT_SPRING = { stiffness: 260, damping: 26, mass: 0.6 };
 const MAX_TILT_DEGREES = 14;
@@ -57,12 +56,6 @@ export function BuzzAgentCard({
     useTransform(pointerX, (x) => x * MAX_TILT_DEGREES),
     TILT_SPRING,
   );
-  const sheenX = useTransform(rotateY, [-14, 14], [10, 90]);
-  const sheenY = useTransform(rotateX, [14, -14], [10, 90]);
-  const sheen = useMotionTemplate`radial-gradient(circle at ${sheenX}% ${sheenY}%, ${paleBee}99, transparent 60%)`;
-  const shadowX = useTransform(rotateY, (deg) => -deg * 0.8);
-  const shadowY = useTransform(rotateX, (deg) => 14 + deg * 0.8);
-  const shadow = useMotionTemplate`${shadowX}px ${shadowY}px 28px -12px ${ink}66`;
 
   const track = (event: PointerEvent<HTMLDivElement>) => {
     if (reduceMotion || event.pointerType === "touch") return;
@@ -100,7 +93,7 @@ export function BuzzAgentCard({
         data-testid="buzz-agent-card"
         onPointerMove={track}
         onPointerLeave={release}
-        className="relative flex aspect-[4/5] flex-col justify-between rounded-2xl p-4"
+        className="relative flex aspect-[4/5] flex-col justify-between rounded-2xl p-4 shadow-sm transition-shadow hover:shadow-md"
         style={{
           rotateX,
           rotateY,
@@ -109,16 +102,8 @@ export function BuzzAgentCard({
           color: ink,
           backgroundImage: `radial-gradient(${ink}26 1px, transparent 1.2px)`,
           backgroundSize: "14px 14px",
-          boxShadow: shadow,
         }}
       >
-        {reduceMotion ? null : (
-          <motion.span
-            aria-hidden
-            className="pointer-events-none absolute inset-0 rounded-2xl"
-            style={{ backgroundImage: sheen }}
-          />
-        )}
         <div
           className="relative flex items-center justify-between gap-2"
           style={{ transform: "translateZ(24px)" }}
@@ -160,7 +145,7 @@ export function BuzzAgentCard({
             className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full px-2 py-1 font-mono text-xs transition-transform active:scale-95"
             style={{ backgroundColor: `${ink}14` }}
           >
-            <span className="truncate">{`${npub.slice(0, 10)}…${npub.slice(-6)}`}</span>
+            <span className="truncate">{`${npub.slice(0, 9)}…${npub.slice(-4)}`}</span>
             {copied ? (
               <Check className="size-3.5 shrink-0" aria-hidden />
             ) : (

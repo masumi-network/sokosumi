@@ -61,7 +61,7 @@ export function SocialAccounts({ accounts }: SocialAccountsProps) {
         return (
           <div
             key={provider}
-            className="bg-card flex items-center gap-3 rounded-xl border p-4"
+            className="flex items-center gap-3 rounded-lg border p-3"
           >
             <span className="bg-background flex size-10 shrink-0 items-center justify-center rounded-lg border [&>svg]:size-5">
               {SOCIAL_PROVIDER_ICONS[provider]}
