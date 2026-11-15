@@ -15,9 +15,10 @@ describe("GradientBackground", () => {
   it("is a decorative canvas that draws nothing without WebGL", () => {
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     const { container } = render(<GradientBackground className="h-10" />);
-    const canvas = container.querySelector("canvas");
-    expect(canvas).toHaveAttribute("aria-hidden", "true");
-    expect(canvas).toHaveClass("pointer-events-none", "h-10");
+    const box = container.firstElementChild;
+    expect(box).toHaveAttribute("aria-hidden", "true");
+    expect(box).toHaveClass("pointer-events-none", "h-10");
+    expect(box?.querySelector("canvas")).toHaveClass("size-full");
   });
 });
 
