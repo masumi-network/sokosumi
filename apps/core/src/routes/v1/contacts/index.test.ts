@@ -19,6 +19,7 @@ const {
     listContacts: vi.fn(),
     mergeContacts: vi.fn(),
     setContactsStage: vi.fn(),
+    undoContactsStage: vi.fn(),
   },
   listServices: { createContactList: vi.fn() },
   exportContactsCsv: vi.fn(),
@@ -313,13 +314,13 @@ describe("contacts routes", () => {
   });
 
   it("sets one stage on many contacts and refuses bad input before Core", async () => {
-    services.setContactsStage.mockResolvedValue({ updated: 2 });
+    services.setContactsStage.mockResolvedValue({ updated: 2, undo: [] });
     const ok = await post("/contacts/stage", {
       contactIds: [CONTACT_ID, "0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e90"],
       stage: "CUSTOMER",
     });
     expect(ok.status).toBe(200);
-    expect((await ok.json()).data).toEqual({ updated: 2 });
+    expect((await ok.json()).data).toEqual({ updated: 2, undo: [] });
     expect(services.setContactsStage).toHaveBeenCalledWith(
       {},
       expect.objectContaining({ userId: "user_1" }),
@@ -339,5 +340,28 @@ describe("contacts routes", () => {
     ])
       expect((await post("/contacts/stage", body)).status).toBe(422);
     expect(services.setContactsStage).not.toHaveBeenCalled();
+  });
+
+  it("undoes a bulk stage change per contact and refuses bad input before Core", async () => {
+    services.undoContactsStage.mockResolvedValue({ restored: 1, skipped: 0 });
+    const contacts = [{ id: CONTACT_ID, stage: "LEAD", version: 3 }];
+    const ok = await post("/contacts/stage/undo", { contacts });
+    expect(ok.status).toBe(200);
+    expect((await ok.json()).data).toEqual({ restored: 1, skipped: 0 });
+    expect(services.undoContactsStage).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ userId: "user_1" }),
+      contacts,
+    );
+
+    services.undoContactsStage.mockClear();
+    for (const body of [
+      { contacts: [] },
+      { contacts: [{ id: CONTACT_ID, stage: "CONTACTED", version: 3 }] },
+      { contacts: [{ id: CONTACT_ID, stage: "LEAD", version: 0 }] },
+      { contacts: Array.from({ length: 501 }, () => contacts[0]) },
+    ])
+      expect((await post("/contacts/stage/undo", body)).status).toBe(422);
+    expect(services.undoContactsStage).not.toHaveBeenCalled();
   });
 });

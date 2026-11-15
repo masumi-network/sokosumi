@@ -14,6 +14,7 @@ import {
   type createContactSchema,
   normalizeContactChannelValue,
   type setContactsStageSchema,
+  type undoContactsStageSchema,
   type updateContactSchema,
 } from "@sokosumi/utils";
 import { v7 as uuidv7 } from "uuid";
@@ -743,17 +744,23 @@ export async function updateContact(
   return loadContactDto(tx, id, actor.userId);
 }
 
+type ContactStageUndo = z.infer<
+  typeof undoContactsStageSchema
+>["contacts"][number];
+
 /**
  * Sets one stage on many contacts. Every id must be a live contact of the
  * workspace, or nothing changes. Contacts already at the stage stay as they
- * are; the rest get a new version and an UPDATED activity entry.
+ * are; the rest get a new version and an UPDATED activity entry. `undo` holds
+ * each changed contact's earlier stage and new version for
+ * `undoContactsStage`.
  */
 export async function setContactsStage(
   tx: Tx,
   actor: ContactActor,
   contactIds: string[],
   stage: z.infer<typeof setContactsStageSchema>["stage"],
-): Promise<{ updated: number }> {
+): Promise<{ updated: number; undo: ContactStageUndo[] }> {
   const ids = [...new Set(contactIds)];
   const contacts = await tx.contact.findMany({
     where: {
@@ -761,26 +768,95 @@ export async function setContactsStage(
       workspaceId: actor.workspaceId,
       mergedIntoId: null,
     },
-    select: { id: true, stage: true },
+    select: { id: true, stage: true, version: true },
   });
   if (contacts.length !== ids.length) throw notFound("Contact not found");
   const changing = contacts.filter((contact) => contact.stage !== stage);
-  if (!changing.length) return { updated: 0 };
+  if (!changing.length) return { updated: 0, undo: [] };
   await tx.contact.updateMany({
     where: { id: { in: changing.map((contact) => contact.id) } },
     data: { stage, version: { increment: 1 } },
   });
+  await recordStageChanges(
+    tx,
+    actor,
+    changing.map((contact) => ({ ...contact, after: stage })),
+  );
+  return {
+    updated: changing.length,
+    undo: changing.map((contact) => ({
+      id: contact.id,
+      stage: contact.stage,
+      version: contact.version + 1,
+    })),
+  };
+}
+
+/**
+ * Puts each contact back on its own earlier stage. Contacts that changed
+ * since (another version), were merged, or are not in this workspace are
+ * skipped, so an undo never overwrites a later edit and a second undo
+ * restores nothing.
+ */
+export async function undoContactsStage(
+  tx: Tx,
+  actor: ContactActor,
+  undo: ContactStageUndo[],
+): Promise<{ restored: number; skipped: number }> {
+  const wanted = new Map(undo.map((item) => [item.id, item]));
+  const contacts = await tx.contact.findMany({
+    where: {
+      id: { in: [...wanted.keys()] },
+      workspaceId: actor.workspaceId,
+      mergedIntoId: null,
+    },
+    select: { id: true, stage: true, version: true },
+  });
+  const restoring = contacts.flatMap((contact) => {
+    const item = wanted.get(contact.id);
+    return item?.version === contact.version
+      ? [{ ...contact, after: item.stage }]
+      : [];
+  });
+  // One write per earlier stage: a mixed selection goes back to mixed stages.
+  for (const stage of new Set(restoring.map((contact) => contact.after)))
+    await tx.contact.updateMany({
+      where: {
+        id: {
+          in: restoring
+            .filter((contact) => contact.after === stage)
+            .map((contact) => contact.id),
+        },
+      },
+      data: { stage, version: { increment: 1 } },
+    });
+  await recordStageChanges(tx, actor, restoring);
+  return {
+    restored: restoring.length,
+    skipped: wanted.size - restoring.length,
+  };
+}
+
+async function recordStageChanges(
+  tx: Tx,
+  actor: ContactActor,
+  contacts: Array<{
+    id: string;
+    stage: ContactStageUndo["stage"];
+    after: ContactStageUndo["stage"];
+  }>,
+) {
+  if (!contacts.length) return;
   await tx.contactActivity.createMany({
-    data: changing.map((contact) => ({
+    data: contacts.map((contact) => ({
       workspaceId: actor.workspaceId,
       contactId: contact.id,
       userId: actor.userId,
       sokoBotId: actor.sokoBotId,
       kind: "UPDATED" as const,
-      changes: { stage: { before: contact.stage, after: stage } },
+      changes: { stage: { before: contact.stage, after: contact.after } },
     })),
   });
-  return { updated: changing.length };
 }
 
 export async function setContactArchived(

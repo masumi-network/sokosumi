@@ -34870,6 +34870,11 @@ export type PostContactsStageResponses = {
     200: {
         data: {
             updated: number;
+            undo: Array<{
+                id: string;
+                stage: 'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT';
+                version: number;
+            }>;
         };
         meta: {
             timestamp: Date;
@@ -34880,6 +34885,132 @@ export type PostContactsStageResponses = {
 };
 
 export type PostContactsStageResponse = PostContactsStageResponses[keyof PostContactsStageResponses];
+
+export type PostContactsStageUndoData = {
+    body?: {
+        contacts: Array<{
+            id: string;
+            stage: 'CONTACT' | 'PROSPECT' | 'LEAD' | 'ACTIVE' | 'CUSTOMER' | 'PARTNER' | 'INVESTOR' | 'VENDOR' | 'ADVISOR' | 'COMMUNITY' | 'PRESS' | 'FRIEND' | 'DORMANT';
+            version: number;
+        }>;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contacts/stage/undo';
+};
+
+export type PostContactsStageUndoErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * A concurrent change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid contacts
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsStageUndoError = PostContactsStageUndoErrors[keyof PostContactsStageUndoErrors];
+
+export type PostContactsStageUndoResponses = {
+    /**
+     * Stages restored
+     */
+    200: {
+        data: {
+            restored: number;
+            skipped: number;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsStageUndoResponse = PostContactsStageUndoResponses[keyof PostContactsStageUndoResponses];
 
 export type PostContactsImportData = {
     body?: {

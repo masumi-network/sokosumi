@@ -413,6 +413,23 @@ export const setContactsStageSchema = z.object({
   stage: z.enum(CONTACT_STAGES),
 });
 
+/**
+ * Puts each contact back on its own earlier stage, but only while it is still
+ * at `version`: a contact someone changed since stays as it is.
+ */
+export const undoContactsStageSchema = z.object({
+  contacts: z
+    .array(
+      z.object({
+        id: z.uuid(),
+        stage: z.enum(CONTACT_STAGES),
+        version: z.int().positive(),
+      }),
+    )
+    .min(1)
+    .max(500),
+});
+
 export const mergeContactsSchema = z
   .object({
     winnerId: z.uuid(),
