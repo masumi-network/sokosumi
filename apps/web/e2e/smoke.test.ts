@@ -16,11 +16,6 @@ const PROJECTS = [
 ];
 const PAGES = ["/signin", "/signup"];
 
-// Known app defect, not a harness bug: the signed-out proxy redirects Vercel's
-// hashed first-party analytics script (`/<16 hex>/script.js`) to `/signin`, so
-// the browser refuses the HTML as a script. Remove once the proxy lets it pass.
-const KNOWN_ERROR = /Refused to execute script .*%2F[0-9a-f]{16}%2Fscript\.js/;
-
 let browser: Browser;
 before(async () => {
   mkdirSync(RESULTS_DIR, { recursive: true });
@@ -38,8 +33,7 @@ for (const { name, ...viewport } of PROJECTS) {
         const errors: string[] = [];
         page.on("pageerror", (e) => errors.push(e.message));
         page.on("console", (m) => {
-          if (m.type() === "error" && !KNOWN_ERROR.test(m.text()))
-            errors.push(m.text());
+          if (m.type() === "error") errors.push(m.text());
         });
 
         const response = await page.goto(BASE_URL + path);
