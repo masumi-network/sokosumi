@@ -18,6 +18,10 @@ vi.mock("@/components/ui/document-viewer", () => ({
   ),
 }));
 
+vi.mock("@/components/spreadsheet/spreadsheet-view", () => ({
+  SpreadsheetFileView: () => <div data-testid="spreadsheet-view" />,
+}));
+
 const store = { scope: "me" } as const;
 const noop = () => undefined;
 
@@ -86,6 +90,21 @@ describe("DriveFileViewer", () => {
     ).toHaveAttribute(
       "href",
       "/api/drive/files/res-1/content?scope=me&download=true",
+    );
+  });
+
+  it("offers Download and Details beside a table preview", () => {
+    open("team.csv", "text/csv");
+    expect(screen.getByTestId("spreadsheet-view")).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "previewDownload" }),
+    ).toHaveAttribute(
+      "href",
+      "/api/drive/files/res-1/content?scope=me&download=true",
+    );
+    expect(screen.getByRole("link", { name: "viewerDetails" })).toHaveAttribute(
+      "href",
+      "/drive/files/res-1",
     );
   });
 
