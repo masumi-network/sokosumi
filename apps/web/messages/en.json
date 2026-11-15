@@ -11070,6 +11070,11 @@
       "bulk": {
         "label": "Selected contacts",
         "selected": "{count} selected",
+        "setStage": "Set relationship",
+        "stageSet": "{count, plural, =1 {Set 1 contact to {stage}} other {Set # contacts to {stage}}}",
+        "stageUndone": "{count, plural, =1 {Restored 1 contact's relationship} other {Restored # contacts' relationships}}",
+        "stageUndonePartly": "{count, plural, =0 {Nothing restored: all {total} contacts changed since} other {Restored # of {total} contacts; the rest changed since}}",
+        "undo": "Undo",
         "addToList": "Add to list",
         "removeFromList": "Remove from list",
         "copyEmails": "Copy emails",

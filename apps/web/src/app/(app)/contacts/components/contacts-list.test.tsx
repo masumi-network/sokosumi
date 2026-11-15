@@ -123,6 +123,7 @@ describe("ContactsBulkBar", () => {
         count={2}
         lists={[]}
         viewList={null}
+        onSetStage={vi.fn()}
         onAddToList={vi.fn()}
         onRemoveFromList={vi.fn()}
         onCopyEmails={onCopyEmails}
