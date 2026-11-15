@@ -848,7 +848,8 @@
         "heading": "{count, plural, one {# Frage im Datenraum wartet auf eine Antwort} other {# Fragen im Datenraum warten auf eine Antwort}}",
         "loadError": "Die Fragen aus den Datenräumen konnten nicht geladen werden",
         "byline": "{who} zu {document} in {room}",
-        "action": "Antworten"
+        "action": "Antworten",
+        "showOlder": "Ältere Fragen anzeigen"
       }
     },
     "HashValue": {

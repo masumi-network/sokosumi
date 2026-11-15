@@ -290,7 +290,11 @@ beforeEach(() => {
   ]) {
     mock.mockReset();
   }
-  fetchWaitingQuestionsMock.mockResolvedValue({ count: 0, questions: [] });
+  fetchWaitingQuestionsMock.mockResolvedValue({
+    total: 0,
+    nextCursor: null,
+    questions: [],
+  });
   sessionMock.mockReturnValue({ data: null });
   isMobileMock.mockReturnValue(false);
   accountNoticeMock.mockReturnValue({ notice: null });
@@ -1702,7 +1706,8 @@ describe("Notification Center Needs you view", () => {
     getTasksSummaryMock.mockResolvedValue({ data: { awaitingInput: 0 } });
     getTasksMock.mockResolvedValue({ data: [] });
     fetchWaitingQuestionsMock.mockResolvedValue({
-      count: 1,
+      total: 1,
+      nextCursor: null,
       questions: [
         {
           id: "q1",

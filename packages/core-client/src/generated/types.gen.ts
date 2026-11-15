@@ -4742,18 +4742,12 @@ export type CreateDataRoomRequest = {
     folderPath: string;
 };
 
-export type WaitingDataRoomQuestions = {
+export type WaitingDataRoomQuestion = DataRoomQuestion & {
+    roomId: string;
     /**
-     * Every unanswered question, also past the listed ones.
+     * The room's title, else its folder name.
      */
-    count: number;
-    questions: Array<DataRoomQuestion & {
-        roomId: string;
-        /**
-         * The room's title, else its folder name.
-         */
-        roomName: string;
-    }>;
+    roomName: string;
 };
 
 export type DataRoomQuestion = {
@@ -38550,6 +38544,14 @@ export type GetDriveDataRoomsQuestionsData = {
          */
         scope: 'me' | 'org';
         organizationId?: string;
+        /**
+         * The last question id of the previous page.
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
     };
     url: '/drive/data-rooms/questions';
 };
@@ -38609,11 +38611,11 @@ export type GetDriveDataRoomsQuestionsResponses = {
      * Waiting questions
      */
     200: {
-        data: WaitingDataRoomQuestions;
+        data: Array<WaitingDataRoomQuestion>;
         meta: {
             timestamp: Date;
             requestId: string;
-            pagination?: PaginationMetadata;
+            pagination: PaginationMetadata;
         };
     };
 };

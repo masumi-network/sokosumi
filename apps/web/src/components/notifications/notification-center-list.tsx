@@ -232,7 +232,7 @@ export function NotificationCenterList({
         isLoadingWaitingTasks ||
         isLoadingWaitingQuestions ||
         (waitingTasks?.count ?? 0) > 0 ||
-        (waitingQuestions?.count ?? 0) > 0)
+        (waitingQuestions?.pages[0]?.total ?? 0) > 0)
     ) {
       return null;
     }

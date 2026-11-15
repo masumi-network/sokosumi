@@ -17050,44 +17050,27 @@ export const CreateDataRoomRequestSchema = {
     ]
 } as const;
 
-export const WaitingDataRoomQuestionsSchema = {
-    type: 'object',
-    properties: {
-        count: {
-            type: 'integer',
-            minimum: 0,
-            description: 'Every unanswered question, also past the listed ones.'
+export const WaitingDataRoomQuestionSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/DataRoomQuestion'
         },
-        questions: {
-            type: 'array',
-            items: {
-                allOf: [
-                    {
-                        $ref: '#/components/schemas/DataRoomQuestion'
-                    },
-                    {
-                        type: 'object',
-                        properties: {
-                            roomId: {
-                                type: 'string'
-                            },
-                            roomName: {
-                                type: 'string',
-                                description: 'The room\'s title, else its folder name.'
-                            }
-                        },
-                        required: [
-                            'roomId',
-                            'roomName'
-                        ]
-                    }
-                ]
-            }
+        {
+            type: 'object',
+            properties: {
+                roomId: {
+                    type: 'string'
+                },
+                roomName: {
+                    type: 'string',
+                    description: 'The room\'s title, else its folder name.'
+                }
+            },
+            required: [
+                'roomId',
+                'roomName'
+            ]
         }
-    },
-    required: [
-        'count',
-        'questions'
     ]
 } as const;
 

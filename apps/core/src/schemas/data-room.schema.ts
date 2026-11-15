@@ -6,6 +6,7 @@ import {
 } from "@sokosumi/database";
 
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
+import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import type { DataRoomTreeRow } from "@/services/data-room-files.service";
 import type { DataRoomMemberSummary } from "@/services/data-room-members.service";
 
@@ -283,21 +284,29 @@ export function toDataRoomQuestionDto(question: {
   };
 }
 
-export const waitingDataRoomQuestionsSchema = z
-  .object({
-    count: z.number().int().nonnegative().openapi({
-      description: "Every unanswered question, also past the listed ones.",
-    }),
-    questions: z.array(
-      dataRoomQuestionSchema.extend({
-        roomId: z.string(),
-        roomName: z
-          .string()
-          .openapi({ description: "The room's title, else its folder name." }),
-      }),
-    ),
+export const waitingDataRoomQuestionSchema = dataRoomQuestionSchema
+  .extend({
+    roomId: z.string(),
+    roomName: z
+      .string()
+      .openapi({ description: "The room's title, else its folder name." }),
   })
-  .openapi("WaitingDataRoomQuestions");
+  .openapi("WaitingDataRoomQuestion");
+
+export const waitingDataRoomQuestionsQuerySchema = z
+  .object({
+    ...storeFields,
+    ...cursorPaginationQuerySchema.shape,
+    cursor: z
+      .string()
+      .uuid()
+      .optional()
+      .openapi({
+        param: { name: "cursor", in: "query" },
+        description: "The last question id of the previous page.",
+      }),
+  })
+  .openapi("WaitingDataRoomQuestionsQuery");
 
 export const answerDataRoomQuestionRequestSchema = z
   .object({ ...storeFields, answer: z.string().min(1).max(5_000) })

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { MessageCircleQuestionMark } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -14,11 +14,14 @@ import {
   needsYouDataRoomQuestionsQueryOptions,
 } from "@/queries/needs-you-data-room-questions";
 
-/** The unanswered data room questions, shared by the tab count and the rows. */
+/**
+ * The unanswered data room questions, shared by the tab count and the rows.
+ * `total` counts every one, also those on pages not read yet.
+ */
 export function useNeedsYouDataRoomQuestions() {
   const { data: session } = useSession();
 
-  return useQuery(
+  return useInfiniteQuery(
     needsYouDataRoomQuestionsQueryOptions(
       session?.user.id,
       session?.session.activeOrganizationId ?? null,
@@ -38,9 +41,10 @@ interface NotificationDataRoomQuestionsProps {
 
 /**
  * Questions viewers asked in the reader's data rooms that nobody has
- * answered, as Needs you lists them. Each row is one link to the room's
- * Questions tab, opened on that question, which is where the answer is
- * given; answering there takes the row away.
+ * answered, as Needs you lists them, newest first. Each row is one link to
+ * the room's Questions tab, opened on that question, which is where the
+ * answer is given; answering there takes the row away. Older questions come
+ * a page at a time below, so every counted question can be reached.
  */
 export function NotificationDataRoomQuestions({
   onNavigate,
@@ -48,7 +52,14 @@ export function NotificationDataRoomQuestions({
   const t = useTranslations("Components.NotificationCenter.DataRoomQuestions");
   const tCenter = useTranslations("Components.NotificationCenter");
   const formatTime = useNotificationTimeFormatter();
-  const { data, isError, refetch } = useNeedsYouDataRoomQuestions();
+  const {
+    data,
+    isError,
+    refetch,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useNeedsYouDataRoomQuestions();
   // The panel and the page can both be open, so the heading id is per frame.
   const headingId = useId();
 
@@ -68,19 +79,21 @@ export function NotificationDataRoomQuestions({
     );
   }
 
-  if (!data || data.count === 0) {
+  const total = data?.pages[0]?.total ?? 0;
+  if (total === 0) {
     return null;
   }
+  const questions = data?.pages.flatMap((page) => page.questions) ?? [];
 
   return (
     <section aria-labelledby={headingId}>
       <div className="px-3 pt-3 pb-1">
         <h2 id={headingId} className="text-sm font-medium">
-          {t("heading", { count: data.count })}
+          {t("heading", { count: total })}
         </h2>
       </div>
       <ul className="divide-border divide-y">
-        {data.questions.map((question) => (
+        {questions.map((question) => (
           <li key={question.id}>
             <Link
               href={dataRoomQuestionHref(question)}
@@ -121,6 +134,19 @@ export function NotificationDataRoomQuestions({
           </li>
         ))}
       </ul>
+      {hasNextPage ? (
+        <div className="flex justify-center p-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            loading={isFetchingNextPage}
+            onClick={() => void fetchNextPage()}
+          >
+            {t("showOlder")}
+          </Button>
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -2182,7 +2182,7 @@ export const postDriveDataRooms = <ThrowOnError extends boolean = false>(options
 });
 
 /**
- * Unanswered viewer questions across the Drive's data rooms the caller may run, newest first.
+ * Unanswered viewer questions across the Drive's data rooms the caller may run, newest first (paginated; total counts them all).
  */
 export const getDriveDataRoomsQuestions = <ThrowOnError extends boolean = false>(options: Options<GetDriveDataRoomsQuestionsData, ThrowOnError>): RequestResult<GetDriveDataRoomsQuestionsResponses, GetDriveDataRoomsQuestionsErrors, ThrowOnError> => (options.client ?? client).get<GetDriveDataRoomsQuestionsResponses, GetDriveDataRoomsQuestionsErrors, ThrowOnError>({
     responseTransformer: getDriveDataRoomsQuestionsResponseTransformer,

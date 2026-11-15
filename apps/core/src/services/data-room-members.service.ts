@@ -377,36 +377,42 @@ export async function listDataRoomQuestions(input: {
   });
 }
 
-/** Rows Needs you lists before the count says there are more. */
-export const WAITING_DATA_ROOM_QUESTIONS_LIMIT = 50;
-
 /**
  * Questions nobody has answered yet, across every room of this Drive the
- * caller may run (the rooms `listDataRooms` shows them), newest first. A
- * closing room's questions are left out: its viewers are being let go.
+ * caller may run (the rooms `listDataRooms` shows them), newest first, a
+ * page at a time. A closing room's questions are left out: its viewers are
+ * being let go.
+ *
+ * Ids are UUIDv7, so id order is creation order: the cursor is the last id
+ * seen and the next page is every id below it. That keeps working when the
+ * cursor's own question was answered in the meantime.
  */
-export async function listWaitingDataRoomQuestions(store: DataRoomCaller) {
+export async function listWaitingDataRoomQuestions(
+  store: DataRoomCaller,
+  page: { cursor?: string; take: number },
+) {
   const rooms = (await listDataRooms(store)).filter(
     (room) => room.storage !== DataRoomStorage.MOVING_OUT,
   );
-  if (rooms.length === 0) return { count: 0, questions: [] };
+  if (rooms.length === 0) return { count: 0, questions: [], hasMore: false };
   const where = {
     roomId: { in: rooms.map((room) => room.id) },
     answeredAt: null,
   };
-  const [count, questions] = await Promise.all([
+  const [count, rows] = await Promise.all([
     prisma.dataRoomQuestion.count({ where }),
     prisma.dataRoomQuestion.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: WAITING_DATA_ROOM_QUESTIONS_LIMIT,
+      where: page.cursor ? { ...where, id: { lt: page.cursor } } : where,
+      orderBy: { id: "desc" },
+      take: page.take + 1,
       include: { member: { select: { email: true, name: true } } },
     }),
   ]);
   const byId = new Map(rooms.map((room) => [room.id, room]));
   return {
     count,
-    questions: questions.flatMap((question) => {
+    hasMore: rows.length > page.take,
+    questions: rows.slice(0, page.take).flatMap((question) => {
       const room = byId.get(question.roomId);
       return room ? [{ ...question, room }] : [];
     }),

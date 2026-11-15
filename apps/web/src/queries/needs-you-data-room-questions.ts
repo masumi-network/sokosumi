@@ -1,5 +1,4 @@
-import type { WaitingDataRoomQuestions } from "@sokosumi/core-client";
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions } from "@tanstack/react-query";
 import { fetchWaitingDataRoomQuestions } from "@/lib/utils/data-room.client";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import { NEEDS_YOU_TASKS_REFRESH_MS } from "@/queries/needs-you-tasks";
@@ -9,26 +8,34 @@ export const NEEDS_YOU_DATA_ROOM_QUESTIONS_QUERY_KEY = [
   "needs-you-data-room-questions",
 ] as const;
 
+/** Questions per page; "Show older questions" reads the next one. */
+export const NEEDS_YOU_DATA_ROOM_QUESTIONS_PAGE_SIZE = 20;
+
 /**
  * The questions viewers asked in the active workspace's data rooms that the
- * reader runs and nobody has answered yet. Keyed by reader and workspace like
- * the waiting Tasks, and read again on the same timer: a viewer asks from
- * outside Sokosumi, so no realtime event reaches the reader.
+ * reader runs and nobody has answered yet, newest first, a page at a time.
+ * Every page carries the total, so the tab counts them all. Keyed by reader
+ * and workspace like the waiting Tasks, and read again on the same timer: a
+ * viewer asks from outside Sokosumi, so no realtime event reaches the reader.
  */
 export function needsYouDataRoomQuestionsQueryOptions(
   userId: string | undefined,
   organizationId: string | null,
 ) {
-  return queryOptions({
+  return infiniteQueryOptions({
     queryKey: [
       ...NEEDS_YOU_DATA_ROOM_QUESTIONS_QUERY_KEY,
       userId ?? null,
       organizationId,
     ],
-    queryFn: (): Promise<WaitingDataRoomQuestions> =>
-      fetchWaitingDataRoomQuestions(
-        driveStoreForActiveWorkspace(organizationId),
-      ),
+    queryFn: ({ pageParam }) =>
+      fetchWaitingDataRoomQuestions({
+        store: driveStoreForActiveWorkspace(organizationId),
+        cursor: pageParam,
+        limit: NEEDS_YOU_DATA_ROOM_QUESTIONS_PAGE_SIZE,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
     enabled: Boolean(userId),
     // An answer given in the room must take the row away when Needs you opens again.
     staleTime: 0,

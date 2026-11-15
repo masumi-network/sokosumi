@@ -1,16 +1,20 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import {
+  jsonErrorResponse,
+  jsonPaginatedSuccessResponse,
+} from "@/helpers/openapi";
+import { createPaginationMeta } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import {
-  dataRoomStoreQuerySchema,
   toDataRoomQuestionDto,
-  waitingDataRoomQuestionsSchema,
+  waitingDataRoomQuestionSchema,
+  waitingDataRoomQuestionsQuerySchema,
 } from "@/schemas/data-room.schema";
 import { dataRoomName } from "@/services/data-room-email.service";
 import { listWaitingDataRoomQuestions } from "@/services/data-room-members.service";
@@ -20,12 +24,12 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/questions",
     description:
-      "Unanswered viewer questions across the Drive's data rooms the caller may run, newest first.",
+      "Unanswered viewer questions across the Drive's data rooms the caller may run, newest first (paginated; total counts them all).",
     tags: ["Drive"],
-    request: { query: dataRoomStoreQuerySchema },
+    request: { query: waitingDataRoomQuestionsQuerySchema },
     responses: {
-      200: jsonSuccessResponse(
-        waitingDataRoomQuestionsSchema,
+      200: jsonPaginatedSuccessResponse(
+        z.array(waitingDataRoomQuestionSchema),
         "Waiting questions",
       ),
       401: jsonErrorResponse("Unauthorized"),
@@ -42,17 +46,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       scope: query.scope,
       organizationId: query.organizationId,
     });
-    const { count, questions } = await listWaitingDataRoomQuestions(store);
+    const { count, questions, hasMore } = await listWaitingDataRoomQuestions(
+      store,
+      { cursor: query.cursor, take: query.limit },
+    );
+    const data = z.array(waitingDataRoomQuestionSchema).parse(
+      questions.map((question) => ({
+        ...toDataRoomQuestionDto(question),
+        roomId: question.roomId,
+        roomName: dataRoomName(question.room),
+      })),
+    );
     return ok(
       c,
-      waitingDataRoomQuestionsSchema.parse({
-        count,
-        questions: questions.map((question) => ({
-          ...toDataRoomQuestionDto(question),
-          roomId: question.roomId,
-          roomName: dataRoomName(question.room),
-        })),
-      }),
+      data,
+      createPaginationMeta(data, count, query.limit, hasMore, query.cursor),
     );
   });
 }

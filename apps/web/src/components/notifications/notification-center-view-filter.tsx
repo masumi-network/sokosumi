@@ -66,7 +66,7 @@ export function NotificationCenterViewFilter({
   const needsYouCount =
     needsActionCount +
     (waitingTasks?.count ?? 0) +
-    (waitingQuestions?.count ?? 0) +
+    (waitingQuestions?.pages[0]?.total ?? 0) +
     (notice !== null ? 1 : 0);
   const listRef = useRef<HTMLDivElement>(null);
 

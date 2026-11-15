@@ -26,10 +26,7 @@ vi.mock("@/services/marketing-strategy-files.service", () => ({
   MARKETING_FILES_FOLDER: "Marketing",
 }));
 
-import {
-  listWaitingDataRoomQuestions,
-  WAITING_DATA_ROOM_QUESTIONS_LIMIT,
-} from "./data-room-members.service";
+import { listWaitingDataRoomQuestions } from "./data-room-members.service";
 
 const store = {
   workspaceId: "ws_1",
@@ -70,7 +67,7 @@ describe("listWaitingDataRoomQuestions", () => {
       },
     ]);
 
-    const result = await listWaitingDataRoomQuestions(store);
+    const result = await listWaitingDataRoomQuestions(store, { take: 50 });
 
     const where = { roomId: { in: ["r_open"] }, answeredAt: null };
     expect(visibility.hiddenDataRoomFolders).toHaveBeenCalledWith(
@@ -81,11 +78,12 @@ describe("listWaitingDataRoomQuestions", () => {
     expect(db.dataRoomQuestion.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where,
-        orderBy: { createdAt: "desc" },
-        take: WAITING_DATA_ROOM_QUESTIONS_LIMIT,
+        orderBy: { id: "desc" },
+        take: 51,
       }),
     );
     expect(result.count).toBe(3);
+    expect(result.hasMore).toBe(false);
     expect(result.questions).toEqual([
       expect.objectContaining({
         id: "q1",
@@ -98,11 +96,56 @@ describe("listWaitingDataRoomQuestions", () => {
     db.dataRoom.findMany.mockResolvedValue([room("r_hidden", "Board")]);
     visibility.hiddenDataRoomFolders.mockResolvedValue(["Board"]);
 
-    await expect(listWaitingDataRoomQuestions(store)).resolves.toEqual({
-      count: 0,
-      questions: [],
-    });
+    await expect(
+      listWaitingDataRoomQuestions(store, { take: 50 }),
+    ).resolves.toEqual({ count: 0, questions: [], hasMore: false });
     expect(db.dataRoomQuestion.count).not.toHaveBeenCalled();
     expect(db.dataRoomQuestion.findMany).not.toHaveBeenCalled();
+  });
+
+  it("reaches the oldest of 51 questions across rooms by paging, answering none", async () => {
+    db.dataRoom.findMany.mockResolvedValue([
+      room("r_a", "Series A"),
+      room("r_b", "Sale"),
+    ]);
+    // UUIDv7-like ids: zero-padded, so string order is creation order.
+    const all = Array.from({ length: 51 }, (_, index) => ({
+      id: `0000-${String(index).padStart(4, "0")}`,
+      roomId: index % 2 === 0 ? "r_a" : "r_b",
+      answeredAt: null,
+      member: { email: `v${index}@example.com`, name: null },
+    }));
+    type Args = {
+      where: { roomId: { in: string[] }; id?: { lt: string } };
+      orderBy: { id: "desc" };
+      take: number;
+    };
+    db.dataRoomQuestion.count.mockResolvedValue(all.length);
+    db.dataRoomQuestion.findMany.mockImplementation(async (args: Args) =>
+      all
+        .filter((question) => args.where.roomId.in.includes(question.roomId))
+        .filter((question) => !args.where.id || question.id < args.where.id.lt)
+        .sort((a, b) => b.id.localeCompare(a.id))
+        .slice(0, args.take),
+    );
+
+    const first = await listWaitingDataRoomQuestions(store, { take: 50 });
+    expect(first.count).toBe(51);
+    expect(first.questions).toHaveLength(50);
+    expect(first.hasMore).toBe(true);
+    expect(first.questions.map((question) => question.id)).not.toContain(
+      "0000-0000",
+    );
+
+    const second = await listWaitingDataRoomQuestions(store, {
+      cursor: first.questions.at(-1)?.id,
+      take: 50,
+    });
+    expect(second.questions.map((question) => question.id)).toEqual([
+      "0000-0000",
+    ]);
+    expect(second.questions[0]?.room.id).toBe("r_a");
+    expect(second.hasMore).toBe(false);
+    expect(second.count).toBe(51);
   });
 });
