@@ -2016,6 +2016,7 @@ const messageForSync = {
   senderCoworkerId: true,
   buzzLink: true,
   reactions: { select: { userId: true, emoji: true } },
+  agentReactions: { select: { coworkerId: true, emoji: true } },
   userMentionsAsSource: { select: { userId: true } },
   mentionsAsSource: { select: { sokoBotId: true, coworkerId: true } },
   attachedSkills: { select: { name: true }, orderBy: { position: "asc" } },
@@ -2206,6 +2207,7 @@ export async function reconcileMessage(
       channelId: channel.channelId,
       relayUrl,
       reactions: message.reactions,
+      agentReactions: message.agentReactions,
     });
     return "unchanged";
   }
@@ -2448,6 +2450,7 @@ export async function reconcileMessage(
       channelId: channel.channelId,
       relayUrl,
       reactions: message.reactions,
+      agentReactions: message.agentReactions,
     });
   }
   return result;
@@ -2606,6 +2609,8 @@ async function reconcileReactions(input: {
   channelId: string;
   relayUrl: string;
   reactions: { userId: string; emoji: string }[];
+  /** Coworkers react on Buzz only: theirs are linked as they come in. */
+  agentReactions: { coworkerId: string; emoji: string }[];
 }) {
   let links = await prisma.buzzReactionLink.findMany({
     where: { messageId: input.messageId },
@@ -2642,9 +2647,14 @@ async function reconcileReactions(input: {
     include: { identity: true },
   });
 
-  const key = (userId: string | null, emoji: string) => `${userId}\n${emoji}`;
-  const linked = new Set(links.map((l) => key(l.identity.userId, l.emoji)));
-  const wanted = new Set(input.reactions.map((r) => key(r.userId, r.emoji)));
+  const key = (actorId: string | null, emoji: string) => `${actorId}\n${emoji}`;
+  const linked = new Set(
+    links.map((l) => key(l.identity.userId ?? l.identity.coworkerId, l.emoji)),
+  );
+  const wanted = new Set([
+    ...input.reactions.map((r) => key(r.userId, r.emoji)),
+    ...input.agentReactions.map((r) => key(r.coworkerId, r.emoji)),
+  ]);
 
   for (const reaction of input.reactions) {
     if (linked.has(key(reaction.userId, reaction.emoji))) continue;
@@ -2691,7 +2701,13 @@ async function reconcileReactions(input: {
   }
 
   for (const link of links) {
-    if (wanted.has(key(link.identity.userId, link.emoji))) continue;
+    if (
+      wanted.has(
+        key(link.identity.userId ?? link.identity.coworkerId, link.emoji),
+      )
+    ) {
+      continue;
+    }
     // Their own app key's reaction: only they can take it back on Buzz. Its
     // event stays there, so it is remembered as undone, for good.
     if (link.signerPubkey) {
@@ -3589,15 +3605,9 @@ export async function applyInboundEvent(
   if (!author) return "ignored";
   const agent = Boolean(author.coworkerId) && isExternal(author);
   if (!author.userId && !agent) return "ignored";
-  // An agent posts, edits and deletes its own messages; Core keeps reactions
-  // and membership to people.
-  if (
-    agent &&
-    change.type !== "message" &&
-    change.type !== "edit" &&
-    change.type !== "delete"
-  )
-    return "ignored";
+  // An agent posts, edits, deletes and reacts; Core keeps membership to
+  // people.
+  if (agent && change.type === "members") return "ignored";
   // Seen on Buzz: the person is connected (refreshed at most every minute).
   // Not from an edit or deletion signed with the key Sokosumi keeps: those
   // are Sokosumi's own, coming back.

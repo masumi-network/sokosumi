@@ -205,6 +205,10 @@ export const chatRoomMessageInclude = {
     },
     orderBy: { createdAt: "asc" },
   },
+  agentReactions: {
+    select: { emoji: true, coworker: { select: { id: true, name: true } } },
+    orderBy: { createdAt: "asc" },
+  },
   // Unique per (room, message): at most one row.
   pins: { select: { pinnedAt: true } },
   // Soft-deleted replies stay in the DB (tombstones) but must not inflate
@@ -763,9 +767,11 @@ function mapThreadRepliers(
 }
 
 export function mapChatRoomMessage(
-  // `signal` is optional so a message read without it maps as untagged.
-  message: Omit<ChatRoomMessageWithSender, "signal"> & {
+  // `signal` is optional so a message read without it maps as untagged;
+  // `agentReactions` so one read without them shows people's only.
+  message: Omit<ChatRoomMessageWithSender, "signal" | "agentReactions"> & {
     signal?: ChatRoomMessageWithSender["signal"];
+    agentReactions?: ChatRoomMessageWithSender["agentReactions"];
   },
   currentUserId?: string,
   /**
@@ -787,7 +793,15 @@ export function mapChatRoomMessage(
       reactors: Array<{ id: string; name: string }>;
     }
   >();
-  for (const reaction of message.reactions) {
+  // People first, then Coworkers (who react on Buzz).
+  for (const reaction of [
+    ...message.reactions,
+    ...(message.agentReactions ?? []).map(({ emoji, coworker }) => ({
+      emoji,
+      userId: null,
+      user: coworker,
+    })),
+  ]) {
     const current = reactionCounts.get(reaction.emoji) ?? {
       count: 0,
       reactedByCurrentUser: false,

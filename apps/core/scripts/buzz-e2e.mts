@@ -201,6 +201,24 @@ check("C", "a reaction in Sokosumi reaches Buzz", async () => {
   );
 });
 
+check("Q", "a quote in Sokosumi shows above the reply on Buzz", async () => {
+  const reply = await api(
+    "bob",
+    "POST",
+    `/v1/chats/rooms/${room.id}/messages`,
+    {
+      content: `e2e ${RUN} Q: replying to that`,
+      quote: { messageId: aliceMessage },
+    },
+  );
+  const event = await waitFor("the kind 9", () =>
+    messageEvent(reply.id as string),
+  );
+  if (!event.content.startsWith("> **")) {
+    throw new Error(`no quote on Buzz: ${event.content}`);
+  }
+});
+
 let bobEventId = "";
 let bobMessage = "";
 check("D", "a message written in Buzz reaches Sokosumi", async () => {

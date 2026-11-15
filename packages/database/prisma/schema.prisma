@@ -2222,6 +2222,7 @@ model Coworker {
   chatRoomMemberships     ChatRoomCoworkerMember[]
   chatRoomMessages        ChatRoomMessage[]        @relation("ChatRoomCoworkerSender")
   chatRoomMentions        ChatRoomMention[]
+  chatRoomReactions       ChatRoomAgentReaction[]
   scheduledSocialPosts    SocialPost[]             @relation("SocialPostScheduledByCoworker")
 
   buzzIdentity BuzzIdentity?
@@ -4575,6 +4576,7 @@ model ChatRoomMessage {
   mentionResponseFor   ChatRoomMention?          @relation("ChatRoomMentionResponse")
   userMentionsAsSource ChatRoomUserMention[]     @relation("ChatRoomUserMentionSource")
   reactions            ChatRoomReaction[]
+  agentReactions       ChatRoomAgentReaction[]
   pins                 ChatRoomPinnedMessage[]
   saves                ChatRoomSavedMessage[]
   threadReadStates     ChatRoomThreadReadState[]
@@ -4649,6 +4651,23 @@ model ChatRoomReaction {
   @@index([messageId, emoji])
   @@index([userId])
   @@map("chat_room_reaction")
+}
+
+/// A Coworker's reaction, made on Buzz (people's are ChatRoomReaction).
+model ChatRoomAgentReaction {
+  id        String          @id @default(uuid(7)) @db.Uuid
+  messageId String          @db.Uuid
+  message   ChatRoomMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  coworkerId String
+  coworker   Coworker @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
+
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, coworkerId, emoji])
+  @@index([coworkerId])
+  @@map("chat_room_agent_reaction")
 }
 
 model ChatRoomReadState {

@@ -277,20 +277,6 @@ const userOnlyCases: AuthRequestCase[] = [
     }),
   },
   {
-    label: "PUT /{id}/messages/{messageId}/reactions/{emoji}",
-    request: () => ({
-      method: "PUT",
-      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions/${encodeURIComponent("👍")}`,
-    }),
-  },
-  {
-    label: "DELETE /{id}/messages/{messageId}/reactions/{emoji}",
-    request: () => ({
-      method: "DELETE",
-      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions/${encodeURIComponent("👍")}`,
-    }),
-  },
-  {
     label: "POST /{id}/messages/{messageId}/unfurls/remove",
     request: () => ({
       method: "POST",

@@ -1008,21 +1008,42 @@ describe("a person's own Buzz agents", () => {
     );
   });
 
-  it("ignores an agent's reactions, which Core does not take from a Coworker", async () => {
+  it("carries an agent's reactions to Sokosumi as the agent's", async () => {
     db.buzzIdentity.findFirst.mockResolvedValue(agentIdentity);
+    const target = "f".repeat(64);
+    db.buzzMessageLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId === target
+          ? { messageId: "message", message: { roomId: "room" } }
+          : null,
+    );
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
     const reaction = nostrEvent(
       {
         kind: 7,
         tags: [
           ["h", CHANNEL],
-          ["e", "f".repeat(64)],
+          ["e", target],
         ],
         content: "👍",
       },
       AGENT_KEY,
     );
-    await expect(applyInboundEvent(reaction, core)).resolves.toBe("ignored");
-    expect(core).not.toHaveBeenCalled();
+    await expect(applyInboundEvent(reaction, core)).resolves.toBe("reacted");
+    expect(core).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        apiKey: "coworker_agent-key",
+        method: "PUT",
+        path: `/v1/chats/rooms/room/messages/message/reactions/${encodeURIComponent("👍")}`,
+      }),
+    );
+    // Signed with the agent's own key: Sokosumi never takes it back on Buzz.
+    expect(db.buzzReactionLink.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        identityId: agentIdentity.id,
+        signerPubkey: reaction.pubkey,
+      }),
+    });
   });
 
   it("keeps a person's agents while their relay cannot be read", async () => {
