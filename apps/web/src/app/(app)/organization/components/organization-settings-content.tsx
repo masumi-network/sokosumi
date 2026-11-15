@@ -9,9 +9,10 @@ import { MemberRole } from "@sokosumi/core-client";
 import { ResultAsync } from "neverthrow";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 import { OrganizationBillingAccessRestricted } from "@/app/organizations/[organizationSlug]/components/organization-billing-access-restricted";
 import OrganizationBillingDetails from "@/app/organizations/[organizationSlug]/components/organization-billing-details";
+import { OrganizationBuzz } from "@/app/organizations/[organizationSlug]/components/organization-buzz";
 import { OrganizationCoworkerAccess } from "@/app/organizations/[organizationSlug]/components/organization-coworker-access";
 import { OrganizationCreditSpendCard } from "@/app/organizations/[organizationSlug]/components/organization-credit-spend";
 import OrganizationInformation from "@/app/organizations/[organizationSlug]/components/organization-information";
@@ -188,6 +189,9 @@ export async function OrganizationSettingsContent({
         {isOwnerOrAdmin ? (
           <OrganizationCoworkerAccess organizationId={organization.id} />
         ) : null}
+        <Suspense fallback={null}>
+          <OrganizationBuzz organizationId={organization.id} />
+        </Suspense>
         {isOwnerOrAdmin ? (
           <OrganizationInviteLinks
             organizationId={organization.id}

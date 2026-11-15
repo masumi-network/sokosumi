@@ -8886,7 +8886,8 @@
         "identityHint": "Teile sie, damit man dich in Buzz findet.",
         "copyIdentity": "Deine Buzz-Identität kopieren",
         "personalAgent": "Persönlicher Agent",
-        "copyAgentKey": "Buzz-Schlüssel von {name} kopieren"
+        "copyAgentKey": "Buzz-Schlüssel von {name} kopieren",
+        "organizationDescription": "Die Chats dieser Organisation sind auch auf Buzz: Mitglieder chatten in denselben Räumen aus der Buzz-App."
       }
     },
     "Coworkers": {
