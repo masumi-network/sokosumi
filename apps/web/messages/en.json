@@ -1738,26 +1738,9 @@
           "openBot": "Open {name}'s page"
         },
         "SokoBotSetup": {
-          "title": "Set up your Soko Bot",
-          "cta": "Set it up",
-          "chat": {
-            "caption": "Ask it anything",
-            "ask": "Plan our launch",
-            "reply": "On it. 3 Tasks started."
-          },
-          "tasks": {
-            "caption": "It runs the work",
-            "brief": "Draft the brief",
-            "research": "Research venues",
-            "book": "Book a photographer"
-          },
-          "inbox": {
-            "caption": "It reads your inbox",
-            "mail": "Investor update",
-            "needsYou": "Needs you",
-            "meeting": "10:00 Design review",
-            "prepReady": "Prep ready"
-          }
+          "title": "Get your Personal Assistant Agent",
+          "intro": "It runs your Tasks, mail and calendar for you.",
+          "cta": "Set it up"
         }
       },
       "SokoBot": {
@@ -10123,9 +10106,7 @@
         "nameHint": "Your own AI assistant in Sokosumi. You can rename it later.",
         "continue": "Continue",
         "back": "Back",
-        "pictureTitle": "Pick a picture for {name}",
-        "createWithoutPicture": "Create without a picture",
-        "createWithoutPictureHint": "{name} starts with its color orb. Add a picture any time in its settings."
+        "pictureTitle": "Pick a picture for {name}"
       },
       "Memory": {
         "title": "Memory",

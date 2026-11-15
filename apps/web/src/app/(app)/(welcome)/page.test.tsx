@@ -9,6 +9,9 @@ const listImportantMessages = vi.fn();
 const sokoBotHome = vi.fn();
 const needsYouPanel = vi.fn();
 const sokoBotSetup = vi.fn();
+const listAvatars = vi.fn(async (_take: number, _exclude: string[]) => [
+  { id: "owl-1", imageUrl: "https://blob.test/owl-1.png" },
+]);
 const getWorkspaceAccess = vi.fn();
 const getActivitySummary = vi.fn(async (_query: { scope: string }) => ({
   awaitingInput: 2,
@@ -58,6 +61,8 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
       sokoBot: await getMine(),
       lastFailure: lastFailure(),
     }),
+    listAvatars: (take: number, exclude: string[]) =>
+      listAvatars(take, exclude),
   },
 }));
 vi.mock("@/lib/services/chat-room.service", () => ({
@@ -103,6 +108,7 @@ vi.mock("@/app/projects/components/workspace-column", () => ({
   },
 }));
 vi.mock("./components/soko-bot-setup", () => ({
+  SOKO_BOT_SETUP_FACES: 5,
   SokoBotSetup: (props: unknown) => {
     sokoBotSetup(props);
     return <div>soko bot setup</div>;
@@ -189,10 +195,21 @@ describe("WelcomePage", () => {
     getMine.mockResolvedValue(null);
     await renderPage();
     expect(screen.getByText("soko bot setup")).toBeTruthy();
-    expect(sokoBotSetup).toHaveBeenCalledWith({ userId: "user-1" });
+    // Stock pictures the new bot could wear.
+    expect(listAvatars).toHaveBeenCalledWith(5, []);
+    expect(sokoBotSetup).toHaveBeenCalledWith({
+      avatars: [{ id: "owl-1", imageUrl: "https://blob.test/owl-1.png" }],
+    });
     expect(sokoBotHome).not.toHaveBeenCalled();
     expect(screen.queryByText("my day")).toBeNull();
     expect(screen.queryByText("needs you")).toBeNull();
+  });
+
+  it("still offers the setup when the pictures cannot be read", async () => {
+    getMine.mockResolvedValue(null);
+    listAvatars.mockRejectedValueOnce(new Error("core down"));
+    await renderPage();
+    expect(sokoBotSetup).toHaveBeenCalledWith({ avatars: [] });
   });
 
   it("offers the setup when the bot cannot be read", async () => {

@@ -1738,26 +1738,9 @@
           "openBot": "Seite von {name} öffnen"
         },
         "SokoBotSetup": {
-          "title": "Richte deinen Soko Bot ein",
-          "cta": "Jetzt einrichten",
-          "chat": {
-            "caption": "Frag ihn alles",
-            "ask": "Plane unseren Launch",
-            "reply": "Mache ich. 3 Aufgaben gestartet."
-          },
-          "tasks": {
-            "caption": "Er erledigt die Arbeit",
-            "brief": "Briefing entwerfen",
-            "research": "Locations recherchieren",
-            "book": "Fotografen buchen"
-          },
-          "inbox": {
-            "caption": "Er liest deine Inbox",
-            "mail": "Investoren-Update",
-            "needsYou": "Braucht dich",
-            "meeting": "10:00 Design-Review",
-            "prepReady": "Vorbereitet"
-          }
+          "title": "Hol dir deinen persönlichen Assistenz-Agenten",
+          "intro": "Er kümmert sich um deine Aufgaben, Mails und deinen Kalender.",
+          "cta": "Jetzt einrichten"
         }
       },
       "SokoBot": {
@@ -10123,9 +10106,7 @@
         "nameHint": "Dein eigener KI-Assistent in Sokosumi. Du kannst ihn später umbenennen.",
         "continue": "Weiter",
         "back": "Zurück",
-        "pictureTitle": "Wähle ein Bild für {name}",
-        "createWithoutPicture": "Ohne Bild erstellen",
-        "createWithoutPictureHint": "{name} startet mit seiner Farbkugel. Ein Bild fügst du jederzeit in den Einstellungen hinzu."
+        "pictureTitle": "Wähle ein Bild für {name}"
       },
       "Memory": {
         "title": "Gedächtnis",

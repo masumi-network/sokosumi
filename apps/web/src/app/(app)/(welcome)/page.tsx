@@ -35,7 +35,10 @@ import {
   toNewSchedules,
   toTeamDay,
 } from "./components/soko-bot-home-data";
-import { SokoBotSetup } from "./components/soko-bot-setup";
+import {
+  SOKO_BOT_SETUP_FACES,
+  SokoBotSetup,
+} from "./components/soko-bot-setup";
 
 interface WelcomePageProps {
   searchParams: Promise<{
@@ -205,10 +208,14 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       </>
     );
   }
+  // Without pictures the page still offers the setup, only without the row.
+  const avatars = await sokoBotService
+    .listAvatars(SOKO_BOT_SETUP_FACES, [])
+    .catch(() => []);
   return (
     <>
       {landingNotice}
-      {userId ? <SokoBotSetup userId={userId} /> : null}
+      <SokoBotSetup avatars={avatars} />
     </>
   );
 }

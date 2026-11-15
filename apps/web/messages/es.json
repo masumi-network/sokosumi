@@ -1738,26 +1738,9 @@
           "openBot": "Abrir la página de {name}"
         },
         "SokoBotSetup": {
-          "title": "Configura tu Soko Bot",
-          "cta": "Configurarlo",
-          "chat": {
-            "caption": "Pídele lo que sea",
-            "ask": "Planifica nuestro lanzamiento",
-            "reply": "Hecho. 3 tareas iniciadas."
-          },
-          "tasks": {
-            "caption": "Hace el trabajo",
-            "brief": "Redactar el briefing",
-            "research": "Buscar locales",
-            "book": "Reservar un fotógrafo"
-          },
-          "inbox": {
-            "caption": "Lee tu bandeja de entrada",
-            "mail": "Novedades para inversores",
-            "needsYou": "Te necesita",
-            "meeting": "10:00 Revisión de diseño",
-            "prepReady": "Preparado"
-          }
+          "title": "Consigue tu agente asistente personal",
+          "intro": "Se ocupa de tus tareas, tu correo y tu calendario.",
+          "cta": "Configurarlo"
         }
       },
       "SokoBot": {
@@ -10123,9 +10106,7 @@
         "nameHint": "Tu propio asistente de IA en Sokosumi. Puedes cambiarle el nombre más tarde.",
         "continue": "Continuar",
         "back": "Atrás",
-        "pictureTitle": "Elige una imagen para {name}",
-        "createWithoutPicture": "Crear sin imagen",
-        "createWithoutPictureHint": "{name} empieza con su orbe de color. Añade una imagen cuando quieras en sus ajustes."
+        "pictureTitle": "Elige una imagen para {name}"
       },
       "Memory": {
         "title": "Memoria",
