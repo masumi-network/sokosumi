@@ -216,7 +216,6 @@ async function importMessage(
       client,
       communityId,
       earlier,
-      message.reactions,
     );
     await prisma.$transaction([
       prisma.buzzMessageLink.create({
@@ -415,35 +414,39 @@ async function importedEventOf(
   return found.rows[0]?.id.toString("hex") ?? null;
 }
 
-/** The reactions an earlier import wrote for this message, as links. */
+/**
+ * Every reaction an earlier import wrote for this message, as links, read
+ * from the relay: one removed in Sokosumi meanwhile is linked too, so the
+ * outbox takes it back on Buzz.
+ */
 async function importedReactionsOf(
   client: RelayClient,
   communityId: string,
   eventId: string,
-  reactions: { userId: string; emoji: string }[],
 ) {
+  const found = await client.query<{
+    id: Buffer;
+    pubkey: Buffer;
+    content: string;
+  }>(
+    `SELECT id, pubkey, content FROM events
+      WHERE community_id = $1 AND kind = 7 AND deleted_at IS NULL
+        AND tags @> $2::jsonb`,
+    [communityId, JSON.stringify([["e", eventId]])],
+  );
   const links: { identityId: string; emoji: string; eventId: string }[] = [];
-  for (const reaction of reactions) {
-    const identity = await ensureIdentity({ userId: reaction.userId });
-    const found = await client.query<{ id: Buffer }>(
-      `SELECT id FROM events
-        WHERE community_id = $1 AND kind = 7 AND pubkey = $2 AND content = $3
-          AND tags @> $4::jsonb
-        LIMIT 1`,
-      [
-        communityId,
-        hex(identity.pubkey),
-        reaction.emoji,
-        JSON.stringify([["e", eventId]]),
-      ],
-    );
-    const id = found.rows[0]?.id.toString("hex");
-    if (id)
+  for (const row of found.rows) {
+    const identity = await prisma.buzzIdentity.findUnique({
+      where: { pubkey: row.pubkey.toString("hex") },
+      select: { id: true },
+    });
+    if (identity) {
       links.push({
         identityId: identity.id,
-        emoji: reaction.emoji,
-        eventId: id,
+        emoji: row.content,
+        eventId: row.id.toString("hex"),
       });
+    }
   }
   return links;
 }

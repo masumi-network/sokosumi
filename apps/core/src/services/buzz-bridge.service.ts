@@ -2070,6 +2070,11 @@ export async function reconcileMessage(
 
   if (!link) {
     if (message.deletedAt) return "skipped";
+    // From before the room reached Buzz: the history import sends it (and
+    // finds a copy an interrupted import left), never the outbox.
+    if (message.createdAt < channel.createdAt && !channel.historyImportedAt) {
+      return "skipped";
+    }
     if (message.clientMessageId?.startsWith("buzz:")) {
       // Posted from Buzz: the event already exists. Inbound usually linked
       // it already; this covers a worker that stopped in between. Who
@@ -2671,6 +2676,7 @@ async function applyAgentMembership(
     return "members";
   }
   for (const coworkerId of coworkerIds) {
+    checkpoint();
     const response = await core({
       method: "DELETE",
       path: `/v1/chats/rooms/${channel.roomId}/coworkers/${coworkerId}`,
