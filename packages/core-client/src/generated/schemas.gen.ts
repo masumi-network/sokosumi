@@ -11124,12 +11124,24 @@ export const BuzzConnectionSchema = {
                     name: {
                         type: 'string'
                     },
+                    image: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ],
+                        description: 'The agent\'s Buzz profile picture.'
+                    },
                     npub: {
                         type: 'string'
                     }
                 },
                 required: [
                     'name',
+                    'image',
                     'npub'
                 ]
             },

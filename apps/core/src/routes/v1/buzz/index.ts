@@ -58,10 +58,20 @@ const connectionSchema = z
         description:
           "The caller's own Buzz app key, when they linked one instead of importing Sokosumi's.",
       }),
-    agents: z.array(z.object({ name: z.string(), npub: z.string() })).openapi({
-      description:
-        "The caller's Buzz agents, usable as Coworkers in their rooms.",
-    }),
+    agents: z
+      .array(
+        z.object({
+          name: z.string(),
+          image: z.union([z.string(), z.null()]).openapi({
+            description: "The agent's Buzz profile picture.",
+          }),
+          npub: z.string(),
+        }),
+      )
+      .openapi({
+        description:
+          "The caller's Buzz agents, usable as Coworkers in their rooms.",
+      }),
     lastActiveOnBuzzAt: z.union([z.date(), z.null()]).openapi({
       description:
         "When the caller last did something from a Buzz app; null until they have.",

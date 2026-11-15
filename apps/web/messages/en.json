@@ -7678,8 +7678,6 @@
       "SocialAccounts": {
         "title": "Sign-in",
         "description": "Use these accounts to sign in.",
-        "connected": "{provider} is connected",
-        "notConnected": "{provider} is not connected",
         "success": "Account connected successfully",
         "error": "Failed to connect {provider}",
         "loadErrorTitle": "Could not load connected accounts",
@@ -7696,7 +7694,10 @@
         "connect": "Connect {provider}",
         "disconnect": "Disconnect {provider}",
         "connectAction": "Connect",
-        "disconnectAction": "Disconnect"
+        "disconnectAction": "Disconnect",
+        "statusConnected": "Connected",
+        "hintConnected": "You can sign in with {provider}.",
+        "hintNotConnected": "Sign in with your {provider} account."
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Could not load account details",
@@ -8921,11 +8922,16 @@
         "statusTitle": "Buzz",
         "statusNotConnected": "Not connected yet. Chat in the same rooms from the Buzz app.",
         "statusConnected": "Connected. You're on Buzz as you.",
-        "statusLinked": "Linked to your Buzz identity {npub}.",
-        "statusUnauthorized": "Linked to your Buzz identity {npub}. Authorize Sokosumi so your Buzz agents answer what you write here.",
+        "statusLinked": "Linked to your Buzz identity.",
+        "statusUnauthorized": "Linked to your Buzz identity. Authorize Sokosumi so your Buzz agents answer what you write here.",
         "connect": "Connect Buzz",
         "connectAgain": "Connect again",
-        "authorize": "Authorize"
+        "authorize": "Authorize",
+        "identityTitle": "Your Buzz identity",
+        "identityHint": "Share it so people can find you in Buzz.",
+        "copyIdentity": "Copy your Buzz identity",
+        "personalAgent": "Personal agent",
+        "copyAgentKey": "Copy {name}'s Buzz key"
       }
     },
     "Channels": {

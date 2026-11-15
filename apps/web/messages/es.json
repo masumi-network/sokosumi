@@ -7642,8 +7642,6 @@
       "SocialAccounts": {
         "title": "Inicio de sesión",
         "description": "Usa estas cuentas para iniciar sesión.",
-        "connected": "{provider} está conectado",
-        "notConnected": "{provider} no está conectado",
         "success": "Cuenta conectada correctamente",
         "error": "No se pudo conectar {provider}",
         "loadErrorTitle": "No se pudieron cargar las cuentas conectadas",
@@ -7660,7 +7658,10 @@
         "connect": "Conectar {provider}",
         "disconnect": "Desconectar {provider}",
         "connectAction": "Conectar",
-        "disconnectAction": "Desconectar"
+        "disconnectAction": "Desconectar",
+        "statusConnected": "Conectado",
+        "hintConnected": "Puedes iniciar sesión con {provider}.",
+        "hintNotConnected": "Inicia sesión con tu cuenta de {provider}."
       },
       "LinkedAccounts": {
         "loadErrorTitle": "No se pudieron cargar los detalles de la cuenta",
@@ -8876,11 +8877,16 @@
         "statusTitle": "Buzz",
         "statusNotConnected": "Aún sin conectar. Chatea en las mismas salas desde la app de Buzz.",
         "statusConnected": "Conectado. Estás en Buzz como tú.",
-        "statusLinked": "Vinculado a tu identidad de Buzz {npub}.",
-        "statusUnauthorized": "Vinculado a tu identidad de Buzz {npub}. Autoriza a Sokosumi para que tus agentes de Buzz respondan a lo que escribes aquí.",
+        "statusLinked": "Vinculado a tu identidad de Buzz.",
+        "statusUnauthorized": "Vinculado a tu identidad de Buzz. Autoriza a Sokosumi para que tus agentes de Buzz respondan a lo que escribes aquí.",
         "connect": "Conectar Buzz",
         "connectAgain": "Conectar de nuevo",
-        "authorize": "Autorizar"
+        "authorize": "Autorizar",
+        "identityTitle": "Tu identidad de Buzz",
+        "identityHint": "Compártela para que te encuentren en Buzz.",
+        "copyIdentity": "Copiar tu identidad de Buzz",
+        "personalAgent": "Agente personal",
+        "copyAgentKey": "Copiar la clave de Buzz de {name}"
       }
     },
     "Coworkers": {

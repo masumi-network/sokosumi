@@ -13,6 +13,13 @@ const YELLOW = "#d7d72e";
 const INK = "#231e1e";
 const PALE_BEE = "#f2f2dc";
 
+/** Buzz's colors, for Buzz-branded surfaces drawn elsewhere. */
+export const BUZZ_COLORS = {
+  yellow: YELLOW,
+  ink: INK,
+  paleBee: PALE_BEE,
+} as const;
+
 /** The app icon: the bee in Buzz yellow on black. Size and radius from `className`. */
 export function BuzzLogo({ className }: { className?: string }) {
   return (

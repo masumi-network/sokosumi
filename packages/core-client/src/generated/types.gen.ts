@@ -3024,6 +3024,10 @@ export type BuzzConnection = {
      */
     agents: Array<{
         name: string;
+        /**
+         * The agent's Buzz profile picture.
+         */
+        image: string | null;
         npub: string;
     }>;
     /**

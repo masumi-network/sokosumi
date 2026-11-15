@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -8,7 +9,6 @@ import { toast } from "sonner";
 import { BUZZ_ACTION_STYLE } from "@/components/buzz/buzz-brand";
 import { BuzzConnectDialog } from "@/components/buzz/buzz-connect-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
   enableBuzzForOrganization,
@@ -16,39 +16,51 @@ import {
   unlinkBuzzApp,
 } from "@/lib/actions/buzz/action";
 
-async function copy(value: string, copied: string) {
-  await navigator.clipboard.writeText(value);
-  toast.success(copied);
-}
-
-/** A read-only value with a copy button: the relay address or the public key. */
+/**
+ * A read-only value people copy, such as a relay address or a public key: the
+ * whole value in mono on one control, which copies it and says so.
+ */
 export function BuzzCopyField({
   label,
   value,
+  hint,
+  copyLabel,
 }: {
   label: string;
   value: string;
+  hint?: string;
+  /** Names what the button copies, for screen readers. */
+  copyLabel?: string;
 }) {
   const t = useTranslations("App.Connections.Buzz");
+  const [copied, setCopied] = useState(false);
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <p className="text-muted-foreground text-xs font-medium">{label}</p>
-      <div className="flex items-center gap-2">
-        <Input
-          value={value}
-          readOnly
-          aria-label={label}
-          className="min-w-0 flex-1 font-mono text-sm"
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => void copy(value, t("copied"))}
-        >
-          {t("copy")}
-        </Button>
-      </div>
+      <button
+        type="button"
+        aria-label={copyLabel ?? `${t("copy")} ${label}`}
+        onClick={async () => {
+          await navigator.clipboard.writeText(value);
+          setCopied(true);
+          toast.success(t("copied"));
+          setTimeout(() => setCopied(false), 1500);
+        }}
+        className="bg-background hover:bg-quinary group flex w-full cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors active:scale-[0.99]"
+      >
+        <span className="min-w-0 flex-1 font-mono text-sm break-all">
+          {value}
+        </span>
+        <span className="text-muted-foreground group-hover:text-foreground flex shrink-0 items-center gap-1 text-xs font-medium">
+          {copied ? (
+            <Check className="size-4" aria-hidden />
+          ) : (
+            <Copy className="size-4" aria-hidden />
+          )}
+          {copied ? t("copied") : t("copy")}
+        </span>
+      </button>
+      {hint ? <p className="text-muted-foreground text-xs">{hint}</p> : null}
     </div>
   );
 }

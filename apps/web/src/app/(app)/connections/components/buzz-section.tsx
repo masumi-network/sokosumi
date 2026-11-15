@@ -1,5 +1,6 @@
 import type { BuzzConnection } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
+import { BuzzAgentCard } from "@/components/buzz/buzz-agent-card";
 import { BuzzLogo } from "@/components/buzz/buzz-brand";
 import { Card } from "@/components/ui/card";
 import { buzzService } from "@/lib/services/buzz.service";
@@ -34,11 +35,11 @@ export async function BuzzSection() {
   const linked = connection.app !== null;
   const authorized = connection.app?.authorized === true;
   const connected = linked || connection.lastActiveOnBuzzAt !== null;
-  const npub = `${connection.app?.npub.slice(0, 16)}…`;
+  const identityNpub = connection.app?.npub ?? connection.identity?.npub;
   const status = linked
     ? authorized
-      ? t("statusLinked", { npub })
-      : t("statusUnauthorized", { npub })
+      ? t("statusLinked")
+      : t("statusUnauthorized")
     : connection.lastActiveOnBuzzAt
       ? t("statusConnected")
       : t("statusNotConnected");
@@ -81,19 +82,34 @@ export async function BuzzSection() {
                 {linked ? <BuzzUnlinkButton /> : null}
               </div>
             </div>
+            {identityNpub ? (
+              <div className="border-t pt-4">
+                <BuzzCopyField
+                  label={t("identityTitle")}
+                  value={identityNpub}
+                  hint={t("identityHint")}
+                  copyLabel={t("copyIdentity")}
+                />
+              </div>
+            ) : null}
             {connected ? (
-              <div className="space-y-1 border-t pt-3">
+              <div className="space-y-3 border-t pt-4">
                 <p className="text-muted-foreground text-xs font-medium">
                   {t("agentsTitle")}
                 </p>
                 {connection.agents.length > 0 ? (
-                  <ul className="flex flex-wrap gap-2">
-                    {connection.agents.map((agent) => (
-                      <li
-                        key={agent.npub}
-                        className="bg-muted rounded-md px-2 py-1 text-sm"
-                      >
-                        {agent.name}
+                  <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                    {connection.agents.map((agent, index) => (
+                      <li key={agent.npub}>
+                        <BuzzAgentCard
+                          name={agent.name}
+                          image={agent.image}
+                          npub={agent.npub}
+                          index={index}
+                          personalLabel={t("personalAgent")}
+                          copyLabel={t("copyAgentKey", { name: agent.name })}
+                          copiedLabel={t("copied")}
+                        />
                       </li>
                     ))}
                   </ul>

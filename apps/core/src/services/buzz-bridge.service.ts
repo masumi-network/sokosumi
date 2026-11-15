@@ -542,6 +542,9 @@ async function resyncRoomsOf(userId: string) {
 
 const HEX_64 = /^[0-9a-f]{64}$/;
 
+/** How a Buzz agent's Coworker name says it is one. */
+const PERSONAL_AGENT_SUFFIX = " (personal agent)";
+
 type FoundAgent = { name: string; picture: string | null; relayUrl: string };
 
 /**
@@ -786,7 +789,7 @@ export async function syncBuzzAgents(
       // A key Sokosumi already knows as someone else stays theirs.
       if (existing && existing.ownerIdentityId !== owner.id) continue;
       const details = {
-        name: `${agent.name} (personal agent)`,
+        name: `${agent.name}${PERSONAL_AGENT_SUFFIX}`,
         image: agent.picture,
         caption: `Personal agent via Buzz · ${owner.user?.name ?? "someone"}`,
         baseURL: `${BUZZ_AGENT_URL_PREFIX}${new URL(agent.relayUrl).host}`,
@@ -1121,11 +1124,13 @@ function rememberAutoAccess(
 async function agentsOf(identityId: string) {
   const agents = await prisma.buzzIdentity.findMany({
     where: { ownerIdentityId: identityId, coworker: { archivedAt: null } },
-    select: { pubkey: true, coworker: { select: { name: true } } },
+    select: { pubkey: true, coworker: { select: { name: true, image: true } } },
     orderBy: { createdAt: "asc" },
   });
   return agents.map((agent) => ({
-    name: agent.coworker?.name ?? "Buzz agent",
+    name:
+      agent.coworker?.name.replace(PERSONAL_AGENT_SUFFIX, "") ?? "Buzz agent",
+    image: agent.coworker?.image ?? null,
     npub: npubEncode(agent.pubkey),
   }));
 }
