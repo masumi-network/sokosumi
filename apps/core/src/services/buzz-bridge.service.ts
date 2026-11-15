@@ -39,7 +39,11 @@ import {
   readableContent,
   readInbound,
 } from "@/lib/buzz/events";
-import { withSokosumiMedia } from "@/lib/buzz/media";
+import {
+  fitToSokosumi,
+  type MediaOwner,
+  withSokosumiMedia,
+} from "@/lib/buzz/media";
 import { attestedOwner, authTagOwner } from "@/lib/buzz/owner-attestation";
 import {
   BuzzRelayRejectedError,
@@ -2814,6 +2818,7 @@ async function applyAgentMembership(
       path: `/v1/chats/rooms/${channel.roomId}/coworkers/${coworkerId}`,
       apiKey: await bridgeApiKeyFor(author),
     });
+    if (response.status === 401) await dropBridgeKey(author);
     // Already gone is what was asked.
     if (response.status >= 400 && response.status !== 404) {
       throw new CoreRejectedError(
@@ -3163,6 +3168,15 @@ function errorKindOf(body: unknown): string | undefined {
   return typeof kind === "string" ? kind : undefined;
 }
 
+/** A bridge key Core no longer takes: the next try mints a new one. */
+async function dropBridgeKey(identity: BuzzIdentity) {
+  await prisma.buzzIdentity.update({
+    where: { id: identity.id },
+    data: { encryptedApiKey: null },
+  });
+  identity.encryptedApiKey = null;
+}
+
 async function sendAs(
   core: CoreRequest,
   identity: BuzzIdentity,
@@ -3183,13 +3197,7 @@ async function sendAs(
   });
   // The key is gone (revoked, or deleted with the account's keys): the next
   // try mints a new one.
-  if (response.status === 401) {
-    await prisma.buzzIdentity.update({
-      where: { id: identity.id },
-      data: { encryptedApiKey: null },
-    });
-    identity.encryptedApiKey = null;
-  }
+  if (response.status === 401) await dropBridgeKey(identity);
   // A 409 on a message means its clientMessageId is someone else's.
   if (response.status >= 400) {
     throw new CoreRejectedError(
@@ -3222,19 +3230,29 @@ async function withMediaCopied(
   event: Event,
   input: { channelId: string; roomId: string; author: BuzzIdentity },
 ) {
+  const owner: MediaOwner = input.author.userId
+    ? { kind: "user", userId: input.author.userId }
+    : { kind: "coworker", coworkerId: input.author.coworkerId ?? "" };
+  const fit = (text: string) =>
+    fitToSokosumi({
+      content: text,
+      eventId: event.id,
+      owner,
+      roomId: input.roomId,
+    });
   if (
     !/\/media\/[0-9a-f]{64}/i.test(event.content) &&
     !event.tags.some((tag) => tag[0] === "imeta")
   ) {
-    return content;
+    return fit(content);
   }
   const channel = await prisma.buzzChannel.findUnique({
     where: { channelId: input.channelId },
     select: { membersHash: true, community: { select: { relayUrl: true } } },
   });
-  if (!channel) return content;
+  if (!channel) return fit(content);
   const relayUrl = channel.community.relayUrl;
-  return withSokosumiMedia({
+  const withMedia = await withSokosumiMedia({
     content,
     event,
     relayUrl,
@@ -3244,10 +3262,9 @@ async function withMediaCopied(
       requireConfig().operatorSecretKey,
       ...(isDirect(channel) ? await memberKeysOfRoom(input.roomId) : []),
     ],
-    owner: input.author.userId
-      ? { kind: "user", userId: input.author.userId }
-      : { kind: "coworker", coworkerId: input.author.coworkerId ?? "" },
+    owner,
   });
+  return fit(withMedia);
 }
 
 /** Replays one Buzz event as the person who wrote it. */
@@ -3694,11 +3711,17 @@ export async function buzzSubscriptions() {
     >();
     for (const channel of community.channels) {
       if (!channel.room) continue;
+      // Someone who is in the DM (a banned person was left out of it),
+      // preferably one already reading others: each reader is a connection.
+      const candidates = isDirect(channel)
+        ? channel.room.userMembers.flatMap((m) =>
+            m.user.buzzIdentity && isActiveUser(m.user)
+              ? [m.user.buzzIdentity.id]
+              : [],
+          )
+        : [];
       const readerId = isDirect(channel)
-        ? // Someone who is in the DM: a banned person was left out of it.
-          (channel.room.userMembers.find(
-            (m) => m.user.buzzIdentity && isActiveUser(m.user),
-          )?.user.buzzIdentity?.id ?? null)
+        ? (candidates.find((id) => readers.has(id)) ?? candidates[0] ?? null)
         : "operator";
       if (!readerId) continue;
       const reader = readers.get(readerId) ?? { readerId, channelIds: [] };

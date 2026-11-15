@@ -570,6 +570,10 @@ export async function runBuzzBridge(options: {
       }
     };
     await Promise.all(Array.from({ length: OPEN_CONCURRENCY }, openOne));
+    // Each reader is a connection; one function holds about a thousand.
+    if (live.size > 800) {
+      log(`${live.size} live subscriptions: near what one run can hold`);
+    }
   }
 
   const stop = () => {

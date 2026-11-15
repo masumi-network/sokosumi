@@ -96,6 +96,11 @@ month across all organizations) even a month away downloads in seconds; an
 outage with far more traffic than a 240 s run can download would need the
 catch-up made resumable first.
 
+**Connections**: the bridge keeps one live relay connection per community
+with rooms, and one per person reading Directs there (Directs share readers
+where they can). Today that is about 430; one function holds about a
+thousand, and the bridge logs a warning past 800.
+
 **Rollback**: remove `BUZZ_COMMUNITY_URL_TEMPLATE` from Vercel and redeploy.
 The bridge stops; Sokosumi chat is unaffected. Nothing in Sokosumi's data
 depends on Buzz.

@@ -8,7 +8,7 @@ vi.mock("@/config/env", () => ({
   getEnv: () => ({ BLOB_READ_WRITE_TOKEN: "blob-token" }),
 }));
 
-import { relayMediaUrls, withSokosumiMedia } from "./media";
+import { fitToSokosumi, relayMediaUrls, withSokosumiMedia } from "./media";
 
 const RELAY = "wss://acme.chat.example";
 const bytes = Buffer.from("a picture");
@@ -135,6 +135,45 @@ describe("withSokosumiMedia", () => {
       ),
       bytes,
       expect.anything(),
+    );
+  });
+});
+
+describe("fitToSokosumi", () => {
+  beforeEach(() => {
+    blob.put.mockReset().mockResolvedValue({
+      url: "https://store.public.blob.vercel-storage.com/full.md",
+    });
+  });
+
+  it("keeps a message that fits as it is", async () => {
+    await expect(
+      fitToSokosumi({
+        content: "short",
+        eventId: "e".repeat(64),
+        owner: { kind: "user", userId: "u" },
+        roomId: "r",
+      }),
+    ).resolves.toBe("short");
+    expect(blob.put).not.toHaveBeenCalled();
+  });
+
+  it("keeps the whole of a longer one in a file it links to", async () => {
+    const long = "x".repeat(12_000);
+    const fitted = await fitToSokosumi({
+      content: long,
+      eventId: "e".repeat(64),
+      owner: { kind: "user", userId: "u" },
+      roomId: "r",
+    });
+    expect(fitted.length).toBeLessThanOrEqual(10_000);
+    expect(fitted).toContain(
+      "https://store.public.blob.vercel-storage.com/full.md",
+    );
+    expect(blob.put).toHaveBeenCalledWith(
+      expect.stringMatching(/^users\/u\/chats\/r\/buzz-e{16}-message\.md$/),
+      long,
+      expect.objectContaining({ access: "public" }),
     );
   });
 });

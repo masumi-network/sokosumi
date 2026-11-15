@@ -9,6 +9,7 @@ import {
   buildCoworkerChatRoomFilePathname,
   buildUserChatRoomFilePathname,
   CHAT_ROOM_FILE_MAX_SIZE_BYTES,
+  CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
 } from "@sokosumi/utils";
 import { put } from "@vercel/blob";
 import type { Event } from "nostr-tools/pure";
@@ -160,4 +161,56 @@ export async function withSokosumiMedia(input: {
       : `${content}${content ? "\n" : ""}${shown}`;
   }
   return content;
+}
+
+/**
+ * Buzz takes longer messages than Sokosumi. One that does not fit keeps what
+ * fits, and its whole text goes into the author's chat files, linked at the
+ * end, so nothing is lost.
+ */
+export async function fitToSokosumi(input: {
+  content: string;
+  eventId: string;
+  owner: MediaOwner;
+  roomId: string;
+}): Promise<string> {
+  if (input.content.length <= CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH) {
+    return input.content;
+  }
+  const token = getEnv().BLOB_READ_WRITE_TOKEN;
+  const note = (link: string) => `\n\n… [The whole message](${link})`;
+  if (!token) {
+    const cut = "\n\n… (shortened: the whole message is in Buzz)";
+    return (
+      input.content.slice(
+        0,
+        CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH - cut.length,
+      ) + cut
+    );
+  }
+  const fileName = `buzz-${input.eventId.slice(0, 16)}-message.md`;
+  const pathname =
+    input.owner.kind === "user"
+      ? buildUserChatRoomFilePathname(
+          input.owner.userId,
+          input.roomId,
+          fileName,
+        )
+      : buildCoworkerChatRoomFilePathname(
+          input.owner.coworkerId,
+          input.roomId,
+          fileName,
+        );
+  const blob = await put(pathname, input.content, {
+    access: "public",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    contentType: "text/markdown; charset=utf-8",
+    token,
+  });
+  const tail = note(blob.url);
+  return (
+    input.content.slice(0, CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH - tail.length) +
+    tail
+  );
 }
