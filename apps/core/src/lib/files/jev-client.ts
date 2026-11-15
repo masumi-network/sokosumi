@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
-
 import { getEnv } from "@/config/env";
+import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import type { SerializedJevRequest } from "@/lib/files/jev-request";
 import {
   FILES_RANKING_MODEL,
@@ -86,7 +86,7 @@ interface JevEvaluationOutcome {
 
 export function isJevConfigured(): boolean {
   const env = getEnv();
-  return env.FILES_JEV_ENABLED && Boolean(env.AI_GATEWAY_API_KEY);
+  return env.FILES_JEV_ENABLED && Boolean(aiGatewayApiKey("default", env));
 }
 
 /**
@@ -306,7 +306,7 @@ async function postEvaluation(input: {
   | { kind: "failed"; reason: string; latencyMs: number }
 > {
   const startedAt = Date.now();
-  const apiKey = getEnv().AI_GATEWAY_API_KEY;
+  const apiKey = aiGatewayApiKey();
 
   if (!apiKey)
     return { kind: "failed", reason: "not-configured", latencyMs: 0 };

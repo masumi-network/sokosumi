@@ -1573,6 +1573,11 @@
         "label": "Créditos gastados por día, últimos 30 días",
         "total": "{count} créditos gastados en los últimos 30 días",
         "day": "{date}: {count} créditos"
+      },
+      "TaskFilter": {
+        "label": "Créditos de {task}",
+        "unknownTask": "esta tarea",
+        "clear": "Ver todas las transacciones"
       }
     },
     "Chat": {
@@ -1684,33 +1689,19 @@
         "sidebarNew": "Nuevo"
       },
       "Landing": {
-        "greeting": "¡Bienvenido!",
-        "greetingWithName": "¡Bienvenido, {name}!",
-        "intro": "Di qué hay que hacer y ellos lo hacen.",
         "cta": {
-          "avatarAlt": "{name}",
           "button": "Chatear con {name}",
-          "searchAgents": "Buscar agentes",
           "error": "No se pudo abrir el chat. Inténtalo de nuevo."
         },
         "stats": {
           "completed": "{count, plural, one {# tarea completada} other {# tareas completadas}}",
           "worked": "{minutes, plural, one {# minuto trabajado} other {# minutos trabajados}}",
           "awaiting": "{count, plural, one {# tarea necesita tu respuesta} other {# tareas necesitan tu respuesta}}",
+          "awaitingTeam": "{count, plural, one {# tarea necesita respuesta} other {# tareas necesitan respuesta}}",
+          "needsYou": "{count, plural, one {# solicitud te necesita} other {# solicitudes te necesitan}}",
           "byTeammates": "{count, plural, one {# tarea de tu equipo} other {# tareas de tu equipo}}",
           "recent": "En las últimas 24 horas",
-          "trendUp": "{count} más que en las 24 horas anteriores",
-          "trendDown": "{count} menos que en las 24 horas anteriores",
           "workedHours": "{hours, plural, one {# hora trabajada} other {# horas trabajadas}}"
-        },
-        "team": {
-          "avatarAlt": "{name}",
-          "stripLabel": "Compañeros disponibles",
-          "select": "Seleccionar a {name}"
-        },
-        "searchAgents": {
-          "label": "Buscar",
-          "subtitle": "Agentes especializados"
         },
         "MyDay": {
           "title": "Mi día",
@@ -1752,6 +1743,11 @@
           "openChat": "Abrir el chat",
           "failedWork": "{name} no pudo terminar lo que estaba haciendo",
           "openBot": "Abrir la página de {name}"
+        },
+        "SokoBotSetup": {
+          "title": "Consigue tu Soko Bot",
+          "intro": "Se ocupa de tus tareas, tu correo y tu calendario.",
+          "cta": "Configurarlo"
         }
       },
       "SokoBot": {
@@ -2124,7 +2120,10 @@
         "subscribe": "Suscribirse",
         "unsubscribe": "Cancelar suscripción",
         "subscribeError": "No se pudo suscribir. Inténtalo de nuevo.",
-        "removeParticipantError": "No se pudo quitar al participante. Inténtalo de nuevo."
+        "removeParticipantError": "No se pudo quitar al participante. Inténtalo de nuevo.",
+        "credits": "Créditos usados en este espacio de trabajo",
+        "creditsUsed": "{credits, plural, one {# crédito usado en este espacio de trabajo} other {# créditos usados en este espacio de trabajo}}",
+        "noCreditsUsed": "Sin créditos usados en este espacio de trabajo"
       },
       "NewTask": {
         "ContextAttachments": {
@@ -7289,16 +7288,16 @@
       "Evals": {
         "title": "Evals",
         "description": "{sokoBot} Soko Bot and {cmo} CMO cases. They run every day on mainnet against what main deployed, and by hand after a merge or while you develop.",
-        "noHistory": "No daily runs yet",
-        "historyLabel": "Pass rate in the last {count} daily runs",
-        "noDailyRuns": "No daily run has finished yet.",
+        "noHistory": "No weekly runs yet",
+        "historyLabel": "Pass rate in the last {count} weekly runs",
+        "noDailyRuns": "No weekly run has finished yet.",
         "trendBarTitle": "{rate} passed ({passed} of {scored})",
-        "noRuns": "No eval run yet. Start one, or wait for the daily run.",
+        "noRuns": "No eval run yet. Start one, or wait for the weekly run.",
         "wasRate": "was {rate}",
         "noCasesMatch": "No case matches this filter.",
         "runTitle": "{trigger} run, {when}",
-        "comparedWith": "Compared with the daily run of {when}",
-        "noBaseline": "No daily run before this one to compare with.",
+        "comparedWith": "Compared with the weekly run of {when}",
+        "noBaseline": "No weekly run before this one to compare with.",
         "openCases": "{count, plural, one {# case to go} other {# cases to go}}",
         "passedOf": "{passed} of {scored} passed",
         "suiteFilter": "Suite",
@@ -7358,7 +7357,7 @@
           "sokoBot": "Soko Bot",
           "cmo": "CMO",
           "repeats": "Repeats",
-          "repeatsHint": "The daily run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
+          "repeatsHint": "The weekly run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
           "cases": "Only these cases",
           "casesPlaceholder": "ambiguous-request, cmo-strategy-cal-com",
           "casesHint": "Leave empty to run every case of the suites.",
@@ -7507,11 +7506,22 @@
       "Email": {
         "title": "Cambiar email",
         "description": "Actualizar tu dirección de email",
+        "descriptionWithCurrent": "Has iniciado sesión como {email}. Enviamos un enlace a la nueva dirección para confirmar el cambio.",
         "newEmail": "Nuevo email",
         "currentPassword": "Contraseña actual",
         "submit": "Actualizar email",
-        "success": "Email actualizado correctamente",
-        "error": "No se pudo actualizar el email"
+        "success": "Abre el enlace que enviamos a {email} para confirmar tu nueva dirección.",
+        "error": "No se pudo actualizar el email",
+        "pendingBadge": "Esperando tu confirmación",
+        "pendingDescription": "Abre el enlace que enviamos a esta dirección para terminar el cambio.",
+        "resend": "Enviar de nuevo",
+        "cancel": "Cancelar cambio",
+        "cancelled": "Cambio de correo cancelado. El enlace ya no funciona.",
+        "cancelError": "No se pudo cancelar el cambio de correo. Inténtalo de nuevo.",
+        "changed": "Tu correo ahora es {email}.",
+        "linkFailed": "Ese enlace ya no funciona. Pide uno nuevo abajo.",
+        "statusUnavailable": "No se pudo comprobar si hay un cambio de correo pendiente. Recarga para intentarlo de nuevo.",
+        "cancelTooLate": "Este cambio ya se confirmó o caducó, así que no hay nada que cancelar."
       },
       "Password": {
         "title": "Cambiar contraseña",
@@ -8172,17 +8182,17 @@
         }
       },
       "VendorGrants": {
-        "title": "Acceso de proveedores al espacio de trabajo",
-        "description": "Aprueba el acceso de proveedores al espacio de trabajo personal (leer, comentar y crear tareas).",
-        "vendorsTitle": "Proveedores",
-        "vendorsEmpty": "Aún no hay permisos de proveedor.",
+        "title": "Quién puede trabajar en tu espacio de trabajo",
+        "description": "Los socios que permitas pueden ver las tareas de tu espacio de trabajo personal, comentarlas y crear nuevas.",
+        "vendorsTitle": "Socios",
+        "vendorsEmpty": "Ningún socio tiene acceso.",
         "statusPending": "Pendiente",
         "statusGranted": "Concedido",
         "statusDenied": "Denegado",
         "statusRevoked": "Revocado",
-        "grantFormTitle": "Conceder acceso de forma proactiva",
+        "grantFormTitle": "Añadir un socio",
         "GrantForm": {
-          "vendorLabel": "Proveedor",
+          "vendorLabel": "Socio",
           "workspaceAccessHint": "Concede acceso completo al espacio de trabajo: leer, comentar y crear tareas.",
           "submit": "Conceder acceso",
           "success": "Acceso de proveedor concedido",
@@ -8191,17 +8201,20 @@
         "Actions": {
           "approve": "Aprobar",
           "deny": "Denegar",
-          "revoke": "Revocar",
+          "revoke": "Quitar acceso",
           "approveSuccess": "Acceso de proveedor aprobado",
           "denySuccess": "Acceso de proveedor denegado",
-          "revokeSuccess": "Acceso de proveedor revocado",
+          "revokeSuccess": "Acceso quitado",
           "approveError": "No se pudo aprobar el acceso de proveedor",
           "denyError": "No se pudo denegar el acceso de proveedor",
-          "revokeError": "No se pudo revocar el acceso de proveedor",
+          "revokeError": "No se pudo quitar el acceso",
           "grant": "Conceder",
           "grantSuccess": "Acceso de proveedor concedido",
           "grantError": "No se pudo conceder acceso de proveedor"
-        }
+        },
+        "permissionWorkspace": "Puede leer, comentar, crear",
+        "grantedSince": "Tiene acceso desde el {date}. Puedes quitarlo cuando quieras.",
+        "grantedOnRequest": "Pidió acceso, aprobado el {date}. Puedes quitarlo cuando quieras."
       },
       "CoworkerAccess": {
         "title": "Acceso anticipado de coworker",
@@ -8375,7 +8388,10 @@
             "grant": "Conceder",
             "grantSuccess": "Acceso de proveedor concedido",
             "grantError": "No se pudo conceder acceso de proveedor"
-          }
+          },
+          "permissionWorkspace": "Puede leer, comentar, crear",
+          "grantedSince": "Tiene acceso desde el {date}.",
+          "grantedOnRequest": "Pidió acceso, aprobado el {date}."
         },
         "CoworkerAccess": {
           "title": "Acceso anticipado de coworker",
@@ -9034,13 +9050,14 @@
         "attachmentFallback": "file",
         "showFormatting": "Mostrar formato",
         "hideFormatting": "Ocultar formato",
-        "recordVoice": "Grabar un mensaje de voz",
-        "stopVoice": "Detener y adjuntar",
-        "cancelVoice": "Descartar grabación",
-        "voiceRecording": "Grabando mensaje de voz",
-        "voiceBlocked": "Permite el acceso al micrófono en tu navegador para grabar un mensaje de voz.",
         "voiceFailed": "La grabación se detuvo. Inténtalo de nuevo.",
-        "voiceFileName": "Mensaje de voz {time}"
+        "dictate": "Dictar",
+        "stopDictation": "Detener y escribirlo",
+        "cancelDictation": "Descartar dictado",
+        "dictating": "Dictando",
+        "dictationBlocked": "Permite el acceso al micrófono en tu navegador para dictar.",
+        "dictationFailed": "No se pudo convertir en texto. Inténtalo de nuevo.",
+        "dictationEmpty": "No se entendió nada. Inténtalo de nuevo."
       },
       "Skills": {
         "add": "Añadir una skill",
@@ -9769,6 +9786,7 @@
       "recentsTagFilterEmpty": "Aún no hay etiquetas. Los archivos se etiquetan al procesarse.",
       "recentsEmptyTitle": "No hay archivos recientes",
       "recentsEmptyDescription": "Los archivos que subas o recibas de tareas aparecerán aquí",
+      "recentsEmptyOpenWorkspace": "Abrir espacio de trabajo",
       "loadRecentsError": "No se pudieron cargar los archivos recientes",
       "loadMoreRecentsError": "No se pudieron cargar más archivos recientes",
       "viewList": "Lista",
@@ -10118,9 +10136,7 @@
         "nameHint": "Tu propio asistente de IA en Sokosumi. Puedes cambiarle el nombre más tarde.",
         "continue": "Continuar",
         "back": "Atrás",
-        "pictureTitle": "Elige una imagen para {name}",
-        "createWithoutPicture": "Crear sin imagen",
-        "createWithoutPictureHint": "{name} empieza con su orbe de color. Añade una imagen cuando quieras en sus ajustes."
+        "pictureTitle": "Elige una imagen para {name}"
       },
       "Memory": {
         "title": "Memoria",
@@ -10181,6 +10197,7 @@
         "lastRun": "Última",
         "failures": "Fallos",
         "disabled": "deshabilitada",
+        "yourTime": "({datetime} en tu hora)",
         "enable": "Habilitar programación",
         "disable": "Deshabilitar programación",
         "delete": "Eliminar",
@@ -10451,8 +10468,8 @@
           "tokenSplit": "{input} entrada · {output} salida",
           "modelCost": "Coste del modelo",
           "modelCostHint": "Lo que costaron los tokens, antes del mínimo por turno",
-          "creditSplit": "{own} en sus propios turnos · {delegated} en Coworkers y Agents",
-          "creditsOwnOnly": "Todo en sus propios turnos"
+          "creditSplit": "{own} del propio asistente · {delegated} en Coworkers y Agents",
+          "creditsOwnOnly": "Nada gastado en Coworkers ni Agents"
         },
         "Connectors": {
           "title": "Herramientas",
@@ -10469,6 +10486,9 @@
         "current": "Imagen actual",
         "hint": "Elige una o pide otras opciones.",
         "showOthers": "Ver otras",
+        "noneNew": "Ahora no hay imágenes nuevas. Inténtalo de nuevo en un minuto.",
+        "drawing": "Dibujando imágenes nuevas. Puede tardar un minuto.",
+        "noMore": "No hay más imágenes nuevas por ahora. Elige una de arriba.",
         "pictures": "Imágenes",
         "loadError": "No se pudieron cargar las imágenes.",
         "rateLimited": "Has pedido demasiadas imágenes nuevas. Inténtalo de nuevo más tarde."
@@ -10614,7 +10634,8 @@
         "social": "Publicaciones sociales",
         "newsletter": "Newsletter",
         "contacts": "Seguimientos",
-        "marketing": "Plan de marketing"
+        "marketing": "Plan de marketing",
+        "sokoBot": "Soko Bot"
       },
       "source": {
         "WORKSPACE": "Espacio de trabajo",
@@ -10719,6 +10740,11 @@
         "cancel": "Cancelar",
         "invalid": "Elige una fecha y hora válidas.",
         "past": "Elige una hora en el futuro."
+      },
+      "botRun": {
+        "running": "En curso",
+        "done": "Hecho",
+        "failed": "Falló"
       }
     },
     "You": {
@@ -10741,6 +10767,7 @@
       "noFileChosen": "Ningún archivo seleccionado",
       "csvLimit": "Hasta 5 MB, 10.000 filas y 100 columnas. La primera fila contiene los nombres de las columnas.",
       "mapping": "Asignar columnas y vista previa",
+      "numberGuess": "Todas las celdas con contenido son números, por eso empieza como Número. Cámbialo si los dígitos son un código.",
       "columnName": "Nombre de columna",
       "type": "Tipo",
       "options": "Opciones (separadas por punto y coma)",
@@ -13166,7 +13193,7 @@
     "Assistant": {
       "metadataTitle": "Configura tu asistente",
       "later": "Más tarde",
-      "laterHint": "Puedes configurarlo en cualquier momento desde Soko Bots.",
+      "laterHint": "Puedes configurarlo en cualquier momento desde Inicio.",
       "skip": "Omitir",
       "continue": "Continuar"
     }

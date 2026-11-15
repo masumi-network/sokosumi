@@ -2,16 +2,15 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  DICTATION_MAX_MS,
+  DictationButton,
   formatVoiceElapsed,
-  VOICE_MESSAGE_MAX_MS,
-  VoiceMessageRecorder,
-} from "./voice-message-recorder";
+} from "./dictation-button";
 
 const { toastErrorMock } = vi.hoisted(() => ({ toastErrorMock: vi.fn() }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string, values?: Record<string, string>) =>
-    values ? `${key} ${values.time}` : key,
+  useTranslations: () => (key: string) => key,
 }));
 
 vi.mock("sonner", () => ({ toast: { error: toastErrorMock } }));
@@ -66,66 +65,66 @@ afterEach(() => {
 
 async function startRecording() {
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "recordVoice" }));
+    fireEvent.click(screen.getByRole("button", { name: "dictate" }));
   });
 }
 
-describe("VoiceMessageRecorder", () => {
+describe("DictationButton", () => {
   it("hides the mic when the browser cannot record", () => {
     supported = [];
-    render(<VoiceMessageRecorder onRecorded={vi.fn()} />);
-    expect(screen.queryByRole("button", { name: "recordVoice" })).toBeNull();
+    render(<DictationButton onRecorded={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "dictate" })).toBeNull();
   });
 
-  it("records WebM as a .weba audio file and attaches it on stop", async () => {
+  it("records WebM and hands it over on stop", async () => {
     const onRecorded = vi.fn();
-    render(<VoiceMessageRecorder onRecorded={onRecorded} />);
+    render(<DictationButton onRecorded={onRecorded} />);
     await startRecording();
 
     expect(lastRecorder?.options.mimeType).toBe("audio/webm");
     act(() => vi.advanceTimersByTime(5_000));
     expect(screen.getByRole("timer").textContent).toContain("0:05");
 
-    fireEvent.click(screen.getByRole("button", { name: "stopVoice" }));
+    fireEvent.click(screen.getByRole("button", { name: "stopDictation" }));
 
     const file: File = onRecorded.mock.calls[0]?.[0];
     expect(file.type).toBe("audio/webm");
-    expect(file.name).toMatch(/^voiceFileName .+\.weba$/);
+    expect(file.name).toBe("dictation.weba");
     expect(stopTrack).toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "recordVoice" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "dictate" })).toBeTruthy();
   });
 
   it("prefers MP4 where the browser records it", async () => {
     supported = ["audio/mp4", "audio/webm"];
     const onRecorded = vi.fn();
-    render(<VoiceMessageRecorder onRecorded={onRecorded} />);
+    render(<DictationButton onRecorded={onRecorded} />);
     await startRecording();
-    fireEvent.click(screen.getByRole("button", { name: "stopVoice" }));
+    fireEvent.click(screen.getByRole("button", { name: "stopDictation" }));
     expect(onRecorded.mock.calls[0]?.[0].name).toMatch(/\.m4a$/);
   });
 
   it("discards the recording on cancel", async () => {
     const onRecorded = vi.fn();
-    render(<VoiceMessageRecorder onRecorded={onRecorded} />);
+    render(<DictationButton onRecorded={onRecorded} />);
     await startRecording();
-    fireEvent.click(screen.getByRole("button", { name: "cancelVoice" }));
+    fireEvent.click(screen.getByRole("button", { name: "cancelDictation" }));
     expect(onRecorded).not.toHaveBeenCalled();
     expect(stopTrack).toHaveBeenCalled();
   });
 
-  it("stops and attaches at the time limit", async () => {
+  it("stops and hands it over at the time limit", async () => {
     const onRecorded = vi.fn();
-    render(<VoiceMessageRecorder onRecorded={onRecorded} />);
+    render(<DictationButton onRecorded={onRecorded} />);
     await startRecording();
-    act(() => vi.advanceTimersByTime(VOICE_MESSAGE_MAX_MS + 250));
+    act(() => vi.advanceTimersByTime(DICTATION_MAX_MS + 250));
     expect(onRecorded).toHaveBeenCalledOnce();
   });
 
   it("explains a blocked microphone", async () => {
     getUserMedia.mockRejectedValue(new Error("NotAllowedError"));
-    render(<VoiceMessageRecorder onRecorded={vi.fn()} />);
+    render(<DictationButton onRecorded={vi.fn()} />);
     await startRecording();
-    expect(toastErrorMock).toHaveBeenCalledWith("voiceBlocked");
+    expect(toastErrorMock).toHaveBeenCalledWith("dictationBlocked");
     expect(screen.queryByRole("timer")).toBeNull();
   });
 
@@ -137,8 +136,8 @@ describe("VoiceMessageRecorder", () => {
           grant = resolve;
         }),
     );
-    render(<VoiceMessageRecorder onRecorded={vi.fn()} />);
-    const mic = screen.getByRole("button", { name: "recordVoice" });
+    render(<DictationButton onRecorded={vi.fn()} />);
+    const mic = screen.getByRole("button", { name: "dictate" });
     fireEvent.click(mic);
     fireEvent.click(mic);
     expect(getUserMedia).toHaveBeenCalledOnce();
@@ -157,26 +156,24 @@ describe("VoiceMessageRecorder", () => {
     const onRecorded = vi.fn();
     const onRecordingChange = vi.fn();
     const { unmount } = render(
-      <VoiceMessageRecorder
+      <DictationButton
         onRecorded={onRecorded}
         onRecordingChange={onRecordingChange}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "recordVoice" }));
+    fireEvent.click(screen.getByRole("button", { name: "dictate" }));
     unmount();
     await act(async () => grant({ getTracks: () => [{ stop: stopTrack }] }));
     expect(stopTrack).toHaveBeenCalledOnce();
     expect(lastRecorder).toBeNull();
-    act(() => vi.advanceTimersByTime(VOICE_MESSAGE_MAX_MS + 250));
+    act(() => vi.advanceTimersByTime(DICTATION_MAX_MS + 250));
     expect(onRecorded).not.toHaveBeenCalled();
     expect(onRecordingChange).not.toHaveBeenCalled();
   });
 
-  it("releases the mic without attaching when unmounted while recording", async () => {
+  it("releases the mic without handing it over when unmounted while recording", async () => {
     const onRecorded = vi.fn();
-    const { unmount } = render(
-      <VoiceMessageRecorder onRecorded={onRecorded} />,
-    );
+    const { unmount } = render(<DictationButton onRecorded={onRecorded} />);
     await startRecording();
     unmount();
     expect(stopTrack).toHaveBeenCalled();
@@ -186,19 +183,19 @@ describe("VoiceMessageRecorder", () => {
   it("moves focus to Stop on start and back to the mic on finish", async () => {
     const onRecordingChange = vi.fn();
     render(
-      <VoiceMessageRecorder
+      <DictationButton
         onRecorded={vi.fn()}
         onRecordingChange={onRecordingChange}
       />,
     );
     await startRecording();
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "stopVoice" }),
+      screen.getByRole("button", { name: "stopDictation" }),
     );
     expect(onRecordingChange).toHaveBeenLastCalledWith(true);
-    fireEvent.click(screen.getByRole("button", { name: "stopVoice" }));
+    fireEvent.click(screen.getByRole("button", { name: "stopDictation" }));
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "recordVoice" }),
+      screen.getByRole("button", { name: "dictate" }),
     );
     expect(onRecordingChange).toHaveBeenLastCalledWith(false);
   });

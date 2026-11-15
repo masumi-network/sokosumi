@@ -53,5 +53,6 @@ export function buildExportHref(
   params.set("scope", filters.scope);
   if (filters.type) params.set("types", filters.type);
   if (filters.projectId) params.set("projectId", filters.projectId);
+  if (filters.taskId) params.set("taskId", filters.taskId);
   return `/api/transactions/export?${params.toString()}`;
 }

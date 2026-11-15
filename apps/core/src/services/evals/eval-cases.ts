@@ -58,6 +58,8 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "file-read": "Drive",
   "mail-delta": "Mail and calendar",
   "stop-checkins": "Schedules",
+  "reminder-uses-owner-zone": "Schedules",
+  "reminder-named-zone-wins": "Schedules",
   "quiet-standup": "Rhythms",
   "quiet-delta": "Mail and calendar",
   "autonomous-meeting-prep": "Rhythms",

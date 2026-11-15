@@ -18,10 +18,11 @@ import {
   utcToDateTimeLocalInTimezone,
   zonedDateTimeLocalToUtc,
 } from "@/lib/schedules/zoned-datetime";
-import type { ChangeableRun } from "./run-change";
 
 interface RunMoveDialogProps {
-  item: ChangeableRun;
+  /** What runs: the Task's or the Soko Bot schedule's name. */
+  name: string;
+  scheduledAt: Date;
   /** IANA zone the wall-clock input is interpreted in. */
   timeZone: string;
   onClose: () => void;
@@ -29,9 +30,10 @@ interface RunMoveDialogProps {
   onMove: (scheduledAt: Date) => void;
 }
 
-/** Moves one Task Schedule Run to another time; the rule stays as it is. */
+/** Moves one Task Schedule or Soko Bot run to another time; the rule stays as it is. */
 export function RunMoveDialog({
-  item,
+  name,
+  scheduledAt: currentAt,
   timeZone,
   onClose,
   onMove,
@@ -39,7 +41,7 @@ export function RunMoveDialog({
   const t = useTranslations("App.Calendar");
   const inputId = useId();
   const [value, setValue] = useState(() =>
-    utcToDateTimeLocalInTimezone(item.scheduledAt, timeZone),
+    utcToDateTimeLocalInTimezone(currentAt, timeZone),
   );
   const [error, setError] = useState<string | null>(null);
 
@@ -71,7 +73,7 @@ export function RunMoveDialog({
         <DialogHeader>
           <DialogTitle>{t("runMove.title")}</DialogTitle>
           <DialogDescription>
-            {t("runMove.description", { name: item.taskName })}
+            {t("runMove.description", { name })}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">

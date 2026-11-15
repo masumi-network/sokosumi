@@ -49,6 +49,7 @@ vi.mock("@/lib/db/prisma", () => {
       findMany: findManyMock,
       deleteMany: vi.fn(),
     },
+    evalLane: { findUnique: vi.fn().mockResolvedValue(null) },
     sokoBotTurn: {
       findFirst: vi.fn(),
       findUnique: vi.fn().mockResolvedValue({ source: "CHAT" }),

@@ -979,6 +979,8 @@ function DrivePageWorkspace({
       }
     }
     await refreshDriveItems();
+    // Empty Recents can start an upload, and the new file belongs there.
+    if (uploaded > 0) setRecentsReloadToken((token) => token + 1);
     if (uploaded > 0 && plan.rootFolder) applyFolderFacet(plan.rootFolder);
 
     if (uploaded === 0 && entries.length === 1 && duplicate) {
@@ -1943,27 +1945,6 @@ function DrivePageWorkspace({
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Input
-                  id="file-upload"
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={handlePickedFiles}
-                  disabled={uploading}
-                />
-                {/* `webkitdirectory` is not in React's input types, but every
-                    current browser reads it and hands back the files with
-                    `webkitRelativePath` set. */}
-                <Input
-                  ref={folderInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={handlePickedFiles}
-                  disabled={uploading}
-                  {...{ webkitdirectory: "" }}
-                />
               </div>
             )}
             {!isTasksView && isRecentsView && (
@@ -2151,6 +2132,9 @@ function DrivePageWorkspace({
           onItemsChanged={() => {
             void refreshDriveItems();
           }}
+          onUpload={openFilePicker}
+          uploading={uploading}
+          onOpenWorkspace={() => navigateToPrimaryView("workspace")}
         />
       ) : loading ? (
         <DriveListSkeleton viewMode={layoutMode} />
@@ -2505,6 +2489,30 @@ function DrivePageWorkspace({
           if (!open) setDataRoomFolder(null);
         }}
         onChanged={() => void dataRoomsQuery.refetch()}
+      />
+
+      {/* Outside any one view: Workspace's Upload menu, the phone FAB and
+          empty Recents all open these pickers. */}
+      <Input
+        id="file-upload"
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handlePickedFiles}
+        disabled={uploading}
+      />
+      {/* `webkitdirectory` is not in React's input types, but every
+          current browser reads it and hands back the files with
+          `webkitRelativePath` set. */}
+      <Input
+        ref={folderInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handlePickedFiles}
+        disabled={uploading}
+        {...{ webkitdirectory: "" }}
       />
 
       {!isTasksView && isWorkspaceView && (

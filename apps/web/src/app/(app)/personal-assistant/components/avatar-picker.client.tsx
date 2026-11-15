@@ -8,21 +8,37 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { topUpSokoBotAvatarsAction } from "@/lib/actions/soko-bot/action";
-import { SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE } from "@/lib/soko-bot/constants";
+import {
+  SOKO_BOT_AVATAR_DRAW_BUSY_ERROR_CODE,
+  SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
+  SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE,
+} from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
-import {
-  excludeIdsForAvatarRefresh,
-  fillAvatarRow,
-  nextSeenAvatars,
-} from "./avatar-picker-exclusions";
+import { fillAvatarRow } from "./avatar-picker-exclusions";
 
 const PAGE_SIZE = 6;
+/**
+ * "Show others" draws a new set, and each image is billed, so a picker session
+ * gets this many tries. Every try counts, an empty or failed one too, since
+ * the image model may have billed it. Only Core's no-work answers are free
+ * retries: nothing was drawn for them. Core's per-user hourly cap (24 images,
+ * four sets of six) bounds the spend on the server.
+ */
+const MAX_AVATAR_REFRESHES = 4;
+
+/** Core drew nothing for these, so they do not use up a try. */
+const NO_WORK_ERROR_CODES: ReadonlySet<string> = new Set([
+  SOKO_BOT_AVATAR_DRAW_BUSY_ERROR_CODE,
+  SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
+  SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE,
+]);
 
 /**
  * Six unclaimed Soko Bot avatars at a time, or five beside the current
- * picture; "show others" for a fresh set. Each one is unique across all bots:
- * the pool hands an avatar to exactly one bot.
+ * picture; "show others" draws a fresh set, up to `MAX_AVATAR_REFRESHES`.
+ * Each one is unique across all bots: the pool hands an avatar to exactly
+ * one bot.
  */
 export function AvatarPicker(props: AvatarPickerProps) {
   // A saved pick becomes the current picture. Remount on that change so the
@@ -55,6 +71,11 @@ function AvatarPickerSet({
   const [seen, setSeen] = useState<SokoBotAvatar[]>([]);
   const [isPending, startTransition] = useTransition();
   const [loaded, setLoaded] = useState(false);
+  // "Show others" brought nothing new: the set stays, so say why instead of
+  // seeming to do nothing.
+  const [noneNew, setNoneNew] = useState(false);
+  const [refreshes, setRefreshes] = useState(0);
+  const refreshesLeft = refreshes < MAX_AVATAR_REFRESHES;
   // The current picture takes one tile, so the set shrinks by one and the
   // tiles still fill whole rows (six wide, or two rows of three).
   const take = currentImageUrl ? PAGE_SIZE - 1 : PAGE_SIZE;
@@ -65,49 +86,58 @@ function AvatarPickerSet({
   // that belongs to nobody, and a reopened picker owns the loading state.
   const mounted = useRef(true);
 
-  function load(excludeIds: string[]) {
+  function load(refresh: boolean) {
     onLoadingChange?.(true);
     startTransition(async () => {
       try {
-        await loadSet(excludeIds);
+        await loadSet(refresh);
       } finally {
         if (mounted.current) onLoadingChange?.(false);
       }
     });
   }
 
-  async function loadSet(excludeIds: string[]) {
-    const requestedExcludeIds = excludeIdsForAvatarRefresh(excludeIds);
+  /**
+   * The first set reads the pool. A refresh ("show others") asks Core to draw
+   * a new set and gets only that set back, so it never repeats a picture.
+   * Whatever goes wrong, the current set and pick stay on screen.
+   */
+  async function loadSet(refresh: boolean) {
+    // A rejected call (the browser lost the response) may still have drawn
+    // and billed on the server, so it is handled, and counted, as a failure.
     const result = await topUpSokoBotAvatarsAction({
-      input: { take, excludeIds: requestedExcludeIds },
-    });
+      input: { take, excludeIds: [], fresh: refresh },
+    }).catch(() => ({ ok: false as const, error: { code: "REQUEST_FAILED" } }));
+    if (refresh && (result.ok || !NO_WORK_ERROR_CODES.has(result.error.code))) {
+      setRefreshes((count) => count + 1);
+    }
     if (!result.ok) {
-      toast.error(
-        result.error.code === SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE
-          ? t("rateLimited")
-          : t("loadError"),
-      );
+      if (result.error.code === SOKO_BOT_AVATAR_DRAW_BUSY_ERROR_CODE) {
+        setNoneNew(true);
+      } else {
+        toast.error(
+          result.error.code === SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE
+            ? t("rateLimited")
+            : t("loadError"),
+        );
+      }
       // Stop the skeletons. Hitting the hourly cap is an expected answer,
       // not a pending one, and tiles that pulse for ever under the toast
       // read as "still loading".
       setLoaded(true);
       return;
     }
-    // The pool is finite; when a fresh set comes back short, start over.
-    const wrappedAround =
-      result.value.length === 0 && requestedExcludeIds.length > 0;
-    // A short one has its rest still being drawn; fill the row from those
-    // seen before so it stays full.
-    const fresh = wrappedAround
-      ? await topUpSokoBotAvatarsAction({
-          input: { take, excludeIds: [] },
-        }).then((r) => (r.ok ? r.value : []))
-      : result.value;
-    const next =
-      wrappedAround || requestedExcludeIds.length === 0
-        ? fresh
-        : fillAvatarRow(fresh, seen, take);
+    const fresh = result.value;
+    // Nothing new: keep the set and the pick on screen.
+    if (refresh && fresh.length === 0) {
+      setNoneNew(true);
+      return;
+    }
+    // A short set (the hourly cap left fewer to draw) fills the row from
+    // pictures seen before so it stays full.
+    const next = refresh ? fillAvatarRow(fresh, seen, take) : fresh;
     setAvatars(next);
+    setNoneNew(false);
     // A new bot starts with a picture; picking another stays one click.
     // The pick must stay on screen: after "show others" a pick from the
     // old set may be gone, so fall back to the current picture or the first.
@@ -116,9 +146,7 @@ function AvatarPickerSet({
         ? Boolean(currentImageUrl)
         : next.some((avatar) => avatar.id === value);
     if (!pickOnScreen) onChange(currentImageUrl ? null : (next[0] ?? null));
-    setSeen((prev) =>
-      nextSeenAvatars(prev, fresh, wrappedAround ? [] : requestedExcludeIds),
-    );
+    setSeen((prev) => [...prev, ...fresh]);
     setLoaded(true);
   }
 
@@ -126,7 +154,7 @@ function AvatarPickerSet({
   // `load()` confirms it and its `false` releases saving.
   useMountEffect(() => {
     mounted.current = true;
-    load([]);
+    load(false);
     return () => {
       mounted.current = false;
     };
@@ -173,7 +201,15 @@ function AvatarPickerSet({
           : null}
       </div>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-muted-foreground text-xs">{t("hint")}</p>
+        <p aria-live="polite" className="text-muted-foreground text-xs">
+          {isPending && loaded
+            ? t("drawing")
+            : !refreshesLeft
+              ? t("noMore")
+              : noneNew
+                ? t("noneNew")
+                : t("hint")}
+        </p>
         <Button
           type="button"
           variant="ghost"
@@ -181,8 +217,8 @@ function AvatarPickerSet({
           // The first set loads behind the skeletons; only a refresh the user
           // asked for shows (and announces) this button as busy.
           loading={isPending && loaded}
-          disabled={!loaded}
-          onClick={() => load(seen.map((avatar) => avatar.id))}
+          disabled={!loaded || !refreshesLeft}
+          onClick={() => load(true)}
         >
           <RefreshCw aria-hidden className="size-3.5" />
           {t("showOthers")}

@@ -14674,6 +14674,18 @@ export const ChatEarlierThreadSchema = {
     ]
 } as const;
 
+export const VoiceTranscriptionSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string'
+        }
+    },
+    required: [
+        'text'
+    ]
+} as const;
+
 export const CreditCheckoutSessionSchema = {
     type: 'object',
     properties: {
@@ -32395,6 +32407,11 @@ export const WorkspaceCalendarEntrySchema = {
                     ],
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z'
+                },
+                originalAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
                 }
             },
             required: [
@@ -32417,6 +32434,9 @@ export const WorkspaceCalendarEntrySchema = {
                 },
                 {
                     $ref: '#/components/schemas/MarketingPieceCalendarItem'
+                },
+                {
+                    $ref: '#/components/schemas/SokoBotRunCalendarItem'
                 }
             ]
         }
@@ -33049,6 +33069,113 @@ export const MarketingPieceCalendarItemSchema = {
         'status',
         'fileId',
         'projectName',
+        'sourceId',
+        'sourceProjectId',
+        'sourceWorkspaceId',
+        'sourceType'
+    ]
+} as const;
+
+export const SokoBotRunCalendarItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'sokoBotRun'
+            ]
+        },
+        id: {
+            type: 'string'
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        scheduleId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The Soko Bot schedule that runs, or ran, at this time'
+        },
+        name: {
+            type: 'string'
+        },
+        sokoBotId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        botName: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        shared: {
+            type: 'boolean',
+            description: 'A Project or workspace bot every member sees; false for the caller\'s own personal bot'
+        },
+        projectName: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        runState: {
+            type: 'string',
+            enum: [
+                'upcoming',
+                'running',
+                'done',
+                'failed'
+            ],
+            description: 'upcoming: still to come. running, done, failed: a run that started, from the bot\'s run history'
+        },
+        originalAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'The cron time this run belongs to; differs from scheduledAt once moved'
+        },
+        canChange: {
+            type: 'boolean',
+            description: 'A run still to come, in the next 90 days, that the caller may move, skip or restore with the schedule\'s `run`'
+        },
+        sourceId: {
+            type: 'string'
+        },
+        sourceProjectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        sourceWorkspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceType: {
+            type: 'string',
+            enum: [
+                'WORKSPACE',
+                'PROJECT'
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'id',
+        'scheduledAt',
+        'scheduleId',
+        'name',
+        'sokoBotId',
+        'botName',
+        'shared',
+        'projectName',
+        'runState',
+        'originalAt',
+        'canChange',
         'sourceId',
         'sourceProjectId',
         'sourceWorkspaceId',
@@ -51436,6 +51563,47 @@ export const UpdateSokoBotScheduleRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 20000
+        },
+        run: {
+            type: 'object',
+            properties: {
+                originalAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'The cron time the run belongs to (the Calendar entry\'s originalAt)'
+                },
+                expectedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'Where the caller saw the run, or null when they saw it skipped. A run that changed since answers 409'
+                },
+                action: {
+                    type: 'string',
+                    enum: [
+                        'skip',
+                        'move',
+                        'restore'
+                    ]
+                },
+                scheduledAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'For move: the new time, in the future and within the next 90 days'
+                }
+            },
+            required: [
+                'originalAt',
+                'expectedAt',
+                'action'
+            ],
+            additionalProperties: false,
+            description: 'Skip, move or restore one run; the cron stays as it is. Sent alone.'
         }
     },
     additionalProperties: false
@@ -56032,6 +56200,26 @@ export const TransactionDailySpendListSchema = {
     }
 } as const;
 
+export const TransactionTotalSchema = {
+    type: 'object',
+    properties: {
+        credits: {
+            type: 'number',
+            description: 'Net credits taken by the matching rows: spends minus refunds and other top ups.',
+            example: 12.5
+        },
+        count: {
+            type: 'integer',
+            description: 'Matching ledger rows.',
+            example: 3
+        }
+    },
+    required: [
+        'credits',
+        'count'
+    ]
+} as const;
+
 export const CreditPriceOptionSchema = {
     type: 'object',
     properties: {
@@ -56815,7 +57003,8 @@ export const WorkspaceCalendarSourcesResponseSchema = {
                     'social',
                     'newsletter',
                     'contacts',
-                    'marketing'
+                    'marketing',
+                    'sokoBot'
                 ],
                 description: 'A Calendar feature the Show filter can include'
             },

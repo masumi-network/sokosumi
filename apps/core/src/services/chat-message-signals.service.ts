@@ -2,10 +2,10 @@ import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
-import { getEnv } from "@/config/env";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
+import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import {
   CHAT_SIGNAL_MODEL,
   CHAT_SIGNAL_VERSION,
@@ -82,7 +82,7 @@ export function chatSignalSkipReason(
 }
 
 function enabled(): boolean {
-  return Boolean(getEnv().AI_GATEWAY_API_KEY);
+  return Boolean(aiGatewayApiKey());
 }
 
 /**
