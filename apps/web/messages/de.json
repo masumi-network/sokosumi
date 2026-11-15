@@ -1573,6 +1573,11 @@
         "label": "Ausgegebene Credits pro Tag, letzte 30 Tage",
         "total": "{count} Credits in den letzten 30 Tagen ausgegeben",
         "day": "{date}: {count} Credits"
+      },
+      "TaskFilter": {
+        "label": "Credits für {task}",
+        "unknownTask": "diese Aufgabe",
+        "clear": "Alle Transaktionen anzeigen"
       }
     },
     "Chat": {
@@ -2113,7 +2118,10 @@
         "subscribe": "Abonnieren",
         "unsubscribe": "Abbestellen",
         "subscribeError": "Abonnieren fehlgeschlagen. Bitte erneut versuchen.",
-        "removeParticipantError": "Beteiligte Person konnte nicht entfernt werden. Versuche es erneut."
+        "removeParticipantError": "Beteiligte Person konnte nicht entfernt werden. Versuche es erneut.",
+        "credits": "In diesem Workspace verbrauchte Credits",
+        "creditsUsed": "{credits, plural, one {# Credit in diesem Workspace verbraucht} other {# Credits in diesem Workspace verbraucht}}",
+        "noCreditsUsed": "Keine Credits in diesem Workspace verbraucht"
       },
       "NewTask": {
         "ContextAttachments": {

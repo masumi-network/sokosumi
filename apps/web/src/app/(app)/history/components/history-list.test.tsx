@@ -59,7 +59,13 @@ describe("HistoryList month headings", () => {
         ]}
         nextCursor={null}
         filterResetKey="k"
-        filters={{ q: null, scope: "owned", type: null, projectId: null }}
+        filters={{
+          q: null,
+          scope: "owned",
+          type: null,
+          projectId: null,
+          taskId: null,
+        }}
         labels={labels}
         activeOrganizationId={null}
       />,
@@ -93,7 +99,13 @@ describe("HistoryList Soko Bot days", () => {
         ]}
         nextCursor={null}
         filterResetKey="k"
-        filters={{ q: null, scope: "owned", type: null, projectId: null }}
+        filters={{
+          q: null,
+          scope: "owned",
+          type: null,
+          projectId: null,
+          taskId: null,
+        }}
         labels={labels}
         activeOrganizationId={null}
       />,
