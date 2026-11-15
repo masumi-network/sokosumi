@@ -10604,7 +10604,8 @@
         "social": "Social-Beiträge",
         "newsletter": "Newsletter",
         "contacts": "Nachfassungen",
-        "marketing": "Marketingplan"
+        "marketing": "Marketingplan",
+        "sokoBot": "Soko Bot"
       },
       "source": {
         "WORKSPACE": "Workspace",
@@ -10709,6 +10710,11 @@
         "cancel": "Abbrechen",
         "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
         "past": "Wähle einen Zeitpunkt in der Zukunft."
+      },
+      "botRun": {
+        "running": "Läuft",
+        "done": "Erledigt",
+        "failed": "Fehlgeschlagen"
       }
     },
     "You": {

@@ -3201,7 +3201,8 @@ model SokoBotSchedule {
   jobId  String?
   job    Job?    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
-  runs SokoBotScheduleRun[]
+  runs       SokoBotScheduleRun[]
+  runChanges SokoBotScheduleRunChange[]
 
   @@unique([sokoBotId, systemKey])
   @@index([enabled, nextRunAt])
@@ -3237,6 +3238,26 @@ model SokoBotScheduleRun {
   @@unique([scheduleId, scheduledFor])
   @@index([status, scheduledFor])
   @@map("soko_bot_schedule_run")
+}
+
+/// One run of a recurring schedule moved or skipped from the Calendar; the
+/// cron stays as it is. `originalAt` is the cron time the run had,
+/// `scheduledAt` where it runs instead, or null when skipped. The scheduler
+/// fires the cron times without a change plus every moved time.
+model SokoBotScheduleRunChange {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  scheduleId String          @db.Uuid
+  schedule   SokoBotSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  originalAt  DateTime
+  scheduledAt DateTime?
+
+  @@unique([scheduleId, originalAt])
+  @@index([originalAt])
+  @@map("soko_bot_schedule_run_change")
 }
 
 /// Append-only operator audit. Deliberately FK-free so account/bot deletion

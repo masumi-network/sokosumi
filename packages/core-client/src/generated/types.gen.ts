@@ -8643,7 +8643,8 @@ export type ProjectDesignMdWrite = {
 export type WorkspaceCalendarEntry = {
     scheduledAt: Date;
     originalScheduledAt?: Date | null;
-} & (WorkspaceCalendarItem | SocialPostCalendarItem | NewsletterIssueCalendarItem | ContactFollowUpCalendarItem | MarketingPieceCalendarItem);
+    originalAt?: Date;
+} & (WorkspaceCalendarItem | SocialPostCalendarItem | NewsletterIssueCalendarItem | ContactFollowUpCalendarItem | MarketingPieceCalendarItem | SokoBotRunCalendarItem);
 
 export type WorkspaceCalendarItem = {
     /**
@@ -8818,6 +8819,40 @@ export type MarketingPieceCalendarItem = {
     sourceProjectId: string;
     sourceWorkspaceId: string;
     sourceType: 'PROJECT';
+};
+
+export type SokoBotRunCalendarItem = {
+    kind: 'sokoBotRun';
+    id: string;
+    scheduledAt: Date;
+    /**
+     * The Soko Bot schedule that runs, or ran, at this time
+     */
+    scheduleId: string;
+    name: string;
+    sokoBotId: string;
+    botName: string | null;
+    /**
+     * A Project or workspace bot every member sees; false for the caller's own personal bot
+     */
+    shared: boolean;
+    projectName: string | null;
+    /**
+     * upcoming: still to come. running, done, failed: a run that started, from the bot's run history
+     */
+    runState: 'upcoming' | 'running' | 'done' | 'failed';
+    /**
+     * The cron time this run belongs to; differs from scheduledAt once moved
+     */
+    originalAt: Date;
+    /**
+     * A run still to come, in the next 90 days, that the caller may move, skip or restore with the schedule's `run`
+     */
+    canChange: boolean;
+    sourceId: string;
+    sourceProjectId: string | null;
+    sourceWorkspaceId: string;
+    sourceType: 'WORKSPACE' | 'PROJECT';
 };
 
 export type ProjectCloseStatus = {
@@ -12224,6 +12259,24 @@ export type UpdateSokoBotScheduleRequest = {
     timezone?: string;
     cronExpression?: string;
     prompt?: string;
+    /**
+     * Skip, move or restore one run; the cron stays as it is. Sent alone.
+     */
+    run?: {
+        /**
+         * The cron time the run belongs to (the Calendar entry's originalAt)
+         */
+        originalAt: Date;
+        /**
+         * Where the caller saw the run, or null when they saw it skipped. A run that changed since answers 409
+         */
+        expectedAt: Date | null;
+        action: 'skip' | 'move' | 'restore';
+        /**
+         * For move: the new time, in the future and within the next 90 days
+         */
+        scheduledAt?: Date;
+    };
 };
 
 export type ResolveSokoBotDecisionRequest = {
@@ -13938,7 +13991,7 @@ export type WorkspaceCalendarSourcesResponse = {
     /**
      * Calendar features this viewer may show. Web offers only these in the Show filter.
      */
-    features: Array<'tasks' | 'social' | 'newsletter' | 'contacts' | 'marketing'>;
+    features: Array<'tasks' | 'social' | 'newsletter' | 'contacts' | 'marketing' | 'sokoBot'>;
 };
 
 export type WorkspaceCalendarSource = {
@@ -79818,6 +79871,21 @@ export type UpdateMySokoBotScheduleErrors = {
         };
     };
     /**
+     * The next run changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unprocessable Entity
      */
     422: {
@@ -83889,7 +83957,7 @@ export type UpdateSokoBotScheduleErrors = {
         };
     };
     /**
-     * CMO project is read-only
+     * CMO project is read-only, or the next run changed
      */
     409: {
         error: string;
