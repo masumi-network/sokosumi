@@ -1,6 +1,6 @@
 "use client";
 
-import { AudioLines, Mic, Square, X } from "lucide-react";
+import { Mic, Square, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -9,13 +9,12 @@ import { Button } from "@/components/ui/button";
 import useIsClient from "@/hooks/use-is-client";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
-/** Recording stops and attaches on its own after two minutes. */
-export const VOICE_MESSAGE_MAX_MS = 120_000;
+/** Dictation stops and turns into text on its own after two minutes. */
+export const DICTATION_MAX_MS = 120_000;
 
 /**
  * MP4 (AAC or Opus) first: Safari and recent Chrome record it. WebM/Opus is
- * the fallback (Firefox, older Chrome). Both are on the upload allowlist.
- * WebM gets `.weba` so chips classify it as audio, not video.
+ * the fallback (Firefox, older Chrome). Core transcribes both.
  */
 const VOICE_FORMATS = [
   { mimeType: "audio/mp4", extension: "m4a" },
@@ -41,12 +40,6 @@ export function formatVoiceElapsed(ms: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-function voiceFileStamp(at: Date): string {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  // Local time; ":" is not allowed in file names on Windows.
-  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${pad(at.getHours())}.${pad(at.getMinutes())}`;
-}
-
 function stopStream(stream: MediaStream) {
   for (const track of stream.getTracks()) track.stop();
 }
@@ -60,28 +53,7 @@ interface Recording {
   keep: boolean;
 }
 
-/** Labels per kind: a voice message, or speech typed into the composer. */
-const KIND_LABELS = {
-  memo: {
-    icon: AudioLines,
-    start: "recordVoice",
-    stop: "stopVoice",
-    cancel: "cancelVoice",
-    recording: "voiceRecording",
-    blocked: "voiceBlocked",
-  },
-  dictation: {
-    icon: Mic,
-    start: "dictate",
-    stop: "stopDictation",
-    cancel: "cancelDictation",
-    recording: "dictating",
-    blocked: "dictationBlocked",
-  },
-} as const;
-
-interface VoiceMessageRecorderProps {
-  kind?: keyof typeof KIND_LABELS;
+interface DictationButtonProps {
   onRecorded: (file: File) => void;
   /** Tells the composer to hold Send while the mic is open. */
   onRecordingChange?: (recording: boolean) => void;
@@ -92,22 +64,18 @@ interface VoiceMessageRecorderProps {
 }
 
 /**
- * Record button for the room composer. Records with the browser's
- * MediaRecorder and hands the result to the caller as a File: a voice message
- * uploads like any other attachment, dictation becomes text. Hidden where the
- * browser cannot record.
+ * Mic beside Send, like ChatGPT's. Records with the browser's MediaRecorder
+ * and hands the result to the caller as a File, which turns it into text.
+ * Hidden where the browser cannot record.
  */
-export function VoiceMessageRecorder({
-  kind = "memo",
+export function DictationButton({
   onRecorded,
   onRecordingChange,
   disabled,
   loading,
   buttonClassName,
-}: VoiceMessageRecorderProps) {
+}: DictationButtonProps) {
   const t = useTranslations("App.Channels.Toolbar");
-  const labels = KIND_LABELS[kind];
-  const Icon = labels.icon;
   const isClient = useIsClient();
   const recordingRef = useRef<Recording | null>(null);
   const startingRef = useRef(false);
@@ -160,7 +128,7 @@ export function VoiceMessageRecorder({
       startingRef.current = false;
       if (!unmountedRef.current) {
         setStarting(false);
-        toast.error(t(labels.blocked));
+        toast.error(t("dictationBlocked"));
       }
       return;
     }
@@ -181,7 +149,7 @@ export function VoiceMessageRecorder({
       keep: false,
       timer: setInterval(() => {
         const elapsed = Date.now() - startedAt;
-        if (elapsed >= VOICE_MESSAGE_MAX_MS) finish(true);
+        if (elapsed >= DICTATION_MAX_MS) finish(true);
         else setElapsedMs(elapsed);
       }, 250),
     };
@@ -193,7 +161,7 @@ export function VoiceMessageRecorder({
       onRecorded(
         new File(
           [new Blob(chunks, { type: format.mimeType })],
-          `${t("voiceFileName", { time: voiceFileStamp(new Date(startedAt)) })}.${format.extension}`,
+          `dictation.${format.extension}`,
           { type: format.mimeType },
         ),
       );
@@ -218,13 +186,13 @@ export function VoiceMessageRecorder({
         variant="ghost"
         size="icon"
         className={buttonClassName}
-        title={t(labels.start)}
-        aria-label={t(labels.start)}
+        title={t("dictate")}
+        aria-label={t("dictate")}
         disabled={disabled || starting}
         loading={loading}
         onClick={() => void start()}
       >
-        <Icon className="size-4" aria-hidden />
+        <Mic className="size-4" aria-hidden />
       </Button>
     );
   }
@@ -233,7 +201,7 @@ export function VoiceMessageRecorder({
     <div ref={containerRef} className="flex shrink-0 items-center gap-1">
       <span
         role="timer"
-        aria-label={t(labels.recording)}
+        aria-label={t("dictating")}
         className="text-foreground flex items-center gap-1.5 px-1 text-sm tabular-nums"
       >
         <span
@@ -247,8 +215,8 @@ export function VoiceMessageRecorder({
         variant="ghost"
         size="icon"
         className={buttonClassName}
-        title={t(labels.cancel)}
-        aria-label={t(labels.cancel)}
+        title={t("cancelDictation")}
+        aria-label={t("cancelDictation")}
         onClick={() => finish(false)}
       >
         <X className="size-4" aria-hidden />
@@ -259,8 +227,8 @@ export function VoiceMessageRecorder({
         variant="ghost"
         size="icon"
         className={buttonClassName}
-        title={t(labels.stop)}
-        aria-label={t(labels.stop)}
+        title={t("stopDictation")}
+        aria-label={t("stopDictation")}
         onClick={() => finish(true)}
       >
         <Square className="size-4 fill-current" aria-hidden />
