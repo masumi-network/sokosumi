@@ -7,7 +7,6 @@ import { waitUntil } from "@vercel/functions";
 import { createGateway, generateText } from "ai";
 import { HTTPException } from "hono/http-exception";
 import sharp from "sharp";
-
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
@@ -17,6 +16,7 @@ import {
 } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { buildOriginalSokoBotAvatarBlobPathname } from "@/helpers/soko-bot-avatar-blob-path";
+import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import prisma from "@/lib/db/prisma";
 import {
   CONCURRENCY_CONFLICT_KIND,
@@ -272,7 +272,7 @@ async function nextAvatarDraws(
 
 /** One image from the Gateway image model, as PNG or whatever it answers with. */
 async function generateImage(prompt: string): Promise<Buffer> {
-  const apiKey = getEnv().AI_GATEWAY_API_KEY;
+  const apiKey = aiGatewayApiKey();
   if (!apiKey) throw new Error("AI_GATEWAY_API_KEY is not configured");
   const result = await generateText({
     model: createGateway({ apiKey }).languageModel(AVATAR_MODEL),
@@ -341,7 +341,7 @@ class AvatarGenerationCappedError extends Error {}
 /** Whether the pool can draw at all: it needs the Gateway and a blob store. */
 function canDraw(): boolean {
   const env = getEnv();
-  return Boolean(env.AI_GATEWAY_API_KEY && env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(aiGatewayApiKey("default", env) && env.BLOB_READ_WRITE_TOKEN);
 }
 
 /** How a draw treats the caller's runs that are still in flight. */

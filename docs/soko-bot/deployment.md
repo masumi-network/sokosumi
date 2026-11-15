@@ -21,6 +21,23 @@ vercel env add SOKO_BOT_ENABLED preview --value true --project sokosumi-core-pre
 Nothing else is required. Model calls go through the AI Gateway using
 `AI_GATEWAY_API_KEY`, which Core already has.
 
+To split Gateway spend, set any of these optional keys; each falls back to
+`AI_GATEWAY_API_KEY` while unset, so nothing changes until you set one:
+
+- `SOKO_BOT_AI_GATEWAY_API_KEY` — bot turns, in-process and through the
+  sandbox model proxy. This is the default for any turn below that is not CMO
+  or eval.
+- `CMO_AI_GATEWAY_API_KEY` — Cuso turns: a CMO-profile version, or a turn id
+  starting `cmo-` or `cmo:`.
+- `EVALS_AI_GATEWAY_API_KEY` — eval bot turns (turn id `lab:`, or any turn in an eval lane workspace, including CMO and background turns; wins
+  over CMO) and the lab judge.
+- `PROJECT_MEMORY_AI_GATEWAY_API_KEY` — project memory refresh and the weekly
+  report; also what turns the memory feature on, with Blob storage.
+
+The tag classifier, Jev, avatars, chat signals, the brand profile and the model
+list always use `AI_GATEWAY_API_KEY`. Create the keys in the Gateway dashboard;
+Core only reads them.
+
 Optional, per network:
 
 - `SOKO_BOT_PROACTIVE_PAUSED=true` — platform-wide kill switch for everything
