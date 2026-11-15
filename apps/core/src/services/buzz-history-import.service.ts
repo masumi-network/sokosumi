@@ -18,7 +18,6 @@ import type pg from "pg";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import {
   BUZZ_AGENT_URL_PREFIX,
-  contentHash,
   messageDraft,
   profileDraft,
   reactionDraft,
@@ -30,6 +29,7 @@ import prisma from "@/lib/db/prisma";
 import {
   authorOf,
   buzzContentOf,
+  buzzHashOf,
   buzzTextOf,
   ensureIdentity,
   identitySecretKey,
@@ -395,7 +395,7 @@ async function importMessage(
       data: {
         messageId: message.id,
         eventId: event.id,
-        contentHash: contentHash(buzzTextOf(message)),
+        contentHash: buzzHashOf(message.content, buzzTextOf(message)),
         channelId,
       },
     }),

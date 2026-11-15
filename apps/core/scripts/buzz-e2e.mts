@@ -387,12 +387,22 @@ check("I", "a Direct deleted in Sokosumi is deleted on Buzz", async () => {
     memberUserIds: [people.bob.userId],
   });
   const directId = direct.id as string;
-  await api("alice", "POST", `/v1/chats/rooms/${directId}/messages`, {
-    content: `e2e ${RUN} I: a Direct`,
-  });
+  const sent = await api(
+    "alice",
+    "POST",
+    `/v1/chats/rooms/${directId}/messages`,
+    { content: `e2e ${RUN} I: a Direct` },
+  );
   const dm = await waitFor("the DM on Buzz", () =>
     prisma.buzzChannel.findUnique({ where: { roomId: directId } }),
   );
+  // The message itself, not only its DM, reaches Buzz.
+  await waitFor("the DM's message on Buzz", async () => {
+    const link = await prisma.buzzMessageLink.findUnique({
+      where: { messageId: sent.id as string },
+    });
+    return link && !link.pendingEvent ? link : null;
+  });
   // As account deletion or an organization's retirement removes it.
   await prisma.chatRoom.delete({ where: { id: directId } });
   // Read from the relay's database: the protocol hides a DM from anyone who

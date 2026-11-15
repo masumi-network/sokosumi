@@ -2134,7 +2134,7 @@ async function personalAgentKeysIn(roomId: string, author: BuzzIdentity) {
   const agents = await prisma.buzzIdentity.findMany({
     where: {
       encryptedSecretKey: null,
-      coworker: { chatRoomMembers: { some: { roomId } } },
+      coworker: { chatRoomMemberships: { some: { roomId } } },
       id: { not: author.id },
     },
     select: { pubkey: true },
@@ -2213,7 +2213,7 @@ export async function reconcileMessage(
   }
   const authorKey = identitySecretKey(authorIdentity);
   const text = buzzTextOf(message);
-  const hash = contentHash(text);
+  const hash = buzzHashOf(message.content, text);
   let result: ReconcileResult = "unchanged";
 
   // Finish what an earlier attempt decided but could not deliver.
@@ -2454,6 +2454,17 @@ export async function reconcileMessage(
     });
   }
   return result;
+}
+
+/**
+ * What a link records of a message: its text's hash, plus that of what Buzz
+ * shows when it adds a quote, skills or cards. The repair sweep compares the
+ * first part alone, in SQL.
+ */
+export function buzzHashOf(content: string, text: string): string {
+  return text === content
+    ? contentHash(content)
+    : `${contentHash(content)}:${contentHash(text)}`;
 }
 
 const RESULT_LABEL: Record<ChatResultAvailable["kind"], string> = {
@@ -2880,7 +2891,8 @@ export async function repairBuzzOutbox(limit = 200): Promise<number> {
            AND m."createdAt" >= c."createdAt" - ${LIVE_BEFORE_CHANNEL_MS} * interval '1 millisecond')
          OR (l."messageId" IS NOT NULL AND NOT l.deleted AND m."deletedAt" IS NOT NULL)
          OR (l."messageId" IS NOT NULL AND NOT l.deleted AND m."deletedAt" IS NULL
-           AND l."contentHash" <> encode(sha256(convert_to(m.content, 'UTF8')), 'hex'))
+           AND split_part(l."contentHash", ':', 1)
+               <> encode(sha256(convert_to(m.content, 'UTF8')), 'hex'))
        )
      LIMIT ${limit}`;
   // Reactions change no message: added ones Buzz has no link for, and links
@@ -4174,7 +4186,7 @@ async function memberKeysOfRoom(roomId: string) {
   const identities = await prisma.buzzIdentity.findMany({
     where: {
       encryptedSecretKey: { not: null },
-      user: { chatRoomMembers: { some: { roomId } } },
+      user: { chatRoomMemberships: { some: { roomId } } },
     },
   });
   return identities.map((identity) => identitySecretKey(identity));

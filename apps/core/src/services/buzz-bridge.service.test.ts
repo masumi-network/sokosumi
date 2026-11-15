@@ -101,6 +101,7 @@ import {
   applyInboundEvent,
   BuzzTargetPendingError,
   buzzContentOf,
+  buzzHashOf,
   buzzTextOf,
   CoreRejectedError,
   type CoreRequest,
@@ -1881,6 +1882,12 @@ describe("buzzTextOf", () => {
 
   it("leaves a plain message as it is", () => {
     expect(buzzTextOf({ content: "hi", metadata: null })).toBe("hi");
+  });
+
+  it("hashes a decorated message so the repair sweep can compare its text alone", () => {
+    const plain = buzzHashOf("hi", "hi");
+    expect(plain).toMatch(/^[0-9a-f]{64}$/);
+    expect(buzzHashOf("hi", "> **A:** x\n\nhi").split(":")[0]).toBe(plain);
   });
 });
 
