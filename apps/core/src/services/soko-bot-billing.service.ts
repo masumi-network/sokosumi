@@ -29,6 +29,12 @@ export interface SokoBotUsageChargeResult {
   /** The wallet the charge drew on: its organization, null for a personal
    * one. Null too when the turn had nothing to charge. */
   organizationId: string | null;
+  /**
+   * A Cuso's Project, whose Project credits (plan, top-up, Tester) pay his
+   * charges first (ADR 0067): the pool's low-credit notice, which links to
+   * Sokosumi's pool top-up, is not his. Null for every other bot.
+   */
+  cusoProjectId: string | null;
 }
 
 function sokoBotTurnUsageIdempotencyKey(turnId: string): string {
@@ -434,12 +440,15 @@ async function chargeSokoBotUsage(
   tx: Prisma.TransactionClient,
 ): Promise<SokoBotUsageChargeResult> {
   const { expectedCents, idempotencyKey } = input;
+  const payer = await sokoBotPayer(input.sokoBotId, tx);
+  const cusoProjectId = payer?.cuso ? (payer.projectId ?? null) : null;
   if (expectedCents <= 0n) {
     return {
       chargedCents: 0n,
       expectedCents,
       shortfall: false,
       organizationId: null,
+      cusoProjectId,
     };
   }
 
@@ -458,10 +467,10 @@ async function chargeSokoBotUsage(
       expectedCents,
       shortfall: existing.cents < expectedCents,
       organizationId: existing.organizationId,
+      cusoProjectId,
     };
   }
 
-  const payer = await sokoBotPayer(input.sokoBotId, tx);
   // No usage row: a shortfall would make the next turn pay the remainder.
   if (payer?.freeHiring) {
     // Nothing drawn, so no wallet for the low-balance check.
@@ -470,6 +479,7 @@ async function chargeSokoBotUsage(
       expectedCents,
       shortfall: false,
       organizationId: null,
+      cusoProjectId,
     };
   }
   const organizationId = payer?.organizationId ?? null;
@@ -482,7 +492,13 @@ async function chargeSokoBotUsage(
   );
   const chargedCents = balance < expectedCents ? balance : expectedCents;
   if (chargedCents <= 0n) {
-    return { chargedCents: 0n, expectedCents, shortfall: true, organizationId };
+    return {
+      chargedCents: 0n,
+      expectedCents,
+      shortfall: true,
+      organizationId,
+      cusoProjectId,
+    };
   }
   const consumptions = await creditBucketRepository.prepareConsumption(
     input.userId,
@@ -516,5 +532,6 @@ async function chargeSokoBotUsage(
     expectedCents,
     shortfall: chargedCents < expectedCents,
     organizationId,
+    cusoProjectId,
   };
 }

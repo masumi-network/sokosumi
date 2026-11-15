@@ -4709,6 +4709,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       expectedCents: 5n,
       shortfall: false,
       organizationId: null,
+      cusoProjectId: null,
     });
     let insideTransaction = false;
     let notifiedInsideTransaction: boolean | null = null;
@@ -4756,6 +4757,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       expectedCents: 5n,
       shortfall: false,
       organizationId: null,
+      cusoProjectId: null,
     });
 
     const settled = await new SokoBotControlPlane().expireTurn("turn_1");
@@ -4785,6 +4787,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       expectedCents: 5n,
       shortfall: false,
       organizationId: "org_1",
+      cusoProjectId: null,
     });
 
     await new SokoBotControlPlane().expireTurn("turn_1");
@@ -4796,6 +4799,40 @@ describe("SokoBotControlPlane lifecycle", () => {
       organizationId: "org_1",
     });
   });
+
+  it.each([
+    ["an empty pool and a healthy Project balance", "plenty"],
+    ["a low Project balance", "low"],
+  ])(
+    "sends no pool notice for a Cuso's charge paid from his Project credits, with %s",
+    async () => {
+      turnFindUniqueMock.mockResolvedValue({
+        sokoBotId: BOT_ID,
+        requestedByUserId: "user_1",
+        eveSessionId: "session_1",
+        startedAt: new Date(Date.now() - 5_000),
+        costUsdMicros: 0n,
+        status: "RUNNING",
+        leaseToken: "lease_1",
+        scheduleRun: null,
+      });
+      turnUpdateManyMock.mockResolvedValue({ count: 1 });
+      botUpdateManyMock.mockResolvedValue({ count: 1 });
+      recordUsageMock.mockResolvedValue({
+        chargedCents: 5n,
+        expectedCents: 5n,
+        shortfall: false,
+        organizationId: "org_1",
+        cusoProjectId: "01960001-0001-7001-8001-0000000000aa",
+      });
+
+      await new SokoBotControlPlane().expireTurn("turn_1");
+
+      // The only low-credit notice sends him to Sokosumi's pool top-up,
+      // which CMO does not offer; his Project's notice belongs to CMO.
+      expect(notifyLowBalanceAfterChargeMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("settles a no-session cancellation only under its current lease", async () => {
     turnFindFirstMock.mockResolvedValue({ leaseToken: "cancel-lease-1" });

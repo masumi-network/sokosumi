@@ -1523,7 +1523,13 @@ export class SokoBotControlPlane {
         tx,
       );
       const chargedUserId = sokoBotActingUserId(turn);
-      if (usageCharge.chargedCents > 0n && chargedUserId) {
+      // A Cuso's charge drew on his Project credits first: the pool's
+      // notice, which sends people to Sokosumi's top-up, is not his.
+      if (
+        usageCharge.chargedCents > 0n &&
+        chargedUserId &&
+        !usageCharge.cusoProjectId
+      ) {
         // The wallet the turn drew on: a bot in an Organization workspace
         // bills the Organization, not the member's personal wallet.
         chargedWallet = {

@@ -211,6 +211,7 @@ describe("Soko Bot billing", () => {
       expectedCents: expected,
       shortfall: false,
       organizationId: null,
+      cusoProjectId: null,
     });
     expect(transactionCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -254,6 +255,7 @@ describe("Soko Bot billing", () => {
       expectedCents: convertCreditsToCents(100),
       shortfall: true,
       organizationId: "org_1",
+      cusoProjectId: null,
     });
     expect(transactionCreateMock).not.toHaveBeenCalled();
   });
@@ -559,6 +561,7 @@ describe("Soko Bot billing", () => {
         expectedCents: expected,
         shortfall: true,
         organizationId: "org_1",
+        cusoProjectId: null,
       });
       expect(transactionCreateMock).not.toHaveBeenCalled();
       expect(poolBalanceMock).not.toHaveBeenCalled();
@@ -738,6 +741,7 @@ describe("Soko Bot billing", () => {
         expectedCents: expect.any(BigInt),
         shortfall: false,
         organizationId: null,
+        cusoProjectId: PROJECT_ID,
       });
       expect(transactionCreateMock).not.toHaveBeenCalled();
       expect(usageCreateMock).not.toHaveBeenCalled();
@@ -752,6 +756,52 @@ describe("Soko Bot billing", () => {
         requireSokoBotTurnFunding("user_2", SOKO_BOT_ID),
       ).rejects.toMatchObject({ reason: "cmo_paused" });
       expect(subscribedMock).toHaveBeenCalledWith({ projectId: PROJECT_ID });
+    });
+
+    it("names his Project on a charge, so the pool's low-credit notice skips it", async () => {
+      freeHiringMock.mockResolvedValue(false);
+      balanceMock.mockResolvedValue(convertCreditsToCents(1_000));
+
+      const result = await recordSokoBotTurnUsage(
+        {
+          turnId: "turn_1",
+          sokoBotId: SOKO_BOT_ID,
+          userId: null,
+          costUsdMicros: 1_000_000n,
+        },
+        transactionClient() as never,
+      );
+
+      expect(result).toMatchObject({
+        organizationId: "org_1",
+        cusoProjectId: PROJECT_ID,
+      });
+      expect(result.chargedCents).toBeGreaterThan(0n);
+    });
+
+    it("names no Cuso Project for another bot of a Project, whose pool notice stays", async () => {
+      botFindUniqueMock.mockResolvedValue({
+        userId: null,
+        projectId: PROJECT_ID,
+        versionId: "v16",
+        workspace: { organizationId: "org_1" },
+      });
+      balanceMock.mockResolvedValue(convertCreditsToCents(1_000));
+
+      const result = await recordSokoBotTurnUsage(
+        {
+          turnId: "turn_1",
+          sokoBotId: SOKO_BOT_ID,
+          userId: null,
+          costUsdMicros: 1_000_000n,
+        },
+        transactionClient() as never,
+      );
+
+      expect(result).toMatchObject({
+        organizationId: "org_1",
+        cusoProjectId: null,
+      });
     });
 
     it("charges and gates him as before once free hiring ended", async () => {
