@@ -859,6 +859,13 @@
           "OUT_OF_CREDITS": "Open",
           "GRANT_PENDING": "Open"
         }
+      },
+      "DataRoomQuestions": {
+        "heading": "{count, plural, one {# data room question is waiting for an answer} other {# data room questions are waiting for an answer}}",
+        "loadError": "Could not load the data room questions",
+        "byline": "{who} about {document} in {room}",
+        "action": "Answer",
+        "showOlder": "Show older questions"
       }
     },
     "HashValue": {
