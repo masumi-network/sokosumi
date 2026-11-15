@@ -1,7 +1,7 @@
 import { waitUntil } from "@vercel/functions";
 import type { Hono } from "hono";
 
-import { getEnv } from "@/config/env";
+import { getBetterAuthPublicBaseUrl } from "@/config/env";
 import { buzzConfig } from "@/services/buzz-bridge.service";
 import {
   coreRequester,
@@ -29,7 +29,8 @@ export default function mount(app: Hono) {
     const until = Date.now() + RUN_MS;
     waitUntil(
       runLeasedBuzzBridge({
-        core: coreRequester(getEnv().BETTER_AUTH_URL),
+        // This deployment's own address (a preview's, on a preview).
+        core: coreRequester(getBetterAuthPublicBaseUrl()),
         log,
         until,
         waitMs: HANDOVER_WAIT_MS,

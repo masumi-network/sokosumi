@@ -2420,7 +2420,12 @@ export function outboxRetryDelayMs(attempts: number): number {
  * unfinished.
  */
 export async function drainBuzzOutbox(
-  options: { limit?: number; now?: Date } = {},
+  options: {
+    limit?: number;
+    now?: Date;
+    /** False once the run must stop: what is left waits for the next one. */
+    shouldContinue?: () => boolean;
+  } = {},
 ) {
   const now = options.now ?? new Date();
   const rows = await prisma.buzzOutbox.findMany({
@@ -2465,6 +2470,7 @@ export async function drainBuzzOutbox(
 
   const outcomes: { key: string; result: string }[] = [];
   for (const [key, entry] of latest) {
+    if (options.shouldContinue?.() === false) break;
     if (now.getTime() - entry.createdAt.getTime() < OUTBOX_SETTLE_MS) {
       // Not quiet yet: wait out the rest, so the page reaches other work.
       await prisma.buzzOutbox.updateMany({

@@ -10,6 +10,7 @@ import {
   type RelaySubscription,
   subscribe,
 } from "@/lib/buzz/relay-client";
+import prisma from "@/lib/db/prisma";
 import {
   applyInboundEvent,
   BuzzTargetPendingError,
@@ -38,6 +39,10 @@ import {
 export type BridgeLog = (message: string, extra?: unknown) => void;
 
 const LEASE_KEY = "buzz-bridge";
+// The relay takes events up to 15 minutes from its clock; reading back 16
+// covers one published late with an old time, and some clock skew.
+const CATCH_UP_WINDOW_S = 16 * 60;
+const AGENT_SWEEP_KEY = "buzz-agent-sweep";
 // A run that stops renewing (its function was killed) frees the lease this
 // soon, so the next run takes over within a minute.
 const LEASE_TIMEOUT_MS = 60_000;
@@ -217,9 +222,14 @@ export async function runBuzzBridge(options: {
 
   const finish = (communityId: string, event: Event) => {
     unfinished.get(communityId)?.delete(event.id);
+    // An event dated ahead (the relay allows 15 minutes) never moves the
+    // cursor past now, or catching up would start after events still due.
     newestDone.set(
       communityId,
-      Math.max(newestDone.get(communityId) ?? 0, event.created_at),
+      Math.max(
+        newestDone.get(communityId) ?? 0,
+        Math.min(event.created_at, Math.floor(Date.now() / 1000)),
+      ),
     );
   };
 
@@ -248,9 +258,9 @@ export async function runBuzzBridge(options: {
   ) => {
     if (stopping) return;
     inbound = inbound.then(async () => {
-      // Shutting down: not applied now, it stays behind the saved cursor for
-      // the next run, which holds the lease then.
-      if (stopping) return;
+      // Shutting down, or the lease is gone: not applied now, it stays
+      // behind the saved cursor for the run that holds the lease.
+      if (stopping || !options.shouldContinue()) return;
       const finalAttempt = targetWaits + 1 >= TARGET_ATTEMPTS;
       // A target still on its way in (say Core is down and it keeps
       // retrying) is worth waiting for however long that takes.
@@ -391,7 +401,9 @@ export async function runBuzzBridge(options: {
     const secretKey = await readerSecretKey(reader.readerId);
     const since =
       community.inboundCursor > 0
-        ? community.inboundCursor - 10 * 60
+        ? // The relay takes events up to 15 minutes old: one published late
+          // with an old time still lands within this window.
+          community.inboundCursor - CATCH_UP_WINDOW_S
         : Math.floor(Date.now() / 1000) - 24 * 60 * 60;
     const caughtUpTo = Math.floor(Date.now() / 1000);
     const missed = await backlog({
@@ -408,7 +420,7 @@ export async function runBuzzBridge(options: {
         {
           kinds: INBOUND_KINDS,
           "#h": reader.channelIds,
-          since: caughtUpTo - 5,
+          since: caughtUpTo - CATCH_UP_WINDOW_S,
         },
       ],
       onEvent: (event) => accept(community.communityId, event),
@@ -479,6 +491,7 @@ export async function runBuzzBridge(options: {
         ),
       );
       for (const reader of community.readers) {
+        if (!options.shouldContinue()) return;
         const slot = `${community.communityId}:${reader.readerId}`;
         const key = reader.channelIds.toSorted().join(",");
         const current = live.get(slot);
@@ -516,7 +529,6 @@ export async function runBuzzBridge(options: {
   const roomRests = new Map<string, number>();
   let lastMemberSweep = 0;
   let lastAgentSweep = 0;
-  const agentSweep: { after: string | null } = { after: null };
   // Where the member sweep goes on from; a fresh run starts anywhere, so a
   // sweep cut short never leaves the same rooms out every time.
   let memberSweepFrom = Math.floor(Math.random() * 1_000_000);
@@ -579,10 +591,24 @@ export async function runBuzzBridge(options: {
       if (Date.now() - lastAgentSweep > 120_000) {
         lastAgentSweep = Date.now();
         try {
+          // Where the last pass stopped, kept across runs.
+          const saved = await prisma.syncMetadata.findUnique({
+            where: { key: AGENT_SWEEP_KEY },
+          });
+          const agentSweep = { after: saved?.cursorId ?? null };
           const changed = await syncBuzzAgents({
             progress: agentSweep,
             limit: 200,
             shouldContinue: within(Date.now() + SWEEP_BUDGET_MS),
+          });
+          await prisma.syncMetadata.upsert({
+            where: { key: AGENT_SWEEP_KEY },
+            create: {
+              key: AGENT_SWEEP_KEY,
+              lastSyncedAt: new Date(),
+              cursorId: agentSweep.after,
+            },
+            update: { lastSyncedAt: new Date(), cursorId: agentSweep.after },
           });
           for (const change of changed) {
             log(`agent ${change.slice(0, 13)} synced`);
@@ -615,7 +641,9 @@ export async function runBuzzBridge(options: {
           }
         }
       }
-      for (const outcome of await drainBuzzOutbox()) {
+      for (const outcome of await drainBuzzOutbox({
+        shouldContinue: options.shouldContinue,
+      })) {
         if (outcome.result !== "unchanged" && outcome.result !== "skipped") {
           log(`out ${outcome.key.slice(0, 13)} → ${outcome.result}`);
         }
