@@ -96,6 +96,7 @@ import type {
   GetTasksSummaryData,
   GetTransactionsDailyData,
   GetTransactionsData,
+  GetTransactionsTotalData,
   GetWorkspacesCalendarData,
   GetWorkspacesCalendarSourcesData,
   GetWorkspacesSocialPostsData,
@@ -377,6 +378,7 @@ import {
   getToolsSiteIcon as coreGetToolsSiteIcon,
   getTransactions as coreGetTransactions,
   getTransactionsDaily as coreGetTransactionsDaily,
+  getTransactionsTotal as coreGetTransactionsTotal,
   getUserBadgeCampaigns as coreGetUserBadgeCampaigns,
   getUsersById as coreGetUsersById,
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
@@ -2299,6 +2301,17 @@ export function createCoreClient(getClient: GetCoreClient) {
       (client) =>
         coreGetTransactionsDaily({ client, query, cache: "no-store" }),
       "Failed to fetch daily transactions",
+    );
+  }
+
+  async function getTransactionsTotal(
+    query?: GetTransactionsTotalData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTransactionsTotal({ client, query, cache: "no-store" }),
+      "Failed to fetch the transactions total",
     );
   }
 
@@ -7060,6 +7073,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getHistory,
     getTransactions,
     getTransactionsDaily,
+    getTransactionsTotal,
     getNotifications,
     getNotificationsCounts,
     updateChatRoom,

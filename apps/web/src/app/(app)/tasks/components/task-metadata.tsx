@@ -114,6 +114,8 @@ interface TaskMetadataProps {
   project: { id: string; name: string } | null;
   /** Rendered in a Schedule row when the Task came from a Task Schedule. */
   schedule?: ReactNode;
+  /** A row of its own (see {@link PropertyRow}): what the Task has cost. */
+  credits?: ReactNode;
   labels: TaskMetadataLabels;
   statusFieldLabels: TaskMetadataStatusFieldLabels;
   priorityLabels: TaskPriorityLabels;
@@ -130,6 +132,7 @@ export function TaskMetadata({
   task,
   project,
   schedule,
+  credits,
   labels,
   statusFieldLabels,
   priorityLabels,
@@ -293,6 +296,8 @@ export function TaskMetadata({
           </PropertyRow>
         ) : null}
 
+        {credits}
+
         {task.visibility === "PRIVATE" ? (
           <PropertyRow
             label={labels.privateBadge}
@@ -314,7 +319,12 @@ interface PropertyRowProps {
   children: ReactNode;
 }
 
-function PropertyRow({ label, value, icon, children }: PropertyRowProps) {
+export function PropertyRow({
+  label,
+  value,
+  icon,
+  children,
+}: PropertyRowProps) {
   const description = value ? `${label}: ${value}` : label;
   return (
     <Tooltip>
