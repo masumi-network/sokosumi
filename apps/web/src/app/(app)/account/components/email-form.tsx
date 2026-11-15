@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { authClient, changeEmail } from "@/lib/auth/auth.client";
+import type { EmailChangeStatus } from "@/lib/auth/auth.server";
 import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
 import { type EmailFormSchemaType, emailFormSchema } from "@/lib/schemas/auth";
 
@@ -37,11 +38,13 @@ const EMAIL_CHANGE_PARAM = "emailChange";
 interface EmailFormProps {
   /** The address the account signs in with today. */
   currentEmail?: string;
-  /** The address a change link was sent to and not opened yet. */
-  pendingEmail?: string | null;
+  /** Core's record of the change; `null` when it could not be read. */
+  emailChange?: EmailChangeStatus | null;
 }
 
-export function EmailForm({ currentEmail, pendingEmail }: EmailFormProps) {
+export function EmailForm({ currentEmail, emailChange }: EmailFormProps) {
+  const pendingEmail = emailChange?.pending?.newEmail;
+  const completedEmail = emailChange?.completed?.newEmail;
   const t = useTranslations("App.Account.Email");
   const router = useRouter();
   const pathname = usePathname();
@@ -65,24 +68,31 @@ export function EmailForm({ currentEmail, pendingEmail }: EmailFormProps) {
     },
   });
 
-  // Back from the change link. Success is read from the account itself: the
-  // address shown is the one Core now has, and no change is left waiting.
+  // Only Core's completion record says the change went through: the query
+  // flag just marks a return from the link, where Better Auth adds `error`.
   useEffect(() => {
-    if (handledReturnRef.current || !searchParams.has(EMAIL_CHANGE_PARAM)) {
-      return;
-    }
+    if (handledReturnRef.current) return;
+    const changedTo =
+      completedEmail && completedEmail === currentEmail?.toLowerCase()
+        ? completedEmail
+        : null;
+    const returned = searchParams.has(EMAIL_CHANGE_PARAM);
+    if (!changedTo && !returned) return;
     handledReturnRef.current = true;
-    if (searchParams.has("error") || pendingEmail || !currentEmail) {
+    if (changedTo) {
+      toast.success(t("changed", { email: changedTo }));
+      void authClient.$fetch("/change-email/acknowledge", { method: "POST" });
+    } else if (searchParams.has("error")) {
       toast.error(t("linkFailed"));
-    } else {
-      toast.success(t("changed", { email: currentEmail }));
     }
-    const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.delete(EMAIL_CHANGE_PARAM);
-    nextParams.delete("error");
-    const query = nextParams.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname);
-  }, [currentEmail, pathname, pendingEmail, router, searchParams, t]);
+    if (returned) {
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.delete(EMAIL_CHANGE_PARAM);
+      nextParams.delete("error");
+      const query = nextParams.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname);
+    }
+  }, [completedEmail, currentEmail, pathname, router, searchParams, t]);
 
   const requestChange = async (newEmail: string) =>
     runWithCaptcha(async (fetchOptions) => {
@@ -130,7 +140,11 @@ export function EmailForm({ currentEmail, pendingEmail }: EmailFormProps) {
         method: "POST",
       });
       if (result.error) {
-        toast.error(t("cancelError"));
+        toast.error(
+          result.error.status === 409
+            ? t("cancelInProgress")
+            : t("cancelError"),
+        );
         return;
       }
       toast.success(t("cancelled"));
@@ -156,6 +170,11 @@ export function EmailForm({ currentEmail, pendingEmail }: EmailFormProps) {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {emailChange === null ? (
+                <p className="text-muted-foreground text-sm">
+                  {t("statusUnavailable")}
+                </p>
+              ) : null}
               {pendingEmail ? (
                 <div className="space-y-2 rounded-lg border p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">

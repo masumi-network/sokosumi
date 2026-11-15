@@ -7508,7 +7508,9 @@
         "cancelled": "Cambio de correo cancelado. El enlace ya no funciona.",
         "cancelError": "No se pudo cancelar el cambio de correo. Inténtalo de nuevo.",
         "changed": "Tu correo ahora es {email}.",
-        "linkFailed": "Ese enlace ya no funciona. Pide uno nuevo abajo."
+        "linkFailed": "Ese enlace ya no funciona. Pide uno nuevo abajo.",
+        "cancelInProgress": "El enlace se está abriendo ahora mismo, así que el cambio ya no se puede cancelar.",
+        "statusUnavailable": "No se pudo comprobar si hay un cambio de correo pendiente. Recarga para intentarlo de nuevo."
       },
       "Password": {
         "title": "Cambiar contraseña",

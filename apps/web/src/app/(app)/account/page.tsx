@@ -15,7 +15,7 @@ import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { AUTO_DETECT_VALUE } from "@/i18n/locales";
 import { parseTimeFormat, TIME_FORMAT_COOKIE_NAME } from "@/i18n/time-format";
 import {
-  getPendingEmailChange,
+  getEmailChangeStatus,
   getSession,
   listUserAccounts,
 } from "@/lib/auth/auth.server";
@@ -53,7 +53,7 @@ async function AccountPageContent() {
     workspaceAccess,
     members,
     deletionRead,
-    pendingEmailChange,
+    emailChangeRead,
   ] = await Promise.all([
     getTranslations("App.Account.LinkedAccounts"),
     getTranslations("App.Account.BillingDetails"),
@@ -74,7 +74,7 @@ async function AccountPageContent() {
       (response) => ({ data: response.data }),
       (error: unknown) => ({ error }),
     ),
-    getPendingEmailChange(),
+    getEmailChangeStatus(),
   ]);
   const initialTimeFormat =
     parseTimeFormat(cookieStore.get(TIME_FORMAT_COOKIE_NAME)?.value) ??
@@ -142,8 +142,8 @@ async function AccountPageContent() {
           }
           userName={session?.user.name}
           userEmail={session?.user.email}
-          // A failed read shows no waiting change; the form still works.
-          pendingEmail={pendingEmailChange.unwrapOr(null)?.newEmail ?? null}
+          // `null` when the read failed: unknown, not "nothing waiting".
+          emailChange={emailChangeRead.unwrapOr(null)}
           userFirstName={session?.user.firstName}
           userLastName={session?.user.lastName}
           userImage={session?.user.image}

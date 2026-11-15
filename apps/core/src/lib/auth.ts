@@ -84,7 +84,10 @@ import {
   OAUTH_REFRESH_TOKEN_PREFIX,
 } from "./auth-oauth-token-prefixes";
 import { createAuthOrganizationPlugin } from "./auth-organization";
-import { pendingEmailChange } from "./auth-pending-email-change";
+import {
+  pendingEmailChange,
+  recordEmailChangeLink,
+} from "./auth-pending-email-change";
 import { recordSignUpContext } from "./auth-sign-up-context";
 import {
   oauthSignUpOptions,
@@ -446,7 +449,14 @@ export const auth = betterAuth({
     },
   },
   emailVerification: {
-    sendVerificationEmail: async ({ user, url }, request) => {
+    sendVerificationEmail: async ({ user, url, token }, request) => {
+      // An email change link must be on record before it is mailed: the
+      // record is what lets it be cancelled or replaced.
+      await recordEmailChangeLink(
+        () => auth.$context,
+        token,
+        TIME.EMAIL_VERIFICATION_EXPIRES,
+      );
       const { renderVerificationEmail } = await import("@sokosumi/email");
       const email = await renderVerificationEmail({
         locale: getEmailLocale(request),

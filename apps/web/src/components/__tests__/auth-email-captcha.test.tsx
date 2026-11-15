@@ -18,7 +18,8 @@ vi.mock("@/lib/auth/auth.client", () => ({
   requestPasswordReset: (...args: unknown[]) => requestPasswordReset(...args),
 }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/account",
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));

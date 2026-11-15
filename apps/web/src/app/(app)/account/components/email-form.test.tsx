@@ -73,7 +73,10 @@ describe("EmailForm", () => {
     render(
       <EmailForm
         currentEmail="ada@example.com"
-        pendingEmail="ada@new.example"
+        emailChange={{
+          pending: { newEmail: "ada@new.example" },
+          completed: null,
+        }}
       />,
     );
 
@@ -92,7 +95,10 @@ describe("EmailForm", () => {
     render(
       <EmailForm
         currentEmail="ada@example.com"
-        pendingEmail="ada@new.example"
+        emailChange={{
+          pending: { newEmail: "ada@new.example" },
+          completed: null,
+        }}
       />,
     );
 
@@ -106,21 +112,82 @@ describe("EmailForm", () => {
     });
   });
 
-  it("names the new address after the link, from the account itself", () => {
+  it("says a cancel came too late when a link is being applied", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue({ data: null, error: { status: 409 } });
+    render(
+      <EmailForm
+        currentEmail="ada@example.com"
+        emailChange={{
+          pending: { newEmail: "ada@new.example" },
+          completed: null,
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "cancel" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("cancelInProgress");
+    });
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("names the new address only when Core recorded the change", () => {
     searchParams = new URLSearchParams("emailChange=1");
-    render(<EmailForm currentEmail="ada@new.example" pendingEmail={null} />);
+    render(
+      <EmailForm
+        currentEmail="ada@new.example"
+        emailChange={{
+          pending: null,
+          completed: { newEmail: "ada@new.example" },
+        }}
+      />,
+    );
 
     expect(toast.success).toHaveBeenCalledWith(
       'changed {"email":"ada@new.example"}',
     );
+    expect(fetchMock).toHaveBeenCalledWith("/change-email/acknowledge", {
+      method: "POST",
+    });
+    expect(replaceMock).toHaveBeenCalledWith("/account");
+  });
+
+  it.each([
+    ["a forged return flag", { pending: null, completed: null }],
+    ["a cancelled or expired request", { pending: null, completed: null }],
+    [
+      "a change still waiting",
+      { pending: { newEmail: "ada@new.example" }, completed: null },
+    ],
+    ["an unreadable status", null],
+  ])("claims no success for %s", (_case, emailChange) => {
+    searchParams = new URLSearchParams("emailChange=1");
+    render(
+      <EmailForm currentEmail="ada@example.com" emailChange={emailChange} />,
+    );
+
+    expect(toast.success).not.toHaveBeenCalled();
     expect(replaceMock).toHaveBeenCalledWith("/account");
   });
 
   it("says the link failed when Better Auth refused it", () => {
     searchParams = new URLSearchParams("emailChange=1&error=INVALID_TOKEN");
-    render(<EmailForm currentEmail="ada@example.com" pendingEmail={null} />);
+    render(
+      <EmailForm
+        currentEmail="ada@example.com"
+        emailChange={{ pending: null, completed: null }}
+      />,
+    );
 
     expect(toast.error).toHaveBeenCalledWith("linkFailed");
     expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("tells the reader when the waiting change could not be read", () => {
+    render(<EmailForm currentEmail="ada@example.com" emailChange={null} />);
+
+    expect(screen.getByText("statusUnavailable")).toBeInTheDocument();
   });
 });

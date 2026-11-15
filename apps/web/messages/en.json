@@ -7544,7 +7544,9 @@
         "cancelled": "Email change cancelled. The link no longer works.",
         "cancelError": "Couldn't cancel the email change. Try again.",
         "changed": "Your email is now {email}.",
-        "linkFailed": "That link no longer works. Ask for a new one below."
+        "linkFailed": "That link no longer works. Ask for a new one below.",
+        "cancelInProgress": "The link is being opened right now, so the change can no longer be cancelled.",
+        "statusUnavailable": "Couldn't check for a waiting email change. Reload to try again."
       },
       "Password": {
         "title": "Change password",
