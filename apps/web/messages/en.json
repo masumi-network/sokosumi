@@ -1743,7 +1743,7 @@
           "openBot": "Open {name}'s page"
         },
         "SokoBotSetup": {
-          "title": "Get your Personal Assistant Agent",
+          "title": "Get your Soko Bot",
           "intro": "It runs your Tasks, mail and calendar for you.",
           "cta": "Set it up"
         }
@@ -11819,7 +11819,7 @@
     "Assistant": {
       "metadataTitle": "Set up your assistant",
       "later": "Later",
-      "laterHint": "Set it up any time from Soko Bots.",
+      "laterHint": "Set it up any time from Home.",
       "skip": "Skip",
       "continue": "Continue"
     }
