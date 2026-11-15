@@ -851,27 +851,32 @@ export async function syncBuzzAgents(
           if (granted && existingAccess.status === "PENDING") {
             // Only while it is still as read: a person who decided meanwhile
             // (an admin denying it) keeps their decision.
+            // The grant and its record together: one without the other could
+            // never be undone by the switch.
             const decidedAt = new Date();
-            const grantedNow = await prisma.coworkerWorkspaceAccess.updateMany({
-              where: {
-                coworkerId: coworkerId as string,
-                workspaceId,
-                status: "PENDING",
-                resolvedById: existingAccess.resolvedById,
-              },
-              data: {
-                status: "GRANTED",
-                resolvedById: null,
-                resolvedAt: decidedAt,
-              },
+            await prisma.$transaction(async (tx) => {
+              const grantedNow = await tx.coworkerWorkspaceAccess.updateMany({
+                where: {
+                  coworkerId: coworkerId as string,
+                  workspaceId,
+                  status: "PENDING",
+                  resolvedById: existingAccess.resolvedById,
+                },
+                data: {
+                  status: "GRANTED",
+                  resolvedById: null,
+                  resolvedAt: decidedAt,
+                },
+              });
+              if (grantedNow.count > 0) {
+                await rememberAutoAccess(
+                  tx,
+                  coworkerId as string,
+                  workspaceId,
+                  decidedAt,
+                );
+              }
             });
-            if (grantedNow.count > 0) {
-              await rememberAutoAccess(
-                coworkerId as string,
-                workspaceId,
-                decidedAt,
-              );
-            }
           } else if (
             !granted &&
             existingAccess.status === "GRANTED" &&
@@ -922,27 +927,31 @@ export async function syncBuzzAgents(
           continue;
         }
         const decidedAt = new Date();
-        const created = await prisma.coworkerWorkspaceAccess.create({
-          data: {
-            coworkerId: coworkerId as string,
-            workspaceId,
-            requestedByUserId: userId,
-            ...(granted
-              ? {
-                  status: "GRANTED" as const,
-                  resolvedById: null,
-                  resolvedAt: decidedAt,
-                }
-              : { status: "PENDING" as const }),
-          },
+        const created = await prisma.$transaction(async (tx) => {
+          const access = await tx.coworkerWorkspaceAccess.create({
+            data: {
+              coworkerId: coworkerId as string,
+              workspaceId,
+              requestedByUserId: userId,
+              ...(granted
+                ? {
+                    status: "GRANTED" as const,
+                    resolvedById: null,
+                    resolvedAt: decidedAt,
+                  }
+                : { status: "PENDING" as const }),
+            },
+          });
+          if (granted) {
+            await rememberAutoAccess(
+              tx,
+              coworkerId as string,
+              workspaceId,
+              decidedAt,
+            );
+          }
+          return access;
         });
-        if (granted) {
-          await rememberAutoAccess(
-            coworkerId as string,
-            workspaceId,
-            decidedAt,
-          );
-        }
         if (!granted) {
           await notifyWorkspaceApproversOfPendingCoworkerAccess({
             coworkerId: created.coworkerId,
@@ -1077,11 +1086,12 @@ export async function removeAgentsWithoutOwner() {
 /** The person's Buzz agents Sokosumi knows, for Connections. */
 /** Records a grant the personal-agents switch made, by its decision time. */
 function rememberAutoAccess(
+  tx: Pick<typeof prisma, "buzzAutoAccess">,
   coworkerId: string,
   workspaceId: string,
   decidedAt: Date,
 ) {
-  return prisma.buzzAutoAccess.upsert({
+  return tx.buzzAutoAccess.upsert({
     where: { coworkerId_workspaceId: { coworkerId, workspaceId } },
     create: { coworkerId, workspaceId, decidedAt },
     update: { decidedAt },
@@ -3690,6 +3700,32 @@ export async function applyInboundEvent(
             method: "DELETE",
             path: `/v1/chats/rooms/${message.roomId}/messages/${reactionLink.messageId}/reactions/${encodeURIComponent(reactionLink.emoji)}`,
           });
+        }
+        // Its other copy, when Sokosumi's key signed it, comes off Buzz too
+        // before the link goes (a failure retries the whole event). One the
+        // person's own app key signed is theirs to take back.
+        const sokosumiCopies = [
+          ...(reactionLink.signerPubkey === null ? [reactionLink.eventId] : []),
+          ...(reactionLink.signerPubkey !== null
+            ? reactionLink.duplicateEventIds
+            : []),
+        ].filter((id) => id !== targetEventId);
+        if (sokosumiCopies.length > 0 && channelId) {
+          const channel = await prisma.buzzChannel.findUnique({
+            where: { channelId },
+            select: { community: { select: { relayUrl: true } } },
+          });
+          if (channel) {
+            for (const copy of sokosumiCopies) {
+              await publish(
+                channel.community.relayUrl,
+                identitySecretKey(author),
+                deletionDraft({ channelId, eventId: copy }),
+              ).catch((error) => {
+                if (!isAlreadyDone(error)) throw error;
+              });
+            }
+          }
         }
         // Taking back one copy takes the reaction back: whichever of its
         // events is still on Buzz is undone too.
