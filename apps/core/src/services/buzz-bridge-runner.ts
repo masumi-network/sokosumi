@@ -10,6 +10,7 @@ import {
   type RelaySubscription,
   subscribe,
 } from "@/lib/buzz/relay-client";
+import { withinBridgeRun } from "@/lib/buzz/run-scope";
 import prisma from "@/lib/db/prisma";
 import {
   applyInboundEvent,
@@ -96,18 +97,22 @@ export async function runLeasedBuzzBridge(options: {
     );
   }, LEASE_RENEW_MS);
   try {
-    await runBuzzBridge({
-      core: options.core,
-      log: options.log,
-      // Stops when a lease it could not renew is half gone: what is in
-      // flight then (a Core call ends within 30 s, a relay one within 15 s)
-      // ends before another run could take over.
-      shouldContinue: () =>
-        holding &&
-        Date.now() - renewedAt < LEASE_TIMEOUT_MS / 2 &&
-        Date.now() < options.until &&
-        options.shouldContinue?.() !== false,
-    });
+    // Stops when a lease it could not renew is half gone: what is in flight
+    // then (a Core call ends within 30 s, a relay one within 15 s) ends
+    // before another run could take over.
+    const shouldContinue = () =>
+      holding &&
+      Date.now() - renewedAt < LEASE_TIMEOUT_MS / 2 &&
+      Date.now() < options.until &&
+      options.shouldContinue?.() !== false;
+    // Every write in the run checks this too, not only the loop.
+    await withinBridgeRun(shouldContinue, () =>
+      runBuzzBridge({
+        core: options.core,
+        log: options.log,
+        shouldContinue,
+      }),
+    );
   } finally {
     clearInterval(renewal);
     await syncLockService

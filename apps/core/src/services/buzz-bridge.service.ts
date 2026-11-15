@@ -50,6 +50,7 @@ import {
   relayHttpOrigin,
   signEvent,
 } from "@/lib/buzz/relay-client";
+import { checkpoint } from "@/lib/buzz/run-scope";
 import { openSecret, sealSecret } from "@/lib/buzz/secret-box";
 import {
   COWORKER_API_KEY_START_LENGTH,
@@ -118,13 +119,19 @@ function isAlreadyDone(error: unknown): boolean {
   );
 }
 
+/** Every event the bridge sends: only while its run may still write. */
+function sendEvent(input: Parameters<typeof publishSignedEvent>[0]) {
+  checkpoint();
+  return publishSignedEvent(input);
+}
+
 async function publish(
   relayUrl: string,
   secretKey: Uint8Array,
   draft: EventDraft,
 ): Promise<Event> {
   const event = signEvent(draft, secretKey);
-  await publishSignedEvent({ relayUrl, event, secretKey });
+  await sendEvent({ relayUrl, event, secretKey });
   return event;
 }
 
@@ -1291,6 +1298,7 @@ export async function provisionBuzzCommunities(
       console.error(`Buzz community host ${host} is taken; not created`);
       continue;
     }
+    checkpoint();
     const response = await operatorRequest({
       origin,
       secretKey: config.operatorSecretKey,
@@ -1621,7 +1629,7 @@ export async function syncRoomChannel(roomId: string) {
       ),
       identitySecretKey(opener.identity),
     );
-    const { message } = await publishSignedEvent({
+    const { message } = await sendEvent({
       relayUrl,
       event,
       secretKey: identitySecretKey(opener.identity),
@@ -1911,9 +1919,9 @@ async function deliver(
   const send = (signed: PendingEvent) =>
     channelId
       ? whileOpen(relayUrl, channelId, () =>
-          publishSignedEvent({ relayUrl, event: signed, secretKey }),
+          sendEvent({ relayUrl, event: signed, secretKey }),
         )
-      : publishSignedEvent({ relayUrl, event: signed, secretKey });
+      : sendEvent({ relayUrl, event: signed, secretKey });
   try {
     await send(event);
     return event;
@@ -2999,6 +3007,7 @@ async function sendAs(
   identity: BuzzIdentity,
   request: Omit<Parameters<CoreRequest>[0], "apiKey">,
 ) {
+  checkpoint();
   const replay = identity.userId ? bridgeReplayToken(identity.userId) : null;
   const response = await core({
     ...request,

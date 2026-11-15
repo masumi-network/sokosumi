@@ -130,6 +130,7 @@ async function importChannel(
       },
       select: {
         id: true,
+        roomId: true,
         parentMessageId: true,
         content: true,
         createdAt: true,
@@ -151,13 +152,17 @@ async function importChannel(
       }
     }
     const last = messages.at(-1);
-    if (!last || messages.length < BATCH) return imported;
+    if (!last || messages.length < BATCH) {
+      await deleteUnlinkedCopies(client, communityId, input);
+      return imported;
+    }
     after = { createdAt: last.createdAt, id: last.id };
   }
 }
 
 type HistoryMessage = {
   id: string;
+  roomId: string;
   parentMessageId: string | null;
   content: string;
   createdAt: Date;
@@ -175,6 +180,28 @@ async function importMessage(
   channelId: string,
   message: HistoryMessage,
 ): Promise<boolean> {
+  // Imported by an earlier pass that stopped before linking it: link that
+  // event (never a second copy); the outbox brings it up to date.
+  const earlier = await importedEventOf(
+    client,
+    communityId,
+    channelId,
+    message.id,
+  );
+  if (earlier) {
+    await prisma.buzzMessageLink.create({
+      data: {
+        messageId: message.id,
+        eventId: earlier,
+        contentHash: "",
+        channelId,
+      },
+    });
+    await prisma.buzzOutbox.create({
+      data: { roomId: message.roomId, messageId: message.id },
+    });
+    return true;
+  }
   const author = authorOf(message);
   // Timeline notices have no author; Buzz shows its own.
   if (!author || !message.content.trim()) return false;
@@ -319,6 +346,55 @@ async function importMessage(
       });
   }
   return true;
+}
+
+/** The event an earlier import wrote for this message, if any (its id). */
+async function importedEventOf(
+  client: RelayClient,
+  communityId: string,
+  channelId: string,
+  messageId: string,
+): Promise<string | null> {
+  const found = await client.query<{ id: Buffer }>(
+    `SELECT id FROM events
+      WHERE community_id = $1 AND channel_id = $2 AND kind = 9
+        AND tags @> $3::jsonb
+      LIMIT 1`,
+    [communityId, channelId, JSON.stringify([["sokosumi", messageId]])],
+  );
+  return found.rows[0]?.id.toString("hex") ?? null;
+}
+
+/**
+ * Messages deleted after an interrupted import wrote them, before it linked
+ * them: nothing else knows their copy on Buzz, so it is deleted here.
+ */
+async function deleteUnlinkedCopies(
+  client: RelayClient,
+  communityId: string,
+  input: { channelId: string; roomId: string; before: Date },
+) {
+  const deleted = await prisma.chatRoomMessage.findMany({
+    where: {
+      roomId: input.roomId,
+      createdAt: { lt: input.before },
+      deletedAt: { not: null },
+      buzzLink: null,
+    },
+    select: { id: true },
+  });
+  for (const message of deleted) {
+    await client.query(
+      `UPDATE events SET deleted_at = now()
+        WHERE community_id = $1 AND channel_id = $2 AND kind = 9
+          AND deleted_at IS NULL AND tags @> $3::jsonb`,
+      [
+        communityId,
+        input.channelId,
+        JSON.stringify([["sokosumi", message.id]]),
+      ],
+    );
+  }
 }
 
 async function insertEvent(
