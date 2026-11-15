@@ -5,12 +5,14 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import type { FormEvent } from "react";
+import { type FormEvent, type Ref, useImperativeHandle, useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const ensureRoom = vi.fn();
 const sendMessage = vi.fn();
 const push = vi.fn();
+/** The composer's text at the moment the caret was put at its end. */
+const focusedAtEnd = vi.fn();
 
 function translate(key: string, values?: Record<string, unknown>): string {
   return values ? `${key}:${JSON.stringify(values)}` : key;
@@ -36,25 +38,34 @@ vi.mock("@/components/soko-bot/bot-face", async (importOriginal) => ({
 }));
 // The real composer is a rich editor; a plain textarea keeps the contract.
 vi.mock("@/app/chat/components/room-composer", () => ({
-  RoomComposer: (props: {
+  RoomComposer: function RoomComposer(props: {
+    ref?: Ref<{ focus: () => void; focusAtEnd: () => void }>;
     value: string;
     onValueChange: (value: string) => void;
     onSubmit: (event: FormEvent<HTMLFormElement>) => void;
     placeholder: string;
     sendDisabled: boolean;
-  }) => (
-    <form onSubmit={props.onSubmit}>
-      <textarea
-        aria-label="composer"
-        placeholder={props.placeholder}
-        value={props.value}
-        onChange={(event) => props.onValueChange(event.target.value)}
-      />
-      <button type="submit" disabled={props.sendDisabled}>
-        send
-      </button>
-    </form>
-  ),
+  }) {
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    useImperativeHandle(props.ref, () => ({
+      focus: () => {},
+      focusAtEnd: () => focusedAtEnd(textareaRef.current?.value),
+    }));
+    return (
+      <form onSubmit={props.onSubmit}>
+        <textarea
+          ref={textareaRef}
+          aria-label="composer"
+          placeholder={props.placeholder}
+          value={props.value}
+          onChange={(event) => props.onValueChange(event.target.value)}
+        />
+        <button type="submit" disabled={props.sendDisabled}>
+          send
+        </button>
+      </form>
+    );
+  },
 }));
 
 import { SokoBotHome } from "./soko-bot-home";
@@ -129,6 +140,8 @@ describe("SokoBotHome", () => {
     expect(
       (screen.getByLabelText("composer") as HTMLTextAreaElement).value,
     ).toBe("suggestions.catchUp");
+    // The caret goes after the prompt once it is in, so typing extends it.
+    expect(focusedAtEnd).toHaveBeenCalledWith("suggestions.catchUp");
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
@@ -293,7 +306,7 @@ describe("SokoBotHome", () => {
       screen
         .getByRole("link", { name: 'awaiting:{"count":3}' })
         .getAttribute("href"),
-    ).toBe("/tasks");
+    ).toBe("/tasks#input-required");
     cleanup();
     await renderHome({ summary: { ...summary, awaitingInput: 0 } });
     expect(screen.queryByText(/awaiting/)).toBeNull();
