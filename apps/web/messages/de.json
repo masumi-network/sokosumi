@@ -1698,7 +1698,7 @@
           "worked": "{minutes, plural, one {# Minute gearbeitet} other {# Minuten gearbeitet}}",
           "awaiting": "{count, plural, one {# Aufgabe braucht dich} other {# Aufgaben brauchen dich}}",
           "awaitingTeam": "{count, plural, one {# Aufgabe wartet auf Antwort} other {# Aufgaben warten auf Antwort}}",
-          "awaitingOwn": "{count, plural, one {# davon deine} other {# davon deine}}",
+          "needsYou": "{count, plural, one {# Anfrage braucht dich} other {# Anfragen brauchen dich}}",
           "byTeammates": "{count, plural, one {# Aufgabe von deinem Team} other {# Aufgaben von deinem Team}}",
           "recent": "In den letzten 24 Stunden",
           "workedHours": "{hours, plural, one {# Stunde gearbeitet} other {# Stunden gearbeitet}}"

@@ -17,7 +17,10 @@ const getActivitySummary = vi.fn(async (_query: { scope: string }) => ({
   awaitingInput: 2,
 }));
 const getActiveOrganizationId = vi.fn(async (): Promise<string | null> => null);
-const listNeedsYou = vi.fn(async () => []);
+const readNeedsYou = vi.fn(async () => ({
+  notifications: [] as unknown[],
+  total: 0,
+}));
 const loadMyDay = vi.fn(async (_today: string) => null);
 const myDay = vi.fn();
 const listProjects = vi.fn(async (_query: { limit: number }) => ({
@@ -93,7 +96,7 @@ vi.mock("@/app/chat/components/chat-landing-notice", () => ({
   ChatLandingNotice: () => null,
 }));
 vi.mock("@/lib/services/notification.service", () => ({
-  notificationService: { listNeedsYou: () => listNeedsYou() },
+  notificationService: { readNeedsYou: () => readNeedsYou() },
 }));
 vi.mock("@/lib/services/project.service", () => ({
   projectService: {
@@ -185,7 +188,7 @@ describe("WelcomePage", () => {
     await expect(renderPage()).rejects.toThrow("NEXT_REDIRECT /setup");
     expect(getMine).not.toHaveBeenCalled();
     expect(getActivitySummary).not.toHaveBeenCalled();
-    expect(listNeedsYou).not.toHaveBeenCalled();
+    expect(readNeedsYou).not.toHaveBeenCalled();
     expect(loadMyDay).not.toHaveBeenCalled();
     expect(listProjects).not.toHaveBeenCalled();
     expect(sokoBotSetup).not.toHaveBeenCalled();
@@ -229,7 +232,7 @@ describe("WelcomePage", () => {
     const page = renderPage();
     await vi.waitFor(() => expect(getMine).toHaveBeenCalled());
     expect(loadMyDay).toHaveBeenCalled();
-    expect(listNeedsYou).toHaveBeenCalled();
+    expect(readNeedsYou).toHaveBeenCalled();
     expect(getActivitySummary).toHaveBeenCalledWith({ scope: "owned" });
 
     answerBot(null);
@@ -245,27 +248,15 @@ describe("WelcomePage", () => {
     expect(getActivitySummary).toHaveBeenCalledWith({ scope: "workspace" });
   });
 
-  it("gives the reader's own waiting Tasks beside the team's in an org", async () => {
+  it("passes Needs you's own total from its feed read in an org", async () => {
     getActiveOrganizationId.mockResolvedValueOnce("org-1");
-    getActivitySummary
-      .mockResolvedValueOnce({ awaitingInput: 9 })
-      .mockResolvedValueOnce({ awaitingInput: 1 });
-    getMine.mockResolvedValue({
-      id: "bot-1",
-      name: "Joseph",
-      avatarSeed: null,
-      avatarImageUrl: null,
+    // Summary counts 1 waiting Task in this workspace; Needs you holds 3
+    // requests (a Job ask, another workspace's Task): neither is the other.
+    getActivitySummary.mockResolvedValueOnce({ awaitingInput: 1 });
+    readNeedsYou.mockResolvedValueOnce({
+      notifications: [{ id: "n1" }, { id: "n2" }],
+      total: 3,
     });
-    await renderPage();
-    expect(sokoBotHome).toHaveBeenCalledWith(
-      expect.objectContaining({
-        summary: { awaitingInput: 9 },
-        ownAwaitingInput: 1,
-      }),
-    );
-  });
-
-  it("reads no second count in a personal workspace", async () => {
     getMine.mockResolvedValue({
       id: "bot-1",
       name: "Joseph",
@@ -274,8 +265,28 @@ describe("WelcomePage", () => {
     });
     await renderPage();
     expect(getActivitySummary).toHaveBeenCalledTimes(1);
+    expect(readNeedsYou).toHaveBeenCalledTimes(1);
     expect(sokoBotHome).toHaveBeenCalledWith(
-      expect.objectContaining({ ownAwaitingInput: null }),
+      expect.objectContaining({
+        summary: { awaitingInput: 1 },
+        inOrganization: true,
+        needsYouCount: 3,
+      }),
+    );
+  });
+
+  it("leaves the requests count out when Needs you fails to load", async () => {
+    getActiveOrganizationId.mockResolvedValueOnce("org-1");
+    readNeedsYou.mockRejectedValueOnce(new Error("core down"));
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    await renderPage();
+    expect(sokoBotHome).toHaveBeenCalledWith(
+      expect.objectContaining({ needsYouCount: null }),
     );
   });
 

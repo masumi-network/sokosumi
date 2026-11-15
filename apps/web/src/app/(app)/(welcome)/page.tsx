@@ -127,9 +127,15 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     </Suspense>
   );
   // What waits on the reader, as the quiet list on the Soko Bot Home.
+  const needsYouRead = notificationService.readNeedsYou(WORKSPACE_COLUMN_ROWS);
   const needsYouFeed = panelFeed(
-    notificationService.listNeedsYou(WORKSPACE_COLUMN_ROWS),
+    needsYouRead.then(({ notifications }) => notifications),
   );
+  // Its own number, not a share of the waiting Tasks: Needs you also holds
+  // Job, grant and access asks, and asks from other workspaces.
+  const needsYouCount = needsYouRead
+    .then(({ total }) => total)
+    .catch(() => null);
   // The workspace's first page of projects, read next to the rows, so a
   // row's project is usually known without its own read after them.
   const needsYouProjects = projectService
@@ -163,17 +169,12 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       limit: SOKO_BOT_HOME_TASK_LIMIT * 2,
     })
     .catch(() => ({ tasks: [] }));
-  const [{ sokoBot, lastFailure }, summary, ownSummary] = await Promise.all([
+  const [{ sokoBot, lastFailure }, summary] = await Promise.all([
     sokoBotService
       .getMineWithLastFailure()
       .catch(() => ({ sokoBot: null, lastFailure: null })),
     // Window is session-derived in Core (`max(Session.updatedAt)`). No stamp.
     taskService.getActivitySummary({ scope }),
-    // In an org the waiting count is the team's; the reader's own share of
-    // it is said beside it, so it squares with Needs you.
-    activeOrganizationId
-      ? taskService.getActivitySummary({ scope: "owned" })
-      : null,
   ]);
   const notice =
     (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
@@ -181,9 +182,10 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   const userId = session?.user.id;
 
   if (sokoBot && userId) {
-    const [{ rooms, chats }, recent] = await Promise.all([
+    const [{ rooms, chats }, recent, needsYouTotal] = await Promise.all([
       homeChats,
       recentTasks,
+      needsYouCount,
     ]);
     const roomId = findSokoBotDirectRoom(rooms, sokoBot.id)?.id ?? null;
     // A failed bot waits on the reader too: the sidebar and the bot's page
@@ -211,9 +213,8 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           roomId={roomId}
           userName={resolveLandingGreetingName(session?.user.name)}
           summary={summary ?? null}
-          ownAwaitingInput={
-            activeOrganizationId ? (ownSummary?.awaitingInput ?? 0) : null
-          }
+          inOrganization={Boolean(activeOrganizationId)}
+          needsYouCount={needsYouTotal}
           teamTasks={toTeamDay(recent.tasks, new Date())}
           chats={chats}
           schedules={toNewSchedules(sokoBot.schedules ?? [], new Date())}

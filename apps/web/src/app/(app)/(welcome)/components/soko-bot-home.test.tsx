@@ -312,7 +312,7 @@ describe("SokoBotHome", () => {
     expect(screen.queryByText(/awaiting/)).toBeNull();
   });
 
-  it("in an org, counts the team's waiting Tasks and says how many are the reader's", async () => {
+  describe("in an org", () => {
     const summary = {
       since: new Date(),
       completed: 0,
@@ -321,18 +321,55 @@ describe("SokoBotHome", () => {
       workedMinutes: 0,
       previous: { completed: 0, createdByOtherHumans: 0, workedMinutes: 0 },
     };
-    await renderHome({ summary, ownAwaitingInput: 1 });
-    expect(
-      screen.getByRole("link", {
-        name: 'awaitingTeam:{"count":9} · awaitingOwn:{"count":1}',
-      }),
-    ).toBeTruthy();
-    cleanup();
-    await renderHome({ summary, ownAwaitingInput: 0 });
-    expect(
-      screen.getByRole("link", { name: 'awaitingTeam:{"count":9}' }),
-    ).toBeTruthy();
-    expect(screen.queryByText(/awaitingOwn/)).toBeNull();
+
+    it("names the team's waiting Tasks and Needs you's requests apart", async () => {
+      await renderHome({ summary, inOrganization: true, needsYouCount: 2 });
+      expect(
+        screen
+          .getByRole("link", { name: 'awaitingTeam:{"count":9}' })
+          .getAttribute("href"),
+      ).toBe("/tasks?view=board#input-required");
+      expect(
+        screen
+          .getByRole("link", { name: 'needsYou:{"count":2}' })
+          .getAttribute("href"),
+      ).toBe("#soko-bot-home-needs-you");
+      expect(document.getElementById("soko-bot-home-needs-you")).toBeTruthy();
+    });
+
+    // Needs you holds Job, grant and access asks and other workspaces' asks,
+    // so it can be larger than the workspace's waiting Tasks, even with none.
+    it("shows Needs you's requests with no Task waiting in the workspace", async () => {
+      await renderHome({
+        summary: { ...summary, awaitingInput: 0 },
+        inOrganization: true,
+        needsYouCount: 3,
+      });
+      expect(screen.getByRole("link", { name: 'needsYou:{"count":3}' }));
+      expect(screen.queryByText(/awaiting/)).toBeNull();
+    });
+
+    // A Task waiting in another status (approval, credits) asks nobody in
+    // Needs you: the team count stands alone.
+    it("shows the team's count alone when nothing is in Needs you", async () => {
+      await renderHome({ summary, inOrganization: true, needsYouCount: 0 });
+      expect(screen.getByRole("link", { name: 'awaitingTeam:{"count":9}' }));
+      expect(screen.queryByText(/needsYou/)).toBeNull();
+    });
+  });
+
+  it("keeps a personal workspace's own copy and no requests pill", async () => {
+    const summary = {
+      since: new Date(),
+      completed: 0,
+      awaitingInput: 2,
+      createdByOtherHumans: 0,
+      workedMinutes: 0,
+      previous: { completed: 0, createdByOtherHumans: 0, workedMinutes: 0 },
+    };
+    await renderHome({ summary, needsYouCount: 4 });
+    expect(screen.getByRole("link", { name: 'awaiting:{"count":2}' }));
+    expect(screen.queryByText(/needsYou/)).toBeNull();
   });
 
   it("sends into the bot's room and opens it", async () => {
