@@ -51,6 +51,7 @@ export const dataRoomSchema = z
       .string()
       .openapi({ description: "The room's address: /share/rooms/{token}" }),
     title: z.union([z.string(), z.null()]),
+    welcomeNote: z.union([z.string(), z.null()]),
     logoFileId: z.union([z.string(), z.null()]),
     allowedDomains: z.array(z.string()),
     expiresAt: isoDate,
@@ -71,6 +72,7 @@ export function toDataRoomDto(room: DataRoom): z.infer<typeof dataRoomSchema> {
     storage: STORAGE[room.storage],
     token: room.token,
     title: room.title,
+    welcomeNote: room.welcomeNote,
     logoFileId: room.logoFileId,
     allowedDomains: room.allowedDomains,
     expiresAt: room.expiresAt?.toISOString() ?? null,
@@ -134,7 +136,6 @@ export const dataRoomTreeRowSchema = z
     sizeBytes: z.union([z.number().int(), z.null()]),
     mimeType: z.union([z.string(), z.null()]),
     updatedAt: isoDate,
-    isNew: z.boolean(),
   })
   .openapi("DataRoomTreeRow");
 
@@ -151,7 +152,6 @@ export function toDataRoomTreeRowDto(
     sizeBytes: row.file?.sizeBytes ?? null,
     mimeType: row.file?.mimeType ?? null,
     updatedAt: row.file?.updatedAt.toISOString() ?? null,
-    isNew: row.isNew,
   };
 }
 
@@ -197,6 +197,7 @@ export const updateDataRoomRequestSchema = z
   .object({
     ...storeFields,
     title: z.union([z.string().max(200), z.null()]).optional(),
+    welcomeNote: z.union([z.string().max(5_000), z.null()]).optional(),
     logoFileId: z.union([z.string().uuid(), z.null()]).optional(),
     allowedDomains: z.array(z.string().max(253)).max(50).optional(),
     expiresAt: z.union([z.string().datetime(), z.null()]).optional(),
@@ -305,6 +306,7 @@ export const dataRoomViewSchema = z
   .object({
     state: z.enum(["in", "out", "closed", "expired"]),
     title: z.string(),
+    welcomeNote: z.union([z.string(), z.null()]),
     hasLogo: z.boolean(),
     allowDownload: z.boolean(),
     watermark: z.boolean(),

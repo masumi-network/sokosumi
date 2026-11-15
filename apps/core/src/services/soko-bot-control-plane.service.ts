@@ -37,6 +37,10 @@ import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
+import {
+  forfeitCusoProjectCredits,
+  forfeitCusoProjectCreditsIfLeavingCmo,
+} from "@/helpers/cuso-project-credits";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { jsonInput } from "@/helpers/prisma-json";
 import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
@@ -1456,10 +1460,13 @@ export class SokoBotControlPlane {
     // low-balance check publishes over realtime and must not run for a
     // charge that rolled back. Reset per attempt: a serialization retry
     // starts over and must not carry the rolled-back attempt's charge.
-    let chargedUserId: string | null = null;
+    let chargedWallet: {
+      userId: string;
+      organizationId: string | null;
+    } | null = null;
 
     return serializableTransaction(async (tx) => {
-      chargedUserId = null;
+      chargedWallet = null;
       const turn = await tx.sokoBotTurn.findUnique({
         where: { id: input.turnId },
         select: {
@@ -1510,8 +1517,14 @@ export class SokoBotControlPlane {
         },
         tx,
       );
-      if (usageCharge.chargedCents > 0n) {
-        chargedUserId = sokoBotActingUserId(turn);
+      const chargedUserId = sokoBotActingUserId(turn);
+      if (usageCharge.chargedCents > 0n && chargedUserId) {
+        // The wallet the turn drew on: a bot in an Organization workspace
+        // bills the Organization, not the member's personal wallet.
+        chargedWallet = {
+          userId: chargedUserId,
+          organizationId: usageCharge.organizationId,
+        };
       }
       // Runtime work already happened before settlement. A late billing
       // shortfall must be visible and block later funded turns, but discarding
@@ -1653,11 +1666,8 @@ export class SokoBotControlPlane {
       async (settled) => {
         // On the charge alone: a settlement that lost its lease after the
         // usage was recorded still committed that charge.
-        if (chargedUserId) {
-          await notifyLowBalanceAfterCharge({
-            userId: chargedUserId,
-            organizationId: null,
-          });
+        if (chargedWallet) {
+          await notifyLowBalanceAfterCharge(chargedWallet);
         }
         if (settled) {
           waitUntil(
@@ -3408,12 +3418,15 @@ export class SokoBotControlPlane {
         "Cuso runs CMO's own version, which cannot be changed here",
       );
     }
-    const updated = await prisma.sokoBot.updateMany({
-      where: { id: bot.id, archivedAt: null },
-      data: { versionId },
-    });
-    if (updated.count === 0)
-      throw new SokoBotNotFoundError("Soko Bot not found");
+    await serializableTransaction(async (tx) => {
+      await forfeitCusoProjectCreditsIfLeavingCmo(bot.id, versionId, tx);
+      const updated = await tx.sokoBot.updateMany({
+        where: { id: bot.id, archivedAt: null },
+        data: { versionId },
+      });
+      if (updated.count === 0)
+        throw new SokoBotNotFoundError("Soko Bot not found");
+    }, "Soko Bot version changed concurrently");
   }
 
   /**
@@ -3670,6 +3683,7 @@ export class SokoBotControlPlane {
         id: bot.id,
         userId: bot.userId,
         organizationId: bot.workspace.organizationId,
+        projectId: bot.projectId,
       })),
     );
     return {
@@ -4142,6 +4156,8 @@ export class SokoBotControlPlane {
           if (!current || current.archivedAt) {
             throw new SokoBotNotFoundError("Soko Bot not found");
           }
+          // Leaving CMO ends Cuso, so his Project credits end too (ADR 0067).
+          await forfeitCusoProjectCreditsIfLeavingCmo(bot.id, versionId, tx);
           const updated = await tx.sokoBot.update({
             where: { id: bot.id },
             data: { versionId },
@@ -4625,6 +4641,8 @@ export class SokoBotControlPlane {
           },
         });
       }
+      // Start over archives through here, so it forfeits too (ADR 0067).
+      await forfeitCusoProjectCredits(bot.id, tx);
       await tx.sokoBot.update({
         where: { id: bot.id },
         data: {

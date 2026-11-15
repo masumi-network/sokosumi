@@ -1,6 +1,5 @@
 import type { AuthMethodId } from "@/lib/schemas/auth";
 
-const AUTH_SESSION_INITIAL_WAIT_MS = 200;
 const AUTH_SESSION_RETRY_WAIT_MS = 500;
 const AUTH_SESSION_GET_TIMEOUT_MS = 5_000;
 // `error` and `error_description` are what a failed sign-in brings back to the
@@ -120,8 +119,8 @@ export async function waitForAuthSession<TSession = unknown>({
 }: WaitForAuthSessionOptions<TSession>): Promise<TSession | null> {
   discardRetiredAblyRealtimeClientAfterSignIn();
 
-  await waitForMs(AUTH_SESSION_INITIAL_WAIT_MS);
-
+  // The cookie is usually in place once the sign-in response resolves, so the
+  // first check runs at once; the retry below covers one still settling.
   const session = await getSessionOrNull(getSession);
   if (session) {
     return session;

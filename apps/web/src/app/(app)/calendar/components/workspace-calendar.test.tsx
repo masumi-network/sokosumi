@@ -418,6 +418,31 @@ describe("WorkspaceCalendar", () => {
     ).toBeInTheDocument();
   });
 
+  it("puts the zone in a URL without one, with no second server render", async () => {
+    const onUrlUpdate = vi.fn();
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+      ...new Intl.DateTimeFormat().resolvedOptions(),
+      timeZone: "UTC",
+    });
+
+    render(
+      <NuqsTestingAdapter onUrlUpdate={onUrlUpdate} searchParams="">
+        <WorkspaceCalendar
+          items={ITEMS}
+          initialDate="2026-08-18"
+          renderedTimezone="UTC"
+          sources={SOURCES}
+          workspaceId="workspace-1"
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    await waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
+    const [event] = onUrlUpdate.mock.calls[0];
+    expect(event.searchParams.get("timezone")).toBe("UTC");
+    expect(event.options.shallow).toBe(true);
+  });
+
   it("uses the task-style scope filter", async () => {
     const onUrlUpdate = vi.fn();
 
@@ -1257,7 +1282,7 @@ describe("WorkspaceCalendar", () => {
           from: new Date("2026-08-01T00:00:00.000Z"),
           to: new Date("2026-09-01T00:00:00.000Z"),
           // Project drops Follow-ups; owned drops Marketing.
-          types: "tasks,social,newsletter",
+          types: "tasks,social,newsletter,sokoBot",
           timeZone: "UTC",
           agendaOnly: undefined,
           cursor: "cursor-2",
@@ -1278,7 +1303,7 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(screen.getByText("empty.title")).toBeInTheDocument();
+    expect(screen.getByText("empty.filtered")).toBeInTheDocument();
   });
 
   it("links a Project Calendar to that Project's schedules", () => {

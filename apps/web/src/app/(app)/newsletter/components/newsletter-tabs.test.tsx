@@ -13,7 +13,7 @@ const TABS = [
   { id: "issues", href: "/newsletter/issues?projectId=p1", label: "Issues" },
   {
     id: "calendar",
-    href: "/calendar?types=newsletter&projectId=p1",
+    href: "/newsletter/calendar?projectId=p1",
     label: "Calendar",
   },
   {
@@ -48,7 +48,7 @@ describe("NewsletterTabs", () => {
 
     expect(screen.getByRole("link", { name: "Calendar" })).toHaveAttribute(
       "href",
-      "/calendar?types=newsletter&projectId=p1",
+      "/newsletter/calendar?projectId=p1",
     );
     // A row that scrolls must not squeeze its labels onto two lines instead.
     expect(screen.getByRole("link", { name: "Issues" })).toHaveClass(

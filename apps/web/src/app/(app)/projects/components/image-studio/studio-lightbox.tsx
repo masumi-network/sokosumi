@@ -95,14 +95,15 @@ export function StudioLightbox({
   onHeadlineChange?: (asset: StudioAsset, headline: string) => void;
   onEditWithAssistant?: (asset: StudioAsset) => void;
   editWithAssistantLabel?: string;
-  onRegenerate: (asset: StudioAsset) => void;
+  /** Absent on a CMO Project, like every other Studio write. */
+  onRegenerate?: (asset: StudioAsset) => void;
   /** Opens Social with this image attached. Absent when Social is not available. */
   onSchedule?: (asset: StudioAsset) => Promise<void>;
   /** Step to another image while showing one; arrows and swipes live in the viewer. */
   onSelect: (assetId: string) => void;
-  onUseAsReference: (asset: StudioAsset) => void;
-  /** Writes post text from the image prompt. Always available. */
-  onWriteCaption: (asset: StudioAsset) => Promise<void>;
+  onUseAsReference?: (asset: StudioAsset) => void;
+  /** Writes post text from the image prompt. Absent on a CMO Project. */
+  onWriteCaption?: (asset: StudioAsset) => Promise<void>;
   /** Client-held caption for the open image. Absent until one is written. */
   caption?: string;
   /** Generated alternative, kept separate from the reader's text until accepted. */
@@ -266,20 +267,22 @@ export function StudioLightbox({
                   {labels.schedule}
                 </Button>
               ) : null}
-              <Button
-                loading={writingCaption}
-                onClick={() => {
-                  setWritingCaption(true);
-                  void onWriteCaption(single).finally(() =>
-                    setWritingCaption(false),
-                  );
-                }}
-                size="sm"
-                variant="secondary"
-              >
-                {labels.writeCaption}
-              </Button>
-              {supportsVariation(catalog, single.model) ? (
+              {onWriteCaption ? (
+                <Button
+                  loading={writingCaption}
+                  onClick={() => {
+                    setWritingCaption(true);
+                    void onWriteCaption(single).finally(() =>
+                      setWritingCaption(false),
+                    );
+                  }}
+                  size="sm"
+                  variant="secondary"
+                >
+                  {labels.writeCaption}
+                </Button>
+              ) : null}
+              {onRegenerate && supportsVariation(catalog, single.model) ? (
                 <Button
                   onClick={() => onRegenerate(single)}
                   size="sm"
@@ -289,7 +292,7 @@ export function StudioLightbox({
                   {labels.regenerate}
                 </Button>
               ) : null}
-              {isVideoAsset(single) ? null : (
+              {onUseAsReference && !isVideoAsset(single) ? (
                 <Button
                   onClick={() => onUseAsReference(single)}
                   size="sm"
@@ -297,7 +300,7 @@ export function StudioLightbox({
                 >
                   {labels.refine}
                 </Button>
-              )}
+              ) : null}
               {onAnimate && !isVideoAsset(single) ? (
                 <Button
                   onClick={() => onAnimate(single)}

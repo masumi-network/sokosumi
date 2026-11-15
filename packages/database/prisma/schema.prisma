@@ -522,6 +522,8 @@ model Project {
   imageJobs     ProjectImageJob[]
   imageAssets   ProjectImageAsset[]
 
+  creditBuckets CreditBucket[]
+
   fileLinks FileProjectLink[]
 
   /// Last task number handed out. Advanced by the task_assign_number trigger.
@@ -1593,11 +1595,17 @@ model CreditBucket {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  // Project credits (ADR 0067): only a charge for this Project spends them.
+  // The owner stays the organization; null is the Organization credit pool.
+  projectId String?  @db.Uuid
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   // Track which transactions consumed from this bucket
   consumptions CreditConsumption[]
 
   @@unique([referenceId, referenceType])
   @@index([userId, organizationId, expiresAt])
+  @@index([projectId])
   @@index([expiresAt])
   @@index([activatesAt])
   @@map("credit_bucket")
@@ -3199,7 +3207,8 @@ model SokoBotSchedule {
   jobId  String?
   job    Job?    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
-  runs SokoBotScheduleRun[]
+  runs       SokoBotScheduleRun[]
+  runChanges SokoBotScheduleRunChange[]
 
   @@unique([sokoBotId, systemKey])
   @@index([enabled, nextRunAt])
@@ -3235,6 +3244,26 @@ model SokoBotScheduleRun {
   @@unique([scheduleId, scheduledFor])
   @@index([status, scheduledFor])
   @@map("soko_bot_schedule_run")
+}
+
+/// One run of a recurring schedule moved or skipped from the Calendar; the
+/// cron stays as it is. `originalAt` is the cron time the run had,
+/// `scheduledAt` where it runs instead, or null when skipped. The scheduler
+/// fires the cron times without a change plus every moved time.
+model SokoBotScheduleRunChange {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  scheduleId String          @db.Uuid
+  schedule   SokoBotSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  originalAt  DateTime
+  scheduledAt DateTime?
+
+  @@unique([scheduleId, originalAt])
+  @@index([originalAt])
+  @@map("soko_bot_schedule_run_change")
 }
 
 /// Append-only operator audit. Deliberately FK-free so account/bot deletion
@@ -5798,6 +5827,7 @@ model FileResource {
   shares                 DriveShare[]
   /// The Marketing strategy pieces written as this file.
   marketingStrategyFiles MarketingStrategyFile[]
+  googleSheet            DriveGoogleSheet?
 
   @@unique([workspaceId, sourceKind, sourceScope, sourceId], map: "file_resource_source_key")
   @@index([workspaceId, lifecycle, updatedAt])
@@ -5807,6 +5837,27 @@ model FileResource {
   @@index([sourceTaskId])
   @@index([sourceProjectId])
   @@map("file_resource")
+}
+
+/// A Drive file that holds Google's PDF of a Google Sheet, read through its
+/// share link ("Anyone with the link can view") and refreshed every hour.
+model DriveGoogleSheet {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resourceId String       @unique @db.Uuid
+  resource   FileResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  spreadsheetId String
+  /// sha256 of the workbook's parts, so an unchanged sheet writes nothing.
+  contentHash   String
+  syncedAt      DateTime
+  /// Why the last refresh failed, or null when it worked.
+  lastError     String?
+
+  @@index([syncedAt])
+  @@map("drive_google_sheet")
 }
 
 /// Immutable bytes for one revision of a resource.

@@ -8,6 +8,7 @@ const envDefaults: Record<string, string> = {
   PORT: "8787",
   DATABASE_URL: "https://example.com/database",
   BETTER_AUTH_SECRET: "test-secret",
+  CMO_OAUTH_CLIENT_ID: "cmo-oauth-client",
   TURNSTILE_SECRET_KEY: "test-turnstile-secret",
   BETTER_AUTH_URL: "https://example.com/auth",
   BETTER_AUTH_RP_ID: "localhost",

@@ -45,6 +45,8 @@ interface ProjectScopeMenuProps {
   onCreate: (opener: HTMLElement | null) => void;
   /** Closes whatever holds the menu. Runs after every choice. */
   onDone?: () => void;
+  /** Leaves CMO Projects out, for a pick that creates inside the Project. */
+  excludeCmo?: boolean;
   className?: string;
 }
 
@@ -63,6 +65,7 @@ export function ProjectScopeMenu({
   onSelectAll,
   onCreate,
   onDone,
+  excludeCmo = false,
   className,
 }: ProjectScopeMenuProps) {
   const t = useTranslations("App.ProjectScope");
@@ -112,7 +115,9 @@ export function ProjectScopeMenu({
     );
   }
 
-  const rows = projects.rows;
+  const rows = excludeCmo
+    ? projects.rows.filter((project) => !project.cmo)
+    : projects.rows;
 
   // Not `CommandEmpty` for "empty": Create is always mounted, so
   // cmdk never counts the list as empty. The rows of a search Core has not

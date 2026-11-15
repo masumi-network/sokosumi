@@ -11,10 +11,15 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { prepareStudioWebsiteDraft } from "@/lib/actions/image-studio/brand-kit";
+import { cn } from "@/lib/utils";
 
 import type { StudioBatchProduct } from "./studio-batch";
 import { StudioBrandKitDialog } from "./studio-brand-kit";
 import { StudioProductCatalogDialog } from "./studio-product-catalog";
+import {
+  STUDIO_TOOLBAR_LABEL_CLASS,
+  StudioToolbarTip,
+} from "./studio-project-toolbar";
 import { consumeStudioWebsiteDraftRequest } from "./studio-website-intent";
 
 export function StudioWebsiteTools({
@@ -97,16 +102,18 @@ export function StudioWebsiteTools({
   return (
     <>
       {websiteUrl ? (
-        <Button
-          loading={pending}
-          onClick={prepare}
-          size="sm"
-          type="button"
-          variant="outline"
-        >
-          <Globe aria-hidden />
-          {t("prepare")}
-        </Button>
+        <StudioToolbarTip label={t("prepare")}>
+          <Button
+            loading={pending}
+            onClick={prepare}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <Globe aria-hidden />
+            <span className={STUDIO_TOOLBAR_LABEL_CLASS}>{t("prepare")}</span>
+          </Button>
+        </StudioToolbarTip>
       ) : null}
       <StudioBrandKitDialog
         disabled={pending}
@@ -134,7 +141,12 @@ export function StudioWebsiteTools({
       />
       {pending || message || ready ? (
         <p
-          className="text-muted-foreground order-last basis-full text-right text-xs"
+          // The review buttons already say suggestions are ready, so that
+          // state is announced to screen readers only.
+          className={cn(
+            "text-muted-foreground order-last basis-full text-right text-xs",
+            !pending && !message && "sr-only",
+          )}
           role="status"
         >
           {t(pending ? "preparing" : (message ?? "ready"))}

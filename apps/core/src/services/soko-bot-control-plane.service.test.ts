@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   CMO_SOKO_BOT_VERSION_ID,
+  CMO_SOKO_BOT_VERSION_IDS,
   isSokoBotNewsletterCapability,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
@@ -145,6 +146,14 @@ vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("ai")>()),
   experimental_evaluate: jevEvaluate,
 }));
+const { forfeitMock, forfeitIfLeavingCmoMock } = vi.hoisted(() => ({
+  forfeitMock: vi.fn(),
+  forfeitIfLeavingCmoMock: vi.fn(),
+}));
+vi.mock("@/helpers/cuso-project-credits", () => ({
+  forfeitCusoProjectCredits: forfeitMock,
+  forfeitCusoProjectCreditsIfLeavingCmo: forfeitIfLeavingCmoMock,
+}));
 vi.mock("@/helpers/chat-room-mention-status", () => ({
   failOpenChatRoomMentions: failOpenMentionsMock,
   publishChatRoomMentionStatuses: publishMentionStatusesMock,
@@ -245,6 +254,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: scheduleFindFirstMock,
       update: scheduleUpdateMock,
     },
+    sokoBotScheduleRunChange: { findMany: async () => [] },
     sokoBotScheduleRun: {
       findFirst: scheduleRunFindFirstMock,
       findUnique: scheduleRunFindUniqueMock,
@@ -3302,6 +3312,27 @@ describe("SokoBotControlPlane lifecycle", () => {
       expect(botUpdateMock).not.toHaveBeenCalled();
     });
 
+    it("offers the bot to the Cuso write-off before archiving it", async () => {
+      await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
+
+      expect(forfeitMock).toHaveBeenCalledExactlyOnceWith(
+        BOT_ID,
+        expect.any(Object),
+      );
+      // Before the archive, so the bot still reads as a live Cuso.
+      expect(forfeitMock.mock.invocationCallOrder[0]).toBeLessThan(
+        botUpdateMock.mock.invocationCallOrder[0] ?? 0,
+      );
+    });
+
+    it("writes nothing off for an already archived bot", async () => {
+      botFindFirstMock.mockResolvedValue(sharedBot({ archivedAt: new Date() }));
+
+      await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
+
+      expect(forfeitMock).not.toHaveBeenCalled();
+    });
+
     it.each(["owner_1", "admin_1"])(
       "lets %s reset its memory",
       async (userId) => {
@@ -4639,6 +4670,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       chargedCents: 5n,
       expectedCents: 5n,
       shortfall: false,
+      organizationId: null,
     });
     let insideTransaction = false;
     let notifiedInsideTransaction: boolean | null = null;
@@ -4661,7 +4693,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     const settled = await new SokoBotControlPlane().expireTurn("turn_1");
 
     expect(settled).toBe(true);
-    // After the transaction, on the personal wallet Soko Bot turns bill.
+    // After the transaction, on the wallet the turn was charged to.
     expect(notifiedInsideTransaction).toBe(false);
     expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
       userId: "user_1",
@@ -4685,6 +4717,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       chargedCents: 5n,
       expectedCents: 5n,
       shortfall: false,
+      organizationId: null,
     });
 
     const settled = await new SokoBotControlPlane().expireTurn("turn_1");
@@ -4693,6 +4726,36 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
       userId: "user_1",
       organizationId: null,
+    });
+  });
+
+  it("checks the Organization wallet a turn in an Organization workspace drew on", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      sokoBotId: BOT_ID,
+      requestedByUserId: "user_1",
+      eveSessionId: "session_1",
+      startedAt: new Date(Date.now() - 5_000),
+      costUsdMicros: 0n,
+      status: "RUNNING",
+      leaseToken: "lease_1",
+      scheduleRun: null,
+    });
+    turnUpdateManyMock.mockResolvedValue({ count: 1 });
+    botUpdateManyMock.mockResolvedValue({ count: 1 });
+    recordUsageMock.mockResolvedValue({
+      chargedCents: 5n,
+      expectedCents: 5n,
+      shortfall: false,
+      organizationId: "org_1",
+    });
+
+    await new SokoBotControlPlane().expireTurn("turn_1");
+
+    // Not the member's personal wallet: a new Organization owner has none,
+    // and was told "0 left" while the Organization held 249 credits.
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
+      userId: "user_1",
+      organizationId: "org_1",
     });
   });
 
@@ -4749,6 +4812,35 @@ describe("updateVersion", () => {
       ),
     ).rejects.toThrow("CMO's own version");
   });
+
+  it("writes off Cuso's Project credits when the admin lab moves him off CMO", async () => {
+    vi.clearAllMocks();
+    botFindFirstMock.mockResolvedValueOnce(
+      adminBot({
+        userId: null,
+        versionId: CMO_SOKO_BOT_VERSION_ID,
+        workspace: { organizationId: "org_1" },
+      }),
+    );
+    botUpdateManyMock.mockResolvedValue({ count: 1 });
+
+    await new SokoBotControlPlane().updateVersion(
+      "admin_1",
+      "workspace_1",
+      "v19",
+      { allowUnpromoted: true },
+      { kind: "id", sokoBotId: BOT_ID },
+    );
+
+    expect(forfeitIfLeavingCmoMock).toHaveBeenCalledExactlyOnceWith(
+      BOT_ID,
+      "v19",
+      expect.objectContaining({ sokoBot: expect.any(Object) }),
+    );
+    expect(forfeitIfLeavingCmoMock.mock.invocationCallOrder[0]).toBeLessThan(
+      botUpdateManyMock.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
 });
 
 describe("SET_VERSION and fleet migration", () => {
@@ -4798,6 +4890,63 @@ describe("SET_VERSION and fleet migration", () => {
     expect(audit).toMatchObject({ status: "SUCCEEDED", targetId: "v16" });
     expect(audit.before).toMatchObject({ versionId: "v14" });
     expect(audit.after).toMatchObject({ versionId: "v16" });
+  });
+
+  it("writes off Cuso's Project credits when he moves to a version outside CMO", async () => {
+    botFindUniqueMock.mockResolvedValue(
+      adminBot({ userId: null, versionId: CMO_SOKO_BOT_VERSION_ID }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+
+    await new SokoBotControlPlane().performAdminAction({
+      sokoBotId: BOT_ID,
+      operatorId: "admin_1",
+      action: "SET_VERSION",
+      versionId: "v16",
+      reason: "Move Cuso to the assistant",
+      operationId: "cuso-off-cmo",
+    });
+
+    // In the version change's transaction, before the write: the helper
+    // still reads him as a live Cuso.
+    expect(forfeitIfLeavingCmoMock).toHaveBeenCalledExactlyOnceWith(
+      BOT_ID,
+      "v16",
+      expect.objectContaining({ sokoBot: expect.any(Object) }),
+    );
+    expect(forfeitIfLeavingCmoMock.mock.invocationCallOrder[0]).toBeLessThan(
+      botUpdateMock.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("asks the write-off about a move between CMO versions too", async () => {
+    botFindUniqueMock.mockResolvedValue(
+      adminBot({ userId: null, versionId: CMO_SOKO_BOT_VERSION_ID }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+
+    await new SokoBotControlPlane().performAdminAction({
+      sokoBotId: BOT_ID,
+      operatorId: "admin_1",
+      action: "SET_VERSION",
+      versionId: CMO_SOKO_BOT_VERSION_IDS.at(-1) as string,
+      reason: "Next CMO version",
+      operationId: "cuso-cmo-to-cmo",
+    });
+
+    expect(botUpdateMock).toHaveBeenCalled();
+    // The helper keeps the credits for a CMO version (its own test).
+    expect(forfeitIfLeavingCmoMock).toHaveBeenCalledWith(
+      BOT_ID,
+      CMO_SOKO_BOT_VERSION_IDS.at(-1),
+      expect.any(Object),
+    );
   });
 
   it("refuses an unknown version before it writes an intent", async () => {

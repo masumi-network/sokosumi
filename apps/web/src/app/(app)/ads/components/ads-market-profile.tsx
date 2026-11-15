@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { AdMarketProfile } from "@sokosumi/core-client";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -38,9 +38,11 @@ import {
   createMarketProfileSchema,
   MARKET_KEYWORD_LIMIT,
   type MarketOption,
+  marketSummary,
 } from "@/lib/ads/market";
 
 import { AdsKeywordInput } from "./ads-keyword-input";
+import { useMarketRefresh } from "./ads-market-refresh";
 
 type SavedProfile = AdMarketProfile;
 
@@ -67,6 +69,8 @@ export function AdsMarketProfile({
   ...formProps
 }: AdsMarketProfileProps) {
   const t = useTranslations("App.Ads.market");
+  const locale = useLocale();
+  const saved = useMarketRefresh()?.saved;
   const [open, setOpen] = useState(false);
 
   if (!formProps.profile) {
@@ -83,7 +87,9 @@ export function AdsMarketProfile({
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-      <p className="text-muted-foreground min-w-0 text-sm">{summary}</p>
+      <p className="text-muted-foreground min-w-0 text-sm">
+        {saved ? marketSummary(saved, locale) : summary}
+      </p>
       <Button
         size="sm"
         type="button"
@@ -117,6 +123,7 @@ function MarketProfileForm({
   projectId,
 }: MarketProfileFormProps & { onDone?: () => void }) {
   const t = useTranslations("App.Ads.market.form");
+  const refresh = useMarketRefresh();
   const [failed, setFailed] = useState(false);
 
   const schema = createMarketProfileSchema({
@@ -147,6 +154,7 @@ function MarketProfileForm({
         setFailed(true);
         return;
       }
+      refresh?.onSaved(result.value.profile);
       toast.success(t("success"));
       onDone?.();
     } catch {

@@ -479,4 +479,24 @@ describe("authoritative room attention", () => {
       ])[0].unreadCount,
     ).toBe(2);
   });
+
+  it("keeps what needs the reader cleared when a read lands during the write", () => {
+    const requestRevision = beginRoomAttentionRefresh();
+    beginRoomAttentionChange({
+      ...room({ unreadCount: 0, channelUnreadCount: 0 }),
+      unreadNeedsYouCount: 0,
+    });
+
+    const polled = reconcileRoomAttention(
+      [
+        {
+          ...room({ unreadCount: 2, channelUnreadCount: 2 }),
+          unreadNeedsYouCount: 1,
+        },
+      ],
+      requestRevision,
+    );
+
+    expect(polled[0].unreadNeedsYouCount).toBe(0);
+  });
 });

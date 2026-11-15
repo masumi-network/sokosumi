@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { dataRoomRefusal, updateDataRoom } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
@@ -44,6 +45,7 @@ export function DataRoomSettingsPanel({
   const t = useTranslations("App.Drive.DataRoom.Settings");
   const ids = {
     title: useId(),
+    welcome: useId(),
     logo: useId(),
     domains: useId(),
     expires: useId(),
@@ -52,6 +54,7 @@ export function DataRoomSettingsPanel({
     notify: useId(),
   };
   const [title, setTitle] = useState(room.title ?? "");
+  const [welcomeNote, setWelcomeNote] = useState(room.welcomeNote ?? "");
   const [logoFileId, setLogoFileId] = useState(room.logoFileId ?? NO_LOGO);
   const [domains, setDomains] = useState(room.allowedDomains.join(", "));
   const [expiresAt, setExpiresAt] = useState(room.expiresAt);
@@ -78,6 +81,7 @@ export function DataRoomSettingsPanel({
             roomId: room.id,
             settings: {
               title: title.trim() || null,
+              welcomeNote: welcomeNote.trim() || null,
               logoFileId: logoFileId === NO_LOGO ? null : logoFileId,
               allowedDomains: domains
                 .split(/[\s,;]+/)
@@ -106,6 +110,18 @@ export function DataRoomSettingsPanel({
           placeholder={room.folderPath.split("/").at(-1)}
           onChange={(event) => setTitle(event.target.value)}
         />
+      </div>
+
+      <div className="grid gap-1.5">
+        <Label htmlFor={ids.welcome}>{t("welcomeLabel")}</Label>
+        <Textarea
+          id={ids.welcome}
+          rows={6}
+          maxLength={5_000}
+          value={welcomeNote}
+          onChange={(event) => setWelcomeNote(event.target.value)}
+        />
+        <p className="text-muted-foreground text-xs">{t("welcomeHint")}</p>
       </div>
 
       <div className="grid gap-1.5">

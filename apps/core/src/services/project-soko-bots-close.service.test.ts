@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { failOpenMentionsMock } = vi.hoisted(() => ({
+const { failOpenMentionsMock, forfeitMock } = vi.hoisted(() => ({
   failOpenMentionsMock: vi.fn(),
+  forfeitMock: vi.fn(),
 }));
 vi.mock("@/helpers/chat-room-mention-status", () => ({
   failOpenChatRoomMentions: failOpenMentionsMock,
+}));
+vi.mock("@/helpers/cuso-project-credits", () => ({
+  forfeitCusoProjectCredits: forfeitMock,
 }));
 
 import { archiveProjectSokoBotsForClose } from "./project-soko-bots-close.service";
@@ -90,5 +94,29 @@ describe("archiveProjectSokoBotsForClose", () => {
     expect(tx.chatRoomSokoBotMember.deleteMany).toHaveBeenCalledWith({
       where: { sokoBotId: { in: [BOT_A, BOT_B] } },
     });
+  });
+
+  it("offers each closed bot to the Cuso write-off before archiving it", async () => {
+    const tx = transactionClient([BOT_A, BOT_B]);
+
+    await archiveProjectSokoBotsForClose(tx as never, PROJECT_ID);
+
+    expect(forfeitMock.mock.calls).toEqual([
+      [BOT_A, tx],
+      [BOT_B, tx],
+    ]);
+    // Before the archive, so the bot still reads as a live Cuso.
+    expect(Math.max(...forfeitMock.mock.invocationCallOrder)).toBeLessThan(
+      tx.sokoBot.updateMany.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("writes nothing off when the Project has no live bots", async () => {
+    await archiveProjectSokoBotsForClose(
+      transactionClient([]) as never,
+      PROJECT_ID,
+    );
+
+    expect(forfeitMock).not.toHaveBeenCalled();
   });
 });

@@ -46,6 +46,7 @@ vi.mock("@/lib/db/prisma", () => ({
       update: messageUpdate,
       updateMany: messageUpdate,
       findFirst: messageFindFirst,
+      findUnique: vi.fn().mockResolvedValue(null),
       create: messageCreate,
     },
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
@@ -54,7 +55,9 @@ vi.mock("@/lib/db/prisma", () => ({
         sokoBotTurn: { findUnique: turnFindUnique },
         chatRoomMention: { updateMany: mentionUpdateMany },
         chatRoomMessage: {
+          findUnique: vi.fn().mockResolvedValue(null),
           update: messageUpdate,
+          updateMany: messageUpdate,
           delete: messageDelete,
           create: messageCreate,
           upsert: messageUpsert,
@@ -69,6 +72,13 @@ const { createOrGetDirectRoomMock } = vi.hoisted(() => ({
 }));
 vi.mock("@/routes/v1/chats/rooms/helpers", () => ({
   createOrGetDirectRoom: createOrGetDirectRoomMock,
+}));
+
+const { holdsMention } = vi.hoisted(() => ({
+  holdsMention: vi.fn(async () => true),
+}));
+vi.mock("@/services/chat-room-mention-state", () => ({
+  holdsSokoBotMention: holdsMention,
 }));
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
@@ -576,5 +586,36 @@ describe("publishSokoBotChatProgress", () => {
       }),
     );
     expect(publish).not.toHaveBeenCalled();
+  });
+  it("writes nothing once the turn no longer holds the mention", async () => {
+    // Retry released it to a fresh attempt while this write was delayed.
+    // Its own reply id: progress is throttled per reply.
+    turnFindUnique.mockResolvedValue(
+      completedTurn({ status: "RUNNING", chatResponseMessageId: "response-z" }),
+    );
+    holdsMention.mockResolvedValueOnce(false);
+    await publishSokoBotChatProgress("turn-a");
+    // Progress needs the turn still running, not only holding the mention.
+    expect(holdsMention).toHaveBeenCalledWith(
+      expect.anything(),
+      "turn-a",
+      "mention-a",
+      { running: true },
+    );
+    expect(messageUpdate).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
+  });
+});
+
+describe("persistSokoBotChatTurn for a released turn", () => {
+  it("writes nothing once the turn no longer holds the mention", async () => {
+    turnFindUnique.mockResolvedValue(completedTurn());
+    holdsMention.mockResolvedValueOnce(false);
+    await persistSokoBotChatTurn(
+      "turn-a",
+      (await import("@/lib/db/prisma")).default as never,
+    );
+    expect(mentionUpdateMany).not.toHaveBeenCalled();
+    expect(messageUpdate).not.toHaveBeenCalled();
   });
 });

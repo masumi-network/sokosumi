@@ -16,7 +16,14 @@ const { readCatalog, copyPhoto, findJob } = vi.hoisted(() => ({
   findJob: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
-  default: { projectImageJob: { findUnique: findJob } },
+  default: {
+    projectImageJob: { findUnique: findJob },
+    // Only "cmo-project" has a live Cuso.
+    sokoBot: {
+      findFirst: async ({ where }: { where: { projectId: string } }) =>
+        where.projectId === "cmo-project" ? { id: "cuso" } : null,
+    },
+  },
 }));
 vi.mock("@/services/studio-product-catalog.service", () => ({
   readStudioProductCatalog: readCatalog,
@@ -87,6 +94,24 @@ describe("agent catalog and generation HTTP contract", () => {
       }),
     });
   }
+
+  it("refuses a generation in a CMO Project in the agent's own shape", async () => {
+    authorize.mockResolvedValueOnce({
+      userId: "user",
+      projectId: "cmo-project",
+      workspaceId: "workspace",
+      organizationId: "org",
+    });
+
+    const response = await swapProduct();
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      ok: false,
+      error: "cmo_project_read_only",
+    });
+    expect(createJob).not.toHaveBeenCalled();
+  });
 
   it("resolves a saved replacement product and its uploaded photo in the granted project", async () => {
     readCatalog.mockResolvedValueOnce({

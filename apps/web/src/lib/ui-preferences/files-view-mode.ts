@@ -27,17 +27,6 @@ export function parseFilesViewModeCookieHeader(
   return parseFilesViewMode(match?.[1]);
 }
 
-/**
- * Client resolve for Files Recents/Browse: cookie wins; otherwise list.
- */
-export function resolveFilesViewModeFromClientCookie(
-  documentCookie: string,
-): FilesViewMode {
-  return (
-    parseFilesViewModeCookieHeader(documentCookie) ?? DEFAULT_FILES_VIEW_MODE
-  );
-}
-
 /** Mobile viewports always render list; saved preference stays for desktop. */
 export function effectiveFilesViewMode(
   preferred: FilesViewMode,

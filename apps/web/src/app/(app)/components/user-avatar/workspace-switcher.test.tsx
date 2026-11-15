@@ -515,6 +515,52 @@ describe("workspace switcher", () => {
     });
   });
 
+  it("settles a waiter only once the switch has rendered", async () => {
+    pathnameMock = "/tasks";
+    let resolveSetActive: (() => void) | undefined;
+    vi.mocked(authClient.organization.setActive).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveSetActive = () => resolve({ data: null, error: null });
+        }),
+    );
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: true,
+      value: { organizationId: "org-1" },
+    });
+    let settled = false;
+
+    function WorkspaceSwitcherSettledTestComponent() {
+      const { handleSelectWorkspace, whenSettled } = useWorkspaceSwitcher();
+
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            void whenSettled().then(() => {
+              settled = true;
+            });
+            void handleSelectWorkspace("org-1");
+          }}
+        >
+          Switch workspace
+        </button>
+      );
+    }
+
+    const user = userEvent.setup();
+    render(<WorkspaceSwitcherSettledTestComponent />);
+
+    await user.click(screen.getByRole("button", { name: "Switch workspace" }));
+    expect(settled).toBe(false);
+
+    resolveSetActive?.();
+
+    await waitFor(() => {
+      expect(settled).toBe(true);
+    });
+  });
+
   it("keeps the current switch when persisting the preferred organization fails", async () => {
     pathnameMock = "/tasks";
     vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({

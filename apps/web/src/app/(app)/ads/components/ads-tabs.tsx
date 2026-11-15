@@ -31,6 +31,8 @@ interface AdsTabsProps {
   market: React.ReactNode;
   toolbar: React.ReactNode;
   projectId: string;
+  /** A CMO Project: CMO runs its ads, so they are only read (ADR 0066). */
+  readOnly?: boolean;
 }
 
 /**
@@ -44,6 +46,7 @@ export function AdsTabs({
   market,
   projectId,
   toolbar,
+  readOnly = false,
 }: AdsTabsProps) {
   const t = useTranslations("App.Ads");
   const [tab, setTab] = useQueryState(
@@ -85,9 +88,11 @@ export function AdsTabs({
         {accounts.length === 0 ? (
           <EmptyState
             action={
-              <Button onClick={() => void setTab("accounts")} type="button">
-                {t("campaigns.emptyAction")}
-              </Button>
+              readOnly ? undefined : (
+                <Button onClick={() => void setTab("accounts")} type="button">
+                  {t("campaigns.emptyAction")}
+                </Button>
+              )
             }
             description={t("campaigns.emptyBody")}
             title={t("campaigns.emptyTitle")}
@@ -98,7 +103,11 @@ export function AdsTabs({
       </TabsContent>
       <TabsContent value="market">{market ?? <AdsRowsSkeleton />}</TabsContent>
       <TabsContent value="accounts">
-        <AdsAccounts accounts={accounts} projectId={projectId} />
+        <AdsAccounts
+          accounts={accounts}
+          projectId={projectId}
+          readOnly={readOnly}
+        />
       </TabsContent>
     </Tabs>
   );

@@ -1,17 +1,28 @@
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { botFindFirstMock, botFindManyMock, memberFindFirstMock, resolveMock } =
-  vi.hoisted(() => ({
-    botFindFirstMock: vi.fn(),
-    botFindManyMock: vi.fn(),
-    memberFindFirstMock: vi.fn(),
-    resolveMock: vi.fn(),
-  }));
+const {
+  botFindFirstMock,
+  botFindManyMock,
+  memberFindFirstMock,
+  resolveMock,
+  turnFindFirstMock,
+  messageFindFirstMock,
+} = vi.hoisted(() => ({
+  botFindFirstMock: vi.fn(),
+  botFindManyMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
+  resolveMock: vi.fn(),
+  turnFindFirstMock: vi.fn(),
+  messageFindFirstMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBot: { findFirst: botFindFirstMock, findMany: botFindManyMock },
     member: { findFirst: memberFindFirstMock },
+    sokoBotTurn: { findFirst: turnFindFirstMock },
+    chatRoomMessage: { findFirst: messageFindFirstMock },
   },
 }));
 
@@ -26,6 +37,7 @@ import {
 } from "@/services/soko-bot-control-plane.service";
 import {
   getSokoBotActivity,
+  getSokoBotLastFailure,
   getSokoBotState,
   listSharedSokoBots,
 } from "./soko-bot-state.service";
@@ -113,6 +125,42 @@ describe("getSokoBotState", () => {
 describe("listSharedSokoBots", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("marks Cuso: a Project bot on CMO's version", async () => {
+    const shared = {
+      userId: null,
+      workspaceId: WORKSPACE_ID,
+      name: null,
+      avatarSeed: null,
+      avatarImageUrl: null,
+      status: "IDLE",
+      archivedAt: null,
+      sharedRoomId: null,
+    };
+    botFindManyMock.mockResolvedValue([
+      {
+        ...shared,
+        id: "cuso",
+        projectId: "p1",
+        versionId: CMO_SOKO_BOT_VERSION_IDS[0],
+      },
+      { ...shared, id: "helper", projectId: "p1", versionId: "v1" },
+      {
+        ...shared,
+        id: "team",
+        projectId: null,
+        versionId: CMO_SOKO_BOT_VERSION_IDS[0],
+      },
+    ]);
+
+    const bots = await listSharedSokoBots(VIEWER, WORKSPACE_ID);
+
+    expect(bots.map(({ id, cuso }) => [id, cuso])).toEqual([
+      ["cuso", true],
+      ["helper", false],
+      ["team", false],
+    ]);
   });
 
   it("lists only owner-less, undeleted bots of an organization workspace the viewer reaches", async () => {
@@ -204,5 +252,75 @@ describe("getSokoBotActivity", () => {
       lastTurnAt: null,
       lastActivityAt,
     });
+  });
+});
+
+describe("getSokoBotLastFailure", () => {
+  beforeEach(() => {
+    turnFindFirstMock.mockReset();
+    messageFindFirstMock.mockReset();
+  });
+
+  it("points at the failed reply in a room the reader belongs to", async () => {
+    turnFindFirstMock.mockResolvedValue({
+      source: "CHAT",
+      destinationRoomId: "room_channel",
+      chatResponseMessageId: "reply_1",
+    });
+    messageFindFirstMock.mockResolvedValue({
+      id: "reply_1",
+      roomId: "room_channel",
+    });
+
+    await expect(getSokoBotLastFailure(BOT_ID, VIEWER)).resolves.toEqual({
+      roomId: "room_channel",
+      messageId: "reply_1",
+    });
+    expect(turnFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { sokoBotId: BOT_ID, parentTurnId: null, status: "FAILED" },
+      }),
+    );
+    expect(messageFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "reply_1",
+          roomId: "room_channel",
+          deletedAt: null,
+          room: {
+            archivedAt: null,
+            userMembers: { some: { userId: VIEWER } },
+          },
+        }),
+      }),
+    );
+  });
+
+  it("gives no room when the reader cannot open it", async () => {
+    turnFindFirstMock.mockResolvedValue({
+      source: "CHAT",
+      destinationRoomId: "room_private",
+      chatResponseMessageId: "reply_1",
+    });
+    messageFindFirstMock.mockResolvedValue(null);
+
+    await expect(getSokoBotLastFailure(BOT_ID, VIEWER)).resolves.toEqual({
+      roomId: null,
+      messageId: null,
+    });
+  });
+
+  it("gives no room for work that was not a chat reply", async () => {
+    turnFindFirstMock.mockResolvedValue({
+      source: "SCHEDULE",
+      destinationRoomId: "room_direct",
+      chatResponseMessageId: null,
+    });
+
+    await expect(getSokoBotLastFailure(BOT_ID, VIEWER)).resolves.toEqual({
+      roomId: null,
+      messageId: null,
+    });
+    expect(messageFindFirstMock).not.toHaveBeenCalled();
   });
 });

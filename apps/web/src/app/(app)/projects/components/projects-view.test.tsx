@@ -1,21 +1,36 @@
 import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import {
-  loadMoreProjects,
-  pinProjectAction,
-  showProjectAction,
-} from "@/app/projects/actions";
+import { loadMoreProjects } from "@/app/projects/actions";
 import { ProjectsView } from "@/app/projects/components/projects-view";
 import {
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
 } from "@/app/projects/constants";
 
+const { queryStateOptions } = vi.hoisted(() => ({
+  queryStateOptions: {} as Record<
+    string,
+    { startTransition?: (callback: () => Promise<void>) => void }
+  >,
+}));
+
 vi.mock("nuqs", async (importOriginal) => ({
   ...(await importOriginal<typeof import("nuqs")>()),
-  useQueryState: () => ["", vi.fn()],
+  useQueryState: (
+    key: string,
+    options: { startTransition?: (callback: () => Promise<void>) => void },
+  ) => {
+    queryStateOptions[key] = options;
+    return ["", vi.fn()];
+  },
 }));
 
 const { refreshMock } = vi.hoisted(() => ({ refreshMock: vi.fn() }));
@@ -76,6 +91,7 @@ const labels = {
   created: "Created",
   pinned: "Pinned",
   closed: "Closed",
+  cmo: "CMO",
   actions: {
     moreActions: "More actions",
     close: "Close",
@@ -374,36 +390,38 @@ describe("ProjectsView Hidden view", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Show" })).toBeInTheDocument();
   });
-
-  it("refetches the page once a Show lands, so the card leaves the view", async () => {
-    const user = userEvent.setup();
-    vi.mocked(showProjectAction).mockResolvedValue({
-      projectId: "project-1",
-      hiddenAt: null,
-    });
-    refreshMock.mockClear();
-    renderView({ state: "hidden" });
-
-    await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Show" }));
-
-    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
-  });
 });
 
-describe("ProjectsView Pin re-sort", () => {
-  it("refetches the server-ordered page once a Pin lands", async () => {
-    vi.mocked(pinProjectAction).mockResolvedValue(
-      undefined as unknown as Awaited<ReturnType<typeof pinProjectAction>>,
+describe("ProjectsView switching views", () => {
+  it("marks the old cards stale until the new list arrives", () => {
+    renderView();
+    const panel = screen.getByTestId("projects-browse");
+    expect(panel).not.toHaveAttribute("aria-busy");
+
+    // A server refetch that has not answered yet.
+    act(() => {
+      queryStateOptions.state?.startTransition?.(() => new Promise(() => {}));
+    });
+
+    expect(panel).toHaveAttribute("aria-busy", "true");
+    expect(
+      panel.querySelector('[data-slot="button-loading-bar"]'),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Autumn Launch").closest(".grid")).toHaveClass(
+      "opacity-50",
     );
-    refreshMock.mockClear();
-    const user = userEvent.setup();
+  });
+
+  it("shares the pending state with the filter", () => {
     renderView();
 
-    await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Pin" }));
+    act(() => {
+      queryStateOptions.q?.startTransition?.(() => new Promise(() => {}));
+    });
 
-    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
-    expect(pinProjectAction).toHaveBeenCalledWith({ projectId: "project-1" });
+    expect(screen.getByTestId("projects-browse")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
   });
 });

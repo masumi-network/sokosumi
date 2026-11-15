@@ -7,7 +7,7 @@ import {
 } from "@sokosumi/core-client";
 import { Mail, Plus } from "lucide-react";
 import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import { useRef, useState, useTransition } from "react";
 import { EmptyState } from "@/components/common/empty-state";
@@ -23,6 +23,7 @@ import { IssueDeleteButton } from "./issue-delete-button";
 import {
   IssueDeliveryOutcome,
   IssueStatusBadge,
+  IssueWhen,
 } from "./issue-delivery-status";
 import { NewIssueDialog } from "./new-issue-dialog";
 import { issueSearchParams } from "./search-params";
@@ -32,14 +33,16 @@ export function Issues({
   issues,
   pagination,
   activeSubscribers,
+  readOnly = false,
 }: {
   projectId: string;
   issues: NewsletterIssue[];
   pagination: PaginationMetadata;
   activeSubscribers: number;
+  /** A CMO Project: CMO writes and sends its issues, so they are only read. */
+  readOnly?: boolean;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
-  const format = useFormatter();
   const [dialogOpen, setDialogOpen] = useState(false);
   const newButton = useRef<HTMLButtonElement>(null);
   const [pending, startTransition] = useTransition();
@@ -48,7 +51,7 @@ export function Issues({
     shallow: false,
     startTransition,
   });
-  const newIssue = (
+  const newIssue = readOnly ? null : (
     <div className="flex flex-wrap justify-center gap-2">
       <DraftIssueButton projectId={projectId} />
       <Button
@@ -117,42 +120,27 @@ export function Issues({
                       </Link>
                     </h4>
                     <IssueStatusBadge issue={issue} />
-                    <p className="text-muted-foreground text-sm wrap-anywhere">
-                      {issue.sentAt
-                        ? t("sentAt", {
-                            date: format.dateTime(issue.sentAt, "dateTime"),
-                          })
-                        : issue.scheduledAt
-                          ? t("Lifecycle.scheduled", {
-                              date: format.dateTime(
-                                issue.scheduledAt,
-                                "dateTime",
-                                {
-                                  timeZone: issue.timezone ?? "UTC",
-                                },
-                              ),
-                              timezone: issue.timezone ?? "UTC",
-                            })
-                          : t("updated", {
-                              date: format.dateTime(
-                                issue.updatedAt,
-                                "dateTime",
-                              ),
-                            })}
-                    </p>
+                    <IssueWhen issue={issue} />
                   </div>
-                  <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">
-                    <Button
-                      asChild
-                      variant="outline"
-                      className="h-auto min-h-10 max-w-full py-2 whitespace-normal"
-                    >
-                      <Link href={href}>{t(`nextActions.${nextAction}`)}</Link>
-                    </Button>
-                    {issue.status === NewsletterIssueStatus.DRAFT ? (
-                      <IssueDeleteButton projectId={projectId} issue={issue} />
-                    ) : null}
-                  </div>
+                  {readOnly ? null : (
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">
+                      <Button
+                        asChild
+                        variant="outline"
+                        className="h-auto min-h-10 max-w-full py-2 whitespace-normal"
+                      >
+                        <Link href={href}>
+                          {t(`nextActions.${nextAction}`)}
+                        </Link>
+                      </Button>
+                      {issue.status === NewsletterIssueStatus.DRAFT ? (
+                        <IssueDeleteButton
+                          projectId={projectId}
+                          issue={issue}
+                        />
+                      ) : null}
+                    </div>
+                  )}
                 </div>
                 <IssueDeliveryOutcome issue={issue} projectId={projectId} />
               </li>

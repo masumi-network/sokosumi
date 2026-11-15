@@ -183,7 +183,7 @@ export async function executeComposioTool(input: {
     throw new ComposioToolError({
       message: imageFailure?.message ?? input.refused,
       providerMessage: imageFailure?.reason ?? toolErrorMessage(toolError),
-      providerStatus,
+      providerStatus: imageFailure?.status ?? providerStatus,
     });
   }
   return record(providerResult?.data) ?? providerResult;
@@ -228,7 +228,7 @@ export async function stageSocialPublishFile(input: {
   file: SocialPostMediaBytes;
   signal?: AbortSignal;
 }): Promise<string> {
-  const name = input.file.name ?? "attachment";
+  const name = input.file.name || "attachment";
   const stagingResponse = await projectComposioFetch(
     "/api/v3.1/files/upload/request",
     {

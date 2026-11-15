@@ -1,15 +1,19 @@
 import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ProjectListItem } from "@/app/projects/components/project-list-item";
 import { PROJECTS_CARD_LAYOUT_CLASS } from "@/app/projects/constants";
 
-const { pinMock, unpinMock, refreshMock } = vi.hoisted(() => ({
-  pinMock: vi.fn(),
-  unpinMock: vi.fn(),
-  refreshMock: vi.fn(),
-}));
+const { pinMock, unpinMock, hideMock, showMock, refreshMock } = vi.hoisted(
+  () => ({
+    hideMock: vi.fn(),
+    showMock: vi.fn(),
+    pinMock: vi.fn(),
+    unpinMock: vi.fn(),
+    refreshMock: vi.fn(),
+  }),
+);
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: refreshMock }),
@@ -18,8 +22,8 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/app/projects/actions", () => ({
   pinProjectAction: pinMock,
   unpinProjectAction: unpinMock,
-  hideProjectAction: vi.fn(),
-  showProjectAction: vi.fn(),
+  hideProjectAction: hideMock,
+  showProjectAction: showMock,
 }));
 
 vi.mock("@/lib/actions/project/action", () => ({ closeProject: vi.fn() }));
@@ -47,6 +51,7 @@ const labels = {
   pinned: "Pinned",
   created: "Created",
   closed: "Closed",
+  cmo: "CMO",
   actions: {
     moreActions: "More actions",
     close: "Close",
@@ -96,6 +101,7 @@ const project = {
   taskCount: 2,
   jobCount: 1,
   projectRevision: 0,
+  cmo: false,
 } as ProjectListItemType;
 
 describe("ProjectListItem", () => {
@@ -267,27 +273,67 @@ describe("ProjectListItem Pin", () => {
     expect(screen.queryByTestId("project-pinned-mark")).not.toBeInTheDocument();
   });
 
-  it("Unpins a Pinned card from its menu and refetches the page", async () => {
-    const user = userEvent.setup();
-    unpinMock.mockResolvedValue({});
-    render(
-      <ProjectListItem
-        project={{
-          ...project,
-          starredAt: new Date("2026-09-01T10:00:00.000Z"),
-        }}
-        labels={labels}
-      />,
+  /** A write that stays open until the test answers it. */
+  function holdOpen(mock: typeof pinMock) {
+    let fail: (reason: Error) => void = () => {};
+    mock.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        fail = reject;
+      }),
     );
+    return () => fail(new Error("down"));
+  }
+
+  const pinnedProject = {
+    ...project,
+    starredAt: new Date("2026-09-01T10:00:00.000Z"),
+  };
+
+  it("takes the Pin mark off before the Unpin answer and puts it back when the write fails", async () => {
+    const user = userEvent.setup();
+    const fail = holdOpen(unpinMock);
+    render(<ProjectListItem project={pinnedProject} labels={labels} />);
 
     await user.click(screen.getByRole("button", { name: "More actions" }));
     await user.click(screen.getByRole("menuitem", { name: "Unpin" }));
 
     await vi.waitFor(() =>
-      expect(unpinMock).toHaveBeenCalledWith({ projectId: "project-1" }),
+      expect(
+        screen.queryByTestId("project-pinned-mark"),
+      ).not.toBeInTheDocument(),
     );
-    // Pins lead the Open view, so the page re-sorts once the write lands.
-    await vi.waitFor(() => expect(refreshMock).toHaveBeenCalled());
+    expect(unpinMock).toHaveBeenCalledWith({ projectId: "project-1" });
+
+    await act(async () => fail());
+    expect(screen.getByTestId("project-pinned-mark")).toBeInTheDocument();
+  });
+
+  it("marks a card Pinned before the Pin answer", async () => {
+    const user = userEvent.setup();
+    const fail = holdOpen(pinMock);
+    render(<ProjectListItem project={project} labels={labels} />);
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Pin" }));
+
+    expect(await screen.findByTestId("project-pinned-mark")).toBeVisible();
+    await act(async () => fail());
+  });
+
+  it("takes a hidden card off the list before the answer and puts it back when the write fails", async () => {
+    const user = userEvent.setup();
+    const fail = holdOpen(hideMock);
+    render(<ProjectListItem project={project} labels={labels} />);
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: /hide/i }));
+
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("article")).not.toBeInTheDocument(),
+    );
+
+    await act(async () => fail());
+    expect(screen.getByRole("article")).toBeInTheDocument();
   });
 
   it("puts the menu over the card's corner, outside the link", () => {
@@ -307,6 +353,37 @@ describe("ProjectListItem Pin", () => {
   });
 });
 
+describe("ProjectListItem for a CMO Project", () => {
+  it("marks the card with a CMO badge, inside the link", () => {
+    render(
+      <ProjectListItem project={{ ...project, cmo: true }} labels={labels} />,
+    );
+
+    const badge = screen.getByTestId("project-cmo-badge");
+    expect(badge).toHaveTextContent("CMO");
+    expect(screen.getByRole("link").contains(badge)).toBe(true);
+  });
+
+  it("shows no badge on an ordinary Project", () => {
+    render(<ProjectListItem project={project} labels={labels} />);
+
+    expect(screen.queryByTestId("project-cmo-badge")).toBeNull();
+  });
+
+  it("keeps Pin and Hide in its menu but not Close", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectListItem project={{ ...project, cmo: true }} labels={labels} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+
+    expect(
+      screen.getAllByRole("menuitem").map((item) => item.textContent),
+    ).toEqual(["Pin", "Hide"]);
+  });
+});
+
 describe("ProjectListItem in the Hidden view", () => {
   it("offers Show instead of Hide, and no Pin", async () => {
     const user = userEvent.setup();
@@ -317,6 +394,25 @@ describe("ProjectListItem in the Hidden view", () => {
     expect(
       screen.getAllByRole("menuitem").map((item) => item.textContent),
     ).toEqual(["Show", "Close"]);
+  });
+
+  it("takes a shown card off the Hidden view before the answer", async () => {
+    const user = userEvent.setup();
+    let answer: (value: unknown) => void = () => {};
+    showMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    render(<ProjectListItem project={project} labels={labels} hidden />);
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Show" }));
+
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("article")).not.toBeInTheDocument(),
+    );
+    await act(async () => answer({}));
   });
 
   it("still opens the project", () => {

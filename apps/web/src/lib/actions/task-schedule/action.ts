@@ -184,11 +184,20 @@ export const runTaskScheduleNow = withSession<
 /** Skips, moves, or restores one upcoming Run; the rule stays as it is. */
 export const changeTaskScheduleRun = withSession<
   ChangeTaskScheduleRunParameters,
-  TaskScheduleActionResult<{ scheduleId: string; runId: string }>
+  TaskScheduleActionResult<{
+    scheduleId: string;
+    runId: string;
+    /** The schedule revision after the change: the next change must send it. */
+    revision: number;
+  }>
 >(async ({ session: _session, scheduleId, runId, ...change }) =>
   runTaskScheduleAction(async () => {
-    await taskScheduleService.changeRun(scheduleId, runId, change);
+    const { revision } = await taskScheduleService.changeRun(
+      scheduleId,
+      runId,
+      change,
+    );
     revalidateTaskSchedule(scheduleId);
-    return { scheduleId, runId };
+    return { scheduleId, runId, revision };
   }),
 );

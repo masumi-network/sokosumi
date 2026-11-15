@@ -54,6 +54,7 @@ export function SocialNewPostMenu({
   const [isOpeningChat, startOpeningChat] = useTransition();
   const projectRequest: ProjectScopeRequest = {
     reason: t("chooseProjectBody"),
+    excludeCmo: true,
     onSelect: (projectId) => {
       const query = new URLSearchParams({ projectId, compose: "new" });
       if (compose?.scheduledAt) query.set("composeAt", compose.scheduledAt);

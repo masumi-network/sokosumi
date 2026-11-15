@@ -122,6 +122,7 @@ describe("isAudioUrl / isAudioMediaType", () => {
     expect(isAudioUrl("https://blob.example/track.flac")).toBe(true);
     expect(isAudioUrl("https://blob.example/track.opus")).toBe(true);
     expect(isAudioUrl("https://blob.example/track.oga")).toBe(true);
+    expect(isAudioUrl("https://blob.example/voice-abc.weba")).toBe(true);
     // .ogg is video-extension allowlist, not audio
     expect(isAudioUrl("https://blob.example/track.ogg")).toBe(false);
     expect(isAudioUrl("https://blob.example/clip.mp4")).toBe(false);

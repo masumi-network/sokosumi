@@ -36,6 +36,7 @@ export async function GET(
               name: project.name,
               logo: project.logo,
               closedAt: project.closedAt ?? null,
+              cmo: project.cmo,
             }
           : null,
       },

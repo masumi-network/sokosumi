@@ -11,6 +11,7 @@ import {
 } from "@/lib/image-studio/request-validation";
 
 import { createImageJobRequestSchema } from "@/schemas/project-image-studio.schema";
+import { isCmoProject } from "@/services/cmo-cuso.service";
 import {
   getAsset,
   getJob,
@@ -124,6 +125,11 @@ app.get("/versions", async (c) => {
 app.post("/generations", async (c) => {
   const context = await authorize(c.req.raw);
   if (context instanceof Response) return context;
+  // A CMO Project's Studio is CMO's (ADR 0066); Cuso's own media go through
+  // Core's services, not this surface.
+  if (await isCmoProject(context.projectId)) {
+    return c.json({ ok: false, error: "cmo_project_read_only" }, 409);
+  }
 
   // The same schema the session-authenticated route uses. Hand-rolled `typeof`
   // checks let a non-UUID reference reach Prisma as a 500, and let an

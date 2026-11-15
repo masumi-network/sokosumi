@@ -7,7 +7,10 @@ import {
   taskStatusSchema,
   taskVisibilitySchema,
 } from "@/schemas/domain-enums.schema";
-import { socialPostProviderSchema } from "@/schemas/social-post.schema";
+import {
+  socialPostMediaRefSchema,
+  socialPostProviderSchema,
+} from "@/schemas/social-post.schema";
 import { sokoBotPendingDecisionSchema } from "@/schemas/soko-bot-pending-decision.schema";
 
 const localHref = z
@@ -22,6 +25,7 @@ const outputSchema = z
     openHref: localHref,
     previewHref: localHref.nullable(),
     downloadHref: localHref.nullable().default(null),
+    transformation: socialPostMediaRefSchema.shape.transformation,
   })
   .openapi("ChatResultOutput");
 

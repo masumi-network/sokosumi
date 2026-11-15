@@ -38,8 +38,8 @@ struct ResultSocialPostView: View {
   }
 }
 
-/// Web's X layout: the photo beside the name, handle and day, the text, the pictures in a rounded frame and the
-/// reply, repost, like, views, bookmark and share glyphs.
+/// Web's X layout: the photo beside the name, handle and day, the text, a lone picture in a rounded frame or two to
+/// twenty pictures in a horizontal carousel, and the reply, repost, like, views, bookmark and share glyphs.
 private struct XPostPreview: View {
   let post: ResultSocialPost
   @Environment(\.locale) private var locale
@@ -63,7 +63,11 @@ private struct XPostPreview: View {
           SocialPostText(text: post.text, linkColor: SocialPostWords.xLink)
             .padding(.top, 2)
         }
-        if !post.visibleMedia.isEmpty {
+        if post.visibleMedia.count > 1 {
+          SocialPostMediaCarousel(media: post.visibleMedia)
+            .padding(.trailing, -16)
+            .padding(.top, 12)
+        } else if !post.visibleMedia.isEmpty {
           SocialPostMediaGrid(media: post.visibleMedia)
             .clipShape(.rect(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.primary.opacity(0.12)))
@@ -327,6 +331,34 @@ private struct SocialPostText: View {
   }
 }
 
+/// Web `PreviewMediaCarousel`: X's pictures in their post order, with 4 pt gaps and individual 8 pt corners and borders.
+/// The track is 68% of its available width high; each picture's width follows its clamped proportions after loading.
+private struct SocialPostMediaCarousel: View {
+  let media: [ResultSocialPost.Media]
+
+  var body: some View {
+    Color.clear
+      .aspectRatio(1 / 0.68, contentMode: .fit)
+      .overlay {
+        GeometryReader { geometry in
+          ScrollView(.horizontal, showsIndicators: false) {
+            // Not lazy: at most twenty pictures, and every one stays reachable by VoiceOver and the keyboard.
+            HStack(spacing: 4) {
+              ForEach(media) { item in
+                SocialPostMediaCell(media: item, carouselHeight: geometry.size.height)
+                  .clipShape(.rect(cornerRadius: 8))
+                  .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
+              }
+            }
+            .scrollTargetLayout()
+          }
+          .scrollTargetBehavior(.viewAligned)
+        }
+      }
+      .clipped()
+  }
+}
+
 /// Web `PreviewMediaGrid`: one picture at its own proportions, at most 512 pt high; two side by side, three with the
 /// first on the left and four in a 2×2 grid, all in a 16:9 frame with 2 pt gaps. The caller clips and frames it.
 private struct SocialPostMediaGrid: View {
@@ -379,6 +411,8 @@ private struct SocialPostMediaCell: View {
   let media: ResultSocialPost.Media
   /// A lone picture: its own proportions, at most 512 pt high over the card's 576 pt.
   var keepsProportions = false
+  /// X's carousel: a fixed track height and width from the loaded picture, square until it loads.
+  var carouselHeight: CGFloat?
   @Environment(\.resultOutputLoader) private var loader
   @Environment(\.resultOutputPresenter) private var presenter
   @Environment(\.displayScale) private var displayScale
@@ -414,7 +448,10 @@ private struct SocialPostMediaCell: View {
 
   @ViewBuilder
   private var frame: some View {
-    if keepsProportions {
+    if let carouselHeight {
+      Color.primary.opacity(0.06)
+        .frame(width: carouselHeight * carouselProportions, height: carouselHeight)
+    } else if keepsProportions {
       // The proportions stop at 576 × 512, so the frame is never taller than 512 pt.
       Color.primary.opacity(0.06)
         .aspectRatio(proportions, contentMode: .fit)
@@ -427,6 +464,12 @@ private struct SocialPostMediaCell: View {
   private var proportions: CGFloat {
     guard case let .loaded(_, image) = picture, image.height > 0 else { return 16 / 9 }
     return max(CGFloat(image.width) / CGFloat(image.height), resultCardMaxWidth / 512)
+  }
+
+  /// X crops landscape pictures to 20:17 and tall portraits to 9:16, keeping every item at the track's height.
+  private var carouselProportions: CGFloat {
+    guard case let .loaded(_, image) = picture, image.height > 0 else { return 1 }
+    return min(max(CGFloat(image.width) / CGFloat(image.height), 9 / 16), 20 / 17)
   }
 
   @ViewBuilder

@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  DEFAULT_FILES_VIEW_MODE,
   effectiveFilesViewMode,
   FILES_VIEW_MODE_COOKIE_MAX_AGE,
   FILES_VIEW_MODE_COOKIE_NAME,
   parseFilesViewMode,
   parseFilesViewModeCookieHeader,
-  resolveFilesViewModeFromClientCookie,
   serializeFilesViewModeCookie,
 } from "@/lib/ui-preferences/files-view-mode";
 
@@ -65,27 +63,5 @@ describe("parseFilesViewModeCookieHeader", () => {
     expect(
       parseFilesViewModeCookieHeader(`${FILES_VIEW_MODE_COOKIE_NAME}=board`),
     ).toBeNull();
-  });
-});
-
-describe("resolveFilesViewModeFromClientCookie", () => {
-  it("prefers cookie when present", () => {
-    expect(
-      resolveFilesViewModeFromClientCookie(
-        `${FILES_VIEW_MODE_COOKIE_NAME}=grid`,
-      ),
-    ).toBe("grid");
-    expect(
-      resolveFilesViewModeFromClientCookie(
-        `${FILES_VIEW_MODE_COOKIE_NAME}=list`,
-      ),
-    ).toBe("list");
-  });
-
-  it("defaults to list when cookie is missing", () => {
-    expect(resolveFilesViewModeFromClientCookie("")).toBe(
-      DEFAULT_FILES_VIEW_MODE,
-    );
-    expect(resolveFilesViewModeFromClientCookie("theme=dark")).toBe("list");
   });
 });

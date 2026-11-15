@@ -136,6 +136,9 @@ export function HeaderNotificationBell() {
           their cursor. The cap keeps that one width inside a narrow
           viewport, where 24rem is wider than the screen. */}
       <PopoverContent
+        // A dialog needs a name of its own: a screen reader entering it
+        // heard only "dialog", whatever the heading inside said.
+        aria-label={t("title")}
         data-notification-frame=""
         className="w-96 max-w-(--radix-popover-content-available-width) p-0"
         align="end"

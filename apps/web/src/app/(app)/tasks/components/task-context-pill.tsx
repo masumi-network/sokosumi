@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Favicon } from "@/components/ui/favicon";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
 import { cn } from "@/lib/utils";
-import { buildFaviconCandidates } from "@/lib/utils/url";
+import { buildFaviconCandidates, getHostname } from "@/lib/utils/url";
 
 /** Explicit on/off readout: check when on, empty ring when off. */
 export function PillMarker({ pressed }: { pressed: boolean }) {
@@ -69,14 +69,6 @@ export function DefaultBrandAvatar({
   );
 }
 
-export function getHostname(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
-}
-
 interface BrandPillLabels {
   brand: string;
   namedBrand: (values: { name: string }) => string;
@@ -102,7 +94,7 @@ export function resolveBrandPillDisplay({
 }): { label: string; avatar: ReactNode } {
   if (brandSource === "custom" && brandUrl) {
     return {
-      label: getHostname(brandUrl),
+      label: getHostname(brandUrl) ?? brandUrl,
       avatar: (
         <span className="bg-muted flex size-4 items-center justify-center overflow-hidden rounded-full">
           <Favicon

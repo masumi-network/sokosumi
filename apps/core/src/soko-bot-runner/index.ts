@@ -7,6 +7,8 @@
  * tools, proxies every model call and settles the turn; the runner owns the
  * loop and the tools that act inside the sandbox.
  */
+
+import { spawn } from "node:child_process";
 import {
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
@@ -15,7 +17,10 @@ import {
 } from "@sokosumi/soko-bot";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { createGateway, stepCountIs, type ToolSet, tool } from "ai";
-import { streamModelCall } from "../lib/soko-bot/stream-model-call";
+import {
+  MODEL_CALL_MAX_MS,
+  streamModelCall,
+} from "../lib/soko-bot/stream-model-call";
 
 import { searchWeb } from "../lib/soko-bot/web-search";
 import {
@@ -30,6 +35,7 @@ import {
   writeWorkspaceFile,
 } from "./local-tools";
 import { runTurnLoop } from "./loop";
+import { superviseRunner } from "./supervise";
 
 interface TurnStart {
   message: string;
@@ -85,6 +91,20 @@ const localToken = process.env.SOKO_BOT_TURN_TOKEN;
 const authHeaders: Record<string, string> = localToken
   ? { [SOKO_BOT_TURN_TOKEN_HEADER]: localToken }
   : {};
+
+/**
+ * Core answers a model call within MODEL_CALL_MAX_MS. An answer that has not
+ * arrived a minute after that never will, so the call fails instead of
+ * holding the turn until its deadline.
+ */
+const modelFetch: typeof fetch = (input, init) =>
+  fetch(input, {
+    ...init,
+    signal: AbortSignal.any([
+      ...(init?.signal ? [init.signal] : []),
+      AbortSignal.timeout(MODEL_CALL_MAX_MS + 60_000),
+    ]),
+  });
 
 /** POSTs to this turn's Core endpoint; Core says when the turn is over. */
 async function callCore<T>(route: string, body: unknown): Promise<T> {
@@ -334,6 +354,7 @@ async function main(): Promise<void> {
     baseURL: `${base}/gateway`,
     apiKey: "sandbox",
     headers: authHeaders,
+    fetch: modelFetch,
   });
   const budgetMs = Math.max(
     30_000,
@@ -374,4 +395,20 @@ async function main(): Promise<void> {
   }
 }
 
-await main();
+// The first process only watches a second one that runs the turn, so a
+// runner that dies without a word still fails its turn at once.
+if (process.env.SOKO_BOT_RUNNER_CHILD) {
+  await main();
+} else {
+  const child = spawn(
+    process.execPath,
+    [...process.execArgv, process.argv[1] ?? ""],
+    {
+      env: { ...process.env, SOKO_BOT_RUNNER_CHILD: "1" },
+      stdio: ["ignore", "inherit", "pipe"],
+    },
+  );
+  process.exit(
+    await superviseRunner(child, (failure) => callCore("/fail", failure)),
+  );
+}

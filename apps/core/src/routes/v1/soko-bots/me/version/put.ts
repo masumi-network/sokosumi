@@ -28,6 +28,7 @@ const spec = {
     200: jsonSuccessResponse(sokoBotSchema, "Bot with the new version"),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 };
@@ -44,6 +45,10 @@ const updateVersionByIdRoute = createRoute({
   path: "/{sokoBotId}/version",
   operationId: "updateSokoBotVersion",
   request: { body, params: sokoBotIdParams },
+  responses: {
+    ...spec.responses,
+    409: jsonErrorResponse("CMO project is read-only"),
+  },
 });
 
 /** A setting: any member with access may pin a shared bot's version. */

@@ -3,6 +3,7 @@
 import type { PendingInvitation } from "@sokosumi/core-client";
 import { InvitationStatus, MemberRole } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import DataTable from "@/components/data-table/data-table";
 import { InvitationDisplayStatus } from "@/lib/constants/invitation-display-status";
 import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
@@ -33,6 +34,8 @@ export default function MembersTable({
   const t = useTranslations("Components.MembersTable");
   const isOwnerOrAdmin =
     me.role === MemberRole.OWNER || me.role === MemberRole.ADMIN;
+  // Invitations with a cancel on its way: off the table before Core answers.
+  const [cancelling, setCancelling] = useState<readonly string[]>([]);
 
   return (
     <SeatManagementContextProvider
@@ -40,7 +43,13 @@ export default function MembersTable({
       unusedSeats={unusedSeats}
     >
       <MemberActionsModalContextProvider>
-        <InvitationActionsModalContextProvider>
+        <InvitationActionsModalContextProvider
+          onCancelling={(id, on) =>
+            setCancelling((now) =>
+              on ? [...now, id] : now.filter((entry) => entry !== id),
+            )
+          }
+        >
           <DataTable
             columns={getMembersTableColumnList(t, me, {
               showSeatManagement,
@@ -48,7 +57,9 @@ export default function MembersTable({
             })}
             data={combineMembersAndPendingInvitations(
               members,
-              pendingInvitations,
+              pendingInvitations.filter(
+                (invitation) => !cancelling.includes(invitation.id),
+              ),
             )}
             rowClassName={() =>
               "text-foreground active:bg-accent hover:bg-accent"

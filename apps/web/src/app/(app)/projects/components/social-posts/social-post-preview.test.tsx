@@ -1,15 +1,30 @@
 import type { SocialPostMediaRef } from "@sokosumi/core-client";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import enMessages from "@/messages/en.json";
 
 import { SocialPostPreview } from "./social-post-preview";
 
 vi.mock("next-intl", async () => {
   const { createTestFormatter } = await import("@/test/intl-formatter");
+  const { createTranslator } =
+    await vi.importActual<typeof import("next-intl")>("next-intl");
   return {
     useFormatter: () => createTestFormatter(),
-    useTranslations: () => (key: string) => key,
+    useTranslations:
+      (namespace: string) =>
+      (key: string, values?: Record<string, string | number>) => {
+        if (namespace === "App.Projects.SocialPosts.preview.x") {
+          const messages: Record<string, string> =
+            enMessages.App.Projects.SocialPosts.preview.x;
+          return createTranslator({
+            locale: "en",
+            messages,
+          })(key, values);
+        }
+        return key;
+      },
   };
 });
 
@@ -38,6 +53,78 @@ const VIDEO: SocialPostMediaRef = {
 };
 
 describe("SocialPostPreview", () => {
+  it("shows a platform transformation notice once for matching images", () => {
+    const transformation = {
+      provider: "instagram" as const,
+      code: "pad_4_5" as const,
+      notice: "Instagram will pad this image to 4:5.",
+      original: IMAGE,
+    };
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[
+          { ...IMAGE, transformation },
+          { ...IMAGE, pathname: "drive/b.png", transformation },
+        ]}
+        provider="instagram"
+        text="Launch post"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getAllByText("mediaNotice.pad_4_5")).toHaveLength(1);
+    expect(screen.queryByText(transformation.notice)).not.toBeInTheDocument();
+    expect(screen.getByTestId("social-post-media-notice")).toBeVisible();
+  });
+
+  it.each([
+    "x",
+    "linkedin",
+    "facebook",
+    "instagram",
+    "youtube",
+    "tiktok",
+  ] as const)("shows the entire image in the %s preview", (provider) => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        compact
+        media={[IMAGE]}
+        provider={provider}
+        text="Launch post"
+        timestamp={null}
+      />,
+    );
+
+    expect(screen.getByAltText(IMAGE.name)).toHaveClass("object-contain");
+    expect(screen.getByAltText(IMAGE.name)).not.toHaveClass("object-cover");
+    expect(screen.getByAltText(IMAGE.name)).toHaveAttribute(
+      "src",
+      IMAGE.fileUrl,
+    );
+    expect(
+      screen.queryByTestId("social-post-media-notice"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("crops multiple X images to their carousel cards", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[IMAGE, { ...IMAGE, pathname: "drive/b.png", name: "b.png" }]}
+        provider="x"
+        text="Launch post"
+        timestamp={null}
+      />,
+    );
+
+    for (const image of screen.getAllByRole("img")) {
+      expect(image).toHaveClass("object-cover");
+      expect(image).not.toHaveClass("object-contain");
+    }
+  });
+
   it("renders every thread part with the real X layout, shared author, media and connecting avatars", () => {
     render(
       <SocialPostPreview
@@ -591,23 +678,279 @@ describe("SocialPostPreview", () => {
     );
   });
 
-  it("lays out several images in a grid", () => {
+  it.each([2, 5, 20])(
+    "renders all %s X images in order in a carousel",
+    (count) => {
+      render(
+        <SocialPostPreview
+          account={ACCOUNT}
+          media={Array.from({ length: count }, (_, index) => ({
+            ...IMAGE,
+            pathname: `drive/${index}.png`,
+            name: `${index}.png`,
+          }))}
+          provider="x"
+          text="Launch photos"
+          timestamp={null}
+        />,
+      );
+
+      const carousel = screen.getByRole("group", {
+        name: `${count} images`,
+      });
+      expect(carousel).toHaveAttribute("aria-roledescription", "carousel");
+      expect(carousel).toHaveAttribute(
+        "data-testid",
+        "social-post-preview-media-carousel",
+      );
+      const items = within(carousel).getAllByTestId(
+        "social-post-preview-carousel-item",
+      );
+      expect(items).toHaveLength(count);
+      for (const [index, item] of items.entries()) {
+        expect(item).toHaveAttribute(
+          "aria-label",
+          `Image ${index + 1} of ${count}`,
+        );
+        expect(within(item).getByRole("img")).toHaveAttribute(
+          "alt",
+          `${index}.png`,
+        );
+      }
+      expect(
+        screen.queryByTestId("social-post-preview-media-grid"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("social-post-preview-media-overflow"),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    { width: 1600, height: 900, aspectRatio: 20 / 17 },
+    { width: 100, height: 1000, aspectRatio: 9 / 16 },
+    { width: 900, height: 1000, aspectRatio: 0.9 },
+  ])(
+    "sizes a $width × $height carousel image after it loads",
+    ({ width, height, aspectRatio }) => {
+      render(
+        <SocialPostPreview
+          account={ACCOUNT}
+          media={[IMAGE, { ...IMAGE, pathname: "drive/b.png", name: "b.png" }]}
+          provider="x"
+          text="Launch photos"
+          timestamp={null}
+        />,
+      );
+
+      const [item, nextItem] = screen.getAllByTestId(
+        "social-post-preview-carousel-item",
+      );
+      expect(item).toHaveStyle({ aspectRatio: "1" });
+      const image = within(item).getByRole("img");
+      Object.defineProperties(image, {
+        naturalWidth: { configurable: true, value: width },
+        naturalHeight: { configurable: true, value: height },
+      });
+
+      fireEvent.load(image);
+
+      expect(item).toHaveStyle({ aspectRatio: String(aspectRatio) });
+      expect(nextItem).toHaveStyle({ aspectRatio: "1" });
+    },
+  );
+
+  it("sizes a carousel video from metadata and keeps its play badge", () => {
     render(
       <SocialPostPreview
         account={ACCOUNT}
+        media={[VIDEO, IMAGE]}
+        provider="x"
+        text="Launch media"
+        timestamp={null}
+      />,
+    );
+
+    const [item] = screen.getAllByTestId("social-post-preview-carousel-item");
+    expect(item).toHaveStyle({ aspectRatio: "1" });
+    const video = within(item).getByLabelText(VIDEO.name);
+    Object.defineProperties(video, {
+      videoWidth: { configurable: true, value: 1280 },
+      videoHeight: { configurable: true, value: 1920 },
+    });
+
+    fireEvent.loadedMetadata(video);
+
+    expect(item).toHaveStyle({ aspectRatio: String(1280 / 1920) });
+    expect(within(item).getByTestId("social-post-preview-play")).toBeVisible();
+  });
+
+  it("keeps a GIF badge inside its carousel card", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[
+          {
+            ...IMAGE,
+            pathname: "drive/a.gif",
+            name: "a.gif",
+            mimeType: "image/gif",
+            kind: "gif",
+          },
+          IMAGE,
+        ]}
+        provider="x"
+        text="Launch media"
+        timestamp={null}
+      />,
+    );
+
+    const [item] = screen.getAllByTestId("social-post-preview-carousel-item");
+    expect(
+      within(item).getByTestId("social-post-preview-gif"),
+    ).toHaveTextContent("GIF");
+  });
+
+  it("scrolls one carousel item at a time and hides controls at each end", async () => {
+    const user = userEvent.setup();
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={Array.from({ length: 3 }, (_, index) => ({
+          ...IMAGE,
+          pathname: `drive/${index}.png`,
+          name: `${index}.png`,
+        }))}
+        provider="x"
+        text="Launch photos"
+        timestamp={null}
+      />,
+    );
+
+    const track = screen.getByTestId("social-post-preview-media-carousel");
+    Object.defineProperties(track, {
+      clientWidth: { configurable: true, value: 300 },
+      scrollWidth: { configurable: true, value: 908 },
+      scrollLeft: { configurable: true, writable: true, value: 0 },
+    });
+    for (const [index, item] of within(track)
+      .getAllByTestId("social-post-preview-carousel-item")
+      .entries()) {
+      Object.defineProperty(item, "offsetLeft", {
+        configurable: true,
+        value: 52 + index * 304,
+      });
+    }
+    const scrollTo = vi.spyOn(track, "scrollTo").mockImplementation(() => {});
+    const previous = screen.getByLabelText("Previous image");
+    const next = screen.getByLabelText("Next image");
+
+    fireEvent.scroll(track);
+    expect(previous).toHaveAttribute("hidden");
+    expect(next).not.toHaveAttribute("hidden");
+    await user.click(next);
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 304 });
+
+    track.scrollLeft = 304;
+    fireEvent.scroll(track);
+    expect(previous).not.toHaveAttribute("hidden");
+    expect(next).not.toHaveAttribute("hidden");
+    await user.click(previous);
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 0 });
+    await user.click(next);
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 608 });
+    expect(next).toHaveFocus();
+
+    track.scrollLeft = 608;
+    fireEvent.scroll(track);
+    expect(previous).not.toHaveAttribute("hidden");
+    expect(next).toHaveAttribute("hidden");
+    expect(track).toHaveFocus();
+    await user.click(previous);
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 304 });
+    expect(previous).toHaveFocus();
+
+    track.scrollLeft = 0;
+    Object.defineProperty(track, "scrollWidth", { value: 300 });
+    fireEvent.scroll(track);
+    expect(previous).toHaveAttribute("hidden");
+    expect(next).toHaveAttribute("hidden");
+    expect(track).toHaveFocus();
+  });
+
+  it("caps the carousel height in compact mode", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        compact
         media={[IMAGE, { ...IMAGE, pathname: "drive/b.png", name: "b.png" }]}
         provider="x"
-        text=""
+        text="Launch photos"
         timestamp={null}
       />,
     );
 
     expect(
-      within(screen.getByTestId("social-post-preview-media-grid")).getAllByRole(
-        "img",
-      ),
-    ).toHaveLength(2);
+      screen.getByTestId("social-post-preview-media-carousel").parentElement,
+    ).toHaveClass("max-h-64");
   });
+
+  it("keeps the existing single-image X layout", () => {
+    render(
+      <SocialPostPreview
+        account={ACCOUNT}
+        media={[IMAGE]}
+        provider="x"
+        text="Launch photo"
+        timestamp={null}
+      />,
+    );
+
+    const image = screen.getByRole("img", { name: IMAGE.name });
+    expect(image).toHaveClass("object-contain", "max-h-[32rem]");
+    expect(image.parentElement).toHaveClass("rounded-2xl", "border");
+    expect(
+      screen.queryByTestId("social-post-preview-media-carousel"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("social-post-preview-media-grid"),
+    ).not.toBeInTheDocument();
+  });
+
+  it.each([4, 5])(
+    "keeps the first four of %s Facebook images in a grid",
+    (count) => {
+      render(
+        <SocialPostPreview
+          account={ACCOUNT}
+          media={Array.from({ length: count }, (_, index) => ({
+            ...IMAGE,
+            pathname: `drive/${index}.png`,
+            name: `${index}.png`,
+          }))}
+          provider="facebook"
+          text="Launch photos"
+          timestamp={null}
+        />,
+      );
+
+      expect(
+        within(
+          screen.getByTestId("social-post-preview-media-grid"),
+        ).getAllByRole("img"),
+      ).toHaveLength(4);
+      for (const image of screen.getAllByRole("img")) {
+        expect(image).toHaveClass("object-contain");
+      }
+      expect(
+        screen.queryByTestId("social-post-preview-media-overflow"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("social-post-preview-media-carousel"),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByAltText("4.png")).not.toBeInTheDocument();
+    },
+  );
 
   it("renders a Facebook feed card with public reach, tags, and actions", () => {
     render(
@@ -902,7 +1245,7 @@ describe("SocialPostPreview", () => {
     expect(frame).toHaveClass("max-h-64");
     expect(screen.getByRole("img", { name: "a.png" })).toHaveClass(
       "max-h-64",
-      "object-top",
+      "object-contain",
     );
     expect(screen.getByTestId("social-post-preview")).toHaveAttribute(
       "data-compact",

@@ -3,36 +3,42 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getNow, getTimeZone, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
-import { ChatLanding } from "@/app/chat/components/landing/chat-landing";
-import { ChatLandingMobile } from "@/app/chat/components/landing/chat-landing.mobile";
 import { resolveLandingGreetingName } from "@/app/chat/components/landing/landing-content";
-import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
+import type { NeedsYouLead } from "@/app/projects/components/needs-you-panel-list";
 import {
   NeedsYouPanel,
   panelFeed,
 } from "@/app/projects/components/workspace-column";
-import { WORKSPACE_COLUMN_ROWS } from "@/app/projects/constants";
+import {
+  PROJECTS_PAGE_LIMIT,
+  WORKSPACE_COLUMN_ROWS,
+} from "@/app/projects/constants";
 import { dayInTimeZone } from "@/app/tasks/utils/task-due";
 import { getSession } from "@/lib/auth/auth.server";
 import { chatRoomService } from "@/lib/services/chat-room.service";
-import { coworkerService } from "@/lib/services/coworker.service";
 import { notificationService } from "@/lib/services/notification.service";
+import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 
-import { loadMyDay, MyDay } from "./components/my-day";
+import { countOverdue, loadMyDay, MyDay } from "./components/my-day";
 import { SokoBotHome } from "./components/soko-bot-home";
 import {
   findSokoBotDirectRoom,
   SOKO_BOT_HOME_TASK_LIMIT,
   type SokoBotHomeChat,
-  toSokoBotChats,
+  sokoBotFailureLead,
+  toImportantChats,
+  toNewSchedules,
   toTeamDay,
 } from "./components/soko-bot-home-data";
+import {
+  SOKO_BOT_SETUP_FACES,
+  SokoBotSetup,
+} from "./components/soko-bot-setup";
 
 interface WelcomePageProps {
   searchParams: Promise<{
@@ -48,36 +54,30 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * The bot's Direct (null when it has none yet or the read fails) and the
- * chats with a Soko Bot the reader took part in during the last day. Core
- * picks those chats; the room list is the sidebar's cached one.
+ * reader's important unread chat messages from the last day, which Core
+ * picks from Jev's tags; the room list is the sidebar's cached one.
  */
 async function loadSokoBotChats(
   sokoBotId: string,
 ): Promise<{ roomId: string | null; chats: SokoBotHomeChat[] }> {
-  const [{ rooms }, recent, tChannels] = await Promise.all([
+  const [{ rooms }, important, tChannels] = await Promise.all([
     chatRoomService.listRooms().catch(() => ({ rooms: [] })),
-    chatRoomService.listRecentSokoBotMessages().catch(() => []),
+    chatRoomService.listImportantMessages().catch(() => []),
     getTranslations("App.Channels"),
   ]);
   return {
     roomId: findSokoBotDirectRoom(rooms, sokoBotId)?.id ?? null,
-    chats: toSokoBotChats(
-      recent,
-      rooms,
-      tChannels("MentionAll.label"),
-      tChannels("SavedMessages.untitled"),
-    ),
+    chats: toImportantChats(important, tChannels("SavedMessages.untitled")),
   };
 }
 
 /**
- * `/` welcome: what happened while the user was away, and a way in via a
- * coworker. A user with a personal Soko Bot gets {@link SokoBotHome} instead,
- * a chat with their bot. Shared bots never take the home over: their room is
- * the team's, so a send from here would post for everyone. This is the post-login landing on every breakpoint — desktop gets
- * the full-page composition, mobile a version sized for a 390px column. The
- * room list is its own surface (`/chat` on mobile, the sidebar on
- * desktop) rather than something stacked underneath the welcome.
+ * `/` welcome. A user with a personal Soko Bot gets {@link SokoBotHome}, a
+ * chat with their bot; anyone else gets {@link SokoBotSetup}, the way into
+ * one. Shared bots never take the home over: their room is the team's, so a
+ * send from here would post for everyone. This is the post-login landing on
+ * every breakpoint. The room list is its own surface (`/chat` on mobile, the
+ * sidebar on desktop) rather than something stacked underneath the welcome.
  *
  * Open rooms: `/chat/rooms/[roomId]`. Create Channel / Start New Direct are
  * in-place dialogs from the sidebar, not Welcome query modes.
@@ -106,40 +106,66 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   if (!isWorkspaceReady(access?.gate)) {
     redirect(WORKSPACE_GATE_PATH);
   }
-  const sokoBot = await sokoBotService.getMine().catch(() => null);
+  // In an org the day is the team's; in a personal workspace, the user's.
+  // In an org the greeting talks about the team, so count the whole
+  // workspace rather than only the caller's own tasks.
+  const scope = activeOrganizationId ? "workspace" : "owned";
+  // The reads below need the gate, not the bot, so each one starts before the
+  // bot read answers instead of one Core round trip after it.
+  // The reader's Tasks due today or overdue, by their own calendar day, for
+  // the Soko Bot Home.
+  const today = dayInTimeZone(now, timeZone);
+  const myDay = (
+    <Suspense fallback={null}>
+      {MyDay({
+        feed: loadMyDay(today),
+        overdue: countOverdue(today),
+        today,
+      })}
+    </Suspense>
+  );
+  // What waits on the reader, as the quiet list on the Soko Bot Home.
+  const needsYouFeed = panelFeed(
+    notificationService.listNeedsYou(WORKSPACE_COLUMN_ROWS),
+  );
+  // The workspace's first page of projects, read next to the rows, so a
+  // row's project is usually known without its own read after them.
+  const needsYouProjects = projectService
+    .listProjects({ limit: PROJECTS_PAGE_LIMIT })
+    .then(({ projects }) =>
+      Object.fromEntries(
+        projects.map((project) => [
+          project.id,
+          { name: project.name, logo: project.logo },
+        ]),
+      ),
+    )
+    .catch(() => ({}));
+  const needsYouPanel = (lead?: NeedsYouLead) => (
+    <Suspense fallback={null}>
+      {NeedsYouPanel({
+        feed: needsYouFeed,
+        projects: needsYouProjects,
+        quiet: true,
+        lead,
+      })}
+    </Suspense>
+  );
+  const [{ sokoBot, lastFailure }, summary] = await Promise.all([
+    sokoBotService
+      .getMineWithLastFailure()
+      .catch(() => ({ sokoBot: null, lastFailure: null })),
+    // Window is session-derived in Core (`max(Session.updatedAt)`). No stamp.
+    taskService.getActivitySummary({ scope }),
+  ]);
   const notice =
     (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
   const landingNotice = <ChatLandingNotice notice={notice} />;
   const userId = session?.user.id;
-  // The reader's Tasks due today or overdue, by their own calendar day. One
-  // rendered promise shared by both compositions, like Needs you below.
-  const today = dayInTimeZone(now, timeZone);
-  const myDay = (
-    <Suspense fallback={null}>
-      {MyDay({ feed: loadMyDay(today), today })}
-    </Suspense>
-  );
-  // What waits on the reader, as the quiet list under either welcome. One
-  // promise of the rendered panel, so the two breakpoint compositions share
-  // its reads instead of each loading the rows and their projects again.
-  const needsYou = (
-    <Suspense fallback={null}>
-      {NeedsYouPanel({
-        feed: panelFeed(
-          notificationService.listNeedsYou(WORKSPACE_COLUMN_ROWS),
-        ),
-        projects: {},
-        quiet: true,
-      })}
-    </Suspense>
-  );
 
   if (sokoBot && userId) {
-    // In an org the day is the team's; in a personal workspace, the user's.
-    const scope = activeOrganizationId ? "workspace" : "owned";
-    const [{ roomId, chats }, summary, recent] = await Promise.all([
+    const [{ roomId, chats }, recent] = await Promise.all([
       loadSokoBotChats(sokoBot.id),
-      taskService.getActivitySummary({ scope }),
       taskService
         .listTasks({
           scope,
@@ -148,6 +174,17 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
         })
         .catch(() => ({ tasks: [] })),
     ]);
+    // A failed bot waits on the reader too: the sidebar and the bot's page
+    // say so, and Home said "Nothing waits on you".
+    const tHome = await getTranslations("App.Chat.Landing.SokoBotHome");
+    const failedLead = sokoBotFailureLead(
+      {
+        name: sokoBot.name?.trim() || tHome("defaultName"),
+        status: sokoBot.status,
+      },
+      lastFailure,
+      tHome,
+    );
     return (
       <>
         {landingNotice}
@@ -164,59 +201,21 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           summary={summary ?? null}
           teamTasks={toTeamDay(recent.tasks, new Date())}
           chats={chats}
+          schedules={toNewSchedules(sokoBot.schedules ?? [], new Date())}
           myDay={myDay}
-          needsYou={needsYou}
+          needsYou={needsYouPanel(failedLead)}
         />
       </>
     );
   }
-
-  const [coworkerRows, summary] = await Promise.all([
-    coworkerService.listCoworkers("chat"),
-    // Window is session-derived in Core (`max(Session.updatedAt)`). No stamp.
-    taskService.getActivitySummary({
-      // In an org the greeting talks about the team, so count the whole
-      // workspace rather than only the caller's own tasks.
-      scope: activeOrganizationId ? "workspace" : "owned",
-    }),
-  ]);
-  const coworkers = coworkerRows.map(mapDbCoworkerToChatCoworker);
-  const greetingName = resolveLandingGreetingName(session?.user.name);
-
+  // Without pictures the page still offers the setup, only without the row.
+  const avatars = await sokoBotService
+    .listAvatars(SOKO_BOT_SETUP_FACES, [])
+    .catch(() => []);
   return (
     <>
       {landingNotice}
-      {/* One welcome per breakpoint. The compositions differ enough — six 64px
-          teammates versus four at 44px — that CSS alone cannot bridge them. */}
-      {/* A definite height (main's box less its p-4) so ChatLanding's middle
-          column scrolls and the stats row stays in the first view. Main
-          scrolls instead below 28rem. */}
-      <div className="hidden min-h-full min-w-0 flex-1 flex-col md:flex md:h-[calc(100dvh-6rem-env(safe-area-inset-top))] md:min-h-[28rem] md:flex-none">
-        <ChatLanding
-          coworkers={coworkers}
-          isOrganizationWorkspace={activeOrganizationId !== null}
-          summary={summary}
-          userName={greetingName}
-          myDay={myDay}
-          needsYou={needsYou}
-        />
-      </div>
-      {/*
-        Cancel authenticated-app-frame main `p-4` on mobile (same `-m-4` as
-        `/chat` + room shell). Without this, the coworker strip scrollport
-        is inset 16px and edge avatars clip at the pad, not the viewport.
-        Pitch/stats/selected keep their own `px-4` inside ChatLandingMobile.
-      */}
-      <div className="bg-background -m-4 flex min-h-full min-w-0 flex-1 flex-col md:hidden">
-        <ChatLandingMobile
-          coworkers={coworkers}
-          isOrganizationWorkspace={activeOrganizationId !== null}
-          summary={summary}
-          userName={greetingName}
-          myDay={myDay}
-          needsYou={needsYou}
-        />
-      </div>
+      <SokoBotSetup avatars={avatars} />
     </>
   );
 }

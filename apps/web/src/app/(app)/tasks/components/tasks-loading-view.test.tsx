@@ -13,6 +13,12 @@ describe("TasksLoadingView", () => {
     expect(screen.getByText("Todo")).toBeInTheDocument();
   });
 
+  it("shows no column counts before the board has loaded", () => {
+    render(<TasksLoadingView labels={TASKS_LOADING_DEFAULT_LABELS} />);
+
+    expect(screen.queryByText("0")).not.toBeInTheDocument();
+  });
+
   it("omits desktop create buttons and pads for the mobile FAB", () => {
     const { container } = render(
       <TasksLoadingView labels={TASKS_LOADING_DEFAULT_LABELS} />,

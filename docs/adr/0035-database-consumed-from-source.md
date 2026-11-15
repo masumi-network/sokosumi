@@ -4,7 +4,7 @@
 - Date: 2026-09-19
 - Supersedes: [ADR 0034](./superseded/database-stays-a-separate-package.md)
 
-Core stops consuming `@sokosumi/database` through emitted declarations and consumes its TypeScript directly. The package's `tsc` build and its `dist` output go away. The end state is the package folded into `apps/core`, reached in four steps so the type work lands before anything moves.
+Core stops consuming `@sokosumi/database` through emitted declarations and consumes its TypeScript directly. The package's `tsc` build and its `dist` output go away. The accepted decision is source consumption (steps 1–3, landed in SOK-1126). Folding the package into `apps/core` (step 4) is parked and is a non-goal.
 
 **Why:** declaration emit silently discards types. `tsc` widens **18** of Prisma's runtime value re-exports to `any`:
 

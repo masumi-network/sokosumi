@@ -5,7 +5,13 @@ import { useTranslations } from "next-intl";
 import { useRef } from "react";
 import { toast } from "sonner";
 
+import { ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME } from "@/components/chat/room-message-composer";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { authClient } from "@/lib/auth/auth.client";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import {
@@ -21,11 +27,13 @@ export function StudioProductPhotoControl({
   uploading,
   onUploadingChange,
   onPhotoChange,
+  iconOnly = false,
 }: {
   photo: StudioProductPhoto | null;
   uploading: boolean;
   onUploadingChange: (uploading: boolean) => void;
   onPhotoChange: (photo: StudioProductPhoto | null) => void;
+  iconOnly?: boolean;
 }) {
   const t = useTranslations("App.Studio");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -67,7 +75,7 @@ export function StudioProductPhotoControl({
   }
 
   return (
-    <div className="flex min-w-0 items-center gap-1">
+    <div className="flex max-w-full min-w-0 shrink-0 items-center gap-1">
       <input
         accept={IMAGE_TYPES.join(",")}
         aria-label={t("productPhoto")}
@@ -99,16 +107,26 @@ export function StudioProductPhotoControl({
           </Button>
         </>
       ) : (
-        <Button
-          loading={uploading}
-          onClick={() => inputRef.current?.click()}
-          size="sm"
-          type="button"
-          variant="ghost"
-        >
-          <ImagePlus aria-hidden />
-          <span className="max-sm:sr-only">{t("addProductPhoto")}</span>
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              className={
+                iconOnly ? ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME : undefined
+              }
+              loading={uploading}
+              onClick={() => inputRef.current?.click()}
+              size={iconOnly ? "icon" : "sm"}
+              type="button"
+              variant="ghost"
+            >
+              <ImagePlus aria-hidden />
+              <span className={iconOnly ? "sr-only" : "max-sm:sr-only"}>
+                {t("addProductPhoto")}
+              </span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("addProductPhoto")}</TooltipContent>
+        </Tooltip>
       )}
     </div>
   );

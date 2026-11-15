@@ -5,11 +5,14 @@ import { marketOptions, marketSummary } from "@/lib/ads/market";
 import { adsService } from "@/lib/services/ads.service";
 import { AdsErrorState } from "./ads-error-state";
 import { AdsMarketProfile } from "./ads-market-profile";
+import { AdsMarketRefresh, AdsMarketUpdating } from "./ads-market-refresh";
 import { AdsMarketResults } from "./ads-market-results";
 import { AdsRowsSkeleton } from "./ads-skeleton";
 
 interface AdsMarketSectionProps {
   projectId: string;
+  /** A CMO Project: its profile shows as its summary, with no form. */
+  readOnly?: boolean;
 }
 
 /**
@@ -18,7 +21,10 @@ interface AdsMarketSectionProps {
  * are made here in the reader's language. Without a profile the form is all
  * there is, so nothing is requested from the data provider.
  */
-export async function AdsMarketSection({ projectId }: AdsMarketSectionProps) {
+export async function AdsMarketSection({
+  projectId,
+  readOnly = false,
+}: AdsMarketSectionProps) {
   const t = await getTranslations("App.Ads.market");
   const locale = await getLocale();
   const loaded = await settleAdsLoad(adsService.getMarketProfile(projectId));
@@ -35,18 +41,30 @@ export async function AdsMarketSection({ projectId }: AdsMarketSectionProps) {
 
   const { profile } = loaded.value;
   return (
-    <div className="flex flex-col gap-10">
-      <AdsMarketProfile
-        {...marketOptions(locale)}
-        profile={profile}
-        projectId={projectId}
-        summary={profile ? marketSummary(profile, locale) : null}
-      />
-      {profile ? (
-        <Suspense fallback={<AdsRowsSkeleton />}>
-          <AdsMarketResults projectId={projectId} />
-        </Suspense>
-      ) : null}
-    </div>
+    <AdsMarketRefresh shownUpdatedAt={profile?.updatedAt ?? null}>
+      <div className="flex flex-col gap-10">
+        {readOnly ? (
+          profile ? (
+            <p className="text-muted-foreground text-sm">
+              {marketSummary(profile, locale)}
+            </p>
+          ) : null
+        ) : (
+          <AdsMarketProfile
+            {...marketOptions(locale)}
+            profile={profile}
+            projectId={projectId}
+            summary={profile ? marketSummary(profile, locale) : null}
+          />
+        )}
+        {profile ? (
+          <AdsMarketUpdating>
+            <Suspense fallback={<AdsRowsSkeleton />}>
+              <AdsMarketResults projectId={projectId} />
+            </Suspense>
+          </AdsMarketUpdating>
+        ) : null}
+      </div>
+    </AdsMarketRefresh>
   );
 }

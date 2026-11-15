@@ -11,12 +11,16 @@ import {
   useState,
 } from "react";
 import { roomIdFromPath } from "@/app/chat/utils/chat-route-base";
-import { RoomTranscriptCache } from "@/app/chat/utils/room-transcript-cache";
+import {
+  ROOM_APPROACH_REUSE_MS,
+  RoomTranscriptCache,
+} from "@/app/chat/utils/room-transcript-cache";
 import { getLatestMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
 } from "@/components/chat/organization-chat-events";
+import { useIntentPrefetch } from "@/hooks/use-intent-prefetch";
 import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 import { shouldUseCoworkerRoomStream } from "./room-helpers";
 import type { RoomsClientProps } from "./rooms-client";
@@ -87,12 +91,46 @@ export function useRoomSelection() {
   return useContext(RoomSelectionContext);
 }
 
-const RoomCacheContext = createContext<{
+interface RoomCacheSessionValue {
   cache: RoomTranscriptCache;
   generation: number;
-} | null>(null);
+  currentUserId: string;
+  workspaceId: string | null;
+}
+
+const RoomCacheContext = createContext<RoomCacheSessionValue | null>(null);
 export function useRoomCache() {
   return useContext(RoomCacheContext)?.cache ?? null;
+}
+
+/**
+ * Ref for a room link. It starts the room's open reads when the reader heads
+ * for the link: the cursor's path, a Tab stop close by, or a touch. The click
+ * then takes those reads instead of starting them. Nothing paints from them
+ * before the click, so a reader who turns away leaves no room behind.
+ */
+export function useRoomIntentPrefetch(href: string, enabled: boolean) {
+  const session = useContext(RoomCacheContext);
+  return useIntentPrefetch<HTMLAnchorElement>(
+    () => {
+      if (!session) return;
+      const url = new URL(href, window.location.origin);
+      const roomId = roomIdFromPath(url.pathname);
+      if (!roomId) return;
+      session.cache.approach(
+        roomId,
+        clickOpensAtUnread(
+          url,
+          roomId,
+          session.currentUserId,
+          session.workspaceId,
+        ),
+      );
+    },
+    // An approach that read nothing, for the cap or a throttle, may try again
+    // this soon. The cache turns down a repeat for a room it did read.
+    { reactivateAfter: ROOM_APPROACH_REUSE_MS, enabled },
+  );
 }
 
 export function RoomCacheProvider({
@@ -219,7 +257,7 @@ function RoomCacheSession({
     };
   }, [cache]);
   return (
-    <RoomCacheContext value={{ cache, generation }}>
+    <RoomCacheContext value={{ cache, generation, currentUserId, workspaceId }}>
       <RoomSelectionContext value={target}>{children}</RoomSelectionContext>
     </RoomCacheContext>
   );

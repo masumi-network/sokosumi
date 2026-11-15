@@ -1,6 +1,6 @@
 # A Cuso hire goes into a new or an existing organization
 
-- Status: Accepted
+- Status: Accepted. Amended by [ADR 0067](0067-cuso-starter-credits-are-project-credits.md): starter credits are Project credits.
 - Date: 2026-11-10
 
 Every hire used to create a new organization (ADR 0060), and CMO showed one Cuso per person: the preferred organization's, else the newest. Since Cuso became a shared Project bot ([ADR-0061](0061-cuso-is-a-shared-project-bot.md)), a business's people already reach him through their organization, and an agency or a team should not need a new organization for each website. Hiring now asks where Cuso goes: a new organization named after the website (the default, as before), or any organization the person belongs to. Every hire creates a new Project; an existing Project never gets a Cuso. An organization may hold several Cusos, one per Project, so the **Business** is the Project's, not the organization's. The person picks among their Cusos in the **Cuso picker**. This supersedes [ADR 0060](superseded/every-cuso-hire-gets-its-own-organization.md).

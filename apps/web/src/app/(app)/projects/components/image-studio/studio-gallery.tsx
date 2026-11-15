@@ -5,6 +5,7 @@ import {
   Dices,
   Download,
   Loader2,
+  MoreHorizontal,
   Play,
   Quote,
   Shuffle,
@@ -13,6 +14,12 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -63,15 +70,16 @@ export function StudioGallery({
   cancelRequestedJobIds: string[];
   catalog: StudioCatalog;
   labels: StudioLabels;
-  onCancelJob: (jobId: string) => void;
+  /** Omitted, with the draw actions below, in a read-only studio. */
+  onCancelJob?: (jobId: string) => void;
   onOpen: (assetId: string) => void;
   /** Same brief, same settings, no reference: another draw of the dice. */
-  onReroll: (asset: StudioAsset) => void;
+  onReroll?: (asset: StudioAsset) => void;
   /** Put this image's prompt back in the composer to edit. */
-  onReusePrompt: (asset: StudioAsset) => void;
+  onReusePrompt?: (asset: StudioAsset) => void;
   onToggleSelect: (assetId: string) => void;
   /** Same brief with this image as the reference. */
-  onVariation: (asset: StudioAsset) => void;
+  onVariation?: (asset: StudioAsset) => void;
   /** Requests still held in this page, not yet accepted by Core. */
   queued: QueuedGeneration[];
   selectedIds: string[];
@@ -155,6 +163,12 @@ export function StudioGallery({
               const selected = selectedIds.includes(asset.id);
               const model = resolveModel(catalog, asset.model);
               const video = isVideoAsset(asset);
+              const reroll = video ? undefined : onReroll;
+              const variation =
+                !video && supportsVariation(catalog, asset.model)
+                  ? onVariation
+                  : undefined;
+              const downloadName = `v${asset.version}.${assetFileExtension(asset)}`;
 
               return (
                 <li
@@ -194,44 +208,48 @@ export function StudioGallery({
 
                     {/* Actions live on the picture, on hover or focus, so the
                     grid stays a wall of images and the second draw is one
-                    click. Always shown where there is no hover to wait for. */}
+                    click. Where there is no hover to wait for, the row would
+                    sit on every picture at once, so it folds into the one
+                    menu below instead. */}
                     <div
                       className={cn(
                         // Four `size-10` actions do not fit a two-column tile.
                         // The figure is `overflow-hidden`, so a single row
                         // clips the ones that stick out.
                         "absolute inset-x-0 top-0 flex flex-wrap justify-end gap-1 p-2 pl-10",
-                        "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100",
+                        "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:hidden",
                       )}
                     >
-                      {video ? null : (
+                      {reroll ? (
                         <HoverAction
                           label={labels.reroll}
-                          onClick={() => onReroll(asset)}
+                          onClick={() => reroll(asset)}
                         >
                           <Dices aria-hidden className="size-3.5" />
                         </HoverAction>
-                      )}
-                      {!video && supportsVariation(catalog, asset.model) ? (
+                      ) : null}
+                      {variation ? (
                         <HoverAction
                           label={labels.regenerate}
-                          onClick={() => onVariation(asset)}
+                          onClick={() => variation(asset)}
                         >
                           <Shuffle aria-hidden className="size-3.5" />
                         </HoverAction>
                       ) : null}
-                      <HoverAction
-                        label={labels.reusePrompt}
-                        onClick={() => onReusePrompt(asset)}
-                      >
-                        <Quote aria-hidden className="size-3.5" />
-                      </HoverAction>
+                      {onReusePrompt ? (
+                        <HoverAction
+                          label={labels.reusePrompt}
+                          onClick={() => onReusePrompt(asset)}
+                        >
+                          <Quote aria-hidden className="size-3.5" />
+                        </HoverAction>
+                      ) : null}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <a
                             aria-label={labels.download}
                             className={HOVER_ACTION_CLASS}
-                            download={`v${asset.version}.${assetFileExtension(asset)}`}
+                            download={downloadName}
                             href={assetContentUrl(asset)}
                           >
                             <Download aria-hidden className="size-3.5" />
@@ -242,6 +260,54 @@ export function StudioGallery({
                         </TooltipContent>
                       </Tooltip>
                     </div>
+
+                    {/* Touch only: one button in the corner, so the picture
+                    stays visible and the same actions are a tap away. */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          aria-label={labels.moreActions}
+                          className={cn(
+                            HOVER_ACTION_CLASS,
+                            "absolute top-2 right-2 hidden [@media(hover:none)]:flex",
+                          )}
+                          type="button"
+                        >
+                          <MoreHorizontal aria-hidden className="size-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {reroll ? (
+                          <DropdownMenuItem onSelect={() => reroll(asset)}>
+                            <Dices aria-hidden />
+                            {labels.reroll}
+                          </DropdownMenuItem>
+                        ) : null}
+                        {variation ? (
+                          <DropdownMenuItem onSelect={() => variation(asset)}>
+                            <Shuffle aria-hidden />
+                            {labels.regenerate}
+                          </DropdownMenuItem>
+                        ) : null}
+                        {onReusePrompt ? (
+                          <DropdownMenuItem
+                            onSelect={() => onReusePrompt(asset)}
+                          >
+                            <Quote aria-hidden />
+                            {labels.reusePrompt}
+                          </DropdownMenuItem>
+                        ) : null}
+                        <DropdownMenuItem asChild>
+                          <a
+                            download={downloadName}
+                            href={assetContentUrl(asset)}
+                          >
+                            <Download aria-hidden />
+                            {labels.download}
+                          </a>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
 
                     {/* Selection is its own control, and always drawn: an
                     empty box that only appears on hover cannot be found on
@@ -312,15 +378,17 @@ export function StudioGallery({
                 {/* Cancelling belongs on the thing being cancelled. As a row
                     of buttons above the gallery it was a second list of the
                     running jobs, in a different order, with no picture. */}
-                <Button
-                  className="mt-2"
-                  disabled={requested}
-                  onClick={() => onCancelJob(job.id)}
-                  size="sm"
-                  variant="ghost"
-                >
-                  {requested ? labels.cancelRequested : labels.cancel}
-                </Button>
+                {onCancelJob ? (
+                  <Button
+                    className="mt-2"
+                    disabled={requested}
+                    onClick={() => onCancelJob(job.id)}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    {requested ? labels.cancelRequested : labels.cancel}
+                  </Button>
+                ) : null}
               </PendingTile>
             </li>
           );

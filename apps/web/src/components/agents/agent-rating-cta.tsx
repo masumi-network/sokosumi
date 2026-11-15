@@ -1,7 +1,6 @@
 "use client";
 
 import { Star } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { AgentRatingForm } from "@/components/agents/agent-rating-form";
@@ -30,13 +29,11 @@ export function AgentRatingCTA({
   className,
   disabled,
 }: AgentRatingCTAProps) {
-  const router = useRouter();
   const t = useTranslations("Components.Agents.Rating");
   const [isOpen, setIsOpen] = useState(false);
 
   const handleSuccess = () => {
     setIsOpen(false);
-    router.refresh();
   };
 
   return (

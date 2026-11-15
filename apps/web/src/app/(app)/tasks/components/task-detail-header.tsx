@@ -13,6 +13,8 @@ interface TaskDetailHeaderProps {
     copyError: string;
   };
   backLabel: string;
+  /** Back label when the task was opened from the Calendar. */
+  calendarBackLabel?: string;
   parentLink?: React.ReactNode;
   actions?: React.ReactNode;
 }
@@ -22,13 +24,17 @@ export function TaskDetailHeader({
   identifier,
   identifierLabels,
   backLabel,
+  calendarBackLabel,
   parentLink,
   actions,
 }: TaskDetailHeaderProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-end md:justify-between">
-        <BackToTasksButton label={backLabel} />
+        <BackToTasksButton
+          label={backLabel}
+          calendarLabel={calendarBackLabel}
+        />
 
         {actions}
       </div>

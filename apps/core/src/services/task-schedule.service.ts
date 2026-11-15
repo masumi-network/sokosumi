@@ -787,8 +787,9 @@ const RUN_ACTION_LABELS: Record<
 
 /**
  * The row an action leaves behind. Only an upcoming Run that has not
- * created its Task changes: a planned one can be skipped or moved, and a
- * skipped or moved one restored. A skip keeps the Run's time, a move
+ * created its Task changes: a planned one can be skipped or moved, a
+ * skipped one moved (planned again at that time: the Calendar's Undo), and
+ * a skipped or moved one restored. A skip keeps the Run's time, a move
  * keeps the rule's time in `originalScheduledAt`, and a restore puts the
  * Run back at the rule's time. The time it ends up at must be in the
  * future and inside the projection horizon.
@@ -801,7 +802,8 @@ function runAfterAction(
   const changeable =
     input.action === "restore"
       ? isRunException(run)
-      : run.state === TaskScheduleRunState.PLANNED;
+      : run.state === TaskScheduleRunState.PLANNED ||
+        (input.action === "move" && run.state === TaskScheduleRunState.SKIPPED);
   if (
     !changeable ||
     run.releasedTaskId !== null ||

@@ -83,12 +83,34 @@ const socialPostFirstCommentSchema = z
       "Posted after publishing succeeds. For X threads, replies to the last thread part.",
   });
 
-export const socialPostMediaRefSchema = z
-  .object({
-    ...driveFileRefShape,
-    size: z.number().int().min(0).openapi({ example: 240000 }),
-    mimeType: z.string().min(1).openapi({ example: "image/png" }),
-    kind: z.enum(["image", "gif", "video"]).openapi({ example: "image" }),
+const socialPostMediaFileSchema = z.object({
+  ...driveFileRefShape,
+  size: z.number().int().min(0).openapi({ example: 240000 }),
+  mimeType: z.string().min(1).openapi({ example: "image/png" }),
+  kind: z.enum(["image", "gif", "video"]).openapi({ example: "image" }),
+});
+
+export const socialPostMediaRefSchema = socialPostMediaFileSchema
+  .extend({
+    transformation: z
+      .object({
+        provider: socialPostProviderSchema,
+        code: z.enum([
+          "pad_4_5",
+          "pad_1_91_1",
+          "resize",
+          "jpeg",
+          "srgb",
+          "smaller_file",
+        ]),
+        notice: z.string().min(1).max(500),
+        original: socialPostMediaFileSchema,
+      })
+      .optional()
+      .openapi({
+        description:
+          "Required provider adaptation, with the original source retained.",
+      }),
   })
   .openapi("SocialPostMediaRef");
 
@@ -97,7 +119,7 @@ const socialPostMediaRequestSchema = z
   .max(SOCIAL_POST_MEDIA_MAX)
   .openapi({
     description:
-      "Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.",
+      "Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.",
   });
 
 const socialPostThreadPartRequestSchema = z.object({
@@ -440,3 +462,17 @@ export const listSocialPostsQuerySchema = cursorPaginationQuerySchema.extend({
       example: "DRAFT,SCHEDULED",
     }),
 });
+
+export const listWorkspaceSocialPostsQuerySchema =
+  listSocialPostsQuerySchema.pick({ cursor: true, limit: true, status: true });
+
+export const workspaceSocialPostSchema = z
+  .object({
+    post: socialPostSchema,
+    projectName: z.string(),
+    projectCmo: z.boolean().openapi({
+      description:
+        "The post's Project is a CMO Project, so its posts are read-only outside CMO (ADR 0066).",
+    }),
+  })
+  .openapi("WorkspaceSocialPost");

@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { sendSokoBotTurnFeedbackAction } from "@/lib/actions/soko-bot/action";
@@ -156,9 +157,17 @@ export function SokoBotFeedbackButtons({
     return null;
   const turnId = info.turn_id;
   function send(useful: boolean) {
+    setSent(useful);
     startTransition(async () => {
-      const result = await sendSokoBotTurnFeedbackAction({ turnId, useful });
-      if (result.ok) setSent(useful);
+      // A rejected call is a failed write too: the thumb must not stay
+      // filled for a rating Core never stored.
+      const result = await sendSokoBotTurnFeedbackAction({
+        turnId,
+        useful,
+      }).catch(() => null);
+      if (result?.ok) return;
+      setSent(null);
+      toast.error(t("feedbackError"));
     });
   }
   const options = [

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { CoreUnavailableNotice } from "@/app/components/core-unavailable-notice.client";
+import { botFaceSeed } from "@/components/soko-bot/bot-face";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { SETUP_ASSISTANT_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { signInRedirectPath } from "@/lib/auth/auth.server";
@@ -63,6 +64,8 @@ export default async function SetupAssistantConnectPage({
     <ClientMessageBoundary paths={SETUP_ASSISTANT_MESSAGE_PATHS}>
       <AssistantConnectStep
         botName={bot.name ?? "Soko Bot"}
+        botImageUrl={bot.avatarImageUrl ?? null}
+        botOrbSeed={botFaceSeed(bot, bot.userId)}
         offers={offers}
         chatUrl={chatUrl}
         returnTo={setupAssistantConnectPath(returnUrl)}

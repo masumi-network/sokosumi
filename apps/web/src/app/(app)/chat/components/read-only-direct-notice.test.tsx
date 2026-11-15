@@ -88,6 +88,12 @@ describe("ReadOnlyDirectNotice", () => {
   it("shows the message in place of the composer", () => {
     render(<ReadOnlyDirectNotice message="Sarthi left." />);
 
-    expect(screen.getByText("Sarthi left.")).toBeInTheDocument();
+    const notice = screen.getByText("Sarthi left.");
+    expect(notice).toHaveClass(
+      "pointer-events-auto",
+      "rounded-lg",
+      "bg-background",
+    );
+    expect(notice.parentElement).toHaveClass("pointer-events-none");
   });
 });

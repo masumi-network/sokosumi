@@ -2,7 +2,8 @@ import { cn } from "@/lib/utils";
 
 interface ColumnHeaderProps {
   title: string;
-  count: number;
+  /** Left out while the board loads: no count until the server answers. */
+  count?: number;
   statusColorClass: string;
 }
 
@@ -20,9 +21,11 @@ export function ColumnHeader({
         />
         <h2 className="text-foreground text-sm font-medium">{title}</h2>
       </div>
-      <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs tabular-nums">
-        {count}
-      </span>
+      {count === undefined ? null : (
+        <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs tabular-nums">
+          {count}
+        </span>
+      )}
     </header>
   );
 }

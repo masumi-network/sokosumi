@@ -419,6 +419,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     // Deprecated aliases for legacy sokoBot-created tasks.
     sokoBotId: creator?.type === "sokoBot" ? creator.id : null,
     sokoBot: creator?.type === "sokoBot" ? creator.sokoBot : null,
+    archivedAt: task.archivedAt,
     number: task.number,
     identifier: formatTaskIdentifier(task.project?.identifier, task.number),
     name: task.name,
@@ -509,5 +510,6 @@ export function mapTaskListItem(task: TaskListItemWithIncludes) {
     ...mapTaskSummary(task),
     jobsCount: task._count.jobs,
     commentsCount: task._count.events,
+    statusSince: task.events[0]?.createdAt ?? task.createdAt,
   };
 }

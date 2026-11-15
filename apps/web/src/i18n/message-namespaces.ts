@@ -88,7 +88,11 @@ export const APP_SHELL_MESSAGE_PATHS = [
   "App.Tasks.Filters.statusOptions",
   "App.Tasks.Priority.levels",
   "App.Tasks.RunAt.badge",
+  "App.Tasks.StatusAge",
   "App.Tasks.Tags",
+  // Chat result cards name a Soko Bot follow-up's recurrence with the Task
+  // schedule labels, and Soko Bot routes render those cards too.
+  "App.Tasks.Schedule.option",
 ] as const;
 
 /** Default authenticated app bag — all App.* except SokoBot/Admin. */
@@ -121,6 +125,8 @@ export const SHARE_MESSAGE_PATHS = [
   "Components",
   "Library",
   "Auth",
+  // A shared Task's Files section offers Download all; its toasts are in Components.FilesArchive.
+  "App.Tasks.Detail.downloadAll",
 ] as const;
 
 export const PUBLIC_NEWSLETTER_MESSAGE_PATHS = [

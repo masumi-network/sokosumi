@@ -3,7 +3,13 @@ import type {
   ChatRoomMessage,
   ChatSavedMessageListItem,
 } from "@sokosumi/core-client";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -79,7 +85,34 @@ function saved(
   };
 }
 
+const CONTENTS = ["Ship it Friday", "Call Bob", "Book flights"];
+
 type Page = Parameters<typeof SavedMessagesView>[0]["initialPage"];
+
+/** An unsave that stays open until the test answers or rejects it. */
+function holdOpen() {
+  let answer: (value: unknown) => void = () => {};
+  let reject: (reason: Error) => void = () => {};
+  unsaveMock.mockReturnValueOnce(
+    new Promise((resolve, fail) => {
+      answer = resolve;
+      reject = fail;
+    }),
+  );
+  return {
+    answer: (value: unknown) => act(async () => answer(value)),
+    reject: () => act(async () => reject(new Error("network down"))),
+  };
+}
+
+const removeButtons = () =>
+  screen.getAllByRole("button", { name: "Remove from saved" });
+
+/** The saved messages on screen, top to bottom. */
+const shownMessages = () =>
+  screen
+    .queryAllByRole("link")
+    .map((link) => CONTENTS.find((text) => link.textContent?.includes(text)));
 
 function view(initialPage: Page, initialRooms: ChatRoom[] = [design]) {
   return (
@@ -116,45 +149,135 @@ describe("SavedMessagesView", () => {
     expect(link).toHaveTextContent("#design");
   });
 
-  it("removes a message from the list", async () => {
-    const user = userEvent.setup();
-    unsaveMock.mockResolvedValue({ ok: true, value: null });
+  it("takes a message off the list before Core answers", async () => {
+    const write = holdOpen();
     renderView({
       items: [saved("m-1", "Ship it Friday"), saved("m-2", "Call Bob")],
       nextCursor: null,
     });
 
-    const row = screen.getByRole("link", { name: /Ship it Friday/ })
-      .parentElement as HTMLElement;
-    await user.click(
-      within(row).getByRole("button", { name: "Remove from saved" }),
-    );
-
-    await waitFor(() => {
-      expect(
-        screen.queryByRole("link", { name: /Ship it Friday/ }),
-      ).not.toBeInTheDocument();
-    });
+    fireEvent.click(removeButtons()[0]);
+    expect(shownMessages()).toEqual(["Call Bob"]);
     expect(unsaveMock).toHaveBeenCalledExactlyOnceWith("m-1");
-    expect(screen.getByRole("link", { name: /Call Bob/ })).toBeInTheDocument();
+
+    await write.answer({ ok: true, value: null });
+    expect(shownMessages()).toEqual(["Call Bob"]);
+    expect(toastMock.success).toHaveBeenCalledWith("Removed from saved");
+    expect(toastMock.error).not.toHaveBeenCalled();
   });
 
-  it("keeps the row when removing fails", async () => {
-    const user = userEvent.setup();
-    unsaveMock.mockResolvedValue({
-      ok: false,
-      error: { message: "Could not remove the message from Saved." },
+  it("shows a message again when the reader saves it again", async () => {
+    const write = holdOpen();
+    const { rerender } = renderView({
+      items: [saved("m-1", "Ship it Friday")],
+      nextCursor: null,
     });
-    renderView({ items: [saved("m-1", "Ship it Friday")], nextCursor: null });
+    fireEvent.click(removeButtons()[0]);
+    await write.answer({ ok: true, value: null });
 
-    await user.click(screen.getByRole("button", { name: "Remove from saved" }));
+    rerender(
+      view({ items: [saved("m-1", "Ship it Friday")], nextCursor: null }),
+    );
 
-    await waitFor(() => {
-      expect(toastMock.error).toHaveBeenCalled();
+    expect(shownMessages()).toEqual(["Ship it Friday"]);
+  });
+
+  it.each([
+    [
+      "Core refuses",
+      (write: ReturnType<typeof holdOpen>) =>
+        write.answer({ ok: false, error: { message: "Core is down" } }),
+      "Core is down",
+    ],
+    [
+      "the call fails",
+      (write: ReturnType<typeof holdOpen>) => write.reject(),
+      "Could not remove the message from Saved.",
+    ],
+  ])(
+    "puts the message back in its place when %s",
+    async (_case, settle, message) => {
+      const write = holdOpen();
+      renderView({
+        items: [
+          saved("m-1", "Ship it Friday"),
+          saved("m-2", "Call Bob"),
+          saved("m-3", "Book flights"),
+        ],
+        nextCursor: null,
+      });
+
+      fireEvent.click(removeButtons()[1]);
+      expect(shownMessages()).toEqual(["Ship it Friday", "Book flights"]);
+
+      await settle(write);
+      expect(shownMessages()).toEqual([
+        "Ship it Friday",
+        "Call Bob",
+        "Book flights",
+      ]);
+      expect(toastMock.error).toHaveBeenCalledWith(message);
+      expect(toastMock.success).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps the order when two removals fail", async () => {
+    const first = holdOpen();
+    const second = holdOpen();
+    renderView({
+      items: [
+        saved("m-1", "Ship it Friday"),
+        saved("m-2", "Call Bob"),
+        saved("m-3", "Book flights"),
+      ],
+      nextCursor: null,
     });
-    expect(
-      screen.getByRole("link", { name: /Ship it Friday/ }),
-    ).toBeInTheDocument();
+
+    fireEvent.click(removeButtons()[0]);
+    fireEvent.click(removeButtons()[0]);
+    expect(shownMessages()).toEqual(["Book flights"]);
+
+    await first.reject();
+    await second.reject();
+    expect(shownMessages()).toEqual([
+      "Ship it Friday",
+      "Call Bob",
+      "Book flights",
+    ]);
+  });
+
+  it("drops a message that a refresh brought back while Core removed it", async () => {
+    const write = holdOpen();
+    const { rerender } = renderView({
+      items: [saved("m-1", "Ship it Friday"), saved("m-2", "Call Bob")],
+      nextCursor: null,
+    });
+
+    fireEvent.click(removeButtons()[0]);
+    // A refresh that read Core before the unsave landed.
+    rerender(
+      view({
+        items: [saved("m-1", "Ship it Friday"), saved("m-2", "Call Bob")],
+        nextCursor: null,
+      }),
+    );
+    await write.answer({ ok: true, value: null });
+
+    expect(shownMessages()).toEqual(["Call Bob"]);
+  });
+
+  it("ignores the second click of a double-click, which lands on the next row", () => {
+    holdOpen();
+    renderView({
+      items: [saved("m-1", "Ship it Friday"), saved("m-2", "Call Bob")],
+      nextCursor: null,
+    });
+
+    fireEvent.click(removeButtons()[0], { detail: 1 });
+    fireEvent.click(removeButtons()[0], { detail: 2 });
+
+    expect(shownMessages()).toEqual(["Call Bob"]);
+    expect(unsaveMock).toHaveBeenCalledExactlyOnceWith("m-1");
   });
 
   it("loads older saves", async () => {

@@ -1839,6 +1839,10 @@ export const SokoBotDeletionResultSchema = {
                 jobs: {
                     type: 'integer',
                     minimum: 0
+                },
+                socialPosts: {
+                    type: 'integer',
+                    minimum: 0
                 }
             },
             required: [
@@ -1848,7 +1852,8 @@ export const SokoBotDeletionResultSchema = {
                 'chatMessages',
                 'uploadedTaskFiles',
                 'taskSchedules',
-                'jobs'
+                'jobs',
+                'socialPosts'
             ]
         }
     },
@@ -2250,6 +2255,34 @@ export const AdminSokoBotVersionMigrationRequestSchema = {
         'reason'
     ],
     additionalProperties: false
+} as const;
+
+export const RestyleSokoBotAvatarsResultSchema = {
+    type: 'object',
+    properties: {
+        restyled: {
+            type: 'integer'
+        },
+        remaining: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'restyled',
+        'remaining'
+    ]
+} as const;
+
+export const RestyleSokoBotAvatarsRequestSchema = {
+    type: 'object',
+    properties: {
+        limit: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 10,
+            default: 6
+        }
+    }
 } as const;
 
 export const AdminSokoBotChatRoomSchema = {
@@ -7342,6 +7375,15 @@ export const TaskSchema = {
             description: 'Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.',
             example: null
         },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When the Task was archived. Null unless it is archived; only archived reads (archived=true) return archived Tasks.'
+        },
         credits: {
             type: 'number',
             example: 5
@@ -7436,6 +7478,7 @@ export const TaskSchema = {
         'runAt',
         'dueOn',
         'scheduleId',
+        'archivedAt',
         'credits',
         'events',
         'jobs',
@@ -11332,43 +11375,6 @@ export const ChatPersonSchema = {
     ]
 } as const;
 
-export const ChatRecentSokoBotMessageSchema = {
-    type: 'object',
-    properties: {
-        roomId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        messageId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        parentMessageId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid',
-            description: 'The Thread\'s parent when the message is a reply.'
-        },
-        content: {
-            type: 'string'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'roomId',
-        'messageId',
-        'parentMessageId',
-        'content',
-        'createdAt'
-    ]
-} as const;
-
 export const ChatRoomSchema = {
     type: 'object',
     properties: {
@@ -13573,6 +13579,94 @@ export const ChatResultOutputSchema = {
             maxLength: 2000,
             pattern: '^\\/(?![\\/\\\\])[^\\\\\\r\\n]*$',
             default: null
+        },
+        transformation: {
+            type: 'object',
+            properties: {
+                provider: {
+                    type: 'string',
+                    enum: [
+                        'x',
+                        'linkedin',
+                        'facebook',
+                        'instagram',
+                        'tiktok',
+                        'youtube'
+                    ]
+                },
+                code: {
+                    type: 'string',
+                    enum: [
+                        'pad_4_5',
+                        'pad_1_91_1',
+                        'resize',
+                        'jpeg',
+                        'srgb',
+                        'smaller_file'
+                    ]
+                },
+                notice: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 500
+                },
+                original: {
+                    type: 'object',
+                    properties: {
+                        pathname: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'drive/users/user_123/launch.png',
+                            description: 'Drive blob pathname; must belong to the active workspace'
+                        },
+                        fileUrl: {
+                            type: 'string',
+                            format: 'uri',
+                            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
+                            description: 'Public Blob URL of the Drive file'
+                        },
+                        name: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'launch.png'
+                        },
+                        size: {
+                            type: 'integer',
+                            minimum: 0,
+                            example: 240000
+                        },
+                        mimeType: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'image/png'
+                        },
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'image',
+                                'gif',
+                                'video'
+                            ],
+                            example: 'image'
+                        }
+                    },
+                    required: [
+                        'pathname',
+                        'fileUrl',
+                        'name',
+                        'size',
+                        'mimeType',
+                        'kind'
+                    ]
+                }
+            },
+            required: [
+                'provider',
+                'code',
+                'notice',
+                'original'
+            ],
+            description: 'Required provider adaptation, with the original source retained.'
         }
     },
     required: [
@@ -14134,6 +14228,119 @@ export const ChatSignalListItemSchema = {
     ]
 } as const;
 
+export const ChatCatchUpItemSchema = {
+    type: 'object',
+    properties: {
+        messageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomName: {
+            type: 'string'
+        },
+        roomKind: {
+            type: 'string',
+            enum: [
+                'channel',
+                'direct'
+            ]
+        },
+        parentMessageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        senderName: {
+            type: 'string'
+        },
+        senderImageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        excerpt: {
+            type: 'string'
+        },
+        bucket: {
+            $ref: '#/components/schemas/ChatCatchUpBucket'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        dueAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        inReplyTo: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                senderName: {
+                    type: 'string'
+                },
+                excerpt: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'senderName',
+                'excerpt'
+            ],
+            description: 'For a decision: the earlier message it answers, so a bare reply reads on its own.'
+        }
+    },
+    required: [
+        'messageId',
+        'roomId',
+        'roomName',
+        'roomKind',
+        'parentMessageId',
+        'senderName',
+        'senderImageUrl',
+        'excerpt',
+        'bucket',
+        'createdAt',
+        'dueAt',
+        'inReplyTo'
+    ]
+} as const;
+
+export const ChatCatchUpBucketSchema = {
+    type: 'string',
+    enum: [
+        'needsYou',
+        'escalation',
+        'urgent',
+        'blocker',
+        'bug',
+        'decisionMade',
+        'announcement',
+        'needsDecision',
+        'commitment',
+        'workRequest',
+        'review',
+        'question',
+        'fyi',
+        'chitChat'
+    ],
+    description: 'The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.'
+} as const;
+
 export const ChatCatchUpSummarySchema = {
     type: 'object',
     properties: {
@@ -14314,27 +14521,6 @@ export const ChatCatchUpSummarySchema = {
     ]
 } as const;
 
-export const ChatCatchUpBucketSchema = {
-    type: 'string',
-    enum: [
-        'needsYou',
-        'escalation',
-        'urgent',
-        'blocker',
-        'bug',
-        'decisionMade',
-        'announcement',
-        'needsDecision',
-        'commitment',
-        'workRequest',
-        'review',
-        'question',
-        'fyi',
-        'chitChat'
-    ],
-    description: 'The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.'
-} as const;
-
 export const ChatCatchUpTopicSchema = {
     type: 'object',
     properties: {
@@ -14417,98 +14603,6 @@ export const ChatCatchUpTopicSchema = {
         'people',
         'latestAt',
         'messages'
-    ]
-} as const;
-
-export const ChatCatchUpItemSchema = {
-    type: 'object',
-    properties: {
-        messageId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        roomId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        roomName: {
-            type: 'string'
-        },
-        roomKind: {
-            type: 'string',
-            enum: [
-                'channel',
-                'direct'
-            ]
-        },
-        parentMessageId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid'
-        },
-        senderName: {
-            type: 'string'
-        },
-        senderImageUrl: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        excerpt: {
-            type: 'string'
-        },
-        bucket: {
-            $ref: '#/components/schemas/ChatCatchUpBucket'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        dueAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        inReplyTo: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                senderName: {
-                    type: 'string'
-                },
-                excerpt: {
-                    type: 'string'
-                }
-            },
-            required: [
-                'senderName',
-                'excerpt'
-            ],
-            description: 'For a decision: the earlier message it answers, so a bare reply reads on its own.'
-        }
-    },
-    required: [
-        'messageId',
-        'roomId',
-        'roomName',
-        'roomKind',
-        'parentMessageId',
-        'senderName',
-        'senderImageUrl',
-        'excerpt',
-        'bucket',
-        'createdAt',
-        'dueAt',
-        'inReplyTo'
     ]
 } as const;
 
@@ -14768,6 +14862,18 @@ export const ChatEarlierThreadSchema = {
         'replyCount',
         'lastReplyAt',
         'lastReplyId'
+    ]
+} as const;
+
+export const VoiceTranscriptionSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string'
+        }
+    },
+    required: [
+        'text'
     ]
 } as const;
 
@@ -17042,6 +17148,16 @@ export const DataRoomSchema = {
                 }
             ]
         },
+        welcomeNote: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         logoFileId: {
             anyOf: [
                 {
@@ -17090,6 +17206,7 @@ export const DataRoomSchema = {
         'storage',
         'token',
         'title',
+        'welcomeNote',
         'logoFileId',
         'allowedDomains',
         'expiresAt',
@@ -17330,9 +17447,6 @@ export const DataRoomTreeRowSchema = {
                     type: 'null'
                 }
             ]
-        },
-        isNew: {
-            type: 'boolean'
         }
     },
     required: [
@@ -17344,8 +17458,7 @@ export const DataRoomTreeRowSchema = {
         'resourceId',
         'sizeBytes',
         'mimeType',
-        'updatedAt',
-        'isNew'
+        'updatedAt'
     ]
 } as const;
 
@@ -17389,6 +17502,17 @@ export const UpdateDataRoomRequestSchema = {
                 {
                     type: 'string',
                     maxLength: 200
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        welcomeNote: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 5000
                 },
                 {
                     type: 'null'
@@ -17948,6 +18072,98 @@ export const CreateDriveFileUploadSessionRequestSchema = {
         'filename',
         'contentType',
         'size',
+        'scope'
+    ]
+} as const;
+
+export const DriveGoogleSheetSchema = {
+    type: 'object',
+    properties: {
+        resourceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The copy\'s file id'
+        },
+        pathname: {
+            type: 'string',
+            example: 'drive/organizations/org_123/Finance/Model.pdf',
+            description: 'The copy\'s Blob pathname'
+        },
+        name: {
+            type: 'string',
+            example: 'Model.pdf'
+        },
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
+            description: 'The sheet in Google Sheets'
+        },
+        syncedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When Sokosumi last read the sheet'
+        },
+        error: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: [
+                        'not_shared',
+                        'too_large',
+                        'failed'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Why the last refresh failed (the copy stays as it was), or null.'
+        }
+    },
+    required: [
+        'resourceId',
+        'pathname',
+        'name',
+        'url',
+        'syncedAt',
+        'error'
+    ]
+} as const;
+
+export const LinkDriveGoogleSheetRequestSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000,
+            example: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit',
+            description: 'The sheet\'s address. Its sharing must be \'Anyone with the link can view\'.'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Drive file owner scope: \'me\' for personal, \'org\' for organization'
+        },
+        organizationId: {
+            type: 'string',
+            description: 'Organization ID (required when scope=org)'
+        },
+        folder: {
+            type: 'string',
+            maxLength: 1000,
+            example: 'Finance',
+            description: 'Folder to put the copy in; the Drive root when omitted'
+        }
+    },
+    required: [
+        'url',
         'scope'
     ]
 } as const;
@@ -22067,6 +22283,50 @@ export const ProjectImageJobSchema = {
     ]
 } as const;
 
+export const ImageStudioRecentProjectsSchema = {
+    type: 'object',
+    properties: {
+        projects: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    projectId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    projectName: {
+                        type: 'string'
+                    },
+                    imageCount: {
+                        type: 'integer',
+                        minimum: 1
+                    },
+                    latestAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    latestImageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    }
+                },
+                required: [
+                    'projectId',
+                    'projectName',
+                    'imageCount',
+                    'latestAt',
+                    'latestImageId'
+                ]
+            }
+        }
+    },
+    required: [
+        'projects'
+    ]
+} as const;
+
 export const NewsletterAvailabilitySchema = {
     type: 'object',
     properties: {
@@ -22090,7 +22350,7 @@ export const CreditsResponseExtraSchema = {
             items: {
                 $ref: '#/components/schemas/CreditBucketBreakdown'
             },
-            description: 'Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id'
+            description: 'Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id. In the organization\'s own view, every Project\'s credits follow as their own rows with `project` set; `credits` leaves them out'
         },
         enterprise: {
             type: [
@@ -22129,7 +22389,7 @@ export const CreditsResponseExtraSchema = {
         'buckets',
         'enterprise'
     ],
-    description: '`extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.'
+    description: '`extra.credits`: non-subscription totals (sums over `extra.buckets` lines without a `project`). `extra.buckets`: per-bucket lines, Project credits included.'
 } as const;
 
 export const CreditsResponseExtraCreditsSchema = {
@@ -22137,12 +22397,12 @@ export const CreditsResponseExtraCreditsSchema = {
     properties: {
         total: {
             type: 'number',
-            description: 'Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`',
+            description: 'Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`, leaving out Project credits (lines with a `project`)',
             example: 25
         },
         remaining: {
             type: 'number',
-            description: 'Sum of remaining balances across those buckets (matches sum of each line’s `remaining`)',
+            description: 'Sum of remaining balances across those buckets (matches sum of each of their lines’ `remaining`)',
             example: 12.5
         },
         used: {
@@ -22180,6 +22440,25 @@ export const CreditBucketBreakdownSchema = {
             format: 'date-time',
             example: '2026-07-01T00:00:00.000Z',
             description: 'When this bucket expires; null if it does not expire'
+        },
+        project: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ],
+            description: 'Set on Project credits: only that Project\'s work spends them, and they are left out of the organization\'s totals'
         }
     },
     required: [
@@ -24093,6 +24372,85 @@ export const OrganizationSeatSummarySchema = {
     ]
 } as const;
 
+export const OrganizationCreditSpendSchema = {
+    type: 'object',
+    properties: {
+        month: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}$',
+            description: 'Current UTC calendar month, as YYYY-MM',
+            example: '2026-11'
+        },
+        previousMonth: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}$',
+            description: 'Previous UTC calendar month, as YYYY-MM',
+            example: '2026-10'
+        },
+        rows: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    userId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        description: 'User the credits were billed to. Null for organization charges billed to no person.',
+                        example: 'user_123'
+                    },
+                    name: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        description: 'Display name of the billed user',
+                        example: 'Jane Doe'
+                    },
+                    image: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        description: 'Avatar of the billed user',
+                        example: null
+                    },
+                    isMember: {
+                        type: 'boolean',
+                        description: 'Whether the billed user is a member of the organization today. False for former members and for the no-person row.',
+                        example: true
+                    },
+                    credits: {
+                        type: 'number',
+                        description: 'Credits spent this month, before refunds. Top ups are not spend.',
+                        example: 12.5
+                    },
+                    previousCredits: {
+                        type: 'number',
+                        description: 'Credits spent last month, before refunds',
+                        example: 3
+                    }
+                },
+                required: [
+                    'userId',
+                    'name',
+                    'image',
+                    'isMember',
+                    'credits',
+                    'previousCredits'
+                ]
+            },
+            description: 'One row per current member (zero when they spent nothing), plus former members and the no-person row when they spent in either month. Highest spend this month first.'
+        }
+    },
+    required: [
+        'month',
+        'previousMonth',
+        'rows'
+    ]
+} as const;
+
 export const OrganizationBillingPlanSchema = {
     type: 'object',
     properties: {
@@ -24884,6 +25242,11 @@ export const ProjectSchema = {
             description: 'Revision used for optimistic Project mutations',
             example: 0
         },
+        cmo: {
+            type: 'boolean',
+            description: 'A CMO Project: it has a live Cuso, so it is read-only outside CMO (ADR 0066).',
+            example: false
+        },
         scheduledSocialPostCount: {
             type: 'integer',
             minimum: 0,
@@ -24938,6 +25301,7 @@ export const ProjectSchema = {
         'memoryModel',
         'contextMd',
         'contextMdUpdating',
+        'cmo',
         'createdAt',
         'updatedAt'
     ]
@@ -32234,6 +32598,11 @@ export const WorkspaceCalendarEntrySchema = {
                     ],
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z'
+                },
+                originalAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
                 }
             },
             required: [
@@ -32256,6 +32625,9 @@ export const WorkspaceCalendarEntrySchema = {
                 },
                 {
                     $ref: '#/components/schemas/MarketingPieceCalendarItem'
+                },
+                {
+                    $ref: '#/components/schemas/SokoBotRunCalendarItem'
                 }
             ]
         }
@@ -32888,6 +33260,113 @@ export const MarketingPieceCalendarItemSchema = {
         'status',
         'fileId',
         'projectName',
+        'sourceId',
+        'sourceProjectId',
+        'sourceWorkspaceId',
+        'sourceType'
+    ]
+} as const;
+
+export const SokoBotRunCalendarItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'sokoBotRun'
+            ]
+        },
+        id: {
+            type: 'string'
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        scheduleId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The Soko Bot schedule that runs, or ran, at this time'
+        },
+        name: {
+            type: 'string'
+        },
+        sokoBotId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        botName: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        shared: {
+            type: 'boolean',
+            description: 'A Project or workspace bot every member sees; false for the caller\'s own personal bot'
+        },
+        projectName: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        runState: {
+            type: 'string',
+            enum: [
+                'upcoming',
+                'running',
+                'done',
+                'failed'
+            ],
+            description: 'upcoming: still to come. running, done, failed: a run that started, from the bot\'s run history'
+        },
+        originalAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'The cron time this run belongs to; differs from scheduledAt once moved'
+        },
+        canChange: {
+            type: 'boolean',
+            description: 'A run still to come, in the next 90 days, that the caller may move, skip or restore with the schedule\'s `run`'
+        },
+        sourceId: {
+            type: 'string'
+        },
+        sourceProjectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        sourceWorkspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceType: {
+            type: 'string',
+            enum: [
+                'WORKSPACE',
+                'PROJECT'
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'id',
+        'scheduledAt',
+        'scheduleId',
+        'name',
+        'sokoBotId',
+        'botName',
+        'shared',
+        'projectName',
+        'runState',
+        'originalAt',
+        'canChange',
         'sourceId',
         'sourceProjectId',
         'sourceWorkspaceId',
@@ -38232,6 +38711,94 @@ export const SocialPostMediaRefSchema = {
                 'video'
             ],
             example: 'image'
+        },
+        transformation: {
+            type: 'object',
+            properties: {
+                provider: {
+                    type: 'string',
+                    enum: [
+                        'x',
+                        'linkedin',
+                        'facebook',
+                        'instagram',
+                        'tiktok',
+                        'youtube'
+                    ]
+                },
+                code: {
+                    type: 'string',
+                    enum: [
+                        'pad_4_5',
+                        'pad_1_91_1',
+                        'resize',
+                        'jpeg',
+                        'srgb',
+                        'smaller_file'
+                    ]
+                },
+                notice: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 500
+                },
+                original: {
+                    type: 'object',
+                    properties: {
+                        pathname: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'drive/users/user_123/launch.png',
+                            description: 'Drive blob pathname; must belong to the active workspace'
+                        },
+                        fileUrl: {
+                            type: 'string',
+                            format: 'uri',
+                            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
+                            description: 'Public Blob URL of the Drive file'
+                        },
+                        name: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'launch.png'
+                        },
+                        size: {
+                            type: 'integer',
+                            minimum: 0,
+                            example: 240000
+                        },
+                        mimeType: {
+                            type: 'string',
+                            minLength: 1,
+                            example: 'image/png'
+                        },
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'image',
+                                'gif',
+                                'video'
+                            ],
+                            example: 'image'
+                        }
+                    },
+                    required: [
+                        'pathname',
+                        'fileUrl',
+                        'name',
+                        'size',
+                        'mimeType',
+                        'kind'
+                    ]
+                }
+            },
+            required: [
+                'provider',
+                'code',
+                'notice',
+                'original'
+            ],
+            description: 'Required provider adaptation, with the original source retained.'
         }
     },
     required: [
@@ -38614,8 +39181,8 @@ export const CreateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 10,
-            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+            maxItems: 20,
+            description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
         },
         threadParts: {
             type: 'array',
@@ -38631,8 +39198,8 @@ export const CreateSocialPostRequestSchema = {
                         items: {
                             $ref: '#/components/schemas/SocialPostMediaRef'
                         },
-                        maxItems: 10,
-                        description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+                        maxItems: 20,
+                        description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
                     }
                 },
                 required: [
@@ -38741,8 +39308,8 @@ export const UpdateSocialPostRequestSchema = {
             items: {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
-            maxItems: 10,
-            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+            maxItems: 20,
+            description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
         },
         threadParts: {
             type: 'array',
@@ -38758,8 +39325,8 @@ export const UpdateSocialPostRequestSchema = {
                         items: {
                             $ref: '#/components/schemas/SocialPostMediaRef'
                         },
-                        maxItems: 10,
-                        description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
+                        maxItems: 20,
+                        description: 'Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.'
                     }
                 },
                 required: [
@@ -40855,7 +41422,7 @@ export const NotificationCountsSchema = {
         needsAction: {
             type: 'integer',
             minimum: 0,
-            description: 'Number of feed notifications whose request still waits on the reader',
+            description: 'Number of feed notifications whose request still waits on the reader, not counting a Task\'s ask for a Task the active workspace\'s GET /tasks/summary already counts',
             example: 2
         },
         mentions: {
@@ -41374,6 +41941,16 @@ export const DataRoomViewSchema = {
         title: {
             type: 'string'
         },
+        welcomeNote: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         hasLogo: {
             type: 'boolean'
         },
@@ -41422,6 +41999,7 @@ export const DataRoomViewSchema = {
     required: [
         'state',
         'title',
+        'welcomeNote',
         'hasLogo',
         'allowDownload',
         'watermark',
@@ -46851,6 +47429,32 @@ export const SokoBotStateSchema = {
             items: {
                 $ref: '#/components/schemas/SharedSokoBotSummary'
             }
+        },
+        lastFailure: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                roomId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uuid'
+                },
+                messageId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'roomId',
+                'messageId'
+            ]
         }
     },
     required: [
@@ -46917,6 +47521,9 @@ export const SharedSokoBotSummarySchema = {
         },
         viewerCanManage: {
             type: 'boolean'
+        },
+        cuso: {
+            type: 'boolean'
         }
     },
     required: [
@@ -46929,7 +47536,8 @@ export const SharedSokoBotSummarySchema = {
         'status',
         'archivedAt',
         'sharedRoomId',
-        'viewerCanManage'
+        'viewerCanManage',
+        'cuso'
     ]
 } as const;
 
@@ -47149,6 +47757,47 @@ export const UpdateSokoBotScheduleRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 20000
+        },
+        run: {
+            type: 'object',
+            properties: {
+                originalAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'The cron time the run belongs to (the Calendar entry\'s originalAt)'
+                },
+                expectedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'Where the caller saw the run, or null when they saw it skipped. A run that changed since answers 409'
+                },
+                action: {
+                    type: 'string',
+                    enum: [
+                        'skip',
+                        'move',
+                        'restore'
+                    ]
+                },
+                scheduledAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'For move: the new time, in the future and within the next 90 days'
+                }
+            },
+            required: [
+                'originalAt',
+                'expectedAt',
+                'action'
+            ],
+            additionalProperties: false,
+            description: 'Skip, move or restore one run; the cron stays as it is. Sent alone.'
         }
     },
     additionalProperties: false
@@ -49181,6 +49830,15 @@ export const TaskListItemSchema = {
             description: 'Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.',
             example: null
         },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When the Task was archived. Null unless it is archived; only archived reads (archived=true) return archived Tasks.'
+        },
         workspace: {
             $ref: '#/components/schemas/WorkspaceSummary'
         },
@@ -49193,6 +49851,12 @@ export const TaskListItemSchema = {
             type: 'integer',
             minimum: 0,
             example: 4
+        },
+        statusSince: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the Task last changed status, or its creation time if it never did.'
         }
     },
     required: [
@@ -49229,9 +49893,11 @@ export const TaskListItemSchema = {
         'runAt',
         'dueOn',
         'scheduleId',
+        'archivedAt',
         'workspace',
         'jobsCount',
-        'commentsCount'
+        'commentsCount',
+        'statusSince'
     ]
 } as const;
 
@@ -49319,6 +49985,135 @@ export const TaskTagSuggestionSchema = {
     required: [
         'tags',
         'receipt'
+    ]
+} as const;
+
+export const MoveOverdueTasksSchema = {
+    type: 'object',
+    properties: {
+        moved: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    from: {
+                        type: 'string',
+                        description: 'The due day the Task had before (YYYY-MM-DD).',
+                        example: '2026-11-02'
+                    },
+                    version: {
+                        type: 'string',
+                        description: 'The Task\'s `updatedAt` right after the move. Undo needs it, so it puts the Task back only if nothing changed since.',
+                        example: '2026-11-12T09:30:00.123Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'from',
+                    'version'
+                ]
+            }
+        },
+        skipped: {
+            type: 'integer',
+            description: 'Overdue Tasks that changed meanwhile, could not be edited or failed, and kept their due day.'
+        }
+    },
+    required: [
+        'moved',
+        'skipped'
+    ]
+} as const;
+
+export const MoveOverdueTasksRequestSchema = {
+    type: 'object',
+    properties: {
+        today: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The caller\'s own calendar day (YYYY-MM-DD).',
+            example: '2026-11-12'
+        },
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The new due day; today or later (YYYY-MM-DD).',
+            example: '2026-11-13'
+        }
+    },
+    required: [
+        'today',
+        'to'
+    ]
+} as const;
+
+export const UndoMoveOverdueTasksSchema = {
+    type: 'object',
+    properties: {
+        restored: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Ids of the Tasks put back on their old due day.'
+        },
+        skipped: {
+            type: 'integer',
+            description: 'Tasks that changed in any way since the move, or could not be edited, and were left as they are.'
+        }
+    },
+    required: [
+        'restored',
+        'skipped'
+    ]
+} as const;
+
+export const UndoMoveOverdueTasksRequestSchema = {
+    type: 'object',
+    properties: {
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The due day the move gave the Tasks (YYYY-MM-DD).',
+            example: '2026-11-13'
+        },
+        tasks: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        minLength: 1
+                    },
+                    from: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                        description: 'The due day to put back (YYYY-MM-DD).',
+                        example: '2026-11-02'
+                    },
+                    version: {
+                        type: 'string',
+                        description: 'The `version` the move returned for this Task.',
+                        example: '2026-11-12T09:30:00.123Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'from',
+                    'version'
+                ]
+            },
+            minItems: 1,
+            maxItems: 100
+        }
+    },
+    required: [
+        'to',
+        'tasks'
     ]
 } as const;
 
@@ -50264,6 +51059,29 @@ export const TaskSellerReceiptSchema = {
         'settled',
         'txHash',
         'withdrawnForSeller'
+    ]
+} as const;
+
+export const SendTaskToChatRequestSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        note: {
+            type: 'string',
+            maxLength: 2000
+        },
+        clientMessageId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        }
+    },
+    required: [
+        'roomId',
+        'clientMessageId'
     ]
 } as const;
 
@@ -52279,7 +53097,8 @@ export const WorkspaceCalendarSourcesResponseSchema = {
                     'social',
                     'newsletter',
                     'contacts',
-                    'marketing'
+                    'marketing',
+                    'sokoBot'
                 ],
                 description: 'A Calendar feature the Show filter can include'
             },
@@ -52359,6 +53178,27 @@ export const WorkspaceCalendarSourceSchema = {
         'logoUrl',
         'paletteToken',
         'isSchedulable'
+    ]
+} as const;
+
+export const WorkspaceSocialPostSchema = {
+    type: 'object',
+    properties: {
+        post: {
+            $ref: '#/components/schemas/SocialPost'
+        },
+        projectName: {
+            type: 'string'
+        },
+        projectCmo: {
+            type: 'boolean',
+            description: 'The post\'s Project is a CMO Project, so its posts are read-only outside CMO (ADR 0066).'
+        }
+    },
+    required: [
+        'post',
+        'projectName',
+        'projectCmo'
     ]
 } as const;
 

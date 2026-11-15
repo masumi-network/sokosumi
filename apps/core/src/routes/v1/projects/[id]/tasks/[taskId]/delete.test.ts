@@ -48,6 +48,7 @@ vi.mock("@/helpers/calendar-locks", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    sokoBot: { findFirst: async () => null, findMany: async () => [] },
     project: { findFirst: projectFindFirstMock },
     task: {
       findFirst: taskFindFirstMock,

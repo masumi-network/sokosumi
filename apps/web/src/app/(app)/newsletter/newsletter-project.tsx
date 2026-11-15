@@ -1,4 +1,5 @@
 import type { Project } from "@sokosumi/core-client";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { createLoader, parseAsString, type SearchParams } from "nuqs/server";
 
@@ -8,6 +9,12 @@ import { projectService } from "@/lib/services/project.service";
 import { isUuidString } from "@/lib/utils/uuid";
 
 import { NewsletterNoProjectBackdrop } from "./components/newsletter-no-project-backdrop";
+
+/** The browser tab's title on every newsletter page. */
+export async function generateNewsletterMetadata(): Promise<Metadata> {
+  const t = await getTranslations("App.Newsletter");
+  return { title: t("title") };
+}
 
 const loadScopeParams = createLoader({
   projectId: parseAsString,

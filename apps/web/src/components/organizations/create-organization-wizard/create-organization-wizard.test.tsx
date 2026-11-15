@@ -22,6 +22,7 @@ vi.mock("@/app/components/user-avatar/workspace-switcher", () => ({
     isPending: false,
     handleSelectWorkspace: (...args: unknown[]) =>
       handleSelectWorkspaceMock(...args),
+    whenSettled: () => Promise.resolve(),
   }),
 }));
 

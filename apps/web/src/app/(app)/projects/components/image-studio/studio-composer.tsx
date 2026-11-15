@@ -29,6 +29,7 @@ import {
   clampToModel,
   creditsForBatch,
   creditsForImage,
+  modelVariants,
   priceUnitLabelKey,
 } from "./catalog";
 import { readApprovedStudioHeadlines } from "./studio-approved-headlines";
@@ -116,7 +117,7 @@ function TriggerLabel({
 const COUNT_VISIBLE_FROM = 0.9;
 
 const TRIGGER_CLASS =
-  "text-muted-foreground hover:text-foreground h-8 max-w-[16rem] min-w-0 gap-1.5 px-2 text-sm font-medium";
+  "text-muted-foreground hover:text-foreground h-8 max-w-[min(16rem,100%)] min-w-0 gap-1.5 px-2 text-sm font-medium";
 
 /**
  * Where a generation is described and bought.
@@ -339,15 +340,29 @@ export function StudioComposer({
     [availableModels, selectedModelIds],
   );
 
+  // Over the whole catalog, so a reference filter cannot hide the twin that
+  // made a label ambiguous and take its line away.
+  const variants = useMemo(
+    () => modelVariants(catalog.models),
+    [catalog.models],
+  );
+  /** The label, with the variant when another model shares it. */
+  const modelName = (model: StudioModel) => {
+    const variant = variants.get(model.id);
+    return variant ? `${model.label} (${variant})` : model.label;
+  };
+
   const needle = modelQuery.trim().toLowerCase();
   const shownModels = useMemo(
     () =>
       needle === ""
         ? availableModels
         : availableModels.filter((model) =>
-            `${model.label} ${model.id}`.toLowerCase().includes(needle),
+            `${model.label} ${variants.get(model.id) ?? ""} ${model.id}`
+              .toLowerCase()
+              .includes(needle),
           ),
-    [availableModels, needle],
+    [availableModels, needle, variants],
   );
 
   /** Select the shown models that fit, keeping the existing selection first. */
@@ -585,7 +600,7 @@ export function StudioComposer({
         id,
         prompt: leg.prompt,
         modelId: leg.model.id,
-        modelLabel: leg.model.label,
+        modelLabel: modelName(leg.model),
         settings: leg.settings,
         parentAssetId:
           parentAssetId === undefined
@@ -608,7 +623,7 @@ export function StudioComposer({
 
   const modelSummary =
     selectedModels.length === 1
-      ? selectedModels[0].label
+      ? modelName(selectedModels[0])
       : t("modelCount", { count: selectedModels.length });
 
   const hasSharedFormat = shared.outputFormats.length > 0;
@@ -623,6 +638,21 @@ export function StudioComposer({
       .join(" · "),
   );
   const mixedSettings = new Set(plannedSettings).size > 1;
+  // The size most models will get, said once. Only a model that gets a
+  // different one is listed by name; repeating the same line per model hid the
+  // rest of the options.
+  const settingsCounts = new Map<string, number>();
+  for (const value of plannedSettings) {
+    settingsCounts.set(value, (settingsCounts.get(value) ?? 0) + 1);
+  }
+  const commonSettings = plannedSettings.reduce<string | undefined>(
+    (best, value) =>
+      best === undefined ||
+      (settingsCounts.get(value) ?? 0) > (settingsCounts.get(best) ?? 0)
+        ? value
+        : best,
+    undefined,
+  );
   const optionSummary = [
     creativeDirection ? t(`CreativeDirections.${creativeDirection}`) : null,
     frameCount > 1 || unsupportedPlacements
@@ -796,40 +826,12 @@ export function StudioComposer({
             : labels.generateOne
         }
         sendDisabled={!canGenerate}
-        toolbarEnd={
-          <>
-            {promptLength >= MAX_PROMPT_LENGTH * COUNT_VISIBLE_FROM ? (
-              <span
-                className={cn(
-                  "text-muted-foreground text-xs tabular-nums",
-                  promptTooLong && "text-destructive",
-                )}
-              >
-                {t("promptCharacterCount", {
-                  count: promptLength,
-                  limit: MAX_PROMPT_LENGTH,
-                })}
-              </span>
-            ) : null}
-            {onUndoTemplate ? (
-              <Button
-                type="button"
-                className="text-muted-foreground hover:text-foreground h-8 px-2 text-sm font-medium"
-                onClick={onUndoTemplate}
-                size="sm"
-                variant="ghost"
-              >
-                <Undo2 aria-hidden />
-                <span className="max-sm:sr-only">{t("undoTemplate")}</span>
-              </Button>
-            ) : null}
-          </>
-        }
         toolbarStart={
-          <>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
             {modeSwitch}
             {!hasProductBatch && onProductPhotoChange && onPhotoUploadChange ? (
               <StudioProductPhotoControl
+                iconOnly
                 onPhotoChange={onProductPhotoChange}
                 onUploadingChange={onPhotoUploadChange}
                 photo={productPhoto ?? null}
@@ -840,7 +842,6 @@ export function StudioComposer({
               <StudioTemplateMenu
                 labels={labels}
                 onApplyTemplate={onApplyTemplate}
-                triggerClassName={TRIGGER_CLASS}
               />
             ) : null}
             <Popover>
@@ -918,12 +919,18 @@ export function StudioComposer({
                   placeholder={labels.searchModels}
                   value={modelQuery}
                 />
-                <p
-                  className="text-muted-foreground mb-2 px-1 text-xs"
-                  id="studio-model-selection-limit"
-                >
-                  {selectionLimitReason}
-                </p>
+                {/* The "Select up to N" button already states the plain model
+                  limit, so this line only appears once the limit is reached
+                  (it explains the disabled rows) or for a product batch,
+                  where it says which choices count toward the image limit. */}
+                {selectionLimitReached || hasProductBatch ? (
+                  <p
+                    className="text-muted-foreground mb-2 px-1 text-xs"
+                    id="studio-model-selection-limit"
+                  >
+                    {selectionLimitReason}
+                  </p>
+                ) : null}
                 <div
                   className="app-scrollbar max-h-80 overflow-y-auto overscroll-contain"
                   role="group"
@@ -981,6 +988,11 @@ export function StudioComposer({
                               </span>
                             ) : null}
                           </span>
+                          {variants.has(model.id) ? (
+                            <span className="text-muted-foreground block truncate text-xs font-medium">
+                              {variants.get(model.id)}
+                            </span>
+                          ) : null}
                           <span className="text-muted-foreground block truncate text-xs">
                             {model.description}
                           </span>
@@ -1099,22 +1111,6 @@ export function StudioComposer({
                     {labels.noModelSelected}
                   </p>
                 ) : null}
-                {mixedSettings && frameCount === 1 ? (
-                  <ul className="space-y-2 text-xs">
-                    {plan.configured.map(({ model }, index) => (
-                      <li className="break-words" key={model.id}>
-                        <span className="font-medium">{model.label}</span>
-                        <p className="text-muted-foreground tabular-nums">
-                          {labels.dimensions}: {plannedSettings[index]}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-
-                <p className="text-muted-foreground text-xs text-pretty">
-                  {t("placementHelp")}
-                </p>
                 <Row label={t("adPlacements")}>
                   {AD_PLACEMENTS.map(({ ratio, label }) => {
                     const selected = placementRatios.includes(ratio);
@@ -1232,6 +1228,29 @@ export function StudioComposer({
                   </Row>
                 ) : null}
 
+                {mixedSettings && frameCount === 1 ? (
+                  <div className="space-y-1 text-xs break-words">
+                    <p className="text-muted-foreground tabular-nums">
+                      {labels.dimensions}: {commonSettings}
+                    </p>
+                    <ul className="space-y-1">
+                      {plan.configured.map(({ model }, index) =>
+                        plannedSettings[index] === commonSettings ? null : (
+                          <li key={model.id}>
+                            <span className="font-medium">
+                              {modelName(model)}
+                            </span>
+                            <span className="text-muted-foreground tabular-nums">
+                              {" · "}
+                              {plannedSettings[index]}
+                            </span>
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                  </div>
+                ) : null}
+
                 {hasProductBatch ? (
                   <p className="text-muted-foreground text-xs">
                     {t("copiesFromProducts")}
@@ -1314,11 +1333,11 @@ export function StudioComposer({
                 <PopoverTrigger asChild>
                   <Button
                     type="button"
-                    className="text-muted-foreground hover:text-foreground h-8 min-w-0 px-2 text-sm font-medium"
+                    className="text-muted-foreground hover:text-foreground h-auto min-h-8 max-w-full min-w-0 px-2 py-1 text-sm font-medium whitespace-normal"
                     size="sm"
                     variant="ghost"
                   >
-                    <span className="min-w-0 truncate tabular-nums">
+                    <span className="min-w-0 text-start tabular-nums">
                       {hasProductBatch || frameCount > 1
                         ? batchCredits === null
                           ? t("placementPlan", { count: totalJobs })
@@ -1381,7 +1400,7 @@ export function StudioComposer({
                           <li key={`${model.id}:${actual.aspectRatio}`}>
                             <div className="flex min-w-0 items-baseline gap-2">
                               <span className="min-w-0 flex-1 text-xs font-medium text-pretty">
-                                {model.label}
+                                {modelName(model)}
                               </span>
                               <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                                 {credits === null
@@ -1427,7 +1446,32 @@ export function StudioComposer({
                 </PopoverContent>
               </Popover>
             ) : null}
-          </>
+            {promptLength >= MAX_PROMPT_LENGTH * COUNT_VISIBLE_FROM ? (
+              <span
+                className={cn(
+                  "text-muted-foreground text-xs tabular-nums",
+                  promptTooLong && "text-destructive",
+                )}
+              >
+                {t("promptCharacterCount", {
+                  count: promptLength,
+                  limit: MAX_PROMPT_LENGTH,
+                })}
+              </span>
+            ) : null}
+            {onUndoTemplate ? (
+              <Button
+                type="button"
+                className="text-muted-foreground hover:text-foreground h-8 px-2 text-sm font-medium"
+                onClick={onUndoTemplate}
+                size="sm"
+                variant="ghost"
+              >
+                <Undo2 aria-hidden />
+                <span className="max-sm:sr-only">{t("undoTemplate")}</span>
+              </Button>
+            ) : null}
+          </div>
         }
         className={STUDIO_COMPOSER_GUTTER_CLASS}
         withOuterPadding={false}
@@ -1474,10 +1518,8 @@ function Row({
   label: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-      <span className="text-muted-foreground w-20 shrink-0 text-xs font-medium">
-        {label}
-      </span>
+    <div className="space-y-1.5">
+      <p className="text-muted-foreground text-xs font-medium">{label}</p>
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         {children}
       </div>

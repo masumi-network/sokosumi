@@ -709,6 +709,8 @@ const OVERLAY_LAYER = 50;
 const ABOVE_OVERLAY_ALLOWLIST = new Map([
   // Full-screen search takeover; it has to cover the `z-50` sticky header.
   ["app/(app)/components/header/header-mobile-search.client.tsx", 60],
+  // The workspace sweep covers the page, and the wizard dialog it closes.
+  ["lib/workspace-sweep.ts", 70],
   // Consent has to stay reachable over any dialog or sheet that is open.
   ["components/analytics/cookie-banner.tsx", 100],
 ]);

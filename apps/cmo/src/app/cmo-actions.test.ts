@@ -7,8 +7,6 @@ const listCmoCusos = vi.fn();
 const getContactLists = vi.fn();
 const postContactLists = vi.fn();
 const postContactListsByIdImport = vi.fn();
-const postProjectsByIdSocialConnectionsInitiate = vi.fn();
-const postProjectsByIdSocialConnectionsFinalize = vi.fn();
 const getCmoOverviewForProject = vi.fn();
 const startCmoOverForProject = vi.fn();
 const revalidatePath = vi.fn();
@@ -23,13 +21,19 @@ const setCookie = vi.fn((name: string, value: string) => {
 /** The …ForProject operations a Cuso action calls, by name. */
 const forProject = Object.fromEntries(
   [
+    "answerCmoBrandBrainQuestionForProject",
+    "answerCmoMarketingStrategyQuestionForProject",
     "applyCmoPlanAnswersForProject",
+    "approveCmoMarketingStrategyForProject",
     "chooseCmoAdAccountForProject",
+    "confirmCmoBrandBrainForProject",
     "connectCmoAdsForProject",
     "connectCmoMeasurementForProject",
     "finalizeCmoAdsForProject",
     "finalizeCmoMeasurementForProject",
+    "finalizeCmoSocialConnectionForProject",
     "getCmoCalendarEntryTextForProject",
+    "initiateCmoSocialConnectionForProject",
     "launchCmoSearchAdForProject",
     "listCmoAdCampaignsForProject",
     "listCmoAdChoicesForProject",
@@ -39,21 +43,17 @@ const forProject = Object.fromEntries(
     "revertCmoUpdateForProject",
     "setCmoAdBudgetForProject",
     "setCmoAdCampaignStatusForProject",
+    "updateCmoBrandBrainForProject",
   ].map((name) => [name, vi.fn()]),
 );
 
-/** The standard Project, chat and bot routes a Cuso action calls, by name. */
+/** The standard chat and bot routes a Cuso action calls, by name. */
 const standardRoutes = Object.fromEntries(
   [
-    "answerProjectBrandBrainQuestion",
-    "answerProjectMarketingStrategyQuestion",
-    "approveProjectMarketingStrategy",
     "completeSokoBotIntegrationAuth",
-    "confirmProjectBrandBrain",
     "getChatsRoomsByIdMessages",
     "postChatsRoomsByIdMessages",
     "postComposioCallbackComplete",
-    "updateProjectBrandBrain",
   ].map((name) => [name, vi.fn()]),
 );
 
@@ -83,8 +83,6 @@ vi.mock("@sokosumi/core-client", () => ({
   getContactLists,
   postContactLists,
   postContactListsByIdImport,
-  postProjectsByIdSocialConnectionsInitiate,
-  postProjectsByIdSocialConnectionsFinalize,
   getCmoOverviewForProject,
   startCmoOverForProject,
   ...forProject,
@@ -258,10 +256,10 @@ describe("loadCusos", () => {
 });
 
 describe("social accounts", () => {
-  // Cuso's Project in an organization: the Project routes need its slug.
+  // CMO's own route names Cuso's Project; no workspace header.
   const projectCall = {
-    path: { id: "project-1" },
-    headers: { authorization: "Bearer t", "x-organization-slug": "acme" },
+    path: { projectId: "project-1" },
+    headers: { authorization: "Bearer t" },
   };
 
   beforeEach(() => {
@@ -272,7 +270,7 @@ describe("social accounts", () => {
   });
 
   it("connects through Cuso's Project and comes back to CMO", async () => {
-    postProjectsByIdSocialConnectionsInitiate.mockResolvedValue({
+    forProject.initiateCmoSocialConnectionForProject.mockResolvedValue({
       data: { data: { redirectUrl: "https://connect.example/x" } },
     });
 
@@ -280,7 +278,9 @@ describe("social accounts", () => {
       url: "https://connect.example/x",
       error: null,
     });
-    expect(postProjectsByIdSocialConnectionsInitiate).toHaveBeenCalledWith(
+    expect(
+      forProject.initiateCmoSocialConnectionForProject,
+    ).toHaveBeenCalledWith(
       expect.objectContaining({
         ...projectCall,
         body: {
@@ -294,12 +294,14 @@ describe("social accounts", () => {
   });
 
   it("brings a connect on the Accounts step back to it", async () => {
-    postProjectsByIdSocialConnectionsInitiate.mockResolvedValue({
+    forProject.initiateCmoSocialConnectionForProject.mockResolvedValue({
       data: { data: { redirectUrl: "https://connect.example/x" } },
     });
 
     await connectSetupChannel("project-1", "x");
-    expect(postProjectsByIdSocialConnectionsInitiate).toHaveBeenCalledWith(
+    expect(
+      forProject.initiateCmoSocialConnectionForProject,
+    ).toHaveBeenCalledWith(
       expect.objectContaining({
         body: expect.objectContaining({
           callbackUrl:
@@ -310,10 +312,14 @@ describe("social accounts", () => {
   });
 
   it("finishes the connection on Cuso's Project", async () => {
-    postProjectsByIdSocialConnectionsFinalize.mockResolvedValue({ data: {} });
+    forProject.finalizeCmoSocialConnectionForProject.mockResolvedValue({
+      data: {},
+    });
 
     expect(await finalizeChannel("project-1", "ca_1")).toBe(true);
-    expect(postProjectsByIdSocialConnectionsFinalize).toHaveBeenCalledWith(
+    expect(
+      forProject.finalizeCmoSocialConnectionForProject,
+    ).toHaveBeenCalledWith(
       expect.objectContaining({
         ...projectCall,
         body: { connectionId: "ca_1" },
@@ -614,6 +620,39 @@ describe("the Cuso on screen", () => {
       "finalizeCmoMeasurementForProject",
       { provider: "shopify" },
     ],
+    [
+      "approveStrategy",
+      () => approveStrategy("project-2"),
+      "approveCmoMarketingStrategyForProject",
+      { strategyId: "strategy-2" },
+    ],
+    [
+      "approveStrategy with a version",
+      () => approveStrategy("project-2", "strategy-1"),
+      "approveCmoMarketingStrategyForProject",
+      { strategyId: "strategy-1" },
+    ],
+    [
+      "approveBrandBrain",
+      () => approveBrandBrain("project-2"),
+      "confirmCmoBrandBrainForProject",
+    ],
+    [
+      "answerBrandQuestion",
+      () => answerBrandQuestion("project-2", brief),
+      "answerCmoBrandBrainQuestionForProject",
+    ],
+    [
+      "answerPlanQuestion",
+      () => answerPlanQuestion("project-2", brief),
+      "answerCmoMarketingStrategyQuestionForProject",
+      { strategyId: "strategy-2" },
+    ],
+    [
+      "saveBrandBrain",
+      () => saveBrandBrain("project-2", cmoBrandBrain),
+      "updateCmoBrandBrainForProject",
+    ],
   ];
 
   it.each(cmoRoutes)(
@@ -621,47 +660,9 @@ describe("the Cuso on screen", () => {
     async (_name, act, route, path = {}) => {
       await act();
       expect(forProject[route]).toHaveBeenCalledWith(
-        expect.objectContaining({ path: { projectId: "project-2", ...path } }),
-      );
-    },
-  );
-
-  const projectRoutes: [string, () => Promise<unknown>, string][] = [
-    [
-      "approveStrategy",
-      () => approveStrategy("project-2"),
-      "approveProjectMarketingStrategy",
-    ],
-    [
-      "approveBrandBrain",
-      () => approveBrandBrain("project-2"),
-      "confirmProjectBrandBrain",
-    ],
-    [
-      "answerBrandQuestion",
-      () => answerBrandQuestion("project-2", brief),
-      "answerProjectBrandBrainQuestion",
-    ],
-    [
-      "answerPlanQuestion",
-      () => answerPlanQuestion("project-2", brief),
-      "answerProjectMarketingStrategyQuestion",
-    ],
-    [
-      "saveBrandBrain",
-      () => saveBrandBrain("project-2", cmoBrandBrain),
-      "updateProjectBrandBrain",
-    ],
-  ];
-
-  it.each(projectRoutes)(
-    "%s uses the Project route of the Project on screen",
-    async (_name, act, route) => {
-      await act();
-      expect(standardRoutes[route]).toHaveBeenCalledWith(
         expect.objectContaining({
-          ...inBeta,
-          path: expect.objectContaining({ id: "project-2" }),
+          headers: { authorization: "Bearer t" },
+          path: { projectId: "project-2", ...path },
         }),
       );
     },
@@ -698,16 +699,19 @@ describe("the Cuso on screen", () => {
   });
 
   it("connects and finishes a network on the Project on screen", async () => {
-    postProjectsByIdSocialConnectionsInitiate.mockResolvedValue({
+    forProject.initiateCmoSocialConnectionForProject.mockResolvedValue({
       data: { data: { redirectUrl: "https://connect.example/x" } },
     });
-    postProjectsByIdSocialConnectionsFinalize.mockResolvedValue({ data: {} });
+    forProject.finalizeCmoSocialConnectionForProject.mockResolvedValue({
+      data: {},
+    });
     await connectChannel("project-2", "x");
     expect(await finalizeChannel("project-2", "ca_1", "s_1")).toBe(true);
-    expect(postProjectsByIdSocialConnectionsInitiate).toHaveBeenCalledWith(
+    expect(
+      forProject.initiateCmoSocialConnectionForProject,
+    ).toHaveBeenCalledWith(
       expect.objectContaining({
-        ...inBeta,
-        path: { id: "project-2" },
+        path: { projectId: "project-2" },
         body: expect.objectContaining({
           callbackUrl:
             "https://app.cmo.xyz/connect/callback?from=app&project=project-2",
@@ -717,8 +721,13 @@ describe("the Cuso on screen", () => {
     expect(standardRoutes.postComposioCallbackComplete).toHaveBeenCalledWith(
       expect.objectContaining({ ...inBeta }),
     );
-    expect(postProjectsByIdSocialConnectionsFinalize).toHaveBeenCalledWith(
-      expect.objectContaining({ ...inBeta, path: { id: "project-2" } }),
+    expect(
+      forProject.finalizeCmoSocialConnectionForProject,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: { projectId: "project-2" },
+        body: { connectionId: "ca_1" },
+      }),
     );
   });
 

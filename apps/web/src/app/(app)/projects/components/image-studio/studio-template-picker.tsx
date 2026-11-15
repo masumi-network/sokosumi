@@ -3,12 +3,18 @@
 import { LayoutTemplate } from "lucide-react";
 import Image from "next/image";
 import { useRef, useState } from "react";
+import { ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME } from "@/components/chat/room-message-composer";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
 import type { StudioLabels } from "./types";
 
@@ -58,23 +64,27 @@ function TemplateButton({
 export function StudioTemplateMenu({
   labels,
   onApplyTemplate,
-  triggerClassName,
-}: TemplatePickerProps & { triggerClassName?: string }) {
+}: TemplatePickerProps) {
   const [open, setOpen] = useState(false);
   const pickedRef = useRef(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          className={triggerClassName}
-          size="sm"
-          variant="ghost"
-        >
-          <LayoutTemplate aria-hidden />
-          <span className="max-sm:sr-only">{labels.templates}</span>
-        </Button>
-      </PopoverTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+              size="icon"
+              variant="ghost"
+            >
+              <LayoutTemplate aria-hidden />
+              <span className="sr-only">{labels.templates}</span>
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent>{labels.templates}</TooltipContent>
+      </Tooltip>
       <PopoverContent
         align="start"
         aria-label={labels.templates}

@@ -26,19 +26,6 @@
      own follows this. */
   --default-transition-duration: 310ms;
 
-  --animate-studio-template-float: studio-template-float 14s ease-in-out
-    infinite;
-
-  @keyframes studio-template-float {
-    0%,
-    100% {
-      transform: translate3d(0, 0, 0);
-    }
-    50% {
-      transform: translate3d(10px, -14px, 0);
-    }
-  }
-
   /* Entrances: fast out of the gate, then a long settle, so a dialog is
      already moving on the first frame. The browser's `ease` starts slow,
      which reads as lag on something that should answer a click. */
@@ -138,6 +125,10 @@
   --color-status-working: var(--status-working);
   --color-status-external: var(--status-external);
   --color-status-done: var(--status-done);
+  --color-status-warning: var(--status-warning);
+  --color-status-info: var(--status-info);
+  --color-status-success: var(--status-success);
+  --color-status-destructive: var(--status-destructive);
 
   /* Custom Colors */
   /* Link/hashtag colors inside native-looking social post previews. */
@@ -315,6 +306,12 @@
   --scrim: rgb(0 0 0 / 0.5); /* Alpha 50 */
   --scrim-strong: rgb(0 0 0 / 0.8); /* Alpha 20 */
   --media-ground: #000000; /* Black */
+  /* The Home page's gradient (GradientBackground) and the workspace sweep:
+     four colours it loops through. */
+  --gradient-1: #d9c8ff; /* Lilac */
+  --gradient-2: #b9dcff; /* Sky */
+  --gradient-3: #ffd3ee; /* Pink */
+  --gradient-4: #ede6ff; /* Pearl */
   --on-media: hsla(0, 0%, 100%, 1);
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
   --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
@@ -392,6 +389,12 @@
   --status-working: #ff51ff; /* Iris Flower */
   --status-external: #0c0c0c; /* Neutral 950 */
   --status-done: #737373; /* Neutral 500 */
+  /* Social status ink: AA on neutral event and badge surfaces. These are
+     separate from the Task board's fill-only status colours above. */
+  --status-warning: hsla(38, 92%, 30%, 1);
+  --status-info: hsla(217, 70%, 40%, 1);
+  --status-success: hsla(142, 72%, 29%, 1);
+  --status-destructive: hsla(0, 72%, 42%, 1);
 }
 
 /* Dark values are Open in the guide; these follow its best-case role table.
@@ -411,6 +414,10 @@
   --scrim: rgb(0 0 0 / 0.5); /* Alpha 50 */
   --scrim-strong: rgb(0 0 0 / 0.8); /* Alpha 20 */
   --media-ground: #000000; /* Black */
+  --gradient-1: #2b2150; /* Deep lilac */
+  --gradient-2: #1b3150; /* Deep sky */
+  --gradient-3: #43203f; /* Deep pink */
+  --gradient-4: #221d33; /* Deep pearl */
   --on-media: hsla(0, 0%, 100%, 1);
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
   --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
@@ -483,6 +490,10 @@
   --status-working: #d141d1; /* Dark Iris */
   --status-external: #fafafa; /* Neutral 50 */
   --status-done: #a3a3a3; /* Neutral 400 */
+  --status-warning: hsla(43, 96%, 56%, 1);
+  --status-info: hsla(213, 94%, 68%, 1);
+  --status-success: hsla(142, 65%, 56%, 1);
+  --status-destructive: hsla(0, 90%, 74%, 1);
 }
 
 /* CMO.xyz's Log in and Register: its black and white look in place of the

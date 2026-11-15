@@ -51,12 +51,14 @@ const VALIDATION_MESSAGES: AbstractIntlMessages = en;
 function renderDesigner(
   newsletter = BRANDED,
   locale: "en" | "de" | "es" = "en",
+  readOnly = false,
 ) {
   return render(
     <NextIntlClientProvider locale={locale} messages={{ en, de, es }[locale]}>
       <NewsletterSignupDesigner
         newsletter={newsletter}
         projectId={NEWSLETTER_PROJECT_ID}
+        readOnly={readOnly}
       />
     </NextIntlClientProvider>,
   );
@@ -94,6 +96,19 @@ beforeEach(() => {
 });
 
 describe("newsletter signup designer", () => {
+  it("keeps the saved preview and links visible without customization on a CMO Project", () => {
+    renderDesigner(BRANDED, "en", true);
+
+    expect(
+      screen.getByRole("heading", { name: "Signup form preview" }),
+    ).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Share" })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Customize signup form" }),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save design" })).toBeNull();
+  });
+
   it("leads with share and preview, with customization closed and no save action", () => {
     renderDesigner();
     const [share, preview, customize] = [

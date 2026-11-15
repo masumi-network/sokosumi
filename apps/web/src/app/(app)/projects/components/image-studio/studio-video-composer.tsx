@@ -78,7 +78,7 @@ export function carryVideoSettings(
 }
 
 const TRIGGER_CLASS =
-  "text-muted-foreground hover:text-foreground h-8 max-w-[16rem] min-w-0 gap-1.5 px-2 text-sm font-medium";
+  "text-muted-foreground hover:text-foreground h-8 max-w-[min(16rem,100%)] min-w-0 gap-1.5 px-2 text-sm font-medium";
 
 function chipClass(active: boolean): string {
   return cn(
@@ -221,15 +221,8 @@ export function StudioVideoComposer({
         removeAttachmentLabel={() => ""}
         sendAriaLabel={labels.generateVideo}
         sendDisabled={!ready}
-        toolbarEnd={
-          credits === null ? null : (
-            <span className="text-muted-foreground text-xs tabular-nums">
-              {t("creditsCount", { count: credits })}
-            </span>
-          )
-        }
         toolbarStart={
-          <>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
             {modeSwitch}
             <Popover>
               <PopoverTrigger asChild>
@@ -368,7 +361,12 @@ export function StudioVideoComposer({
                 </Row>
               </PopoverContent>
             </Popover>
-          </>
+            {credits === null ? null : (
+              <span className="text-muted-foreground ml-auto text-xs tabular-nums">
+                {t("creditsCount", { count: credits })}
+              </span>
+            )}
+          </div>
         }
         withOuterPadding={false}
         withSafeAreaPadding
@@ -420,6 +418,16 @@ function Row({
   );
 }
 
+/**
+ * The phone's main mode switch keeps its 28px pill but takes a 44px tap target
+ * below `md`: a transparent `::after` centred like `hit-area`, which stops at
+ * 40px. The composer toolbar scrolls sideways, so it clips anything outside
+ * its rows; the group's `py-2` makes its row tall enough to hold the target.
+ * Desktop is untouched.
+ */
+const MODE_TAP_TARGET_CLASS =
+  "relative max-md:after:absolute max-md:after:inset-[min(0px,calc((100%_-_var(--spacing)*11)_/_2))]";
+
 /** Image or Video: which composer is docked. */
 export function StudioModeSwitch({
   labels,
@@ -433,7 +441,7 @@ export function StudioModeSwitch({
   return (
     <div
       aria-label={labels.studioMode}
-      className="flex shrink-0 items-center gap-1"
+      className="flex shrink-0 items-center gap-1 max-md:py-2"
       role="radiogroup"
     >
       {(
@@ -444,7 +452,7 @@ export function StudioModeSwitch({
       ).map(([value, label]) => (
         <button
           aria-checked={mode === value}
-          className={chipClass(mode === value)}
+          className={cn(chipClass(mode === value), MODE_TAP_TARGET_CLASS)}
           key={value}
           onClick={() => onModeChange(value)}
           role="radio"

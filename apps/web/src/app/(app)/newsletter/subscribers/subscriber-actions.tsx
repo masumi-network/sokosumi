@@ -5,7 +5,6 @@ import {
   NewsletterSubscriberStatus,
 } from "@sokosumi/core-client";
 import { MoreHorizontal } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -41,7 +40,6 @@ export function SubscriberActions({
   subscriber,
 }: SubscriberActionsProps) {
   const t = useTranslations("App.Projects.Newsletter.Subscribers");
-  const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [unsubscribing, setUnsubscribing] = useState(false);
   const [pending, setPending] = useState(false);
@@ -74,7 +72,6 @@ export function SubscriberActions({
       }
       toast.success(t("unsubscribed"));
       setConfirmOpen(false);
-      router.refresh();
     } catch {
       setError(t("updateError"));
     } finally {
@@ -96,7 +93,6 @@ export function SubscriberActions({
       }
       toast.success(t("Remove.success"));
       setConfirmOpen(false);
-      router.refresh();
     } catch {
       setError(t("Remove.error"));
     } finally {

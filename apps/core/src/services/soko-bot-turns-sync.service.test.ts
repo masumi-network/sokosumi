@@ -81,6 +81,20 @@ describe("SokoBotTurnsSyncService", () => {
     expect(turnFindManyMock).not.toHaveBeenCalled();
   });
 
+  it("looks only at the named bots' turns when given some", async () => {
+    turnFindManyMock.mockResolvedValue([]);
+
+    await sokoBotTurnsSyncService.syncActiveTurns({
+      abortSignal: new AbortController().signal,
+      shouldContinue: () => true,
+      sokoBotIds: ["bot_1", "bot_2"],
+    });
+
+    expect(turnFindManyMock).toHaveBeenCalledTimes(4);
+    for (const [query] of turnFindManyMock.mock.calls)
+      expect(query.where.sokoBotId).toEqual({ in: ["bot_1", "bot_2"] });
+  });
+
   it("expires overdue turns and releases their lease", async () => {
     turnFindManyMock.mockResolvedValueOnce([{ id: "turn_1" }]);
 

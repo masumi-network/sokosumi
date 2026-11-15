@@ -1,8 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { type ReactNode, useEffect, useRef } from "react";
+import { useNeedsYouTasks } from "@/components/notifications/notification-waiting-tasks";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
 import { isNotificationCenterView } from "@/contexts/notification-view-storage";
@@ -23,6 +24,12 @@ const COUNT_CLASS_NAME =
 
 interface NotificationCenterViewFilterProps {
   className?: string;
+  /**
+   * The rows the strip narrows. They render as the active tab's panel, so
+   * each tab points at a panel that exists and a screen reader announces
+   * the list as the tab's content.
+   */
+  children: ReactNode;
 }
 
 /**
@@ -39,18 +46,22 @@ interface NotificationCenterViewFilterProps {
  * voice. A single-choice control on purpose: each view is a different list.
  * Needs you is not "unread": a row stays there, read or not, until the
  * request it stands for is answered. An account notice is one of those
- * requests: it lives on Needs you, so it counts on that tab. The push primer
+ * requests: it lives on Needs you, so it counts on that tab, and so does
+ * each Task waiting on the reader, by the number Home shows. The push primer
  * does not: it is an offer, and a blocked or iPhone browser would carry the
  * count for good.
  */
 export function NotificationCenterViewFilter({
   className,
+  children,
 }: NotificationCenterViewFilterProps) {
   const t = useTranslations("Components.NotificationCenter");
   const { view, setView, unreadCount, needsActionCount, mentionsCount } =
     useNotifications();
   const { notice } = useAccountNotice();
-  const needsYouCount = needsActionCount + (notice !== null ? 1 : 0);
+  const { data: waitingTasks } = useNeedsYouTasks();
+  const needsYouCount =
+    needsActionCount + (waitingTasks?.count ?? 0) + (notice !== null ? 1 : 0);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Four labels do not fit the bell panel in every locale, so the strip
@@ -69,7 +80,11 @@ export function NotificationCenterViewFilter({
   }
 
   return (
-    <Tabs value={view} onValueChange={handleValueChange} className={className}>
+    <Tabs
+      value={view}
+      onValueChange={handleValueChange}
+      className={cn("gap-0", className)}
+    >
       <TabsList
         ref={listRef}
         aria-label={t("filterLabel")}
@@ -97,6 +112,13 @@ export function NotificationCenterViewFilter({
           ) : null}
         </TabsTrigger>
       </TabsList>
+      {/* One panel for whichever view is on: the views are one list under
+          four lenses, not four lists. Out of the Tab order, because the rows
+          inside it are the stops and a focus ring on the whole list says
+          nothing. */}
+      <TabsContent value={view} tabIndex={-1}>
+        {children}
+      </TabsContent>
     </Tabs>
   );
 }

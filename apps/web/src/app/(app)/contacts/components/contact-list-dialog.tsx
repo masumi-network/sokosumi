@@ -37,11 +37,14 @@ export function ContactListDialog({
   smartFilter,
   onClose,
   onSaved,
+  onCloseAutoFocus,
 }: {
   list?: ContactList;
   smartFilter?: SmartFilter | null;
   onClose: () => void;
   onSaved: (list: ContactList) => void;
+  /** Where focus goes when the dialog closes; it has no trigger of its own. */
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   const t = useTranslations("App.Contacts.listDialog");
   const cache = useQueryClient();
@@ -83,7 +86,10 @@ export function ContactListDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className="sm:max-w-md"
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
         <form onSubmit={handleSubmit} className="grid gap-5">
           <DialogHeader>
             <DialogTitle>

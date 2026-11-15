@@ -25,6 +25,11 @@ export interface ProjectScopeRequest {
   required?: boolean;
   /** One line above the list saying what the project is for. */
   reason?: string;
+  /**
+   * The pick creates something inside the Project, so CMO Projects, which
+   * Core keeps read-only (ADR 0066), are not offered.
+   */
+  excludeCmo?: boolean;
   /** Replaces the default choice, which switches the page's scope. */
   onSelect?: (projectId: string) => void;
   /** Runs before switching scope when the selector creates a project. */

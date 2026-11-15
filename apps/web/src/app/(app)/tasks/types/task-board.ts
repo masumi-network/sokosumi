@@ -25,6 +25,8 @@ export interface TaskAssigneeView {
  */
 export interface TaskWithCoworker {
   id: string;
+  /** A create request is on the wire: the row has no page and cannot move. */
+  isPending?: boolean;
   /** Short id such as SOK-12; null for tasks without a project. */
   identifier: string | null;
   name: string;
@@ -52,6 +54,8 @@ export interface TaskWithCoworker {
   runAt?: string | null;
   /** `YYYY-MM-DD` the Task should be done by. */
   dueOn?: string | null;
+  /** ISO time the Task last changed status, or was created. */
+  statusSince?: string;
 }
 
 export type KanbanColumnId =

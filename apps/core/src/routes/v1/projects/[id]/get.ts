@@ -10,6 +10,7 @@ import {
 } from "@/lib/hono";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { mapProjectForApi, projectSchema } from "@/schemas/project.schema";
+import { isCmoProject } from "@/services/cmo-cuso.service";
 import { SOCIAL_POSTS_CANCELED_ON_PROJECT_CLOSE } from "@/services/project-close-lifecycle.service";
 
 const paramsSchema = z.object({
@@ -46,7 +47,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
 
-    const [project, scheduledSocialPostCount] = await Promise.all([
+    const [project, scheduledSocialPostCount, cmo] = await Promise.all([
       prisma.project.findFirst({
         where: { id, workspaceId: workspaceContext.workspaceId },
       }),
@@ -57,15 +58,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...SOCIAL_POSTS_CANCELED_ON_PROJECT_CLOSE,
         },
       }),
+      isCmoProject(id),
     ]);
 
     if (!project) {
       throw notFound("Project not found");
     }
 
-    return ok(
-      c,
-      mapProjectForApi(project, new Date(), scheduledSocialPostCount),
-    );
+    return ok(c, mapProjectForApi(project, { cmo, scheduledSocialPostCount }));
   });
 }

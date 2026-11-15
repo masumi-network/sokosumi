@@ -757,6 +757,7 @@ describe("authMiddleware", () => {
       organizationId: null,
       role: "user",
       authenticationMethod: "oauth",
+      oauthClientId: "client_123",
     });
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(verifyApiKeyMock).toHaveBeenCalledWith({
@@ -1243,6 +1244,7 @@ describe("authMiddleware", () => {
         organizationId: null,
         role: "user",
         authenticationMethod: "oauth",
+        oauthClientId: "client_first_party",
         firstPartyClient: true,
       });
     });

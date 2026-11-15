@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import {
   CHAT_CATCH_UP_PATH,
+  CHAT_DECISIONS_PATH,
   CHAT_SAVED_PATH,
 } from "@/app/chat/utils/chat-route-base";
 import {
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { id: "overview", href: CHAT_CATCH_UP_PATH },
   { id: "threads", href: `${CHAT_CATCH_UP_PATH}/threads` },
+  { id: "decisions", href: CHAT_DECISIONS_PATH },
   { id: "saved", href: CHAT_SAVED_PATH },
 ] as const;
 

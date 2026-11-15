@@ -105,6 +105,10 @@ const baseEnvSchema = z.object({
         .filter(Boolean),
     ),
 
+  // CMO's OAuth client id: only its tokens may write through `/v1/cmo/**`
+  // (ADR 0066). Unset refuses every such write.
+  CMO_OAUTH_CLIENT_ID: z.string().trim().min(1).optional(),
+
   // Project newsletters use a separate sending domain from transactional email.
   NEWSLETTER_FROM_DOMAIN: z.hostname().optional(),
   RESEND_NEWSLETTER_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -148,8 +152,14 @@ const baseEnvSchema = z.object({
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
   OPENROUTER_CHAT_API_KEY: z.string().startsWith("sk-or-").optional(),
 
-  // Project memory (Vercel AI Gateway, Mistral EU provider only)
+  // Vercel AI Gateway (project memory runs on the Mistral EU provider only)
   AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+  // Optional per-purpose keys that split Gateway spend; each falls back to
+  // AI_GATEWAY_API_KEY. See src/lib/ai-gateway-purpose.ts.
+  SOKO_BOT_AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+  CMO_AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+  PROJECT_MEMORY_AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+  EVALS_AI_GATEWAY_API_KEY: z.string().min(1).optional(),
   /** Exa search for Cuso's research (search_exa); without it the tool refuses. */
   EXA_API_KEY: z.string().min(1).optional(),
   /**

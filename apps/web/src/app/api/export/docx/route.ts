@@ -246,6 +246,8 @@ export async function POST(request: NextRequest) {
               {
                 plugins: [
                   tablePlugin(),
+                  // imagePlugin parses SVG with the DOM from setupDomContext. It never
+                  // loads the optional @xmldom/xmldom peer, so the lockfile omits it.
                   imagePlugin({
                     cacheConfig: { cacheMode: "memory", cache: {} },
                   }),

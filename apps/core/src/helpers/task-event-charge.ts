@@ -62,11 +62,13 @@ export async function applyGuardedTaskStatusUpdate(params: {
 /**
  * Charges a Task to its Owner (ADR 0057): their balance in the Task's
  * Organization, or their personal credits. `userId` null is work without an
- * Owner, charged to the Organization pool with no member.
+ * Owner, charged to the Organization pool with no member. The Task's Project
+ * credits are spent first (ADR 0067).
  */
 export async function chargeTaskCreditsOrMarkOutOfCredits(params: {
   userId: string | null;
   organizationId: string | null;
+  projectId: string | null;
   cents: bigint;
   currentStatus: TaskStatus;
   tx: Prisma.TransactionClient;
@@ -79,6 +81,7 @@ export async function chargeTaskCreditsOrMarkOutOfCredits(params: {
     const transactionId = await createTaskEventTransaction({
       userId: params.userId,
       organizationId: params.organizationId,
+      projectId: params.projectId,
       cents: params.cents,
       tx: params.tx,
     });

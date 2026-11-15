@@ -100,13 +100,17 @@ export function SkillsSection({
   }
 
   function remove(skill: SokoBotInstalledSkill) {
+    const index = installed.findIndex((s) => s.id === skill.id);
+    setInstalled((current) => current.filter((s) => s.id !== skill.id));
     startTransition(async () => {
-      const result = await removeSokoBotSkillAction({ skillId: skill.id });
-      if (!result.ok) {
-        toast.error(result.error.message ?? t("removeError"));
-        return;
-      }
-      setInstalled((current) => current.filter((s) => s.id !== skill.id));
+      // A rejected call is a failed write too: the skill must not stay off
+      // the list when Core never removed it.
+      const result = await removeSokoBotSkillAction({
+        skillId: skill.id,
+      }).catch(() => null);
+      if (result?.ok) return;
+      setInstalled((current) => current.toSpliced(index, 0, skill));
+      toast.error(result?.error.message ?? t("removeError"));
     });
   }
 

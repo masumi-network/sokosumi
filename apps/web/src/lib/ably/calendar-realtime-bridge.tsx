@@ -13,6 +13,7 @@ import { useEffect, useRef } from "react";
 import { z } from "zod";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
+import { authorizeAbly } from "./authorize.client";
 
 import {
   isExpectedAblyChannelLifecycleError,
@@ -207,7 +208,7 @@ function CalendarRealtimeSubscription({
 
       let tokenDetails: Ably.TokenDetails;
       try {
-        tokenDetails = await ably.auth.authorize();
+        tokenDetails = await authorizeAbly(ably);
       } catch (error) {
         if (!cancelled && !revoked && generation === syncGeneration) {
           retryTimeout = setTimeout(() => {

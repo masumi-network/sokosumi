@@ -132,6 +132,7 @@ export async function updateDataRoomSettings(input: {
   store: DataRoomCaller;
   roomId: string;
   title?: string | null;
+  welcomeNote?: string | null;
   logoFileId?: string | null;
   allowedDomains?: string[];
   expiresAt?: Date | null;
@@ -153,6 +154,9 @@ export async function updateDataRoomSettings(input: {
     data: {
       ...(input.title !== undefined
         ? { title: input.title?.trim() || null }
+        : {}),
+      ...(input.welcomeNote !== undefined
+        ? { welcomeNote: input.welcomeNote?.trim() || null }
         : {}),
       ...(input.logoFileId !== undefined
         ? { logoFileId: input.logoFileId }

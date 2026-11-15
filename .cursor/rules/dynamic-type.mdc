@@ -9,7 +9,7 @@ alwaysApply: false
 Sokosumi web opts into Apple Dynamic Type for whole-UI rem scaling.
 
 1. **Root size** may come from `-apple-system-body` on `html` (see `apps/web/src/app/globals.css`). Brand face stays **Inter** (`next/font`).
-2. **Cap is 1.25×** default (`DYNAMIC_TYPE_MAX_SCALE = 1.25`, max root **20px** when default is 16px). Implemented in `apps/web/src/lib/utils/dynamic-type.ts` + `DynamicTypeRootCap`. Do not raise the cap without product decision.
+2. **Cap is 1.25×** default (`DYNAMIC_TYPE_MAX_ROOT_PX = 20`, max root **20px** when default is 16px). Implemented in `apps/web/src/lib/utils/dynamic-type.ts` + `DynamicTypeRootCap`. Do not raise the cap without product decision.
 3. **No fixed `px` font sizes** in product UI, and no arbitrary `text-[…]` size in any unit. Use a scale step (`text-2xs` through `text-4xl`); they are rem, so they scale with root. `text-[0.625rem]` is as off-scale as `text-[10px]`: use `text-2xs`. Guard: `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
 4. **Viewport `maximumScale: 1`** via shared `APP_VIEWPORT_BASE` (`apps/web/src/lib/app-viewport.ts`), spread into root and chat Next.js `viewport` exports, so iOS Safari does not auto-zoom on input/composer focus. Pinch-to-zoom is disabled by product decision. Do not add a separate editable px floor for the same goal.
 5. Do **not** set `html`/`body` `font-size` to a fixed `px` that kills Dynamic Type, except the documented 20px cap path.

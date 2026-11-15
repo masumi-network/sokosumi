@@ -45,9 +45,11 @@ vi.mock("next-intl", () => ({
       (key: string, values?: { title?: string; name?: string }) =>
         key === "openLabel"
           ? `Open source: ${values?.title}`
-          : key === "downloadLabel"
-            ? `Download ${values?.name}`
-            : key,
+          : key === "openScheduleLabel"
+            ? `View ${values?.title} in schedules`
+            : key === "downloadLabel"
+              ? `Download ${values?.name}`
+              : key,
       { has: () => true },
     ),
   useFormatter: () => ({
@@ -95,6 +97,50 @@ describe("chat result cards", () => {
     expect(html).toContain("Europe/Prague");
     expect(html).toContain('href="/tasks/task"');
     expect(html).toContain("recorded");
+  });
+  it("names a bot follow-up's recurrence and zone in words, not cron", () => {
+    const followUp = {
+      ...task,
+      kind: "bot_schedule" as const,
+      title: "Freelance invoice reminder",
+      status: "ACTIVE",
+      question: null,
+      timezone: "America/Los_Angeles",
+      recurrence: "0 9 * * 1",
+    };
+    const html = renderToStaticMarkup(
+      <ResultPreviewCard result={followUp} onDecisionResolved={() => {}} />,
+    );
+    expect(html).toContain("option.weeklyWithWeekdayTime");
+    expect(html).toContain(" · Los Angeles");
+    expect(html).not.toContain("0 9 * * 1");
+    expect(html).not.toContain("· America/Los_Angeles");
+
+    // A shape the labels cannot name stays readable as the rule itself.
+    const custom = renderToStaticMarkup(
+      <ResultPreviewCard
+        result={{ ...followUp, recurrence: "*/15 9-17 * * 1-5" }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+    expect(custom).toContain("*/15 9-17 * * 1-5");
+    // The first Monday of each month must not read as every Monday.
+    const firstMonday = renderToStaticMarkup(
+      <ResultPreviewCard
+        result={{ ...followUp, recurrence: "0 10 * * 1#1" }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+    expect(firstMonday).toContain("0 10 * * 1#1");
+    expect(firstMonday).not.toContain("option.weekly");
+    // A Task schedule's cron leaves out its every-N-days step: kept as is.
+    const taskSchedule = renderToStaticMarkup(
+      <ResultPreviewCard
+        result={{ ...followUp, kind: "task_schedule" }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+    expect(taskSchedule).toContain("0 9 * * 1");
   });
   it("shows a hired Agent's Job as status, labelled input and a job link", () => {
     const html = renderToStaticMarkup(
@@ -190,7 +236,11 @@ describe("chat result cards", () => {
         />,
       );
       expect(html).toContain('data-testid="result-preview-source"');
-      expect(html).toContain('aria-label="Open source: Launch campaign"');
+      expect(html).toContain(
+        kind === "bot_schedule"
+          ? 'aria-label="View Launch campaign in schedules"'
+          : 'aria-label="Open source: Launch campaign"',
+      );
       expect(html).toContain("absolute inset-0");
       expect(html).toContain('aria-label="Download brief.docx"');
     },
@@ -298,6 +348,58 @@ describe("chat result cards", () => {
       expect(html).not.toContain('aria-label="Open source: Launch campaign"');
     },
   );
+  it("keeps the full social image and its platform notice in a chat result", () => {
+    const notice = "Instagram will pad this image to 4:5.";
+    render(
+      <ResultPreviewCard
+        result={{
+          ...task,
+          kind: "social_post",
+          status: "DRAFT",
+          summary: "Launch post",
+          social: {
+            provider: "instagram",
+            account: {
+              displayName: "Masumi",
+              handle: "masumi",
+              avatarUrl: null,
+            },
+            timestamp: null,
+          },
+          outputs: [
+            {
+              name: "tall.png",
+              contentType: "image/png",
+              sizeBytes: 100,
+              openHref: "/drive/files/image",
+              previewHref: "/api/drive/files/image/content",
+              transformation: {
+                provider: "instagram",
+                code: "pad_4_5",
+                notice,
+                original: {
+                  pathname: "drive/original.png",
+                  fileUrl: "https://example.com/original.png",
+                  name: "original.png",
+                  size: 100,
+                  mimeType: "image/png",
+                  kind: "image",
+                },
+              },
+            },
+          ],
+        }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+
+    const image = screen.getByRole("img", { name: "tall.png" });
+    expect(image).toHaveClass("object-contain");
+    expect(image).toHaveAttribute("src", "/api/drive/files/image/content");
+    expect(screen.getAllByText("mediaNotice.pad_4_5")).toHaveLength(1);
+    expect(screen.queryByText(notice)).not.toBeInTheDocument();
+  });
+
   it("shows now on a draft social card with no publish time", () => {
     const html = renderToStaticMarkup(
       <ResultPreviewCard
@@ -782,7 +884,7 @@ describe("bot card links for a shared bot", () => {
     );
   });
 
-  it("links a schedule card in a shared bot's room to its console", async () => {
+  it("links a schedule card to its row on the bot's page, shared bot included", async () => {
     const { SokoBotTargetContext } = await import(
       "@/app/personal-assistant/components/soko-bot-target"
     );
@@ -790,14 +892,18 @@ describe("bot card links for a shared bot", () => {
       ...task,
       id: "schedule",
       kind: "bot_schedule",
-      sourceHref: "/personal-assistant",
+      title: "Monday invoices",
+      sourceHref: "/personal-assistant?schedule=s1",
     };
     const html = renderToStaticMarkup(
       <SokoBotTargetContext.Provider value="bot-1">
         <ResultPreviewCard result={schedule} onDecisionResolved={() => {}} />
       </SokoBotTargetContext.Provider>,
     );
-    expect(html).toContain('href="/soko-bots/bot-1"');
+    expect(html).toContain('href="/soko-bots/bot-1?schedule=s1"');
+    expect(html).toContain('aria-label="View Monday invoices in schedules"');
+    expect(html).toContain("openSchedule");
+    expect(html).not.toContain(">open<");
   });
 });
 

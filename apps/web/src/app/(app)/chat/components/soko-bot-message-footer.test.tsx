@@ -1,8 +1,13 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { sendFeedbackMock } = vi.hoisted(() => ({
+const { sendFeedbackMock, toastErrorMock } = vi.hoisted(() => ({
   sendFeedbackMock: vi.fn(),
+  toastErrorMock: vi.fn(),
+}));
+
+vi.mock("sonner", () => ({
+  toast: { error: toastErrorMock },
 }));
 
 vi.mock("next-intl", () => ({
@@ -118,6 +123,10 @@ describe("canRateSokoBotMessage", () => {
 });
 
 describe("SokoBotFeedbackButtons", () => {
+  beforeEach(() => {
+    toastErrorMock.mockClear();
+  });
+
   it("shows no thumbs on a shared bot's message", () => {
     render(
       <SokoBotFeedbackButtons
@@ -145,12 +154,14 @@ describe("SokoBotFeedbackButtons", () => {
         buttonClassName=""
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "feedbackUseful" }));
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "feedbackUseful" }),
-      ).toHaveAttribute("aria-pressed", "true"),
-    );
+    // The thumb fills on the click, so wait for the answer before looking.
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "feedbackUseful" }));
+    });
+    expect(
+      screen.getByRole("button", { name: "feedbackUseful" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(toastErrorMock).not.toHaveBeenCalled();
     expect(sendFeedbackMock).toHaveBeenCalledWith({
       turnId: "turn-1",
       useful: true,
@@ -159,6 +170,51 @@ describe("SokoBotFeedbackButtons", () => {
       screen.getByRole("button", { name: "feedbackNotUseful" }),
     ).toBeDisabled();
   });
+
+  it.each([
+    ["Core refuses it", () => ({ ok: false, error: {} })],
+    [
+      "the call fails",
+      () => {
+        throw new Error("network down");
+      },
+    ],
+  ])(
+    "fills the thumb before Core answers and clears it when %s",
+    async (_case, outcome) => {
+      let settle: () => void = () => {};
+      sendFeedbackMock.mockReturnValueOnce(
+        new Promise((resolve, reject) => {
+          settle = () => {
+            try {
+              resolve(outcome());
+            } catch (error) {
+              reject(error);
+            }
+          };
+        }),
+      );
+      render(
+        <SokoBotFeedbackButtons
+          message={{
+            metadata: meta({}),
+            sender: botSender("personal", "user-1"),
+          }}
+          buttonClassName=""
+        />,
+      );
+      const useful = () =>
+        screen.getByRole("button", { name: "feedbackUseful" });
+
+      fireEvent.click(useful());
+      expect(useful()).toHaveAttribute("aria-pressed", "true");
+
+      await act(async () => settle());
+      expect(useful()).toHaveAttribute("aria-pressed", "false");
+      expect(useful()).toBeEnabled();
+      expect(toastErrorMock).toHaveBeenCalledWith("feedbackError");
+    },
+  );
 });
 
 describe("SokoBotMessageFooter task previews", () => {

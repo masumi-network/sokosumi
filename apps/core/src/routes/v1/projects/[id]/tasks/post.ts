@@ -19,6 +19,7 @@ import {
   mapProjectForApi,
   projectSchema,
 } from "@/schemas/project.schema";
+import { isCmoProject } from "@/services/cmo-cuso.service";
 
 const paramsSchema = z.object({
   id: z
@@ -132,6 +133,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await deliverCalendarInvalidationsNow(workspaceId);
     }
 
-    return ok(c, mapProjectForApi(project));
+    return ok(
+      c,
+      mapProjectForApi(project, { cmo: await isCmoProject(project.id) }),
+    );
   });
 }

@@ -14,13 +14,24 @@ vi.mock("next-intl/server", () => ({
 vi.mock("@/lib/services/task.service", () => ({
   taskService: { listTasks: (...args: unknown[]) => listTasks(...args) },
 }));
+vi.mock("./move-overdue-menu.client", () => ({
+  MoveOverdueMenu: ({ today, count }: { today: string; count: number }) => (
+    <pre data-testid="move">{JSON.stringify({ today, count })}</pre>
+  ),
+}));
 vi.mock("./my-day-list.client", () => ({
   MyDayList: ({ today, initial }: { today: string; initial: unknown }) => (
     <pre data-testid="list">{JSON.stringify({ today, initial })}</pre>
   ),
 }));
 
-import { loadMyDay, MY_DAY_LIMIT, MyDay, type MyDayPage } from "./my-day";
+import {
+  countOverdue,
+  loadMyDay,
+  MY_DAY_LIMIT,
+  MyDay,
+  type MyDayPage,
+} from "./my-day";
 
 function task(
   id: string,
@@ -101,12 +112,48 @@ describe("loadMyDay", () => {
   });
 });
 
+describe("countOverdue", () => {
+  afterEach(() => vi.clearAllMocks());
+
+  it("counts open Tasks due before today, capped at one move", async () => {
+    listTasks.mockResolvedValue({
+      tasks: [task("a", "2026-11-01")],
+      pagination: { total: 250, nextCursor: "a" },
+    });
+
+    // Core moves at most 100 at once.
+    await expect(countOverdue("2026-11-10")).resolves.toBe(100);
+    const query = listTasks.mock.calls[0]?.[0];
+    expect(query).toMatchObject({
+      scope: "mine",
+      dueOnTo: "2026-11-09",
+      limit: 1,
+    });
+    expect(query.status).not.toContain("COMPLETED");
+    expect(query.status).not.toContain("CANCELED");
+    expect(query.status).not.toContain("GRANT_PENDING");
+  });
+
+  it("hides the move when Core fails", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    listTasks.mockRejectedValue(new Error("down"));
+    await expect(countOverdue("2026-11-10")).resolves.toBe(0);
+  });
+});
+
 describe("MyDay", () => {
   afterEach(() => cleanup());
 
-  async function renderMyDay(feed: MyDayPage | null): Promise<HTMLElement> {
+  async function renderMyDay(
+    feed: MyDayPage | null,
+    overdue = 0,
+  ): Promise<HTMLElement> {
     const { container } = render(
-      await MyDay({ feed: Promise.resolve(feed), today: "2026-11-10" }),
+      await MyDay({
+        feed: Promise.resolve(feed),
+        overdue: Promise.resolve(overdue),
+        today: "2026-11-10",
+      }),
     );
     return container;
   }
@@ -131,6 +178,31 @@ describe("MyDay", () => {
     expect(JSON.parse(screen.getByTestId("list").textContent ?? "")).toEqual({
       today: "2026-11-10",
       initial: page,
+    });
+  });
+
+  it("offers Move overdue only when something is overdue", async () => {
+    const page: MyDayPage = {
+      rows: [
+        {
+          id: "a",
+          name: "Task a",
+          status: "READY",
+          dueOn: "2026-11-10",
+          href: "/tasks/a",
+        },
+      ],
+      total: 1,
+      nextCursor: null,
+    };
+    await renderMyDay(page);
+    expect(screen.queryByTestId("move")).toBeNull();
+    cleanup();
+
+    await renderMyDay(page, 3);
+    expect(JSON.parse(screen.getByTestId("move").textContent ?? "")).toEqual({
+      today: "2026-11-10",
+      count: 3,
     });
   });
 

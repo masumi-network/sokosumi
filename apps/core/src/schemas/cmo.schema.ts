@@ -129,6 +129,14 @@ export const cmoProjectParamsSchema = z.object({
     }),
 });
 
+/** A version of the plan of the Cuso a CMO route acts on. */
+export const cmoStrategyParamsSchema = cmoProjectParamsSchema.extend({
+  strategyId: z
+    .string()
+    .uuid()
+    .openapi({ param: { name: "strategyId", in: "path" } }),
+});
+
 export const cmoUpdateIdParamsSchema = z.object({
   id: z.string().min(1).max(64),
 });

@@ -62,6 +62,18 @@ describe("computeScheduleTitleInfo", () => {
     });
   });
 
+  it("names each weekday of a multi-day rule instead of its cron tokens", () => {
+    const info = computeScheduleTitleInfo(
+      { cron: "0 9 * * MON,TUE", timezone: "UTC" },
+      formatter,
+    );
+
+    expect(info).toEqual({
+      key: "weeklyListWithTime",
+      values: { weekdays: "Monday, Tuesday", time: expect.any(String) },
+    });
+  });
+
   it("names the day step of an every-N-days rule, which the cron does not carry", () => {
     const info = computeScheduleTitleInfo(
       {

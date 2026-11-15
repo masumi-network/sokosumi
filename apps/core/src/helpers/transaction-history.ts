@@ -278,11 +278,20 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
     -- exactly one of them. project_image_job.refundTransactionId is legacy
     -- (studio no longer writes refunds); keep the join so old rows still name
     -- and link.
-    LEFT JOIN "Job" AS rj ON rj."refundedTransactionId" = t."id"
+    --
+    -- A split refund (ADR 0067) links one part; every other part's bucket
+    -- carries the linked part's referenceId plus '#<scope>', so it resolves to
+    -- the linked refund and names the same record.
+    LEFT JOIN "credit_bucket" AS linkedrefund
+      ON topup."referenceType" = 'REFUND'
+      AND POSITION('#' IN topup."referenceId") > 0
+      AND linkedrefund."referenceType" = 'REFUND'
+      AND linkedrefund."referenceId" = SPLIT_PART(topup."referenceId", '#', 1)
+    LEFT JOIN "Job" AS rj ON rj."refundedTransactionId" = COALESCE(linkedrefund."sourceTransactionId", t."id")
     LEFT JOIN "jobPurchase" AS rjp ON rjp."jobId" = rj."id"
-    LEFT JOIN "task_payment_claim" AS rpc ON rpc."refundTransactionId" = t."id"
+    LEFT JOIN "task_payment_claim" AS rpc ON rpc."refundTransactionId" = COALESCE(linkedrefund."sourceTransactionId", t."id")
     LEFT JOIN "taskEvent" AS rpce ON rpce."id" = rpc."taskEventId"
-    LEFT JOIN "task_x402_payment" AS rx ON rx."refundTransactionId" = t."id"
+    LEFT JOIN "task_x402_payment" AS rx ON rx."refundTransactionId" = COALESCE(linkedrefund."sourceTransactionId", t."id")
     LEFT JOIN "task" AS rtk ON rtk."id" = COALESCE(rpce."taskId", rx."taskId")
     LEFT JOIN "project_image_job" AS rpij ON rpij."refundTransactionId" = t."id"
     WHERE ${buildScopeSql(params)}

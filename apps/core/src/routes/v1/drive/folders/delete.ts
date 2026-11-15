@@ -17,6 +17,7 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { deleteDriveFolderRequestSchema } from "@/schemas/drive-file.schema";
+import { requireNotCmoDriveFile } from "@/services/cmo-cuso.service";
 import { deleteDataRoomsUnder } from "@/services/data-room-paths.service";
 import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 
@@ -48,6 +49,7 @@ const route = withCoworkerContextHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict"),
       422: jsonErrorResponse("Unprocessable Entity"),
       503: jsonErrorResponse("Service Unavailable"),
     },
@@ -106,6 +108,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       scope: body.scope,
       organizationId: body.scope === "org" ? body.organizationId : undefined,
     });
+    if (scope === "organization") {
+      await requireNotCmoDriveFile(workspace.workspaceId, {
+        startsWith: prefix,
+      });
+    }
 
     try {
       // Never twice: a listing that still shows something already deleted

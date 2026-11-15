@@ -10,7 +10,7 @@ export const CHAT_UI_REASONING_PART_TYPE_VALUES = [
   "reasoning",
 ] as const satisfies readonly string[];
 
-export const CHAT_UI_REASONING_PART_TYPES = new Set<string>(
+const CHAT_UI_REASONING_PART_TYPES = new Set<string>(
   CHAT_UI_REASONING_PART_TYPE_VALUES,
 );
 

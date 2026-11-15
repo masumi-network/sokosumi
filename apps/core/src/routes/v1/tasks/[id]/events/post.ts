@@ -83,6 +83,7 @@ interface SettleTaskEventChargeParams {
   task: {
     ownerId: string | null;
     organizationId: string | null;
+    projectId: string | null;
     status: TaskStatus;
   };
   credits?: number | null;
@@ -161,6 +162,7 @@ async function settleTaskEventCharge({
     const charge = await chargeTaskCreditsOrMarkOutOfCredits({
       userId: task.ownerId,
       organizationId: task.organizationId,
+      projectId: task.projectId,
       cents,
       currentStatus: task.status,
       tx,
@@ -191,6 +193,7 @@ async function settleTaskEventCharge({
     const charge = await chargeTaskCreditsOrMarkOutOfCredits({
       userId: task.ownerId,
       organizationId: task.organizationId,
+      projectId: task.projectId,
       cents,
       currentStatus: task.status,
       tx,

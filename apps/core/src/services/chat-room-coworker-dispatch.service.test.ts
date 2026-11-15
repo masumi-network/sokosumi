@@ -346,7 +346,7 @@ describe("dispatchChatRoomMention claim", () => {
 
     expect(updateManyMock).toHaveBeenCalledWith({
       where: { id: MENTION_ID, status: "pending" },
-      data: { status: "sent", error: null },
+      data: { status: "sent", error: null, updatedAt: expect.any(Date) },
     });
     expect(updateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -506,7 +506,7 @@ describe("dispatchChatRoomMention claim", () => {
 
     expect(updateManyMock).toHaveBeenNthCalledWith(1, {
       where: { id: MENTION_ID, status: "pending" },
-      data: { status: "sent", error: null },
+      data: { status: "sent", error: null, updatedAt: expect.any(Date) },
     });
     expect(updateManyMock).toHaveBeenNthCalledWith(
       2,
@@ -515,7 +515,7 @@ describe("dispatchChatRoomMention claim", () => {
           id: MENTION_ID,
           status: "sent",
         }),
-        data: { status: "sent", error: null },
+        data: { status: "sent", error: null, updatedAt: expect.any(Date) },
       }),
     );
     expect(streamTextMock).toHaveBeenCalled();

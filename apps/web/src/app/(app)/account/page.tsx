@@ -36,13 +36,36 @@ async function AccountPageContent() {
   // not soft-reject dynamic APIs while filling this Suspense hole.
   await connection();
 
-  const t = await getTranslations("App.Account.LinkedAccounts");
-  const tBilling = await getTranslations("App.Account.BillingDetails");
-  const tDelete = await getTranslations("App.Account.Delete");
-  const [accountsResult, session, cookieStore] = await Promise.all([
+  // No read here needs another's answer, so all of them start together. The
+  // two that may fail on their own keep their error for the section they feed.
+  const [
+    t,
+    tBilling,
+    tDelete,
+    accountsResult,
+    session,
+    cookieStore,
+    billingRead,
+    workspaceAccess,
+    members,
+    deletionRead,
+  ] = await Promise.all([
+    getTranslations("App.Account.LinkedAccounts"),
+    getTranslations("App.Account.BillingDetails"),
+    getTranslations("App.Account.Delete"),
     listUserAccounts(),
     getSession(),
     cookies(),
+    coreClient.getMyBillingDetails().then(
+      (response) => ({ data: response.data }),
+      (error: unknown) => ({ error }),
+    ),
+    userService.getWorkspaceAccess(),
+    userService.getMyMembersWithOrganizations(),
+    coreClient.getMyDeletion().then(
+      (response) => ({ data: response.data }),
+      (error: unknown) => ({ error }),
+    ),
   ]);
   const initialTimeFormat =
     parseTimeFormat(cookieStore.get(TIME_FORMAT_COOKIE_NAME)?.value) ??
@@ -51,11 +74,10 @@ async function AccountPageContent() {
   let billingDetails: StripeCustomerBillingDetails | undefined;
   let billingDetailsLoadError: ReactNode | undefined;
 
-  try {
-    const billingDetailsResponse = await coreClient.getMyBillingDetails();
-    billingDetails = billingDetailsResponse.data;
-  } catch (error) {
-    console.error("Failed to load billing details", error);
+  if ("data" in billingRead) {
+    billingDetails = billingRead.data;
+  } else {
+    console.error("Failed to load billing details", billingRead.error);
     billingDetailsLoadError = (
       <CoreAuthReadRetry
         description={tBilling("loadError")}
@@ -70,19 +92,17 @@ async function AccountPageContent() {
     userMetadata,
     designMdService.getDesignMdPreviewUrl,
   );
-  const [workspaceAccess, members] = await Promise.all([
-    userService.getWorkspaceAccess(),
-    userService.getMyMembersWithOrganizations(),
-  ]);
 
   let deletionBlockers: UserDeletionEvaluation["blockers"] = [];
   let deletionPreflightFailed = false;
   let deletionPreflightLoadError: ReactNode | undefined;
-  try {
-    const deletionResponse = await coreClient.getMyDeletion();
-    deletionBlockers = deletionResponse.data.blockers;
-  } catch (error) {
-    console.error("Failed to load account deletion blockers", error);
+  if ("data" in deletionRead) {
+    deletionBlockers = deletionRead.data.blockers;
+  } else {
+    console.error(
+      "Failed to load account deletion blockers",
+      deletionRead.error,
+    );
     deletionPreflightFailed = true;
     deletionPreflightLoadError = (
       <CoreAuthReadRetry

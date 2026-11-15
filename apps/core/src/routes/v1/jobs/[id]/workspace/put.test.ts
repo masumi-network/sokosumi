@@ -79,6 +79,7 @@ interface CurrentJobRecord {
   ownerId: string;
   organizationId: string | null;
   taskId: string | null;
+  projectId?: string;
   workspaceId: string;
   workspace: {
     organizationId: string | null;
@@ -91,6 +92,7 @@ interface TransactionMock {
     findUnique: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
+  sokoBot?: { findFirst: ReturnType<typeof vi.fn> };
   task?: {
     findFirst: ReturnType<typeof vi.fn>;
   };
@@ -267,6 +269,41 @@ describe("PUT /jobs/{id}/workspace", () => {
         update: jobUpdateMock,
       },
     });
+  });
+
+  it("refuses to move a job out of its CMO Project", async () => {
+    const projectId = "aaaaaaaa-aaaa-4aaa-8aaa-0000000000c0";
+    const job = createCurrentJobRecord({ projectId });
+    jobFindFirstMock.mockResolvedValue(job);
+    const findFirst = vi.fn().mockResolvedValue({ id: "cuso" });
+    mockTransaction({
+      job: {
+        findFirst: jobFindFirstMock,
+        findUnique: jobFindUniqueMock,
+        update: jobUpdateMock,
+      },
+      sokoBot: { findFirst },
+    });
+
+    const response = await createApp().request("/job_123/workspace", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ organizationId: "org_target" }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      kind: "cmo_project_read_only",
+    });
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          projectId,
+          project: { workspaceId: job.workspaceId },
+        }),
+      }),
+    );
+    expect(jobUpdateMock).not.toHaveBeenCalled();
   });
 
   it("moves a standalone job by updating placement only", async () => {

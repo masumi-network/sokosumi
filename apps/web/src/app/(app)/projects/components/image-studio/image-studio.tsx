@@ -11,9 +11,9 @@ import type {
 import { CORE_API_ERROR_KINDS, productBrief } from "@sokosumi/utils";
 import {
   AlertTriangle,
+  ChevronDown,
   Columns2,
   Download,
-  MessageSquare,
   X,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -78,11 +78,13 @@ import {
 import { StudioComposer } from "./studio-composer";
 import { StudioCreativeStart } from "./studio-creative-start";
 import { StudioFailedSubmission } from "./studio-failed-submission";
+import { getDistinctProviderError } from "./studio-failure-notice";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
+import { StudioProjectToolbar } from "./studio-project-toolbar";
 import { StudioTemplateCanvas } from "./studio-template-canvas";
-import type { StudioBrief } from "./studio-templates";
+import { type StudioBrief, unfilledTemplateSlots } from "./studio-templates";
 import {
   StudioModeSwitch,
   StudioVideoComposer,
@@ -90,6 +92,10 @@ import {
   videoDraftFor,
 } from "./studio-video-composer";
 import { StudioWebsiteTools } from "./studio-website-tools";
+import {
+  registerStudioWorkspaceBrief,
+  takeStudioBriefFor,
+} from "./studio-workspace-brief";
 import {
   creditsByAssetId,
   elapsedByAssetId,
@@ -156,7 +162,9 @@ export function ImageStudio({
   projectLogo: initialProjectLogo,
   studioLogoPosition: initialLogoPosition,
   projectScopePrompt,
+  recentProjects,
   websiteUrl,
+  readOnly = false,
 }: {
   /**
    * The model catalog, read once by the page.
@@ -178,7 +186,17 @@ export function ImageStudio({
   projectLogo?: string | null;
   studioLogoPosition?: StudioLogoPosition | null;
   projectScopePrompt?: React.ReactNode;
+  /**
+   * All projects in a workspace that already has Studio images: shown in
+   * place of the first-ad hero and its sample-ad backdrop.
+   */
+  recentProjects?: React.ReactNode;
   websiteUrl?: string | null;
+  /**
+   * A CMO Project: CMO makes its images, so the studio shows them without a
+   * composer, brand tools or draw actions (ADR 0066).
+   */
+  readOnly?: boolean;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
@@ -211,6 +229,17 @@ export function ImageStudio({
   const assistantTriggerRef = useRef<HTMLButtonElement>(null);
   const assistantCloseRef = useRef<HTMLButtonElement>(null);
   const [prompt, setPrompt] = useState("");
+  const latestPrompt = useRef(prompt);
+  latestPrompt.current = prompt;
+  // Picking or creating a project here remounts the studio. A brief typed in
+  // the All-projects view moves to that project instead of vanishing.
+  useMountEffect(() => {
+    const brief = takeStudioBriefFor(projectId);
+    if (brief) setPrompt(brief);
+    return projectId === null
+      ? registerStudioWorkspaceBrief(() => latestPrompt.current)
+      : undefined;
+  });
   const [draftProduct, setDraftProduct] = useState<StudioProductIdentity>();
   const productDetailsRef = useRef<string | null>(null);
   const [batchProducts, setBatchProducts] = useState<StudioBatchProduct[]>([]);
@@ -631,6 +660,7 @@ export function ImageStudio({
       !supportsVariation(catalog, source.model)
     )
       return;
+    if (refuseUnfilledSlots([source.prompt], source)) return;
     const id = crypto.randomUUID();
     const job = from === "job" ? (source as StudioJob) : null;
     const inheritsCutout = job?.useProductCutout && job.parentAssetId !== null;
@@ -751,8 +781,29 @@ export function ImageStudio({
     requestAnimationFrame(() => promptRef.current?.focus());
   }
 
+  /**
+   * Templates leave slots such as "[product]" to fill in. Sent as they are,
+   * the model draws the brackets and the images are still charged, so a paid
+   * request whose brief still holds one stops here. A saved brief being
+   * repeated goes back into the composer to be finished.
+   */
+  function refuseUnfilledSlots(
+    prompts: string[],
+    saved?: StudioAsset | StudioJob,
+  ) {
+    const slots = unfilledTemplateSlots(prompts.join("\n"));
+    if (!slots.length) return false;
+    if (saved) {
+      setViewing(null);
+      reusePrompt(saved);
+    }
+    setActionError(t("templateSlotsUnfilled", { slots: slots.join(", ") }));
+    promptRef.current?.focus();
+    return true;
+  }
+
   /** Put an image's brief and frame back in the composer, ready to edit. */
-  function reusePrompt(asset: StudioAsset) {
+  function reusePrompt(asset: StudioAsset | StudioJob) {
     setBatchProducts([]);
     setDraftProduct(asset.product);
     setHasNewerSettings(true);
@@ -781,6 +832,7 @@ export function ImageStudio({
       setActionError(t("referencesAcrossProjects"));
       return;
     }
+    if (refuseUnfilledSlots(requests.map((request) => request.prompt))) return;
     if (generationProjectId) {
       const headlines = requests.flatMap(({ exportHeadline }) =>
         exportHeadline ? [exportHeadline] : [],
@@ -812,6 +864,7 @@ export function ImageStudio({
     openProjectScope({
       required: true,
       reason: t("pickForGeneration"),
+      excludeCmo: true,
       onSelect: (picked) => {
         setPickedProjectId(picked);
         sendTo(picked, requests);
@@ -919,6 +972,7 @@ export function ImageStudio({
     const projectForVideo = videoSource?.projectId ?? activeProjectId;
     if (!projectForVideo || !activeVideoDraft) return;
     const brief = prompt.trim();
+    if (refuseUnfilledSlots([brief])) return;
     // One key per press, reused if the same press is retried.
     const idempotencyKey = `ui:${crypto.randomUUID()}`;
     setActionError(null);
@@ -1127,16 +1181,19 @@ export function ImageStudio({
           "relative isolate overflow-y-auto max-md:overflow-y-auto",
       )}
     >
-      {showsNothing ? (
+      {showsNothing && !readOnly && !recentProjects ? (
         <StudioTemplateCanvas labels={labels} onApplyTemplate={applyTemplate} />
       ) : null}
       {problem ? <Notice closeLabel={labels.close}>{problem}</Notice> : null}
-      {activeProjectId ? (
-        <div
-          className={cn(
-            "flex flex-wrap justify-end gap-2 pt-2",
-            STUDIO_COMPOSER_GUTTER_CLASS,
-          )}
+      {activeProjectId && !readOnly ? (
+        <StudioProjectToolbar
+          assistantControls={assistant ? "studio-assistant-panel" : undefined}
+          assistantOpen={assistantOpen}
+          assistantTriggerRef={assistantTriggerRef}
+          onAssistantToggle={() => {
+            if (assistantOpen) closeAssistant();
+            else openAssistant(assistant?.asset ?? null);
+          }}
         >
           <StudioWebsiteTools
             key={activeProjectId}
@@ -1149,22 +1206,7 @@ export function ImageStudio({
             projectId={activeProjectId}
             websiteUrl={websiteUrl}
           />
-          <Button
-            aria-controls={assistant ? "studio-assistant-panel" : undefined}
-            aria-expanded={assistantOpen}
-            onClick={() => {
-              if (assistantOpen) closeAssistant();
-              else openAssistant(assistant?.asset ?? null);
-            }}
-            ref={assistantTriggerRef}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <MessageSquare aria-hidden />
-            {t("Assistant.title")}
-          </Button>
-        </div>
+        </StudioProjectToolbar>
       ) : null}
 
       <div
@@ -1194,18 +1236,24 @@ export function ImageStudio({
 
           {showsNothing ? (
             <div className="space-y-2 px-4 pt-8 text-center">
-              <h2 className="text-foreground text-3xl font-semibold text-balance">
-                {labels.emptyTitle}
-              </h2>
-              <p className="text-muted-foreground text-sm text-pretty">
-                {labels.emptyBody}
-              </p>
+              {recentProjects ?? (
+                <>
+                  <h2 className="text-foreground text-3xl font-semibold text-balance">
+                    {labels.emptyTitle}
+                  </h2>
+                  <p className="text-muted-foreground text-sm text-pretty">
+                    {labels.emptyBody}
+                  </p>
+                </>
+              )}
               <div className="pointer-events-auto inline-flex flex-wrap items-center justify-center gap-2">
                 {projectScopePrompt}
-                <StudioCreativeStart
-                  onApplyBrief={applyTemplate}
-                  onFocusPrompt={() => promptRef.current?.focus()}
-                />
+                {readOnly ? null : (
+                  <StudioCreativeStart
+                    onApplyBrief={applyTemplate}
+                    onFocusPrompt={() => promptRef.current?.focus()}
+                  />
+                )}
               </div>
             </div>
           ) : (
@@ -1215,14 +1263,18 @@ export function ImageStudio({
               cancelRequestedJobIds={cancelRequestedJobIds}
               catalog={catalog}
               labels={labels}
-              onCancelJob={handleCancelJob}
+              onCancelJob={readOnly ? undefined : handleCancelJob}
               onOpen={(assetId) => {
                 selectAsset(assetId);
                 setViewing({ mode: "single" });
               }}
-              onReroll={(asset) => repeat(asset, "asset", true)}
-              onReusePrompt={reusePrompt}
-              onVariation={(asset) => repeat(asset, "asset")}
+              onReroll={
+                readOnly ? undefined : (asset) => repeat(asset, "asset", true)
+              }
+              onReusePrompt={readOnly ? undefined : reusePrompt}
+              onVariation={
+                readOnly ? undefined : (asset) => repeat(asset, "asset")
+              }
               onToggleSelect={(assetId) => {
                 setTemplateUndo(null);
                 setParentAssetId(undefined);
@@ -1393,7 +1445,7 @@ export function ImageStudio({
           )}
           ref={dock.dockRef}
         >
-          {composer}
+          {readOnly ? null : composer}
         </div>
       </div>
 
@@ -1411,37 +1463,47 @@ export function ImageStudio({
               : undefined
           }
           onAnimate={
-            videoModelsFor(catalog, "image").length > 0 ? animate : undefined
+            !readOnly && videoModelsFor(catalog, "image").length > 0
+              ? animate
+              : undefined
           }
           onClose={() => setViewing(null)}
           onDownloadBatch={handleDownloadBatch}
           downloadingBatch={downloadingAds}
           headlineForAsset={headlineForAsset}
           savingHeadline={savingHeadline}
-          onHeadlineChange={changeHeadline}
-          onEditWithAssistant={activeProjectId ? openAssistant : undefined}
+          onHeadlineChange={readOnly ? undefined : changeHeadline}
+          onEditWithAssistant={
+            activeProjectId && !readOnly ? openAssistant : undefined
+          }
           editWithAssistantLabel={t("Assistant.edit")}
-          onRegenerate={(asset) => repeat(asset, "asset")}
-          onSchedule={scheduleAsset}
+          onRegenerate={
+            readOnly ? undefined : (asset) => repeat(asset, "asset")
+          }
+          onSchedule={readOnly ? undefined : scheduleAsset}
           onSelect={selectAsset}
-          onUseAsReference={(asset) => {
-            setBatchProducts([]);
-            setDraftProduct(asset.product);
-            setParentAssetId(undefined);
-            setHasNewerSettings(true);
-            setTemplateUndo(null);
-            setCheckedIds([asset.id]);
-            setPrompt("");
-            setTarget((current) => ({
-              ...current,
-              creativeDirection: undefined,
-              placementRatios: undefined,
-              settings: { ...settingsOf(asset), seed: null },
-            }));
-            setViewing(null);
-            requestAnimationFrame(() => promptRef.current?.focus());
-          }}
-          onWriteCaption={writeCaption}
+          onUseAsReference={
+            readOnly
+              ? undefined
+              : (asset) => {
+                  setBatchProducts([]);
+                  setDraftProduct(asset.product);
+                  setParentAssetId(undefined);
+                  setHasNewerSettings(true);
+                  setTemplateUndo(null);
+                  setCheckedIds([asset.id]);
+                  setPrompt("");
+                  setTarget((current) => ({
+                    ...current,
+                    creativeDirection: undefined,
+                    placementRatios: undefined,
+                    settings: { ...settingsOf(asset), seed: null },
+                  }));
+                  setViewing(null);
+                  requestAnimationFrame(() => promptRef.current?.focus());
+                }
+          }
+          onWriteCaption={readOnly ? undefined : writeCaption}
           caption={
             lightboxAssets.length === 1
               ? captionByAssetId[lightboxAssets[0].id]?.text
@@ -1607,8 +1669,12 @@ function useSteadyDock(
  * A sentence chosen by stable code (never the provider's transport text), the
  * model that failed, that nothing was charged, and one retry. The provider's
  * own words stay one click away for whoever has to report it.
+ *
+ * The line itself is the disclosure: "{model} failed · not charged" opens to
+ * the reason and the provider's words, so the notice is one row beside Try
+ * again instead of a title, a paragraph, a toggle and a button row.
  */
-function FailedJob({
+export function FailedJob({
   catalog,
   job,
   labels,
@@ -1625,52 +1691,94 @@ function FailedJob({
 }) {
   const uncertain = job.retryMayDuplicateCharge;
   const model = resolveModel(catalog, job.model).label;
-  return (
-    <div
-      className="bg-card-background text-muted-foreground flex items-start gap-3 rounded-xl p-3 text-sm"
-      role="status"
+  const dismiss = (
+    <Button
+      aria-label={labels.close}
+      className="hit-area size-6"
+      onClick={onDismiss}
+      size="icon"
+      variant="ghost"
     >
-      <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />
-      <div className="min-w-0 flex-1 space-y-1">
-        <p className="text-foreground font-medium">
-          {uncertain ? labels.uncertainTitle : `${model}: ${labels.failed}`}
-        </p>
-        <p className="text-pretty">
-          {uncertain
-            ? labels.uncertainBody
-            : job.failureReason === null
-              ? labels.failedBodyUnreported
-              : labels.failedBody[job.failureReason]}{" "}
-          {uncertain ? null : labels.failedNoCharge}
-        </p>
-        {job.error ? (
-          <details>
-            <summary className="hover:text-foreground focus-visible:ring-ring w-fit cursor-pointer rounded text-xs outline-none select-none focus-visible:ring-2">
-              {labels.failedDetails}
-            </summary>
-            <p className="mt-1 font-mono text-xs break-words">{job.error}</p>
-          </details>
-        ) : null}
-        <div className="flex gap-2 pt-1">
-          {uncertain ? (
+      <X aria-hidden className="size-3.5" />
+    </Button>
+  );
+  if (uncertain) {
+    return (
+      <div
+        className="bg-card-background text-muted-foreground flex items-start gap-3 rounded-xl p-3 text-sm"
+        role="status"
+      >
+        <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-foreground font-medium">{labels.uncertainTitle}</p>
+          <p className="text-pretty">{labels.uncertainBody}</p>
+          {job.error ? (
+            <details>
+              <summary className="hover:text-foreground focus-visible:ring-ring w-fit cursor-pointer rounded text-xs outline-none select-none focus-visible:ring-2">
+                {labels.failedDetails}
+              </summary>
+              <p className="mt-1 font-mono text-xs break-words">{job.error}</p>
+            </details>
+          ) : null}
+          <div className="flex gap-2 pt-1">
             <Button onClick={onRefresh} size="sm" variant="secondary">
               {labels.checkAgain}
             </Button>
-          ) : null}
-          <Button onClick={onRetry} size="sm" variant="secondary">
-            {uncertain ? labels.submitAnyway : labels.tryAgain}
-          </Button>
+            <Button onClick={onRetry} size="sm" variant="secondary">
+              {labels.submitAnyway}
+            </Button>
+          </div>
         </div>
+        {dismiss}
       </div>
+    );
+  }
+  const summary = `${model} ${labels.failedAfterModel} · ${labels.failedNoCharge}`;
+  const reason =
+    job.failureReason === null
+      ? labels.failedBodyUnreported
+      : labels.failedBody[job.failureReason];
+  const providerError = getDistinctProviderError(reason, job.error);
+  return (
+    <div
+      className="bg-card-background text-muted-foreground grid grid-cols-[minmax(0,1fr)_auto_auto] items-start gap-x-3 rounded-xl p-3 text-sm"
+      role="status"
+    >
+      {/* Previously: Try again sits beside the line, and drops under it only when a
+          longer translation would squeeze the line into a narrow column.
+          The summary now truncates so every control stays on the same row. */}
+      <details className="group col-span-full col-start-1 row-start-1 grid min-w-0 grid-cols-subgrid [&::details-content]:col-span-full">
+        <summary
+          className="text-foreground focus-visible:ring-ring flex min-w-0 cursor-pointer list-none flex-nowrap items-center gap-1 rounded py-1.5 font-medium outline-none select-none focus-visible:ring-2 [&::-webkit-details-marker]:hidden"
+          title={summary}
+        >
+          <AlertTriangle
+            aria-hidden
+            className="text-muted-foreground me-2 size-4 shrink-0"
+          />
+          <span className="min-w-0 shrink-[999999] truncate">{model}</span>
+          <span className="min-w-0 truncate">
+            {` ${labels.failedAfterModel} · ${labels.failedNoCharge}`}
+          </span>
+          <ChevronDown
+            aria-hidden
+            className="text-muted-foreground size-4 shrink-0 transition-transform group-open:rotate-180"
+          />
+        </summary>
+        <p className="text-pretty">{reason}</p>
+        {providerError ? (
+          <p className="mt-1 font-mono text-xs break-words">{providerError}</p>
+        ) : null}
+      </details>
       <Button
-        aria-label={labels.close}
-        className="hit-area size-6"
-        onClick={onDismiss}
-        size="icon"
-        variant="ghost"
+        className="col-start-2 row-start-1 shrink-0"
+        onClick={onRetry}
+        size="sm"
+        variant="secondary"
       >
-        <X aria-hidden className="size-3.5" />
+        {labels.tryAgain}
       </Button>
+      <div className="col-start-3 row-start-1 mt-1 shrink-0">{dismiss}</div>
     </div>
   );
 }

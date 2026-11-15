@@ -56,7 +56,7 @@ vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   useHasAnyScopeProject: () => ({ isPending: false, hasProjects: true }),
 }));
 
-import SubscribersPage from "./page";
+import SubscribersPage, { generateMetadata } from "./page";
 
 const RESPONSE = {
   data: {
@@ -82,6 +82,10 @@ beforeEach(() => {
 });
 
 describe("newsletter subscribers page", () => {
+  it("titles the browser tab Newsletter", async () => {
+    await expect(generateMetadata()).resolves.toEqual({ title: "title" });
+  });
+
   it("hides the route when the feature is disabled", async () => {
     mocks.enabled.mockResolvedValue(false);
     await expect(SubscribersPage(PROPS)).rejects.toThrow("NOT_FOUND");

@@ -281,7 +281,7 @@
           "confirm": "Bestätigen",
           "cancel": "Abbrechen",
           "success": "Einladung erfolgreich abgebrochen",
-          "error": "Einladung konnte nicht abgebrochen werden",
+          "error": "Die Einladung für {email} konnte nicht abgebrochen werden. Sie ist weiterhin ausstehend.",
           "Errors": {
             "unauthorizedAction": "Anmelden"
           }
@@ -402,7 +402,8 @@
             },
             "Error": {
               "share": "Freigabe konnte nicht aktualisiert werden",
-              "copyLink": "Link konnte nicht kopiert werden"
+              "copyLink": "Link konnte nicht kopiert werden",
+              "searchIndexing": "Die Suchindexierung wurde nicht gespeichert. Die vorherige Einstellung gilt wieder."
             },
             "Errors": {
               "unauthenticated": "Du musst angemeldet sein.",
@@ -816,7 +817,33 @@
       "vendorGrantAcceptSuccess": "Vendor-Zugriff genehmigt",
       "vendorGrantAcceptError": "Vendor-Zugriff konnte nicht genehmigt werden",
       "coworkerAccessAcceptSuccess": "Coworker-Early-Access genehmigt",
-      "coworkerAccessAcceptError": "Coworker-Early-Access konnte nicht genehmigt werden"
+      "coworkerAccessAcceptError": "Coworker-Early-Access konnte nicht genehmigt werden",
+      "reply": "Antworten",
+      "replyTo": "Antworten: {message}",
+      "WaitingTasks": {
+        "heading": "{count, plural, one {# Aufgabe wartet auf dich} other {# Aufgaben warten auf dich}}",
+        "showAll": "Alle in Aufgaben anzeigen",
+        "loadError": "Die Aufgaben, die auf dich warten, konnten nicht geladen werden",
+        "ask": {
+          "INPUT_REQUIRED": "{name} braucht deine Eingabe",
+          "APPROVAL_REQUIRED": "{name} braucht deine Freigabe",
+          "AUTHENTICATION_REQUIRED": "{name} braucht deine Anmeldung"
+        },
+        "status": {
+          "INPUT_REQUIRED": "Braucht deine Eingabe",
+          "APPROVAL_REQUIRED": "Braucht deine Freigabe",
+          "AUTHENTICATION_REQUIRED": "Braucht deine Anmeldung",
+          "OUT_OF_CREDITS": "Pausiert, bis Credits aufgeladen sind",
+          "GRANT_PENDING": "Wartet auf Workspace-Zugriff"
+        },
+        "action": {
+          "INPUT_REQUIRED": "Antworten",
+          "APPROVAL_REQUIRED": "Prüfen",
+          "AUTHENTICATION_REQUIRED": "Anmelden",
+          "OUT_OF_CREDITS": "Öffnen",
+          "GRANT_PENDING": "Öffnen"
+        }
+      }
     },
     "HashValue": {
       "copy": "Kopieren",
@@ -857,6 +884,21 @@
       "loading": "Dokument wird geladen…",
       "fetchError": "Dieses Dokument konnte nicht geladen werden."
     },
+    "VoicePlayer": {
+      "play": "{name} abspielen",
+      "pause": "Pause",
+      "seek": "Wiedergabeposition",
+      "position": "{current} von {total}",
+      "speed": "Wiedergabegeschwindigkeit {rate}×",
+      "download": "{name} herunterladen",
+      "transcript": "Transkript",
+      "addTranscript": "Transkript hinzufügen",
+      "editTranscript": "Transkript bearbeiten",
+      "transcriptHint": "Schreibe auf, was gesagt wurde. Es wird in dieser Nachricht gespeichert, sodass alle in dieser Unterhaltung es lesen und durchsuchen können. Lass das Feld leer, um das Transkript zu entfernen.",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "transcriptNotSaved": "Das Transkript wurde nicht gespeichert. Versuche es gleich noch einmal oder kürze es, falls die Nachricht zu lang ist."
+    },
     "UserCombobox": {
       "placeholder": "Select a user",
       "search": "Search users by name or email…",
@@ -870,7 +912,7 @@
         "IDLE": "Bereit",
         "RUNNING": "Aktiv",
         "PAUSED": "Pausiert",
-        "ERROR": "Fehler"
+        "ERROR": "Konnte nicht antworten"
       },
       "TurnStatus": {
         "QUEUED": "Wartend",
@@ -1005,6 +1047,8 @@
       "retry": "Erneut versuchen",
       "open": "Quelle öffnen",
       "openLabel": "Quelle öffnen: {title}",
+      "openSchedule": "In Zeitplänen ansehen",
+      "openScheduleLabel": "{title} in Zeitplänen ansehen",
       "openJob": "Job öffnen",
       "jobHint": {
         "started": "Der Job wird gestartet.",
@@ -1135,6 +1179,55 @@
       },
       "dialogTitle": "Buzz verbinden",
       "notNow": "Nicht jetzt"
+    },
+    "SpreadsheetView": {
+      "loading": "Tabelle wird geladen",
+      "failed": "Diese Tabelle konnte nicht geöffnet werden.",
+      "sheet": "Blatt {number}",
+      "empty": "Dieses Blatt ist leer.",
+      "truncated": "Es werden die ersten {rows} Zeilen und 50 Spalten angezeigt. Lade die Datei herunter, um den Rest zu sehen."
+    },
+    "CapTableView": {
+      "loading": "Cap Table wird geladen",
+      "failed": "Diese Cap-Table-Datei kann nicht angezeigt werden. Prüfe, ob es eine gültige Cap-Table-Datei ist.",
+      "title": "Cap Table von {company}",
+      "asOf": "Stand {date}",
+      "ownership": "Beteiligung, voll verwässert",
+      "holder": "Inhaber",
+      "class": "Gattung",
+      "shares": "Anteile",
+      "issued": "Ausgegeben",
+      "fullyDiluted": "Voll verwässert",
+      "optionPool": "Optionspool",
+      "vesting": "Vesting: {schedule}",
+      "granted": "{granted} zugeteilt, {available} verfügbar",
+      "total": "Gesamt",
+      "issuedShares": "Ausgegebene Anteile",
+      "reservedShares": "Für Mitarbeiterbeteiligung reserviert",
+      "unallocatedShares": "Weder ausgegeben noch reserviert",
+      "authorizedShares": "Genehmigte Anteile",
+      "parValue": "Nennwert"
+    },
+    "TeamView": {
+      "loading": "Team wird geladen",
+      "failed": "Diese Team-Datei kann nicht angezeigt werden. Prüfe, ob sie eine gültige Team-Datei ist.",
+      "advisors": "Berater",
+      "linkedin": "LinkedIn-Profil",
+      "highlights": "Highlights",
+      "experience": "Berufserfahrung",
+      "education": "Ausbildung"
+    },
+    "CmoProject": {
+      "badge": "CMO",
+      "title": "Von CMO verwaltet",
+      "description": "CMO führt dieses Projekt, deshalb änderst du es in CMO. Hier kannst du es lesen.",
+      "open": "In CMO öffnen",
+      "newTab": "(öffnet in einem neuen Tab)"
+    },
+    "FilesArchive": {
+      "failed": "Die Dateien konnten nicht heruntergeladen werden. Versuche es erneut oder öffne sie einzeln.",
+      "partial": "{included} von {total} Dateien heruntergeladen. Nicht enthalten: {names}{more, plural, =0 {} one { und # weitere} other { und # weitere}}. Öffne sie einzeln.",
+      "empty": "Es gibt noch keine Dateien zum Herunterladen."
     }
   },
   "Join": {
@@ -1654,13 +1747,8 @@
         "sidebarNew": "Neu"
       },
       "Landing": {
-        "greeting": "Willkommen!",
-        "greetingWithName": "Willkommen, {name}!",
-        "intro": "Sag, was zu tun ist, und sie erledigen es.",
         "cta": {
-          "avatarAlt": "{name}",
           "button": "Mit {name} chatten",
-          "searchAgents": "Agenten suchen",
           "error": "Chat konnte nicht geöffnet werden. Bitte versuche es erneut."
         },
         "stats": {
@@ -1669,23 +1757,29 @@
           "awaiting": "{count, plural, one {# Aufgabe braucht dich} other {# Aufgaben brauchen dich}}",
           "byTeammates": "{count, plural, one {# Aufgabe von deinem Team} other {# Aufgaben von deinem Team}}",
           "recent": "In den letzten 24 Stunden",
-          "trendUp": "{count} mehr als in den vorherigen 24 Stunden",
-          "trendDown": "{count} weniger als in den vorherigen 24 Stunden",
           "workedHours": "{hours, plural, one {# Stunde gearbeitet} other {# Stunden gearbeitet}}"
-        },
-        "team": {
-          "avatarAlt": "{name}",
-          "stripLabel": "Verfügbare Coworker",
-          "select": "{name} auswählen"
-        },
-        "searchAgents": {
-          "label": "Suchen",
-          "subtitle": "Spezialisierte Agenten"
         },
         "MyDay": {
           "title": "Mein Tag",
           "more": "{count, plural, one {# weitere anzeigen} other {# weitere anzeigen}}",
-          "error": "Konnte nicht mehr laden. Versuche es erneut."
+          "error": "Konnte nicht mehr laden. Versuche es erneut.",
+          "MoveOverdue": {
+            "trigger": "{count, plural, one {# Überfällige verschieben} other {# Überfällige verschieben}}",
+            "label": "{count, plural, one {# überfällige Aufgabe verschieben auf} other {# überfällige Aufgaben verschieben auf}}",
+            "targets": {
+              "today": "Heute",
+              "tomorrow": "Morgen",
+              "nextMonday": "Nächsten Montag"
+            },
+            "moved": "{count, plural, one {# Aufgabe auf {date} verschoben} other {# Aufgaben auf {date} verschoben}}",
+            "movedPartly": "{count} von {total} Aufgaben auf {date} verschoben. Die anderen haben sich geändert oder du darfst sie nicht bearbeiten.",
+            "nothingMoved": "Nichts verschoben. Diese Aufgaben haben sich geändert oder du darfst sie nicht bearbeiten.",
+            "error": "Deine überfälligen Aufgaben konnten nicht verschoben werden. Versuch es noch einmal.",
+            "undo": "Rückgängig",
+            "undone": "{count, plural, one {# Aufgabe zurückgesetzt} other {# Aufgaben zurückgesetzt}}",
+            "undonePartly": "{count} von {total} Aufgaben zurückgesetzt. Die anderen haben sich inzwischen geändert.",
+            "undoError": "Das Verschieben konnte nicht rückgängig gemacht werden. Versuch es noch einmal."
+          }
         },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
@@ -1694,13 +1788,22 @@
           "placeholder": "Frag {name}…",
           "sendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
           "quietDay": "Noch hat sich nichts bewegt. Bitte {name}, etwas anzustoßen.",
-          "chatKind": "Chat",
+          "newSchedule": "Neuer Zeitplan für {name}",
           "open": "Öffnen",
           "suggestions": {
             "catchUp": "Bring mich auf den Stand",
             "teamWins": "Was haben wir geschafft?",
             "planTomorrow": "Morgen planen"
-          }
+          },
+          "failedReply": "{name} konnte die letzte Antwort nicht abschließen",
+          "openChat": "Chat öffnen",
+          "failedWork": "{name} konnte die letzte Arbeit nicht abschließen",
+          "openBot": "Seite von {name} öffnen"
+        },
+        "SokoBotSetup": {
+          "title": "Hol dir deinen persönlichen Assistenz-Agenten",
+          "intro": "Er kümmert sich um deine Aufgaben, Mails und deinen Kalender.",
+          "cta": "Jetzt einrichten"
         }
       },
       "SokoBot": {
@@ -1715,6 +1818,7 @@
         "feedbackUseful": "Nützlich",
         "feedbackNotUseful": "Nicht nützlich",
         "feedbackThanks": "Danke, notiert.",
+        "feedbackError": "Deine Bewertung konnte nicht gespeichert werden.",
         "approvals": "{count, plural, one {# Freigabe wartet} other {# Freigaben warten}}",
         "review": "Auf der Assistenten-Seite prüfen",
         "task": "Task",
@@ -1748,7 +1852,19 @@
         "restoreNamed": "{name} wiederherstellen",
         "restored": "{name} ist wieder auf dem Board",
         "open": "Öffnen",
-        "restoreError": "Die Aufgabe konnte nicht wiederhergestellt werden. Versuche es erneut."
+        "restoreError": "Die Aufgabe konnte nicht wiederhergestellt werden. Versuche es erneut.",
+        "searchLabel": "Archivierte Aufgaben durchsuchen",
+        "searchPlaceholder": "Nach Name suchen",
+        "noMatches": "Keine archivierten Aufgaben passen zu „{query}“.",
+        "noProject": "Kein Projekt",
+        "archivedOn": "Archiviert am {date}",
+        "readOnly": "Archivierte Aufgaben sind schreibgeschützt. Stelle diese wieder her, um sie zu bearbeiten oder auszuführen."
+      },
+      "NotFound": {
+        "title": "Diese Aufgabe ist nicht da",
+        "description": "Sie wurde vielleicht archiviert oder gelöscht, oder sie gehört zu einem anderen Workspace. Archivierte Aufgaben lassen sich wiederherstellen.",
+        "archived": "Archivierte Aufgaben",
+        "back": "Zurück zu den Aufgaben"
       },
       "Columns": {
         "backlog": "Backlog",
@@ -1834,10 +1950,13 @@
         "removeFilter": "Filter {filter} entfernen",
         "clear": "Filter zurücksetzen",
         "noMatchesTitle": "Keine Tasks passen zu diesen Filtern",
-        "noMatchesDescription": "Entferne einen Filter oder setze alle zurück, um deine Tasks wieder zu sehen."
+        "noMatchesDescription": "Entferne einen Filter oder setze alle zurück, um deine Tasks wieder zu sehen.",
+        "stuck": "Hängt seit {days}+ Tagen",
+        "stuckHint": "Wartende Tasks, deren Status sich seit {days} Tagen oder länger nicht geändert hat"
       },
       "Detail": {
         "back": "Zurück zu Tasks",
+        "backToCalendar": "Zurück zum Kalender",
         "privateBadge": "Privat",
         "visibility": "Sichtbarkeit",
         "parentTask": "Übergeordnet:",
@@ -1874,6 +1993,9 @@
         "authenticate": "Authentifizieren",
         "expand": "Ausklappen",
         "collapse": "Weniger anzeigen",
+        "downloadAll": {
+          "button": "Alle herunterladen"
+        },
         "actorCoworker": "Coworker",
         "actorUser": "Nutzer",
         "actorSokoBot": "Assistent",
@@ -1971,7 +2093,26 @@
           "markComplete": "Als erledigt markieren",
           "repeat": "Wiederholen",
           "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut.",
-          "duplicate": "Als Entwurf duplizieren"
+          "duplicate": "Als Entwurf duplizieren",
+          "sendToChat": {
+            "menuItem": "In Chat senden",
+            "title": "Aufgabe in Chat senden",
+            "description": "Poste einen Link zu dieser Aufgabe in einen Kanal oder eine Direktnachricht. Alle dort sehen den Titel; mehr sehen nur Personen, die die Aufgabe öffnen dürfen. Räume mit KI-Coworkern oder Gästen werden nicht angeboten.",
+            "roomLabel": "Senden an",
+            "roomPlaceholder": "Kanal oder Direktnachricht wählen",
+            "noteLabel": "Nachricht (optional)",
+            "notePlaceholder": "Füge eine Notiz hinzu, z. B. was du brauchst",
+            "noRooms": "Du hast in diesem Workspace noch keine Chats, an die du senden kannst.",
+            "send": "Senden",
+            "cancel": "Abbrechen",
+            "success": "Aufgabe in den Chat gesendet",
+            "openChat": "Chat öffnen",
+            "error": "Die Aufgabe konnte nicht gesendet werden. Versuche es erneut.",
+            "loadError": "Deine Chats konnten nicht geladen werden. Versuche es erneut.",
+            "refused": "Dieser Chat kann diese Aufgabe nicht mehr erhalten. Wähle einen anderen.",
+            "retry": "Erneut senden",
+            "retryHint": "Das letzte Senden ist vielleicht nicht angekommen. Erneutes Senden postet sie nicht doppelt; wenn du Chat oder Nachricht änderst, wird eine neue gesendet."
+          }
         },
         "ShareModal": {
           "title": "Share task",
@@ -1986,7 +2127,8 @@
           },
           "Error": {
             "share": "Failed to update task sharing",
-            "copyLink": "Failed to copy public link"
+            "copyLink": "Failed to copy public link",
+            "searchIndexing": "Die Suchindexierung wurde nicht gespeichert. Die vorherige Einstellung gilt wieder."
           },
           "Errors": {
             "unauthenticated": "Melde dich an, um die Freigabe der Aufgabe zu verwalten",
@@ -2079,6 +2221,7 @@
         "noStatusMatches": "Kein Status passt",
         "untitledTask": "Unbenannte Aufgabe",
         "saveError": "Die Aufgabe konnte nicht gespeichert werden",
+        "createError": "„{name}“ konnte nicht erstellt werden. Deine Eingaben sind noch im Formular.",
         "back": "Zurück",
         "uploadFile": "Datei hochladen",
         "uploadFileError": "Datei konnte nicht hochgeladen werden",
@@ -2108,7 +2251,15 @@
         "close": "Schließen",
         "privateLabel": "Privat",
         "privateDescription": "Für andere Workspace-Mitglieder ausgeblendet. Weiterhin sichtbar für dich, deinen Soko Bot und den zugewiesenen Coworker.",
-        "privateOtherPeopleHint": "Private Aufgaben können nicht an andere Personen gehen. Schalte Privat aus, um ein Teammitglied zuzuweisen."
+        "privateOtherPeopleHint": "Private Aufgaben können nicht an andere Personen gehen. Schalte Privat aus, um ein Teammitglied zuzuweisen.",
+        "Progress": {
+          "title": "Aufgabe wird erstellt…",
+          "naming": "Name aus deinen Angaben ableiten",
+          "tagging": "Tags vorschlagen",
+          "tagsReady": "Tags vorgeschlagen",
+          "saving": "Aufgabe speichern",
+          "keepOpen": "Lass dieses Fenster offen, bis „Aufgabe erstellt“ erscheint."
+        }
       },
       "EditTask": {
         "title": "Task bearbeiten",
@@ -2202,6 +2353,21 @@
         },
         "newSchedule": "Neuer Zeitplan",
         "empty": "Hier gibt es noch keine Zeitpläne. Ein Zeitplan erstellt bei jedem Lauf einen neuen Task.",
+        "zoneTime": "Zeit {zone}",
+        "localTime": "{datetime} bei dir",
+        "nextRunWithLocal": "Nächster Lauf {datetime} ({local} bei dir)",
+        "emptyFiltered": {
+          "ACTIVE": "Keine aktiven Zeitpläne",
+          "PAUSED": "Keine pausierten Zeitpläne",
+          "ENDED": "Keine beendeten Zeitpläne"
+        },
+        "emptyFilteredOthers": "{states}.",
+        "stateCount": {
+          "ACTIVE": "{count, plural, one {# ist aktiv} other {# sind aktiv}}",
+          "PAUSED": "{count, plural, one {# ist pausiert} other {# sind pausiert}}",
+          "ENDED": "{count, plural, one {# ist beendet} other {# sind beendet}}"
+        },
+        "showAll": "Alle Zeitpläne zeigen",
         "loadMore": "Mehr laden",
         "loadMoreError": "Weitere Zeitpläne ließen sich nicht laden.",
         "nextRun": "Nächster Lauf {datetime}",
@@ -2212,7 +2378,10 @@
         "Dialog": {
           "createTitle": "Neuer Zeitplan",
           "editTitle": "Zeitplan bearbeiten",
+          "copyTitle": "Zeitplan kopieren",
+          "copyName": "{name} (Kopie)",
           "createDescription": "Jeder Lauf erstellt aus diesen Angaben einen neuen Task.",
+          "copyDescription": "Beim Speichern entsteht aus diesen Angaben ein neuer Zeitplan. Das Original bleibt unverändert.",
           "futureOnlyNotice": "Änderungen gelten nur für künftige Läufe. Bereits erstellte Tasks bleiben unverändert.",
           "name": "Name",
           "description": "Beschreibung",
@@ -2279,6 +2448,14 @@
         },
         "Actions": {
           "edit": "Bearbeiten",
+          "copy": "Kopieren",
+          "copyToProject": "In anderes Projekt kopieren",
+          "copyToProjectTitle": "In welches Projekt kopieren?",
+          "copyToProjectDescription": "Wähle das Projekt für den neuen Zeitplan. Das Original bleibt, wo es ist.",
+          "copyToProjectNone": "Kein anderes offenes Projekt zum Kopieren. Lege zuerst unter Projekte eines an oder öffne eines wieder.",
+          "copyToProjectLoading": "Projekte werden geladen…",
+          "copyToProjectFailed": "Projekte konnten nicht geladen werden. Schließe dies und versuche es erneut.",
+          "copyToProjectLoadMore": "Weitere Projekte anzeigen",
           "runNow": "Jetzt ausführen",
           "pause": "Pausieren",
           "resume": "Fortsetzen",
@@ -2313,7 +2490,6 @@
           "properties": "Eigenschaften",
           "state": "Status",
           "rule": "Wiederholung",
-          "timezone": "Zeitzone",
           "nextRun": "Nächster Lauf",
           "ends": "Endet",
           "assignee": "Zuständig",
@@ -2372,6 +2548,11 @@
           "finance": "Finanzen",
           "qa": "Review & QA"
         }
+      },
+      "StatusAge": {
+        "label": "Zeit in diesem Status:",
+        "stuck": "Hängt",
+        "since": "In diesem Status seit"
       }
     },
     "Projects": {
@@ -2789,7 +2970,8 @@
           "pickAccount": "Wähle ein Konto, auf dem gepostet wird.",
           "tooLong": "Die Textlänge überschreitet das Limit.",
           "addToQueue": "Zur Warteschlange",
-          "queueEmptyHint": "Zeiten unter Konten hinzufügen."
+          "queueEmptyHint": "Zeiten unter Konten hinzufügen.",
+          "keptOnDraft": "Entwurf speichern behält diese Zeit. Verbinde ein Konto, um ihn zu planen."
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
@@ -2821,7 +3003,8 @@
           "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}",
           "duplicated": "Entwurf erstellt.",
           "queued": "{count, plural, one {Zur Warteschlange hinzugefügt.} other {# Beiträge zur Warteschlange hinzugefügt.}}",
-          "approved": "Beitrag genehmigt."
+          "approved": "Beitrag genehmigt.",
+          "draftTimeNotKept": "Entwurf ohne seine Zeit gespeichert. Bearbeite ihn, um die Zeit erneut zu wählen."
         },
         "needsReconnect": "Konto muss neu verbunden werden",
         "needsReconnectLink": "Konto erneut verbinden",
@@ -2880,6 +3063,14 @@
           "timeout": "Zeitüberschreitung.",
           "missing": "Beitrag konnte nicht geöffnet werden.",
           "mediaUnavailable": "Medien sind im importierten Verlauf noch nicht enthalten.",
+          "mediaNotice": {
+            "pad_4_5": "{provider} fügt Ränder für 4:5 hinzu.",
+            "pad_1_91_1": "{provider} fügt Ränder für 1,91:1 hinzu.",
+            "resize": "{provider} skaliert dieses Bild.",
+            "jpeg": "{provider} konvertiert dieses Bild in JPEG.",
+            "srgb": "{provider} konvertiert dieses Bild in sRGB.",
+            "smaller_file": "{provider} komprimiert dieses Bild."
+          },
           "linkedin": {
             "like": "Gefällt mir",
             "comment": "Kommentieren",
@@ -2910,7 +3101,11 @@
             "videoRequired": "TikTok braucht ein Video."
           },
           "x": {
-            "more": "Mehr anzeigen"
+            "more": "Mehr anzeigen",
+            "images": "{count, plural, one {# Bild} other {# Bilder}}",
+            "image": "Bild {index} von {count}",
+            "previousImage": "Vorheriges Bild",
+            "nextImage": "Nächstes Bild"
           }
         },
         "statistics": {
@@ -3158,7 +3353,8 @@
           "failed": "Der zitierte Beitrag konnte nicht veröffentlicht werden",
           "cancelled": "Der zitierte Beitrag wurde abgesagt",
           "waiting": "Wartet auf den zitierten Beitrag"
-        }
+        },
+        "plannedFor": "Geplant für {date}"
       },
       "Detail": {
         "back": "Zurück zu Projekten",
@@ -3188,6 +3384,7 @@
           "notSet": "Nicht eingerichtet",
           "generate": "Aus Website erstellen",
           "missingWebsite": "Füge eine Projektwebsite hinzu, bevor du Markenkontext erstellst.",
+          "websiteInvalid": "Gib eine Website wie example.com ein.",
           "open": "Öffnen",
           "edit": "Bearbeiten",
           "remove": "Entfernen",
@@ -3516,7 +3713,20 @@
           }
         },
         "Calendar": {
-          "title": "Kalender"
+          "title": "Kalender",
+          "nextIssue": "Nächste Ausgabe",
+          "nothingScheduled": "Noch nichts geplant. Plane eine Ausgabe, dann erscheint sie hier.",
+          "openFullCalendar": "Im Kalender öffnen",
+          "emptyTitle": "Noch keine Ausgaben",
+          "emptyDescription": "Schreibe eine Ausgabe, dann erscheint sie hier nach Datum.",
+          "goToIssues": "Zu den Ausgaben",
+          "groups": {
+            "scheduled": "Geplant",
+            "unscheduled": "Nicht geplant",
+            "sent": "Gesendet"
+          },
+          "count": "{count, plural, one {# Ausgabe} other {# Ausgaben}}",
+          "newestOnly": "Es werden die neuesten {count} Ausgaben angezeigt. Öffne den Kalender für ältere."
         },
         "Issues": {
           "title": "Ausgaben",
@@ -3547,6 +3757,7 @@
           "previewText": "Vorschautext",
           "status": "Status",
           "sentAt": "Gesendet am {date}",
+          "sentTo": "Gesendet am {date} an {count, plural, one {# Abonnent} other {# Abonnenten}}",
           "firstPage": "Erste Seite",
           "nextPage": "Nächste Seite",
           "results": "{count, plural, one {# Ausgabe} other {# Ausgaben}}",
@@ -3729,10 +3940,10 @@
           "Image": {
             "width": "Breite",
             "widths": {
-              "100": "Volle Breite",
-              "75": "Drei Viertel",
+              "25": "Viertel",
               "50": "Halb",
-              "25": "Viertel"
+              "75": "Drei Viertel",
+              "100": "Volle Breite"
             },
             "align": "Ausrichtung",
             "aligns": {
@@ -4250,6 +4461,10 @@
       "copiesFromProducts": "Lege die Anzahl der Kopien je Produkt unter „Produkte“ fest.",
       "emptyTitle": "Erstelle deine erste Anzeige",
       "emptyBody": "Wähle eine Vorlage und ergänze die Details oder schreibe dein eigenes Anzeigenbriefing.",
+      "RecentProjects": {
+        "title": "Mach weiter, wo du aufgehört hast",
+        "imageCount": "{count, plural, one {# Bild} other {# Bilder}}"
+      },
       "pauseTemplateMotion": "Schwebende Vorschauen anhalten",
       "resumeTemplateMotion": "Schwebende Vorschauen fortsetzen",
       "CreativeStart": {
@@ -4283,6 +4498,7 @@
       "reroll": "Neu würfeln",
       "reusePrompt": "Prompt wiederverwenden",
       "download": "Herunterladen",
+      "moreActions": "Weitere Aktionen",
       "previewAd": "Anzeige ansehen",
       "previewAdDescription": "Sieh dir eine Anzeige im Instagram- oder Facebook-Feed oder als vertikales Reel an.",
       "approvedHeadline": "Freigegebene Überschrift",
@@ -4357,7 +4573,6 @@
       "model": "Modell",
       "aspectRatio": "Format",
       "adPlacements": "Anzeigenplatzierungen",
-      "placementHelp": "Wähle eine oder mehrere Platzierungen oder unten ein einzelnes eigenes Seitenverhältnis.",
       "creativeDirection": "Kreative Ausrichtung",
       "adGallery": "Anzeigengalerie",
       "groupByProduct": "Nach Produkt gruppieren",
@@ -4444,6 +4659,7 @@
       "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
       "pickForGeneration": "In welches Projekt sollen diese Bilder?",
       "referencesAcrossProjects": "Referenzen müssen aus einem Projekt stammen. Heb die Auswahl der Bilder aus anderen Projekten auf und generiere erneut.",
+      "templateSlotsUnfilled": "Füll {slots} im Briefing aus und generiere dann erneut.",
       "scopeLabel": "Projekt",
       "title": "Content Studio",
       "selectAllModels": "Alle auswählen",
@@ -4481,7 +4697,8 @@
       "creditsCharged": "Summiert aus dem veröffentlichten Preis jedes Modells, 1 Credit pro Cent und ohne Aufschlag. Das ist die Abbuchung, keine Schätzung: derselbe Betrag wird bei der Lieferung des Bildes genommen. Eine fehlgeschlagene Generierung kostet nichts.",
       "creditsUnderivable": "Mindestens eines dieser Modelle lässt sich für das gewählte Format nicht pro Bild bepreisen, deshalb kann dieser Stapel nicht summiert werden.",
       "creditsNoFigure": "Kein Betrag",
-      "failedNoCharge": "Dafür wurde nichts berechnet.",
+      "failedAfterModel": "fehlgeschlagen",
+      "failedNoCharge": "nicht berechnet",
       "failedBodyUnreported": "Das Modell hat kein Bild zurückgegeben, und diese Generierung ist zu alt, um den Grund zu nennen.",
       "FailureReasons": {
         "provider_rejected": "Der Bildanbieter hat diese Anfrage abgelehnt.",
@@ -4764,7 +4981,8 @@
             "description1": "Beschreibungszeile 1",
             "description2": "Beschreibungszeile 2",
             "add": "Sitelink hinzufügen",
-            "remove": "Sitelink {number} entfernen"
+            "remove": "Sitelink {number} entfernen",
+            "label": "Sitelinks"
           },
           "callouts": {
             "title": "Zusatzinformationen (optional)",
@@ -4999,6 +5217,16 @@
         "errors": {
           "conflict": "Diese Kampagne kann hier nicht bearbeitet werden.",
           "failed": "Änderungen konnten nicht gespeichert werden"
+        },
+        "changes": {
+          "submitCount": "{count, plural, one {# Änderung} other {# Änderungen}} speichern",
+          "changed": "Geändert",
+          "was": "Vorher:",
+          "now": "Jetzt:",
+          "none": "Noch keine Änderungen. Speichern ist möglich, sobald sich etwas ändert.",
+          "removed": "Entfernt",
+          "added": "Hinzugefügt",
+          "empty": "Keine"
         }
       },
       "market": {
@@ -5043,6 +5271,7 @@
           },
           "trendLabel": "Suchen pro Monat über 12 Monate, von {from} auf {to}",
           "searchesPerMonth": "{count} Suchen pro Monat",
+          "noSearchData": "Keine Suchdaten",
           "emptyTitle": "Für diesen Markt wurden keine Trend-Keywords gefunden",
           "emptyBody": "Probiere andere Keywords oder ein anderes Land."
         },
@@ -5075,7 +5304,10 @@
             "keywords": "Keywords konnten nicht geladen werden",
             "ads": "Anzeigen konnten nicht geladen werden"
           }
-        }
+        },
+        "updating": "Trend-Keywords werden aktualisiert…",
+        "stale": "Diese Ergebnisse stammen von vor deiner letzten Speicherung.",
+        "refresh": "Ergebnisse aktualisieren"
       },
       "accounts": {
         "emptyTitle": "Noch keine Werbekonten verbunden",
@@ -5170,10 +5402,6 @@
         "title": "Wähle ein Projekt",
         "body": "Dann verbinde Konten."
       },
-      "attentionNeedProject": {
-        "title": "Braucht Aufmerksamkeit",
-        "body": "Wähle ein Projekt, um fehlgeschlagene oder verpasste Beiträge zu sehen."
-      },
       "draftsNeedProject": {
         "title": "Entwürfe",
         "body": "Wähle ein Projekt, um seine Entwürfe anzusehen und fertigzustellen."
@@ -5186,6 +5414,15 @@
       "statisticsNeedProject": {
         "title": "Wähle ein Projekt, um die Leistung zu sehen",
         "body": "Die Kontoleistung gehört zu einem Projekt. Wähle eines, um seine verbundenen Konten und veröffentlichten Inhalte zu bewerten."
+      },
+      "attentionAll": {
+        "label": "Beiträge, die in allen Projekten Aufmerksamkeit brauchen",
+        "empty": "In keinem Projekt braucht etwas Aufmerksamkeit.",
+        "waitingApproval": "Wartet auf Freigabe",
+        "review": "Prüfen",
+        "open": "Öffnen",
+        "actionFor": "{action}: Beitrag in {project}",
+        "more": "Die neuesten {count} werden angezeigt. Wähle ein Projekt, um alle seine Beiträge zu sehen."
       }
     },
     "Error": {
@@ -5259,7 +5496,6 @@
         "SokoBot": {
           "fallbackName": "Soko Bot",
           "workingNow": "Arbeitet gerade",
-          "needsAttention": "Braucht Aufmerksamkeit",
           "activeAgo": "Aktiv {time}",
           "ready": "Bereit",
           "team": "Soko Bots deines Teams"
@@ -5314,6 +5550,8 @@
       "statusCancel": "Abonnement-Checkout wurde abgebrochen.",
       "currentPlanBadge": "Aktuell",
       "pricePerMonth": "pro Monat",
+      "pricePerSeatPerMonth": "pro Seat / Monat",
+      "seatTotal": "{total} pro Monat für {seats, plural, =1 {# Seat} other {# Seats}}",
       "includedCredits": "{credits, plural, =0 {Keine Credits} =1 {# Credit enthalten} other {# Credits enthalten}}",
       "mostPopularBadge": "Am beliebtesten",
       "canceling": "Kündigung wird geplant...",
@@ -7259,6 +7497,7 @@
       "topUpDescription": "Wähle einen Betrag oder gib einen eigenen Wert ein",
       "paidSubscriptionRequiredDescription": "Du benötigst ein kostenpflichtiges Abonnement, um zusätzliche Credits zu kaufen.",
       "paidSubscriptionRequiredHint": "Wähle im Tab „Abonnement“ einen kostenpflichtigen Plan, um das Aufladen von Credits freizuschalten.",
+      "seePlans": "Pläne ansehen",
       "couponExpiryPolicyNotice": "Aktionsguthaben kann verfallen; die Bedingungen hängen vom jeweiligen Gutschein oder Angebot ab.",
       "costPerCredit": "{cost} pro Credit",
       "youSaveLabel": "Spare {amount}",
@@ -8113,6 +8352,7 @@
             "removeCta": "{count, plural, =1 {# Seat entfernen} other {# Seats entfernen}}",
             "decrease": "Einen Seat entfernen",
             "increase": "Einen Seat hinzufügen",
+            "minimum": "{count, plural, =1 {Gib mindestens # Seat ein.} other {Gib mindestens # Seats ein.}}",
             "dialog": {
               "addTitle": "{count, plural, =1 {# Seat hinzufügen?} other {# Seats hinzufügen?}}",
               "removeTitle": "{count, plural, =1 {# Seat entfernen?} other {# Seats entfernen?}}",
@@ -8135,6 +8375,18 @@
             }
           },
           "seatsCheckoutLabel": "Zu kaufende Seats"
+        },
+        "CreditSpend": {
+          "title": "Verbrauchte Credits pro Person",
+          "description": "Credits, die jeder Person in diesem und im letzten Monat berechnet wurden, vor Rückerstattungen. Monate nach UTC. Aufladungen zählen nicht.",
+          "person": "Person",
+          "noPerson": "Organisationskosten (keine Person)",
+          "unknownPerson": "Unbekannte Person",
+          "otherSpend": "Alle übrigen Ausgaben",
+          "formerMember": "Ehemaliges Mitglied",
+          "empty": "In diesem und im letzten Monat wurden keine Credits verbraucht.",
+          "loadError": "Der Credit-Verbrauch konnte nicht geladen werden. Versuche es erneut.",
+          "retry": "Erneut versuchen"
         },
         "Seats": {
           "title": "Seat Übersicht",
@@ -8449,6 +8701,7 @@
       "uploadSuccess": "DESIGN.md hochgeladen",
       "uploadError": "DESIGN.md konnte nicht hochgeladen werden",
       "uploadRejected": "Datei wird nicht akzeptiert",
+      "uploadEmpty": "Die Datei ist leer. Wähle eine DESIGN.md mit Inhalt.",
       "removeSelectedUpload": "Ausgewählte Datei entfernen",
       "descriptionPersonal": "Erstelle und verwalte die DESIGN.md, die für Tasks aus deinem persönlichen Workspace verwendet wird.",
       "descriptionOrganization": "Erstelle und verwalte die DESIGN.md, die für Tasks dieser Organisation verwendet wird.",
@@ -8798,7 +9051,9 @@
         "save": "Save changes"
       },
       "MentionStatus": {
-        "failed": "Antwort fehlgeschlagen",
+        "failed": "{name} konnte nicht antworten",
+        "failedBody": "Die Antwort brach ab, bevor sie fertig war.",
+        "failedSaved": "Die Antwort brach ab, bevor sie fertig war. Deine Nachricht ist gespeichert.",
         "retry": "Erneut versuchen"
       },
       "Outbound": {
@@ -8860,7 +9115,21 @@
         "removeAttachment": "{name} entfernen",
         "attachmentFallback": "file",
         "showFormatting": "Formatierung anzeigen",
-        "hideFormatting": "Formatierung ausblenden"
+        "hideFormatting": "Formatierung ausblenden",
+        "recordVoice": "Sprachnachricht aufnehmen",
+        "stopVoice": "Beenden und anhängen",
+        "cancelVoice": "Aufnahme verwerfen",
+        "voiceRecording": "Sprachnachricht wird aufgenommen",
+        "voiceBlocked": "Erlaube den Mikrofonzugriff im Browser, um eine Sprachnachricht aufzunehmen.",
+        "voiceFailed": "Aufnahme abgebrochen. Versuche es erneut.",
+        "voiceFileName": "Sprachnachricht {time}",
+        "dictate": "Diktieren",
+        "stopDictation": "Beenden und eintippen",
+        "cancelDictation": "Diktat verwerfen",
+        "dictating": "Diktat läuft",
+        "dictationBlocked": "Erlaube den Mikrofonzugriff im Browser, um zu diktieren.",
+        "dictationFailed": "Das ließ sich nicht in Text umwandeln. Versuche es erneut.",
+        "dictationEmpty": "Nichts verstanden. Versuche es erneut."
       },
       "Skills": {
         "add": "Skill hinzufügen",
@@ -8972,7 +9241,9 @@
         "messageRequired": "Nachricht ist erforderlich.",
         "roomRequired": "Raum ist erforderlich.",
         "pinError": "Nachricht konnte nicht angeheftet werden.",
-        "unpinError": "Nachricht konnte nicht gelöst werden."
+        "unpinError": "Nachricht konnte nicht gelöst werden.",
+        "statePinned": "Die Nachricht ist angeheftet.",
+        "stateUnpinned": "Die Nachricht ist nicht angeheftet."
       },
       "SavedMessages": {
         "save": "Für später speichern",
@@ -9002,12 +9273,18 @@
       "Unfurl": {
         "openLink": "Linkvorschau öffnen: {title}",
         "imageAlt": "Vorschaubild für {title}",
-        "remove": "Linkvorschau entfernen: {title}"
+        "remove": "Linkvorschau entfernen: {title}",
+        "removeError": "Die Linkvorschau konnte nicht entfernt werden. Versuche es erneut.",
+        "restored": "Die Linkvorschau ist wieder an der Nachricht."
       },
       "Message": {
         "delete": "Löschen",
         "deleteConfirm": "Diese Nachricht löschen? Andere sehen, dass sie gelöscht wurde.",
+        "deleteNoteTitle": "Diese Notiz löschen?",
+        "deleteNoteConfirm": "Sie wird endgültig entfernt. Nur du konntest sie sehen.",
         "deleted": "Diese Nachricht wurde gelöscht",
+        "deleteError": "Die Nachricht konnte nicht gelöscht werden. Versuche es erneut.",
+        "restored": "Die Nachricht ist wieder in der Unterhaltung.",
         "showMore": "Mehr anzeigen",
         "showLess": "Weniger anzeigen"
       },
@@ -9037,7 +9314,9 @@
         "composerAria": "Nachricht bearbeiten. Zum Abschluss Speichern oder Abbrechen wählen. Mit Tastatur: Enter speichert, Escape bricht ab, Umschalt+Enter fügt eine neue Zeile hinzu.",
         "edited": "Bearbeitet",
         "editedAt": "Bearbeitet {when}",
-        "save": "Speichern"
+        "save": "Speichern",
+        "saveError": "Die Änderung konnte nicht gespeichert werden. Versuche es erneut.",
+        "restored": "Die Nachricht zeigt wieder ihren früheren Text."
       },
       "Browse": {
         "trigger": "Kanäle durchsuchen",
@@ -9105,7 +9384,9 @@
         "removeConfirmTitle": "{name} aus diesem Kanal entfernen?",
         "removeConfirmDescription": "{name} sieht diesen Kanal und seine Nachrichten dann nicht mehr.",
         "removeSuccess": "{name} aus dem Kanal entfernt.",
-        "undo": "Rückgängig"
+        "removeError": "{name} konnte nicht aus dem Kanal entfernt werden.",
+        "undo": "Rückgängig",
+        "undoError": "{name} konnte nicht wieder zum Kanal hinzugefügt werden."
       },
       "AddMembers": {
         "title": "Mitglieder hinzufügen",
@@ -9387,14 +9668,19 @@
         "Decisions": {
           "open": "Entscheidungen",
           "title": "Entscheidungen",
-          "empty": "Noch keine Entscheidungen. Nachrichten wie „Entschieden: Wir starten Montag“ landen hier.",
+          "empty": "Hier gibt es noch keine Entscheidungen. Wir finden sie in Kanälen und in Chats mit anderen Personen, die das erlauben. Notizen an dich selbst werden nie markiert.",
           "loadOlder": "Ältere laden",
-          "note": "Wir finden sie für dich. Ist eine falsch, öffne ihre Nachricht und klicke auf das × am Tag."
+          "note": "Wir finden sie für dich. Ist eine falsch, öffne ihre Nachricht und klicke auf das × am Tag.",
+          "description": "Entscheidungen aus deinen Chats, die neuesten zuerst, auch bereits gelesene.",
+          "error": "Entscheidungen konnten nicht geladen werden.",
+          "untitled": "Nachricht ohne Text",
+          "inThread": "In einem Thread"
         },
         "CatchUpTabs": {
           "label": "Bereiche von Aufholen",
           "overview": "Überblick",
           "threads": "Threads",
+          "decisions": "Entscheidungen",
           "saved": "Gespeichert"
         },
         "Briefing": {
@@ -9441,6 +9727,13 @@
       "myDrive": "Meine Dateien",
       "uploadButton": "Hochladen",
       "uploadingProgress": "{progress}%",
+      "uploadFilesOption": "Dateien",
+      "uploadFolderOption": "Ordner",
+      "filesUploaded": "{count, plural, one {# Datei hochgeladen} other {# Dateien hochgeladen}}",
+      "dropToUpload": "Dateien oder Ordner hier ablegen zum Hochladen",
+      "folderUploaded": "{count, plural, one {# Datei in {folder} hochgeladen} other {# Dateien in {folder} hochgeladen}}",
+      "folderUploadSkipped": "{count, plural, one {# Datei wurde nicht hochgeladen. Dateien überspringt nicht unterstützte Typen, Dateien über 100 MB, Namen, die es im Ordner schon gibt, und alles über 500 Dateien.} other {# Dateien wurden nicht hochgeladen. Dateien überspringt nicht unterstützte Typen, Dateien über 100 MB, Namen, die es im Ordner schon gibt, und alles über 500 Dateien.}}",
+      "folderUploadNothing": "Dieser Ordner enthält keine Dateien, die hochgeladen werden können.",
       "emptyTitle": "Noch keine Dateien",
       "emptyDescription": "Lade deine erste Datei hoch, um loszulegen",
       "searchPlaceholder": "Dateien suchen...",
@@ -9482,6 +9775,30 @@
       "createFolderDialogTitle": "Neuen Ordner erstellen",
       "createFolderDialogDescription": "Gib einen Namen für den neuen Ordner ein",
       "createFolderDialogConfirm": "Erstellen",
+      "GoogleSheet": {
+        "button": "Google Sheet verknüpfen",
+        "dialogTitle": "Google Sheet verknüpfen",
+        "dialogDescription": "Füge den Link zum Sheet ein. Stelle in Google Sheets unter Teilen → Allgemeiner Zugriff „Jeder, der über den Link verfügt“ ein. Sokosumi speichert hier das PDF von Google und aktualisiert es stündlich.",
+        "linkLabel": "Google-Sheets-Link",
+        "link": "Verknüpfen",
+        "linking": "Wird verknüpft…",
+        "cancel": "Abbrechen",
+        "linked": "{name} verknüpft",
+        "notALink": "Das ist kein Google-Sheets-Link. Kopiere ihn aus der Adresszeile des Sheets.",
+        "notShared": "Sokosumi kann das Sheet nicht öffnen. Stelle den allgemeinen Zugriff auf „Jeder, der über den Link verfügt“ und versuche es erneut.",
+        "nameTaken": "In diesem Ordner gibt es schon eine Datei mit dem Namen dieses Sheets.",
+        "failed": "Google Sheets antwortet nicht. Versuche es in einer Minute erneut.",
+        "source": "Google Sheet",
+        "updated": "aktualisiert {when}",
+        "refresh": "Aktualisieren",
+        "refreshing": "Wird aktualisiert…",
+        "open": "In Google Sheets öffnen",
+        "error": {
+          "not_shared": "Die letzte Aktualisierung ist fehlgeschlagen: Das Sheet ist nicht mehr per Link freigegeben. Diese Kopie ist älter.",
+          "too_large": "Die letzte Aktualisierung ist fehlgeschlagen: Das Sheet ist zu groß. Diese Kopie ist älter.",
+          "failed": "Die letzte Aktualisierung ist fehlgeschlagen. Diese Kopie ist älter."
+        }
+      },
       "deleteFolderDialogTitle": "Ordner löschen",
       "deleteFolderAction": "Ordner löschen",
       "deleteFolderDialogDescription": "Möchtest du wirklich {folderName} und alle darin enthaltenen Dateien löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
@@ -9505,6 +9822,9 @@
       "deleteFolderError": "Ordner konnte nicht gelöscht werden",
       "moveFolderError": "Ordner konnte nicht verschoben werden",
       "moveFolderAction": "Ordner verschieben",
+      "downloadFolderButton": "Herunterladen",
+      "downloadFolderAction": "{name} als ZIP herunterladen",
+      "downloadFolderRoomsLeftOut": "Datenräume sind nicht im ZIP: {names}. Ihre Dateien bleiben privat für die eingeladenen Personen.",
       "moveFileError": "Datei konnte nicht verschoben werden",
       "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "Noch keine Aufgabendateien",
@@ -9596,7 +9916,7 @@
         "bulkDeleteDescriptionSkipsTaskFiles": "Sie werden für alle in diesem Dateibereich entfernt. Dateien aus Tasks bleiben bei ihrem Task. Das kann nicht rückgängig gemacht werden.",
         "bulkDeleteCancel": "Abbrechen",
         "bulkDeleted": "{count, plural, one {# Datei gelöscht} other {# Dateien gelöscht}}",
-        "bulkDeletePartial": "{deleted} gelöscht, {failed} fehlgeschlagen und weiterhin ausgewählt",
+        "bulkDeletePartial": "{deleted} gelöscht. {failed, plural, one {# Datei konnte} other {# Dateien konnten}} nicht gelöscht werden. Versuche es erneut.",
         "detailLoading": "Datei wird geladen",
         "detailProcessing": "Verarbeitung",
         "detailCategory": "Kategorie",
@@ -9661,7 +9981,8 @@
         "collectionSaved": "„{name}“ gespeichert",
         "collectionUpdated": "„{name}“ aktualisiert",
         "collectionSaveFailed": "Diese Sammlung konnte nicht gespeichert werden.",
-        "collectionDeleteFailed": "Diese Sammlung konnte nicht gelöscht werden.",
+        "collectionRenameFailed": "„{name}“ konnte nicht umbenannt werden. Der neue Name wurde nicht gespeichert.",
+        "collectionDeleteFailed": "„{name}“ konnte nicht gelöscht werden. Die Sammlung ist wieder an ihrem Platz.",
         "collectionsUnavailable": "Sammlungen konnten nicht geladen werden.",
         "labelsUnavailable": "Kategorien und Tags konnten nicht geladen werden.",
         "collectionActions": "Aktionen für {name}",
@@ -9836,6 +10157,8 @@
         },
         "Settings": {
           "titleLabel": "Titel",
+          "welcomeLabel": "Willkommensnotiz",
+          "welcomeHint": "Erscheint auf der Willkommensseite, wenn jemand den Datenraum öffnet. Zeilenumbrüche bleiben erhalten.",
           "logoLabel": "Logo",
           "noLogo": "Kein Logo",
           "logoHint": "Ein Bild aus diesem Raum, neben dem Titel.",
@@ -9884,8 +10207,7 @@
         "nameHint": "Dein eigener KI-Assistent in Sokosumi. Du kannst ihn später umbenennen.",
         "continue": "Weiter",
         "back": "Zurück",
-        "pictureTitle": "Wähle ein Bild für {name}",
-        "skip": "Überspringen"
+        "pictureTitle": "Wähle ein Bild für {name}"
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -9946,6 +10268,7 @@
         "lastRun": "Letzter",
         "failures": "Fehler",
         "disabled": "deaktiviert",
+        "yourTime": "({datetime} bei dir)",
         "enable": "Zeitplan aktivieren",
         "disable": "Zeitplan deaktivieren",
         "delete": "Löschen",
@@ -10170,6 +10493,7 @@
       },
       "Console": {
         "tagline": "Dein persönlicher Projektmanager. Delegiert Arbeit, hakt nach und hält dich auf dem Laufenden — sprich im Chat mit ihm.",
+        "lastTurnFailed": "{name} konnte die letzte Antwort nicht fertigstellen.",
         "lastActivity": "zuletzt aktiv {time}",
         "adminView": "Admin-Ansicht",
         "openChat": "Chat öffnen",
@@ -10215,8 +10539,8 @@
           "tokenSplit": "{input} rein · {output} raus",
           "modelCost": "Modellkosten",
           "modelCostHint": "Was die Tokens gekostet haben, vor dem Mindestbetrag pro Durchlauf",
-          "creditSplit": "{own} für eigene Durchläufe · {delegated} für Coworker und Agents",
-          "creditsOwnOnly": "Alles für eigene Durchläufe"
+          "creditSplit": "{own} vom Assistenten selbst · {delegated} für Coworker und Agents",
+          "creditsOwnOnly": "Nichts für Coworker oder Agents ausgegeben"
         },
         "Connectors": {
           "title": "Tools",
@@ -10233,6 +10557,9 @@
         "current": "Aktuelles Bild",
         "hint": "Wähle eines oder lass dir andere zeigen.",
         "showOthers": "Andere zeigen",
+        "noneNew": "Gerade keine neuen Bilder. Versuch es in einer Minute noch einmal.",
+        "drawing": "Neue Bilder werden gezeichnet. Das kann eine Minute dauern.",
+        "noMore": "Mehr neue Bilder gibt es gerade nicht. Wähl eines oben aus.",
         "pictures": "Bilder",
         "loadError": "Bilder konnten nicht geladen werden.",
         "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal."
@@ -10378,7 +10705,8 @@
         "social": "Social-Beiträge",
         "newsletter": "Newsletter",
         "contacts": "Nachfassungen",
-        "marketing": "Marketingplan"
+        "marketing": "Marketingplan",
+        "sokoBot": "Soko Bot"
       },
       "source": {
         "WORKSPACE": "Workspace",
@@ -10390,6 +10718,8 @@
         "moveRun": "Lauf verschieben",
         "skipRun": "Lauf überspringen",
         "restoreRun": "Lauf wiederherstellen",
+        "runSkipped": "Lauf von {name} übersprungen.",
+        "undo": "Rückgängig",
         "openSchedule": "Zeitplan öffnen",
         "allDay": "Ganztägig",
         "runStale": "Dieser Zeitplan wurde an anderer Stelle geändert. Der Kalender lädt neu; versuche es erneut.",
@@ -10434,7 +10764,10 @@
         "showing": "Zeiten in {zone}"
       },
       "empty": {
-        "title": "Nichts Geplantes entspricht diesen Filtern.",
+        "title": "{view, select, month {Diesen Monat ist nichts geplant} week {Diese Woche ist nichts geplant} other {Nichts steht an}}",
+        "filtered": "Nichts Geplantes entspricht diesen Filtern.",
+        "hint": "Tasks mit Startzeit, Läufe von Zeitplänen und datierte Beiträge erscheinen hier.",
+        "createHint": "{view, select, agenda {Mit „Task planen“ fügst du einen hinzu.} other {Mit „Task planen“ oder einem Klick auf einen Tag startest du an diesem Datum.}}",
         "socialOnly": "In diesem Zeitraum sind keine Social-Beiträge geplant."
       },
       "schedules": {
@@ -10478,6 +10811,11 @@
         "cancel": "Abbrechen",
         "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
         "past": "Wähle einen Zeitpunkt in der Zukunft."
+      },
+      "botRun": {
+        "running": "Läuft",
+        "done": "Erledigt",
+        "failed": "Fehlgeschlagen"
       }
     },
     "You": {
@@ -10630,7 +10968,10 @@
         "csv": "Prüfe die Anführungszeichen und Trennzeichen in der CSV-Datei.",
         "csvHeaders": "Gib jeder CSV-Spalte eine nicht leere Überschrift.",
         "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben.",
-        "layout": "Das Spaltenlayout wurde nicht gespeichert und zurückgesetzt. {reason}"
+        "layout": "Das Spaltenlayout wurde nicht gespeichert und zurückgesetzt. {reason}",
+        "archiveRows": "{count, plural, one {# Zeile konnte nicht archiviert werden. Sie ist wieder in der Tabelle.} other {# Zeilen konnten nicht archiviert werden. Sie sind wieder in der Tabelle.}} {reason}",
+        "restoreRows": "{count, plural, one {# Zeile konnte nicht wiederhergestellt werden. Sie ist wieder unter den archivierten Zeilen.} other {# Zeilen konnten nicht wiederhergestellt werden. Sie sind wieder unter den archivierten Zeilen.}} {reason}",
+        "cellNotSaved": "Dein Wert wurde nicht gespeichert. Er steht wieder im Editor. {reason}"
       },
       "reorderColumn": "{column} verschieben. Ziehen oder Pfeiltasten nach links und rechts drücken.",
       "reorderRow": "Zeile verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
@@ -10780,7 +11121,7 @@
       },
       "toolbar": {
         "search": "Kontakte durchsuchen",
-        "searchPlaceholder": "Name, Firma, E-Mail suchen…",
+        "searchPlaceholder": "Name, Firma, E-Mail, Ort suchen…",
         "me": "Ich",
         "clearFilter": "Filter {filter} entfernen",
         "export": "CSV exportieren",
@@ -10895,6 +11236,7 @@
         "channelTaken": "Diese Person ist in deinem Team bereits ein Kontakt.",
         "openExisting": "Kontakt öffnen",
         "failed": "Der Kontakt wurde nicht gespeichert. Versuch es noch einmal.",
+        "listFailed": "Der Kontakt ist gespeichert, aber noch nicht auf der Liste. Versuch es noch einmal, um ihn hinzuzufügen.",
         "cancel": "Abbrechen",
         "submit": "Kontakt hinzufügen"
       },
@@ -10981,11 +11323,16 @@
         "linkCopied": "Link kopiert",
         "archive": "Kontakt archivieren",
         "archived": "{name} archiviert",
+        "archiveFailed": "{name} konnte nicht archiviert werden. Der Kontakt ist wieder in deiner Liste.",
         "changeStage": "Phase: {stage}. Phase ändern",
         "changeLists": "Listen ändern",
         "addToList": "Zu einer Liste hinzufügen",
         "manualLists": "Listen",
         "noManualLists": "Noch keine Listen.",
+        "newList": "Neue Liste…",
+        "newListAddFailed": "{list} ist angelegt, aber {name} steht noch nicht darauf.",
+        "addToListFailed": "{name} konnte nicht zu {list} hinzugefügt werden. Der Kontakt steht wieder nicht auf der Liste.",
+        "removeFromListFailed": "{name} konnte nicht von {list} entfernt werden. Der Kontakt steht wieder auf der Liste.",
         "empty": "Hinzufügen…",
         "location": "Ort",
         "nextStepTitle": "Nächster Schritt",
@@ -11258,6 +11605,7 @@
       "open": "Öffnen",
       "download": "Herunterladen",
       "downloadFile": "{name} herunterladen",
+      "downloadAll": "Alle herunterladen",
       "truncated": "Es werden die ersten 2.000 Dateien dieses Ordners angezeigt.",
       "emptyFolder": "Dieser Ordner ist leer.",
       "errors": {
@@ -11288,8 +11636,6 @@
       "signOut": "Abmelden",
       "empty": "In diesem Datenraum liegt noch nichts.",
       "indexLabel": "Inhalt",
-      "pickFile": "Wähle eine Datei, um sie zu öffnen.",
-      "new": "Neu",
       "download": "Herunterladen",
       "watermarkNote": "Geöffnete Seiten und Bilder tragen deine E-Mail und die Uhrzeit.",
       "downloadToOpen": "Diese Datei kann hier nicht angezeigt werden. Lade sie herunter, um sie zu öffnen.",
@@ -11301,7 +11647,11 @@
       "awaitingAnswer": "Wartet auf eine Antwort",
       "askLabel": "Frage zu diesem Dokument stellen",
       "ask": "Fragen",
-      "askFailed": "Deine Frage konnte nicht gesendet werden. Versuch es noch einmal."
+      "askFailed": "Deine Frage konnte nicht gesendet werden. Versuch es noch einmal.",
+      "welcome": "Willkommen",
+      "welcomeTitle": "Willkommen im Datenraum {title}",
+      "contents": "{files, plural, one {# Dokument} other {# Dokumente}}{folders, plural, =0 {} one { in # Ordner} other { in # Ordnern}}",
+      "openFirst": "{name} öffnen"
     }
   },
   "NotFound": {

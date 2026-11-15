@@ -18,6 +18,7 @@ export async function getProjectFilterOptions(
     designMd: project.designMd,
     briefingUrl: project.briefingUrl,
     contextMd: project.contextMd,
+    cmo: project.cmo,
   }));
 
   if (
@@ -39,6 +40,7 @@ export async function getProjectFilterOptions(
       designMd: selectedProject.designMd,
       briefingUrl: selectedProject.briefingUrl,
       contextMd: selectedProject.contextMd,
+      cmo: selectedProject.cmo,
     },
     ...projectOptions,
   ];

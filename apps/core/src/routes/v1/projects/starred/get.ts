@@ -13,6 +13,7 @@ import {
   mapProjectForApi,
   starredProjectSchema,
 } from "@/schemas/project.schema";
+import { cmoProjectIds } from "@/services/cmo-cuso.service";
 
 /**
  * Far above any real Pin list, and the sidebar only draws five. This bounds
@@ -65,11 +66,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       select: { project: true, starredAt: true },
     });
 
+    const cmoIds = await cmoProjectIds(stars.map((star) => star.project.id));
+
     return ok(
       c,
       z.array(starredProjectSchema).parse(
         stars.map((star) => ({
-          ...mapProjectForApi(star.project),
+          ...mapProjectForApi(star.project, {
+            cmo: cmoIds.has(star.project.id),
+          }),
           starredAt: star.starredAt,
         })),
       ),

@@ -63,10 +63,12 @@ export function statusForColumn(columnId: KanbanColumnId): TaskStatus | null {
  * only draggable when they can reopen to READY (completed/canceled + coworker).
  */
 export function isTaskDnDDraggable(
-  task: Pick<TaskWithCoworker, "status"> & {
+  task: Pick<TaskWithCoworker, "status" | "isPending"> & {
     assignee?: { id: string } | null;
   },
 ): boolean {
+  if (task.isPending) return false;
+
   if (
     task.status === TaskStatus.COMPLETED ||
     task.status === TaskStatus.CANCELED

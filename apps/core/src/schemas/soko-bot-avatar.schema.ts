@@ -29,8 +29,26 @@ export const topUpSokoBotAvatarsRequestSchema = z.object({
    * web action enforces on the picker.
    */
   excludeIds: z.array(z.string().uuid()).max(60).default([]),
+  /**
+   * "Show others": skip the pool, draw `take` new avatars and answer with
+   * only those. An empty answer still means a draw was tried; a draw that
+   * reserved nothing answers 409, a spent allowance 429.
+   */
+  fresh: z.boolean().default(false),
 });
 
 export const claimSokoBotAvatarRequestSchema = z
   .object({ avatarId: z.string().uuid() })
   .openapi("ClaimSokoBotAvatarRequest");
+
+export const restyleSokoBotAvatarsRequestSchema = z
+  .object({ limit: z.number().int().min(1).max(10).default(6) })
+  .openapi("RestyleSokoBotAvatarsRequest");
+
+export const restyleSokoBotAvatarsResultSchema = z
+  .object({
+    restyled: z.number().int(),
+    /** Bots still on an avatar from before the brand palette. */
+    remaining: z.number().int(),
+  })
+  .openapi("RestyleSokoBotAvatarsResult");

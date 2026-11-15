@@ -50,7 +50,10 @@ describe("createTaskEventTransaction", () => {
     });
 
     expect(result).toBe("trx_1");
-    expect(prepareConsumption).toHaveBeenCalledWith("user_1", null, 500n, tx);
+    // No Project: the charge sees only the pool.
+    expect(prepareConsumption).toHaveBeenCalledWith("user_1", null, 500n, tx, {
+      projectId: null,
+    });
 
     const createCall = vi.mocked(tx.transaction.create).mock.calls[0]?.[0];
     expect(createCall?.data).not.toHaveProperty("organization");
@@ -85,6 +88,7 @@ describe("createTaskEventTransaction", () => {
       "org_1",
       500n,
       tx,
+      { projectId: null },
     );
 
     const createCall = vi.mocked(tx.transaction.create).mock.calls[0]?.[0];
@@ -92,6 +96,36 @@ describe("createTaskEventTransaction", () => {
       expect.objectContaining({
         organization: { connect: { id: "org_1" } },
       }),
+    );
+  });
+
+  it("charges with the Project the work belongs to", async () => {
+    const prepareConsumption = vi.mocked(
+      creditBucketRepository.prepareConsumption,
+    );
+    prepareConsumption.mockResolvedValue([
+      { bucketId: "bucket_1", amount: 500n },
+    ]);
+    const tx = {
+      transaction: { create: vi.fn().mockResolvedValue({ id: "trx_3" }) },
+    } as const;
+
+    await createTaskEventTransaction({
+      userId: "user_1",
+      organizationId: "org_1",
+      projectId: "project_1",
+      cents: 500n,
+      tx: tx as unknown as Parameters<
+        typeof createTaskEventTransaction
+      >[0]["tx"],
+    });
+
+    expect(prepareConsumption).toHaveBeenCalledWith(
+      "user_1",
+      "org_1",
+      500n,
+      tx,
+      { projectId: "project_1" },
     );
   });
 

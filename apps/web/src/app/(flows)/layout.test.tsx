@@ -127,6 +127,17 @@ describe("FlowsLayout impersonation banner", () => {
     expect(screen.getByText("gate content")).toBeInTheDocument();
   });
 
+  it("lets the content column shrink to a phone screen", async () => {
+    readRouteSessionMock.mockResolvedValue({ status: "signedOut" });
+
+    render(await FlowsLayout({ children: <p>gate content</p> }));
+
+    // A row flex item keeps its min-content width unless min-w-0 says otherwise.
+    const column =
+      screen.getByText("gate content").parentElement?.parentElement;
+    expect(column).toHaveClass("min-w-0", "flex-1");
+  });
+
   it("mounts no banner when signed out", async () => {
     readRouteSessionMock.mockResolvedValue({ status: "signedOut" });
 

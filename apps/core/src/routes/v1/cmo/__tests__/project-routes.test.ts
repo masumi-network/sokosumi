@@ -136,6 +136,7 @@ function createApp() {
       organizationId: null,
       role: "user",
       authenticationMethod: "oauth",
+      oauthClientId: "cmo-oauth-client",
     });
     return await next();
   });

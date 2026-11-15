@@ -4,15 +4,7 @@ import {
   VendorGrantStatus,
   VendorPermission,
 } from "../generated/prisma/client.js";
-
-function isPrismaUniqueConstraintError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "P2002"
-  );
-}
+import { isPrismaUniqueConstraintError } from "../prisma-errors.js";
 
 const serviceplanGrantCheckedWorkspaceIds = new Set<string>();
 

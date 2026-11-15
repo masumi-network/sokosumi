@@ -460,6 +460,48 @@ describe("buildCreditBucketScopeSql", () => {
   });
 });
 
+describe("buildCreditBucketScopeSql with Project credits", () => {
+  it("without a Project sees only buckets with no Project", () => {
+    const sql = buildCreditBucketScopeSql(organizationContext("shared"));
+    const fragment = sqlFragmentText(sql);
+
+    assert.ok(fragment.includes('cb."projectId" IS NULL'));
+    assert.ok(!fragment.includes('cb."projectId" ='));
+  });
+
+  it("with a Project sees the pool and that Project's buckets", () => {
+    const sql = buildCreditBucketScopeSql(organizationContext("shared"), {
+      projectId: "project-1",
+    });
+    const fragment = sqlFragmentText(sql);
+
+    assert.ok(fragment.includes('cb."projectId" IS NULL'));
+    assert.ok(fragment.includes('cb."projectId" = '));
+    assert.ok(sql.values.includes("project-1"));
+    assert.ok(sql.values.includes("org-1"));
+  });
+
+  it("keeps an unseated member out of Project credits too", () => {
+    const sql = buildCreditBucketScopeSql(organizationContext("none"), {
+      projectId: "project-1",
+    });
+
+    assert.ok(sqlFragmentText(sql).includes("FALSE"));
+    assert.ok(!sql.values.includes("project-1"));
+  });
+
+  it("leaves personal scope unchanged by a Project", () => {
+    const context = { workspace: "personal", userId: "user-1" } as const;
+    const withProject = buildCreditBucketScopeSql(context, {
+      projectId: "project-1",
+    });
+    const without = buildCreditBucketScopeSql(context);
+
+    assert.deepEqual(withProject.strings, without.strings);
+    assert.deepEqual(withProject.values, without.values);
+  });
+});
+
 describe("buildOrganizationPoolScopeSql", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -521,4 +563,21 @@ describe("buildOrganizationPoolScopeSql", () => {
       assert.equal(getMemberMock.mock.calls.length, 0);
     },
   );
+
+  it("reads a Project's credits with the pool when given that Project", async () => {
+    resolveOrganizationBillingPlanMock.mockResolvedValue(plans.paidSelfServe);
+
+    const sql = await buildOrganizationPoolScopeSql(
+      "org-1",
+      {} as never,
+      new Date(),
+      { projectId: "project-1" },
+    );
+    const seated = buildCreditBucketScopeSql(organizationContext("shared"), {
+      projectId: "project-1",
+    });
+
+    assert.deepEqual(sql.strings, seated.strings);
+    assert.deepEqual(sql.values, seated.values);
+  });
 });

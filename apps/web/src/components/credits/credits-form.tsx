@@ -8,6 +8,7 @@ import {
   selectCreditTopUpTier,
 } from "@sokosumi/utils";
 import { Building2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback } from "react";
@@ -384,9 +385,15 @@ export default function CreditsForm({
                 />
               </>
             ) : (
-              <p className="text-muted-foreground text-sm">
-                {t("paidSubscriptionRequiredHint")}
-              </p>
+              <>
+                <p className="text-muted-foreground text-sm">
+                  {t("paidSubscriptionRequiredHint")}
+                </p>
+                {/* Billing's tabs read `tab` from the URL, so this opens Subscription. */}
+                <Button asChild variant="outline">
+                  <Link href="?tab=subscription">{t("seePlans")}</Link>
+                </Button>
+              </>
             )}
           </CardContent>
           {isPurchaseEnabled ? (

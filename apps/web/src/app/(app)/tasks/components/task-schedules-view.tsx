@@ -3,7 +3,7 @@
 import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
 import { CalendarSync, Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useOptimistic, useRef, useState, useTransition } from "react";
 import { loadMoreTaskSchedules } from "@/app/tasks/actions";
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
@@ -24,6 +24,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { TaskSchedulesPage } from "@/lib/services/task-schedule.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import {
@@ -36,10 +37,26 @@ import { TaskScheduleRow } from "./task-schedule-row";
 
 const ALL_STATES = "all";
 
+/**
+ * Where a "Show all schedules" click is headed. The button unmounts with the
+ * empty state and the new filter remounts this view (the page keys it by
+ * filter), so the request to land on the All tab outlives the instance that
+ * made it. Only a view mounted at this URL uses it; every mount, any other
+ * filter change and leaving for another URL drop it, so a stale request never
+ * moves focus (focusing a Radix tab selects it).
+ */
+let showAllDestination: string | null = null;
+
+function currentUrl(): string {
+  return `${window.location.pathname}${window.location.search}`;
+}
+
 interface TaskSchedulesViewProps {
   defaultViewMode?: SchedulesViewMode;
   schedules: TaskSchedule[];
   nextCursor: string | null;
+  /** What the other state tabs hold, sent only when the shown filter is empty. */
+  otherStateCounts?: { state: TaskScheduleState; count: number }[];
   coworkerOptions: CoworkerOption[];
   assigneeDisplayOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
@@ -59,6 +76,7 @@ export function TaskSchedulesView({
   schedules,
   defaultViewMode = "list",
   nextCursor,
+  otherStateCounts = [],
   coworkerOptions,
   assigneeDisplayOptions,
   projectOptions,
@@ -69,6 +87,7 @@ export function TaskSchedulesView({
   canDeleteUnowned = false,
 }: TaskSchedulesViewProps) {
   const t = useTranslations("App.Tasks.Schedules");
+  const formatter = useFormatter();
   const [viewMode, setViewMode] = useState(defaultViewMode);
   const router = useRouter();
   const pathname = usePathname();
@@ -81,11 +100,13 @@ export function TaskSchedulesView({
   const [isLoadingMore, startLoadingMore] = useTransition();
   const [hasFailed, setHasFailed] = useState(false);
   const boundaryRef = useRef<HTMLDivElement | null>(null);
+  const allTabRef = useRef<HTMLButtonElement | null>(null);
   // The filter is server state; show the pick until the navigation lands.
   const [shownState, setShownState] = useOptimistic(selectedState);
   const [, startFiltering] = useTransition();
 
-  function handleStateChange(next: string) {
+  function handleStateChange(next: string): string {
+    showAllDestination = null;
     const params = new URLSearchParams(searchParams.toString());
     const nextState = parseTaskScheduleStateFilter(next);
     if (nextState) {
@@ -94,10 +115,26 @@ export function TaskSchedulesView({
       params.delete(TASK_SCHEDULE_STATE_PARAM);
     }
     const query = params.toString();
+    const href = query ? `${pathname}?${query}` : pathname;
     startFiltering(() => {
       setShownState(nextState);
-      router.replace(query ? `${pathname}?${query}` : pathname);
+      router.replace(href);
     });
+    return href;
+  }
+
+  useMountEffect(() => {
+    const arrived = showAllDestination === currentUrl();
+    showAllDestination = null;
+    if (arrived) allTabRef.current?.focus();
+    return () => {
+      // Unmounted for anything but the Show all landing: drop the request.
+      if (showAllDestination !== currentUrl()) showAllDestination = null;
+    };
+  });
+
+  function handleShowAll() {
+    showAllDestination = handleStateChange(ALL_STATES);
   }
 
   function handleScheduleChanged() {
@@ -143,6 +180,10 @@ export function TaskSchedulesView({
   ];
 
   const shownValue = shownState ?? ALL_STATES;
+  // The first-use text stays for a workspace with no schedules at all.
+  const otherStates = otherStateCounts.filter(({ count }) => count > 0);
+  const isFilteredEmpty =
+    rows.length === 0 && selectedState !== null && otherStates.length > 0;
 
   useLoadWhenVisible(boundaryRef, {
     armed:
@@ -171,6 +212,7 @@ export function TaskSchedulesView({
         >
           <TabsTrigger
             className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+            ref={allTabRef}
             value={ALL_STATES}
           >
             {t("filterAll")}
@@ -209,7 +251,35 @@ export function TaskSchedulesView({
         className={cn(HOLDER_CLASS, "flex flex-col gap-4")}
         value={shownValue}
       >
-        {rows.length === 0 ? (
+        {isFilteredEmpty ? (
+          <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 flex flex-col items-center gap-2 px-4 py-16 text-center duration-200 ease-out">
+            <CalendarSync
+              className="text-muted-foreground size-6"
+              aria-hidden
+            />
+            <p className="text-sm font-medium">
+              {t(`emptyFiltered.${selectedState}`)}
+            </p>
+            <p className="text-muted-foreground max-w-sm text-sm text-pretty">
+              {t("emptyFilteredOthers", {
+                states: formatter.list(
+                  otherStates.map(({ state, count }) =>
+                    t(`stateCount.${state}`, { count }),
+                  ),
+                  { type: "conjunction" },
+                ),
+              })}
+            </p>
+            <Button
+              className="mt-2"
+              onClick={handleShowAll}
+              size="sm"
+              variant="outline"
+            >
+              {t("showAll")}
+            </Button>
+          </div>
+        ) : rows.length === 0 ? (
           <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 flex flex-col items-center gap-2 px-4 py-16 text-center duration-200 ease-out">
             <CalendarSync
               className="text-muted-foreground size-6"

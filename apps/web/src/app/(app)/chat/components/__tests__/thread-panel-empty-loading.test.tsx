@@ -28,9 +28,13 @@ vi.mock("../room-session-composer", () => ({
 }));
 
 vi.mock("../room-message-row", () => ({
-  ChatMessageRow: ({ message }: { message: ChatRoomMessage }) => (
-    <div>{`row-${message.id}`}</div>
-  ),
+  ChatMessageRow: ({
+    message,
+    isSaving,
+  }: {
+    message: ChatRoomMessage;
+    isSaving?: boolean;
+  }) => <div aria-busy={isSaving || undefined}>{`row-${message.id}`}</div>,
 }));
 
 vi.mock(
@@ -78,6 +82,7 @@ function renderPanel(options: {
   replies?: ChatRoomMessage[];
   onBack?: () => void;
   composerDisabledMessage?: string;
+  savingMessageIds?: ReadonlySet<string>;
 }) {
   return render(
     <ThreadPanel
@@ -97,6 +102,7 @@ function renderPanel(options: {
       onToggleReaction={() => undefined}
       roomId="room-1"
       composerDisabledMessage={options.composerDisabledMessage}
+      savingMessageIds={options.savingMessageIds}
     />,
   );
 }
@@ -110,6 +116,16 @@ describe("ThreadPanel empty vs loading", () => {
 
     expect(screen.getByText("Thread.loading")).toBeTruthy();
     expect(screen.queryByText("Thread.empty")).toBeNull();
+  });
+
+  it("shows a reply sent while replies are still loading", () => {
+    renderPanel({
+      isLoading: true,
+      replies: [parentMessage({ id: "r1", parentMessageId: "parent-1" })],
+    });
+
+    expect(screen.getByText("row-r1")).toBeTruthy();
+    expect(screen.getByText("Thread.loading")).toBeTruthy();
   });
 
   it("shows empty only after load settles with zero replies", () => {
@@ -137,6 +153,20 @@ describe("ThreadPanel empty vs loading", () => {
 
     expect(screen.getByLabelText("Thread.close")).toBeTruthy();
     expect(screen.queryByTestId("thread-panel-back")).toBeNull();
+  });
+
+  it("marks only the rows whose change Core has not answered", () => {
+    renderPanel({
+      isLoading: false,
+      replies: [parentMessage({ id: "reply-1", parentMessageId: "parent-1" })],
+      savingMessageIds: new Set(["reply-1"]),
+    });
+
+    expect(screen.getByText("row-reply-1")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+    expect(screen.getByText("row-parent-1")).not.toHaveAttribute("aria-busy");
   });
 
   it("replaces the reply composer with the assigned-seat message when disabled", () => {

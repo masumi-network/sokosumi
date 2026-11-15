@@ -4,18 +4,10 @@ import {
 } from "@sokosumi/utils";
 
 import { Prisma, type Workspace } from "../generated/prisma/client.js";
+import { isPrismaUniqueConstraintError } from "../prisma-errors.js";
 
 import { vendorGrantRepository } from "./vendor-grant.repository.js";
 import { PersonalWorkspaceMissingError } from "./workspace-errors.js";
-
-function isPrismaUniqueConstraintError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "P2002"
-  );
-}
 
 async function ensureServiceplanGrantForWorkspace(
   workspace: Workspace,
@@ -85,6 +77,18 @@ async function findOrganizationWorkspace({
   });
 }
 
+async function findPersonalWorkspace({
+  userId,
+  tx,
+}: {
+  userId: string;
+  tx: Prisma.TransactionClient;
+}): Promise<Workspace | null> {
+  return await tx.workspace.findUnique({
+    where: { userId },
+  });
+}
+
 export const workspaceRepository = {
   /**
    * The vocabulary seed, for the one creation path that does not go through
@@ -93,18 +97,6 @@ export const workspaceRepository = {
    * of the row list is how the two drift.
    */
   seedCuratedVocabulary,
-
-  async findPersonalWorkspace({
-    userId,
-    tx,
-  }: {
-    userId: string;
-    tx: Prisma.TransactionClient;
-  }): Promise<Workspace | null> {
-    return await tx.workspace.findUnique({
-      where: { userId },
-    });
-  },
 
   async upsertOrganizationWorkspace({
     organizationId,
@@ -161,7 +153,7 @@ export const workspaceRepository = {
       return await this.upsertOrganizationWorkspace({ organizationId, tx });
     }
 
-    const personalWorkspace = await this.findPersonalWorkspace({ userId, tx });
+    const personalWorkspace = await findPersonalWorkspace({ userId, tx });
     if (!personalWorkspace) {
       throw new PersonalWorkspaceMissingError();
     }

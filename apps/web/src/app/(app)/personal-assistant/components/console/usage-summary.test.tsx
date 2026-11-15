@@ -39,7 +39,9 @@ describe("UsageSummary", () => {
 
     expect(screen.getByText("147")).toBeTruthy();
     expect(
-      screen.getByText("31 on its own turns · 116 on Coworkers and Agents"),
+      screen.getByText(
+        "31 by the assistant itself · 116 on Coworkers and Agents",
+      ),
     ).toBeTruthy();
     expect(screen.getByText("40,000 in · 2,000 out")).toBeTruthy();
     expect(screen.queryByText("Model cost")).toBeNull();

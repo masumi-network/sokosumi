@@ -188,6 +188,32 @@ describe("PATCH /tasks/schedules/{id}/runs/{runId}", () => {
     expect(storedSchedule(schedule.id)?.nextRunAt).toEqual(JAN_7);
   });
 
+  it("moves a skipped Run back to its moved time, past rule time and all", async () => {
+    const schedule = seedTaskSchedule({ nextRunAt: JAN_14 });
+    // Moved from Dec 30 (now past) to Jan 15, then skipped.
+    const run = seedRun(schedule, DEC_30, {
+      state: "SKIPPED",
+      effectiveScheduledAt: JAN_15,
+    });
+    seedRun(schedule, JAN_14);
+
+    const response = await send(schedule, run.id, {
+      action: "move",
+      scheduledAt: JAN_15.toISOString(),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: {
+        run: {
+          state: "PLANNED",
+          originalScheduledAt: DEC_30.toISOString(),
+          effectiveScheduledAt: JAN_15.toISOString(),
+        },
+      },
+    });
+  });
+
   it("restores a moved Run to the rule's time", async () => {
     const schedule = seedTaskSchedule({ nextRunAt: JAN_7 });
     const run = seedRun(schedule, JAN_7, {
