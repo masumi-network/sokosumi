@@ -8,6 +8,7 @@ import type {
 } from "@sokosumi/core-client";
 import {
   ChevronDown,
+  Copy,
   GitMerge,
   ListFilter,
   ListMinus,
@@ -251,6 +252,7 @@ export function ContactsBulkBar({
   viewList,
   onAddToList,
   onRemoveFromList,
+  onCopyEmails,
   onMerge,
   onClear,
 }: {
@@ -260,6 +262,7 @@ export function ContactsBulkBar({
   viewList: ContactList | null;
   onAddToList: (list: ContactList) => void;
   onRemoveFromList: (list: ContactList) => void;
+  onCopyEmails: () => void;
   onMerge: () => void;
   onClear: () => void;
 }) {
@@ -322,6 +325,15 @@ export function ContactsBulkBar({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+      <Button
+        size="sm"
+        variant="ghost"
+        className={action}
+        onClick={onCopyEmails}
+      >
+        <Copy aria-hidden className="size-4" />
+        {t("bulk.copyEmails")}
+      </Button>
       <Button
         size="sm"
         variant="ghost"

@@ -11066,11 +11066,16 @@
         "selected": "{count} selected",
         "addToList": "Add to list",
         "removeFromList": "Remove from list",
+        "copyEmails": "Copy emails",
         "merge": "Merge",
         "clear": "Clear selection",
         "updated": "{count, plural, =1 {Updated 1 contact} other {Updated # contacts}}",
         "addedToList": "{count, plural, =1 {Added 1 contact to {list}} other {Added # contacts to {list}}}",
-        "removedFromList": "{count, plural, =1 {Removed 1 contact from {list}} other {Removed # contacts from {list}}}"
+        "removedFromList": "{count, plural, =1 {Removed 1 contact from {list}} other {Removed # contacts from {list}}}",
+        "copiedEmails": "{count, plural, =1 {Copied 1 email address} other {Copied # email addresses}}",
+        "skippedNoEmail": "{count, plural, =1 {1 contact has no email and was left out.} other {# contacts have no email and were left out.}}",
+        "noEmails": "None of the selected contacts has an email address.",
+        "copyFailed": "Could not copy to the clipboard. Try again."
       },
       "errors": {
         "versionConflict": "Someone changed this contact a moment ago. We loaded their version; try your edit again.",
