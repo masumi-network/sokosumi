@@ -231,7 +231,7 @@ Evals (platform admin; Core runs them on the deployment you select):
   sokosumi evals list [--limit N]
   sokosumi evals cases
   --wait follows the run until it ends; --tick also moves it on, for a Core without the minute cron (preview, local).
-  --markdown prints the table for a PR's Evidence. The daily run on mainnet is the baseline every run is compared with.
+  --markdown prints the table for a PR's Evidence. The weekly run on mainnet is the baseline every run is compared with.
 
 Organization Tasks:
   Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.

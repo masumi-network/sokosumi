@@ -132,19 +132,27 @@ export async function createEvalRun(input: CreateEvalRunInput) {
   });
 }
 
+/** Monday 00:00 UTC of the week `now` falls in. */
+export function evalWeekStart(now: Date): Date {
+  const start = new Date(now);
+  start.setUTCHours(0, 0, 0, 0);
+  start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7));
+  return start;
+}
+
 /**
- * The daily run, once per UTC day and one repeat: a second cron call the
- * same day does nothing. More repeats are for runs someone starts.
+ * The weekly run, once per UTC week (Monday to Sunday) and one repeat: a
+ * second cron call the same week does nothing. More repeats are for runs
+ * someone starts. Its trigger stays `DAILY`, the baseline every run is
+ * compared with.
  */
-export async function createDailyEvalRun() {
-  const dayStart = new Date();
-  dayStart.setUTCHours(0, 0, 0, 0);
-  const today = await prisma.evalRun.findFirst({
-    where: { trigger: "DAILY", createdAt: { gte: dayStart } },
+export async function createWeeklyEvalRun(now = new Date()) {
+  const thisWeek = await prisma.evalRun.findFirst({
+    where: { trigger: "DAILY", createdAt: { gte: evalWeekStart(now) } },
     select: { id: true },
   });
-  if (today) return null;
-  return createEvalRun({ trigger: "DAILY", label: "Daily", repeats: 1 });
+  if (thisWeek) return null;
+  return createEvalRun({ trigger: "DAILY", label: "Weekly", repeats: 1 });
 }
 
 const runModelsSchema = (value: unknown) => {
