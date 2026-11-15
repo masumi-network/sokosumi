@@ -96,6 +96,7 @@ import type {
   GetTasksSummaryData,
   GetTransactionsDailyData,
   GetTransactionsData,
+  GetTransactionsTotalData,
   GetWorkspacesCalendarData,
   GetWorkspacesCalendarSourcesData,
   GetWorkspacesSocialPostsData,
@@ -296,6 +297,7 @@ import {
   getEnterpriseContractsByIdPeriodsPreview as coreGetEnterpriseContractsByIdPeriodsPreview,
   getHistory as coreGetHistory,
   getImageStudioCatalog as coreGetImageStudioCatalog,
+  getImageStudioRecentProjects as coreGetImageStudioRecentProjects,
   getImageStudioState as coreGetImageStudioState,
   getInvitationsById as coreGetInvitationsById,
   getJobs as coreGetJobs,
@@ -376,6 +378,7 @@ import {
   getToolsSiteIcon as coreGetToolsSiteIcon,
   getTransactions as coreGetTransactions,
   getTransactionsDaily as coreGetTransactionsDaily,
+  getTransactionsTotal as coreGetTransactionsTotal,
   getUserBadgeCampaigns as coreGetUserBadgeCampaigns,
   getUsersById as coreGetUsersById,
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
@@ -648,6 +651,9 @@ function transformTaskListResponseEnvelope(data: any) {
   data.data = (data.data ?? []).map((item: any) => {
     item.createdAt = toDate(item.createdAt);
     item.updatedAt = toDate(item.updatedAt);
+    if (item.statusSince) {
+      item.statusSince = toDate(item.statusSince);
+    }
     if (item.runAt) {
       item.runAt = toDate(item.runAt);
     }
@@ -2295,6 +2301,17 @@ export function createCoreClient(getClient: GetCoreClient) {
       (client) =>
         coreGetTransactionsDaily({ client, query, cache: "no-store" }),
       "Failed to fetch daily transactions",
+    );
+  }
+
+  async function getTransactionsTotal(
+    query?: GetTransactionsTotalData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTransactionsTotal({ client, query, cache: "no-store" }),
+      "Failed to fetch the transactions total",
     );
   }
 
@@ -4190,6 +4207,16 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch the image studio catalog",
+    );
+  }
+
+  /** The workspace's three projects with the newest Studio images. */
+  async function getImageStudioRecentProjects() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetImageStudioRecentProjects({ client, cache: "no-store" }),
+      "Failed to fetch recent Studio projects",
     );
   }
 
@@ -7046,6 +7073,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getHistory,
     getTransactions,
     getTransactionsDaily,
+    getTransactionsTotal,
     getNotifications,
     getNotificationsCounts,
     updateChatRoom,
@@ -7232,6 +7260,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdAdsMarketAds,
     getProjectsByIdSocialConnections,
     getImageStudioCatalog,
+    getImageStudioRecentProjects,
     getImageStudioState,
     attachStudioProductPhoto,
     getStudioProductCatalog,

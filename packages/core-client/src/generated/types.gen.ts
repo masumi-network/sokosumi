@@ -4109,6 +4109,10 @@ export type ChatEarlierThread = {
     lastReplyId: string;
 };
 
+export type VoiceTranscription = {
+    text: string;
+};
+
 export type CreditCheckoutSession = {
     url: string;
 };
@@ -6266,6 +6270,16 @@ export type ProjectImageJob = {
     retryMayDuplicateCharge: boolean;
     credits: number | null;
     refunded: boolean;
+};
+
+export type ImageStudioRecentProjects = {
+    projects: Array<{
+        projectId: string;
+        projectName: string;
+        imageCount: number;
+        latestAt: Date;
+        latestImageId: string;
+    }>;
 };
 
 export type NewsletterAvailability = {
@@ -8633,7 +8647,8 @@ export type ProjectDesignMdWrite = {
 export type WorkspaceCalendarEntry = {
     scheduledAt: Date;
     originalScheduledAt?: Date | null;
-} & (WorkspaceCalendarItem | SocialPostCalendarItem | NewsletterIssueCalendarItem | ContactFollowUpCalendarItem | MarketingPieceCalendarItem);
+    originalAt?: Date;
+} & (WorkspaceCalendarItem | SocialPostCalendarItem | NewsletterIssueCalendarItem | ContactFollowUpCalendarItem | MarketingPieceCalendarItem | SokoBotRunCalendarItem);
 
 export type WorkspaceCalendarItem = {
     /**
@@ -8808,6 +8823,40 @@ export type MarketingPieceCalendarItem = {
     sourceProjectId: string;
     sourceWorkspaceId: string;
     sourceType: 'PROJECT';
+};
+
+export type SokoBotRunCalendarItem = {
+    kind: 'sokoBotRun';
+    id: string;
+    scheduledAt: Date;
+    /**
+     * The Soko Bot schedule that runs, or ran, at this time
+     */
+    scheduleId: string;
+    name: string;
+    sokoBotId: string;
+    botName: string | null;
+    /**
+     * A Project or workspace bot every member sees; false for the caller's own personal bot
+     */
+    shared: boolean;
+    projectName: string | null;
+    /**
+     * upcoming: still to come. running, done, failed: a run that started, from the bot's run history
+     */
+    runState: 'upcoming' | 'running' | 'done' | 'failed';
+    /**
+     * The cron time this run belongs to; differs from scheduledAt once moved
+     */
+    originalAt: Date;
+    /**
+     * A run still to come, in the next 90 days, that the caller may move, skip or restore with the schedule's `run`
+     */
+    canChange: boolean;
+    sourceId: string;
+    sourceProjectId: string | null;
+    sourceWorkspaceId: string;
+    sourceType: 'WORKSPACE' | 'PROJECT';
 };
 
 export type ProjectCloseStatus = {
@@ -12298,6 +12347,24 @@ export type UpdateSokoBotScheduleRequest = {
     timezone?: string;
     cronExpression?: string;
     prompt?: string;
+    /**
+     * Skip, move or restore one run; the cron stays as it is. Sent alone.
+     */
+    run?: {
+        /**
+         * The cron time the run belongs to (the Calendar entry's originalAt)
+         */
+        originalAt: Date;
+        /**
+         * Where the caller saw the run, or null when they saw it skipped. A run that changed since answers 409
+         */
+        expectedAt: Date | null;
+        action: 'skip' | 'move' | 'restore';
+        /**
+         * For move: the new time, in the future and within the next 90 days
+         */
+        scheduledAt?: Date;
+    };
 };
 
 export type ResolveSokoBotDecisionRequest = {
@@ -12842,6 +12909,10 @@ export type TaskListItem = {
     workspace: WorkspaceSummary;
     jobsCount: number;
     commentsCount: number;
+    /**
+     * When the Task last changed status, or its creation time if it never did.
+     */
+    statusSince: Date;
 };
 
 export type TaskActivitySummary = {
@@ -13760,6 +13831,17 @@ export type TransactionDailySpendList = Array<{
     credits: number;
 }>;
 
+export type TransactionTotal = {
+    /**
+     * Net credits taken by the matching rows: spends minus refunds and other top ups.
+     */
+    credits: number;
+    /**
+     * Matching ledger rows.
+     */
+    count: number;
+};
+
 export type CreditPriceOption = {
     id: string;
     amountPerCredit: number;
@@ -14008,7 +14090,7 @@ export type WorkspaceCalendarSourcesResponse = {
     /**
      * Calendar features this viewer may show. Web offers only these in the Show filter.
      */
-    features: Array<'tasks' | 'social' | 'newsletter' | 'contacts' | 'marketing'>;
+    features: Array<'tasks' | 'social' | 'newsletter' | 'contacts' | 'marketing' | 'sokoBot'>;
 };
 
 export type WorkspaceCalendarSource = {
@@ -32113,6 +32195,94 @@ export type GetChatsThreadsEarlierResponses = {
 
 export type GetChatsThreadsEarlierResponse = GetChatsThreadsEarlierResponses[keyof GetChatsThreadsEarlierResponses];
 
+export type TranscribeVoiceData = {
+    body: Blob | File;
+    path?: never;
+    query?: never;
+    url: '/chats/transcriptions';
+};
+
+export type TranscribeVoiceErrors = {
+    /**
+     * Invalid audio
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Recording too large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type TranscribeVoiceError = TranscribeVoiceErrors[keyof TranscribeVoiceErrors];
+
+export type TranscribeVoiceResponses = {
+    /**
+     * What was said
+     */
+    200: {
+        data: VoiceTranscription;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type TranscribeVoiceResponse = TranscribeVoiceResponses[keyof TranscribeVoiceResponses];
+
 export type CreateCreditCheckoutSessionData = {
     body?: CreateCreditCheckoutSession;
     path?: never;
@@ -42284,6 +42454,10 @@ export type GetDriveResourcesByIdGoogleSheetResponses = {
             pagination?: PaginationMetadata;
         };
     };
+    /**
+     * A plain file: no linked sheet
+     */
+    204: void;
 };
 
 export type GetDriveResourcesByIdGoogleSheetResponse = GetDriveResourcesByIdGoogleSheetResponses[keyof GetDriveResourcesByIdGoogleSheetResponses];
@@ -46779,6 +46953,85 @@ export type GetImageStudioStateResponses = {
 };
 
 export type GetImageStudioStateResponse = GetImageStudioStateResponses[keyof GetImageStudioStateResponses];
+
+export type GetImageStudioRecentProjectsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/image-studio/recent-projects';
+};
+
+export type GetImageStudioRecentProjectsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetImageStudioRecentProjectsError = GetImageStudioRecentProjectsErrors[keyof GetImageStudioRecentProjectsErrors];
+
+export type GetImageStudioRecentProjectsResponses = {
+    /**
+     * Recent Studio projects
+     */
+    200: {
+        data: ImageStudioRecentProjects;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetImageStudioRecentProjectsResponse = GetImageStudioRecentProjectsResponses[keyof GetImageStudioRecentProjectsResponses];
 
 export type GetNewsletterAvailabilityData = {
     body?: never;
@@ -80403,6 +80656,21 @@ export type UpdateMySokoBotScheduleErrors = {
         };
     };
     /**
+     * The next run changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unprocessable Entity
      */
     422: {
@@ -80577,6 +80845,7 @@ export type TopUpSokoBotAvatarsData = {
     body: {
         take?: number;
         excludeIds?: Array<string>;
+        fresh?: boolean;
     };
     path?: never;
     query?: never;
@@ -80633,6 +80902,21 @@ export type TopUpSokoBotAvatarsErrors = {
      * Too Many Requests
      */
     429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
         error: string;
         message: string;
         kind?: string;
@@ -84458,7 +84742,7 @@ export type UpdateSokoBotScheduleErrors = {
         };
     };
     /**
-     * CMO project is read-only
+     * CMO project is read-only, or the next run changed
      */
     409: {
         error: string;
@@ -86268,6 +86552,10 @@ export type GetTasksData = {
          * Only Tasks due on or before this day (YYYY-MM-DD). Tasks without a due date are left out.
          */
         dueOnTo?: string;
+        /**
+         * Only Tasks whose status has not changed since this time, for work that has sat in one status a while.
+         */
+        statusBefore?: Date;
         /**
          * true lists archived Tasks instead, most recently archived first unless sort is given. People only; coworkers and Soko Bots get 400.
          */
@@ -91824,6 +92112,10 @@ export type GetTransactionsData = {
          */
         scope?: 'workspace' | 'owned';
         /**
+         * Only rows for this Task: charges by its events and its Jobs, and the refunds of those charges.
+         */
+        taskId?: string;
+        /**
          * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
          */
         types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'contacts' | 'topUp' | 'unattributed'>;
@@ -91874,6 +92166,21 @@ export type GetTransactionsErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Task not found
+     */
+    404: {
         error: string;
         message: string;
         kind?: string;
@@ -91943,6 +92250,10 @@ export type GetTransactionsDailyData = {
          */
         scope?: 'workspace' | 'owned';
         /**
+         * Only rows for this Task: charges by its events and its Jobs, and the refunds of those charges.
+         */
+        taskId?: string;
+        /**
          * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
          */
         types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'contacts' | 'topUp' | 'unattributed'>;
@@ -91993,6 +92304,21 @@ export type GetTransactionsDailyErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Task not found
+     */
+    404: {
         error: string;
         message: string;
         kind?: string;
@@ -92062,6 +92388,10 @@ export type GetTransactionsExportData = {
          */
         scope?: 'workspace' | 'owned';
         /**
+         * Only rows for this Task: charges by its events and its Jobs, and the refunds of those charges.
+         */
+        taskId?: string;
+        /**
          * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
          */
         types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'contacts' | 'topUp' | 'unattributed'>;
@@ -92124,6 +92454,21 @@ export type GetTransactionsExportErrors = {
         };
     };
     /**
+     * Task not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -92150,6 +92495,136 @@ export type GetTransactionsExportResponses = {
 };
 
 export type GetTransactionsExportResponse = GetTransactionsExportResponses[keyof GetTransactionsExportResponses];
+
+export type GetTransactionsTotalData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Filter ledger rows by project. Use 'null' for rows with no project, which includes every coworker, Soko Bot, top up and unattributed row.
+         */
+        projectId?: string | 'null';
+        /**
+         * Case-insensitive search across the labels a row can carry: job, agent, task, coworker and image model names, task event comments, image prompts and top up bucket notes.
+         */
+        q?: string;
+        /**
+         * owned: only ledger rows belonging to the calling user. workspace: every ledger row in the active workspace, including organization-level ones with no user.
+         */
+        scope?: 'workspace' | 'owned';
+        /**
+         * Only rows for this Task: charges by its events and its Jobs, and the refunds of those charges.
+         */
+        taskId?: string;
+        /**
+         * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
+         */
+        types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'contacts' | 'topUp' | 'unattributed'>;
+    };
+    url: '/transactions/total';
+};
+
+export type GetTransactionsTotalErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Task not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTransactionsTotalError = GetTransactionsTotalErrors[keyof GetTransactionsTotalErrors];
+
+export type GetTransactionsTotalResponses = {
+    /**
+     * Retrieve the ledger total
+     */
+    200: {
+        data: TransactionTotal;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTransactionsTotalResponse = GetTransactionsTotalResponses[keyof GetTransactionsTotalResponses];
 
 export type ListCreditPricesData = {
     body?: never;

@@ -1,6 +1,10 @@
 "use client";
 
-import { type TaskSchedule, TaskVisibility } from "@sokosumi/core-client";
+import {
+  type TaskSchedule,
+  TaskScheduleEndsMode,
+  TaskVisibility,
+} from "@sokosumi/core-client";
 import { CalendarClock, ChevronDown, Lock, Paperclip } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
@@ -69,6 +73,8 @@ export type TaskScheduleBlueprintPrefill = Partial<
 interface TaskScheduleDialogProps {
   /** Edits this schedule; without it the dialog creates one. */
   schedule?: TaskSchedule;
+  /** Creates a new schedule prefilled from this one; the original stays. */
+  copyOf?: TaskSchedule;
   initialBlueprint?: TaskScheduleBlueprintPrefill;
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
@@ -79,6 +85,21 @@ interface TaskScheduleDialogProps {
 }
 
 const NEW_SCHEDULE_CRON = "0 9 * * *";
+
+/** A copy's rule: an end date already past would leave it no runs, so it repeats until changed. */
+export function copiedTaskScheduleRule(
+  rule: TaskSchedule["rule"],
+  now = new Date(),
+): TaskSchedule["rule"] {
+  if (
+    rule.endsMode === TaskScheduleEndsMode.ON &&
+    rule.endsOn &&
+    rule.endsOn < now
+  ) {
+    return { ...rule, endsMode: TaskScheduleEndsMode.NEVER, endsOn: null };
+  }
+  return rule;
+}
 
 /** One plain sentence for when the schedule runs. */
 function useWhenSummary(when: ScheduleWhen, selection: TaskScheduleSelection) {
@@ -143,6 +164,7 @@ export function TaskScheduleDialog(props: TaskScheduleDialogProps) {
 
 function TaskScheduleDialogForm({
   schedule,
+  copyOf,
   initialBlueprint,
   coworkerOptions,
   projectOptions,
@@ -155,7 +177,24 @@ function TaskScheduleDialogForm({
   const tNewTask = useTranslations("App.Tasks.NewTask");
   const descriptionId = useId();
   const privateDescriptionId = useId();
-  const blueprint = schedule ?? initialBlueprint ?? {};
+  const copiedAssigneeId = copyOf ? taskScheduleAssigneeId(copyOf) : null;
+  const blueprint: TaskScheduleBlueprintPrefill =
+    schedule ??
+    (copyOf && {
+      name: t("copyName", { name: copyOf.name }),
+      description: copyOf.description,
+      projectId: copyOf.projectId,
+      visibility: copyOf.visibility,
+      // Only an assignee this person may pick is copied; Core checks it again.
+      ...(coworkerOptions.some((option) => option.id === copiedAssigneeId)
+        ? {
+            assigneeId: copyOf.assigneeId,
+            assigneeSokoBotId: copyOf.assigneeSokoBotId,
+          }
+        : {}),
+    }) ??
+    initialBlueprint ??
+    {};
   const [name, setName] = useState(blueprint.name ?? "");
   const [description, setDescription] = useState(blueprint.description ?? "");
   const [projectId, setProjectId] = useState<string | null>(
@@ -185,18 +224,26 @@ function TaskScheduleDialogForm({
   const [initialSelection] = useState<TaskScheduleSelection>(() =>
     schedule
       ? taskScheduleRuleToSelection(schedule.rule)
-      : { timezone: getDefaultTimezone(), cron: NEW_SCHEDULE_CRON },
+      : copyOf
+        ? taskScheduleRuleToSelection(copiedTaskScheduleRule(copyOf.rule))
+        : { timezone: getDefaultTimezone(), cron: NEW_SCHEDULE_CRON },
   );
   const [initialWhen] = useState(() => selectionToWhen(initialSelection));
   const [when, setWhen] = useState<ScheduleWhen>(initialWhen);
+  // A copy cannot resend a stored rule the controls reject (a hashed cron);
+  // it takes the controls' reading of it instead.
+  const [copyUsesWhen] = useState(
+    () => !!copyOf && !selectionToTaskScheduleRule(initialSelection),
+  );
   // Until the controls differ from what was read, the rule stays as read: an
   // edit to the blueprint never rewrites a rule the controls only approximate.
   const whenChanged =
     JSON.stringify(whenToSelection(when)) !==
     JSON.stringify(whenToSelection(initialWhen));
   const selection = useMemo(
-    () => (whenChanged ? whenToSelection(when) : initialSelection),
-    [whenChanged, when, initialSelection],
+    () =>
+      whenChanged || copyUsesWhen ? whenToSelection(when) : initialSelection,
+    [whenChanged, copyUsesWhen, when, initialSelection],
   );
   const rule = useMemo(
     () => selectionToTaskScheduleRule(selection),
@@ -318,7 +365,9 @@ function TaskScheduleDialogForm({
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-      title={schedule ? t("editTitle") : t("createTitle")}
+      title={
+        schedule ? t("editTitle") : copyOf ? t("copyTitle") : t("createTitle")
+      }
       cancelLabel={tNewTask("cancel")}
       isDismissDisabled={isSaving}
     >
@@ -487,13 +536,17 @@ function TaskScheduleDialogForm({
                 {tWhen("title")}
               </h3>
               <p className="text-muted-foreground text-xs">
-                {schedule ? t("futureOnlyNotice") : t("createDescription")}
+                {schedule
+                  ? t("futureOnlyNotice")
+                  : copyOf
+                    ? t("copyDescription")
+                    : t("createDescription")}
               </p>
             </div>
             <TaskScheduleWhen
               value={when}
               onChange={setWhen}
-              storedCron={schedule?.rule.expr}
+              storedCron={(schedule ?? copyOf)?.rule.expr}
             />
           </section>
         </div>

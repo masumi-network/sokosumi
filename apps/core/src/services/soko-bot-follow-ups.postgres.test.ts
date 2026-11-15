@@ -31,7 +31,6 @@ import {
   listSokoBotSchedules,
   purgeSokoBotSchedules,
   SOKO_BOT_SCHEDULE_RETENTION_MS,
-  SPENT_ONE_TIME_GRACE_MS,
 } from "./soko-bot-schedule.service";
 import { SokoBotSchedulesSyncService } from "./soko-bot-schedules-sync.service";
 
@@ -515,10 +514,15 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         (await listSokoBotSchedules(botId)).map((schedule) => schedule.name),
       ).toEqual(["Paused by the owner"]);
 
-      // Inside the grace window nothing goes: the reply still names it.
-      expect((await purgeSokoBotSchedules()).spentOneTime).toBe(0);
+      // Inside the retention window nothing goes: the Calendar shows the run.
+      expect(
+        (await purgeSokoBotSchedules(new Date(Date.now() + 2 * HOUR)))
+          .spentOneTime,
+      ).toBe(0);
 
-      const later = new Date(Date.now() + SPENT_ONE_TIME_GRACE_MS + 60_000);
+      const later = new Date(
+        Date.now() + SOKO_BOT_SCHEDULE_RETENTION_MS + HOUR,
+      );
       const first = await purgeSokoBotSchedules(later);
       const second = await purgeSokoBotSchedules(later);
       expect(first.spentOneTime + second.spentOneTime).toBe(200);

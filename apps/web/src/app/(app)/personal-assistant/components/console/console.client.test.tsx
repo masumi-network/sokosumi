@@ -26,7 +26,13 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, string>) =>
     values ? `${key}(${Object.values(values).join(",")})` : key,
   useFormatter: () => ({
-    dateTime: () => "date",
+    // A time on another clock reads as that clock's name, so a test can tell
+    // the schedule's clock from the viewer's.
+    dateTime: (
+      _date: Date,
+      _format?: string,
+      options?: { timeZone?: string },
+    ) => options?.timeZone ?? "date",
     relativeTime: () => "now",
   }),
   useNow: () => new Date("2026-10-29T12:00:00Z"),
@@ -305,6 +311,29 @@ describe("SokoBotConsole", () => {
 
     act(() => rowActions.reportRemoved(false));
     expect(screen.getByText("Morning check")).toBeInTheDocument();
+  });
+
+  it("reads a schedule's next run on its own clock, and the viewer's clock beside it", () => {
+    viewMock.mockReturnValue(null);
+    const state = chatState(true);
+    state.bot.schedules = [
+      {
+        id: "s1",
+        name: "Back up photo cards",
+        systemKey: null,
+        cronExpression: "0 16 * * 5",
+        timezone: "Europe/Warsaw",
+        prompt: "Remind me",
+        enabled: true,
+        nextRunAt: "2026-11-20T15:00:00.000Z",
+        consecutiveFailures: 0,
+      } as (typeof state.bot.schedules)[number],
+    ];
+    render(consoleElement({ initialState: state }));
+
+    const row = screen.getByText("Back up photo cards").closest("li");
+    expect(row).toHaveTextContent("Europe/Warsaw");
+    expect(row).toHaveTextContent("Schedules.yourTime(date)");
   });
 
   it("lands a chat card's schedule link on its row: scrolled to, focused and marked", () => {

@@ -73,6 +73,8 @@ export interface BuildTransactionHistoryParams {
   projectId?: string | null;
   q?: string;
   scope: "owned" | "workspace";
+  /** Only rows for this Task: its charges, its Jobs' charges and their refunds. */
+  taskId?: string;
   userContext: UserContext;
   workspaceContext: WorkspaceContext;
 }
@@ -155,6 +157,10 @@ function buildFilterSql(
     filters.push(PrismaRaw.sql`ledger."searchText" ILIKE ${`%${params.q}%`}`);
   }
 
+  if (params.taskId) {
+    filters.push(PrismaRaw.sql`ledger."taskRef" = ${params.taskId}`);
+  }
+
   return filters;
 }
 
@@ -183,6 +189,10 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
         topup."projectId",
         bucket."projectId"
       ) AS "projectId",
+      -- The Task a row belongs to: charged by its event or one of its Jobs,
+      -- or a refund of either. Filter-only; the label comes from the columns
+      -- below.
+      COALESCE(te."taskId", j."taskId", rtk."id", rj."taskId") AS "taskRef",
       j."id" AS "jobId",
       j."name" AS "jobName",
       j."agentId" AS "agentId",
@@ -399,6 +409,30 @@ export async function countTransactionHistory(
   `;
 
   return Number(rows[0]?.count ?? 0n);
+}
+
+/**
+ * Net credits taken by the rows under the filters: spends minus refunds and
+ * other top ups. Positive means credits were spent.
+ */
+export async function sumTransactionHistory(
+  params: BuildTransactionHistoryParams,
+  prismaClient: TransactionHistoryPrismaClient,
+): Promise<{ credits: number; count: number }> {
+  const rows = await prismaClient.$queryRaw<
+    Array<{ count: bigint; net: bigint | null }>
+  >`
+    SELECT
+      COUNT(*)::BIGINT AS "count",
+      SUM(-ledger."amount")::BIGINT AS "net"
+    FROM (${buildLedgerSql(params)}) AS ledger
+    ${buildWhereSql(buildFilterSql(params))}
+  `;
+
+  return {
+    credits: convertCentsToCredits(rows[0]?.net ?? 0n),
+    count: Number(rows[0]?.count ?? 0n),
+  };
 }
 
 /**

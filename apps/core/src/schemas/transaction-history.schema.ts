@@ -300,6 +300,20 @@ export type TransactionHistoryItem = z.infer<
 >;
 export type TransactionHistoryKind = (typeof transactionHistoryKinds)[number];
 
+export const transactionTotalSchema = z
+  .object({
+    credits: z.number().openapi({
+      description:
+        "Net credits taken by the matching rows: spends minus refunds and other top ups.",
+      example: 12.5,
+    }),
+    count: z.number().int().openapi({
+      description: "Matching ledger rows.",
+      example: 3,
+    }),
+  })
+  .openapi("TransactionTotal");
+
 export const transactionDailySpendListSchema = z
   .array(
     z.object({

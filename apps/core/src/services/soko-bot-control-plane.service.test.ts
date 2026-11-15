@@ -264,6 +264,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: scheduleFindFirstMock,
       update: scheduleUpdateMock,
     },
+    sokoBotScheduleRunChange: { findMany: async () => [] },
     sokoBotScheduleRun: {
       findFirst: scheduleRunFindFirstMock,
       findUnique: scheduleRunFindUniqueMock,

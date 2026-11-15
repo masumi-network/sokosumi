@@ -66,6 +66,7 @@ async function featuresForViewer(
     "social",
     "contacts",
     "marketing",
+    "sokoBot",
   ]);
   if (await isNewsletterWorkspaceEnabled(workspaceId)) {
     available.add("newsletter");

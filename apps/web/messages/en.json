@@ -1573,6 +1573,11 @@
         "label": "Credits spent per day, last 30 days",
         "total": "{count} credits spent in the last 30 days",
         "day": "{date}: {count} credits"
+      },
+      "TaskFilter": {
+        "label": "Credits for {task}",
+        "unknownTask": "this Task",
+        "clear": "Show all transactions"
       }
     },
     "Chat": {
@@ -1684,33 +1689,19 @@
         "sidebarNew": "New"
       },
       "Landing": {
-        "greeting": "Welcome!",
-        "greetingWithName": "Welcome, {name}!",
-        "intro": "Say what needs doing and they get it done.",
         "cta": {
-          "avatarAlt": "{name}",
           "button": "Chat with {name}",
-          "searchAgents": "Search agents",
           "error": "Could not open the chat. Please try again."
         },
         "stats": {
           "completed": "{count, plural, one {# task completed} other {# tasks completed}}",
           "worked": "{minutes, plural, one {# minute worked} other {# minutes worked}}",
           "awaiting": "{count, plural, one {# task needs your input} other {# tasks need your input}}",
+          "awaitingTeam": "{count, plural, one {# task needs input} other {# tasks need input}}",
+          "needsYou": "{count, plural, one {# request needs you} other {# requests need you}}",
           "byTeammates": "{count, plural, one {# task from your team} other {# tasks from your team}}",
           "recent": "In the last 24 hours",
-          "trendUp": "{count} more than the previous 24 hours",
-          "trendDown": "{count} fewer than the previous 24 hours",
           "workedHours": "{hours, plural, one {# hour worked} other {# hours worked}}"
-        },
-        "team": {
-          "avatarAlt": "{name}",
-          "stripLabel": "Available coworkers",
-          "select": "Select {name}"
-        },
-        "searchAgents": {
-          "label": "Search",
-          "subtitle": "Specialized agents"
         },
         "MyDay": {
           "title": "My day",
@@ -1752,6 +1743,11 @@
           "openChat": "Open the chat",
           "failedWork": "{name} couldn't finish what it was working on",
           "openBot": "Open {name}'s page"
+        },
+        "SokoBotSetup": {
+          "title": "Get your Soko Bot",
+          "intro": "It runs your Tasks, mail and calendar for you.",
+          "cta": "Set it up"
         }
       },
       "SokoBot": {
@@ -1898,7 +1894,9 @@
         "removeFilter": "Remove filter {filter}",
         "clear": "Clear filters",
         "noMatchesTitle": "No tasks match these filters",
-        "noMatchesDescription": "Remove a filter or clear them all to see your tasks again."
+        "noMatchesDescription": "Remove a filter or clear them all to see your tasks again.",
+        "stuck": "Stuck {days}+ days",
+        "stuckHint": "Waiting Tasks whose status has not changed for {days} days or more"
       },
       "Detail": {
         "back": "Back to tasks",
@@ -2122,7 +2120,10 @@
         "subscribe": "Subscribe",
         "unsubscribe": "Unsubscribe",
         "subscribeError": "Couldn’t subscribe. Try again.",
-        "removeParticipantError": "Couldn’t remove participant. Try again."
+        "removeParticipantError": "Couldn’t remove participant. Try again.",
+        "credits": "Credits used in this workspace",
+        "creditsUsed": "{credits, plural, one {# credit used in this workspace} other {# credits used in this workspace}}",
+        "noCreditsUsed": "No credits used in this workspace"
       },
       "NewTask": {
         "ContextAttachments": {
@@ -2324,7 +2325,10 @@
         "Dialog": {
           "createTitle": "New schedule",
           "editTitle": "Edit schedule",
+          "copyTitle": "Copy schedule",
+          "copyName": "{name} (copy)",
           "createDescription": "Each run creates a new task from these details.",
+          "copyDescription": "Saving creates a new schedule from these details. The original stays as it is.",
           "futureOnlyNotice": "Changes apply to future runs only. Tasks already created stay as they are.",
           "name": "Name",
           "description": "Description",
@@ -2391,6 +2395,14 @@
         },
         "Actions": {
           "edit": "Edit",
+          "copy": "Copy",
+          "copyToProject": "Copy to another Project",
+          "copyToProjectTitle": "Copy to which Project?",
+          "copyToProjectDescription": "Choose the Project for the new schedule. The original stays where it is.",
+          "copyToProjectNone": "No other open Project to copy into. Create or reopen one in Projects first.",
+          "copyToProjectLoading": "Looking for open Projects…",
+          "copyToProjectFailed": "Couldn't load Projects. Close this and try again.",
+          "copyToProjectLoadMore": "Show more Projects",
           "runNow": "Run now",
           "pause": "Pause",
           "resume": "Resume",
@@ -2483,6 +2495,11 @@
           "finance": "Finance",
           "qa": "Review & QA"
         }
+      },
+      "StatusAge": {
+        "label": "Time in this status:",
+        "stuck": "Stuck",
+        "since": "In this status since"
       }
     },
     "Projects": {
@@ -3314,6 +3331,7 @@
           "notSet": "Not set",
           "generate": "Generate from website",
           "missingWebsite": "Add a project website before generating brand context.",
+          "websiteInvalid": "Enter a website like example.com.",
           "open": "Open",
           "edit": "Edit",
           "remove": "Remove",
@@ -4390,6 +4408,10 @@
       "copiesFromProducts": "Set copies for each product in Products.",
       "emptyTitle": "Create your first ad",
       "emptyBody": "Pick a template and fill in the details, or write your own ad brief.",
+      "RecentProjects": {
+        "title": "Pick up where you left off",
+        "imageCount": "{count, plural, one {# image} other {# images}}"
+      },
       "pauseTemplateMotion": "Pause floating previews",
       "resumeTemplateMotion": "Resume floating previews",
       "CreativeStart": {
@@ -4584,6 +4606,7 @@
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "pickForGeneration": "Which project do these images go to?",
       "referencesAcrossProjects": "References have to come from one project. Deselect the images from other projects, then generate again.",
+      "templateSlotsUnfilled": "Fill in {slots} in the brief, then generate again.",
       "scopeLabel": "Project",
       "title": "Content Studio",
       "selectAllModels": "Select all",
@@ -4905,7 +4928,8 @@
             "description1": "Description line 1",
             "description2": "Description line 2",
             "add": "Add sitelink",
-            "remove": "Remove sitelink {number}"
+            "remove": "Remove sitelink {number}",
+            "label": "Sitelinks"
           },
           "callouts": {
             "title": "Callouts (optional)",
@@ -5140,6 +5164,16 @@
         "errors": {
           "conflict": "This campaign can't be edited here.",
           "failed": "Failed to save changes"
+        },
+        "changes": {
+          "submitCount": "Save {count, plural, one {# change} other {# changes}}",
+          "changed": "Changed",
+          "was": "Was:",
+          "now": "Now:",
+          "none": "Nothing has changed yet. Change a step to save.",
+          "removed": "Removed",
+          "added": "Added",
+          "empty": "None"
         }
       },
       "market": {
@@ -5184,6 +5218,7 @@
           },
           "trendLabel": "Monthly searches over 12 months, from {from} to {to}",
           "searchesPerMonth": "{count} searches a month",
+          "noSearchData": "No search data",
           "emptyTitle": "No trending keywords found for this market",
           "emptyBody": "Try other keywords or another country."
         },
@@ -5216,7 +5251,10 @@
             "keywords": "Failed to load keywords",
             "ads": "Failed to load ads"
           }
-        }
+        },
+        "updating": "Updating trending keywords…",
+        "stale": "These results are from before your last save.",
+        "refresh": "Refresh results"
       },
       "accounts": {
         "emptyTitle": "No ad accounts connected yet",
@@ -7285,16 +7323,16 @@
       "Evals": {
         "title": "Evals",
         "description": "{sokoBot} Soko Bot and {cmo} CMO cases. They run every day on mainnet against what main deployed, and by hand after a merge or while you develop.",
-        "noHistory": "No daily runs yet",
-        "historyLabel": "Pass rate in the last {count} daily runs",
-        "noDailyRuns": "No daily run has finished yet.",
+        "noHistory": "No weekly runs yet",
+        "historyLabel": "Pass rate in the last {count} weekly runs",
+        "noDailyRuns": "No weekly run has finished yet.",
         "trendBarTitle": "{rate} passed ({passed} of {scored})",
-        "noRuns": "No eval run yet. Start one, or wait for the daily run.",
+        "noRuns": "No eval run yet. Start one, or wait for the weekly run.",
         "wasRate": "was {rate}",
         "noCasesMatch": "No case matches this filter.",
         "runTitle": "{trigger} run, {when}",
-        "comparedWith": "Compared with the daily run of {when}",
-        "noBaseline": "No daily run before this one to compare with.",
+        "comparedWith": "Compared with the weekly run of {when}",
+        "noBaseline": "No weekly run before this one to compare with.",
         "openCases": "{count, plural, one {# case to go} other {# cases to go}}",
         "passedOf": "{passed} of {scored} passed",
         "suiteFilter": "Suite",
@@ -7354,7 +7392,7 @@
           "sokoBot": "Soko Bot",
           "cmo": "CMO",
           "repeats": "Repeats",
-          "repeatsHint": "The daily run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
+          "repeatsHint": "The weekly run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
           "cases": "Only these cases",
           "casesPlaceholder": "ambiguous-request, cmo-strategy-cal-com",
           "casesHint": "Leave empty to run every case of the suites.",
@@ -7503,11 +7541,22 @@
       "Email": {
         "title": "Change email",
         "description": "Update your email address",
+        "descriptionWithCurrent": "Signed in as {email}. We email a link to the new address to confirm the change.",
         "newEmail": "New email",
         "currentPassword": "Current password",
         "submit": "Update email",
-        "success": "Email updated successfully",
-        "error": "Failed to update email"
+        "success": "Check {email} for a link to confirm your new address.",
+        "error": "Failed to update email",
+        "pendingBadge": "Waiting for you",
+        "pendingDescription": "Open the link we sent to this address to finish the change.",
+        "resend": "Send again",
+        "cancel": "Cancel change",
+        "cancelled": "Email change cancelled. The link no longer works.",
+        "cancelError": "Couldn't cancel the email change. Try again.",
+        "changed": "Your email is now {email}.",
+        "linkFailed": "That link no longer works. Ask for a new one below.",
+        "statusUnavailable": "Couldn't check for a waiting email change. Reload to try again.",
+        "cancelTooLate": "This change was already confirmed or has expired, so there is nothing to cancel."
       },
       "Password": {
         "title": "Change password",
@@ -8168,17 +8217,17 @@
         }
       },
       "VendorGrants": {
-        "title": "Vendor workspace access",
-        "description": "Approve vendor workspace access for your personal workspace (read, comment, and create tasks).",
-        "vendorsTitle": "Vendors",
-        "vendorsEmpty": "No vendor grants yet.",
+        "title": "Who can work in your workspace",
+        "description": "Partners you allow can see the tasks in your personal workspace, comment on them and create new ones.",
+        "vendorsTitle": "Partners",
+        "vendorsEmpty": "No partner has access.",
         "statusPending": "Pending",
         "statusGranted": "Granted",
         "statusDenied": "Denied",
         "statusRevoked": "Revoked",
-        "grantFormTitle": "Grant access proactively",
+        "grantFormTitle": "Add a partner",
         "GrantForm": {
-          "vendorLabel": "Vendor",
+          "vendorLabel": "Partner",
           "workspaceAccessHint": "Grants full workspace access: read, comment on, and create tasks.",
           "submit": "Grant access",
           "success": "Vendor access granted",
@@ -8187,17 +8236,20 @@
         "Actions": {
           "approve": "Approve",
           "deny": "Deny",
-          "revoke": "Revoke",
+          "revoke": "Remove access",
           "approveSuccess": "Vendor access approved",
           "denySuccess": "Vendor access denied",
-          "revokeSuccess": "Vendor access revoked",
+          "revokeSuccess": "Access removed",
           "approveError": "Failed to approve vendor access",
           "denyError": "Failed to deny vendor access",
-          "revokeError": "Failed to revoke vendor access",
+          "revokeError": "Couldn't remove access",
           "grant": "Grant",
           "grantSuccess": "Vendor access granted",
           "grantError": "Failed to grant vendor access"
-        }
+        },
+        "permissionWorkspace": "Can read, comment, create",
+        "grantedSince": "Has access since {date}. You can remove it at any time.",
+        "grantedOnRequest": "Asked for access, approved {date}. You can remove it at any time."
       },
       "CoworkerAccess": {
         "title": "Coworker early access",
@@ -8371,7 +8423,10 @@
             "grant": "Grant",
             "grantSuccess": "Vendor access granted",
             "grantError": "Failed to grant vendor access"
-          }
+          },
+          "permissionWorkspace": "Can read, comment, create",
+          "grantedSince": "Has access since {date}.",
+          "grantedOnRequest": "Asked for access, approved {date}."
         },
         "CoworkerAccess": {
           "title": "Coworker early access",
@@ -8610,6 +8665,7 @@
       "uploadSuccess": "DESIGN.md uploaded",
       "uploadError": "Failed to upload DESIGN.md",
       "uploadRejected": "File is not accepted",
+      "uploadEmpty": "This file is empty. Choose a DESIGN.md with content.",
       "removeSelectedUpload": "Remove selected file",
       "descriptionPersonal": "Create and manage the DESIGN.md used for tasks from your personal workspace.",
       "descriptionOrganization": "Create and manage the DESIGN.md used for tasks from this organization.",
@@ -8993,13 +9049,14 @@
         "attachmentFallback": "file",
         "showFormatting": "Show formatting",
         "hideFormatting": "Hide formatting",
-        "recordVoice": "Record a voice message",
-        "stopVoice": "Stop and attach",
-        "cancelVoice": "Discard recording",
-        "voiceRecording": "Recording voice message",
-        "voiceBlocked": "Allow microphone access in your browser to record a voice message.",
         "voiceFailed": "Recording stopped. Try again.",
-        "voiceFileName": "Voice message {time}"
+        "dictate": "Dictate",
+        "stopDictation": "Stop and type it",
+        "cancelDictation": "Discard dictation",
+        "dictating": "Dictating",
+        "dictationBlocked": "Allow microphone access in your browser to dictate.",
+        "dictationFailed": "Couldn't turn that into text. Try again.",
+        "dictationEmpty": "Didn't catch anything. Try again."
       },
       "Skills": {
         "add": "Add a skill",
@@ -9728,6 +9785,7 @@
       "recentsTagFilterEmpty": "No tags yet. Files are tagged as they are processed.",
       "recentsEmptyTitle": "No recent files",
       "recentsEmptyDescription": "Files you upload or receive from tasks will appear here",
+      "recentsEmptyOpenWorkspace": "Open workspace",
       "loadRecentsError": "Failed to load recent files",
       "loadMoreRecentsError": "Failed to load more recent files",
       "viewList": "List",
@@ -10077,9 +10135,7 @@
         "nameHint": "Your own AI assistant in Sokosumi. You can rename it later.",
         "continue": "Continue",
         "back": "Back",
-        "pictureTitle": "Pick a picture for {name}",
-        "createWithoutPicture": "Create without a picture",
-        "createWithoutPictureHint": "{name} starts with its color orb. Add a picture any time in its settings."
+        "pictureTitle": "Pick a picture for {name}"
       },
       "Memory": {
         "title": "Memory",
@@ -10140,6 +10196,7 @@
         "lastRun": "Last",
         "failures": "Failures",
         "disabled": "disabled",
+        "yourTime": "({datetime} your time)",
         "enable": "Enable schedule",
         "disable": "Disable schedule",
         "delete": "Delete",
@@ -10410,8 +10467,8 @@
           "tokenSplit": "{input} in · {output} out",
           "modelCost": "Model cost",
           "modelCostHint": "What the tokens cost, before the per-turn minimum",
-          "creditSplit": "{own} on its own turns · {delegated} on Coworkers and Agents",
-          "creditsOwnOnly": "All on its own turns"
+          "creditSplit": "{own} by the assistant itself · {delegated} on Coworkers and Agents",
+          "creditsOwnOnly": "Nothing spent on Coworkers or Agents"
         },
         "Connectors": {
           "title": "Tools",
@@ -10428,6 +10485,9 @@
         "current": "Current picture",
         "hint": "Pick one, or ask for other options.",
         "showOthers": "Show others",
+        "noneNew": "No new pictures right now. Try again in a minute.",
+        "drawing": "Drawing new pictures. This can take a minute.",
+        "noMore": "That is all the new pictures for now. Pick one above.",
         "pictures": "Pictures",
         "loadError": "Could not load pictures.",
         "rateLimited": "Too many new pictures requested. Try again later."
@@ -10573,7 +10633,8 @@
         "social": "Social posts",
         "newsletter": "Newsletter",
         "contacts": "Follow-ups",
-        "marketing": "Marketing plan"
+        "marketing": "Marketing plan",
+        "sokoBot": "Soko Bot"
       },
       "source": {
         "WORKSPACE": "Workspace",
@@ -10678,6 +10739,11 @@
         "cancel": "Cancel",
         "invalid": "Choose a valid date and time.",
         "past": "Choose a time in the future."
+      },
+      "botRun": {
+        "running": "Running",
+        "done": "Done",
+        "failed": "Failed"
       }
     },
     "You": {
@@ -10700,6 +10766,7 @@
       "noFileChosen": "No file chosen",
       "csvLimit": "Up to 5 MB, 10,000 rows and 100 columns. First row contains column names.",
       "mapping": "Map columns and preview",
+      "numberGuess": "Every filled cell is a number, so this starts as Number. Change it if the digits are a code.",
       "columnName": "Column name",
       "type": "Type",
       "options": "Options (separated by semicolons)",
@@ -11767,7 +11834,7 @@
     "Assistant": {
       "metadataTitle": "Set up your assistant",
       "later": "Later",
-      "laterHint": "Set it up any time from Soko Bots.",
+      "laterHint": "Set it up any time from Home.",
       "skip": "Skip",
       "continue": "Continue"
     }

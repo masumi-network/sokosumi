@@ -4,7 +4,9 @@ import {
   getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponseTransformer,
   getProjectsByIdAdsMarketAdsResponseTransformer,
   getProjectsByIdAdsMarketResponseTransformer,
+  getProjectsByIdCalendarResponseTransformer,
   getProjectsByIdSocialPostsByPostIdResponseTransformer,
+  getWorkspacesCalendarResponseTransformer,
   postProjectsByIdAdsConnectionsFinalizeResponseTransformer,
 } from "./generated/transformers.gen.js";
 
@@ -187,3 +189,28 @@ describe("generated response transformers keep nullable objects null-safe", () =
     expect(result.data.ad).toBeNull();
   });
 });
+
+it.each([
+  getWorkspacesCalendarResponseTransformer,
+  getProjectsByIdCalendarResponseTransformer,
+])(
+  "revives a Soko Bot run's originalAt on the Calendar (%#)",
+  async (transform) => {
+    const result = await transform({
+      data: [
+        {
+          kind: "sokoBotRun",
+          scheduledAt: "2030-01-03T14:00:00.000Z",
+          originalAt: "2030-01-04T09:00:00.000Z",
+        },
+      ],
+      meta: { ...meta },
+    });
+    expect(result.data[0]?.scheduledAt).toEqual(
+      new Date("2030-01-03T14:00:00.000Z"),
+    );
+    expect(result.data[0]?.originalAt).toEqual(
+      new Date("2030-01-04T09:00:00.000Z"),
+    );
+  },
+);

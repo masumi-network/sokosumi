@@ -1573,6 +1573,11 @@
         "label": "Ausgegebene Credits pro Tag, letzte 30 Tage",
         "total": "{count} Credits in den letzten 30 Tagen ausgegeben",
         "day": "{date}: {count} Credits"
+      },
+      "TaskFilter": {
+        "label": "Credits für {task}",
+        "unknownTask": "diese Aufgabe",
+        "clear": "Alle Transaktionen anzeigen"
       }
     },
     "Chat": {
@@ -1684,33 +1689,19 @@
         "sidebarNew": "Neu"
       },
       "Landing": {
-        "greeting": "Willkommen!",
-        "greetingWithName": "Willkommen, {name}!",
-        "intro": "Sag, was zu tun ist, und sie erledigen es.",
         "cta": {
-          "avatarAlt": "{name}",
           "button": "Mit {name} chatten",
-          "searchAgents": "Agenten suchen",
           "error": "Chat konnte nicht geöffnet werden. Bitte versuche es erneut."
         },
         "stats": {
           "completed": "{count, plural, one {# Aufgabe erledigt} other {# Aufgaben erledigt}}",
           "worked": "{minutes, plural, one {# Minute gearbeitet} other {# Minuten gearbeitet}}",
           "awaiting": "{count, plural, one {# Aufgabe braucht dich} other {# Aufgaben brauchen dich}}",
+          "awaitingTeam": "{count, plural, one {# Aufgabe wartet auf Antwort} other {# Aufgaben warten auf Antwort}}",
+          "needsYou": "{count, plural, one {# Anfrage braucht dich} other {# Anfragen brauchen dich}}",
           "byTeammates": "{count, plural, one {# Aufgabe von deinem Team} other {# Aufgaben von deinem Team}}",
           "recent": "In den letzten 24 Stunden",
-          "trendUp": "{count} mehr als in den vorherigen 24 Stunden",
-          "trendDown": "{count} weniger als in den vorherigen 24 Stunden",
           "workedHours": "{hours, plural, one {# Stunde gearbeitet} other {# Stunden gearbeitet}}"
-        },
-        "team": {
-          "avatarAlt": "{name}",
-          "stripLabel": "Verfügbare Coworker",
-          "select": "{name} auswählen"
-        },
-        "searchAgents": {
-          "label": "Suchen",
-          "subtitle": "Spezialisierte Agenten"
         },
         "MyDay": {
           "title": "Mein Tag",
@@ -1752,6 +1743,11 @@
           "openChat": "Chat öffnen",
           "failedWork": "{name} konnte die letzte Arbeit nicht abschließen",
           "openBot": "Seite von {name} öffnen"
+        },
+        "SokoBotSetup": {
+          "title": "Hol dir deinen Soko Bot",
+          "intro": "Er kümmert sich um deine Aufgaben, Mails und deinen Kalender.",
+          "cta": "Jetzt einrichten"
         }
       },
       "SokoBot": {
@@ -1898,7 +1894,9 @@
         "removeFilter": "Filter {filter} entfernen",
         "clear": "Filter zurücksetzen",
         "noMatchesTitle": "Keine Tasks passen zu diesen Filtern",
-        "noMatchesDescription": "Entferne einen Filter oder setze alle zurück, um deine Tasks wieder zu sehen."
+        "noMatchesDescription": "Entferne einen Filter oder setze alle zurück, um deine Tasks wieder zu sehen.",
+        "stuck": "Hängt seit {days}+ Tagen",
+        "stuckHint": "Wartende Tasks, deren Status sich seit {days} Tagen oder länger nicht geändert hat"
       },
       "Detail": {
         "back": "Zurück zu Tasks",
@@ -2122,7 +2120,10 @@
         "subscribe": "Abonnieren",
         "unsubscribe": "Abbestellen",
         "subscribeError": "Abonnieren fehlgeschlagen. Bitte erneut versuchen.",
-        "removeParticipantError": "Beteiligte Person konnte nicht entfernt werden. Versuche es erneut."
+        "removeParticipantError": "Beteiligte Person konnte nicht entfernt werden. Versuche es erneut.",
+        "credits": "In diesem Workspace verbrauchte Credits",
+        "creditsUsed": "{credits, plural, one {# Credit in diesem Workspace verbraucht} other {# Credits in diesem Workspace verbraucht}}",
+        "noCreditsUsed": "Keine Credits in diesem Workspace verbraucht"
       },
       "NewTask": {
         "ContextAttachments": {
@@ -2324,7 +2325,10 @@
         "Dialog": {
           "createTitle": "Neuer Zeitplan",
           "editTitle": "Zeitplan bearbeiten",
+          "copyTitle": "Zeitplan kopieren",
+          "copyName": "{name} (Kopie)",
           "createDescription": "Jeder Lauf erstellt aus diesen Angaben einen neuen Task.",
+          "copyDescription": "Beim Speichern entsteht aus diesen Angaben ein neuer Zeitplan. Das Original bleibt unverändert.",
           "futureOnlyNotice": "Änderungen gelten nur für künftige Läufe. Bereits erstellte Tasks bleiben unverändert.",
           "name": "Name",
           "description": "Beschreibung",
@@ -2391,6 +2395,14 @@
         },
         "Actions": {
           "edit": "Bearbeiten",
+          "copy": "Kopieren",
+          "copyToProject": "In anderes Projekt kopieren",
+          "copyToProjectTitle": "In welches Projekt kopieren?",
+          "copyToProjectDescription": "Wähle das Projekt für den neuen Zeitplan. Das Original bleibt, wo es ist.",
+          "copyToProjectNone": "Kein anderes offenes Projekt zum Kopieren. Lege zuerst unter Projekte eines an oder öffne eines wieder.",
+          "copyToProjectLoading": "Projekte werden geladen…",
+          "copyToProjectFailed": "Projekte konnten nicht geladen werden. Schließe dies und versuche es erneut.",
+          "copyToProjectLoadMore": "Weitere Projekte anzeigen",
           "runNow": "Jetzt ausführen",
           "pause": "Pausieren",
           "resume": "Fortsetzen",
@@ -2483,6 +2495,11 @@
           "finance": "Finanzen",
           "qa": "Review & QA"
         }
+      },
+      "StatusAge": {
+        "label": "Zeit in diesem Status:",
+        "stuck": "Hängt",
+        "since": "In diesem Status seit"
       }
     },
     "Projects": {
@@ -3314,6 +3331,7 @@
           "notSet": "Nicht eingerichtet",
           "generate": "Aus Website erstellen",
           "missingWebsite": "Füge eine Projektwebsite hinzu, bevor du Markenkontext erstellst.",
+          "websiteInvalid": "Gib eine Website wie example.com ein.",
           "open": "Öffnen",
           "edit": "Bearbeiten",
           "remove": "Entfernen",
@@ -4390,6 +4408,10 @@
       "copiesFromProducts": "Lege die Anzahl der Kopien je Produkt unter „Produkte“ fest.",
       "emptyTitle": "Erstelle deine erste Anzeige",
       "emptyBody": "Wähle eine Vorlage und ergänze die Details oder schreibe dein eigenes Anzeigenbriefing.",
+      "RecentProjects": {
+        "title": "Mach weiter, wo du aufgehört hast",
+        "imageCount": "{count, plural, one {# Bild} other {# Bilder}}"
+      },
       "pauseTemplateMotion": "Schwebende Vorschauen anhalten",
       "resumeTemplateMotion": "Schwebende Vorschauen fortsetzen",
       "CreativeStart": {
@@ -4584,6 +4606,7 @@
       "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
       "pickForGeneration": "In welches Projekt sollen diese Bilder?",
       "referencesAcrossProjects": "Referenzen müssen aus einem Projekt stammen. Heb die Auswahl der Bilder aus anderen Projekten auf und generiere erneut.",
+      "templateSlotsUnfilled": "Füll {slots} im Briefing aus und generiere dann erneut.",
       "scopeLabel": "Projekt",
       "title": "Content Studio",
       "selectAllModels": "Alle auswählen",
@@ -4905,7 +4928,8 @@
             "description1": "Beschreibungszeile 1",
             "description2": "Beschreibungszeile 2",
             "add": "Sitelink hinzufügen",
-            "remove": "Sitelink {number} entfernen"
+            "remove": "Sitelink {number} entfernen",
+            "label": "Sitelinks"
           },
           "callouts": {
             "title": "Zusatzinformationen (optional)",
@@ -5140,6 +5164,16 @@
         "errors": {
           "conflict": "Diese Kampagne kann hier nicht bearbeitet werden.",
           "failed": "Änderungen konnten nicht gespeichert werden"
+        },
+        "changes": {
+          "submitCount": "{count, plural, one {# Änderung} other {# Änderungen}} speichern",
+          "changed": "Geändert",
+          "was": "Vorher:",
+          "now": "Jetzt:",
+          "none": "Noch keine Änderungen. Speichern ist möglich, sobald sich etwas ändert.",
+          "removed": "Entfernt",
+          "added": "Hinzugefügt",
+          "empty": "Keine"
         }
       },
       "market": {
@@ -5184,6 +5218,7 @@
           },
           "trendLabel": "Suchen pro Monat über 12 Monate, von {from} auf {to}",
           "searchesPerMonth": "{count} Suchen pro Monat",
+          "noSearchData": "Keine Suchdaten",
           "emptyTitle": "Für diesen Markt wurden keine Trend-Keywords gefunden",
           "emptyBody": "Probiere andere Keywords oder ein anderes Land."
         },
@@ -5216,7 +5251,10 @@
             "keywords": "Keywords konnten nicht geladen werden",
             "ads": "Anzeigen konnten nicht geladen werden"
           }
-        }
+        },
+        "updating": "Trend-Keywords werden aktualisiert…",
+        "stale": "Diese Ergebnisse stammen von vor deiner letzten Speicherung.",
+        "refresh": "Ergebnisse aktualisieren"
       },
       "accounts": {
         "emptyTitle": "Noch keine Werbekonten verbunden",
@@ -7249,16 +7287,16 @@
       "Evals": {
         "title": "Evals",
         "description": "{sokoBot} Soko Bot and {cmo} CMO cases. They run every day on mainnet against what main deployed, and by hand after a merge or while you develop.",
-        "noHistory": "No daily runs yet",
-        "historyLabel": "Pass rate in the last {count} daily runs",
-        "noDailyRuns": "No daily run has finished yet.",
+        "noHistory": "No weekly runs yet",
+        "historyLabel": "Pass rate in the last {count} weekly runs",
+        "noDailyRuns": "No weekly run has finished yet.",
         "trendBarTitle": "{rate} passed ({passed} of {scored})",
-        "noRuns": "No eval run yet. Start one, or wait for the daily run.",
+        "noRuns": "No eval run yet. Start one, or wait for the weekly run.",
         "wasRate": "was {rate}",
         "noCasesMatch": "No case matches this filter.",
         "runTitle": "{trigger} run, {when}",
-        "comparedWith": "Compared with the daily run of {when}",
-        "noBaseline": "No daily run before this one to compare with.",
+        "comparedWith": "Compared with the weekly run of {when}",
+        "noBaseline": "No weekly run before this one to compare with.",
         "openCases": "{count, plural, one {# case to go} other {# cases to go}}",
         "passedOf": "{passed} of {scored} passed",
         "suiteFilter": "Suite",
@@ -7318,7 +7356,7 @@
           "sokoBot": "Soko Bot",
           "cmo": "CMO",
           "repeats": "Repeats",
-          "repeatsHint": "The daily run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
+          "repeatsHint": "The weekly run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
           "cases": "Only these cases",
           "casesPlaceholder": "ambiguous-request, cmo-strategy-cal-com",
           "casesHint": "Leave empty to run every case of the suites.",
@@ -7467,11 +7505,22 @@
       "Email": {
         "title": "E-Mail ändern",
         "description": "Deine E-Mail-Adresse aktualisieren",
+        "descriptionWithCurrent": "Angemeldet als {email}. Wir senden einen Link an die neue Adresse, um die Änderung zu bestätigen.",
         "newEmail": "Neue E-Mail",
         "currentPassword": "Aktuelles Passwort",
         "submit": "E-Mail aktualisieren",
-        "success": "E-Mail erfolgreich aktualisiert",
-        "error": "E-Mail konnte nicht aktualisiert werden"
+        "success": "Öffne den Link, den wir an {email} gesendet haben, um die neue Adresse zu bestätigen.",
+        "error": "E-Mail konnte nicht aktualisiert werden",
+        "pendingBadge": "Wartet auf dich",
+        "pendingDescription": "Öffne den Link, den wir an diese Adresse gesendet haben, um die Änderung abzuschließen.",
+        "resend": "Erneut senden",
+        "cancel": "Änderung abbrechen",
+        "cancelled": "E-Mail-Änderung abgebrochen. Der Link funktioniert nicht mehr.",
+        "cancelError": "Die E-Mail-Änderung konnte nicht abgebrochen werden. Versuch es noch einmal.",
+        "changed": "Deine E-Mail-Adresse ist jetzt {email}.",
+        "linkFailed": "Dieser Link funktioniert nicht mehr. Fordere unten einen neuen an.",
+        "statusUnavailable": "Eine wartende E-Mail-Änderung konnte nicht geprüft werden. Lade die Seite neu, um es erneut zu versuchen.",
+        "cancelTooLate": "Diese Änderung wurde bereits bestätigt oder ist abgelaufen, daher gibt es nichts abzubrechen."
       },
       "Password": {
         "title": "Passwort ändern",
@@ -8132,17 +8181,17 @@
         }
       },
       "VendorGrants": {
-        "title": "Vendor-Workspace-Zugriff",
-        "description": "Genehmige Vendor-Workspace-Zugriff für deinen persönlichen Workspace (Aufgaben lesen, kommentieren und erstellen).",
-        "vendorsTitle": "Anbieter",
-        "vendorsEmpty": "Noch keine Anbieterfreigaben.",
+        "title": "Wer in deinem Workspace arbeiten kann",
+        "description": "Partner, die du zulässt, sehen die Aufgaben in deinem persönlichen Workspace, kommentieren sie und erstellen neue.",
+        "vendorsTitle": "Partner",
+        "vendorsEmpty": "Kein Partner hat Zugriff.",
         "statusPending": "Ausstehend",
         "statusGranted": "Gewährt",
         "statusDenied": "Abgelehnt",
         "statusRevoked": "Widerrufen",
-        "grantFormTitle": "Zugriff proaktiv gewähren",
+        "grantFormTitle": "Partner hinzufügen",
         "GrantForm": {
-          "vendorLabel": "Anbieter",
+          "vendorLabel": "Partner",
           "workspaceAccessHint": "Gewährt vollen Workspace-Zugriff: Aufgaben lesen, kommentieren und erstellen.",
           "submit": "Zugriff gewähren",
           "success": "Vendor-Zugriff gewährt",
@@ -8151,17 +8200,20 @@
         "Actions": {
           "approve": "Genehmigen",
           "deny": "Ablehnen",
-          "revoke": "Widerrufen",
+          "revoke": "Zugriff entfernen",
           "approveSuccess": "Vendor-Zugriff genehmigt",
           "denySuccess": "Vendor-Zugriff abgelehnt",
-          "revokeSuccess": "Vendor-Zugriff widerrufen",
+          "revokeSuccess": "Zugriff entfernt",
           "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
           "denyError": "Vendor-Zugriff konnte nicht abgelehnt werden",
-          "revokeError": "Vendor-Zugriff konnte nicht widerrufen werden",
+          "revokeError": "Zugriff konnte nicht entfernt werden",
           "grant": "Gewähren",
           "grantSuccess": "Vendor-Zugriff gewährt",
           "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
-        }
+        },
+        "permissionWorkspace": "Lesen, kommentieren, erstellen",
+        "grantedSince": "Hat Zugriff seit {date}. Du kannst ihn jederzeit entfernen.",
+        "grantedOnRequest": "Hat Zugriff angefragt, genehmigt am {date}. Du kannst ihn jederzeit entfernen."
       },
       "CoworkerAccess": {
         "title": "Coworker-Early-Access",
@@ -8335,7 +8387,10 @@
             "grant": "Gewähren",
             "grantSuccess": "Vendor-Zugriff gewährt",
             "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
-          }
+          },
+          "permissionWorkspace": "Lesen, kommentieren, erstellen",
+          "grantedSince": "Hat Zugriff seit {date}.",
+          "grantedOnRequest": "Hat Zugriff angefragt, genehmigt am {date}."
         },
         "CoworkerAccess": {
           "title": "Coworker-Early-Access",
@@ -8610,6 +8665,7 @@
       "uploadSuccess": "DESIGN.md hochgeladen",
       "uploadError": "DESIGN.md konnte nicht hochgeladen werden",
       "uploadRejected": "Datei wird nicht akzeptiert",
+      "uploadEmpty": "Die Datei ist leer. Wähle eine DESIGN.md mit Inhalt.",
       "removeSelectedUpload": "Ausgewählte Datei entfernen",
       "descriptionPersonal": "Erstelle und verwalte die DESIGN.md, die für Tasks aus deinem persönlichen Workspace verwendet wird.",
       "descriptionOrganization": "Erstelle und verwalte die DESIGN.md, die für Tasks dieser Organisation verwendet wird.",
@@ -8993,13 +9049,14 @@
         "attachmentFallback": "file",
         "showFormatting": "Formatierung anzeigen",
         "hideFormatting": "Formatierung ausblenden",
-        "recordVoice": "Sprachnachricht aufnehmen",
-        "stopVoice": "Beenden und anhängen",
-        "cancelVoice": "Aufnahme verwerfen",
-        "voiceRecording": "Sprachnachricht wird aufgenommen",
-        "voiceBlocked": "Erlaube den Mikrofonzugriff im Browser, um eine Sprachnachricht aufzunehmen.",
         "voiceFailed": "Aufnahme abgebrochen. Versuche es erneut.",
-        "voiceFileName": "Sprachnachricht {time}"
+        "dictate": "Diktieren",
+        "stopDictation": "Beenden und eintippen",
+        "cancelDictation": "Diktat verwerfen",
+        "dictating": "Diktat läuft",
+        "dictationBlocked": "Erlaube den Mikrofonzugriff im Browser, um zu diktieren.",
+        "dictationFailed": "Das ließ sich nicht in Text umwandeln. Versuche es erneut.",
+        "dictationEmpty": "Nichts verstanden. Versuche es erneut."
       },
       "Skills": {
         "add": "Skill hinzufügen",
@@ -9728,6 +9785,7 @@
       "recentsTagFilterEmpty": "Noch keine Tags. Dateien werden bei der Verarbeitung getaggt.",
       "recentsEmptyTitle": "Keine kürzlichen Dateien",
       "recentsEmptyDescription": "Dateien, die du hochlädst oder aus Aufgaben erhältst, erscheinen hier",
+      "recentsEmptyOpenWorkspace": "Arbeitsbereich öffnen",
       "loadRecentsError": "Kürzliche Dateien konnten nicht geladen werden",
       "loadMoreRecentsError": "Weitere kürzliche Dateien konnten nicht geladen werden",
       "viewList": "Liste",
@@ -10077,9 +10135,7 @@
         "nameHint": "Dein eigener KI-Assistent in Sokosumi. Du kannst ihn später umbenennen.",
         "continue": "Weiter",
         "back": "Zurück",
-        "pictureTitle": "Wähle ein Bild für {name}",
-        "createWithoutPicture": "Ohne Bild erstellen",
-        "createWithoutPictureHint": "{name} startet mit seiner Farbkugel. Ein Bild fügst du jederzeit in den Einstellungen hinzu."
+        "pictureTitle": "Wähle ein Bild für {name}"
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -10140,6 +10196,7 @@
         "lastRun": "Letzter",
         "failures": "Fehler",
         "disabled": "deaktiviert",
+        "yourTime": "({datetime} bei dir)",
         "enable": "Zeitplan aktivieren",
         "disable": "Zeitplan deaktivieren",
         "delete": "Löschen",
@@ -10410,8 +10467,8 @@
           "tokenSplit": "{input} rein · {output} raus",
           "modelCost": "Modellkosten",
           "modelCostHint": "Was die Tokens gekostet haben, vor dem Mindestbetrag pro Durchlauf",
-          "creditSplit": "{own} für eigene Durchläufe · {delegated} für Coworker und Agents",
-          "creditsOwnOnly": "Alles für eigene Durchläufe"
+          "creditSplit": "{own} vom Assistenten selbst · {delegated} für Coworker und Agents",
+          "creditsOwnOnly": "Nichts für Coworker oder Agents ausgegeben"
         },
         "Connectors": {
           "title": "Tools",
@@ -10428,6 +10485,9 @@
         "current": "Aktuelles Bild",
         "hint": "Wähle eines oder lass dir andere zeigen.",
         "showOthers": "Andere zeigen",
+        "noneNew": "Gerade keine neuen Bilder. Versuch es in einer Minute noch einmal.",
+        "drawing": "Neue Bilder werden gezeichnet. Das kann eine Minute dauern.",
+        "noMore": "Mehr neue Bilder gibt es gerade nicht. Wähl eines oben aus.",
         "pictures": "Bilder",
         "loadError": "Bilder konnten nicht geladen werden.",
         "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal."
@@ -10573,7 +10633,8 @@
         "social": "Social-Beiträge",
         "newsletter": "Newsletter",
         "contacts": "Nachfassungen",
-        "marketing": "Marketingplan"
+        "marketing": "Marketingplan",
+        "sokoBot": "Soko Bot"
       },
       "source": {
         "WORKSPACE": "Workspace",
@@ -10678,6 +10739,11 @@
         "cancel": "Abbrechen",
         "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
         "past": "Wähle einen Zeitpunkt in der Zukunft."
+      },
+      "botRun": {
+        "running": "Läuft",
+        "done": "Erledigt",
+        "failed": "Fehlgeschlagen"
       }
     },
     "You": {
@@ -10700,6 +10766,7 @@
       "noFileChosen": "Keine Datei ausgewählt",
       "csvLimit": "Bis zu 5 MB, 10.000 Zeilen und 100 Spalten. Die erste Zeile enthält Spaltennamen.",
       "mapping": "Spalten zuordnen und Vorschau",
+      "numberGuess": "Jede ausgefüllte Zelle ist eine Zahl, daher ist hier Zahl voreingestellt. Ändere es, wenn die Ziffern ein Code sind.",
       "columnName": "Spaltenname",
       "type": "Typ",
       "options": "Optionen (durch Semikolon getrennt)",
@@ -11767,7 +11834,7 @@
     "Assistant": {
       "metadataTitle": "Assistenten einrichten",
       "later": "Später",
-      "laterHint": "Du kannst ihn jederzeit unter Soko Bots einrichten.",
+      "laterHint": "Du kannst ihn jederzeit auf der Startseite einrichten.",
       "skip": "Überspringen",
       "continue": "Weiter"
     }

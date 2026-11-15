@@ -226,7 +226,10 @@ function RoomCacheSession({
     };
   }, [cache, currentUserId, pathname, workspaceId]);
   useEffect(() => {
-    cache.activate();
+    // Next hides the app shell in an Activity while a flow outside it is
+    // open, which runs the cleanup below. A room opened as the shell comes
+    // back rendered against the cleared cache and would wait on it forever.
+    if (cache.activate()) setGeneration((value) => value + 1);
     const ended = () => {
       cache.clear();
       setGeneration((value) => value + 1);

@@ -190,7 +190,11 @@ export async function generateSokoBotJudgeText(options: {
   abortSignal?: AbortSignal;
 }) {
   const result = await generateText({
-    ...sokoBotModelRequest({ role: "judge", model: options.model }),
+    ...sokoBotModelRequest({
+      role: "judge",
+      model: options.model,
+      purpose: "evals",
+    }),
     output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
     abortSignal: options.abortSignal,
     instructions: SOKO_BOT_JUDGE_RUBRIC,

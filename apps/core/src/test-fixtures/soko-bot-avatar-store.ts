@@ -182,7 +182,7 @@ export function createSokoBotAvatarStore() {
       subject: "owl",
       background: "golden yellow",
       seed: avatars.length + 1,
-      model: "google/gemini-3.1-flash-image",
+      model: "fal-ai/gemini-3.1-flash-image-preview",
       imageUrl: `https://blob.test/avatar-${avatars.length + 1}.png`,
       sourceUrl: null,
       claimedBySokoBotId: null,

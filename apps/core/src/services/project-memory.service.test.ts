@@ -29,6 +29,10 @@ const {
 }));
 
 vi.mock("ai", () => ({
+  createGateway: ({ apiKey }: { apiKey: string }) => ({
+    languageModel: (id: string) => `keyed:${apiKey}:${id}`,
+  }),
+  gateway: { languageModel: (id: string) => id },
   generateText: generateTextMock,
 }));
 
@@ -158,6 +162,24 @@ describe("projectMemoryService", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+  });
+
+  it("generates through the project-memory key when one is set", async () => {
+    getEnvMock.mockReturnValue({
+      AI_GATEWAY_API_KEY: undefined,
+      PROJECT_MEMORY_AI_GATEWAY_API_KEY: "memory_key",
+      BLOB_READ_WRITE_TOKEN: "blob_key",
+      PROJECT_MEMORY_MODEL: MODEL_ID,
+    });
+
+    await projectMemoryService.refreshAfterTaskCompleted({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    });
+
+    expect(generateTextMock).toHaveBeenCalled();
+    for (const [options] of generateTextMock.mock.calls)
+      expect(options.model).toBe(`keyed:memory_key:${MODEL_ID}`);
   });
 
   it("is a no-op without an AI Gateway key", async () => {
