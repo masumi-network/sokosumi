@@ -21,6 +21,8 @@ E2E_BASE_URL=https://<preview-host> pnpm --filter web e2e
 | `e2e/base-url.test.ts` | URL guard: required, allowed hosts only. Needs no browser.                                                                                                        |
 | `e2e/smoke.test.ts`    | `/signin` and `/signup` at phone 375x812, tablet 768x1024 and desktop 1440x900: page loads, email field shows, no horizontal overflow, no console or page errors. |
 
+`smoke.test.ts` skips one known console error (`KNOWN_ERROR`): the signed-out proxy redirects Vercel's hashed analytics script (`/<16 hex>/script.js`) to `/signin`. That is an app defect for a follow-up; delete the filter when it is fixed.
+
 Screenshots go to `apps/web/e2e/results/` (gitignored).
 
 ## Rules for specs
