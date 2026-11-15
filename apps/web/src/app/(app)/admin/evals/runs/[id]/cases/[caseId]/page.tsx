@@ -18,7 +18,7 @@ export const instant = false;
 
 export const metadata: Metadata = {
   title: "Eval case",
-  description: "One eval case in a run, beside the daily run before it",
+  description: "One eval case in a run, beside the weekly run before it",
 };
 
 /**
