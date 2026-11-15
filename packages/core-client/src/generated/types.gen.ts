@@ -13747,6 +13747,17 @@ export type TransactionDailySpendList = Array<{
     credits: number;
 }>;
 
+export type TransactionTotal = {
+    /**
+     * Net credits taken by the matching rows: spends minus refunds and other top ups.
+     */
+    credits: number;
+    /**
+     * Matching ledger rows.
+     */
+    count: number;
+};
+
 export type CreditPriceOption = {
     id: string;
     amountPerCredit: number;
@@ -91419,6 +91430,10 @@ export type GetTransactionsData = {
          */
         scope?: 'workspace' | 'owned';
         /**
+         * Only rows for this Task: charges by its events and its Jobs, and the refunds of those charges.
+         */
+        taskId?: string;
+        /**
          * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
          */
         types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'contacts' | 'topUp' | 'unattributed'>;
@@ -91469,6 +91484,21 @@ export type GetTransactionsErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Task not found
+     */
+    404: {
         error: string;
         message: string;
         kind?: string;
@@ -91538,6 +91568,10 @@ export type GetTransactionsDailyData = {
          */
         scope?: 'workspace' | 'owned';
         /**
+         * Only rows for this Task: charges by its events and its Jobs, and the refunds of those charges.
+         */
+        taskId?: string;
+        /**
          * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
          */
         types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'contacts' | 'topUp' | 'unattributed'>;
@@ -91588,6 +91622,21 @@ export type GetTransactionsDailyErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Task not found
+     */
+    404: {
         error: string;
         message: string;
         kind?: string;
@@ -91657,6 +91706,10 @@ export type GetTransactionsExportData = {
          */
         scope?: 'workspace' | 'owned';
         /**
+         * Only rows for this Task: charges by its events and its Jobs, and the refunds of those charges.
+         */
+        taskId?: string;
+        /**
          * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
          */
         types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'contacts' | 'topUp' | 'unattributed'>;
@@ -91719,6 +91772,21 @@ export type GetTransactionsExportErrors = {
         };
     };
     /**
+     * Task not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -91745,6 +91813,136 @@ export type GetTransactionsExportResponses = {
 };
 
 export type GetTransactionsExportResponse = GetTransactionsExportResponses[keyof GetTransactionsExportResponses];
+
+export type GetTransactionsTotalData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Filter ledger rows by project. Use 'null' for rows with no project, which includes every coworker, Soko Bot, top up and unattributed row.
+         */
+        projectId?: string | 'null';
+        /**
+         * Case-insensitive search across the labels a row can carry: job, agent, task, coworker and image model names, task event comments, image prompts and top up bucket notes.
+         */
+        q?: string;
+        /**
+         * owned: only ledger rows belonging to the calling user. workspace: every ledger row in the active workspace, including organization-level ones with no user.
+         */
+        scope?: 'workspace' | 'owned';
+        /**
+         * Only rows for this Task: charges by its events and its Jobs, and the refunds of those charges.
+         */
+        taskId?: string;
+        /**
+         * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
+         */
+        types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'contacts' | 'topUp' | 'unattributed'>;
+    };
+    url: '/transactions/total';
+};
+
+export type GetTransactionsTotalErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Task not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTransactionsTotalError = GetTransactionsTotalErrors[keyof GetTransactionsTotalErrors];
+
+export type GetTransactionsTotalResponses = {
+    /**
+     * Retrieve the ledger total
+     */
+    200: {
+        data: TransactionTotal;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTransactionsTotalResponse = GetTransactionsTotalResponses[keyof GetTransactionsTotalResponses];
 
 export type ListCreditPricesData = {
     body?: never;
