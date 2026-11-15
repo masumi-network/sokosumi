@@ -1898,7 +1898,9 @@
         "removeFilter": "Quitar filtro {filter}",
         "clear": "Borrar filtros",
         "noMatchesTitle": "Ninguna Task coincide con estos filtros",
-        "noMatchesDescription": "Quita un filtro o bórralos todos para volver a ver tus Tasks."
+        "noMatchesDescription": "Quita un filtro o bórralos todos para volver a ver tus Tasks.",
+        "stuck": "Atascadas {days}+ días",
+        "stuckHint": "Tareas en espera cuyo estado no ha cambiado en {days} días o más"
       },
       "Detail": {
         "back": "Volver a Tasks",
@@ -2324,7 +2326,10 @@
         "Dialog": {
           "createTitle": "Nueva programación",
           "editTitle": "Editar programación",
+          "copyTitle": "Copiar programación",
+          "copyName": "{name} (copia)",
           "createDescription": "Cada ejecución crea una tarea nueva con estos datos.",
+          "copyDescription": "Al guardar se crea una programación nueva con estos datos. La original no cambia.",
           "futureOnlyNotice": "Los cambios solo afectan a las ejecuciones futuras. Las tareas ya creadas no cambian.",
           "name": "Nombre",
           "description": "Descripción",
@@ -2391,6 +2396,14 @@
         },
         "Actions": {
           "edit": "Editar",
+          "copy": "Copiar",
+          "copyToProject": "Copiar a otro proyecto",
+          "copyToProjectTitle": "¿A qué proyecto copiar?",
+          "copyToProjectDescription": "Elige el proyecto para la nueva programación. La original se queda donde está.",
+          "copyToProjectNone": "No hay otro proyecto abierto al que copiar. Primero crea o reabre uno en Proyectos.",
+          "copyToProjectLoading": "Cargando proyectos…",
+          "copyToProjectFailed": "No se pudieron cargar los proyectos. Cierra esto e inténtalo de nuevo.",
+          "copyToProjectLoadMore": "Mostrar más proyectos",
           "runNow": "Ejecutar ahora",
           "pause": "Pausar",
           "resume": "Reanudar",
@@ -2483,6 +2496,11 @@
           "finance": "Finanzas",
           "qa": "Revisión y QA"
         }
+      },
+      "StatusAge": {
+        "label": "Tiempo en este estado:",
+        "stuck": "Atascada",
+        "since": "En este estado desde"
       }
     },
     "Projects": {
@@ -3314,6 +3332,7 @@
           "notSet": "Sin configurar",
           "generate": "Generar desde el sitio web",
           "missingWebsite": "Añade un sitio web al proyecto antes de generar el contexto de marca.",
+          "websiteInvalid": "Introduce un sitio web como example.com.",
           "open": "Abrir",
           "edit": "Editar",
           "remove": "Quitar",
@@ -4390,6 +4409,10 @@
       "copiesFromProducts": "Define las copias de cada producto en Productos.",
       "emptyTitle": "Crea tu primer anuncio",
       "emptyBody": "Elige una plantilla y completa los detalles, o escribe tu propio briefing.",
+      "RecentProjects": {
+        "title": "Continúa donde lo dejaste",
+        "imageCount": "{count, plural, one {# imagen} other {# imágenes}}"
+      },
       "pauseTemplateMotion": "Pausar las vistas previas flotantes",
       "resumeTemplateMotion": "Reanudar las vistas previas flotantes",
       "CreativeStart": {
@@ -4584,6 +4607,7 @@
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "pickForGeneration": "¿A qué proyecto van estas imágenes?",
       "referencesAcrossProjects": "Las referencias tienen que venir de un solo proyecto. Deselecciona las imágenes de otros proyectos y vuelve a generar.",
+      "templateSlotsUnfilled": "Completa {slots} en el brief y vuelve a generar.",
       "scopeLabel": "Proyecto",
       "title": "Content Studio",
       "selectAllModels": "Seleccionar todos",
@@ -4905,7 +4929,8 @@
             "description1": "Línea de descripción 1",
             "description2": "Línea de descripción 2",
             "add": "Añadir enlace de sitio",
-            "remove": "Quitar enlace de sitio {number}"
+            "remove": "Quitar enlace de sitio {number}",
+            "label": "Enlaces de sitio"
           },
           "callouts": {
             "title": "Textos destacados (opcional)",
@@ -5140,6 +5165,16 @@
         "errors": {
           "conflict": "Esta campaña no se puede editar aquí.",
           "failed": "No se pudieron guardar los cambios"
+        },
+        "changes": {
+          "submitCount": "Guardar {count, plural, one {# cambio} other {# cambios}}",
+          "changed": "Cambiado",
+          "was": "Antes:",
+          "now": "Ahora:",
+          "none": "Aún no hay cambios. Cambia un paso para guardar.",
+          "removed": "Eliminado",
+          "added": "Añadido",
+          "empty": "Ninguno"
         }
       },
       "market": {
@@ -5184,6 +5219,7 @@
           },
           "trendLabel": "Búsquedas al mes durante 12 meses, de {from} a {to}",
           "searchesPerMonth": "{count} búsquedas al mes",
+          "noSearchData": "Sin datos de búsqueda",
           "emptyTitle": "No se encontraron palabras clave en tendencia para este mercado",
           "emptyBody": "Prueba con otras palabras clave u otro país."
         },
@@ -5216,7 +5252,10 @@
             "keywords": "No se pudieron cargar las palabras clave",
             "ads": "No se pudieron cargar los anuncios"
           }
-        }
+        },
+        "updating": "Actualizando palabras clave en tendencia…",
+        "stale": "Estos resultados son anteriores a tu último guardado.",
+        "refresh": "Actualizar resultados"
       },
       "accounts": {
         "emptyTitle": "Aún no hay cuentas publicitarias conectadas",
@@ -8610,6 +8649,7 @@
       "uploadSuccess": "DESIGN.md subido",
       "uploadError": "No se pudo subir el DESIGN.md",
       "uploadRejected": "Archivo no aceptado",
+      "uploadEmpty": "El archivo está vacío. Elige un DESIGN.md con contenido.",
       "removeSelectedUpload": "Eliminar archivo seleccionado",
       "descriptionPersonal": "Crea y gestiona el DESIGN.md usado para tareas de tu workspace personal.",
       "descriptionOrganization": "Crea y gestiona el DESIGN.md usado para tareas de esta organización.",

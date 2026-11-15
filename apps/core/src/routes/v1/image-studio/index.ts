@@ -1,6 +1,7 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountGetImageStudioCatalog from "./catalog-get.js";
+import mountGetImageStudioRecentProjects from "./recent-projects-get.js";
 import mountGetImageStudioState from "./state-get.js";
 
 /**
@@ -17,5 +18,6 @@ const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
 
 mountGetImageStudioCatalog(app);
 mountGetImageStudioState(app);
+mountGetImageStudioRecentProjects(app);
 
 export default app;

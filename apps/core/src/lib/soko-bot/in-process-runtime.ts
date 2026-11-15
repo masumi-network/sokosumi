@@ -15,6 +15,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { stepCountIs, type ToolSet, tool } from "ai";
+import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
 import prisma from "@/lib/db/prisma";
 import { withActiveBackgroundRuns } from "@/lib/soko-bot/active-background-runs";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
@@ -114,6 +115,7 @@ async function runTurn(
               toolInput,
               model: turn.model,
               inferenceRegion: turn.inferenceRegion,
+              purpose,
             });
           }
           return runTurnTool({
@@ -133,12 +135,14 @@ async function runTurn(
       await withTurnSkills(input.turnId, input.message),
     );
     await log.append(runtimeEvent("step.started", { modelId: turn.model }));
+    const purpose = await loadSokoBotTurnPurpose(input.turnId);
     const result = await withEvaluationTurn(input.turnId, () =>
       streamModelCall({
         ...sokoBotModelRequest({
           role: "agent",
           model: turn.model,
           inferenceRegion: turn.inferenceRegion,
+          purpose,
         }),
         system: turn.system,
         messages: [{ role: "user", content: userMessage }],

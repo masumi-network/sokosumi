@@ -1,7 +1,8 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { useQueryState } from "nuqs";
-import { useTransition } from "react";
+import type { TransitionStartFunction } from "react";
 
 import { PROJECTS_LIST_STATES } from "@/app/projects/constants";
 import { projectsSearchParams } from "@/app/projects/projects-query";
@@ -19,13 +20,19 @@ export interface ProjectsStateToggleLabels {
  * for the same reason `ProjectsFilter` drives `q`: the list pages with
  * "Load more", so only Core can split Open, Hidden and Closed across every
  * page.
+ *
+ * `ProjectsView` owns the transition so it can mark the list busy while the
+ * chosen view loads; `pending` puts a spinner in that segment.
  */
 export function ProjectsStateToggle({
   labels,
+  pending = false,
+  startTransition,
 }: {
   labels: ProjectsStateToggleLabels;
+  pending?: boolean;
+  startTransition: TransitionStartFunction;
 }) {
-  const [, startTransition] = useTransition();
   const [state, setState] = useQueryState(
     "state",
     projectsSearchParams.state.withOptions({
@@ -49,6 +56,15 @@ export function ProjectsStateToggle({
     >
       {PROJECTS_LIST_STATES.map((option) => (
         <ToggleGroupItem key={option} value={option}>
+          {/* Not on phones: the extra width squeezed the filter beside it;
+              the dimmed list and its bar still show the load there. */}
+          {pending && option === state ? (
+            <Loader2
+              data-testid="projects-state-pending"
+              className="size-3.5 animate-spin motion-reduce:animate-pulse max-sm:hidden"
+              aria-hidden
+            />
+          ) : null}
           {labels[option]}
         </ToggleGroupItem>
       ))}

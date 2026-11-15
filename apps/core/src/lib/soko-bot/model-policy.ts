@@ -1,5 +1,6 @@
-import { gateway, type LanguageModelMiddleware, wrapLanguageModel } from "ai";
+import { type LanguageModelMiddleware, wrapLanguageModel } from "ai";
 import { z } from "zod";
+import { type AiGatewayPurpose, aiGateway } from "@/lib/ai-gateway-purpose";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
 import { evaluationBinding, evaluationMiddleware } from "./evaluation-dispatch";
 import { holdModelStream } from "./stream-model-call";
@@ -120,6 +121,8 @@ export function sokoBotModelRequest(options: {
   role: SokoBotModelRole;
   model: string;
   inferenceRegion?: "eu" | "us";
+  /** Spend line; the default is the shared Gateway key. */
+  purpose?: AiGatewayPurpose;
 }) {
   assertSokoBotModelPolicy(options);
   const policy = Object.hasOwn(EU_MODELS, options.model)
@@ -130,7 +133,7 @@ export function sokoBotModelRequest(options: {
     : null;
   return {
     model: wrapLanguageModel({
-      model: gateway.languageModel(options.model),
+      model: aiGateway(options.purpose).languageModel(options.model),
       middleware: evaluation
         ? [
             sokoBotRegionMiddleware(options),

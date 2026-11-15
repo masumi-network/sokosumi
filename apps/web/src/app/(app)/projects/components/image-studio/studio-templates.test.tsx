@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
-import { STUDIO_TEMPLATES } from "./studio-templates";
+import { STUDIO_TEMPLATES, unfilledTemplateSlots } from "./studio-templates";
 import { requestStudioWebsiteDraftOnOpen } from "./studio-website-intent";
 import type { StudioAsset } from "./types";
 
@@ -55,6 +55,7 @@ const mocks = vi.hoisted(() => ({
   prepareWebsiteDraft: vi.fn(),
   loadProducts: vi.fn(),
   saveProducts: vi.fn(),
+  enqueue: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
@@ -99,7 +100,7 @@ vi.mock("./use-generation-queue", () => ({
   useGenerationQueue: () => ({
     failed: [],
     queued: [],
-    enqueue: vi.fn(),
+    enqueue: mocks.enqueue,
     waitingForSlot: false,
   }),
 }));
@@ -771,6 +772,30 @@ describe("starting from a template", () => {
     expect(
       screen.queryByRole("button", { name: "undoTemplate" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("refuses to generate while the brief still has template slots", () => {
+    mocks.enqueue.mockClear();
+    mount();
+    pickTemplate("ad");
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
+    expect(screen.getByText("templateSlotsUnfilled")).toBeInTheDocument();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+    expect(prompt).toHaveFocus();
+
+    fireEvent.change(prompt, { target: { value: "Iced oat latte, square" } });
+    fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
+    expect(mocks.enqueue).toHaveBeenCalled();
+  });
+
+  it("names each unfilled slot once, in order", () => {
+    expect(
+      unfilledTemplateSlots(
+        "Ad for [product] aimed at [audience]. Show [product], add [call to action].",
+      ),
+    ).toEqual(["[product]", "[audience]", "[call to action]"]);
+    expect(unfilledTemplateSlots("Iced oat latte at 4.20")).toEqual([]);
   });
 
   it("keeps the original typed brief through several template choices", () => {

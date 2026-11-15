@@ -2,8 +2,8 @@ import * as Sentry from "@sentry/node";
 import { Prisma, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { removeTaskContextAttachmentLinks } from "@sokosumi/utils";
 import { generateText } from "ai";
-
 import { getEnv } from "@/config/env";
+import { aiGateway } from "@/lib/ai-gateway-purpose";
 import prisma from "@/lib/db/prisma";
 import {
   ensureProjectFilesToken,
@@ -366,7 +366,9 @@ async function refreshProjectMemoryIteration({
     // Share the original generation deadline with the single compaction attempt.
     const abortSignal = AbortSignal.timeout(MEMORY_GENERATION_TIMEOUT_MS);
     const generationOptions = {
-      model: env.PROJECT_MEMORY_MODEL,
+      model: aiGateway("project-memory").languageModel(
+        env.PROJECT_MEMORY_MODEL,
+      ),
       timeout: MEMORY_GENERATION_TIMEOUT_MS,
       abortSignal,
       maxRetries: 0,

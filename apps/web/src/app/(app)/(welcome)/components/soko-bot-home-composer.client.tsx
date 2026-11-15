@@ -30,6 +30,7 @@ import {
   isRoomComposerContentOverLimit,
   isRoomComposerEmpty,
 } from "@/app/chat/components/room-helpers";
+import { FoilBackground } from "@/components/foil-background";
 import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
@@ -126,7 +127,9 @@ export function SokoBotHomeComposer({
   }
 
   return (
-    <div className="flex min-h-full w-full min-w-0 flex-1 flex-col items-center px-4">
+    <div className="relative isolate flex min-h-full w-full min-w-0 flex-1 flex-col items-center px-4">
+      {/* Bleeds through main's p-4 to its edges, behind the greeting. */}
+      <FoilBackground className="absolute -inset-x-4 -top-4 -z-10 h-[42rem]" />
       {/* The composer sits a little above the middle of the screen, as on a
           chat entry page; the day's list starts below the fold's edge.
           On a phone the floating tab bar covers the bottom of the screen, so

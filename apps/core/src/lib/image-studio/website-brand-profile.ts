@@ -1,8 +1,8 @@
 import { generateText, Output } from "ai";
 import pTimeout from "p-timeout";
 import { z } from "zod";
-
 import { getEnv } from "@/config/env";
+import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import { getRedisClient } from "@/lib/redis";
 import { studioBrandCopySchema } from "@/schemas/studio-brand-kit.schema";
 import {
@@ -34,7 +34,8 @@ async function allowWebsiteSuggestion(
   workspaceId: string,
 ) {
   const env = getEnv();
-  if (!env.AI_GATEWAY_API_KEY && process.env.VERCEL !== "1") return false;
+  if (!aiGatewayApiKey("default", env) && process.env.VERCEL !== "1")
+    return false;
   const redis = getRedisClient();
   if (!redis) return false;
   return (

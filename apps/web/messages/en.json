@@ -1898,7 +1898,9 @@
         "removeFilter": "Remove filter {filter}",
         "clear": "Clear filters",
         "noMatchesTitle": "No tasks match these filters",
-        "noMatchesDescription": "Remove a filter or clear them all to see your tasks again."
+        "noMatchesDescription": "Remove a filter or clear them all to see your tasks again.",
+        "stuck": "Stuck {days}+ days",
+        "stuckHint": "Waiting Tasks whose status has not changed for {days} days or more"
       },
       "Detail": {
         "back": "Back to tasks",
@@ -2324,7 +2326,10 @@
         "Dialog": {
           "createTitle": "New schedule",
           "editTitle": "Edit schedule",
+          "copyTitle": "Copy schedule",
+          "copyName": "{name} (copy)",
           "createDescription": "Each run creates a new task from these details.",
+          "copyDescription": "Saving creates a new schedule from these details. The original stays as it is.",
           "futureOnlyNotice": "Changes apply to future runs only. Tasks already created stay as they are.",
           "name": "Name",
           "description": "Description",
@@ -2391,6 +2396,14 @@
         },
         "Actions": {
           "edit": "Edit",
+          "copy": "Copy",
+          "copyToProject": "Copy to another Project",
+          "copyToProjectTitle": "Copy to which Project?",
+          "copyToProjectDescription": "Choose the Project for the new schedule. The original stays where it is.",
+          "copyToProjectNone": "No other open Project to copy into. Create or reopen one in Projects first.",
+          "copyToProjectLoading": "Looking for open Projects…",
+          "copyToProjectFailed": "Couldn't load Projects. Close this and try again.",
+          "copyToProjectLoadMore": "Show more Projects",
           "runNow": "Run now",
           "pause": "Pause",
           "resume": "Resume",
@@ -2483,6 +2496,11 @@
           "finance": "Finance",
           "qa": "Review & QA"
         }
+      },
+      "StatusAge": {
+        "label": "Time in this status:",
+        "stuck": "Stuck",
+        "since": "In this status since"
       }
     },
     "Projects": {
@@ -3314,6 +3332,7 @@
           "notSet": "Not set",
           "generate": "Generate from website",
           "missingWebsite": "Add a project website before generating brand context.",
+          "websiteInvalid": "Enter a website like example.com.",
           "open": "Open",
           "edit": "Edit",
           "remove": "Remove",
@@ -4390,6 +4409,10 @@
       "copiesFromProducts": "Set copies for each product in Products.",
       "emptyTitle": "Create your first ad",
       "emptyBody": "Pick a template and fill in the details, or write your own ad brief.",
+      "RecentProjects": {
+        "title": "Pick up where you left off",
+        "imageCount": "{count, plural, one {# image} other {# images}}"
+      },
       "pauseTemplateMotion": "Pause floating previews",
       "resumeTemplateMotion": "Resume floating previews",
       "CreativeStart": {
@@ -4584,6 +4607,7 @@
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "pickForGeneration": "Which project do these images go to?",
       "referencesAcrossProjects": "References have to come from one project. Deselect the images from other projects, then generate again.",
+      "templateSlotsUnfilled": "Fill in {slots} in the brief, then generate again.",
       "scopeLabel": "Project",
       "title": "Content Studio",
       "selectAllModels": "Select all",
@@ -4905,7 +4929,8 @@
             "description1": "Description line 1",
             "description2": "Description line 2",
             "add": "Add sitelink",
-            "remove": "Remove sitelink {number}"
+            "remove": "Remove sitelink {number}",
+            "label": "Sitelinks"
           },
           "callouts": {
             "title": "Callouts (optional)",
@@ -5140,6 +5165,16 @@
         "errors": {
           "conflict": "This campaign can't be edited here.",
           "failed": "Failed to save changes"
+        },
+        "changes": {
+          "submitCount": "Save {count, plural, one {# change} other {# changes}}",
+          "changed": "Changed",
+          "was": "Was:",
+          "now": "Now:",
+          "none": "Nothing has changed yet. Change a step to save.",
+          "removed": "Removed",
+          "added": "Added",
+          "empty": "None"
         }
       },
       "market": {
@@ -5184,6 +5219,7 @@
           },
           "trendLabel": "Monthly searches over 12 months, from {from} to {to}",
           "searchesPerMonth": "{count} searches a month",
+          "noSearchData": "No search data",
           "emptyTitle": "No trending keywords found for this market",
           "emptyBody": "Try other keywords or another country."
         },
@@ -5216,7 +5252,10 @@
             "keywords": "Failed to load keywords",
             "ads": "Failed to load ads"
           }
-        }
+        },
+        "updating": "Updating trending keywords…",
+        "stale": "These results are from before your last save.",
+        "refresh": "Refresh results"
       },
       "accounts": {
         "emptyTitle": "No ad accounts connected yet",
@@ -8610,6 +8649,7 @@
       "uploadSuccess": "DESIGN.md uploaded",
       "uploadError": "Failed to upload DESIGN.md",
       "uploadRejected": "File is not accepted",
+      "uploadEmpty": "This file is empty. Choose a DESIGN.md with content.",
       "removeSelectedUpload": "Remove selected file",
       "descriptionPersonal": "Create and manage the DESIGN.md used for tasks from your personal workspace.",
       "descriptionOrganization": "Create and manage the DESIGN.md used for tasks from this organization.",

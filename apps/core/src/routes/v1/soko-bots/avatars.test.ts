@@ -8,11 +8,11 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
  * beside the route: what a user is offered, and what a top-up draws.
  */
 
-const { store, generateTextMock, putMock } = vi.hoisted(() => ({
+const { store, drawMock, putMock } = vi.hoisted(() => ({
   store: {} as ReturnType<
     typeof import("@/test-fixtures/soko-bot-avatar-store").createSokoBotAvatarStore
   >,
-  generateTextMock: vi.fn(),
+  drawMock: vi.fn(),
   putMock: vi.fn(),
 }));
 
@@ -24,10 +24,20 @@ vi.mock("@/lib/db/prisma", async () => {
   return { default: store.client };
 });
 
-vi.mock("ai", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("ai")>()),
-  generateText: generateTextMock,
+// The image model: one fal POST per image; `drawMock` sees its URL and body.
+vi.mock("@/lib/image-studio/fal-client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/image-studio/fal-client")>()),
+  downloadMedia: async () => ({
+    bytes: new Uint8Array(drawnPng),
+    contentType: "image/png",
+  }),
 }));
+vi.stubGlobal("fetch", async (url: string, init: { body: string }) => {
+  await drawMock({ url, body: JSON.parse(init.body) });
+  return Response.json({
+    images: [{ url: "https://v3.fal.media/files/avatar.png" }],
+  });
+});
 
 vi.mock("@vercel/blob", () => ({ put: putMock }));
 
@@ -37,7 +47,7 @@ vi.mock("@/config/env", async (importOriginal) => {
     ...actual,
     getEnv: () => ({
       ...actual.getEnv(),
-      AI_GATEWAY_API_KEY: "gateway-test",
+      FAL_KEY: "fal-test",
       BLOB_READ_WRITE_TOKEN: "blob-test",
     }),
   };
@@ -62,7 +72,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import app from "./index";
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
-const IMAGE_MODEL = "google/gemini-3.1-flash-image";
+const IMAGE_MODEL = "fal-ai/gemini-3.1-flash-image-preview";
 
 function createApp() {
   const parent = new Hono<{
@@ -141,9 +151,7 @@ describe("Soko Bot avatar picker", () => {
   beforeEach(() => {
     store.reset();
     vi.clearAllMocks();
-    generateTextMock.mockImplementation(async () => ({
-      files: [{ mediaType: "image/png", uint8Array: drawnPng }],
-    }));
+    drawMock.mockResolvedValue(undefined);
     putMock.mockImplementation(async (pathname: string) => ({
       url: `https://blob.test/${pathname}`,
     }));
@@ -160,7 +168,7 @@ describe("Soko Bot avatar picker", () => {
 
     it("never draws on a read", async () => {
       await expect(list()).resolves.toEqual({ status: 200, ids: [] });
-      expect(generateTextMock).not.toHaveBeenCalled();
+      expect(drawMock).not.toHaveBeenCalled();
     });
   });
 
@@ -173,14 +181,14 @@ describe("Soko Bot avatar picker", () => {
 
       expect(status).toBe(200);
       expect(avatars).toHaveLength(6);
-      expect(generateTextMock).toHaveBeenCalledTimes(4);
-      for (const [call] of generateTextMock.mock.calls) {
-        expect(call.model.modelId).toBe(IMAGE_MODEL);
+      expect(drawMock).toHaveBeenCalledTimes(4);
+      for (const [call] of drawMock.mock.calls) {
+        expect(call.url).toBe(`https://fal.run/${IMAGE_MODEL}`);
         // The pre-#6710 recipe: one cute character emerging from a corner.
-        expect(call.prompt).toContain(
+        expect(call.body.prompt).toContain(
           "Create one complete full-bleed 1:1 square image.",
         );
-        expect(call.prompt).toContain("emerging from the lower-");
+        expect(call.body.prompt).toContain("emerging from the lower-");
       }
       const drawn = store.avatars.filter((row) => row.requestedByUserId);
       expect(drawn).toHaveLength(4);
@@ -219,7 +227,7 @@ describe("Soko Bot avatar picker", () => {
       const { avatars } = await topUp(6);
 
       expect(avatars).toHaveLength(6);
-      expect(generateTextMock).not.toHaveBeenCalled();
+      expect(drawMock).not.toHaveBeenCalled();
     });
 
     it("draws a refresh's shortfall before it answers", async () => {
@@ -229,7 +237,7 @@ describe("Soko Bot avatar picker", () => {
       const { status, avatars } = await topUp(6, seen);
 
       expect(status).toBe(200);
-      expect(generateTextMock).toHaveBeenCalledTimes(4);
+      expect(drawMock).toHaveBeenCalledTimes(4);
       expect(avatars).toHaveLength(6);
       expect(avatars?.some((one) => seen.includes(one.id))).toBe(false);
       expect(avatars?.map((one) => one.id)).toEqual(
@@ -243,7 +251,7 @@ describe("Soko Bot avatar picker", () => {
       const { status, avatars } = await topUp(6, [], true);
 
       expect(status).toBe(200);
-      expect(generateTextMock).toHaveBeenCalledTimes(6);
+      expect(drawMock).toHaveBeenCalledTimes(6);
       expect(avatars).toHaveLength(6);
       expect(avatars?.some((one) => stocked.includes(one.id))).toBe(false);
       expect(store.avatars.every((row) => row.reservedAt === null)).toBe(true);
@@ -260,7 +268,7 @@ describe("Soko Bot avatar picker", () => {
       // A 200: a draw was tried and may have been billed, so it is a spent try.
       expect(status).toBe(200);
       expect(avatars).toEqual([]);
-      expect(generateTextMock).toHaveBeenCalledTimes(1);
+      expect(drawMock).toHaveBeenCalledTimes(1);
       error.mockRestore();
     });
 
@@ -269,20 +277,19 @@ describe("Soko Bot avatar picker", () => {
       const drawing = new Promise<void>((resolve) => {
         release = resolve;
       });
-      generateTextMock.mockImplementation(async () => {
+      drawMock.mockImplementation(async () => {
         await drawing;
-        return { files: [{ mediaType: "image/png", uint8Array: drawnPng }] };
       });
 
       const first = topUp(6, [], true);
-      await vi.waitFor(() => expect(generateTextMock).toHaveBeenCalled());
+      await vi.waitFor(() => expect(drawMock).toHaveBeenCalled());
       const second = await topUp(6, [], true);
       release();
 
       expect(second.status).toBe(409);
       expect(second.body.kind).toBe("avatar_draw_busy");
       expect((await first).avatars).toHaveLength(6);
-      expect(generateTextMock).toHaveBeenCalledTimes(6);
+      expect(drawMock).toHaveBeenCalledTimes(6);
     });
 
     it("answers Show others 429 once the hourly allowance is spent", async () => {
@@ -295,7 +302,7 @@ describe("Soko Bot avatar picker", () => {
 
       expect(status).toBe(429);
       expect(body.kind).toBe("avatar_generation_rate_limited");
-      expect(generateTextMock).not.toHaveBeenCalled();
+      expect(drawMock).not.toHaveBeenCalled();
     });
 
     it("keeps concurrent Show others draws under the hourly cap", async () => {
@@ -314,7 +321,7 @@ describe("Soko Bot avatar picker", () => {
         topUp(6, [], true),
       ]);
 
-      expect(generateTextMock).toHaveBeenCalledTimes(2);
+      expect(drawMock).toHaveBeenCalledTimes(2);
     });
 
     it("waits for a first open to be drawn when the pool is short", async () => {
@@ -324,7 +331,7 @@ describe("Soko Bot avatar picker", () => {
 
       expect(status).toBe(200);
       expect(avatars).toHaveLength(6);
-      expect(generateTextMock).toHaveBeenCalledTimes(5);
+      expect(drawMock).toHaveBeenCalledTimes(5);
       // Drawn before the answer: nothing is left in flight behind it.
       expect(store.avatars.every((row) => row.reservedAt === null)).toBe(true);
     });
@@ -341,7 +348,7 @@ describe("Soko Bot avatar picker", () => {
       const { status, avatars } = await topUp(6);
 
       expect(status).toBe(200);
-      expect(generateTextMock).toHaveBeenCalledTimes(2);
+      expect(drawMock).toHaveBeenCalledTimes(2);
       expect(avatars).toHaveLength(2);
     });
 
@@ -355,7 +362,7 @@ describe("Soko Bot avatar picker", () => {
 
       expect(status).toBe(429);
       expect(body.kind).toBe("avatar_generation_rate_limited");
-      expect(generateTextMock).not.toHaveBeenCalled();
+      expect(drawMock).not.toHaveBeenCalled();
     });
 
     it("forgets draws older than an hour", async () => {

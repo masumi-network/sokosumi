@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ProjectMemoryPanel } from "@/app/projects/components/project-memory-panel";
 
@@ -167,5 +167,28 @@ describe("ProjectMemoryPanel", () => {
     renderPanel({ content: null });
 
     expect(screen.getByText("Memory could not be loaded.")).toBeInTheDocument();
+  });
+
+  it("dates the memory without falling back to the environment's clock", () => {
+    // The app's provider sets no global `now`, so the panel supplies its own.
+    const onError = vi.fn();
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        messages={MESSAGES}
+        timeZone="UTC"
+        onError={onError}
+      >
+        <ProjectMemoryPanel
+          content={"# Project Context"}
+          contextMd={CONTEXT_MD}
+          contextMdUpdating={false}
+          memoryModel={MODEL}
+        />
+      </NextIntlClientProvider>,
+    );
+
+    expect(screen.getByText(/^Updated /)).toBeInTheDocument();
+    expect(onError).not.toHaveBeenCalled();
   });
 });

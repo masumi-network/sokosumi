@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { GoogleSitelink } from "@sokosumi/core-client";
 import {
   ArrowLeft,
   ArrowRight,
@@ -20,6 +21,7 @@ import {
 import * as z from "zod";
 import { TaskFormModalHeaderStart } from "@/app/tasks/components/task-form-modal";
 import { Button } from "@/components/ui/button";
+import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import {
   Form,
   FormControl,
@@ -52,7 +54,13 @@ import {
 import { driveImagesOnly } from "@/lib/ads/google-display-images";
 import {
   EMPTY_GOOGLE_VALUES,
+  type GoogleFormChange,
+  type GoogleFormImage,
   type GoogleFormValues,
+  googleFormChanges,
+  googleFormMeaning,
+  googleListChanges,
+  googleSitelinkKey,
 } from "@/lib/ads/google-form-values";
 import { parseGoogleKeywords } from "@/lib/ads/google-keywords";
 import {
@@ -179,6 +187,8 @@ interface WizardFrameProps {
    * being edited is complete, so the reader goes straight to what changes.
    */
   openSteps?: boolean;
+  /** The last step's button is off, as an edit with no changes saves nothing. */
+  submitDisabled?: boolean;
 }
 
 function WizardFrame({
@@ -192,6 +202,7 @@ function WizardFrame({
   uploading = false,
   wide = false,
   submitLabel,
+  submitDisabled = false,
   openSteps = false,
 }: WizardFrameProps) {
   const t = useTranslations("App.Ads.newCampaign");
@@ -322,7 +333,7 @@ function WizardFrame({
         </div>
         <Button
           className="min-w-28 sm:ml-auto"
-          disabled={uploading}
+          disabled={uploading || (last && submitDisabled)}
           loading={last && submitting}
           type="submit"
         >
@@ -444,20 +455,57 @@ function GoogleTypeStep() {
 
 function SummaryRow({
   label,
-  children,
+  value,
+  previous,
+  changed,
+  items,
   onEdit,
 }: {
   label: string;
-  children: ReactNode;
+  value: string;
+  /** What an edit started from; struck through when it differs. */
+  previous?: string;
+  /** Set on an edit only: marks the row an edit changes. */
+  changed?: boolean;
+  /** A list edit's removed and added items, each with its own key. */
+  items?: ListItemChanges;
   onEdit?: () => void;
 }) {
   const t = useTranslations("App.Ads.newCampaign.review");
+  const tEdit = useTranslations("App.Ads.editCampaign.changes");
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 sm:grid-cols-[10rem_minmax(0,1fr)_auto]">
-      <dt className="text-muted-foreground text-sm">{label}</dt>
+    <div
+      className={cn(
+        "grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 sm:grid-cols-[10rem_minmax(0,1fr)_auto]",
+        changed !== undefined && "rounded-md border px-3 py-2",
+        changed === false && "border-transparent",
+      )}
+    >
+      <dt className="text-muted-foreground text-sm">
+        {label}
+        {changed ? (
+          <span className="text-foreground ml-2 text-xs font-medium">
+            {tEdit("changed")}
+          </span>
+        ) : null}
+      </dt>
       <dd className="col-start-1 row-start-2 min-w-0 text-sm break-words sm:col-start-2 sm:row-start-1">
-        {children}
+        {changed && previous !== undefined && previous !== value ? (
+          <>
+            <del className="text-muted-foreground mr-2">
+              <span className="sr-only">{tEdit("was")} </span>
+              {previous}
+            </del>
+            <ins className="no-underline">
+              <span className="sr-only">{tEdit("now")} </span>
+              {value}
+            </ins>
+          </>
+        ) : (
+          value
+        )}
+        {items ? <ListChanges {...items} /> : null}
       </dd>
       {onEdit ? (
         <Button
@@ -472,6 +520,102 @@ function SummaryRow({
         </Button>
       ) : null}
     </div>
+  );
+}
+
+interface ChangedItem {
+  key: string;
+  node: ReactNode;
+}
+
+interface ListItemChanges {
+  removed: ChangedItem[];
+  added: ChangedItem[];
+}
+
+/** A list edit, item by item: what it removes, struck through, then adds. */
+function ListChanges({ removed, added }: ListItemChanges) {
+  const t = useTranslations("App.Ads.editCampaign.changes");
+  const group = (
+    kind: "removed" | "added",
+    list: ChangedItem[],
+    Mark: "del" | "ins",
+  ) =>
+    list.length > 0 ? (
+      <div className="flex flex-col gap-1">
+        <span className="text-muted-foreground text-xs">{t(kind)}</span>
+        <ul className="flex flex-wrap items-start gap-x-3 gap-y-1">
+          {list.map(({ key, node }) => (
+            <li className="min-w-0" key={key}>
+              <Mark
+                className={cn(
+                  Mark === "del" ? "text-muted-foreground" : "no-underline",
+                )}
+              >
+                {node}
+              </Mark>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : null;
+
+  return (
+    <div className="mt-1 flex flex-col gap-2">
+      {group("removed", removed, "del")}
+      {group("added", added, "ins")}
+    </div>
+  );
+}
+
+/** A list edit as changed items, compared by `key` and shown by `show`. */
+function listItems<T>(
+  before: readonly T[],
+  after: readonly T[],
+  key: (item: T) => string,
+  show: (item: T) => ReactNode,
+): ListItemChanges {
+  const { removed, added } = googleListChanges(before, after, key);
+  const keyed = (list: T[]) =>
+    list.map((item, index) => ({
+      key: `${index}:${key(item)}`,
+      node: show(item),
+    }));
+  return { removed: keyed(removed), added: keyed(added) };
+}
+
+function textItems(
+  before: readonly string[],
+  after: readonly string[],
+): ListItemChanges {
+  return listItems(before, after, String, String);
+}
+
+/** "Sale · https://example.com/sale · Up to 50% off", for reading only. */
+function sitelinkText({
+  text,
+  finalUrl,
+  description1,
+  description2,
+}: GoogleSitelink): string {
+  return [text, finalUrl, description1, description2]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/** An ad image in a review list: its thumbnail and its role. */
+function ReviewImage({ image }: { image: GoogleFormImage }) {
+  const t = useTranslations("App.Ads.newCampaign.ad.images");
+  const role = t(`roles.${image.role}`);
+  return (
+    <span className="flex w-20 flex-col items-center gap-1">
+      <FileChipMiniPreview
+        fileName={image.name ?? t("kept", { role })}
+        mediaType="image/*"
+        url={image.url}
+      />
+      <span className="text-xs">{role}</span>
+    </span>
   );
 }
 
@@ -500,14 +644,47 @@ function useMoney(currency: string) {
     formatter.number(Number(value), { style: "currency", currency });
 }
 
+/** The ad's parts an edit names on their own row, after the final URL. */
+const AD_TEXT_PARTS = ["path", "businessName", "longHeadline"] as const;
+const AD_LIST_PARTS = [
+  "headlines",
+  "descriptions",
+  "sitelinks",
+  "callouts",
+] as const;
+const AD_PART_LABELS = {
+  path: "ad.displayPath",
+  businessName: "ad.businessName",
+  longHeadline: "ad.longHeadline",
+  headlines: "ad.headlines.label",
+  descriptions: "ad.descriptions.label",
+  sitelinks: "ad.sitelinks.label",
+  callouts: "ad.callouts.label",
+} as const;
+
+function imageItems(
+  before: readonly GoogleFormImage[],
+  after: readonly GoogleFormImage[],
+): ListItemChanges {
+  return listItems(
+    before,
+    after,
+    ({ key }) => key,
+    (image) => <ReviewImage image={image} />,
+  );
+}
+
 /** The last step: the ad as it could look, then what will be saved. */
 function GoogleReviewStep({
+  changes,
   currency,
   goTo,
   note,
   refusal,
   typeLocked,
 }: {
+  /** An edit's start and what it changes; absent for a new campaign. */
+  changes?: { before: GoogleFormValues; parts: readonly GoogleFormChange[] };
   currency: string;
   goTo: (step: GoogleStep) => void;
   /** Said under the summary: how the campaign is created, or what an edit does. */
@@ -517,11 +694,21 @@ function GoogleReviewStep({
   typeLocked: boolean;
 }) {
   const t = useTranslations("App.Ads.newCampaign");
+  const tEdit = useTranslations("App.Ads.editCampaign.changes");
   const form = useFormContext<GoogleFormValues>();
   const values = form.watch();
   const money = useMoney(currency);
   const schedule = useScheduleText();
   const search = values.type === "SEARCH";
+  const keywordCount = (keywords: string) =>
+    t("keywords.count", {
+      count: parseGoogleKeywords(keywords).keywords.length,
+    });
+  const before = changes?.before;
+  /** On an edit, whether a part changed; undefined on a new campaign. */
+  const changed = (part: GoogleFormChange) => changes?.parts.includes(part);
+  const was = before && googleFormMeaning(before);
+  const now = googleFormMeaning(values);
 
   return (
     <>
@@ -533,53 +720,126 @@ function GoogleReviewStep({
         <AdsSection id="campaign-wizard-summary" title={t("review.title")}>
           <dl className="flex flex-col gap-3">
             <SummaryRow
+              // An edit keeps its type: never changed, but boxed like the rest.
+              changed={changes ? false : undefined}
               label={t("sections.type")}
               onEdit={typeLocked ? undefined : () => goTo("type")}
-            >
-              {t(`types.${values.type}`)}
-            </SummaryRow>
-            <SummaryRow label={t("name")} onEdit={() => goTo("basics")}>
-              {values.name.trim()}
-            </SummaryRow>
+              value={t(`types.${values.type}`)}
+            />
             <SummaryRow
+              changed={changed("name")}
+              label={t("name")}
+              onEdit={() => goTo("basics")}
+              previous={before?.name.trim()}
+              value={values.name.trim()}
+            />
+            <SummaryRow
+              changed={changed("dailyBudget")}
               label={t("review.dailyBudget")}
               onEdit={() => goTo("basics")}
-            >
-              {money(values.dailyBudget)}
-            </SummaryRow>
+              previous={before && money(before.dailyBudget)}
+              value={money(values.dailyBudget)}
+            />
             <SummaryRow
+              changed={changed("schedule")}
               label={t("review.schedule.label")}
               onEdit={() => goTo("basics")}
-            >
-              {schedule(values.startDate, values.endDate)}
-            </SummaryRow>
+              previous={before && schedule(before.startDate, before.endDate)}
+              value={schedule(values.startDate, values.endDate)}
+            />
             <SummaryRow
+              changed={changed("locations")}
               label={t("targeting.locations.label")}
               onEdit={() => goTo("targeting")}
-            >
-              {targetNames(values.locations, t("targeting.locations.all"))}
-            </SummaryRow>
+              previous={
+                before &&
+                targetNames(before.locations, t("targeting.locations.all"))
+              }
+              value={targetNames(
+                values.locations,
+                t("targeting.locations.all"),
+              )}
+            />
             <SummaryRow
+              changed={changed("languages")}
               label={t("targeting.languages.label")}
               onEdit={() => goTo("targeting")}
-            >
-              {targetNames(values.languages, t("targeting.languages.all"))}
-            </SummaryRow>
+              previous={
+                before &&
+                targetNames(before.languages, t("targeting.languages.all"))
+              }
+              value={targetNames(
+                values.languages,
+                t("targeting.languages.all"),
+              )}
+            />
             {search ? (
               <SummaryRow
+                changed={changed("keywords")}
+                items={
+                  was && changed("keywords")
+                    ? textItems(was.keywords, now.keywords)
+                    : undefined
+                }
                 label={t("keywords.label")}
                 onEdit={() => goTo("keywords")}
-              >
-                {t("keywords.count", {
-                  count: parseGoogleKeywords(values.keywords).keywords.length,
-                })}
-              </SummaryRow>
+                previous={before && keywordCount(before.keywords)}
+                value={keywordCount(values.keywords)}
+              />
             ) : null}
-            <SummaryRow label={t("ad.finalUrl")} onEdit={() => goTo("ad")}>
-              {values.finalUrl.trim()}
-            </SummaryRow>
+            <SummaryRow
+              changed={changed("finalUrl")}
+              label={t("ad.finalUrl")}
+              onEdit={() => goTo("ad")}
+              previous={before?.finalUrl.trim()}
+              value={values.finalUrl.trim()}
+            />
+            {was
+              ? AD_TEXT_PARTS.filter(changed).map((part) => (
+                  <SummaryRow
+                    changed
+                    key={part}
+                    label={t(AD_PART_LABELS[part])}
+                    onEdit={() => goTo("ad")}
+                    previous={was[part] || tEdit("empty")}
+                    value={now[part] || tEdit("empty")}
+                  />
+                ))
+              : null}
+            {was
+              ? AD_LIST_PARTS.filter(changed).map((part) => (
+                  <SummaryRow
+                    changed
+                    items={
+                      part === "sitelinks"
+                        ? listItems(
+                            was.sitelinks,
+                            now.sitelinks,
+                            googleSitelinkKey,
+                            sitelinkText,
+                          )
+                        : textItems(was[part], now[part])
+                    }
+                    key={part}
+                    label={t(AD_PART_LABELS[part])}
+                    onEdit={() => goTo("ad")}
+                    value=""
+                  />
+                ))
+              : null}
+            {was && changed("images") ? (
+              <SummaryRow
+                changed
+                items={imageItems(was.images, now.images)}
+                label={t("ad.images.label")}
+                onEdit={() => goTo("ad")}
+                value=""
+              />
+            ) : null}
           </dl>
-          <p className="text-muted-foreground text-sm">{note}</p>
+          <p className="text-muted-foreground text-sm">
+            {changes?.parts.length === 0 ? tEdit("none") : note}
+          </p>
         </AdsSection>
       </div>
     </>
@@ -618,6 +878,7 @@ function GoogleCampaignWizard({
   ...props
 }: GoogleCampaignWizardProps & { setup: GoogleWizardSetup }) {
   const t = useTranslations("App.Ads.newCampaign");
+  const tEdit = useTranslations("App.Ads.editCampaign.changes");
   const { accountId, projectId } = props;
   const { budget, schema } = useGoogleFormSchema(props.currency);
   const form = useForm({
@@ -634,6 +895,10 @@ function GoogleCampaignWizard({
     : GOOGLE_STEPS[type];
   const current = steps[step];
   const fieldsOf = (candidate: GoogleStep) => googleStepFields(candidate, type);
+  const changes = setup.editing
+    ? // The form holds both types' fields; the schema's input type splits them.
+      googleFormChanges(setup.defaultValues, form.watch() as GoogleFormValues)
+    : null;
 
   async function handleNext(): Promise<void> {
     if (await form.trigger(fieldsOf(current), { shouldFocus: true })) {
@@ -679,6 +944,9 @@ function GoogleCampaignWizard({
     ad: type === "SEARCH" ? <AdsSearchAdSection /> : <AdsGoogleDisplayFields />,
     review: (
       <GoogleReviewStep
+        changes={
+          changes ? { before: setup.defaultValues, parts: changes } : undefined
+        }
         currency={props.currency}
         goTo={(target) => setStep(steps.indexOf(target))}
         note={setup.note}
@@ -709,7 +977,12 @@ function GoogleCampaignWizard({
           }
           openSteps={setup.editing}
           step={step}
-          submitLabel={setup.submitLabel}
+          submitDisabled={changes?.length === 0}
+          submitLabel={
+            changes?.length
+              ? tEdit("submitCount", { count: changes.length })
+              : setup.submitLabel
+          }
           submitting={form.formState.isSubmitting || saving.saved}
           uploading={uploading}
           wide={current === "review"}
@@ -950,18 +1223,21 @@ export function NewMetaCampaignWizard({
             ) : null}
             <AdsSection id="campaign-wizard-summary" title={t("review.title")}>
               <dl className="flex flex-col gap-3">
-                <SummaryRow label={t("name")} onEdit={() => setStep(0)}>
-                  {values.name.trim()}
-                </SummaryRow>
+                <SummaryRow
+                  label={t("name")}
+                  onEdit={() => setStep(0)}
+                  value={values.name.trim()}
+                />
                 <SummaryRow
                   label={t("review.dailyBudget")}
                   onEdit={() => setStep(0)}
-                >
-                  {money(values.dailyBudget)}
-                </SummaryRow>
-                <SummaryRow label={t("objective")} onEdit={() => setStep(0)}>
-                  {objective ? t(`objectives.${objective}`) : null}
-                </SummaryRow>
+                  value={money(values.dailyBudget)}
+                />
+                <SummaryRow
+                  label={t("objective")}
+                  onEdit={() => setStep(0)}
+                  value={objective ? t(`objectives.${objective}`) : ""}
+                />
               </dl>
               <p className="text-muted-foreground text-sm">
                 {t("note.meta_ads")}
