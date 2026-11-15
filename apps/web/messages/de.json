@@ -11065,11 +11065,16 @@
         "selected": "{count} ausgewählt",
         "addToList": "Zu Liste hinzufügen",
         "removeFromList": "Aus Liste entfernen",
+        "copyEmails": "E-Mails kopieren",
         "merge": "Zusammenführen",
         "clear": "Auswahl aufheben",
         "updated": "{count, plural, =1 {1 Kontakt aktualisiert} other {# Kontakte aktualisiert}}",
         "addedToList": "{count, plural, =1 {1 Kontakt zu {list} hinzugefügt} other {# Kontakte zu {list} hinzugefügt}}",
-        "removedFromList": "{count, plural, =1 {1 Kontakt aus {list} entfernt} other {# Kontakte aus {list} entfernt}}"
+        "removedFromList": "{count, plural, =1 {1 Kontakt aus {list} entfernt} other {# Kontakte aus {list} entfernt}}",
+        "copiedEmails": "{count, plural, =1 {1 E-Mail-Adresse kopiert} other {# E-Mail-Adressen kopiert}}",
+        "skippedNoEmail": "{count, plural, =1 {1 Kontakt hat keine E-Mail und wurde ausgelassen.} other {# Kontakte haben keine E-Mail und wurden ausgelassen.}}",
+        "noEmails": "Keiner der ausgewählten Kontakte hat eine E-Mail-Adresse.",
+        "copyFailed": "Kopieren in die Zwischenablage fehlgeschlagen. Bitte erneut versuchen."
       },
       "errors": {
         "versionConflict": "Jemand hat diesen Kontakt gerade geändert. Wir haben die neue Version geladen; versuch deine Änderung noch einmal.",
