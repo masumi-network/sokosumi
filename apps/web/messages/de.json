@@ -1704,6 +1704,8 @@
           "completed": "{count, plural, one {# Aufgabe erledigt} other {# Aufgaben erledigt}}",
           "worked": "{minutes, plural, one {# Minute gearbeitet} other {# Minuten gearbeitet}}",
           "awaiting": "{count, plural, one {# Aufgabe braucht dich} other {# Aufgaben brauchen dich}}",
+          "awaitingTeam": "{count, plural, one {# Aufgabe wartet auf Antwort} other {# Aufgaben warten auf Antwort}}",
+          "needsYou": "{count, plural, one {# Anfrage braucht dich} other {# Anfragen brauchen dich}}",
           "byTeammates": "{count, plural, one {# Aufgabe von deinem Team} other {# Aufgaben von deinem Team}}",
           "recent": "In den letzten 24 Stunden",
           "workedHours": "{hours, plural, one {# Stunde gearbeitet} other {# Stunden gearbeitet}}"
@@ -7510,11 +7512,22 @@
       "Email": {
         "title": "E-Mail ändern",
         "description": "Deine E-Mail-Adresse aktualisieren",
+        "descriptionWithCurrent": "Angemeldet als {email}. Wir senden einen Link an die neue Adresse, um die Änderung zu bestätigen.",
         "newEmail": "Neue E-Mail",
         "currentPassword": "Aktuelles Passwort",
         "submit": "E-Mail aktualisieren",
-        "success": "E-Mail erfolgreich aktualisiert",
-        "error": "E-Mail konnte nicht aktualisiert werden"
+        "success": "Öffne den Link, den wir an {email} gesendet haben, um die neue Adresse zu bestätigen.",
+        "error": "E-Mail konnte nicht aktualisiert werden",
+        "pendingBadge": "Wartet auf dich",
+        "pendingDescription": "Öffne den Link, den wir an diese Adresse gesendet haben, um die Änderung abzuschließen.",
+        "resend": "Erneut senden",
+        "cancel": "Änderung abbrechen",
+        "cancelled": "E-Mail-Änderung abgebrochen. Der Link funktioniert nicht mehr.",
+        "cancelError": "Die E-Mail-Änderung konnte nicht abgebrochen werden. Versuch es noch einmal.",
+        "changed": "Deine E-Mail-Adresse ist jetzt {email}.",
+        "linkFailed": "Dieser Link funktioniert nicht mehr. Fordere unten einen neuen an.",
+        "statusUnavailable": "Eine wartende E-Mail-Änderung konnte nicht geprüft werden. Lade die Seite neu, um es erneut zu versuchen.",
+        "cancelTooLate": "Diese Änderung wurde bereits bestätigt oder ist abgelaufen, daher gibt es nichts abzubrechen."
       },
       "Password": {
         "title": "Passwort ändern",
@@ -8175,17 +8188,17 @@
         }
       },
       "VendorGrants": {
-        "title": "Vendor-Workspace-Zugriff",
-        "description": "Genehmige Vendor-Workspace-Zugriff für deinen persönlichen Workspace (Aufgaben lesen, kommentieren und erstellen).",
-        "vendorsTitle": "Anbieter",
-        "vendorsEmpty": "Noch keine Anbieterfreigaben.",
+        "title": "Wer in deinem Workspace arbeiten kann",
+        "description": "Partner, die du zulässt, sehen die Aufgaben in deinem persönlichen Workspace, kommentieren sie und erstellen neue.",
+        "vendorsTitle": "Partner",
+        "vendorsEmpty": "Kein Partner hat Zugriff.",
         "statusPending": "Ausstehend",
         "statusGranted": "Gewährt",
         "statusDenied": "Abgelehnt",
         "statusRevoked": "Widerrufen",
-        "grantFormTitle": "Zugriff proaktiv gewähren",
+        "grantFormTitle": "Partner hinzufügen",
         "GrantForm": {
-          "vendorLabel": "Anbieter",
+          "vendorLabel": "Partner",
           "workspaceAccessHint": "Gewährt vollen Workspace-Zugriff: Aufgaben lesen, kommentieren und erstellen.",
           "submit": "Zugriff gewähren",
           "success": "Vendor-Zugriff gewährt",
@@ -8194,17 +8207,20 @@
         "Actions": {
           "approve": "Genehmigen",
           "deny": "Ablehnen",
-          "revoke": "Widerrufen",
+          "revoke": "Zugriff entfernen",
           "approveSuccess": "Vendor-Zugriff genehmigt",
           "denySuccess": "Vendor-Zugriff abgelehnt",
-          "revokeSuccess": "Vendor-Zugriff widerrufen",
+          "revokeSuccess": "Zugriff entfernt",
           "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
           "denyError": "Vendor-Zugriff konnte nicht abgelehnt werden",
-          "revokeError": "Vendor-Zugriff konnte nicht widerrufen werden",
+          "revokeError": "Zugriff konnte nicht entfernt werden",
           "grant": "Gewähren",
           "grantSuccess": "Vendor-Zugriff gewährt",
           "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
-        }
+        },
+        "permissionWorkspace": "Lesen, kommentieren, erstellen",
+        "grantedSince": "Hat Zugriff seit {date}. Du kannst ihn jederzeit entfernen.",
+        "grantedOnRequest": "Hat Zugriff angefragt, genehmigt am {date}. Du kannst ihn jederzeit entfernen."
       },
       "CoworkerAccess": {
         "title": "Coworker-Early-Access",
@@ -8378,7 +8394,10 @@
             "grant": "Gewähren",
             "grantSuccess": "Vendor-Zugriff gewährt",
             "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
-          }
+          },
+          "permissionWorkspace": "Lesen, kommentieren, erstellen",
+          "grantedSince": "Hat Zugriff seit {date}.",
+          "grantedOnRequest": "Hat Zugriff angefragt, genehmigt am {date}."
         },
         "CoworkerAccess": {
           "title": "Coworker-Early-Access",

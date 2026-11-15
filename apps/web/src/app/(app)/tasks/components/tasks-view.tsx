@@ -770,6 +770,15 @@ export function TasksView({
   const handleViewModeChange = (next: TasksViewMode) => {
     setViewMode(next);
     document.cookie = serializeTasksViewModeCookie(next);
+    // A link's `?view=` held only that visit; once chosen here, the saved
+    // view decides, so drop it or the refresh would read the old view.
+    if (searchParams.has("view")) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("view");
+      const nextQuery = params.toString();
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+      return;
+    }
     router.refresh();
   };
 
