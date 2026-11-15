@@ -1310,6 +1310,32 @@ function organizationHostSuffix(organizationId: string): string {
   return createHash("sha256").update(organizationId).digest("hex").slice(0, 12);
 }
 
+/** Whether this host is the organization's own (carries its suffix). */
+function isOwnHost(
+  community: { organizationId: string | null },
+  host: string,
+): boolean {
+  const own = organizationHostSuffix(community.organizationId ?? "");
+  return Boolean(host.split(".")[0]?.endsWith(own));
+}
+
+/** Moves a community to a host only its organization can have. */
+async function moveToOwnHost(
+  community: { id: string; organizationId: string | null },
+  host: string,
+) {
+  const label = host.split(".")[0]?.slice(0, 40) ?? "org";
+  const own = organizationHostSuffix(community.organizationId ?? community.id);
+  await prisma.buzzCommunity.update({
+    where: { id: community.id },
+    data: {
+      relayUrl: communityUrlFor(
+        label.endsWith(own) ? `${label}-x` : `${label}-${own}`,
+      ),
+    },
+  });
+}
+
 export function communityUrlFor(label: string): string {
   return requireConfig().communityUrlTemplate.replaceAll("{slug}", label);
 }
@@ -1384,7 +1410,9 @@ export async function provisionBuzzCommunities(
       where: { relayUrl: community.relayUrl, id: { not: community.id } },
     });
     if (sharing > 0) {
-      console.error(`Buzz community host ${host} is taken; not created`);
+      // Another organization has it (say after a slug change): this one
+      // moves to a host of its own, created on the next sweep.
+      await moveToOwnHost(community, host);
       continue;
     }
     checkpoint();
@@ -1412,15 +1440,8 @@ export async function provisionBuzzCommunities(
     // It exists: ours only if its host is this organization's own (made on
     // an earlier try). A slug a deleted organization had leaves a community
     // with its people: never adopted, this one moves to its own host.
-    const own = exists
-      ? organizationHostSuffix(community.organizationId as string)
-      : "";
-    if (exists && !host.split(".")[0]?.endsWith(own)) {
-      const label = `${host.split(".")[0]?.slice(0, 40)}-${own}`;
-      await prisma.buzzCommunity.update({
-        where: { id: community.id },
-        data: { relayUrl: communityUrlFor(label) },
-      });
+    if (exists && !isOwnHost(community, host)) {
+      await moveToOwnHost(community, host);
       continue;
     }
     await prisma.buzzCommunity.update({
