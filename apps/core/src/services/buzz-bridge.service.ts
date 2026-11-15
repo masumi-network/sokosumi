@@ -886,29 +886,45 @@ export async function syncBuzzAgents(
             // Granted by the switch that is now off: the agent leaves, and
             // waits for approval like a new one (approval takes a pending
             // request, not a revoked one).
-            const { pending, membershipStatusMessages } =
-              await prisma.$transaction(async (tx) => {
-                const revoked = await forceRevokeCoworkerWorkspaceAccessByPair(
-                  {
-                    coworkerId: coworkerId as string,
-                    workspaceId,
-                    resolvedById: userId,
-                  },
-                  tx,
-                );
-                const pending = await tx.coworkerWorkspaceAccess.update({
-                  where,
-                  data: {
-                    status: "PENDING",
-                    resolvedById: null,
-                    resolvedAt: null,
-                  },
-                });
-                return {
-                  pending,
-                  membershipStatusMessages: revoked.membershipStatusMessages,
-                };
+            const outcome = await prisma.$transaction(async (tx) => {
+              // Locked, and still the switch's own grant (an admin may
+              // have revoked and granted it again since it was read).
+              const [locked] = await tx.$queryRaw<
+                { resolvedAt: Date | null; status: string }[]
+              >`SELECT "resolvedAt", status::text AS status
+                    FROM coworker_workspace_access
+                   WHERE "coworkerId" = ${coworkerId as string}
+                     AND "workspaceId" = ${workspaceId}::uuid
+                   FOR UPDATE`;
+              if (
+                locked?.status !== "GRANTED" ||
+                locked.resolvedAt?.getTime() !== auto?.decidedAt.getTime()
+              ) {
+                return null;
+              }
+              const revoked = await forceRevokeCoworkerWorkspaceAccessByPair(
+                {
+                  coworkerId: coworkerId as string,
+                  workspaceId,
+                  resolvedById: userId,
+                },
+                tx,
+              );
+              const pending = await tx.coworkerWorkspaceAccess.update({
+                where,
+                data: {
+                  status: "PENDING",
+                  resolvedById: null,
+                  resolvedAt: null,
+                },
               });
+              return {
+                pending,
+                membershipStatusMessages: revoked.membershipStatusMessages,
+              };
+            });
+            if (!outcome) continue;
+            const { pending, membershipStatusMessages } = outcome;
             // Committed: open chats learn the agent left its rooms.
             await publishChatRoomMembershipStatusMessagesBestEffort(
               membershipStatusMessages,
@@ -1284,12 +1300,14 @@ export function communityLabelFor(organization: {
     .slice(0, 40)
     .replace(/-$/, "");
   if (cleaned && cleaned === organization.slug) return cleaned;
-  // From the whole id: a UUIDv7's first characters are its creation time.
-  const suffix = createHash("sha256")
-    .update(organization.id)
-    .digest("hex")
-    .slice(0, 12);
+  const suffix = organizationHostSuffix(organization.id);
   return cleaned ? `${cleaned}-${suffix}` : `org-${suffix}`;
+}
+
+/** Part of a host only this organization has (from its whole id: a UUIDv7's
+ * first characters are its creation time). */
+function organizationHostSuffix(organizationId: string): string {
+  return createHash("sha256").update(organizationId).digest("hex").slice(0, 12);
 }
 
 export function communityUrlFor(label: string): string {
@@ -1381,7 +1399,6 @@ export async function provisionBuzzCommunities(
         create_only: true,
       },
     });
-    // Ours already when it exists: only the operator creates communities.
     const exists =
       response.status === 409 &&
       /already exists/i.test(
@@ -1391,6 +1408,20 @@ export async function provisionBuzzCommunities(
       throw new Error(
         `Buzz relay refused community ${host}: ${response.status} ${JSON.stringify(response.body).slice(0, 200)}`,
       );
+    }
+    // It exists: ours only if its host is this organization's own (made on
+    // an earlier try). A slug a deleted organization had leaves a community
+    // with its people: never adopted, this one moves to its own host.
+    const own = exists
+      ? organizationHostSuffix(community.organizationId as string)
+      : "";
+    if (exists && !host.split(".")[0]?.endsWith(own)) {
+      const label = `${host.split(".")[0]?.slice(0, 40)}-${own}`;
+      await prisma.buzzCommunity.update({
+        where: { id: community.id },
+        data: { relayUrl: communityUrlFor(label) },
+      });
+      continue;
     }
     await prisma.buzzCommunity.update({
       where: { id: community.id },

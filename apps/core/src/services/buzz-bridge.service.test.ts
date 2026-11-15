@@ -51,6 +51,7 @@ const db = vi.hoisted(() => {
     member: model(),
     user: model(),
     sokoBot: model(),
+    $queryRaw: vi.fn(async (): Promise<unknown[]> => []),
     // Both forms: a list of operations, or a function given the client.
     $transaction: vi.fn(
       async (operations: unknown): Promise<unknown> =>
@@ -1166,6 +1167,9 @@ describe("a person's own Buzz agents", () => {
       resolvedAt: decidedAt,
     });
     db.buzzAutoAccess.findUnique.mockResolvedValue({ decidedAt });
+    db.$queryRaw.mockResolvedValue([
+      { status: "GRANTED", resolvedAt: decidedAt },
+    ]);
     db.coworkerWorkspaceAccess.update.mockResolvedValue({
       id: "access",
       coworkerId: "cw-agent",
@@ -2006,8 +2010,16 @@ describe("communities", () => {
     });
     db.buzzCommunity.upsert.mockResolvedValue({});
     db.buzzCommunity.findMany.mockResolvedValueOnce([
-      { id: "c-new", relayUrl: "wss://new-co.chat.example" },
-      { id: "c-old", relayUrl: "wss://old-co.chat.example" },
+      {
+        id: "c-new",
+        organizationId: "org-new",
+        relayUrl: "wss://new-co.chat.example",
+      },
+      {
+        id: "c-old",
+        organizationId: "org-old",
+        relayUrl: `wss://old-co-${createHash("sha256").update("org-old").digest("hex").slice(0, 12)}.chat.example`,
+      },
     ]);
     relay.operatorRequest
       .mockResolvedValueOnce({ status: 201, body: { status: "created" } })
@@ -2037,6 +2049,35 @@ describe("communities", () => {
     expect(db.buzzCommunity.update).toHaveBeenCalledTimes(2);
   });
 
+  it("never adopts a community someone else left on the relay: moves to its own host", async () => {
+    env.value = {
+      ...env.value,
+      BUZZ_COMMUNITY_URL_TEMPLATE: "wss://{slug}.chat.example",
+      BUZZ_OPERATOR_API_ORIGIN: "https://operator.chat.example",
+    };
+    db.organization.findMany.mockResolvedValueOnce([]);
+    db.buzzCommunity.findMany.mockResolvedValueOnce([
+      {
+        id: "c-new",
+        organizationId: "org-new",
+        relayUrl: "wss://acme.chat.example",
+      },
+    ]);
+    relay.operatorRequest.mockResolvedValueOnce({
+      status: 409,
+      body: { error: "community already exists" },
+    });
+    await expect(provisionBuzzCommunities()).resolves.toBe(0);
+    const own = createHash("sha256")
+      .update("org-new")
+      .digest("hex")
+      .slice(0, 12);
+    expect(db.buzzCommunity.update).toHaveBeenCalledWith({
+      where: { id: "c-new" },
+      data: { relayUrl: `wss://acme-${own}.chat.example` },
+    });
+  });
+
   it("stops at a community the relay refuses, leaving it for the next sweep", async () => {
     env.value = {
       ...env.value,
@@ -2044,7 +2085,11 @@ describe("communities", () => {
     };
     db.organization.findMany.mockResolvedValueOnce([]);
     db.buzzCommunity.findMany.mockResolvedValueOnce([
-      { id: "c-new", relayUrl: "wss://new-co.chat.example" },
+      {
+        id: "c-new",
+        organizationId: "org-new",
+        relayUrl: "wss://new-co.chat.example",
+      },
     ]);
     relay.operatorRequest.mockResolvedValueOnce({
       status: 403,
