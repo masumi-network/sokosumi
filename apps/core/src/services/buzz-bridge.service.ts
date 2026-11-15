@@ -2658,6 +2658,81 @@ export async function drainBuzzOutbox(
   return outcomes;
 }
 
+/**
+ * Messages whose change never reached the outbox (its write failed after
+ * the chat change committed): new ones never linked, edits newer than their
+ * link, deletions their link does not have. Queued again; returns how many.
+ * Looks back a day, which the sweep covers many times over.
+ */
+export async function repairBuzzOutbox(limit = 200): Promise<number> {
+  const since = new Date(Date.now() - 24 * 60 * 60_000);
+  // Settled first: what was written a moment ago is likely still on its way.
+  const settled = new Date(Date.now() - 60_000);
+  const missed = await prisma.chatRoomMessage.findMany({
+    where: {
+      room: {
+        buzzChannel: {
+          isNot: null,
+        },
+      },
+      OR: [
+        {
+          createdAt: { gte: since, lte: settled },
+          deletedAt: null,
+          buzzLink: null,
+        },
+        {
+          editedAt: { gte: since, lte: settled },
+          deletedAt: null,
+          buzzLink: { is: { deleted: false } },
+        },
+        {
+          deletedAt: { gte: since, lte: settled },
+          buzzLink: { is: { deleted: false } },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      roomId: true,
+      createdAt: true,
+      editedAt: true,
+      deletedAt: true,
+      content: true,
+      buzzLink: { select: { contentHash: true, updatedAt: true } },
+      room: { select: { buzzChannel: { select: { createdAt: true } } } },
+    },
+    take: limit,
+  });
+  const queued = new Set(
+    (
+      await prisma.buzzOutbox.findMany({
+        where: { messageId: { in: missed.map((message) => message.id) } },
+        select: { messageId: true },
+      })
+    ).map((row) => row.messageId),
+  );
+  const due = missed.filter((message) => {
+    if (queued.has(message.id)) return false;
+    const channelAt = message.room.buzzChannel?.createdAt;
+    if (!message.buzzLink) {
+      // From before the channel: the history import's.
+      return channelAt ? message.createdAt >= channelAt : false;
+    }
+    if (message.deletedAt) return true;
+    return message.buzzLink.contentHash !== contentHash(message.content);
+  });
+  if (due.length > 0) {
+    await prisma.buzzOutbox.createMany({
+      data: due.map((message) => ({
+        roomId: message.roomId,
+        messageId: message.id,
+      })),
+    });
+  }
+  return due.length;
+}
+
 // ---------------------------------------------------------------- inbound
 
 /**
@@ -3192,11 +3267,10 @@ async function withMediaCopied(
     event,
     relayUrl,
     roomId: input.roomId,
+    // In a DM the operator is no member: the room's people read for it.
     readerKeys: [
       requireConfig().operatorSecretKey,
-      ...(isDirect(channel)
-        ? await directMessageSigners(relayUrl, input.channelId)
-        : []),
+      ...(isDirect(channel) ? await memberKeysOfRoom(input.roomId) : []),
     ],
     owner: input.author.userId
       ? { kind: "user", userId: input.author.userId }
@@ -3780,6 +3854,17 @@ export async function deleteChannelsOfDeletedRooms(
     where: { organizationId: null, channels: { none: {} } },
   });
   return deleted;
+}
+
+/** Secret keys Sokosumi keeps of a room's people. */
+async function memberKeysOfRoom(roomId: string) {
+  const identities = await prisma.buzzIdentity.findMany({
+    where: {
+      encryptedSecretKey: { not: null },
+      user: { chatRoomMembers: { some: { roomId } } },
+    },
+  });
+  return identities.map((identity) => identitySecretKey(identity));
 }
 
 /** Secret keys Sokosumi keeps of a DM's people, who may delete it. */

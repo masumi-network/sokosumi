@@ -27,6 +27,7 @@ import {
   readerSecretKey,
   recordFailedBuzzAnswer,
   removeAgentsWithoutOwner,
+  repairBuzzOutbox,
   saveInboundCursor,
   syncBuzzAgents,
   syncRoomChannel,
@@ -680,6 +681,8 @@ export async function runBuzzBridge(options: {
       // organization). Cheap when nothing changed: a hash compare per room.
       if (Date.now() - lastMemberSweep > 60_000) {
         lastMemberSweep = Date.now();
+        const repaired = await repairBuzzOutbox();
+        if (repaired > 0) log(`${repaired} change(s) queued again for Buzz`);
         const left = await removeAgentsWithoutOwner();
         if (left > 0) log(`${left} personal agent(s) left with their owner`);
         const inBudget = within(Date.now() + SWEEP_BUDGET_MS);
