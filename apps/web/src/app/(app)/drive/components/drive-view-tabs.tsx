@@ -45,22 +45,27 @@ export function DriveViewTabs({
       }}
       className="w-full @2xl:w-auto"
     >
+      {/* Each view renders outside these Tabs, so the panel id Radix puts in
+          aria-controls names nothing and fails axe. Hence aria-controls={undefined}. */}
       <TabsList className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "@2xl:w-auto")}>
         <TabsTrigger
           value="recents"
           className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+          aria-controls={undefined}
         >
           {t("recentsTab")}
         </TabsTrigger>
         <TabsTrigger
           value="workspace"
           className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+          aria-controls={undefined}
         >
           {t("workspaceTab")}
         </TabsTrigger>
         <TabsTrigger
           value="tables"
           className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+          aria-controls={undefined}
         >
           {t("tablesTab")}
         </TabsTrigger>

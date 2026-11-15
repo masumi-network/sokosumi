@@ -2171,8 +2171,10 @@ export const getDriveResourcesByIdResponseTransformer = async (data: any): Promi
 };
 
 export const getDriveResourcesByIdGoogleSheetResponseTransformer = async (data: any): Promise<GetDriveResourcesByIdGoogleSheetResponse> => {
-    data.data = driveGoogleSheetSchemaResponseTransformer(data.data);
-    data.meta.timestamp = new Date(data.meta.timestamp);
+    if (data) {
+        data.data = driveGoogleSheetSchemaResponseTransformer(data.data);
+        data.meta.timestamp = new Date(data.meta.timestamp);
+    }
     return data;
 };
 

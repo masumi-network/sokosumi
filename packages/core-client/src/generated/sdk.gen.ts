@@ -2591,7 +2591,7 @@ export const getDriveResourcesById = <ThrowOnError extends boolean = false>(opti
 export const getDriveResourcesByIdContent = <ThrowOnError extends boolean = false>(options: Options<GetDriveResourcesByIdContentData, ThrowOnError>): RequestResult<GetDriveResourcesByIdContentResponses, GetDriveResourcesByIdContentErrors, ThrowOnError> => (options.client ?? client).get<GetDriveResourcesByIdContentResponses, GetDriveResourcesByIdContentErrors, ThrowOnError>({ url: '/drive/resources/{id}/content', ...options });
 
 /**
- * The Google Sheet this file copies. 404 for a plain file, and for one the caller cannot see.
+ * The Google Sheet this file copies. 204 for a plain file, 404 for one the caller cannot see.
  */
 export const getDriveResourcesByIdGoogleSheet = <ThrowOnError extends boolean = false>(options: Options<GetDriveResourcesByIdGoogleSheetData, ThrowOnError>): RequestResult<GetDriveResourcesByIdGoogleSheetResponses, GetDriveResourcesByIdGoogleSheetErrors, ThrowOnError> => (options.client ?? client).get<GetDriveResourcesByIdGoogleSheetResponses, GetDriveResourcesByIdGoogleSheetErrors, ThrowOnError>({
     responseTransformer: getDriveResourcesByIdGoogleSheetResponseTransformer,

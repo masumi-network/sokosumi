@@ -42,7 +42,7 @@ export function GoogleSheetBar({
 
   const { data: link } = useQuery({
     queryKey,
-    // A plain file answers 404: nothing to show.
+    // A plain file answers 204: nothing to show.
     queryFn: async (): Promise<DriveGoogleSheet | null> =>
       (await getDriveResourcesByIdGoogleSheet(options)).data?.data ?? null,
     staleTime: 60_000,
