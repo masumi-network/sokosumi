@@ -32,6 +32,7 @@ import {
   CONTACT_SORTS,
   CONTACT_STAGES,
   type ContactSort,
+  contactEmails,
   contactQuery,
   coreErrorOf,
   defaultDirection,
@@ -279,6 +280,24 @@ export function ContactsWorkspace({
       await refreshContacts(cache);
     }
   }
+  async function handleCopyEmails() {
+    const { emails, skipped } = contactEmails(selectedContacts);
+    if (!emails.length) {
+      toast.error(t("bulk.noEmails"));
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(emails.join(", "));
+    } catch {
+      toast.error(t("bulk.copyFailed"));
+      return;
+    }
+    toast.success(t("bulk.copiedEmails", { count: emails.length }), {
+      description: skipped
+        ? t("bulk.skippedNoEmail", { count: skipped })
+        : undefined,
+    });
+  }
   async function handleExport() {
     setExporting(true);
     try {
@@ -416,6 +435,7 @@ export function ContactsWorkspace({
                   }),
                 )
               }
+              onCopyEmails={() => void handleCopyEmails()}
               onMerge={() =>
                 setDialog({ kind: "merge", contacts: selectedContacts })
               }

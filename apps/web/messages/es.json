@@ -11072,11 +11072,16 @@
         "selected": "{count} seleccionados",
         "addToList": "Añadir a una lista",
         "removeFromList": "Quitar de una lista",
+        "copyEmails": "Copiar correos",
         "merge": "Fusionar",
         "clear": "Quitar selección",
         "updated": "{count, plural, =1 {1 contacto actualizado} other {# contactos actualizados}}",
         "addedToList": "{count, plural, =1 {1 contacto añadido a {list}} other {# contactos añadidos a {list}}}",
-        "removedFromList": "{count, plural, =1 {1 contacto quitado de {list}} other {# contactos quitados de {list}}}"
+        "removedFromList": "{count, plural, =1 {1 contacto quitado de {list}} other {# contactos quitados de {list}}}",
+        "copiedEmails": "{count, plural, =1 {1 dirección de correo copiada} other {# direcciones de correo copiadas}}",
+        "skippedNoEmail": "{count, plural, =1 {1 contacto no tiene correo y se omitió.} other {# contactos no tienen correo y se omitieron.}}",
+        "noEmails": "Ninguno de los contactos seleccionados tiene dirección de correo.",
+        "copyFailed": "No se pudo copiar al portapapeles. Inténtalo de nuevo."
       },
       "errors": {
         "versionConflict": "Alguien acaba de cambiar este contacto. Cargamos su versión; vuelve a intentar tu cambio.",
