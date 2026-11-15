@@ -47,10 +47,8 @@ describe("AssistantCreateStep", () => {
 
     const later = screen.getByRole("link", { name: "Later" });
     expect(later).toHaveAttribute("href", "/tasks");
-    // Home does not offer the bot again, so the link says where it lives.
-    expect(later).toHaveAccessibleDescription(
-      "Set it up any time from Soko Bots.",
-    );
+    // Home offers the bot until the user has one, so the link says where it lives.
+    expect(later).toHaveAccessibleDescription("Set it up any time from Home.");
   });
 
   it("moves on to the connect step once the bot exists", async () => {

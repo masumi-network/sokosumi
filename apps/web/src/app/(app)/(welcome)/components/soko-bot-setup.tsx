@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { GradientBackground } from "@/components/gradient-background";
 import { Button } from "@/components/ui/button";
-import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
+import { SOKO_BOT_FROM_HOME_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
 /** Pictures in the row; the middle one is the largest. */
@@ -54,7 +54,7 @@ export async function SokoBotSetup({ avatars }: { avatars: SokoBotAvatar[] }) {
           </p>
         </div>
         <Button asChild variant="primary" size="lg">
-          <Link href={SOKO_BOT_ROUTE}>{t("cta")}</Link>
+          <Link href={SOKO_BOT_FROM_HOME_ROUTE}>{t("cta")}</Link>
         </Button>
       </div>
     </div>
