@@ -8,7 +8,11 @@ export interface AcquiredSyncLock {
 }
 
 export const syncLockService = {
-  async acquireLock(key: string): Promise<AcquiredSyncLock> {
+  /** `timeoutMs`: how long a lock nobody renews stays taken (LOCK_TIMEOUT). */
+  async acquireLock(
+    key: string,
+    timeoutMs: number = getEnv().LOCK_TIMEOUT,
+  ): Promise<AcquiredSyncLock> {
     return await prisma.$transaction(async (tx) => {
       await tx.lock.upsert({
         where: { key },
@@ -18,7 +22,7 @@ export const syncLockService = {
 
       const lockAcquiredAt = new Date();
       const lockExpirationThreshold = new Date(
-        lockAcquiredAt.getTime() - getEnv().LOCK_TIMEOUT,
+        lockAcquiredAt.getTime() - timeoutMs,
       );
       const ownerToken = `${getEnv().INSTANCE_ID}:${uuidv7()}`;
 
@@ -69,5 +73,14 @@ export const syncLockService = {
     });
 
     return releaseResult.count > 0;
+  },
+
+  /** Keeps a held lock taken; false once someone else holds it. */
+  async renewLock(key: string, ownerToken: string): Promise<boolean> {
+    const renewed = await prisma.lock.updateMany({
+      where: { key, isLocked: true, lockedBy: ownerToken },
+      data: { lockedAt: new Date() },
+    });
+    return renewed.count > 0;
   },
 };

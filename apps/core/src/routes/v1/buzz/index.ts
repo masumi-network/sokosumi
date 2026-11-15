@@ -8,6 +8,7 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { joinedWithInvites } from "@/lib/buzz/relay-database";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -174,6 +175,31 @@ const linkAppKey = createRoute({
   },
 });
 
+const appKeyJoined = createRoute({
+  method: "post",
+  path: "/app-key/joined",
+  tags: ["Buzz"],
+  description:
+    "Whether the caller's linked Buzz app has joined the community of every one of these invites, so the Connect dialog can move on by itself. `joined` is null when Sokosumi cannot tell. Interactive sessions only.",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({ codes: z.array(z.string().min(1)).max(50) }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(
+      z.object({ joined: z.union([z.boolean(), z.null()]) }),
+      "Whether the app joined",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+  },
+});
+
 const unlinkAppKey = createRoute({
   method: "delete",
   path: "/app-key",
@@ -249,6 +275,20 @@ app.openapi(linkAppKey, async (c) => {
     if (error instanceof BuzzAppLinkError) throw badRequest(error.message);
     throw error;
   }
+});
+
+app.openapi(appKeyJoined, async (c) => {
+  const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+  const { codes } = c.req.valid("json");
+  const identity = await prisma.buzzIdentity.findUnique({
+    where: { userId },
+    select: { appPubkey: true },
+  });
+  return ok(c, {
+    joined: identity?.appPubkey
+      ? await joinedWithInvites(codes, identity.appPubkey)
+      : false,
+  });
 });
 
 app.openapi(unlinkAppKey, async (c) => {

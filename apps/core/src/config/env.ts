@@ -384,8 +384,16 @@ const baseEnvSchema = z.object({
    *   community membership and channel administration.
    * - BUZZ_KEY_ENCRYPTION_SECRET: encrypts the per-member Nostr keys and bridge
    *   API keys at rest.
+   * Optional, for a multi-community relay (production):
+   * - BUZZ_OPERATOR_API_ORIGIN: the relay's operator API origin
+   *   (`RELAY_OPERATOR_API_ORIGIN` there); set, every organization gets its
+   *   community created on the relay. Unset, communities already exist.
+   * - BUZZ_RELAY_DATABASE_URL: the relay's Postgres, for the one-time import
+   *   of each room's history (the relay takes no event older than 15 minutes).
    */
   BUZZ_COMMUNITY_URL_TEMPLATE: z.string().min(1).optional(),
+  BUZZ_OPERATOR_API_ORIGIN: z.url().optional(),
+  BUZZ_RELAY_DATABASE_URL: z.string().min(1).optional(),
   BUZZ_OPERATOR_SECRET_KEY: z
     .string()
     .regex(/^[0-9a-f]{64}$/)

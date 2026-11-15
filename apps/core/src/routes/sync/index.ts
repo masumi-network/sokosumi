@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import mountGetAgentsSync from "./agents/get.js";
 import mountGetAgentsSummarySync from "./agents-summary/get.js";
+import mountGetBuzzSync from "./buzz/get.js";
 import mountGetCalendarInvalidationsSync from "./calendar-invalidations/get.js";
 import mountGetChatMessageSignalsSync from "./chat-message-signals/get.js";
 import mountGetChatRoomGuestInvitationsExpireSync from "./chat-room-guest-invitations-expire/get.js";
@@ -44,6 +45,7 @@ mountGetContactCaptureSync(app);
 mountGetChatRoomGuestInvitationsExpireSync(app);
 mountGetCmoProductionSync(app);
 mountGetCoworkerLateResponsesSync(app);
+mountGetBuzzSync(app);
 mountGetDriveIndexSync(app);
 mountGetEnterpriseContractsRenewalSync(app);
 mountGetEvalsSync(app);

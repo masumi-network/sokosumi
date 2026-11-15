@@ -36,6 +36,10 @@ if (!existsSync(envPath)) {
     BUZZ_PUSH_ENABLED: "false",
     RUST_LOG: "buzz_relay=info,buzz_db=warn,buzz_auth=info",
     RELAY_OWNER_PUBKEY: getPublicKey(operator),
+    // One relay, a community per organization, created by Core through the
+    // operator API (as in production).
+    RELAY_OPERATOR_PUBKEYS: getPublicKey(operator),
+    RELAY_OPERATOR_API_ORIGIN: `http://operator.localhost:${port}`,
     BUZZ_RELAY_PRIVATE_KEY: bytesToHex(relay),
     BUZZ_GIT_HOOK_HMAC_SECRET: hex(32),
     POSTGRES_DB: "buzz",
@@ -49,6 +53,8 @@ if (!existsSync(envPath)) {
     BUZZ_HTTP_PORT: port,
     SOKOSUMI_DB_PASSWORD: hex(16),
     SOKOSUMI_DB_PORT: "5434",
+    // The relay's Postgres on localhost, for Core's history import.
+    BUZZ_DB_PORT: "5435",
     // Not read by the relay: the key Core signs operator events with.
     SOKOSUMI_BUZZ_OPERATOR_SECRET_KEY: bytesToHex(operator),
   };
@@ -72,7 +78,9 @@ const env = Object.fromEntries(
     ]),
 );
 console.log(`\nAdd to apps/core/.env (see scripts/buzz-local/README.md):
-BUZZ_COMMUNITY_URL_TEMPLATE=${env.RELAY_URL}
+BUZZ_COMMUNITY_URL_TEMPLATE=ws://{slug}.localhost:${env.BUZZ_HTTP_PORT}
+BUZZ_OPERATOR_API_ORIGIN=${env.RELAY_OPERATOR_API_ORIGIN}
+BUZZ_RELAY_DATABASE_URL=postgresql://buzz:<POSTGRES_PASSWORD>@localhost:${env.BUZZ_DB_PORT}/buzz
 BUZZ_OPERATOR_SECRET_KEY=<SOKOSUMI_BUZZ_OPERATOR_SECRET_KEY from scripts/buzz-local/.env>
 BUZZ_KEY_ENCRYPTION_SECRET=<any 32+ character secret>
 DATABASE_URL=postgresql://sokosumi:<SOKOSUMI_DB_PASSWORD>@localhost:${env.SOKOSUMI_DB_PORT}/sokosumi`);

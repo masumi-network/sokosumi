@@ -50,6 +50,9 @@ services:
 
   postgres:
     image: postgres:17-alpine
+    # Localhost only: Core's history import writes here, as in production.
+    ports:
+      - "127.0.0.1:${BUZZ_DB_PORT:-5435}:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-buzz}
       POSTGRES_USER: ${POSTGRES_USER:-buzz}

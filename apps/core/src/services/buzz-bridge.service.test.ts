@@ -15,6 +15,7 @@ vi.mock("@/config/env", () => ({ getEnv: () => env.value }));
 const db = vi.hoisted(() => {
   const model = () => ({
     findUnique: vi.fn(),
+    findUniqueOrThrow: vi.fn(),
     findFirst: vi.fn(),
     findMany: vi.fn(),
     create: vi.fn(),
@@ -29,6 +30,7 @@ const db = vi.hoisted(() => {
   });
   return {
     chatRoom: model(),
+    organization: model(),
     buzzCommunity: model(),
     buzzOutbox: model(),
     buzzMessageLink: model(),
@@ -68,10 +70,14 @@ const realtime = vi.hoisted(() => ({ publish: vi.fn() }));
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMembershipStatusMessagesBestEffort: realtime.publish,
 }));
-const relay = vi.hoisted(() => ({ queryEvents: vi.fn() }));
+const relay = vi.hoisted(() => ({
+  queryEvents: vi.fn(),
+  operatorRequest: vi.fn(),
+}));
 vi.mock("@/lib/buzz/relay-client", async (importActual) => ({
   ...(await importActual<typeof import("@/lib/buzz/relay-client")>()),
   queryEvents: relay.queryEvents,
+  operatorRequest: relay.operatorRequest,
   // One page here: paging itself is the relay client's to test.
   queryAllEvents: (input: {
     relayUrl: string;
@@ -94,10 +100,12 @@ import {
   buzzContentOf,
   CoreRejectedError,
   type CoreRequest,
+  communityLabelFor,
   drainBuzzOutbox,
   enqueueBuzzSync,
   linkBuzzApp,
   OUTBOX_SETTLE_MS,
+  provisionBuzzCommunities,
   syncBuzzAgents,
   syncRoomChannel,
   vouched,
@@ -149,13 +157,28 @@ describe("enqueueBuzzSync", () => {
     db.chatRoom.findUnique.mockResolvedValue({
       kind: "channel",
       buzzChannel: null,
-      organization: { buzzCommunity: { id: "community" } },
+      organization: {
+        buzzCommunity: { id: "community", provisionedAt: new Date() },
+      },
       userMembers: [],
     });
     await enqueueBuzzSync({ roomId: "room", messageId: "m" });
     expect(db.buzzOutbox.create).toHaveBeenCalledWith({
       data: { roomId: "room", messageId: "m" },
     });
+  });
+
+  it("queues nothing for a community the relay does not have yet", async () => {
+    db.chatRoom.findUnique.mockResolvedValue({
+      kind: "channel",
+      buzzChannel: null,
+      organization: {
+        buzzCommunity: { id: "community", provisionedAt: null },
+      },
+      userMembers: [],
+    });
+    await enqueueBuzzSync({ roomId: "room", messageId: "m" });
+    expect(db.buzzOutbox.create).not.toHaveBeenCalled();
   });
 
   it("never lets a Buzz failure fail the chat write", async () => {
@@ -217,6 +240,22 @@ describe("applyInboundEvent", () => {
       applyInboundEvent(nostrEvent({ content: "x" }), core),
     ).resolves.toBe("ignored");
     expect(core).not.toHaveBeenCalled();
+  });
+
+  it("drops a bridge key Core no longer takes, so the next try mints a new one", async () => {
+    db.buzzIdentity.findFirst.mockResolvedValueOnce({ ...bob });
+    db.buzzChannel.findUnique.mockResolvedValue({
+      roomId: "room",
+      channelId: CHANNEL,
+    });
+    db.buzzIdentity.findMany.mockResolvedValue([]);
+    core.mockResolvedValueOnce({ status: 401, body: {} });
+    const attempt = applyInboundEvent(nostrEvent({ content: "hi" }), core);
+    await expect(attempt).rejects.toMatchObject({ terminal: false });
+    expect(db.buzzIdentity.update).toHaveBeenCalledWith({
+      where: { id: "identity-bob" },
+      data: { encryptedApiKey: null },
+    });
   });
 
   it("takes a reaction back when Buzz deletes its copy signed with the other key", async () => {
@@ -1791,5 +1830,80 @@ describe("vouched", () => {
     expect(vouched({ ...identity, appPubkey: "c".repeat(64) }, draft)).toBe(
       draft,
     );
+  });
+});
+
+describe("communities", () => {
+  it("names a community after its organization's slug, or a clean one made unique", () => {
+    const id = "01a1c865-d785-712c-83f6-041298fd1fce";
+    expect(communityLabelFor({ id, slug: "acme" })).toBe("acme");
+    expect(communityLabelFor({ id, slug: "Acme_Inc." })).toBe(
+      "acme-inc-01a1c865",
+    );
+    expect(communityLabelFor({ id, slug: "___" })).toBe("org-01a1c865");
+    const long = communityLabelFor({ id, slug: "a".repeat(60) });
+    expect(long.length).toBeLessThanOrEqual(63);
+    expect(long).toMatch(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/);
+  });
+
+  it("gives every organization a community and creates it on the relay once", async () => {
+    env.value = {
+      ...env.value,
+      BUZZ_COMMUNITY_URL_TEMPLATE: "wss://{slug}.chat.example",
+      BUZZ_OPERATOR_API_ORIGIN: "https://operator.chat.example",
+    };
+    db.organization.findMany.mockResolvedValueOnce([{ id: "org-new" }]);
+    db.organization.findUniqueOrThrow.mockResolvedValueOnce({
+      id: "org-new",
+      slug: "new-co",
+    });
+    db.buzzCommunity.upsert.mockResolvedValue({});
+    db.buzzCommunity.findMany.mockResolvedValueOnce([
+      { id: "c-new", relayUrl: "wss://new-co.chat.example" },
+      { id: "c-old", relayUrl: "wss://old-co.chat.example" },
+    ]);
+    relay.operatorRequest
+      .mockResolvedValueOnce({ status: 201, body: { status: "created" } })
+      .mockResolvedValueOnce({
+        status: 409,
+        body: { error: "community already exists" },
+      });
+    await expect(provisionBuzzCommunities()).resolves.toBe(2);
+    expect(db.buzzCommunity.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          relayUrl: expect.stringContaining("new-co"),
+          provisionedAt: null,
+        }),
+      }),
+    );
+    expect(relay.operatorRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        path: "/operator/communities",
+        body: expect.objectContaining({
+          host: "new-co.chat.example",
+          create_only: true,
+        }),
+      }),
+    );
+    expect(db.buzzCommunity.update).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops at a community the relay refuses, leaving it for the next sweep", async () => {
+    env.value = {
+      ...env.value,
+      BUZZ_OPERATOR_API_ORIGIN: "https://operator.chat.example",
+    };
+    db.organization.findMany.mockResolvedValueOnce([]);
+    db.buzzCommunity.findMany.mockResolvedValueOnce([
+      { id: "c-new", relayUrl: "wss://new-co.chat.example" },
+    ]);
+    relay.operatorRequest.mockResolvedValueOnce({
+      status: 403,
+      body: { error: "community_creation_disabled" },
+    });
+    await expect(provisionBuzzCommunities()).rejects.toThrow(/refused/);
+    expect(db.buzzCommunity.update).not.toHaveBeenCalled();
   });
 });

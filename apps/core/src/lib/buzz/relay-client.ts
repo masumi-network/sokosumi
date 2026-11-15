@@ -72,6 +72,46 @@ export function nip98Header(input: {
   return `Nostr ${Buffer.from(JSON.stringify(proof), "utf8").toString("base64")}`;
 }
 
+/**
+ * One call to a multi-community relay's operator API (`/operator/...`), on
+ * its operator origin, signed by an operator key. Returns the status and the
+ * parsed body; the caller decides what a status means.
+ */
+export async function operatorRequest(input: {
+  origin: string;
+  secretKey: Uint8Array;
+  method: "GET" | "POST";
+  path: string;
+  body?: unknown;
+  fetchImpl?: typeof fetch;
+}): Promise<{ status: number; body: Record<string, unknown> }> {
+  const url = new URL(input.path, input.origin).toString();
+  const body =
+    input.body === undefined ? undefined : JSON.stringify(input.body);
+  const response = await (input.fetchImpl ?? fetch)(url, {
+    method: input.method,
+    headers: {
+      ...(body === undefined ? {} : { "content-type": "application/json" }),
+      authorization: nip98Header({
+        secretKey: input.secretKey,
+        url,
+        method: input.method,
+        body,
+      }),
+    },
+    body,
+    signal: AbortSignal.timeout(15_000),
+  });
+  const text = await response.text();
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = text ? (JSON.parse(text) as Record<string, unknown>) : {};
+  } catch {
+    parsed = { message: text };
+  }
+  return { status: response.status, body: parsed };
+}
+
 /** Signs a template as the given key; the id is known before it is sent. */
 export function signEvent(
   template: Omit<EventTemplate, "created_at"> & { created_at?: number },

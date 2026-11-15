@@ -74,6 +74,26 @@ export const linkBuzzApp = withSession<
   }
 });
 
+interface BuzzAppJoinedParameters extends AuthenticatedRequest {
+  codes: string[];
+}
+
+/**
+ * Whether the caller's Buzz app has joined with these invites; null when
+ * Sokosumi cannot tell (the dialog then waits for "I've joined").
+ */
+export const buzzAppJoined = withSession<
+  BuzzAppJoinedParameters,
+  ActionResultDto<{ joined: boolean | null }, BuzzActionError>
+>(async ({ codes }) => {
+  try {
+    const response = await coreClientNoRedirect.postBuzzAppKeyJoined(codes);
+    return toActionResult(ok(response.data));
+  } catch {
+    return toActionResult(ok({ joined: null }));
+  }
+});
+
 /** Forgets the caller's own Buzz app key. */
 export const unlinkBuzzApp = withSession<
   AuthenticatedRequest,

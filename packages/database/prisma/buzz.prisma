@@ -14,6 +14,9 @@ model BuzzCommunity {
   /// Members may bring their personal agents (agents they run in their Buzz
   /// app) into rooms without approval. Owners and admins can turn it off.
   allowPersonalAgents Boolean @default(true)
+  /// When the community was created on the relay (multi-community relays);
+  /// nothing is sent to it before.
+  provisionedAt  DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -98,6 +101,9 @@ model BuzzChannel {
   /// channel only on change. An archived one takes no new posts on Buzz
   /// either, as Core does.
   metadataHash String?
+  /// When the room's messages from before its organization moved to Buzz
+  /// were imported into the relay. Null: not yet.
+  historyImportedAt DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 

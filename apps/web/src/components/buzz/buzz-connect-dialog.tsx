@@ -5,7 +5,7 @@ import { getBuzzConnectionResponseTransformer } from "@sokosumi/core-client/tran
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Download, Link2, UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useCallback, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import {
   BUZZ_ACTION_STYLE,
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useClipboard } from "@/hooks/use-clipboard";
-import { linkBuzzApp } from "@/lib/actions/buzz/action";
+import { buzzAppJoined, linkBuzzApp } from "@/lib/actions/buzz/action";
 import { cn } from "@/lib/utils";
 
 /** Buzz's own page for authorizing another app's key. */
@@ -154,6 +154,26 @@ function BuzzConnectFlow({
 
   const back = () => setStep(path[Math.max(0, index - 1)] ?? "choose");
   const next = () => setStep(path[index + 1] ?? "done");
+
+  // Moves on by itself once Buzz shows the app joined; "I've joined" stays
+  // for when Sokosumi cannot tell.
+  const inviteCodes = invites.flatMap((invite) => {
+    const code = new URL(invite.joinUrl).searchParams.get("code");
+    return code ? [code] : [];
+  });
+  const joined = useQuery({
+    queryKey: ["buzz-app-joined", inviteCodes],
+    enabled: step === "link-join" && inviteCodes.length > 0,
+    refetchInterval: 3_000,
+    queryFn: async () => {
+      const result = await buzzAppJoined({ codes: inviteCodes });
+      return result.ok ? result.value.joined : null;
+    },
+  });
+  const joinedNow = step === "link-join" && joined.data === true;
+  useEffect(() => {
+    if (joinedNow) setStep("done");
+  }, [joinedNow]);
 
   return (
     <DialogContent className="bg-background top-0 left-0 grid h-dvh w-screen max-w-none! translate-x-0 translate-y-0 grid-rows-[auto_1fr_auto] gap-0 overflow-hidden rounded-none border-0 p-0 sm:top-[50%] sm:left-[50%] sm:h-[600px] sm:max-h-[92dvh] sm:w-[calc(100vw-4rem)] sm:max-w-xl! sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border [&>button]:top-5 [&>button]:right-5 sm:[&>button]:top-6 sm:[&>button]:right-6">
@@ -288,6 +308,14 @@ function BuzzConnectFlow({
                     value={invites[0].inviteUrl}
                     label={t("join.copyInvite")}
                   />
+                ) : null}
+                {joined.data === false ? (
+                  <p
+                    role="status"
+                    className="text-muted-foreground mt-2 text-xs text-balance"
+                  >
+                    {t("join.auto")}
+                  </p>
                 ) : null}
               </div>
             </Stage>

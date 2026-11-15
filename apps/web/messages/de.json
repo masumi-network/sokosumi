@@ -1103,6 +1103,7 @@
         "open": "In Buzz öffnen",
         "openNamed": "{name} in Buzz öffnen",
         "copyInvite": "Einladungslink kopieren",
+        "auto": "Es geht von selbst weiter, sobald du beigetreten bist.",
         "next": "Ich bin beigetreten"
       },
       "authorize": {

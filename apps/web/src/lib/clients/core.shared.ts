@@ -434,6 +434,7 @@ import {
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postBuzzAppKey as corePostBuzzAppKey,
+  postBuzzAppKeyJoined as corePostBuzzAppKeyJoined,
   postBuzzOrganizationsByOrganizationId as corePostBuzzOrganizationsByOrganizationId,
   postChatRoomInviteLinksByTokenAccept as corePostChatRoomInviteLinksByTokenAccept,
   postChatsInvitationsByIdAccept as corePostChatsInvitationsByIdAccept,
@@ -1010,6 +1011,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to link the Buzz app",
+    );
+  }
+
+  async function postBuzzAppKeyJoined(codes: string[]) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostBuzzAppKeyJoined({
+          client,
+          body: { codes },
+          cache: "no-store",
+        }),
+      "Failed to read whether the Buzz app joined",
     );
   }
 
@@ -7294,6 +7308,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getNewsletterAvailability,
     getBuzzConnection,
     postBuzzAppKey,
+    postBuzzAppKeyJoined,
     deleteBuzzAppKey,
     postBuzzOrganization,
     patchBuzzOrganization,

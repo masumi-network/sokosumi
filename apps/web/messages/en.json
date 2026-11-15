@@ -1103,6 +1103,7 @@
         "open": "Open in Buzz",
         "openNamed": "Open {name} in Buzz",
         "copyInvite": "Copy invite link",
+        "auto": "This continues by itself once you've joined.",
         "next": "I've joined"
       },
       "authorize": {

@@ -38,6 +38,7 @@ import { attestedOwner, authTagOwner } from "@/lib/buzz/owner-attestation";
 import {
   BuzzRelayRejectedError,
   nip98Header,
+  operatorRequest,
   publishSignedEvent,
   queryAllEvents,
   queryEvents,
@@ -124,7 +125,7 @@ async function publish(
 
 // ---------------------------------------------------------------- identities
 
-async function isPersonalAgent(coworkerId: string) {
+export async function isPersonalAgent(coworkerId: string) {
   const coworker = await prisma.coworker.findUnique({
     where: { id: coworkerId },
     select: { baseURL: true },
@@ -306,7 +307,7 @@ async function tellRefusalOnBuzz(
 }
 
 /** A key Sokosumi cannot sign with: a person's own Buzz agent. */
-function isExternal(identity: BuzzIdentity): boolean {
+export function isExternal(identity: BuzzIdentity): boolean {
   return !identity.encryptedSecretKey;
 }
 
@@ -1112,8 +1113,28 @@ async function resyncRoomsWithCoworkers(coworkerIds: string[]) {
 
 // ---------------------------------------------------------------- enabling
 
-export function communityUrlFor(slug: string): string {
-  return requireConfig().communityUrlTemplate.replaceAll("{slug}", slug);
+/**
+ * The community's DNS label: the organization's slug when it is one, else a
+ * cleaned-up slug made unique with part of the organization id.
+ */
+export function communityLabelFor(organization: {
+  id: string;
+  slug: string;
+}): string {
+  const cleaned = organization.slug
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40)
+    .replace(/-$/, "");
+  if (cleaned && cleaned === organization.slug) return cleaned;
+  const suffix = organization.id.replace(/-/g, "").slice(0, 8).toLowerCase();
+  return cleaned ? `${cleaned}-${suffix}` : `org-${suffix}`;
+}
+
+export function communityUrlFor(label: string): string {
+  return requireConfig().communityUrlTemplate.replaceAll("{slug}", label);
 }
 
 /**
@@ -1134,19 +1155,77 @@ export async function setAllowPersonalAgents(
 export async function enableBuzzForOrganization(organizationId: string) {
   const organization = await prisma.organization.findUniqueOrThrow({
     where: { id: organizationId },
-    select: { slug: true },
+    select: { id: true, slug: true },
   });
   return prisma.buzzCommunity.upsert({
     where: { organizationId },
     create: {
       organizationId,
-      relayUrl: communityUrlFor(organization.slug),
+      relayUrl: communityUrlFor(communityLabelFor(organization)),
       // Nothing before this is read; everything after it is, even after an
       // outage that starts right away.
       inboundCursor: Math.floor(Date.now() / 1000),
+      // A relay with one community has it already.
+      provisionedAt: getEnv().BUZZ_OPERATOR_API_ORIGIN ? null : new Date(),
     },
     update: {},
   });
+}
+
+/**
+ * Every organization chats on Buzz: gives each one without a community its
+ * own (a batch at a time), then creates up to `limit` of those not yet on the
+ * relay. Returns how many it created there.
+ */
+export async function provisionBuzzCommunities(limit = 25): Promise<number> {
+  const config = requireConfig();
+  const missing = await prisma.organization.findMany({
+    where: { buzzCommunity: null },
+    select: { id: true },
+    take: 200,
+  });
+  for (const organization of missing) {
+    await enableBuzzForOrganization(organization.id);
+  }
+  const origin = getEnv().BUZZ_OPERATOR_API_ORIGIN;
+  if (!origin) return 0;
+  const pending = await prisma.buzzCommunity.findMany({
+    where: { provisionedAt: null, organizationId: { not: null } },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+  });
+  let created = 0;
+  for (const community of pending) {
+    const host = new URL(community.relayUrl).host;
+    const response = await operatorRequest({
+      origin,
+      secretKey: config.operatorSecretKey,
+      method: "POST",
+      path: "/operator/communities",
+      body: {
+        host,
+        initial_owner_pubkey: config.operatorPubkey,
+        create_only: true,
+      },
+    });
+    // Ours already when it exists: only the operator creates communities.
+    const exists =
+      response.status === 409 &&
+      /already exists/i.test(
+        String(response.body.message ?? response.body.error ?? ""),
+      );
+    if (response.status >= 300 && !exists) {
+      throw new Error(
+        `Buzz relay refused community ${host}: ${response.status} ${JSON.stringify(response.body).slice(0, 200)}`,
+      );
+    }
+    await prisma.buzzCommunity.update({
+      where: { id: community.id },
+      data: { provisionedAt: new Date() },
+    });
+    created++;
+  }
+  return created;
 }
 
 // ---------------------------------------------------------------- outbound
@@ -1187,10 +1266,15 @@ export async function buzzCommunityForRoom(roomId: string) {
   });
   if (!room) return null;
   if (room.buzzChannel) return room.buzzChannel.community;
-  if (room.organization) return room.organization.buzzCommunity;
+  // Nothing goes to a community the relay does not have yet.
+  if (room.organization) {
+    const community = room.organization.buzzCommunity;
+    return community?.provisionedAt ? community : null;
+  }
   if (room.kind !== "direct" || room.userMembers.length === 0) return null;
   return prisma.buzzCommunity.findFirst({
     where: {
+      provisionedAt: { not: null },
       AND: room.userMembers.map((member) => ({
         organization: { members: { some: { userId: member.userId } } },
       })),
@@ -1673,7 +1757,7 @@ const messageForSync = {
   mentionsAsSource: { select: { sokoBotId: true, coworkerId: true } },
 } as const;
 
-function authorOf(message: {
+export function authorOf(message: {
   senderUserId: string | null;
   senderSokoBotId: string | null;
   senderCoworkerId: string | null;
@@ -2098,7 +2182,7 @@ export async function buzzContentOf(content: string): Promise<string> {
   return chatMessageTextWithNames(text, names);
 }
 
-async function mentionPubkeysOf(message: {
+export async function mentionPubkeysOf(message: {
   userMentionsAsSource: { userId: string }[];
   mentionsAsSource: { sokoBotId: string | null; coworkerId: string | null }[];
 }): Promise<string[]> {
@@ -2815,6 +2899,15 @@ async function sendAs(
     ...request,
     apiKey: await bridgeApiKeyFor(identity),
   });
+  // The key is gone (revoked, or deleted with the account's keys): the next
+  // try mints a new one.
+  if (response.status === 401) {
+    await prisma.buzzIdentity.update({
+      where: { id: identity.id },
+      data: { encryptedApiKey: null },
+    });
+    identity.encryptedApiKey = null;
+  }
   // A 409 on a message means its clientMessageId is someone else's.
   if (response.status >= 400) {
     throw new CoreRejectedError(
@@ -3234,6 +3327,7 @@ async function rememberDuplicate(
  */
 export async function buzzSubscriptions() {
   const communities = await prisma.buzzCommunity.findMany({
+    where: { provisionedAt: { not: null } },
     select: {
       id: true,
       relayUrl: true,
@@ -3452,9 +3546,15 @@ export async function unlinkedBuzzRooms(
       id: { notIn: skip },
       archivedAt: null,
       buzzChannel: null,
-      organization: { buzzCommunity: { isNot: null } },
+      OR: [
+        { organization: { buzzCommunity: { provisionedAt: { not: null } } } },
+        // A Direct belongs to no organization: it goes to a community all its
+        // people share, when there is one.
+        { kind: "direct", organizationId: null },
+      ],
     },
     select: { id: true },
+    orderBy: { updatedAt: "desc" },
     take: limit,
   });
 }

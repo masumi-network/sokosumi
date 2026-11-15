@@ -32,7 +32,15 @@ export function useApiKeys(): UseApiKeysReturn {
       try {
         const result = await authClient.apiKey.list();
         if (result.data) {
-          setApiKeys(result.data.apiKeys);
+          // Sokosumi's own key for carrying Buzz messages: not the person's to
+          // manage (removing it would only make the bridge mint another).
+          setApiKeys(
+            result.data.apiKeys.filter(
+              (key) =>
+                (key.metadata as { purpose?: unknown } | null)?.purpose !==
+                "buzz-bridge",
+            ),
+          );
         } else {
           const errorMessage = t("Messages.loadError");
           setError(errorMessage);

@@ -23463,6 +23463,68 @@ export type PostBuzzAppKeyResponses = {
 
 export type PostBuzzAppKeyResponse = PostBuzzAppKeyResponses[keyof PostBuzzAppKeyResponses];
 
+export type PostBuzzAppKeyJoinedData = {
+    body?: {
+        codes: Array<string>;
+    };
+    path?: never;
+    query?: never;
+    url: '/buzz/app-key/joined';
+};
+
+export type PostBuzzAppKeyJoinedErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostBuzzAppKeyJoinedError = PostBuzzAppKeyJoinedErrors[keyof PostBuzzAppKeyJoinedErrors];
+
+export type PostBuzzAppKeyJoinedResponses = {
+    /**
+     * Whether the app joined
+     */
+    200: {
+        data: {
+            joined: boolean | null;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostBuzzAppKeyJoinedResponse = PostBuzzAppKeyJoinedResponses[keyof PostBuzzAppKeyJoinedResponses];
+
 export type PatchBuzzOrganizationsByOrganizationIdData = {
     body?: {
         allowPersonalAgents: boolean;
