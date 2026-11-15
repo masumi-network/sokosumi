@@ -34,6 +34,7 @@ import {
   identitySecretKey,
   isExternal,
   isPersonalAgent,
+  LIVE_BEFORE_CHANNEL_MS,
   mentionPubkeysOf,
   vouched,
 } from "@/services/buzz-bridge.service";
@@ -83,7 +84,9 @@ export async function importBuzzHistory(
         // Everything before the room had its channel (a Direct may become
         // bridgeable long after its community existed); a message linked
         // already went out live and is skipped.
-        before: channel.createdAt,
+        // Up to just before the channel: the messages that brought it about
+        // go out live (the outbox).
+        before: new Date(channel.createdAt.getTime() - LIVE_BEFORE_CHANNEL_MS),
         host: new URL(channel.community.relayUrl).host,
         shouldContinue: options.shouldContinue,
       });

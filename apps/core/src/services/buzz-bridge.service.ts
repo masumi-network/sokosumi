@@ -1996,8 +1996,16 @@ function resignedLinkData(fresh: PendingEvent) {
 }
 
 /** Brings one message's Buzz copy (and its reactions) up to date. */
-/** The keys of the personal agents in a Direct, other than its author. */
+/**
+ * The keys of the personal agents in a Direct (whatever it is on Buzz),
+ * other than its author; none for any other room.
+ */
 async function personalAgentKeysIn(roomId: string, author: BuzzIdentity) {
+  const room = await prisma.chatRoom.findUnique({
+    where: { id: roomId },
+    select: { kind: true },
+  });
+  if (room?.kind !== "direct") return [];
   const agents = await prisma.buzzIdentity.findMany({
     where: {
       encryptedSecretKey: null,
@@ -2010,7 +2018,7 @@ async function personalAgentKeysIn(roomId: string, author: BuzzIdentity) {
 }
 
 /** Messages this close before their channel was made go out live. */
-const LIVE_BEFORE_CHANNEL_MS = 60_000;
+export const LIVE_BEFORE_CHANNEL_MS = 60_000;
 
 export async function reconcileMessage(
   messageId: string,
@@ -2220,9 +2228,7 @@ export async function reconcileMessage(
               ...(await mentionPubkeysOf(message)),
               // A personal agent answers an untagged message only in a DM of
               // two keys; a linked person brings a third, so it is tagged.
-              ...(isDirect(channel)
-                ? await personalAgentKeysIn(message.roomId, authorIdentity)
-                : []),
+              ...(await personalAgentKeysIn(message.roomId, authorIdentity)),
             ],
             messageId: message.id,
           }),
@@ -2665,63 +2671,29 @@ export async function drainBuzzOutbox(
  * Looks back a day, which the sweep covers many times over.
  */
 export async function repairBuzzOutbox(limit = 200): Promise<number> {
-  const since = new Date(Date.now() - 24 * 60 * 60_000);
-  // Settled first: what was written a moment ago is likely still on its way.
-  const settled = new Date(Date.now() - 60_000);
-  const missed = await prisma.chatRoomMessage.findMany({
-    where: {
-      room: {
-        buzzChannel: {
-          isNot: null,
-        },
-      },
-      OR: [
-        {
-          createdAt: { gte: since, lte: settled },
-          deletedAt: null,
-          buzzLink: null,
-        },
-        {
-          editedAt: { gte: since, lte: settled },
-          deletedAt: null,
-          buzzLink: { is: { deleted: false } },
-        },
-        {
-          deletedAt: { gte: since, lte: settled },
-          buzzLink: { is: { deleted: false } },
-        },
-      ],
-    },
-    select: {
-      id: true,
-      roomId: true,
-      createdAt: true,
-      editedAt: true,
-      deletedAt: true,
-      content: true,
-      buzzLink: { select: { contentHash: true, updatedAt: true } },
-      room: { select: { buzzChannel: { select: { createdAt: true } } } },
-    },
-    take: limit,
-  });
-  const queued = new Set(
-    (
-      await prisma.buzzOutbox.findMany({
-        where: { messageId: { in: missed.map((message) => message.id) } },
-        select: { messageId: true },
-      })
-    ).map((row) => row.messageId),
-  );
-  const due = missed.filter((message) => {
-    if (queued.has(message.id)) return false;
-    const channelAt = message.room.buzzChannel?.createdAt;
-    if (!message.buzzLink) {
-      // From before the channel: the history import's.
-      return channelAt ? message.createdAt >= channelAt : false;
-    }
-    if (message.deletedAt) return true;
-    return message.buzzLink.contentHash !== contentHash(message.content);
-  });
+  // Only the real gaps, so a page is never filled with messages that are
+  // fine: unlinked authored ones since just before the channel, deletions
+  // the link lacks, edits whose text differs from what Buzz has.
+  const due = await prisma.$queryRaw<{ id: string; roomId: string }[]>`
+    SELECT m.id::text AS id, m."roomId"::text AS "roomId"
+      FROM chat_room_message m
+      JOIN buzz_channel c ON c."roomId" = m."roomId"
+      LEFT JOIN buzz_message_link l ON l."messageId" = m.id
+     WHERE greatest(m."createdAt", coalesce(m."editedAt", m."createdAt"),
+                    coalesce(m."deletedAt", m."createdAt"))
+             BETWEEN now() - interval '1 day' AND now() - interval '1 minute'
+       AND NOT EXISTS (SELECT 1 FROM buzz_outbox o WHERE o."messageId" = m.id)
+       AND (
+         (l."messageId" IS NULL AND m."deletedAt" IS NULL
+           AND m.content <> ''
+           AND (m."senderUserId" IS NOT NULL OR m."senderSokoBotId" IS NOT NULL
+                OR m."senderCoworkerId" IS NOT NULL)
+           AND m."createdAt" >= c."createdAt" - ${LIVE_BEFORE_CHANNEL_MS} * interval '1 millisecond')
+         OR (l."messageId" IS NOT NULL AND NOT l.deleted AND m."deletedAt" IS NOT NULL)
+         OR (l."messageId" IS NOT NULL AND NOT l.deleted AND m."deletedAt" IS NULL
+           AND l."contentHash" <> encode(sha256(convert_to(m.content, 'UTF8')), 'hex'))
+       )
+     LIMIT ${limit}`;
   if (due.length > 0) {
     await prisma.buzzOutbox.createMany({
       data: due.map((message) => ({
