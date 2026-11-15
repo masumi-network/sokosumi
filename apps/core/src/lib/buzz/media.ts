@@ -91,7 +91,14 @@ async function copyMedia(input: {
       signal: AbortSignal.timeout(60_000),
     });
     if (response.status === 401 || response.status === 403) continue;
-    if (!response.ok) return null;
+    // Not there (or not a file): it never will be. Anything else (the relay
+    // or the network failing) is tried again with the event.
+    if (response.status === 404 || response.status === 400) return null;
+    if (!response.ok) {
+      throw new Error(
+        `Buzz file ${sha256.slice(0, 8)}: HTTP ${response.status}`,
+      );
+    }
     const declared = Number(response.headers.get("content-length") ?? 0);
     if (declared > CHAT_ROOM_FILE_MAX_SIZE_BYTES) return null;
     const bytes = Buffer.from(await response.arrayBuffer());
@@ -130,8 +137,9 @@ async function copyMedia(input: {
 
 /**
  * The message's text with its relay files replaced by Sokosumi copies, and
- * any file only its `imeta` names added on its own line. A file that cannot
- * be copied keeps its relay link.
+ * any file only its `imeta` names added on its own line. A file that can
+ * never be copied (refused, too large, not what its name says) keeps its
+ * relay link; a failure that may pass throws, so the event is tried again.
  */
 export async function withSokosumiMedia(input: {
   content: string;
@@ -144,11 +152,8 @@ export async function withSokosumiMedia(input: {
 }): Promise<string> {
   let content = input.content;
   for (const url of relayMediaUrls(input.event, input.relayUrl)) {
-    const copy = await copyMedia({
-      ...input,
-      url,
-      eventId: input.event.id,
-    }).catch(() => null);
+    // Throws when trying again may work (the event is then applied later).
+    const copy = await copyMedia({ ...input, url, eventId: input.event.id });
     const shown = copy ?? url;
     content = content.includes(url)
       ? content.replaceAll(url, shown)

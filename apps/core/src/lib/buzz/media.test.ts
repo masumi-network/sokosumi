@@ -94,6 +94,14 @@ describe("withSokosumiMedia", () => {
     expect(blob.put).not.toHaveBeenCalled();
   });
 
+  it("fails when the relay does, so the event is tried again", async () => {
+    const down = vi.fn(async () => new Response(null, { status: 503 }));
+    await expect(copy(down as unknown as typeof fetch)).rejects.toThrow(
+      /HTTP 503/,
+    );
+    expect(blob.put).not.toHaveBeenCalled();
+  });
+
   it("keeps the link when the file is not the one its name says", async () => {
     const wrong = vi.fn(async () => new Response("something else"));
     await expect(copy(wrong as unknown as typeof fetch)).resolves.toBe(

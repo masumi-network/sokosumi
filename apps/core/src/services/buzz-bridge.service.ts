@@ -750,6 +750,7 @@ export async function syncBuzzAgents(
       return vendorId;
     };
     for (const [pubkey, agent] of found) {
+      checkpoint();
       const existing = await prisma.buzzIdentity.findUnique({
         where: { pubkey },
         include: { coworker: true },
@@ -798,6 +799,7 @@ export async function syncBuzzAgents(
       // they own or administer); elsewhere requested, and that workspace's
       // owners and admins are notified to approve it.
       for (const { workspaceId, granted } of access) {
+        checkpoint();
         const where = {
           coworkerId_workspaceId: {
             coworkerId: coworkerId as string,
@@ -1961,6 +1963,22 @@ function resignedLinkData(fresh: PendingEvent) {
 }
 
 /** Brings one message's Buzz copy (and its reactions) up to date. */
+/**
+ * Where a channel's history ends: when its community reached the relay
+ * (what came later went out live), or the channel itself if later.
+ */
+export async function historyCutoffOf(channel: {
+  communityId: string;
+  createdAt: Date;
+}): Promise<Date> {
+  const community = await prisma.buzzCommunity.findUnique({
+    where: { id: channel.communityId },
+    select: { provisionedAt: true },
+  });
+  const provisioned = community?.provisionedAt ?? channel.createdAt;
+  return provisioned < channel.createdAt ? provisioned : channel.createdAt;
+}
+
 export async function reconcileMessage(
   messageId: string,
   depth = 0,
@@ -2070,9 +2088,13 @@ export async function reconcileMessage(
 
   if (!link) {
     if (message.deletedAt) return "skipped";
-    // From before the room reached Buzz: the history import sends it (and
-    // finds a copy an interrupted import left), never the outbox.
-    if (message.createdAt < channel.createdAt && !channel.historyImportedAt) {
+    // From before its organization moved to Buzz: the history import sends
+    // it (and finds a copy an interrupted import left), never the outbox.
+    if (
+      !channel.historyImportedAt &&
+      getEnv().BUZZ_RELAY_DATABASE_URL &&
+      message.createdAt < (await historyCutoffOf(channel))
+    ) {
       return "skipped";
     }
     if (message.clientMessageId?.startsWith("buzz:")) {

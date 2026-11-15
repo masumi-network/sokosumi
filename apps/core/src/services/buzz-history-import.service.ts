@@ -27,6 +27,7 @@ import {
   authorOf,
   buzzContentOf,
   ensureIdentity,
+  historyCutoffOf,
   identitySecretKey,
   isExternal,
   isPersonalAgent,
@@ -61,6 +62,7 @@ export async function importBuzzHistory(
       id: true,
       channelId: true,
       roomId: true,
+      communityId: true,
       createdAt: true,
       community: { select: { relayUrl: true } },
     },
@@ -76,7 +78,7 @@ export async function importBuzzHistory(
         channelId: channel.channelId,
         roomId: channel.roomId as string,
         // Later messages are the outbox's to send.
-        before: channel.createdAt,
+        before: await historyCutoffOf(channel),
         host: new URL(channel.community.relayUrl).host,
         shouldContinue: options.shouldContinue,
       });
