@@ -27,12 +27,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { authClient, changeEmail } from "@/lib/auth/auth.client";
+import { authClient } from "@/lib/auth/auth.client";
 import type { EmailChangeStatus } from "@/lib/auth/auth.server";
-import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
 import { type EmailFormSchemaType, emailFormSchema } from "@/lib/schemas/auth";
 
-/** Marks the change link's return to this page; Better Auth adds `error`. */
+/** Marks the change link's return to this page; a refused link adds `error`. */
 const EMAIL_CHANGE_PARAM = "emailChange";
 
 interface EmailFormProps {
@@ -81,7 +80,7 @@ export function EmailForm({ currentEmail, emailChange }: EmailFormProps) {
     handledReturnRef.current = true;
     if (changedTo) {
       toast.success(t("changed", { email: changedTo }));
-      void authClient.$fetch("/change-email/acknowledge", { method: "POST" });
+      void authClient.$fetch("/email-change/acknowledge", { method: "POST" });
     } else if (searchParams.has("error")) {
       toast.error(t("linkFailed"));
     }
@@ -96,13 +95,12 @@ export function EmailForm({ currentEmail, emailChange }: EmailFormProps) {
 
   const requestChange = async (newEmail: string) =>
     runWithCaptcha(async (fetchOptions) => {
-      const changeEmailResult = await changeEmail({
-        fetchOptions,
-        newEmail,
-        callbackURL: getAbsoluteAuthRedirectUrl(
-          `/account?${EMAIL_CHANGE_PARAM}=1`,
-        ),
-      });
+      // Core's own change link, which can be shown and cancelled; its
+      // confirmation returns to this page (`auth-pending-email-change.ts`).
+      const changeEmailResult = await authClient.$fetch(
+        "/email-change/request",
+        { method: "POST", body: { newEmail }, headers: fetchOptions.headers },
+      );
 
       if (changeEmailResult.error) {
         const errorMessage = getErrorMessage(
@@ -111,8 +109,8 @@ export function EmailForm({ currentEmail, emailChange }: EmailFormProps) {
         );
         toast.error(errorMessage);
       } else {
-        // Better Auth only sends a link to the new address; the email changes
-        // when that link is opened, so this is not a success yet.
+        // Only a link goes to the new address; the email changes when that
+        // link is opened, so this is not a success yet.
         toast.success(t("success", { email: newEmail }));
         form.reset();
         router.refresh();
@@ -136,18 +134,21 @@ export function EmailForm({ currentEmail, emailChange }: EmailFormProps) {
   const handleCancel = async () => {
     setPendingAction("cancel");
     try {
-      const result = await authClient.$fetch("/change-email/cancel", {
-        method: "POST",
-      });
+      const result = await authClient.$fetch<{ cancelled: boolean }>(
+        "/email-change/cancel",
+        { method: "POST" },
+      );
       if (result.error) {
-        toast.error(
-          result.error.status === 409
-            ? t("cancelInProgress")
-            : t("cancelError"),
-        );
+        toast.error(t("cancelError"));
         return;
       }
-      toast.success(t("cancelled"));
+      // Nothing removed: a link already changed the email (or the request
+      // expired), so say so instead of claiming a cancel.
+      if (result.data.cancelled) {
+        toast.success(t("cancelled"));
+      } else {
+        toast.error(t("cancelTooLate"));
+      }
       router.refresh();
     } finally {
       setPendingAction(null);

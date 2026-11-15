@@ -34,15 +34,19 @@ vi.mock("@/components/auth-captcha", () => ({
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
-  changeEmail: (...args: unknown[]) => changeEmailMock(...args),
-  authClient: { $fetch: (...args: unknown[]) => fetchMock(...args) },
+  authClient: {
+    $fetch: (path: string, options: { body?: object }) =>
+      path === "/email-change/request"
+        ? changeEmailMock(options.body)
+        : fetchMock(path, options),
+  },
 }));
 
 describe("EmailForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     searchParams = new URLSearchParams();
-    fetchMock.mockResolvedValue({ data: { status: true }, error: null });
+    fetchMock.mockResolvedValue({ data: { cancelled: true }, error: null });
     changeEmailMock.mockResolvedValue({ data: { status: true }, error: null });
   });
 
@@ -105,16 +109,16 @@ describe("EmailForm", () => {
     await user.click(screen.getByRole("button", { name: "cancel" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/change-email/cancel", {
+      expect(fetchMock).toHaveBeenCalledWith("/email-change/cancel", {
         method: "POST",
       });
       expect(toast.success).toHaveBeenCalledWith("cancelled");
     });
   });
 
-  it("says a cancel came too late when a link is being applied", async () => {
+  it("says there was nothing to cancel when a link already applied it", async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue({ data: null, error: { status: 409 } });
+    fetchMock.mockResolvedValue({ data: { cancelled: false }, error: null });
     render(
       <EmailForm
         currentEmail="ada@example.com"
@@ -128,7 +132,7 @@ describe("EmailForm", () => {
     await user.click(screen.getByRole("button", { name: "cancel" }));
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith("cancelInProgress");
+      expect(toast.error).toHaveBeenCalledWith("cancelTooLate");
     });
     expect(toast.success).not.toHaveBeenCalled();
   });
@@ -148,7 +152,7 @@ describe("EmailForm", () => {
     expect(toast.success).toHaveBeenCalledWith(
       'changed {"email":"ada@new.example"}',
     );
-    expect(fetchMock).toHaveBeenCalledWith("/change-email/acknowledge", {
+    expect(fetchMock).toHaveBeenCalledWith("/email-change/acknowledge", {
       method: "POST",
     });
     expect(replaceMock).toHaveBeenCalledWith("/account");

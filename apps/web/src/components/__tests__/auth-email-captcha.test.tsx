@@ -14,7 +14,12 @@ const changeEmail = vi.fn();
 const requestPasswordReset = vi.fn();
 
 vi.mock("@/lib/auth/auth.client", () => ({
-  changeEmail: (...args: unknown[]) => changeEmail(...args),
+  // The form posts to Core's email change endpoint; shaped like the other
+  // senders so the shared assertions read the captcha options the same way.
+  authClient: {
+    $fetch: (_path: string, options: { headers?: object }) =>
+      changeEmail({ fetchOptions: { headers: options.headers } }),
+  },
   requestPasswordReset: (...args: unknown[]) => requestPasswordReset(...args),
 }));
 vi.mock("next/navigation", () => ({

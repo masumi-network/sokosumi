@@ -35,7 +35,7 @@ export interface OAuthClientPublic {
 
 const CORE_GET_SESSION_PATH = "/auth/get-session";
 const CORE_LIST_ACCOUNTS_PATH = "/auth/list-accounts";
-const CORE_EMAIL_CHANGE_STATUS_PATH = "/auth/change-email/status";
+const CORE_EMAIL_CHANGE_STATUS_PATH = "/auth/email-change/status";
 const CORE_GET_OAUTH_CLIENT_PUBLIC_PATH = "/auth/oauth2/public-client";
 /**
  * The one Core auth status that means "this browser has no session". 403 and

@@ -1,19 +1,22 @@
+import type { BetterAuthOptions } from "better-auth";
 import { memoryAdapter } from "better-auth/adapters/memory";
+import { signJWT } from "better-auth/crypto";
 import { betterAuth } from "better-auth/minimal";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ACKNOWLEDGE_EMAIL_CHANGE_PATH,
   CANCEL_EMAIL_CHANGE_PATH,
-  CLAIM_TTL_MS,
   EMAIL_CHANGE_STATUS_PATH,
   pendingEmailChange,
-  recordEmailChangeLink,
+  REQUEST_EMAIL_CHANGE_PATH,
 } from "./auth-pending-email-change.js";
 
 const BASE = "https://auth.example.com/auth";
-const CALLBACK = "https://app.example.com/account";
-const REFUSED = `${CALLBACK}?error=INVALID_TOKEN`;
+const ACCOUNT = "https://app.example.com/account";
+const DONE = `${ACCOUNT}?emailChange=1`;
+const REFUSED = `${ACCOUNT}?emailChange=1&error=INVALID_TOKEN`;
+const SECRET = "test-secret-that-is-long-enough-for-better-auth";
 const EXPIRES_IN = 3600;
 
 /** A promise the test opens by hand, to stop Better Auth mid-flow. */
@@ -22,31 +25,34 @@ function gate() {
   const opened = new Promise<void>((resolve) => {
     open = resolve;
   });
-  let reached = () => {};
-  const isReached = new Promise<void>((resolve) => {
-    reached = resolve;
+  let reach = () => {};
+  const reached = new Promise<void>((resolve) => {
+    reach = resolve;
   });
-  return { open, opened, reached, isReached };
+  return { open, opened, reach, reached };
 }
 
-// A real Better Auth instance with Core's change-email setup.
+// A real Better Auth instance with Core's email change setup.
 async function signedInAuth() {
   const links: string[] = [];
-  const hooks: {
-    beforeUpdate?: () => Promise<void>;
-    afterUpdate?: () => Promise<void>;
-  } = {};
+  const hooks: { beforeUpdate?: () => Promise<void> } = {};
   const auth = betterAuth({
     baseURL: "https://auth.example.com",
     basePath: "/auth",
-    secret: "test-secret-that-is-long-enough-for-better-auth",
+    secret: SECRET,
     trustedOrigins: ["https://app.example.com"],
     rateLimit: { enabled: false },
-    database: memoryAdapter({
-      user: [],
-      session: [],
-      account: [],
-      verification: [],
+    // Each write goes straight to the store, as each statement does to the
+    // row it locks in Postgres; the memory adapter's own transaction merges
+    // snapshots instead and would hide those locks.
+    database: (options: BetterAuthOptions) => ({
+      ...memoryAdapter({
+        user: [],
+        session: [],
+        account: [],
+        verification: [],
+      })(options),
+      transaction: undefined as never,
     }),
     databaseHooks: {
       user: {
@@ -54,36 +60,36 @@ async function signedInAuth() {
           before: async () => {
             await hooks.beforeUpdate?.();
           },
-          after: async () => {
-            await hooks.afterUpdate?.();
-          },
         },
       },
     },
     emailAndPassword: { enabled: true },
     emailVerification: {
-      sendVerificationEmail: async ({ url, token }) => {
-        await recordEmailChangeLink(() => auth.$context, token, EXPIRES_IN);
+      sendVerificationEmail: async ({ url }) => {
         links.push(url);
       },
     },
     user: { changeEmail: { enabled: true } },
-    plugins: [pendingEmailChange({ expiresIn: EXPIRES_IN })],
+    disabledPaths: ["/change-email"],
+    plugins: [
+      pendingEmailChange({ expiresIn: EXPIRES_IN, accountUrl: ACCOUNT }),
+    ],
   });
 
-  const { headers } = await auth.api.signUpEmail({
-    body: { email: "ada@example.com", password: "password-1234", name: "Ada" },
-    returnHeaders: true,
-  });
-  const cookie = (headers.get("set-cookie") ?? "").split(";")[0] ?? "";
-  // Better Auth sends a change link only from a verified address.
+  async function signUp(email: string) {
+    const { headers, response } = await auth.api.signUpEmail({
+      body: { email, password: "password-1234", name: "Person" },
+      returnHeaders: true,
+    });
+    return {
+      id: response.user.id,
+      cookie: (headers.get("set-cookie") ?? "").split(";")[0] ?? "",
+    };
+  }
+  const ada = await signUp("ada@example.com");
   const context = await auth.$context;
-  const userId = (await context.internalAdapter.findUserByEmail(
-    "ada@example.com",
-  ))!.user.id;
-  await context.internalAdapter.updateUser(userId, { emailVerified: true });
 
-  function call(path: string, init: RequestInit = {}) {
+  function call(path: string, init: RequestInit = {}, cookie = ada.cookie) {
     return auth.handler(
       new Request(`${BASE}${path}`, {
         ...init,
@@ -96,16 +102,19 @@ async function signedInAuth() {
     );
   }
 
-  async function changeEmail(newEmail: string): Promise<string> {
+  /** Asks for a change and returns the link it mailed, or "" for none. */
+  async function request(newEmail: string): Promise<string> {
     const sent = links.length;
-    const response = await call("/change-email", {
+    const response = await call(REQUEST_EMAIL_CHANGE_PATH, {
       method: "POST",
-      body: JSON.stringify({ newEmail, callbackURL: CALLBACK }),
+      body: JSON.stringify({ newEmail }),
     });
     expect(response.status).toBe(200);
-    // Each request is a second apart, so each link is a different token.
-    vi.advanceTimersByTime(1100);
     return links.length > sent ? links.at(-1)! : "";
+  }
+
+  async function cancel(): Promise<{ cancelled: boolean }> {
+    return (await call(CANCEL_EMAIL_CHANGE_PATH, { method: "POST" })).json();
   }
 
   async function status(): Promise<{
@@ -115,13 +124,15 @@ async function signedInAuth() {
     return (await call(EMAIL_CHANGE_STATUS_PATH)).json();
   }
 
-  async function openLink(url: string) {
-    const response = await auth.handler(new Request(url));
+  async function open(url: string, cookie = "") {
+    const response = await auth.handler(
+      new Request(url, { headers: cookie ? { cookie } : {} }),
+    );
     return response.headers.get("location");
   }
 
   async function email() {
-    return (await context.internalAdapter.findUserById(userId))?.email;
+    return (await context.internalAdapter.findUserById(ada.id))?.email;
   }
 
   const pendingRows = async () =>
@@ -132,27 +143,42 @@ async function signedInAuth() {
     ).filter((row) => row.identifier.startsWith("pending-email-change:"))
       .length;
 
-  return { call, changeEmail, status, openLink, email, hooks, pendingRows };
+  return {
+    ada,
+    call,
+    cancel,
+    email,
+    hooks,
+    open,
+    pendingRows,
+    request,
+    signUp,
+    status,
+  };
 }
 
 describe("pendingEmailChange", () => {
   beforeEach(() => {
-    vi.useFakeTimers({ toFake: ["Date"] });
+    // Every request below lands in the same second, unless a test moves on.
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-11-15T10:00:00Z"),
+    });
   });
   afterEach(() => {
     vi.useRealTimers();
   });
 
   it("shows the change as waiting, applies it, then reports it done once", async () => {
-    const { call, changeEmail, status, openLink, email } = await signedInAuth();
+    const { call, email, open, request, status } = await signedInAuth();
 
-    const link = await changeEmail("Ada@New.example");
+    const link = await request("Ada@New.example");
     expect(await status()).toEqual({
       pending: { newEmail: "ada@new.example" },
       completed: null,
     });
 
-    expect(await openLink(link)).toBe(CALLBACK);
+    expect(await open(link)).toBe(DONE);
     expect(await email()).toBe("ada@new.example");
     expect(await status()).toEqual({
       pending: null,
@@ -163,91 +189,162 @@ describe("pendingEmailChange", () => {
     expect((await status()).completed).toBeNull();
   });
 
-  it("keeps a cancelled link dead after the same address is asked for again", async () => {
-    const { call, changeEmail, status, openLink, email } = await signedInAuth();
+  it("keeps a cancelled link dead when the same address is asked for in the same second", async () => {
+    const { cancel, email, open, request, status } = await signedInAuth();
 
-    const cancelled = await changeEmail("ada@new.example");
-    await call(CANCEL_EMAIL_CHANGE_PATH, { method: "POST" });
+    const cancelled = await request("ada@new.example");
+    expect(await cancel()).toEqual({ cancelled: true });
     expect((await status()).pending).toBeNull();
-    const fresh = await changeEmail("ada@new.example");
+    const fresh = await request("ada@new.example");
     expect(fresh).not.toBe(cancelled);
 
-    expect(await openLink(cancelled)).toBe(REFUSED);
+    expect(await open(cancelled)).toBe(REFUSED);
     expect(await email()).toBe("ada@example.com");
-    expect(await openLink(fresh)).toBe(CALLBACK);
+    expect(await open(fresh)).toBe(DONE);
     expect(await email()).toBe("ada@new.example");
+  });
+
+  it("retires the link a same-second resend replaced", async () => {
+    const { email, open, request } = await signedInAuth();
+
+    const first = await request("ada@new.example");
+    const second = await request("ada@new.example");
+
+    expect(await open(first)).toBe(REFUSED);
+    expect(await email()).toBe("ada@example.com");
+    expect(await open(second)).toBe(DONE);
   });
 
   it("retires a replaced link even when the address comes back (B, C, B)", async () => {
-    const { changeEmail, openLink, email } = await signedInAuth();
+    const { email, open, request } = await signedInAuth();
 
-    const firstB = await changeEmail("b@new.example");
-    const c = await changeEmail("c@new.example");
-    const secondB = await changeEmail("b@new.example");
+    const firstB = await request("b@new.example");
+    const c = await request("c@new.example");
+    const secondB = await request("b@new.example");
 
-    expect(await openLink(firstB)).toBe(REFUSED);
-    expect(await openLink(c)).toBe(REFUSED);
+    expect(await open(firstB)).toBe(REFUSED);
+    expect(await open(c)).toBe(REFUSED);
     expect(await email()).toBe("ada@example.com");
-    expect(await openLink(secondB)).toBe(CALLBACK);
+    expect(await open(secondB)).toBe(DONE);
     expect(await email()).toBe("b@new.example");
   });
 
-  it("does not let a resend revive the link it replaced", async () => {
-    const { changeEmail, openLink, email } = await signedInAuth();
+  it("never reports a cancel for a change a live link is applying, however long it takes", async () => {
+    const { cancel, email, hooks, open, request, status } =
+      await signedInAuth();
+    const link = await request("slow@new.example");
 
-    const first = await changeEmail("ada@new.example");
-    await changeEmail("ada@new.example");
+    // Stop the link after it took the request, before the email update.
+    const paused = gate();
+    hooks.beforeUpdate = async () => {
+      paused.reach();
+      await paused.opened;
+    };
+    const opening = open(link);
+    await paused.reached;
 
-    expect(await openLink(first)).toBe(REFUSED);
+    // Long past the link's own expiry: no lease runs out.
+    vi.advanceTimersByTime((EXPIRES_IN + 600) * 1000);
+    expect(await cancel()).toEqual({ cancelled: false });
+
+    paused.open();
+    expect(await opening).toBe(DONE);
+    expect(await email()).toBe("slow@new.example");
+    expect((await status()).completed).toEqual({
+      newEmail: "slow@new.example",
+    });
+  });
+
+  it("refuses a link opened after a cancel", async () => {
+    const { cancel, email, open, request } = await signedInAuth();
+    const link = await request("ada@new.example");
+
+    expect(await cancel()).toEqual({ cancelled: true });
+    expect(await open(link)).toBe(REFUSED);
     expect(await email()).toBe("ada@example.com");
   });
 
-  it("refuses a cancel while a link is changing the email", async () => {
-    const { call, changeEmail, status, openLink, email, hooks } =
-      await signedInAuth();
-    const link = await changeEmail("ada@new.example");
+  it.each([
+    ["an unsigned", "unsigned"],
+    ["a wrongly signed", "other-secret"],
+  ])(
+    "records no completion for %s link naming the current address",
+    async (_case, how) => {
+      const { ada, email, open, status } = await signedInAuth();
+      const claims = {
+        purpose: "sokosumi-email-change",
+        userId: ada.id,
+        email: "ada@example.com",
+        updateTo: "ada@example.com",
+        generation: "x",
+      };
+      const token =
+        how === "unsigned"
+          ? `e30.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.forged`
+          : await signJWT(claims, "another-secret-that-is-long-enough", 600);
 
-    // Stop Better Auth after the link claimed its request, before the update.
-    const paused = gate();
-    hooks.beforeUpdate = async () => {
-      paused.reached();
-      await paused.opened;
-    };
-    const opening = openLink(link);
-    await paused.isReached;
+      expect(await open(`${BASE}/email-change/confirm?token=${token}`)).toBe(
+        REFUSED,
+      );
+      expect(await email()).toBe("ada@example.com");
+      expect(await status()).toEqual({ pending: null, completed: null });
+    },
+  );
 
-    const cancel = await call(CANCEL_EMAIL_CHANGE_PATH, { method: "POST" });
-    expect(cancel.status).toBe(409);
+  it("leaves the request intact when a copy of its link is tampered with", async () => {
+    const { email, open, request, status } = await signedInAuth();
+    const link = new URL(await request("ada@new.example"));
+    const [header, payload, signature] = link.searchParams
+      .get("token")!
+      .split(".");
+    const claims = JSON.parse(Buffer.from(payload!, "base64url").toString());
+    const tampered = Buffer.from(
+      JSON.stringify({ ...claims, email: "someone@example.com" }),
+    ).toString("base64url");
+    link.searchParams.set("token", `${header}.${tampered}.${signature}`);
 
-    paused.open();
-    expect(await opening).toBe(CALLBACK);
-    expect(await email()).toBe("ada@new.example");
-    expect(await status()).toEqual({
-      pending: null,
-      completed: { newEmail: "ada@new.example" },
-    });
+    expect(await open(link.toString())).toBe(REFUSED);
+    expect(await email()).toBe("ada@example.com");
+    expect((await status()).pending).toEqual({ newEmail: "ada@new.example" });
   });
 
-  it("leaves a newer request in place when an older link finishes", async () => {
-    const { changeEmail, status, openLink, hooks } = await signedInAuth();
-    const link = await changeEmail("first@new.example");
+  it("refuses Better Auth's own change links, even validly signed", async () => {
+    const { ada, email, open, status } = await signedInAuth();
+    const token = await signJWT(
+      {
+        email: "ada@example.com",
+        updateTo: "other@new.example",
+        requestType: "change-email-verification",
+        userId: ada.id,
+      },
+      SECRET,
+      600,
+    );
 
-    // Stop after the email changed, before the plugin releases the claim.
-    const paused = gate();
-    hooks.afterUpdate = async () => {
-      paused.reached();
-      await paused.opened;
-    };
-    const opening = openLink(link);
-    await paused.isReached;
-    hooks.afterUpdate = undefined;
-    await changeEmail("second@new.example");
+    const location = await open(
+      `${BASE}/verify-email?token=${token}&callbackURL=${encodeURIComponent(ACCOUNT)}`,
+    );
+    expect(location).toContain("error=INVALID_TOKEN");
+    expect(await email()).toBe("ada@example.com");
+    expect(await status()).toEqual({ pending: null, completed: null });
+  });
 
-    paused.open();
-    await opening;
-    expect((await status()).pending).toEqual({
-      newEmail: "second@new.example",
-    });
+  it("refuses an expired link", async () => {
+    const { email, open, request } = await signedInAuth();
+    const link = await request("ada@new.example");
+
+    vi.advanceTimersByTime((EXPIRES_IN + 1) * 1000);
+    expect(await open(link)).toBe(REFUSED);
+    expect(await email()).toBe("ada@example.com");
+  });
+
+  it("refuses a link opened while someone else is signed in", async () => {
+    const { email, open, request, signUp } = await signedInAuth();
+    const link = await request("ada@new.example");
+    const grace = await signUp("grace@example.com");
+
+    expect(await open(link, grace.cookie)).toBe(REFUSED);
+    expect(await email()).toBe("ada@example.com");
   });
 
   it("keeps one request when two are made at once", async () => {
@@ -255,9 +352,9 @@ describe("pendingEmailChange", () => {
 
     await Promise.all(
       ["one@new.example", "two@new.example"].map((newEmail) =>
-        call("/change-email", {
+        call(REQUEST_EMAIL_CHANGE_PATH, {
           method: "POST",
-          body: JSON.stringify({ newEmail, callbackURL: CALLBACK }),
+          body: JSON.stringify({ newEmail }),
         }),
       ),
     );
@@ -266,53 +363,23 @@ describe("pendingEmailChange", () => {
     expect((await status()).pending).not.toBeNull();
   });
 
-  it("lets a link be retried once a failed change lets go of it", async () => {
-    const { changeEmail, openLink, email, hooks } = await signedInAuth();
-    const link = await changeEmail("ada@new.example");
+  it("shows a request to an address with an account as waiting, with no mail", async () => {
+    const { request, signUp, status } = await signedInAuth();
+    await signUp("taken@new.example");
 
-    hooks.beforeUpdate = async () => {
-      throw new Error("database unavailable");
-    };
-    expect(await openLink(link)).not.toBe(CALLBACK);
-    expect(await email()).toBe("ada@example.com");
-
-    // A thrown update skips the after hook, so the claim lapses on its own.
-    hooks.beforeUpdate = undefined;
-    vi.advanceTimersByTime(CLAIM_TTL_MS + 1);
-    expect(await openLink(link)).toBe(CALLBACK);
-    expect(await email()).toBe("ada@new.example");
-  });
-
-  it("claims nothing for a forged link and drops an expired request", async () => {
-    const { changeEmail, status, openLink, email } = await signedInAuth();
-    const link = await changeEmail("ada@new.example");
-
-    const url = new URL(link);
-    const [header, payload] = url.searchParams.get("token")!.split(".");
-    url.searchParams.set("token", `${header}.${payload}.forged`);
-    expect(await openLink(url.toString())).toBe(REFUSED);
-    expect((await status()).pending).toEqual({ newEmail: "ada@new.example" });
-
-    vi.advanceTimersByTime((EXPIRES_IN + 1) * 1000);
-    expect((await status()).pending).toBeNull();
-    expect(await openLink(link)).not.toBe(CALLBACK);
-    expect(await email()).toBe("ada@example.com");
-  });
-
-  it("shows a request to an address with an account as waiting, with no link", async () => {
-    const { call, changeEmail, status } = await signedInAuth();
-    await call("/sign-up/email", {
-      method: "POST",
-      body: JSON.stringify({
-        email: "taken@new.example",
-        password: "password-1234",
-        name: "Taken",
-      }),
-    });
-
-    expect(await changeEmail("taken@new.example")).toBe("");
+    expect(await request("taken@new.example")).toBe("");
     expect((await status()).pending).toEqual({
       newEmail: "taken@new.example",
     });
+  });
+
+  it("leaves Better Auth's uncancellable /change-email closed", async () => {
+    const { call } = await signedInAuth();
+
+    const response = await call("/change-email", {
+      method: "POST",
+      body: JSON.stringify({ newEmail: "ada@new.example" }),
+    });
+    expect(response.status).toBe(404);
   });
 });

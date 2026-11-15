@@ -7509,8 +7509,8 @@
         "cancelError": "Die E-Mail-Änderung konnte nicht abgebrochen werden. Versuch es noch einmal.",
         "changed": "Deine E-Mail-Adresse ist jetzt {email}.",
         "linkFailed": "Dieser Link funktioniert nicht mehr. Fordere unten einen neuen an.",
-        "cancelInProgress": "Der Link wird gerade geöffnet, daher lässt sich die Änderung nicht mehr abbrechen.",
-        "statusUnavailable": "Eine wartende E-Mail-Änderung konnte nicht geprüft werden. Lade die Seite neu, um es erneut zu versuchen."
+        "statusUnavailable": "Eine wartende E-Mail-Änderung konnte nicht geprüft werden. Lade die Seite neu, um es erneut zu versuchen.",
+        "cancelTooLate": "Diese Änderung wurde bereits bestätigt oder ist abgelaufen, daher gibt es nichts abzubrechen."
       },
       "Password": {
         "title": "Passwort ändern",

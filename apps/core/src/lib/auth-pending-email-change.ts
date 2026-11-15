@@ -1,49 +1,34 @@
-import { createHash } from "node:crypto";
+import {
+  getCurrentAdapter,
+  runWithTransaction,
+} from "@better-auth/core/context";
 import type { BetterAuthPlugin, DBAdapter } from "better-auth";
 import {
   APIError,
   createAuthEndpoint,
   createAuthMiddleware,
+  getSessionFromCtx,
+  sensitiveSessionMiddleware,
   sessionMiddleware,
 } from "better-auth/api";
-import { verifyJWT } from "better-auth/crypto";
+import { setSessionCookie } from "better-auth/cookies";
+import { generateRandomString, signJWT, verifyJWT } from "better-auth/crypto";
+import * as z from "zod";
 
-export const EMAIL_CHANGE_STATUS_PATH = "/change-email/status";
-export const CANCEL_EMAIL_CHANGE_PATH = "/change-email/cancel";
-export const ACKNOWLEDGE_EMAIL_CHANGE_PATH = "/change-email/acknowledge";
+export const REQUEST_EMAIL_CHANGE_PATH = "/email-change/request";
+export const CONFIRM_EMAIL_CHANGE_PATH = "/email-change/confirm";
+export const EMAIL_CHANGE_STATUS_PATH = "/email-change/status";
+export const CANCEL_EMAIL_CHANGE_PATH = "/email-change/cancel";
+export const ACKNOWLEDGE_EMAIL_CHANGE_PATH = "/email-change/acknowledge";
 
-const CHANGE_EMAIL_PATH = "/change-email";
-const VERIFY_EMAIL_PATH = "/verify-email";
-const CHANGE_EMAIL_VERIFICATION = "change-email-verification";
+/** Marks the links this module signs, so no other token is read as one. */
+const LINK_PURPOSE = "sokosumi-email-change";
 const MODEL = "verification";
 /** How long the account page may still say "Your email is now …". */
 const COMPLETED_TTL_SECONDS = 10 * 60;
-/**
- * A link being applied holds its request this long. A crash between claim
- * and release leaves the request usable again afterwards.
- */
-export const CLAIM_TTL_MS = 60_000;
 
-/**
- * One row per person, so the primary key makes every write to it a
- * compare-and-swap on a single row: no lock, and safe across Core instances.
- */
 const pendingRowId = (userId: string) => `pending-email-change:${userId}`;
 const completedRowId = (userId: string) => `email-change-done:${userId}`;
-
-interface EmailChangeRecord {
-  target: string;
-  /** SHA-256 of the one link that may apply the request; null: no link. */
-  tokenHash: string | null;
-  /** When a link started applying the request; null while it waits. */
-  claimedAt: number | null;
-}
-
-interface Row {
-  id: string;
-  value: string;
-  expiresAt: Date;
-}
 
 /** The adapter calls this module makes; any Better Auth adapter has them. */
 type Adapter = Pick<
@@ -51,37 +36,37 @@ type Adapter = Pick<
   "create" | "deleteMany" | "findOne" | "updateMany"
 >;
 
-const hashToken = (token: string) =>
-  createHash("sha256").update(token).digest("hex");
-
-function parseRecord(row: Row | null): EmailChangeRecord | null {
-  if (!row || new Date(row.expiresAt) < new Date()) return null;
-  try {
-    return JSON.parse(row.value) as EmailChangeRecord;
-  } catch {
-    return null;
-  }
+interface Row {
+  value: string;
+  expiresAt: Date;
 }
 
-const isClaimed = (record: EmailChangeRecord) =>
-  record.claimedAt !== null && Date.now() - record.claimedAt < CLAIM_TTL_MS;
+/**
+ * The stored request. `generation` is fresh and random per request and is
+ * signed into its link, so no two requests share a link, even within one
+ * second.
+ */
+const requestValue = (target: string, generation: string) =>
+  JSON.stringify({ target, generation });
 
-function findRow(adapter: Adapter, id: string): Promise<Row | null> {
-  return adapter.findOne<Row>({
+async function readTarget(adapter: Adapter, id: string) {
+  const row = await adapter.findOne<Row>({
     model: MODEL,
     where: [{ field: "id", value: id }],
   });
+  if (!row || new Date(row.expiresAt) < new Date()) return null;
+  return (JSON.parse(row.value) as { target: string }).target;
 }
 
 /** Replaces the row, whatever it holds. */
 async function putRow(
   adapter: Adapter,
   id: string,
-  record: EmailChangeRecord,
+  value: string,
   expiresInSeconds: number,
 ): Promise<void> {
   const update = {
-    value: JSON.stringify(record),
+    value,
     expiresAt: new Date(Date.now() + expiresInSeconds * 1000),
     updatedAt: new Date(),
   };
@@ -101,116 +86,178 @@ async function putRow(
   }
 }
 
-/** Replaces or deletes the row only while it still holds what was read. */
-async function swapRow(
-  adapter: Adapter,
-  row: Row,
-  next: EmailChangeRecord | null,
-): Promise<boolean> {
-  const where = [
-    { field: "id", value: row.id },
-    { field: "value", value: row.value },
-  ];
-  const changed =
-    next === null
-      ? await adapter.deleteMany({ model: MODEL, where })
-      : await adapter.updateMany({
-          model: MODEL,
-          where,
-          update: { value: JSON.stringify(next), updatedAt: new Date() },
-        });
-  return changed > 0;
-}
-
-interface ChangeLinkClaims {
-  updateTo: string;
-  userId: string;
-}
-
-/** The claims of a change link, read without checking its signature. */
-function peekChangeLink(token: unknown): ChangeLinkClaims | null {
-  if (typeof token !== "string") return null;
-  try {
-    const payload: unknown = JSON.parse(
-      Buffer.from(token.split(".")[1] ?? "", "base64url").toString("utf8"),
-    );
-    if (typeof payload !== "object" || payload === null) return null;
-    const { requestType, updateTo, userId } = payload as Record<
-      string,
-      unknown
-    >;
-    if (
-      requestType !== CHANGE_EMAIL_VERIFICATION ||
-      typeof updateTo !== "string" ||
-      typeof userId !== "string"
-    ) {
-      return null;
-    }
-    return { updateTo: updateTo.toLowerCase(), userId };
-  } catch {
-    return null;
-  }
-}
+const linkClaims = z.object({
+  purpose: z.literal(LINK_PURPOSE),
+  userId: z.string(),
+  email: z.string(),
+  updateTo: z.string(),
+  generation: z.string(),
+});
 
 /**
- * Records the link Better Auth is about to mail for an email change, which
- * retires every earlier link. Call it from
- * `emailVerification.sendVerificationEmail` before sending: Better Auth hands
- * out the link's token nowhere else. Other links are ignored.
- */
-export async function recordEmailChangeLink(
-  getContext: () => Promise<{ adapter: Adapter }>,
-  token: string,
-  expiresInSeconds: number,
-): Promise<void> {
-  const claims = peekChangeLink(token);
-  if (!claims) return;
-  await putRow(
-    (await getContext()).adapter,
-    pendingRowId(claims.userId),
-    { target: claims.updateTo, tokenHash: hashToken(token), claimedAt: null },
-    expiresInSeconds,
-  );
-}
-
-/**
- * Better Auth's change link is a signed token with no server record, so
- * nothing could show a change as waiting or take it back. This plugin keeps
- * the one request a person has open: its address and the hash of the one
- * link that may apply it.
+ * Email change with a pending request that can be shown, sent again and
+ * cancelled. Better Auth's own change link has no server record, so it can be
+ * neither shown nor taken back; Core disables `/change-email` and uses this.
  *
- * - A new request replaces the row, so every older link stops working, even
- *   one for the same address.
- * - Cancelling deletes the row, unless a link is being applied right now:
- *   then it answers 409 rather than report a cancel that did not happen.
- * - Opening a link checks its signature, then claims the row by
- *   compare-and-swap. Only the claimer goes on to change the email, and it
- *   releases only its own claim, so a newer request survives.
- * - A change that went through leaves a short-lived completion row. The
- *   account page reads it before it says the email changed.
+ * Each person has at most one request: one `verification` row with a fixed
+ * id. A new request replaces it, so every older link stops working. Opening
+ * a link deletes the row matching that link's generation and changes the
+ * email in one database transaction. Cancelling deletes the same row. The
+ * row lock orders the two: a cancel that removed the row stops the change,
+ * and a cancel after the change removes nothing and says so.
  *
- * An address that already has an account gets a row too, with no link,
- * though Better Auth mails nothing there: showing nothing would tell the
- * person the address is taken.
+ * The change also writes a completion row in that transaction; the account
+ * page reads it before it says the email changed.
+ *
+ * An address that already has an account gets a request with no mail, as in
+ * Better Auth: answering differently would tell the person it is taken.
  */
-export function pendingEmailChange({ expiresIn }: { expiresIn: number }) {
+export function pendingEmailChange({
+  expiresIn,
+  accountUrl,
+}: {
+  /** Seconds a link stays valid. */
+  expiresIn: number;
+  /** Absolute account page URL; every link returns there. */
+  accountUrl: string;
+}) {
   return {
     id: "pending-email-change",
     endpoints: {
+      requestEmailChange: createAuthEndpoint(
+        REQUEST_EMAIL_CHANGE_PATH,
+        {
+          method: "POST",
+          body: z.object({ newEmail: z.email() }),
+          use: [sensitiveSessionMiddleware],
+        },
+        async (ctx) => {
+          const { user } = ctx.context.session;
+          const target = ctx.body.newEmail.toLowerCase();
+          if (target === user.email.toLowerCase()) {
+            throw APIError.fromStatus("BAD_REQUEST", {
+              message: "Email is the same",
+            });
+          }
+          const send =
+            ctx.context.options.emailVerification?.sendVerificationEmail;
+          if (!send) {
+            throw APIError.fromStatus("BAD_REQUEST", {
+              message: "Verification email isn't enabled",
+            });
+          }
+          const generation = generateRandomString(32);
+          await putRow(
+            ctx.context.adapter,
+            pendingRowId(user.id),
+            requestValue(target, generation),
+            expiresIn,
+          );
+          if (await ctx.context.internalAdapter.findUserByEmail(target)) {
+            return ctx.json({ status: true });
+          }
+          const token = await signJWT(
+            {
+              purpose: LINK_PURPOSE,
+              userId: user.id,
+              email: user.email.toLowerCase(),
+              updateTo: target,
+              generation,
+            },
+            ctx.context.secret,
+            expiresIn,
+          );
+          await send(
+            {
+              user: { ...user, email: target },
+              url: `${ctx.context.baseURL}${CONFIRM_EMAIL_CHANGE_PATH}?token=${token}`,
+              token,
+            },
+            ctx.request,
+          );
+          return ctx.json({ status: true });
+        },
+      ),
+      confirmEmailChange: createAuthEndpoint(
+        CONFIRM_EMAIL_CHANGE_PATH,
+        { method: "GET", query: z.object({ token: z.string() }) },
+        async (ctx) => {
+          const done = new URL(accountUrl);
+          done.searchParams.set("emailChange", "1");
+          const refuse = () => {
+            done.searchParams.set("error", "INVALID_TOKEN");
+            return ctx.redirect(done.toString());
+          };
+
+          const claims = linkClaims.safeParse(
+            await verifyJWT(ctx.query.token, ctx.context.secret),
+          );
+          if (!claims.success) throw refuse();
+          const { userId, email, updateTo, generation } = claims.data;
+          const session = await getSessionFromCtx(ctx);
+          if (session && session.user.id !== userId) throw refuse();
+
+          const applied = await runWithTransaction(
+            ctx.context.adapter,
+            async () => {
+              const adapter = await getCurrentAdapter(ctx.context.adapter);
+              const consumed = await adapter.deleteMany({
+                model: MODEL,
+                where: [
+                  { field: "id", value: pendingRowId(userId) },
+                  { field: "value", value: requestValue(updateTo, generation) },
+                  { field: "expiresAt", operator: "gt", value: new Date() },
+                ],
+              });
+              if (consumed === 0) return false;
+              const user =
+                await ctx.context.internalAdapter.findUserById(userId);
+              if (
+                user?.email.toLowerCase() !== email ||
+                (await ctx.context.internalAdapter.findUserByEmail(updateTo))
+              ) {
+                return false;
+              }
+              await ctx.context.internalAdapter.updateUser(userId, {
+                email: updateTo,
+                emailVerified: true,
+              });
+              await putRow(
+                adapter,
+                completedRowId(userId),
+                JSON.stringify({ target: updateTo }),
+                COMPLETED_TTL_SECONDS,
+              );
+              return true;
+            },
+          );
+          if (!applied) throw refuse();
+
+          if (session) {
+            await setSessionCookie(ctx, {
+              session: session.session,
+              user: { ...session.user, email: updateTo, emailVerified: true },
+            });
+          }
+          throw ctx.redirect(done.toString());
+        },
+      ),
       getEmailChangeStatus: createAuthEndpoint(
         EMAIL_CHANGE_STATUS_PATH,
         { method: "GET", use: [sessionMiddleware] },
         async (ctx) => {
           const userId = ctx.context.session.user.id;
-          const pending = parseRecord(
-            await findRow(ctx.context.adapter, pendingRowId(userId)),
+          const pending = await readTarget(
+            ctx.context.adapter,
+            pendingRowId(userId),
           );
-          const completed = parseRecord(
-            await findRow(ctx.context.adapter, completedRowId(userId)),
+          const completed = await readTarget(
+            ctx.context.adapter,
+            completedRowId(userId),
           );
           return ctx.json({
-            pending: pending ? { newEmail: pending.target } : null,
-            completed: completed ? { newEmail: completed.target } : null,
+            pending: pending ? { newEmail: pending } : null,
+            completed: completed ? { newEmail: completed } : null,
           });
         },
       ),
@@ -218,21 +265,14 @@ export function pendingEmailChange({ expiresIn }: { expiresIn: number }) {
         CANCEL_EMAIL_CHANGE_PATH,
         { method: "POST", use: [sessionMiddleware] },
         async (ctx) => {
-          const id = pendingRowId(ctx.context.session.user.id);
-          // A retry covers a request replaced between the read and the swap.
-          for (let attempt = 0; attempt < 3; attempt++) {
-            const row = await findRow(ctx.context.adapter, id);
-            if (!row) return ctx.json({ status: true });
-            const record = parseRecord(row);
-            if (record && isClaimed(record)) break;
-            if (await swapRow(ctx.context.adapter, row, null)) {
-              return ctx.json({ status: true });
-            }
-          }
-          throw APIError.from("CONFLICT", {
-            code: "EMAIL_CHANGE_IN_PROGRESS",
-            message: "The email change is being confirmed right now.",
+          const removed = await ctx.context.adapter.deleteMany({
+            model: MODEL,
+            where: [
+              { field: "id", value: pendingRowId(ctx.context.session.user.id) },
+            ],
           });
+          // False when a link already applied the change, or none waited.
+          return ctx.json({ cancelled: removed > 0 });
         },
       ),
       acknowledgeEmailChange: createAuthEndpoint(
@@ -255,109 +295,35 @@ export function pendingEmailChange({ expiresIn }: { expiresIn: number }) {
     hooks: {
       before: [
         {
-          matcher: (ctx) => ctx.path === VERIFY_EMAIL_PATH,
+          // Links Better Auth issued before `/change-email` was disabled
+          // cannot be cancelled, so they no longer change anything.
+          matcher: (ctx) => ctx.path === "/verify-email",
           handler: createAuthMiddleware(async (ctx) => {
-            const token = ctx.query?.token;
-            const claims = peekChangeLink(token);
-            // Not a change link, or a forged or expired one: Better Auth
-            // refuses those itself, and nothing is claimed for them.
-            if (
-              !claims ||
-              !(await verifyJWT(token as string, ctx.context.secret))
-            ) {
+            const payload = String(ctx.query?.token ?? "").split(".")[1];
+            let requestType: unknown;
+            try {
+              requestType = JSON.parse(
+                Buffer.from(payload ?? "", "base64url").toString("utf8"),
+              ).requestType;
+            } catch {
               return;
             }
-            const row = await findRow(
-              ctx.context.adapter,
-              pendingRowId(claims.userId),
-            );
-            const record = parseRecord(row);
-            const claimed =
-              row !== null &&
-              record !== null &&
-              record.tokenHash === hashToken(token as string) &&
-              !isClaimed(record) &&
-              (await swapRow(ctx.context.adapter, row, {
-                ...record,
-                claimedAt: Date.now(),
-              }));
-            if (claimed) return;
-            // An unreadable token makes Better Auth refuse the link its own
-            // way: after its origin check, back to the callback with
-            // `error=INVALID_TOKEN`.
-            return {
-              context: { query: { ...ctx.query, token: "refused" } },
-            };
-          }),
-        },
-      ],
-      after: [
-        {
-          matcher: (ctx) => ctx.path === CHANGE_EMAIL_PATH,
-          handler: createAuthMiddleware(async (ctx) => {
-            const session = ctx.context.session;
-            const newEmail =
-              typeof ctx.body?.newEmail === "string"
-                ? ctx.body.newEmail.toLowerCase()
-                : null;
             if (
-              !session ||
-              !newEmail ||
-              ctx.context.returned instanceof APIError
+              requestType === "change-email-verification" ||
+              requestType === "change-email-confirmation"
             ) {
-              return;
-            }
-            // Better Auth mails nothing to an address with an account, so
-            // `recordEmailChangeLink` did not run: record the request with
-            // no link, so it shows as waiting like any other.
-            if (await ctx.context.internalAdapter.findUserByEmail(newEmail)) {
-              await putRow(
-                ctx.context.adapter,
-                pendingRowId(session.user.id),
-                { target: newEmail, tokenHash: null, claimedAt: null },
-                expiresIn,
-              );
-            }
-          }),
-        },
-        {
-          matcher: (ctx) => ctx.path === VERIFY_EMAIL_PATH,
-          handler: createAuthMiddleware(async (ctx) => {
-            // A refused link reaches here with its token swapped out, so
-            // only a link that claimed its request gets past this.
-            const token = ctx.query?.token;
-            const claims = peekChangeLink(token);
-            if (!claims) return;
-            const tokenHash = hashToken(token as string);
-            const user = await ctx.context.internalAdapter.findUserById(
-              claims.userId,
-            );
-            const applied = user?.email.toLowerCase() === claims.updateTo;
-            if (applied) {
-              await putRow(
-                ctx.context.adapter,
-                completedRowId(claims.userId),
-                { target: claims.updateTo, tokenHash, claimedAt: null },
-                COMPLETED_TTL_SECONDS,
-              );
-            }
-            const row = await findRow(
-              ctx.context.adapter,
-              pendingRowId(claims.userId),
-            );
-            const record = parseRecord(row);
-            // Release only this link's own claim; a newer request stays. A
-            // change that failed waits again, so the link can be retried.
-            if (row && record?.tokenHash === tokenHash && record.claimedAt) {
-              await swapRow(
-                ctx.context.adapter,
-                row,
-                applied ? null : { ...record, claimedAt: null },
-              );
+              return { context: { query: { ...ctx.query, token: "refused" } } };
             }
           }),
         },
       ],
     },
+    rateLimit: [
+      {
+        pathMatcher: (path: string) => path === REQUEST_EMAIL_CHANGE_PATH,
+        window: 60,
+        max: 5,
+      },
+    ],
   } satisfies BetterAuthPlugin;
 }

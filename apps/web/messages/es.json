@@ -7509,8 +7509,8 @@
         "cancelError": "No se pudo cancelar el cambio de correo. Inténtalo de nuevo.",
         "changed": "Tu correo ahora es {email}.",
         "linkFailed": "Ese enlace ya no funciona. Pide uno nuevo abajo.",
-        "cancelInProgress": "El enlace se está abriendo ahora mismo, así que el cambio ya no se puede cancelar.",
-        "statusUnavailable": "No se pudo comprobar si hay un cambio de correo pendiente. Recarga para intentarlo de nuevo."
+        "statusUnavailable": "No se pudo comprobar si hay un cambio de correo pendiente. Recarga para intentarlo de nuevo.",
+        "cancelTooLate": "Este cambio ya se confirmó o caducó, así que no hay nada que cancelar."
       },
       "Password": {
         "title": "Cambiar contraseña",
