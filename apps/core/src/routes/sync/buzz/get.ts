@@ -10,9 +10,10 @@ import {
 
 import { authenticateCronSecret } from "../handler.js";
 
-// Runs end before the function's 300 s limit; the next minute's cron is
-// already waiting for the lease, so the hand-over takes about a second.
-const RUN_MS = 270_000;
+// Runs end well before the function's 300 s limit, leaving time for the
+// change being applied to finish; the next minute's cron is already waiting
+// for the lease, so the hand-over takes about a second.
+const RUN_MS = 240_000;
 const HANDOVER_WAIT_MS = 55_000;
 
 function log(message: string, extra?: unknown) {

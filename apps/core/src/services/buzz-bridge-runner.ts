@@ -248,6 +248,9 @@ export async function runBuzzBridge(options: {
   ) => {
     if (stopping) return;
     inbound = inbound.then(async () => {
+      // Shutting down: not applied now, it stays behind the saved cursor for
+      // the next run, which holds the lease then.
+      if (stopping) return;
       const finalAttempt = targetWaits + 1 >= TARGET_ATTEMPTS;
       // A target still on its way in (say Core is down and it keeps
       // retrying) is worth waiting for however long that takes.
@@ -512,6 +515,8 @@ export async function runBuzzBridge(options: {
   let lastRoomSweep = 0;
   const roomRests = new Map<string, number>();
   let lastMemberSweep = 0;
+  let lastAgentSweep = 0;
+  const agentSweep: { after: string | null } = { after: null };
   // Where the member sweep goes on from; a fresh run starts anywhere, so a
   // sweep cut short never leaves the same rooms out every time.
   let memberSweepFrom = Math.floor(Math.random() * 1_000_000);
@@ -524,17 +529,6 @@ export async function runBuzzBridge(options: {
       if (Date.now() - lastRoomSweep > 30_000) {
         lastRoomSweep = Date.now();
         const inBudget = within(Date.now() + SWEEP_BUDGET_MS);
-        // Its trouble must not hold up cleanup and new rooms below.
-        try {
-          for (const change of await syncBuzzAgents()) {
-            log(`agent ${change.slice(0, 13)} synced`);
-          }
-        } catch (error) {
-          log(
-            "agent sync failed",
-            error instanceof Error ? error.message : error,
-          );
-        }
         try {
           const created = await provisionBuzzCommunities(25, inBudget);
           if (created > 0) log(`${created} communit(ies) created on the relay`);
@@ -580,6 +574,26 @@ export async function runBuzzBridge(options: {
           );
         }
       }
+      // Agents people run in their Buzz apps: a slice of people at a time,
+      // after rooms had their turn. Its trouble holds up nothing else.
+      if (Date.now() - lastAgentSweep > 120_000) {
+        lastAgentSweep = Date.now();
+        try {
+          const changed = await syncBuzzAgents({
+            progress: agentSweep,
+            limit: 200,
+            shouldContinue: within(Date.now() + SWEEP_BUDGET_MS),
+          });
+          for (const change of changed) {
+            log(`agent ${change.slice(0, 13)} synced`);
+          }
+        } catch (error) {
+          log(
+            "agent sync failed",
+            error instanceof Error ? error.message : error,
+          );
+        }
+      }
       // Members can change with no message to carry it (someone leaves the
       // organization). Cheap when nothing changed: a hash compare per room.
       if (Date.now() - lastMemberSweep > 60_000) {
@@ -614,12 +628,11 @@ export async function runBuzzBridge(options: {
     await new Promise((resolve) => setTimeout(resolve, 1_000));
   }
   stop();
-  // What is being applied finishes; what is still waiting (a retry, a
-  // streaming answer) stays behind the saved cursor for the next run.
-  await Promise.race([
-    inbound,
-    new Promise((resolve) => setTimeout(resolve, 10_000)),
-  ]);
+  // The change being applied finishes (a Core call ends within its timeout)
+  // before the lease is handed over; nothing queued after it starts. What is
+  // still waiting (a retry, a streaming answer) stays behind the saved
+  // cursor for the next run.
+  await inbound;
   await saveCursors().catch((error) =>
     log("cursor save failed", error instanceof Error ? error.message : error),
   );

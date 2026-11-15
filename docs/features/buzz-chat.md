@@ -74,7 +74,7 @@ Generate the operator key once (`node -e` with `nostr-tools`, or
 | `BUZZ_RELAY_DATABASE_URL`     | the relay's Postgres, public URL with TLS                                                                    |
 
 The `/sync/buzz` cron is in `apps/core/vercel.json`; the function's 300 s limit
-is why a run lasts 270 s.
+is why a run lasts 240 s (the rest lets the change being applied finish).
 
 ## Rollout
 

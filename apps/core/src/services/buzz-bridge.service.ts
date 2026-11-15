@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { type BuzzIdentity, Prisma as PrismaNull } from "@sokosumi/database";
 import { chatMessageTextWithNames, readChatMentionKeys } from "@sokosumi/utils";
 import { npubEncode } from "nostr-tools/nip19";
@@ -629,16 +629,38 @@ async function agentAccessOf(
  * workspaces, managed by them, posting through Core with its own key. An
  * agent that is gone is archived, and one that is back is restored.
  */
-export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
+export async function syncBuzzAgents(
+  scope: {
+    identityId?: string;
+    /**
+     * A sweep goes through people a slice at a time: it starts after
+     * `progress.after` and leaves there the last person it reached, or null
+     * once it went past the last.
+     */
+    progress?: { after: string | null };
+    limit?: number;
+    /** Relays not read in time count as unread: their people keep agents. */
+    shouldContinue?: () => boolean;
+  } = {},
+) {
   // An agent's owner is the key the person's Buzz app signs in with: the one
   // Sokosumi keeps for them, or their own app key when they linked one.
   const owners = await prisma.buzzIdentity.findMany({
     where: {
       userId: { not: null },
       ...(scope.identityId ? { id: scope.identityId } : {}),
+      ...(scope.progress?.after ? { id: { gt: scope.progress.after } } : {}),
     },
     include: { user: { select: { name: true } } },
+    orderBy: { id: "asc" },
+    ...(scope.limit ? { take: scope.limit } : {}),
   });
+  if (scope.progress) {
+    scope.progress.after =
+      scope.limit && owners.length === scope.limit
+        ? (owners.at(-1)?.id ?? null)
+        : null;
+  }
   const people = await Promise.all(
     owners.map(async (owner) => ({
       owner,
@@ -659,6 +681,10 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
   // the agents they have until it can be read again.
   const unread = new Set<string>();
   for (const [relayUrl, keys] of keysByRelay) {
+    if (scope.shouldContinue?.() === false) {
+      unread.add(relayUrl);
+      continue;
+    }
     let agents: Map<string, FoundAgent & { ownerKey: string }>;
     try {
       agents = await ownedAgents(relayUrl, [...keys]);
@@ -687,15 +713,22 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
     const access = await agentAccessOf(userId, memberships, communities);
     // One vendor per owner: Core lets a vendor's Coworkers see each other's
     // work, which must not cross from one person's agents to another's.
-    const vendor = await prisma.vendor.upsert({
-      where: { slug: `buzz-agents-${owner.id}` },
-      create: {
-        slug: `buzz-agents-${owner.id}`,
-        name: `Buzz agents · ${owner.user?.name ?? "someone"}`,
-        listed: false,
-      },
-      update: {},
-    });
+    // Made only for someone with agents.
+    let vendorId: string | undefined;
+    const vendorOf = async () => {
+      vendorId ??= (
+        await prisma.vendor.upsert({
+          where: { slug: `buzz-agents-${owner.id}` },
+          create: {
+            slug: `buzz-agents-${owner.id}`,
+            name: `Buzz agents · ${owner.user?.name ?? "someone"}`,
+            listed: false,
+          },
+          update: {},
+        })
+      ).id;
+      return vendorId;
+    };
     for (const [pubkey, agent] of found) {
       const existing = await prisma.buzzIdentity.findUnique({
         where: { pubkey },
@@ -719,7 +752,7 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
               "A personal agent: it runs in its owner's Buzz app, only its owner can add it to a room, and it answers there.",
             capabilities: ["chat"],
             isWhitelisted: false,
-            vendorId: vendor.id,
+            vendorId: await vendorOf(),
             assignments: { create: { userId } },
             buzzIdentity: {
               create: { pubkey, ownerIdentityId: owner.id },
@@ -731,13 +764,13 @@ export async function syncBuzzAgents(scope: { identityId?: string } = {}) {
       } else if (
         existing?.coworker &&
         (existing.coworker.archivedAt ||
-          existing.coworker.vendorId !== vendor.id ||
+          existing.coworker.vendorId !== (await vendorOf()) ||
           existing.coworker.name !== details.name ||
           existing.coworker.image !== details.image)
       ) {
         await prisma.coworker.update({
           where: { id: coworkerId },
-          data: { ...details, vendorId: vendor.id, archivedAt: null },
+          data: { ...details, vendorId: await vendorOf(), archivedAt: null },
         });
         changed.push(coworkerId);
       }
@@ -1115,8 +1148,9 @@ async function resyncRoomsWithCoworkers(coworkerIds: string[]) {
 // ---------------------------------------------------------------- enabling
 
 /**
- * The community's DNS label: the organization's slug when it is one, else a
- * cleaned-up slug made unique with part of the organization id.
+ * The community's DNS label: the organization's slug when it is one (slugs
+ * are unique), else a cleaned-up slug made unique with a hash of the
+ * organization id.
  */
 export function communityLabelFor(organization: {
   id: string;
@@ -1130,7 +1164,11 @@ export function communityLabelFor(organization: {
     .slice(0, 40)
     .replace(/-$/, "");
   if (cleaned && cleaned === organization.slug) return cleaned;
-  const suffix = organization.id.replace(/-/g, "").slice(0, 8).toLowerCase();
+  // From the whole id: a UUIDv7's first characters are its creation time.
+  const suffix = createHash("sha256")
+    .update(organization.id)
+    .digest("hex")
+    .slice(0, 12);
   return cleaned ? `${cleaned}-${suffix}` : `org-${suffix}`;
 }
 
@@ -1202,6 +1240,15 @@ export async function provisionBuzzCommunities(
   for (const community of pending) {
     if (!shouldContinue()) break;
     const host = new URL(community.relayUrl).host;
+    // The relay answers "exists" for a host someone else has as well: never
+    // give one organization another's community.
+    const sharing = await prisma.buzzCommunity.count({
+      where: { relayUrl: community.relayUrl, id: { not: community.id } },
+    });
+    if (sharing > 0) {
+      console.error(`Buzz community host ${host} is taken; not created`);
+      continue;
+    }
     const response = await operatorRequest({
       origin,
       secretKey: config.operatorSecretKey,

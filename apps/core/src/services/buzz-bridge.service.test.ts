@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { npubEncode } from "nostr-tools/nip19";
 import {
   finalizeEvent,
@@ -1837,10 +1838,23 @@ describe("communities", () => {
   it("names a community after its organization's slug, or a clean one made unique", () => {
     const id = "01a1c865-d785-712c-83f6-041298fd1fce";
     expect(communityLabelFor({ id, slug: "acme" })).toBe("acme");
+    const hashed = createHash("sha256").update(id).digest("hex").slice(0, 12);
     expect(communityLabelFor({ id, slug: "Acme_Inc." })).toBe(
-      "acme-inc-01a1c865",
+      `acme-inc-${hashed}`,
     );
-    expect(communityLabelFor({ id, slug: "___" })).toBe("org-01a1c865");
+    expect(communityLabelFor({ id, slug: "___" })).toBe(`org-${hashed}`);
+    // Two ids made in the same second share their first characters.
+    expect(
+      communityLabelFor({
+        id: "01a1c865-0000-7000-8000-000000000001",
+        slug: "x".repeat(60),
+      }),
+    ).not.toBe(
+      communityLabelFor({
+        id: "01a1c865-0000-7000-8000-000000000002",
+        slug: "x".repeat(60),
+      }),
+    );
     const long = communityLabelFor({ id, slug: "a".repeat(60) });
     expect(long.length).toBeLessThanOrEqual(63);
     expect(long).toMatch(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/);
