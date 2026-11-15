@@ -91496,6 +91496,21 @@ export type GetTransactionsErrors = {
         };
     };
     /**
+     * Task not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -91607,6 +91622,21 @@ export type GetTransactionsDailyErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Task not found
+     */
+    404: {
         error: string;
         message: string;
         kind?: string;
@@ -91742,6 +91772,21 @@ export type GetTransactionsExportErrors = {
         };
     };
     /**
+     * Task not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -91838,6 +91883,21 @@ export type GetTransactionsTotalErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Task not found
+     */
+    404: {
         error: string;
         message: string;
         kind?: string;
