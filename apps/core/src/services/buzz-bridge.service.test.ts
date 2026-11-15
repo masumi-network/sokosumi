@@ -955,6 +955,57 @@ describe("a person's own Buzz agents", () => {
     );
   });
 
+  it("replays an owner's edit of their agent's message as the agent", async () => {
+    const bob = {
+      id: "identity-bob",
+      pubkey: BOB_PUBKEY,
+      appPubkey: null,
+      userId: "user-bob",
+      sokoBotId: null,
+      coworkerId: null,
+      encryptedSecretKey: "x",
+      encryptedApiKey: sealSecret("bob-api-key", SECRET),
+      ownerIdentityId: null,
+    };
+    db.buzzIdentity.findFirst.mockResolvedValue(bob);
+    db.buzzIdentity.findUnique.mockResolvedValueOnce(agentIdentity);
+    db.user.findUnique.mockResolvedValue({ banned: false, banExpires: null });
+    const target = "e".repeat(64);
+    db.buzzMessageLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId === target
+          ? {
+              messageId: "agent-message",
+              contentHash: "old",
+              lastEditAt: 0,
+              lastEditEventId: null,
+              deleted: false,
+              channelId: CHANNEL,
+              message: {
+                roomId: "room",
+                deletedAt: null,
+                senderCoworkerId: "coworker-agent",
+              },
+            }
+          : null,
+    );
+    const edit = nostrEvent({
+      kind: 40003,
+      tags: [
+        ["h", CHANNEL],
+        ["e", target],
+      ],
+      content: "fixed by its owner",
+    });
+    await expect(applyInboundEvent(edit, core)).resolves.toBe("edited");
+    expect(core).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        apiKey: "coworker_agent-key",
+        method: "PATCH",
+      }),
+    );
+  });
+
   it("ignores an agent's reactions, which Core does not take from a Coworker", async () => {
     db.buzzIdentity.findFirst.mockResolvedValue(agentIdentity);
     const reaction = nostrEvent(

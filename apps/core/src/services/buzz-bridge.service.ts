@@ -3412,6 +3412,22 @@ async function withMediaCopied(
   return fit(withMedia);
 }
 
+/**
+ * Who a change to a message is replayed as: its author, or for a message of
+ * the author's own personal agent (Buzz lets its owner edit and delete what
+ * it wrote), that agent, which Core lets change its own messages.
+ */
+async function actingFor(
+  author: BuzzIdentity,
+  message: { senderCoworkerId: string | null },
+): Promise<BuzzIdentity> {
+  if (!message.senderCoworkerId || author.coworkerId) return author;
+  const agent = await prisma.buzzIdentity.findUnique({
+    where: { coworkerId: message.senderCoworkerId },
+  });
+  return agent && agent.ownerIdentityId === author.id ? agent : author;
+}
+
 /** Replays one Buzz event as the person who wrote it. */
 export async function applyInboundEvent(
   event: Event,
@@ -3635,7 +3651,9 @@ export async function applyInboundEvent(
           lastEditEventId: true,
           deleted: true,
           channelId: true,
-          message: { select: { roomId: true, deletedAt: true } },
+          message: {
+            select: { roomId: true, deletedAt: true, senderCoworkerId: true },
+          },
         },
       });
       if (!link) {
@@ -3662,7 +3680,7 @@ export async function applyInboundEvent(
       );
       const hash = contentHash(content);
       if (link.contentHash !== hash) {
-        await sendAs(core, author, {
+        await sendAs(core, await actingFor(author, link.message), {
           method: "PATCH",
           path: `/v1/chats/rooms/${link.message.roomId}/messages/${link.messageId}`,
           body: { content },
@@ -3686,12 +3704,12 @@ export async function applyInboundEvent(
           select: {
             messageId: true,
             deleted: true,
-            message: { select: { roomId: true } },
+            message: { select: { roomId: true, senderCoworkerId: true } },
           },
         });
         if (messageLink) {
           if (messageLink.deleted) continue;
-          await sendAs(core, author, {
+          await sendAs(core, await actingFor(author, messageLink.message), {
             method: "DELETE",
             path: `/v1/chats/rooms/${messageLink.message.roomId}/messages/${messageLink.messageId}`,
           });
