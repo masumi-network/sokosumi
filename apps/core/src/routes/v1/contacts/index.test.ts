@@ -18,6 +18,7 @@ const {
     updateContact: vi.fn(),
     listContacts: vi.fn(),
     mergeContacts: vi.fn(),
+    setContactsStage: vi.fn(),
   },
   listServices: { createContactList: vi.fn() },
   exportContactsCsv: vi.fn(),
@@ -309,5 +310,34 @@ describe("contacts routes", () => {
         filter: expect.objectContaining({ search: "nina" }),
       }),
     );
+  });
+
+  it("sets one stage on many contacts and refuses bad input before Core", async () => {
+    services.setContactsStage.mockResolvedValue({ updated: 2 });
+    const ok = await post("/contacts/stage", {
+      contactIds: [CONTACT_ID, "0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e90"],
+      stage: "CUSTOMER",
+    });
+    expect(ok.status).toBe(200);
+    expect((await ok.json()).data).toEqual({ updated: 2 });
+    expect(services.setContactsStage).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ userId: "user_1" }),
+      [CONTACT_ID, "0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e90"],
+      "CUSTOMER",
+    );
+
+    services.setContactsStage.mockClear();
+    for (const body of [
+      { contactIds: [CONTACT_ID], stage: "CONTACTED" },
+      { contactIds: [], stage: "LEAD" },
+      { contactIds: ["not-a-uuid"], stage: "LEAD" },
+      {
+        contactIds: Array.from({ length: 501 }, () => CONTACT_ID),
+        stage: "LEAD",
+      },
+    ])
+      expect((await post("/contacts/stage", body)).status).toBe(422);
+    expect(services.setContactsStage).not.toHaveBeenCalled();
   });
 });

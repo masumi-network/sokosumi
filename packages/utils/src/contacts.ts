@@ -407,6 +407,12 @@ export const contactListMembersSchema = z
     "Add or remove at least one contact",
   );
 
+/** One stage for many contacts at once; all of them or none change. */
+export const setContactsStageSchema = z.object({
+  contactIds: z.array(z.uuid()).min(1).max(500),
+  stage: z.enum(CONTACT_STAGES),
+});
+
 export const mergeContactsSchema = z
   .object({
     winnerId: z.uuid(),

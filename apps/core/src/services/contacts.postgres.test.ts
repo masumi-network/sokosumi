@@ -29,6 +29,7 @@ import {
   removeContactChannel,
   removeContactInteraction,
   setContactArchived,
+  setContactsStage,
   updateContact,
   upsertContact,
 } from "./contacts.service";
@@ -331,6 +332,78 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     });
     expect(activity.items[1]?.sokoBot).toBeNull();
     expect(activity.items[1]?.user).toMatchObject({ name: "Alice" });
+  });
+
+  it("sets one stage on many contacts, all or none", async () => {
+    const { contact: lead } = await create(asAlice, {
+      name: "Stage Lead",
+      stage: "LEAD",
+    });
+    const { contact: plain } = await create(asAlice, { name: "Stage Plain" });
+    const { contact: foreign } = await create(asOutsider, {
+      name: "Stage Foreign",
+    });
+    const { contact: loser } = await create(asAlice, { name: "Stage Loser" });
+    await inContactTransaction((tx) =>
+      mergeContacts(tx, asAlice, plain.id, [loser.id]),
+    );
+    const plainVersion = (
+      await prisma.contact.findUniqueOrThrow({ where: { id: plain.id } })
+    ).version;
+
+    for (const ids of [
+      [lead.id, foreign.id],
+      [lead.id, loser.id],
+      [lead.id, randomUUID()],
+    ])
+      await expect(
+        inContactTransaction((tx) =>
+          setContactsStage(tx, asAlice, ids, "CUSTOMER"),
+        ),
+      ).rejects.toMatchObject({ status: 404 });
+    const untouched = await prisma.contact.findMany({
+      where: { id: { in: [lead.id, plain.id, foreign.id] } },
+      select: { stage: true },
+    });
+    expect(untouched.map((row) => row.stage).sort()).toEqual([
+      "CONTACT",
+      "CONTACT",
+      "LEAD",
+    ]);
+
+    await expect(
+      inContactTransaction((tx) =>
+        setContactsStage(tx, asBob, [lead.id, plain.id, lead.id], "LEAD"),
+      ),
+    ).resolves.toEqual({ updated: 1 });
+    const rows = await prisma.contact.findMany({
+      where: { id: { in: [lead.id, plain.id] } },
+      select: { id: true, stage: true, version: true, name: true },
+    });
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        {
+          id: lead.id,
+          stage: "LEAD",
+          version: lead.version,
+          name: "Stage Lead",
+        },
+        {
+          id: plain.id,
+          stage: "LEAD",
+          version: plainVersion + 1,
+          name: "Stage Plain",
+        },
+      ]),
+    );
+    const activity = await listContactActivity(asAlice, plain.id, {
+      limit: 1,
+    });
+    expect(activity.items[0]).toMatchObject({
+      kind: "UPDATED",
+      changes: { stage: { before: "CONTACT", after: "LEAD" } },
+      user: { name: "Bob" },
+    });
   });
 
   it("merges channels, interactions, lists and history into the winner", async () => {

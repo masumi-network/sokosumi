@@ -392,6 +392,20 @@ export function ContactsWorkspace({
               count={selected.length}
               lists={lists.data ?? []}
               viewList={viewList?.kind === "manual" ? viewList : null}
+              onSetStage={(next) =>
+                void bulk(
+                  async () => {
+                    await contactsService.setStage(selected, next);
+                    // Under a stage filter the changed rows leave the view;
+                    // keeping them selected would act on rows nobody sees.
+                    if (stage) setSelected([]);
+                  },
+                  t("bulk.stageSet", {
+                    count: selected.length,
+                    stage: t(`stages.${next}`),
+                  }),
+                )
+              }
               onAddToList={(list) =>
                 void bulk(
                   () =>

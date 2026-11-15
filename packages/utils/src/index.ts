@@ -191,6 +191,7 @@ export {
   createContactSchema,
   mergeContactsSchema,
   normalizeContactChannelValue,
+  setContactsStageSchema,
   updateContactSchema,
 } from "./contacts.js";
 export {

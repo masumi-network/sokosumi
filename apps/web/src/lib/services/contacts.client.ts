@@ -1,4 +1,5 @@
 import {
+  type ContactStage,
   deleteContactListsById,
   deleteContactsByIdChannelsByChannelId,
   type GetContactsData,
@@ -37,6 +38,7 @@ import {
   postContactsByIdEnrich,
   postContactsImport,
   postContactsMerge,
+  postContactsStage,
   putContactsByIdImportance,
 } from "@sokosumi/core-client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
@@ -176,6 +178,11 @@ export const contactsService = {
   async merge(winnerId: string, loserIds: string[]) {
     return (
       await postContactsMerge({ ...options(), body: { winnerId, loserIds } })
+    ).data.data;
+  },
+  async setStage(contactIds: string[], stage: ContactStage) {
+    return (
+      await postContactsStage({ ...options(), body: { contactIds, stage } })
     ).data.data;
   },
   async exportCsv(query: ContactQuery): Promise<string> {

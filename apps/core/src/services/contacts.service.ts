@@ -13,6 +13,7 @@ import {
   contactNameFromChannel,
   type createContactSchema,
   normalizeContactChannelValue,
+  type setContactsStageSchema,
   type updateContactSchema,
 } from "@sokosumi/utils";
 import { v7 as uuidv7 } from "uuid";
@@ -740,6 +741,46 @@ export async function updateContact(
   if (updated.count !== 1) throw versionConflict();
   await recordActivity(tx, actor, id, "UPDATED", changes);
   return loadContactDto(tx, id, actor.userId);
+}
+
+/**
+ * Sets one stage on many contacts. Every id must be a live contact of the
+ * workspace, or nothing changes. Contacts already at the stage stay as they
+ * are; the rest get a new version and an UPDATED activity entry.
+ */
+export async function setContactsStage(
+  tx: Tx,
+  actor: ContactActor,
+  contactIds: string[],
+  stage: z.infer<typeof setContactsStageSchema>["stage"],
+): Promise<{ updated: number }> {
+  const ids = [...new Set(contactIds)];
+  const contacts = await tx.contact.findMany({
+    where: {
+      id: { in: ids },
+      workspaceId: actor.workspaceId,
+      mergedIntoId: null,
+    },
+    select: { id: true, stage: true },
+  });
+  if (contacts.length !== ids.length) throw notFound("Contact not found");
+  const changing = contacts.filter((contact) => contact.stage !== stage);
+  if (!changing.length) return { updated: 0 };
+  await tx.contact.updateMany({
+    where: { id: { in: changing.map((contact) => contact.id) } },
+    data: { stage, version: { increment: 1 } },
+  });
+  await tx.contactActivity.createMany({
+    data: changing.map((contact) => ({
+      workspaceId: actor.workspaceId,
+      contactId: contact.id,
+      userId: actor.userId,
+      sokoBotId: actor.sokoBotId,
+      kind: "UPDATED" as const,
+      changes: { stage: { before: contact.stage, after: stage } },
+    })),
+  });
+  return { updated: changing.length };
 }
 
 export async function setContactArchived(

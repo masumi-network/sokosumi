@@ -11063,6 +11063,8 @@
       "bulk": {
         "label": "Selected contacts",
         "selected": "{count} selected",
+        "setStage": "Set relationship",
+        "stageSet": "{count, plural, =1 {Set 1 contact to {stage}} other {Set # contacts to {stage}}}",
         "addToList": "Add to list",
         "removeFromList": "Remove from list",
         "merge": "Merge",
