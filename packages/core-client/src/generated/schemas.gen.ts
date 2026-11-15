@@ -52117,6 +52117,26 @@ export const TransactionDailySpendListSchema = {
     }
 } as const;
 
+export const TransactionTotalSchema = {
+    type: 'object',
+    properties: {
+        credits: {
+            type: 'number',
+            description: 'Net credits taken by the matching rows: spends minus refunds and other top ups.',
+            example: 12.5
+        },
+        count: {
+            type: 'integer',
+            description: 'Matching ledger rows.',
+            example: 3
+        }
+    },
+    required: [
+        'credits',
+        'count'
+    ]
+} as const;
+
 export const CreditPriceOptionSchema = {
     type: 'object',
     properties: {

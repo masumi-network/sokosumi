@@ -53,11 +53,34 @@ describe("history export ranges", () => {
   it("carries the list's filters into the download link", () => {
     const href = buildExportHref(
       { from: "2026-09-01", to: "2026-09-30" },
-      { q: "a&b", scope: "workspace", type: "job", projectId: null },
+      {
+        q: "a&b",
+        scope: "workspace",
+        type: "job",
+        projectId: null,
+        taskId: null,
+      },
     );
 
     expect(href).toBe(
       "/api/transactions/export?from=2026-09-01&to=2026-09-30&q=a%26b&scope=workspace&types=job",
+    );
+  });
+
+  it("carries a Task filter into the download link", () => {
+    const href = buildExportHref(
+      { from: "2026-09-01", to: "2026-09-30" },
+      {
+        q: null,
+        scope: "workspace",
+        type: null,
+        projectId: null,
+        taskId: "55555555-5555-4555-8555-555555555555",
+      },
+    );
+
+    expect(href).toBe(
+      "/api/transactions/export?from=2026-09-01&to=2026-09-30&scope=workspace&taskId=55555555-5555-4555-8555-555555555555",
     );
   });
 });

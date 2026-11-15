@@ -14,6 +14,7 @@ export interface ListHistoryParams {
   projectId?: TransactionQuery["projectId"];
   q?: TransactionQuery["q"];
   scope?: TransactionQuery["scope"];
+  taskId?: TransactionQuery["taskId"];
   types?: TransactionQuery["types"];
 }
 
@@ -41,6 +42,7 @@ export const historyService = (() => {
       projectId: params.projectId,
       q: params.q,
       scope: params.scope,
+      taskId: params.taskId,
       types: params.types,
     });
 
@@ -64,8 +66,21 @@ export const historyService = (() => {
     return result.data;
   }
 
+  /** Net credits one Task took in the active workspace, with its row count. */
+  async function getTaskTotal(
+    taskId: string,
+  ): Promise<{ credits: number; count: number }> {
+    const result = await coreClient.getTransactionsTotal({
+      scope: "workspace",
+      taskId,
+    });
+
+    return result.data;
+  }
+
   return {
     listHistory,
     listDailySpend,
+    getTaskTotal,
   };
 })();

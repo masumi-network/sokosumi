@@ -55,11 +55,25 @@ const projectIdQuerySchema = z
     example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
   });
 
+const taskIdQuerySchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(200)
+  .optional()
+  .openapi({
+    param: { name: "taskId", in: "query" },
+    description:
+      "Only rows for this Task: charges by its events and its Jobs, and the refunds of those charges.",
+    example: "01a1ddca-e1fd-771a-bb5e-0b40c2177dfc",
+  });
+
 /** The ledger filters every Transactions endpoint shares. */
 export const transactionFilterQuerySchema = z.object({
   projectId: projectIdQuerySchema,
   q: searchQuerySchema,
   scope: scopeQuerySchema,
+  taskId: taskIdQuerySchema,
   types: typesQuerySchema,
 });
 

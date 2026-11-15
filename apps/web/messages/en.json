@@ -1573,6 +1573,11 @@
         "label": "Credits spent per day, last 30 days",
         "total": "{count} credits spent in the last 30 days",
         "day": "{date}: {count} credits"
+      },
+      "TaskFilter": {
+        "label": "Credits for {task}",
+        "unknownTask": "this Task",
+        "clear": "Show all transactions"
       }
     },
     "Chat": {
@@ -2113,7 +2118,10 @@
         "subscribe": "Subscribe",
         "unsubscribe": "Unsubscribe",
         "subscribeError": "Couldn’t subscribe. Try again.",
-        "removeParticipantError": "Couldn’t remove participant. Try again."
+        "removeParticipantError": "Couldn’t remove participant. Try again.",
+        "credits": "Credits",
+        "creditsUsed": "{credits, plural, one {# credit used} other {# credits used}}",
+        "noCreditsUsed": "No credits used"
       },
       "NewTask": {
         "ContextAttachments": {

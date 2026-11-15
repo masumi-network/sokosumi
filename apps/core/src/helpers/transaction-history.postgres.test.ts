@@ -16,6 +16,7 @@ import {
   countTransactionHistory,
   findTransactionHistoryPage,
   mapTransactionHistoryRow,
+  sumTransactionHistory,
 } from "./transaction-history";
 
 const url = process.env.DATABASE_URL;
@@ -775,6 +776,47 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
         tx,
       );
       expect(searched.rows.map((row) => row.id)).toEqual(["tx-job"]);
+    });
+  });
+
+  it("finds a Task's charges, its Jobs' charges and their refunds", async () => {
+    await withSeededLedger(async (tx) => {
+      // The Job also belongs to the Task, and a refunded claim on it.
+      await tx.$executeRaw`
+        UPDATE "Job" SET "taskId" = 'txhist-task' WHERE "id" = 'txhist-job'
+      `;
+      await seedRefundTransaction(tx, "tx-refund-task");
+      await seedRefundedClaim(tx, "tx-refund-task");
+      await tx.$executeRaw`
+        UPDATE "taskEvent" SET "taskId" = 'txhist-task'
+        WHERE "id" = 'tx-refund-task-event'
+      `;
+
+      const params = { ...personalScope, taskId: "txhist-task" };
+      const { rows } = await findTransactionHistoryPage(
+        params,
+        { take: 20 },
+        tx,
+      );
+      // The claim's charge carries no taskEvent link of its own, so only the
+      // refund that names the Task shows, beside the event and Job charges.
+      expect(rows.map((row) => row.id)).toEqual([
+        "tx-refund-task",
+        "tx-task",
+        "tx-job",
+      ]);
+      // 2 + 3 spent, 4 refunded.
+      expect(await sumTransactionHistory(params, tx)).toEqual({
+        credits: 1,
+        count: 3,
+      });
+
+      expect(
+        await sumTransactionHistory(
+          { ...personalScope, taskId: "no-such-task" },
+          tx,
+        ),
+      ).toEqual({ credits: 0, count: 0 });
     });
   });
 

@@ -5,7 +5,15 @@ import { buildCoreChatProxyHeaders } from "@/lib/clients/utils/build-core-chat-p
 import { getServerCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 
 /** The only query parameters Core's export route declares. */
-const FORWARDED_PARAMS = ["from", "to", "q", "scope", "types", "projectId"];
+const FORWARDED_PARAMS = [
+  "from",
+  "to",
+  "q",
+  "scope",
+  "types",
+  "projectId",
+  "taskId",
+];
 
 /**
  * Download the credit ledger as CSV.

@@ -58,6 +58,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         kinds: filters.types,
         projectId: projectId === "null" ? null : projectId,
         q: filters.q,
+        taskId: filters.taskId,
         scope: filters.scope,
         userContext,
         workspaceContext,

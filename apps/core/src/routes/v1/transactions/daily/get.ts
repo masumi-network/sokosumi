@@ -78,6 +78,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         kinds: query.types,
         projectId: query.projectId === "null" ? null : query.projectId,
         q: query.q,
+        taskId: query.taskId,
         scope: query.scope,
         userContext,
         workspaceContext,
