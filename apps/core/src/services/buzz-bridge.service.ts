@@ -1178,7 +1178,10 @@ export async function enableBuzzForOrganization(organizationId: string) {
  * own (a batch at a time), then creates up to `limit` of those not yet on the
  * relay. Returns how many it created there.
  */
-export async function provisionBuzzCommunities(limit = 25): Promise<number> {
+export async function provisionBuzzCommunities(
+  limit = 25,
+  shouldContinue: () => boolean = () => true,
+): Promise<number> {
   const config = requireConfig();
   const missing = await prisma.organization.findMany({
     where: { buzzCommunity: null },
@@ -1197,6 +1200,7 @@ export async function provisionBuzzCommunities(limit = 25): Promise<number> {
   });
   let created = 0;
   for (const community of pending) {
+    if (!shouldContinue()) break;
     const host = new URL(community.relayUrl).host;
     const response = await operatorRequest({
       origin,

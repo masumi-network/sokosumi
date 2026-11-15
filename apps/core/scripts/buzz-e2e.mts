@@ -123,10 +123,18 @@ async function waitFor<T>(
   timeoutMs = 90_000,
 ): Promise<T> {
   const until = Date.now() + timeoutMs;
+  let lastError: unknown;
   for (;;) {
-    const value = await check();
+    // A relay or database that is briefly away is not an answer yet.
+    const value = await check().catch((error: unknown) => {
+      lastError = error;
+      return null;
+    });
     if (value) return value;
-    if (Date.now() > until) throw new Error(`timed out waiting for ${what}`);
+    if (Date.now() > until)
+      throw new Error(
+        `timed out waiting for ${what}${lastError instanceof Error ? ` (last error: ${lastError.message})` : ""}`,
+      );
     await new Promise((resolve) => setTimeout(resolve, 1_000));
   }
 }

@@ -144,6 +144,8 @@ async function importChannel(
       take: BATCH,
     });
     for (const message of messages) {
+      // What is imported stays linked; the next pass goes on from there.
+      if (input.shouldContinue?.() === false) return null;
       if (await importMessage(client, communityId, input.channelId, message)) {
         imported++;
       }

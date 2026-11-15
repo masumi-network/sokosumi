@@ -512,10 +512,18 @@ export async function runBuzzBridge(options: {
   let lastRoomSweep = 0;
   const roomRests = new Map<string, number>();
   let lastMemberSweep = 0;
+  // Where the member sweep goes on from; a fresh run starts anywhere, so a
+  // sweep cut short never leaves the same rooms out every time.
+  let memberSweepFrom = Math.floor(Math.random() * 1_000_000);
+  // Upkeep gets this long per pass; messages are delivered between passes.
+  const SWEEP_BUDGET_MS = 20_000;
+  const within = (until: number) => () =>
+    Date.now() < until && options.shouldContinue();
   while (!stopping && options.shouldContinue()) {
     try {
       if (Date.now() - lastRoomSweep > 30_000) {
         lastRoomSweep = Date.now();
+        const inBudget = within(Date.now() + SWEEP_BUDGET_MS);
         // Its trouble must not hold up cleanup and new rooms below.
         try {
           for (const change of await syncBuzzAgents()) {
@@ -528,7 +536,7 @@ export async function runBuzzBridge(options: {
           );
         }
         try {
-          const created = await provisionBuzzCommunities();
+          const created = await provisionBuzzCommunities(25, inBudget);
           if (created > 0) log(`${created} communit(ies) created on the relay`);
         } catch (error) {
           log(
@@ -543,6 +551,7 @@ export async function runBuzzBridge(options: {
           if (until <= Date.now()) roomRests.delete(roomId);
         }
         for (const room of await unlinkedBuzzRooms(50, [...roomRests.keys()])) {
+          if (!inBudget()) break;
           // One room's trouble (its relay down) must not keep others off Buzz.
           try {
             if (await syncRoomChannel(room.id)) {
@@ -561,10 +570,9 @@ export async function runBuzzBridge(options: {
         }
         // Rooms that just reached Buzz bring their history along.
         try {
-          await importBuzzHistory({
-            log,
-            shouldContinue: options.shouldContinue,
-          });
+          if (inBudget()) {
+            await importBuzzHistory({ log, shouldContinue: inBudget });
+          }
         } catch (error) {
           log(
             "history import failed",
@@ -578,7 +586,11 @@ export async function runBuzzBridge(options: {
         lastMemberSweep = Date.now();
         const left = await removeAgentsWithoutOwner();
         if (left > 0) log(`${left} personal agent(s) left with their owner`);
-        for (const room of await linkedBuzzRooms()) {
+        const inBudget = within(Date.now() + SWEEP_BUDGET_MS);
+        const rooms = await linkedBuzzRooms();
+        for (let done = 0; done < rooms.length && inBudget(); done++) {
+          const room = rooms[memberSweepFrom++ % rooms.length];
+          if (!room) continue;
           try {
             await syncRoomChannel(room.roomId);
           } catch (error) {

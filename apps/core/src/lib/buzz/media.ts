@@ -73,6 +73,7 @@ function blossomGet(secretKey: Uint8Array, sha256: string, host: string) {
  */
 async function copyMedia(input: {
   url: string;
+  eventId: string;
   readerKeys: Uint8Array[];
   owner: MediaOwner;
   roomId: string;
@@ -99,7 +100,8 @@ async function copyMedia(input: {
     if (createHash("sha256").update(bytes).digest("hex") !== sha256) {
       return null;
     }
-    const fileName = `buzz-${sha256.slice(0, 16)}${match[2] ?? ""}`;
+    // Per message: deleting one message deletes its copy, never another's.
+    const fileName = `buzz-${input.eventId.slice(0, 16)}-${sha256.slice(0, 16)}${match[2] ?? ""}`;
     const pathname =
       input.owner.kind === "user"
         ? buildUserChatRoomFilePathname(
@@ -112,7 +114,7 @@ async function copyMedia(input: {
             input.roomId,
             fileName,
           );
-    // One file, one name: a replayed event writes the same blob again.
+    // A replayed event writes the same blob again.
     const blob = await put(pathname, bytes, {
       access: "public",
       addRandomSuffix: false,
@@ -142,7 +144,11 @@ export async function withSokosumiMedia(input: {
 }): Promise<string> {
   let content = input.content;
   for (const url of relayMediaUrls(input.event, input.relayUrl)) {
-    const copy = await copyMedia({ ...input, url }).catch(() => null);
+    const copy = await copyMedia({
+      ...input,
+      url,
+      eventId: input.event.id,
+    }).catch(() => null);
     const shown = copy ?? url;
     content = content.includes(url)
       ? content.replaceAll(url, shown)

@@ -75,7 +75,11 @@ describe("withSokosumiMedia", () => {
       "see https://store.public.blob.vercel-storage.com/users/u/chats/r/buzz-1.png",
     );
     expect(blob.put).toHaveBeenCalledWith(
-      `users/u/chats/r/buzz-${sha.slice(0, 16)}.png`,
+      expect.stringMatching(
+        new RegExp(
+          `^users/u/chats/r/buzz-[0-9a-f]{16}-${sha.slice(0, 16)}\\.png$`,
+        ),
+      ),
       bytes,
       expect.objectContaining({ access: "public", allowOverwrite: true }),
     );
@@ -116,7 +120,11 @@ describe("withSokosumiMedia", () => {
       "a photo\nhttps://store.public.blob.vercel-storage.com/users/u/chats/r/buzz-1.png",
     );
     expect(blob.put).toHaveBeenCalledWith(
-      `coworkers/k/chats/r/buzz-${sha.slice(0, 16)}.png`,
+      expect.stringMatching(
+        new RegExp(
+          `^coworkers/k/chats/r/buzz-[0-9a-f]{16}-${sha.slice(0, 16)}\\.png$`,
+        ),
+      ),
       bytes,
       expect.anything(),
     );
