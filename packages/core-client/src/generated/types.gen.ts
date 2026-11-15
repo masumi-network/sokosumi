@@ -42370,6 +42370,10 @@ export type GetDriveResourcesByIdGoogleSheetResponses = {
             pagination?: PaginationMetadata;
         };
     };
+    /**
+     * A plain file: no linked sheet
+     */
+    204: void;
 };
 
 export type GetDriveResourcesByIdGoogleSheetResponse = GetDriveResourcesByIdGoogleSheetResponses[keyof GetDriveResourcesByIdGoogleSheetResponses];

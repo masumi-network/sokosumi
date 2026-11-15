@@ -1,22 +1,22 @@
 # Evals
 
-Fixed Soko Bot and CMO (Cuso) cases with checks, run against what is deployed. Every change to how a bot behaves is measured with them before it merges, and main is measured every day. The reference point is always a PR: each run records the commit, its PR, and the versions and models the bots ran on.
+Fixed Soko Bot and CMO (Cuso) cases with checks, run against what is deployed. Every change to how a bot behaves is measured with them before it merges, and main is measured every week. The reference point is always a PR: each run records the commit, its PR, and the versions and models the bots ran on.
 
 ## The rule
 
 - **A PR that changes Soko Bot or Cuso behaviour shows an eval run in its Evidence.** That covers a prompt, a skill, a tool or its description, a version, a model, the classifier, the context packet, or a Core check the bot's answers pass through (claim check, post checks, plan review). Paste `sokosumi evals show RUN_ID --markdown`.
 - **A new tool gets a case.** `apps/core/src/services/evals/eval-cases.test.ts` fails when a capability is in no case's `tools`, `anyTools` or `forbiddenTools`. Its `NOT_YET_COVERED` list only shrinks.
-- **A regression is fixed or explained before merge.** "Flaky" means the case already failed in recent daily runs; a "regressed" case passed every recent daily run.
+- **A regression is fixed or explained before merge.** "Flaky" means the case already failed in recent weekly runs; a "regressed" case passed every recent weekly run.
 
 ## Where runs happen
 
 | Run              | Where                                                      | Started by                              |
 | ---------------- | ---------------------------------------------------------- | --------------------------------------- |
-| Daily            | mainnet production (main), 04:00 UTC                       | `/sync/evals`, once a day               |
+| Weekly           | mainnet production (main), Monday 04:00 UTC                | `/sync/evals`, once a week              |
 | After a merge    | mainnet                                                    | Admin → Evals → Run evals, or the CLI   |
 | While developing | preprod, a PR preview (`/deploy preprod`), or a local Core | Admin → Evals, or the CLI with `--tick` |
 
-The daily run is the baseline every run is compared with. A run on a preview or a local Core is compared with the latest daily run on that environment's database, so preprod and local runs need a first full run of their own before the comparison means anything.
+The weekly run is the baseline every run is compared with. A run on a preview or a local Core is compared with the latest weekly run on that environment's database, so preprod and local runs need a first full run of their own before the comparison means anything.
 
 ## Running them
 
@@ -29,16 +29,16 @@ sokosumi evals show RUN_ID --markdown                  # the table for the PR
 sokosumi evals list                                    # recent runs and scores
 ```
 
-`--preprod` or `--api-url` picks the deployment, as for every CLI command. Runs queue: the lanes run one run at a time. The admin page (Admin → Evals) shows the trend per PR, each run's cases worst first, and each case's checks, judge verdict, answer and tools beside the daily run before it.
+`--preprod` or `--api-url` picks the deployment, as for every CLI command. Runs queue: the lanes run one run at a time. The admin page (Admin → Evals) shows the trend per PR, each run's cases worst first, and each case's checks, judge verdict, answer and tools beside the weekly run before it.
 
-The daily run runs each case once. A run you start runs once too unless you ask for `--repeats 2` or `3`. In development, run the few cases your change touches while you iterate, then the suite your change touches with three repeats before you open the PR. A case that regressed in the daily run on one repeat may be chance: run it with three repeats before chasing it.
+The weekly run runs each case once. A run you start runs once too unless you ask for `--repeats 2` or `3`. In development, run the few cases your change touches while you iterate, then the suite your change touches with three repeats before you open the PR. A case that regressed in the weekly run on one repeat may be chance: run it with three repeats before chasing it.
 
 ## How a run works
 
 - **Lanes.** Repeat N runs in lane N: its own eval organization (`sokosumi-evals-N`) with an owner (Robin Keller), two teammates (Hannah Weber does research, Alex Kim writes), the Projects "Sokosumi Marketing" (an X account) and "utxo AG Outreach" (a LinkedIn account), a newsletter, a "Launch team" room, a Soko Bot and a Cuso. `eval-lanes.service.ts` makes them on first use and resets the Soko Bot's world before its first case.
 - **Order.** Soko Bot cases run in order, and later ones build on what earlier ones made: the Coworker events act on the Task the first case created. A case with `setup` starts from a clean slate.
 - **Scoring.** A scenario passes when every deterministic check passes and the judge does not say "fail". CMO research and strategy cases check the Brand Brain and the plan against what the brand really sells (`cmo-brand-checks.ts`, shared with `cmo:lab`).
-- **Outcomes.** Each case is regressed, fixed, flaky, failing, passing, error (could not run) or skipped (needs something the environment lacks, such as a connected mailbox), from its repeats and the last daily runs (`lib/evals/eval-compare.ts`).
+- **Outcomes.** Each case is regressed, fixed, flaky, failing, passing, error (could not run) or skipped (needs something the environment lacks, such as a connected mailbox), from its repeats and the last weekly runs (`lib/evals/eval-compare.ts`).
 
 ## What keeps mainnet safe
 

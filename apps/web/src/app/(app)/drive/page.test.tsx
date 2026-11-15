@@ -801,6 +801,49 @@ describe("DrivePage recents view", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("empty Recents uploads through the picker and opens Workspace", async () => {
+    const user = userEvent.setup();
+    listDriveItemsMock.mockResolvedValue([]);
+    uploadDriveFileMock.mockReset();
+    uploadDriveFileMock.mockResolvedValue({ pathname: "a", fileUrl: null });
+    const { container } = renderDrive();
+    const upload = await screen.findByRole("button", { name: "uploadButton" });
+    const input = container.querySelector<HTMLInputElement>("#file-upload")!;
+    const pick = vi.spyOn(input, "click");
+    await user.click(upload);
+    expect(pick).toHaveBeenCalledOnce();
+
+    fetchDriveRecentsPageMock.mockClear();
+    const file = new File(["x"], "notes.txt", { type: "text/plain" });
+    await act(async () => {
+      fireEvent.change(input, { target: { files: [file] } });
+    });
+    await waitFor(() => {
+      expect(fetchDriveRecentsPageMock).toHaveBeenCalled();
+    });
+    expect(uploadDriveFileMock.mock.calls[0][0]).toBe(file);
+
+    await user.click(
+      screen.getByRole("button", { name: "recentsEmptyOpenWorkspace" }),
+    );
+    expect(screen.getByRole("tab", { name: "workspaceTab" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("a filtered empty Recents offers no upload", async () => {
+    const user = userEvent.setup();
+    renderDrive();
+    await screen.findByRole("button", { name: "uploadButton" });
+    const [searchInput] = screen.getAllByPlaceholderText("searchPlaceholder");
+    await user.type(searchInput, "nothing");
+    await screen.findByText("noMatchTitle");
+    expect(
+      screen.queryByRole("button", { name: "uploadButton" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("lists a recently changed table that opens its editor", async () => {
     fetchDriveRecentsPageMock.mockResolvedValue({
       items: [

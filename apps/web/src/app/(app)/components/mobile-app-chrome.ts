@@ -64,7 +64,7 @@ type SearchParamsLike =
   | null
   | undefined;
 
-export type MobileAppBackLabelKey = "backToChats" | "back";
+export type MobileAppBackLabelKey = "backToChats" | "back" | "goHome";
 
 export interface MobileAppBackTarget {
   href: string;
@@ -89,7 +89,8 @@ export function getAgentJobsPathAgentId(
 
 /**
  * Back target for main list routes and their nested pages.
- * Tab list roots → null; Agents root → home; non-tab hub roots → Chats; nested → list root.
+ * Tab list roots → null; Agents root → home; non-tab hub roots → Chats
+ * (Soko Bot setup opened from Home → home); nested → list root.
  * You page rows outside `/you/` (Account, Billing, Connections) → You.
  */
 export function resolveMobileAppBackTarget(
@@ -138,6 +139,13 @@ export function resolveMobileAppBackTarget(
     }
     if (MOBILE_TAB_LIST_PATH_SET.has(root)) {
       return null;
+    }
+    // Soko Bot setup opened from Home goes back to Home.
+    if (
+      root === "/personal-assistant" &&
+      searchParams?.get?.("from") === "home"
+    ) {
+      return { href: "/", labelKey: "goHome" };
     }
     return { href: CHAT_CHATS_LIST_PATH, labelKey: "backToChats" };
   }
