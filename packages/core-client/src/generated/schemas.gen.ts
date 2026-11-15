@@ -14668,6 +14668,18 @@ export const ChatEarlierThreadSchema = {
     ]
 } as const;
 
+export const VoiceTranscriptionSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string'
+        }
+    },
+    required: [
+        'text'
+    ]
+} as const;
+
 export const CreditCheckoutSessionSchema = {
     type: 'object',
     properties: {

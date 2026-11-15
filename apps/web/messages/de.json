@@ -9028,7 +9028,14 @@
         "voiceRecording": "Sprachnachricht wird aufgenommen",
         "voiceBlocked": "Erlaube den Mikrofonzugriff im Browser, um eine Sprachnachricht aufzunehmen.",
         "voiceFailed": "Aufnahme abgebrochen. Versuche es erneut.",
-        "voiceFileName": "Sprachnachricht {time}"
+        "voiceFileName": "Sprachnachricht {time}",
+        "dictate": "Diktieren",
+        "stopDictation": "Beenden und eintippen",
+        "cancelDictation": "Diktat verwerfen",
+        "dictating": "Diktat läuft",
+        "dictationBlocked": "Erlaube den Mikrofonzugriff im Browser, um zu diktieren.",
+        "dictationFailed": "Das ließ sich nicht in Text umwandeln. Versuche es erneut.",
+        "dictationEmpty": "Nichts verstanden. Versuche es erneut."
       },
       "Skills": {
         "add": "Skill hinzufügen",

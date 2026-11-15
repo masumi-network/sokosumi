@@ -9028,7 +9028,14 @@
         "voiceRecording": "Recording voice message",
         "voiceBlocked": "Allow microphone access in your browser to record a voice message.",
         "voiceFailed": "Recording stopped. Try again.",
-        "voiceFileName": "Voice message {time}"
+        "voiceFileName": "Voice message {time}",
+        "dictate": "Dictate",
+        "stopDictation": "Stop and type it",
+        "cancelDictation": "Discard dictation",
+        "dictating": "Dictating",
+        "dictationBlocked": "Allow microphone access in your browser to dictate.",
+        "dictationFailed": "Couldn't turn that into text. Try again.",
+        "dictationEmpty": "Didn't catch anything. Try again."
       },
       "Skills": {
         "add": "Add a skill",

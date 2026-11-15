@@ -16,14 +16,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RoomComposer, type RoomComposerAttachment } from "../room-composer";
 
 const uploadComposeAttachments = vi.hoisted(() => vi.fn());
+const transcribeVoiceRecording = vi.hoisted(() => vi.fn());
+const insertText = vi.hoisted(() => vi.fn());
+const toast = vi.hoisted(() =>
+  Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
+);
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({ dateTime: () => "" }),
 }));
 
-vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+vi.mock("sonner", () => ({ toast }));
+
+vi.mock("@/lib/services/voice-transcription.browser", () => ({
+  transcribeVoiceRecording,
 }));
 
 vi.mock("@/lib/utils/compose-upload.client", () => ({
@@ -40,7 +47,7 @@ vi.mock("@/components/chat/composer-wysiwyg-editor", () => ({
   }) => {
     useImperativeHandle(ref, () => ({
       focus: () => undefined,
-      insertText: () => undefined,
+      insertText,
       openMentions: () => undefined,
       applyFormat: () => undefined,
       insertLink: () => undefined,
@@ -84,15 +91,17 @@ vi.mock("@/components/chat/room-message-composer", () => ({
 
 vi.mock("@/components/chat/voice-message-recorder", () => ({
   VoiceMessageRecorder: ({
+    kind = "memo",
     onRecorded,
     onRecordingChange,
   }: {
+    kind?: string;
     onRecorded: (file: File) => void;
     onRecordingChange?: (recording: boolean) => void;
   }) => (
     <>
       <button type="button" onClick={() => onRecordingChange?.(true)}>
-        record
+        {`${kind} record`}
       </button>
       <button
         type="button"
@@ -101,7 +110,7 @@ vi.mock("@/components/chat/voice-message-recorder", () => ({
           onRecorded(new File(["voice"], "voice.weba", { type: "audio/webm" }));
         }}
       >
-        stop
+        {`${kind} stop`}
       </button>
     </>
   ),
@@ -122,8 +131,10 @@ vi.mock("@/components/drive/attachment-submenu", () => ({
 
 function Harness({
   onSubmit,
+  value = "hello",
 }: {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  value?: string;
 }) {
   const [attachments, setAttachments] = useState<RoomComposerAttachment[]>([]);
   return (
@@ -131,8 +142,11 @@ function Harness({
       <span data-testid="attachments">
         {attachments.map((item) => item.fileName).join(",")}
       </span>
+      <span data-testid="transcripts">
+        {attachments.map((item) => item.transcript ?? "").join(",")}
+      </span>
       <RoomComposer
-        value="hello"
+        value={value}
         onValueChange={() => undefined}
         mentions={{}}
         onSelectedKeysChange={() => undefined}
@@ -158,6 +172,11 @@ const uploaded = (files: File[]) =>
 describe("RoomComposer voice messages", () => {
   beforeEach(() => {
     uploadComposeAttachments.mockReset();
+    transcribeVoiceRecording.mockReset();
+    transcribeVoiceRecording.mockResolvedValue("");
+    insertText.mockReset();
+    toast.mockReset();
+    toast.error.mockReset();
   });
 
   it("attaches a recording that finishes during another upload once it ends", async () => {
@@ -182,7 +201,7 @@ describe("RoomComposer voice messages", () => {
       expect(uploadComposeAttachments).toHaveBeenCalledOnce(),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "stop" }));
+    fireEvent.click(screen.getByRole("button", { name: "memo stop" }));
     await act(async () => {});
     expect(uploadComposeAttachments).toHaveBeenCalledOnce();
 
@@ -203,17 +222,89 @@ describe("RoomComposer voice messages", () => {
     );
     render(<Harness onSubmit={onSubmit} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "record" }));
+    fireEvent.click(screen.getByRole("button", { name: "memo record" }));
     expect(screen.getByRole("button", { name: "send" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "enter" }));
     expect(onSubmit).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "stop" }));
+    fireEvent.click(screen.getByRole("button", { name: "memo stop" }));
     await waitFor(() =>
       expect(screen.getByTestId("attachments")).toHaveTextContent("voice.weba"),
     );
     expect(screen.getByRole("button", { name: "send" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "enter" }));
     expect(onSubmit).toHaveBeenCalledOnce();
+  });
+
+  it("attaches what was said to a voice message, holding Send until it is in", async () => {
+    let finishTranscript: (text: string) => void = () => undefined;
+    transcribeVoiceRecording.mockReturnValue(
+      new Promise((resolve) => {
+        finishTranscript = resolve;
+      }),
+    );
+    uploadComposeAttachments.mockImplementation(async (files: File[]) =>
+      uploaded(files),
+    );
+    render(<Harness onSubmit={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "memo stop" }));
+    await waitFor(() =>
+      expect(screen.getByTestId("attachments")).toHaveTextContent("voice.weba"),
+    );
+    expect(screen.getByRole("button", { name: "send" })).toBeDisabled();
+
+    await act(async () => finishTranscript("Ship it on Friday"));
+    expect(screen.getByTestId("transcripts")).toHaveTextContent(
+      "Ship it on Friday",
+    );
+    expect(screen.getByRole("button", { name: "send" })).toBeEnabled();
+  });
+
+  it("still attaches a voice message when transcription fails", async () => {
+    transcribeVoiceRecording.mockRejectedValue(new Error("502"));
+    uploadComposeAttachments.mockImplementation(async (files: File[]) =>
+      uploaded(files),
+    );
+    render(<Harness onSubmit={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "memo stop" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "send" })).toBeEnabled(),
+    );
+    expect(screen.getByTestId("attachments")).toHaveTextContent("voice.weba");
+    expect(screen.getByTestId("transcripts")).toHaveTextContent("");
+  });
+
+  it("types dictation into the message, after a space", async () => {
+    transcribeVoiceRecording.mockResolvedValue("move my 3pm to Friday");
+    render(<Harness onSubmit={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "dictation stop" }));
+    await waitFor(() =>
+      expect(insertText).toHaveBeenCalledWith(" move my 3pm to Friday"),
+    );
+    expect(uploadComposeAttachments).not.toHaveBeenCalled();
+  });
+
+  it("types dictation without a space into an empty message", async () => {
+    transcribeVoiceRecording.mockResolvedValue("hello there");
+    render(<Harness onSubmit={vi.fn()} value="" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "dictation stop" }));
+    await waitFor(() => expect(insertText).toHaveBeenCalledWith("hello there"));
+  });
+
+  it("says so when dictation hears nothing or fails", async () => {
+    render(<Harness onSubmit={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "dictation stop" }));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith("dictationEmpty"));
+
+    transcribeVoiceRecording.mockRejectedValue(new Error("502"));
+    fireEvent.click(screen.getByRole("button", { name: "dictation stop" }));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("dictationFailed"),
+    );
+    expect(insertText).not.toHaveBeenCalled();
   });
 });

@@ -4109,6 +4109,10 @@ export type ChatEarlierThread = {
     lastReplyId: string;
 };
 
+export type VoiceTranscription = {
+    text: string;
+};
+
 export type CreditCheckoutSession = {
     url: string;
 };
@@ -32095,6 +32099,94 @@ export type GetChatsThreadsEarlierResponses = {
 };
 
 export type GetChatsThreadsEarlierResponse = GetChatsThreadsEarlierResponses[keyof GetChatsThreadsEarlierResponses];
+
+export type TranscribeVoiceData = {
+    body: Blob | File;
+    path?: never;
+    query?: never;
+    url: '/chats/transcriptions';
+};
+
+export type TranscribeVoiceErrors = {
+    /**
+     * Invalid audio
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Recording too large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type TranscribeVoiceError = TranscribeVoiceErrors[keyof TranscribeVoiceErrors];
+
+export type TranscribeVoiceResponses = {
+    /**
+     * What was said
+     */
+    200: {
+        data: VoiceTranscription;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type TranscribeVoiceResponse = TranscribeVoiceResponses[keyof TranscribeVoiceResponses];
 
 export type CreateCreditCheckoutSessionData = {
     body?: CreateCreditCheckoutSession;
