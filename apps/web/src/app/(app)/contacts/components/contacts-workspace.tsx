@@ -88,6 +88,7 @@ import { ListSuggestions } from "./list-suggestions";
 import { MergeContactsDialog } from "./merge-contacts-dialog";
 import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
 import {
+  CONTACT_DUPLICATES_KEY,
   CONTACT_LISTS_KEY,
   DUPLICATE_GROUP_LIMIT,
   refreshContacts,
@@ -295,6 +296,17 @@ export function ContactsWorkspace({
       toast.error(coreErrorOf(error).message ?? t("errors.exportFailed"));
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function markNotSame(group: Contact[]) {
+    try {
+      await contactsService.notDuplicates(group.map((contact) => contact.id));
+      toast.success(t("notSame", { count: group.length }));
+    } catch (error) {
+      toast.error(coreErrorOf(error).message ?? t("errors.saveFailed"));
+    } finally {
+      await cache.invalidateQueries({ queryKey: CONTACT_DUPLICATES_KEY });
     }
   }
 
@@ -631,6 +643,7 @@ export function ContactsWorkspace({
           onMerge={(group) =>
             setDialog({ kind: "merge", contacts: group, fromDuplicates: true })
           }
+          onNotSame={(group) => void markNotSame(group)}
           onOpenContact={(id) => {
             setDialog(null);
             open(id);

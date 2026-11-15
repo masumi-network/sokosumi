@@ -138,6 +138,9 @@ model Contact {
   webLookups            ContactPeopleSearch[]
   search                ContactSearch?
 
+  notDuplicateOf ContactNotDuplicate[] @relation("NotDuplicateContact")
+  notDuplicateTo ContactNotDuplicate[] @relation("NotDuplicateOther")
+
   @@index([workspaceId, archivedAt, updatedAt, id])
   @@index([workspaceId, lastContactAt])
   @@index([workspaceId, name])
@@ -453,4 +456,21 @@ model ContactCompany {
   @@unique([workspaceId, key])
   @@index([workspaceId, enrichedAt])
   @@map("contact_company")
+}
+
+/// Two contacts someone said are different people: the duplicates check no
+/// longer pairs them. `contactId` is the smaller id of the pair.
+model ContactNotDuplicate {
+  workspaceId     String   @db.Uuid
+  contactId       String   @db.Uuid
+  contact         Contact  @relation("NotDuplicateContact", fields: [contactId], references: [id], onDelete: Cascade)
+  otherContactId  String   @db.Uuid
+  otherContact    Contact  @relation("NotDuplicateOther", fields: [otherContactId], references: [id], onDelete: Cascade)
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  @@id([contactId, otherContactId])
+  @@index([workspaceId])
+  @@index([otherContactId])
+  @@map("contact_not_duplicate")
 }

@@ -11091,11 +11091,13 @@
       "duplicatesDialog": {
         "title": "{count, plural, =0 {Keine möglichen Duplikate} =1 {1 mögliches Duplikat} other {# mögliche Duplikate}}",
         "titleMore": "{count}+ mögliche Duplikate",
-        "description": "Diese Einträge haben denselben Namen oder denselben Nachnamen und Anfangsbuchstaben bei derselben Firma. Führe die zusammen, die eine Person sind; öffne einen Eintrag, um ihn vorher zu prüfen.",
+        "description": "Diese Einträge haben denselben Namen oder denselben Nachnamen und Anfangsbuchstaben bei derselben Firma. Führe zusammen, was eine Person ist, oder markiere sie als verschieden; öffne einen Eintrag, um zuerst nachzusehen.",
         "merge": "Zusammenführen",
         "mergeGroup": "Einträge für {name} zusammenführen",
         "noDetails": "Keine E-Mail oder Firma",
-        "empty": "Nichts mehr zusammenzuführen."
+        "empty": "Nichts mehr zusammenzuführen.",
+        "notSame": "Nicht dieselbe Person",
+        "notSameGroup": "{name}: Das sind verschiedene Personen"
       },
       "deleteList": {
         "title": "{name} löschen?",
@@ -11488,7 +11490,8 @@
         "none": "Nicht gesetzt",
         "nobody": "Noch niemand",
         "more": "und {count} weitere"
-      }
+      },
+      "notSame": "{count, plural, =2 {Getrennt: Sie werden nicht mehr als Duplikat vorgeschlagen} other {Getrennt: Diese # werden nicht mehr als Duplikate vorgeschlagen}}"
     }
   },
   "Share": {
