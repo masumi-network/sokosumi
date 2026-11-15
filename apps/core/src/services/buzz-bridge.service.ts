@@ -1497,12 +1497,28 @@ export async function buzzCommunityForRoom(roomId: string) {
     return community?.provisionedAt ? community : null;
   }
   if (room.kind !== "direct" || room.userMembers.length === 0) return null;
-  return prisma.buzzCommunity.findFirst({
+  const shared = await prisma.buzzCommunity.findFirst({
     where: {
       provisionedAt: { not: null },
       AND: room.userMembers.map((member) => ({
         organization: { members: { some: { userId: member.userId } } },
       })),
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  if (shared) return shared;
+  // People of different organizations: the oldest community one of them is
+  // in, where the others join as guests (as in an external channel).
+  return prisma.buzzCommunity.findFirst({
+    where: {
+      provisionedAt: { not: null },
+      organization: {
+        members: {
+          some: {
+            userId: { in: room.userMembers.map((member) => member.userId) },
+          },
+        },
+      },
     },
     orderBy: { createdAt: "asc" },
   });
