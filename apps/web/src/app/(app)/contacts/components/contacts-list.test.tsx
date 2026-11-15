@@ -2,7 +2,7 @@ import type { Contact } from "@sokosumi/core-client";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ContactsList } from "./contacts-list";
-import { ContactsFilterBar } from "./contacts-toolbar";
+import { ContactsBulkBar, ContactsFilterBar } from "./contacts-toolbar";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
@@ -112,5 +112,25 @@ describe("ContactsFilterBar", () => {
       screen.getByRole("button", { name: "toolbar.clearFilter:columns.reply" }),
     );
     expect(onFilter).toHaveBeenCalledWith("replyState", null);
+  });
+});
+
+describe("ContactsBulkBar", () => {
+  it("copies the selected contacts' emails from the bulk bar", () => {
+    const onCopyEmails = vi.fn();
+    render(
+      <ContactsBulkBar
+        count={2}
+        lists={[]}
+        viewList={null}
+        onAddToList={vi.fn()}
+        onRemoveFromList={vi.fn()}
+        onCopyEmails={onCopyEmails}
+        onMerge={vi.fn()}
+        onClear={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "bulk.copyEmails" }));
+    expect(onCopyEmails).toHaveBeenCalledOnce();
   });
 });
