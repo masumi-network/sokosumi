@@ -67,6 +67,7 @@ import {
   type MentionRecordEntry,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea-utils";
+import { transcribeVoiceRecording } from "@/lib/services/voice-transcription.browser";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import {
@@ -97,6 +98,8 @@ import { RoomMessageMarkdown } from "./room-mention-markdown";
 
 export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
+  /** A voice message's words, added to the message on send. */
+  transcript?: string | null;
 }
 
 /** Shell drop zones + Quote/Thread callers reuse this surface. */
@@ -364,6 +367,7 @@ export function RoomComposer({
   // Settles when the running upload ends, so a voice recording can wait for it.
   const uploadIdleRef = useRef<Promise<void>>(Promise.resolve());
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkInitialText, setLinkInitialText] = useState("");
   const [linkInitialUrl, setLinkInitialUrl] = useState("");
@@ -484,14 +488,16 @@ export function RoomComposer({
   );
 
   const handleFilesSelected = useCallback(
-    async (files: FileList | File[] | null): Promise<boolean> => {
-      if (!allowAttachments) return false;
+    async (
+      files: FileList | File[] | null,
+    ): Promise<RoomComposerAttachment[]> => {
+      if (!allowAttachments) return [];
 
       const selectedFiles = Array.from(files ?? []).filter(
         (file) => file.size > 0,
       );
       if (selectedFiles.length === 0 || isUploadingFilesRef.current) {
-        return false;
+        return [];
       }
 
       isUploadingFilesRef.current = true;
@@ -530,10 +536,10 @@ export function RoomComposer({
         toast.success(
           tToolbar("uploaded", { count: uploadedAttachments.length }),
         );
-        return uploadedAttachments.length > 0;
+        return uploadedAttachments;
       } catch {
         // Error toast is handled by uploadComposeAttachments.
-        return false;
+        return [];
       } finally {
         isUploadingFilesRef.current = false;
         setIsUploadingFiles(false);
@@ -546,10 +552,43 @@ export function RoomComposer({
     [allowAttachments, onAttachmentsChange, roomId, tToolbar],
   );
 
+  // Send waits for the words, so the message carries what was said.
   async function attachVoiceRecording(file: File) {
-    // A paperclip, paste or Drive upload may still run; never drop the recording.
-    while (isUploadingFilesRef.current) await uploadIdleRef.current;
-    await handleFilesSelected([file]);
+    setIsTranscribing(true);
+    try {
+      const transcript = transcribeVoiceRecording(file).catch(() => null);
+      // A paperclip, paste or Drive upload may still run; never drop the recording.
+      while (isUploadingFilesRef.current) await uploadIdleRef.current;
+      const [attachment] = await handleFilesSelected([file]);
+      const text = await transcript;
+      if (attachment && text) {
+        onAttachmentsChange((current) =>
+          current.map((item) =>
+            item.url === attachment.url ? { ...item, transcript: text } : item,
+          ),
+        );
+      }
+    } finally {
+      setIsTranscribing(false);
+    }
+  }
+
+  async function dictate(file: File) {
+    setIsTranscribing(true);
+    try {
+      const text = await transcribeVoiceRecording(file);
+      if (!text) {
+        toast(tToolbar("dictationEmpty"));
+        return;
+      }
+      const joiner = value.length === 0 || /\s$/.test(value) ? "" : " ";
+      editorRef.current?.insertText(`${joiner}${text}`);
+      editorRef.current?.focus();
+    } catch {
+      toast.error(tToolbar("dictationFailed"));
+    } finally {
+      setIsTranscribing(false);
+    }
   }
 
   async function handleAttachOverflowAsMarkdown() {
@@ -559,7 +598,7 @@ export function RoomComposer({
     const uploaded = await handleFilesSelected([
       createRoomComposerOverflowMarkdownFile(value),
     ]);
-    if (uploaded) {
+    if (uploaded.length > 0) {
       onValueChange("");
     }
   }
@@ -652,6 +691,7 @@ export function RoomComposer({
         sendDisabled={
           isUploadingFiles ||
           isRecordingVoice ||
+          isTranscribing ||
           sendDisabled ||
           contentOverLimit
         }
@@ -768,7 +808,7 @@ export function RoomComposer({
                 </AttachmentSubmenu>
                 <VoiceMessageRecorder
                   buttonClassName={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-                  disabled={isUploadingFiles}
+                  disabled={isUploadingFiles || isTranscribing}
                   onRecordingChange={setIsRecordingVoice}
                   onRecorded={(file) => {
                     void attachVoiceRecording(file);
@@ -776,6 +816,16 @@ export function RoomComposer({
                 />
               </>
             ) : null}
+            <VoiceMessageRecorder
+              kind="dictation"
+              buttonClassName={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+              disabled={isTranscribing}
+              loading={isTranscribing}
+              onRecordingChange={setIsRecordingVoice}
+              onRecorded={(file) => {
+                void dictate(file);
+              }}
+            />
             <Button
               type="button"
               variant="ghost"
@@ -872,7 +922,8 @@ export function RoomComposer({
           placeholder={placeholder}
           onSubmitShortcut={() => {
             // Enter while the mic is open would send without the recording.
-            if (!isRecordingVoice) formRef.current?.requestSubmit();
+            if (!isRecordingVoice && !isTranscribing)
+              formRef.current?.requestSubmit();
           }}
           onLinkShortcut={openLinkDialog}
           onActiveFormatsChange={

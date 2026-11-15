@@ -1,6 +1,6 @@
 "use client";
 
-import { Mic, Square, X } from "lucide-react";
+import { AudioLines, Mic, Square, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -60,26 +60,54 @@ interface Recording {
   keep: boolean;
 }
 
+/** Labels per kind: a voice message, or speech typed into the composer. */
+const KIND_LABELS = {
+  memo: {
+    icon: AudioLines,
+    start: "recordVoice",
+    stop: "stopVoice",
+    cancel: "cancelVoice",
+    recording: "voiceRecording",
+    blocked: "voiceBlocked",
+  },
+  dictation: {
+    icon: Mic,
+    start: "dictate",
+    stop: "stopDictation",
+    cancel: "cancelDictation",
+    recording: "dictating",
+    blocked: "dictationBlocked",
+  },
+} as const;
+
 interface VoiceMessageRecorderProps {
+  kind?: keyof typeof KIND_LABELS;
   onRecorded: (file: File) => void;
   /** Tells the composer to hold Send while the mic is open. */
   onRecordingChange?: (recording: boolean) => void;
   disabled?: boolean;
+  /** Spins the button while the caller works on the last recording. */
+  loading?: boolean;
   buttonClassName?: string;
 }
 
 /**
- * Mic button for the room composer. Records with the browser's MediaRecorder
- * and hands the result to the caller as a File, which uploads it like any
- * other attachment. Hidden where the browser cannot record.
+ * Record button for the room composer. Records with the browser's
+ * MediaRecorder and hands the result to the caller as a File: a voice message
+ * uploads like any other attachment, dictation becomes text. Hidden where the
+ * browser cannot record.
  */
 export function VoiceMessageRecorder({
+  kind = "memo",
   onRecorded,
   onRecordingChange,
   disabled,
+  loading,
   buttonClassName,
 }: VoiceMessageRecorderProps) {
   const t = useTranslations("App.Channels.Toolbar");
+  const labels = KIND_LABELS[kind];
+  const Icon = labels.icon;
   const isClient = useIsClient();
   const recordingRef = useRef<Recording | null>(null);
   const startingRef = useRef(false);
@@ -132,7 +160,7 @@ export function VoiceMessageRecorder({
       startingRef.current = false;
       if (!unmountedRef.current) {
         setStarting(false);
-        toast.error(t("voiceBlocked"));
+        toast.error(t(labels.blocked));
       }
       return;
     }
@@ -190,12 +218,13 @@ export function VoiceMessageRecorder({
         variant="ghost"
         size="icon"
         className={buttonClassName}
-        title={t("recordVoice")}
-        aria-label={t("recordVoice")}
+        title={t(labels.start)}
+        aria-label={t(labels.start)}
         disabled={disabled || starting}
+        loading={loading}
         onClick={() => void start()}
       >
-        <Mic className="size-4" aria-hidden />
+        <Icon className="size-4" aria-hidden />
       </Button>
     );
   }
@@ -204,7 +233,7 @@ export function VoiceMessageRecorder({
     <div ref={containerRef} className="flex shrink-0 items-center gap-1">
       <span
         role="timer"
-        aria-label={t("voiceRecording")}
+        aria-label={t(labels.recording)}
         className="text-foreground flex items-center gap-1.5 px-1 text-sm tabular-nums"
       >
         <span
@@ -218,8 +247,8 @@ export function VoiceMessageRecorder({
         variant="ghost"
         size="icon"
         className={buttonClassName}
-        title={t("cancelVoice")}
-        aria-label={t("cancelVoice")}
+        title={t(labels.cancel)}
+        aria-label={t(labels.cancel)}
         onClick={() => finish(false)}
       >
         <X className="size-4" aria-hidden />
@@ -230,8 +259,8 @@ export function VoiceMessageRecorder({
         variant="ghost"
         size="icon"
         className={buttonClassName}
-        title={t("stopVoice")}
-        aria-label={t("stopVoice")}
+        title={t(labels.stop)}
+        aria-label={t(labels.stop)}
         onClick={() => finish(true)}
       >
         <Square className="size-4 fill-current" aria-hidden />

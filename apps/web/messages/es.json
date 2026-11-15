@@ -9028,7 +9028,14 @@
         "voiceRecording": "Grabando mensaje de voz",
         "voiceBlocked": "Permite el acceso al micrófono en tu navegador para grabar un mensaje de voz.",
         "voiceFailed": "La grabación se detuvo. Inténtalo de nuevo.",
-        "voiceFileName": "Mensaje de voz {time}"
+        "voiceFileName": "Mensaje de voz {time}",
+        "dictate": "Dictar",
+        "stopDictation": "Detener y escribirlo",
+        "cancelDictation": "Descartar dictado",
+        "dictating": "Dictando",
+        "dictationBlocked": "Permite el acceso al micrófono en tu navegador para dictar.",
+        "dictationFailed": "No se pudo convertir en texto. Inténtalo de nuevo.",
+        "dictationEmpty": "No se entendió nada. Inténtalo de nuevo."
       },
       "Skills": {
         "add": "Añadir una skill",
