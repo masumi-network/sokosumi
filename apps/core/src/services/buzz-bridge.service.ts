@@ -51,7 +51,10 @@ import {
   relayHttpOrigin,
   signEvent,
 } from "@/lib/buzz/relay-client";
-import { deleteDirectMessage } from "@/lib/buzz/relay-database";
+import {
+  deleteDirectMessage,
+  deleteEventInRelay,
+} from "@/lib/buzz/relay-database";
 import { checkpoint } from "@/lib/buzz/run-scope";
 import { openSecret, sealSecret } from "@/lib/buzz/secret-box";
 import {
@@ -1993,6 +1996,19 @@ function resignedLinkData(fresh: PendingEvent) {
 }
 
 /** Brings one message's Buzz copy (and its reactions) up to date. */
+/** The keys of the personal agents in a Direct, other than its author. */
+async function personalAgentKeysIn(roomId: string, author: BuzzIdentity) {
+  const agents = await prisma.buzzIdentity.findMany({
+    where: {
+      encryptedSecretKey: null,
+      coworker: { chatRoomMembers: { some: { roomId } } },
+      id: { not: author.id },
+    },
+    select: { pubkey: true },
+  });
+  return agents.map((agent) => agent.pubkey);
+}
+
 /** Messages this close before their channel was made go out live. */
 const LIVE_BEFORE_CHANNEL_MS = 60_000;
 
@@ -2200,7 +2216,14 @@ export async function reconcileMessage(
             channelId: channel.channelId,
             content: await buzzContentOf(message.content),
             threadRootEventId,
-            mentionPubkeys: await mentionPubkeysOf(message),
+            mentionPubkeys: [
+              ...(await mentionPubkeysOf(message)),
+              // A personal agent answers an untagged message only in a DM of
+              // two keys; a linked person brings a third, so it is tagged.
+              ...(isDirect(channel)
+                ? await personalAgentKeysIn(message.roomId, authorIdentity)
+                : []),
+            ],
             messageId: message.id,
           }),
         ),
@@ -3785,24 +3808,28 @@ function deleteGroup(
 }
 
 /**
- * Takes down a message someone wrote with their own Buzz app, which only an
- * admin of its channel (Sokosumi, or a DM's opener) may delete for them.
+ * Takes down a message someone wrote with their own Buzz app: in a channel
+ * as its owner (Sokosumi's operator), in a DM (which has no admins) in the
+ * relay's database.
  */
 async function adminDeleteOnBuzz(
   relayUrl: string,
   channel: { channelId: string; membersHash: string | null },
   eventId: string,
 ) {
-  const config = requireConfig();
+  // A DM has no admins: taken down in the relay's database.
+  if (isDirect(channel)) {
+    checkpoint();
+    if (await deleteEventInRelay(new URL(relayUrl).host, eventId)) return;
+    throw new Error(
+      "A message in a Buzz DM needs the relay's database to delete",
+    );
+  }
+  // A channel's owner, which Sokosumi's operator is.
   await publishWithFirstAllowed(
     relayUrl,
     channel.channelId,
-    [
-      config.operatorSecretKey,
-      ...(isDirect(channel)
-        ? await directMessageSigners(relayUrl, channel.channelId)
-        : []),
-    ],
+    [requireConfig().operatorSecretKey],
     {
       kind: BUZZ_KIND.adminDelete,
       content: "",

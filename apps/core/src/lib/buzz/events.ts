@@ -268,6 +268,26 @@ export type InboundChange =
   | { type: "members"; added: boolean; pubkeys: string[] }
   | { type: "ignore" };
 
+/**
+ * A rich message (kind 40002) may carry its text in a JSON envelope,
+ * `{"content": "…"}`, which Buzz unwraps to show; anything else is its text.
+ */
+export function richMessageText(content: string): string {
+  try {
+    const parsed: unknown = JSON.parse(content);
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      typeof (parsed as { content?: unknown }).content === "string"
+    ) {
+      return (parsed as { content: string }).content;
+    }
+  } catch {
+    // plain text
+  }
+  return content;
+}
+
 export function readInbound(event: Event): InboundChange {
   switch (event.kind) {
     case BUZZ_KIND.message:
@@ -275,7 +295,10 @@ export function readInbound(event: Event): InboundChange {
       return {
         type: "message",
         replyToEventId: replyTarget(event),
-        content: event.content,
+        content:
+          event.kind === BUZZ_KIND.richMessage
+            ? richMessageText(event.content)
+            : event.content,
         mentionPubkeys: [...new Set(tagValues(event, "p"))],
       };
     case BUZZ_KIND.edit: {

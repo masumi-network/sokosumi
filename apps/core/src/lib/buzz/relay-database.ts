@@ -116,3 +116,23 @@ export async function deleteDirectMessage(
     client.release();
   }
 }
+
+/**
+ * Deletes one event in a DM, which no key may take down through the relay
+ * (a DM has no admins; only its author may). True when done; null without
+ * the relay's database.
+ */
+export async function deleteEventInRelay(
+  host: string,
+  eventId: string,
+): Promise<boolean | null> {
+  const database = relayDatabase();
+  if (!database) return null;
+  await database.query(
+    `UPDATE events SET deleted_at = now()
+      WHERE id = $2 AND deleted_at IS NULL
+        AND community_id = (SELECT id FROM communities WHERE lower(host) = lower($1))`,
+    [host, Buffer.from(eventId, "hex")],
+  );
+  return true;
+}

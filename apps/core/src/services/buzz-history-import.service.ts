@@ -42,6 +42,7 @@ type Log = (message: string, extra?: unknown) => void;
 type RelayClient = pg.PoolClient;
 
 const BATCH = 200;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const at = (seconds: number) => new Date(seconds * 1000);
 const hex = (value: string) => Buffer.from(value, "hex");
@@ -481,22 +482,30 @@ async function deleteUnlinkedCopies(
   communityId: string,
   input: { channelId: string; shouldContinue?: () => boolean },
 ): Promise<boolean> {
+  // Tags read here, not by the database: anyone in the channel can write a
+  // malformed one, which must be skipped, never fail the import.
   const copies = await client.query<{
     id: Buffer;
     pubkey: Buffer;
-    message_id: string | null;
+    tags: unknown;
   }>(
-    `SELECT id, pubkey,
-            jsonb_path_query_first(tags, 'strict $[*] ? (@[0] == "sokosumi")[1]') #>> '{}' AS message_id
-       FROM events
+    `SELECT id, pubkey, tags FROM events
       WHERE community_id = $1 AND channel_id = $2 AND kind = 9
         AND deleted_at IS NULL AND tags @> '[["sokosumi"]]'::jsonb`,
     [communityId, input.channelId],
   );
   const byMessage = new Map(
-    copies.rows.flatMap((row) =>
-      row.message_id ? [[row.message_id, row] as const] : [],
-    ),
+    copies.rows.flatMap((row) => {
+      const tag = Array.isArray(row.tags)
+        ? (row.tags as unknown[]).find(
+            (entry): entry is [string, string] =>
+              Array.isArray(entry) &&
+              entry[0] === "sokosumi" &&
+              typeof entry[1] === "string",
+          )
+        : undefined;
+      return tag && UUID.test(tag[1]) ? [[tag[1], row] as const] : [];
+    }),
   );
   if (byMessage.size === 0) return true;
   const orphans = await prisma.chatRoomMessage.findMany({

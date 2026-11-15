@@ -8,6 +8,7 @@ import {
   openedDirectMessageChannelId,
   readableContent,
   readInbound,
+  richMessageText,
 } from "./events";
 
 const CHANNEL = "6f7c1b2e-0000-4000-8000-000000000001";
@@ -109,5 +110,15 @@ describe("openedDirectMessageChannelId", () => {
       ),
     ).toBe("abc");
     expect(openedDirectMessageChannelId("duplicate: already")).toBeNull();
+  });
+});
+
+describe("richMessageText", () => {
+  it("unwraps a rich message's JSON envelope and keeps anything else as text", () => {
+    expect(richMessageText('{"content":"**Done**: tests pass"}')).toBe(
+      "**Done**: tests pass",
+    );
+    expect(richMessageText("plain words")).toBe("plain words");
+    expect(richMessageText('{"other":1}')).toBe('{"other":1}');
   });
 });
