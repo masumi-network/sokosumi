@@ -34,7 +34,7 @@ describe("runLeasedBuzzBridge", () => {
       runLeasedBuzzBridge({ core, log, until: Date.now(), waitMs: 5_000 }),
     ).resolves.toBe(true);
     expect(lock.acquireLock).toHaveBeenCalledTimes(2);
-    expect(lock.acquireLock).toHaveBeenCalledWith("buzz-bridge", 60_000);
+    expect(lock.acquireLock).toHaveBeenCalledWith("buzz-bridge", 90_000);
     expect(log).toHaveBeenCalledWith(expect.stringMatching(/^running as/));
     expect(lock.releaseLock).toHaveBeenCalledWith("buzz-bridge", "me");
   });

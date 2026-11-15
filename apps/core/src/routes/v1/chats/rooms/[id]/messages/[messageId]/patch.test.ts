@@ -1,9 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  BUZZ_BRIDGE_REPLAY_HEADER,
+  bridgeReplayToken,
+} from "@/lib/buzz/bridge-replay";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
 import mountPatchChatRoomMessage from "./patch";
 
+vi.mock("@/config/env", async (importActual) => ({
+  ...(await importActual<typeof import("@/config/env")>()),
+  getEnv: () => ({ BUZZ_KEY_ENCRYPTION_SECRET: "s".repeat(32) }),
+}));
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
   const { stubAuthMiddleware } = await import(
@@ -145,11 +153,15 @@ const mappedMessage = {
   replies: [],
 };
 
-async function patchMessage(body: unknown, auth = userAuthContext) {
+async function patchMessage(
+  body: unknown,
+  auth = userAuthContext,
+  headers: Record<string, string> = {},
+) {
   const app = createApp(auth);
   return app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(body),
   });
 }
@@ -397,9 +409,16 @@ describe("PATCH /chats/rooms/:id/messages/:messageId", () => {
     );
     expect(messageUpdateMock).not.toHaveBeenCalled();
 
+    // An ordinary API key is refused like the app.
+    const fromKey = await patchMessage(
+      { content: "hello fixed" },
+      { ...userAuthContext, authenticationMethod: "api_key" },
+    );
+    expect(fromKey.status).toBe(403);
     const fromBridge = await patchMessage(
       { content: "hello fixed" },
       { ...userAuthContext, authenticationMethod: "api_key" },
+      { [BUZZ_BRIDGE_REPLAY_HEADER]: bridgeReplayToken(USER_ID) ?? "" },
     );
     expect(fromBridge.status).toBe(200);
   });

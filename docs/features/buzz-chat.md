@@ -16,7 +16,7 @@ Buzz app ──wss──▶ relay (Railway)  ◀── operator API, events ─�
   created by Core through the relay's operator API. The label is the slug, or
   a DNS-safe form of it plus part of the organization id.
 - **Bridge**: `GET /sync/buzz` (cron, every minute) runs the bridge for 270 s
-  under a 60 s lease renewed every 15 s, so one run is active and the next
+  under a 90 s lease renewed every 15 s (a run stops once a renewal is 45 s overdue), so one run is active and the next
   takes over within about a second. Inbound events missed in between are
   caught up from each community's saved cursor.
 - **History**: when a room first reaches Buzz, its earlier messages are
@@ -56,7 +56,7 @@ header, which Railway passes through unchanged.
 | `BUZZ_RATE_LIMIT_HUMAN_API_CALLS_PER_MIN`, `BUZZ_RATE_LIMIT_HUMAN_MESSAGES_PER_MIN` | `6000` each: the operator key signs every community's channel and membership changes, and the defaults (300 and 60 per key) would throttle the first sync |
 | `DATABASE_URL`, `REDIS_URL`                                                         | Railway's                                                                                                                                                 |
 | `BUZZ_S3_ENDPOINT`, `BUZZ_S3_BUCKET`, `BUZZ_S3_ACCESS_KEY`, `BUZZ_S3_SECRET_KEY`    | the bucket                                                                                                                                                |
-| `BUZZ_MEDIA_BASE_URL`, `BUZZ_MEDIA_SERVER_DOMAIN`                                   | `https://chat.sokosumi.com/media`, `chat.sokosumi.com`                                                                                                    |
+| `BUZZ_MEDIA_SERVER_DOMAIN`                                                          | `chat.sokosumi.com`; the relay serves each community's files on that community's own host, which is where the bridge copies them from                     |
 | `BUZZ_GIT_HOOK_HMAC_SECRET`                                                         | 32 random bytes (hex)                                                                                                                                     |
 | `BUZZ_BIND_ADDR`, `BUZZ_HEALTH_PORT`                                                | `0.0.0.0:$PORT`, `8080` (health: `/_readiness`)                                                                                                           |
 

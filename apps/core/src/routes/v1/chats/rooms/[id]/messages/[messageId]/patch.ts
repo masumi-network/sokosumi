@@ -6,6 +6,10 @@ import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-real
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import {
+  BUZZ_BRIDGE_REPLAY_HEADER,
+  isBridgeReplay,
+} from "@/lib/buzz/bridge-replay";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -85,7 +89,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ? null
       : requireUserAuthContext(c.var.authContext);
     const userId = userContext?.userId ?? null;
-    const authenticationMethod = userContext?.authenticationMethod;
     const { id, messageId } = c.req.valid("param");
     const body = c.req.valid("json");
 
@@ -124,11 +127,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       // Written in the person's own Buzz app: only that app can change it on
-      // Buzz, so editing it here would make the two disagree. The bridge
-      // replaying the app's own edits signs in with an API key.
+      // Buzz, so editing it here would make the two disagree. Only the
+      // bridge, replaying the app's own edits, may.
       if (
         userId &&
-        authenticationMethod !== "api_key" &&
+        !isBridgeReplay(userId, c.req.header(BUZZ_BRIDGE_REPLAY_HEADER)) &&
         (await tx.buzzMessageLink.count({
           where: { messageId: existing.id, signerPubkey: { not: null } },
         })) > 0

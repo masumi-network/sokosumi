@@ -104,6 +104,9 @@ model BuzzChannel {
   /// When the room's messages from before its organization moved to Buzz
   /// were imported into the relay. Null: not yet.
   historyImportedAt DateTime?
+  /// A Direct's earlier DM, retired when its people's keys changed: kept on
+  /// Buzz with its messages until the room itself is deleted.
+  retiredFromRoomId String?   @db.Uuid
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 

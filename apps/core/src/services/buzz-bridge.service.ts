@@ -14,6 +14,10 @@ import {
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import {
+  BUZZ_BRIDGE_REPLAY_HEADER,
+  bridgeReplayToken,
+} from "@/lib/buzz/bridge-replay";
+import {
   BUZZ_AGENT_URL_PREFIX,
   BUZZ_KIND,
   channelIdOf,
@@ -1503,7 +1507,10 @@ async function retireDirectMessage(
       where: { messageId: { in: linked.map((link) => link.messageId) } },
       data: { pendingEvent: PrismaNull.DbNull },
     }),
-    prisma.buzzChannel.delete({ where: { id: channel.id } }),
+    prisma.buzzChannel.update({
+      where: { id: channel.id },
+      data: { roomId: null, retiredFromRoomId: roomId },
+    }),
   ]);
 }
 
@@ -2894,6 +2901,7 @@ export type CoreRequest = (input: {
   timeoutMs?: number;
   /** Answer as soon as a streamed response has started. */
   streamed?: boolean;
+  headers?: Record<string, string>;
 }) => Promise<{
   status: number;
   body: unknown;
@@ -2991,9 +2999,11 @@ async function sendAs(
   identity: BuzzIdentity,
   request: Omit<Parameters<CoreRequest>[0], "apiKey">,
 ) {
+  const replay = identity.userId ? bridgeReplayToken(identity.userId) : null;
   const response = await core({
     ...request,
     apiKey: await bridgeApiKeyFor(identity),
+    ...(replay ? { headers: { [BUZZ_BRIDGE_REPLAY_HEADER]: replay } } : {}),
   });
   // The key is gone (revoked, or deleted with the account's keys): the next
   // try mints a new one.
@@ -3566,8 +3576,33 @@ export async function linkedBuzzRooms() {
 export async function deleteChannelsOfDeletedRooms(
   shouldContinue: () => boolean = () => true,
 ) {
+  // Gone with its room, or a retired DM whose room is gone now too.
+  const retired = await prisma.buzzChannel.findMany({
+    where: { roomId: null, retiredFromRoomId: { not: null } },
+    select: { retiredFromRoomId: true },
+  });
+  const rooms = new Set(
+    (
+      await prisma.chatRoom.findMany({
+        where: {
+          id: {
+            in: retired.flatMap((channel) =>
+              channel.retiredFromRoomId ? [channel.retiredFromRoomId] : [],
+            ),
+          },
+        },
+        select: { id: true },
+      })
+    ).map((room) => room.id),
+  );
   const orphaned = await prisma.buzzChannel.findMany({
-    where: { roomId: null },
+    where: {
+      roomId: null,
+      OR: [
+        { retiredFromRoomId: null },
+        { retiredFromRoomId: { notIn: [...rooms] } },
+      ],
+    },
     orderBy: { updatedAt: "asc" },
     take: 50,
     select: {
@@ -3584,8 +3619,13 @@ export async function deleteChannelsOfDeletedRooms(
     try {
       // A DM is its opener's, not the operator's: one of its people whose key
       // Sokosumi keeps deletes it.
+      // The operator last: the community's owner, should none of its people
+      // be left (an account deleted along with its key).
       const signers = isDirect(channel)
-        ? await directMessageSigners(relayUrl, channel.channelId)
+        ? [
+            ...(await directMessageSigners(relayUrl, channel.channelId)),
+            requireConfig().operatorSecretKey,
+          ]
         : [requireConfig().operatorSecretKey];
       await deleteGroup(relayUrl, channel.channelId, signers);
       await prisma.buzzChannel.delete({ where: { id: channel.id } });
@@ -3695,20 +3735,20 @@ export async function unlinkedBuzzRooms(
   /** Rooms that just failed, so the next ones get their turn. */
   skip: string[] = [],
 ) {
-  return prisma.chatRoom.findMany({
-    where: {
-      id: { notIn: skip },
-      archivedAt: null,
-      buzzChannel: null,
-      OR: [
-        { organization: { buzzCommunity: { provisionedAt: { not: null } } } },
-        // A Direct belongs to no organization: it goes to a community all its
-        // people share, when there is one.
-        { kind: "direct", organizationId: null },
-      ],
-    },
-    select: { id: true },
-    orderBy: { updatedAt: "desc" },
-    take: limit,
-  });
+  // In no fixed order: Directs whose people share no community yet stay
+  // unlinked, and must never keep the rest from their turn.
+  return prisma.$queryRaw<{ id: string }[]>`
+    SELECT r.id::text AS id
+      FROM chat_room r
+      LEFT JOIN buzz_channel c ON c."roomId" = r.id
+      LEFT JOIN buzz_community bc ON bc."organizationId" = r."organizationId"
+     WHERE c.id IS NULL
+       AND r."archivedAt" IS NULL
+       AND NOT (r.id::text = ANY(${skip}))
+       AND (
+         bc."provisionedAt" IS NOT NULL
+         OR (r.kind = 'direct' AND r."organizationId" IS NULL)
+       )
+     ORDER BY random()
+     LIMIT ${limit}`;
 }

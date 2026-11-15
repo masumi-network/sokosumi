@@ -47,7 +47,7 @@ const AGENT_SWEEP_KEY = "buzz-agent-sweep";
 const OPEN_CONCURRENCY = 10;
 // A run that stops renewing (its function was killed) frees the lease this
 // soon, so the next run takes over within a minute.
-const LEASE_TIMEOUT_MS = 60_000;
+const LEASE_TIMEOUT_MS = 90_000;
 const LEASE_RENEW_MS = 15_000;
 
 /**
@@ -99,11 +99,12 @@ export async function runLeasedBuzzBridge(options: {
     await runBuzzBridge({
       core: options.core,
       log: options.log,
-      // Stops well before a lease it could not renew runs out, so another
-      // run never takes over while this one still writes.
+      // Stops when a lease it could not renew is half gone: what is in
+      // flight then (a Core call ends within 30 s, a relay one within 15 s)
+      // ends before another run could take over.
       shouldContinue: () =>
         holding &&
-        Date.now() - renewedAt < LEASE_TIMEOUT_MS - LEASE_RENEW_MS &&
+        Date.now() - renewedAt < LEASE_TIMEOUT_MS / 2 &&
         Date.now() < options.until &&
         options.shouldContinue?.() !== false,
     });
@@ -117,10 +118,19 @@ export async function runLeasedBuzzBridge(options: {
 }
 
 export function coreRequester(baseUrl: string): CoreRequest {
-  return async ({ method, path, apiKey, body, timeoutMs, streamed }) => {
+  return async ({
+    method,
+    path,
+    apiKey,
+    body,
+    timeoutMs,
+    streamed,
+    headers,
+  }) => {
     const response = await fetch(new URL(path, baseUrl), {
       method,
       headers: {
+        ...headers,
         authorization: `Bearer ${apiKey}`,
         ...(body === undefined ? {} : { "content-type": "application/json" }),
       },

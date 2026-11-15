@@ -404,19 +404,21 @@ describe("applyInboundEvent", () => {
         create: expect.objectContaining({ eventId: reply.id }),
       }),
     );
-    expect(core).toHaveBeenCalledWith({
-      method: "POST",
-      path: "/v1/chats/rooms/room/messages",
-      apiKey: "bob-api-key",
-      body: {
-        content: "what is 2 + 2?",
-        clientMessageId: `buzz:${reply.id}`,
-        parentMessageId: "root-1",
-        mentionedUserIds: [],
-        mentionedSokoBotIds: ["bot-1"],
-        mentionedCoworkerIds: [],
-      },
-    });
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        path: "/v1/chats/rooms/room/messages",
+        apiKey: "bob-api-key",
+        body: {
+          content: "what is 2 + 2?",
+          clientMessageId: `buzz:${reply.id}`,
+          parentMessageId: "root-1",
+          mentionedUserIds: [],
+          mentionedSokoBotIds: ["bot-1"],
+          mentionedCoworkerIds: [],
+        },
+      }),
+    );
   });
 
   it("takes no edit signed with the key Sokosumi keeps for a sign of being on Buzz", async () => {
@@ -1388,12 +1390,14 @@ describe("personal agents", () => {
         where: expect.objectContaining({ ownerIdentityId: "identity-bob" }),
       }),
     );
-    expect(core).toHaveBeenCalledWith({
-      method: "POST",
-      path: "/v1/chats/rooms/room/members",
-      apiKey: "bob-api-key",
-      body: { coworkerIds: ["cw-agent"] },
-    });
+    expect(core).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        path: "/v1/chats/rooms/room/members",
+        apiKey: "bob-api-key",
+        body: { coworkerIds: ["cw-agent"] },
+      }),
+    );
   });
 
   it("puts Buzz back when Core refuses an agent invite, and only once Core has answered", async () => {
