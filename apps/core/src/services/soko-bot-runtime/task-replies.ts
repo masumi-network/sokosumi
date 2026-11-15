@@ -217,6 +217,7 @@ export async function replyToTask(
         status: true,
         assigneeId: true,
         assigneeSokoBotId: true,
+        assigneeUserId: true,
       },
     });
     if (!task)
@@ -279,7 +280,7 @@ export async function replyToTask(
           `Task is ${task.status}; only ${resumable.join(", ")} can be set READY. To leave a comment without changing the status, omit \`status\`.`,
         );
       }
-      if (!task.assigneeId && !task.assigneeSokoBotId) {
+      if (!task.assigneeId && !task.assigneeSokoBotId && !task.assigneeUserId) {
         throw new SokoBotRuntimeValidationError(
           "Task has no assignee; use assign_task instead",
         );
