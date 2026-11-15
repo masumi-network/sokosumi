@@ -53,4 +53,16 @@ describe("getColumnListQueryOptions", () => {
       statuses: [TaskStatus.INPUT_REQUIRED],
     });
   });
+
+  it("keeps only waiting columns under Stuck", () => {
+    expect(getColumnListQueryOptions("backlog", null, true)).toEqual({
+      statuses: [],
+    });
+    expect(getColumnListQueryOptions("done", null, true)).toEqual({
+      statuses: [],
+    });
+    expect(getColumnListQueryOptions("todo", null, true)).toEqual({
+      statuses: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP],
+    });
+  });
 });

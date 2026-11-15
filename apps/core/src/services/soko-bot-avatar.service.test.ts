@@ -7,22 +7,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * in-memory store, the image model and blob store are replaced.
  */
 
-const { store, generateTextMock, getEnvMock, putMock } = vi.hoisted(() => ({
+const { store, drawMock, getEnvMock, putMock } = vi.hoisted(() => ({
   store: {} as ReturnType<
     typeof import("@/test-fixtures/soko-bot-avatar-store").createSokoBotAvatarStore
   >,
-  generateTextMock: vi.fn(),
+  drawMock: vi.fn(),
   getEnvMock: vi.fn(),
   putMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@vercel/blob", () => ({ put: putMock }));
-// The image model: one AI Gateway `generateText` call per image.
-vi.mock("ai", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("ai")>()),
-  generateText: generateTextMock,
+// The image model: one fal call per image. `drawMock` stands in for the POST
+// and the download answers with `IMAGE_BYTES`.
+vi.mock("@/lib/image-studio/fal-client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/image-studio/fal-client")>()),
+  downloadMedia: async () => ({
+    bytes: new Uint8Array(await imageBytes()),
+    contentType: "image/png",
+  }),
 }));
+vi.stubGlobal("fetch", async (...args: unknown[]) => {
+  await drawMock(...args);
+  return Response.json({
+    images: [{ url: "https://v3.fal.media/files/avatar.png" }],
+  });
+});
 vi.mock("@/lib/db/prisma", async () => {
   const { createSokoBotAvatarStore } = await import(
     "@/test-fixtures/soko-bot-avatar-store"
@@ -43,23 +53,24 @@ import {
   topUpAvailableAvatars,
 } from "@/services/soko-bot-avatar.service";
 
-const IMAGE_BYTES = await sharp({
-  create: { width: 8, height: 8, channels: 3, background: "#9aa88c" },
-})
-  .png()
-  .toBuffer();
+const imageBytes = () =>
+  sharp({
+    create: { width: 8, height: 8, channels: 3, background: "#9aa88c" },
+  })
+    .png()
+    .toBuffer();
 
-/** What the image model answers: one PNG among its files. */
+/** What the image call answers; the stub turns it into one fal image. */
 function imageAnswer() {
-  return { files: [{ mediaType: "image/png", uint8Array: IMAGE_BYTES }] };
+  return {};
 }
 
 /** How many images were bought. */
 function billed() {
-  return generateTextMock.mock.calls.length;
+  return drawMock.mock.calls.length;
 }
 
-const ENV = { AI_GATEWAY_API_KEY: "gw-test", BLOB_READ_WRITE_TOKEN: "token" };
+const ENV = { FAL_KEY: "fal-test", BLOB_READ_WRITE_TOKEN: "token" };
 const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 
@@ -89,7 +100,7 @@ beforeEach(() => {
   store.reset();
   vi.clearAllMocks();
   getEnvMock.mockReturnValue(ENV);
-  generateTextMock.mockResolvedValue(imageAnswer());
+  drawMock.mockResolvedValue(imageAnswer());
   putMock.mockImplementation(async (pathname: string) => ({
     url: `https://blob.test/${pathname}`,
   }));
@@ -100,7 +111,7 @@ afterEach(() => {
 });
 
 describe("Soko Bot avatar pool", () => {
-  it("serves the pool and buys nothing without a gateway key or blob store", async () => {
+  it("serves the pool and buys nothing without a fal key or blob store", async () => {
     getEnvMock.mockReturnValue({});
     const stocked = store.seed();
 
@@ -137,7 +148,7 @@ describe("Soko Bot avatar pool", () => {
   });
 
   it("hands back the slots it never spent on, and keeps the one it may have paid for", async () => {
-    generateTextMock.mockRejectedValue(new Error("gateway is down"));
+    drawMock.mockRejectedValue(new Error("fal is down"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(generateAvatars(3, "user-1")).resolves.toBe(0);
@@ -153,7 +164,7 @@ describe("Soko Bot avatar pool", () => {
     vi.spyOn(store.client.sokoBotAvatar, "deleteMany").mockRejectedValue(
       new Error("pool exhausted"),
     );
-    generateTextMock.mockRejectedValue(new Error("gateway is down"));
+    drawMock.mockRejectedValue(new Error("fal is down"));
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
 
@@ -188,7 +199,7 @@ describe("Soko Bot avatar pool", () => {
       }
     });
     let seenWhileBuying: { reserved: number; offered: number } | undefined;
-    generateTextMock.mockImplementation(async () => {
+    drawMock.mockImplementation(async () => {
       expect(insideTransaction).toBe(false);
       seenWhileBuying = {
         reserved: store.avatars.filter((row) => row.reservedAt).length,
@@ -395,7 +406,7 @@ describe("restyling avatars from before the brand palette", () => {
 
   it("leaves a bot on its old avatar when its draw fails", async () => {
     const old = seedOld("bot-1", "fox");
-    generateTextMock.mockRejectedValueOnce(new Error("model down"));
+    drawMock.mockRejectedValueOnce(new Error("model down"));
 
     await expect(restyleAvatars(5)).resolves.toEqual({
       restyled: 0,
@@ -407,7 +418,7 @@ describe("restyling avatars from before the brand palette", () => {
     );
   });
 
-  it("buys nothing without a gateway key or blob store", async () => {
+  it("buys nothing without a fal key or blob store", async () => {
     seedOld("bot-1", "fox");
     getEnvMock.mockReturnValue({});
 

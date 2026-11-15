@@ -26,6 +26,7 @@ import {
 import { toast } from "sonner";
 import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
 import { AdAccountsSection } from "@/app/personal-assistant/components/ad-accounts-section";
+import { formatTaskScheduleTime } from "@/app/tasks/utils/task-schedule-view";
 import { GALLERY_SECTION_HEADLINE_CLASS } from "@/components/agents/gallery-page-classes";
 import { CmoProjectBanner } from "@/components/cmo-project-banner";
 import Markdown from "@/components/markdown";
@@ -138,6 +139,13 @@ function ScheduleRow({
         (entry) => entry.key === schedule.systemKey,
       )
     : undefined;
+  // Next run reads on the schedule's own clock, as its rule above does; the
+  // viewer's clock follows only when it reads differently.
+  const nextRun = formatTaskScheduleTime(
+    new Date(schedule.nextRunAt),
+    schedule.timezone,
+    format,
+  );
   // A schedule being deleted leaves the list at once and comes back when
   // the delete fails.
   const [removed, setRemoved] = useState(false);
@@ -186,10 +194,11 @@ function ScheduleRow({
       <p className="text-muted-foreground text-xs">
         {t("Schedules.nextRun")}{" "}
         <span className="text-foreground tabular-nums">
-          {schedule.enabled
-            ? format.dateTime(new Date(schedule.nextRunAt), "dateTimeShort")
-            : t("Schedules.disabled")}
+          {schedule.enabled ? nextRun.schedule : t("Schedules.disabled")}
         </span>
+        {schedule.enabled && nextRun.local ? (
+          <> {t("Schedules.yourTime", { datetime: nextRun.local })}</>
+        ) : null}
         {schedule.consecutiveFailures > 0 ? (
           <span className="text-semantic-destructive ml-3 tabular-nums">
             {t("Schedules.failures")} {schedule.consecutiveFailures}

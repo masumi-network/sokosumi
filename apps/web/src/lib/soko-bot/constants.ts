@@ -45,6 +45,9 @@ export const SOKO_BOT_BUSY_ERROR_CODE = "SOKO_BOT_BUSY";
 export const SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE =
   "SOKO_BOT_AVATAR_RATE_LIMITED";
 
+/** Action error code when Core answers 409 to "show others": nothing was drawn, so retrying is free. */
+export const SOKO_BOT_AVATAR_DRAW_BUSY_ERROR_CODE = "SOKO_BOT_AVATAR_DRAW_BUSY";
+
 /** Action error code when Core answers 429: the person's daily animation redos are spent. */
 export const SOKO_BOT_AVATAR_REDO_LIMIT_ERROR_CODE =
   "SOKO_BOT_AVATAR_REDO_LIMIT";

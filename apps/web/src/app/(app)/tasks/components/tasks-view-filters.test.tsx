@@ -118,6 +118,16 @@ describe("TasksViewFilters", () => {
     expect(replaceMock).toHaveBeenCalledWith("/tasks?assigneeUserId=user-1");
   });
 
+  it("toggles the Stuck filter in one click", async () => {
+    renderTasksViewFilters(null);
+
+    const stuck = screen.getByRole("button", { name: "stuck(3)" });
+    expect(stuck).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(stuck);
+
+    expect(replaceMock).toHaveBeenCalledWith("/tasks?stuck=1");
+  });
+
   it("hides My tasks when the viewer is not an assignee option", () => {
     renderTasksViewFilters("org-1", "someone-else");
 

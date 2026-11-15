@@ -1684,13 +1684,8 @@
         "sidebarNew": "Neu"
       },
       "Landing": {
-        "greeting": "Willkommen!",
-        "greetingWithName": "Willkommen, {name}!",
-        "intro": "Sag, was zu tun ist, und sie erledigen es.",
         "cta": {
-          "avatarAlt": "{name}",
           "button": "Mit {name} chatten",
-          "searchAgents": "Agenten suchen",
           "error": "Chat konnte nicht geöffnet werden. Bitte versuche es erneut."
         },
         "stats": {
@@ -1699,18 +1694,7 @@
           "awaiting": "{count, plural, one {# Aufgabe braucht dich} other {# Aufgaben brauchen dich}}",
           "byTeammates": "{count, plural, one {# Aufgabe von deinem Team} other {# Aufgaben von deinem Team}}",
           "recent": "In den letzten 24 Stunden",
-          "trendUp": "{count} mehr als in den vorherigen 24 Stunden",
-          "trendDown": "{count} weniger als in den vorherigen 24 Stunden",
           "workedHours": "{hours, plural, one {# Stunde gearbeitet} other {# Stunden gearbeitet}}"
-        },
-        "team": {
-          "avatarAlt": "{name}",
-          "stripLabel": "Verfügbare Coworker",
-          "select": "{name} auswählen"
-        },
-        "searchAgents": {
-          "label": "Suchen",
-          "subtitle": "Spezialisierte Agenten"
         },
         "MyDay": {
           "title": "Mein Tag",
@@ -1752,6 +1736,11 @@
           "openChat": "Chat öffnen",
           "failedWork": "{name} konnte die letzte Arbeit nicht abschließen",
           "openBot": "Seite von {name} öffnen"
+        },
+        "SokoBotSetup": {
+          "title": "Hol dir deinen persönlichen Assistenz-Agenten",
+          "intro": "Er kümmert sich um deine Aufgaben, Mails und deinen Kalender.",
+          "cta": "Jetzt einrichten"
         }
       },
       "SokoBot": {
@@ -1898,7 +1887,9 @@
         "removeFilter": "Filter {filter} entfernen",
         "clear": "Filter zurücksetzen",
         "noMatchesTitle": "Keine Tasks passen zu diesen Filtern",
-        "noMatchesDescription": "Entferne einen Filter oder setze alle zurück, um deine Tasks wieder zu sehen."
+        "noMatchesDescription": "Entferne einen Filter oder setze alle zurück, um deine Tasks wieder zu sehen.",
+        "stuck": "Hängt seit {days}+ Tagen",
+        "stuckHint": "Wartende Tasks, deren Status sich seit {days} Tagen oder länger nicht geändert hat"
       },
       "Detail": {
         "back": "Zurück zu Tasks",
@@ -2324,7 +2315,10 @@
         "Dialog": {
           "createTitle": "Neuer Zeitplan",
           "editTitle": "Zeitplan bearbeiten",
+          "copyTitle": "Zeitplan kopieren",
+          "copyName": "{name} (Kopie)",
           "createDescription": "Jeder Lauf erstellt aus diesen Angaben einen neuen Task.",
+          "copyDescription": "Beim Speichern entsteht aus diesen Angaben ein neuer Zeitplan. Das Original bleibt unverändert.",
           "futureOnlyNotice": "Änderungen gelten nur für künftige Läufe. Bereits erstellte Tasks bleiben unverändert.",
           "name": "Name",
           "description": "Beschreibung",
@@ -2391,6 +2385,14 @@
         },
         "Actions": {
           "edit": "Bearbeiten",
+          "copy": "Kopieren",
+          "copyToProject": "In anderes Projekt kopieren",
+          "copyToProjectTitle": "In welches Projekt kopieren?",
+          "copyToProjectDescription": "Wähle das Projekt für den neuen Zeitplan. Das Original bleibt, wo es ist.",
+          "copyToProjectNone": "Kein anderes offenes Projekt zum Kopieren. Lege zuerst unter Projekte eines an oder öffne eines wieder.",
+          "copyToProjectLoading": "Projekte werden geladen…",
+          "copyToProjectFailed": "Projekte konnten nicht geladen werden. Schließe dies und versuche es erneut.",
+          "copyToProjectLoadMore": "Weitere Projekte anzeigen",
           "runNow": "Jetzt ausführen",
           "pause": "Pausieren",
           "resume": "Fortsetzen",
@@ -2483,6 +2485,11 @@
           "finance": "Finanzen",
           "qa": "Review & QA"
         }
+      },
+      "StatusAge": {
+        "label": "Zeit in diesem Status:",
+        "stuck": "Hängt",
+        "since": "In diesem Status seit"
       }
     },
     "Projects": {
@@ -3314,6 +3321,7 @@
           "notSet": "Nicht eingerichtet",
           "generate": "Aus Website erstellen",
           "missingWebsite": "Füge eine Projektwebsite hinzu, bevor du Markenkontext erstellst.",
+          "websiteInvalid": "Gib eine Website wie example.com ein.",
           "open": "Öffnen",
           "edit": "Bearbeiten",
           "remove": "Entfernen",
@@ -4390,6 +4398,10 @@
       "copiesFromProducts": "Lege die Anzahl der Kopien je Produkt unter „Produkte“ fest.",
       "emptyTitle": "Erstelle deine erste Anzeige",
       "emptyBody": "Wähle eine Vorlage und ergänze die Details oder schreibe dein eigenes Anzeigenbriefing.",
+      "RecentProjects": {
+        "title": "Mach weiter, wo du aufgehört hast",
+        "imageCount": "{count, plural, one {# Bild} other {# Bilder}}"
+      },
       "pauseTemplateMotion": "Schwebende Vorschauen anhalten",
       "resumeTemplateMotion": "Schwebende Vorschauen fortsetzen",
       "CreativeStart": {
@@ -4584,6 +4596,7 @@
       "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
       "pickForGeneration": "In welches Projekt sollen diese Bilder?",
       "referencesAcrossProjects": "Referenzen müssen aus einem Projekt stammen. Heb die Auswahl der Bilder aus anderen Projekten auf und generiere erneut.",
+      "templateSlotsUnfilled": "Füll {slots} im Briefing aus und generiere dann erneut.",
       "scopeLabel": "Projekt",
       "title": "Content Studio",
       "selectAllModels": "Alle auswählen",
@@ -4905,7 +4918,8 @@
             "description1": "Beschreibungszeile 1",
             "description2": "Beschreibungszeile 2",
             "add": "Sitelink hinzufügen",
-            "remove": "Sitelink {number} entfernen"
+            "remove": "Sitelink {number} entfernen",
+            "label": "Sitelinks"
           },
           "callouts": {
             "title": "Zusatzinformationen (optional)",
@@ -5140,6 +5154,16 @@
         "errors": {
           "conflict": "Diese Kampagne kann hier nicht bearbeitet werden.",
           "failed": "Änderungen konnten nicht gespeichert werden"
+        },
+        "changes": {
+          "submitCount": "{count, plural, one {# Änderung} other {# Änderungen}} speichern",
+          "changed": "Geändert",
+          "was": "Vorher:",
+          "now": "Jetzt:",
+          "none": "Noch keine Änderungen. Speichern ist möglich, sobald sich etwas ändert.",
+          "removed": "Entfernt",
+          "added": "Hinzugefügt",
+          "empty": "Keine"
         }
       },
       "market": {
@@ -5184,6 +5208,7 @@
           },
           "trendLabel": "Suchen pro Monat über 12 Monate, von {from} auf {to}",
           "searchesPerMonth": "{count} Suchen pro Monat",
+          "noSearchData": "Keine Suchdaten",
           "emptyTitle": "Für diesen Markt wurden keine Trend-Keywords gefunden",
           "emptyBody": "Probiere andere Keywords oder ein anderes Land."
         },
@@ -5216,7 +5241,10 @@
             "keywords": "Keywords konnten nicht geladen werden",
             "ads": "Anzeigen konnten nicht geladen werden"
           }
-        }
+        },
+        "updating": "Trend-Keywords werden aktualisiert…",
+        "stale": "Diese Ergebnisse stammen von vor deiner letzten Speicherung.",
+        "refresh": "Ergebnisse aktualisieren"
       },
       "accounts": {
         "emptyTitle": "Noch keine Werbekonten verbunden",
@@ -8610,6 +8638,7 @@
       "uploadSuccess": "DESIGN.md hochgeladen",
       "uploadError": "DESIGN.md konnte nicht hochgeladen werden",
       "uploadRejected": "Datei wird nicht akzeptiert",
+      "uploadEmpty": "Die Datei ist leer. Wähle eine DESIGN.md mit Inhalt.",
       "removeSelectedUpload": "Ausgewählte Datei entfernen",
       "descriptionPersonal": "Erstelle und verwalte die DESIGN.md, die für Tasks aus deinem persönlichen Workspace verwendet wird.",
       "descriptionOrganization": "Erstelle und verwalte die DESIGN.md, die für Tasks dieser Organisation verwendet wird.",
@@ -10077,9 +10106,7 @@
         "nameHint": "Dein eigener KI-Assistent in Sokosumi. Du kannst ihn später umbenennen.",
         "continue": "Weiter",
         "back": "Zurück",
-        "pictureTitle": "Wähle ein Bild für {name}",
-        "createWithoutPicture": "Ohne Bild erstellen",
-        "createWithoutPictureHint": "{name} startet mit seiner Farbkugel. Ein Bild fügst du jederzeit in den Einstellungen hinzu."
+        "pictureTitle": "Wähle ein Bild für {name}"
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -10140,6 +10167,7 @@
         "lastRun": "Letzter",
         "failures": "Fehler",
         "disabled": "deaktiviert",
+        "yourTime": "({datetime} bei dir)",
         "enable": "Zeitplan aktivieren",
         "disable": "Zeitplan deaktivieren",
         "delete": "Löschen",
@@ -10410,8 +10438,8 @@
           "tokenSplit": "{input} rein · {output} raus",
           "modelCost": "Modellkosten",
           "modelCostHint": "Was die Tokens gekostet haben, vor dem Mindestbetrag pro Durchlauf",
-          "creditSplit": "{own} für eigene Durchläufe · {delegated} für Coworker und Agents",
-          "creditsOwnOnly": "Alles für eigene Durchläufe"
+          "creditSplit": "{own} vom Assistenten selbst · {delegated} für Coworker und Agents",
+          "creditsOwnOnly": "Nichts für Coworker oder Agents ausgegeben"
         },
         "Connectors": {
           "title": "Tools",
@@ -10428,6 +10456,9 @@
         "current": "Aktuelles Bild",
         "hint": "Wähle eines oder lass dir andere zeigen.",
         "showOthers": "Andere zeigen",
+        "noneNew": "Gerade keine neuen Bilder. Versuch es in einer Minute noch einmal.",
+        "drawing": "Neue Bilder werden gezeichnet. Das kann eine Minute dauern.",
+        "noMore": "Mehr neue Bilder gibt es gerade nicht. Wähl eines oben aus.",
         "pictures": "Bilder",
         "loadError": "Bilder konnten nicht geladen werden.",
         "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal."
