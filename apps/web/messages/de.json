@@ -7500,7 +7500,15 @@
         "currentPassword": "Aktuelles Passwort",
         "submit": "E-Mail aktualisieren",
         "success": "Öffne den Link, den wir an {email} gesendet haben, um die neue Adresse zu bestätigen.",
-        "error": "E-Mail konnte nicht aktualisiert werden"
+        "error": "E-Mail konnte nicht aktualisiert werden",
+        "pendingBadge": "Wartet auf dich",
+        "pendingDescription": "Öffne den Link, den wir an diese Adresse gesendet haben, um die Änderung abzuschließen.",
+        "resend": "Erneut senden",
+        "cancel": "Änderung abbrechen",
+        "cancelled": "E-Mail-Änderung abgebrochen. Der Link funktioniert nicht mehr.",
+        "cancelError": "Die E-Mail-Änderung konnte nicht abgebrochen werden. Versuch es noch einmal.",
+        "changed": "Deine E-Mail-Adresse ist jetzt {email}.",
+        "linkFailed": "Dieser Link funktioniert nicht mehr. Fordere unten einen neuen an."
       },
       "Password": {
         "title": "Passwort ändern",
@@ -8161,17 +8169,17 @@
         }
       },
       "VendorGrants": {
-        "title": "Vendor-Workspace-Zugriff",
-        "description": "Genehmige Vendor-Workspace-Zugriff für deinen persönlichen Workspace (Aufgaben lesen, kommentieren und erstellen).",
-        "vendorsTitle": "Anbieter",
-        "vendorsEmpty": "Noch keine Anbieterfreigaben.",
+        "title": "Wer in deinem Workspace arbeiten kann",
+        "description": "Partner, die du zulässt, sehen die Aufgaben in deinem persönlichen Workspace, kommentieren sie und erstellen neue.",
+        "vendorsTitle": "Partner",
+        "vendorsEmpty": "Kein Partner hat Zugriff.",
         "statusPending": "Ausstehend",
         "statusGranted": "Gewährt",
         "statusDenied": "Abgelehnt",
         "statusRevoked": "Widerrufen",
-        "grantFormTitle": "Zugriff proaktiv gewähren",
+        "grantFormTitle": "Partner hinzufügen",
         "GrantForm": {
-          "vendorLabel": "Anbieter",
+          "vendorLabel": "Partner",
           "workspaceAccessHint": "Gewährt vollen Workspace-Zugriff: Aufgaben lesen, kommentieren und erstellen.",
           "submit": "Zugriff gewähren",
           "success": "Vendor-Zugriff gewährt",
@@ -8180,17 +8188,20 @@
         "Actions": {
           "approve": "Genehmigen",
           "deny": "Ablehnen",
-          "revoke": "Widerrufen",
+          "revoke": "Zugriff entfernen",
           "approveSuccess": "Vendor-Zugriff genehmigt",
           "denySuccess": "Vendor-Zugriff abgelehnt",
-          "revokeSuccess": "Vendor-Zugriff widerrufen",
+          "revokeSuccess": "Zugriff entfernt",
           "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
           "denyError": "Vendor-Zugriff konnte nicht abgelehnt werden",
-          "revokeError": "Vendor-Zugriff konnte nicht widerrufen werden",
+          "revokeError": "Zugriff konnte nicht entfernt werden",
           "grant": "Gewähren",
           "grantSuccess": "Vendor-Zugriff gewährt",
           "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
-        }
+        },
+        "permissionWorkspace": "Lesen, kommentieren, erstellen",
+        "grantedSince": "Hat Zugriff seit {date}. Du kannst ihn jederzeit entfernen.",
+        "grantedOnRequest": "Hat Zugriff angefragt, genehmigt am {date}. Du kannst ihn jederzeit entfernen."
       },
       "CoworkerAccess": {
         "title": "Coworker-Early-Access",
@@ -8364,7 +8375,10 @@
             "grant": "Gewähren",
             "grantSuccess": "Vendor-Zugriff gewährt",
             "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
-          }
+          },
+          "permissionWorkspace": "Lesen, kommentieren, erstellen",
+          "grantedSince": "Hat Zugriff seit {date}.",
+          "grantedOnRequest": "Hat Zugriff angefragt, genehmigt am {date}."
         },
         "CoworkerAccess": {
           "title": "Coworker-Early-Access",

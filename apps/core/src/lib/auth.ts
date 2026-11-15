@@ -84,6 +84,7 @@ import {
   OAUTH_REFRESH_TOKEN_PREFIX,
 } from "./auth-oauth-token-prefixes";
 import { createAuthOrganizationPlugin } from "./auth-organization";
+import { pendingEmailChange } from "./auth-pending-email-change";
 import { recordSignUpContext } from "./auth-sign-up-context";
 import {
   oauthSignUpOptions,
@@ -513,6 +514,7 @@ export const auth = betterAuth({
   plugins: [
     createAuthCaptchaPlugin(env.TURNSTILE_SECRET_KEY),
     signUpEmailStatus(),
+    pendingEmailChange({ expiresIn: TIME.EMAIL_VERIFICATION_EXPIRES }),
     // A code, not a link: it goes back into the tab that asked for it, so a
     // sign-in for another app keeps that app's state, and a mail scanner
     // that opens links cannot use it up.

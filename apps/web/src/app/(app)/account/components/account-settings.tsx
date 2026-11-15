@@ -30,6 +30,7 @@ interface AccountSettingsProps {
   credentialAccountsLoadError?: ReactNode;
   userName?: string;
   userEmail?: string;
+  pendingEmail?: string | null;
   userFirstName?: null | string;
   userLastName?: null | string;
   userImage?: null | string;
@@ -54,6 +55,7 @@ export function AccountSettings({
   credentialAccountsLoadError,
   userName = "",
   userEmail,
+  pendingEmail = null,
   userFirstName,
   userLastName,
   userImage,
@@ -84,7 +86,7 @@ export function AccountSettings({
           firstName={userFirstName ?? ""}
           lastName={userLastName ?? ""}
         />
-        <EmailForm currentEmail={userEmail} />
+        <EmailForm currentEmail={userEmail} pendingEmail={pendingEmail} />
         <div className="md:col-span-2">
           {credentialAccountsLoadError ? (
             credentialAccountsLoadError
@@ -118,7 +120,8 @@ export function AccountSettings({
         <AccountVendorGrants />
       </div>
 
-      <div className="border-t pt-8">
+      {/* `empty:hidden` drops the divider when the card renders nothing. */}
+      <div className="border-t pt-8 empty:hidden">
         <AccountCoworkerAccess />
       </div>
 
