@@ -386,6 +386,23 @@ it("F3: legal large CSV is byte-bounded and retries the same chunk", async () =>
       .reduce((n, call) => n + call[1].insert.length, 0),
   ).toBe(60);
 });
+it("CSV import presets Number for numeric columns and lets people override it", async () => {
+  render(<TableCreateDialog workspaceId={null} />);
+  fireEvent.click(screen.getByRole("button", { name: "newTable" }));
+  const csv = "month,revenue,zip\nJan,1200,01234\nFeb,,02345\nMar,1900.5,03456";
+  fireEvent.change(screen.getByLabelText("importCsv"), {
+    target: { files: [{ size: csv.length, text: async () => csv }] },
+  });
+  await waitFor(() => expect(screen.getAllByLabelText("type")).toHaveLength(3));
+  const [month, revenue, zip] = screen.getAllByLabelText("type");
+  expect(month).toHaveValue("text");
+  expect(zip).toHaveValue("text");
+  expect(revenue).toHaveValue("number");
+  expect(revenue).toHaveAccessibleDescription("numberGuess");
+  fireEvent.change(revenue, { target: { value: "text" } });
+  expect(revenue).toHaveValue("text");
+  expect(screen.queryByText("numberGuess")).not.toBeInTheDocument();
+});
 it("F3: definitive create rejection releases the create attempt", async () => {
   f.create.mockRejectedValueOnce({ error: "Forbidden", message: "Rejected" });
   render(<TableCreateDialog workspaceId={null} />);
