@@ -1963,21 +1963,8 @@ function resignedLinkData(fresh: PendingEvent) {
 }
 
 /** Brings one message's Buzz copy (and its reactions) up to date. */
-/**
- * Where a channel's history ends: when its community reached the relay
- * (what came later went out live), or the channel itself if later.
- */
-export async function historyCutoffOf(channel: {
-  communityId: string;
-  createdAt: Date;
-}): Promise<Date> {
-  const community = await prisma.buzzCommunity.findUnique({
-    where: { id: channel.communityId },
-    select: { provisionedAt: true },
-  });
-  const provisioned = community?.provisionedAt ?? channel.createdAt;
-  return provisioned < channel.createdAt ? provisioned : channel.createdAt;
-}
+/** Messages this close before their channel was made go out live. */
+const LIVE_BEFORE_CHANNEL_MS = 60_000;
 
 export async function reconcileMessage(
   messageId: string,
@@ -2088,12 +2075,14 @@ export async function reconcileMessage(
 
   if (!link) {
     if (message.deletedAt) return "skipped";
-    // From before its organization moved to Buzz: the history import sends
-    // it (and finds a copy an interrupted import left), never the outbox.
+    // History (well before the room got its channel) is the import's to send,
+    // which also finds a copy an interrupted import left; the messages that
+    // brought the channel about go out live.
     if (
       !channel.historyImportedAt &&
       getEnv().BUZZ_RELAY_DATABASE_URL &&
-      message.createdAt < (await historyCutoffOf(channel))
+      message.createdAt.getTime() <
+        channel.createdAt.getTime() - LIVE_BEFORE_CHANNEL_MS
     ) {
       return "skipped";
     }

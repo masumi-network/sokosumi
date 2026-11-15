@@ -27,7 +27,6 @@ import {
   authorOf,
   buzzContentOf,
   ensureIdentity,
-  historyCutoffOf,
   identitySecretKey,
   isExternal,
   isPersonalAgent,
@@ -62,7 +61,6 @@ export async function importBuzzHistory(
       id: true,
       channelId: true,
       roomId: true,
-      communityId: true,
       createdAt: true,
       community: { select: { relayUrl: true } },
     },
@@ -77,8 +75,10 @@ export async function importBuzzHistory(
       const imported = await importChannel(client, {
         channelId: channel.channelId,
         roomId: channel.roomId as string,
-        // Later messages are the outbox's to send.
-        before: await historyCutoffOf(channel),
+        // Everything before the room had its channel (a Direct may become
+        // bridgeable long after its community existed); a message linked
+        // already went out live and is skipped.
+        before: channel.createdAt,
         host: new URL(channel.community.relayUrl).host,
         shouldContinue: options.shouldContinue,
       });
@@ -241,10 +241,11 @@ async function importMessage(
           update: {},
         }),
       ),
+      // Brings the copy up to date (it may predate an edit or a reaction).
+      prisma.buzzOutbox.create({
+        data: { roomId: message.roomId, messageId: message.id },
+      }),
     ]);
-    await prisma.buzzOutbox.create({
-      data: { roomId: message.roomId, messageId: message.id },
-    });
     return true;
   }
   const author = authorOf(message);
