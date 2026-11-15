@@ -245,6 +245,40 @@ describe("WelcomePage", () => {
     expect(getActivitySummary).toHaveBeenCalledWith({ scope: "workspace" });
   });
 
+  it("gives the reader's own waiting Tasks beside the team's in an org", async () => {
+    getActiveOrganizationId.mockResolvedValueOnce("org-1");
+    getActivitySummary
+      .mockResolvedValueOnce({ awaitingInput: 9 })
+      .mockResolvedValueOnce({ awaitingInput: 1 });
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    await renderPage();
+    expect(sokoBotHome).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary: { awaitingInput: 9 },
+        ownAwaitingInput: 1,
+      }),
+    );
+  });
+
+  it("reads no second count in a personal workspace", async () => {
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    await renderPage();
+    expect(getActivitySummary).toHaveBeenCalledTimes(1);
+    expect(sokoBotHome).toHaveBeenCalledWith(
+      expect.objectContaining({ ownAwaitingInput: null }),
+    );
+  });
+
   it("shows the bot home with its room and the team's day", async () => {
     getMine.mockResolvedValue({
       id: "bot-1",

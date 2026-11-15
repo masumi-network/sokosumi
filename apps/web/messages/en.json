@@ -1697,6 +1697,8 @@
           "completed": "{count, plural, one {# task completed} other {# tasks completed}}",
           "worked": "{minutes, plural, one {# minute worked} other {# minutes worked}}",
           "awaiting": "{count, plural, one {# task needs your input} other {# tasks need your input}}",
+          "awaitingTeam": "{count, plural, one {# task needs input} other {# tasks need input}}",
+          "awaitingOwn": "{count, plural, one {# is yours} other {# are yours}}",
           "byTeammates": "{count, plural, one {# task from your team} other {# tasks from your team}}",
           "recent": "In the last 24 hours",
           "workedHours": "{hours, plural, one {# hour worked} other {# hours worked}}"

@@ -312,6 +312,29 @@ describe("SokoBotHome", () => {
     expect(screen.queryByText(/awaiting/)).toBeNull();
   });
 
+  it("in an org, counts the team's waiting Tasks and says how many are the reader's", async () => {
+    const summary = {
+      since: new Date(),
+      completed: 0,
+      awaitingInput: 9,
+      createdByOtherHumans: 0,
+      workedMinutes: 0,
+      previous: { completed: 0, createdByOtherHumans: 0, workedMinutes: 0 },
+    };
+    await renderHome({ summary, ownAwaitingInput: 1 });
+    expect(
+      screen.getByRole("link", {
+        name: 'awaitingTeam:{"count":9} · awaitingOwn:{"count":1}',
+      }),
+    ).toBeTruthy();
+    cleanup();
+    await renderHome({ summary, ownAwaitingInput: 0 });
+    expect(
+      screen.getByRole("link", { name: 'awaitingTeam:{"count":9}' }),
+    ).toBeTruthy();
+    expect(screen.queryByText(/awaitingOwn/)).toBeNull();
+  });
+
   it("sends into the bot's room and opens it", async () => {
     await renderHome();
     fireEvent.change(screen.getByLabelText("composer"), {

@@ -163,12 +163,17 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       limit: SOKO_BOT_HOME_TASK_LIMIT * 2,
     })
     .catch(() => ({ tasks: [] }));
-  const [{ sokoBot, lastFailure }, summary] = await Promise.all([
+  const [{ sokoBot, lastFailure }, summary, ownSummary] = await Promise.all([
     sokoBotService
       .getMineWithLastFailure()
       .catch(() => ({ sokoBot: null, lastFailure: null })),
     // Window is session-derived in Core (`max(Session.updatedAt)`). No stamp.
     taskService.getActivitySummary({ scope }),
+    // In an org the waiting count is the team's; the reader's own share of
+    // it is said beside it, so it squares with Needs you.
+    activeOrganizationId
+      ? taskService.getActivitySummary({ scope: "owned" })
+      : null,
   ]);
   const notice =
     (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
@@ -206,6 +211,9 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           roomId={roomId}
           userName={resolveLandingGreetingName(session?.user.name)}
           summary={summary ?? null}
+          ownAwaitingInput={
+            activeOrganizationId ? (ownSummary?.awaitingInput ?? 0) : null
+          }
           teamTasks={toTeamDay(recent.tasks, new Date())}
           chats={chats}
           schedules={toNewSchedules(sokoBot.schedules ?? [], new Date())}

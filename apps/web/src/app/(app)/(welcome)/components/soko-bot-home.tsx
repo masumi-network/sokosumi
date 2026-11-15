@@ -29,6 +29,9 @@ interface SokoBotHomeProps {
   /** First name for the greeting; none when the account has no name. */
   userName: string | null;
   summary: TaskActivitySummary | null;
+  /** In an org, how many of the waiting Tasks the reader owns; null in a
+   * personal workspace, where every one is theirs. */
+  ownAwaitingInput?: number | null;
   /** Tasks the team moved in the last 24 hours, newest first. */
   teamTasks: SokoBotHomeTask[];
   /** Important chat messages the reader has not read, last 24 hours. */
@@ -56,6 +59,7 @@ export async function SokoBotHome({
   roomId,
   userName,
   summary,
+  ownAwaitingInput = null,
   teamTasks,
   chats = [],
   schedules = [],
@@ -148,7 +152,15 @@ export async function SokoBotHome({
             className="bg-muted text-foreground hover:bg-quinary focus-visible:ring-ring inline-flex h-8 items-center gap-2 rounded-full px-3 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2"
           >
             <span aria-hidden className="bg-foreground size-1.5 rounded-full" />
-            {tStats("awaiting", { count: awaitingInput })}
+            {ownAwaitingInput === null
+              ? tStats("awaiting", { count: awaitingInput })
+              : tStats("awaitingTeam", { count: awaitingInput })}
+            {ownAwaitingInput ? (
+              <span className="text-muted-foreground font-normal">
+                {" · "}
+                {tStats("awaitingOwn", { count: ownAwaitingInput })}
+              </span>
+            ) : null}
           </Link>
         ) : null
       }
