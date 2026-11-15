@@ -42,6 +42,8 @@ async function signedInAuth() {
     secret: SECRET,
     trustedOrigins: ["https://app.example.com"],
     rateLimit: { enabled: false },
+    // As Core: with UUID ids the adapter replaces any other id it is given.
+    advanced: { database: { generateId: "uuid" } },
     // Each write goes straight to the store, as each statement does to the
     // row it locks in Postgres; the memory adapter's own transaction merges
     // snapshots instead and would hide those locks.

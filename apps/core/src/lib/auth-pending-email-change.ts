@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   getCurrentAdapter,
   runWithTransaction,
@@ -27,8 +28,26 @@ const MODEL = "verification";
 /** How long the account page may still say "Your email is now …". */
 const COMPLETED_TTL_SECONDS = 10 * 60;
 
-const pendingRowId = (userId: string) => `pending-email-change:${userId}`;
-const completedRowId = (userId: string) => `email-change-done:${userId}`;
+/**
+ * A fixed row id per person, shaped as a UUID because Core makes Better Auth
+ * generate UUID ids (`generateId: "uuid"`), and with that set the adapter
+ * replaces any other id it is given.
+ */
+function rowId(name: string): string {
+  const hex = createHash("sha256").update(name).digest("hex");
+  // Version 5 and RFC 4122 variant bits, as a name-based UUID.
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    `5${hex.slice(13, 16)}`,
+    `${((Number.parseInt(hex[16]!, 16) & 0x3) | 0x8).toString(16)}${hex.slice(17, 20)}`,
+    hex.slice(20, 32),
+  ].join("-");
+}
+const pendingName = (userId: string) => `pending-email-change:${userId}`;
+const completedName = (userId: string) => `email-change-done:${userId}`;
+const pendingRowId = (userId: string) => rowId(pendingName(userId));
+const completedRowId = (userId: string) => rowId(completedName(userId));
 
 /** The adapter calls this module makes; any Better Auth adapter has them. */
 type Adapter = Pick<
@@ -58,10 +77,10 @@ async function readTarget(adapter: Adapter, id: string) {
   return (JSON.parse(row.value) as { target: string }).target;
 }
 
-/** Replaces the row, whatever it holds. */
+/** Replaces the named row, whatever it holds. */
 async function putRow(
   adapter: Adapter,
-  id: string,
+  name: string,
   value: string,
   expiresInSeconds: number,
 ): Promise<void> {
@@ -70,12 +89,13 @@ async function putRow(
     expiresAt: new Date(Date.now() + expiresInSeconds * 1000),
     updatedAt: new Date(),
   };
+  const id = rowId(name);
   const where = [{ field: "id", value: id }];
   if ((await adapter.updateMany({ model: MODEL, where, update })) > 0) return;
   try {
     await adapter.create({
       model: MODEL,
-      data: { id, identifier: id, createdAt: new Date(), ...update },
+      data: { id, identifier: name, createdAt: new Date(), ...update },
       forceAllowId: true,
     });
   } catch (error) {
@@ -149,7 +169,7 @@ export function pendingEmailChange({
           const generation = generateRandomString(32);
           await putRow(
             ctx.context.adapter,
-            pendingRowId(user.id),
+            pendingName(user.id),
             requestValue(target, generation),
             expiresIn,
           );
@@ -224,7 +244,7 @@ export function pendingEmailChange({
               });
               await putRow(
                 adapter,
-                completedRowId(userId),
+                completedName(userId),
                 JSON.stringify({ target: updateTo }),
                 COMPLETED_TTL_SECONDS,
               );
