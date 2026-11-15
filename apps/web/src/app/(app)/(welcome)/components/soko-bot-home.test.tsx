@@ -306,7 +306,7 @@ describe("SokoBotHome", () => {
       screen
         .getByRole("link", { name: 'awaiting:{"count":3}' })
         .getAttribute("href"),
-    ).toBe("/tasks#input-required");
+    ).toBe("/tasks?view=board#input-required");
     cleanup();
     await renderHome({ summary: { ...summary, awaitingInput: 0 } });
     expect(screen.queryByText(/awaiting/)).toBeNull();

@@ -142,8 +142,9 @@ export async function SokoBotHome({
       attention={
         awaitingInput > 0 ? (
           <Link
-            // The count is the board's Input required column; land on it.
-            href="/tasks#input-required"
+            // The count is the board's Input required column; land on it,
+            // on the board even where the list is the saved or phone default.
+            href="/tasks?view=board#input-required"
             className="bg-muted text-foreground hover:bg-quinary focus-visible:ring-ring inline-flex h-8 items-center gap-2 rounded-full px-3 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2"
           >
             <span aria-hidden className="bg-foreground size-1.5 rounded-full" />
