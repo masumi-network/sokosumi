@@ -655,12 +655,7 @@ export async function syncBuzzAgents(
     orderBy: { id: "asc" },
     ...(scope.limit ? { take: scope.limit } : {}),
   });
-  if (scope.progress) {
-    scope.progress.after =
-      scope.limit && owners.length === scope.limit
-        ? (owners.at(-1)?.id ?? null)
-        : null;
-  }
+
   const people = await Promise.all(
     owners.map(async (owner) => ({
       owner,
@@ -680,9 +675,12 @@ export async function syncBuzzAgents(
   // A relay that cannot be read leaves the others to go on; its people keep
   // the agents they have until it can be read again.
   const unread = new Set<string>();
+  // Left for lack of time (a relay that failed was tried: the sweep goes on).
+  const notReached = new Set<string>();
   for (const [relayUrl, keys] of keysByRelay) {
     if (scope.shouldContinue?.() === false) {
       unread.add(relayUrl);
+      notReached.add(relayUrl);
       continue;
     }
     let agents: Map<string, FoundAgent & { ownerKey: string }>;
@@ -701,6 +699,25 @@ export async function syncBuzzAgents(
       owned.set(pubkey, agent);
       agentsByOwnerKey.set(agent.ownerKey, owned);
     }
+  }
+  // The sweep goes on after the last person whose relays were all read
+  // (relays are read in people's order); a page read whole goes on to the
+  // next one, or starts over after the last.
+  if (scope.progress) {
+    let reached: string | null = null;
+    let whole = true;
+    for (const { owner, communities } of people) {
+      if (communities.some(({ relayUrl }) => notReached.has(relayUrl))) {
+        whole = false;
+        break;
+      }
+      reached = owner.id;
+    }
+    scope.progress.after = whole
+      ? scope.limit && owners.length === scope.limit
+        ? reached
+        : null
+      : (reached ?? scope.progress.after);
   }
   const changed: string[] = [];
   for (const { owner, memberships, communities } of people) {
@@ -3525,9 +3542,13 @@ export async function linkedBuzzRooms() {
  * was said there leaves Buzz too. The channel is forgotten only once the
  * relay took the deletion.
  */
-export async function deleteChannelsOfDeletedRooms() {
+export async function deleteChannelsOfDeletedRooms(
+  shouldContinue: () => boolean = () => true,
+) {
   const orphaned = await prisma.buzzChannel.findMany({
     where: { roomId: null },
+    orderBy: { updatedAt: "asc" },
+    take: 50,
     select: {
       id: true,
       channelId: true,
@@ -3537,6 +3558,7 @@ export async function deleteChannelsOfDeletedRooms() {
   });
   let deleted = 0;
   for (const channel of orphaned) {
+    if (!shouldContinue()) break;
     const relayUrl = channel.community.relayUrl;
     try {
       // A DM is its opener's, not the operator's: one of its people whose key

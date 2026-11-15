@@ -375,7 +375,10 @@ export async function runBuzzBridge(options: {
         continue;
       }
       const open = [...(unfinished.get(communityId)?.values() ?? [])];
-      const cursor = open.length > 0 ? Math.min(...open) - 1 : done;
+      // Never past the newest finished event: an unfinished one may be dated
+      // ahead.
+      const cursor =
+        open.length > 0 ? Math.min(Math.min(...open) - 1, done) : done;
       if (cursor > 0) await saveInboundCursor(communityId, cursor);
     }
   }
@@ -550,7 +553,7 @@ export async function runBuzzBridge(options: {
             error instanceof Error ? error.message : error,
           );
         }
-        const deleted = await deleteChannelsOfDeletedRooms();
+        const deleted = await deleteChannelsOfDeletedRooms(inBudget);
         if (deleted > 0) log(`${deleted} channel(s) of deleted rooms removed`);
         // A room that failed rests ten minutes, so the next ones get a turn.
         for (const [roomId, until] of roomRests) {

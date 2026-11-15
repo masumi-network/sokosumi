@@ -1004,6 +1004,59 @@ describe("a person's own Buzz agents", () => {
     ).rejects.toThrow("relay down");
   });
 
+  it("goes on after the people whose relays it read, and holds where time ran out", async () => {
+    db.buzzIdentity.findMany.mockResolvedValue([
+      {
+        id: "identity-a",
+        userId: "user-a",
+        appPubkey: null,
+        user: { name: "A" },
+      },
+      {
+        id: "identity-b",
+        userId: "user-b",
+        appPubkey: null,
+        user: { name: "B" },
+      },
+    ]);
+    db.member.findMany.mockImplementation(
+      async ({ where }: { where: { userId: string } }) => [
+        {
+          role: "member",
+          organization: {
+            id: `org-${where.userId}`,
+            name: "Org",
+            buzzCommunity: {
+              relayUrl: `wss://${where.userId}.example`,
+              allowPersonalAgents: true,
+            },
+          },
+        },
+      ],
+    );
+    db.buzzCommunity.findMany.mockResolvedValue([]);
+    db.workspace.findMany.mockResolvedValue([]);
+    db.coworker.findMany.mockResolvedValue([]);
+    relay.queryEvents.mockResolvedValue([]);
+    // Time for one relay: the sweep goes on after A, not B.
+    let reads = 1;
+    const progress = { after: "identity-0" as string | null };
+    await syncBuzzAgents({
+      progress,
+      limit: 2,
+      shouldContinue: () => reads-- > 0,
+    });
+    expect(progress.after).toBe("identity-a");
+    // All read on a full page: on to the next page.
+    await syncBuzzAgents({ progress, limit: 2, shouldContinue: () => true });
+    expect(progress.after).toBe("identity-b");
+    // All read on the last page: start over.
+    await syncBuzzAgents({ progress, limit: 3, shouldContinue: () => true });
+    expect(progress.after).toBeNull();
+    db.member.findMany.mockReset();
+    db.buzzIdentity.findMany.mockReset();
+  });
+
   it("asks for approval again when an organization stops letting agents in by itself", async () => {
     db.buzzIdentity.findMany.mockResolvedValueOnce([
       {
