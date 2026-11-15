@@ -22,6 +22,7 @@ import {
 } from "@/lib/buzz/events";
 import { signEvent } from "@/lib/buzz/relay-client";
 import { relayDatabase } from "@/lib/buzz/relay-database";
+import { checkpoint } from "@/lib/buzz/run-scope";
 import prisma from "@/lib/db/prisma";
 import {
   authorOf,
@@ -214,6 +215,7 @@ async function importMessage(
     message.id,
   );
   if (earlier) {
+    checkpoint();
     const reactionLinks = await importedReactionsOf(
       client,
       communityId,
@@ -321,6 +323,8 @@ async function importMessage(
     });
   }
 
+  // Only while the run may still write; a statement ends within 10 s.
+  checkpoint();
   await client.query("BEGIN ISOLATION LEVEL READ COMMITTED");
   try {
     await insertEvent(client, communityId, channelId, event);
@@ -360,6 +364,7 @@ async function importMessage(
         ],
       );
     }
+    checkpoint();
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});

@@ -12,7 +12,20 @@ let pool: pg.Pool | undefined;
 export function relayDatabase(): pg.Pool | null {
   const url = getEnv().BUZZ_RELAY_DATABASE_URL;
   if (!url) return null;
-  pool ??= new pg.Pool({ connectionString: url, max: 2 });
+  if (!pool) {
+    // Every statement bounded, so a run never waits past its lease on one.
+    pool = new pg.Pool({
+      connectionString: url,
+      max: 2,
+      statement_timeout: 10_000,
+      connectionTimeoutMillis: 10_000,
+    });
+    // An idle connection the relay's database dropped: the next query
+    // reconnects, and must not take the process down meanwhile.
+    pool.on("error", (error) =>
+      console.error("Buzz relay database connection lost", error.message),
+    );
+  }
   return pool;
 }
 

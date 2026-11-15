@@ -1821,6 +1821,12 @@ async function whileOpen<T>(
   } catch (error) {
     if (!isArchivedRefusal(error)) throw error;
   }
+  // Should archiving it again not happen (the run stops, the relay fails),
+  // the next sync sees the state unknown and archives it again.
+  await prisma.buzzChannel.updateMany({
+    where: { channelId },
+    data: { metadataHash: null },
+  });
   await setArchived(relayUrl, channelId, false);
   if (!reArchive) return change();
   try {
