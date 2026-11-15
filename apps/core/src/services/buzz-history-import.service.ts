@@ -472,63 +472,64 @@ async function importedReactionsOf(
 
 /**
  * Messages deleted after an interrupted import wrote them, before it linked
- * them: nothing else knows their copy on Buzz, so it is deleted here.
+ * them: nothing else knows their copy on Buzz, so it is deleted here. Read
+ * from the relay's side (the copies carrying a message id, a handful of
+ * queries however many messages the room has deleted).
  */
 async function deleteUnlinkedCopies(
   client: RelayClient,
   communityId: string,
-  input: {
-    channelId: string;
-    roomId: string;
-    before: Date;
-    shouldContinue?: () => boolean;
-  },
+  input: { channelId: string; shouldContinue?: () => boolean },
 ): Promise<boolean> {
-  // Every one, a page at a time; false when stopped before the end (the
-  // import is then not done, and the next pass goes through them again).
-  let after: string | undefined;
-  for (;;) {
-    const deleted = await prisma.chatRoomMessage.findMany({
-      where: {
-        roomId: input.roomId,
-        createdAt: { lt: input.before },
-        deletedAt: { not: null },
-        buzzLink: null,
-        ...(after ? { id: { gt: after } } : {}),
-      },
-      select: {
-        id: true,
-        senderUserId: true,
-        senderSokoBotId: true,
-        senderCoworkerId: true,
-      },
-      orderBy: { id: "asc" },
-      take: 100,
-    });
-    for (const message of deleted) {
-      if (input.shouldContinue?.() === false) return false;
-      const author = authorOf(message);
-      const identity = author
-        ? await prisma.buzzIdentity.findUnique({ where: author })
-        : null;
-      if (!identity) continue;
-      checkpoint();
-      await client.query(
-        `UPDATE events SET deleted_at = now()
-          WHERE community_id = $1 AND channel_id = $2 AND kind = 9
-            AND deleted_at IS NULL AND pubkey = $4 AND tags @> $3::jsonb`,
-        [
-          communityId,
-          input.channelId,
-          JSON.stringify([["sokosumi", message.id]]),
-          hex(identity.pubkey),
-        ],
-      );
+  const copies = await client.query<{
+    id: Buffer;
+    pubkey: Buffer;
+    message_id: string | null;
+  }>(
+    `SELECT id, pubkey,
+            jsonb_path_query_first(tags, '$[*] ? (@[0] == "sokosumi")[1]') #>> '{}' AS message_id
+       FROM events
+      WHERE community_id = $1 AND channel_id = $2 AND kind = 9
+        AND deleted_at IS NULL AND tags @> '[["sokosumi"]]'::jsonb`,
+    [communityId, input.channelId],
+  );
+  const byMessage = new Map(
+    copies.rows.flatMap((row) =>
+      row.message_id ? [[row.message_id, row] as const] : [],
+    ),
+  );
+  if (byMessage.size === 0) return true;
+  const orphans = await prisma.chatRoomMessage.findMany({
+    where: {
+      id: { in: [...byMessage.keys()] },
+      deletedAt: { not: null },
+      buzzLink: null,
+    },
+    select: {
+      id: true,
+      senderUserId: true,
+      senderSokoBotId: true,
+      senderCoworkerId: true,
+    },
+  });
+  for (const message of orphans) {
+    if (input.shouldContinue?.() === false) return false;
+    const copy = byMessage.get(message.id);
+    const author = authorOf(message);
+    const identity = author
+      ? await prisma.buzzIdentity.findUnique({ where: author })
+      : null;
+    // Only the copy its author's key signed: anyone can write the tag.
+    if (!copy || !identity || copy.pubkey.toString("hex") !== identity.pubkey) {
+      continue;
     }
-    const last = deleted.at(-1);
-    if (!last || deleted.length < 100) return true;
-    after = last.id;
+    checkpoint();
+    await client.query(
+      "UPDATE events SET deleted_at = now() WHERE community_id = $1 AND id = $2",
+      [communityId, copy.id],
+    );
   }
+  return true;
 }
 
 /**

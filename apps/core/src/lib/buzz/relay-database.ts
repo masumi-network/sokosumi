@@ -67,3 +67,52 @@ export async function joinedWithInvites(
     row.joined === unique.length
   );
 }
+
+/**
+ * Deletes a DM the way the relay deletes a group, and its messages with it.
+ * The relay lets no one delete a DM (its people are all plain members, and
+ * only a message's author may delete it), so a Direct gone from Sokosumi is
+ * removed here. True when it is gone; null without the relay's database.
+ */
+export async function deleteDirectMessage(
+  host: string,
+  channelId: string,
+): Promise<boolean | null> {
+  const database = relayDatabase();
+  if (!database) return null;
+  const client = await database.connect();
+  try {
+    await client.query("BEGIN ISOLATION LEVEL READ COMMITTED");
+    const community = await client.query<{ id: string }>(
+      "SELECT id FROM communities WHERE lower(host) = lower($1) AND deleted_at IS NULL",
+      [host],
+    );
+    const communityId = community.rows[0]?.id;
+    if (!communityId) {
+      await client.query("ROLLBACK");
+      return true;
+    }
+    await client.query(
+      "UPDATE events SET deleted_at = now() WHERE community_id = $1 AND channel_id = $2 AND deleted_at IS NULL",
+      [communityId, channelId],
+    );
+    // Its people's hash freed: the same people may open a new DM later
+    // (the relay keeps it unique, deleted or not).
+    await client.query(
+      `UPDATE channels SET deleted_at = coalesce(deleted_at, now()), participant_hash = NULL
+        WHERE community_id = $1 AND id = $2`,
+      [communityId, channelId],
+    );
+    await client.query(
+      "UPDATE communities SET artifact_policy_modified_at = clock_timestamp() WHERE id = $1",
+      [communityId],
+    );
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}

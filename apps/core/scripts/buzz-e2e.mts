@@ -21,6 +21,7 @@ import {
   relayHttpOrigin,
   signEvent,
 } from "@/lib/buzz/relay-client";
+import { relayDatabase } from "@/lib/buzz/relay-database";
 import prisma from "@/lib/db/prisma";
 import {
   bridgeApiKeyFor,
@@ -376,18 +377,25 @@ check("I", "a Direct deleted in Sokosumi is deleted on Buzz", async () => {
   );
   // As account deletion or an organization's retirement removes it.
   await prisma.chatRoom.delete({ where: { id: directId } });
+  // Read from the relay's database: the protocol hides a DM from anyone who
+  // is not in it, and a refused read would pass for deleted.
+  const database = relayDatabase();
+  if (!database)
+    throw new Error("BUZZ_RELAY_DATABASE_URL is needed for this check");
   await waitFor(
-    "the DM deleted on Buzz",
+    "the DM and its messages deleted on Buzz",
     async () => {
-      const events = await queryEvents({
-        relayUrl,
-        secretKey: identitySecretKey(people.alice),
-        filters: [{ kinds: [9], "#h": [dm.channelId], limit: 1 }],
-      }).catch(() => []);
+      const state = await database.query<{ channel: boolean; live: number }>(
+        `SELECT (SELECT deleted_at IS NOT NULL FROM channels WHERE id = $1) AS channel,
+                (SELECT count(*)::int FROM events
+                  WHERE channel_id = $1 AND kind = 9 AND deleted_at IS NULL) AS live`,
+        [dm.channelId],
+      );
+      const row = state.rows[0];
       const link = await prisma.buzzChannel.findUnique({
         where: { id: dm.id },
       });
-      return events.length === 0 && !link;
+      return row?.channel === true && row.live === 0 && !link;
     },
     120_000,
   );

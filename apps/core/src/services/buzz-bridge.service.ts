@@ -51,6 +51,7 @@ import {
   relayHttpOrigin,
   signEvent,
 } from "@/lib/buzz/relay-client";
+import { deleteDirectMessage } from "@/lib/buzz/relay-database";
 import { checkpoint } from "@/lib/buzz/run-scope";
 import { openSecret, sealSecret } from "@/lib/buzz/secret-box";
 import {
@@ -3709,17 +3710,22 @@ export async function deleteChannelsOfDeletedRooms(
     if (!shouldContinue()) break;
     const relayUrl = channel.community.relayUrl;
     try {
-      // A DM is its opener's, not the operator's: one of its people whose key
-      // Sokosumi keeps deletes it.
-      // The operator last: the community's owner, should none of its people
-      // be left (an account deleted along with its key).
-      const signers = isDirect(channel)
-        ? [
-            ...(await directMessageSigners(relayUrl, channel.channelId)),
-            requireConfig().operatorSecretKey,
-          ]
-        : [requireConfig().operatorSecretKey];
-      await deleteGroup(relayUrl, channel.channelId, signers);
+      // The relay lets no one delete a DM, so ours is deleted in its
+      // database (messages too); a channel, the operator owns and deletes.
+      let deletedInDatabase: boolean | null = null;
+      if (isDirect(channel)) {
+        checkpoint();
+        deletedInDatabase = await deleteDirectMessage(
+          new URL(relayUrl).host,
+          channel.channelId,
+        );
+      }
+      if (!deletedInDatabase) {
+        const signers = isDirect(channel)
+          ? await directMessageSigners(relayUrl, channel.channelId)
+          : [requireConfig().operatorSecretKey];
+        await deleteGroup(relayUrl, channel.channelId, signers);
+      }
       await prisma.buzzChannel.delete({ where: { id: channel.id } });
       deleted += 1;
     } catch (error) {

@@ -90,6 +90,12 @@ is why a run lasts 240 s (the rest lets the change being applied finish).
 4. `pnpm --filter @sokosumi/core buzz:bridge status` (with production env)
    lists communities, channels and the outbox.
 
+**Long outages**: a run catches up from each community's saved position in
+one go before it applies anything. At today's volume (about 10,000 messages a
+month across all organizations) even a month away downloads in seconds; an
+outage with far more traffic than a 240 s run can download would need the
+catch-up made resumable first.
+
 **Rollback**: remove `BUZZ_COMMUNITY_URL_TEMPLATE` from Vercel and redeploy.
 The bridge stops; Sokosumi chat is unaffected. Nothing in Sokosumi's data
 depends on Buzz.
