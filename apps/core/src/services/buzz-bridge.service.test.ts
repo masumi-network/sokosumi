@@ -101,6 +101,7 @@ import {
   applyInboundEvent,
   BuzzTargetPendingError,
   buzzContentOf,
+  buzzTextOf,
   CoreRejectedError,
   type CoreRequest,
   communityLabelFor,
@@ -1820,6 +1821,45 @@ describe("buzzContentOf", () => {
   it("leaves a message without mentions alone", async () => {
     await expect(buzzContentOf("plain")).resolves.toBe("plain");
     expect(db.buzzIdentity.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("buzzTextOf", () => {
+  it("puts the quote above, skills and result cards below, cards without titles", () => {
+    const text = buzzTextOf({
+      content: "Agreed",
+      metadata: {
+        quote: {
+          messageId: "550e8400-e29b-41d4-a716-446655440000",
+          authorName: "Alice",
+          snippet: "Ship it?\nFriday",
+        },
+        result_preview_snapshots: [
+          {
+            workspaceId: "w",
+            reference: { kind: "task", id: "t1" },
+            data: {
+              id: "550e8400-e29b-41d4-a716-446655440001",
+              state: "available",
+              capturedAt: "2026-11-15T00:00:00.000Z",
+              kind: "task",
+              title: "Private title",
+              status: null,
+              sourceHref: "/tasks/t1",
+            },
+          },
+        ],
+      },
+      attachedSkills: [{ name: "Copywriting" }],
+    });
+    expect(text).toBe(
+      "> **Alice:** Ship it?\n> Friday\n\nAgreed\n\nSkills: Copywriting\n\n[Task ↗](/tasks/t1)",
+    );
+    expect(text).not.toContain("Private title");
+  });
+
+  it("leaves a plain message as it is", () => {
+    expect(buzzTextOf({ content: "hi", metadata: null })).toBe("hi");
   });
 });
 

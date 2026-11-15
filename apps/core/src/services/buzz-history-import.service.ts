@@ -30,6 +30,7 @@ import prisma from "@/lib/db/prisma";
 import {
   authorOf,
   buzzContentOf,
+  buzzTextOf,
   ensureIdentity,
   identitySecretKey,
   isExternal,
@@ -166,6 +167,11 @@ async function importChannel(
         roomId: true,
         parentMessageId: true,
         content: true,
+        metadata: true,
+        attachedSkills: {
+          select: { name: true },
+          orderBy: { position: "asc" },
+        },
         createdAt: true,
         senderUserId: true,
         senderSokoBotId: true,
@@ -198,6 +204,8 @@ type HistoryMessage = {
   roomId: string;
   parentMessageId: string | null;
   content: string;
+  metadata: unknown;
+  attachedSkills: { name: string }[];
   createdAt: Date;
   senderUserId: string | null;
   senderSokoBotId: string | null;
@@ -297,7 +305,7 @@ async function importMessage(
       identity,
       messageDraft({
         channelId,
-        content: await buzzContentOf(message.content),
+        content: await buzzContentOf(buzzTextOf(message)),
         threadRootEventId: root?.eventId ?? null,
         mentionPubkeys: await mentionPubkeysOf(message),
         messageId: message.id,
@@ -387,7 +395,7 @@ async function importMessage(
       data: {
         messageId: message.id,
         eventId: event.id,
-        contentHash: contentHash(message.content),
+        contentHash: contentHash(buzzTextOf(message)),
         channelId,
       },
     }),

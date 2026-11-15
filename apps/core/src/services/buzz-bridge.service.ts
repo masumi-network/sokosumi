@@ -5,6 +5,7 @@ import { npubEncode } from "nostr-tools/nip19";
 import type { Event } from "nostr-tools/pure";
 import { generateSecretKey, getPublicKey, verifyEvent } from "nostr-tools/pure";
 import { getEnv } from "@/config/env";
+import { readMessageResultSnapshots } from "@/helpers/chat-result-metadata";
 import { failOpenChatRoomMentions } from "@/helpers/chat-room-mention-status";
 import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
 import {
@@ -70,7 +71,9 @@ import {
 import prisma from "@/lib/db/prisma";
 import { isActiveUser } from "@/middleware/auth-active-user";
 import { publishChannelMembershipEffects } from "@/routes/v1/chats/rooms/channel-membership";
+import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
 import { isReadOnlyChatRoom } from "@/routes/v1/chats/rooms/read-only-room";
+import type { ChatResultAvailable } from "@/schemas/chat-result-preview.schema";
 
 /**
  * Buzz bridge: every chat room of an organization on Buzz is also a Buzz
@@ -2015,6 +2018,7 @@ const messageForSync = {
   reactions: { select: { userId: true, emoji: true } },
   userMentionsAsSource: { select: { userId: true } },
   mentionsAsSource: { select: { sokoBotId: true, coworkerId: true } },
+  attachedSkills: { select: { name: true }, orderBy: { position: "asc" } },
 } as const;
 
 export function authorOf(message: {
@@ -2206,7 +2210,8 @@ export async function reconcileMessage(
     return "unchanged";
   }
   const authorKey = identitySecretKey(authorIdentity);
-  const hash = contentHash(message.content);
+  const text = buzzTextOf(message);
+  const hash = contentHash(text);
   let result: ReconcileResult = "unchanged";
 
   // Finish what an earlier attempt decided but could not deliver.
@@ -2342,7 +2347,7 @@ export async function reconcileMessage(
           authorIdentity,
           messageDraft({
             channelId: channel.channelId,
-            content: await buzzContentOf(message.content),
+            content: await buzzContentOf(text),
             threadRootEventId,
             mentionPubkeys: [
               ...(await mentionPubkeysOf(message)),
@@ -2417,7 +2422,7 @@ export async function reconcileMessage(
           editDraft({
             channelId: channel.channelId,
             eventId: link.eventId,
-            content: await buzzContentOf(message.content),
+            content: await buzzContentOf(text),
           }),
         ),
         created_at: Math.max(
@@ -2446,6 +2451,49 @@ export async function reconcileMessage(
     });
   }
   return result;
+}
+
+const RESULT_LABEL: Record<ChatResultAvailable["kind"], string> = {
+  task: "Task",
+  task_schedule: "Schedule",
+  bot_schedule: "Schedule",
+  social_post: "Social post",
+  studio_job: "Studio",
+  job: "Agent job",
+  file: "File",
+  decision: "Decision",
+  project_selection: "Projects",
+  cmo_report: "Report",
+};
+
+/**
+ * What Buzz has no place for, in the text: the quoted message above, the
+ * attached skills and the result cards below. A card is a link without its
+ * title, which not every reader may see; Sokosumi checks the link.
+ */
+export function buzzTextOf(message: {
+  content: string;
+  metadata: unknown;
+  attachedSkills?: { name: string }[];
+}): string {
+  const quote = readQuoteFromMetadata(message.metadata);
+  const skills = message.attachedSkills ?? [];
+  const results = readMessageResultSnapshots(message.metadata);
+  return [
+    quote &&
+      `> **${quote.authorName}:** ${quote.snippet || "(attachment)"}`.replace(
+        /\n/g,
+        "\n> ",
+      ),
+    message.content,
+    skills.length > 0 &&
+      `Skills: ${skills.map((skill) => skill.name).join(", ")}`,
+    results
+      .map(({ data }) => `[${RESULT_LABEL[data.kind]} ↗](${data.sourceHref})`)
+      .join(" · "),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 /**
