@@ -22,11 +22,23 @@ import { DataRoomPeople } from "./data-room-people";
 import { DataRoomQuestions } from "./data-room-questions";
 import { DataRoomSettingsPanel } from "./data-room-settings";
 
+const ROOM_TABS: readonly string[] = [
+  "people",
+  "activity",
+  "questions",
+  "contents",
+  "settings",
+];
+
 export function DataRoomClient({ roomId }: { roomId: string }) {
   const t = useTranslations("App.Drive.DataRoom");
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
   // Set by "Make data room": the new room opens ready to invite.
-  const focusInvite = useSearchParams().has("invite");
+  const focusInvite = searchParams.has("invite");
+  // Set by Needs you: the room opens on Questions, at the one to answer.
+  const focusQuestionId = searchParams.get("question");
+  const tab = searchParams.get("tab");
   const store: FileStore = driveStoreForActiveWorkspace(
     session?.session?.activeOrganizationId ?? null,
   );
@@ -104,7 +116,10 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
         </Button>
       </header>
 
-      <Tabs defaultValue="people" className="gap-3">
+      <Tabs
+        defaultValue={tab && ROOM_TABS.includes(tab) ? tab : "people"}
+        className="gap-3"
+      >
         {/* Five tabs are wider than a phone: scroll them, or Settings is cut off. */}
         <TabsList className="app-scrollbar max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="people">
@@ -148,7 +163,12 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
             />
           </TabsContent>
           <TabsContent value="questions">
-            <DataRoomQuestions store={store} roomId={room.id} rows={rows} />
+            <DataRoomQuestions
+              store={store}
+              roomId={room.id}
+              rows={rows}
+              focusQuestionId={focusQuestionId}
+            />
           </TabsContent>
           <TabsContent value="contents">
             <DataRoomContents

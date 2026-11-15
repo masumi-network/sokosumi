@@ -843,6 +843,12 @@
           "OUT_OF_CREDITS": "Abrir",
           "GRANT_PENDING": "Abrir"
         }
+      },
+      "DataRoomQuestions": {
+        "heading": "{count, plural, one {# pregunta de la sala de datos espera respuesta} other {# preguntas de las salas de datos esperan respuesta}}",
+        "loadError": "No se pudieron cargar las preguntas de las salas de datos",
+        "byline": "{who} sobre {document} en {room}",
+        "action": "Responder"
       }
     },
     "HashValue": {

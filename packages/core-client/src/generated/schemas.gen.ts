@@ -17050,6 +17050,108 @@ export const CreateDataRoomRequestSchema = {
     ]
 } as const;
 
+export const WaitingDataRoomQuestionsSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Every unanswered question, also past the listed ones.'
+        },
+        questions: {
+            type: 'array',
+            items: {
+                allOf: [
+                    {
+                        $ref: '#/components/schemas/DataRoomQuestion'
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            roomId: {
+                                type: 'string'
+                            },
+                            roomName: {
+                                type: 'string',
+                                description: 'The room\'s title, else its folder name.'
+                            }
+                        },
+                        required: [
+                            'roomId',
+                            'roomName'
+                        ]
+                    }
+                ]
+            }
+        }
+    },
+    required: [
+        'count',
+        'questions'
+    ]
+} as const;
+
+export const DataRoomQuestionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string'
+        },
+        path: {
+            type: 'string'
+        },
+        body: {
+            type: 'string'
+        },
+        answer: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        answeredAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        email: {
+            type: 'string'
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'path',
+        'body',
+        'answer',
+        'answeredAt',
+        'email',
+        'name'
+    ]
+} as const;
+
 export const DataRoomDetailSchema = {
     type: 'object',
     properties: {
@@ -17581,67 +17683,6 @@ export const DataRoomQuestionsSchema = {
     items: {
         $ref: '#/components/schemas/DataRoomQuestion'
     }
-} as const;
-
-export const DataRoomQuestionSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string'
-        },
-        createdAt: {
-            type: 'string'
-        },
-        path: {
-            type: 'string'
-        },
-        body: {
-            type: 'string'
-        },
-        answer: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        answeredAt: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        email: {
-            type: 'string'
-        },
-        name: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        }
-    },
-    required: [
-        'id',
-        'createdAt',
-        'path',
-        'body',
-        'answer',
-        'answeredAt',
-        'email',
-        'name'
-    ]
 } as const;
 
 export const AnswerDataRoomQuestionRequestSchema = {

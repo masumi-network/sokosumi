@@ -44,6 +44,7 @@ const toastErrorMock = vi.fn();
 const sessionMock = vi.fn();
 const getTasksMock = vi.fn();
 const getTasksSummaryMock = vi.fn();
+const fetchWaitingQuestionsMock = vi.fn();
 let deliverRealtime: (event: NotificationEventData) => void = () => {};
 
 vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
@@ -96,6 +97,10 @@ vi.mock("@/lib/clients/core.browser.client", async (importOriginal) => {
     },
   };
 });
+vi.mock("@/lib/utils/data-room.client", () => ({
+  fetchWaitingDataRoomQuestions: (...args: unknown[]) =>
+    fetchWaitingQuestionsMock(...args),
+}));
 vi.mock("@/app/components/user-avatar/workspace-switcher", () => ({
   useWorkspaceSwitcher: () => ({ handleSelectWorkspace: vi.fn() }),
 }));
@@ -281,9 +286,11 @@ beforeEach(() => {
     sessionMock,
     getTasksMock,
     getTasksSummaryMock,
+    fetchWaitingQuestionsMock,
   ]) {
     mock.mockReset();
   }
+  fetchWaitingQuestionsMock.mockResolvedValue({ count: 0, questions: [] });
   sessionMock.mockReturnValue({ data: null });
   isMobileMock.mockReturnValue(false);
   accountNoticeMock.mockReturnValue({ notice: null });
@@ -1689,6 +1696,43 @@ describe("Notification Center Needs you view", () => {
       expect(screen.queryByText("ask-here")).toBeNull();
     },
   );
+
+  it("lists unanswered data room questions and counts them on Needs you", async () => {
+    sessionMock.mockReturnValue(SIGNED_IN);
+    getTasksSummaryMock.mockResolvedValue({ data: { awaitingInput: 0 } });
+    getTasksMock.mockResolvedValue({ data: [] });
+    fetchWaitingQuestionsMock.mockResolvedValue({
+      count: 1,
+      questions: [
+        {
+          id: "q1",
+          createdAt: "2026-11-15T10:00:00.000Z",
+          path: "Teaser.pdf",
+          body: "Is churn monthly?",
+          answer: null,
+          answeredAt: null,
+          email: "viewer@example.com",
+          name: null,
+          roomId: "room-1",
+          roomName: "Series A",
+        },
+      ],
+    });
+
+    await renderPage();
+    await settle();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("tab", { name: "filterNeedsYou 1" }));
+    await settle();
+
+    expect(
+      screen
+        .getByRole("link", { name: /Is churn monthly\?/ })
+        .getAttribute("href"),
+    ).toBe("/drive/data-rooms/room-1?tab=questions&question=q1");
+    expect(screen.queryByText("emptyNeedsYouState")).toBeNull();
+  });
 
   it("keeps another workspace's ask when nothing waits in this one", async () => {
     sessionMock.mockReturnValue(SIGNED_IN);

@@ -2,6 +2,7 @@ import {
   type DataRoom,
   DataRoomEventKind,
   type DataRoomMember,
+  DataRoomStorage,
   FileSourceScope,
 } from "@sokosumi/database";
 import { normalizeDriveFolderPath } from "@sokosumi/utils";
@@ -10,7 +11,10 @@ import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import { canSeeDataRoom } from "@/lib/data-room-visibility";
 import prisma from "@/lib/db/prisma";
-import type { DataRoomCaller } from "@/services/data-room.service";
+import {
+  type DataRoomCaller,
+  listDataRooms,
+} from "@/services/data-room.service";
 import {
   logDataRoomEvent,
   memberSeesPath,
@@ -371,6 +375,42 @@ export async function listDataRoomQuestions(input: {
     orderBy: { createdAt: "desc" },
     include: { member: { select: { email: true, name: true } } },
   });
+}
+
+/** Rows Needs you lists before the count says there are more. */
+export const WAITING_DATA_ROOM_QUESTIONS_LIMIT = 50;
+
+/**
+ * Questions nobody has answered yet, across every room of this Drive the
+ * caller may run (the rooms `listDataRooms` shows them), newest first. A
+ * closing room's questions are left out: its viewers are being let go.
+ */
+export async function listWaitingDataRoomQuestions(store: DataRoomCaller) {
+  const rooms = (await listDataRooms(store)).filter(
+    (room) => room.storage !== DataRoomStorage.MOVING_OUT,
+  );
+  if (rooms.length === 0) return { count: 0, questions: [] };
+  const where = {
+    roomId: { in: rooms.map((room) => room.id) },
+    answeredAt: null,
+  };
+  const [count, questions] = await Promise.all([
+    prisma.dataRoomQuestion.count({ where }),
+    prisma.dataRoomQuestion.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: WAITING_DATA_ROOM_QUESTIONS_LIMIT,
+      include: { member: { select: { email: true, name: true } } },
+    }),
+  ]);
+  const byId = new Map(rooms.map((room) => [room.id, room]));
+  return {
+    count,
+    questions: questions.flatMap((question) => {
+      const room = byId.get(question.roomId);
+      return room ? [{ ...question, room }] : [];
+    }),
+  };
 }
 
 export async function answerDataRoomQuestion(input: {

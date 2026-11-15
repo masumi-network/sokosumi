@@ -4742,6 +4742,31 @@ export type CreateDataRoomRequest = {
     folderPath: string;
 };
 
+export type WaitingDataRoomQuestions = {
+    /**
+     * Every unanswered question, also past the listed ones.
+     */
+    count: number;
+    questions: Array<DataRoomQuestion & {
+        roomId: string;
+        /**
+         * The room's title, else its folder name.
+         */
+        roomName: string;
+    }>;
+};
+
+export type DataRoomQuestion = {
+    id: string;
+    createdAt: string;
+    path: string;
+    body: string;
+    answer: string | null;
+    answeredAt: string | null;
+    email: string;
+    name: string | null;
+};
+
 export type DataRoomDetail = {
     room: DataRoom;
     members: Array<DataRoomMember>;
@@ -4849,17 +4874,6 @@ export type DataRoomEvent = {
 };
 
 export type DataRoomQuestions = Array<DataRoomQuestion>;
-
-export type DataRoomQuestion = {
-    id: string;
-    createdAt: string;
-    path: string;
-    body: string;
-    answer: string | null;
-    answeredAt: string | null;
-    email: string;
-    name: string | null;
-};
 
 export type AnswerDataRoomQuestionRequest = {
     /**
@@ -38512,6 +38526,99 @@ export type PostDriveDataRoomsResponses = {
 };
 
 export type PostDriveDataRoomsResponse = PostDriveDataRoomsResponses[keyof PostDriveDataRoomsResponses];
+
+export type GetDriveDataRoomsQuestionsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/data-rooms/questions';
+};
+
+export type GetDriveDataRoomsQuestionsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveDataRoomsQuestionsError = GetDriveDataRoomsQuestionsErrors[keyof GetDriveDataRoomsQuestionsErrors];
+
+export type GetDriveDataRoomsQuestionsResponses = {
+    /**
+     * Waiting questions
+     */
+    200: {
+        data: WaitingDataRoomQuestions;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveDataRoomsQuestionsResponse = GetDriveDataRoomsQuestionsResponses[keyof GetDriveDataRoomsQuestionsResponses];
 
 export type DeleteDriveDataRoomsByIdData = {
     body?: never;

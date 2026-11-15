@@ -8,6 +8,7 @@ import type {
   DataRoomQuestion,
   Member,
   UpdateDataRoomRequest,
+  WaitingDataRoomQuestions,
 } from "@sokosumi/core-client";
 import {
   deleteDriveDataRoomsById,
@@ -16,6 +17,7 @@ import {
   getDriveDataRoomsById,
   getDriveDataRoomsByIdEvents,
   getDriveDataRoomsByIdQuestions,
+  getDriveDataRoomsQuestions,
   getOrganizationsByIdMembers,
   patchDriveDataRoomsById,
   patchDriveDataRoomsByIdQuestionsByQuestionId,
@@ -154,6 +156,18 @@ export async function fetchDataRoomQuestions(input: {
     client: getBrowserCoreClient(),
     path: { id: input.roomId },
     query: storeQuery(input.store),
+    throwOnError: true,
+  });
+  return data.data;
+}
+
+/** Unanswered questions across every room of the Drive the reader runs. */
+export async function fetchWaitingDataRoomQuestions(
+  store: FileStore,
+): Promise<WaitingDataRoomQuestions> {
+  const { data } = await getDriveDataRoomsQuestions({
+    client: getBrowserCoreClient(),
+    query: storeQuery(store),
     throwOnError: true,
   });
   return data.data;

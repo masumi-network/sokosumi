@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { NotificationsSkeletonRows } from "@/app/notifications/components/notifications-loading-view";
 import { NotificationCenterRow } from "@/components/notifications/notification-center-row";
+import { useNeedsYouDataRoomQuestions } from "@/components/notifications/notification-data-room-questions";
 import { NotificationEmptyState } from "@/components/notifications/notification-empty-state";
 import { NotificationOlderBoundaryRow } from "@/components/notifications/notification-older-boundary-row";
 import { useNeedsYouTasks } from "@/components/notifications/notification-waiting-tasks";
@@ -61,6 +62,8 @@ export function NotificationCenterList({
   const { notice } = useAccountNotice();
   const { data: waitingTasks, isLoading: isLoadingWaitingTasks } =
     useNeedsYouTasks();
+  const { data: waitingQuestions, isLoading: isLoadingWaitingQuestions } =
+    useNeedsYouDataRoomQuestions();
   const {
     notifications,
     unreadCount,
@@ -218,15 +221,18 @@ export function NotificationCenterList({
       );
     }
 
-    // On Needs you an account notice or a waiting Task above the list
-    // already gives the frame something to say, and "Nothing needs you"
-    // under it would read as a contradiction. The other views show neither.
-    // While the Tasks are still loading, the answer is not known yet.
+    // On Needs you an account notice, a waiting Task or a data room
+    // question above the list already gives the frame something to say, and
+    // "Nothing needs you" under it would read as a contradiction. The other
+    // views show none. While those are still loading, the answer is not
+    // known yet.
     if (
       view === "needs-action" &&
       (notice !== null ||
         isLoadingWaitingTasks ||
-        (waitingTasks?.count ?? 0) > 0)
+        isLoadingWaitingQuestions ||
+        (waitingTasks?.count ?? 0) > 0 ||
+        (waitingQuestions?.count ?? 0) > 0)
     ) {
       return null;
     }
