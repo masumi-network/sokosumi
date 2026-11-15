@@ -42,6 +42,16 @@ describe("TaskCreditsUsed", () => {
     ).toHaveAttribute("href", `/history?taskId=${TASK_ID}&scope=workspace`);
   });
 
+  it("cuts the amount to cents like Transactions does", async () => {
+    getTaskTotalMock.mockResolvedValue({ credits: 700.402, count: 1 });
+
+    await renderRow();
+
+    expect(
+      screen.getByRole("link", { name: "creditsUsed: 700.4" }),
+    ).toBeInTheDocument();
+  });
+
   it("says no credits were used when the ledger has no rows", async () => {
     getTaskTotalMock.mockResolvedValue({ credits: 0, count: 0 });
 

@@ -23,7 +23,8 @@ export async function TaskCreditsUsed({ taskId }: { taskId: string }) {
   const value =
     total.count === 0
       ? t("noCreditsUsed")
-      : t("creditsUsed", { credits: total.credits });
+      : // Cut to cents as Transactions does, so both pages show one number.
+        t("creditsUsed", { credits: Math.trunc(total.credits * 100) / 100 });
   const params = new URLSearchParams({ taskId, scope: "workspace" });
 
   return (
