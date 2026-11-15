@@ -2822,6 +2822,21 @@ async function isAnswered(question: {
 }
 
 /** The Coworker's answer to this Buzz question ended well. */
+/**
+ * Counts one more failed answer to a Buzz question, across runs; once it
+ * reaches `limit` the question counts as answered (given up), so no later
+ * run asks again. Returns the count.
+ */
+export async function recordFailedBuzzAnswer(eventId: string, limit: number) {
+  const link = await prisma.buzzMessageLink.update({
+    where: { eventId },
+    data: { failedAnswers: { increment: 1 } },
+    select: { failedAnswers: true },
+  });
+  if (link.failedAnswers >= limit) await markBuzzQuestionAnswered(eventId);
+  return link.failedAnswers;
+}
+
 export async function markBuzzQuestionAnswered(eventId: string) {
   await prisma.buzzMessageLink.updateMany({
     where: { eventId },

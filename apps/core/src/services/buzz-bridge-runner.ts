@@ -25,6 +25,7 @@ import {
   markBuzzQuestionAnswered,
   provisionBuzzCommunities,
   readerSecretKey,
+  recordFailedBuzzAnswer,
   removeAgentsWithoutOwner,
   saveInboundCursor,
   syncBuzzAgents,
@@ -311,14 +312,19 @@ export async function runBuzzBridge(options: {
               log(`in  ${id} answer not recorded`, error),
             );
           }
-          if (ok || failedAnswers + 1 >= ANSWER_ATTEMPTS) {
-            if (!ok) {
-              log(`in  kind ${event.kind} ${id} answer failed, giving up`);
-              // Recorded, so a later run catching up does not ask again.
-              await markBuzzQuestionAnswered(event.id).catch((error) =>
-                log(`in  ${id} giving up not recorded`, error),
+          // Counted on the question, so the limit holds across runs; at the
+          // limit it is recorded as answered (given up) and not asked again.
+          const failures = ok
+            ? 0
+            : await recordFailedBuzzAnswer(event.id, ANSWER_ATTEMPTS).catch(
+                (error) => {
+                  log(`in  ${id} failed answer not recorded`, error);
+                  return failedAnswers + 1;
+                },
               );
-            }
+          if (ok || failures >= ANSWER_ATTEMPTS) {
+            if (!ok)
+              log(`in  kind ${event.kind} ${id} answer failed, giving up`);
             finish(communityId, event);
             return;
           }

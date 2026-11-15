@@ -13,11 +13,14 @@
  * or deletion later in Sokosumi reaches Buzz as usual. Safe to run again: a
  * message already linked is skipped and the relay ignores an event it has.
  */
+import type { BuzzIdentity } from "@sokosumi/database";
 import type pg from "pg";
+import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import {
   BUZZ_AGENT_URL_PREFIX,
   contentHash,
   messageDraft,
+  profileDraft,
   reactionDraft,
 } from "@/lib/buzz/events";
 import { signEvent } from "@/lib/buzz/relay-client";
@@ -179,8 +182,8 @@ async function importChannel(
     }
     const last = messages.at(-1);
     if (!last || messages.length < BATCH) {
-      await deleteUnlinkedCopies(client, communityId, input);
-      return imported;
+      const cleaned = await deleteUnlinkedCopies(client, communityId, input);
+      return cleaned ? imported : null;
     }
     after = { createdAt: last.createdAt, id: last.id };
   }
@@ -218,6 +221,7 @@ async function importMessage(
   const identity = await ensureIdentity(author);
   // A key Sokosumi does not hold signed it on Buzz already.
   if (isExternal(identity)) return false;
+  await ensureHistoricProfile(client, communityId, identity, author);
   const earlier = await importedEventOf(
     client,
     communityId,
@@ -473,43 +477,125 @@ async function importedReactionsOf(
 async function deleteUnlinkedCopies(
   client: RelayClient,
   communityId: string,
-  input: { channelId: string; roomId: string; before: Date },
-) {
-  const deleted = await prisma.chatRoomMessage.findMany({
-    where: {
-      roomId: input.roomId,
-      createdAt: { lt: input.before },
-      deletedAt: { not: null },
-      buzzLink: null,
-    },
-    select: {
-      id: true,
-      senderUserId: true,
-      senderSokoBotId: true,
-      senderCoworkerId: true,
-    },
-    orderBy: { deletedAt: "desc" },
-    take: 100,
-  });
-  for (const message of deleted) {
-    const author = authorOf(message);
-    const identity = author
-      ? await prisma.buzzIdentity.findUnique({ where: author })
-      : null;
-    if (!identity) continue;
-    checkpoint();
-    await client.query(
-      `UPDATE events SET deleted_at = now()
-        WHERE community_id = $1 AND channel_id = $2 AND kind = 9
-          AND deleted_at IS NULL AND pubkey = $4 AND tags @> $3::jsonb`,
-      [
-        communityId,
-        input.channelId,
-        JSON.stringify([["sokosumi", message.id]]),
-        hex(identity.pubkey),
-      ],
-    );
+  input: {
+    channelId: string;
+    roomId: string;
+    before: Date;
+    shouldContinue?: () => boolean;
+  },
+): Promise<boolean> {
+  // Every one, a page at a time; false when stopped before the end (the
+  // import is then not done, and the next pass goes through them again).
+  let after: string | undefined;
+  for (;;) {
+    const deleted = await prisma.chatRoomMessage.findMany({
+      where: {
+        roomId: input.roomId,
+        createdAt: { lt: input.before },
+        deletedAt: { not: null },
+        buzzLink: null,
+        ...(after ? { id: { gt: after } } : {}),
+      },
+      select: {
+        id: true,
+        senderUserId: true,
+        senderSokoBotId: true,
+        senderCoworkerId: true,
+      },
+      orderBy: { id: "asc" },
+      take: 100,
+    });
+    for (const message of deleted) {
+      if (input.shouldContinue?.() === false) return false;
+      const author = authorOf(message);
+      const identity = author
+        ? await prisma.buzzIdentity.findUnique({ where: author })
+        : null;
+      if (!identity) continue;
+      checkpoint();
+      await client.query(
+        `UPDATE events SET deleted_at = now()
+          WHERE community_id = $1 AND channel_id = $2 AND kind = 9
+            AND deleted_at IS NULL AND pubkey = $4 AND tags @> $3::jsonb`,
+        [
+          communityId,
+          input.channelId,
+          JSON.stringify([["sokosumi", message.id]]),
+          hex(identity.pubkey),
+        ],
+      );
+    }
+    const last = deleted.at(-1);
+    if (!last || deleted.length < 100) return true;
+    after = last.id;
   }
+}
+
+/**
+ * Someone who wrote history but is in no room any more has no profile in the
+ * community: their old messages would show a bare key. Their profile is
+ * written here, as history is; their access to rooms stays as it is.
+ */
+async function ensureHistoricProfile(
+  client: RelayClient,
+  communityId: string,
+  identity: BuzzIdentity,
+  author: { userId: string } | { sokoBotId: string } | { coworkerId: string },
+) {
+  const known = await client.query(
+    "SELECT 1 FROM events WHERE community_id = $1 AND pubkey = $2 AND kind = 0 LIMIT 1",
+    [communityId, hex(identity.pubkey)],
+  );
+  if (known.rowCount) return;
+  const profile =
+    "userId" in author
+      ? await prisma.user
+          .findUnique({
+            where: { id: author.userId },
+            select: { name: true, image: true },
+          })
+          .then((user) => user && { name: user.name, picture: user.image })
+      : "sokoBotId" in author
+        ? await prisma.sokoBot
+            .findUnique({ where: { id: author.sokoBotId } })
+            .then(
+              (bot) =>
+                bot && {
+                  name: sokoBotDisplayName(bot),
+                  picture: bot.avatarImageUrl,
+                  bot: true,
+                },
+            )
+        : await prisma.coworker
+            .findUnique({
+              where: { id: author.coworkerId },
+              select: { name: true, image: true },
+            })
+            .then(
+              (coworker) =>
+                coworker && {
+                  name: coworker.name,
+                  picture: coworker.image,
+                  bot: true,
+                },
+            );
+  if (!profile) return;
+  const event = signEvent(profileDraft(profile), identitySecretKey(identity));
+  checkpoint();
+  await client.query(
+    `INSERT INTO events
+       (community_id, id, pubkey, created_at, kind, tags, content, sig, received_at)
+     VALUES ($1, $2, $3, $4, 0, '[]'::jsonb, $5, $6, $4)
+     ON CONFLICT DO NOTHING`,
+    [
+      communityId,
+      hex(event.id),
+      hex(event.pubkey),
+      at(event.created_at),
+      event.content,
+      hex(event.sig),
+    ],
+  );
 }
 
 async function insertEvent(
