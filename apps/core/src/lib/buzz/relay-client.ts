@@ -237,7 +237,8 @@ export async function queryAllEvents(input: {
       filters: [{ ...input.filter, ...filter }],
       fetchImpl: input.fetchImpl,
     });
-  let until = Math.floor(Date.now() / 1000);
+  // The relay takes events dated up to 15 minutes ahead: read them too.
+  let until = Math.floor(Date.now() / 1000) + 15 * 60;
   // `until` only moves back, so this ends.
   for (;;) {
     const events = await query({ until, limit: PAGE });

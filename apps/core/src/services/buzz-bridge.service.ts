@@ -2698,6 +2698,45 @@ export async function repairBuzzOutbox(limit = 200): Promise<number> {
            AND l."contentHash" <> encode(sha256(convert_to(m.content, 'UTF8')), 'hex'))
        )
      LIMIT ${limit}`;
+  // Reactions change no message: added ones Buzz has no link for, and links
+  // whose reaction is gone (the person's own app key's are theirs to undo).
+  const reactions = await prisma.$queryRaw<{ id: string; roomId: string }[]>`
+    SELECT DISTINCT m.id::text AS id, m."roomId"::text AS "roomId"
+      FROM chat_room_message m
+      JOIN buzz_channel c ON c."roomId" = m."roomId"
+      JOIN buzz_message_link ml ON ml."messageId" = m.id AND NOT ml.deleted
+     WHERE m."deletedAt" IS NULL
+       AND NOT EXISTS (SELECT 1 FROM buzz_outbox o WHERE o."messageId" = m.id)
+       AND (
+         EXISTS (
+           SELECT 1 FROM chat_room_reaction r
+             JOIN buzz_identity i ON i."userId" = r."userId"
+            WHERE r."messageId" = m.id
+              AND r."createdAt" BETWEEN now() - interval '1 day' AND now() - interval '1 minute'
+              AND NOT EXISTS (
+                SELECT 1 FROM buzz_reaction_link rl
+                 WHERE rl."messageId" = m.id AND rl."identityId" = i.id
+                   AND rl.emoji = r.emoji
+              )
+         )
+         OR EXISTS (
+           SELECT 1 FROM buzz_reaction_link rl
+             JOIN buzz_identity i ON i.id = rl."identityId"
+            WHERE rl."messageId" = m.id
+              AND rl."signerPubkey" IS NULL AND rl."pendingEvent" IS NULL
+              AND rl."createdAt" < now() - interval '1 minute'
+              AND NOT EXISTS (
+                SELECT 1 FROM chat_room_reaction r
+                 WHERE r."messageId" = m.id AND r."userId" = i."userId"
+                   AND r.emoji = rl.emoji
+              )
+         )
+       )
+     LIMIT ${limit}`;
+  const queued = new Set(due.map((message) => message.id));
+  for (const message of reactions) {
+    if (!queued.has(message.id)) due.push(message);
+  }
   if (due.length > 0) {
     await prisma.buzzOutbox.createMany({
       data: due.map((message) => ({
