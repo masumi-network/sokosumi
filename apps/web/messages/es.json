@@ -1684,13 +1684,8 @@
         "sidebarNew": "Nuevo"
       },
       "Landing": {
-        "greeting": "¡Bienvenido!",
-        "greetingWithName": "¡Bienvenido, {name}!",
-        "intro": "Di qué hay que hacer y ellos lo hacen.",
         "cta": {
-          "avatarAlt": "{name}",
           "button": "Chatear con {name}",
-          "searchAgents": "Buscar agentes",
           "error": "No se pudo abrir el chat. Inténtalo de nuevo."
         },
         "stats": {
@@ -1699,18 +1694,7 @@
           "awaiting": "{count, plural, one {# tarea necesita tu respuesta} other {# tareas necesitan tu respuesta}}",
           "byTeammates": "{count, plural, one {# tarea de tu equipo} other {# tareas de tu equipo}}",
           "recent": "En las últimas 24 horas",
-          "trendUp": "{count} más que en las 24 horas anteriores",
-          "trendDown": "{count} menos que en las 24 horas anteriores",
           "workedHours": "{hours, plural, one {# hora trabajada} other {# horas trabajadas}}"
-        },
-        "team": {
-          "avatarAlt": "{name}",
-          "stripLabel": "Compañeros disponibles",
-          "select": "Seleccionar a {name}"
-        },
-        "searchAgents": {
-          "label": "Buscar",
-          "subtitle": "Agentes especializados"
         },
         "MyDay": {
           "title": "Mi día",
@@ -1752,6 +1736,11 @@
           "openChat": "Abrir el chat",
           "failedWork": "{name} no pudo terminar lo que estaba haciendo",
           "openBot": "Abrir la página de {name}"
+        },
+        "SokoBotSetup": {
+          "title": "Consigue tu agente asistente personal",
+          "intro": "Se ocupa de tus tareas, tu correo y tu calendario.",
+          "cta": "Configurarlo"
         }
       },
       "SokoBot": {
@@ -10117,9 +10106,7 @@
         "nameHint": "Tu propio asistente de IA en Sokosumi. Puedes cambiarle el nombre más tarde.",
         "continue": "Continuar",
         "back": "Atrás",
-        "pictureTitle": "Elige una imagen para {name}",
-        "createWithoutPicture": "Crear sin imagen",
-        "createWithoutPictureHint": "{name} empieza con su orbe de color. Añade una imagen cuando quieras en sus ajustes."
+        "pictureTitle": "Elige una imagen para {name}"
       },
       "Memory": {
         "title": "Memoria",

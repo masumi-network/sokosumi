@@ -1,35 +1,37 @@
 import {
-  applyFoilTokens,
-  FOIL_GLSL,
-  foilLoopAt,
-  foilUnit,
+  applyGradientTokens,
+  GRADIENT_GLSL,
+  gradientLoopAt,
+  gradientUnit,
   linkProgram,
-} from "@/components/foil-background";
+} from "@/components/gradient-background";
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const COVER_MS = 650;
 const REVEAL_MS = 750;
 
-// A wavy band cut out of the Home foil. `p` moves its centre across the
-// screen (0 off the left, 0.5 the middle, 1 off the right); near the middle it
-// widens until it covers everything, so the page can change unseen.
+// A wavy band of the Home gradient, with a soft light along its middle. `p`
+// moves its centre across the screen (0 off the left, 0.5 the middle, 1 off
+// the right); near the middle it widens until it covers everything, so the
+// page can change unseen.
 const FRAGMENT_SHADER = `precision highp float;
 uniform vec2 res; uniform float unit; uniform float t; uniform float p;
-${FOIL_GLSL}
+${GRADIENT_GLSL}
 void main(){
   vec2 uv=gl_FragCoord.xy/res; uv.y=1.-uv.y;
   float cover=max(0.,1.-abs(p-.5)/.16); cover*=cover;
   float x=uv.x+sin(uv.y*5.+t*3.)*.035+(n(vec2(uv.y*3.,t*.8))-.5)*.12;
   float d=(x-mix(-.55,1.55,p))/(.24+cover*.9);
   float a=clamp(exp(-d*d)*1.25+cover*.25,0.,1.);
-  vec3 c=foil(gl_FragCoord.xy/unit)+grain(gl_FragCoord.xy)*.04;
+  vec3 c=gradient(gl_FragCoord.xy/unit)+pow(max(0.,1.-abs(d)*1.8),6.)*.18;
+  c+=grain(gl_FragCoord.xy)*.035;
   gl_FragColor=vec4(c*a,a);
 }`;
 
 let sweeping = false;
 
 /**
- * Sweeps a foil band over the screen around a change of workspace: it covers
+ * Sweeps a gradient band over the screen around a change of workspace: it covers
  * the page, holds while `change` runs (a switch is a server round trip, so it
  * can take a second), then reveals the new workspace. Only for a switch
  * someone asked for: the workspace menu and finishing the Create workspace
@@ -87,9 +89,9 @@ function createBand() {
   gl.enableVertexAttribArray(position);
   gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
   const uniform = (name: string) => gl.getUniformLocation(program, name);
-  applyFoilTokens(gl, program, getComputedStyle(document.documentElement));
+  applyGradientTokens(gl, program, getComputedStyle(document.documentElement));
   gl.uniform2f(uniform("res"), canvas.width, canvas.height);
-  gl.uniform1f(uniform("unit"), foilUnit(ratio));
+  gl.uniform1f(uniform("unit"), gradientUnit(ratio));
   document.body.append(canvas);
 
   const start = performance.now();
@@ -103,7 +105,7 @@ function createBand() {
   const draw = (now: number) => {
     gl.uniform1f(uniform("t"), (now - start) / 1000);
     gl.uniform1f(uniform("p"), progress(now));
-    gl.uniform1f(uniform("loop"), foilLoopAt(false));
+    gl.uniform1f(uniform("loop"), gradientLoopAt(false));
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     frame = requestAnimationFrame(draw);
   };
