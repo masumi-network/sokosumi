@@ -26,12 +26,16 @@ import {
 import { SeoWorkspace } from "./seo-workspace";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
+const { setupViewer } = vi.hoisted(() => ({
+  setupViewer: { id: "owner", org: "org" },
+}));
+
 vi.mock("@/lib/actions/seo/action", () => ({ mutateSeo: vi.fn() }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     data: {
-      session: { activeOrganizationId: "org" },
-      user: { id: "owner" },
+      session: { activeOrganizationId: setupViewer.org },
+      user: { id: setupViewer.id },
     },
   }),
 }));
@@ -60,13 +64,31 @@ function page(content: React.ReactNode, searchParams = "") {
   );
 }
 
-function renderWorkspace(workspace: ProjectSeoWorkspace, searchParams = "") {
-  render(page(<SeoWorkspace workspace={workspace} />, searchParams));
+async function renderWorkspace(
+  workspace: ProjectSeoWorkspace,
+  searchParams = "",
+) {
+  const view = render(
+    page(<SeoWorkspace workspace={workspace} />, searchParams),
+  );
+  await waitFor(() =>
+    expect(
+      clients
+        .at(-1)
+        ?.getQueryData([
+          "seo-connection",
+          setupViewer.org,
+          setupViewer.id,
+          "search_console",
+        ]),
+    ).toBeDefined(),
+  );
+  return view;
 }
 
 /** The setup card alone, for a state change the page gets from a new read. */
 function setupCard(workspace: ProjectSeoWorkspace) {
-  const setup = seoSetup(workspace);
+  const setup = seoSetup(workspace, undefined, true);
   if (!setup) throw new Error("This workspace has no setup");
   const model = { data: workspace, setDialog: vi.fn() };
   return (
@@ -81,20 +103,21 @@ function network(
   routes: {
     connection?: (provider: string) => object;
     chat?: (init?: RequestInit) => Reply;
+    unfiltered?: ProjectSeoWorkspace | (() => Reply);
   } = {},
 ) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string, init?: RequestInit) => {
-      const { pathname } = new URL(input, "https://web.test");
+      const { pathname, search } = new URL(input, "https://web.test");
       const connection = pathname.match(/\/api\/seo\/connections\/(\w+)$/);
       if (connection)
         return Response.json(
           routes.connection?.(connection[1]) ?? {
             provider: connection[1],
             name: connection[1],
-            status: "not_connected",
-            source: "none",
+            status: "connected",
+            source: "personal_assistant",
           },
         );
       if (pathname.endsWith("statistics/properties"))
@@ -109,6 +132,10 @@ function network(
           routes.chat?.(init) ??
           Response.json({ sharing: "personal", turns: [] })
         );
+      if (!search && routes.unfiltered)
+        return typeof routes.unfiltered === "function"
+          ? routes.unfiltered()
+          : Response.json(routes.unfiltered);
       return Response.json(workspace);
     }),
   );
@@ -137,6 +164,8 @@ const media = (matches: boolean) =>
   }) as unknown as MediaQueryList;
 
 beforeEach(() => {
+  setupViewer.id = "owner";
+  setupViewer.org = "org";
   // A pointer device: Enter sends. A touch keyboard has its own test.
   vi.spyOn(window, "matchMedia").mockImplementation((query) =>
     media(query === "(hover: hover)"),
@@ -150,33 +179,250 @@ afterEach(() => {
 });
 
 describe("SEO audit first run", () => {
-  it("has two steps, and the first audit is the one filled button", async () => {
+  it("asks for Google before offering the first audit, then permits an explicit skip", async () => {
+    const workspace = seoTestWorkspace();
+    network(workspace, {
+      connection: (provider) => ({
+        provider,
+        name: provider,
+        status: "not_connected",
+        source: "none",
+      }),
+    });
+    await renderWorkspace(workspace);
+    const setup = screen.getByTestId("seo-setup");
+    expect(
+      await within(setup).findByRole("button", { name: "Connect Google" }),
+    ).toBeVisible();
+    expect(
+      within(setup).queryByRole("button", { name: "Run full audit" }),
+    ).toBeNull();
+    expect(within(setup).getAllByRole("listitem")).toHaveLength(3);
+    await userEvent
+      .setup()
+      .click(
+        within(setup).getByRole("button", { name: "Continue without Google" }),
+      );
+    expect(
+      await within(setup).findByRole("button", { name: "Run full audit" }),
+    ).toBeVisible();
+  });
+
+  it("does not expose a header run on another tab while Google setup waits", async () => {
+    const workspace = seoTestWorkspace();
+    network(workspace, {
+      connection: (provider) => ({
+        provider,
+        name: provider,
+        status: "not_connected",
+        source: "none",
+      }),
+    });
+    await renderWorkspace(workspace, "tab=traffic");
+    await screen.findByRole("tab", { name: /Traffic/ });
+    expect(screen.queryByRole("button", { name: "Run full audit" })).toBeNull();
+  });
+
+  it.each(["viewer", "audit"] as const)(
+    "does not carry a skipped Google step into another %s",
+    async (change) => {
+      const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+      const disconnected = (provider: string) => ({
+        provider,
+        name: provider,
+        status: "not_connected",
+        source: "none",
+      });
+      network(workspace, { connection: disconnected });
+      const view = await renderWorkspace(workspace);
+      await userEvent.setup().click(
+        await screen.findByRole("button", {
+          name: "Continue without Google",
+        }),
+      );
+      expect(
+        await screen.findByRole("button", { name: "Run full audit" }),
+      ).toBeVisible();
+      const next = { ...workspace };
+      if (change === "viewer") setupViewer.id = "another-owner";
+      else next.auditId = "3e172eec-844c-45c9-9fbd-252312b502a8";
+      network(next, { connection: disconnected });
+      view.rerender(page(<SeoWorkspace workspace={next} />));
+      expect(
+        await screen.findByRole("button", { name: "Continue without Google" }),
+      ).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: "Run full audit" }),
+      ).toBeNull();
+    },
+  );
+
+  it("uses full Audit history when the selected page has never been checked", async () => {
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    const history = {
+      ...workspace,
+      analyses: [
+        {
+          id: "prior",
+          kind: "page_check" as const,
+          status: "completed" as const,
+          taskId: null,
+          pageIds: ["a-different-page"],
+          scopeVersion: 2,
+          createdAt: new Date(),
+        },
+      ],
+    };
+    network(workspace, {
+      unfiltered: history,
+      connection: (provider) => ({
+        provider,
+        name: provider,
+        status: "not_connected",
+        source: "none",
+      }),
+    });
+    await renderWorkspace(
+      workspace,
+      `?tab=traffic&pageId=${workspace.scope.pageIds[0]}`,
+    );
+    expect(
+      await screen.findByRole("button", { name: "Run full audit" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Continue without Google" }),
+    ).toBeNull();
+  });
+
+  it("can retry a failed whole-Audit setup read without connecting Google again", async () => {
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    let recovered = false;
+    const history = {
+      ...workspace,
+      analyses: [
+        {
+          id: "prior",
+          kind: "page_check" as const,
+          status: "completed" as const,
+          taskId: null,
+          pageIds: ["a-different-page"],
+          scopeVersion: 2,
+          createdAt: new Date(),
+        },
+      ],
+    };
+    network(workspace, {
+      unfiltered: () =>
+        recovered
+          ? Response.json(history)
+          : new Response(null, { status: 404 }),
+      connection: (provider) => ({
+        provider,
+        name: provider,
+        status: "not_connected",
+        source: "none",
+      }),
+    });
+    await renderWorkspace(
+      workspace,
+      `?tab=traffic&pageId=${workspace.scope.pageIds[0]}`,
+    );
+    expect(
+      await screen.findByText(copy.setup.historyUnavailable),
+    ).toBeVisible();
+    recovered = true;
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: copy.retry }));
+    expect(
+      await screen.findByRole("button", { name: "Run full audit" }),
+    ).toBeVisible();
+    expect(screen.queryByText(copy.setup.historyUnavailable)).toBeNull();
+  });
+
+  it("keeps a completed check runnable without requiring a new Google connection", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.analyses = [
+      {
+        id: "done",
+        kind: "page_check",
+        status: "completed",
+        taskId: null,
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 2,
+        createdAt: new Date(),
+      },
+    ];
+    network(workspace, {
+      connection: (provider) => ({
+        provider,
+        name: provider,
+        status: "not_connected",
+        source: "none",
+      }),
+    });
+    await renderWorkspace(workspace);
+    expect(
+      screen.getByRole("button", { name: "Run full audit" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Continue without Google" }),
+    ).toBeNull();
+  });
+
+  it("keeps only one Google control while a disconnected first check runs", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.analyses = [
+      {
+        id: "running",
+        kind: "page_check",
+        status: "running",
+        taskId: null,
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 2,
+        createdAt: new Date(),
+      },
+    ];
+    network(workspace, {
+      connection: (provider) => ({
+        provider,
+        name: provider,
+        status: "not_connected",
+        source: "none",
+      }),
+    });
+    await renderWorkspace(workspace);
+    expect(
+      screen.getAllByRole("button", { name: "Connect Google" }),
+    ).toHaveLength(1);
+    expect(screen.queryByTestId("seo-statistics-banner")).toBeNull();
+  });
+
+  it("has three steps, and a connected account unlocks the first audit", async () => {
     const workspace = seoTestWorkspace();
     network(workspace);
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     const setup = screen.getByTestId("seo-setup");
     const steps = within(setup).getAllByRole("listitem");
-    expect(steps).toHaveLength(2);
+    expect(steps).toHaveLength(3);
     expect(
-      within(steps[1]).getByRole("heading", { name: copy.setup.audit }),
+      within(steps[2]).getByRole("heading", { name: copy.setup.audit }),
     ).toBeVisible();
-    expect(steps[1]).toHaveAttribute("aria-current", "step");
+    expect(steps[2]).toHaveAttribute("aria-current", "step");
     expect(primaryButtons(setup)).toEqual(["Run full audit"]);
-    // Google is no setup step, and nothing under the card competes with the first audit.
-    expect(
-      within(setup).queryByRole("button", { name: /Google|Sync/ }),
-    ).toBeNull();
+    // The connected account is a completed step; the check is the primary action.
+
     expect(screen.queryByTestId("seo-statistics-banner")).toBeNull();
     expect(
       screen.queryByRole("heading", { name: copy.agent.nextTitle }),
     ).toBeNull();
   });
 
-  it("names the page check where the workspace has no paid search data", () => {
+  it("names the page check where the workspace has no paid search data", async () => {
     const workspace = seoTestWorkspace();
     workspace.availableActions.canUsePaidSearchData = false;
     network(workspace);
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     const setup = screen.getByTestId("seo-setup");
     expect(
       within(setup).getByRole("heading", { name: copy.setup.check }),
@@ -185,7 +431,7 @@ describe("SEO audit first run", () => {
     expect(primaryButtons(setup)).toEqual(["Run page check"]);
   });
 
-  it("offers the statistics under the card once the first check runs", async () => {
+  it("keeps statistics setup inside its existing step while the first check runs", async () => {
     const workspace = seoTestWorkspace();
     workspace.analyses = [
       {
@@ -207,13 +453,13 @@ describe("SEO audit first run", () => {
         source: "native",
       }),
     });
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     // The check needs no more input, so the wait is the time for the statistics.
-    const banner = await screen.findByTestId("seo-statistics-banner");
-    expect(
-      await within(banner).findByRole("button", { name: "Sync statistics" }),
-    ).toBeVisible();
+    expect(screen.queryByTestId("seo-statistics-banner")).toBeNull();
     const setup = screen.getByTestId("seo-setup");
+    expect(
+      await within(setup).findByRole("button", { name: "Sync statistics" }),
+    ).toBeVisible();
     expect(within(setup).getByText(copy.setup.checkRunning)).toBeVisible();
     expect(primaryButtons(setup)).toEqual([]);
   });
@@ -228,7 +474,7 @@ describe("SEO audit first run", () => {
         source: "native",
       }),
     });
-    renderWorkspace(workspace, "?tab=traffic");
+    await renderWorkspace(workspace, "?tab=traffic");
     expect(
       await screen.findByText(copy.overview.trafficSyncBody),
     ).toBeVisible();
@@ -272,7 +518,7 @@ describe("SEO audit first run", () => {
         source: "native",
       }),
     });
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     const text = await screen.findByText(copy.agent.steps.sync.search_console);
     expect(
       screen.queryByText(copy.agent.steps.connect.search_console),
@@ -317,8 +563,15 @@ describe("SEO audit first run", () => {
 
   it("asks for the account on the Traffic tab while no account is connected", async () => {
     const workspace = seoTestWorkspace();
-    network(workspace);
-    renderWorkspace(workspace, "?tab=traffic");
+    network(workspace, {
+      connection: (provider) => ({
+        provider,
+        name: provider,
+        status: "not_connected",
+        source: "none",
+      }),
+    });
+    await renderWorkspace(workspace, "?tab=traffic");
     // The sentence names the button under it ("Set up statistics"), not the button of the Agent banner.
     expect(
       await screen.findByText(copy.overview.trafficSetupBody),
@@ -346,16 +599,16 @@ describe("SEO audit first run", () => {
     // Statistics are optional: the set-up button is tinted, not the brand fill (owner, 2026-11-13). The run
     // stays in the secondary look. Its arrow, which schedules the follow-up, is part of the same control.
     expect(setUp[0]).toHaveClass("bg-quinary");
-    const arrow = screen.getByRole("button", { name: copy.monitor.create });
+    expect(
+      screen.queryByRole("button", { name: copy.monitor.create }),
+    ).toBeNull();
     expect(document.querySelectorAll("button.bg-primary")).toHaveLength(0);
     expect(
-      [...document.querySelectorAll("button.bg-quaternary")]
-        .filter((button) => button !== arrow)
-        .map((button) => button.textContent),
-    ).toEqual([copy.runFullAudit]);
+      screen.queryByRole("button", { name: copy.runFullAudit }),
+    ).toBeNull();
   });
 
-  it("puts a failed check on its own step, with the button that runs it again", () => {
+  it("puts a failed check on its own step, with the button that runs it again", async () => {
     const workspace = seoTestWorkspace();
     workspace.analyses = [
       {
@@ -369,15 +622,15 @@ describe("SEO audit first run", () => {
       },
     ];
     network(workspace);
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     const setup = screen.getByTestId("seo-setup");
     const steps = within(setup).getAllByRole("listitem");
-    expect(within(steps[1]).getByText(copy.setup.checkFailed)).toBeVisible();
+    expect(within(steps[2]).getByText(copy.setup.checkFailed)).toBeVisible();
     expect(primaryButtons(setup)).toEqual(["Run full audit"]);
-    expect(steps[1]).toHaveAttribute("aria-current", "step");
+    expect(steps[2]).toHaveAttribute("aria-current", "step");
   });
 
-  it("keeps keyboard focus on the check button when the check starts to run, and says when it started and how far it is", () => {
+  it("keeps keyboard focus on the check button when the check starts to run, and says when it started and how far it is", async () => {
     const workspace = seoTestWorkspace();
     network(workspace);
     const client = page(setupCard(workspace));
@@ -521,18 +774,18 @@ describe("SEO audit first run", () => {
     const workspace = seoTestWorkspace();
     workspace.availableActions.canRequestAnalysis = false;
     network(workspace);
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     expect(screen.queryByTestId("seo-setup")).toBeNull();
     expect(screen.getByText(copy.dispatchPaused)).toBeVisible();
     await user.click(screen.getByRole("tab", { name: "Traffic" }));
     expect(screen.getByText(copy.dispatchPaused)).toBeVisible();
   });
 
-  it("ends setup for a filtered view, which keeps the notice", () => {
+  it("ends setup for a filtered view, which keeps the notice", async () => {
     const workspace = seoTestWorkspace();
     workspace.availableActions.canRequestAnalysis = false;
     network(workspace);
-    renderWorkspace(workspace, `?pageId=${workspace.scope.pageIds[0]}`);
+    await renderWorkspace(workspace, `?pageId=${workspace.scope.pageIds[0]}`);
     expect(screen.queryByTestId("seo-setup")).toBeNull();
     expect(screen.getByText(copy.dispatchPaused)).toBeVisible();
     expect(screen.queryByRole("button", { name: "Run a check" })).toBeNull();
@@ -551,7 +804,7 @@ describe("SEO audit first run", () => {
       const workspace = seoTestWorkspace();
       workspace.availableActions.canRequestAnalysis = can;
       network(workspace);
-      renderWorkspace(workspace, "?tab=rankings");
+      await renderWorkspace(workspace, "?tab=rankings");
       expect(screen.getByText(keywords)).toBeVisible();
       await userEvent.click(
         screen.getByRole("button", { name: "Competitors" }),
@@ -588,7 +841,7 @@ describe("SEO audit first run", () => {
       ],
     };
     network(workspace);
-    renderWorkspace(workspace, "?tab=rankings");
+    await renderWorkspace(workspace, "?tab=rankings");
     const offered = screen.getByTestId("seo-keyword-suggestions");
     expect(
       within(offered).getByText("Google already shows you for 1 search"),
@@ -608,7 +861,7 @@ describe("SEO audit first run", () => {
     ).toBeVisible();
   });
 
-  it("leads with the search numbers and says once that checks are off", () => {
+  it("leads with the search numbers and says once that checks are off", async () => {
     const workspace = seoTestWorkspace();
     Object.assign(workspace.availableActions, {
       canRequestAnalysis: false,
@@ -625,7 +878,7 @@ describe("SEO audit first run", () => {
       },
     ];
     network(workspace);
-    renderWorkspace(workspace, `?pageId=${workspace.scope.pageIds[0]}`);
+    await renderWorkspace(workspace, `?pageId=${workspace.scope.pageIds[0]}`);
     // No check can run: the headline is what is known, and the line under it does not repeat it.
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
       /^Google search on this page: 2 clicks, 35 impressions$/,
@@ -642,7 +895,7 @@ describe("SEO audit first run", () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     network(workspace);
-    renderWorkspace(workspace, `?pageId=${workspace.scope.pageIds[0]}`);
+    await renderWorkspace(workspace, `?pageId=${workspace.scope.pageIds[0]}`);
     expect(screen.queryByTestId("seo-setup")).toBeNull();
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
       /^No check yet\. Run one to find issues\.$/,
@@ -669,7 +922,7 @@ describe("SEO agent chat", () => {
     const user = userEvent.setup();
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     network(workspace, {});
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     await screen.findByTestId("seo-setup");
     expect(screen.queryByLabelText("Your question")).toBeNull();
     await user.click(screen.getByRole("button", { name: copy.chat.title }));
@@ -690,7 +943,7 @@ describe("SEO agent chat", () => {
         return Response.json({ sharing: "personal", turns: [] });
       },
     });
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     // The result card has no question field: the button is the one way to the agent.
     await screen.findByTestId("seo-agent-verdict");
     expect(screen.queryByLabelText("Your question")).toBeNull();
@@ -729,7 +982,7 @@ describe("SEO agent chat", () => {
     network(workspace, {
       chat: () => Response.json({ sharing: "personal", turns: [saved] }),
     });
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     const sheet = await openChat(userEvent.setup());
     expect(
       await within(sheet).findByText(/The <title> is 82 characters\./),
@@ -750,7 +1003,7 @@ describe("SEO agent chat", () => {
         return Response.json(turns[0]);
       },
     });
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     const box = within(await openChat(userEvent.setup())).getByLabelText(
       "Your question",
     );
@@ -787,7 +1040,7 @@ describe("SEO agent chat", () => {
             })
           : Response.json({ sharing: "personal", turns: [] }),
     });
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     const sheet = await openChat(user);
     const box = within(sheet).getByLabelText("Your question");
     await user.type(box, "Why did clicks fall?");
@@ -829,7 +1082,7 @@ describe("SEO agent chat", () => {
     // The audited page's own row is in the same list; it is no competitor.
     workspace.competitors = [{ ...rival, id: "own", role: "page" }];
     network(workspace);
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     const user = userEvent.setup();
     const sheet = await openChat(user);
     expect(
@@ -844,7 +1097,7 @@ describe("SEO agent chat", () => {
     ).toBeNull();
     cleanup();
     workspace.competitors.push(rival);
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     expect(
       await within(await openChat(user)).findByRole("button", {
         name: copy.agent.prompts.competitors,
@@ -866,7 +1119,7 @@ describe("SEO agent chat", () => {
         return Response.json(turns[0]);
       },
     });
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     const sheet = await openChat(user);
     await user.click(
       await within(sheet).findByRole("button", {
@@ -909,7 +1162,7 @@ describe("SEO agent chat", () => {
     network(workspace, {
       chat: () => Response.json({ sharing: "personal", turns: [failed] }),
     });
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     const sheet = await openChat(user);
     expect(
       await within(sheet).findByRole("button", {
@@ -926,7 +1179,7 @@ describe("SEO agent chat", () => {
     const workspace = chatWorkspace();
     network(workspace, {});
     vi.mocked(window.matchMedia).mockImplementation(() => media(false));
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     const sheet = await openChat(user);
     await waitFor(() =>
       expect(
@@ -946,7 +1199,7 @@ describe("SEO agent chat", () => {
         return Response.json({ sharing: "personal", turns: [running] });
       },
     });
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     const first = await openChat(user);
     await within(first).findByText("Earlier");
     // A turn in flight takes no second question: Enter sends nothing.
@@ -981,7 +1234,7 @@ describe("SEO agent chat", () => {
         return Response.json(turns[0]);
       },
     });
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     const sheet = await openChat(user);
     const box = within(sheet).getByLabelText("Your question");
     await user.type(box, "First{Enter}");
@@ -1010,7 +1263,7 @@ describe("SEO agent chat", () => {
         });
       },
     });
-    renderWorkspace(workspace);
+    await renderWorkspace(workspace);
     const sheet = await openChat(userEvent.setup());
     const box = within(sheet).getByLabelText("Your question");
     const first = "a".repeat(2_500);

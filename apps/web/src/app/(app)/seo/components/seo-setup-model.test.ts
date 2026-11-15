@@ -44,10 +44,11 @@ describe("SEO first-run setup", () => {
     vi.useRealTimers();
   });
 
-  it("has two steps: the page, then the first check as the next thing to do", () => {
+  it("has three steps: a page and the Google choice before the first check", () => {
     const workspace = seoTestWorkspace();
-    expect(seoSetup(workspace)).toEqual({
+    expect(seoSetup(workspace, undefined, true)).toEqual({
       page: "done",
+      connection: "done",
       check: "next",
       next: "check",
       failed: false,
@@ -55,18 +56,33 @@ describe("SEO first-run setup", () => {
     workspace.scope.pageIds = [];
     // Core reports no check right for an empty selection: the check waits, it is not gone.
     workspace.availableActions.canRequestAnalysis = false;
-    expect(seoSetup(workspace)).toEqual({
+    expect(seoSetup(workspace, undefined, true)).toEqual({
       page: "next",
+      connection: "done",
       check: "waiting",
       next: "page",
       failed: false,
     });
   });
 
+  it("waits for an explicit Google choice before the first check", () => {
+    const workspace = seoTestWorkspace();
+    expect(seoSetup(workspace, undefined, false)).toMatchObject({
+      connection: "next",
+      check: "waiting",
+      next: "connection",
+    });
+    expect(seoSetup(workspace, undefined, true)).toMatchObject({
+      connection: "done",
+      check: "next",
+      next: "check",
+    });
+  });
+
   it("ends when the reader cannot run the check, unless one is under way", () => {
     const workspace = seoTestWorkspace();
     workspace.availableActions.canRequestAnalysis = false;
-    expect(seoSetup(workspace)).toBeNull();
+    expect(seoSetup(workspace, undefined, true)).toBeNull();
     workspace.analyses = [
       {
         id: "a1",
@@ -78,7 +94,10 @@ describe("SEO first-run setup", () => {
         createdAt: new Date("2026-01-02T12:00:00Z"),
       },
     ];
-    expect(seoSetup(workspace)).toMatchObject({ check: "running", next: null });
+    expect(seoSetup(workspace, undefined, true)).toMatchObject({
+      check: "running",
+      next: null,
+    });
   });
 
   it("estimates a check in flight from the middle time of the earlier runs of its kind", () => {
@@ -150,7 +169,9 @@ describe("SEO first-run setup", () => {
     expect(after(180)).toBe(false);
     // The page says the same: no check runs, and the first check can start again.
     vi.setSystemTime(new Date(started.getTime() + 180 * 60_000));
-    expect(seoSetup(workspace)).toMatchObject({ check: "next" });
+    expect(seoSetup(workspace, undefined, true)).toMatchObject({
+      check: "next",
+    });
     workspace.analyses = [];
     expect(after(0)).toBe(false);
   });
@@ -163,9 +184,11 @@ describe("SEO first-run setup", () => {
       scopeId: null,
       channel: null,
     };
-    expect(seoSetup(seoTestWorkspace(), none)).not.toBeNull();
+    expect(seoSetup(seoTestWorkspace(), none, true)).not.toBeNull();
     for (const key of ["from", "to", "pageId", "scopeId", "channel"] as const)
-      expect(seoSetup(seoTestWorkspace(), { ...none, [key]: "x" })).toBeNull();
+      expect(
+        seoSetup(seoTestWorkspace(), { ...none, [key]: "x" }, true),
+      ).toBeNull();
   });
 
   it("shows a check in flight, and asks again after the newest check failed", () => {
@@ -186,14 +209,14 @@ describe("SEO first-run setup", () => {
       createdAt: new Date(date),
     });
     workspace.analyses = [analysis];
-    expect(seoSetup(workspace)).toMatchObject({
+    expect(seoSetup(workspace, undefined, true)).toMatchObject({
       check: "running",
       next: null,
       failed: false,
     });
     // A check that Core accepted and has not started is in flight too.
     workspace.analyses = [{ ...analysis, status: "requested" }];
-    expect(seoSetup(workspace)?.check).toBe("running");
+    expect(seoSetup(workspace, undefined, true)?.check).toBe("running");
     // The newest check in flight is the one the card dates.
     workspace.analyses = [
       analysis,
@@ -202,7 +225,7 @@ describe("SEO first-run setup", () => {
     expect(seoRunningCheck(workspace)?.id).toBe("a3");
     // A newer failed check is no news while another check runs.
     workspace.analyses = [failedAt("2026-01-03T12:00:00Z"), analysis];
-    expect(seoSetup(workspace)).toMatchObject({
+    expect(seoSetup(workspace, undefined, true)).toMatchObject({
       check: "running",
       failed: false,
     });
@@ -211,20 +234,26 @@ describe("SEO first-run setup", () => {
       failedAt("2026-01-03T12:00:00Z"),
       { ...analysis, status: "completed" },
     ];
-    expect(seoSetup(workspace)).toMatchObject({ check: "next", failed: true });
+    expect(seoSetup(workspace, undefined, true)).toMatchObject({
+      check: "next",
+      failed: true,
+    });
     workspace.analyses = [
       failedAt("2026-01-01T12:00:00Z"),
       { ...analysis, status: "completed" },
     ];
-    expect(seoSetup(workspace)).toMatchObject({ check: "next", failed: false });
+    expect(seoSetup(workspace, undefined, true)).toMatchObject({
+      check: "next",
+      failed: false,
+    });
   });
 
   it("ends once a check saved a result, and for a reader who cannot edit", () => {
     const readOnly = seoTestWorkspace();
     readOnly.availableActions.canEdit = false;
-    expect(seoSetup(readOnly)).toBeNull();
+    expect(seoSetup(readOnly, undefined, true)).toBeNull();
     const checked = seoTestWorkspace();
     checked.observations = [{} as (typeof checked.observations)[number]];
-    expect(seoSetup(checked)).toBeNull();
+    expect(seoSetup(checked, undefined, true)).toBeNull();
   });
 });

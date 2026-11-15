@@ -144,12 +144,14 @@ export type SeoSetupFilters = {
  * The first-run steps of an Audit: add a page, then run the first check.
  * Search statistics are no step here: a banner offers them, so the first
  * result does not wait for a Google account.
+ * Correction: setup now offers Google between the page and the check. An explicit skip keeps public-page checks available.
  * Null once a check has saved a result, when the reader cannot edit, when a
  * filter narrows the view, and when the reader can run no check on the pages.
  */
 export function seoSetup(
   workspace: ProjectSeoWorkspace,
   filters?: SeoSetupFilters,
+  googleReady = false,
 ) {
   const { canEdit, canRequestAnalysis } = workspace.availableActions;
   if (workspace.observations.length || !canEdit) return null;
@@ -166,15 +168,24 @@ export function seoSetup(
   const running = seoCheckRunning(workspace);
   // With a page and no right to run a check, no step is left for the reader.
   if (hasPages && !running && !canRequestAnalysis) return null;
+  const connection: SeoSetupState =
+    running || googleReady ? "done" : hasPages ? "next" : "waiting";
   const check: SeoSetupState = running
     ? "running"
-    : hasPages
+    : hasPages && connection === "done"
       ? "next"
       : "waiting";
   return {
     page: hasPages ? "done" : "next",
+    connection,
     check,
-    next: hasPages ? (running ? null : "check") : "page",
+    next: !hasPages
+      ? "page"
+      : running
+        ? null
+        : connection === "next"
+          ? "connection"
+          : "check",
     // A failed check asks for a new run; while another check runs it is no news.
     failed:
       check === "next" &&

@@ -12396,6 +12396,9 @@
         "unanswered": "{count, plural, one {Aún no hay estado de indexación para # página de la vista.} other {Aún no hay estado de indexación para # páginas de la vista.}}"
       },
       "setup": {
+        "historyUnavailable": "No se pudo comprobar la configuración de la auditoría. Inténtalo de nuevo antes de iniciar una comprobación.",
+        "googleBody": "Conecta Google para incluir tus estadísticas de búsqueda o continúa solo con comprobaciones de páginas públicas.",
+        "skipGoogle": "Continuar sin Google",
         "title": "Configura esta auditoría",
         "steps": "Pasos de configuración",
         "done": "hecho",

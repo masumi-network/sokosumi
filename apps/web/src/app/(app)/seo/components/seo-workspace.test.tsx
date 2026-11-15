@@ -62,6 +62,29 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 const clients: QueryClient[] = [];
+// Unrelated run/schedule cases use an already connected account. Connection cases keep their own fixtures.
+function connectedSeoResponse(workspace: ProjectSeoWorkspace, url: string) {
+  return Response.json(
+    url.startsWith("/api/seo/connections/")
+      ? {
+          provider: url.endsWith("/ga4") ? "ga4" : "search_console",
+          name: "Google",
+          status: "connected",
+          source: "native",
+        }
+      : workspace,
+  );
+}
+async function readConnectedGoogle() {
+  await waitFor(() =>
+    expect(
+      clients
+        .at(-1)
+        ?.getQueryData(["seo-connection", "org", "owner", "search_console"]),
+    ).toMatchObject({ status: "connected" }),
+  );
+}
+
 function nativeChatNetwork(
   workspace: ProjectSeoWorkspace,
   options: { uncertainFirst?: boolean; failedFirst?: boolean } = {},
@@ -3262,10 +3285,11 @@ describe("SEO workspace integration", () => {
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json(workspace)),
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
     );
     mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace);
+    await readConnectedGoogle();
     await user.click(screen.getByRole("button", { name: "Run full audit" }));
     const dialog = screen.getByRole("dialog");
     await openCheckOptions(user);
@@ -3310,10 +3334,11 @@ describe("SEO workspace integration", () => {
       workspace.availableActions.canUsePaidSearchData = permission;
       vi.stubGlobal(
         "fetch",
-        vi.fn(async () => Response.json(workspace)),
+        vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
       );
       mutate.mockResolvedValue({ ok: true, value: null });
       renderWorkspace(workspace);
+      await readConnectedGoogle();
       await user.click(screen.getByRole("button", { name: "Run page check" }));
       const dialog = screen.getByRole("dialog");
       await openCheckOptions(user);
@@ -3358,9 +3383,10 @@ describe("SEO workspace integration", () => {
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json(workspace)),
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
     );
     renderWorkspace(workspace);
+    await readConnectedGoogle();
     await user.click(screen.getByRole("button", { name: "Run full audit" }));
     const dialog = screen.getByRole("dialog");
     await openCheckOptions(user);
@@ -3427,9 +3453,10 @@ describe("SEO workspace integration", () => {
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json(workspace)),
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
     );
     renderWorkspace(workspace);
+    await readConnectedGoogle();
     const setup = screen.getByRole("region", { name: "Set up this audit" });
     const steps = within(
       within(setup).getByRole("list", { name: "Setup steps" }),
@@ -3437,13 +3464,14 @@ describe("SEO workspace integration", () => {
     // The page is saved, so the first audit is the current step.
     expect(steps.map((step) => step.getAttribute("aria-current"))).toEqual([
       null,
+      null,
       "step",
     ]);
     // The schedule offer and the old verdict wait until a check exists.
     expect(screen.queryByTestId("seo-automation")).toBeNull();
     expect(screen.queryByTestId("seo-agent-verdict")).toBeNull();
     await user.click(
-      within(steps[1]).getByRole("button", { name: "Run full audit" }),
+      within(steps[2]).getByRole("button", { name: "Run full audit" }),
     );
     // The step's button opens the dialog on the check it names.
     expect(
@@ -3464,6 +3492,7 @@ describe("SEO workspace integration", () => {
       },
     ];
     renderWorkspace(workspace);
+    await readConnectedGoogle();
     // The badge is the picture; the status line is what a screen reader hears.
     expect(
       within(screen.getByTestId("seo-setup")).getByText("Check running"),
@@ -3485,11 +3514,12 @@ describe("SEO workspace integration", () => {
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json(workspace)),
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
     );
     mutate.mockResolvedValue({ ok: true, value: null });
     // The Agent tab leads with its setup card before the first check; the other tabs hold the run.
     renderWorkspace(workspace, "?tab=traffic");
+    await readConnectedGoogle();
     // The arrow of the run schedules the follow-up, also before the first check.
     await user.click(
       screen.getByRole("button", { name: messages.App.Seo.monitor.create }),
@@ -3586,9 +3616,10 @@ describe("SEO workspace integration", () => {
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json(workspace)),
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
     );
     renderWorkspace(workspace, "?tab=traffic&from=2026-02-01&to=2026-01-01");
+    await readConnectedGoogle();
     await user.click(
       screen.getByRole("button", { name: messages.App.Seo.monitor.create }),
     );
@@ -3607,9 +3638,10 @@ describe("SEO workspace integration", () => {
       workspace.availableActions.canCreateMonitor = permission;
       vi.stubGlobal(
         "fetch",
-        vi.fn(async () => Response.json(workspace)),
+        vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
       );
       const view = renderWorkspace(workspace);
+      await readConnectedGoogle();
       expect(
         screen.getByRole("button", { name: "Run full audit" }),
       ).toBeVisible();
@@ -3623,6 +3655,7 @@ describe("SEO workspace integration", () => {
       ).toBeNull();
       view.unmount();
       renderWorkspace(workspace, "", true);
+      await readConnectedGoogle();
       // No schedule exists here, so the schedule card stays away.
       expect(screen.queryByTestId("seo-automation")).toBeNull();
     },
@@ -3634,9 +3667,10 @@ describe("SEO workspace integration", () => {
     workspace.availableActions.canUsePaidSearchData = false;
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json(workspace)),
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
     );
     const view = renderWorkspace(workspace, "?tab=traffic");
+    await readConnectedGoogle();
     await user.click(
       screen.getByRole("button", { name: messages.App.Seo.monitor.create }),
     );
@@ -4119,7 +4153,7 @@ describe("SEO workspace integration", () => {
       vi.fn(async (url: string) =>
         url.endsWith("/chat")
           ? Response.json({ sharing: "personal", turns: [] })
-          : Response.json(workspace),
+          : connectedSeoResponse(workspace, url),
       ),
     );
     const checkType = () =>
@@ -4128,6 +4162,7 @@ describe("SEO workspace integration", () => {
       });
     // The setup card is on the Agent tab only: there its check step leads, on the other tabs the header does.
     renderWorkspace(workspace);
+    await readConnectedGoogle();
     // One run button there: the card's. The header adds no second one.
     expect(
       within(await screen.findByTestId("seo-setup")).getByRole("button", {
@@ -4184,6 +4219,7 @@ describe("SEO workspace integration", () => {
         observationId: null,
       });
     renderWorkspace(workspace, "?tab=health");
+    await readConnectedGoogle();
     await user.click(
       await screen.findByRole("button", { name: "Run full audit" }),
     );
@@ -4205,6 +4241,7 @@ describe("SEO workspace integration", () => {
     // Without paid search data a full audit cannot run: the button names the page check.
     workspace.availableActions.canUsePaidSearchData = false;
     renderWorkspace(workspace, "?tab=traffic");
+    await readConnectedGoogle();
     await user.click(
       await screen.findByRole("button", { name: "Run page check" }),
     );
@@ -4225,12 +4262,14 @@ describe("SEO workspace integration", () => {
     ];
     // Site health has one run control: the header's.
     renderWorkspace(workspace, "?tab=health");
+    await readConnectedGoogle();
     expect(
       await screen.findByRole("button", { name: "Check running" }),
     ).toBeVisible();
     expect(screen.queryByRole("button", { name: "Run a check" })).toBeNull();
     cleanup();
     renderWorkspace(workspace, "?tab=rankings");
+    await readConnectedGoogle();
     const waiting = await screen.findByRole("button", {
       name: "Check running",
     });
@@ -4244,6 +4283,7 @@ describe("SEO workspace integration", () => {
     workspace.analyses = [];
     workspace.availableActions.canRequestAnalysis = false;
     renderWorkspace(workspace, "?tab=rankings");
+    await readConnectedGoogle();
     const off = await screen.findByRole("button", { name: "Run page check" });
     expect(off).toHaveAccessibleDescription(messages.App.Seo.dispatchPaused);
     await user.click(off);
@@ -4252,6 +4292,7 @@ describe("SEO workspace integration", () => {
     // A reader who cannot edit has no run button, and no notice for it to point to.
     workspace.availableActions.canEdit = false;
     renderWorkspace(workspace, "?tab=rankings");
+    await readConnectedGoogle();
     expect(await screen.findByRole("tab", { name: "Rankings" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Run page check" })).toBeNull();
   });

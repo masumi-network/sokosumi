@@ -28,7 +28,7 @@ import { seoOverviewModel } from "./seo-overview-model";
 import { seoRarelyShown } from "./seo-performance-model";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
-import { seoCheckRunning, seoSetup } from "./seo-setup-model";
+import { seoCheckRunning } from "./seo-setup-model";
 import {
   SEO_ROW_LIST_CLASS,
   SeoDate,
@@ -87,7 +87,7 @@ function SeoAgentPanel({
     traffic && seoRarelyShown(traffic.impressions, traffic.period),
   );
   // Before the first check the setup card leads; a filtered view has its own empty state.
-  const setup = seoSetup(model.data, model.filters);
+  const setup = model.setup;
   const checkRunning = seoCheckRunning(model.data);
   // A check that ran during this visit: its end is news for a screen reader.
   const [checkSeen, setCheckSeen] = useState(checkRunning);
@@ -160,9 +160,9 @@ function SeoAgentPanel({
     </>
   );
   // During setup the banner waits until the first check runs: then the statistics are the next useful thing.
+  // The setup card now keeps its own Google control while a check runs; the banner waits until setup ends.
   const banner =
-    statisticsStep?.kind === "connect" &&
-    (!setup || setup.check === "running") ? (
+    statisticsStep?.kind === "connect" && !setup ? (
       <SeoStepRow
         banner={t("agent.statisticsMissing")}
         step={statisticsStep}
@@ -236,6 +236,7 @@ function SeoAgentPanel({
   // No check has saved a result in this view, and the reader can run one.
   const firstCheck =
     !brief.lastCheck &&
+    !model.waitingForGoogle &&
     canRequestAnalysis &&
     !model.filters.from &&
     !model.filters.to;

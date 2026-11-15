@@ -34,13 +34,14 @@ import {
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
 import { type SeoAnalysisKind, seoKeywordTargetPageId } from "./seo-form-model";
-import { seoCheckBlocking } from "./seo-setup-model";
+import { seoCheckBlocking, seoSetup } from "./seo-setup-model";
 import {
   SEO_DEFAULT_STATISTICS_DAYS,
   type SeoStatisticsProvider,
   seoStatisticsPeriod,
 } from "./seo-statistics-model";
 import { SEO_SEARCH_TYPES, SEO_TRAFFIC_CHANNELS } from "./seo-traffic-model";
+import { useSeoConnectionStatus } from "./use-seo-connection";
 
 /** The form of a day in the period filter, as Core reads it. */
 const SEO_DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -166,22 +167,23 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     owner.id,
     query.toString(),
   ];
+  async function readWorkspace(search: string, signal: AbortSignal) {
+    const response = await fetch(`${seoOwnerApiPath(owner)}?${search}`, {
+      signal,
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: seoViewerHeaders(
+        session?.user.id,
+        session?.session.activeOrganizationId,
+      ),
+    });
+    if (!response.ok) throw new SeoWorkspaceLoadError(response.status);
+    return response.json();
+  }
   const result = useQuery<ProjectSeoWorkspace>({
     queryKey: key,
     retry: shouldRetrySeoLoad,
-    queryFn: async ({ signal }) => {
-      const response = await fetch(`${seoOwnerApiPath(owner)}?${query}`, {
-        signal,
-        credentials: "same-origin",
-        cache: "no-store",
-        headers: seoViewerHeaders(
-          session?.user.id,
-          session?.session.activeOrganizationId,
-        ),
-      });
-      if (!response.ok) throw new SeoWorkspaceLoadError(response.status);
-      return response.json();
-    },
+    queryFn: ({ signal }) => readWorkspace(query.toString(), signal),
     initialData:
       !!session?.user.id &&
       query.toString() === initialQuery.current &&
@@ -213,6 +215,60 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
         ? SEO_RUNNING_REFRESH_MS
         : false,
   });
+  const data = result.data ?? initialData;
+  const google = useSeoConnectionStatus("search_console").status;
+  const setupIdentity = JSON.stringify([identity, owner.kind, owner.id]);
+  const [googleSkippedFor, setGoogleSkippedFor] = useState<string | null>(null);
+  const accountChosen =
+    google.data?.status === "connected" || googleSkippedFor === setupIdentity;
+  // A page/date filter can hide a previous check. Reuse the whole-Audit cache before deciding it is first-run.
+  const needsSetupChoice =
+    data.availableActions.canEdit &&
+    data.availableActions.canRequestAnalysis &&
+    !seoCheckBlocking(data, new Date());
+  const needsSetupHistory =
+    needsSetupChoice &&
+    Boolean(query.toString()) &&
+    !accountChosen &&
+    !data.observations.length &&
+    !data.analyses.some((check) => check.status === "completed");
+  const setupHistory = useQuery<ProjectSeoWorkspace>({
+    queryKey: [...key.slice(0, -1), ""],
+    queryFn: ({ signal }) => readWorkspace("", signal),
+    enabled: needsSetupHistory && !invalidDates && Boolean(session?.user.id),
+    retry: shouldRetrySeoLoad,
+    refetchOnWindowFocus: false,
+  });
+  const setupWorkspace = needsSetupHistory ? setupHistory.data : data;
+  const hasPreviousCheck = Boolean(
+    setupWorkspace &&
+      (setupWorkspace.observations.length ||
+        setupWorkspace.analyses.some((check) => check.status === "completed")),
+  );
+  const googleReady = hasPreviousCheck || accountChosen;
+  const setup = seoSetup(data, filters, googleReady);
+  // Filtered views cannot bypass the first-run choice. Already completed checks need no new consent.
+  const waitingForGoogle =
+    needsSetupChoice &&
+    !googleReady &&
+    (!setupWorkspace ||
+      seoSetup(setupWorkspace, undefined, googleReady)?.connection === "next");
+  function skipGoogleSetup() {
+    setGoogleSkippedFor(setupIdentity);
+  }
+  function requireGoogleSetup() {
+    if (!waitingForGoogle) return false;
+    if (!setupWorkspace) return true;
+    void setFilters({
+      tab: "agent",
+      from: null,
+      to: null,
+      pageId: null,
+      scopeId: null,
+      channel: null,
+    });
+    return true;
+  }
   const [keywordSearch, setKeywordSearch] = useState("");
   const [competitorSearch, setCompetitorSearch] = useState("");
   const [dialog, setDialogState] = useState<SeoDialog>(null);
@@ -235,7 +291,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     return true;
   }
   function setDialog(value: SeoDialog) {
-    if (value === "analysis" && checkInFlight()) return;
+    if (value === "analysis" && (requireGoogleSetup() || checkInFlight()))
+      return;
     setStatisticsSource(undefined);
     setKeywordDraft(null);
     setAnalysisKind(null);
@@ -247,7 +304,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   }
   /** Opens the check form on one check type; the form falls back to a page check where that type cannot run. */
   function openAnalysis(kind: SeoAnalysisKind) {
-    if (checkInFlight()) return;
+    if (requireGoogleSetup() || checkInFlight()) return;
     setAnalysisKind(kind);
     setDialogState("analysis");
   }
@@ -362,7 +419,6 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     if (draft) setChatDraft(draft);
     setChatOpen(true);
   }
-  const data = result.data ?? initialData;
   const filteredKeywords = data.keywords.filter((row) =>
     row.keyword.toLocaleLowerCase().includes(keywordSearch.toLocaleLowerCase()),
   );
@@ -453,6 +509,13 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   }
   return {
     data,
+    setup,
+    waitingForGoogle,
+    googleConnected: google.data?.status === "connected",
+    setupHistoryError:
+      needsSetupHistory && setupHistory.isError && !setupHistory.data,
+    retrySetupHistory: () => setupHistory.refetch(),
+    skipGoogleSetup,
     viewerKey: identity,
     openChat,
     shownAction,

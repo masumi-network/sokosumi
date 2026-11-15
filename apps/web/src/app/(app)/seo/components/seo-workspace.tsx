@@ -72,7 +72,7 @@ import {
   seoScopeControls,
   useSeoDateFields,
 } from "./seo-scope-bar";
-import { seoCheckRunning, seoRunAction, seoSetup } from "./seo-setup-model";
+import { seoCheckRunning, seoRunAction } from "./seo-setup-model";
 import { SeoEmpty, SeoPageLink } from "./seo-shared";
 import { SeoStatisticsDialog } from "./seo-statistics-dialog";
 import { SeoSummaryTiles } from "./seo-summary-tiles";
@@ -109,7 +109,7 @@ export function SeoWorkspace({
 }) {
   const t = useTranslations("App.Seo");
   const model = useSeoWorkspace(workspace);
-  const setup = seoSetup(model.data, model.filters);
+  const setup = model.setup;
   // Phones show the agent first; pages and filters open on demand (always open from md up).
   // With only the date filter left, its own button is enough and needs no fold.
   const controls = seoScopeControls(model);
@@ -194,7 +194,9 @@ export function SeoWorkspace({
   // The run of every tab, in the secondary look; only the Agent tab's step wears the brand fill. The setup card is on the Agent tab only;
   // there its own check step leads.
   const runAudit =
-    model.filters.tab === "agent" && setup ? null : seoRunAction(model.data);
+    model.waitingForGoogle || (model.filters.tab === "agent" && setup)
+      ? null
+      : seoRunAction(model.data);
   // While the pages load or the dates are wrong, no dialog opens.
   const runReady = Boolean(runAudit?.ready) && !unavailable;
   // The card of the checks over the tabs: the run, or the line of checks, or both.
@@ -483,6 +485,22 @@ export function SeoWorkspace({
                 {t("editScope")}
               </Button>
             ) : null}
+          </div>
+        ) : null}
+        {model.setupHistoryError ? (
+          <div role="alert" className="space-y-2">
+            <p className="text-destructive text-sm">
+              {t("setup.historyUnavailable")}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                void model.retrySetupHistory();
+              }}
+            >
+              {t("retry")}
+            </Button>
           </div>
         ) : null}
         {unavailable ? (

@@ -12396,6 +12396,9 @@
         "unanswered": "{count, plural, one {No index status yet for # page in view.} other {No index status yet for # pages in view.}}"
       },
       "setup": {
+        "historyUnavailable": "Could not check audit setup. Try again before starting a check.",
+        "googleBody": "Connect Google to include your search statistics, or continue with public-page checks only.",
+        "skipGoogle": "Continue without Google",
         "title": "Set up this audit",
         "steps": "Setup steps",
         "done": "done",

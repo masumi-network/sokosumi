@@ -12396,6 +12396,9 @@
         "unanswered": "{count, plural, one {Für # Seite in der Ansicht gibt es noch keinen Indexstatus.} other {Für # Seiten in der Ansicht gibt es noch keinen Indexstatus.}}"
       },
       "setup": {
+        "historyUnavailable": "Die Audit-Einrichtung konnte nicht geprüft werden. Versuche es erneut, bevor du eine Prüfung startest.",
+        "googleBody": "Verbinde Google, um deine Suchstatistiken einzubeziehen, oder prüfe nur öffentliche Seiten.",
+        "skipGoogle": "Ohne Google fortfahren",
         "title": "Dieses Audit einrichten",
         "steps": "Einrichtungsschritte",
         "done": "erledigt",

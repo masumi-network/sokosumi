@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { SeoGoogleConnection } from "./seo-google-connection";
 import {
   type SeoSetup,
   type SeoSetupState,
@@ -125,6 +126,43 @@ export function SeoSetupCard({
         </SeoStep>
         <SeoStep
           index={2}
+          heading="h4"
+          mark={MARK[setup.connection]}
+          doneLabel={t("setup.done")}
+          title={t("audits.onboarding.connectTitle")}
+          body={
+            setup.connection === "waiting" ? undefined : t("setup.googleBody")
+          }
+        >
+          {setup.connection === "waiting" ? null : (
+            <div className="space-y-2">
+              <SeoGoogleConnection
+                variant={setup.connection === "next" ? "primary" : "outline"}
+                onConnected={model.openStatistics}
+              />
+              {model.googleConnected ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => model.openStatistics("search_console")}
+                >
+                  {t("syncStatistics")}
+                </Button>
+              ) : null}
+              {setup.connection === "next" ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={model.skipGoogleSetup}
+                >
+                  {t("setup.skipGoogle")}
+                </Button>
+              ) : null}
+            </div>
+          )}
+        </SeoStep>
+        <SeoStep
+          index={3}
           heading="h4"
           last
           mark={MARK[setup.check]}
