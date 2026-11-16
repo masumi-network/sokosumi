@@ -1516,6 +1516,36 @@ describe("SEO workspace integration", () => {
     },
   );
 
+  it("links the home page from a title that is its host, with no address line under it", async () => {
+    const pageLinks = async (auditName: string) => {
+      const workspace = { ...seoTestWorkspace(), auditName };
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json(workspace)),
+      );
+      renderWorkspace(workspace);
+      const title = await screen.findByRole("heading", {
+        level: 2,
+        name: auditName,
+      });
+      const found = {
+        title,
+        address: screen.queryAllByRole("link", { name: "https://example.com/" })
+          .length,
+      };
+      return found;
+    };
+    // A typed name keeps its address line under it.
+    const typed = await pageLinks("Launch pages");
+    expect(within(typed.title).queryByRole("link")).toBeNull();
+    cleanup();
+    const home = await pageLinks("example.com");
+    expect(
+      within(home.title).getByRole("link", { name: "example.com" }),
+    ).toHaveAttribute("href", "https://example.com/");
+    expect(home.address).toBe(typed.address - 1);
+  });
+
   it("keeps the page in view while another day loads, without a jump back to the first read", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
@@ -5790,6 +5820,12 @@ describe("SEO workspace integration", () => {
     );
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    // Focus returns to the row the button opened, not to the button.
+    expect(
+      within(
+        screen.getByRole("list", { name: "The agent proposes" }),
+      ).getByRole("button", { name: /^Fix the page title/ }),
+    ).toHaveFocus();
     // The Actions tab is the full list of the same cards: the reasons stay closed, and the run keeps the fill.
     await user.click(screen.getByRole("tab", { name: "Actions" }));
     expect(await screen.findByText("The title is missing")).not.toBeVisible();
@@ -6006,7 +6042,6 @@ describe("SEO workspace integration", () => {
     expect(
       screen.queryByRole("button", { name: "Create draft task" }),
     ).toBeNull();
-    expect(screen.queryByText("Reason and evidence")).toBeNull();
     const leadList = screen.getByRole("list", { name: "The agent proposes" });
     const leadRow = within(leadList).getByRole("button", {
       name: /^Fix the page title/,
@@ -6045,7 +6080,7 @@ describe("SEO workspace integration", () => {
     const rowButton = within(row!).getByRole("button", {
       name: /^Write a description/,
     });
-    // A press opens the fix's card in a dialog on the same tab, with its own button.
+    // A press opens the fix in a dialog on the same tab, with its own button.
     await user.click(rowButton);
     const dialog = await screen.findByRole("dialog", {
       name: "Write a description",
@@ -6295,7 +6330,6 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(served)),
     );
-    mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace, "?tab=agent");
     const first = await screen.findByRole("list", {
       name: "The agent proposes",

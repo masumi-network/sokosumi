@@ -67,6 +67,12 @@ describe("seoAuditNameIsHome", () => {
     expect(
       seoAuditNameIsHome("Launch pages", "https://battery-sensei.app/"),
     ).toBe(false);
+    expect(
+      seoAuditNameIsHome(
+        "www.Battery-Sensei.app",
+        "https://battery-sensei.app/",
+      ),
+    ).toBe(true);
     expect(seoAuditNameIsHome("x", "not a url")).toBe(false);
   });
 });

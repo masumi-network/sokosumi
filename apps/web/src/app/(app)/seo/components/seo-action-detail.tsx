@@ -18,13 +18,17 @@ import {
 } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-/** The tint of the found line follows the impact: the orange of an issue, the grey of a minor one or a suggestion. */
-const FOUND_TINT: Record<SeoIssueSeverity | "none", string> = {
-  critical: "border-chart-2 bg-chart-2-quinary",
-  major: "border-chart-2 bg-chart-2-quinary",
-  minor: "border-chart-5 bg-chart-5-quinary",
-  none: "border-chart-5 bg-chart-5-quinary",
-};
+/**
+ * The tint of the impact chip and the found line follows the impact: the orange of an issue, the grey of a minor
+ * one or a suggestion, as the dot of the impact label.
+ */
+const TINT: Record<SeoIssueSeverity | "none", { fill: string; edge: string }> =
+  {
+    critical: { fill: "bg-chart-2-quinary", edge: "border-chart-2" },
+    major: { fill: "bg-chart-2-quinary", edge: "border-chart-2" },
+    minor: { fill: "bg-chart-5-quinary", edge: "border-chart-5" },
+    none: { fill: "bg-chart-5-quinary", edge: "border-chart-5" },
+  };
 
 /**
  * An action in the dialog of the Agent tab: a head with the title and its facts, the body in titled parts, and
@@ -51,7 +55,10 @@ export function SeoActionDetail({
           {severity ? (
             <span
               title={t(`severityHint.${severity}`)}
-              className="bg-chart-2-quinary inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium whitespace-nowrap"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium whitespace-nowrap",
+                TINT[severity].fill,
+              )}
             >
               <span
                 aria-hidden
@@ -81,11 +88,14 @@ export function SeoActionDetail({
           label={seoPageLabel(model.data, action.pageUrl)}
         />
       </div>
-      <div className="min-h-0 space-y-5 overflow-y-auto px-6 py-5 text-sm">
+      {/* The body gives up its room first, down to a floor: on a very short screen the whole dialog scrolls, so
+          the buttons at the foot stay in reach. */}
+      <div className="min-h-32 space-y-5 overflow-y-auto px-6 py-5 text-sm">
         <p
           className={cn(
             "rounded-md border-s-4 px-4 py-3 whitespace-pre-wrap break-words",
-            FOUND_TINT[severity ?? "none"],
+            TINT[severity ?? "none"].fill,
+            TINT[severity ?? "none"].edge,
           )}
         >
           {finding}

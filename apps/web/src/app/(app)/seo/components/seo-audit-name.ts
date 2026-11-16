@@ -22,7 +22,15 @@ export function seoAuditName(name: string, url: string): string {
 export function seoAuditNameIsHome(name: string, url: string): boolean {
   try {
     const { pathname, search } = new URL(url.trim());
-    return pathname === "/" && !search && seoAuditName("", url) === name.trim();
+    return (
+      pathname === "/" &&
+      !search &&
+      seoAuditName("", url).toLowerCase() ===
+        name
+          .trim()
+          .replace(/^www\./i, "")
+          .toLowerCase()
+    );
   } catch {
     return false;
   }

@@ -332,9 +332,10 @@ export function SeoActionDialog({
       }}
     >
       {action ? (
-        // A long action scrolls between its head and its buttons, which stay in view.
+        // A long action scrolls between its head and its buttons, which stay in view. On a screen too short for
+        // both, the whole dialog scrolls.
         <DialogContent
-          className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
+          className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-y-auto p-0 sm:max-w-xl"
           onCloseAutoFocus={onCloseAutoFocus}
           // The action is the whole content: no separate description.
           aria-describedby={undefined}
