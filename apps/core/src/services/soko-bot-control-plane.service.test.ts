@@ -2,7 +2,9 @@ import { createHash } from "node:crypto";
 import {
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,
+  isSokoBotAnnouncementCapability,
   isSokoBotNewsletterCapability,
+  SOKO_BOT_ANNOUNCEMENT_CAPABILITIES,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
@@ -107,8 +109,12 @@ const {
       SOKO_BOT_PROACTIVE_PAUSED: boolean;
       SOKO_BOT_ENABLED?: boolean;
       EXA_API_KEY?: string;
+      SOKO_BOT_ANNOUNCEMENT_BOT_IDS: string[];
     }
-  >(() => ({ SOKO_BOT_PROACTIVE_PAUSED: false })),
+  >(() => ({
+    SOKO_BOT_PROACTIVE_PAUSED: false,
+    SOKO_BOT_ANNOUNCEMENT_BOT_IDS: [],
+  })),
   jobFindManyMock: vi.fn(),
   memoryCreateMock: vi.fn(),
   memoryFindFirstMock: vi.fn(),
@@ -456,7 +462,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       disabledAt: null,
       disabledReason: null,
     });
-    getEnvMock.mockReturnValue({ SOKO_BOT_PROACTIVE_PAUSED: false });
+    getEnvMock.mockReturnValue({
+      SOKO_BOT_PROACTIVE_PAUSED: false,
+      SOKO_BOT_ANNOUNCEMENT_BOT_IDS: [],
+    });
     adminActionCreateMock.mockResolvedValue({});
     adminActionFindFirstMock.mockResolvedValue(null);
     adminActionFindManyMock.mockResolvedValue([]);
@@ -535,6 +544,47 @@ describe("SokoBotControlPlane lifecycle", () => {
     },
   );
 
+  it.each([true, false])(
+    "offers announcement tools only to a listed bot: %s",
+    async (listed) => {
+      getEnvMock.mockReturnValue({
+        SOKO_BOT_PROACTIVE_PAUSED: false,
+        SOKO_BOT_ANNOUNCEMENT_BOT_IDS: listed ? [BOT_ID] : [],
+      });
+      botFindFirstMock.mockResolvedValue(adminBot());
+      botFindUniqueMock.mockResolvedValue(adminBot());
+      turnFindUniqueMock.mockResolvedValue(null);
+      turnFindFirstMock.mockResolvedValue(null);
+      turnCreateMock.mockResolvedValue({
+        id: "announcement-turn",
+        leaseToken: "announcement-lease",
+      });
+      const runtime = runtimeWithReset(vi.fn());
+      runtime.createSession = vi.fn().mockResolvedValue({
+        sessionId: "announcement-session",
+        runtimeVersion: "test",
+        acceptedAt: new Date().toISOString(),
+      });
+      await new SokoBotControlPlane(
+        runtime,
+        {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder,
+        new JevTurnClassifier(),
+      ).startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "announcement-client",
+        message: "Draft this week's announcement",
+      });
+      const granted = turnCreateMock.mock.calls[0]?.[0]?.data
+        ?.capabilityNames as string[];
+      for (const capability of SOKO_BOT_ANNOUNCEMENT_CAPABILITIES) {
+        expect(granted.includes(capability)).toBe(listed);
+      }
+    },
+  );
+
   it.each([
     { exaKey: "exa-key", offered: true },
     { exaKey: undefined, offered: false },
@@ -543,6 +593,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     async ({ exaKey, offered }) => {
       getEnvMock.mockReturnValue({
         SOKO_BOT_PROACTIVE_PAUSED: false,
+        SOKO_BOT_ANNOUNCEMENT_BOT_IDS: [],
         EXA_API_KEY: exaKey,
       });
       const cuso = adminBot({
@@ -2502,7 +2553,9 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(granted).toContain("hire_agent");
     expect(granted).toEqual(
       SOKO_BOT_ROUTE_CAPABILITIES.HIRE_AGENT.filter(
-        (capability) => !isSokoBotNewsletterCapability(capability),
+        (capability) =>
+          !isSokoBotNewsletterCapability(capability) &&
+          !isSokoBotAnnouncementCapability(capability),
       ),
     );
   });
@@ -3860,6 +3913,35 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
     const nextRunAt = scheduleUpdateMock.mock.calls[0]?.[0]?.data?.nextRunAt;
     expect(nextRunAt.getTime()).toBeGreaterThan(now.getTime());
+    // Switching it back on is not rewriting it: the run's tools stay.
+    expect(
+      scheduleUpdateMock.mock.calls[0]?.[0]?.data?.capabilityNames,
+    ).toBeUndefined();
+  });
+
+  it("gives a schedule a person rewrites their chat tools", async () => {
+    scheduleFindFirstMock.mockResolvedValue({
+      id: "schedule_1",
+      sokoBotId: BOT_ID,
+      requestedByUserId: "user_1",
+      enabled: true,
+      consecutiveFailures: 0,
+      timezone: "UTC",
+      cronExpression: "0 16 * * 5",
+      nextRunAt: new Date("2026-11-20T16:00:00.000Z"),
+    });
+    scheduleUpdateMock.mockResolvedValue({ id: "schedule_1" });
+
+    await new SokoBotControlPlane().updateSchedule({
+      userId: "user_1",
+      scheduleId: "schedule_1",
+      prompt: "Draft this week's announcement",
+    });
+
+    const granted = scheduleUpdateMock.mock.calls[0]?.[0]?.data
+      ?.capabilityNames as string[];
+    expect(granted).toContain("start_background_run");
+    expect(granted).not.toContain("delete_schedule");
   });
 
   it("recursively redacts sensitive admin presentation fields", async () => {
@@ -4141,6 +4223,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     async (action) => {
       getEnvMock.mockReturnValue({
         SOKO_BOT_PROACTIVE_PAUSED: false,
+        SOKO_BOT_ANNOUNCEMENT_BOT_IDS: [],
         SOKO_BOT_ENABLED: false,
       });
       botFindUniqueMock.mockResolvedValue(adminBot());
@@ -4969,6 +5052,7 @@ describe("SET_VERSION and fleet migration", () => {
     });
     getEnvMock.mockReturnValue({
       SOKO_BOT_PROACTIVE_PAUSED: false,
+      SOKO_BOT_ANNOUNCEMENT_BOT_IDS: [],
       SOKO_BOT_ENABLED: true,
     });
     adminActionCreateMock.mockResolvedValue({});

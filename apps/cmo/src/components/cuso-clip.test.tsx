@@ -239,18 +239,13 @@ describe("CusoAvatar", () => {
 });
 
 describe("hire screen", () => {
-  it("plays the hero first and the avatar once it ends", async () => {
+  it("plays the hero, the screen's one Cuso", async () => {
     await render(<Onboarding onboard={vi.fn()} />);
-    const hero = video(".ob-stage-art");
-    const avatar = video(".cuso-avatar video");
-    expect(played).toEqual([hero]);
-
-    await end(hero);
-
-    expect(played).toEqual([hero, avatar]);
+    expect(played).toEqual([video(".ob-stage-art")]);
+    expect(host.querySelector(".cuso-avatar")).toBeNull();
   });
 
-  it("plays the avatar when the hero's autoplay is refused", async () => {
+  it("announces the labels when the hero's autoplay is refused", async () => {
     vi.mocked(HTMLMediaElement.prototype.play).mockImplementation(function (
       this: HTMLMediaElement,
     ) {
@@ -263,9 +258,7 @@ describe("hire screen", () => {
       await Promise.resolve();
     });
 
-    const hero = video(".ob-stage-art");
-    const avatar = video(".cuso-avatar video");
-    expect(played).toEqual([hero, avatar]);
+    expect(played).toEqual([video(".ob-stage-art")]);
     expect(
       host.querySelector(".ob-stage")?.classList.contains("ob-stage-live"),
     ).toBe(true);

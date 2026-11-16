@@ -12,6 +12,38 @@ const minimumBuildSchema = z.preprocess(
   z.coerce.number().int().positive().optional(),
 );
 
+const seoExecutorIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
+const seoAnalysisExecutorCapabilities = {
+  coworkerId: seoExecutorIdSchema,
+  canUsePaidSearchData: z.boolean().default(false),
+  canSchedule: z.boolean().default(false),
+};
+const seoAnalysisExecutorSchema = z.union([
+  z
+    .object({
+      ...seoAnalysisExecutorCapabilities,
+      workspaceId: z.uuid(),
+      ownerId: seoExecutorIdSchema,
+      organizationId: seoExecutorIdSchema.nullable(),
+    })
+    .strict(),
+  z
+    .object({
+      ...seoAnalysisExecutorCapabilities,
+      mode: z.literal("global"),
+    })
+    .strict(),
+]);
+const seoAnalysisExecutorEnvSchema = z.preprocess((value) => {
+  if (value === "" || value === undefined) return undefined;
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}, seoAnalysisExecutorSchema.optional());
+
 /**
  * Environment variables schema for Core API
  * This ensures the app isn't built with invalid env vars.
@@ -48,6 +80,21 @@ const baseEnvSchema = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((value) => value === "true"),
+
+  // Enable only after the assigned public worker supports the versioned SEO Task packets.
+  // Live Mainnet uses its reviewed registered service by default; false remains an explicit override.
+  SEO_ANALYSIS_DISPATCH_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+
+  // Operator assertion of a reviewed worker and exact Task context, not remote protocol proof.
+  // A shared service requires explicit global mode; Task authority and billing remain per actor.
+  // Omit both SEO overrides to use the built-in live Mainnet service. Preview and Preprod stay opt-in.
+  SEO_ANALYSIS_EXECUTOR: seoAnalysisExecutorEnvSchema,
+
+  // Native SEO chat allowance per reader and Workspace, reset at 00:00 UTC.
+  SEO_CHAT_DAILY_TURN_LIMIT: z.coerce.number().int().positive().default(100),
 
   // Redis / Vercel KV (optional; resumable UI streams, coworker stream locks)
   REDIS_URL: z.string().optional(),
@@ -175,6 +222,17 @@ const baseEnvSchema = z.object({
   EVALS_AI_GATEWAY_API_KEY: z.string().min(1).optional(),
   /** Exa search for Cuso's research (search_exa); without it the tool refuses. */
   EXA_API_KEY: z.string().min(1).optional(),
+  /**
+   * Soko Bot ids that may write the announcements every user sees (the
+   * sidebar card and popup). Comma-separated; empty, no bot has the tools.
+   */
+  SOKO_BOT_ANNOUNCEMENT_BOT_IDS: z
+    .string()
+    .default("")
+    .transform((value: string) =>
+      value.trim() === "" ? [] : value.split(",").map((id) => id.trim()),
+    )
+    .pipe(z.array(z.uuid())),
   /**
    * A local Chrome or Chromium binary for the CMO site screenshots. Unset,
    * Core downloads the `@sparticuz/chromium-min` pack below (Vercel).

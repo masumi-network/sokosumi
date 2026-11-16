@@ -12,6 +12,7 @@ import {
   createEmptySokoBotMemory,
   getSokoBotVersion,
   type IndexedRuntimeEvent,
+  isSokoBotAnnouncementCapability,
   isSokoBotCapability,
   isSokoBotNewsletterCapability,
   limitSokoBotWrites,
@@ -110,6 +111,7 @@ import {
 } from "@/lib/soko-bot/runtime-stream";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
 import {
+  PERSON_SCHEDULE_CAPABILITIES,
   systemScheduleRoute,
   withOwnScheduleTools,
 } from "@/lib/soko-bot/system-routes";
@@ -137,6 +139,7 @@ import {
   invalidateSokoBotIntentOutcomes,
   sokoBotOutcomeSummary,
 } from "@/services/soko-bot-outcome.service";
+import { isAnnouncementBot } from "@/services/soko-bot-runtime/dispatch-announcements";
 import {
   type CreateSokoBotScheduleInput,
   createSokoBotSchedule,
@@ -2283,6 +2286,8 @@ export class SokoBotControlPlane {
     ).filter(
       (capability) =>
         (!isSokoBotNewsletterCapability(capability) || newsletterAvailable) &&
+        (!isSokoBotAnnouncementCapability(capability) ||
+          isAnnouncementBot(bot.id)) &&
         // Without a key `search_exa` refuses on every call; offer web_search only.
         (capability !== "search_exa" || Boolean(getEnv().EXA_API_KEY)),
     ) as readonly SokoBotCapability[];
@@ -3594,12 +3599,24 @@ export class SokoBotControlPlane {
     };
   }
 
+  /** A person writing a schedule in the console; see PERSON_SCHEDULE_CAPABILITIES. */
   async createSchedule(input: CreateSokoBotScheduleInput) {
-    return translateScheduleErrors(() => createSokoBotSchedule(input));
+    return translateScheduleErrors(() =>
+      createSokoBotSchedule({
+        ...input,
+        capabilityNames: PERSON_SCHEDULE_CAPABILITIES,
+      }),
+    );
   }
 
   async updateSchedule(input: UpdateSokoBotScheduleInput) {
-    return translateScheduleErrors(() => updateSokoBotSchedule(input));
+    return translateScheduleErrors(() =>
+      updateSokoBotSchedule(
+        input.prompt === undefined
+          ? input
+          : { ...input, capabilityNames: PERSON_SCHEDULE_CAPABILITIES },
+      ),
+    );
   }
 
   /** `bot` reaches a shared bot's schedule the caller did not write. */

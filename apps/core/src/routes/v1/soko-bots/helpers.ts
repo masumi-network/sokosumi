@@ -16,6 +16,7 @@ import {
 import type { EnvVariables } from "@/lib/hono";
 import { isSokoBotAuthContext, isUserAuthContext } from "@/middleware/auth";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+import { SokoBotIntegrationError } from "@/services/composio-integration-tools.service";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
 import {
@@ -27,7 +28,6 @@ import {
   SokoBotValidationError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
-import { SokoBotIntegrationError } from "@/services/soko-bot-integrations.service";
 import {
   SokoBotRuntimeAuthorizationError,
   SokoBotRuntimeConflictError,

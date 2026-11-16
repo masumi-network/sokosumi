@@ -16,6 +16,7 @@ export const transactionHistoryKinds = [
   "task",
   "coworker",
   "sokoBot",
+  "seoChat",
   "contacts",
   "topUp",
   "unattributed",
@@ -154,6 +155,10 @@ export const transactionHistorySokoBotItemSchema =
     })
     .openapi("TransactionHistorySokoBotItem");
 
+const transactionHistorySeoChatItemSchema = transactionHistoryBaseItemSchema
+  .extend({ kind: z.literal("seoChat") })
+  .openapi("TransactionHistorySeoChatItem");
+
 const transactionHistoryContactsItemSchema = transactionHistoryBaseItemSchema
   .extend({
     kind: z.literal("contacts"),
@@ -219,6 +224,7 @@ const transactionHistoryItemSchema = z
     transactionHistoryTaskItemSchema,
     transactionHistoryCoworkerItemSchema,
     transactionHistorySokoBotItemSchema,
+    transactionHistorySeoChatItemSchema,
     transactionHistoryContactsItemSchema,
     transactionHistoryTopUpItemSchema,
     transactionHistoryUnattributedItemSchema,

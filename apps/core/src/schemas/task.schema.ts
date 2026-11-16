@@ -213,6 +213,10 @@ const taskBaseSchema = z.object({
   id: z.string().openapi({ example: "tsk_123" }),
   createdAt: dateTimeSchema,
   updatedAt: dateTimeSchema,
+  workspaceId: z.uuid().openapi({
+    description:
+      "Current Task placement. Moving a Task does not change its billing organization.",
+  }),
   ownerId: workOwnerIdSchema,
   owner: workOwnerSchema,
   /** @deprecated Use `ownerId`. */

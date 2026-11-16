@@ -13,7 +13,7 @@ import { workspaceCalendarItemSchema } from "@/schemas/workspace-calendar.schema
 import {
   canWriteTaskSchedule,
   taskScheduleVisibilityWhere,
-} from "@/services/task-schedule.service";
+} from "@/services/task-schedule-read.service";
 
 import type {
   CalendarCursor,

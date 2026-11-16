@@ -179,7 +179,7 @@ export function LaunchStep({
     ].filter((row) => row.value);
     return (
       <section className="ob-launch ob-launch-done">
-        <div className="panel ob-celebration-panel">
+        <div className="ob-celebration-panel">
           <div className="card ob-celebration">
             <CusoClip
               src="/cuso/celebration.jpg"
@@ -231,18 +231,20 @@ export function LaunchStep({
 
   return (
     <section className="ob-launch">
-      <CusoAvatar pose="done" size={96} />
-      <h1 className="ob-h1">
-        {accounts ? "One thing, then I start." : "Ready when you are."}
-      </h1>
-      <p className="muted">
-        {accounts
-          ? "Your plan is approved. Connect where I post."
-          : "Your plan is approved."}
-      </p>
+      <div className="ob-lead">
+        <CusoAvatar pose="done" size={176} />
+        <h1 className="ob-h1">
+          {accounts ? "One thing, then I start." : "Ready when you are."}
+        </h1>
+        <p className="muted">
+          {accounts
+            ? "Your plan is approved. Connect where I post."
+            : "Your plan is approved."}
+        </p>
+      </div>
 
       {rows.length > 0 ? (
-        <div className="panel ob-networks-panel">
+        <div className="ob-networks-panel">
           <ul className="card card-focus ob-networks">
             {rows.map((key) => {
               const done = connected.has(key);

@@ -167,7 +167,7 @@ describe("Site while Cuso reads", () => {
     expect(html).toContain("Reading your site");
     expect(html).toContain("Cuso is reading · ");
     expect(html).toContain(" so far");
-    expect(html).toContain("/cuso/reading.png");
+    expect(html).toContain("/cuso/reading-scene.jpg");
     expect(html).toContain("What I found so far");
     expect(html).toContain("7 of 16 sections");
     expect(html).toContain("questions come when the read lands");
@@ -309,7 +309,7 @@ describe("Brand", () => {
   it("leads with the promise and one primary: Looks like us", () => {
     const html = render(draft({ brandBrainConfirmedAt: null, strategy: null }));
     expect(html).toContain("Here&#x27;s acme.io as I see it.");
-    expect(html).toContain("tap any tile to see the source or fix it");
+    expect(html).toContain("Tap any line to see the source or fix it.");
     expect(html).toContain("Your promise, in one line");
     expect(html).toContain("Looks like us");
     expect(html).toContain("Source: acme.io");

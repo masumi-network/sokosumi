@@ -21,7 +21,7 @@ import { grantCmoTesterCredits } from "./cmo-billing.service";
 /** The data migration that retypes the credits earlier hires were granted. */
 const starterToTesterSql = readFileSync(
   new URL(
-    "../../../../packages/database/prisma/migrations/20261115110057_starter_credits_become_tester_credits/migration.sql",
+    "../../../../packages/database/prisma/migrations/20261116120104_starter_credits_become_tester_credits/migration.sql",
     import.meta.url,
   ),
   "utf8",
