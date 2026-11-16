@@ -467,6 +467,42 @@ describe("SEO audit first run", () => {
     expect(primaryButtons(setup)).toEqual([]);
   });
 
+  it("keeps the first running audit controls visible without starting a second check", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.analyses = [
+      {
+        id: "first-audit",
+        kind: "audit_full",
+        status: "running",
+        taskId: null,
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: workspace.scope.version,
+        createdAt: new Date(),
+      },
+    ];
+    network(workspace);
+    await renderWorkspace(workspace);
+    expect(screen.getByRole("group", { name: "Checks" })).toBeVisible();
+    const setup = screen.getByTestId("seo-setup");
+    const runButtons = screen.getAllByRole("button", {
+      name: copy.setup.checkRunningBadge,
+    });
+    const headerRun = runButtons.find((button) => !setup.contains(button));
+    expect(headerRun).toBeDefined();
+    for (const button of runButtons) {
+      expect(button).toHaveAttribute("aria-disabled", "true");
+      button.focus();
+      await user.keyboard("{Enter}");
+    }
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await user.click(screen.getByRole("button", { name: copy.monitor.create }));
+    expect(
+      await screen.findByRole("menuitem", { name: copy.monitor.create }),
+    ).toBeVisible();
+    await user.keyboard("{Escape}");
+  });
+
   it("explains automatic collection on Traffic once the account is connected", async () => {
     const workspace = seoTestWorkspace();
     network(workspace, {
@@ -740,11 +776,26 @@ describe("SEO audit first run", () => {
       issues,
       seconds: 600,
     });
-    // One run is no choice: no row.
+    // The first saved run keeps the timeline and the same run/schedule controls as later runs.
     workspace.runs = [run("2026-11-12T13:00:00Z", 5)];
     network(workspace);
     const view = render(page(<SeoWorkspace workspace={workspace} />));
-    expect(screen.queryByRole("group", { name: "Checks" })).toBeNull();
+    expect(screen.getByRole("group", { name: "Checks" })).toBeVisible();
+    expect(
+      within(screen.getByRole("group", { name: "Checks" })).getByRole(
+        "button",
+        { name: "Nov 12" },
+      ),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      await screen.findByRole("button", { name: copy.runFullAudit }),
+    ).toBeVisible();
+    expect(screen.queryByTestId("seo-setup")).toBeNull();
+    await user.click(screen.getByRole("button", { name: copy.monitor.create }));
+    expect(
+      await screen.findByRole("menuitem", { name: copy.monitor.create }),
+    ).toBeVisible();
+    await user.keyboard("{Escape}");
     view.unmount();
     workspace.runs.push(run("2026-11-10T09:00:00Z", 6));
     render(page(<SeoWorkspace workspace={workspace} />));
@@ -881,9 +932,10 @@ describe("SEO audit first run", () => {
     expect(
       screen.getByText((text) => text.startsWith(copy.setup.checkStartedNow)),
     ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: copy.setup.checkRunningBadge }),
-    ).toHaveAttribute("aria-disabled", "true");
+    for (const button of screen.getAllByRole("button", {
+      name: copy.setup.checkRunningBadge,
+    }))
+      expect(button).toHaveAttribute("aria-disabled", "true");
   });
 
   it("ends setup for a filtered view, which keeps the notice", async () => {

@@ -3875,6 +3875,35 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
     const nextRunAt = scheduleUpdateMock.mock.calls[0]?.[0]?.data?.nextRunAt;
     expect(nextRunAt.getTime()).toBeGreaterThan(now.getTime());
+    // Switching it back on is not rewriting it: the run's tools stay.
+    expect(
+      scheduleUpdateMock.mock.calls[0]?.[0]?.data?.capabilityNames,
+    ).toBeUndefined();
+  });
+
+  it("gives a schedule a person rewrites their chat tools", async () => {
+    scheduleFindFirstMock.mockResolvedValue({
+      id: "schedule_1",
+      sokoBotId: BOT_ID,
+      requestedByUserId: "user_1",
+      enabled: true,
+      consecutiveFailures: 0,
+      timezone: "UTC",
+      cronExpression: "0 16 * * 5",
+      nextRunAt: new Date("2026-11-20T16:00:00.000Z"),
+    });
+    scheduleUpdateMock.mockResolvedValue({ id: "schedule_1" });
+
+    await new SokoBotControlPlane().updateSchedule({
+      userId: "user_1",
+      scheduleId: "schedule_1",
+      prompt: "Draft this week's announcement",
+    });
+
+    const granted = scheduleUpdateMock.mock.calls[0]?.[0]?.data
+      ?.capabilityNames as string[];
+    expect(granted).toContain("start_background_run");
+    expect(granted).not.toContain("delete_schedule");
   });
 
   it("recursively redacts sensitive admin presentation fields", async () => {

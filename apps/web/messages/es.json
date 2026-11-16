@@ -1534,6 +1534,7 @@
           "task": "Tarea",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
+          "seoChat": "Chat de SEO",
           "topUp": "Recarga",
           "unattributed": "Otros"
         }
@@ -12009,7 +12010,9 @@
         "desktop": "Ordenador",
         "htmlOnly": "Lee el HTML de las páginas seleccionadas. Esta comprobación no usa datos de búsqueda de pago ni llamadas a modelos.",
         "maxCredits": "Hasta {credits, plural, =1 {# crédito} other {# créditos}}",
+        "fixedCredits": "{credits, plural, =1 {# crédito} other {# créditos}}",
         "maxCreditsPerRun": "Hasta {credits, plural, =1 {# crédito} other {# créditos}} por ejecución",
+        "fixedCreditsPerRun": "{credits, plural, =1 {# crédito} other {# créditos}} por ejecución",
         "htmlService": "Este servicio admite comprobaciones de páginas HTML. Los datos de búsqueda y las auditorías completas no están disponibles aquí.",
         "submit": "Iniciar comprobación",
         "queued": "Comprobación solicitada",
@@ -12226,6 +12229,9 @@
         "open": "Abrir {action}",
         "auditRequired": "Abre una auditoría para preguntar al agente SEO.",
         "dailyLimit": "Has alcanzado el límite diario del chat SEO. Inténtalo de nuevo mañana.",
+        "insufficientCredits": "No tienes suficientes créditos para esta respuesta. Añade créditos e inténtalo de nuevo.",
+        "usagePricing": "Las respuestas consumen créditos según el uso del modelo.",
+        "creditsCharged": "{credits, number, :: .##########} créditos usados",
         "createTask": "Crear borrador de tarea: {title}",
         "showMore": "Mostrar la pregunta completa",
         "showLess": "Mostrar menos",
@@ -12637,8 +12643,8 @@
       },
       "improve": {
         "catalog": {
-          "title": "Lo que el agente aún no puede hacer",
-          "help": "Funciones que el agente SEO aún no tiene."
+          "title": "Limitaciones del agente",
+          "help": "Qué revisa el agente, qué falta y qué debes hacer por tu cuenta."
         },
         "groups": {
           "technical": "Técnica",
@@ -12655,8 +12661,18 @@
         "requestText": "Solicitud de función para el agente SEO, punto {id}: {title}. Lo que falta: {missing}",
         "copied": "Solicitud copiada. Envíala al equipo de Sokosumi.",
         "copyFailed": "No se pudo copiar la solicitud.",
+        "summary": {
+          "title": "Qué puedes esperar",
+          "site": "Las revisiones cubren las páginas seleccionadas. Un rastreo completo o una revisión de migración requiere trabajo adicional.",
+          "content": "El agente sugiere cambios en las páginas. No incluye artículos completos ni planes de contenido de todo el sitio.",
+          "research": "No incluye investigación detallada de enlaces, posiciones por ciudad ni seguimiento de contactos.",
+          "measurement": "Las reseñas del negocio, menciones de marca en IA, ingresos e impacto de cada cambio no se miden por completo.",
+          "publishing": "Tú aplicas los cambios, vuelves a revisar las correcciones y compartes informes con clientes."
+        },
         "gaps": {
-          "title": "Lo que esta auditoría no pudo ver",
+          "statisticsIncomplete": "Faltan algunas estadísticas de Google. El agente solo puede evaluar los datos disponibles.",
+          "checksIncomplete": "Algunas revisiones no dieron resultados. Esta auditoría puede pasar por alto problemas.",
+          "title": "Datos que faltan en la auditoría",
           "noSearchConsole": "No hay datos de Search Console: no se miden los clics, las búsquedas ni el estado en el índice de Google.",
           "noAnalytics": "No hay datos de Google Analytics: no se miden las visitas ni los eventos clave.",
           "statisticsUnavailable": "La última sincronización de estadísticas no pudo leer los datos.",
