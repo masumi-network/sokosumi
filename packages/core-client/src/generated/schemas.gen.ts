@@ -40071,8 +40071,7 @@ export const CreateProjectImageJobRequestSchema = {
             enum: [
                 'overlay',
                 'ideogram'
-            ],
-            default: 'overlay'
+            ]
         },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'

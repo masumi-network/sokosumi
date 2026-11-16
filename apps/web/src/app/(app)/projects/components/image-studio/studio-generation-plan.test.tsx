@@ -199,45 +199,23 @@ function generate() {
 }
 
 describe("an honest generation plan", () => {
-  it("defaults approved headlines to the existing overlay and only offers lettering with a headline", () => {
-    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
-    const props = {
-      catalog: LETTERING_CATALOG,
-      initial: { modelIds: ["model-a"], settings: SETTINGS },
-      generationProjectId: "project-a",
-      onGenerate,
-    };
-    const { rerender } = render(<Harness {...props} />);
+  it("does not mention lettering until an approved headline is selected", () => {
+    render(
+      <Harness
+        catalog={LETTERING_CATALOG}
+        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        generationProjectId="project-a"
+        onGenerate={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("letteringIdeogramHint")).toBeNull();
+    expect(screen.queryByText("letteringFallbackHint")).toBeNull();
     expect(
       screen.queryByRole("button", { name: "letteringIdeogram" }),
     ).toBeNull();
-    rerender(
-      <Harness
-        {...props}
-        initial={{
-          ...props.initial,
-          exportHeadlines: { projectId: "project-a", lines: ["Made to last"] },
-        }}
-        key="approved"
-      />,
-    );
-    expect(
-      screen.getByRole("button", { name: "letteringOverlay" }),
-    ).toHaveAttribute("aria-pressed", "true");
-    generate();
-    expect(onGenerate.mock.calls[0][0]).toEqual([
-      expect.objectContaining({
-        modelId: "model-a",
-        exportHeadline: "Made to last",
-        lettering: "overlay",
-      }),
-    ]);
-    expect(
-      screen.getByText('runPlanCredits:{"copies":1,"models":1,"credits":4}'),
-    ).toBeInTheDocument();
   });
 
-  it("discloses both catalog charges and submits only the Gemini scene for Core to chain", () => {
+  it("defaults approved headlines to two-step Ideogram lettering with both charges", () => {
     const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
     render(
       <Harness
@@ -251,10 +229,13 @@ describe("an honest generation plan", () => {
         onGenerate={onGenerate}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "letteringIdeogram" }));
     expect(
-      screen.getByRole("button", { name: "letteringIdeogram" }),
-    ).toHaveAttribute("aria-pressed", "true");
+      screen.queryByRole("button", { name: "letteringOverlay" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "letteringIdeogram" }),
+    ).toBeNull();
+    expect(screen.getByText("letteringIdeogramHint")).toBeInTheDocument();
     expect(
       screen.getByText(
         'letteringPlanCredits:{"sceneCredits":15,"letteringCredits":3,"credits":18}',
@@ -313,6 +294,37 @@ describe("an honest generation plan", () => {
         'letteringPlanCredits:{"sceneCredits":30,"letteringCredits":12,"credits":42}',
       ),
     ).toBeInTheDocument();
+  });
+
+  it("falls back to the exact-font overlay when Ideogram cannot letter", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    const catalog = {
+      ...LETTERING_CATALOG,
+      models: LETTERING_CATALOG.models.filter(
+        (model) => model.id !== "ideogram-v3",
+      ),
+    };
+    render(
+      <Harness
+        catalog={catalog}
+        generationProjectId="project-a"
+        initial={{
+          modelIds: ["model-a"],
+          settings: SETTINGS,
+          exportHeadlines: { projectId: "project-a", lines: ["Made to last"] },
+        }}
+        onGenerate={onGenerate}
+      />,
+    );
+    expect(screen.getByText("letteringFallbackHint")).toBeInTheDocument();
+    generate();
+    expect(onGenerate.mock.calls[0][0]).toEqual([
+      expect.objectContaining({
+        modelId: "model-a",
+        exportHeadline: "Made to last",
+        lettering: "overlay",
+      }),
+    ]);
   });
 
   it("recovers a failed Ideogram edit with one catalog charge and its existing backdrop", () => {

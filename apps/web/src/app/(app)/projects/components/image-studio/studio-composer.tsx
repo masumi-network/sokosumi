@@ -229,19 +229,21 @@ export function StudioComposer({
       ? (target.exportHeadlines?.lines ?? NO_HEADLINES)
       : NO_HEADLINES;
   const usesApprovedHeadlines = headlineOptions.length > 0;
-  const lettering = target.lettering ?? "overlay";
-  const useIdeogram = usesApprovedHeadlines && lettering === "ideogram";
+  const ideogramModel = catalog.models.find(
+    (model) => model.id === "ideogram-v3",
+  );
+  const geminiModel = catalog.models.find((model) => model.id === "gemini-pro");
+  const canUseIdeogram = Boolean(geminiModel && ideogramModel?.editEndpoint);
+  // Headlined ads always letter with Ideogram when the catalog can; the
+  // exact-font overlay is only a fallback (failed lettering, or no edit path).
+  const useIdeogram = usesApprovedHeadlines && canUseIdeogram;
+  const lettering = useIdeogram ? "ideogram" : "overlay";
   const directLetteringEdit =
     useIdeogram &&
     target.modelIds.length === 1 &&
     target.modelIds[0] === "ideogram-v3" &&
     (referenceAssets.length > 0 || Boolean(parentAssetId));
   const twoStepLettering = useIdeogram && !directLetteringEdit;
-  const ideogramModel = catalog.models.find(
-    (model) => model.id === "ideogram-v3",
-  );
-  const geminiModel = catalog.models.find((model) => model.id === "gemini-pro");
-  const canUseIdeogram = Boolean(geminiModel && ideogramModel?.editEndpoint);
   const searchRef = useRef<HTMLInputElement>(null);
   const promptHelpId = useId();
   const hasProductBatch = batchProducts.length > 0;
@@ -350,11 +352,22 @@ export function StudioComposer({
       ),
     [catalog.models, referenceCount, useIdeogram, directLetteringEdit],
   );
-  const selectedModels = useMemo(
-    () =>
-      availableModels.filter((model) => selectedModelIds.includes(model.id)),
-    [availableModels, selectedModelIds],
-  );
+  const selectedModels = useMemo(() => {
+    const selected = availableModels.filter((model) =>
+      selectedModelIds.includes(model.id),
+    );
+    // Headlined ads letter with Gemini Pro, even if another model was selected
+    // before the headline was turned on.
+    if (
+      twoStepLettering &&
+      geminiModel &&
+      selected.length === 0 &&
+      availableModels.some((model) => model.id === "gemini-pro")
+    ) {
+      return [geminiModel];
+    }
+    return selected;
+  }, [availableModels, geminiModel, selectedModelIds, twoStepLettering]);
 
   // Over the whole catalog, so a reference filter cannot hide the twin that
   // made a label ambiguous and take its line away.
@@ -1137,56 +1150,15 @@ export function StudioComposer({
                       {t("useApprovedHeadlinesHint")}
                     </p>
                     {usesApprovedHeadlines ? (
-                      <div className="space-y-1.5">
-                        <Row label={t("headlineLettering")}>
-                          {(["overlay", "ideogram"] as const).map((mode) => (
-                            <button
-                              aria-pressed={lettering === mode}
-                              className={chipClass(lettering === mode)}
-                              disabled={mode === "ideogram" && !canUseIdeogram}
-                              key={mode}
-                              onClick={() =>
-                                mode !== lettering &&
-                                onTargetChange((current) => ({
-                                  ...current,
-                                  lettering: mode,
-                                  ...(mode === "ideogram" &&
-                                  geminiModel &&
-                                  ideogramModel
-                                    ? {
-                                        modelIds: [geminiModel.id],
-                                        settings: clampToModel(geminiModel, {
-                                          ...clampToModel(
-                                            ideogramModel,
-                                            current.settings,
-                                          ),
-                                          outputFormat:
-                                            current.settings.outputFormat,
-                                        }),
-                                      }
-                                    : {}),
-                                }))
-                              }
-                              type="button"
-                            >
-                              {t(
-                                mode === "ideogram"
-                                  ? "letteringIdeogram"
-                                  : "letteringOverlay",
-                              )}
-                            </button>
-                          ))}
-                        </Row>
-                        <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
-                          {t(
-                            directLetteringEdit
-                              ? "letteringEditHint"
-                              : useIdeogram
-                                ? "letteringIdeogramHint"
-                                : "letteringOverlayHint",
-                          )}
-                        </p>
-                      </div>
+                      <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+                        {t(
+                          directLetteringEdit
+                            ? "letteringEditHint"
+                            : useIdeogram
+                              ? "letteringIdeogramHint"
+                              : "letteringFallbackHint",
+                        )}
+                      </p>
                     ) : null}
                     {plannedHeadlines.length ? (
                       <ul className="text-muted-foreground list-disc space-y-0.5 ps-5 text-xs break-words">

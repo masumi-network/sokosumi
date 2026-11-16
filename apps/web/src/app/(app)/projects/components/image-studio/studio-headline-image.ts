@@ -3,24 +3,28 @@ import { useEffect, useState } from "react";
 
 import { fetchStudioAd } from "./studio-ad-download";
 import { renderStudioHeadline } from "./studio-ad-headline";
+import { usesExactFontOverlay } from "./studio-lettering";
 import type { PlacementRatio } from "./studio-placements";
-import type { StudioAsset } from "./types";
+import type { StudioAsset, StudioJob } from "./types";
 
 type RenderedHeadline =
   | { key: string; status: "ready"; blob: Blob; url: string }
   | { key: string; status: "error" };
 
 export function useStudioHeadlineImage(
-  {
-    id,
-    projectId,
-    lettering,
-  }: Pick<StudioAsset, "id" | "projectId" | "lettering">,
+  asset: Pick<StudioAsset, "id" | "projectId" | "lettering">,
   placement: PlacementRatio,
   logo: StudioLogoPosition | undefined,
   headline: string | undefined,
+  jobs: readonly Pick<
+    StudioJob,
+    "parentAssetId" | "lettering" | "status"
+  >[] = [],
 ) {
-  const overlayHeadline = lettering === "ideogram" ? undefined : headline;
+  const { id, projectId } = asset;
+  const overlayHeadline = usesExactFontOverlay(asset, jobs)
+    ? headline
+    : undefined;
   const [result, setResult] = useState<RenderedHeadline | null>(null);
   const [attempt, setAttempt] = useState(0);
   const key = JSON.stringify([

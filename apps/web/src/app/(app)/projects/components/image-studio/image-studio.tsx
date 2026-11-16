@@ -80,6 +80,7 @@ import { StudioCreativeStart } from "./studio-creative-start";
 import { StudioFailedSubmission } from "./studio-failed-submission";
 import { getDistinctProviderError } from "./studio-failure-notice";
 import { StudioGallery } from "./studio-gallery";
+import { usesExactFontOverlay } from "./studio-lettering";
 import { StudioLightbox } from "./studio-lightbox";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
 import { StudioProjectToolbar } from "./studio-project-toolbar";
@@ -473,7 +474,7 @@ export function ImageStudio({
   }
 
   function changeHeadline(asset: StudioAsset, text: string) {
-    if (asset.lettering === "ideogram") return;
+    if (!usesExactFontOverlay(asset, state.jobs)) return;
     if (headlineSaveInProgress.current || downloadingAds) return;
     headlineSaveInProgress.current = true;
     startHeadlineSave(async () => {
@@ -499,7 +500,7 @@ export function ImageStudio({
   ) {
     const reviewedAssets = assets.flatMap((asset) => {
       const text =
-        isVideoAsset(asset) || asset.lettering === "ideogram"
+        isVideoAsset(asset) || !usesExactFontOverlay(asset, state.jobs)
           ? ""
           : headlineForAsset(asset);
       return text ? [{ id: asset.id, projectId: asset.projectId, text }] : [];
@@ -528,8 +529,9 @@ export function ImageStudio({
           assets,
           logo,
           Object.fromEntries(reviewedAssets.map(({ id, text }) => [id, text])),
+          state.jobs,
         )
-      : await createStudioAdArchive(assets, logo);
+      : await createStudioAdArchive(assets, logo, undefined, state.jobs);
     saveStudioDownload(
       new Blob([archive], { type: "application/zip" }),
       filename,
@@ -1482,6 +1484,7 @@ export function ImageStudio({
       {lightboxAssets.length > 0 ? (
         <StudioLightbox
           assets={lightboxAssets}
+          jobs={state.jobs}
           catalog={catalog}
           creditsByAssetId={credits}
           elapsedByAssetId={elapsed}

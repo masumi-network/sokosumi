@@ -254,14 +254,30 @@ beforeEach(() => {
 });
 
 describe("optional two-step lettering", () => {
-  it("keeps the exact-font overlay as the default and buys one generation", async () => {
+  it("defaults a headlined ad to two-step Ideogram lettering", async () => {
     await createImageJob(INPUT);
+    const first = creditsPerImage(imageModel("gemini-pro"), SETTINGS);
+    const second = creditsPerImage(imageModel("ideogram-v3"), SETTINGS);
+    expect(jobs[0]).toMatchObject({
+      lettering: "ideogram",
+      model: imageModel("gemini-pro").generateEndpoint,
+      letteringQuoteCents: convertCreditsToCents(second),
+      chargedCents: convertCreditsToCents(first),
+    });
+    await settleWithMedia("job-1", "https://v3.fal.media/backdrop.png");
+    expect(jobs).toHaveLength(2);
+    expect(jobs[1]).toMatchObject({
+      lettering: "ideogram",
+      model: "fal-ai/ideogram/v3/edit",
+    });
+  });
+
+  it("still buys one generation when overlay is requested explicitly", async () => {
+    await createImageJob({ ...INPUT, lettering: "overlay" });
     await settleWithMedia("job-1", "https://v3.fal.media/backdrop.png");
     expect(jobs).toHaveLength(1);
     expect(jobs[0]?.lettering).toBe("overlay");
-    expect(assets[0]?.headline).toEqual({
-      create: { text: INPUT.exportHeadline },
-    });
+    expect(jobs[0]?.letteringQuoteCents).toBeUndefined();
     expect(mocks.submit).toHaveBeenCalledTimes(1);
   });
 
@@ -372,6 +388,8 @@ describe("optional two-step lettering", () => {
     await failImageJob("job-2", "provider_error");
     expect(assets).toHaveLength(1);
     expect(jobs[1]?.status).toBe("FAILED");
+    expect(jobs[0]?.lettering).toBe("ideogram");
+    expect(jobs[1]?.parentAssetId).toBe(assets[0]?.id);
     expect(mocks.charge).toHaveBeenCalledTimes(1);
   });
 

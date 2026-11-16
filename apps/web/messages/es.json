@@ -4463,7 +4463,7 @@
       "letteringOverlay": "Fuente exacta superpuesta",
       "letteringIdeogram": "Rotulación con Ideogram",
       "letteringOverlayHint": "Añade el titular después de generar la imagen. Para una fuente exacta.",
-      "letteringIdeogramHint": "Escena con Gemini Pro + rotulación con Ideogram v3. Dos generaciones de pago. La fuente puede variar.",
+      "letteringIdeogramHint": "Gemini Pro crea la escena y Ideogram v3 rota el titular. Dos generaciones de pago. Si la rotulación falla, se añade la fuente exacta de la marca.",
       "letteringEditHint": "Edita la escena existente con Ideogram v3. Una generación de pago.",
       "letteringPlan": "Gemini Pro + Ideogram v3 · dos generaciones por anuncio",
       "letteringPlanCredits": "Gemini Pro: {sceneCredits} + Ideogram v3: {letteringCredits} = {credits} créditos",
@@ -4702,7 +4702,8 @@
         "processedMegapixels": "megapíxel procesado"
       },
       "creditsCheckedOn": "Precio comprobado el {date}",
-      "pickBody": "Content Studio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería."
+      "pickBody": "Content Studio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería.",
+      "letteringFallbackHint": "La rotulación con Ideogram no está disponible, así que Studio añadirá el titular con la fuente exacta de la marca."
     },
     "Ads": {
       "title": "Anuncios",

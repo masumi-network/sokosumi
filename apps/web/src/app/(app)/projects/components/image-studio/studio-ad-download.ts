@@ -1,11 +1,13 @@
 import type { StudioLogoPosition } from "@sokosumi/core-client";
 import { renderStudioHeadline } from "./studio-ad-headline";
+import { usesExactFontOverlay } from "./studio-lettering";
 import {
   assetContentUrl,
   assetFileExtension,
   isVideoAsset,
   type StudioAdRenderOptions,
   type StudioAsset,
+  type StudioJob,
 } from "./types";
 
 export const MAX_ARCHIVE_IMAGES = 12;
@@ -45,6 +47,7 @@ export async function createStudioAdArchive(
   assets: StudioAsset[],
   logo?: StudioLogoPosition,
   headlines?: Readonly<Record<string, string>>,
+  jobs: readonly StudioJob[] = [],
 ): Promise<ArrayBuffer> {
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
@@ -53,7 +56,7 @@ export async function createStudioAdArchive(
   // Fetch one image at a time to limit simultaneous reads of private files.
   for (const [index, asset] of assets.entries()) {
     const headline =
-      !isVideoAsset(asset) && asset.lettering !== "ideogram"
+      !isVideoAsset(asset) && usesExactFontOverlay(asset, jobs)
         ? headlines?.[asset.id]
         : undefined;
     const response = await fetchStudioAd(asset, { logo });

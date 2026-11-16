@@ -501,7 +501,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         batchId: input.batchId,
         batchSlotId,
         exportHeadline,
-        lettering: input.lettering ?? "overlay",
+        lettering: input.lettering ?? (exportHeadline ? "ideogram" : "overlay"),
         letteringQuoteCents: input.letteringQuoteCents,
         useProductCutout: inheritsCutout || input.useProductCutout,
         productCutoutChecksum: inheritsCutout
@@ -868,7 +868,8 @@ export async function createImageJob(input: CreateImageJobInput) {
       "Choose one transparent PNG product photo to create a new ad with the original product.",
     );
   }
-  const lettering = input.lettering ?? "overlay";
+  const lettering =
+    input.lettering ?? (input.exportHeadline ? "ideogram" : "overlay");
   if (lettering === "ideogram" && !input.exportHeadline) {
     throw unprocessableEntity(
       "Choose an approved headline for Ideogram lettering.",

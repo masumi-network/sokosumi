@@ -274,7 +274,7 @@ export const createImageJobRequestSchema = z
     batchId: z.uuid().optional(),
     exportHeadline: studioHeadlineTextSchema.optional(),
     useProductCutout: z.boolean().optional(),
-    lettering: z.enum(["overlay", "ideogram"]).default("overlay"),
+    lettering: z.enum(["overlay", "ideogram"]).optional(),
     settings: imageStudioSettingsSchema.optional(),
     referenceAssetIds: z.array(z.string().uuid()).max(4).default([]),
     referenceFileIds: z
