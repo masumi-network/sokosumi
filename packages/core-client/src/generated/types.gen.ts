@@ -13446,6 +13446,22 @@ export type CmoTopUpCheckout = {
     url: string;
 };
 
+export type CmoBrandFixStarted = {
+    turnId: string | null;
+    /**
+     * Cuso is busy: the fix is kept on its section and starts when his current turn ends.
+     */
+    queued: boolean;
+};
+
+export type CmoBrandFixRequest = {
+    section: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
+    /**
+     * What is true instead, in the owner's words.
+     */
+    note: string;
+};
+
 export type SokoBotApiKey = {
     id: string;
     sokoBotId: string;
@@ -86249,6 +86265,96 @@ export type AnswerCmoBrandBrainQuestionForProjectResponses = {
 };
 
 export type AnswerCmoBrandBrainQuestionForProjectResponse = AnswerCmoBrandBrainQuestionForProjectResponses[keyof AnswerCmoBrandBrainQuestionForProjectResponses];
+
+export type FixCmoBrandSectionForProjectData = {
+    body?: CmoBrandFixRequest;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/brand/fix';
+};
+
+export type FixCmoBrandSectionForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such section
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Out of credits
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type FixCmoBrandSectionForProjectError = FixCmoBrandSectionForProjectErrors[keyof FixCmoBrandSectionForProjectErrors];
+
+export type FixCmoBrandSectionForProjectResponses = {
+    /**
+     * Cuso is fixing the section, or will once his current turn ends
+     */
+    201: {
+        data: CmoBrandFixStarted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type FixCmoBrandSectionForProjectResponse = FixCmoBrandSectionForProjectResponses[keyof FixCmoBrandSectionForProjectResponses];
 
 export type ApproveCmoMarketingStrategyForProjectData = {
     body?: never;

@@ -215,6 +215,20 @@ export function cmoUpNext(
 }
 
 /** Everything the CMO app shows, in one read, for one member of the business. */
+/**
+ * The plan as CMO shows it: a piece a patch skipped (status skipped drops
+ * one) is no longer in the month, on any screen.
+ */
+export function withoutSkippedPieces<
+  T extends Pick<MarketingStrategyPlan, "calendar"> | null,
+>(plan: T): T {
+  if (!plan?.calendar.some((entry) => entry.status === "skipped")) return plan;
+  return {
+    ...plan,
+    calendar: plan.calendar.filter((entry) => entry.status !== "skipped"),
+  };
+}
+
 export async function getCmoOverview(
   target: CusoTarget,
   now: Date = new Date(),
@@ -290,7 +304,7 @@ export async function getCmoOverview(
       ])
     : [[], new Map<string, MarketingStrategyFilePiece>()];
   const planOf = (version: typeof newest) => {
-    const plan = parseMarketingPlan(version?.plan);
+    const plan = withoutSkippedPieces(parseMarketingPlan(version?.plan));
     return plan && version?.approvedAt
       ? withMarketingFiles(withSocialPostCalendar(plan, posts), files)
       : plan;

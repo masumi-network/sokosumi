@@ -719,6 +719,7 @@ describe("SokoBotControlPlane lifecycle", () => {
           ? expect(afterCmoTurnMock).toHaveBeenCalledWith({
               sokoBotId: BOT_ID,
               userId: "user_1",
+              clientTurnId,
             })
           : expect(afterCmoTurnMock).not.toHaveBeenCalled(),
       );

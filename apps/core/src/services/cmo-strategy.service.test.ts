@@ -83,6 +83,7 @@ vi.mock("@/config/env", async (importOriginal) =>
 );
 
 import {
+  afterCmoTurn,
   answerCmoBrandQuestion,
   applyCmoPlanAnswers,
   cmoPlanAnswerNote,
@@ -339,6 +340,32 @@ describe("the plan starts when the research ends", () => {
     cusoFind.mockResolvedValue(cuso);
     // The plan turn keeps making progress.
     eventFindFirst.mockResolvedValue({ occurredAt: now });
+  });
+
+  it("after a chat turn reads only the Cuso when no fix is open", async () => {
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "chat:1",
+      }),
+    ).resolves.toBeNull();
+    expect(cusoFind).toHaveBeenCalledTimes(1);
+    expect(turnFindFirst).not.toHaveBeenCalled();
+    expect(isEvalCusoProject).not.toHaveBeenCalled();
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("starts the plan when the research turn settles", async () => {
+    startTurn.mockResolvedValue({ turnId: "plan-1" });
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:onboarding:project-1:1",
+      }),
+    ).resolves.toEqual({ turnId: "plan-1" });
+    expect(cusoFind).toHaveBeenCalledTimes(1);
   });
 
   it("starts no plan in an eval lane: its strategy cases ask for their own", async () => {

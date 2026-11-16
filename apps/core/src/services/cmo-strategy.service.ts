@@ -33,6 +33,7 @@ import {
   type CusoTarget,
   cmoRunnerUserId,
   findCusoForBot,
+  ONBOARDING_TURN_PREFIX,
   requireCuso,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
@@ -260,12 +261,15 @@ async function requestStrategyForCuso(
  * cannot start while the research turn that saved them still runs. Starts
  * nothing once a plan was started or written; null when nothing started.
  */
-export async function startCmoPlanAfterResearch(input: {
-  sokoBotId: string;
-  /** Who asked for the research; Cuso's runner when they are gone. */
-  userId: string | null;
-}): Promise<{ turnId: string } | null> {
-  const cuso = await findCusoForBot(input.sokoBotId);
+export async function startCmoPlanAfterResearch(
+  input: {
+    sokoBotId: string;
+    /** Who asked for the research; Cuso's runner when they are gone. */
+    userId: string | null;
+  },
+  known?: Cuso,
+): Promise<{ turnId: string } | null> {
+  const cuso = known ?? (await findCusoForBot(input.sokoBotId));
   if (!cuso || !parseBrandBrain(cuso.brandBrain)) return null;
   // An eval lane's research case ends here; its strategy cases ask for
   // their own plan, so one started now would only cost and race them.
@@ -284,15 +288,22 @@ export async function startCmoPlanAfterResearch(input: {
 
 /**
  * After any foreground turn of Cuso ends: the first plan when the research
- * is in, otherwise the next brand fix the owner asked for meanwhile.
+ * (or a brand fix that ran before it) is in, otherwise the next brand fix
+ * the owner asked for meanwhile. An everyday chat turn costs one read.
  */
 export async function afterCmoTurn(input: {
   sokoBotId: string;
   userId: string | null;
+  clientTurnId: string | null;
 }): Promise<{ turnId: string } | null> {
+  const cuso = await findCusoForBot(input.sokoBotId);
+  if (!cuso) return null;
+  const mayPlan =
+    input.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX) ||
+    cmoChangeKind(input.clientTurnId) === "fix";
   return (
-    (await startCmoPlanAfterResearch(input)) ??
-    (await startNextCmoChange(input))
+    (mayPlan ? await startCmoPlanAfterResearch(input, cuso) : null) ??
+    (await startNextCmoChange(input, new Date(), cuso))
   );
 }
 

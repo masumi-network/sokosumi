@@ -61,7 +61,11 @@ vi.mock("@/config/env", async (importOriginal) =>
   ),
 );
 
-import { cmoOnboardingStep, cmoUpNext } from "./cmo-overview.service";
+import {
+  cmoOnboardingStep,
+  cmoUpNext,
+  withoutSkippedPieces,
+} from "./cmo-overview.service";
 
 beforeEach(resetCmoServiceMocks);
 
@@ -143,5 +147,19 @@ describe("cmoOnboardingStep", () => {
         hasTesterCredits: true,
       }),
     ).toBe("done");
+  });
+});
+
+describe("withoutSkippedPieces", () => {
+  it("leaves out pieces a patch skipped, for every screen that shows the plan", () => {
+    const [kept, dropped] = strategy.calendar;
+    if (!kept || !dropped) throw new Error("The fixture needs two entries");
+    const plan = {
+      ...strategy,
+      calendar: [kept, { ...dropped, status: "skipped" as const }],
+    };
+    expect(withoutSkippedPieces(plan)?.calendar).toEqual([kept]);
+    expect(withoutSkippedPieces(strategy)).toBe(strategy);
+    expect(withoutSkippedPieces(null)).toBeNull();
   });
 });

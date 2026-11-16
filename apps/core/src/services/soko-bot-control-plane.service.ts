@@ -1482,6 +1482,7 @@ export class SokoBotControlPlane {
     let cmoTurnEnded: {
       sokoBotId: string;
       userId: string | null;
+      clientTurnId: string | null;
     } | null = null;
 
     return serializableTransaction(async (tx) => {
@@ -1627,6 +1628,7 @@ export class SokoBotControlPlane {
         cmoTurnEnded = {
           sokoBotId: turn.sokoBotId,
           userId: turn.requestedByUserId,
+          clientTurnId: turn.clientTurnId,
         };
       }
       const outcome = await assessSokoBotIntentOutcome(tx, input.turnId);
@@ -1720,8 +1722,11 @@ export class SokoBotControlPlane {
           await notifyCusoLowCreditsAfterCharge(chargedCusoProjectId);
         }
         if (settled && cmoTurnEnded) {
-          const ended: { sokoBotId: string; userId: string | null } =
-            cmoTurnEnded;
+          const ended: {
+            sokoBotId: string;
+            userId: string | null;
+            clientTurnId: string | null;
+          } = cmoTurnEnded;
           waitUntil(
             import("@/services/cmo-strategy.service")
               .then(({ afterCmoTurn }) => afterCmoTurn(ended))

@@ -53499,6 +53499,67 @@ export const CmoTopUpCheckoutSchema = {
     ]
 } as const;
 
+export const CmoBrandFixStartedSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        queued: {
+            type: 'boolean',
+            description: 'Cuso is busy: the fix is kept on its section and starts when his current turn ends.'
+        }
+    },
+    required: [
+        'turnId',
+        'queued'
+    ]
+} as const;
+
+export const CmoBrandFixRequestSchema = {
+    type: 'object',
+    properties: {
+        section: {
+            type: 'string',
+            enum: [
+                'company',
+                'offer',
+                'problems',
+                'customers',
+                'buyers',
+                'value',
+                'pricing',
+                'positioning',
+                'competition',
+                'sales',
+                'marketing',
+                'content',
+                'proof',
+                'reputation',
+                'momentum',
+                'opportunities'
+            ]
+        },
+        note: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 400,
+            description: 'What is true instead, in the owner\'s words.'
+        }
+    },
+    required: [
+        'section',
+        'note'
+    ]
+} as const;
+
 export const SokoBotApiKeySchema = {
     type: 'object',
     properties: {

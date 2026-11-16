@@ -3,7 +3,7 @@
 import "./onboarding.css";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { CusoMessage } from "../../lib/chat-messages";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
@@ -34,23 +34,6 @@ const POLL_MS = 2_500;
 /** A hidden tab still checks in, so coming back shows where Cuso is now. */
 const HIDDEN_POLL_MS = 20_000;
 
-/**
- * The plan as the steps show it: a piece a patch skipped is no longer in
- * the month.
- */
-function withoutSkippedPieces(overview: CmoOverview): CmoOverview {
-  const strategy = overview.strategy;
-  if (!strategy?.calendar.some((entry) => entry.status === "skipped"))
-    return overview;
-  return {
-    ...overview,
-    strategy: {
-      ...strategy,
-      calendar: strategy.calendar.filter((entry) => entry.status !== "skipped"),
-    },
-  };
-}
-
 interface OnboardingFlowProps {
   overview: CmoOverview;
   messages: CusoMessage[];
@@ -79,8 +62,7 @@ export function OnboardingFlow({
   returnedFromCheckout = false,
   actions,
 }: OnboardingFlowProps) {
-  const [stored, setOverview] = useState(initialOverview);
-  const overview = useMemo(() => withoutSkippedPieces(stored), [stored]);
+  const [overview, setOverview] = useState(initialOverview);
   const [messages, setMessages] = useState(initialMessages);
   const [skipped, setSkipped] = useState(initialSkipped);
   // Back from Polar, until the payment shows or the person says they did not pay.
@@ -302,6 +284,11 @@ export function OnboardingFlow({
             onCorrect={async (text) => {
               await actions.sendMessage(text);
               await refresh();
+            }}
+            onFix={async (section, note) => {
+              const refused = await actions.fixBrandSection(section, note);
+              await refresh();
+              return refused;
             }}
             onSave={async (brandBrain) => {
               setOverview(await actions.saveBrandBrain(brandBrain));
