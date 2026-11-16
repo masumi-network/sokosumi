@@ -270,6 +270,9 @@ function SeoAgentPanel({
       {analyticsStep && !setup ? (
         <SeoAgentStatistics model={model} line={analyticsLine} />
       ) : null}
+      {/* The pictures come first: the keyword searches say what the site can win before the verdict says
+          what to fix. */}
+      {setup ? null : <SeoAgentGraphics model={model} />}
       {setup ? (
         <SeoSetupCard model={model} setup={setup} />
       ) : (
@@ -373,9 +376,8 @@ function SeoAgentPanel({
       {!setup && !model.data.observations.length ? (
         <SeoGettingStarted model={model} />
       ) : null}
-      {setup ? null : <SeoAgentGraphics model={model} />}
-      {/* With a first step, every step is in the verdict card. Without one nothing is above the list, so it
-          shows open under the pictures. */}
+      {/* With a first step, every step is in the verdict card. Without one, the list shows open under the
+          verdict card. */}
       {lead || ((setup || banner) && !steps.length) ? null : steps.length ? (
         <div className="space-y-2">
           {brief.issues ? null : (

@@ -718,7 +718,7 @@ describe("SEO workspace integration", () => {
       screen.queryByRole("button", { name: "Ask the SEO agent" }),
     ).toBeNull();
     // The first step is part of the verdict card: the headline says what is wrong, its figures how the
-    // keywords do, the step what to do first. The pictures are a card of their own after it.
+    // keywords do, the step what to do first. The pictures are a card of their own before it.
     const verdict = screen.getByTestId("seo-agent-verdict");
     const figures = screen.getByTestId("seo-agent-figures");
     const tiles = screen.getByTestId("seo-agent-graphics");
@@ -741,8 +741,7 @@ describe("SEO workspace integration", () => {
       }),
     ).not.toHaveClass("border");
     expect(
-      firstStep.compareDocumentPosition(tiles) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+      tiles.compareDocumentPosition(verdict) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     cleanup();
     // With an Audit one floating button leads to the agent. The page itself has no question field.
@@ -2883,6 +2882,12 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=agent");
     const card = within(screen.getByTestId("seo-agent-graphics"));
     const switcher = card.getByRole("radiogroup", { name: "Picture to show" });
+    // The keyword searches lead the switch.
+    expect(
+      within(switcher)
+        .getAllByRole("radio")
+        .map((radio) => radio.textContent),
+    ).toEqual(["Keyword searches", "Search clicks"]);
     expect(
       within(switcher).getByRole("radio", { name: "Search clicks" }),
     ).toBeChecked();

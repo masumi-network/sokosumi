@@ -66,11 +66,12 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
             if (value === "clicks" || value === "keywords") setPicked(value);
           }}
         >
-          <ToggleGroupItem value="clicks" className={CHART_SWITCH_ITEM_CLASS}>
-            {t("metrics.clicks")}
-          </ToggleGroupItem>
+          {/* The keyword searches lead: they show what the site can win, also before it gets clicks. */}
           <ToggleGroupItem value="keywords" className={CHART_SWITCH_ITEM_CLASS}>
             {t("agent.chartKeywords")}
+          </ToggleGroupItem>
+          <ToggleGroupItem value="clicks" className={CHART_SWITCH_ITEM_CLASS}>
+            {t("metrics.clicks")}
           </ToggleGroupItem>
         </ToggleGroup>
       ) : clicks ? (
