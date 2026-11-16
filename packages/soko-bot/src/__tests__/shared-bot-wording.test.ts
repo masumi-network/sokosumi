@@ -4,6 +4,8 @@ import {
   unattendedSecondHireRefusal,
 } from "../policy.js";
 import {
+  SOKO_BOT_GOAL_OWNERS,
+  SOKO_BOT_GOAL_OWNERS_SHARED,
   SOKO_BOT_SYSTEM_SCHEDULES,
   sokoBotSystemSchedulePrompt,
 } from "../proactive.js";
@@ -40,9 +42,11 @@ describe("shared Soko Bot rhythms", () => {
 
   it("keep the personal prompt for a personal bot", () => {
     for (const schedule of SOKO_BOT_SYSTEM_SCHEDULES) {
-      expect(sokoBotSystemSchedulePrompt(schedule, false)).toBe(
-        schedule.prompt,
-      );
+      expect(
+        sokoBotSystemSchedulePrompt(schedule, false)?.startsWith(
+          schedule.prompt,
+        ),
+      ).toBe(true);
     }
   });
 });
@@ -86,5 +90,34 @@ describe("unattended hire refusals", () => {
     expect(overCeiling).not.toMatch(/owner/);
     expect(overCeiling).toContain("at most 50 credits");
     expect(overCeiling).toContain("shared room");
+  });
+});
+
+describe("goal owners in memory", () => {
+  const prompt = (key: string, shared = false) => {
+    const schedule = SOKO_BOT_SYSTEM_SCHEDULES.find((s) => s.key === key);
+    if (!schedule) throw new Error(key);
+    return sokoBotSystemSchedulePrompt(schedule, shared) ?? "";
+  };
+
+  it("has every rhythm that writes goals say whose each one is", () => {
+    for (const key of OFFERED_TO_SHARED.filter((k) => k !== "standup")) {
+      expect(prompt(key)).toContain(SOKO_BOT_GOAL_OWNERS);
+      expect(prompt(key, true)).toContain(SOKO_BOT_GOAL_OWNERS_SHARED);
+    }
+  });
+
+  it("lets the stand-up act only on the bot's own goals", () => {
+    expect(prompt("standup")).toContain(
+      'only for goals and follow-ups in memory marked "Me:"',
+    );
+    expect(prompt("standup")).not.toContain(SOKO_BOT_GOAL_OWNERS);
+  });
+
+  it("leaves rhythms that write no goals alone", () => {
+    const prep = SOKO_BOT_SYSTEM_SCHEDULES.find(
+      (s) => s.key === "meeting-prep",
+    );
+    expect(prep && sokoBotSystemSchedulePrompt(prep, false)).toBe(prep?.prompt);
   });
 });

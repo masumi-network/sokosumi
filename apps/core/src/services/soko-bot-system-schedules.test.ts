@@ -2,6 +2,7 @@ import {
   CMO_SOKO_BOT_VERSION_ID,
   SOKO_BOT_CMO_RHYTHMS,
   SOKO_BOT_SYSTEM_SCHEDULES,
+  sokoBotSystemSchedulePrompt,
 } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -73,7 +74,10 @@ describe("ensureSystemSchedules", () => {
     const first = scheduleCreateMock.mock.calls[0]?.[0].data;
     expect(first).not.toHaveProperty("enabled");
     expect(first.requestedByUserId).toBe("user-1");
-    expect(first.prompt).toBe(SOKO_BOT_SYSTEM_SCHEDULES[0]?.prompt);
+    const standup = SOKO_BOT_SYSTEM_SCHEDULES[0];
+    expect(standup && first.prompt).toBe(
+      standup && sokoBotSystemSchedulePrompt(standup, false),
+    );
   });
 
   it("gives a shared bot its shared rhythms off, asked for by nobody", async () => {
@@ -94,7 +98,9 @@ describe("ensureSystemSchedules", () => {
       );
       expect(row.enabled).toBe(false);
       expect(row.requestedByUserId).toBeNull();
-      expect(row.prompt).toBe(rhythm?.promptShared);
+      expect(row.prompt).toBe(
+        rhythm && sokoBotSystemSchedulePrompt(rhythm, true),
+      );
     }
   });
 
