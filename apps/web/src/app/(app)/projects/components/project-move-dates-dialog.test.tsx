@@ -1,4 +1,5 @@
 import {
+  focusManager,
   onlineManager,
   QueryClient,
   QueryClientProvider,
@@ -217,6 +218,45 @@ describe("ProjectMoveDatesDialog", () => {
       expect(screen.getByRole("button", { name: /^confirm:/ })).toBeDisabled();
     } finally {
       onlineManager.setOnline(true);
+    }
+  });
+
+  it("fetches a fresh preview by itself when the connection comes back", async () => {
+    // Production retry policy (3 retries), with a short delay for the test.
+    const client = new QueryClient({
+      defaultOptions: { queries: { retryDelay: 1 } },
+    });
+    focusManager.setFocused(true);
+    onlineManager.setOnline(false);
+    shiftProjectDueDatesAction.mockRejectedValue(new Error("offline"));
+    try {
+      render(
+        <QueryClientProvider client={client}>
+          <ProjectMoveDatesDialog
+            projectId={PROJECT_ID}
+            open
+            onOpenChange={vi.fn()}
+          />
+        </QueryClientProvider>,
+      );
+
+      expect(await screen.findByText("previewError")).toBeInTheDocument();
+      expect(shiftProjectDueDatesAction).toHaveBeenCalledTimes(4);
+      expect(screen.getByRole("button", { name: /^confirm:/ })).toBeDisabled();
+
+      shiftProjectDueDatesAction.mockImplementation(async ({ days }) =>
+        previewOf(days),
+      );
+      act(() => onlineManager.setOnline(true));
+
+      expect(await screen.findByText("Draft launch post")).toBeInTheDocument();
+      expect(shiftProjectDueDatesAction).toHaveBeenCalledTimes(5);
+      expect(
+        screen.getByRole("button", { name: 'confirm:{"count":2}' }),
+      ).toBeEnabled();
+    } finally {
+      onlineManager.setOnline(true);
+      focusManager.setFocused(undefined);
     }
   });
 

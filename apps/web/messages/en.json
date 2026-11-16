@@ -3495,7 +3495,7 @@
           "earlier": "Earlier",
           "daysError": "Enter a whole number from 1 to {max}.",
           "checking": "Checking which Tasks move…",
-          "previewError": "Could not check this project’s Tasks. Close and try again.",
+          "previewError": "Failed to check this project’s Tasks. Close and try again.",
           "empty": "No open Tasks in this project have a due date you can change.",
           "tooMany": "More than {max} Tasks have a due date here. You can move up to {max} at once, so change some of them on their own first.",
           "summary": "{count, plural, one {# Task moves} other {# Tasks move}}",
@@ -3505,7 +3505,7 @@
           "confirm": "{count, plural, =0 {Move dates} one {Move # Task} other {Move # Tasks}}",
           "moved": "{count, plural, =0 {No due dates moved} one {Moved # due date} other {Moved # due dates}}",
           "skipped": "{count, plural, one {# Task kept its date: it changed meanwhile or you can’t edit it.} other {# Tasks kept their dates: they changed meanwhile or you can’t edit them.}}",
-          "moveError": "Could not move the due dates. Try again."
+          "moveError": "Failed to move the due dates. Try again."
         }
       },
       "Newsletter": {

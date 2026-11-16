@@ -66,8 +66,10 @@ export function ProjectMoveDatesDialog({
     queryFn: () =>
       shiftProjectDueDatesAction({ projectId, days: previewDays ?? 0 }),
     enabled: open && previewDays !== null,
-    // Offline, say the check failed instead of showing "Checking…" forever.
+    // Offline, say the check failed instead of showing "Checking…" forever,
+    // and check again once back online ("always" turns that off by default).
     networkMode: "always",
+    refetchOnReconnect: true,
     staleTime: 0,
     gcTime: 0,
   });
