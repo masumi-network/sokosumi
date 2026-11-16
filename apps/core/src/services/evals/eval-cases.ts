@@ -48,6 +48,7 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "status-rundown": "Board",
   "board-question": "Board",
   "ambiguous-request": "Judgment",
+  "announcement-not-for-every-bot": "Judgment",
   "inbox-summary": "Mail and calendar",
   "calendar-prep": "Mail and calendar",
   "standup-with-inbox": "Rhythms",

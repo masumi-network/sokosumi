@@ -1,4 +1,5 @@
 import {
+  isSokoBotAnnouncementCapability,
   isSokoBotNewsletterCapability,
   isSokoBotSeoCapability,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
@@ -38,6 +39,7 @@ import {
   SokoBotRuntimeConflictError,
 } from "../soko-bot-runtime.service";
 import { actingMemberOf, actionPrincipalId } from "./acting-scope";
+import { requireAnnouncementBot } from "./dispatch-announcements";
 import {
   CORE_READ_CALLS,
   CORE_READ_CAPABILITIES,
@@ -54,6 +56,9 @@ export async function executeTool(
 ): Promise<unknown> {
   const authorized = await runtime.authorize(rawInput);
   let input = await pinToBotProject(rawInput, authorized.turn.sokoBotId);
+  // Before any receipt lookup, so a replay is refused like a first call.
+  if (isSokoBotAnnouncementCapability(input.capability))
+    requireAnnouncementBot(authorized.turn.sokoBotId);
   if (isSokoBotNewsletterCapability(input.capability)) {
     // Before any receipt lookup, so a replay is refused like a first call.
     const { projectId } = SOKO_BOT_TOOL_INPUT_SCHEMAS[input.capability].parse(
