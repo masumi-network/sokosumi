@@ -241,6 +241,26 @@ describe("SEO keyword map", () => {
     fireEvent.pointerMove(frame, at(empty));
     expect(frame).toHaveClass("cursor-grab");
     expect(frame).not.toHaveClass("cursor-pointer");
+    // A press opens the dot and the popover takes the focus: the pointer still rests on the dot.
+    const dot = { ...at(points[0]), view: window };
+    fireEvent.pointerMove(frame, dot);
+    fireEvent.pointerDown(frame, dot);
+    fireEvent.mouseDown(frame, dot);
+    screen.getByRole("group", { name: "Keyword opportunities" }).focus();
+    fireEvent.mouseUp(window, dot);
+    fireEvent.click(frame, dot);
+    expect(screen.getByTestId("seo-keyword-popover")).toBeVisible();
+    expect(frame).toHaveClass("cursor-pointer");
+    // The keyboard picks a dot while the mouse is away: no dot is under the pointer.
+    fireEvent.keyDown(screen.getByTestId("seo-keyword-popover"), {
+      key: "Escape",
+    });
+    fireEvent.pointerLeave(frame, { pointerType: "mouse" });
+    fireEvent.keyDown(
+      screen.getByRole("group", { name: "Keyword opportunities" }),
+      { key: "ArrowRight" },
+    );
+    expect(frame).toHaveClass("cursor-grab");
   });
 
   it("opens the dot a press picks, not after a drag, and a press on another dot or on no dot closes it", async () => {

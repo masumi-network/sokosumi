@@ -77,6 +77,8 @@ export function SeoKeywordMap({
   const [activeId, setActiveId] = useState<string | null>(null);
   // The keyboard keeps its keyword when the mouse leaves the map.
   const [keyed, setKeyed] = useState(false);
+  // A dot is under the mouse: a press opens it. Only the pointer writes it, so a focus or a key moves no cursor.
+  const [hovered, setHovered] = useState(false);
   // The keyword whose popover is open: its own state, so a blur of the map, which drops the picked dot, keeps it.
   const [openId, setOpenId] = useState<string | null>(null);
   const group = useRef<HTMLDivElement>(null);
@@ -92,6 +94,8 @@ export function SeoKeywordMap({
   const [openView, setOpenView] = useState(view);
   if (view !== openView) {
     setOpenView(view);
+    // The dots moved under a still pointer: the next move finds what is under it. A drag pans with the hand.
+    setHovered(false);
     if (openId) {
       panClosed.current = openId;
       setOpenId(null);
@@ -189,19 +193,17 @@ export function SeoKeywordMap({
     if (!box.width || !box.height) return;
     const inner = { width: box.width - 2 * PAD, height: box.height - 2 * PAD };
     // The pointer back in map units: the zoom undone, then the padding.
-    setActive(
-      seoNearestPoint(
-        points,
-        {
-          x:
-            (((event.clientX - box.left - panX) / k - PAD) / inner.width) * 100,
-          y:
-            (((event.clientY - box.top - panY) / k - PAD) / inner.height) * 100,
-        },
-        { width: inner.width * k, height: inner.height * k },
-        POINTER_REACH,
-      ),
+    const nearest = seoNearestPoint(
+      points,
+      {
+        x: (((event.clientX - box.left - panX) / k - PAD) / inner.width) * 100,
+        y: (((event.clientY - box.top - panY) / k - PAD) / inner.height) * 100,
+      },
+      { width: inner.width * k, height: inner.height * k },
+      POINTER_REACH,
     );
+    setActive(nearest);
+    setHovered(nearest !== null);
   }
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Escape") return setActive(null);
@@ -349,9 +351,8 @@ export function SeoKeywordMap({
               className={cn(
                 "relative overflow-hidden rounded-md",
                 // Over a dot a press opens it: the hand that points says so. Elsewhere a drag pans the map.
-                active !== null && !keyed
-                  ? "cursor-pointer"
-                  : "cursor-grab active:cursor-grabbing",
+                hovered ? "cursor-pointer" : "cursor-grab",
+                "active:cursor-grabbing",
                 PLOT_HEIGHT,
               )}
               onPointerMove={pick}
@@ -397,6 +398,7 @@ export function SeoKeywordMap({
                 if (id === null || id !== panClosed.current) openKeyword(id);
               }}
               onPointerLeave={(event) => {
+                setHovered(false);
                 // Keep the keyword under a lifted finger and the one the keyboard is on.
                 if (event.pointerType === "mouse" && !keyed) setActive(null);
               }}
