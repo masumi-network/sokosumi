@@ -273,6 +273,10 @@ vi.mock("@/helpers/data-table", () => ({
 }));
 
 const social = vi.hoisted(() => ({
+  ownMessage: vi.fn(async () => ({
+    problem: null as string | null,
+    costUsd: 0,
+  })),
   listAccounts: vi.fn(),
   project: vi.fn(),
   listStatistics: vi.fn(),
@@ -340,6 +344,7 @@ vi.mock("@/services/social-posts.service", () => ({
   scheduleSocialPost: social.schedule,
   cancelSocialPost: social.cancel,
   requireMonthPostPicture: vi.fn(),
+  ownMessageProblem: social.ownMessage,
 }));
 vi.mock("@/services/social-post-publisher.service", () => ({
   publishSocialPostNow: social.publish,
@@ -7124,6 +7129,27 @@ describe("Soko Bot project social tools", () => {
     },
   );
 
+  it("refuses a month post that repeats another before the save's transaction", async () => {
+    social.ownMessage.mockResolvedValueOnce({
+      problem: 'Rewrite the post: it says nearly what the post "Fees" says.',
+      costUsd: 0,
+    });
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_post",
+        toolCallId: "repeat",
+        input: { projectId, postId, revision: 1, text: "Fees again" },
+      }),
+    ).rejects.toThrow('it says nearly what the post "Fees" says');
+    expect(social.ownMessage).toHaveBeenCalledWith({
+      postId,
+      workspaceId: SCOPE.workspaceId,
+      text: "Fees again",
+    });
+    expect(social.update).not.toHaveBeenCalled();
+  });
+
   it("reads the Project's posting instructions in the turn's workspace", async () => {
     social.postingInstructions.mockResolvedValue({
       postingInstructionsMd: "Tone: warm\n\n## X\nOne hashtag",
@@ -11192,6 +11218,138 @@ describe("CMO record saves", () => {
     return tx;
   }
 
+  it("refuses a plan that breaks a hard rule as a tool error, saving nothing", async () => {
+    const PROJECT = "01960001-0001-7001-8001-0000000000ab";
+    const plan = {
+      month: "2026-11",
+      summary:
+        "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone.",
+      goals: ["More demo requests"],
+      pillars: ["Product stories"],
+      channels: [{ channel: "linkedin", cadence: "3 a week" }],
+      calendar: [],
+    };
+    const tx = {
+      sokoBot: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: SCOPE.sokoBotId,
+          createdAt: new Date("2026-10-01T09:00:00Z"),
+          project: {
+            id: PROJECT,
+            workspaceId: SCOPE.workspaceId,
+            websiteUrl: "https://acme.io",
+            workspace: { organizationId: "org-1" },
+            brandBrain: null,
+          },
+        }),
+      },
+      marketingStrategy: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn(),
+        update: vi.fn(),
+      },
+    };
+    transactionMock.mockImplementationOnce(
+      async (operation: (client: typeof tx) => unknown) => operation(tx),
+    );
+    turnFindUniqueMock.mockResolvedValueOnce({
+      source: "CHAT",
+      clientTurnId: "chat-1",
+    });
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+
+    await expect(
+      service["saveCmoRecord"](owner as never, {
+        ...SCOPE,
+        capability: "save_strategy",
+        toolCallId: "strategy",
+        input: { part: "plan", strategy: plan },
+      }),
+    ).rejects.toThrow(/Rule "20-word summary": the summary has 21 words/);
+    expect(tx.marketingStrategy.create).not.toHaveBeenCalled();
+  });
+
+  it("reviews the first four saves that landed, so refusals never use the reviews up", async () => {
+    const service = new SokoBotRuntimeService();
+    const review = (
+      landedBefore: number,
+      calendarSent = false,
+      calendarsBefore = 0,
+    ) => {
+      toolCallCountMock.mockResolvedValueOnce(landedBefore);
+      if (calendarSent)
+        toolCallCountMock.mockResolvedValueOnce(calendarsBefore);
+      return service["reviewCmoPlan"](
+        owner as never,
+        {
+          ...SCOPE,
+          capability: "save_strategy",
+          toolCallId: "save-9",
+        } as never,
+        {
+          approved: false,
+          projectId: "project-1",
+          executing: false,
+          strategy: {
+            month: "2026-11",
+            summary: "Grow.",
+            goals: ["More demo requests"],
+            mix: [],
+            funnel: [],
+            pillars: [],
+            channels: [],
+            calendar: [],
+            questions: [],
+          } as never,
+          planSent: false,
+          calendarSent,
+        },
+      );
+    };
+
+    await expect(review(3)).resolves.toMatchObject({
+      save: 4,
+      calendar: false,
+    });
+    expect(toolCallCountMock).toHaveBeenLastCalledWith({
+      where: {
+        turnId: SCOPE.turnId,
+        capability: "save_strategy",
+        status: "COMPLETED",
+        NOT: { toolCallId: "save-9" },
+      },
+    });
+    // Past Jev's four, the rule checks still answer a few more saves.
+    await expect(review(4)).resolves.toMatchObject({
+      save: 5,
+      mainOffer: "skipped",
+    });
+    await expect(review(8)).resolves.toBeNull();
+    // A plan saved in parts lands its calendar last: its calendar saves are
+    // reviewed however many plan and patch saves came before them.
+    await expect(review(6, true, 0)).resolves.toMatchObject({
+      save: 7,
+      calendar: true,
+    });
+    expect(toolCallCountMock).toHaveBeenLastCalledWith({
+      where: {
+        turnId: SCOPE.turnId,
+        capability: "save_strategy",
+        status: "COMPLETED",
+        NOT: { toolCallId: "save-9" },
+        result: { path: ["review", "calendar"], equals: true },
+      },
+    });
+    // Calendar saves have their own two reviews: the first calendar and its
+    // fix. Each round resends the whole calendar, so more cost minutes.
+    await expect(review(6, true, 1)).resolves.toMatchObject({ save: 7 });
+    await expect(review(6, true, 2)).resolves.toMatchObject({
+      mainOffer: "skipped",
+    });
+    await expect(review(6, true, 4)).resolves.toBeNull();
+  });
+
   it("posts the report as a card in Cuso's shared room and makes it the Project's latest update", async () => {
     const tx = cmoTx();
     const service = new SokoBotRuntimeService();
@@ -11278,7 +11436,8 @@ describe("CMO record saves", () => {
   it.each([4, 5, 6])(
     "reports duplicate ad titles on unapproved save %i without extending the semantic review budget",
     async (saves) => {
-      toolCallCountMock.mockResolvedValueOnce(saves);
+      // The saves that landed before this one.
+      toolCallCountMock.mockResolvedValueOnce(saves - 1);
       botFindUniqueMock.mockClear().mockResolvedValueOnce(null);
       const strategy = marketingStrategyPlanSchema.parse({
         month: "2026-11",
@@ -11310,6 +11469,7 @@ describe("CMO record saves", () => {
           executing: false,
           strategy,
           planSent: true,
+          calendarSent: false,
         },
       );
       expect(review).toMatchObject({
@@ -11350,6 +11510,7 @@ describe("CMO record saves", () => {
           executing: false,
           strategy,
           planSent: true,
+          calendarSent: false,
         },
       ),
     ).resolves.toBeNull();

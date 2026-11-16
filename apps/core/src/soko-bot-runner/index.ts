@@ -22,6 +22,13 @@ import {
   streamModelCall,
 } from "../lib/soko-bot/stream-model-call";
 
+import {
+  partTools,
+  TURN_PART_MAX_MS,
+  TURN_PART_MAX_STEPS,
+  type TurnPart,
+  withPartHandOvers,
+} from "../lib/soko-bot/turn-parts";
 import { searchWeb } from "../lib/soko-bot/web-search";
 import {
   citableSources,
@@ -46,6 +53,8 @@ interface TurnStart {
   maxSteps: number;
   /** A background run: keep working until it reports DONE. */
   background?: boolean;
+  /** Briefs to run side by side before the message; an older Core sends none. */
+  parts?: TurnPart[];
 }
 
 class CoreRejected extends Error {
@@ -364,14 +373,32 @@ async function main(): Promise<void> {
     const tools = buildTools(start.capabilities, gateway, start.model, {
       forSubagent: false,
     });
+    const deadline = Date.now() + budgetMs;
+    const message = await withPartHandOvers(
+      start.message,
+      start.parts ?? [],
+      async (part) =>
+        (
+          await runTurnLoop({
+            model: gateway(start.model),
+            system: start.system,
+            message: part.message,
+            tools: partTools(tools, part),
+            maxSteps: TURN_PART_MAX_STEPS,
+            background: false,
+            deadline: Math.min(deadline, Date.now() + TURN_PART_MAX_MS),
+            stopped: stopped.signal,
+          })
+        ).text,
+    );
     const { text, finishReason, steps } = await runTurnLoop({
       model: gateway(start.model),
       system: start.system,
-      message: start.message,
+      message,
       tools,
       maxSteps: start.maxSteps,
       background: Boolean(start.background),
-      deadline: Date.now() + budgetMs,
+      deadline,
       stopped: stopped.signal,
     });
     await callCore("/complete", {

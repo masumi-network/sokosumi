@@ -120,6 +120,8 @@ import type {
   SokoBotTurnStartResult,
   StartSokoBotTurnInput,
 } from "@/lib/soko-bot/turn-start";
+import { ONBOARDING_TURN_PREFIX } from "@/services/cmo-cuso.service";
+import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
 import { isNewsletterDraftAvailable } from "@/services/newsletter-draft.service";
 import {
   revokeCusoSubscription,
@@ -1475,14 +1477,22 @@ export class SokoBotControlPlane {
     } | null = null;
     // A Cuso's charge gets his own notice, on his Project (SOKD-246).
     let chargedCusoProjectId: string | null = null;
+    // A CMO research or plan turn that ended: Cuso's first plan, or the
+    // next fix the owner asked for meanwhile, may start now.
+    let cmoTurnEnded: {
+      sokoBotId: string;
+      userId: string | null;
+    } | null = null;
 
     return serializableTransaction(async (tx) => {
       chargedWallet = null;
       chargedCusoProjectId = null;
+      cmoTurnEnded = null;
       const turn = await tx.sokoBotTurn.findUnique({
         where: { id: input.turnId },
         select: {
           sokoBotId: true,
+          clientTurnId: true,
           requestedByUserId: true,
           sokoBot: { select: { userId: true } },
           workspaceId: true,
@@ -1603,6 +1613,22 @@ export class SokoBotControlPlane {
         },
       });
       if (settled.count === 0) return false;
+      // Once any foreground turn of Cuso ends, his first plan or the next
+      // fix the owner asked for meanwhile may start (one turn per bot). A
+      // turn the owner stopped starts nothing.
+      if (
+        settledStatus !== "CANCELLED" &&
+        (turn.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX) ||
+          turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX) ||
+          (turn.parentTurnId === null &&
+            turn.versionId !== undefined &&
+            getSokoBotVersion(turn.versionId).profile === "cmo"))
+      ) {
+        cmoTurnEnded = {
+          sokoBotId: turn.sokoBotId,
+          userId: turn.requestedByUserId,
+        };
+      }
       const outcome = await assessSokoBotIntentOutcome(tx, input.turnId);
       const outcomeSummary = sokoBotOutcomeSummary(outcome);
       // The owner reads the model's own words; the claim check has already
@@ -1692,6 +1718,20 @@ export class SokoBotControlPlane {
         }
         if (chargedCusoProjectId) {
           await notifyCusoLowCreditsAfterCharge(chargedCusoProjectId);
+        }
+        if (settled && cmoTurnEnded) {
+          const ended: { sokoBotId: string; userId: string | null } =
+            cmoTurnEnded;
+          waitUntil(
+            import("@/services/cmo-strategy.service")
+              .then(({ afterCmoTurn }) => afterCmoTurn(ended))
+              .catch((error) => {
+                console.warn("CMO's next run did not start", {
+                  sokoBotId: ended.sokoBotId,
+                  error: error instanceof Error ? error.message : "unknown",
+                });
+              }),
+          );
         }
         if (settled) {
           waitUntil(

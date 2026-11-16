@@ -230,6 +230,12 @@ export const cmoWorkStepSchema = z
 export const cmoWorkSchema = z
   .object({
     kind: z.enum(["research", "strategy"]),
+    change: z
+      .union([z.enum(["fix", "patch"]), z.null()])
+      .optional()
+      .describe(
+        "A strategy turn that fixes Brand Brain sections or patches the plan's entries; null for a whole plan.",
+      ),
     status: z.enum(["running", "failed", "done"]),
     startedAt: dateTimeSchema,
     steps: z.array(cmoWorkStepSchema),

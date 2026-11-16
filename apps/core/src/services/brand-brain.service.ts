@@ -81,14 +81,25 @@ export async function saveBrandBrain(
     const stored = storedBrandBrain(row?.body);
     const incoming = { ...save.brandBrain?.profile, ...save.sections };
     // Cuso's packet carries no findings; a section he rewrites keeps them.
+    // The owner's fix is Core's: it stays, and closes once the answer changes.
     const kept = Object.fromEntries(
-      Object.entries(incoming).map(([key, section]) => {
+      Object.entries(incoming).map(([key, sent]) => {
         const before = stored.profile[key as CmoBrandSectionKey];
+        if (!sent) return [key, sent];
+        const { fix: _sent, ...section } = sent;
+        const fix = before?.fix && {
+          ...before.fix,
+          fixed: before.fix.fixed || section.answer !== before.answer,
+        };
         return [
           key,
-          section && section.findings.length === 0 && before
-            ? { ...section, findings: before.findings }
-            : section,
+          {
+            ...section,
+            ...(section.findings.length === 0 && before
+              ? { findings: before.findings }
+              : {}),
+            ...(fix ? { fix } : {}),
+          },
         ];
       }),
     );
@@ -206,6 +217,48 @@ function withCorrections(
   });
 }
 
+/**
+ * The owner says one section is wrong: the fix waits on that section until
+ * Cuso (or a member) rewrites its answer. A second fix before then adds to
+ * the first. The other sections are not touched.
+ */
+export async function requestBrandBrainFix(
+  projectId: string,
+  input: { section: CmoBrandSectionKey; note: string; at?: Date },
+): Promise<BrandBrain> {
+  return prisma.$transaction(async (tx) => {
+    const brain = parseBrandBrain((await lockBrandBrain(tx, projectId))?.body);
+    const section = brain?.profile[input.section];
+    if (!brain || !section) {
+      throw notFound("That section is not in the Brand Brain");
+    }
+    const open = section.fix && !section.fix.fixed ? section.fix.note : null;
+    const fix = {
+      note: (open ? `${open} ${input.note}` : input.note).slice(0, 400),
+      at: (input.at ?? new Date()).toISOString(),
+      fixed: false,
+    };
+    const fixed = {
+      ...brain,
+      profile: { ...brain.profile, [input.section]: { ...section, fix } },
+    };
+    await tx.brandBrain.update({ where: { projectId }, data: { body: fixed } });
+    return fixed;
+  });
+}
+
+/** The sections the owner fixed that Cuso has not rewritten yet. */
+export function brandBrainOpenFixes(
+  brain: BrandBrain,
+): { section: CmoBrandSectionKey; note: string; at: string }[] {
+  return CMO_BRAND_SECTION_KEYS.flatMap((key) => {
+    const fix = brain.profile[key]?.fix;
+    return fix && !fix.fixed
+      ? [{ section: key, note: fix.note, at: fix.at }]
+      : [];
+  });
+}
+
 /** The answers whose sections still say what the owner said is not true. */
 export function brandBrainCorrections(brain: BrandBrain): CmoBrandQuestion[] {
   return brain.questions.filter(
@@ -266,8 +319,8 @@ export async function confirmBrandBrain(
 export async function answerBrandBrainQuestion(
   projectId: string,
   input: { questionId: string; answer: CmoBrandAnswer; note?: string },
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+): Promise<CmoBrandQuestion> {
+  return prisma.$transaction(async (tx) => {
     const brain = parseBrandBrain((await lockBrandBrain(tx, projectId))?.body);
     const question = brain?.questions.find(
       (candidate) => candidate.id === input.questionId,
@@ -316,6 +369,7 @@ export async function answerBrandBrainQuestion(
         },
       },
     });
+    return answered;
   });
 }
 

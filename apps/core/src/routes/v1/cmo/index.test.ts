@@ -12,11 +12,14 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { revertMock, overviewMock, strategyMock } = vi.hoisted(() => ({
-  revertMock: vi.fn(),
-  overviewMock: vi.fn(),
-  strategyMock: vi.fn(),
-}));
+const { revertMock, overviewMock, strategyMock, answerMock, brainMock } =
+  vi.hoisted(() => ({
+    revertMock: vi.fn(),
+    overviewMock: vi.fn(),
+    strategyMock: vi.fn(),
+    answerMock: vi.fn(),
+    brainMock: vi.fn(),
+  }));
 
 const { archiveMock, hireMock, listMock, mayHireMock } = vi.hoisted(() => ({
   archiveMock: vi.fn(),
@@ -48,7 +51,13 @@ vi.mock("@/services/cmo-strategy.service", async (importOriginal) => {
   return {
     ...actual,
     requestCmoStrategy: strategyMock,
+    answerCmoBrandQuestion: answerMock,
   };
+});
+vi.mock("@/services/brand-brain.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/services/brand-brain.service")>();
+  return { ...actual, getBrandBrain: brainMock };
 });
 vi.mock("@/services/cmo-reports.service", async (importOriginal) => {
   const actual =
@@ -383,6 +392,31 @@ describe("CMO routes", () => {
       scheduled: 2,
       published: 0,
       failed: 1,
+    });
+  });
+
+  it("sends a Brand Brain answer to Cuso, who fixes the section for a no", async () => {
+    answerMock.mockResolvedValue(undefined);
+    brainMock.mockResolvedValue(null);
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/brand-brain/answers`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          questionId: "q1",
+          answer: "no",
+          note: "From 19 dollars.",
+        }),
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(answerMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+      questionId: "q1",
+      answer: "no",
+      note: "From 19 dollars.",
     });
   });
 

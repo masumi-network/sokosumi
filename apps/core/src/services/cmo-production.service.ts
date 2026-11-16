@@ -237,7 +237,10 @@ function pieceLine(piece: CmoPiece, failed: boolean): string {
     piece.pillar ?? "",
     piece.campaignId ? `campaign ${piece.campaignId}` : "",
     `"${piece.title}"`,
-    piece.brief ? `brief: ${piece.brief}` : "",
+    // The first plan writes weeks two to four as titles only.
+    piece.brief
+      ? `brief: ${piece.brief}`
+      : "(no brief: write it from its title, approach and pillar)",
     piece.story ? `story: ${piece.story}` : "",
     slides > 0
       ? `carousel of ${slides} slides: one visual and a line per slide in slides, Core makes each slide`

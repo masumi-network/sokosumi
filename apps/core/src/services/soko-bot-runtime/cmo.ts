@@ -12,6 +12,7 @@ import { HTTPException } from "hono/http-exception";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { EMBEDDING_MODEL } from "@/lib/embeddings";
 import { tryUseLogger } from "@/lib/evlog";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
 import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
@@ -29,9 +30,11 @@ import {
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
 import {
+  CMO_CALENDAR_REVIEWS_PER_TURN,
   CMO_PLAN_REVIEWS_PER_TURN,
   type CmoPlanOfferVerdict,
   type CmoPlanReview,
+  cmoCalendarRepeats,
   cmoDraftProblems,
   cmoPlanDrift,
   cmoPlanProblemsSince,
@@ -147,6 +150,18 @@ export async function handleCmoComment(
 }
 
 /** Cuso's Brand Brain, strategy and reports, written to his Project. */
+/** What a check's model call cost, charged to the turn like its steps. */
+export async function chargeCheck(
+  input: Pick<ExecuteSokoBotToolInput, "turnId" | "sessionId">,
+  modelId: string,
+  costUsd: number,
+): Promise<void> {
+  if (costUsd <= 0) return;
+  await new RuntimeEventLog(input.turnId, input.sessionId).append(
+    runtimeEvent("step.completed", { modelId, usage: { costUsd } }),
+  );
+}
+
 /**
  * The plan's review while it waits for approval: the strategy skill's hard
  * rules, and whether it sells the main offer. Bounded per turn, so a plan
@@ -165,17 +180,40 @@ export async function reviewCmoPlan(
     executing: boolean;
     strategy: MarketingStrategyPlan | null;
     planSent: boolean;
+    /** This save is part calendar. */
+    calendarSent: boolean;
   },
 ): Promise<CmoPlanReview | null> {
   const { strategy } = plan;
   if (!strategy || plan.approved) return null;
-  const saves = await prisma.sokoBotToolCall.count({
-    where: { turnId: authorized.turn.id, capability: "save_strategy" },
-  });
+  // Only saves that landed count: a refused save saved nothing to review.
+  const landedBefore = {
+    turnId: authorized.turn.id,
+    capability: "save_strategy",
+    status: "COMPLETED" as const,
+    NOT: { toolCallId: input.toolCallId },
+  };
+  const saves =
+    (await prisma.sokoBotToolCall.count({ where: landedBefore })) + 1;
+  // A plan saved in parts lands its calendar last, so calendar saves have
+  // their own reviews, however many plan and patch saves came before.
+  const reviewed = plan.calendarSent
+    ? await prisma.sokoBotToolCall.count({
+        // The review, not the input: a calendar's input is too long to keep
+        // whole, so its part is not stored.
+        where: {
+          ...landedBefore,
+          result: { path: ["review", "calendar"], equals: true },
+        },
+      })
+    : saves - 1;
+  const budget = plan.calendarSent
+    ? CMO_CALENDAR_REVIEWS_PER_TURN
+    : CMO_PLAN_REVIEWS_PER_TURN;
   // Jev reads the first saves only; the rule checks cost nothing and run on
   // a few more, so a late save still hears about a repeated title. Past
   // that the review stops, so a plan that cannot be fixed still ends.
-  if (saves > 2 * CMO_PLAN_REVIEWS_PER_TURN) return null;
+  if (reviewed >= 2 * budget) return null;
   // The plan this turn built on, as it was before the turn touched it.
   const before =
     (plan.executing ? await approvedMarketingStrategy(plan.projectId) : null) ??
@@ -194,9 +232,18 @@ export async function reviewCmoPlan(
     strategy,
     parseMarketingPlan(before?.plan),
   );
-  if (saves > CMO_PLAN_REVIEWS_PER_TURN) {
-    return { save: saves, mainOffer: "skipped", problems };
+  if (reviewed >= budget) {
+    return {
+      save: saves,
+      calendar: plan.calendarSent,
+      mainOffer: "skipped",
+      problems,
+    };
   }
+  // Titles and stories that say one thing in other words, by meaning.
+  const repeats = await cmoCalendarRepeats(strategy.calendar);
+  await chargeCheck(input, EMBEDDING_MODEL, repeats.costUsd);
+  problems.push(...repeats.problems);
   const bot = plan.planSent
     ? await prisma.sokoBot.findUnique({
         where: { id: authorized.turn.sokoBotId },
@@ -211,16 +258,14 @@ export async function reviewCmoPlan(
     const drift = await cmoPlanDrift({ strategy, brain });
     mainOffer = drift.verdict;
     if (drift.problem) problems.push(drift.problem);
-    if (drift.costUsd > 0) {
-      await new RuntimeEventLog(authorized.turn.id, input.sessionId).append(
-        runtimeEvent("step.completed", {
-          modelId: SOKO_BOT_JEV_MODEL,
-          usage: { costUsd: drift.costUsd },
-        }),
-      );
-    }
+    await chargeCheck(input, SOKO_BOT_JEV_MODEL, drift.costUsd);
   }
-  const review = { save: saves, mainOffer, problems };
+  const review = {
+    save: saves,
+    calendar: plan.calendarSent,
+    mainOffer,
+    problems,
+  };
   tryUseLogger()?.set({
     cmoPlanReview: {
       sokoBotId: authorized.turn.sokoBotId,
@@ -294,6 +339,24 @@ export async function saveCmoRecord(
               ...(stored.questions.length > 0 ? [] : ["questions"]),
             ]
           : [];
+        // A first read in parts ends on this save: no closing step.
+        const endTurn = save.brandBrain
+          ? (
+              await import("@/services/cmo-hiring.service")
+            ).cmoResearchEndAnswer(
+              {
+                clientTurnId:
+                  (
+                    await prisma.sokoBotTurn.findUnique({
+                      where: { id: authorized.turn.id },
+                      select: { clientTurnId: true },
+                    })
+                  )?.clientTurnId ?? null,
+                versionId: authorized.turn.versionId,
+              },
+              stored,
+            )
+          : undefined;
         return {
           targetId: saved.id,
           result: {
@@ -307,12 +370,14 @@ export async function saveCmoRecord(
                   next: `Send ${missing.join(" and ")} with save_brand_brain, on their own (no brandBrain): they add to the essentials you saved.`,
                 }
               : {}),
+            ...(endTurn ? { endTurn } : {}),
           },
         };
       }
       case "save_strategy": {
         const sent = parseCmoStrategySave(input.input);
-        const pieces = cmoStrategySavePart(input.input) === "pieces";
+        const part = cmoStrategySavePart(input.input);
+        const pieces = part === "pieces";
         // A rhythm or production run builds on the approved version.
         const turn = await prisma.sokoBotTurn.findUnique({
           where: { id: authorized.turn.id },
@@ -325,9 +390,13 @@ export async function saveCmoRecord(
             sent,
             {
               turnId: authorized.turn.id,
-              pieces,
+              part,
               executing,
               clear: cmoStrategySaveClears(input.input),
+              // A plan, change or patch that breaks a hard rule is refused
+              // at save time. A rhythm's save sees only 31 days of the
+              // calendar, so the review only advises it.
+              rules: !pieces && !executing,
             },
             tx,
           ),
@@ -364,17 +433,20 @@ export async function saveCmoRecord(
           executing,
           strategy: stored,
           planSent: sent.summary !== undefined,
+          calendarSent: part === "calendar",
         });
         // Once the plan runs, the drafts are checked against the copy rules,
         // a filed piece's words as sent (the calendar holds only its file).
-        const draftProblems = approved
-          ? cmoDraftProblems([
+        const drafts = approved
+          ? await cmoDraftProblems([
               ...calendar,
               ...(sent.calendar ?? []).filter(
                 (entry) => isMarketingFilePiece(entry) && Boolean(entry.draft),
               ),
             ])
-          : [];
+          : { problems: [], costUsd: 0 };
+        await chargeCheck(input, EMBEDDING_MODEL, drafts.costUsd);
+        const draftProblems = drafts.problems;
         const written = (entry: (typeof calendar)[number]) =>
           Boolean(entry.draft || entry.fileId);
         // Says which pieces still have no draft.

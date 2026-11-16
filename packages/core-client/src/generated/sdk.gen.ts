@@ -6370,7 +6370,7 @@ export const confirmCmoBrandBrainForProject = <ThrowOnError extends boolean = fa
 });
 
 /**
- * A member answers one of the Brand Brain's yes/no questions on the Cuso's Project, as `POST /v1/projects/{id}/brand-brain/answers` does: yes, no (with what is true instead) or not sure.
+ * A member answers one of the Brand Brain's yes/no questions on the Cuso's Project, as `POST /v1/projects/{id}/brand-brain/answers` does: yes, no (with what is true instead) or not sure. A no is a fix on its section: Cuso rewrites it, and patches the plan once one exists, as soon as his current turn ends.
  */
 export const answerCmoBrandBrainQuestionForProject = <ThrowOnError extends boolean = false>(options: Options<AnswerCmoBrandBrainQuestionForProjectData, ThrowOnError>): RequestResult<AnswerCmoBrandBrainQuestionForProjectResponses, AnswerCmoBrandBrainQuestionForProjectErrors, ThrowOnError> => (options.client ?? client).post<AnswerCmoBrandBrainQuestionForProjectResponses, AnswerCmoBrandBrainQuestionForProjectErrors, ThrowOnError>({
     responseTransformer: answerCmoBrandBrainQuestionForProjectResponseTransformer,

@@ -255,6 +255,8 @@ beforeEach(() => {
   m.hasCuso = true;
   m.getBrandBrain.mockResolvedValue(null);
   m.confirmBrandBrain.mockResolvedValue(null);
+  // The answered question; a yes starts no fix.
+  m.answerBrandBrainQuestion.mockResolvedValue({ answer: "yes" });
   m.strategyFindFirst.mockResolvedValue(strategyVersion());
   m.answerMarketingStrategyQuestion.mockResolvedValue(strategyVersion());
   m.initiateProjectSocialConnection.mockResolvedValue({
