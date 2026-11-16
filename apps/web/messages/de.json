@@ -1528,20 +1528,23 @@
         "scopeWorkspace": "Workspace",
         "typeLabel": "Quelle",
         "projectLabel": "Projekt",
-        "typeOptions": {
-          "job": "Agent-Job",
-          "image": "Bild",
-          "task": "Aufgabe",
-          "coworker": "Coworker",
-          "sokoBot": "Soko Bot",
-          "seoChat": "SEO-Chat",
-          "topUp": "Aufladung",
-          "unattributed": "Sonstige"
-        }
+        "activeCount": "{count} aktiv",
+        "activeFilters": "Aktive Filter",
+        "chip": "{label}: {value}",
+        "removeFilter": "Filter {filter} entfernen",
+        "clearAll": "Alle entfernen",
+        "searchLabel": "Suche"
       },
       "Empty": {
         "title": "Noch keine Transaktionen",
         "description": "Jeder Job-Lauf, jede Bildgenerierung, jeder weitere Credit-Verbrauch und jede Aufladung erscheint hier."
+      },
+      "EmptyFiltered": {
+        "title": "Keine passenden Transaktionen",
+        "description": "Nichts passt zu diesen Filtern.",
+        "searchTitle": "Keine Ergebnisse für „{query}“",
+        "searchDescription": "Prüfe die Schreibweise oder versuche eine andere Suche.",
+        "clear": "Filter zurücksetzen"
       },
       "List": {
         "loadMore": "Mehr laden",
@@ -1558,6 +1561,7 @@
           "task": "Aufgabe",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
+          "seoChat": "SEO-Chat",
           "topUp": "Aufladung",
           "unattributed": "Sonstige",
           "contacts": "Personen finden"
@@ -4514,6 +4518,26 @@
       "archiveImageLimit": "Wähle bis zu {count} Bilder pro ZIP-Datei.",
       "archiveSizeLimit": "Wähle Bilder mit insgesamt höchstens {size} MiB.",
       "archiveDownloadFailed": "Die ZIP-Datei konnte nicht heruntergeladen werden. Versuche es erneut oder lade die Bilder einzeln herunter.",
+      "Pairwise": {
+        "title": "Anzeigen vergleichen",
+        "hint": "Wähle die bessere Anzeige. Die Modelle werden nach deiner Auswahl angezeigt.",
+        "pickA": "A",
+        "pickB": "B",
+        "tie": "Gleichstand",
+        "bothBad": "Beide schlecht",
+        "done": "Fertig",
+        "loadFailed": "Vergleiche konnten nicht geladen werden. Versuche es erneut.",
+        "saveFailed": "Vergleich konnte nicht gespeichert werden. Versuche es erneut.",
+        "retry": "Erneut versuchen",
+        "loading": "Vergleiche werden geladen…",
+        "saved": "Auswahl gespeichert",
+        "bestModels": "Deine besten Modelle",
+        "loadingScores": "Modelle werden geladen…",
+        "scoreboardFailed": "Modelle konnten nicht geladen werden. Versuche es erneut.",
+        "scoreboardEmpty": "Vergleiche Anzeigen, um deine besten Modelle zu finden.",
+        "modelStats": "{percent}% gewonnen · {count, plural, one {# Auswahl} other {# Auswahlen}}",
+        "smallSample": "Erste Ergebnisse · weniger als {count} Auswahlen"
+      },
       "compare": "Vergleichen",
       "version": "Version",
       "generating": "Wird erzeugt",

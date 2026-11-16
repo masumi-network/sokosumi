@@ -82,6 +82,7 @@ import {
   STUDIO_COLUMN_MOBILE_SHELL_CLASS,
   STUDIO_COMPOSER_GUTTER_CLASS,
 } from "./studio-classes";
+import { StudioCompare } from "./studio-compare";
 import { StudioComposer } from "./studio-composer";
 import { StudioCreativeStart } from "./studio-creative-start";
 import { StudioFailedSubmission } from "./studio-failed-submission";
@@ -90,6 +91,7 @@ import { StudioGallery } from "./studio-gallery";
 import { usesExactFontOverlay } from "./studio-lettering";
 import { StudioLightbox } from "./studio-lightbox";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
+import { StudioModelScoreboard } from "./studio-model-scoreboard";
 import { StudioProjectToolbar } from "./studio-project-toolbar";
 import { StudioTemplateCanvas } from "./studio-template-canvas";
 import { type StudioBrief, unfilledTemplateSlots } from "./studio-templates";
@@ -213,6 +215,11 @@ export function ImageStudio({
   const isApple = useIsApplePlatform();
   const searchParams = useSearchParams();
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
+  const [comparing, setComparing] = useState<{
+    projectId: string;
+    batchId: string;
+    returnFocus: HTMLElement | null;
+  } | null>(null);
   /**
    * Open on the version the URL names.
    *
@@ -500,6 +507,19 @@ export function ImageStudio({
     referenceProjectIds.size > 1
       ? null
       : ([...referenceProjectIds][0] ?? activeProjectId);
+
+  function compareBatch(asset: StudioAsset) {
+    if (!asset.batchId) return;
+    const returnFocus = document.querySelector<HTMLButtonElement>(
+      `[data-asset-id="${CSS.escape(asset.id)}"] > button`,
+    );
+    setViewing(null);
+    setComparing({
+      projectId: asset.projectId,
+      batchId: asset.batchId,
+      returnFocus,
+    });
+  }
 
   function archiveLimitFor(assets: StudioAsset[]) {
     if (assets.length > MAX_ARCHIVE_IMAGES)
@@ -1342,6 +1362,11 @@ export function ImageStudio({
             else openAssistant(assistant?.asset ?? null);
           }}
         >
+          <StudioModelScoreboard
+            catalog={catalog}
+            key={`scores:${activeProjectId}`}
+            projectId={activeProjectId}
+          />
           <StudioWebsiteTools
             key={activeProjectId}
             canUseProduct={!uploadingPhoto}
@@ -1418,6 +1443,7 @@ export function ImageStudio({
               onHide={readOnly ? undefined : handleHide}
               ratingBusyIds={ratingBusyIds}
               onCancelJob={readOnly ? undefined : handleCancelJob}
+              onCompare={readOnly ? undefined : compareBatch}
               onOpen={(assetId) => {
                 selectAsset(assetId);
                 setViewing({ mode: "single" });
@@ -1631,6 +1657,9 @@ export function ImageStudio({
               : undefined
           }
           onClose={() => setViewing(null)}
+          onCompare={
+            !readOnly && lightboxAssets.length === 1 ? compareBatch : undefined
+          }
           onDownloadBatch={handleDownloadBatch}
           downloadingBatch={downloadingAds}
           headlineForAsset={headlineForAsset}
@@ -1731,6 +1760,23 @@ export function ImageStudio({
                 )
               : [...visibleAssets].reverse()
           }
+        />
+      ) : null}
+      {comparing ? (
+        <StudioCompare
+          batchId={comparing.batchId}
+          catalog={catalog}
+          key={`${comparing.projectId}:${comparing.batchId}`}
+          labels={labels}
+          onClose={() => setComparing(null)}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            const target = comparing.returnFocus?.isConnected
+              ? comparing.returnFocus
+              : promptRef.current;
+            target?.focus();
+          }}
+          projectId={comparing.projectId}
         />
       ) : null}
     </div>

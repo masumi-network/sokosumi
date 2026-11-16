@@ -7,6 +7,7 @@ import { HistoryList } from "@/app/history/components/history-list";
 import { HistorySpendChart } from "@/app/history/components/history-spend-chart";
 import { HistoryToolbar } from "@/app/history/components/history-toolbar";
 import { HISTORY_PAGE_LIMIT } from "@/app/history/constants";
+import { getHistoryEmptyState } from "@/app/history/utils/history-empty-state";
 import {
   applyHistoryProjectAllowlist,
   buildHistoryFiltersSearchParams,
@@ -77,6 +78,8 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     filters,
     activeOrganizationId,
   );
+
+  const emptyState = getHistoryEmptyState(t, filters, activeOrganizationId);
 
   const historyTotal =
     historyPage.pagination?.total ?? historyPage.history.length;
@@ -154,11 +157,9 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
           filterResetKey={filterResetKey}
           filters={filters}
           activeOrganizationId={activeOrganizationId}
+          clearFilters={emptyState.clearFilters}
           labels={{
-            empty: {
-              title: t("Empty.title"),
-              description: t("Empty.description"),
-            },
+            empty: emptyState.labels,
             loadMore: t("List.loadMore"),
             loadMoreError: t("List.loadMoreError"),
             row: {
