@@ -77,6 +77,21 @@ export function SeoKeywordMapPopover({
       }}
       onCloseAutoFocus={onCloseAutoFocus}
       onInteractOutside={onInteractOutside}
+      // The popover stands at the end of the page: a Tab out of it closes it and goes back to the map, not to
+      // the browser bar.
+      onKeyDown={(event) => {
+        const box = content.current;
+        if (event.key !== "Tab" || !box) return;
+        const items = box.querySelectorAll<HTMLElement>(
+          "button:not(:disabled), a[href]",
+        );
+        const edge = event.shiftKey
+          ? [box, items[0]]
+          : [items[items.length - 1] ?? box];
+        if (!edge.includes(document.activeElement as HTMLElement)) return;
+        event.preventDefault();
+        onLeave();
+      }}
       className="w-[min(18rem,calc(100vw-2rem))] space-y-3 p-4 text-sm"
       data-testid="seo-keyword-popover"
     >
@@ -96,7 +111,10 @@ export function SeoKeywordMapPopover({
           </span>
         </Figure>
         <Figure label={t("map.gainShort")}>
-          {point.gain ? `+${format.number(point.gain.top3)}` : t("map.noGain")}
+          {/* A keyword already in the top 3 gains nothing: 0, not +0. */}
+          {point.gain
+            ? `${point.gain.top3 > 0 ? "+" : ""}${format.number(point.gain.top3)}`
+            : t("map.noGain")}
         </Figure>
       </dl>
       {point.group.feature ? (

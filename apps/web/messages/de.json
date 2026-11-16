@@ -11844,7 +11844,7 @@
           "subtitle": "Suchen im Monat gegen die Schwierigkeit. Oben links ist am besten.",
           "checked": "Ihre Keywords",
           "idea": "Idee",
-          "hint": "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Keywords, mit + oder - zoomen Sie.",
+          "hint": "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Keywords, mit der Eingabetaste öffnen Sie eines, mit + oder - zoomen Sie.",
           "axis": "Schwierigkeit",
           "difficulty": "Schwierigkeit {value} von 100",
           "top10": "{clicks, plural, =0 {Top 10: keine zusätzlichen Klicks} one {Top 10: +# Klick im Monat} other {Top 10: +# Klicks im Monat}}",
@@ -11859,7 +11859,7 @@
           "gainShort": "Top-3-Klicks",
           "contentTask": "Content-Aufgabe erstellen",
           "ask": "SEO-Agent fragen",
-          "brief": "Schreibe Webinhalte{site, select, none {} other { für {site}}}, die bei Google für die Suche „{keyword}“ ranken können. Sie hat {volume, number} Suchen pro Monat in {market}, die Schwierigkeit ist {difficulty} ({value} von 100).{feature, select, none {} other { Stelle diese Produktfunktion in den Vordergrund: {feature}.}}",
+          "brief": "Schreibe Webinhalte{site, select, none {} other { für {site}}}, die bei Google für die Suche „{keyword}“ ranken können. Sie hat {volume, number} Suchen pro Monat (Markt: {market}), die Schwierigkeit ist {difficulty} ({value} von 100).{feature, select, none {} other { Stelle diese Produktfunktion in den Vordergrund: {feature}.}}",
           "noGain": "Unbekannt"
         },
         "historyShow": "Verlauf",

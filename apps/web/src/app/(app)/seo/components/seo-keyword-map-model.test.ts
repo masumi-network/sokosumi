@@ -1,7 +1,12 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import { seoKeywordMap, seoNearestPoint } from "./seo-keyword-map-model";
+import {
+  seoKeywordBriefSite,
+  seoKeywordMap,
+  seoNearestPoint,
+} from "./seo-keyword-map-model";
 import { keywordGroups } from "./seo-keyword-rows-model";
+import { seoTestWorkspace } from "./seo-test-fixture";
 
 type Keyword = ProjectSeoWorkspace["keywords"][number];
 
@@ -171,5 +176,20 @@ describe("SEO keyword map", () => {
     const size = { width: 400, height: 200 };
     expect(seoNearestPoint(points, { x: 88, y: 2 }, size, 16)).toBe(1);
     expect(seoNearestPoint(points, { x: 50, y: 50 }, size, 16)).toBeNull();
+  });
+});
+
+describe("seoKeywordBriefSite", () => {
+  it("names the keyword's own site, else the first page in view, else none", () => {
+    const workspace = seoTestWorkspace();
+    workspace.pages[0].url = "https://shop.example.com/pricing";
+    workspace.scope.pageIds = [workspace.pages[0].id];
+    expect(seoKeywordBriefSite("https://blog.example.org/a", workspace)).toBe(
+      "blog.example.org",
+    );
+    expect(seoKeywordBriefSite(null, workspace)).toBe("shop.example.com");
+    // An empty page of the keyword is no page: the page in view is named.
+    expect(seoKeywordBriefSite("", workspace)).toBe("shop.example.com");
+    expect(seoKeywordBriefSite(null, { ...workspace, pages: [] })).toBe("none");
   });
 });

@@ -110,7 +110,7 @@ export function seoKeywordBriefSite(
   workspace: Pick<ProjectSeoWorkspace, "pages" | "scope">,
 ): string {
   const url =
-    pageUrl ??
+    pageUrl ||
     workspace.pages.find((page) => workspace.scope.pageIds.includes(page.id))
       ?.url;
   return (url && seoAuditName("", url)) || "none";

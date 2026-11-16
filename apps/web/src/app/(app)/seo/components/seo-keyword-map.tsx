@@ -219,11 +219,11 @@ export function SeoKeywordMap({
       open={Boolean(opened)}
       onOpenChange={(open) => {
         if (open) return;
-        // The map picks the keyword it opened again, so the arrow keys go on from there. A press on another dot
-        // closes the popover too: that dot stays picked. On touch the close comes after the press opened the
-        // other dot, so the close clears only the keyword it closed.
+        // The map picks the keyword it opened again, so the arrow keys go on from there. A press outside keeps
+        // the reader where it went: no card of the closed keyword comes back over the map. A close that comes
+        // after a press opened another dot clears only the keyword it closed.
         const closed = openId;
-        setActiveId((current) => current ?? closed);
+        if (!outside.current) setActiveId((current) => current ?? closed);
         setOpenId((current) => (current === closed ? null : current));
       }}
     >
@@ -343,15 +343,20 @@ export function SeoKeywordMap({
                 const start = pressAt.current;
                 pressAt.current = null;
                 if (
-                  active === null ||
-                  (start &&
-                    Math.hypot(
-                      event.clientX - start.x,
-                      event.clientY - start.y,
-                    ) > PRESS_SLOP)
+                  start &&
+                  Math.hypot(event.clientX - start.x, event.clientY - start.y) >
+                    PRESS_SLOP
                 )
                   return;
-                setOpenId(points[active]?.group.lead.id ?? null);
+                // The zoom stops the press before the popover sees it outside: the map closes it here. A press on
+                // another dot opens that one, and the focus goes to its popover, not back to the map.
+                const id =
+                  active === null
+                    ? null
+                    : (points[active]?.group.lead.id ?? null);
+                if (id === openId) return;
+                if (openId) outside.current = true;
+                setOpenId(id);
               }}
               onPointerLeave={(event) => {
                 // Keep the keyword under a lifted finger and the one the keyboard is on.
@@ -498,6 +503,8 @@ export function SeoKeywordMap({
         </div>
         {opened ? (
           <SeoKeywordMapPopover
+            // A new keyword mounts a new popover, so it takes the focus as the first one did.
+            key={opened.group.lead.id}
             point={opened}
             model={model}
             onInteractOutside={() => {
