@@ -156,7 +156,7 @@ describe("AuthFlow signIn after Register handed over", () => {
       "invited@example.com",
     );
     expect(
-      screen.queryByRole("button", { name: "changeEmail" }),
+      screen.queryByRole("button", { name: /changeEmail$/ }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /resendIn/ })).toBeDisabled();
     expect(emailStatusMock).not.toHaveBeenCalled();
@@ -181,7 +181,7 @@ describe("AuthFlow signIn after Register handed over", () => {
     expect(screen.getByLabelText("Fields.Password.label")).toBeVisible();
     expect(screen.getByText("Handover.password")).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "changeEmail" }),
+      screen.queryByRole("button", { name: /changeEmail$/ }),
     ).not.toBeInTheDocument();
     expect(sendEmailCodeMock).not.toHaveBeenCalled();
   });

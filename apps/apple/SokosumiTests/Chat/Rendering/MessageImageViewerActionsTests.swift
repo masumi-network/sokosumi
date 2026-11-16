@@ -320,8 +320,11 @@
           try await Task.sleep(for: .milliseconds(100))
           #expect(try Self.press("p", keyCode: 35, in: window) == offersImageActions, "⌘P in the \(attachment.filename) viewer.")
           #expect(try Self.press("c", keyCode: 8, in: window) == offersImageActions, "⌘C in the \(attachment.filename) viewer.")
+          // Closing the window cancels Print's fetch, and the fixture answers after 50 ms.
+          if offersImageActions {
+            try await Self.waitForJobs(1, printer)
+          }
         }
-        try await Self.waitForJobs(1, printer)
         #expect(printer.jobs.first?.title == "b.svg", "Only the image printed.")
       }
 

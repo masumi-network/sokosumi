@@ -99,6 +99,35 @@ it("leaves the Cuso picker out of the hire form account menu without a Cuso", as
   expect(container.querySelector('a[href="/?cusos=1"]')).toBeNull();
 });
 
+it("links a refused second hire to the person's unpaid Cuso", async () => {
+  await act(async () =>
+    root.render(
+      <Onboarding
+        onboard={async (previous) => ({
+          ...previous,
+          attempt: previous.attempt + 1,
+          errors: { form: "Your Cuso for old.io is not subscribed yet." },
+          unpaidCuso: { href: "/?project=project-0", businessName: "old.io" },
+        })}
+      />,
+    ),
+  );
+
+  typeInto(container.querySelector("#ob-website"), "acme.io");
+  await act(async () =>
+    container
+      .querySelector<HTMLButtonElement>('button[type="submit"]')
+      ?.click(),
+  );
+
+  const alert = container.querySelector('[role="alert"]');
+  expect(alert?.textContent).toContain("old.io");
+  expect(alert?.querySelector("a")?.getAttribute("href")).toBe(
+    "/?project=project-0",
+  );
+  expect(alert?.textContent).not.toContain("Top up");
+});
+
 // The questions: a tap shows at once, a failed save takes it back.
 
 const QUESTION = {

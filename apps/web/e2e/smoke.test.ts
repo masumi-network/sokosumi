@@ -42,6 +42,11 @@ for (const { name, ...viewport } of PROJECTS) {
           .locator('[data-testid="auth-field-email"]')
           .waitFor({ state: "visible" });
         await page.waitForLoadState("load");
+        // Screen readers jump straight to the form through the main landmark.
+        const formInMain = await page
+          .getByRole("main")
+          .locator('[data-testid="auth-field-email"]')
+          .count();
 
         await page.screenshot({
           path: `${RESULTS_DIR}${name}${path.replace("/", "-")}.png`,
@@ -53,6 +58,11 @@ for (const { name, ...viewport } of PROJECTS) {
         );
         await context.close();
         assert.equal(overflow, 0, `${path} overflows by ${overflow}px`);
+        assert.equal(
+          formInMain,
+          1,
+          `${path} has no main landmark around the form`,
+        );
         assert.deepEqual(errors, []);
       });
     }
