@@ -646,6 +646,7 @@ describe("MenuItems prefetch", () => {
     ["calendar", "/calendar"],
     ["social", "/social"],
     ["exploreAgents", "/agents"],
+    ["contentStudio", "/studio"],
   ])("loads the %s page content on a resting hover", (label, href) => {
     renderMenu(true, false);
 

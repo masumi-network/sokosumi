@@ -1,17 +1,16 @@
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 
 import { ImageStudio } from "@/app/projects/components/image-studio/image-studio";
 import { buildStudioLabels } from "@/app/projects/components/image-studio/studio-labels";
 import { ProjectBrandProvider } from "@/app/projects/components/project-brand-card";
 import { CmoProjectBanner } from "@/components/cmo-project-banner";
-import { imageStudioService } from "@/lib/services/image-studio.service";
-import { projectService } from "@/lib/services/project.service";
+import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 
 import { StudioPageShell } from "./components/studio-page-shell";
 import { StudioProjectScopePrompt } from "./components/studio-project-scope-prompt";
 import { StudioRecentProjects } from "./components/studio-recent-projects";
+import { loadStudioPageData } from "./studio-page-data";
 
 // Wait for the current session and project access before rendering.
 export const instant = false;
@@ -45,29 +44,11 @@ export async function generateMetadata(): Promise<Metadata> {
  * to; existing images are loaded only for a selected project.
  */
 export default async function StudioPage({ searchParams }: StudioPageProps) {
-  await connection();
-
   const query = await searchParams;
   const t = await getTranslations("App.Studio");
   const projectId = query.projectId?.trim();
-
-  const project = projectId
-    ? await projectService.getProjectById(projectId)
-    : null;
-  // Not `notFound()`: the id came from a switchable scope, not from the path,
-  // so the repair is to pick another project rather than to leave the page.
-  const scopeId = project?.id ?? null;
-
-  // In parallel, and the catalog only once per render: it is ~158KB and it is
-  // deliberately no longer part of the state payload the open studio refetches
-  // every three seconds.
-  const [state, catalog, recentProjects] = await Promise.all([
-    scopeId
-      ? loadStudioState(scopeId, query.v)
-      : Promise.resolve({ assets: [], jobs: [], nextCursor: null }),
-    imageStudioService.getCatalog(),
-    scopeId ? [] : loadRecentProjects(),
-  ]);
+  const { project, scopeId, state, catalog, recentProjects } =
+    await loadStudioPageData({ projectId, assetId: query.v });
 
   const initialSelectedAssetId =
     query.v && state.assets.some((asset) => asset.id === query.v)
@@ -112,6 +93,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   );
   return (
     <StudioPageShell title={t("title")}>
+      <RefreshPrefetchedPage />
       {project?.cmo ? (
         <CmoProjectBanner className="mb-4" projectId={project.id} />
       ) : null}
@@ -130,44 +112,4 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
       )}
     </StudioPageShell>
   );
-}
-
-/**
- * The studio's state, with the selection in the URL treated as a hint.
- *
- * `?v=` arrives from a link somebody saved or pasted, so it can name an asset
- * that has since been deleted, one that belongs to a different project, or a
- * string that is not an id at all. Core rejects all three, and asking for the
- * selection is only an optimisation — it makes Core include that asset even if
- * it is older than the newest page. A failed hint therefore costs one extra
- * round trip and nothing else; before this it took the whole studio down with
- * an error boundary, which is a hard way to learn that a bookmark went stale.
- */
-async function loadStudioState(projectId: string, assetId: string | undefined) {
-  const load = (query: { assetId?: string }) =>
-    imageStudioService.getState(projectId, query);
-  if (!assetId) return load({});
-
-  try {
-    return await load({ assetId });
-  } catch (error) {
-    console.warn("Image studio: ignoring an unusable selection from the URL", {
-      projectId,
-      error,
-    });
-    return load({});
-  }
-}
-
-/**
- * A shortcut, not the page: without it All projects falls back to the
- * first-ad screen, which still works.
- */
-async function loadRecentProjects() {
-  try {
-    return await imageStudioService.getRecentProjects();
-  } catch (error) {
-    console.warn("Image studio: recent projects unavailable", { error });
-    return [];
-  }
 }

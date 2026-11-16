@@ -218,6 +218,7 @@ function ScopedMenuItems({
       Icon: ImagePlus,
       feature: AnnouncedFeature.CONTENT_STUDIO,
       group: "marketing",
+      prefetchContent: true,
     },
     // Social scheduling is public and follows the studio's project scope.
     {

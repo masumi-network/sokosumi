@@ -12,6 +12,7 @@ import {
 import { consumeStudioWebsiteDraftRequest } from "@/app/projects/components/image-studio/studio-website-intent";
 
 const {
+  connectionMock,
   imageStudioServiceMock,
   projectServiceMock,
   openProjectScopeMock,
@@ -19,6 +20,7 @@ const {
   setScopeCreateOpenMock,
   useHasAnyScopeProjectMock,
 } = vi.hoisted(() => ({
+  connectionMock: vi.fn(async () => undefined),
   openProjectScopeMock: vi.fn(),
   openScopeCreateMock: vi.fn(),
   setScopeCreateOpenMock: vi.fn(),
@@ -32,7 +34,16 @@ const {
   projectServiceMock: { getProjectById: vi.fn() },
 }));
 
-vi.mock("next/server", () => ({ connection: async () => undefined }));
+vi.mock("server-only", () => ({}));
+
+vi.mock("next/server", () => ({ connection: connectionMock }));
+
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
+
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: string) => (key: string) =>
@@ -388,6 +399,44 @@ describe("StudioPage", () => {
     );
 
     expect(imageStudioServiceMock.getCatalog).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("image-studio")).toHaveAttribute(
+      "data-catalog-models",
+      "1",
+    );
+  });
+
+  // The reads are cached, so a link prefetch carries the page.
+  // connection() would drop it back to the skeleton.
+  it("renders the scoped project without deferring to the request", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    imageStudioServiceMock.getState.mockResolvedValue(studioState());
+
+    const { default: StudioPage } = await import("./page");
+
+    render(
+      await StudioPage({
+        searchParams: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(screen.getByTestId("image-studio")).toHaveAttribute(
+      "data-project",
+      "project-1",
+    );
+    expect(connectionMock).not.toHaveBeenCalled();
+  });
+
+  // A prefetch must not keep a failed read as the page the click opens.
+  it("renders a failed catalog read fresh on the click", async () => {
+    imageStudioServiceMock.getCatalog
+      .mockRejectedValueOnce(new Error("Core answered 503"))
+      .mockResolvedValue(CATALOG);
+
+    const { default: StudioPage } = await import("./page");
+
+    render(await StudioPage({ searchParams: Promise.resolve({}) }));
+
+    expect(connectionMock).toHaveBeenCalledOnce();
     expect(screen.getByTestId("image-studio")).toHaveAttribute(
       "data-catalog-models",
       "1",
