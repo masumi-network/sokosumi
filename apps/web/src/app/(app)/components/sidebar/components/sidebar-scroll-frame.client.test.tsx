@@ -6,6 +6,7 @@ import { SidebarScrollFrame } from "./sidebar-scroll-frame.client";
 let resize: () => void;
 beforeEach(() => {
   resize = () => {};
+  vi.spyOn(window, "innerHeight", "get").mockReturnValue(1000);
   vi.spyOn(globalThis, "ResizeObserver").mockImplementation(
     function (callback) {
       const observer = {
@@ -76,6 +77,16 @@ describe("Sidebar wheel forwarding", () => {
     expect(frame).toHaveAttribute("data-fixed-navigation", "false");
     expect(wheel(navigation).defaultPrevented).toBe(false);
     expect(viewport.scrollTop).toBe(0);
+  });
+
+  it("uses page height even when the sidebar has less available height", () => {
+    const { frame } = setup();
+    Object.defineProperty(frame, "clientHeight", { value: 600 });
+    act(() => resize());
+    expect(frame).toHaveAttribute("data-fixed-navigation", "true");
+    vi.spyOn(window, "innerHeight", "get").mockReturnValue(900);
+    fireEvent(window, new Event("resize"));
+    expect(frame).toHaveAttribute("data-fixed-navigation", "false");
   });
 
   it("scrolls the rooms over fixed navigation and contains scrolling at the edge", () => {

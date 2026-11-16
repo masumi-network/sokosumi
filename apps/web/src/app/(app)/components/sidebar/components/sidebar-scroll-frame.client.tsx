@@ -2,6 +2,7 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
+import { SIDEBAR_COMPACT_MEDIA_QUERY } from "@/lib/ui-preferences/sidebar-state";
 import { cn } from "@/lib/utils";
 
 const MAX_FIXED_HEIGHT_RATIO = 0.55;
@@ -24,6 +25,7 @@ export function SidebarScrollFrame({ children }: { children: ReactNode }) {
         child instanceof HTMLElement &&
         child.dataset.slot !== "sidebar-content",
     );
+    const compactDevice = window.matchMedia(SIDEBAR_COMPACT_MEDIA_QUERY);
     let canFixNavigation = false;
     function measure() {
       if (!frame) return;
@@ -32,13 +34,16 @@ export function SidebarScrollFrame({ children }: { children: ReactNode }) {
         0,
       );
       canFixNavigation =
-        frame.clientHeight > 0 &&
-        fixedHeight <= frame.clientHeight * MAX_FIXED_HEIGHT_RATIO;
+        !compactDevice.matches &&
+        frame.clientHeight > fixedHeight &&
+        fixedHeight <= window.innerHeight * MAX_FIXED_HEIGHT_RATIO;
       setFixedNavigation(canFixNavigation);
     }
     const observer = new ResizeObserver(measure);
     observer.observe(frame);
     for (const child of chrome) observer.observe(child, { box: "border-box" });
+    window.addEventListener("resize", measure);
+    compactDevice.addEventListener("change", measure);
     measure();
 
     function handleWheel(event: WheelEvent) {
@@ -79,6 +84,8 @@ export function SidebarScrollFrame({ children }: { children: ReactNode }) {
     frame.addEventListener("wheel", handleWheel, { passive: false });
     return () => {
       observer.disconnect();
+      window.removeEventListener("resize", measure);
+      compactDevice.removeEventListener("change", measure);
       frame.removeEventListener("wheel", handleWheel);
     };
   }, []);

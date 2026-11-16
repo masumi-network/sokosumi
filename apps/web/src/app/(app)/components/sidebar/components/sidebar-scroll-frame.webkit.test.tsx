@@ -79,7 +79,17 @@ describe.each([
       await expect
         .poll(() => frame.getAttribute("data-fixed-navigation"))
         .toBe("true");
-      await page.setViewportSize({ width: 390, height: 400 });
+      // A tall mobile screen still uses full scrolling.
+      await page.setViewportSize({ width: 390, height: 1000 });
+      await expect
+        .poll(() => frame.getAttribute("data-fixed-navigation"))
+        .toBe("false");
+      await page.setViewportSize({ width: 900, height: 1000 });
+      await expect
+        .poll(() => frame.getAttribute("data-fixed-navigation"))
+        .toBe("false");
+      // A short desktop must also fall back based on page height.
+      await page.setViewportSize({ width: 1200, height: 400 });
       await expect
         .poll(() => frame.getAttribute("data-fixed-navigation"))
         .toBe("false");
@@ -101,6 +111,13 @@ describe.each([
         .poll(() => frame.getAttribute("data-fixed-navigation"))
         .toBe("true");
       expect((await nav.boundingBox())!.y).toBeGreaterThanOrEqual(0);
+      // The cap uses page height, even when the sidebar is shorter.
+      await frame.evaluate((el) => {
+        el.parentElement!.style.height = "400px";
+      });
+      await expect
+        .poll(() => frame.getAttribute("data-fixed-navigation"))
+        .toBe("true");
       // Expanded groups or larger text can exceed the cap without a window resize.
       await nav.evaluate((el) => {
         el.style.height = "700px";
