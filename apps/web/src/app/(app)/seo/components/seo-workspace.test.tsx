@@ -6143,6 +6143,8 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=agent");
     const first = await screen.findByRole("list", { name: "First step" });
     expect(within(first).getByText(/^Fix the page title/)).toBeVisible();
+    // Opening the tab moves no focus.
+    expect(screen.getByTestId("seo-agent-verdict")).not.toHaveFocus();
     served = {
       ...workspace,
       actions: [

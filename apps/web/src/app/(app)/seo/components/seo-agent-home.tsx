@@ -134,11 +134,15 @@ function SeoAgentPanel({
       ? lead.action.id
       : lead.kind
     : null;
+  // Only focus that was in the lead list counts: a page nobody has entered also has its focus on the body.
   const leadSeen = useRef(leadKey);
+  const leadFocused = useRef(false);
   useEffect(() => {
     if (leadSeen.current === leadKey) return;
     leadSeen.current = leadKey;
-    if (document.activeElement === document.body) verdict.current?.focus();
+    if (leadFocused.current && document.activeElement === document.body)
+      verdict.current?.focus();
+    leadFocused.current = false;
   }, [leadKey]);
   const periodId = useId();
   const numbers = seoSummary(model.data);
@@ -258,9 +262,12 @@ function SeoAgentPanel({
     ) : statisticsSync.state === "failed" ? (
       <div role="alert" className="space-y-2 text-sm">
         <p className="text-destructive">{t("agent.refreshFailed")}</p>
-        <Button size="sm" variant="outline" onClick={statisticsSync.retry}>
-          {t("retry")}
-        </Button>
+        {/* A refresh step under it has the retry button already. */}
+        {lead?.kind === "refresh" ? null : (
+          <Button size="sm" variant="outline" onClick={statisticsSync.retry}>
+            {t("retry")}
+          </Button>
+        )}
       </div>
     ) : null;
   return (
@@ -374,6 +381,13 @@ function SeoAgentPanel({
               role="list"
               aria-label={t("agent.firstStep")}
               className="-mx-4 -mb-4 border-t"
+              onFocus={() => {
+                leadFocused.current = true;
+              }}
+              onBlur={(event) => {
+                // A removed button blurs with no next target: that focus still counts as in the list.
+                if (event.relatedTarget) leadFocused.current = false;
+              }}
             >
               {stepItem(lead, primary)}
             </ul>

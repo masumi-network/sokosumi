@@ -38,6 +38,8 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
   // site gets clicks, otherwise the searches for the checked keywords.
   const [picked, setPicked] = useState<SeoAgentChart | null>(null);
   const both = Boolean(clicks && demand.rows.length);
+  // With one picture left the choice ends, so the default applies when both come back.
+  if (!both && picked) setPicked(null);
   // A choice holds only while the switch shows: with one picture left, that picture shows.
   const shown: SeoAgentChart =
     (both ? picked : null) ??

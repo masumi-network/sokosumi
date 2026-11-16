@@ -53,6 +53,8 @@ export function SeoActionCard({
   flush?: boolean;
 }) {
   const t = useTranslations("App.Seo");
+  // Inside another card the title ranks under that card's heading.
+  const Heading = flush ? "h4" : "h3";
   const problem = seoOverviewModel(model.data).actionProblem(action);
   const card = useRef<HTMLElement>(null);
   // An action row on the Agent tab leads here: the card scrolls into view and takes the focus once.
@@ -104,7 +106,7 @@ export function SeoActionCard({
         "group focus-visible:outline-ring aria-[current=true]:ring-ring min-w-0 focus-visible:outline-2 aria-[current=true]:ring-2",
       )}
     >
-      <h3>
+      <Heading>
         {/* The closed card is one row: the title, its page and how bad the issue is. A press opens what the check found and the button. */}
         <SeoActionCardHead
           bodyId={bodyId}
@@ -133,7 +135,7 @@ export function SeoActionCard({
             </span>
           </span>
         </SeoActionCardHead>
-      </h3>
+      </Heading>
       {open ? (
         <div
           id={bodyId}
