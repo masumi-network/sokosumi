@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { ProjectScopeMarker } from "@/app/components/project-scope/project-scope-marker";
 import { loadWorkspaceSwitchAccounts } from "@/app/components/user-avatar/workspace-switch-accounts";
 import { TaskCanonicalUrl } from "@/app/tasks/components/task-canonical-url";
@@ -29,6 +30,13 @@ export default async function TaskDetailPage({
     getPrivateCachedTask(taskId).catch(() => null),
     getPrivateCachedSession(),
   ]);
+
+  // A miss can be a passing Core outage, which both reads turn into null. A
+  // prefetch must not keep that as a 404 or a switch dialog, so every page
+  // but the task itself renders fresh on the click.
+  if (!task || !session) {
+    await connection();
+  }
 
   if (!session) {
     return notFound();

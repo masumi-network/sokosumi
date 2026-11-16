@@ -7,6 +7,7 @@ const getTaskWorkspaceMock = vi.fn();
 const getMyMembersWithOrganizationsMock = vi.fn();
 const getTranslationsMock = vi.fn();
 const notFoundMock = vi.fn();
+const connectionMock = vi.fn();
 const taskDetailViewMock = vi.fn();
 const taskWorkspaceSwitchDialogMock = vi.fn();
 const projectScopeMarkerMock = vi.fn();
@@ -37,6 +38,9 @@ const targetOrganization = {
   stripeCustomerId: null,
 };
 
+vi.mock("next/server", () => ({
+  connection: async () => connectionMock(),
+}));
 vi.mock("next/navigation", () => ({
   notFound: () => notFoundMock(),
 }));
@@ -207,6 +211,43 @@ describe("TaskDetailPage", () => {
     expect(screen.getByTestId("task-detail-view")).toBeInTheDocument();
     // A task with no project reports the workspace.
     expect(projectScopeMarkerMock).toHaveBeenCalledWith({ projectId: null });
+  });
+
+  // A task link's prefetch carries the page only while it never calls
+  // connection(). Every other outcome must render fresh on the click, so a
+  // passing Core outage is never kept in the browser as a 404.
+  it("keeps the task view prefetchable and renders a miss fresh", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org_workspace" },
+      user: sessionUser,
+    });
+    getTaskByIdMock.mockResolvedValue({ id: "task_1", name: "Report" });
+    const { default: TaskDetailPage } = await import("./page");
+
+    render(
+      await TaskDetailPage({ params: Promise.resolve({ taskId: "SOK-1" }) }),
+    );
+    expect(connectionMock).not.toHaveBeenCalled();
+
+    getTaskByIdMock.mockRejectedValue(new Error("Core answered 503"));
+    await expect(
+      TaskDetailPage({ params: Promise.resolve({ taskId: "SOK-1" }) }),
+    ).rejects.toThrow("notFound");
+    expect(connectionMock).toHaveBeenCalledTimes(1);
+    expect(connectionMock.mock.invocationCallOrder[0]).toBeLessThan(
+      notFoundMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("renders a signed-out miss fresh", async () => {
+    getSessionMock.mockResolvedValue(null);
+    getTaskByIdMock.mockResolvedValue({ id: "task_1", name: "Report" });
+    const { default: TaskDetailPage } = await import("./page");
+
+    await expect(
+      TaskDetailPage({ params: Promise.resolve({ taskId: "SOK-1" }) }),
+    ).rejects.toThrow("notFound");
+    expect(connectionMock).toHaveBeenCalledTimes(1);
   });
 
   it("reports the task's project to the project switchers", async () => {
