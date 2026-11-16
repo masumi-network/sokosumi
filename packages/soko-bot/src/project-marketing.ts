@@ -375,6 +375,12 @@ export const cmoSearchAdSchema = z.object({
 });
 export type CmoSearchAd = z.infer<typeof cmoSearchAdSchema>;
 
+/**
+ * The most pieces a plan's calendar holds: room for X at three posts a day
+ * (84 in four weeks) beside the other channels.
+ */
+export const CMO_CALENDAR_LIMIT = 200;
+
 export const cmoCalendarEntrySchema = z.object({
   /** Stable id Cuso chooses so later saves update the same entry. */
   id: z.string().trim().min(1).max(64),
@@ -850,7 +856,7 @@ export const marketingStrategyPlanSchema = z.object({
     )
     .max(10),
   ...strategyPlanShape,
-  calendar: z.array(cmoCalendarEntrySchema).max(120),
+  calendar: z.array(cmoCalendarEntrySchema).max(CMO_CALENDAR_LIMIT),
   /** Up to one sample each of a post, an ad, an SEO piece, a newsletter. */
   previews: z.array(cmoPreviewSchema).max(4).default([]),
   /** After a change request: what is different from the last version. */

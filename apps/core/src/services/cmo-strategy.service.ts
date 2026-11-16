@@ -1,6 +1,7 @@
 import { type MarketingStrategy, type Prisma } from "@sokosumi/database";
 import {
   type BrandBrain,
+  CMO_CALENDAR_LIMIT,
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoCalendarEntry,
   type CmoPlanQuestion,
@@ -252,7 +253,6 @@ function ownerAnswers(brain: BrandBrain): string[] {
 
 /** Matches the calendar slice in the turn packet. A full plan with drafts does not fit. */
 export const CMO_VISIBLE_CALENDAR_DAYS = 31;
-const CMO_CALENDAR_LIMIT = 120;
 
 export function calendarBounds(
   now: Date,

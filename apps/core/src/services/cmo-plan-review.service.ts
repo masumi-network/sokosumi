@@ -136,6 +136,7 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
         `calendar has about ${perWeek} pieces a week; the ${strategy.pace.level} pace says ${strategy.pace.perWeek}. Match them.`,
       );
     problems.push(...cadenceProblems(strategy.channels, pieces));
+    problems.push(...xImageProblems(strategy.channels, pieces));
     problems.push(...storyProblems(pieces));
     problems.push(...repeatedTitles(pieces));
     const articles = pieces.filter(
@@ -202,13 +203,43 @@ function cadenceRange(cadence: string): [number, number] | null {
     .trim()
     .toLowerCase()
     .match(
-      /^(\d+)(?:\s*(?:to|-|–)\s*(\d+))?(?:\s+[a-z]+){0,2}\s+(?:(?:a|per|each)\s+(week|month)|(week|month)ly)$/,
+      /^(\d+)(?:\s*(?:to|-|–)\s*(\d+))?(?:\s+[a-z]+){0,2}\s+(?:(?:a|per|each)\s+(day|week|month)|(week|month)ly)$/,
     );
   if (!match) return null;
   const low = Number(match[1]);
   const high = Number(match[2] ?? match[1]);
-  const weeks = (match[3] ?? match[4]) === "week" ? 4 : 1;
-  return [low * weeks, high * weeks];
+  const times = PERIODS_IN_FOUR_WEEKS[match[3] ?? match[4] ?? "month"] ?? 1;
+  return [low * times, high * times];
+}
+
+const PERIODS_IN_FOUR_WEEKS: Record<string, number> = {
+  day: 28,
+  week: 4,
+  month: 1,
+};
+
+/** X posting every day carries an image on about one post in three. */
+const X_IMAGE_SHARE = { low: 0.25, high: 0.42 };
+
+/**
+ * A daily X cadence means dozens of posts; a picture on each would cost the
+ * owner a month of images, and none would lose the posts that stop people.
+ */
+function xImageProblems(
+  channels: MarketingStrategyPlan["channels"],
+  pieces: MarketingStrategyPlan["calendar"],
+): string[] {
+  const x = channels.find((channel) => channel.channel.toLowerCase() === "x");
+  if (!x || !/\b(?:a|per|each)\s+day\b/i.test(x.cadence)) return [];
+  const posts = pieces.filter((entry) => entry.channel.toLowerCase() === "x");
+  // Two or more a day; at one a day Cuso chooses the share himself.
+  if (posts.length < 40) return [];
+  const images = posts.filter((entry) => entry.format === "image").length;
+  const share = images / posts.length;
+  if (share >= X_IMAGE_SHARE.low && share <= X_IMAGE_SHARE.high) return [];
+  return [
+    `x has ${images} image posts out of ${posts.length}; make one X post in three the image format (about ${Math.round(posts.length / 3)}) and the rest post or reply.`,
+  ];
 }
 
 /**

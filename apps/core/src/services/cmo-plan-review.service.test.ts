@@ -337,6 +337,30 @@ describe("the funnel strategy", () => {
     expect(problems("4 page fixes, 2 articles monthly")).not.toContain(
       "cadence",
     );
+    // A daily cadence counts every day of the four weeks.
+    expect(problems("3 a day")).toContain("means about 84");
+    expect(problems("2 a day")).not.toContain("cadence");
+  });
+
+  it("asks a daily X cadence for an image on one post in three", () => {
+    const xPosts = (images: number) =>
+      Array.from({ length: 84 }, (_, index) =>
+        entry(`x${index}`, "x", index < images ? "image" : "post"),
+      );
+    const problems = (images: number, cadence = "3 a day") =>
+      cmoPlanProblems(
+        plan({
+          calendar: xPosts(images),
+          channels: [{ channel: "x", cadence }],
+        }),
+      ).join(" ");
+    expect(problems(28)).not.toContain("image posts out of");
+    expect(problems(60)).toContain(
+      "x has 60 image posts out of 84; make one X post in three the image format (about 28)",
+    );
+    expect(problems(4)).toContain("x has 4 image posts out of 84");
+    // A weekly cadence keeps the image share Cuso chose.
+    expect(problems(60, "21 posts a week")).not.toContain("image posts out of");
   });
 });
 

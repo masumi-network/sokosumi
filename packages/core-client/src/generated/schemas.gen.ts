@@ -30948,7 +30948,7 @@ export const MarketingStrategySchema = {
                                     'status'
                                 ]
                             },
-                            maxItems: 120
+                            maxItems: 200
                         },
                         previews: {
                             type: 'array',
@@ -32393,7 +32393,7 @@ export const MarketingStrategyRequestSchema = {
                             'status'
                         ]
                     },
-                    maxItems: 120
+                    maxItems: 200
                 },
                 previews: {
                     type: 'array',
@@ -50455,7 +50455,7 @@ export const CmoPlanSchema = {
                     'status'
                 ]
             },
-            maxItems: 120
+            maxItems: 200
         },
         previews: {
             type: 'array',
