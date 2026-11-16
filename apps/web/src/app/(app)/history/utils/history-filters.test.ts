@@ -9,14 +9,16 @@ import {
   HISTORY_TYPE_VALUES,
   parseHistoryFilters,
   resolveHistoryApiTypes,
-  sanitizeHistoryProjectIdInput,
   sanitizeHistoryScopeInput,
   sanitizeHistorySearchInput,
   sanitizeHistoryTypeInput,
+  sanitizeHistoryUuidInput,
 } from "@/app/history/utils/history-filters";
 
 const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
 const projectOptions = [{ id: PROJECT_ID, name: "Research" }] as const;
+
+const TASK_ID = "55555555-5555-4555-8555-555555555555";
 
 describe("history-filters", () => {
   it("defaults to owned scope in both personal and organization context", () => {
@@ -27,6 +29,7 @@ describe("history-filters", () => {
       scope: "owned",
       type: null,
       projectId: null,
+      taskId: null,
     });
   });
 
@@ -37,6 +40,7 @@ describe("history-filters", () => {
       "task",
       "coworker",
       "sokoBot",
+      "seoChat",
       "contacts",
       "topUp",
       "unattributed",
@@ -70,15 +74,23 @@ describe("history-filters", () => {
     ).toHaveLength(HISTORY_SEARCH_MAX_LENGTH);
   });
 
-  it("accepts only a UUID as a project filter", () => {
-    expect(sanitizeHistoryProjectIdInput(PROJECT_ID)).toBe(PROJECT_ID);
-    expect(sanitizeHistoryProjectIdInput("not-a-uuid")).toBeNull();
+  it("accepts only a UUID as a project or Task filter", () => {
+    expect(sanitizeHistoryUuidInput(PROJECT_ID)).toBe(PROJECT_ID);
+    expect(parseHistoryFilters({ taskId: TASK_ID }, null).taskId).toBe(TASK_ID);
+    expect(parseHistoryFilters({ taskId: "SOK-12" }, null).taskId).toBeNull();
+    expect(sanitizeHistoryUuidInput("not-a-uuid")).toBeNull();
   });
 
   it("drops a project the caller cannot see", () => {
     expect(
       applyHistoryProjectAllowlist(
-        { q: null, scope: "owned", type: null, projectId: PROJECT_ID },
+        {
+          q: null,
+          scope: "owned",
+          type: null,
+          projectId: PROJECT_ID,
+          taskId: null,
+        },
         projectOptions,
       ).projectId,
     ).toBe(PROJECT_ID);
@@ -89,6 +101,7 @@ describe("history-filters", () => {
           scope: "owned",
           type: null,
           projectId: "44444444-4444-4444-8444-444444444444",
+          taskId: null,
         },
         projectOptions,
       ).projectId,
@@ -102,6 +115,7 @@ describe("history-filters", () => {
         scope: "workspace",
         type: "image",
         projectId: PROJECT_ID,
+        taskId: TASK_ID,
       }),
       "org-1",
       projectOptions,
@@ -112,13 +126,14 @@ describe("history-filters", () => {
       scope: "workspace",
       type: "image",
       projectId: PROJECT_ID,
+      taskId: TASK_ID,
     });
   });
 
   it("omits the default scope and empty filters from the query string", () => {
     const params = buildHistoryFiltersSearchParams(
       new URLSearchParams(),
-      { q: null, scope: "owned", type: null, projectId: null },
+      { q: null, scope: "owned", type: null, projectId: null, taskId: null },
       "org-1",
     );
 
@@ -133,6 +148,7 @@ describe("history-filters", () => {
         scope: "workspace",
         type: "unattributed",
         projectId: PROJECT_ID,
+        taskId: TASK_ID,
       },
       "org-1",
     );
@@ -141,6 +157,7 @@ describe("history-filters", () => {
     expect(params.get("scope")).toBe("workspace");
     expect(params.get("type")).toBe("unattributed");
     expect(params.get("projectId")).toBe(PROJECT_ID);
+    expect(params.get("taskId")).toBe(TASK_ID);
   });
 
   it("changes the reset key when any filter changes", () => {
@@ -149,12 +166,16 @@ describe("history-filters", () => {
       scope: "owned" as const,
       type: null,
       projectId: null,
+      taskId: null,
     };
     const key = getHistoryFiltersResetKey(base, "org-1");
 
     expect(getHistoryFiltersResetKey(base, "org-1")).toBe(key);
     expect(
       getHistoryFiltersResetKey({ ...base, type: "job" }, "org-1"),
+    ).not.toBe(key);
+    expect(
+      getHistoryFiltersResetKey({ ...base, taskId: TASK_ID }, "org-1"),
     ).not.toBe(key);
     expect(getHistoryFiltersResetKey(base, null)).not.toBe(key);
   });

@@ -15,15 +15,15 @@ import {
   type SokoBotSelector,
 } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
-import { scheduleContactCapture } from "@/services/contact-capture.service";
-import type { SokoBotIntegrationView } from "@/services/soko-bot-integration-list.service";
 import {
   composioEntityId,
   requireComposio,
-  resolveProvider,
   SokoBotIntegrationError,
   withComposio,
-} from "@/services/soko-bot-integrations.service";
+} from "@/services/composio-integration-tools.service";
+import { scheduleContactCapture } from "@/services/contact-capture.service";
+import type { SokoBotIntegrationView } from "@/services/soko-bot-integration-list.service";
+import { resolveProvider } from "@/services/soko-bot-integrations.service";
 
 async function lookupToolkit(
   slug: string,

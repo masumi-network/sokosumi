@@ -14,6 +14,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import {
@@ -30,7 +31,7 @@ import {
   isRoomComposerContentOverLimit,
   isRoomComposerEmpty,
 } from "@/app/chat/components/room-helpers";
-import { FoilBackground } from "@/components/foil-background";
+import { GradientBackground } from "@/components/gradient-background";
 import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
@@ -122,17 +123,22 @@ export function SokoBotHomeComposer({
   }
 
   function suggest(prompt: string) {
-    setValue(prompt);
-    composerRef.current?.focus();
+    // Commit the prompt before placing the caret: a plain focus left it at
+    // the start, so typing went in front of the prompt.
+    flushSync(() => setValue(prompt));
+    composerRef.current?.focusAtEnd();
   }
 
   return (
     <div className="relative isolate flex min-h-full w-full min-w-0 flex-1 flex-col items-center px-4">
       {/* Bleeds through main's p-4 to its edges, behind the greeting. */}
-      <FoilBackground className="absolute -inset-x-4 -top-4 -z-10 h-[42rem]" />
+      <GradientBackground className="absolute -inset-x-4 -top-4 -z-10 h-[42rem]" />
       {/* The composer sits a little above the middle of the screen, as on a
-          chat entry page; the day's list starts below the fold's edge. */}
-      <div className="flex w-full max-w-3xl flex-col gap-8 pt-[14dvh] md:pt-[22dvh]">
+          chat entry page; the day's list starts below the fold's edge.
+          On a phone the floating tab bar covers the bottom of the screen, so
+          the composer sits higher and the day's first row starts above the
+          bar instead of under it, where a tap lands on Chats. */}
+      <div className="flex w-full max-w-3xl flex-col gap-8 pt-4 md:pt-[22dvh]">
         {header}
         <div className="flex flex-col gap-4">
           <RoomComposer
@@ -167,7 +173,7 @@ export function SokoBotHomeComposer({
           </div>
         </div>
       </div>
-      <div className="w-full max-w-3xl pt-16 pb-10">{children}</div>
+      <div className="w-full max-w-3xl pt-10 pb-10 md:pt-16">{children}</div>
     </div>
   );
 }

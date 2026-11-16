@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { getEnv } from "@/config/env";
 import { parseTaskTagAnswers, TASK_TAG_VOCABULARY } from "@/helpers/task-tags";
+import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 
 export const JEV_TASK_TAG_MODEL = "typesafe-ai/jev";
 const GATEWAY_URL = "https://ai-gateway.vercel.sh/v1";
@@ -35,7 +36,7 @@ const resultSchema = z.object({
 export async function taskTagProviderAvailable(
   signal: AbortSignal,
 ): Promise<boolean> {
-  if (!getEnv().TASK_TAG_CLASSIFICATION_ENABLED || !getEnv().AI_GATEWAY_API_KEY)
+  if (!getEnv().TASK_TAG_CLASSIFICATION_ENABLED || !aiGatewayApiKey())
     return false;
   const response = await fetch(`${GATEWAY_URL}/models`, {
     signal: AbortSignal.any([signal, AbortSignal.timeout(5_000)]),
@@ -56,7 +57,7 @@ export async function classifyTaskTags(
   const response = await fetch(`${GATEWAY_URL}/evaluate`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${getEnv().AI_GATEWAY_API_KEY}`,
+      Authorization: `Bearer ${aiGatewayApiKey()}`,
       "Content-Type": "application/json",
     },
     signal: AbortSignal.any([signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]),

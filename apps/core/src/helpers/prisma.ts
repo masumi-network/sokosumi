@@ -179,6 +179,20 @@ export function isIdempotencyKeyUniqueConstraintError(error: unknown): boolean {
 }
 
 /**
+ * Credit bucket @@unique([referenceId, referenceType]): the grant of this
+ * reference exists. Scoped so another unique violation in the same
+ * transaction is not taken for an earlier grant.
+ */
+export function isCreditBucketReferenceUniqueConstraintError(
+  error: unknown,
+): boolean {
+  return (
+    isPrismaUniqueViolationOnField(error, "referenceId") &&
+    isPrismaUniqueViolationOnField(error, "referenceType")
+  );
+}
+
+/**
  * Member @@unique([userId, organizationId]). Do not treat a personal-workspace
  * unique on `userId` alone as an existing membership.
  */

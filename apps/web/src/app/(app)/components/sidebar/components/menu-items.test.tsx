@@ -278,6 +278,7 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
       "social",
+      "seo",
       "ads",
     ]);
   });
@@ -345,6 +346,7 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
       "social",
+      "seo",
       "ads",
     ]);
   });
@@ -394,6 +396,7 @@ describe("MenuItems newsletter", () => {
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
       "social",
+      "seo",
       "ads",
       "newsletter",
     ]);

@@ -1,5 +1,6 @@
 import {
   CMO_SCENARIOS,
+  SEO_SCENARIOS,
   SOKO_BOT_SCENARIOS,
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";
@@ -47,6 +48,7 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "status-rundown": "Board",
   "board-question": "Board",
   "ambiguous-request": "Judgment",
+  "announcement-not-for-every-bot": "Judgment",
   "inbox-summary": "Mail and calendar",
   "calendar-prep": "Mail and calendar",
   "standup-with-inbox": "Rhythms",
@@ -57,6 +59,8 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "file-read": "Drive",
   "mail-delta": "Mail and calendar",
   "stop-checkins": "Schedules",
+  "reminder-uses-owner-zone": "Schedules",
+  "reminder-named-zone-wins": "Schedules",
   "quiet-standup": "Rhythms",
   "quiet-delta": "Mail and calendar",
   "autonomous-meeting-prep": "Rhythms",
@@ -122,6 +126,7 @@ export const EVAL_CASES: readonly EvalCase[] = [
   ...SOKO_BOT_SCENARIOS.map((scenario) =>
     scenarioCase(scenario, "soko-bot", SOKO_BOT_AREAS[scenario.id] ?? "Other"),
   ),
+  ...SEO_SCENARIOS.map((scenario) => scenarioCase(scenario, "soko-bot", "SEO")),
   ...CMO_EVAL_CASES,
   ...CMO_SCENARIOS.map((scenario) =>
     scenarioCase(

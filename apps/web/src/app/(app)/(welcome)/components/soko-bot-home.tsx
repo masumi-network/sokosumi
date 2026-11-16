@@ -29,6 +29,11 @@ interface SokoBotHomeProps {
   /** First name for the greeting; none when the account has no name. */
   userName: string | null;
   summary: TaskActivitySummary | null;
+  /** The summary counts the whole workspace's Tasks, not the reader's. */
+  inOrganization?: boolean;
+  /** Every request in Needs you, from any workspace and about Tasks, Jobs,
+   * grants or access; null when it could not be read. */
+  needsYouCount?: number | null;
   /** Tasks the team moved in the last 24 hours, newest first. */
   teamTasks: SokoBotHomeTask[];
   /** Important chat messages the reader has not read, last 24 hours. */
@@ -56,6 +61,8 @@ export async function SokoBotHome({
   roomId,
   userName,
   summary,
+  inOrganization = false,
+  needsYouCount = null,
   teamTasks,
   chats = [],
   schedules = [],
@@ -105,6 +112,8 @@ export async function SokoBotHome({
   ].sort((a, b) => b.at.getTime() - a.at.getTime());
   const rowClassName =
     "hover:bg-accent focus-visible:ring-ring flex min-w-0 items-center gap-3 rounded-md px-3 py-2 outline-none transition-colors focus-visible:ring-2";
+  const pillClassName =
+    "bg-muted text-foreground hover:bg-quinary focus-visible:ring-ring inline-flex h-8 items-center gap-2 rounded-full px-3 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2";
   const timeOf = (at: Date) => (
     <time
       dateTime={at.toISOString()}
@@ -132,7 +141,7 @@ export async function SokoBotHome({
           <BotFace
             imageUrl={bot.avatarImageUrl}
             seed={botFaceSeed(bot, ownerId)}
-            className="size-12"
+            className="border-background size-14 rounded-full border-4 shadow-md"
           />
           <h1 className="text-foreground text-3xl font-normal tracking-tight text-balance md:text-4xl">
             {userName ? t("headingWithName", { name: userName }) : t("heading")}
@@ -140,20 +149,40 @@ export async function SokoBotHome({
         </div>
       }
       attention={
-        awaitingInput > 0 ? (
-          <Link
-            href="/tasks"
-            className="bg-muted text-foreground hover:bg-quinary focus-visible:ring-ring inline-flex h-8 items-center gap-2 rounded-full px-3 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2"
-          >
-            <span aria-hidden className="bg-foreground size-1.5 rounded-full" />
-            {tStats("awaiting", { count: awaitingInput })}
-          </Link>
-        ) : null
+        <>
+          {awaitingInput > 0 ? (
+            <Link
+              // The count is the board's Input required column; land on it,
+              // on the board even where the list is the saved or phone default.
+              href="/tasks?view=board#input-required"
+              className={pillClassName}
+            >
+              <span
+                aria-hidden
+                className="bg-foreground size-1.5 rounded-full"
+              />
+              {/* In an org the count is the team's, so it does not say
+                  "your". */}
+              {inOrganization
+                ? tStats("awaitingTeam", { count: awaitingInput })
+                : tStats("awaiting", { count: awaitingInput })}
+            </Link>
+          ) : null}
+          {/* Needs you's own number beside the team's: its asks are not a
+              share of those Tasks (Jobs, grants, other workspaces). */}
+          {inOrganization && needsYouCount ? (
+            <a href="#soko-bot-home-needs-you" className={pillClassName}>
+              {tStats("needsYou", { count: needsYouCount })}
+            </a>
+          ) : null}
+        </>
       }
     >
       <div className="flex flex-col gap-10">
         {myDay}
-        {needsYou}
+        <div id="soko-bot-home-needs-you" className="scroll-mt-4">
+          {needsYou}
+        </div>
         <section aria-labelledby="soko-bot-home-day">
           <h2
             id="soko-bot-home-day"

@@ -29,10 +29,6 @@ export function buildTaskFilePrefix(taskId: string): string {
   return `${TASK_FILES_DIR}/${taskId}/`;
 }
 
-export function sanitizeTaskFileFilename(fileName: string): string {
-  return sanitizeUserUploadFilename(fileName);
-}
-
 function hasDisallowedTaskFileExtension(filename: string): boolean {
   const base = filename.trim().split(/[/\\]/).pop() ?? "";
   const dot = base.lastIndexOf(".");
@@ -100,7 +96,7 @@ export function buildTaskFilePathname(
   taskId: string,
   fileName: string,
 ): string {
-  return `${buildTaskFilePrefix(taskId)}${sanitizeTaskFileFilename(fileName)}`;
+  return `${buildTaskFilePrefix(taskId)}${sanitizeUserUploadFilename(fileName)}`;
 }
 
 /**

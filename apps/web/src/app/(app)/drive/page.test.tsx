@@ -356,10 +356,21 @@ vi.mock("@/components/ui/document-viewer", () => ({
 import { toast } from "sonner";
 import { DrivePageClient } from "@/app/drive/drive-page-client";
 import {
+  FILES_VIEW_MODE_COOKIE_NAME,
   type FilesViewMode,
-  parseFilesViewModeCookieHeader,
+  parseFilesViewMode,
 } from "@/lib/ui-preferences/files-view-mode";
 import { DriveFileUploadError } from "@/lib/utils/drive-file-upload.client";
+
+function filesViewModeFromDocumentCookie(): FilesViewMode {
+  const value = document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${FILES_VIEW_MODE_COOKIE_NAME}=`))
+    ?.slice(`${FILES_VIEW_MODE_COOKIE_NAME}=`.length);
+
+  return parseFilesViewMode(value) ?? "list";
+}
 
 function createDriveQueryClient() {
   return new QueryClient({
@@ -801,6 +812,49 @@ describe("DrivePage recents view", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("empty Recents uploads through the picker and opens Workspace", async () => {
+    const user = userEvent.setup();
+    listDriveItemsMock.mockResolvedValue([]);
+    uploadDriveFileMock.mockReset();
+    uploadDriveFileMock.mockResolvedValue({ pathname: "a", fileUrl: null });
+    const { container } = renderDrive();
+    const upload = await screen.findByRole("button", { name: "uploadButton" });
+    const input = container.querySelector<HTMLInputElement>("#file-upload")!;
+    const pick = vi.spyOn(input, "click");
+    await user.click(upload);
+    expect(pick).toHaveBeenCalledOnce();
+
+    fetchDriveRecentsPageMock.mockClear();
+    const file = new File(["x"], "notes.txt", { type: "text/plain" });
+    await act(async () => {
+      fireEvent.change(input, { target: { files: [file] } });
+    });
+    await waitFor(() => {
+      expect(fetchDriveRecentsPageMock).toHaveBeenCalled();
+    });
+    expect(uploadDriveFileMock.mock.calls[0][0]).toBe(file);
+
+    await user.click(
+      screen.getByRole("button", { name: "recentsEmptyOpenWorkspace" }),
+    );
+    expect(screen.getByRole("tab", { name: "workspaceTab" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("a filtered empty Recents offers no upload", async () => {
+    const user = userEvent.setup();
+    renderDrive();
+    await screen.findByRole("button", { name: "uploadButton" });
+    const [searchInput] = screen.getAllByPlaceholderText("searchPlaceholder");
+    await user.type(searchInput, "nothing");
+    await screen.findByText("noMatchTitle");
+    expect(
+      screen.queryByRole("button", { name: "uploadButton" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("lists a recently changed table that opens its editor", async () => {
     fetchDriveRecentsPageMock.mockResolvedValue({
       items: [
@@ -1018,9 +1072,7 @@ describe("DrivePage files view mode", () => {
 
     unmount();
     queryClient = createDriveQueryClient();
-    const remountMode =
-      parseFilesViewModeCookieHeader(document.cookie) ?? "list";
-    renderDrive(remountMode);
+    renderDrive(filesViewModeFromDocumentCookie());
 
     await waitFor(() => {
       expect(screen.getByTestId("files-layout-grid")).toBeVisible();
@@ -1044,7 +1096,7 @@ describe("DrivePage files view mode", () => {
         }),
     );
 
-    renderDrive(parseFilesViewModeCookieHeader(document.cookie) ?? "list");
+    renderDrive(filesViewModeFromDocumentCookie());
 
     await waitFor(() => {
       expect(screen.getByTestId("files-layout-skeleton-grid")).toBeVisible();
@@ -1111,7 +1163,7 @@ describe("DrivePage files view mode", () => {
     useIsMobileMock.mockReturnValue(true);
     document.cookie = "files_view_mode=grid; path=/";
 
-    renderDrive(parseFilesViewModeCookieHeader(document.cookie) ?? "list");
+    renderDrive(filesViewModeFromDocumentCookie());
 
     await waitFor(() => {
       expect(screen.getByTestId("files-layout-list")).toBeVisible();

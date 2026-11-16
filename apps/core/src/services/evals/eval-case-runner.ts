@@ -26,6 +26,8 @@ import {
   type EvalLaneRecord,
   resetEvalLaneForSokoBot,
 } from "./eval-lanes.service";
+import { seoEvalChecks } from "./eval-seo-checks";
+import { isSeoEvalCase, prepareSeoEvalCase } from "./eval-seo-fixtures";
 
 /** What a finished case reports; the runner stores it on its result. */
 export interface CaseOutcome {
@@ -101,8 +103,34 @@ async function startScenario(
   prepare?: CmoChatSetup,
 ): Promise<CaseStart> {
   const sokoBotId = bot === "cuso" ? lane.cusoBotId : lane.sokoBotId;
+  const clientTurnId = evalClientTurnId(context.resultId);
+  const seoCase = bot === "soko-bot" && isSeoEvalCase(scenario.id);
+  if (seoCase) {
+    const previous = await prisma.sokoBotTurn.findFirst({
+      where: { sokoBotId, clientTurnId },
+      select: { id: true },
+    });
+    if (previous) {
+      const saved = await prisma.evalResult.findUniqueOrThrow({
+        where: { id: context.resultId },
+        select: { state: true },
+      });
+      return {
+        kind: "started",
+        turnId: previous.id,
+        state:
+          saved.state &&
+          typeof saved.state === "object" &&
+          !Array.isArray(saved.state)
+            ? saved.state
+            : {},
+      };
+    }
+  }
   if (await botIsBusy(sokoBotId)) return { kind: "busy" };
-  const state = prepare ? await prepareCmoChatCase(lane, prepare) : {};
+  let state: Record<string, unknown> = prepare
+    ? await prepareCmoChatCase(lane, prepare)
+    : {};
   if (bot === "soko-bot" && (context.firstOfSuite || scenario.setup))
     await resetEvalLaneForSokoBot(lane);
   for (const schedule of scenario.setup?.schedules ?? [])
@@ -113,7 +141,11 @@ async function startScenario(
       timezone: "Europe/Berlin",
       ...schedule,
     });
-  const clientTurnId = evalClientTurnId(context.resultId);
+  if (seoCase) {
+    const prepared = await prepareSeoEvalCase(lane, scenario, context.resultId);
+    scenario = prepared.scenario;
+    state = { ...state, ...prepared.state };
+  }
   const turnId =
     bot === "cuso"
       ? (
@@ -177,6 +209,12 @@ async function pollScenario(
   );
   if (infrastructure) return { kind: "done", outcome: infrastructure };
   const result = evaluateScenario(scenario, turn);
+  if (isSeoEvalCase(scenario.id)) {
+    const checks = await seoEvalChecks(scenario.id, lane, turn, state);
+    result.checks.push(...checks);
+    result.total += checks.length;
+    result.passed += checks.filter((check) => check.pass).length;
+  }
   const comments = (state as { comments?: Record<string, string> } | null)
     ?.comments;
   if (comments) {

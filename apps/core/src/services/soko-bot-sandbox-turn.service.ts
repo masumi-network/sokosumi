@@ -6,7 +6,6 @@ import {
   redactSokoBotSensitiveText,
 } from "@sokosumi/soko-bot";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { getEnv } from "@/config/env";
 import {
   badGateway,
   badRequest,
@@ -16,6 +15,8 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
+import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
+import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
 import prisma from "@/lib/db/prisma";
 import {
   ACTION_CAPABILITIES,
@@ -553,7 +554,8 @@ export async function proxySandboxModelCall(
     throw badRequest("Model calls must stream");
   if (request.headers.get("ai-language-model-id") !== version.model)
     throw forbidden("Model is not this turn's");
-  const apiKey = getEnv().AI_GATEWAY_API_KEY;
+  const purpose = await loadSokoBotTurnPurpose(claims.turnId);
+  const apiKey = aiGatewayApiKey(purpose);
   if (!apiKey) throw internalServerError("Model access is not configured");
 
   let payload: Record<string, unknown>;
@@ -568,6 +570,7 @@ export async function proxySandboxModelCall(
     role: "agent",
     model: version.model,
     inferenceRegion: version.inferenceRegion,
+    purpose,
   });
   const reasoning = reasoningSummaryOptions(payload.providerOptions);
   const gateway = isGatewaySearchCall(payload)

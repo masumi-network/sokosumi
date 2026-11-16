@@ -267,6 +267,26 @@ export function primaryEmail(channels: ContactChannel[]): string | null {
   );
 }
 
+/**
+ * The addresses to paste into a mail's To or BCC: each contact's
+ * `primaryEmail`, once per address whatever its case. `skipped` counts the
+ * contacts without an email.
+ */
+export function contactEmails(contacts: { channels: ContactChannel[] }[]): {
+  emails: string[];
+  skipped: number;
+} {
+  const emails = new Map<string, string>();
+  let skipped = 0;
+  for (const contact of contacts) {
+    const email = primaryEmail(contact.channels);
+    if (!email) skipped++;
+    else if (!emails.has(email.toLowerCase()))
+      emails.set(email.toLowerCase(), email);
+  }
+  return { emails: [...emails.values()], skipped };
+}
+
 /** Channel order in a row and the panel: the most direct ways first. */
 export const CHANNEL_ORDER: ContactChannelType[] = [
   "EMAIL",

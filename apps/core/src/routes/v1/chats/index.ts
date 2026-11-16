@@ -8,6 +8,7 @@ import signalsRouter from "./signals/index.js";
 import skillsRouter from "./skills/index.js";
 import stickersRouter from "./stickers/index.js";
 import threadsRouter from "./threads/index.js";
+import transcriptionsRouter from "./transcriptions/index.js";
 
 const app = new OpenAPIHono();
 
@@ -19,5 +20,6 @@ app.route("/signals", signalsRouter);
 app.route("/skills", skillsRouter);
 app.route("/stickers", stickersRouter);
 app.route("/threads", threadsRouter);
+app.route("/transcriptions", transcriptionsRouter);
 
 export default app;

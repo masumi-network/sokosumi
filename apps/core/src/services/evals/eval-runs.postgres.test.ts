@@ -89,8 +89,9 @@ vi.mock("./eval-case-runner", async (importOriginal) => {
 import prisma from "@/lib/db/prisma";
 import {
   cancelEvalRun,
-  createDailyEvalRun,
   createEvalRun,
+  createWeeklyEvalRun,
+  evalWeekStart,
   getEvalRunReport,
   listEvalRuns,
   tickEvalRuns,
@@ -146,16 +147,23 @@ describe.skipIf(!enabled)("eval runs", () => {
     ]);
   });
 
-  it("runs the daily run once a day, one repeat; a started run defaults to one too", async () => {
-    const daily = await createDailyEvalRun();
-    expect(daily?.repeats).toBe(1);
-    expect(daily?.trigger).toBe("DAILY");
-    expect(await createDailyEvalRun()).toBeNull();
+  it("runs the weekly run once a week, one repeat; a started run defaults to one too", async () => {
+    const weekly = await createWeeklyEvalRun();
+    expect(weekly?.repeats).toBe(1);
+    expect(weekly?.trigger).toBe("DAILY");
+    expect(await createWeeklyEvalRun()).toBeNull();
     const manual = await createEvalRun({
       trigger: "MANUAL",
       caseIds: ["ambiguous-request"],
     });
     expect(manual.repeats).toBe(1);
+  });
+
+  it("starts the eval week on Monday 00:00 UTC", () => {
+    const monday = new Date("2026-11-16T00:00:00.000Z");
+    expect(evalWeekStart(new Date("2026-11-16T00:00:00.000Z"))).toEqual(monday);
+    expect(evalWeekStart(new Date("2026-11-19T12:00:00.000Z"))).toEqual(monday);
+    expect(evalWeekStart(new Date("2026-11-22T23:59:00.000Z"))).toEqual(monday);
   });
 
   it("refuses unknown cases, bad repeats and unknown versions", async () => {

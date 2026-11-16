@@ -13,6 +13,8 @@ import { configDefaults, defineConfig } from "vitest/config";
  * exclude; the filter then narrows the run. Directory filters do not.
  */
 const optInPostgresFiles = [
+  "src/services/project-seo.postgres.test.ts",
+  "src/services/project-seo-page-changes.postgres.test.ts",
   "src/services/image-studio-recovery.postgres.test.ts",
   "src/helpers/calendar-erasure.postgres.test.ts",
   "src/helpers/calendar-feature-invalidation.postgres.test.ts",
@@ -32,6 +34,17 @@ const optInPostgresFiles = [
   "src/helpers/transaction-history.postgres.test.ts",
   "src/helpers/history-sort-at.postgres.test.ts",
   "src/helpers/soko-bot-owner-scope.postgres.test.ts",
+  "src/helpers/cuso-project-credits.postgres.test.ts",
+  "src/routes/v1/webhooks/polar.postgres.test.ts",
+  "src/routes/v1/webhooks/polar-refund.postgres.test.ts",
+  "src/routes/v1/webhooks/polar.renewals.postgres.test.ts",
+  "src/routes/v1/webhooks/polar-top-up.postgres.test.ts",
+  "src/services/polar-credit-grant.postgres.test.ts",
+  "src/services/cmo-free-hiring.postgres.test.ts",
+  "src/services/cmo-tester-credits.postgres.test.ts",
+  "src/services/polar-plan-change.postgres.test.ts",
+  "src/services/polar-subscription-end.postgres.test.ts",
+  "src/services/polar-yearly-grant-sync.postgres.test.ts",
 ];
 
 const optInIntegrationFiles = [

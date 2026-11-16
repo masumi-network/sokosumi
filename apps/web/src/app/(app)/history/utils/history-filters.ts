@@ -11,6 +11,7 @@ export const HISTORY_TYPE_VALUES = [
   "task",
   "coworker",
   "sokoBot",
+  "seoChat",
   "contacts",
   "topUp",
   "unattributed",
@@ -25,6 +26,8 @@ export interface HistoryFilters {
   scope: HistoryScope;
   type: HistoryType | null;
   projectId: string | null;
+  /** One Task's charges and refunds, opened from that Task's page. */
+  taskId: string | null;
 }
 
 export interface ProjectFilterOption {
@@ -40,6 +43,7 @@ export interface HistoryFiltersSearchParams {
   scope?: HistoryFilterQueryParam;
   type?: HistoryFilterQueryParam;
   projectId?: HistoryFilterQueryParam;
+  taskId?: HistoryFilterQueryParam;
 }
 
 export const HISTORY_FILTER_PARAM_KEYS = {
@@ -47,6 +51,7 @@ export const HISTORY_FILTER_PARAM_KEYS = {
   scope: "scope",
   type: "type",
   projectId: "projectId",
+  taskId: "taskId",
 } as const;
 
 type SearchParamsLike = Pick<URLSearchParams, "toString">;
@@ -147,7 +152,7 @@ export function sanitizeHistoryTypeInput(raw: unknown): HistoryType | null {
   return isHistoryTypeValue(normalized) ? normalized : null;
 }
 
-export function sanitizeHistoryProjectIdInput(raw: unknown): string | null {
+export function sanitizeHistoryUuidInput(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
 
   const normalized = raw.trim();
@@ -165,8 +170,11 @@ export function parseHistoryFilters(
       activeOrganizationId,
     ),
     type: sanitizeHistoryTypeInput(normalizeOptionalString(searchParams.type)),
-    projectId: sanitizeHistoryProjectIdInput(
+    projectId: sanitizeHistoryUuidInput(
       normalizeOptionalString(searchParams.projectId),
+    ),
+    taskId: sanitizeHistoryUuidInput(
+      normalizeOptionalString(searchParams.taskId),
     ),
   };
 }
@@ -183,6 +191,7 @@ export function getHistoryFiltersFromSearchParams(
       type: searchParams.get(HISTORY_FILTER_PARAM_KEYS.type) ?? undefined,
       projectId:
         searchParams.get(HISTORY_FILTER_PARAM_KEYS.projectId) ?? undefined,
+      taskId: searchParams.get(HISTORY_FILTER_PARAM_KEYS.taskId) ?? undefined,
     },
     activeOrganizationId,
   );
@@ -225,6 +234,12 @@ export function buildHistoryFiltersSearchParams(
     nextSearchParams.delete(HISTORY_FILTER_PARAM_KEYS.projectId);
   }
 
+  if (filters.taskId) {
+    nextSearchParams.set(HISTORY_FILTER_PARAM_KEYS.taskId, filters.taskId);
+  } else {
+    nextSearchParams.delete(HISTORY_FILTER_PARAM_KEYS.taskId);
+  }
+
   return nextSearchParams;
 }
 
@@ -232,5 +247,5 @@ export function getHistoryFiltersResetKey(
   filters: HistoryFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.q ?? "all"}:${filters.scope}:${filters.type ?? "all"}:${filters.projectId ?? "all"}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.q ?? "all"}:${filters.scope}:${filters.type ?? "all"}:${filters.projectId ?? "all"}:${filters.taskId ?? "all"}`;
 }

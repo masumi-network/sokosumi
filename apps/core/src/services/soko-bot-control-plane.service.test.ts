@@ -2,7 +2,9 @@ import { createHash } from "node:crypto";
 import {
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,
+  isSokoBotAnnouncementCapability,
   isSokoBotNewsletterCapability,
+  SOKO_BOT_ANNOUNCEMENT_CAPABILITIES,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
@@ -107,8 +109,12 @@ const {
       SOKO_BOT_PROACTIVE_PAUSED: boolean;
       SOKO_BOT_ENABLED?: boolean;
       EXA_API_KEY?: string;
+      SOKO_BOT_ANNOUNCEMENT_BOT_IDS: string[];
     }
-  >(() => ({ SOKO_BOT_PROACTIVE_PAUSED: false })),
+  >(() => ({
+    SOKO_BOT_PROACTIVE_PAUSED: false,
+    SOKO_BOT_ANNOUNCEMENT_BOT_IDS: [],
+  })),
   jobFindManyMock: vi.fn(),
   memoryCreateMock: vi.fn(),
   memoryFindFirstMock: vi.fn(),
@@ -153,6 +159,16 @@ const { forfeitMock, forfeitIfLeavingCmoMock } = vi.hoisted(() => ({
 vi.mock("@/helpers/cuso-project-credits", () => ({
   forfeitCusoProjectCredits: forfeitMock,
   forfeitCusoProjectCreditsIfLeavingCmo: forfeitIfLeavingCmoMock,
+}));
+const { revokeSubscriptionMock, revokeSubscriptionIfLeavingCmoMock } =
+  vi.hoisted(() => ({
+    revokeSubscriptionMock: vi.fn(),
+    revokeSubscriptionIfLeavingCmoMock: vi.fn(),
+  }));
+vi.mock("@/services/polar-subscription-end.service", () => ({
+  revokeCusoSubscription: revokeSubscriptionMock,
+  revokeCusoSubscriptionIfLeavingCmo: revokeSubscriptionIfLeavingCmoMock,
+  revokeSubscriptionsLeftByEnding: vi.fn(),
 }));
 vi.mock("@/helpers/chat-room-mention-status", () => ({
   failOpenChatRoomMentions: failOpenMentionsMock,
@@ -254,6 +270,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: scheduleFindFirstMock,
       update: scheduleUpdateMock,
     },
+    sokoBotScheduleRunChange: { findMany: async () => [] },
     sokoBotScheduleRun: {
       findFirst: scheduleRunFindFirstMock,
       findUnique: scheduleRunFindUniqueMock,
@@ -445,7 +462,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       disabledAt: null,
       disabledReason: null,
     });
-    getEnvMock.mockReturnValue({ SOKO_BOT_PROACTIVE_PAUSED: false });
+    getEnvMock.mockReturnValue({
+      SOKO_BOT_PROACTIVE_PAUSED: false,
+      SOKO_BOT_ANNOUNCEMENT_BOT_IDS: [],
+    });
     adminActionCreateMock.mockResolvedValue({});
     adminActionFindFirstMock.mockResolvedValue(null);
     adminActionFindManyMock.mockResolvedValue([]);
@@ -524,6 +544,47 @@ describe("SokoBotControlPlane lifecycle", () => {
     },
   );
 
+  it.each([true, false])(
+    "offers announcement tools only to a listed bot: %s",
+    async (listed) => {
+      getEnvMock.mockReturnValue({
+        SOKO_BOT_PROACTIVE_PAUSED: false,
+        SOKO_BOT_ANNOUNCEMENT_BOT_IDS: listed ? [BOT_ID] : [],
+      });
+      botFindFirstMock.mockResolvedValue(adminBot());
+      botFindUniqueMock.mockResolvedValue(adminBot());
+      turnFindUniqueMock.mockResolvedValue(null);
+      turnFindFirstMock.mockResolvedValue(null);
+      turnCreateMock.mockResolvedValue({
+        id: "announcement-turn",
+        leaseToken: "announcement-lease",
+      });
+      const runtime = runtimeWithReset(vi.fn());
+      runtime.createSession = vi.fn().mockResolvedValue({
+        sessionId: "announcement-session",
+        runtimeVersion: "test",
+        acceptedAt: new Date().toISOString(),
+      });
+      await new SokoBotControlPlane(
+        runtime,
+        {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder,
+        new JevTurnClassifier(),
+      ).startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "announcement-client",
+        message: "Draft this week's announcement",
+      });
+      const granted = turnCreateMock.mock.calls[0]?.[0]?.data
+        ?.capabilityNames as string[];
+      for (const capability of SOKO_BOT_ANNOUNCEMENT_CAPABILITIES) {
+        expect(granted.includes(capability)).toBe(listed);
+      }
+    },
+  );
+
   it.each([
     { exaKey: "exa-key", offered: true },
     { exaKey: undefined, offered: false },
@@ -532,6 +593,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     async ({ exaKey, offered }) => {
       getEnvMock.mockReturnValue({
         SOKO_BOT_PROACTIVE_PAUSED: false,
+        SOKO_BOT_ANNOUNCEMENT_BOT_IDS: [],
         EXA_API_KEY: exaKey,
       });
       const cuso = adminBot({
@@ -2491,7 +2553,9 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(granted).toContain("hire_agent");
     expect(granted).toEqual(
       SOKO_BOT_ROUTE_CAPABILITIES.HIRE_AGENT.filter(
-        (capability) => !isSokoBotNewsletterCapability(capability),
+        (capability) =>
+          !isSokoBotNewsletterCapability(capability) &&
+          !isSokoBotAnnouncementCapability(capability),
       ),
     );
   });
@@ -3324,6 +3388,34 @@ describe("SokoBotControlPlane lifecycle", () => {
       );
     });
 
+    it("ends Cuso's subscription at Polar before the write-off", async () => {
+      await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
+
+      expect(revokeSubscriptionMock).toHaveBeenCalledExactlyOnceWith(BOT_ID);
+      expect(revokeSubscriptionMock.mock.invocationCallOrder[0]).toBeLessThan(
+        forfeitMock.mock.invocationCallOrder[0] ?? 0,
+      );
+    });
+
+    it("archives nothing and writes nothing off when Polar refuses", async () => {
+      revokeSubscriptionMock.mockRejectedValueOnce(new Error("polar refused"));
+
+      await expect(
+        new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID),
+      ).rejects.toThrow("polar refused");
+
+      expect(forfeitMock).not.toHaveBeenCalled();
+      expect(botUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("leaves the subscription alone when a member may not archive", async () => {
+      await expect(
+        new SokoBotControlPlane().archive("member_1", "ws_1", SHARED_ID),
+      ).rejects.toMatchObject({ status: 403 });
+
+      expect(revokeSubscriptionMock).not.toHaveBeenCalled();
+    });
+
     it("writes nothing off for an already archived bot", async () => {
       botFindFirstMock.mockResolvedValue(sharedBot({ archivedAt: new Date() }));
 
@@ -3821,6 +3913,35 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
     const nextRunAt = scheduleUpdateMock.mock.calls[0]?.[0]?.data?.nextRunAt;
     expect(nextRunAt.getTime()).toBeGreaterThan(now.getTime());
+    // Switching it back on is not rewriting it: the run's tools stay.
+    expect(
+      scheduleUpdateMock.mock.calls[0]?.[0]?.data?.capabilityNames,
+    ).toBeUndefined();
+  });
+
+  it("gives a schedule a person rewrites their chat tools", async () => {
+    scheduleFindFirstMock.mockResolvedValue({
+      id: "schedule_1",
+      sokoBotId: BOT_ID,
+      requestedByUserId: "user_1",
+      enabled: true,
+      consecutiveFailures: 0,
+      timezone: "UTC",
+      cronExpression: "0 16 * * 5",
+      nextRunAt: new Date("2026-11-20T16:00:00.000Z"),
+    });
+    scheduleUpdateMock.mockResolvedValue({ id: "schedule_1" });
+
+    await new SokoBotControlPlane().updateSchedule({
+      userId: "user_1",
+      scheduleId: "schedule_1",
+      prompt: "Draft this week's announcement",
+    });
+
+    const granted = scheduleUpdateMock.mock.calls[0]?.[0]?.data
+      ?.capabilityNames as string[];
+    expect(granted).toContain("start_background_run");
+    expect(granted).not.toContain("delete_schedule");
   });
 
   it("recursively redacts sensitive admin presentation fields", async () => {
@@ -4102,6 +4223,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     async (action) => {
       getEnvMock.mockReturnValue({
         SOKO_BOT_PROACTIVE_PAUSED: false,
+        SOKO_BOT_ANNOUNCEMENT_BOT_IDS: [],
         SOKO_BOT_ENABLED: false,
       });
       botFindUniqueMock.mockResolvedValue(adminBot());
@@ -4670,6 +4792,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       expectedCents: 5n,
       shortfall: false,
       organizationId: null,
+      cusoProjectId: null,
     });
     let insideTransaction = false;
     let notifiedInsideTransaction: boolean | null = null;
@@ -4717,6 +4840,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       expectedCents: 5n,
       shortfall: false,
       organizationId: null,
+      cusoProjectId: null,
     });
 
     const settled = await new SokoBotControlPlane().expireTurn("turn_1");
@@ -4746,6 +4870,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       expectedCents: 5n,
       shortfall: false,
       organizationId: "org_1",
+      cusoProjectId: null,
     });
 
     await new SokoBotControlPlane().expireTurn("turn_1");
@@ -4757,6 +4882,40 @@ describe("SokoBotControlPlane lifecycle", () => {
       organizationId: "org_1",
     });
   });
+
+  it.each([
+    ["an empty pool and a healthy Project balance", "plenty"],
+    ["a low Project balance", "low"],
+  ])(
+    "sends no pool notice for a Cuso's charge paid from his Project credits, with %s",
+    async () => {
+      turnFindUniqueMock.mockResolvedValue({
+        sokoBotId: BOT_ID,
+        requestedByUserId: "user_1",
+        eveSessionId: "session_1",
+        startedAt: new Date(Date.now() - 5_000),
+        costUsdMicros: 0n,
+        status: "RUNNING",
+        leaseToken: "lease_1",
+        scheduleRun: null,
+      });
+      turnUpdateManyMock.mockResolvedValue({ count: 1 });
+      botUpdateManyMock.mockResolvedValue({ count: 1 });
+      recordUsageMock.mockResolvedValue({
+        chargedCents: 5n,
+        expectedCents: 5n,
+        shortfall: false,
+        organizationId: "org_1",
+        cusoProjectId: "01960001-0001-7001-8001-0000000000aa",
+      });
+
+      await new SokoBotControlPlane().expireTurn("turn_1");
+
+      // The only low-credit notice sends him to Sokosumi's pool top-up,
+      // which CMO does not offer; his Project's notice belongs to CMO.
+      expect(notifyLowBalanceAfterChargeMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("settles a no-session cancellation only under its current lease", async () => {
     turnFindFirstMock.mockResolvedValue({ leaseToken: "cancel-lease-1" });
@@ -4840,6 +4999,46 @@ describe("updateVersion", () => {
       botUpdateManyMock.mock.invocationCallOrder[0] ?? 0,
     );
   });
+
+  it("ends Cuso's subscription before the admin lab's version change, and changes nothing when Polar refuses", async () => {
+    vi.clearAllMocks();
+    const cuso = adminBot({
+      userId: null,
+      versionId: CMO_SOKO_BOT_VERSION_ID,
+      workspace: { organizationId: "org_1" },
+    });
+    botFindFirstMock.mockResolvedValue(cuso);
+    botUpdateManyMock.mockResolvedValue({ count: 1 });
+    const move = () =>
+      new SokoBotControlPlane().updateVersion(
+        "admin_1",
+        "workspace_1",
+        "v19",
+        { allowUnpromoted: true },
+        { kind: "id", sokoBotId: BOT_ID },
+      );
+
+    await move();
+
+    expect(revokeSubscriptionIfLeavingCmoMock).toHaveBeenCalledExactlyOnceWith(
+      BOT_ID,
+      "v19",
+    );
+    expect(
+      revokeSubscriptionIfLeavingCmoMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(forfeitIfLeavingCmoMock.mock.invocationCallOrder[0] ?? 0);
+
+    vi.clearAllMocks();
+    botFindFirstMock.mockResolvedValue(cuso);
+    revokeSubscriptionIfLeavingCmoMock.mockRejectedValueOnce(
+      new Error("polar refused"),
+    );
+
+    await expect(move()).rejects.toThrow("polar refused");
+
+    expect(forfeitIfLeavingCmoMock).not.toHaveBeenCalled();
+    expect(botUpdateManyMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("SET_VERSION and fleet migration", () => {
@@ -4853,6 +5052,7 @@ describe("SET_VERSION and fleet migration", () => {
     });
     getEnvMock.mockReturnValue({
       SOKO_BOT_PROACTIVE_PAUSED: false,
+      SOKO_BOT_ANNOUNCEMENT_BOT_IDS: [],
       SOKO_BOT_ENABLED: true,
     });
     adminActionCreateMock.mockResolvedValue({});
@@ -4919,6 +5119,45 @@ describe("SET_VERSION and fleet migration", () => {
     expect(forfeitIfLeavingCmoMock.mock.invocationCallOrder[0]).toBeLessThan(
       botUpdateMock.mock.invocationCallOrder[0] ?? 0,
     );
+  });
+
+  it("ends Cuso's subscription before SET_VERSION, and changes nothing when Polar refuses", async () => {
+    botFindUniqueMock.mockResolvedValue(
+      adminBot({ userId: null, versionId: CMO_SOKO_BOT_VERSION_ID }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+    const move = (operationId: string) =>
+      new SokoBotControlPlane().performAdminAction({
+        sokoBotId: BOT_ID,
+        operatorId: "admin_1",
+        action: "SET_VERSION",
+        versionId: "v16",
+        reason: "Move Cuso to the assistant",
+        operationId,
+      });
+
+    await move("cuso-off-cmo-revoke");
+
+    expect(revokeSubscriptionIfLeavingCmoMock).toHaveBeenCalledExactlyOnceWith(
+      BOT_ID,
+      "v16",
+    );
+    expect(
+      revokeSubscriptionIfLeavingCmoMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(forfeitIfLeavingCmoMock.mock.invocationCallOrder[0] ?? 0);
+
+    vi.clearAllMocks();
+    revokeSubscriptionIfLeavingCmoMock.mockRejectedValueOnce(
+      new Error("polar refused"),
+    );
+
+    await expect(move("cuso-off-cmo-refused")).rejects.toThrow("polar refused");
+
+    expect(forfeitIfLeavingCmoMock).not.toHaveBeenCalled();
+    expect(botUpdateMock).not.toHaveBeenCalled();
   });
 
   it("asks the write-off about a move between CMO versions too", async () => {

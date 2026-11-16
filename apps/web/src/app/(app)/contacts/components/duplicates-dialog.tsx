@@ -1,6 +1,6 @@
 "use client";
 import type { Contact, ContactDuplicateGroup } from "@sokosumi/core-client";
-import { GitMerge } from "lucide-react";
+import { GitMerge, UserX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { contactReach, primaryEmail } from "@/app/contacts/contacts-view";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ export function DuplicatesDialog({
   groups,
   capped = false,
   onMerge,
+  onNotSame,
   onOpenContact,
   onClose,
 }: {
@@ -25,6 +26,8 @@ export function DuplicatesDialog({
   /** Core has more groups than it returned; merging reveals the next ones. */
   capped?: boolean;
   onMerge: (contacts: Contact[]) => void;
+  /** They are different people: stop suggesting them as one. */
+  onNotSame: (contacts: Contact[]) => void;
   onOpenContact: (id: string) => void;
   onClose: () => void;
 }) {
@@ -49,6 +52,17 @@ export function DuplicatesDialog({
                   <p className="min-w-0 flex-1 truncate text-sm font-medium">
                     {group.contacts[0]?.name ?? group.name}
                   </p>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onNotSame(group.contacts)}
+                    aria-label={t("notSameGroup", {
+                      name: group.contacts[0]?.name ?? group.name,
+                    })}
+                  >
+                    <UserX aria-hidden className="size-4" />
+                    {t("notSame")}
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"

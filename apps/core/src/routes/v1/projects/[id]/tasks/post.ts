@@ -5,6 +5,7 @@ import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { requireSeoTaskExecutionUnchanged } from "@/helpers/seo-task-execution";
 import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
@@ -113,6 +114,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!(await lockTaskRows(tx, [body.taskId]))) {
           throw notFound("Task not found");
         }
+        const current = await tx.task.findFirst({
+          where: {
+            id: body.taskId,
+            archivedAt: null,
+            workspaceId,
+            ...buildHumanTaskVisibilityWhere(userContext.userId),
+          },
+        });
+        if (!current) throw notFound("Task not found");
+        await requireSeoTaskExecutionUnchanged(tx, current, { projectId });
         const projectAssignment = await tx.task.updateMany({
           where: {
             id: body.taskId,

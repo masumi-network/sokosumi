@@ -34,6 +34,7 @@ import {
   parseTasksDensity,
   TASKS_DENSITY_COOKIE_NAME,
 } from "@/lib/ui-preferences/tasks-density";
+import { parseTasksViewMode } from "@/lib/ui-preferences/tasks-view-mode";
 import { getDefaultTasksViewMode } from "@/lib/ui-preferences/tasks-view-mode.server";
 
 interface TasksPageProps {
@@ -135,7 +136,11 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     getTranslations("App"),
     cookies(),
     getSession(),
-    getDefaultTasksViewMode(),
+    // `?view=board` (Home's "need your input" link) opens the board even
+    // where the list is the saved or device default, without saving it.
+    getDefaultTasksViewMode(
+      parseTasksViewMode(firstQueryString(resolvedSearchParams.view)),
+    ),
   ]);
   const defaultDensity =
     parseTasksDensity(cookieStore.get(TASKS_DENSITY_COOKIE_NAME)?.value) ??
