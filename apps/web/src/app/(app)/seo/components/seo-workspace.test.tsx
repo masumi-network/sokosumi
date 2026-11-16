@@ -2795,27 +2795,15 @@ describe("SEO workspace integration", () => {
       }),
     ).toBeChecked();
     expect(screen.getByTestId("seo-demand-chart")).toBeVisible();
-    // Google Analytics has a slim line of its own at the top, closed: its step is in no list of steps.
-    const statistics = screen.getByRole("button", {
-      name: /^Google statistics/,
-    });
-    expect(statistics).toHaveAttribute("aria-expanded", "false");
+    // Google Analytics has a slim line of its own at the top: its step is in no list of steps.
+    expect(screen.getByTestId("seo-agent-statistics")).toHaveTextContent(
+      /^Google statistics/,
+    );
     expect(
       screen.queryByText(
         /Connect Google Analytics|Google Analytics is connected/,
       ),
     ).toBeNull();
-    await user.click(statistics);
-    expect(
-      within(screen.getByTestId("seo-agent-statistics")).getByText(
-        "Connect Google Analytics to measure visits and page views.",
-      ),
-    ).toBeVisible();
-    expect(
-      screen.getAllByText(
-        "Connect Google Analytics to measure visits and page views.",
-      ),
-    ).toHaveLength(1);
     // A keyword of the picture opens the Rankings tab on that keyword.
     await user.click(
       within(screen.getByTestId("seo-demand-chart")).getByRole("button", {
@@ -2837,32 +2825,85 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByDisplayValue("battery app")).toBeNull();
   });
 
-  it("starts the Google statistics line open while Analytics is not connected, and closed while it is connected", async () => {
+  it("names why the Google statistics line has no Analytics data, with the fix where one exists", async () => {
     const workspace = seoTestCheckedAudit();
     workspace.metrics = [seoTestMetric()];
-    // An expired connection reads as none.
-    for (const [status, name, open] of [
-      ["not_connected", "Google statistics: Analytics not connected", "true"],
-      ["needs_reconnect", "Google statistics: Analytics not connected", "true"],
+    const unrelated = [
+      { id: "properties/1", name: "galaxy-balls" },
+      { id: "properties/2", name: "roxtool" },
+    ];
+    // An expired connection reads as none. A connected account names its properties: none, none for the
+    // site, one for the site whose sync found nothing, or a list that could not be read.
+    for (const [status, properties, text, button] of [
+      [
+        "not_connected",
+        unrelated,
+        "Google statistics: Analytics not connected",
+        /connect/i,
+      ],
+      [
+        "needs_reconnect",
+        unrelated,
+        "Google statistics: Analytics not connected",
+        /connect/i,
+      ],
       [
         "connected",
-        "Google statistics: Analytics connected, not synced yet",
-        "false",
+        [],
+        "Google statistics: this Google account has no Analytics property",
+        "Google connections",
+      ],
+      [
+        "connected",
+        unrelated,
+        "Google statistics: none of your 2 Analytics properties is for example.com",
+        "Choose property",
+      ],
+      [
+        "connected",
+        [...unrelated, { id: "properties/3", name: "example.com" }],
+        "Google statistics: Analytics has no visits for these pages yet",
+        null,
+      ],
+      [
+        "connected",
+        null,
+        "Google statistics: Analytics could not be read",
+        null,
       ],
     ] as const) {
       vi.stubGlobal(
         "fetch",
         vi.fn(async (url: string) =>
-          Response.json(
-            url.endsWith("/connections/ga4")
-              ? { provider: "ga4", name: "Google", status, source: "native" }
-              : workspace,
-          ),
+          url.endsWith("/connections/ga4")
+            ? Response.json({
+                provider: "ga4",
+                name: "Google",
+                status,
+                source: "native",
+              })
+            : url.includes("/statistics/properties?provider=ga4")
+              ? properties
+                ? Response.json({
+                    provider: "ga4",
+                    properties,
+                    status: "available",
+                    reason: null,
+                  })
+                : new Response(null, { status: 500 })
+              : url.endsWith("/statistics")
+                ? Response.json({})
+                : Response.json(workspace),
         ),
       );
       renderWorkspace(workspace, "?tab=agent");
-      const line = await screen.findByRole("button", { name });
-      expect(line).toHaveAttribute("aria-expanded", open);
+      const line = screen.getByTestId("seo-agent-statistics");
+      await waitFor(() => expect(line).toHaveTextContent(text));
+      if (button)
+        expect(
+          within(line).getByRole("button", { name: button }),
+        ).toBeVisible();
+      else expect(within(line).queryByRole("button")).toBeNull();
       cleanup();
     }
   });

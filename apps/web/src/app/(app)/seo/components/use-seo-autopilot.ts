@@ -195,6 +195,12 @@ export function useSeoAutopilot(context: StatisticsContext) {
           : "idle";
   return {
     state,
+    /** Google Analytics alone: the Agent tab names why its statistics are missing. */
+    analytics: {
+      loading: analytics.loading,
+      failed: analytics.failed,
+      needsProperty: analytics.needsProperty,
+    },
     propertyProvider: search.needsProperty
       ? ("search_console" as const)
       : analytics.needsProperty
