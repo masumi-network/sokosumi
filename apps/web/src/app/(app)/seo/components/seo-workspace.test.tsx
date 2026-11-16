@@ -2603,6 +2603,62 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByText("Daily values")).toBeNull();
   });
 
+  it("titles the daily clicks picture on the Agent tab", () => {
+    const workspace = seoTestWorkspace();
+    workspace.metricsStatus = "available";
+    workspace.metrics = [
+      {
+        id: "sync:clicks",
+        key: "clicks",
+        label: "",
+        unit: "count",
+        source: "search_console",
+        propertyId: "sc-domain:example.com",
+        channel: "organic",
+        value: 3,
+        from: "2026-10-01",
+        to: "2026-10-02",
+        timeZone: "UTC",
+        observedAt: new Date(),
+        coverage: "complete",
+        notes: [],
+        points: [
+          { date: "2026-10-01", value: 1 },
+          { date: "2026-10-02", value: 2 },
+        ],
+      },
+    ];
+    // A saved check: the result card leads, not the setup card.
+    workspace.observations.push({
+      id: "11111111-1111-4111-8111-111111111111",
+      kind: "page_check",
+      source: "seo_coworker",
+      observedAt: new Date("2026-10-03T12:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: null,
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["mobile"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 12, skipped: 0, failed: 0 },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=agent");
+    // The picture says what it shows, as the keyword picture beside it does.
+    expect(
+      within(screen.getByTestId("seo-agent-graphics")).getByText(
+        "Search clicks",
+        { selector: "p" },
+      ),
+    ).toBeVisible();
+  });
+
   it("says whether Google indexes the page in view and names another canonical", () => {
     const workspace = seoTestWorkspace();
     const url = workspace.pages[0].url;

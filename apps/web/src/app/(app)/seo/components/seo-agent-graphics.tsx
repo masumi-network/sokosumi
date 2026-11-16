@@ -41,10 +41,14 @@ export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
         // The chart is a figure with its own name.
         <div
           className={cn(
-            "bg-background rounded-lg border p-3",
+            "bg-background space-y-3 rounded-lg border p-3",
             demand.rows.length > 0 && "lg:order-last lg:col-span-2",
           )}
         >
+          {/* The same title the demand chart beside it shows; the chart group already carries it as its name. */}
+          <p aria-hidden className="text-sm font-medium">
+            {t("metrics.clicks")}
+          </p>
           <SeoTrendChart
             key={clicks.id}
             series={clicks}
