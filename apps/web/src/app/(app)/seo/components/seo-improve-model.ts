@@ -6,6 +6,7 @@ import {
   type SeoCapability,
   type SeoStatisticsNoteGap,
 } from "@sokosumi/utils";
+import { seoIndexAssessments } from "./seo-index-triage-model";
 import { latestSeoMeasurements } from "./seo-statistics-model";
 
 /** The items not built yet, in the doc's groups and order; a group with no open item is left out. */
@@ -50,6 +51,7 @@ export type SeoAuditGap = {
   /** A message key under "App.Seo.improve.gaps". */
   message:
     | "noSearchConsole"
+    | "noSearchTraffic"
     | "noAnalytics"
     | "statisticsUnavailable"
     | SeoStatisticsNoteGap
@@ -137,11 +139,15 @@ export function seoAuditGaps(
   const connected = connectedSources(data);
   const gaps: SeoAuditGap[] = [];
   // A narrowed view says nothing about a source it does not show.
-  if (!connected.search_console && !narrowed)
+  if (!connected.search_console && !narrowed) {
+    const inspected = seoIndexAssessments(data).some(
+      (assessment) => assessment.status !== "unavailable",
+    );
     gaps.push({
-      message: "noSearchConsole",
-      fix: canSyncMetrics ? "connect_search_console" : null,
+      message: inspected ? "noSearchTraffic" : "noSearchConsole",
+      fix: !inspected && canSyncMetrics ? "connect_search_console" : null,
     });
+  }
   if (!connected.ga4 && !narrowed)
     gaps.push({
       message: "noAnalytics",
@@ -220,6 +226,7 @@ export function seoAuditGaps(
 type CustomerAuditGap = {
   message:
     | "noSearchConsole"
+    | "noSearchTraffic"
     | "noAnalytics"
     | "statisticsIncomplete"
     | "checksIncomplete"
@@ -239,6 +246,7 @@ export function seoCustomerAuditGaps(
   for (const gap of seoAuditGaps(data, narrowed)) {
     switch (gap.message) {
       case "noSearchConsole":
+      case "noSearchTraffic":
       case "noAnalytics":
       case "noCheck":
       case "paidOff":

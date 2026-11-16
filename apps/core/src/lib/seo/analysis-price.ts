@@ -16,6 +16,7 @@ import { z } from "zod";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import type { RequestSeoAnalysis } from "@/schemas/project-seo.schema";
 import { getSeoAnalysisExecution } from "./analysis-executor-config";
+import { originalSeoAuditPacket } from "./related-page-selection";
 
 /** The most this check can charge: what the dialog shows as "up to". */
 export function seoAnalysisMaxCredits(
@@ -137,7 +138,9 @@ export async function requireSeoTaskStartBalance(
       "The SEO Task no longer contains its approved request",
     );
   }
-  const approvedPacket = canonicalJsonKey(analysis.request);
+  const approvedPacket = canonicalJsonKey(
+    originalSeoAuditPacket(analysis.request),
+  );
   if (!approvedPacket || canonicalJsonKey(currentPacket) !== approvedPacket)
     throw unprocessableEntity(
       "The SEO Task request changed. Start a new check from the audit",
