@@ -117,9 +117,20 @@ for (const { name, ...viewport } of PROJECTS) {
         .click();
       await page.waitForURL((url) => !url.searchParams.has("q"));
       assert.equal(new URL(page.url()).searchParams.get("type"), "seoChat");
-      await page.getByRole("button", { name: "Clear all" }).waitFor({
-        state: "detached",
-      });
+      // Wait for the settled chips: reading them right after the URL changes
+      // raced the re-render once on a cold preview.
+      await chips
+        .getByRole("listitem")
+        .filter({ hasText: "Search:" })
+        .waitFor({ state: "detached" });
+      await chips
+        .getByRole("listitem")
+        .filter({ hasText: "Source: SEO chat" })
+        .waitFor();
+      assert.equal(
+        await page.getByRole("button", { name: "Clear all" }).count(),
+        0,
+      );
       assert.deepEqual(await chips.getByRole("listitem").allTextContents(), [
         "Source: SEO chat",
       ]);
