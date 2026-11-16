@@ -232,6 +232,7 @@ function ScopedMenuItems({
       label: t("seo"),
       Icon: SearchCheck,
       group: "marketing",
+      prefetchContent: true,
     },
     {
       key: "ads",
