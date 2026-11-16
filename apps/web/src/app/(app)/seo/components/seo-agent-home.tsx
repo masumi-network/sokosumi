@@ -385,8 +385,13 @@ function SeoAgentPanel({
                 leadFocused.current = true;
               }}
               onBlur={(event) => {
-                // A removed button blurs with no next target: that focus still counts as in the list.
-                if (event.relatedTarget) leadFocused.current = false;
+                // Focus that moved on, or went to the page by a click, has left. Focus whose element is gone,
+                // or whose window lost focus, still counts as in the list.
+                if (
+                  event.relatedTarget ||
+                  (document.hasFocus() && event.target.isConnected)
+                )
+                  leadFocused.current = false;
               }}
             >
               {stepItem(lead, primary)}

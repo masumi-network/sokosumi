@@ -6133,6 +6133,7 @@ describe("SEO workspace integration", () => {
     workspace.actions.push(
       { ...waiting, id: "title", title: "Fix the page title" },
       { ...waiting, id: "description", title: "Write a description" },
+      { ...waiting, id: "alt", title: "Describe the images" },
     );
     let served = workspace;
     vi.stubGlobal(
@@ -6143,8 +6144,6 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=agent");
     const first = await screen.findByRole("list", { name: "First step" });
     expect(within(first).getByText(/^Fix the page title/)).toBeVisible();
-    // Opening the tab moves no focus.
-    expect(screen.getByTestId("seo-agent-verdict")).not.toHaveFocus();
     served = {
       ...workspace,
       actions: [
@@ -6154,6 +6153,7 @@ describe("SEO workspace integration", () => {
           status: "task_created",
         },
         workspace.actions[1],
+        workspace.actions[2],
       ],
     };
     await user.click(
@@ -6167,7 +6167,36 @@ describe("SEO workspace integration", () => {
         ),
       ).toBeVisible(),
     );
-    expect(screen.getByTestId("seo-agent-verdict")).toHaveFocus();
+    const verdict = screen.getByTestId("seo-agent-verdict");
+    expect(verdict).toHaveFocus();
+    // A press that never focused the list (Safari does not focus a pressed button) moves no focus either.
+    verdict.blur();
+    served = {
+      ...served,
+      actions: served.actions.map((action) =>
+        action.id === "description"
+          ? {
+              ...action,
+              taskId: "9f0c2d6e-1a4b-4c3d-8e5f-6a7b8c9d0e1f",
+              status: "task_created",
+            }
+          : action,
+      ),
+    };
+    fireEvent.click(
+      within(screen.getByRole("list", { name: "First step" })).getByRole(
+        "button",
+        { name: "Create draft task" },
+      ),
+    );
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("list", { name: "First step" })).getByText(
+          /^Describe the images/,
+        ),
+      ).toBeVisible(),
+    );
+    expect(verdict).not.toHaveFocus();
   });
 
   it("says what a keyword result of zero means, with the depth the check read", async () => {
