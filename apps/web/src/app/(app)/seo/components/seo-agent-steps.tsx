@@ -69,18 +69,8 @@ export function SeoStepRow({
     step.kind === "refresh"
       ? [
           t(`agent.steps.refresh.${step.reason}`),
-          model.statisticsSync.state === "failed" ? (
-            <Button
-              key="refresh"
-              size="sm"
-              variant={variant}
-              disabled={model.pending}
-              onClick={model.statisticsSync.retry}
-            >
-              <RefreshCw />
-              {t("retry")}
-            </Button>
-          ) : null,
+          // A failed sync has its alert and Retry in the verdict card, which drops this step.
+          null,
         ]
       : step.kind === "connect"
         ? [

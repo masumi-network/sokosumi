@@ -2816,7 +2816,7 @@ describe("SEO workspace integration", () => {
       const line = await screen.findByRole("button", {
         name:
           status === "connected"
-            ? "Google statistics: Analytics connected"
+            ? "Google statistics: Analytics connected, not synced yet"
             : "Google statistics: Analytics not connected",
       });
       expect(line).toHaveAttribute(
@@ -5743,7 +5743,9 @@ describe("SEO workspace integration", () => {
     expect(run).not.toHaveAttribute("aria-disabled");
     // The position result leads the Agent tab, as a figure under the verdict.
     expect(
-      screen.getByRole("button", { name: "1 of 2 in the top 20 results" }),
+      screen.getByRole("button", {
+        name: "1 of 2 keywords in the top 20 results",
+      }),
     ).toBeVisible();
     expect(screen.getByText("The title is missing")).not.toBeVisible();
     await user.click(screen.getByText("Reason and evidence"));
@@ -6421,7 +6423,7 @@ describe("SEO workspace integration", () => {
     // "0 of 2" is no "not in Google": the figure names the results the check read.
     expect(
       await screen.findByRole("button", {
-        name: "0 of 2 in the top 20 to 100 results",
+        name: "0 of 2 keywords in the top 20 to 100 results",
       }),
     ).toBeVisible();
     // The line that dates the check shows the day: two reads of one check differ by minutes.
@@ -6486,7 +6488,9 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     expect(
-      await screen.findByRole("button", { name: "0 of 1 in top results" }),
+      await screen.findByRole("button", {
+        name: "0 of 1 keywords in top results",
+      }),
     ).toBeVisible();
     // The tests tile splits the tests without a result the way the Timeline row of the check does.
     await userEvent.click(screen.getByRole("tab", { name: "Actions" }));
@@ -6635,7 +6639,7 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByTestId("seo-summary-tests")).toBeNull();
     const figures = screen.getByTestId("seo-agent-figures");
     expect(
-      within(figures).getByRole("button", { name: /^1 of 2 in / }),
+      within(figures).getByRole("button", { name: /^1 of 2 keywords in / }),
     ).toBeVisible();
     // Every checked keyword has a number: the figure names no share of them.
     expect(
@@ -6662,7 +6666,9 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByTestId("seo-agent-figures")).toBeNull();
     await user.click(screen.getByRole("tab", { name: "Agent" }));
     // The keyword figure is the way to the Rankings tab.
-    await user.click(screen.getByRole("button", { name: /^1 of 2 in / }));
+    await user.click(
+      screen.getByRole("button", { name: /^1 of 2 keywords in / }),
+    );
     expect(screen.getByRole("tab", { name: "Rankings" })).toHaveAttribute(
       "aria-selected",
       "true",

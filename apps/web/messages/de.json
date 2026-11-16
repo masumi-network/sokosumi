@@ -12410,10 +12410,10 @@
         "firstStep": "Erster Schritt",
         "chart": "Angezeigtes Diagramm",
         "chartKeywords": "Keyword-Suchen",
-        "statistics": "{analytics, select, connected {Google-Statistiken: Analytics verbunden} missing {Google-Statistiken: Analytics nicht verbunden} other {Google-Statistiken}}",
+        "statistics": "{analytics, select, connected {Google-Statistiken: Analytics verbunden, noch nicht synchronisiert} missing {Google-Statistiken: Analytics nicht verbunden} other {Google-Statistiken}}",
         "figures": {
           "label": "Kennzahlen",
-          "rankings": "{depth, select, same {{found} von {read} in den Top {max} Ergebnissen} range {{found} von {read} in den Top {min} bis {max} Ergebnissen} other {{found} von {read} in den Top-Ergebnissen}}",
+          "rankings": "{depth, select, same {{found} von {read} Keywords in den Top {max} Ergebnissen} range {{found} von {read} Keywords in den Top {min} bis {max} Ergebnissen} other {{found} von {read} Keywords in den Top-Ergebnissen}}",
           "searches": "{partial, select, yes {{total} Suchen pro Monat für {keywords} von {of} Keywords} other {{total} Suchen pro Monat}}",
           "traffic": "{clicks, plural, one {# Klick} other {# Klicks}} · {impressions, plural, one {# Impression} other {# Impressionen}}"
         },

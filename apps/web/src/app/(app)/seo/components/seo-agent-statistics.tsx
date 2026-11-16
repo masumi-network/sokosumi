@@ -16,7 +16,8 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /**
  * The Google statistics of the Agent tab as one slim line at its top. Open, it holds the Analytics step and its
- * button. It starts closed once Analytics is connected, and open while it is not.
+ * button. The step exists only while no Analytics data is saved, so "connected" means connected and not synced
+ * yet. It starts closed then, and open while Analytics is not connected.
  */
 export function SeoAgentStatistics({
   step,
