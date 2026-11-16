@@ -9,15 +9,20 @@ import {
   it,
   vi,
 } from "vitest";
-
+import {
+  assertSeoArtifactMatchesRequest,
+  parsePublicSeoArtifact,
+} from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { SeoTaskIndexingReceipt } from "@/schemas/seo-task-indexing.schema";
 import { getProjectSeoWorkspace } from "@/services/project-seo.service";
+import { legacyReport, siteStrategyReport } from "@/test-fixtures/project-seo";
 import {
   createTaskScheduleTestApp,
   jsonRequest,
 } from "@/test-fixtures/task-schedule-app";
+import mountPages from "../seo-pages/post";
 import mount from "./post";
 
 const { network } = vi.hoisted(() => ({
@@ -107,6 +112,51 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
     return createTaskScheduleTestApp(mount, actor, null).request(
       `http://localhost/${taskId}/seo-indexing/${result ? "result/" : ""}context-v1`,
       jsonRequest("POST", { expectedContext, ...result, ...extra }),
+    );
+  }
+  async function approveDiscovery(pageUrls: string[] = PAGE_URLS) {
+    const analysis = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+      where: { taskId },
+    });
+    const packet = {
+      version: 1,
+      requestId: analysis.id,
+      pageUrls,
+      discoverRelated: true,
+      price: { kind: "fixed", credits: 750 },
+      countryCode: "US",
+      languageCode: "en",
+    };
+    const pages = await prisma.projectSeoPage.findMany({
+      where: { auditId, url: { in: pageUrls } },
+    });
+    await prisma.projectSeoAnalysis.update({
+      where: { id: analysis.id },
+      data: {
+        request: packet,
+        pageIds: pageUrls.map(
+          (url) => pages.find((page) => page.url === url)!.id,
+        ),
+      },
+    });
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { description: `seo_audit: ${JSON.stringify(packet)}` },
+    });
+    return packet;
+  }
+  function selectPages(
+    relatedPageUrls: string[] = ["https://example.test/related"],
+    extra: Record<string, unknown> = {},
+  ) {
+    return createTaskScheduleTestApp(mountPages, actor, null).request(
+      `http://localhost/${taskId}/seo-pages/context-v1`,
+      jsonRequest("POST", {
+        expectedContext,
+        seedPageUrls: PAGE_URLS,
+        relatedPageUrls,
+        ...extra,
+      }),
     );
   }
   async function receipt() {
@@ -291,6 +341,311 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
     await prisma.user.deleteMany({
       where: { id: { in: [ownerId, otherOwnerId] } },
     });
+  });
+
+  it("seals discovered pages once and accepts only their frozen report scope", async () => {
+    const original = await approveDiscovery();
+    const first = await selectPages();
+    expect(first.status, await first.clone().text()).toBe(200);
+    expect(first.headers.get("cache-control")).toBe("no-store");
+    const selected = [...PAGE_URLS, "https://example.test/related"];
+    expect((await first.json()).data.pageUrls).toEqual(selected);
+    const analysis = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+      where: { taskId },
+    });
+    expect(analysis.pageIds).toHaveLength(3);
+    expect(analysis.request).toMatchObject({
+      pageUrls: selected,
+      relatedPageSelection: { seedPageUrls: PAGE_URLS, pageUrls: selected },
+    });
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: taskId } }))
+        .description,
+    ).toBe(`seo_audit: ${JSON.stringify(original)}`);
+    const related = await prisma.projectSeoPage.findFirstOrThrow({
+      where: { auditId, url: selected[2] },
+    });
+    expect(related.relationship).toBe("related");
+    expect(related.relatedToPageId).toBe(analysis.pageIds[0]);
+    const retried = await selectPages(["https://example.test/different"]);
+    expect(retried.status).toBe(200);
+    expect((await retried.json()).data.pageUrls).toEqual(selected);
+    expect(
+      await prisma.projectSeoPage.count({
+        where: { auditId, url: "https://example.test/different" },
+      }),
+    ).toBe(0);
+    const raw = {
+      ...siteStrategyReport(),
+      pages: selected.map((url) => ({
+        ...legacyReport(),
+        request: { ...legacyReport().request, url },
+      })),
+    };
+    const payload = parsePublicSeoArtifact(raw);
+    expect(() =>
+      assertSeoArtifactMatchesRequest(raw, payload, analysis),
+    ).not.toThrow();
+    expect(() =>
+      assertSeoArtifactMatchesRequest(
+        raw,
+        {
+          ...payload,
+          pageUrls: [...selected, "https://example.test/not-selected"],
+        },
+        analysis,
+      ),
+    ).toThrow("frozen page scope");
+    expect(reads).toEqual([]);
+  });
+
+  it("keeps the first committed selection when discovery races", async () => {
+    await approveDiscovery();
+    const responses = await Promise.all([
+      selectPages(["https://example.test/race-one"]),
+      selectPages(["https://example.test/race-two"]),
+    ]);
+    for (const response of responses)
+      expect(response.status, await response.clone().text()).toBe(200);
+    const bodies = await Promise.all(
+      responses.map((response) => response.json()),
+    );
+    expect(bodies[0].data.pageUrls).toEqual(bodies[1].data.pageUrls);
+    expect(bodies[0].data.pageUrls).toHaveLength(3);
+    expect(
+      await prisma.projectSeoPage.count({
+        where: {
+          auditId,
+          url: {
+            in: [
+              "https://example.test/race-one",
+              "https://example.test/race-two",
+            ],
+          },
+        },
+      }),
+    ).toBe(1);
+    expect(reads).toEqual([]);
+  });
+
+  it("keeps discoveries from a related page visible under the Audit primary page", async () => {
+    const primary = await prisma.projectSeoPage.findFirstOrThrow({
+      where: { auditId, url: PAGE_URLS[0] },
+    });
+    const child = await prisma.projectSeoPage.update({
+      where: { auditId_url: { auditId, url: PAGE_URLS[1]! } },
+      data: { relationship: "related", relatedToPageId: primary.id },
+    });
+    await approveDiscovery([child.url]);
+    const response = await selectPages(["https://example.test/discovered"], {
+      seedPageUrls: [child.url],
+    });
+    expect(response.status, await response.clone().text()).toBe(200);
+    const found = await prisma.projectSeoPage.findFirstOrThrow({
+      where: { auditId, url: "https://example.test/discovered" },
+    });
+    expect(found.relatedToPageId).toBe(primary.id);
+    const workspace = await getProjectSeoWorkspace(
+      {
+        userId: ownerId,
+        organizationId,
+        workspaceId,
+        owner: { kind: "audit", id: auditId },
+      },
+      { pageId: primary.id },
+    );
+    expect(workspace.scope.pageIds).toEqual([primary.id, child.id, found.id]);
+  });
+
+  it("rejects foreign, private and oversized discovery without changing approved pages", async () => {
+    await approveDiscovery();
+    for (const candidates of [
+      ["https://other.test/a"],
+      ["https://example.test/account"],
+      Array.from({ length: 8 }, (_, index) => {
+        const prefix = `https://example.test/large-${index}/`;
+        return prefix + "x".repeat(4096 - prefix.length);
+      }),
+      Array.from(
+        { length: 9 },
+        (_, index) => `https://example.test/extra-${index}`,
+      ),
+    ]) {
+      expect((await selectPages(candidates)).status).toBe(400);
+    }
+    expect(
+      (await selectPages([], { seedPageUrls: [PAGE_URLS[0]] })).status,
+    ).toBe(409);
+    expect(
+      (await prisma.projectSeoAnalysis.findUniqueOrThrow({ where: { taskId } }))
+        .pageIds,
+    ).toHaveLength(2);
+    expect(reads).toEqual([]);
+  });
+
+  it("requires current Task authority and unchanged original input for discovery", async () => {
+    await approveDiscovery();
+    actor = { actor: "coworker", coworkerId: otherCoworkerId, vendorId };
+    expect((await selectPages()).status).toBe(403);
+    actor = { actor: "coworker", coworkerId, vendorId };
+    expect(
+      (
+        await selectPages([], {
+          expectedContext: {
+            ...expectedContext,
+            workspaceId: otherWorkspaceId,
+          },
+        })
+      ).status,
+    ).toBe(409);
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { description: "changed audit" },
+    });
+    expect((await selectPages()).status).toBe(409);
+    await approveDiscovery();
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { status: "COMPLETED" },
+    });
+    expect((await selectPages()).status).toBe(409);
+    expect(reads).toEqual([]);
+  });
+
+  it.each([
+    { nested: false, extra: false },
+    { nested: true, extra: false },
+    { nested: false, extra: true },
+    { nested: true, extra: true },
+  ])(
+    "preserves valid related seeds without a direct primary parent: %j",
+    async ({ nested, extra }) => {
+      const primary = await prisma.projectSeoPage.findFirstOrThrow({
+        where: { auditId, url: PAGE_URLS[0] },
+      });
+      const middle = nested
+        ? await prisma.projectSeoPage.create({
+            data: {
+              auditId,
+              url: "https://example.test/middle",
+              relationship: "related",
+              relatedToPageId: primary.id,
+            },
+          })
+        : null;
+      const child = await prisma.projectSeoPage.update({
+        where: { auditId_url: { auditId, url: PAGE_URLS[1]! } },
+        data: { relationship: "related", relatedToPageId: middle?.id ?? null },
+      });
+      await approveDiscovery([child.url]);
+      const response = await selectPages(
+        extra ? ["https://example.test/found"] : [],
+        { seedPageUrls: [child.url] },
+      );
+      expect(response.status, await response.clone().text()).toBe(200);
+      expect(
+        await prisma.projectSeoPage.findUnique({ where: { id: child.id } }),
+      ).toMatchObject({
+        relationship: "related",
+        relatedToPageId: middle?.id ?? null,
+      });
+      if (extra)
+        expect(
+          await prisma.projectSeoPage.findFirst({
+            where: { auditId, url: "https://example.test/found" },
+          }),
+        ).toMatchObject({ relatedToPageId: primary.id });
+    },
+  );
+
+  it("keeps the newest audited related pages visible when older children fill the primary scope", async () => {
+    const primary = await prisma.projectSeoPage.findFirstOrThrow({
+      where: { auditId, url: PAGE_URLS[0] },
+    });
+    await prisma.projectSeoPage.createMany({
+      data: Array.from({ length: 9 }, (_, index) => ({
+        auditId,
+        url: `https://example.test/old-${index}`,
+        relationship: "related",
+        relatedToPageId: primary.id,
+        createdAt: new Date("2020-01-01T00:00:00Z"),
+      })),
+    });
+    const child = await prisma.projectSeoPage.update({
+      where: { auditId_url: { auditId, url: PAGE_URLS[1]! } },
+      data: { relationship: "related", relatedToPageId: primary.id },
+    });
+    await approveDiscovery([child.url]);
+    const response = await selectPages(["https://example.test/newly-audited"], {
+      seedPageUrls: [child.url],
+    });
+    expect(response.status, await response.clone().text()).toBe(200);
+    const found = await prisma.projectSeoPage.findFirstOrThrow({
+      where: { auditId, url: "https://example.test/newly-audited" },
+    });
+    const workspace = await getProjectSeoWorkspace(
+      {
+        userId: ownerId,
+        organizationId,
+        workspaceId,
+        owner: { kind: "audit", id: auditId },
+      },
+      { pageId: primary.id },
+    );
+    expect(workspace.scope.pageIds.slice(0, 3)).toEqual([
+      primary.id,
+      child.id,
+      found.id,
+    ]);
+    expect(workspace.scope.pageIds).toHaveLength(10);
+  });
+
+  it("includes saved related children only when reading the Audit's primary page", async () => {
+    const primary = await prisma.projectSeoPage.findFirstOrThrow({
+      where: { auditId, url: PAGE_URLS[0] },
+    });
+    const child = await prisma.projectSeoPage.create({
+      data: {
+        auditId,
+        url: "https://example.test/saved-child",
+        relationship: "related",
+        relatedToPageId: primary.id,
+      },
+    });
+    await prisma.projectSeoPage.create({
+      data: {
+        auditId,
+        url: "https://example.test/saved-%63hild",
+        relationship: "related",
+        relatedToPageId: primary.id,
+      },
+    });
+    await prisma.projectSeoPage.create({
+      data: {
+        auditId,
+        url: "https://foreign.test/child",
+        relationship: "related",
+        relatedToPageId: primary.id,
+      },
+    });
+    const viewer = {
+      userId: ownerId,
+      organizationId,
+      workspaceId,
+      owner: { kind: "audit" as const, id: auditId },
+    };
+    expect(
+      (await getProjectSeoWorkspace(viewer, { pageId: primary.id })).scope
+        .pageIds,
+    ).toEqual([primary.id, child.id]);
+    expect(
+      (await getProjectSeoWorkspace(viewer, { pageId: child.id })).scope
+        .pageIds,
+    ).toEqual([child.id]);
+    expect(
+      (await getProjectSeoWorkspace(viewer, { pageIds: [primary.id] })).scope
+        .pageIds,
+    ).toEqual([primary.id]);
   });
 
   it("reads exactly the approved primary and related pages, caches inspections, and saves only private results", async () => {

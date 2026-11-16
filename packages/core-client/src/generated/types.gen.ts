@@ -14256,6 +14256,18 @@ export type ProjectSeoIndexAssessment = {
     evidence: Array<string>;
 };
 
+export type SeoTaskPagesReceipt = {
+    version: 1;
+    taskId: string;
+    pageUrls: Array<string>;
+};
+
+export type SeoTaskPagesRequest = {
+    expectedContext: TaskWorkerContext;
+    seedPageUrls: Array<string>;
+    relatedPageUrls: Array<string>;
+};
+
 export type SendTaskToChatRequest = {
     roomId: string;
     note?: string;
@@ -97192,6 +97204,126 @@ export type PostTasksByIdSeoIndexingResultContextV1Responses = {
 };
 
 export type PostTasksByIdSeoIndexingResultContextV1Response = PostTasksByIdSeoIndexingResultContextV1Responses[keyof PostTasksByIdSeoIndexingResultContextV1Responses];
+
+export type PostTasksByIdSeoPagesContextV1Data = {
+    body: SeoTaskPagesRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/seo-pages/context-v1';
+};
+
+export type PostTasksByIdSeoPagesContextV1Errors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdSeoPagesContextV1Error = PostTasksByIdSeoPagesContextV1Errors[keyof PostTasksByIdSeoPagesContextV1Errors];
+
+export type PostTasksByIdSeoPagesContextV1Responses = {
+    /**
+     * Immutable audit page selection
+     */
+    200: {
+        data: SeoTaskPagesReceipt;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdSeoPagesContextV1Response = PostTasksByIdSeoPagesContextV1Responses[keyof PostTasksByIdSeoPagesContextV1Responses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;
