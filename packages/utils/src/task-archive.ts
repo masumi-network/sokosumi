@@ -9,7 +9,7 @@ import { USER_TRANSITION_TASK_STATUSES } from "./task-status-transitions.js";
  */
 // CANCELED stays before COMPLETED and FAILED so the archive error string
 // keeps its current order.
-const archivableStatuses = [
+export const TASK_ARCHIVABLE_STATUSES = [
   "DRAFT",
   "QUEUED",
   "READY",
@@ -18,10 +18,6 @@ const archivableStatuses = [
   "COMPLETED",
   "FAILED",
 ] as const satisfies readonly (typeof USER_TRANSITION_TASK_STATUSES)[number][];
-
-export const TASK_ARCHIVABLE_STATUSES = archivableStatuses.filter((status) =>
-  USER_TRANSITION_TASK_STATUSES.includes(status),
-);
 
 export type TaskArchivableStatus = (typeof TASK_ARCHIVABLE_STATUSES)[number];
 
