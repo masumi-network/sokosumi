@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   nudge: vi.fn(),
   taskFindMany: vi.fn(),
   taskUpdate: vi.fn(),
+  eventCreate: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -17,6 +18,7 @@ vi.mock("@/lib/db/prisma", () => ({
     projectImageAsset: { findFirst: mocks.assetFindFirst },
     fileResource: { findUnique: mocks.fileFindUnique },
     task: { findMany: mocks.taskFindMany, update: mocks.taskUpdate },
+    adEvent: { create: mocks.eventCreate },
   },
 }));
 vi.mock("@/services/image-studio-assets.service", () => ({
@@ -125,6 +127,7 @@ describe("publishStudioAssetToFiles", () => {
 
   it("saves a new image in the Content Studio folder, not a Task", async () => {
     await publishStudioAssetToFiles({
+      assetId: INPUT.assetId,
       jobId: INPUT.jobId,
       workspaceId: INPUT.workspaceId,
       organizationId: INPUT.organizationId,
@@ -141,12 +144,49 @@ describe("publishStudioAssetToFiles", () => {
       scope: "organization",
       ownerId: "org-1",
     });
+    expect(mocks.eventCreate).toHaveBeenCalledWith({
+      data: {
+        workspaceId: INPUT.workspaceId,
+        assetId: INPUT.assetId,
+        userId: INPUT.userId,
+        type: "copied_to_files",
+        meta: {
+          pathname:
+            "drive/organizations/org-1/Content Studio/a-purple-robot-logo-00000001.png",
+        },
+      },
+    });
+  });
+
+  it("does not record a copy when the file could not be activated", async () => {
+    mocks.activate.mockResolvedValueOnce(null);
+    await publishStudioAssetToFiles({
+      ...INPUT,
+      bytes: new Uint8Array([1]),
+      contentType: "image/png",
+    });
+    expect(mocks.eventCreate).not.toHaveBeenCalled();
+  });
+
+  it("keeps the copy when recording the signal fails", async () => {
+    mocks.eventCreate.mockRejectedValueOnce(
+      new Error("event store unavailable"),
+    );
+    await expect(
+      publishStudioAssetToFiles({
+        ...INPUT,
+        bytes: new Uint8Array([1]),
+        contentType: "image/png",
+      }),
+    ).resolves.toBeUndefined();
+    expect(mocks.activate).toHaveBeenCalled();
   });
 
   it("never fails settlement when Files is unavailable", async () => {
     mocks.reserve.mockRejectedValue(new Error("down"));
     await expect(
       publishStudioAssetToFiles({
+        assetId: INPUT.assetId,
         jobId: INPUT.jobId,
         workspaceId: INPUT.workspaceId,
         organizationId: null,

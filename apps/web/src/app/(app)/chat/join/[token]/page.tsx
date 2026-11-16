@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { chatRoomHref } from "@/app/chat/utils/chat-route-base";
 import { getSession } from "@/lib/auth/auth.server";
 import { chatRoomService } from "@/lib/services/chat-room.service";
 import { ChatJoinCard, ChatJoinInvalidCard } from "./components/chat-join-card";
@@ -31,6 +33,14 @@ export default async function ChatJoinPage({
 
   if (status !== "valid" || !room) {
     return <ChatJoinInvalidCard status={status} />;
+  }
+
+  // Core returns a room only to its members, so a hit means the reader is
+  // already in it (the host, or a guest who joined before): open it rather
+  // than offer a guest join that Core would refuse.
+  const alreadyIn = await chatRoomService.getRoom(room.id).catch(() => null);
+  if (alreadyIn) {
+    redirect(chatRoomHref(room.id));
   }
 
   return <ChatJoinCard token={token} room={room} user={session?.user} />;

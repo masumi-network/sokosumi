@@ -91,6 +91,7 @@ import {
 import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
 import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
+import { recordStudioAdEvent } from "@/services/image-studio-events.service";
 
 /**
  * The job lifecycle: submit once, settle once.
@@ -1091,6 +1092,16 @@ async function reserveAndSend(input: ReserveImageJobInput) {
   const { job, created } = await reserveJob(input);
   if (!created) return job;
 
+  if (job.parentAssetId) {
+    await recordStudioAdEvent({
+      workspaceId: input.workspaceId,
+      assetId: job.parentAssetId,
+      userId: input.userId,
+      type: "refined",
+      meta: { jobId: job.id },
+    });
+  }
+
   if (!(await claimForSubmission(job.id))) {
     // Someone else is already sending this row. Never a second call.
     return (await prisma.projectImageJob.findUnique({
@@ -1996,9 +2007,13 @@ async function storeMedia(
     return;
   }
 
-  let letteringJobId: string | null;
+  let delivered: {
+    assetId: string;
+    version: number | null;
+    letteringJobId: string | null;
+  };
   try {
-    letteringJobId = await insertAsset({
+    delivered = await insertAsset({
       job: {
         id: job.id,
         projectId: project.id,
@@ -2040,11 +2055,42 @@ async function storeMedia(
   }
   // The next paid request is already durable. A crash here leaves a normal
   // PENDING row for recoverUnclaimedReservations, with the original quote.
-  if (letteringJobId && (await claimForSubmission(letteringJobId))) {
-    await sendClaimedJob(letteringJobId, project.organizationId);
+  if (
+    delivered.letteringJobId &&
+    (await claimForSubmission(delivered.letteringJobId))
+  ) {
+    await sendClaimedJob(delivered.letteringJobId, project.organizationId);
+  }
+  if (job.batchSlotId && delivered.version !== null) {
+    const replaced = await prisma.projectImageAsset
+      .findFirst({
+        where: {
+          projectId: project.id,
+          workspaceId: project.workspaceId,
+          mediaType: ProjectImageMediaType.IMAGE,
+          hiddenAt: null,
+          version: { lt: delivered.version },
+          job: {
+            OR: [{ id: job.batchSlotId }, { batchSlotId: job.batchSlotId }],
+          },
+        },
+        orderBy: { version: "desc" },
+        select: { id: true },
+      })
+      .catch(() => null);
+    if (replaced) {
+      await recordStudioAdEvent({
+        workspaceId: project.workspaceId,
+        assetId: replaced.id,
+        userId: job.requestedByUserId,
+        type: "replaced_in_batch",
+        meta: { jobId: job.id, batchSlotId: job.batchSlotId },
+      });
+    }
   }
   // Only the settler that stored the asset gets here, so this runs once per job.
   await publishStudioAssetToFiles({
+    assetId: delivered.assetId,
     jobId: job.id,
     workspaceId: project.workspaceId,
     organizationId: project.organizationId,
@@ -2104,13 +2150,18 @@ async function insertAsset(input: {
   height: number;
   bytes: number;
   checksum: string;
-}): Promise<string | null> {
+}): Promise<{
+  assetId: string;
+  version: number | null;
+  letteringJobId: string | null;
+}> {
   return await serializableTransaction(async (tx) => {
     const existing = await tx.projectImageAsset.findUnique({
       where: { jobId: input.job.id },
       select: { id: true },
     });
-    if (existing) return null;
+    if (existing)
+      return { assetId: existing.id, version: null, letteringJobId: null };
 
     let rootId: string | null = null;
     if (input.job.parentAssetId) {
@@ -2133,6 +2184,7 @@ async function insertAsset(input: {
       orderBy: { version: "desc" },
       select: { version: true },
     });
+    const version = (highest?.version ?? 0) + 1;
 
     // The charge. Quoted at submit, taken here, once.
     //
@@ -2184,7 +2236,7 @@ async function insertAsset(input: {
         jobId: input.job.id,
         rootId: family,
         parentId: rootId ? input.job.parentAssetId : null,
-        version: (highest?.version ?? 0) + 1,
+        version,
         model: input.job.model,
         prompt: input.job.prompt,
         settings: input.job.settings ?? {},
@@ -2271,7 +2323,7 @@ async function insertAsset(input: {
         unreachableSource: null,
       },
     });
-    return letteringJobId;
+    return { assetId: id, version, letteringJobId };
   }, "Another image finished in this lineage at the same moment. Try again.");
 }
 

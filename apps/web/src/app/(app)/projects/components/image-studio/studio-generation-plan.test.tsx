@@ -360,6 +360,12 @@ describe("an honest generation plan", () => {
             jobId: "scene-job",
             contentPath: "/backdrop",
             lettering: "ideogram",
+            myThumb: null,
+            myReasons: [],
+            myComment: null,
+            thumbsUp: 0,
+            thumbsDown: 0,
+            score: 0.5,
           },
         ]}
         onGenerate={onGenerate}

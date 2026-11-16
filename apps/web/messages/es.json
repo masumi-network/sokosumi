@@ -4703,7 +4703,26 @@
       },
       "creditsCheckedOn": "Precio comprobado el {date}",
       "pickBody": "Content Studio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería.",
-      "letteringFallbackHint": "La rotulación con Ideogram no está disponible, así que Studio añadirá el titular con la fuente exacta de la marca."
+      "letteringFallbackHint": "La rotulación con Ideogram no está disponible, así que Studio añadirá el titular con la fuente exacta de la marca.",
+      "Rating": {
+        "label": "Valorar anuncio",
+        "up": "Me gusta",
+        "down": "No me gusta",
+        "reasons": "Motivos (opcional)",
+        "offBrand": "No refleja la marca",
+        "badText": "Texto deficiente",
+        "wrongProduct": "Producto incorrecto",
+        "ugly": "Poco atractivo",
+        "great": "Excelente",
+        "comment": "Comentario (opcional)",
+        "more": "Más acciones del anuncio",
+        "hide": "Ocultar anuncio",
+        "sort": "Ordenar anuncios",
+        "newest": "Más recientes",
+        "best": "Mejores primero",
+        "saveFailed": "No se pudo guardar la valoración. Inténtalo de nuevo.",
+        "hideFailed": "No se pudo ocultar el anuncio. Inténtalo de nuevo."
+      }
     },
     "Ads": {
       "title": "Anuncios",
@@ -9542,6 +9561,10 @@
         "markAllReadError": "No se pudo marcar todo como leído. Inténtalo de nuevo.",
         "caughtUpTitle": "Estás al día",
         "caughtUpDescription": "Nada nuevo te espera desde la última vez que leíste tus salas.",
+        "firstCatchUpTitle": "Todavía no hay nada pendiente",
+        "firstCatchUpDescription": "Cuando la gente hable en tus canales y chats, aquí verás lo esencial y todo lo que te espera.",
+        "firstCatchUpCreateChannel": "Crear un canal",
+        "firstCatchUpMessageTeammate": "Escribir a un compañero",
         "aiNote": "Etiquetamos tus mensajes por ti y a veces nos equivocamos. Para corregir una etiqueta, abre el mensaje, pasa el cursor por encima y haz clic en el icono de etiqueta.",
         "removeTag": "Quitar etiqueta: {tag}",
         "taskMade": "Tarea creada",

@@ -59,7 +59,7 @@ export async function createStudioAdArchive(
       !isVideoAsset(asset) && usesExactFontOverlay(asset, jobs)
         ? headlines?.[asset.id]
         : undefined;
-    const response = await fetchStudioAd(asset, { logo });
+    const response = await fetchStudioAd(asset, { logo, download: true });
     const source = await response.blob();
     const image = headline
       ? await renderStudioHeadline(source, headline, logo)
