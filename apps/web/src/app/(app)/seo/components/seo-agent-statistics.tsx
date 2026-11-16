@@ -5,21 +5,12 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { seoAnalyticsState } from "./seo-agent-statistics-model";
 import { seoAuditName } from "./seo-audit-name";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { useSeoConnectionStatus } from "./use-seo-connection";
 import { useSeoStatisticsProperties } from "./use-seo-statistics-properties";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
-
-/** Why no Google Analytics data is saved: each state names its cause and, where one exists, its fix. */
-type SeoAnalyticsState =
-  | "unknown"
-  | "missing"
-  | "loading"
-  | "failed"
-  | "no_property"
-  | "choose"
-  | "empty";
 
 /**
  * The Google statistics of the Agent tab as one slim line at its top. It shows only while no Analytics data is
@@ -37,34 +28,23 @@ export function SeoAgentStatistics({ model }: { model: SeoWorkspaceModel }) {
   const sync = model.statisticsSync.analytics;
   const listed =
     properties.data?.status === "available" ? properties.data.properties : null;
-  // A connection that is starting has no state yet. An expired connection reads as none. A cause the reader can
-  // fix comes before a sync that runs: a refetch on focus would hide its button. "Empty" needs a collection that
-  // finished; anything else that is not settled names no cause.
-  const analytics: SeoAnalyticsState =
-    status === undefined || status === "pending"
-      ? "unknown"
-      : !connected
-        ? "missing"
-        : sync.failed
-          ? "failed"
-          : listed?.length === 0
-            ? "no_property"
-            : sync.needsProperty
-              ? "choose"
-              : sync.collected
-                ? "empty"
-                : sync.loading
-                  ? "loading"
-                  : "unknown";
+  const analytics = seoAnalyticsState({
+    status,
+    sync,
+    properties: listed?.length ?? null,
+  });
   // The one property of an account is read even when its name is not the site's: the line names it.
   const property = listed?.find((item) => item.id === propertyId)?.name ?? "";
   const [connectError, setConnectError] = useState<string | null>(null);
   const page = model.data.pages.find((item) =>
     model.data.scope.pageIds.includes(item.id),
   );
-  // A failed or running sync has no fix here: the line only names it.
+  // A connected account with no cause yet has nothing to say: the line waits for one.
+  if (analytics === "unknown" && status !== undefined) return null;
+  // A failed or running sync has no fix here: the line only names it. A status that is not read yet gets the
+  // connect button, which shows its wait and its own Retry.
   const control =
-    analytics === "missing" ? (
+    analytics === "missing" || analytics === "unknown" ? (
       <SeoConnectionButton provider="ga4" onError={setConnectError} compact />
     ) : analytics === "choose" ||
       analytics === "no_property" ||
@@ -85,7 +65,7 @@ export function SeoAgentStatistics({ model }: { model: SeoWorkspaceModel }) {
     <div
       className={cn(
         "bg-background flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border px-3 py-2 text-sm",
-        // The causes the reader can fix stand out; a sync that runs or found nothing stays quiet.
+        // A cause that stops the data stands out: a property to choose, or a read that failed.
         (analytics === "choose" || analytics === "failed") && "border-chart-2",
       )}
       data-testid="seo-agent-statistics"
@@ -103,7 +83,9 @@ export function SeoAgentStatistics({ model }: { model: SeoWorkspaceModel }) {
           {connectError}
         </p>
       ) : (
+        // The cause changes on its own: a screen reader hears the new one.
         <p
+          role="status"
           className={cn(
             "min-w-0 flex-1 basis-48 break-words",
             analytics === "loading" && "text-muted-foreground",

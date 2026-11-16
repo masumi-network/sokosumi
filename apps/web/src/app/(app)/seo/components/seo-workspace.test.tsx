@@ -2833,8 +2833,8 @@ describe("SEO workspace integration", () => {
       { id: "properties/2", name: "roxtool" },
     ];
     // An expired connection reads as none. A connected account names its properties: none, none for the
-    // site, one for the site whose sync runs or found nothing, a single other one that is read all the same, or a list
-    // that could not be read.
+    // site, one for the site whose sync runs or found nothing, a single other one that is read all the same, a
+    // list that could not be read, or a connection that could not be read.
     for (const [status, properties, text, button] of [
       [
         "not_connected",
@@ -2848,6 +2848,15 @@ describe("SEO workspace integration", () => {
         "Google statistics: Analytics not connected",
         /connect/i,
       ],
+      // A connection whose approval did not finish keeps its button to start again.
+      [
+        "pending",
+        unrelated,
+        "Google statistics: Analytics not connected",
+        "Start a new Google Analytics connection",
+      ],
+      // A connection that could not be read keeps its button to try again.
+      ["unread", unrelated, "Google statistics", "Try again"],
       [
         "connected",
         [],
@@ -2857,7 +2866,7 @@ describe("SEO workspace integration", () => {
       [
         "connected",
         unrelated,
-        "Google statistics: none of your 2 Analytics properties is for example.com",
+        "Google statistics: no Analytics property is picked for example.com. Choose one of your 2.",
         "Choose property",
       ],
       [
@@ -2889,12 +2898,14 @@ describe("SEO workspace integration", () => {
       const running = text.endsWith("loading Analytics");
       const fetch = vi.fn(async (url: string) =>
         url.endsWith("/connections/ga4")
-          ? Response.json({
-              provider: "ga4",
-              name: "Google",
-              status,
-              source: "native",
-            })
+          ? status === "unread"
+            ? new Response(null, { status: 500 })
+            : Response.json({
+                provider: "ga4",
+                name: "Google",
+                status,
+                source: "native",
+              })
           : url.includes("/statistics/properties?provider=ga4")
             ? properties
               ? Response.json({
@@ -2912,15 +2923,42 @@ describe("SEO workspace integration", () => {
       );
       vi.stubGlobal("fetch", fetch);
       renderWorkspace(workspace, "?tab=agent");
-      const line = screen.getByTestId("seo-agent-statistics");
-      await waitFor(() => expect(line).toHaveTextContent(text));
+      // The line can wait for a cause and come back: each read finds it again.
+      const line = () => screen.getByTestId("seo-agent-statistics");
+      await waitFor(() => expect(line()).toHaveTextContent(text));
       if (button)
         expect(
-          within(line).getByRole("button", { name: button }),
+          await within(line()).findByRole("button", { name: button }),
         ).toBeVisible();
-      else expect(within(line).queryByRole("button")).toBeNull();
+      else expect(within(line()).queryByRole("button")).toBeNull();
       cleanup();
     }
+    // A connected account with no cause to name has no bare line: here the property list says the connection
+    // is gone while the connection still reads as connected.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.endsWith("/connections/ga4")
+          ? Response.json({
+              provider: "ga4",
+              name: "Google",
+              status: "connected",
+              source: "native",
+            })
+          : url.includes("/statistics/properties?provider=ga4")
+            ? Response.json({
+                provider: "ga4",
+                properties: [],
+                status: "not_connected",
+                reason: null,
+              })
+            : Response.json(workspace),
+      ),
+    );
+    renderWorkspace(workspace, "?tab=agent");
+    await waitFor(() =>
+      expect(screen.queryByTestId("seo-agent-statistics")).toBeNull(),
+    );
   });
 
   it("says whether Google indexes the page in view and names another canonical", () => {
