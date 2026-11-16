@@ -3617,9 +3617,12 @@ describe("SEO workspace integration", () => {
         .some((status) => status.textContent === "Check running"),
     ).toBe(true);
     // The button stays for keyboard focus, but starts no second check.
-    const again = screen.getByRole("button", { name: "Check running" });
-    expect(again).toHaveAttribute("aria-disabled", "true");
-    fireEvent.click(again);
+    for (const again of screen.getAllByRole("button", {
+      name: "Check running",
+    })) {
+      expect(again).toHaveAttribute("aria-disabled", "true");
+      fireEvent.click(again);
+    }
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 

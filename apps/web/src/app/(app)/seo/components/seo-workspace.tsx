@@ -191,10 +191,10 @@ export function SeoWorkspace({
       </p>
     );
   const { canRequestAnalysis } = model.data.availableActions;
-  // The run of every tab, in the secondary look; only the Agent tab's step wears the brand fill. The setup card is on the Agent tab only;
-  // there its own check step leads.
+  // Setup owns the first run action until submission. Once accepted, the header keeps its disabled run and schedule menu.
   const runAudit =
-    model.waitingForGoogle || (model.filters.tab === "agent" && setup)
+    model.waitingForGoogle ||
+    (model.filters.tab === "agent" && setup && setup.check !== "running")
       ? null
       : seoRunAction(model.data);
   // While the pages load or the dates are wrong, no dialog opens.

@@ -59,7 +59,7 @@ async function openImprove(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("button", { name: "Manage SEO" }));
   await user.click(
     await screen.findByRole("menuitem", {
-      name: "What the agent cannot do yet",
+      name: "Agent limitations",
     }),
   );
   return within(await screen.findByRole("dialog"));
@@ -70,8 +70,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("What the agent cannot do yet", () => {
-  it("opens from the header menu with the open items and what the audit could not see", async () => {
+describe("Agent limitations", () => {
+  it("shows five short customer-facing limits and the audit data that is missing", async () => {
     const user = userEvent.setup();
     const workspace = seoTestCheckedAudit();
     workspace.metrics = [seoTestMetric()];
@@ -79,8 +79,20 @@ describe("What the agent cannot do yet", () => {
     const dialog = await openImprove(user);
     // Built already: not listed as missing.
     expect(dialog.queryByText("Google update markers on charts")).toBeNull();
-    expect(dialog.getByText("Full-site crawl")).toBeVisible();
-    expect(dialog.getByText("Site migration check")).toBeVisible();
+    expect(dialog.queryByText("Full-site crawl")).toBeNull();
+    expect(dialog.queryByText("Site migration check")).toBeNull();
+    const summary = dialog
+      .getByRole("heading", { name: "What to expect" })
+      .closest("section");
+    expect(summary).not.toBeNull();
+    expect(
+      within(summary as HTMLElement).getAllByRole("listitem"),
+    ).toHaveLength(5);
+    expect(
+      dialog.getByText(
+        "You apply changes, recheck fixes and share client reports yourself.",
+      ),
+    ).toBeVisible();
     // Search Console is synced, Google Analytics is not: one gap, with the words of the Traffic tab's button.
     expect(dialog.getByText(/^No Google Analytics data/)).toBeVisible();
     expect(dialog.queryByText(/^No Search Console data/)).toBeNull();
@@ -91,23 +103,47 @@ describe("What the agent cannot do yet", () => {
     ).toBeVisible();
     // What the owner can change now leads the dialog.
     expect(dialog.getAllByRole("heading", { level: 3 })[0]).toHaveTextContent(
-      "What this audit could not see",
+      "Missing audit data",
     );
   });
 
-  it("copies a request for one item", async () => {
+  it("condenses collection failures without exposing provider errors or module names", async () => {
     const user = userEvent.setup();
-    renderImprove(seoTestCheckedAudit());
+    const workspace = seoTestCheckedAudit();
+    workspace.metrics = [
+      {
+        ...seoTestMetric(),
+        notes: [
+          "GOOGLE_SEARCH_CONSOLE_INSPECT_URL: GET /internal/route returned HTTP 500",
+          "Private provider error details",
+        ],
+      },
+    ];
+    workspace.observations[0].coverage = {
+      checked: 12,
+      skipped: 1,
+      failed: 1,
+      modules: {
+        notRequested: 1,
+        failed: 1,
+        notRequestedNames: ["internal_module"],
+        failedNames: ["another_internal_module"],
+      },
+    };
+    renderImprove(workspace);
     const dialog = await openImprove(user);
-    const write = vi.spyOn(navigator.clipboard, "writeText");
-    await user.click(
-      dialog.getByRole("button", {
-        name: "Copy request: Site migration check",
-      }),
-    );
-    expect(write).toHaveBeenCalledWith(
-      "Feature request for the SEO agent, item 7: Site migration check. What is missing: No check of the redirects of a domain or URL move.",
-    );
+    expect(
+      dialog.getAllByText(/^Some Google statistics are missing/),
+    ).toHaveLength(1);
+    expect(
+      dialog.getAllByText(/^Some checks did not return a result/),
+    ).toHaveLength(1);
+    expect(
+      dialog.queryByText(
+        /internal_module|HTTP 500|GOOGLE_SEARCH|Private provider/,
+      ),
+    ).toBeNull();
+    expect(dialog.queryByRole("button", { name: /^Copy request/ })).toBeNull();
   });
 
   it("opens the Agent tab from a link saved when Improve was a tab", async () => {
