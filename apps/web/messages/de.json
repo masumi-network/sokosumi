@@ -12340,11 +12340,14 @@
         "invalidCallback": "Dieser Link enthält keinen gültigen SEO-Verbindungskontext. Starte die Verbindung im Audit.",
         "connectGoogle": "Google verbinden",
         "analyticsNext": "Google fragt zweimal nach deiner Zustimmung: zuerst für Search Console, dann für Google Analytics.",
-        "analyticsOff": "Google Analytics ist nicht verbunden. Besuche und Seitenaufrufe bleiben leer.",
         "connectShort": "Verbinden",
         "connectedShort": "Verbunden",
-        "reads": "Liest {detail}",
-        "viaGoogle": "Über dein Google-Konto"
+        "googleAccount": "Google-Konto",
+        "noneConnected": "Noch keine Quelle verbunden",
+        "options": "Optionen für das Google-Konto",
+        "settings": "Statistik-Einstellungen",
+        "switchFor": "Konto wechseln: {provider}",
+        "notConnected": "Nicht verbunden"
       },
       "unavailableTitle": "SEO ist in diesem Workspace nicht verfügbar",
       "unavailableBody": "Dieses Audit oder diese Auswahl ist im aktuellen Workspace nicht verfügbar. Prüfe den Workspace in der Seitenleiste oder öffne die Audit-Liste.",

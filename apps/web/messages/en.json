@@ -12340,11 +12340,14 @@
         "invalidCallback": "This return link has no valid SEO connection context. Start a connection from the audit.",
         "connectGoogle": "Connect Google",
         "analyticsNext": "Google asks for approval two times: first for Search Console, then for Google Analytics.",
-        "analyticsOff": "Google Analytics is not connected. Visits and page views stay empty.",
         "connectShort": "Connect",
         "connectedShort": "Connected",
-        "reads": "Reads {detail}",
-        "viaGoogle": "Through your Google account"
+        "googleAccount": "Google account",
+        "noneConnected": "No source connected yet",
+        "options": "Google account options",
+        "settings": "Statistics settings",
+        "switchFor": "Switch account: {provider}",
+        "notConnected": "Not connected"
       },
       "unavailableTitle": "SEO unavailable in this Workspace",
       "unavailableBody": "This audit or selection is not available in the current Workspace. Check the Workspace in the sidebar or open the audit list.",

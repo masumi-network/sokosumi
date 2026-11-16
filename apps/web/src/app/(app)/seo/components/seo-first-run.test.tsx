@@ -458,11 +458,15 @@ describe("SEO audit first run", () => {
     // The check needs no more input, so the wait is the time for the statistics.
     expect(screen.queryByTestId("seo-statistics-banner")).toBeNull();
     const setup = screen.getByTestId("seo-setup");
+    // The settings are in the account card's menu: no second button stands under the card.
     expect(
       await within(setup).findByRole("button", {
-        name: "Google connections",
+        name: copy.connections.options,
       }),
     ).toBeVisible();
+    expect(
+      within(setup).queryByRole("button", { name: "Google connections" }),
+    ).toBeNull();
     expect(within(setup).getByText(copy.setup.checkRunning)).toBeVisible();
     expect(primaryButtons(setup)).toEqual([]);
   });
@@ -588,16 +592,17 @@ describe("SEO audit first run", () => {
     expect(
       within(dialog).getByRole("region", { name: "Search Console" }),
     ).toHaveAttribute("aria-current", "true");
-    // Without a source both sources are in view and none is marked.
+    // Without a source no connected source is marked.
     await userEvent.click(screen.getAllByRole("button", { name: "Close" })[0]);
     await openStatisticsSetup(userEvent);
     const reopened = await screen.findByRole("dialog", {
       name: "Google connections",
     });
-    for (const name of ["Search Console", "Google Analytics"])
-      expect(
-        within(reopened).getByRole("region", { name }),
-      ).not.toHaveAttribute("aria-current");
+    expect(
+      await within(reopened).findByRole("region", { name: "Search Console" }),
+    ).toBeVisible();
+    for (const region of within(reopened).getAllByRole("region"))
+      expect(region).not.toHaveAttribute("aria-current");
   });
 
   it("asks for the account on the Traffic tab while no account is connected", async () => {

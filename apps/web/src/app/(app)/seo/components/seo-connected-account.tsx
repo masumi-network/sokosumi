@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, ChevronDown, Unplug } from "lucide-react";
+import { ArrowLeftRight, Check, ChevronDown, Unplug } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import {
@@ -22,33 +22,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SeoGoogleAvatar } from "./seo-google-avatar";
 import { SEO_WRAP_CLASS } from "./seo-shared";
-import type { SeoConnection } from "./use-seo-connection";
+import { type SeoConnection, seoConnectionAccount } from "./use-seo-connection";
 
 /**
- * A connected account: one chip with a green mark that says so. A press opens
- * its menu, which names what the account reads and holds the two rare
- * account actions, so they do not sit beside the step's own action.
+ * A connected account: one chip with a check that says so. A press opens its
+ * menu, which names the Google account and holds the two rare account
+ * actions, so they do not sit beside the step's own action.
  */
 export function SeoConnectedAccount({
   name,
   model,
-  compact = false,
-  detail,
 }: {
   /** The source's display name, for example "Search Console". */
   name: string;
   model: SeoConnection;
-  /** The source's name is already in view: the chip says only "Connected". */
-  compact?: boolean;
-  /** What this account reads here, for example the property. The menu names it. */
-  detail?: string;
 }) {
   const t = useTranslations("App.Seo");
   const [menu, setMenu] = useState(false);
   const [asking, setAsking] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const busy = model.busy !== null;
+  const account = seoConnectionAccount(model.status.data);
   return (
     <>
       <DropdownMenu
@@ -64,36 +60,28 @@ export function SeoConnectedAccount({
             size="sm"
             className={SEO_WRAP_CLASS}
             loading={busy}
-            // The short text is not unique in a list of sources: the name says which one.
-            aria-label={
-              compact
-                ? t("connections.connected", { provider: name })
-                : undefined
-            }
           >
             {/* The text says the state too: the colour is never the only sign. */}
             <span
               aria-hidden
-              className="bg-semantic-success size-2 shrink-0 rounded-full"
-            />
-            {compact
-              ? t("connections.connectedShort")
-              : t("connections.connected", { provider: name })}
+              className="bg-semantic-success text-semantic-success-foreground flex size-4 shrink-0 items-center justify-center rounded-full"
+            >
+              <Check className="size-2.5" strokeWidth={3} />
+            </span>
+            {t("connections.connected", { provider: name })}
             <ChevronDown className="text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align={compact ? "end" : "start"}
-          className="max-w-80"
-        >
-          <DropdownMenuLabel className="space-y-0.5 font-normal">
-            <span className="block font-medium">
-              {t("connections.connected", { provider: name })}
-            </span>
-            <span className="text-muted-foreground block break-words">
-              {detail
-                ? t("connections.reads", { detail })
-                : t("connections.viaGoogle")}
+        <DropdownMenuContent align="start" className="max-w-80">
+          <DropdownMenuLabel className="flex items-center gap-3 font-normal">
+            <SeoGoogleAvatar account={account} />
+            <span className="min-w-0">
+              <span className="block truncate font-medium">
+                {account?.name ?? account?.email ?? name}
+              </span>
+              <span className="text-muted-foreground block truncate">
+                {account?.name ? account.email : t("connections.googleAccount")}
+              </span>
             </span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />

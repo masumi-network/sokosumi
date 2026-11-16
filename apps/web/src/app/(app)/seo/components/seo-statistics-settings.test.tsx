@@ -96,12 +96,16 @@ it("keeps property settings available without requiring a manual Sync step", asy
   renderWithClient(<Settings />);
   const dialog = within(screen.getByRole("dialog"));
   expect(await dialog.findByLabelText("Property")).toBeVisible();
-  // The dialog opened for Google Analytics: its section has the focus, not the first source's control.
+  // The dialog opened for Google Analytics: its section is marked, and no button has the first focus.
+  expect(
+    dialog.getByRole("region", { name: "Google Analytics" }),
+  ).toHaveAttribute("aria-current", "true");
   await waitFor(() =>
-    expect(
-      dialog.getByRole("region", { name: "Google Analytics" }),
-    ).toHaveFocus(),
+    expect(screen.getByRole("dialog")).toContainElement(
+      document.activeElement as HTMLElement,
+    ),
   );
+  expect(document.activeElement?.tagName).not.toBe("BUTTON");
   expect(dialog.getAllByRole("button", { name: "Close" })[0]).toBeVisible();
   expect(dialog.queryByRole("button", { name: /sync/i })).toBeNull();
   expect(
@@ -126,12 +130,12 @@ it("shows the connected source's property choice beside the other source", async
     dialog.getByRole("region", { name: "Google Analytics" }),
   );
   expect(await analytics.findByLabelText("Property")).toBeVisible();
-  // Search Console is not connected: its section offers the connection, not a property.
-  const search = within(dialog.getByRole("region", { name: "Search Console" }));
+  // Search Console is not connected: the account card offers it, and it has no property section.
+  const card = within(screen.getByTestId("seo-google-accounts"));
   expect(
-    await search.findByRole("button", { name: "Connect Search Console" }),
+    await card.findByRole("button", { name: "Connect Search Console" }),
   ).toBeVisible();
-  expect(search.queryByLabelText("Property")).toBeNull();
+  expect(dialog.queryByRole("region", { name: "Search Console" })).toBeNull();
   expect(dialog.queryByRole("button", { name: /sync/i })).toBeNull();
 });
 

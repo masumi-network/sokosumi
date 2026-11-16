@@ -10,17 +10,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { SEO_GOOGLE_SOURCES, SeoGoogleAccounts } from "./seo-google-accounts";
 import type { SeoStatisticsProvider } from "./seo-statistics-model";
 import { SeoStatisticsSource } from "./seo-statistics-source";
+import { useSeoStatistics } from "./use-seo-statistics";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-/** Search Console first: it is the first Google approval and the one most views need. */
-const SOURCES: SeoStatisticsProvider[] = ["search_console", "ga4"];
-
 /**
- * The two Google sources, each in its own section with its account and its
- * property. No source is chosen first: both are in view, and the one the
- * reader came for is marked.
+ * The Google accounts as one card, then the property of each connected
+ * source. No source is chosen first: both are in view, and the one the reader
+ * came for is marked.
  */
 export function SeoStatisticsDialog({
   model,
@@ -30,6 +29,10 @@ export function SeoStatisticsDialog({
   source?: SeoStatisticsProvider;
 }) {
   const t = useTranslations("App.Seo");
+  const forms = {
+    search_console: useSeoStatistics(model, "search_console"),
+    ga4: useSeoStatistics(model, "ga4"),
+  };
   return (
     <Dialog
       open
@@ -54,11 +57,11 @@ export function SeoStatisticsDialog({
           <DialogDescription>{t("statistics.description")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          {SOURCES.map((provider) => (
+          <SeoGoogleAccounts />
+          {SEO_GOOGLE_SOURCES.map((provider) => (
             <SeoStatisticsSource
               key={provider}
-              model={model}
-              provider={provider}
+              form={forms[provider]}
               focused={provider === source}
             />
           ))}

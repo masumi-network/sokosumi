@@ -4121,19 +4121,19 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     await openStatisticsSetup(userEvent);
     expect(await screen.findByText("Current Google account")).toBeVisible();
-    // The account is one chip; its menu names what it reads and holds its two actions.
-    const analytics = screen.getByRole("region", { name: "Google Analytics" });
+    // The accounts are one card; its one menu holds the rare account actions per source.
     await userEvent.click(
-      await within(analytics).findByRole("button", {
-        name: "Google Analytics connected",
-      }),
+      await screen.findByRole("button", { name: "Google account options" }),
     );
+    // Only the connected source has actions.
     expect(
-      await screen.findByText("Reads Current Google account"),
-    ).toBeVisible();
+      screen.queryByRole("menuitem", { name: "Disconnect Search Console" }),
+    ).toBeNull();
     // The question opens above the statistics dialog; Escape closes the question only.
     await userEvent.click(
-      await screen.findByRole("menuitem", { name: "Disconnect" }),
+      await screen.findByRole("menuitem", {
+        name: "Disconnect Google Analytics",
+      }),
     );
     expect(await screen.findByRole("alertdialog")).toBeVisible();
     await userEvent.keyboard("{Escape}");

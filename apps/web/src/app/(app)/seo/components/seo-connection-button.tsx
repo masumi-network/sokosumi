@@ -9,6 +9,7 @@ import { useSession } from "@/lib/auth/auth.client";
 import { SeoConnectedAccount } from "./seo-connected-account";
 import { SEO_WRAP_CLASS } from "./seo-shared";
 import {
+  type SeoConnection,
   type SeoConnectionAction,
   type SeoConnectionProvider,
   useSeoConnection,
@@ -32,8 +33,12 @@ type ConnectionButtonProps = {
   onError?: (message: string | null) => void;
   /** The source's name is already in view: labels leave it out. */
   compact?: boolean;
-  /** What a connected account reads here, for example the property. Its menu names it. */
-  accountDetail?: string;
+  /**
+   * The connection of a view that also changes this source (the account card's menu). One
+   * model means one approval at a time: a busy switch disables this button too. That view
+   * shows the errors and runs its own follow-up: `onConnected` does not apply.
+   */
+  model?: SeoConnection;
 };
 
 export function SeoConnectionButton({
@@ -43,7 +48,7 @@ export function SeoConnectionButton({
   connectLabel,
   onError,
   compact,
-  accountDetail,
+  model,
 }: ConnectionButtonProps) {
   const { data: session } = useSession();
   const identity = JSON.stringify([
@@ -60,7 +65,7 @@ export function SeoConnectionButton({
       connectLabel={connectLabel}
       onError={onError}
       compact={compact}
-      accountDetail={accountDetail}
+      model={model}
     />
   );
 }
@@ -72,10 +77,11 @@ function SeoConnectionControl({
   connectLabel,
   onError,
   compact,
-  accountDetail,
+  model: shared,
 }: ConnectionButtonProps) {
   const t = useTranslations("App.Seo");
-  const model = useSeoConnection(provider, onConnected);
+  const own = useSeoConnection(provider, onConnected);
+  const model = shared ?? own;
   const { data } = model.status;
   const { error } = model;
   // The view shows an error next to a button that can try again. A control
@@ -86,7 +92,8 @@ function SeoConnectionControl({
     return () => onError?.(null);
   }, [onError, reported]);
   // The view that takes the error shows it; here it would add a line and move the layout.
-  const ownError = onError ? null : error;
+  // A shared model belongs to a view that shows its errors already.
+  const ownError = onError || shared ? null : error;
   const name = t(`statistics.${provider}`);
   // Only the pressed button loads; the others wait.
   const state = (action: SeoConnectionAction) => ({
@@ -125,12 +132,7 @@ function SeoConnectionControl({
   if (data?.status === "connected")
     return (
       <div className={STACK_CLASS}>
-        <SeoConnectedAccount
-          name={name}
-          model={model}
-          compact={compact}
-          detail={accountDetail}
-        />
+        <SeoConnectedAccount name={name} model={model} />
         {ownError ? (
           <p role="alert" className="text-destructive text-sm">
             {ownError}

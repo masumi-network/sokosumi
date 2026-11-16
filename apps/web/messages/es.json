@@ -12340,11 +12340,14 @@
         "invalidCallback": "Este enlace no tiene un contexto de conexión SEO válido. Inicia la conexión desde la auditoría.",
         "connectGoogle": "Conectar Google",
         "analyticsNext": "Google pide tu aprobación dos veces: primero para Search Console y después para Google Analytics.",
-        "analyticsOff": "Google Analytics no está conectado. Las visitas y las páginas vistas quedan vacías.",
         "connectShort": "Conectar",
         "connectedShort": "Conectado",
-        "reads": "Lee {detail}",
-        "viaGoogle": "Mediante tu cuenta de Google"
+        "googleAccount": "Cuenta de Google",
+        "noneConnected": "Aún no hay ninguna fuente conectada",
+        "options": "Opciones de la cuenta de Google",
+        "settings": "Ajustes de estadísticas",
+        "switchFor": "Cambiar de cuenta: {provider}",
+        "notConnected": "No conectado"
       },
       "unavailableTitle": "SEO no está disponible en este Workspace",
       "unavailableBody": "Esta auditoría o selección no está disponible en el Workspace actual. Revisa el Workspace en la barra lateral o abre la lista de auditorías.",
