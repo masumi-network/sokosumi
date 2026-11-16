@@ -26,6 +26,8 @@ const ACTIVE_STATUSES = [
 export interface SokoBotTurnsSyncInput {
   abortSignal: AbortSignal;
   shouldContinue: () => boolean;
+  /** Only these bots' turns; every bot's when left out. */
+  sokoBotIds?: readonly string[];
 }
 
 export interface SokoBotTurnsSyncResult {
@@ -48,10 +50,14 @@ export class SokoBotTurnsSyncService {
     if (!getEnv().SOKO_BOT_ENABLED) return result;
     if (!input.shouldContinue()) return result;
 
+    const scope = input.sokoBotIds
+      ? { sokoBotId: { in: [...input.sokoBotIds] } }
+      : {};
     const now = new Date();
     result.expired += await this.expireTurns(
       await prisma.sokoBotTurn.findMany({
         where: {
+          ...scope,
           status: { in: [...ACTIVE_STATUSES] },
           deadlineAt: { lte: now },
         },
@@ -66,6 +72,7 @@ export class SokoBotTurnsSyncService {
     result.expired += await this.settleUndeliverableCancellations(
       await prisma.sokoBotTurn.findMany({
         where: {
+          ...scope,
           status: SokoBotTurnStatus.CANCEL_REQUESTED,
           eveSessionId: null,
         },
@@ -85,6 +92,7 @@ export class SokoBotTurnsSyncService {
     );
     const abandonedStarts = await prisma.sokoBotTurn.findMany({
       where: {
+        ...scope,
         status: SokoBotTurnStatus.STARTING,
         eveSessionId: null,
         reconcilerHeartbeatAt: null,
@@ -130,6 +138,7 @@ export class SokoBotTurnsSyncService {
     );
     const stale = await prisma.sokoBotTurn.findMany({
       where: {
+        ...scope,
         status: { in: [...ACTIVE_STATUSES] },
         deadlineAt: { gt: now },
         eveSessionId: { not: null },

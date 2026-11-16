@@ -78,8 +78,11 @@ describe("formatting a bot's post", () => {
       "Rewrite the post: it has 3 hashtags; use at most 2 on x.",
     );
     expect(
-      socialPostFormattingError("linkedin", post("Lessons\n\n#a #b #c #d #e")),
+      socialPostFormattingError("linkedin", post("Lessons\n\n#a #b #c")),
     ).toBeNull();
+    expect(
+      socialPostFormattingError("linkedin", post("Lessons\n\n#a #b #c #d")),
+    ).toBe("Rewrite the post: it has 4 hashtags; use at most 3 on linkedin.");
   });
 
   it("does not take a numbered point or a language name for a heading or hashtag", () => {
@@ -176,6 +179,18 @@ describe("the copy rules code checks", () => {
     expect(bannedCopyProblems("Let that sink in.")).toHaveLength(1);
     expect(bannedCopyProblems("Thread: how we price")).toHaveLength(1);
     expect(bannedCopyProblems("Tag a friend who bakes")).toHaveLength(1);
+    expect(
+      bannedCopyProblems("Fresh rye today. Like if you agree"),
+    ).toHaveLength(1);
+    expect(
+      bannedCopyProblems("Fresh rye is back: like if this is your loaf"),
+    ).toHaveLength(1);
+    for (const fine of [
+      "We would like to know if you prefer rye.",
+      "Share your screen if you want help with setup.",
+      "It feels like if you had a barista at home.",
+    ])
+      expect(bannedCopyProblems(fine)).toEqual([]);
     expect(bannedCopyProblems("Let's delve into fees.")).toHaveLength(1);
     expect(bannedCopyProblems("We cut our fees to 3%.")).toEqual([]);
   });

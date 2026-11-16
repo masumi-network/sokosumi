@@ -1,9 +1,13 @@
 import { z } from "@hono/zod-openapi";
 
+import { requireTaskReadForWorkspace } from "@/helpers/access-control";
+
 import {
   deduplicateQueryValues,
   preprocessMultiValueQueryInput,
 } from "@/helpers/query-params";
+import prisma from "@/lib/db/prisma";
+import type { WorkspaceContext } from "@/middleware/workspace";
 import { transactionHistoryKinds } from "@/schemas/transaction-history.schema";
 
 const scopeQuerySchema = z
@@ -55,11 +59,40 @@ const projectIdQuerySchema = z
     example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
   });
 
+const taskIdQuerySchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(200)
+  .optional()
+  .openapi({
+    param: { name: "taskId", in: "query" },
+    description:
+      "Only rows for this Task: charges by its events and its Jobs, and the refunds of those charges.",
+    example: "01a1ddca-e1fd-771a-bb5e-0b40c2177dfc",
+  });
+
+/**
+ * A Task filter narrows the ledger to one Task, so it reads only a Task the
+ * caller may open in the active workspace: a private Task only for its owner.
+ * Anything else is "Task not found", whether or not it has rows.
+ */
+export async function requireLedgerTaskFilter(
+  workspaceContext: WorkspaceContext,
+  userId: string,
+  taskId: string | undefined,
+): Promise<void> {
+  if (taskId) {
+    await requireTaskReadForWorkspace(workspaceContext, taskId, prisma, userId);
+  }
+}
+
 /** The ledger filters every Transactions endpoint shares. */
 export const transactionFilterQuerySchema = z.object({
   projectId: projectIdQuerySchema,
   q: searchQuerySchema,
   scope: scopeQuerySchema,
+  taskId: taskIdQuerySchema,
   types: typesQuerySchema,
 });
 

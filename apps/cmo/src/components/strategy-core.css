@@ -44,9 +44,10 @@
 }
 
 /* The funnel: stages narrow toward the sale */
+/* A funnel: one band a stage, each as wide at its top as the last one's end. */
 .sc-funnel {
   display: grid;
-  gap: 10px;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -54,32 +55,79 @@
 
 .sc-stage {
   display: grid;
-  gap: 10px;
-  margin-inline: calc(var(--sc-step, 0) * 20px);
-  padding: 20px 24px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--surface);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 32px;
 }
 
-.sc-stage.you {
-  border-style: dashed;
-  background: var(--background);
+.sc-band {
+  --sc-in-top: calc((100% - var(--sc-top, 100%)) / 2);
+  --sc-in-bottom: calc((100% - var(--sc-bottom, 100%)) / 2);
+  display: grid;
+  place-items: center;
+  min-height: 96px;
+  padding: 12px calc(var(--sc-in-bottom) + 12px);
+  background: var(--foreground);
+  color: var(--background);
+  text-align: center;
+  clip-path: polygon(
+    var(--sc-in-top) 0,
+    calc(100% - var(--sc-in-top)) 0,
+    calc(100% - var(--sc-in-bottom)) 100%,
+    var(--sc-in-bottom) 100%
+  );
+}
+
+/* Lighter where the owner does part of the work, lightest where it is theirs. */
+.sc-stage.shared .sc-band {
+  background: var(--muted);
+}
+
+.sc-stage.you .sc-band {
+  background: var(--border);
+  color: var(--foreground);
+}
+
+.sc-stage-body {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  padding: 16px 0;
+}
+
+.sc-stage + .sc-stage .sc-stage-body {
+  border-top: 1px solid var(--border);
 }
 
 @media (max-width: 640px) {
   .sc-stage {
-    margin-inline: 0;
-    padding: 16px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .sc-band {
+    min-height: 56px;
+  }
+
+  .sc-stage + .sc-stage .sc-stage-body {
+    border-top: 0;
   }
 }
 
 .sc-stage-head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 4px 12px;
+}
+
+.sc-stage-head .sc-goal {
+  flex: 1;
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.sc-stage-head .sc-owner {
+  flex: none;
 }
 
 .sc-stage-name {

@@ -86,7 +86,7 @@ LinkedIn rewards posts that teach something from real experience: a lesson, a re
 - **End with a question or a one-line takeaway.**
 - **Length**: a text post reads best at 800 to 1,500 characters. Shorter is fine when the idea is done.
 - **Links** go in firstComment; the post can say "Link in the first comment."
-- **Hashtags**: 3 to 5 specific ones on the last line, or none.
+- **Hashtags** add little: usually none, at most 3 specific ones on the last line.
 
 ## Formats
 
@@ -157,14 +157,11 @@ What would you stop making if you looked at your numbers?
         rule: "It is built on one real experience, result or decision, the business's or a named customer's, not generic tips or a list of things to check.",
       },
       {
-        rule: "It ends with a question or a one-line takeaway, not 'Agree?' or 'Thoughts?'.",
-      },
-      {
         rule: "Multi-image post: the text introduces one story told across the images and tells people to swipe.",
         formats: ["images"],
       },
       {
-        rule: "Text post at most about 1,500 characters, image or video post about 900; no link in the body; 3 to 5 hashtags or none.",
+        rule: "Text post at most about 1,500 characters, image or video post about 900; no link in the body; at most 3 hashtags.",
         counted: true,
       },
     ],
@@ -296,7 +293,10 @@ What should we teach next: brakes or gears?
       {
         rule: "It asks something people can easily answer, or invites them to something.",
       },
-      { rule: "No engagement bait ('Like if', 'Tag a friend')." },
+      {
+        rule: "No engagement bait ('Like if', 'Tag a friend').",
+        counted: true,
+      },
       {
         rule: "Link post: the post gives the reason to click and says the link is in the comments.",
         formats: ["link"],

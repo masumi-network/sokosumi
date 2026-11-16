@@ -3,15 +3,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   assetFindFirstMock,
   assetFindManyMock,
+  assetGroupByMock,
   jobFindManyMock,
   requireProjectAccessMock,
+  requireWorkspaceAccessMock,
   getMock,
   getEnvMock,
 } = vi.hoisted(() => ({
   assetFindFirstMock: vi.fn(),
   assetFindManyMock: vi.fn(),
+  assetGroupByMock: vi.fn(),
   jobFindManyMock: vi.fn(),
   requireProjectAccessMock: vi.fn(),
+  requireWorkspaceAccessMock: vi.fn(),
   getMock: vi.fn(),
   getEnvMock: vi.fn(),
 }));
@@ -20,12 +24,14 @@ vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@vercel/blob", () => ({ get: getMock }));
 vi.mock("@/lib/image-studio/access", () => ({
   requireProjectAccess: requireProjectAccessMock,
+  requireWorkspaceAccess: requireWorkspaceAccessMock,
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     projectImageAsset: {
       findFirst: assetFindFirstMock,
       findMany: assetFindManyMock,
+      groupBy: assetGroupByMock,
     },
     projectImageJob: { findMany: jobFindManyMock },
   },
@@ -33,6 +39,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 import {
   listJobs,
+  listRecentStudioProjects,
   openAssetStream,
   toJobView,
 } from "@/services/image-studio-assets.service";
@@ -214,4 +221,76 @@ describe("image studio versions", () => {
       }
     },
   );
+});
+
+describe("listRecentStudioProjects", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("checks membership, then reads only open, unhidden projects' images", async () => {
+    const latestAt = new Date("2026-11-11T10:00:00.000Z");
+    assetGroupByMock.mockResolvedValue([
+      {
+        projectId: "project-1",
+        _count: { _all: 24 },
+        _max: { createdAt: latestAt },
+      },
+      {
+        projectId: "project-2",
+        _count: { _all: 3 },
+        _max: { createdAt: latestAt },
+      },
+    ]);
+    assetFindFirstMock
+      .mockResolvedValueOnce({
+        id: "asset-9",
+        createdAt: latestAt,
+        project: { name: "Autumn menu" },
+      })
+      // Closed or hidden between the two reads.
+      .mockResolvedValueOnce(null);
+
+    const projects = await listRecentStudioProjects({
+      workspaceId: "workspace-1",
+      userId: "user-1",
+      limit: 3,
+    });
+
+    expect(requireWorkspaceAccessMock).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: "workspace-1", userId: "user-1" }),
+    );
+    expect(assetGroupByMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          workspaceId: "workspace-1",
+          mediaType: "IMAGE",
+          project: {
+            closedAt: null,
+            hides: { none: { userId: "user-1" } },
+          },
+        },
+        take: 3,
+      }),
+    );
+    expect(projects).toEqual([
+      {
+        projectId: "project-1",
+        projectName: "Autumn menu",
+        imageCount: 24,
+        latestAt,
+        latestImageId: "asset-9",
+      },
+    ]);
+  });
+
+  it("reads nothing for a caller who is not a member", async () => {
+    requireWorkspaceAccessMock.mockRejectedValueOnce(new Error("not found"));
+    await expect(
+      listRecentStudioProjects({
+        workspaceId: "workspace-1",
+        userId: "user-1",
+        limit: 3,
+      }),
+    ).rejects.toThrow("not found");
+    expect(assetGroupByMock).not.toHaveBeenCalled();
+  });
 });

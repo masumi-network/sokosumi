@@ -25,14 +25,21 @@ struct MessageAttachmentView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Preview \(attachment.filename)")
-      case .audio, .video:
-        AttachmentMediaView(url: attachment.url, audioOnly: attachment.kind == .audio)
+      case .audio:
+        HStack(spacing: 4) {
+          VoiceAttachmentPlayer(attachment: attachment)
+          AttachmentSaveButton(attachment: attachment)
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+        }
+      case .video:
+        AttachmentMediaView(url: attachment.url)
       case .file:
         AttachmentDocumentButton(attachment: attachment)
       }
-      if attachment.kind == .audio || attachment.kind == .video {
+      if attachment.kind == .video {
         HStack(spacing: 8) {
-          Image(systemName: attachment.kind == .audio ? "waveform" : "doc")
+          Image(systemName: "doc")
             .accessibilityHidden(true)
           VStack(alignment: .leading, spacing: 2) {
             Text(attachment.filename).lineLimit(2)
@@ -261,7 +268,6 @@ private struct AttachmentSaveButton: View {
 
 private struct AttachmentMediaView: View {
   let url: URL
-  let audioOnly: Bool
   @State private var player: AVPlayer?
 
   var body: some View {
@@ -280,11 +286,11 @@ private struct AttachmentMediaView: View {
           }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(audioOnly ? "Play audio" : "Play video")
+        .accessibilityLabel("Play video")
       }
     }
     .frame(maxWidth: 480)
-    .frame(height: audioOnly ? 80 : 270)
+    .frame(height: 270)
     .onDisappear { player?.pause() }
   }
 }

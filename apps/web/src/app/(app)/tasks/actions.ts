@@ -8,6 +8,7 @@ import {
   sanitizeProjectIdFilterInput,
   sanitizeTasksScopeInput,
   sanitizeTasksStatusInput,
+  sanitizeTasksStuckInput,
   sanitizeTasksVisibilityInput,
   TasksScope,
 } from "@/app/tasks/utils/tasks-filters";
@@ -42,6 +43,7 @@ interface LoadMoreTasksColumnParams {
   status: Task["status"] | null;
   projectId: string | null;
   visibility: Task["visibility"] | null;
+  stuck?: boolean;
 }
 
 interface LoadMoreTasksListParams {
@@ -53,6 +55,7 @@ interface LoadMoreTasksListParams {
   status: Task["status"] | null;
   projectId: string | null;
   visibility: Task["visibility"] | null;
+  stuck?: boolean;
 }
 
 async function sanitizeAssigneeUserId(
@@ -77,6 +80,7 @@ export async function loadMoreTasksColumn({
   status,
   projectId,
   visibility,
+  stuck,
 }: LoadMoreTasksColumnParams) {
   const [session, coworkers, ownerBot, t] = await Promise.all([
     getSession(),
@@ -121,6 +125,7 @@ export async function loadMoreTasksColumn({
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
     visibility: sanitizedVisibility,
+    stuck: sanitizeTasksStuckInput(stuck),
     coworkersById,
     personalAssistantFallback: t("personalAssistant"),
   });
@@ -140,6 +145,7 @@ export async function loadMoreTasksList({
   status,
   projectId,
   visibility,
+  stuck,
 }: LoadMoreTasksListParams) {
   const [session, coworkers, ownerBot, t] = await Promise.all([
     getSession(),
@@ -183,6 +189,7 @@ export async function loadMoreTasksList({
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
     visibility: sanitizedVisibility,
+    stuck: sanitizeTasksStuckInput(stuck),
     coworkersById,
     personalAssistantFallback: t("personalAssistant"),
   });

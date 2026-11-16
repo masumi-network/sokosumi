@@ -34,6 +34,7 @@ const AUDIO_EXTENSIONS = new Set([
   "flac",
   "opus",
   "oga",
+  "weba",
 ]);
 
 /** Strip parameters (`text/plain; charset=utf-8` → `text/plain`) for allowlist checks. */

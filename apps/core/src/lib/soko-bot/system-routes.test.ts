@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { presetClassificationResult } from "@/lib/soko-bot/classifier";
 import {
   inheritedScheduleRoute,
+  PERSON_SCHEDULE_CAPABILITIES,
   SYSTEM_TURN_ROUTES,
   systemScheduleRoute,
 } from "@/lib/soko-bot/system-routes";
@@ -29,6 +30,21 @@ describe("system turn routes", () => {
     ]);
     expect(route?.sandbox).toBe(true);
     expect(inheritedScheduleRoute([])).toBeUndefined();
+  });
+
+  it("runs a person's console schedule with their chat tools, but not on other schedules", () => {
+    const route = inheritedScheduleRoute(PERSON_SCHEDULE_CAPABILITIES);
+    expect(route?.capabilities).toEqual(
+      expect.arrayContaining([
+        "start_background_run",
+        "bash",
+        "upload_file",
+        "create_schedule",
+      ]),
+    );
+    expect(route?.capabilities).not.toContain("update_schedule");
+    expect(route?.capabilities).not.toContain("delete_schedule");
+    expect(route?.sandbox).toBe(true);
   });
 
   it("gives every built-in rhythm a route", () => {

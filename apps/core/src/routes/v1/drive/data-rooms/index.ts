@@ -13,11 +13,14 @@ import mountAnswer from "./[id]/questions/[questionId]/patch.js";
 import mountQuestions from "./[id]/questions/get.js";
 import mountGet from "./get.js";
 import mountPost from "./post.js";
+import mountWaitingQuestions from "./questions.js";
 
 const app = createNestedOpenAPIHono();
 
 mountGet(app);
 mountPost(app);
+// Before "/{id}", which would take "questions" for a room id.
+mountWaitingQuestions(app);
 mountGetOne(app);
 mountPatch(app);
 mountDelete(app);

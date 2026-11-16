@@ -3592,6 +3592,53 @@ describe("TaskForm draft tags", () => {
     }
   });
 
+  it("keeps ready tags ticked in the create progress while the request runs", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", suggestTaskTags);
+    let finishCreate: (value: ReturnType<typeof createTaskSuccess>) => void =
+      () => {};
+    try {
+      vi.mocked(suggestTaskTags)
+        .mockReset()
+        .mockResolvedValue(
+          Response.json({ tags: ["research"], receipt: "receipt-1" }),
+        );
+      const onCreateTask = vi.fn(
+        () =>
+          new Promise<ReturnType<typeof createTaskSuccess>>((resolve) => {
+            finishCreate = resolve;
+          }),
+      );
+      renderComposer(onCreateTask);
+      await act(() => vi.advanceTimersByTimeAsync(1200));
+      await act(async () =>
+        fireEvent.click(screen.getByRole("button", { name: "Create Task" })),
+      );
+
+      expect(onCreateTask).toHaveBeenCalledWith(
+        expect.objectContaining({ tagSuggestionReceipt: "receipt-1" }),
+      );
+      const progress = within(screen.getByRole("status")).getAllByRole(
+        "listitem",
+      );
+      expect(progress.map((item) => item.textContent)).toEqual([
+        "naming",
+        "tagsReady",
+        "saving",
+      ]);
+
+      await act(async () =>
+        finishCreate(createTaskSuccess("task-1", "Task one")),
+      );
+      expect(
+        screen.getByRole("button", { name: "Bring me to the task" }),
+      ).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
   // Items 4/5: the suggestion request has to start from the wizard's first step,
   // where an offer or a deep-linked prompt has already filled the description.
   it("asks for suggestions on wizard step 1, before the editor is reached", async () => {

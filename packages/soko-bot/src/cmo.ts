@@ -252,6 +252,11 @@ export type CmoStrategySavePart = (typeof CMO_STRATEGY_SAVE_PARTS)[number];
 
 export const cmoSaveStrategyInputSchema = z.object({
   part: z.enum(CMO_STRATEGY_SAVE_PARTS).default("all"),
+  /**
+   * Lists the owner asked to empty, by field name. A list sent empty is
+   * otherwise filler and stays as saved.
+   */
+  clear: z.array(z.string().max(40)).max(10).default([]),
   strategy: z
     .preprocess(normalizeStrategyChannels, cmoStrategySaveSchema)
     .superRefine((strategy, ctx) => {
@@ -535,6 +540,16 @@ export function cmoStrategySavePart(input: unknown): CmoStrategySavePart {
   return CMO_STRATEGY_SAVE_PARTS.includes(part as CmoStrategySavePart)
     ? (part as CmoStrategySavePart)
     : "all";
+}
+
+/** The plan lists a save empties on purpose (never the calendar). */
+export function cmoStrategySaveClears(input: unknown): string[] {
+  const clear = (input as { clear?: unknown } | null)?.clear;
+  return Array.isArray(clear)
+    ? clear.filter(
+        (key): key is string => typeof key === "string" && key !== "calendar",
+      )
+    : [];
 }
 
 export function parseCmoStrategySave(input: unknown): CmoStrategySave {

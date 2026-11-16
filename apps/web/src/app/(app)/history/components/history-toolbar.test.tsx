@@ -43,6 +43,7 @@ const filterLabels = {
     task: "Task",
     coworker: "Coworker",
     sokoBot: "Soko Bot",
+    seoChat: "SEO chat",
     contacts: "Find people",
     topUp: "Top up",
     unattributed: "Other",
@@ -54,7 +55,13 @@ describe("HistoryToolbar", () => {
     const { container } = render(
       <HistoryToolbar
         activeOrganizationId={null}
-        filters={{ q: null, scope: "owned", type: null, projectId: null }}
+        filters={{
+          q: null,
+          scope: "owned",
+          type: null,
+          projectId: null,
+          taskId: null,
+        }}
         projectOptions={[]}
         resultsCountLabel="3 results found"
         labels={{
@@ -79,7 +86,13 @@ describe("HistoryToolbar", () => {
     const { container } = render(
       <HistoryToolbar
         activeOrganizationId={null}
-        filters={{ q: null, scope: "owned", type: null, projectId: null }}
+        filters={{
+          q: null,
+          scope: "owned",
+          type: null,
+          projectId: null,
+          taskId: null,
+        }}
         projectOptions={[]}
         resultsCountLabel="3 results found"
         labels={{

@@ -8,6 +8,7 @@ import { captcha } from "better-auth/plugins";
 
 import { consumeCaptchaPass, isCaptchaPass } from "./auth-captcha-pass.js";
 import { EMAIL_CODE_SEND_PATH } from "./auth-email-code-sign-in.js";
+import { REQUEST_EMAIL_CHANGE_PATH } from "./auth-pending-email-change.js";
 import { SIGN_UP_EMAIL_STATUS_PATH } from "./auth-sign-up-email-status.js";
 
 async function readSignInCodeEmail(request: Request) {
@@ -46,7 +47,7 @@ export function createAuthCaptchaPlugin(secretKey: string | undefined) {
       "/sign-in/email",
       "/request-password-reset",
       "/send-verification-email",
-      "/change-email",
+      REQUEST_EMAIL_CHANGE_PATH,
       EMAIL_CODE_SEND_PATH,
     ],
   });

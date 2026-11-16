@@ -1,4 +1,4 @@
-import { getEnv } from "@/config/env";
+import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 
 const GATEWAY_MODELS_URL = "https://ai-gateway.vercel.sh/v1/models";
 const MODELS_TIMEOUT_MS = 8_000;
@@ -46,7 +46,7 @@ function parseModels(payload: unknown): GatewayModel[] {
  */
 export async function listGatewayModels(): Promise<GatewayModel[]> {
   if (cache && Date.now() - cache.at < MODELS_CACHE_MS) return cache.models;
-  const apiKey = getEnv().AI_GATEWAY_API_KEY;
+  const apiKey = aiGatewayApiKey();
   if (!apiKey) return [];
   try {
     const response = await fetch(GATEWAY_MODELS_URL, {

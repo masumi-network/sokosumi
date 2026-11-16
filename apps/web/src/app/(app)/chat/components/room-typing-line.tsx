@@ -59,10 +59,14 @@ export function RoomTypingLine({ typistIds, usersById }: RoomTypingLineProps) {
     <p
       aria-live="polite"
       aria-atomic="true"
-      className="text-muted-foreground min-h-5 truncate px-4 text-xs md:absolute md:inset-x-0 md:bottom-1 md:min-h-0 md:px-9"
+      className="pointer-events-none text-muted-foreground min-h-5 truncate px-4 text-xs md:absolute md:inset-x-0 md:bottom-1 md:min-h-0 md:px-9"
       data-testid="room-typing-line"
     >
-      {label}
+      {label ? (
+        <span className="pointer-events-auto rounded-md bg-background px-1">
+          {label}
+        </span>
+      ) : null}
     </p>
   );
 }

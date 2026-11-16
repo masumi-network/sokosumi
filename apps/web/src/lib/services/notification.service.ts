@@ -12,13 +12,27 @@ export const notificationService = (() => {
     limit: number,
     projectId?: string,
   ): Promise<NotificationItem[]> {
+    return (await readNeedsYou(limit, projectId)).notifications;
+  }
+
+  /**
+   * {@link listNeedsYou}'s rows plus how many requests the view holds in all:
+   * open asks about Tasks, Jobs, grants and access, from every workspace.
+   */
+  async function readNeedsYou(
+    limit: number,
+    projectId?: string,
+  ): Promise<{ notifications: NotificationItem[]; total: number }> {
     const result = await coreClient.getNotifications({
       needsAction: "true",
       limit,
       projectId,
     });
-    return result.data;
+    return {
+      notifications: result.data,
+      total: result.meta?.pagination?.total ?? result.data.length,
+    };
   }
 
-  return { listNeedsYou };
+  return { listNeedsYou, readNeedsYou };
 })();

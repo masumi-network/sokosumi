@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleAlert, PenLine } from "lucide-react";
+import { PenLine } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
@@ -16,7 +16,6 @@ import { cn } from "@/lib/utils";
 
 const NEED_PROJECT_COPY = {
   accounts: "accountsNeedProject",
-  attention: "attentionNeedProject",
   drafts: "draftsNeedProject",
 } as const;
 
@@ -34,7 +33,7 @@ interface SocialAccountsProjectPromptProps {
 /**
  * Project-owned accounts and drafts ask for a project through the header's
  * own selector, as Content Studio does, over a backdrop of what the tab holds:
- * the platforms to connect for Accounts, a post fan for Drafts and Attention.
+ * the platforms to connect for Accounts, a post fan for Drafts.
  */
 export function SocialAccountsProjectPrompt({
   kind = "accounts",
@@ -57,21 +56,16 @@ export function SocialAccountsProjectPrompt({
       testId="social-no-project"
       title={t(`${copy}.title`)}
     >
-      {kind === "accounts" ? (
-        <SocialPlatformCarousel />
-      ) : (
-        <SocialPostFan kind={kind} />
-      )}
+      {kind === "accounts" ? <SocialPlatformCarousel /> : <SocialPostFan />}
     </ProjectScopeRequired>
   );
 }
 
-/** Two platforms fanned behind the tab's own mark: a post waiting on them. */
-function SocialPostFan({ kind }: { kind: "attention" | "drafts" }) {
+/** Two platforms fanned behind the Drafts mark: a post waiting on them. */
+function SocialPostFan() {
   const [left, right] = socialProvidersEnabledFirst(
     useSocialProviderAvailability().enabledProviders,
   );
-  const Mark = kind === "drafts" ? PenLine : CircleAlert;
   const tile =
     "bg-card flex size-16 items-center justify-center rounded-2xl border";
 
@@ -89,7 +83,7 @@ function SocialPostFan({ kind }: { kind: "attention" | "drafts" }) {
       <span
         className={cn(tile, "text-muted-foreground relative z-10 mb-3 size-20")}
       >
-        <Mark className="size-8" />
+        <PenLine className="size-8" />
       </span>
       {right ? (
         <span className={cn(tile, "-ml-3 rotate-6")}>

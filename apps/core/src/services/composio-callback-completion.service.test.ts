@@ -32,6 +32,7 @@ vi.mock("@/clients/composio.client", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     member: { findFirst: memberFindFirstMock },
+    seoConnectionIntent: { findUnique: async () => null },
     projectSocialConnectionIntent: {
       findUnique: socialConnectionIntentFindUniqueMock,
       updateMany: socialConnectionIntentUpdateManyMock,

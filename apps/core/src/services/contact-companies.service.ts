@@ -72,6 +72,8 @@ export interface CompanySummary {
   lastContactAt: Date | null;
   warmth: CompanyWarmth;
   strongestStage: (typeof STAGE_STRENGTH)[number] | null;
+  /** The company lists it is on. */
+  listIds: string[];
 }
 
 interface CompanyStats {
@@ -295,7 +297,11 @@ async function ensureCompanyRows(
   return read();
 }
 
-function summary(row: CompanyRow, stats: CompanyStats): CompanySummary {
+function summary(
+  row: CompanyRow,
+  stats: CompanyStats,
+  listIds: string[] = [],
+): CompanySummary {
   return {
     id: row.id,
     name: row.name,
@@ -316,7 +322,26 @@ function summary(row: CompanyRow, stats: CompanyStats): CompanySummary {
     warmth: companyWarmth(stats.lastContactAt),
     strongestStage:
       STAGE_STRENGTH.find((stage) => stats.stages.includes(stage)) ?? null,
+    listIds,
   };
+}
+
+/** The company lists each of these companies is on, by company id. */
+async function listIdsByCompany(
+  companyIds: string[],
+): Promise<Map<string, string[]>> {
+  const rows = await prisma.contactCompanyListMember.findMany({
+    where: { companyId: { in: companyIds } },
+    orderBy: [{ addedAt: "asc" }, { listId: "asc" }],
+    select: { companyId: true, listId: true },
+  });
+  const byCompany = new Map<string, string[]>();
+  for (const row of rows)
+    byCompany.set(row.companyId, [
+      ...(byCompany.get(row.companyId) ?? []),
+      row.listId,
+    ]);
+  return byCompany;
 }
 
 export const COMPANY_SORTS = ["people", "lastContact", "name"] as const;
@@ -329,6 +354,8 @@ export async function listCompanies(
     /** Exactly the company this name belongs to, as the contact filter reads it. */
     name?: string;
     industry?: string;
+    /** Only the companies on this company list. */
+    listId?: string;
     sort?: (typeof COMPANY_SORTS)[number];
     minPeople?: number;
     offset?: number;
@@ -346,6 +373,17 @@ export async function listCompanies(
     const row = rows.get(stat.key);
     return row ? [summary(row, stat)] : [];
   });
+  if (options.listId) {
+    const members = await prisma.contactCompanyListMember.findMany({
+      where: {
+        listId: options.listId,
+        list: { workspaceId: actor.workspaceId },
+      },
+      select: { companyId: true },
+    });
+    const onList = new Set(members.map((member) => member.companyId));
+    items = items.filter((item) => onList.has(item.id));
+  }
   if (options.minPeople)
     items = items.filter((item) => item.people >= (options.minPeople ?? 0));
   if (options.industry) {
@@ -363,8 +401,13 @@ export async function listCompanies(
         : b.people - a.people || a.name.localeCompare(b.name),
   );
   const offset = options.offset ?? 0;
+  const page = items.slice(offset, offset + options.limit);
+  const listIds = await listIdsByCompany(page.map((item) => item.id));
   return {
-    items: items.slice(offset, offset + options.limit),
+    items: page.map((item) => ({
+      ...item,
+      listIds: listIds.get(item.id) ?? [],
+    })),
     total: items.length,
   };
 }
@@ -476,7 +519,11 @@ export async function getCompany(actor: ContactActor, id: string) {
     stages: [],
   };
   return {
-    company: summary(row, stats ?? empty),
+    company: summary(
+      row,
+      stats ?? empty,
+      (await listIdsByCompany([row.id])).get(row.id) ?? [],
+    ),
     people: await contactDtos(people, prisma, actor.userId),
     morePeople: Math.max(0, ids.length - people.length),
     teammates,

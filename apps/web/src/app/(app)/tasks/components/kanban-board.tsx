@@ -56,6 +56,7 @@ export function KanbanBoard({
         const columnContent = (
           <KanbanColumn
             key={column.id}
+            id={column.id}
             title={labels.columns[column.id]}
             statusColor={COLUMN_STATUS_COLORS[column.id]}
             tasks={columnTasks}

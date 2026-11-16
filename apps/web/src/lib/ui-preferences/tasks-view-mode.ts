@@ -18,13 +18,18 @@ export function parseTasksViewMode(
 }
 
 /**
- * Cookie preference wins. Without one, mobile/tablet UA defaults to list;
- * desktop defaults to board.
+ * A view the link asks for (`?view=board`) wins for that visit only; the
+ * saved preference stays. Then the cookie preference. Without one,
+ * mobile/tablet UA defaults to list; desktop defaults to board.
  */
 export function resolveDefaultTasksViewMode(options: {
+  requested?: TasksViewMode | null;
   persisted: TasksViewMode | null;
   preferList: boolean;
 }): TasksViewMode {
+  if (options.requested) {
+    return options.requested;
+  }
   if (options.persisted) {
     return options.persisted;
   }
