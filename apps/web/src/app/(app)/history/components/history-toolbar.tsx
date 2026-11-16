@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import type {
   HistoryFilters,
   HistoryType,
@@ -45,11 +47,16 @@ export function HistoryToolbar({
   resultsCountLabel,
   labels,
 }: HistoryToolbarProps) {
+  // Removing the Search chip or Clear all remounts the search box, which drops
+  // its pending debounced write so typing cannot bring the search back.
+  const [searchResets, setSearchResets] = useState(0);
+
   return (
     <div data-history-toolbar className="flex flex-col gap-3">
       <div className="flex items-center gap-2 sm:gap-3">
         <div className="hidden min-w-0 flex-1 md:block">
           <HistorySearch
+            key={searchResets}
             activeOrganizationId={activeOrganizationId}
             projectOptions={projectOptions}
             labels={labels.search}
@@ -74,6 +81,7 @@ export function HistoryToolbar({
         </div>
       </div>
       <HistoryActiveFilters
+        onSearchReset={() => setSearchResets((count) => count + 1)}
         activeOrganizationId={activeOrganizationId}
         projectOptions={projectOptions}
         labels={labels.filters}

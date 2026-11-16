@@ -1,6 +1,6 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const filterDropdownMenuMock = vi.fn();
 
@@ -11,6 +11,7 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
   },
 }));
 
+import { HistoryToolbar } from "@/app/history/components/history-toolbar";
 import {
   HistoryActiveFilters,
   HistoryViewFilters,
@@ -29,6 +30,12 @@ vi.mock("next/navigation", () => ({
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}(${Object.values(values).join(", ")})` : key,
+}));
+
+vi.mock("@/config/env.public", () => ({
+  getEnvPublicConfig: () => ({
+    NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME: 300,
+  }),
 }));
 
 let searchParams = new URLSearchParams();
@@ -241,5 +248,99 @@ describe("HistoryActiveFilters", () => {
     const label = screen.getByText(`chip(searchLabel, ${"a".repeat(120)})`);
     expect(label).toHaveClass("wrap-anywhere");
     expect(label).not.toHaveClass("truncate");
+  });
+});
+
+// The page search box debounces its URL write. Removing the Search chip or
+// Clear all while that write is pending must win; the timer must not bring
+// the old search back.
+describe("HistoryToolbar search reset", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    replaceMock.mockClear();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    setUrl("");
+  });
+
+  function renderToolbar() {
+    const props = {
+      activeOrganizationId: "org-1",
+      filters: {
+        q: null,
+        scope: "owned" as const,
+        type: null,
+        projectId: null,
+        taskId: null,
+      },
+      projectOptions: [{ id: PROJECT_ID, name: "Research" }],
+      resultsCountLabel: "1 result",
+      labels: {
+        search: { placeholder: "Search transactions", clear: "Clear" },
+        filters: labels,
+      },
+    };
+    const view = render(<HistoryToolbar {...props} />);
+    return {
+      input: () =>
+        screen.getByPlaceholderText("Search transactions") as HTMLInputElement,
+      rerender: () => view.rerender(<HistoryToolbar {...props} />),
+    };
+  }
+
+  const writtenQueries = () =>
+    replaceMock.mock.calls.map(([href]) =>
+      new URL(href as string, "http://x").searchParams.get("q"),
+    );
+
+  it("still writes typed search after the debounce", () => {
+    setUrl("?type=sokoBot");
+    const { input } = renderToolbar();
+
+    fireEvent.change(input(), { target: { value: "invoice" } });
+    expect(replaceMock).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(300));
+
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/history?type=sokoBot&q=invoice",
+    );
+  });
+
+  it.each([
+    ["the Search chip", "removeFilter(chip(searchLabel, invoice))"],
+    ["Clear all", "clearAll"],
+  ])("%s cancels pending typing so the search stays removed", (_, name) => {
+    setUrl("?q=invoice&type=sokoBot");
+    const { input, rerender } = renderToolbar();
+
+    fireEvent.change(input(), { target: { value: "invoicex" } });
+    fireEvent.click(screen.getByRole("button", { name }));
+    setUrl(new URL(replaceMock.mock.calls[0][0], "http://x").search);
+    rerender();
+    act(() => vi.advanceTimersByTime(1000));
+
+    expect(writtenQueries()).toEqual([null]);
+    expect(input().value).toBe("");
+  });
+
+  it("follows Back to the earlier search after a reset", () => {
+    setUrl("?q=invoice&type=sokoBot");
+    const { input, rerender } = renderToolbar();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "removeFilter(chip(searchLabel, invoice))",
+      }),
+    );
+    setUrl("?type=sokoBot");
+    rerender();
+    expect(input().value).toBe("");
+
+    setUrl("?q=invoice&type=sokoBot");
+    rerender();
+    act(() => vi.advanceTimersByTime(1000));
+    expect(input().value).toBe("invoice");
+    expect(writtenQueries()).toEqual([null]);
   });
 });

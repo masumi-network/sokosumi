@@ -1528,7 +1528,7 @@
         "scopeWorkspace": "Workspace",
         "typeLabel": "Origen",
         "projectLabel": "Proyecto",
-        "activeCount": "{count} activos",
+        "activeCount": "{count, plural, =1 {1 activo} other {# activos}}",
         "activeFilters": "Filtros activos",
         "chip": "{label}: {value}",
         "removeFilter": "Quitar filtro {filter}",

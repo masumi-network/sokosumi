@@ -196,7 +196,11 @@ export function HistoryActiveFilters({
   activeOrganizationId,
   projectOptions,
   labels,
-}: HistoryViewFiltersProps) {
+  onSearchReset,
+}: HistoryViewFiltersProps & {
+  /** Called before a removal that clears the search, so the box drops pending typing. */
+  onSearchReset?: () => void;
+}) {
   const t = useTranslations("App.TransactionHistory.Filters");
   const { filters, handleFilterChange } = useHistoryFilters(
     activeOrganizationId,
@@ -236,6 +240,7 @@ export function HistoryActiveFilters({
     const controls = from
       .closest("[data-history-toolbar]")
       ?.querySelector("[data-history-filters]");
+    if ("q" in patch) onSearchReset?.();
     handleFilterChange(patch);
     Array.from(controls?.querySelectorAll<HTMLElement>("button") ?? [])
       .findLast((button) => button.offsetParent !== null)
