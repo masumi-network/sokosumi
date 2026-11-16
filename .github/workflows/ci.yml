@@ -101,11 +101,13 @@ jobs:
       - name: Run Tests
         run: pnpm exec turbo run test:ci --filter=web --filter=cmo
 
-  # One job for the same reason as `web`: migrations, the unit suite, then
-  # the PostgreSQL suites, on a database that boots during checkout and
-  # Setup.
-  core:
-    name: Test Core
+  # Core's PostgreSQL suites in a job of their own, beside the unit suite in
+  # `Test Core` instead of after it: the unit suite no longer waits ~100s on
+  # them, and a failure in one does not hide the other. Migrations and the
+  # drift check come along, on a database that boots during checkout and
+  # Setup. Same `core` path filter and draft guard as `Test Core`.
+  core-postgres:
+    name: Test Core PostgreSQL
     needs: changes
     if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.core != 'false' }}
     runs-on: ubuntu-latest
@@ -123,6 +125,13 @@ jobs:
 
       - *checkout
       - *setup
+
+      # Builds what the PostgreSQL suites need from their workspace
+      # dependencies; `pnpm --filter core test` below runs vitest directly and
+      # builds nothing itself. Same command as `write-openapi-snapshot`. Runs
+      # while the database finishes booting.
+      - name: Build Core dependencies
+        run: pnpm exec turbo run build prisma:generate --filter=@sokosumi/core^... --output-logs=errors-only
 
       # TCP, not the socket: the image's init server listens on the socket
       # only and restarts before the real server comes up.
@@ -143,11 +152,6 @@ jobs:
       - name: Check Prisma schema matches migrations
         env: *migrated-db
         run: pnpm prisma:check-drift
-
-      # Builds what `test:ci`'s `^build` needs, which the PostgreSQL suites
-      # below reuse.
-      - name: Run Tests
-        run: pnpm exec turbo run test:ci --filter=@sokosumi/core
 
       # `optInDbExclude` in apps/core/vitest.config.ts keeps every
       # `src/**/*.postgres.test.ts` out of `test:ci`, so these files run
@@ -207,13 +211,34 @@ jobs:
       # (`apps/core/src/test/postgres-worker-databases.ts`), so the files
       # run in parallel, each worker on its own copy.
       - name: Test against PostgreSQL
-        # Reports on its own when the unit suite above fails.
-        if: ${{ !cancelled() }}
+        # No `if: ${{ !cancelled() }}`: this job holds no unit suite whose
+        # failure it would have to report past, so a failed migration or drift
+        # check stops it here.
         env: *migrated-db
         run: |
           RUN_DATABASE_INTEGRATION_TESTS=true POSTGRES_TEST_DATABASE_PER_WORKER=true \
             pnpm --filter core --fail-if-no-match test .postgres.test.ts \
             --passWithNoTests=false
+
+  # One job for the same reason as `web`: the unit suite, behind the same
+  # `Setup`. Its PostgreSQL suites, migrations and drift check run beside it
+  # in `Test Core PostgreSQL`, so neither waits on the other.
+  core:
+    name: Test Core
+    needs: changes
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.core != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    steps:
+      - *checkout
+      - *setup
+
+      # The PostgreSQL suites run in `Test Core PostgreSQL`:
+      # `optInDbExclude` in apps/core/vitest.config.ts keeps every
+      # `src/**/*.postgres.test.ts` out of `test:ci`, so that job runs them or
+      # they run nowhere.
+      - name: Run Tests
+        run: pnpm exec turbo run test:ci --filter=@sokosumi/core
 
   packages:
     name: Test Packages
