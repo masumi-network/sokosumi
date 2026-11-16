@@ -173,6 +173,38 @@ export function seoActionBucket(
   return severity === "critical" || severity === "major" ? "high" : "low";
 }
 
+/** The filters of the worklist: All, then each group with rows. */
+export const SEO_ACTION_FILTERS = [
+  "all",
+  "high",
+  "low",
+  "suggestions",
+] as const;
+export type SeoActionFilter = (typeof SEO_ACTION_FILTERS)[number];
+
+/**
+ * The worklist of the Actions tab: the count of each group, and the filters worth offering. A filter that
+ * shows every row or none says nothing, so only the filters that split the list are offered.
+ */
+export function seoActionWorklist<Action extends { kind: string }>(
+  actions: readonly Action[],
+  bucket: (action: Action) => SeoActionBucket,
+) {
+  const counts = { all: actions.length, high: 0, low: 0, suggestions: 0 };
+  for (const action of actions) counts[bucket(action)] += 1;
+  const filters = SEO_ACTION_FILTERS.filter(
+    (key) => key === "all" || (counts[key] > 0 && counts[key] < actions.length),
+  );
+  return {
+    counts,
+    filters,
+    rows: (filter: SeoActionFilter) =>
+      filter === "all"
+        ? actions
+        : actions.filter((action) => bucket(action) === filter),
+  };
+}
+
 /** The fixes that wait for the reader: the count the Agent tab and the Keywords card lead with. */
 export function seoOpenFixes(
   overview: Pick<ReturnType<typeof seoOverviewModel>, "recommendedActions">,

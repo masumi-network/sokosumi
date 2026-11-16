@@ -3,7 +3,7 @@
 import type { ProjectSeoAction } from "@sokosumi/core-client";
 import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useId, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import {
   SEGMENTED_CONTROL_CLASS_NAME,
   SEGMENTED_CONTROL_ITEM_CLASS_NAME,
@@ -13,25 +13,25 @@ import { useSeoActionFinding } from "./seo-action-finding";
 import { SeoActionDialog } from "./seo-agent-steps";
 import {
   type SeoActionBucket,
+  type SeoActionFilter,
   type SeoIssueSeverity,
   seoActionBucket,
+  seoActionWorklist,
 } from "./seo-overview-model";
 import {
   SEO_ROW_BUTTON_CLASS,
   SEO_ROW_LIST_CLASS,
+  SEO_SEVERITY_MARK_CLASS,
   SeoSeverity,
   SeoState,
   seoPageLabel,
 } from "./seo-shared";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
-/** The filters of the worklist: critical and high issues read as one level, as their orange mark does. */
-const FILTERS = ["all", "high", "low", "suggestions"] as const;
-type SeoActionFilter = (typeof FILTERS)[number];
 /** The rail of a row has the color of the impact mark; a suggestion has the grey of a quiet line. */
 const RAIL: Record<SeoActionBucket, string> = {
-  high: "bg-chart-2",
-  low: "bg-chart-5",
+  high: SEO_SEVERITY_MARK_CLASS.major,
+  low: SEO_SEVERITY_MARK_CLASS.minor,
   suggestions: "bg-border",
 };
 
@@ -58,19 +58,24 @@ export function SeoActionWorklist({
   const list = useRef<HTMLUListElement>(null);
   const bucket = (action: ProjectSeoAction) =>
     seoActionBucket(action, severity(action));
-  const counts = { all: actions.length, high: 0, low: 0, suggestions: 0 };
-  for (const action of actions) counts[bucket(action)] += 1;
-  // A filter that shows every row or none says nothing: the line has only the filters that split the list.
-  const filters = FILTERS.filter(
-    (key) => key === "all" || (counts[key] > 0 && counts[key] < actions.length),
-  );
-  // A filter whose rows left (a new check) goes back to all rows, and stays there when they come back.
-  if (!filters.includes(filter)) setFilter("all");
+  const { counts, filters, rows: rowsFor } = seoActionWorklist(actions, bucket);
+  const filterLine = useRef<HTMLFieldSetElement>(null);
+  const refocus = useRef(false);
+  // A filter whose rows left (a new check) goes back to all rows, and stays there when they come back. A
+  // focus on the filter that left goes to All.
+  if (!filters.includes(filter)) {
+    refocus.current = Boolean(
+      filterLine.current?.contains(document.activeElement),
+    );
+    setFilter("all");
+  }
   const shown = filters.includes(filter) ? filter : "all";
-  const rows =
-    shown === "all"
-      ? actions
-      : actions.filter((action) => bucket(action) === shown);
+  useEffect(() => {
+    if (shown !== "all" || !refocus.current) return;
+    refocus.current = false;
+    filterLine.current?.querySelector<HTMLButtonElement>("button")?.focus();
+  }, [shown]);
+  const rows = rowsFor(shown);
   // The dialog holds its action by key: a Task for it changes the action, and the dialog shows the new state.
   // An action that left the list closes its dialog, and the dialog does not open again when it comes back.
   const opened = actions.find((action) => seoActionKey(action) === openKey);
@@ -81,8 +86,13 @@ export function SeoActionWorklist({
         {filters.length > 1 ? (
           // One control with its parts: the app's segmented look, buttons with a pressed state.
           // On a phone the parts keep one line and the track scrolls: wrapped, the pills broke into uneven rows.
+          // min-w-0: a fieldset is at least as wide as its content by default, and would not scroll.
           <fieldset
-            className={cn(SEGMENTED_CONTROL_CLASS_NAME, "overflow-x-auto")}
+            ref={filterLine}
+            className={cn(
+              SEGMENTED_CONTROL_CLASS_NAME,
+              "min-w-0 overflow-x-auto",
+            )}
           >
             <legend className="sr-only">{t("actions.filter.label")}</legend>
             {filters.map((key) => (

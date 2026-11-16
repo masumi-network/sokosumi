@@ -80,6 +80,18 @@ describe("SEO action worklist", () => {
     );
   });
 
+  it("gives the focus to All when the pressed filter leaves", async () => {
+    const user = userEvent.setup();
+    const idea = {
+      ...action("idea", "Write a guide"),
+      kind: "opportunity",
+    } as const;
+    const { rerender } = render(view([high, low, idea]));
+    await user.click(screen.getByRole("button", { name: "Low impact 1" }));
+    rerender(view([high, idea]));
+    expect(screen.getByRole("button", { name: "All 2" })).toHaveFocus();
+  });
+
   it("closes the dialog of an action that left the list, and does not open it again when it comes back", async () => {
     const user = userEvent.setup();
     const { rerender } = render(view([high, low]));
