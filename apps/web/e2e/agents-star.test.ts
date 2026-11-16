@@ -65,10 +65,18 @@ for (const { name, ...viewport } of PROJECTS) {
       page.on("pageerror", (e) => errors.push(e.message));
 
       await signUp(page, name);
-      // Phone navigation has no Agents entry yet (You lists other pages
-      // only), and tablet keeps the sidebar closed; open the page directly.
-      if (viewport.width < 1024) await page.goto(`${BASE_URL}/agents`);
-      else await page.getByRole("link", { name: "Agents" }).click();
+      // Phone reaches Agents through You; tablet opens the closed sidebar.
+      if (viewport.width < 768) {
+        await page
+          .getByRole("navigation", { name: "Main navigation" })
+          .getByRole("link", { name: /You$/ })
+          .click();
+        await page.waitForURL(/\/you$/);
+      } else if (viewport.width < 1024) {
+        await page.getByRole("button", { name: "Show sidebar" }).click();
+      }
+      await page.getByRole("link", { name: "Agents", exact: true }).click();
+      await page.waitForURL(/\/agents$/);
 
       const firstStar = page.getByRole("button", { name: /^Star / }).first();
       const label = (await firstStar.getAttribute("aria-label")) ?? "";

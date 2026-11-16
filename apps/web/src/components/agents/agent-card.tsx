@@ -347,7 +347,9 @@ function AgentCard({
         type="button"
         variant="ghost"
         size="icon"
-        className="absolute top-6 right-2 md:top-7 md:right-3"
+        // top-6 = the card's py-6, so the 40px button centres on the
+        // min-h-10 header row at every size.
+        className="absolute top-6 right-2"
         aria-label={t("star", { name: getAgentName(agent) })}
         aria-pressed={starred}
         loading={starPending}

@@ -250,6 +250,18 @@ describe("YouPageClient", () => {
     );
   });
 
+  it("lists Agents before Schedules, so phones can reach the catalog", () => {
+    renderYouPage();
+
+    const agents = screen.getByTestId("you-agents");
+
+    expect(agents).toHaveAttribute("href", "/agents");
+    expect(
+      agents.compareDocumentPosition(screen.getByTestId("you-schedules")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("lists Calendar after Schedules", () => {
     renderYouPage();
 

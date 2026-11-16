@@ -2,6 +2,7 @@
 
 import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import {
+  Bot,
   CalendarDays,
   Code2,
   Coins,
@@ -44,6 +45,7 @@ import { useSelfPresence } from "@/hooks/use-self-presence";
 import { getInitials } from "@/lib/utils/text";
 
 const ADMIN_HREF = "/admin";
+const AGENTS_HREF = "/agents";
 const DRIVE_HREF = "/drive";
 const HISTORY_HREF = "/history";
 const STUDIO_HREF = "/studio";
@@ -174,6 +176,13 @@ export function YouPageClient({
           </MobileStackedMenuGroup>
 
           <MobileStackedMenuGroup>
+            {/* The sidebar's Agents row: phones have no other way in. */}
+            <MobileStackedMenuLink
+              href={AGENTS_HREF}
+              icon={<Bot className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("exploreAgents")}
+              testId="you-agents"
+            />
             <MobileStackedMenuLink
               href={TASK_SCHEDULES_PATH}
               icon={<Repeat className="size-4 shrink-0" aria-hidden />}
