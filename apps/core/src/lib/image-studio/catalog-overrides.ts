@@ -12,7 +12,7 @@ import {
  * Everything else about a model comes from fal's own API. What cannot come from
  * there is exactly this: a price whose unit does not describe one image, a tier
  * multiplier fal documents in prose rather than through its pricing endpoint,
- * and the editorial judgement of which five models a person is offered first.
+ * and the editorial judgement of which six models a person is offered first.
  * Keeping those in one file means a reviewer can see every number the studio
  * asserts on its own authority by reading one screen.
  *
@@ -50,7 +50,7 @@ const PRICES_VERIFIED_AT = "2026-09-27";
 function imageModelOverrides(): ImageModelOverride[] {
   return [
     {
-      // Meta Muse Image. The default since 2026-11-09: it ranks with Nano Banana
+      // Meta Muse Image. Formerly the default since 2026-11-09: it ranks with Nano Banana
       // 2 on Artificial Analysis's editing leaderboard (1128 against 1125) at an
       // eighth of the price. fal's catalog cannot place it on its own, because
       // its `aspect_ratio` takes any "w:h" string rather than a list, so the
@@ -94,7 +94,7 @@ function imageModelOverrides(): ImageModelOverride[] {
       verifiedAt: "2026-11-09",
     },
     {
-      // Nano Banana 2. The studio's default, and the first model whose
+      // Nano Banana 2. The studio's original default, and the first model whose
       // capabilities and price a person read off fal's own pages end to end.
       endpoint: "fal-ai/gemini-3.1-flash-image-preview",
       id: "gemini-flash",

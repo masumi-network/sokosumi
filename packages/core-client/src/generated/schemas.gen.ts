@@ -40023,7 +40023,7 @@ export const CreateProjectImageJobRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 200,
-            default: 'muse-image'
+            default: 'gemini-pro'
         },
         prompt: {
             type: 'string',

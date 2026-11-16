@@ -166,6 +166,75 @@ function generate() {
 }
 
 describe("an honest generation plan", () => {
+  it.each(["before", "after"])(
+    "keeps Gemini Pro at 2K and prices Muse at 1K when Muse is added %s the size choice",
+    (addMuse) => {
+      const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+      const catalog: StudioCatalog = {
+        ...TEST_CATALOG,
+        defaultModelId: "gemini-pro",
+        models: [
+          {
+            ...TEST_CATALOG.models[0],
+            id: "muse-image",
+            label: "Meta Muse Image",
+            resolutions: ["1K"],
+            price: {
+              ...TEST_CATALOG.models[0].price,
+              // Area pricing makes an unclamped 2K estimate observably wrong.
+              unit: "megapixels",
+              unitPriceUsd: 0.01,
+              perImageUsd: { "1K": 0.01 },
+            },
+          },
+          {
+            ...TEST_CATALOG.models[0],
+            id: "gemini-pro",
+            label: "Gemini 3 Pro Image",
+            resolutions: ["1K", "2K"],
+            price: {
+              ...TEST_CATALOG.models[0].price,
+              perImageUsd: { "1K": 0.15, "2K": 0.15 },
+            },
+          },
+        ],
+      };
+      render(
+        <Harness
+          catalog={catalog}
+          initial={{ modelIds: ["gemini-pro"], settings: SETTINGS }}
+          onGenerate={onGenerate}
+        />,
+      );
+      if (addMuse === "before") fireEvent.click(modelEntry("Meta Muse Image"));
+      const size = screen.getByRole("button", { name: /^2K$/ });
+      fireEvent.click(size);
+      if (addMuse === "after") fireEvent.click(modelEntry("Meta Muse Image"));
+
+      expect(size).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByText("mixedSettings")).toBeInTheDocument();
+      expect(modelEntry("Meta Muse Image")).toHaveTextContent(
+        'creditsCount:{"count":1}',
+      );
+      expect(modelEntry("Gemini 3 Pro Image")).toHaveTextContent(
+        'creditsCount:{"count":15}',
+      );
+      expect(
+        screen.getByText('runPlanCredits:{"copies":1,"models":2,"credits":16}'),
+      ).toBeInTheDocument();
+      generate();
+      expect(
+        onGenerate.mock.calls[0][0].map(({ modelId, settings }) => ({
+          modelId,
+          resolution: settings.resolution,
+        })),
+      ).toEqual([
+        { modelId: "muse-image", resolution: "1K" },
+        { modelId: "gemini-pro", resolution: "2K" },
+      ]);
+    },
+  );
+
   it("uses each product's original cutout and blocks a batch with a missing photo", () => {
     const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
     const props = {
@@ -651,6 +720,10 @@ describe("an honest generation plan", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "templates" }));
     fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
+    expect(screen.getByRole("button", { name: /^9:16$/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     expect(screen.getByText("mixedSettings")).toBeInTheDocument();
     // Options says the first size once; the credits list names both.
     expect(screen.getAllByText("dimensions: 9:16 · 1K · png")).toHaveLength(2);
@@ -873,6 +946,10 @@ describe("an honest generation plan", () => {
         />,
       );
 
+      const webp = screen.getByRole("button", { name: /^webp$/ });
+      expect(webp).toHaveAttribute("aria-pressed", "true");
+      fireEvent.click(screen.getByRole("button", { name: /^png$/ }));
+      fireEvent.click(webp);
       expect(screen.getByText("mixedSettings")).toBeInTheDocument();
       expect(screen.getAllByText("dimensions: 1:1 · 1K · webp")).toHaveLength(
         2,

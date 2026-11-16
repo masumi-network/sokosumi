@@ -1,6 +1,7 @@
 import { isAreaPricedUnit } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import {
+  createImageJobRequestSchema,
   imageStudioCatalogSchema,
   imageStudioListSchema,
   imageStudioSettingsSchema,
@@ -58,7 +59,15 @@ describe("resolved image catalog", () => {
 
   it("opens on the studio default and offers the curated six first, in order", () => {
     const catalog = getImageCatalog();
+    expect(DEFAULT_IMAGE_MODEL_ID).toBe("gemini-pro");
     expect(catalog.defaultModelId).toBe(DEFAULT_IMAGE_MODEL_ID);
+    expect(imageModel().id).toBe("gemini-pro");
+    expect(
+      createImageJobRequestSchema.parse({
+        prompt: "a calm product shot",
+        idempotencyKey: "key-abcdefgh",
+      }).modelId,
+    ).toBe("gemini-pro");
     expect(catalog.models.slice(0, 6).map((model) => model.id)).toEqual([
       ...CURATED_MODEL_IDS,
     ]);
