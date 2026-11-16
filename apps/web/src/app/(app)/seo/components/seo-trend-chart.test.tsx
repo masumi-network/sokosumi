@@ -88,6 +88,7 @@ describe("SEO trend chart site events", () => {
           series={{ source: "ga4", key: "sessions" }}
           markers={[
             { date: "2026-03-02", kind: "task", label: "Shorten the title" },
+            { date: "2026-03-02", kind: "audit", label: "" },
             {
               date: "2026-03-04",
               kind: "verified",
@@ -99,12 +100,15 @@ describe("SEO trend chart site events", () => {
     );
     // Google has not reported Mar 4 yet: no icon, but the confirmation is still named.
     expect(screen.getAllByTestId("seo-trend-marker")).toHaveLength(1);
+    // Mar 2 draws the Task icon, so the key names the Task and not the audit of that day.
+    expect(screen.getByText("Task done")).toBeVisible();
+    expect(screen.queryByText("Audit")).toBeNull();
     expect(
       screen.getByText("Mar 4, no data yet: Fix confirmed: Shorten the title"),
     ).toBeVisible();
     expect(
       screen.getByRole("row", {
-        name: "Mar 2 3 Task done: Shorten the title",
+        name: "Mar 2 3 Task done: Shorten the title and Audit",
       }),
     ).toBeInTheDocument();
   });

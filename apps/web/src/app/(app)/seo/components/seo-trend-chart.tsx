@@ -40,6 +40,9 @@ interface SeoTrendChartProps {
 /** Share of a day band a bar fills; the rest is the gap between bars. */
 const BAR_FILL = 0.7;
 
+/** Width of a marker icon, `size-3.5`, in rem so it follows the reader's font size. */
+const MARKER_ICON_REM = 0.875;
+
 const MARKER_ICONS: Record<SeoMarkerKind, LucideIcon> = {
   audit: ScanSearch,
   change: PenLine,
@@ -147,10 +150,9 @@ export function SeoTrendChart({
   const plottedChanges = model.changes.filter(
     (change): change is typeof change & { x: number } => change.x !== null,
   );
+  // The key names only the icons drawn; a weaker event of a marked day is in the readout.
   const markedKinds = SEO_MARKER_KINDS.filter((kind) =>
-    plottedChanges.some((change) =>
-      change.events.some((event) => event.kind === kind),
-    ),
+    plottedChanges.some((change) => change.kind === kind),
   );
   return (
     <figure className="min-w-0 space-y-3">
@@ -343,12 +345,15 @@ export function SeoTrendChart({
                       key={change.date}
                       data-testid="seo-trend-marker"
                       className={cn(
-                        "absolute size-3.5 -translate-x-1/2",
+                        "absolute size-3.5",
                         change.kind === "verified"
                           ? "text-foreground"
                           : "text-muted-foreground",
                       )}
-                      style={{ left: `${change.x}%` }}
+                      // Centred on its day, held inside the plot at either edge.
+                      style={{
+                        left: `clamp(0px, calc(${change.x}% - ${MARKER_ICON_REM / 2}rem), calc(100% - ${MARKER_ICON_REM}rem))`,
+                      }}
                     />
                   );
                 })}
