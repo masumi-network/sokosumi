@@ -340,6 +340,8 @@ export function ScenarioLab({
   }, [loadHistory]);
 
   async function run(scenario: SokoBotScenario) {
+    // A closed lab starts nothing: each start is a real server action.
+    if (!mountedRef.current) return;
     setRunning((current) => new Set(current).add(scenario.id));
     setFailures(({ [scenario.id]: _dropped, ...rest }) => rest);
     setLive({
@@ -474,6 +476,7 @@ export function ScenarioLab({
     });
     try {
       for (const scenario of SOKO_BOT_SCENARIOS) {
+        if (!mountedRef.current) return;
         await run(scenario);
         setBatch((current) =>
           current ? { ...current, done: current.done + 1 } : current,
@@ -492,8 +495,10 @@ export function ScenarioLab({
     });
     try {
       for (const version of versions) {
+        if (!mountedRef.current) return;
         await chooseVersion(version.id);
         for (const scenario of SOKO_BOT_SCENARIOS) {
+          if (!mountedRef.current) return;
           await run(scenario);
           setBatch((current) =>
             current ? { ...current, done: current.done + 1 } : current,
