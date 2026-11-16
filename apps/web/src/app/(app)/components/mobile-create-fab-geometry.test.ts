@@ -5,6 +5,7 @@ import {
   MOBILE_CREATE_FAB_BOTTOM,
   MOBILE_CREATE_FAB_BOTTOM_APPLE,
   mobileCreateFabBottom,
+  mobileCreateFabToastOffset,
 } from "./mobile-create-fab-geometry";
 
 describe("mobileCreateFabBottom", () => {
@@ -22,4 +23,19 @@ describe("LIST_MOBILE_CREATE_FAB_CLEARANCE", () => {
       "pb-[calc(3.5rem+1rem)] md:pb-0",
     );
   });
+});
+
+describe("mobileCreateFabToastOffset", () => {
+  it.each([false, true])(
+    "starts where the FAB sits and adds its size-14 plus a gap (apple=%s)",
+    (isApple) => {
+      const fabBottom = mobileCreateFabBottom(isApple).slice(
+        "bottom-[".length,
+        -")]".length,
+      );
+      expect(mobileCreateFabToastOffset(isApple).replace(/\s/g, "")).toBe(
+        `${fabBottom}+3.5rem+0.5rem)`,
+      );
+    },
+  );
 });

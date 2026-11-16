@@ -16,6 +16,17 @@ export function mobileCreateFabBottom(isApple: boolean): string {
 }
 
 /**
+ * `--toast-bottom-offset` that keeps toasts above the tab bar and the FAB:
+ * the FAB's bottom (as above), its `size-14`, then a 0.5rem gap.
+ */
+export function mobileCreateFabToastOffset(isApple: boolean): string {
+  const tabBarGap = isApple
+    ? "max(0.75rem, env(safe-area-inset-bottom))"
+    : "env(safe-area-inset-bottom)";
+  return `calc(4rem + ${tabBarGap} + 0.75rem + 3.5rem + 0.5rem)`;
+}
+
+/**
  * List scroll padding so the last row clears the floating create FAB
  * (`size-14` + 1rem gap). Separate from tab-bar spacer
  * (`chatMobileTabBarClearance` / `CHAT_MOBILE_TAB_BAR_CLEARANCE*`).
