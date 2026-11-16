@@ -240,6 +240,7 @@ export function RoomShellLayout({
     <div
       data-testid={testId}
       data-slot={dataSlot}
+      data-fills-main=""
       className={rootClassName ?? ROOM_SHELL_ROOT_CLASSNAME}
     >
       {beforeMain}

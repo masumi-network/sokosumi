@@ -3617,6 +3617,7 @@ function RoomView({
 
   return (
     <div
+      data-fills-main=""
       className={cn(
         ROOM_SHELL_ROOT_CLASSNAME,
         chatMobileHeightShellClass(pathname, isApple, searchParams),

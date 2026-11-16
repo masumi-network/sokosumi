@@ -683,12 +683,16 @@ body[data-soko-bot-creating="true"] [data-mobile-bottom-nav-spacer] {
   display: none;
 }
 
-/* Vercel injects its preview toolbar outside the app; leave every page room to scroll past it. */
-body:has(vercel-live-feedback) main[data-app-main] {
+/* Vercel injects its preview toolbar outside the app; leave every page room to
+   scroll past it. A page that fills the main area (an open chat) scrolls
+   inside itself, and the room would only make the whole page scroll. */
+body:has(vercel-live-feedback)
+  main[data-app-main]:not(:has([data-fills-main])) {
   scroll-padding-block-end: calc(5rem + env(safe-area-inset-bottom));
 }
 
-body:has(vercel-live-feedback) main[data-app-main]::after {
+body:has(vercel-live-feedback)
+  main[data-app-main]:not(:has([data-fills-main]))::after {
   content: "";
   flex: 0 0 calc(5rem + env(safe-area-inset-bottom));
 }
