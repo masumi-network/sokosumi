@@ -11756,10 +11756,10 @@
         "periodSame": "Previous {days, plural, one {day} other {# days}}: {previous}, no change",
         "changeMarker": "Recorded change on {day}: {changes}",
         "points": "{value} pp",
-        "googleUpdate": "Google: {name}, {from} to {to}",
-        "googleUpdateOpen": "Google: {name}, {from} to {to}, still rolling out",
-        "googleUpdateDay": "Google: {name}, {day}",
-        "googleUpdatesAsOf": "Google updates known until {day}"
+        "googleUpdate": "{name}: {from} to {to}",
+        "googleUpdateOpen": "{name}: from {from}, ongoing",
+        "googleUpdateDay": "{name}: {day}",
+        "googleUpdatesAsOf": "Google updates as of {day}"
       },
       "keywords": {
         "title": "Keywords",
