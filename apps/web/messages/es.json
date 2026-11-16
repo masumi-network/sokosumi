@@ -1534,6 +1534,7 @@
           "task": "Tarea",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
+          "seoChat": "Chat de SEO",
           "topUp": "Recarga",
           "unattributed": "Otros"
         }
@@ -12228,6 +12229,9 @@
         "open": "Abrir {action}",
         "auditRequired": "Abre una auditoría para preguntar al agente SEO.",
         "dailyLimit": "Has alcanzado el límite diario del chat SEO. Inténtalo de nuevo mañana.",
+        "insufficientCredits": "No tienes suficientes créditos para esta respuesta. Añade créditos e inténtalo de nuevo.",
+        "usagePricing": "Las respuestas consumen créditos según el uso del modelo.",
+        "creditsCharged": "{credits, number, :: .##########} créditos usados",
         "createTask": "Crear borrador de tarea: {title}",
         "showMore": "Mostrar la pregunta completa",
         "showLess": "Mostrar menos",

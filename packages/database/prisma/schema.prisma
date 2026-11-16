@@ -1568,6 +1568,7 @@ model Transaction {
   refundedTaskX402Payment  TaskX402Payment?  @relation("RefundedTransactionTaskX402Payment")
   coworkerUsage            CoworkerUsage?    @relation("TransactionCoworkerUsage")
   sokoBotUsage             SokoBotUsage?     @relation("TransactionSokoBotUsage")
+  seoChatTurn              SeoAuditChatTurn? @relation("TransactionSeoChatTurn")
 
   projectImageJob         ProjectImageJob? @relation("TransactionProjectImageJob")
   refundedProjectImageJob ProjectImageJob? @relation("RefundedTransactionProjectImageJob")

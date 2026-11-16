@@ -1534,6 +1534,7 @@
           "task": "Aufgabe",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
+          "seoChat": "SEO-Chat",
           "topUp": "Aufladung",
           "unattributed": "Sonstige"
         }
@@ -12228,6 +12229,9 @@
         "open": "{action} öffnen",
         "auditRequired": "Öffne ein Audit, um den SEO-Agenten zu fragen.",
         "dailyLimit": "Du hast das heutige Limit für den SEO-Chat erreicht. Versuche es morgen erneut.",
+        "insufficientCredits": "Nicht genügend Credits für diese Antwort. Lade Credits auf und versuche es erneut.",
+        "usagePricing": "Antworten kosten Credits entsprechend der Modellnutzung.",
+        "creditsCharged": "{credits, number, :: .##########} Credits verwendet",
         "createTask": "Entwurfsaufgabe erstellen: {title}",
         "showMore": "Ganze Frage zeigen",
         "showLess": "Weniger zeigen",
