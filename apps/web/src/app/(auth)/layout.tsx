@@ -102,9 +102,9 @@ export default async function AuthLayout({
               {logo}
             </Link>
           )}
-          <div className="mx-auto flex w-full max-w-md flex-1 items-center justify-center">
+          <main className="mx-auto flex w-full max-w-md flex-1 items-center justify-center">
             {children}
-          </div>
+          </main>
           <AuthLayoutFooter usesSokosumi={brand === "cmo"} />
         </div>
         {/* Signing in for another product: Sokosumi's own pitch and customer
