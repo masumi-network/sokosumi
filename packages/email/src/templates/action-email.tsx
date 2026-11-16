@@ -157,7 +157,7 @@ function ActionEmailTemplate({
             ...TEXT.micro,
             color: LIGHT_PALETTE.link,
             fontFamily: MONO_STACK,
-            textDecoration: "none",
+            textDecoration: "underline",
             wordBreak: "break-all",
           }}
         >
