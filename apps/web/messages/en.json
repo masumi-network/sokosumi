@@ -1989,8 +1989,6 @@
           "edit": "Edit",
           "archive": "Archive",
           "archiveError": "Failed to archive task",
-          "archived": "Task archived",
-          "undo": "Undo",
           "reopenToReady": "Reopen to Ready",
           "reopenToReadyTitle": "Reopen task",
           "reopenToReadyDescription": "Add a comment so your coworker knows what to do next. The task will move back to Ready.",

@@ -657,7 +657,6 @@ async function TaskDetailActionsSlot({
     <TaskDetailActions
       share={taskWithCoworker.share ?? null}
       taskId={taskId}
-      taskName={task.name}
       status={taskWithCoworker.status}
       taskVisibility={taskWithCoworker.visibility}
       jobsCount={taskWithCoworker.jobsCount}

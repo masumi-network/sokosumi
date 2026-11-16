@@ -13,7 +13,7 @@ import {
   useContext,
   useState,
 } from "react";
-import { type Action, toast } from "sonner";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
 import {
@@ -380,9 +380,8 @@ vi.mock("@/components/ui/dropdown-menu", () => {
 });
 
 const archiveMock = vi.hoisted(() => vi.fn());
-const restoreMock = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/services/task.client", () => ({
-  taskClientService: { archive: archiveMock, restore: restoreMock },
+  taskClientService: { archive: archiveMock },
 }));
 
 vi.mock("@/lib/actions/task/action", () => ({
@@ -727,7 +726,6 @@ function renderActionsElement(
   return (
     <TaskDetailActions
       taskId="task-1"
-      taskName="Plan launch"
       share={null}
       status={TaskStatus.READY}
       jobsCount={0}
@@ -788,7 +786,6 @@ describe("TaskDetailActions", () => {
     vi.mocked(createTaskLink).mockReset();
     vi.mocked(createTaskAndLink).mockReset();
     archiveMock.mockReset().mockResolvedValue(undefined);
-    restoreMock.mockReset().mockResolvedValue(undefined);
     vi.mocked(deleteTaskLink).mockReset();
   });
 
@@ -1028,56 +1025,6 @@ describe("TaskDetailActions", () => {
     expect(isTaskArchived("task-1")).toBe(true);
   });
 
-  /** Archives from the header and returns the Undo handler of its toast. */
-  async function archiveAndGetUndo() {
-    const user = userEvent.setup();
-    renderActions({ organizations: undefined });
-    await user.click(screen.getByRole("button", { name: labels.archive }));
-    await waitFor(() =>
-      expect(toast.success).toHaveBeenCalledWith(
-        "archived",
-        expect.objectContaining({
-          description: "Plan launch",
-          action: expect.objectContaining({ label: "undo" }),
-        }),
-      ),
-    );
-    const action = vi.mocked(toast.success).mock.calls[0]?.[1]
-      ?.action as Action;
-    return () => action.onClick({} as React.MouseEvent<HTMLButtonElement>);
-  }
-
-  it("says the task was archived, with its name and Undo", async () => {
-    await archiveAndGetUndo();
-    expect(archiveMock).toHaveBeenCalledWith("task-1");
-  });
-
-  it("puts the task back on the board when Undo is pressed", async () => {
-    const undo = await archiveAndGetUndo();
-    refreshMock.mockClear();
-
-    await act(async () => undo());
-
-    expect(restoreMock).toHaveBeenCalledWith("task-1");
-    await waitFor(() => expect(isTaskArchived("task-1")).toBe(false));
-    expect(toast.success).toHaveBeenLastCalledWith("Archived.restored");
-    expect(refreshMock).toHaveBeenCalled();
-  });
-
-  it("keeps the task archived and says so when Undo fails", async () => {
-    const undo = await archiveAndGetUndo();
-    restoreMock.mockRejectedValueOnce(new Error("nope"));
-    refreshMock.mockClear();
-
-    await act(async () => undo());
-
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("Archived.restoreError"),
-    );
-    expect(isTaskArchived("task-1")).toBe(true);
-    expect(refreshMock).not.toHaveBeenCalled();
-  });
-
   it("shows the task again on the board when the archive fails", async () => {
     const user = userEvent.setup();
     archiveMock.mockRejectedValueOnce(new Error("nope"));
@@ -1088,7 +1035,6 @@ describe("TaskDetailActions", () => {
     expect(pushMock).toHaveBeenCalledWith("/tasks");
     await waitFor(() => expect(isTaskArchived("task-1")).toBe(false));
     expect(toast.error).toHaveBeenCalledWith(labels.archiveError);
-    expect(toast.success).not.toHaveBeenCalled();
   });
 
   it("reports a stale status list instead of opening the upgrade modal", async () => {

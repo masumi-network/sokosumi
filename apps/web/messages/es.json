@@ -1988,8 +1988,6 @@
           "edit": "Editar",
           "archive": "Archivar",
           "archiveError": "No se pudo archivar la tarea",
-          "archived": "Tarea archivada",
-          "undo": "Deshacer",
           "reopenToReady": "Reabrir como Lista",
           "reopenToReadyTitle": "Reabrir tarea",
           "reopenToReadyDescription": "Añade un comentario para que tu coworker sepa qué hacer a continuación. La tarea volverá a Lista.",
