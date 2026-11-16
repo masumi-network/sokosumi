@@ -11,6 +11,7 @@ import {
   seoMonitorRuleSchema,
 } from "@/schemas/project-seo-monitor.schema";
 import type { UpdateTaskScheduleRequest } from "@/schemas/task-schedule.schema";
+import { requireSeoFullAuditPriceApproval } from "./analysis-price";
 import { seoMonitorRepeat } from "./monitor-cron";
 
 export const SEO_MONITOR_MARKER = "seo_monitor: ";
@@ -203,4 +204,23 @@ export function seoMonitorDescriptionForUser(
   } catch {
     return "SEO monitor. Review its saved plan before the next scheduled run.";
   }
+}
+
+/** New generic schedule writes must approve current pricing too; stored legacy plans keep their terms. */
+export function requireSeoMonitorPriceForWrite(
+  description: string | null | undefined,
+  previous?: string | null,
+): void {
+  if (
+    !isSeoMonitorDescription(description ?? null) ||
+    isSeoMonitorDescription(previous ?? null)
+  )
+    return;
+  let plan: SeoMonitorPlan | null;
+  try {
+    plan = parseSeoMonitorPlan(description ?? null);
+  } catch {
+    throw unprocessableEntity("The SEO monitor blueprint is not valid");
+  }
+  if (plan) requireSeoFullAuditPriceApproval(plan.analysis);
 }

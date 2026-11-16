@@ -11306,6 +11306,7 @@ export type RequestProjectSeoAnalysisRequest = {
     competitorUrls?: Array<string>;
     analyses?: Array<'page.inspect' | 'keyword.refresh' | 'links.refresh'>;
     maxProviderCalls?: number;
+    fullAuditCredits?: 750;
     fullAuditLimits?: {
         usd: number;
         seconds: number;

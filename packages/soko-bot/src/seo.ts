@@ -1,4 +1,5 @@
 import {
+  SEO_FULL_AUDIT_CREDITS,
   SEO_FULL_AUDIT_MAX_SECONDS,
   SEO_MIN_AUDIT_USD,
   SEO_SEARCH_TYPES,
@@ -208,6 +209,12 @@ export const SOKO_BOT_SEO_INPUT_SCHEMAS = {
         .max(3)
         .optional(),
       maxProviderCalls: z.number().int().min(0).max(100).default(20),
+      fullAuditCredits: z
+        .literal(SEO_FULL_AUDIT_CREDITS)
+        .optional()
+        .describe(
+          "Required for a new full audit: approve its fixed 750-credit price",
+        ),
       fullAuditLimits: z
         .object({
           usd: z.number().min(SEO_MIN_AUDIT_USD).max(50),

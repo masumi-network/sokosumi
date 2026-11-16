@@ -4,6 +4,7 @@ import type {
   RequestProjectSeoAnalysisRequest,
 } from "@sokosumi/core-client";
 import {
+  SEO_FULL_AUDIT_CREDITS,
   SEO_FULL_AUDIT_MAX_SECONDS,
   SEO_MIN_AUDIT_USD,
   seoMaxCredits,
@@ -305,6 +306,9 @@ export function analysisSeoBody(
     throw new RangeError("The selected checks exceed the data request limit");
   return {
     kind,
+    ...(kind === "audit_full"
+      ? { fullAuditCredits: SEO_FULL_AUDIT_CREDITS }
+      : {}),
     ...(workspace.scope.id
       ? {
           scopeId: workspace.scope.id,
