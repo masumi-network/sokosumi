@@ -46,6 +46,48 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("automatic ad eval configuration", () => {
+  it("defaults off with bounded daily budgets", () => {
+    for (const key of [
+      "AD_EVALS_ENABLED",
+      "AD_EVALS_PAUSED",
+      "AD_EVALS_WORKSPACE_DAILY_LIMIT",
+      "AD_EVALS_GLOBAL_DAILY_USD",
+    ]) {
+      vi.stubEnv(key, undefined);
+    }
+    const env = validateEnv();
+    expect(env.AD_EVALS_ENABLED).toBe(false);
+    expect(env.AD_EVALS_PAUSED).toBe(false);
+    expect(env.AD_EVALS_WORKSPACE_DAILY_LIMIT).toBe(100);
+    expect(env.AD_EVALS_GLOBAL_DAILY_USD).toBe(10);
+  });
+
+  it("accepts the flag, kill switch and zero budgets", () => {
+    vi.stubEnv("AD_EVALS_ENABLED", "true");
+    vi.stubEnv("AD_EVALS_PAUSED", "true");
+    vi.stubEnv("AD_EVALS_WORKSPACE_DAILY_LIMIT", "0");
+    vi.stubEnv("AD_EVALS_GLOBAL_DAILY_USD", "0");
+    const env = validateEnv();
+    expect(env.AD_EVALS_ENABLED).toBe(true);
+    expect(env.AD_EVALS_PAUSED).toBe(true);
+    expect(env.AD_EVALS_WORKSPACE_DAILY_LIMIT).toBe(0);
+    expect(env.AD_EVALS_GLOBAL_DAILY_USD).toBe(0);
+  });
+
+  it.each([
+    ["AD_EVALS_ENABLED", "yes"],
+    ["AD_EVALS_PAUSED", "yes"],
+    ["AD_EVALS_WORKSPACE_DAILY_LIMIT", "-1"],
+    ["AD_EVALS_WORKSPACE_DAILY_LIMIT", "1.5"],
+    ["AD_EVALS_GLOBAL_DAILY_USD", "-1"],
+    ["AD_EVALS_GLOBAL_DAILY_USD", "Infinity"],
+  ])("rejects invalid %s", (key, value) => {
+    vi.stubEnv(key, value);
+    expectInvalidEnvironment(key);
+  });
+});
+
 describe("resolveWebRelatedProjectFallbackHost", () => {
   it("uses the matching branch web preview host on Vercel preview", () => {
     expect(

@@ -1,5 +1,6 @@
 import type { NotificationKind } from "@sokosumi/core-client";
 import {
+  BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
   BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
 } from "@sokosumi/utils";
@@ -153,6 +154,14 @@ export function getNotificationHref(
     }
 
     case "BILLING": {
+      // A Cuso's credits are topped up in CMO, whose link Core wrote onto
+      // the row (SOKD-246). Only an https link opens; anything else goes home.
+      if (notification.messageKey === BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY) {
+        const url = notification.metadata?.url;
+        return typeof url === "string" && url.startsWith("https://")
+          ? url
+          : "/";
+      }
       // The billing page has two tabs, and a notification is about one of
       // them: a payment that failed or a plan that ends is fixed on the
       // subscription tab, and a wallet that ran low or was topped up is

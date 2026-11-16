@@ -298,6 +298,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
         where: {
           polarSubscriptionId: "sub_1",
           polarEventAt: { lte: new Date(MODIFIED_AT) },
+          revokeOwedAt: null,
         },
         data: expect.objectContaining({
           polarProductId: "prod_scale_month",
@@ -325,6 +326,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
         where: {
           polarSubscriptionId: "sub_1",
           polarEventAt: { lte: new Date(MODIFIED_AT) },
+          revokeOwedAt: null,
         },
         data: expect.objectContaining({
           tier: "growth",
@@ -443,6 +445,7 @@ describe("POST /v1/cmo/projects/{projectId}/plan", () => {
           where: {
             polarSubscriptionId: "sub_1",
             polarEventAt: { lte: new Date(MODIFIED_AT) },
+            revokeOwedAt: null,
           },
           data: expect.objectContaining({
             tier: "growth",

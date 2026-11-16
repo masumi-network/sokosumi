@@ -19,6 +19,7 @@ vi.mock("./history-view-filters", () => ({
       Filters
     </button>
   ),
+  HistoryActiveFilters: () => null,
 }));
 
 vi.mock("./history-export-menu", () => ({
@@ -105,7 +106,8 @@ describe("HistoryToolbar", () => {
       />,
     );
 
-    const toolbar = container.firstElementChild;
+    // First row of the toolbar; active filter chips sit on their own row below.
+    const toolbar = container.firstElementChild?.firstElementChild;
     expect(toolbar).not.toBeNull();
 
     const resultsLabel = screen.getByText("3 results found");

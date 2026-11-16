@@ -5,7 +5,10 @@ export {
   renderResetPasswordEmail,
   renderVerificationEmail,
 } from "./auth.js";
-export { renderLowBalanceEmail } from "./billing.js";
+export {
+  renderCusoLowCreditsEmail,
+  renderLowBalanceEmail,
+} from "./billing.js";
 export {
   renderDataRoomCodeEmail,
   renderDataRoomFirstVisitEmail,

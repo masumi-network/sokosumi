@@ -9,6 +9,8 @@ import type {
   ProjectImageStudioState,
   SaveStudioBrandCopy,
   SaveStudioBrandLook,
+  SaveStudioPairwisePick,
+  SetStudioAssetFeedbackData,
   SocialPostMediaRef,
   StudioProductCatalog,
   StudioProductImport,
@@ -20,6 +22,7 @@ interface StudioStateQuery {
   assetId?: string;
   before?: string;
   beforeId?: string;
+  sort?: "newest" | "best";
 }
 
 /**
@@ -60,6 +63,7 @@ export const imageStudioService = {
         assetId?: string;
         before?: Date;
         beforeId?: string;
+        sort?: "newest" | "best";
       },
     );
     return result.data;
@@ -94,8 +98,42 @@ export const imageStudioService = {
       .data;
   },
 
+  async setFeedback(
+    projectId: string,
+    assetId: string,
+    input: SetStudioAssetFeedbackData["body"],
+  ) {
+    return (await coreClient.setStudioAssetFeedback(projectId, assetId, input))
+      .data;
+  },
+
+  async hideAsset(projectId: string, assetId: string) {
+    await coreClient.hideStudioAsset(projectId, assetId);
+  },
+
+  async recordView(projectId: string, assetId: string) {
+    await coreClient.recordStudioAssetEvent(projectId, assetId);
+  },
+
   async listBatchAssets(projectId: string, batchId: string) {
     return (await coreClient.listStudioBatchAssets(projectId, batchId)).data;
+  },
+
+  async getComparePair(projectId: string, batchId: string) {
+    return (await coreClient.getStudioComparePair(projectId, batchId)).data;
+  },
+
+  async savePairwisePick(
+    projectId: string,
+    batchId: string,
+    input: SaveStudioPairwisePick,
+  ) {
+    return (await coreClient.saveStudioPairwisePick(projectId, batchId, input))
+      .data;
+  },
+
+  async getModelScoreboard(projectId: string) {
+    return (await coreClient.getStudioModelScoreboard(projectId)).data;
   },
 
   async saveBrandCopy(projectId: string, input: SaveStudioBrandCopy) {

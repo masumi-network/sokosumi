@@ -38,6 +38,7 @@ import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
+import { notifyCusoLowCreditsAfterCharge } from "@/helpers/cuso-low-credit-notification";
 import {
   forfeitCusoProjectCredits,
   forfeitCusoProjectCreditsIfLeavingCmo,
@@ -1472,9 +1473,12 @@ export class SokoBotControlPlane {
       userId: string;
       organizationId: string | null;
     } | null = null;
+    // A Cuso's charge gets his own notice, on his Project (SOKD-246).
+    let chargedCusoProjectId: string | null = null;
 
     return serializableTransaction(async (tx) => {
       chargedWallet = null;
+      chargedCusoProjectId = null;
       const turn = await tx.sokoBotTurn.findUnique({
         where: { id: input.turnId },
         select: {
@@ -1526,6 +1530,9 @@ export class SokoBotControlPlane {
         tx,
       );
       const chargedUserId = sokoBotActingUserId(turn);
+      if (usageCharge.chargedCents > 0n && usageCharge.cusoProjectId) {
+        chargedCusoProjectId = usageCharge.cusoProjectId;
+      }
       // A Cuso's charge drew on his Project credits first: the pool's
       // notice, which sends people to Sokosumi's top-up, is not his.
       if (
@@ -1682,6 +1689,9 @@ export class SokoBotControlPlane {
         // usage was recorded still committed that charge.
         if (chargedWallet) {
           await notifyLowBalanceAfterCharge(chargedWallet);
+        }
+        if (chargedCusoProjectId) {
+          await notifyCusoLowCreditsAfterCharge(chargedCusoProjectId);
         }
         if (settled) {
           waitUntil(
@@ -3440,7 +3450,7 @@ export class SokoBotControlPlane {
       );
     }
     // Leaving CMO ends Cuso: Polar stops charging before anything is
-    // written (ADR 0068). A failure throws, so the version stays.
+    // written (ADR 0068). A revoke Polar fails is owed to the sync job.
     await revokeCusoSubscriptionIfLeavingCmo(bot.id, versionId);
     await serializableTransaction(async (tx) => {
       await forfeitCusoProjectCreditsIfLeavingCmo(bot.id, versionId, tx);
@@ -4187,7 +4197,7 @@ export class SokoBotControlPlane {
       const versionId = input.versionId as string;
       try {
         // Before the transaction, which is retried: Polar is called once
-        // (ADR 0068). A failure throws, so the version stays.
+        // (ADR 0068). A revoke Polar fails is owed to the sync job.
         await revokeCusoSubscriptionIfLeavingCmo(bot.id, versionId);
         await serializableTransaction(async (tx) => {
           const current = await tx.sokoBot.findUnique({
@@ -4645,7 +4655,7 @@ export class SokoBotControlPlane {
     // Polar stops charging for a live Cuso before he is archived (ADR 0068).
     // It is called here, once, because the transaction below is retried; the
     // role check runs first so only someone who may archive ends it. A
-    // failure throws, so nothing is archived.
+    // revoke Polar fails is owed to the sync job; the archive goes on.
     const candidate = await memberSokoBot(userId, workspaceId, selector);
     if (candidate) {
       await assertSokoBotManagement(userId, candidate, "archive");

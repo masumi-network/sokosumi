@@ -1528,20 +1528,23 @@
         "scopeWorkspace": "Workspace",
         "typeLabel": "Origen",
         "projectLabel": "Proyecto",
-        "typeOptions": {
-          "job": "Job de agente",
-          "image": "Imagen",
-          "task": "Tarea",
-          "coworker": "Coworker",
-          "sokoBot": "Soko Bot",
-          "seoChat": "Chat de SEO",
-          "topUp": "Recarga",
-          "unattributed": "Otros"
-        }
+        "activeCount": "{count, plural, =1 {1 activo} other {# activos}}",
+        "activeFilters": "Filtros activos",
+        "chip": "{label}: {value}",
+        "removeFilter": "Quitar filtro {filter}",
+        "clearAll": "Quitar todos",
+        "searchLabel": "Búsqueda"
       },
       "Empty": {
         "title": "Aún no hay transacciones",
         "description": "Cada ejecución de job, generación de imagen, demás consumos de créditos y recargas aparecerán aquí."
+      },
+      "EmptyFiltered": {
+        "title": "No hay transacciones coincidentes",
+        "description": "Nada coincide con estos filtros.",
+        "searchTitle": "No hay resultados para «{query}»",
+        "searchDescription": "Revisa la ortografía o prueba otra búsqueda.",
+        "clear": "Borrar filtros"
       },
       "List": {
         "loadMore": "Cargar más",
@@ -1558,6 +1561,7 @@
           "task": "Tarea",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
+          "seoChat": "Chat de SEO",
           "topUp": "Recarga",
           "unattributed": "Otros",
           "contacts": "Buscar personas"
@@ -4506,6 +4510,26 @@
       "archiveImageLimit": "Selecciona hasta {count} imágenes por archivo ZIP.",
       "archiveSizeLimit": "Selecciona imágenes que en total ocupen {size} MiB o menos.",
       "archiveDownloadFailed": "No se pudo descargar el archivo ZIP. Vuelve a intentarlo o descarga las imágenes por separado.",
+      "Pairwise": {
+        "title": "Comparar anuncios",
+        "hint": "Elige el mejor anuncio. Los modelos se muestran después de tu elección.",
+        "pickA": "A",
+        "pickB": "B",
+        "tie": "Empate",
+        "bothBad": "Ambos malos",
+        "done": "Listo",
+        "loadFailed": "No se pudieron cargar las comparaciones. Inténtalo de nuevo.",
+        "saveFailed": "No se pudo guardar la comparación. Inténtalo de nuevo.",
+        "retry": "Reintentar",
+        "loading": "Cargando comparaciones…",
+        "saved": "Elección guardada",
+        "bestModels": "Tus mejores modelos",
+        "loadingScores": "Cargando modelos…",
+        "scoreboardFailed": "No se pudieron cargar los modelos. Inténtalo de nuevo.",
+        "scoreboardEmpty": "Compara anuncios para encontrar tus mejores modelos.",
+        "modelStats": "{percent}% de victorias · {count, plural, one {# elección} other {# elecciones}}",
+        "smallSample": "Resultados iniciales · menos de {count} elecciones"
+      },
       "compare": "Comparar",
       "version": "Versión",
       "generating": "Generando",
@@ -4694,7 +4718,26 @@
         "processedMegapixels": "megapíxel procesado"
       },
       "creditsCheckedOn": "Precio comprobado el {date}",
-      "pickBody": "Content Studio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería."
+      "pickBody": "Content Studio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería.",
+      "Rating": {
+        "label": "Valorar anuncio",
+        "up": "Me gusta",
+        "down": "No me gusta",
+        "reasons": "Motivos (opcional)",
+        "offBrand": "No refleja la marca",
+        "badText": "Texto deficiente",
+        "wrongProduct": "Producto incorrecto",
+        "ugly": "Poco atractivo",
+        "great": "Excelente",
+        "comment": "Comentario (opcional)",
+        "more": "Más acciones del anuncio",
+        "hide": "Ocultar anuncio",
+        "sort": "Ordenar anuncios",
+        "newest": "Más recientes",
+        "best": "Mejores primero",
+        "saveFailed": "No se pudo guardar la valoración. Inténtalo de nuevo.",
+        "hideFailed": "No se pudo ocultar el anuncio. Inténtalo de nuevo."
+      }
     },
     "Ads": {
       "title": "Anuncios",
@@ -9584,6 +9627,10 @@
         "markAllReadError": "No se pudo marcar todo como leído. Inténtalo de nuevo.",
         "caughtUpTitle": "Estás al día",
         "caughtUpDescription": "Nada nuevo te espera desde la última vez que leíste tus salas.",
+        "firstCatchUpTitle": "Todavía no hay nada pendiente",
+        "firstCatchUpDescription": "Cuando la gente hable en tus canales y chats, aquí verás lo esencial y todo lo que te espera.",
+        "firstCatchUpCreateChannel": "Crear un canal",
+        "firstCatchUpMessageTeammate": "Escribir a un compañero",
         "aiNote": "Etiquetamos tus mensajes por ti y a veces nos equivocamos. Para corregir una etiqueta, abre el mensaje, pasa el cursor por encima y haz clic en el icono de etiqueta.",
         "removeTag": "Quitar etiqueta: {tag}",
         "taskMade": "Tarea creada",
@@ -13247,6 +13294,7 @@
       },
       "Billing": {
         "lowBalance": "Tus créditos se están agotando: quedan {credits}",
+        "cusoLowCredits": "A {cusoName} para {businessName} se le acaban los créditos: quedan {credits}",
         "paymentFailed": "Un pago de suscripción falló",
         "creditsAdded": "Se añadieron {credits} créditos a tu saldo",
         "subscriptionEnding": "Tu suscripción termina al final del periodo actual",

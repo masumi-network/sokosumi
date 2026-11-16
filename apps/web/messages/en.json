@@ -1528,20 +1528,23 @@
         "scopeWorkspace": "Workspace",
         "typeLabel": "Source",
         "projectLabel": "Project",
-        "typeOptions": {
-          "job": "Agent job",
-          "image": "Image",
-          "task": "Task",
-          "coworker": "Coworker",
-          "sokoBot": "Soko Bot",
-          "seoChat": "SEO chat",
-          "topUp": "Top up",
-          "unattributed": "Other"
-        }
+        "activeCount": "{count} active",
+        "activeFilters": "Active filters",
+        "chip": "{label}: {value}",
+        "removeFilter": "Remove filter {filter}",
+        "clearAll": "Clear all",
+        "searchLabel": "Search"
       },
       "Empty": {
         "title": "No transactions yet",
         "description": "Every job run, image generation, other credit consumption and top up will appear here."
+      },
+      "EmptyFiltered": {
+        "title": "No matching transactions",
+        "description": "Nothing matches these filters.",
+        "searchTitle": "No results for “{query}”",
+        "searchDescription": "Check the spelling or try another search.",
+        "clear": "Clear filters"
       },
       "List": {
         "loadMore": "Load more",
@@ -1558,6 +1561,7 @@
           "task": "Task",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
+          "seoChat": "SEO chat",
           "topUp": "Top up",
           "unattributed": "Other",
           "contacts": "Find people"
@@ -4506,6 +4510,26 @@
       "archiveImageLimit": "Select up to {count} images per ZIP.",
       "archiveSizeLimit": "Select images totaling {size} MiB or less.",
       "archiveDownloadFailed": "Could not download the ZIP. Try again or download the images individually.",
+      "Pairwise": {
+        "title": "Compare ads",
+        "hint": "Choose the better ad. Models appear after your pick.",
+        "pickA": "A",
+        "pickB": "B",
+        "tie": "Tie",
+        "bothBad": "Both bad",
+        "done": "Done",
+        "loadFailed": "Failed to load comparisons. Try again.",
+        "saveFailed": "Failed to save comparison. Try again.",
+        "retry": "Try again",
+        "loading": "Loading comparisons…",
+        "saved": "Pick saved",
+        "bestModels": "Your best models",
+        "loadingScores": "Loading models…",
+        "scoreboardFailed": "Failed to load models. Try again.",
+        "scoreboardEmpty": "Compare ads to find your best models.",
+        "modelStats": "Wins {percent}% · {count, plural, one {# pick} other {# picks}}",
+        "smallSample": "Early results · fewer than {count} picks"
+      },
       "compare": "Compare",
       "version": "Version",
       "generating": "Generating",
@@ -4694,7 +4718,26 @@
         "processedMegapixels": "processed megapixel"
       },
       "creditsCheckedOn": "Price checked {date}",
-      "pickBody": "Content Studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery."
+      "pickBody": "Content Studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery.",
+      "Rating": {
+        "label": "Rate ad",
+        "up": "Thumbs up",
+        "down": "Thumbs down",
+        "reasons": "Reasons (optional)",
+        "offBrand": "Off-brand",
+        "badText": "Bad text",
+        "wrongProduct": "Wrong product",
+        "ugly": "Ugly",
+        "great": "Great",
+        "comment": "Comment (optional)",
+        "more": "More ad actions",
+        "hide": "Hide ad",
+        "sort": "Sort ads",
+        "newest": "Newest",
+        "best": "Best first",
+        "saveFailed": "Failed to save rating. Try again.",
+        "hideFailed": "Failed to hide ad. Try again."
+      }
     },
     "Ads": {
       "title": "Ads",
@@ -9584,6 +9627,10 @@
         "markAllReadError": "Couldn't mark everything as read. Try again.",
         "caughtUpTitle": "You're caught up",
         "caughtUpDescription": "Nothing new needs you since you last read your rooms.",
+        "firstCatchUpTitle": "Nothing to catch up on yet",
+        "firstCatchUpDescription": "When people talk in your channels and chats, the gist and anything waiting on you shows up here.",
+        "firstCatchUpCreateChannel": "Create a channel",
+        "firstCatchUpMessageTeammate": "Message a teammate",
         "aiNote": "We tag your messages for you, and sometimes we get it wrong. To fix a tag, open the message, point at it, and click the tag icon.",
         "removeTag": "Remove tag: {tag}",
         "taskMade": "Task created",
@@ -13247,6 +13294,7 @@
       },
       "Billing": {
         "lowBalance": "Your credits are running low: {credits} left",
+        "cusoLowCredits": "{cusoName} for {businessName} is running low: {credits} credits left",
         "paymentFailed": "A subscription payment failed",
         "creditsAdded": "{credits} credits were added to your balance",
         "subscriptionEnding": "Your subscription ends when the current period does",

@@ -24,6 +24,24 @@
       "sourceType": "local",
       "computedHash": "c1e4e74588d39b0c5581d48005217806862fe9b286684146f18827b74a2ecffe"
     },
+    "polar-integration": {
+      "source": "polarsource/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/polar-integration/SKILL.md",
+      "computedHash": "2e038ec388bb1d2587df197359211dba9ae353eb03f77c601a4601aa21dd0035"
+    },
+    "polar-migration": {
+      "source": "polarsource/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/polar-migration/SKILL.md",
+      "computedHash": "6988ab3995ab21ff430d317ef10eca2ed54a81df4f3c663c9a1ed9040bf50d30"
+    },
+    "polar-testing": {
+      "source": "polarsource/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/polar-testing/SKILL.md",
+      "computedHash": "2b3d36ee521dcdb6da3f15e83be7df9c86904d855f37aa2820776ea20df1caab"
+    },
     "portless": {
       "source": "vercel-labs/portless",
       "sourceType": "github",
@@ -36,6 +54,12 @@
       "sourceType": "well-known",
       "computedHash": "68223d92c72c46d60c4af88a4d94483832f175f63115f321ee013ac679d8f91c",
       "wellKnownDigest": "sha256:4f58eeb2804e095c500cc9ade9d362e4b10f9ccf50e8f50507a5794bb51d0adc"
+    },
+    "setup-polar": {
+      "source": "polarsource/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/setup-polar/SKILL.md",
+      "computedHash": "ab75c13316850cc5c15f6e90489450e0a5c3bf88c8db1b2dd6fed05e731f8767"
     },
     "steward": {
       "source": ".",

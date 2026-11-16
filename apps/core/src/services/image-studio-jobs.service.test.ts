@@ -29,6 +29,7 @@ const {
   loadLiveResourcesMock,
   snapshotUpsertMock,
   waitUntilMock,
+  adEventCreateMock,
 } = vi.hoisted(() => ({
   jobCountMock: vi.fn(),
   jobCreateMock: vi.fn(),
@@ -55,6 +56,7 @@ const {
   loadLiveResourcesMock: vi.fn(),
   snapshotUpsertMock: vi.fn(),
   waitUntilMock: vi.fn(),
+  adEventCreateMock: vi.fn(),
 }));
 
 vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
@@ -102,6 +104,7 @@ vi.mock("@/lib/db/prisma", () => {
     },
     project: { findUnique: projectFindUniqueMock },
     projectImagePromptSnapshot: { upsert: snapshotUpsertMock },
+    adEvent: { create: adEventCreateMock },
     transaction: { create: vi.fn() },
     $transaction: (run: (tx: unknown) => unknown) => run(client),
   };
@@ -236,6 +239,7 @@ describe("image studio job submission", () => {
     // One caller wins the lease.
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
     snapshotUpsertMock.mockReset().mockResolvedValue({});
+    adEventCreateMock.mockReset().mockResolvedValue({});
     projectFindUniqueMock.mockResolvedValue({
       designMdUrl: null,
       contextMd: null,
@@ -354,7 +358,13 @@ describe("image studio job submission", () => {
   });
 
   it("returns the existing job for a replayed idempotency key without calling fal", async () => {
-    jobFindUniqueMock.mockResolvedValue(jobRow({ status: "QUEUED" }));
+    jobFindUniqueMock.mockResolvedValue(
+      jobRow({
+        status: "QUEUED",
+        parentAssetId: "asset-1",
+        batchSlotId: "slot-1",
+      }),
+    );
 
     const job = await createImageJob(BASE_INPUT);
 
@@ -362,6 +372,30 @@ describe("image studio job submission", () => {
     expect(jobCreateMock).not.toHaveBeenCalled();
     expect(submitToQueueMock).not.toHaveBeenCalled();
     expect(snapshotUpsertMock).not.toHaveBeenCalled();
+    expect(adEventCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("records the refinement without replacing a batch slot before delivery", async () => {
+    jobCreateMock.mockResolvedValue(
+      jobRow({ parentAssetId: "asset-1", batchSlotId: "slot-1" }),
+    );
+    adEventCreateMock.mockRejectedValue(new Error("event store unavailable"));
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
+
+    await expect(createImageJob(BASE_INPUT)).resolves.toMatchObject({
+      status: "QUEUED",
+    });
+
+    expect(adEventCreateMock).toHaveBeenNthCalledWith(1, {
+      data: {
+        workspaceId: BASE_INPUT.workspaceId,
+        assetId: "asset-1",
+        userId: BASE_INPUT.userId,
+        type: "refined",
+        meta: { jobId: "job-1" },
+      },
+    });
+    expect(adEventCreateMock).toHaveBeenCalledTimes(1);
   });
 
   it("persists the selected product and batch independently of provider settings", async () => {
@@ -705,6 +739,10 @@ describe("image studio job submission", () => {
         }),
       }),
     );
+    expect(adEventCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({ assetId: "asset-1", type: "refined" }),
+    });
+    expect(adEventCreateMock).toHaveBeenCalledTimes(1);
   });
 
   it("tries a reference File once more when its download fails", async () => {

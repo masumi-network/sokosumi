@@ -252,7 +252,9 @@ async function writePolarSubscriptionRow(
   };
   async function applyToStoredRow() {
     await prisma.polarSubscription.updateMany({
-      where: { ...where, polarEventAt: { lte: eventAt } },
+      // A row owed a revoke stays ended while Polar still bills it: a newer
+      // payload would make it live again, for a Cuso who ended.
+      where: { ...where, polarEventAt: { lte: eventAt }, revokeOwedAt: null },
       data: state,
     });
     return await prisma.polarSubscription.findUnique({

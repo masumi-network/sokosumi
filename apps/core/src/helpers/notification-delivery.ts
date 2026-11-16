@@ -1,5 +1,6 @@
 import type { NotificationKind } from "@sokosumi/database";
 import {
+  BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
   BILLING_LOW_BALANCE_MESSAGE_KEY,
   BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
@@ -96,6 +97,8 @@ export const TASK_TERMINAL_MESSAGE_KEYS: readonly string[] = [
 export const BILLING_ATTENTION_MESSAGE_KEYS: readonly string[] = [
   BILLING_LOW_BALANCE_MESSAGE_KEY,
   BILLING_PAYMENT_FAILED_MESSAGE_KEY,
+  // A Cuso about to pause waits on the person who hired him (SOKD-246).
+  BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
 ];
 
 /**
