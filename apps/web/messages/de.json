@@ -11679,13 +11679,16 @@
         "rankings": "Rankings"
       },
       "overview": {
+        "privateFinding": "Nur du kannst dieses Ergebnis sehen.",
+        "relatedFindingPage": "Zugehörige Seite",
         "measurements": "Zugriffe",
         "not_connected": "Für diese Seiten sind noch keine Zugriffsstatistiken gespeichert. Wähle ein Konto, um sie zu laden.",
         "unavailable": "Statistiken sind nicht verfügbar. Prüfe hier die Verbindung und versuche es erneut.",
         "partial": "Einige Statistiken fehlen. Öffne jede Quelle, um zu sehen, welche.",
         "available": "Statistiken für die angegebenen Zeiträume sind verfügbar.",
         "priority": "Empfohlene Aktionen",
-        "findings": "Probleme noch ohne Lösung",
+        "findings": "Audit-Ergebnisse",
+        "suggestedFix": "Vorgeschlagene Korrektur",
         "audits": "Erfasste Ergebnisse",
         "findingsCount": "{count, plural, one {# Befund} other {# Befunde}}",
         "auditsCount": "{count, plural, one {# erfasstes Ergebnis} other {# erfasste Ergebnisse}}",
@@ -11754,10 +11757,10 @@
         "periodSame": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, unverändert",
         "changeMarker": "Erfasste Änderung am {day}: {changes}",
         "points": "{value} Pp.",
-        "googleUpdate": "Google: {name}, {from} bis {to}",
-        "googleUpdateOpen": "Google: {name}, {from} bis {to}, wird noch ausgerollt",
-        "googleUpdateDay": "Google: {name}, {day}",
-        "googleUpdatesAsOf": "Google-Updates bekannt bis {day}"
+        "googleUpdate": "{name}: {from} bis {to}",
+        "googleUpdateOpen": "{name}: seit {from}, läuft noch",
+        "googleUpdateDay": "{name}: {day}",
+        "googleUpdatesAsOf": "Stand der Google-Updates: {day}"
       },
       "keywords": {
         "title": "Keywords",
@@ -12080,6 +12083,7 @@
         "failed": "Fehlgeschlagen",
         "invalid": "Prüfe Seiten, Keywords, Markt und Geräte. Vollständige Audits erlauben ein Keyword und beide Geräte.",
         "keywordsHelp": "Gib bis zu 20 Keywords mit jeweils bis zu 80 Zeichen ein.",
+        "relatedPages": "Prüft auch die Indexierung relevanter Seiten dieser Website, insgesamt bis zu {count} Seiten. Vollständige Audits prüfen nur ausgewählte Seiten.",
         "fullHelp": "Vollständige Audits erlauben ein Keyword und beide Geräte. Alle ausgewählten Seiten verwenden denselben Markt.",
         "serviceUnavailable": "Prüfungen sind in diesem Arbeitsbereich nicht verfügbar. Kehre zum Audit zurück.",
         "returnToAudit": "Zurück zum Audit",
@@ -12492,6 +12496,20 @@
           "both": "Google nennt Land und Gerät nur für {listed, number} von {total, number} Impressionen."
         }
       },
+      "indexReview": {
+        "title": "Hinweise zur Indexierung",
+        "help": "Diese Seiten benötigen eine Entscheidung oder weitere Nachweise. Die Hinweise zeigen, was der Agent prüfen konnte.",
+        "checked": "Geprüft",
+        "state": {
+          "review": "Prüfung erforderlich",
+          "expected_exclusion": "Erwarteter Ausschluss",
+          "unavailable": "Nicht geprüft"
+        },
+        "suggestedFix": "Vorgeschlagener nächster Schritt",
+        "evidence": "Nachweise ansehen",
+        "unavailableEvidence": "Google Search Console oder das Audit lieferten nicht genügend Nachweise.",
+        "sources": "Quellen: Google Search Console und dieses Audit."
+      },
       "index": {
         "title": "Google-Index",
         "help": "Ob Google jede Seite im Suchindex führt, laut URL-Prüfung in der Search Console.",
@@ -12726,6 +12744,7 @@
           "publishing": "Du setzt Änderungen selbst um, prüfst Korrekturen nach und teilst Berichte mit Kunden."
         },
         "gaps": {
+          "noSearchTraffic": "Suchstatistiken sind noch nicht verfügbar. Ergebnisse zur Indexierung findest du in diesem Audit.",
           "statisticsIncomplete": "Einige Google-Statistiken fehlen. Der Agent kann nur die verfügbaren Daten bewerten.",
           "checksIncomplete": "Einige Prüfungen lieferten kein Ergebnis. Dieses Audit kann Probleme übersehen.",
           "title": "Fehlende Audit-Daten",
