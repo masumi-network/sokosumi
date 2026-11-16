@@ -311,6 +311,15 @@ vi.mock("@/helpers/billing-notifications", () => ({
     notifyLowBalanceAfterChargeMock(...args),
 }));
 
+const notifyCusoLowCreditsAfterChargeMock = vi
+  .fn()
+  .mockResolvedValue(undefined);
+
+vi.mock("@/helpers/cuso-low-credit-notification", () => ({
+  notifyCusoLowCreditsAfterCharge: (...args: unknown[]) =>
+    notifyCusoLowCreditsAfterChargeMock(...args),
+}));
+
 import { JevTurnClassifier } from "@/lib/soko-bot/classifier";
 import {
   type BuiltContextPacket,
@@ -4881,6 +4890,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       userId: "user_1",
       organizationId: "org_1",
     });
+    expect(notifyCusoLowCreditsAfterChargeMock).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -4914,8 +4924,39 @@ describe("SokoBotControlPlane lifecycle", () => {
       // The only low-credit notice sends him to Sokosumi's pool top-up,
       // which CMO does not offer; his Project's notice belongs to CMO.
       expect(notifyLowBalanceAfterChargeMock).not.toHaveBeenCalled();
+      // His own notice instead, on his Project, after the charge committed.
+      expect(notifyCusoLowCreditsAfterChargeMock).toHaveBeenCalledWith(
+        "01960001-0001-7001-8001-0000000000aa",
+      );
     },
   );
+
+  it("sends a Cuso in free hiring no low-credit notice, because nothing was charged", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      sokoBotId: BOT_ID,
+      requestedByUserId: "user_1",
+      eveSessionId: "session_1",
+      startedAt: new Date(Date.now() - 5_000),
+      costUsdMicros: 0n,
+      status: "RUNNING",
+      leaseToken: "lease_1",
+      scheduleRun: null,
+    });
+    turnUpdateManyMock.mockResolvedValue({ count: 1 });
+    botUpdateManyMock.mockResolvedValue({ count: 1 });
+    recordUsageMock.mockResolvedValue({
+      chargedCents: 0n,
+      expectedCents: 5n,
+      shortfall: false,
+      organizationId: null,
+      cusoProjectId: "01960001-0001-7001-8001-0000000000aa",
+    });
+
+    await new SokoBotControlPlane().expireTurn("turn_1");
+
+    expect(notifyCusoLowCreditsAfterChargeMock).not.toHaveBeenCalled();
+    expect(notifyLowBalanceAfterChargeMock).not.toHaveBeenCalled();
+  });
 
   it("settles a no-session cancellation only under its current lease", async () => {
     turnFindFirstMock.mockResolvedValue({ leaseToken: "cancel-lease-1" });
