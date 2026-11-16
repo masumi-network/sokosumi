@@ -54,8 +54,12 @@ export async function sweepWorkspace(
   sweeping = true;
   let changed: Promise<void> | undefined;
   try {
-    await band.moveTo(0.5, COVER_MS);
+    // The switch starts with the cover: waiting for it held every switch back
+    // by the cover's length.
     changed = change();
+    // Handled here; the `await` below still hands a failure to the caller.
+    changed.catch(() => undefined);
+    await band.moveTo(0.5, COVER_MS);
     await Promise.race([changed, wait(MAX_HOLD_MS)]);
   } finally {
     await band.moveTo(1, REVEAL_MS);

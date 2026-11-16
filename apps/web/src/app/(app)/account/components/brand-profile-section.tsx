@@ -284,8 +284,11 @@ export function BrandProfileSection({
                     <FormItem>
                       <FormLabel>{t("websiteLabel")}</FormLabel>
                       <FormControl>
+                        {/* Not `type="url"`: the browser would refuse
+                            "example.com" before the schema, which accepts it
+                            and adds https://. */}
                         <Input
-                          type="url"
+                          inputMode="url"
                           placeholder={t("websitePlaceholder")}
                           {...field}
                         />

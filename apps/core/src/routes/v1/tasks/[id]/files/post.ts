@@ -14,22 +14,31 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
+import { requireTaskWorkerContext } from "@/helpers/task-worker-context";
 import { createTaskFileUploadSession } from "@/lib/blob";
 import {
   resolveBlobUploadCallbackUrl,
+  TASK_FILE_CONTEXT_UPLOAD_COMPLETED_PATH,
   TASK_FILE_UPLOAD_COMPLETED_PATH,
 } from "@/lib/blob-callback-url";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
   isSokoBotAuthContext,
   isUserAuthContext,
+  requireCoworkerAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
 import {
   createTaskFileUploadSessionRequestSchema,
   taskFileUploadSessionSchema,
 } from "@/schemas/task-file-upload.schema";
+import {
+  TASK_WORKER_CONTEXT_VERSION,
+  type TaskFileWorkerBinding,
+  taskWorkerContextSchema,
+} from "@/schemas/task-worker-context.schema";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -38,55 +47,94 @@ const paramsSchema = z.object({
   }),
 });
 
-const route = createRoute({
-  method: "post",
-  path: "/{id}/files",
-  description: [
-    "Mint a direct upload session for a task file (owner, seated organization member on a public task, or assigned agent).",
-    "Bytes go client → Vercel Blob (not through this API).",
-    "When the Blob PUT completes, Core auto-creates the TaskFile row via",
-    "`POST /v1/webhooks/tasks/files/uploaded` (Blob `onUploadCompleted` webhook).",
-    "",
-    "Agent / REST:",
-    "1. POST this endpoint with `filename`, `contentType`, and `size`.",
-    "2. PUT raw bytes to `data.uploadUrl` with `Content-Type` from `data.headers`.",
-    "3. Done — no register call. TaskFile appears via webhook; refresh the task if you need the row.",
-    "",
-    `Max size: ${TASK_FILE_MAX_SIZE_BYTES} bytes. MIME allowlist matches user uploads except image/svg+xml.`,
-    "Requires public Core URL for the completion callback (production / tunnel).",
-  ].join("\n"),
-  tags: ["Tasks"],
-  request: {
-    params: paramsSchema,
-    body: {
-      required: true,
-      content: {
-        "application/json": {
-          schema: createTaskFileUploadSessionRequestSchema,
+export default function mount(app: OpenAPIHonoWithAuth) {
+  mountTaskFileRoute(app, false);
+  mountTaskFileRoute(app, true);
+}
+
+function mountTaskFileRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
+  const requestSchema = contextBound
+    ? createTaskFileUploadSessionRequestSchema.extend({
+        expectedContext: taskWorkerContextSchema,
+      })
+    : createTaskFileUploadSessionRequestSchema;
+  const responseSchema = contextBound
+    ? taskFileUploadSessionSchema.extend({
+        contextVersion: z.literal(TASK_WORKER_CONTEXT_VERSION),
+      })
+    : taskFileUploadSessionSchema;
+  const route = createRoute({
+    method: "post",
+    path: contextBound ? "/{id}/files/context-v1" : "/{id}/files",
+    description: [
+      "Mint a direct upload session for a task file (owner, seated organization member on a public task, or assigned agent).",
+      "Bytes go client → Vercel Blob (not through this API).",
+      "When the Blob PUT completes, Core auto-creates the TaskFile row via",
+      "`POST /v1/webhooks/tasks/files/uploaded` (Blob `onUploadCompleted` webhook).",
+      "",
+      "Agent / REST:",
+      "1. POST this endpoint with `filename`, `contentType`, and `size`.",
+      "2. PUT raw bytes to `data.uploadUrl` with `Content-Type` from `data.headers`.",
+      "3. Done — no register call. TaskFile appears via webhook; refresh the task if you need the row.",
+      "",
+      `Max size: ${TASK_FILE_MAX_SIZE_BYTES} bytes. MIME allowlist matches user uploads except image/svg+xml.`,
+      "Requires public Core URL for the completion callback (production / tunnel).",
+    ].join("\n"),
+    tags: ["Tasks"],
+    request: {
+      params: paramsSchema,
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: requestSchema,
+          },
         },
       },
     },
-  },
-  responses: {
-    201: jsonSuccessResponse(
-      taskFileUploadSessionSchema,
-      "Task file upload session created",
-    ),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    413: jsonErrorResponse("Payload Too Large"),
-    503: jsonErrorResponse("Service Unavailable"),
-  },
-});
+    responses: {
+      201: jsonSuccessResponse(
+        responseSchema,
+        "Task file upload session created",
+      ),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict"),
+      413: jsonErrorResponse("Payload Too Large"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  });
 
-export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id: taskId } = c.req.valid("param");
     const { authContext } = c.var;
 
-    await requireTaskCollaboration(authContext, taskId);
+    const body = c.req.valid("json");
+    let contextBinding: TaskFileWorkerBinding | undefined;
+    if (contextBound) {
+      const coworker = requireCoworkerAuthContext(authContext);
+      const expectedContext = taskWorkerContextSchema.parse(
+        "expectedContext" in body ? body.expectedContext : undefined,
+      );
+      await serializableTransaction(async (tx) => {
+        await requireTaskWorkerContext(
+          authContext,
+          taskId,
+          expectedContext,
+          tx,
+        );
+      }, "Task changed before upload authorization. Please retry.");
+      contextBinding = {
+        contextVersion: TASK_WORKER_CONTEXT_VERSION,
+        expectedContext,
+        coworkerId: coworker.coworkerId,
+        vendorId: coworker.vendorId,
+      };
+    } else {
+      await requireTaskCollaboration(authContext, taskId);
+    }
 
     const env = getEnv();
     const token = env.BLOB_READ_WRITE_TOKEN;
@@ -98,8 +146,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         "Blob upload completion is not configured (BLOB_WEBHOOK_PUBLIC_KEY)",
       );
     }
-
-    const body = c.req.valid("json");
 
     if (body.size > TASK_FILE_MAX_SIZE_BYTES) {
       throw payloadTooLarge(
@@ -130,7 +176,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       : null;
 
     const callbackUrl = resolveBlobUploadCallbackUrl(
-      TASK_FILE_UPLOAD_COMPLETED_PATH,
+      contextBound
+        ? TASK_FILE_CONTEXT_UPLOAD_COMPLETED_PATH
+        : TASK_FILE_UPLOAD_COMPLETED_PATH,
     );
 
     const session = await createTaskFileUploadSession(
@@ -147,9 +195,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         uploadedByCoworkerId,
         uploadedBySokoBotId,
         callbackUrl,
+        ...(contextBinding ? { contextBinding } : {}),
       },
     );
 
-    return created(c, taskFileUploadSessionSchema.parse(session));
+    return created(
+      c,
+      responseSchema.parse({
+        ...session,
+        ...(contextBound
+          ? { contextVersion: TASK_WORKER_CONTEXT_VERSION }
+          : {}),
+      }),
+    );
   });
 }

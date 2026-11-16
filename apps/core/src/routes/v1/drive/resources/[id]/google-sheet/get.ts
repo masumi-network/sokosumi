@@ -32,11 +32,12 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/{id}/google-sheet",
     description:
-      "The Google Sheet this file copies. 404 for a plain file, and for one the caller cannot see.",
+      "The Google Sheet this file copies. 204 for a plain file, 404 for one the caller cannot see.",
     tags: ["Drive"],
     request: { params: paramsSchema, query: querySchema },
     responses: {
       200: jsonSuccessResponse(driveGoogleSheetSchema, "Linked Google Sheet"),
+      204: { description: "A plain file: no linked sheet" },
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
@@ -58,8 +59,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       actor: context.actor,
       resourceId: id,
     });
-    const link = resource ? await findGoogleSheetLink(resource.id) : null;
-    if (!link) throw notFound("This file is not a linked Google Sheet");
+    if (!resource) throw notFound("File not found");
+    // Drive asks this for every PDF and text file it opens. A 404 for the
+    // common plain file put a failed request in the console on each open.
+    const link = await findGoogleSheetLink(resource.id);
+    if (!link) return c.body(null, 204);
     return ok(c, driveGoogleSheetSchema.parse(link));
   });
 }

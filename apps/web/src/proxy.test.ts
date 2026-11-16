@@ -80,8 +80,13 @@ describe("proxy", () => {
     expect(getSessionCookieMock).toHaveBeenCalledOnce();
   });
 
-  it.each(["/composio/callback", "/composio/handoff"])(
-    "keeps OAuth relay credentials out of sign-in URLs after session expiry: %s",
+  it.each([
+    "/seo/connections/callback",
+    "/seo/connections/return",
+    "/composio/callback",
+    "/composio/handoff",
+  ])(
+    "keeps OAuth return documents out of sign-in URLs after session expiry: %s",
     async (path) => {
       const { NextRequest } = await import("next/server");
       const { proxy } = await import("./proxy");
@@ -98,12 +103,16 @@ describe("proxy", () => {
   );
 
   it.each([
+    "/seo",
+    "/seo/connections",
+    "/seo/connections/callback/extra",
+    "/seo/connections/return-extra",
     "/composio",
     "/composio/callback/extra",
     "/composio/handoff-extra",
     "/personal-assistant/integrations/verify",
   ])(
-    "keeps neighboring routes and the bot verifier protected: %s",
+    "keeps neighboring pages and the bot verifier protected: %s",
     async (path) => {
       const { NextRequest } = await import("next/server");
       const { proxy } = await import("./proxy");

@@ -296,6 +296,7 @@ describe("GET /tasks/{id}", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
+    expect(body.data.workspaceId).toBe(testWorkspaceId);
     expect(body.data.runAt).toBe("2030-01-07T09:00:00.000Z");
     expect(body.data.participants).toEqual([]);
   });

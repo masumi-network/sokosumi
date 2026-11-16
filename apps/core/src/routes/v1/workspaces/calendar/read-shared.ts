@@ -10,7 +10,7 @@ import type {
   CalendarType,
   workspaceCalendarEntrySchema,
 } from "@/schemas/workspace-calendar.schema";
-import type { TaskScheduleReader } from "@/services/task-schedule.service";
+import type { TaskScheduleReader } from "@/services/task-schedule-read.service";
 
 export interface CalendarCursor {
   id: string;

@@ -1,3 +1,9 @@
+import {
+  SOKO_BOT_SEO_CAPABILITIES,
+  SOKO_BOT_SEO_READ_CAPABILITIES,
+  SOKO_BOT_SEO_WRITE_CAPABILITIES,
+} from "./seo.js";
+
 export const SOKO_BOT_ROUTES = [
   "DIRECT_RESPONSE",
   "CLARIFY",
@@ -10,6 +16,7 @@ export const SOKO_BOT_ROUTES = [
 export type SokoBotRoute = (typeof SOKO_BOT_ROUTES)[number];
 
 export const SOKO_BOT_CAPABILITIES = [
+  ...SOKO_BOT_SEO_CAPABILITIES,
   "refresh_context",
   "find_coworkers",
   "create_task",
@@ -245,6 +252,7 @@ export function isSokoBotSandboxCapability(
  * later, clean turn.
  */
 export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
+  "request_seo_analysis",
   "hire_agent",
   // Mail leaves the owner's mailbox; a page the bot read must not send it.
   "send_email_draft",
@@ -339,6 +347,7 @@ export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
 ] as const satisfies readonly (typeof SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES)[number][];
 
 const DIRECT_READ_CAPABILITIES = [
+  ...SOKO_BOT_SEO_READ_CAPABILITIES,
   "refresh_context",
   "get_task_status",
   "preview_result",
@@ -576,6 +585,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
   DIRECT_RESPONSE: [...OWNER_BASE_CAPABILITIES, "wait_for"],
   CLARIFY: [...OWNER_BASE_CAPABILITIES],
   DELEGATE_TASK: [
+    ...SOKO_BOT_SEO_WRITE_CAPABILITIES,
     ...OWNER_BASE_CAPABILITIES,
     ...BACKGROUND_RUN_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
@@ -603,6 +613,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "provide_job_input",
   ],
   MANAGE_WORK: [
+    ...SOKO_BOT_SEO_WRITE_CAPABILITIES,
     ...OWNER_BASE_CAPABILITIES,
     ...BACKGROUND_RUN_CAPABILITIES,
     ...SOCIAL_WRITE_CAPABILITIES,

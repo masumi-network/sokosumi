@@ -602,6 +602,18 @@ it("keeps board and list drag overlays in Compact", async () => {
   );
 });
 
+it("hands a link's ?view=board back to the saved view when List is picked", async () => {
+  searchParamsRef.current = new URLSearchParams("view=board&scope=owned");
+  const user = userEvent.setup();
+  renderBoard();
+  await user.click(screen.getByRole("button", { name: "Display" }));
+  await user.click(screen.getByRole("radio", { name: "List" }));
+  expect(document.cookie).toContain("tasks_view_mode=list");
+  expect(replaceMock).toHaveBeenCalledWith("/tasks?scope=owned");
+  expect(refreshMock).not.toHaveBeenCalled();
+  searchParamsRef.current = new URLSearchParams();
+});
+
 it("keeps a task that left the server page when this tab did not archive it", () => {
   const shifted: TaskWithCoworker = { ...TASK, id: "task-shifted" };
   const { rerender } = renderBoard([TASK, shifted]);

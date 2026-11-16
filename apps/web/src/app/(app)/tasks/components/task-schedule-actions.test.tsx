@@ -103,6 +103,8 @@ function schedule(state: TaskSchedule["state"]): TaskSchedule {
     createdAt: new Date("2030-01-01T00:00:00.000Z"),
     updatedAt: new Date("2030-01-01T00:00:00.000Z"),
     canWrite: true,
+    canRunNow: true,
+    canEditPlan: true,
   };
 }
 
@@ -189,6 +191,63 @@ describe("TaskScheduleActions", () => {
       expect(refreshMock).not.toHaveBeenCalled();
       toastMock.success.mock.calls[0][1].action.onClick();
       expect(pushMock).toHaveBeenCalledWith("/tasks/task_now");
+    },
+  );
+
+  it("hides manual runs, plan edits and copies for a bounded SEO monitor, keeping state controls", async () => {
+    const user = userEvent.setup();
+    render(
+      <TaskScheduleActions
+        schedule={{
+          ...schedule("ACTIVE"),
+          canRunNow: false,
+          canEditPlan: false,
+        }}
+        coworkerOptions={[]}
+        projectOptions={[]}
+        canCreatePrivate={false}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "runNow" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "pause" })).toBeVisible();
+    expect(runTaskScheduleNowMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "more" }));
+    expect(
+      screen.queryByRole("menuitem", { name: "edit" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "end" })).toBeVisible();
+    for (const name of ["copy", "copyToProject"]) {
+      expect(screen.queryByRole("menuitem", { name })).not.toBeInTheDocument();
+    }
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it.each(["copy", "copyToProject"])(
+    "closes an open %s dialog when a schedule becomes an SEO-managed plan",
+    async (action) => {
+      const user = userEvent.setup();
+      const props = {
+        schedule: schedule("ACTIVE"),
+        coworkerOptions: [],
+        projectOptions: [],
+        canCreatePrivate: false,
+      };
+      const { rerender } = render(<TaskScheduleActions {...props} />);
+      await user.click(screen.getByRole("button", { name: "more" }));
+      await user.click(screen.getByRole("menuitem", { name: action }));
+      expect(await screen.findByRole("dialog")).toBeInTheDocument();
+
+      rerender(
+        <TaskScheduleActions
+          {...props}
+          schedule={{ ...props.schedule, canEditPlan: false }}
+        />,
+      );
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(pushMock).not.toHaveBeenCalled();
     },
   );
 

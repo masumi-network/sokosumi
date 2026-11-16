@@ -71,6 +71,84 @@ describe("resolveWebRelatedProjectFallbackHost", () => {
 });
 
 describe("Soko Bot deployment environment", () => {
+  it("parses an exact SEO executor assertion and keeps paid search data opt-in", () => {
+    const executor = {
+      coworkerId: "seo-coworker",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+      ownerId: "owner",
+      organizationId: null,
+    };
+    vi.stubEnv("SEO_ANALYSIS_EXECUTOR", undefined);
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR).toBeUndefined();
+    vi.stubEnv("SEO_ANALYSIS_EXECUTOR", "");
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR).toBeUndefined();
+    vi.stubEnv("SEO_ANALYSIS_EXECUTOR", JSON.stringify(executor));
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR).toEqual({
+      ...executor,
+      canUsePaidSearchData: false,
+      canSchedule: false,
+    });
+    vi.stubEnv(
+      "SEO_ANALYSIS_EXECUTOR",
+      JSON.stringify({ ...executor, canUsePaidSearchData: true }),
+    );
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR?.canUsePaidSearchData).toBe(
+      true,
+    );
+    vi.stubEnv(
+      "SEO_ANALYSIS_EXECUTOR",
+      JSON.stringify({ ...executor, canSchedule: true }),
+    );
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR?.canSchedule).toBe(true);
+  });
+  it.each([
+    "{",
+    "null",
+    "{}",
+    JSON.stringify({
+      coworkerId: "seo",
+      workspaceId: "not-a-uuid",
+      ownerId: "owner",
+      organizationId: null,
+    }),
+    JSON.stringify({
+      coworkerId: "seo",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+      ownerId: "owner",
+    }),
+    JSON.stringify({
+      coworkerId: "seo",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+      ownerId: "owner",
+      organizationId: null,
+      canUsePaidSearchData: "true",
+    }),
+    JSON.stringify({
+      coworkerId: "seo",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+      ownerId: "owner",
+      organizationId: null,
+      canSchedule: "true",
+    }),
+    JSON.stringify({
+      coworkerId: "seo",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+      ownerId: "owner",
+      organizationId: null,
+      taskIds: [],
+    }),
+  ])("rejects malformed or widened SEO executor assertion %s", (value) => {
+    vi.stubEnv("SEO_ANALYSIS_EXECUTOR", value);
+    expectInvalidEnvironment("SEO_ANALYSIS_EXECUTOR");
+  });
+  it("keeps SEO analysis dispatch off unless the worker rollout is explicitly enabled", () => {
+    vi.stubEnv("SEO_ANALYSIS_DISPATCH_ENABLED", undefined);
+    expect(validateEnv().SEO_ANALYSIS_DISPATCH_ENABLED).toBe(false);
+    vi.stubEnv("SEO_ANALYSIS_DISPATCH_ENABLED", "true");
+    expect(validateEnv().SEO_ANALYSIS_DISPATCH_ENABLED).toBe(true);
+    vi.stubEnv("SEO_ANALYSIS_DISPATCH_ENABLED", "false");
+    expect(validateEnv().SEO_ANALYSIS_DISPATCH_ENABLED).toBe(false);
+  });
   it.each([
     ["Node production", { NODE_ENV: "production" }],
     ["Vercel preview", { NODE_ENV: "development", VERCEL_ENV: "preview" }],
@@ -393,4 +471,20 @@ describe("macOS minimum build", () => {
     vi.stubEnv("MACOS_MINIMUM_BUILD", "8000");
     expect(validateEnv().MACOS_MINIMUM_BUILD).toBe(8000);
   });
+});
+
+describe("native SEO chat allowance", () => {
+  it("defaults to 100 daily turns and accepts an operator limit", () => {
+    vi.stubEnv("SEO_CHAT_DAILY_TURN_LIMIT", undefined);
+    expect(validateEnv().SEO_CHAT_DAILY_TURN_LIMIT).toBe(100);
+    vi.stubEnv("SEO_CHAT_DAILY_TURN_LIMIT", "12");
+    expect(validateEnv().SEO_CHAT_DAILY_TURN_LIMIT).toBe(12);
+  });
+  it.each(["0", "-1", "1.5", "invalid"])(
+    "rejects an invalid allowance %s",
+    (value) => {
+      vi.stubEnv("SEO_CHAT_DAILY_TURN_LIMIT", value);
+      expectInvalidEnvironment("SEO_CHAT_DAILY_TURN_LIMIT");
+    },
+  );
 });

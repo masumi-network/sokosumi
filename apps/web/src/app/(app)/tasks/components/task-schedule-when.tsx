@@ -335,7 +335,24 @@ interface TaskScheduleWhenProps {
   repeats?: readonly ScheduleRepeat[];
   /** A Soko Bot schedule never ends, so it hides the "Ends" row. */
   showEnds?: boolean;
+  /** The end choices offered; an SEO monitor has no end date. */
+  endsModes?: readonly TaskScheduleEndsMode[];
+  /** The highest run count the "after" choice accepts. */
+  maxRunCount?: number;
+  /** More room between the rows, for a form that has little else in it. */
+  className?: string;
 }
+
+const ENDS_MODES = [
+  TaskScheduleEndsMode.NEVER,
+  TaskScheduleEndsMode.ON,
+  TaskScheduleEndsMode.AFTER,
+] as const;
+const ENDS_LABELS = {
+  [TaskScheduleEndsMode.NEVER]: "endsNever",
+  [TaskScheduleEndsMode.ON]: "endsOn",
+  [TaskScheduleEndsMode.AFTER]: "endsAfter",
+} as const;
 
 /** The "When" part of the schedule dialog: how often, at what time, until when. */
 export function TaskScheduleWhen({
@@ -344,6 +361,9 @@ export function TaskScheduleWhen({
   storedCron,
   repeats = REPEATS,
   showEnds = true,
+  endsModes = ENDS_MODES,
+  maxRunCount,
+  className,
 }: TaskScheduleWhenProps) {
   const t = useTranslations("App.Tasks.Schedules.Dialog.When");
   const formatter = useFormatter();
@@ -363,7 +383,7 @@ export function TaskScheduleWhen({
   const cronInvalid = cronRejected && !cronLegacy;
 
   return (
-    <div className="space-y-3">
+    <div className={cn("space-y-3", className)}>
       <Row label={t("repeat")}>
         {repeats.map((repeat) => (
           <button
@@ -507,11 +527,10 @@ export function TaskScheduleWhen({
             onChange={(endsMode) =>
               set({ endsMode: endsMode as TaskScheduleEndsMode })
             }
-            options={[
-              { value: TaskScheduleEndsMode.NEVER, label: t("endsNever") },
-              { value: TaskScheduleEndsMode.ON, label: t("endsOn") },
-              { value: TaskScheduleEndsMode.AFTER, label: t("endsAfter") },
-            ]}
+            options={endsModes.map((mode) => ({
+              value: mode,
+              label: t(ENDS_LABELS[mode]),
+            }))}
           />
           {value.endsMode === TaskScheduleEndsMode.ON ? (
             <DateChip
@@ -527,12 +546,13 @@ export function TaskScheduleWhen({
                 id={endAfterId}
                 type="number"
                 min={1}
+                max={maxRunCount}
                 value={value.endAfterOccurrences}
                 onChange={(event) =>
                   set({
-                    endAfterOccurrences: Math.max(
-                      1,
-                      Number(event.target.value) || 1,
+                    endAfterOccurrences: Math.min(
+                      maxRunCount ?? Number.POSITIVE_INFINITY,
+                      Math.max(1, Number(event.target.value) || 1),
                     ),
                   })
                 }

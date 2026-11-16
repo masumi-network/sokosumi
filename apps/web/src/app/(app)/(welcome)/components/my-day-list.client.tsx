@@ -87,9 +87,12 @@ export function MyDayList({ today, initial }: MyDayListProps) {
       <ul className="flex flex-col">
         {rows.map((row) => (
           <li key={row.id} data-testid="home-my-day-row">
+            {/* On a phone the due date beside the name cut the name to a
+                few words, so there the name gets the row, up to two lines,
+                and the due date sits under it. */}
             <Link
               href={row.href}
-              className="hover:bg-accent focus-visible:ring-ring flex min-w-0 items-center gap-3 rounded-md px-3 py-2 outline-none transition-colors focus-visible:ring-2"
+              className="hover:bg-accent focus-visible:ring-ring grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 rounded-md px-3 py-2 outline-none transition-colors focus-visible:ring-2 sm:flex"
             >
               <TaskStatusBadge
                 status={row.status}
@@ -97,14 +100,14 @@ export function MyDayList({ today, initial }: MyDayListProps) {
                 showLabel={false}
                 className="border-0 bg-transparent p-0"
               />
-              <span className="text-foreground min-w-0 flex-1 truncate text-sm">
+              <span className="text-foreground line-clamp-2 min-w-0 flex-1 text-sm break-words sm:line-clamp-1">
                 {row.name}
               </span>
               {row.dueOn ? (
                 <TaskDueBadge
                   dueOn={row.dueOn}
                   status={row.status}
-                  className="shrink-0 text-sm"
+                  className="col-start-2 shrink-0 text-sm"
                 />
               ) : null}
             </Link>

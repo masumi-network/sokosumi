@@ -1,5 +1,9 @@
 import type { Prisma } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/database";
+import {
+  requireSeoTaskReactivation,
+  SEO_INACTIVE_TASK_STATUSES,
+} from "@/services/project-seo-analysis-concurrency";
 
 import { conflict } from "./error.js";
 import {
@@ -43,6 +47,11 @@ export async function applyGuardedTaskStatusUpdate(params: {
   expectedStatus: TaskStatus;
   eventStatus: TaskStatus;
 }): Promise<void> {
+  if (
+    SEO_INACTIVE_TASK_STATUSES.includes(params.expectedStatus) &&
+    !SEO_INACTIVE_TASK_STATUSES.includes(params.eventStatus)
+  )
+    await requireSeoTaskReactivation(params.tx, params.taskId);
   const updateResult = await params.tx.task.updateMany({
     where: { id: params.taskId, status: params.expectedStatus },
     data: {

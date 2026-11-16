@@ -53,20 +53,22 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * The bot's Direct (null when it has none yet or the read fails) and the
- * reader's important unread chat messages from the last day, which Core
- * picks from Jev's tags; the room list is the sidebar's cached one.
+ * The reader's rooms and their important unread chat messages from the last
+ * day, which Core picks from Jev's tags; the room list is the sidebar's
+ * cached one. Read before the bot is known, so the bot's Direct is found
+ * after.
  */
-async function loadSokoBotChats(
-  sokoBotId: string,
-): Promise<{ roomId: string | null; chats: SokoBotHomeChat[] }> {
+async function loadHomeChats(): Promise<{
+  rooms: Awaited<ReturnType<typeof chatRoomService.listRooms>>["rooms"];
+  chats: SokoBotHomeChat[];
+}> {
   const [{ rooms }, important, tChannels] = await Promise.all([
     chatRoomService.listRooms().catch(() => ({ rooms: [] })),
     chatRoomService.listImportantMessages().catch(() => []),
     getTranslations("App.Channels"),
   ]);
   return {
-    roomId: findSokoBotDirectRoom(rooms, sokoBotId)?.id ?? null,
+    rooms,
     chats: toImportantChats(important, tChannels("SavedMessages.untitled")),
   };
 }
@@ -125,9 +127,15 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     </Suspense>
   );
   // What waits on the reader, as the quiet list on the Soko Bot Home.
+  const needsYouRead = notificationService.readNeedsYou(WORKSPACE_COLUMN_ROWS);
   const needsYouFeed = panelFeed(
-    notificationService.listNeedsYou(WORKSPACE_COLUMN_ROWS),
+    needsYouRead.then(({ notifications }) => notifications),
   );
+  // Its own number, not a share of the waiting Tasks: Needs you also holds
+  // Job, grant and access asks, and asks from other workspaces.
+  const needsYouCount = needsYouRead
+    .then(({ total }) => total)
+    .catch(() => null);
   // The workspace's first page of projects, read next to the rows, so a
   // row's project is usually known without its own read after them.
   const needsYouProjects = projectService
@@ -151,6 +159,16 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       })}
     </Suspense>
   );
+  // The Home's chats and team Tasks start with the bot read rather than one
+  // Core round after it; without a bot they go unused.
+  const homeChats = loadHomeChats();
+  const recentTasks = taskService
+    .listTasks({
+      scope,
+      sort: "updatedAt",
+      limit: SOKO_BOT_HOME_TASK_LIMIT * 2,
+    })
+    .catch(() => ({ tasks: [] }));
   const [{ sokoBot, lastFailure }, summary] = await Promise.all([
     sokoBotService
       .getMineWithLastFailure()
@@ -164,16 +182,12 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   const userId = session?.user.id;
 
   if (sokoBot && userId) {
-    const [{ roomId, chats }, recent] = await Promise.all([
-      loadSokoBotChats(sokoBot.id),
-      taskService
-        .listTasks({
-          scope,
-          sort: "updatedAt",
-          limit: SOKO_BOT_HOME_TASK_LIMIT * 2,
-        })
-        .catch(() => ({ tasks: [] })),
+    const [{ rooms, chats }, recent, needsYouTotal] = await Promise.all([
+      homeChats,
+      recentTasks,
+      needsYouCount,
     ]);
+    const roomId = findSokoBotDirectRoom(rooms, sokoBot.id)?.id ?? null;
     // A failed bot waits on the reader too: the sidebar and the bot's page
     // say so, and Home said "Nothing waits on you".
     const tHome = await getTranslations("App.Chat.Landing.SokoBotHome");
@@ -199,6 +213,8 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           roomId={roomId}
           userName={resolveLandingGreetingName(session?.user.name)}
           summary={summary ?? null}
+          inOrganization={Boolean(activeOrganizationId)}
+          needsYouCount={needsYouTotal}
           teamTasks={toTeamDay(recent.tasks, new Date())}
           chats={chats}
           schedules={toNewSchedules(sokoBot.schedules ?? [], new Date())}

@@ -123,23 +123,4 @@ describe("createRoomComposerOverflowMarkdownFile", () => {
     expect(file.type).toBe("text/markdown");
     expect(file.size).toBeGreaterThan(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH);
   });
-
-  it("adds a voice message's transcript after the links", () => {
-    expect(
-      buildRoomComposerMessageContent(
-        "listen",
-        [
-          { fileName: "brief.pdf", url: "https://b/brief.pdf" },
-          {
-            fileName: "Voice.weba",
-            url: "https://b/voice.weba",
-            transcript: "Ship it on Friday",
-          },
-        ],
-        formatLink,
-      ),
-    ).toBe(
-      "listen\n[brief.pdf](https://b/brief.pdf)\n[Voice.weba](https://b/voice.weba)\n\n```transcript\nShip it on Friday\n```",
-    );
-  });
 });

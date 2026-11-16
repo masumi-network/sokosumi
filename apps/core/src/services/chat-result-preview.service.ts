@@ -37,7 +37,7 @@ import {
   getSocialPost,
   isSocialPostProviderEnabled,
 } from "@/services/social-posts.service";
-import { taskScheduleVisibilityWhere } from "@/services/task-schedule.service";
+import { taskScheduleVisibilityWhere } from "@/services/task-schedule-read.service";
 
 export interface ChatResultActor {
   userId: string;
