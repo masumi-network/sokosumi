@@ -63,7 +63,7 @@ export default function AnnouncementCards() {
   }
 
   return (
-    <div className="px-2 pb-2">
+    <div className="pointer-events-none absolute inset-x-0 bottom-full z-10 px-2 pb-2">
       <div className="relative pt-4">
         {cards.map((card, index) => {
           const cardZIndex = cards.length - index;
@@ -74,13 +74,13 @@ export default function AnnouncementCards() {
             <article
               key={card.notice.id}
               className={cn(
-                "border-sidebar-border bg-sidebar overflow-hidden rounded-lg border",
+                "bg-background overflow-hidden rounded-lg border",
                 index === 0
                   ? "relative"
                   : "absolute inset-x-0 top-0 h-full max-h-full",
-                "shadow-xs",
+                "shadow-lg",
                 isPrimaryCard &&
-                  "press hover:bg-sidebar-accent focus-visible:ring-sidebar-ring cursor-pointer transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
+                  "press hover:bg-quinary focus-visible:ring-sidebar-ring pointer-events-auto cursor-pointer transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
                 isBackCard && "pointer-events-none",
               )}
               style={{

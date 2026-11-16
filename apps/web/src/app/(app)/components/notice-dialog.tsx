@@ -6,15 +6,8 @@ import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { acknowledgeNoticeAction } from "@/lib/actions/notice/action";
 import { isVideoUrl } from "@/lib/utils/file-preview";
 import { parseNoticeTemplate } from "@/lib/utils/notice-template";
@@ -130,24 +123,24 @@ export function NoticeDialog({
   }
 
   return (
-    <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
-      <DialogContent
-        className={
-          isLegalNotice ? "sm:max-w-2xl [&>button]:hidden" : "sm:max-w-2xl"
-        }
-        onEscapeKeyDown={
-          isLegalNotice ? (event) => event.preventDefault() : undefined
-        }
-        onPointerDownOutside={
-          isLegalNotice ? (event) => event.preventDefault() : undefined
-        }
-      >
-        <DialogHeader className="-mx-6 -mt-6 gap-0">
+    <TaskFormModal
+      open={dialogOpen}
+      onOpenChange={handleOpenChange}
+      title={noticeTitle}
+      cancelLabel={isLegalNotice ? undefined : t("actions.close")}
+      isDismissDisabled={isSubmitting}
+    >
+      <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto">
+        <div className="space-y-4 px-6 py-5 md:px-8">
           {coverUrl ? (
-            <div className="bg-muted overflow-hidden rounded-t-lg">
+            <div className="bg-muted overflow-hidden rounded-lg border">
               {isVideoUrl(coverUrl) ? (
                 <video
                   src={coverUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
                   controls
                   className="aspect-16/7 w-full object-cover"
                 />
@@ -161,41 +154,24 @@ export function NoticeDialog({
               )}
             </div>
           ) : null}
-          <div className="space-y-2 px-6 pt-4">
-            <DialogTitle>{noticeTitle}</DialogTitle>
-            {noticeSummary ? (
-              <DialogDescription>{noticeSummary}</DialogDescription>
-            ) : null}
-          </div>
-        </DialogHeader>
-
-        <div className="app-scrollbar max-h-[45dvh] overflow-y-auto pr-1">
+          {noticeSummary ? (
+            <p className="text-muted-foreground text-sm">{noticeSummary}</p>
+          ) : null}
           <Markdown>{parsedTemplate.bodyMarkdown}</Markdown>
         </div>
-
-        <DialogFooter>
-          {actionUrl ? (
-            <Button
-              type="button"
-              variant="primary"
-              onClick={handleOpenAction}
-              loading={isSubmitting}
-            >
-              {actionLabel ?? t("actions.openLink")}
-            </Button>
-          ) : null}
-          {!actionUrl ? (
-            <Button
-              type="button"
-              variant="primary"
-              onClick={handleAcknowledge}
-              loading={isSubmitting}
-            >
-              {t("actions.confirm")}
-            </Button>
-          ) : null}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+      <div className="flex shrink-0 justify-end border-t px-6 py-3 md:px-8">
+        <Button
+          type="button"
+          className="min-w-28"
+          onClick={actionUrl ? handleOpenAction : handleAcknowledge}
+          loading={isSubmitting}
+        >
+          {actionUrl
+            ? (actionLabel ?? t("actions.openLink"))
+            : t("actions.confirm")}
+        </Button>
+      </div>
+    </TaskFormModal>
   );
 }
