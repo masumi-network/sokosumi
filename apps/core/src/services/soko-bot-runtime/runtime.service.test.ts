@@ -88,6 +88,7 @@ const {
   transactionMock,
   turnFindUniqueMock,
   transactionChatMessageCreateMock,
+  transactionChatMessageFindFirstMock,
   transactionChatMentionCreateManyMock,
   transactionChatRoomUpdateMock,
   chatCoworkerMemberFindManyMock,
@@ -221,6 +222,7 @@ const {
   transactionMock: vi.fn(),
   turnFindUniqueMock: vi.fn(),
   transactionChatMessageCreateMock: vi.fn(),
+  transactionChatMessageFindFirstMock: vi.fn(),
   transactionChatMentionCreateManyMock: vi.fn(),
   transactionChatRoomUpdateMock: vi.fn(),
   chatCoworkerMemberFindManyMock: vi.fn(),
@@ -5528,6 +5530,7 @@ describe("post_chat chain depth", () => {
           chatRoomMessage: {
             create: transactionChatMessageCreateMock,
             count: chatMessageCountMock,
+            findFirst: transactionChatMessageFindFirstMock,
           },
           chatRoomMention: {
             createMany: transactionChatMentionCreateManyMock,
@@ -5687,6 +5690,30 @@ describe("post_chat chain depth", () => {
       }),
     ).rejects.toThrow(/rate limited/i);
 
+    expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses the same text from this bot twice in an hour", async () => {
+    // Two follow-ups of one run both posted the weekly summary to Everyone.
+    const authorized = armPostChat(0);
+    transactionChatMessageFindFirstMock.mockResolvedValueOnce({ id: "msg_0" });
+
+    await expect(
+      new SokoBotRuntimeService()["postChat"](authorized, {
+        toolCallId: "call_2",
+        roomId: "room_1",
+        content: "What changed last week",
+      }),
+    ).rejects.toThrow(/already posted this exact message/i);
+
+    expect(transactionChatMessageFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          content: "What changed last week",
+          deletedAt: null,
+        }),
+      }),
+    );
     expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
   });
 
@@ -5872,6 +5899,7 @@ describe("open_direct_chat", () => {
           chatRoomMessage: {
             create: transactionChatMessageCreateMock,
             count: chatMessageCountMock,
+            findFirst: transactionChatMessageFindFirstMock,
           },
           chatRoomMention: {
             createMany: transactionChatMentionCreateManyMock,
@@ -6307,6 +6335,7 @@ describe("ask_coworker", () => {
           chatRoomMessage: {
             create: transactionChatMessageCreateMock,
             count: chatMessageCountMock,
+            findFirst: transactionChatMessageFindFirstMock,
           },
           chatRoomMention: {
             createMany: transactionChatMentionCreateManyMock,
