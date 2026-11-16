@@ -38,6 +38,41 @@ describe("useSeoFocusHandoff", () => {
     expect(screen.getByText("empty")).toHaveFocus();
   });
 
+  it("gives the focus back after a dialog the control opened, even when the control is gone", () => {
+    function WithDialog({ hidden, open }: { hidden: boolean; open: boolean }) {
+      const { box, target, arm } = useSeoFocusHandoff("choose", hidden);
+      return (
+        <div>
+          <div ref={box}>
+            <p ref={target} tabIndex={-1}>
+              Choose
+            </p>
+            {hidden ? null : (
+              <button type="button" onClick={arm}>
+                Choose property
+              </button>
+            )}
+          </div>
+          {open ? (
+            <div role="dialog">
+              <input aria-label="Property" />
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+    const { rerender } = render(<WithDialog hidden={false} open={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "Choose property" }));
+    rerender(<WithDialog hidden={false} open />);
+    screen.getByLabelText("Property").focus();
+    // The pick starts a sync: the line hides, the dialog closes, the focus falls to the page.
+    rerender(<WithDialog hidden open />);
+    fireEvent.pointerDown(screen.getByLabelText("Property"));
+    rerender(<WithDialog hidden open={false} />);
+    rerender(<WithDialog hidden={false} open={false} />);
+    expect(screen.getByText("Choose")).toHaveFocus();
+  });
+
   it("drops the handoff when the reader presses somewhere while the line waits", () => {
     const { rerender } = render(<Line cause="missing" hidden={false} />);
     screen.getByRole("button", { name: "Connect" }).focus();

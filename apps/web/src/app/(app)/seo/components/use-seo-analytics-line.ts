@@ -13,13 +13,17 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
  * Why the Agent tab has no Google Analytics data, and its fix. The tab reads it too: a hidden line with no
  * upkeep message leaves the tab to say that nothing is waiting.
  */
-export function useSeoAnalyticsLine(model: SeoWorkspaceModel) {
-  const status = useSeoConnectionStatus("ga4").status.data?.status;
+export function useSeoAnalyticsLine(
+  model: SeoWorkspaceModel,
+  /** The tab has an Analytics step: without one, nothing is read. */
+  enabled: boolean,
+) {
+  const status = useSeoConnectionStatus("ga4", enabled).status.data?.status;
   const connected = status === "connected";
   const { properties, propertyId } = useSeoStatisticsProperties(
     model.data,
     "ga4",
-    connected,
+    enabled && connected,
   );
   const listed =
     properties.data?.status === "available" ? properties.data.properties : null;

@@ -2828,6 +2828,24 @@ describe("SEO workspace integration", () => {
   it("names why the Google statistics line has no Analytics data, with the fix where one exists", async () => {
     const workspace = seoTestCheckedAudit();
     workspace.metrics = [seoTestMetric()];
+    // Nothing else to propose: no competitor step, fresh search data. The tab must not be blank.
+    workspace.metrics = workspace.metrics.map((metric) => ({
+      ...metric,
+      observedAt: new Date(),
+    }));
+    workspace.availableActions.canRequestAnalysis = false;
+    workspace.availableActions.canUsePaidSearchData = false;
+    workspace.searchQueries = {
+      observationId: "c6b8a2c4-5b8e-4f0e-9a51-1f2f8a3f7c11",
+      propertyId: "sc-domain:example.com",
+      from: "2026-10-01",
+      to: "2026-10-28",
+      timeZone: "UTC",
+      observedAt: new Date(),
+      rowLimit: 250,
+      truncated: false,
+      rows: [],
+    };
     const unrelated = [
       { id: "properties/1", name: "galaxy-balls" },
       { id: "properties/2", name: "roxtool" },
@@ -2938,6 +2956,8 @@ describe("SEO workspace integration", () => {
         await waitFor(() =>
           expect(screen.queryByTestId("seo-agent-statistics")).toBeNull(),
         );
+        // The upkeep line still waits on something: the tab does not say that nothing is waiting.
+        expect(screen.queryByText(/^Nothing is waiting/)).toBeNull();
         if (button)
           expect(
             within(said.parentElement as HTMLElement).getByRole("button", {
@@ -2955,24 +2975,6 @@ describe("SEO workspace integration", () => {
       else expect(within(line()).queryByRole("button")).toBeNull();
       cleanup();
     }
-    // Nothing else to propose: no competitor step, fresh search data. The tab must not be blank.
-    workspace.metrics = workspace.metrics.map((metric) => ({
-      ...metric,
-      observedAt: new Date(),
-    }));
-    workspace.availableActions.canRequestAnalysis = false;
-    workspace.availableActions.canUsePaidSearchData = false;
-    workspace.searchQueries = {
-      observationId: "c6b8a2c4-5b8e-4f0e-9a51-1f2f8a3f7c11",
-      propertyId: "sc-domain:example.com",
-      from: "2026-10-01",
-      to: "2026-10-28",
-      timeZone: "UTC",
-      observedAt: new Date(),
-      rowLimit: 250,
-      truncated: false,
-      rows: [],
-    };
     // A connected account with no cause to name has no bare line: here the property list says the connection
     // is gone while the connection still reads as connected.
     vi.stubGlobal(
