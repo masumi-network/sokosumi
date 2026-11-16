@@ -5,6 +5,7 @@ import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { requireSeoTaskExecutionUnchanged } from "@/helpers/seo-task-execution";
 import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
@@ -19,6 +20,7 @@ import {
   mapProjectForApi,
   projectSchema,
 } from "@/schemas/project.schema";
+import { isCmoProject } from "@/services/cmo-cuso.service";
 
 const paramsSchema = z.object({
   id: z
@@ -112,6 +114,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!(await lockTaskRows(tx, [body.taskId]))) {
           throw notFound("Task not found");
         }
+        const current = await tx.task.findFirst({
+          where: {
+            id: body.taskId,
+            archivedAt: null,
+            workspaceId,
+            ...buildHumanTaskVisibilityWhere(userContext.userId),
+          },
+        });
+        if (!current) throw notFound("Task not found");
+        await requireSeoTaskExecutionUnchanged(tx, current, { projectId });
         const projectAssignment = await tx.task.updateMany({
           where: {
             id: body.taskId,
@@ -132,6 +144,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await deliverCalendarInvalidationsNow(workspaceId);
     }
 
-    return ok(c, mapProjectForApi(project));
+    return ok(
+      c,
+      mapProjectForApi(project, { cmo: await isCmoProject(project.id) }),
+    );
   });
 }

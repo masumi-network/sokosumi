@@ -230,7 +230,7 @@ describe("FileChipMiniPreviewFrame", () => {
     );
   });
 
-  it("renders an inline audio player for audio attachments on the sent-message frame", () => {
+  it("renders the compact voice player for audio attachments on the sent-message frame", () => {
     const { container } = render(
       <FileChipMiniPreviewFrame
         url="https://blob.example.com/uploads/track.mp3"
@@ -246,7 +246,7 @@ describe("FileChipMiniPreviewFrame", () => {
       "src",
       "https://blob.example.com/uploads/track.mp3",
     );
-    expect(screen.getByTestId("file-chip-audio")).toBeInTheDocument();
+    expect(screen.getByTestId("voice-player")).toBeInTheDocument();
   });
 });
 

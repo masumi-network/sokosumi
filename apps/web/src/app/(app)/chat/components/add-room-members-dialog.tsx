@@ -1,7 +1,6 @@
 "use client";
 
 import type { ChatRoom, Coworker, Member } from "@sokosumi/core-client";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -108,7 +107,6 @@ function AddRoomMembersForm({
   onAdded: () => void;
 }) {
   const t = useTranslations("App.Channels.AddMembers");
-  const router = useRouter();
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [coworkerIds, setCoworkerIds] = useState<string[]>([]);
   const [sokoBotIds, setSokoBotIds] = useState<string[]>([]);
@@ -153,7 +151,6 @@ function AddRoomMembersForm({
       }
       toast.success(t("success", { count }));
       onAdded();
-      router.refresh();
     });
   }
 

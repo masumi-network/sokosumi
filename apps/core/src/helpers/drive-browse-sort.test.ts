@@ -18,7 +18,7 @@ const BINDING = {
 };
 
 function folder(name: string): DriveItem {
-  return { type: "folder", name, path: name };
+  return { type: "folder", name, path: name, dataRoom: false };
 }
 
 function file(
@@ -33,6 +33,7 @@ function file(
     pathname,
     size: 10,
     uploadedAt,
+    dataRoom: false,
   };
 }
 

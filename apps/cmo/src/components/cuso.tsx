@@ -9,7 +9,7 @@ export const AVATAR_REPLAY_MS = 30_000;
 
 interface CusoAvatarProps {
   pose: Pose;
-  size?: 36 | 48 | 96;
+  size?: 36 | 48 | 96 | 176;
   /** False keeps the still (a past chat message). */
   animate?: boolean;
   /** Holds the first play until true (the hire screen waits for its hero). */

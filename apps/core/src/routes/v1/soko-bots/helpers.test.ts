@@ -8,7 +8,7 @@ import {
 import { HTTPException } from "hono/http-exception";
 import { describe, expect, it } from "vitest";
 
-import { SokoBotIntegrationError } from "@/services/soko-bot-integrations.service";
+import { SokoBotIntegrationError } from "@/services/composio-integration-tools.service";
 
 import { mapIntegrationError, mapTurn } from "./helpers";
 

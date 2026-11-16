@@ -21,7 +21,7 @@ export function sitePlatformOf(headers: Headers, html: string): SitePlatform {
 }
 
 /** The homepage's headers and HTML; null when it cannot be read. */
-async function readHomepage(
+export async function readHomepage(
   rawUrl: string,
 ): Promise<{ headers: Headers; html: string } | null> {
   try {

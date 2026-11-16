@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import { mountSokoBotApiKeyRoutes } from "./api-keys";
@@ -74,6 +75,7 @@ function createApp(
     });
     return await next();
   });
+  app.onError(errorHandler);
   mountSokoBotApiKeyRoutes(app);
   return app;
 }
@@ -87,7 +89,10 @@ describe("Soko Bot API keys", () => {
   it("creates a sokoBot-prefixed key for an owned live bot", async () => {
     const tx = {
       sokoBot: {
-        findFirst: vi.fn().mockResolvedValue(OWNED_BOT),
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce(OWNED_BOT)
+          .mockResolvedValue(null),
       },
       coworkerApiKey: {
         create: vi.fn().mockResolvedValue(createRecord()),
@@ -201,7 +206,12 @@ describe("Soko Bot API keys", () => {
   it("updates only an owned bot key", async () => {
     const updated = createRecord({ name: "Rotated CLI key" });
     const tx = {
-      sokoBot: { findFirst: vi.fn().mockResolvedValue(OWNED_BOT) },
+      sokoBot: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce(OWNED_BOT)
+          .mockResolvedValue(null),
+      },
       coworkerApiKey: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         findFirst: vi.fn().mockResolvedValue(updated),
@@ -238,7 +248,12 @@ describe("Soko Bot API keys", () => {
       revokedAt: new Date("2026-09-02T11:00:00.000Z"),
     });
     const tx = {
-      sokoBot: { findFirst: vi.fn().mockResolvedValue(OWNED_BOT) },
+      sokoBot: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce(OWNED_BOT)
+          .mockResolvedValue(null),
+      },
       coworkerApiKey: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         findFirst: vi.fn().mockResolvedValue(revoked),
@@ -296,6 +311,43 @@ describe("Soko Bot API keys", () => {
 
     expect(response.status).toBe(403);
     expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses to mint a key for Cuso in the bot's workspace", async () => {
+    const create = vi.fn().mockResolvedValue(createRecord());
+    const findFirst = vi
+      .fn()
+      .mockResolvedValueOnce(SHARED_BOT)
+      .mockResolvedValueOnce({ id: BOT_ID });
+    const tx = {
+      sokoBot: { findFirst },
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({ organizationId: "org_123" }),
+      },
+      member: { findFirst: vi.fn().mockResolvedValue({ role: "owner" }) },
+      coworkerApiKey: { create },
+    };
+    prismaTransactionMock.mockImplementation(async (run) => await run(tx));
+
+    const response = await createApp().request(`/${BOT_ID}/api-keys`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "CLI key" }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      kind: "cmo_project_read_only",
+    });
+    expect(findFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: BOT_ID,
+          workspaceId: WORKSPACE_ID,
+        }),
+      }),
+    );
+    expect(create).not.toHaveBeenCalled();
   });
 
   it("still lists keys for a non-interactive actor", async () => {

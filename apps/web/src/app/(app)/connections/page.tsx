@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { ConnectionsPage } from "./components/connections-page";
 
@@ -6,6 +8,11 @@ interface ConnectionsRouteProps {
   searchParams: Promise<{
     tab?: string | string[];
   }>;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("App.Connections");
+  return { title: t("title") };
 }
 
 export default async function ConnectionsRoute({

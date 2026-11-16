@@ -13,7 +13,10 @@ import {
 } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
-import { getNotificationMessageTranslationKey } from "./notification-message";
+import {
+  getNotificationMessageTranslationKey,
+  getNotificationPreview,
+} from "./notification-message";
 
 describe("getNotificationMessageTranslationKey", () => {
   it("puts a stored notification key under the Library namespace", () => {
@@ -235,5 +238,37 @@ describe("getNotificationMessageTranslationKey", () => {
         roomName: "Design",
       }),
     ).toBe(`Library.${CHAT_MENTION_MESSAGE_KEY}`);
+  });
+});
+
+describe("getNotificationPreview", () => {
+  it("quotes a mention with the reader's word for @all", () => {
+    expect(
+      getNotificationPreview(
+        CHAT_MENTION_MESSAGE_KEY,
+        { messagePreview: "@all check the hero copy" },
+        "Everyone",
+      ),
+    ).toBe("@Everyone check the hero copy");
+  });
+
+  it("quotes nothing for a row of several messages, another kind, or no text", () => {
+    expect(
+      getNotificationPreview(
+        CHAT_MENTION_MESSAGE_KEY,
+        { messagePreview: "hi", count: 3 },
+        "Everyone",
+      ),
+    ).toBeNull();
+    expect(
+      getNotificationPreview(
+        CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+        { messagePreview: "hi" },
+        "Everyone",
+      ),
+    ).toBeNull();
+    expect(
+      getNotificationPreview(CHAT_MENTION_MESSAGE_KEY, {}, "Everyone"),
+    ).toBeNull();
   });
 });

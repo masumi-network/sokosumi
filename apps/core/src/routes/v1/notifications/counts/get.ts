@@ -2,6 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { MENTION_MESSAGE_KEYS } from "@sokosumi/utils";
 
 import {
+  activeWorkspaceOf,
   findNeedsActionNotificationIds,
   resolvedNotificationFeedWhere,
 } from "@/helpers/notification-feed";
@@ -20,7 +21,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/counts",
     description:
-      "Counts over the interactive session user's in-app notification-center feed: rows still unread, rows whose request still waits on the reader (the Needs you view), and unread mentions (the Mentions view). CHAT kind is excluded except for room messages.",
+      "Counts over the interactive session user's in-app notification-center feed: rows still unread, rows whose request still waits on the reader (the Needs you view), except a Task's ask for a Task the active workspace's Task summary already counts, and unread mentions (the Mentions view). CHAT kind is excluded except for room messages.",
     tags: ["Notifications"],
     responses: {
       200: jsonSuccessResponse(notificationCountsSchema, "Counts retrieved", {
@@ -42,11 +43,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const [feedWhere, needsActionIds] = await Promise.all([
       resolvedNotificationFeedWhere(userContext.userId),
-      findNeedsActionNotificationIds(userContext.userId),
+      findNeedsActionNotificationIds(userContext.userId, undefined, {
+        exceptTasksIn: activeWorkspaceOf(userContext),
+      }),
     ]);
 
     // The same feed clause the list applies, so the needs-action number is
-    // the number of rows the Needs you view shows and nothing else, and the
+    // the number of rows the Needs you view shows and nothing else (it lists
+    // the active workspace's waiting Tasks from the Task summary instead of
+    // their asks; an ask from another workspace stays a row), and the
     // mentions number is the unread rows under the Mentions view.
     const [unread, needsAction, mentions] = await Promise.all([
       prisma.notification.count({ where: { ...feedWhere, isRead: false } }),

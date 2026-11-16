@@ -47,6 +47,14 @@ describe("startSokoBotConnect", () => {
     expect(assign).not.toHaveBeenCalled();
   });
 
+  it("returns an error instead of throwing when the action never answers", async () => {
+    connectMock.mockRejectedValue(new TypeError("Failed to fetch"));
+    await expect(startSokoBotConnect("gmail")).resolves.toEqual({
+      code: "INTERNAL_SERVER_ERROR",
+    });
+    expect(assign).not.toHaveBeenCalled();
+  });
+
   it("asks the return page to land on a given path", async () => {
     connectMock.mockResolvedValue({ ok: true, value: { redirectUrl: "r" } });
     await startSokoBotConnect("gmail", { returnTo: "/chat/rooms/room-1" });

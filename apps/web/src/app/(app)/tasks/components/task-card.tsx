@@ -14,6 +14,7 @@ import { TaskMetaDetails } from "./task-meta";
 import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskRunAtBadge } from "./task-run-at-badge";
+import { TaskStatusAge } from "./task-status-age";
 import { TaskStatusBadge } from "./task-status-badge";
 import { TaskTags } from "./task-tags";
 
@@ -22,6 +23,7 @@ export interface TaskCardData
   extends Pick<
     TaskWithCoworker,
     | "id"
+    | "isPending"
     | "identifier"
     | "name"
     | "status"
@@ -35,6 +37,7 @@ export interface TaskCardData
     | "tags"
     | "runAt"
     | "dueOn"
+    | "statusSince"
   > {}
 interface TaskCardProps {
   task: TaskCardData;
@@ -58,8 +61,9 @@ export function TaskCard({
       className={cn(
         "group",
         dragHandleProps && "cursor-grab",
-        dragHandleProps?.isDragging && "opacity-60",
+        (dragHandleProps?.isDragging || task.isPending) && "opacity-60",
       )}
+      aria-busy={task.isPending || undefined}
       {...handleProps}
     >
       <article
@@ -75,6 +79,13 @@ export function TaskCard({
             label={statusLabels?.[task.status]}
             className="w-fit rounded-sm"
           />
+          {task.statusSince && !task.isPending ? (
+            <TaskStatusAge
+              status={task.status}
+              statusSince={task.statusSince}
+              className="me-auto"
+            />
+          ) : null}
           <TaskPrivateIndicator visibility={task.visibility} />
         </div>
         <h3
@@ -92,13 +103,17 @@ export function TaskCard({
               {task.identifier}
             </span>
           ) : null}
-          <TaskDetailLink
-            href={taskHref(task)}
-            title={task.name}
-            className="after:absolute after:inset-0 after:rounded-lg focus-visible:after:outline-2 focus-visible:after:outline-ring"
-          >
-            {task.name}
-          </TaskDetailLink>
+          {task.isPending ? (
+            task.name
+          ) : (
+            <TaskDetailLink
+              href={taskHref(task)}
+              title={task.name}
+              className="after:absolute after:inset-0 after:rounded-lg focus-visible:after:outline-2 focus-visible:after:outline-ring"
+            >
+              {task.name}
+            </TaskDetailLink>
+          )}
         </h3>
         {!compact && (
           <>

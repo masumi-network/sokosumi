@@ -17,6 +17,7 @@ import {
   type ProjectsListState,
 } from "@/app/projects/constants";
 import { Button } from "@/components/ui/button";
+import { ButtonLoadingBar } from "@/components/ui/button-loading-bar";
 import { cn } from "@/lib/utils";
 
 import { AddProjectButton } from "./add-project-button";
@@ -63,9 +64,10 @@ export interface ProjectsViewLabels {
   created: string;
   pinned: string;
   closed: string;
+  cmo: string;
   /**
    * Each card's menu: Pin or Unpin, Hide or Show, and Close. Its writes
-   * refresh the page, so a new Pin re-sorts the Open view.
+   * revalidate the page, so a new Pin re-sorts the Open view.
    */
   actions: Omit<ProjectDetailActionsLabels, "edit">;
   state: ProjectsStateToggleLabels;
@@ -128,6 +130,9 @@ export function ProjectsView({
   const [cursor, setCursor] = useState(nextCursor);
   const [itemsKey, setItemsKey] = useState(listKey);
   const [isPending, startTransition] = useTransition();
+  // The Open/Hidden/Closed switch and the filter refetch on the server; until
+  // the new list arrives the old cards stay, so mark them as stale.
+  const [isSwitching, startSwitch] = useTransition();
   // Reset appended pages when the server list changes, without remounting
   // the filter (a `key` on this view was stealing focus after every `q`).
   if (itemsKey !== listKey) {
@@ -136,6 +141,10 @@ export function ProjectsView({
     setCursor(nextCursor);
   }
   const hasLoadedProjects = items.length > 0;
+  const staleClass = cn(
+    "transition-opacity duration-150 motion-reduce:transition-none",
+    isSwitching && "pointer-events-none opacity-50",
+  );
   const isFiltering = query.length > 0;
   const showEmptyState = !hasLoadedProjects && cursor === null;
   const emptyMessage = !showEmptyState
@@ -176,8 +185,15 @@ export function ProjectsView({
           data-testid="projects-toolbar"
           className={PROJECTS_BROWSE_HEADER_ROW_CLASS}
         >
-          <ProjectsFilter labels={labels.filter} />
-          <ProjectsStateToggle labels={labels.state} />
+          <ProjectsFilter
+            labels={labels.filter}
+            startTransition={startSwitch}
+          />
+          <ProjectsStateToggle
+            labels={labels.state}
+            pending={isSwitching}
+            startTransition={startSwitch}
+          />
           <AddProjectButton
             label={labels.newProject}
             className="hidden md:inline-flex"
@@ -192,16 +208,21 @@ export function ProjectsView({
                 views or filtering never swaps the surface under the toolbar. */}
             <div
               data-testid="projects-browse"
+              aria-busy={isSwitching || undefined}
               className={cn(
                 PROJECTS_BROWSE_CARD_CLASS,
+                "relative",
                 // Only while there are no cards: a short grid sits in a card that
                 // ends with it, as Transactions does, not in a mostly empty well.
                 !hasLoadedProjects &&
                   cn(PROJECTS_LIST_CARD_MIN_H_CLASS, "flex flex-col"),
               )}
             >
+              {isSwitching ? (
+                <ButtonLoadingBar label="" className="top-0 bottom-auto" />
+              ) : null}
               {hasLoadedProjects ? (
-                <div className={PROJECTS_BROWSE_LIST_CLASS}>
+                <div className={cn(PROJECTS_BROWSE_LIST_CLASS, staleClass)}>
                   {items.map((project) => (
                     <ProjectListItem
                       key={project.id}
@@ -213,6 +234,7 @@ export function ProjectsView({
                         created: labels.created,
                         pinned: labels.pinned,
                         closed: labels.closed,
+                        cmo: labels.cmo,
                         actions: labels.actions,
                       }}
                     />
@@ -224,6 +246,7 @@ export function ProjectsView({
                     isFiltering ? "projects-no-matches" : "projects-empty"
                   }
                   message={emptyMessage}
+                  className={staleClass}
                 />
               ) : null}
             </div>
@@ -255,14 +278,19 @@ export function ProjectsView({
 function ProjectsListMessage({
   testId,
   message,
+  className,
 }: {
   testId: string;
   message: { title: string; description?: string; action?: string };
+  className?: string;
 }) {
   return (
     <div
       data-testid={testId}
-      className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-12 text-center"
+      className={cn(
+        "flex flex-1 flex-col items-center justify-center gap-4 px-6 py-12 text-center",
+        className,
+      )}
     >
       <div className="max-w-sm">
         <h2 className="text-foreground text-base font-semibold text-balance">

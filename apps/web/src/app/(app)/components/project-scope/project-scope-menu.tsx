@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Pin, Plus } from "lucide-react";
+import { Check, Layers, Pin, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { type ScopeProject, useScopeProjects } from "./use-scope-projects";
 
 const CREATE_VALUE = "__create_project__";
+const ALL_PROJECTS_VALUE = "__all_projects__";
 
 /**
  * The trigger of the popover, sheet or dialog that holds the menu. Radix links
@@ -35,10 +36,17 @@ function openerOf(menu: Element | null): HTMLElement | null {
 interface ProjectScopeMenuProps {
   selectedProjectId: string | null;
   onSelect: (projectId: string) => void;
+  /**
+   * Leaves the project for All projects. Without it the menu has no All
+   * projects row, as when a page asks for one project.
+   */
+  onSelectAll?: () => void;
   /** Gets the control that opened the menu, to take focus back on cancel. */
   onCreate: (opener: HTMLElement | null) => void;
   /** Closes whatever holds the menu. Runs after every choice. */
   onDone?: () => void;
+  /** Leaves CMO Projects out, for a pick that creates inside the Project. */
+  excludeCmo?: boolean;
   className?: string;
 }
 
@@ -47,13 +55,17 @@ interface ProjectScopeMenuProps {
  * (Pinned projects first, each with a pin unless the current project's check
  * takes its place, then recently visited, then the rest), then Create. Search
  * narrows that same list and asks Core, so the list filters itself off. All
- * projects is not a row: the trigger's × returns to it.
+ * projects leads the list when the host offers it (`onSelectAll`), so the way
+ * back to the list is in the same place as every project; the trigger's ×
+ * does the same.
  */
 export function ProjectScopeMenu({
   selectedProjectId,
   onSelect,
+  onSelectAll,
   onCreate,
   onDone,
+  excludeCmo = false,
   className,
 }: ProjectScopeMenuProps) {
   const t = useTranslations("App.ProjectScope");
@@ -103,7 +115,9 @@ export function ProjectScopeMenu({
     );
   }
 
-  const rows = projects.rows;
+  const rows = excludeCmo
+    ? projects.rows.filter((project) => !project.cmo)
+    : projects.rows;
 
   // Not `CommandEmpty` for "empty": Create is always mounted, so
   // cmdk never counts the list as empty. The rows of a search Core has not
@@ -191,6 +205,33 @@ export function ProjectScopeMenu({
           className="app-scrollbar min-h-0 overflow-y-auto overscroll-contain scroll-py-1.5"
           role="presentation"
         >
+          {onSelectAll && !projects.isSearching ? (
+            <CommandGroup className="border-b">
+              <CommandItem
+                value={ALL_PROJECTS_VALUE}
+                data-testid="project-scope-all"
+                className={cn(
+                  "min-h-11 gap-3 px-2.5 py-2 md:min-h-9 md:py-1.5",
+                  selectedProjectId === null && "font-medium",
+                )}
+                onSelect={() => {
+                  onSelectAll();
+                  onDone?.();
+                }}
+              >
+                <span
+                  aria-hidden
+                  className="flex size-6 shrink-0 items-center justify-center"
+                >
+                  <Layers className="size-4" />
+                </span>
+                <span className="min-w-0 flex-1 break-words leading-normal">
+                  {t("allProjects")}
+                </span>
+                {selectedProjectId === null ? <CurrentMark /> : null}
+              </CommandItem>
+            </CommandGroup>
+          ) : null}
           {rows.length > 0 ? (
             <CommandGroup>{rows.map(row)}</CommandGroup>
           ) : null}

@@ -82,6 +82,7 @@ interface DriveFileUploadProgress {
 export interface DriveFileUploadResult {
   pathname: string;
   fileUrl: string | null;
+  resourceId?: string;
 }
 
 type DriveFileUploadOptions = DriveWorkspaceStore & {
@@ -198,8 +199,9 @@ export async function uploadDriveFile(
         // so the file gets a catalog identity and starts being indexed. A
         // failure here does not fail the upload: the file is on disk, and the
         // next search adopts it.
+        let resourceId: string | undefined;
         try {
-          await postDriveFilesFinalize({
+          const finalized = await postDriveFilesFinalize({
             client: getBrowserCoreClient(),
             body: {
               scope,
@@ -210,15 +212,18 @@ export async function uploadDriveFile(
             },
             throwOnError: true,
           });
+          resourceId = finalized.data?.data.resourceId;
         } catch {
           // Intentionally quiet: indexing catches up on its own.
         }
         // Resolving with the blob's location is main's shape, kept: the
         // finalize above is an extra step on the way out, not a change to
-        // what the caller is handed.
+        // what the caller is handed for locating the blob. Consumers that
+        // need a catalog entry can use the optional id from finalization.
         resolve({
           pathname: session.pathname,
           fileUrl: parseUploadedBlobUrl(xhr.responseText),
+          ...(resourceId ? { resourceId } : {}),
         });
         return;
       }

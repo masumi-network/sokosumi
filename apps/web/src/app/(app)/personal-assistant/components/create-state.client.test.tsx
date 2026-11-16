@@ -20,6 +20,7 @@ vi.mock("@/lib/actions/soko-bot/action", () => ({
 
 // Whether the mocked picker finishes its first set on mount.
 let pickerLoadsOnMount = true;
+const owl = { id: "owl-1", imageUrl: "https://blob.test/owl-1.png" };
 
 vi.mock("./avatar-picker.client", async () => {
   const { useEffect } = await import("react");
@@ -33,16 +34,13 @@ vi.mock("./avatar-picker.client", async () => {
       onLoadingChange?: (loading: boolean) => void;
     }) => {
       useEffect(() => {
-        if (pickerLoadsOnMount) onLoadingChange?.(false);
-      }, [onLoadingChange]);
+        if (!pickerLoadsOnMount) return;
+        onLoadingChange?.(false);
+        onChange(owl);
+      }, [onChange, onLoadingChange]);
       return (
         <div data-testid="avatar-picker">
-          <button
-            type="button"
-            onClick={() =>
-              onChange({ id: "owl-1", imageUrl: "https://blob.test/owl-1.png" })
-            }
-          >
+          <button type="button" onClick={() => onChange(owl)}>
             owl
           </button>
           <button type="button" onClick={() => onLoadingChange?.(false)}>
@@ -121,6 +119,28 @@ describe("CreateState", () => {
     expect(screen.getByLabelText("Name")).toHaveFocus();
   });
 
+  it.each([
+    ["spaced", "Pebble the Very Helpful Office Companion"],
+    // The field allows 80 characters; one unbroken word must wrap too.
+    ["unbroken", "W".repeat(80)],
+  ])(
+    "keeps a long %s name inside the phone width on the picture step",
+    async (_, name) => {
+      const user = userEvent.setup();
+      renderCreate();
+
+      await user.type(screen.getByLabelText("Name"), `${name}{Enter}`);
+
+      // Buttons never wrap, so the label truncates; the full name stays its name.
+      const label = screen.getByText(`Create ${name}`);
+      expect(label).toHaveClass("truncate");
+      expect(label.closest("button")).toHaveAccessibleName(`Create ${name}`);
+      expect(
+        screen.getByRole("heading", { name: `Pick a picture for ${name}` }),
+      ).toHaveClass("wrap-anywhere");
+    },
+  );
+
   it("locks the pictures while the bot is being created", async () => {
     const user = userEvent.setup();
     createMock.mockReturnValue(new Promise(() => {}));
@@ -132,6 +152,35 @@ describe("CreateState", () => {
 
     await user.click(screen.getByRole("button", { name: "Create Atlas" }));
     expect(pictures).toBeDisabled();
+  });
+
+  it("locks Create while it creates", async () => {
+    const user = userEvent.setup();
+    createMock.mockClear();
+    createMock.mockReturnValue(new Promise(() => {}));
+    renderCreate();
+
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    const createButton = screen.getByRole("button", { name: "Create Atlas" });
+    await user.click(createButton);
+    await user.click(createButton);
+
+    expect(createMock).toHaveBeenCalledTimes(1);
+    expect(createButton).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("offers no way to create without a picture", async () => {
+    const user = userEvent.setup();
+    pickerLoadsOnMount = false;
+    renderCreate();
+
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    expect(
+      screen.queryByRole("button", { name: /without a picture/ }),
+    ).toBeNull();
+    // Loaded with nothing picked: Create waits for a picture.
+    await user.click(screen.getByRole("button", { name: "set loaded" }));
+    expect(screen.getByRole("button", { name: "Create Atlas" })).toBeDisabled();
   });
 
   it("holds Create while the pictures load", async () => {
@@ -148,6 +197,7 @@ describe("CreateState", () => {
     expect(createMock).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "set loaded" }));
+    await user.click(screen.getByRole("button", { name: "owl" }));
     expect(createButton).not.toBeDisabled();
   });
 
@@ -165,7 +215,7 @@ describe("CreateState", () => {
     expect(createMock).toHaveBeenCalledWith({
       input: {
         name: "Atlas",
-        avatarId: null,
+        avatarId: "owl-1",
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       },
     });
@@ -193,28 +243,5 @@ describe("CreateState", () => {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       },
     });
-  });
-
-  it("lets the person skip the picture, and the bot gets its orb", async () => {
-    const user = userEvent.setup();
-    createMock.mockResolvedValue({
-      ok: true,
-      value: { id: "bot-1", name: "Atlas", userId: "u1", avatarSeed: null },
-    });
-    renderCreate();
-
-    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
-    await user.click(screen.getByRole("button", { name: "owl" }));
-    await user.click(screen.getByRole("button", { name: "Skip" }));
-
-    expect(createMock).toHaveBeenCalledWith({
-      input: {
-        name: "Atlas",
-        avatarId: null,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      },
-    });
-    expect(await screen.findByText("Meet Atlas")).toBeTruthy();
-    expect(screen.getByTestId("orb")).toBeTruthy();
   });
 });

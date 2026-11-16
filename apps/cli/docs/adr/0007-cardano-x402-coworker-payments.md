@@ -8,7 +8,7 @@
 
 [CORRECTION, VERIFIED: merge commit `c2271e4418faae9f8cae527bc1e29354975c8fa5`] [PR #5342](https://github.com/masumi-network/sokosumi/pull/5342) added `GET /v1/tasks/{id}/receipt` and `runtime receipt`. The earlier open receipt-interface question now has an implementation. The [receipt helper](../../../core/src/helpers/coworker-task-receipt.ts) checks stored purchase terms before reading settlement state.
 
-[VERIFIED: `apps/cli/src/coworker/runtime-task.ts:195-203`] Runtime completion sends Task status and its result. It does not submit `masumiPayment`. [OPEN] Seller setup, customer approval, paid execution, and intended-wallet payout proof remain open. A merged receipt reader does not establish a live payout.
+[VERIFIED: `completeVerifiedTask` in `apps/cli/src/coworker/runtime-task.ts`] Runtime completion sends Task status and its result. It does not submit `masumiPayment`. [OPEN] Seller setup, customer approval, paid execution, and intended-wallet payout proof remain open. A merged receipt reader does not establish a live payout.
 
 [PROPOSED] The [three payment drafts](../mps-payment-stack/01-seller-authorization.md) cover the remaining MPS workflow. They currently contain documentation only. The September 24 x402 assessment below remains historical; it does not verify current SDK or deployment compatibility.
 

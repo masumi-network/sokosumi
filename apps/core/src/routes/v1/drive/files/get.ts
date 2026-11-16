@@ -1,12 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { FileSourceScope } from "@sokosumi/database";
 import {
   buildOrganizationDriveFolderPrefix,
   buildUserDriveFolderPrefix,
   isDriveFolderMarker,
+  normalizeDriveFolderPath,
   sanitizeDriveFileName,
 } from "@sokosumi/utils";
-import { list } from "@vercel/blob";
-
 import { getEnv } from "@/config/env";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import {
@@ -14,17 +14,22 @@ import {
   sortDriveBrowseItems,
 } from "@/helpers/drive-browse-sort";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
-import {
-  badRequest,
-  serviceUnavailable,
-  unprocessableEntity,
-} from "@/helpers/error";
+import { badRequest, notFound, unprocessableEntity } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
 import { parseCursorPagination } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
+import { insideHiddenRoom } from "@/lib/data-room-visibility";
+import {
+  type DriveListedBlob,
+  type DriveRoomRef,
+  driveList,
+  driveOwnerOf,
+  driveRoomsOf,
+  roomContaining,
+} from "@/lib/drive-blob";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -123,13 +128,11 @@ const route = withCoworkerContextHeaderParameters(
 function mapBlobPageToItems(input: {
   prefix: string;
   folders: string[];
-  blobs: Array<{
-    pathname: string;
-    url: string;
-    size: number;
-    uploadedAt: Date;
-  }>;
+  blobs: DriveListedBlob[];
+  rooms: readonly DriveRoomRef[];
+  hiddenRoomFolders: readonly string[];
 }): { folderItems: DriveItem[]; fileItems: DriveItem[] } {
+  const inPath = driveOwnerOf(input.prefix)?.path ?? "";
   const folderItems: DriveItem[] = [];
   for (const folderPath of input.folders) {
     if (!folderPath.startsWith(input.prefix)) {
@@ -142,11 +145,15 @@ function mapBlobPageToItems(input: {
     const segments = normalized.split("/").filter((s) => s.length > 0);
     if (segments.length > 0) {
       const folderName = segments[0];
+      if (insideHiddenRoom(input.hiddenRoomFolders, `${inPath}${folderName}`))
+        continue;
       if (!folderItems.some((f) => f.name === folderName)) {
         folderItems.push({
           type: "folder",
           name: folderName,
           path: folderName,
+          dataRoom:
+            roomContaining(input.rooms, `${inPath}${folderName}`) !== undefined,
         });
       }
     }
@@ -169,6 +176,7 @@ function mapBlobPageToItems(input: {
         pathname: blob.pathname,
         size: blob.size,
         uploadedAt: blob.uploadedAt.toISOString(),
+        dataRoom: blob.access === "private",
       });
     }
   }
@@ -179,9 +187,10 @@ function mapBlobPageToItems(input: {
 const MAX_BLOB_LIST_PAGES = 100;
 
 async function listAllFolderItems(input: {
-  token: string;
   searchPrefix: string;
   prefix: string;
+  rooms: readonly DriveRoomRef[];
+  hiddenRoomFolders: readonly string[];
 }): Promise<DriveItem[]> {
   const folderByName = new Map<string, DriveItem>();
   const fileByPathname = new Map<string, DriveItem>();
@@ -197,10 +206,9 @@ async function listAllFolderItems(input: {
       );
     }
 
-    const page = await list({
+    const page = await driveList({
       mode: "folded",
       prefix: input.searchPrefix,
-      token: input.token,
       cursor: blobCursor,
       limit: 1000,
     });
@@ -209,6 +217,8 @@ async function listAllFolderItems(input: {
       prefix: input.prefix,
       folders: page.folders,
       blobs: page.blobs,
+      rooms: input.rooms,
+      hiddenRoomFolders: input.hiddenRoomFolders,
     });
 
     for (const folder of folderItems) {
@@ -245,14 +255,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const query = c.req.valid("query");
 
     const env = getEnv();
-    const token = env.BLOB_READ_WRITE_TOKEN;
-    if (!token) {
-      throw serviceUnavailable("Blob storage is not configured");
-    }
 
     let prefix: string;
     let scope: "user" | "organization";
     let ownerId: string;
+    let hiddenRoomFolders: string[] = [];
 
     const folderPath = query.folder?.trim() || "";
 
@@ -267,12 +274,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
       ownerId = query.organizationId;
       scope = "organization";
-      await requireDriveFileAccess(authContext, scope, ownerId);
+      ({ hiddenRoomFolders } = await requireDriveFileAccess(
+        authContext,
+        scope,
+        ownerId,
+      ));
+      // Inside a room this caller is not in, the folder is simply not there.
+      if (
+        insideHiddenRoom(
+          hiddenRoomFolders,
+          normalizeDriveFolderPath(folderPath),
+        )
+      )
+        throw notFound("Folder not found");
       prefix = buildOrganizationDriveFolderPrefix(ownerId, folderPath);
     } else {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
 
+    const rooms = await driveRoomsOf(
+      scope === "user" ? FileSourceScope.USER : FileSourceScope.ORGANIZATION,
+      ownerId,
+    );
     const { cursor, take } = parseCursorPagination(query);
     const sort = resolveDriveListSort(query, "name");
 
@@ -288,9 +311,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Explicit sort: drain current folder, sort globally, signed cursor pages.
     if (sort) {
       const allItems = await listAllFolderItems({
-        token,
         searchPrefix,
         prefix,
+        rooms,
+        hiddenRoomFolders,
       });
       const sorted = sortDriveBrowseItems(allItems, sort);
       const { page, nextCursor } = paginateSortedDriveBrowseItems({
@@ -322,10 +346,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       folders,
       cursor: blobCursor,
       hasMore,
-    } = await list({
+    } = await driveList({
       mode: "folded",
       prefix: searchPrefix,
-      token,
       cursor: cursor || undefined,
       limit: take,
     });
@@ -334,6 +357,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prefix,
       folders,
       blobs,
+      rooms,
+      hiddenRoomFolders,
     });
 
     folderItems.sort((a, b) => a.name.localeCompare(b.name));

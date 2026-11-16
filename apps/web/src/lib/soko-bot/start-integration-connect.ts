@@ -1,4 +1,7 @@
-import type { ActionError } from "@/lib/actions/errors/action-error";
+import {
+  type ActionError,
+  toActionRejectionError,
+} from "@/lib/actions/errors/action-error";
 import { connectSokoBotIntegrationAction } from "@/lib/actions/soko-bot/action";
 import { rememberComposioBotId } from "@/lib/composio/oauth-popup-protocol";
 import {
@@ -18,7 +21,9 @@ interface StartSokoBotConnectOptions {
  * Sends the tab to Composio to connect `provider` for one bot: a shared bot
  * by id, or the caller's own bot when `botId` is absent. Every connect goes
  * through here, so the stored target is always this connect's, never one
- * left by an abandoned attempt. Returns the error when Core refuses.
+ * left by an abandoned attempt. Returns the error when Core refuses or the
+ * action never answers (a dropped network), so every caller can re-enable
+ * its buttons instead of the throw reaching an error boundary.
  */
 export async function startSokoBotConnect(
   provider: string,
@@ -37,7 +42,10 @@ export async function startSokoBotConnect(
     provider,
     returnUrl: returnUrl.toString(),
     botId: botId ?? undefined,
-  });
+  }).catch((error: unknown) => ({
+    ok: false as const,
+    error: toActionRejectionError(error),
+  }));
   if (!result.ok) return result.error;
   rememberComposioBotId(botId);
   window.location.assign(result.value.redirectUrl);

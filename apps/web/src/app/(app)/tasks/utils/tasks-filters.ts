@@ -14,6 +14,16 @@ export interface TasksFilters {
   status: TaskStatus | null;
   projectId: string | null;
   visibility: TasksVisibilityFilter;
+  /** Only Tasks that have sat in a waiting status for {@link STUCK_AFTER_DAYS} days or more. */
+  stuck: boolean;
+}
+
+/** Days in one status after which a waiting Task counts as stuck. */
+export const STUCK_AFTER_DAYS = 3;
+
+/** Statuses go back this far before a Task counts as stuck. */
+export function stuckCutoff(now: Date): Date {
+  return new Date(now.getTime() - STUCK_AFTER_DAYS * 24 * 60 * 60 * 1000);
 }
 
 export interface ProjectFilterOption {
@@ -23,6 +33,8 @@ export interface ProjectFilterOption {
   designMd?: { url: string } | null;
   briefingUrl?: string | null;
   contextMd?: { url: string; updatedAt: string | Date } | null;
+  /** A CMO Project, which pickers that create inside a Project leave out. */
+  cmo?: boolean;
 }
 
 /** App Router `searchParams` values can be `string | string[]` when a key is repeated. */
@@ -38,6 +50,7 @@ export interface TasksFiltersSearchParams {
   status?: TasksFilterQueryParam;
   projectId?: TasksFilterQueryParam;
   visibility?: TasksFilterQueryParam;
+  stuck?: TasksFilterQueryParam;
 }
 
 export const TASKS_FILTER_PARAM_KEYS = {
@@ -50,6 +63,7 @@ export const TASKS_FILTER_PARAM_KEYS = {
   status: "status",
   projectId: "projectId",
   visibility: "visibility",
+  stuck: "stuck",
 } as const;
 
 type SearchParamsLike = Pick<URLSearchParams, "toString">;
@@ -187,6 +201,7 @@ export function getTasksFiltersFromSearchParams(
         searchParams.get(TASKS_FILTER_PARAM_KEYS.projectId) ?? undefined,
       visibility:
         searchParams.get(TASKS_FILTER_PARAM_KEYS.visibility) ?? undefined,
+      stuck: searchParams.get(TASKS_FILTER_PARAM_KEYS.stuck) ?? undefined,
     },
     activeOrganizationId,
   );
@@ -271,7 +286,13 @@ export function parseTasksFilters(
     status,
     projectId,
     visibility,
+    stuck: sanitizeTasksStuckInput(firstQueryString(searchParams.stuck)),
   };
+}
+
+/** `stuck=1` in the URL, or `true` from server-action JSON. */
+export function sanitizeTasksStuckInput(raw: unknown): boolean {
+  return raw === true || raw === "1";
 }
 
 export function buildTasksFiltersSearchParams(
@@ -333,6 +354,12 @@ export function buildTasksFiltersSearchParams(
     );
   }
 
+  if (filters.stuck) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.stuck, "1");
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.stuck);
+  }
+
   return applyProjectIdSearchParam(nextSearchParams, filters.projectId);
 }
 
@@ -355,13 +382,13 @@ export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}`;
 }
 
 /**
  * True when the Filters menu narrows the board past its defaults: a
- * non-default scope, an assignee, a status or private visibility. These are
- * what the removable chips show and what Clear filters resets.
+ * non-default scope, an assignee, a status, private visibility or Stuck.
+ * Clear filters resets these.
  */
 export function hasClearableTasksFilters(
   filters: TasksFilters,
@@ -374,7 +401,8 @@ export function hasClearableTasksFilters(
         filters.assigneeSokoBotId ||
         filters.assigneeUserId ||
         filters.status ||
-        filters.visibility,
+        filters.visibility ||
+        filters.stuck,
     )
   );
 }
@@ -392,6 +420,7 @@ export function clearTasksFilters(
     assigneeUserId: null,
     status: null,
     visibility: null,
+    stuck: false,
   };
 }
 

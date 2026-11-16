@@ -27,6 +27,7 @@ const DOM_TEST_TS = [
   "src/lib/utils/notification-time.test.ts",
   "src/lib/utils/browser-notification.test.ts",
   "src/lib/utils/dom-context.test.ts",
+  "src/lib/spreadsheet-file.test.ts",
   "src/lib/utils/dynamic-type.test.ts",
   "src/lib/utils/is-editable-keyboard-target.test.ts",
   "src/lib/utils/preference-storage.test.ts",

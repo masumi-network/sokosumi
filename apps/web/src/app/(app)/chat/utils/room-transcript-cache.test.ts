@@ -3,6 +3,10 @@ import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchRoomMessages } from "@/components/chat/fetch-room-messages";
 import { rememberPinnedRooms } from "@/components/chat/remembered-pinned-rooms";
+import {
+  noteChatReadThrottled,
+  resetChatReadThrottleForTests,
+} from "@/lib/chat/chat-read-throttle";
 import { RoomTranscriptCache } from "./room-transcript-cache";
 
 vi.mock("@/components/chat/fetch-room-messages", () => ({
@@ -278,6 +282,7 @@ describe("room open prefetched on click", () => {
   beforeEach(() => {
     vi.mocked(fetchRoomMessages).mockReset();
     vi.useRealTimers();
+    resetChatReadThrottleForTests();
   });
 
   it("serves the open's first head read from the click's read", async () => {
@@ -388,6 +393,120 @@ describe("room open prefetched on click", () => {
     await Promise.resolve();
     expect(props).not.toHaveBeenCalled();
     expect(cache.get("room")?.bootstrap.activeOrganization).toBeNull();
+  });
+
+  it("lets the click take the read an approach started, and paint from it", async () => {
+    const { cache } = opening();
+    const props = provisional();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    cache.approach("room", true);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(2);
+    expect(props).not.toHaveBeenCalled();
+    expect(cache.get("room")).toBeUndefined();
+
+    cache.prefetch("room", props);
+    cache.prefetchUnreadWindow("room");
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(2);
+    await Promise.resolve();
+    expect(cache.get("room")?.transcript.messages).toEqual([message(90)]);
+    await expect(cache.takeUnreadWindow("room")).resolves.toEqual(head);
+  });
+
+  it("reads again on a click that comes too late to leave the room time to mount", () => {
+    vi.useFakeTimers();
+    const { cache } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    cache.approach("room", true);
+    vi.advanceTimersByTime(2_001);
+    cache.prefetch("room");
+    cache.prefetchUnreadWindow("room");
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(4);
+  });
+
+  it("reads again on a click after an approach whose read failed", async () => {
+    const { cache } = opening();
+    const props = provisional();
+    vi.mocked(fetchRoomMessages)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(head);
+    cache.approach("room", false);
+    await Promise.resolve();
+    cache.prefetch("room", props);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(2);
+    await Promise.resolve();
+    expect(cache.get("room")?.transcript.messages).toEqual([message(90)]);
+  });
+
+  it("stops reading for approaches once they have used the window's share", () => {
+    vi.useFakeTimers();
+    const { cache } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    for (let room = 0; room < 10; room++) cache.approach(`room-${room}`, false);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(6);
+    // A click still reads: the limit is on guesses only.
+    cache.prefetch("room-9");
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(7);
+
+    vi.advanceTimersByTime(10_001);
+    cache.approach("room-9", false);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(8);
+  });
+
+  it("reads once for a cursor that stays near one room", () => {
+    vi.useFakeTimers();
+    const { cache } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    cache.approach("room", true);
+    // Past the reuse window and past the open window: still the same guess.
+    vi.advanceTimersByTime(2_001);
+    cache.approach("room", true);
+    vi.advanceTimersByTime(10_001);
+    cache.approach("room", true);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(2);
+
+    vi.advanceTimersByTime(60_001);
+    cache.approach("room", true);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(4);
+  });
+
+  it("does not read for an approach to a room it could only half read", () => {
+    const { cache } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    for (let room = 0; room < 5; room++) cache.approach(`room-${room}`, false);
+    cache.approach("unread", true);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(5);
+  });
+
+  it("spends none of the approaches' share while chat reads are throttled", () => {
+    const { cache } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    noteChatReadThrottled(30);
+    for (let room = 0; room < 6; room++) cache.approach(`room-${room}`, false);
+    expect(fetchRoomMessages).not.toHaveBeenCalled();
+
+    resetChatReadThrottleForTests();
+    for (let room = 0; room < 6; room++) cache.approach(`room-${room}`, false);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(6);
+  });
+
+  it("reads nothing for an approach to a room already painted from cache", () => {
+    const { cache } = retained();
+    cache.approach("room", false);
+    expect(fetchRoomMessages).not.toHaveBeenCalled();
+  });
+
+  it("lets go of an approach's reads no open took", async () => {
+    vi.useFakeTimers();
+    const { cache, seed } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    cache.approach("room", true);
+    vi.advanceTimersByTime(10_001);
+    cache.approach("other", false);
+    vi.setSystemTime(Date.now() - 10_001);
+    // Back inside the first read's window: it is gone, not merely too old.
+    expect(cache.takeUnreadWindow("room")).toBeUndefined();
+    await cache.refresh("room", seed(), () => true);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(4);
   });
 
   it("hands the click's open-at-unread read to one visit", async () => {

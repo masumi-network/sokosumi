@@ -2,6 +2,8 @@ import { createNestedOpenAPIHono } from "@/lib/hono";
 
 import mountContent from "./[id]/content/get.js";
 import mountGet from "./[id]/get.js";
+import mountGetGoogleSheet from "./[id]/google-sheet/get.js";
+import mountRefreshGoogleSheet from "./[id]/google-sheet/refresh-post.js";
 import mountPatchMetadata from "./[id]/metadata/patch.js";
 import mountReindex from "./[id]/reindex/post.js";
 import mountRelated from "./[id]/related/get.js";
@@ -17,6 +19,8 @@ mountSelectionToken(app);
 mountMetadataBatch(app);
 mountGet(app);
 mountContent(app);
+mountGetGoogleSheet(app);
+mountRefreshGoogleSheet(app);
 mountRelated(app);
 mountPatchMetadata(app);
 mountSuggestionDecision(app);

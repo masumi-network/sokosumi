@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -22,6 +23,24 @@ const { createAgentJobForUserMock, flattenJobMock } = vi.hoisted(() => ({
 
 vi.mock("@/helpers/job", () => ({
   createAgentJobForUser: createAgentJobForUserMock,
+}));
+
+const CMO_PROJECT_ID = "aaaaaaaa-aaaa-4aaa-8aaa-0000000000c0";
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    sokoBot: {
+      findFirst: async ({
+        where,
+      }: {
+        where: { projectId: string; project: { workspaceId: string } };
+      }) =>
+        where.projectId === CMO_PROJECT_ID &&
+        where.project.workspaceId === WORKSPACE_CONTEXT.workspaceId
+          ? { id: "cuso" }
+          : null,
+    },
+  },
 }));
 
 vi.mock("@/types/job", () => ({
@@ -68,6 +87,7 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
     return await next();
   });
 
+  app.onError(errorHandler);
   mountPostAgentJob(app);
 
   return app;
@@ -172,6 +192,20 @@ describe("POST /agents/{id}/jobs", () => {
         }),
       }),
     );
+  });
+
+  it("refuses standalone job creation in a CMO Project", async () => {
+    const response = await createApp().request("/agent_123/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...JOB_PAYLOAD, projectId: CMO_PROJECT_ID }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      kind: "cmo_project_read_only",
+    });
+    expect(createAgentJobForUserMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker context even with X-Context-User-Id", async () => {

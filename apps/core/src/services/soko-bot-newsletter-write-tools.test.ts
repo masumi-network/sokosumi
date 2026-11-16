@@ -38,12 +38,13 @@ const m = vi.hoisted(() => ({
   workspaceRead: vi.fn(),
 }));
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({}),
+  getEnv: () => ({ BLOB_READ_WRITE_TOKEN: "t" }),
   getWebAppBaseUrl: () => "https://app.example.com",
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotToolCall: { findUnique: m.receipt, updateMany: m.finish },
+    dataRoom: { findMany: async () => [] },
     sokoBotTurn: { findUnique: m.ownerTurn },
     workspace: { findUnique: m.workspaceRead },
   },
@@ -356,7 +357,10 @@ describe("Soko Bot newsletter issue writes", () => {
         },
         resourceIds: [IMAGE_FILE_ID],
       });
-      expect(m.head).toHaveBeenCalledExactlyOnceWith(IMAGE_FILE.sourceId);
+      expect(m.head).toHaveBeenCalledExactlyOnceWith(
+        IMAGE_FILE.sourceId,
+        expect.objectContaining({ token: "t" }),
+      );
       expect(m.receiptUpdate).toHaveBeenCalled();
     },
   );

@@ -45,6 +45,33 @@ describe("TimeAgo", () => {
     expect(screen.getByText(/ago$/)).toBeInTheDocument();
   });
 
+  it("counts from a passed clock, so a ticking now updates the label", () => {
+    const date = new Date("2026-04-15T10:00:00.000Z");
+    const later = (minutes: number) =>
+      new Date(date.getTime() + minutes * 60_000);
+
+    const { rerender } = render(
+      intl(<TimeAgo date={date} strict addSuffix={false} now={later(1)} />),
+    );
+    expect(screen.getByText("1 minute")).toBeInTheDocument();
+
+    rerender(
+      intl(<TimeAgo date={date} strict addSuffix={false} now={later(5)} />),
+    );
+    expect(screen.getByText("5 minutes")).toBeInTheDocument();
+  });
+
+  it("reads near zero, not the stale gap, when the date is after the tick", () => {
+    const date = new Date();
+    const staleTick = new Date(date.getTime() - 42_000);
+
+    render(
+      intl(<TimeAgo date={date} strict addSuffix={false} now={staleTick} />),
+    );
+
+    expect(screen.getByText("0 seconds")).toBeInTheDocument();
+  });
+
   it("localizes the post-mount relative string to the active locale", () => {
     const date = new Date(Date.now() - 60_000);
 

@@ -35,6 +35,25 @@ export interface ChatRoomInvitationEmailProps extends LocalizedEmailProps {
   channelName: string;
 }
 
+export interface DataRoomInvitationEmailProps extends LocalizedEmailProps {
+  invitationLink: string;
+  invitorUsername: string;
+  roomName: string;
+}
+
+export interface DataRoomCodeEmailProps extends LocalizedEmailProps {
+  code: string;
+  expiresInMinutes: number;
+  roomName: string;
+}
+
+export interface DataRoomFirstVisitEmailProps extends LocalizedEmailProps {
+  activityLink: string;
+  roomName: string;
+  /** Name and email, as the owner should read them. */
+  visitor: string;
+}
+
 export interface JobFailureNotificationEmailProps extends LocalizedEmailProps {
   agentBlockchainIdentifier: string;
   agentId: string;

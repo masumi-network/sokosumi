@@ -26,6 +26,8 @@ import {
   sokoBotApiKeySchema,
 } from "@/schemas/soko-bot-api-key.schema";
 
+import { requireNotCuso } from "@/services/cmo-cuso.service";
+
 const botParamsSchema = z.object({
   id: z.uuid().openapi({
     param: { name: "id", in: "path" },
@@ -51,7 +53,7 @@ async function requireKeyManagedSokoBot(
   userId: string,
   sokoBotId: string,
   client: Prisma.TransactionClient | typeof prisma = prisma,
-): Promise<{ id: string }> {
+): Promise<{ id: string; workspaceId: string }> {
   const bot = await client.sokoBot.findFirst({
     where: { id: sokoBotId, ...liveBot },
     select: { id: true, userId: true, workspaceId: true },
@@ -122,6 +124,7 @@ const createRouteDefinition = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("CMO project is read-only"),
   },
 });
 
@@ -142,6 +145,7 @@ const updateRoute = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("CMO project is read-only"),
   },
 });
 
@@ -155,6 +159,7 @@ const revokeRoute = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("CMO project is read-only"),
   },
 });
 
@@ -180,7 +185,8 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
     const keyStart = token.slice(0, SOKO_BOT_API_KEY_START_LENGTH);
 
     const apiKey = await prisma.$transaction(async (tx) => {
-      await requireKeyManagedSokoBot(auth.userId, id, tx);
+      const bot = await requireKeyManagedSokoBot(auth.userId, id, tx);
+      await requireNotCuso(id, bot.workspaceId, tx);
       return await tx.coworkerApiKey.create({
         data: {
           coworkerId: null,
@@ -206,7 +212,8 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
     const { id, keyId } = c.req.valid("param");
     const body = c.req.valid("json");
     const apiKey = await prisma.$transaction(async (tx) => {
-      await requireKeyManagedSokoBot(auth.userId, id, tx);
+      const bot = await requireKeyManagedSokoBot(auth.userId, id, tx);
+      await requireNotCuso(id, bot.workspaceId, tx);
       const updated = await tx.coworkerApiKey.updateMany({
         where: { id: keyId, sokoBotId: id, sokoBot: liveBot },
         data: {
@@ -238,7 +245,8 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
     const auth = requireInteractiveUserAuthContext(c.var.authContext);
     const { id, keyId } = c.req.valid("param");
     const apiKey = await prisma.$transaction(async (tx) => {
-      await requireKeyManagedSokoBot(auth.userId, id, tx);
+      const bot = await requireKeyManagedSokoBot(auth.userId, id, tx);
+      await requireNotCuso(id, bot.workspaceId, tx);
       const revokedAt = new Date();
       await tx.coworkerApiKey.updateMany({
         where: { id: keyId, sokoBotId: id, revokedAt: null, sokoBot: liveBot },

@@ -4,6 +4,7 @@ import type {
   AcceptChatRoomGuestInviteLink,
   AddChatRoomMembersRequest,
   ChannelSlugAvailability,
+  ChatCatchUpItem,
   ChatEarlierThread,
   ChatPerson,
   ChatRoom,
@@ -444,6 +445,15 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  /** Post a Task's link into a room; Core re-checks Task and audience. */
+  async function sendTaskToChat(
+    taskId: string,
+    body: { roomId: string; note?: string; clientMessageId: string },
+  ): Promise<ChatRoomMessage> {
+    const response = await coreClient.sendTaskToChat(taskId, body);
+    return response.data;
+  }
+
   async function unpinMessage(
     roomId: string,
     messageId: string,
@@ -581,6 +591,11 @@ export const chatRoomService = (() => {
   );
 
   /** One page of the reader's unread Threads across rooms (SOK-1159). */
+  /** The reader's important unread messages, one per room, last 24 hours. */
+  async function listImportantMessages(): Promise<ChatCatchUpItem[]> {
+    return (await coreClient.getChatImportantMessages()).data;
+  }
+
   async function listUnreadThreads(options?: {
     cursor?: string;
   }): Promise<ChatUnreadThreadsPage> {
@@ -760,6 +775,7 @@ export const chatRoomService = (() => {
     listRooms,
     listThreads,
     listUnreadThreadReplyCounts,
+    listImportantMessages,
     listUnreadThreads,
     listEarlierThreads,
     markAllUnreadRead,
@@ -781,6 +797,7 @@ export const chatRoomService = (() => {
     saveMessage,
     unsaveMessage,
     sendMessageToSelf,
+    sendTaskToChat,
     pinRoom,
     reorderPinnedRooms,
     listPinnedMessages,

@@ -111,9 +111,46 @@ const NOT_YET_COVERED = new Set([
   "workspace_read",
   "workspace_search",
   "write_table_rows",
+  // Provider-backed SEO tools have isolated integration tests, not model cases.
+  "import_seo_audit",
+  "request_seo_analysis",
+  "sync_seo_statistics",
 ]);
 
 describe("eval cases", () => {
+  it("requires real calls for the eight provider-free SEO cases", () => {
+    const expected = {
+      "seo-workspace-read": "get_seo_workspace",
+      "seo-add-page": "add_seo_page",
+      "seo-save-page-group": "save_seo_scope",
+      "seo-save-keyword": "save_seo_keyword",
+      "seo-confirm-competitor": "save_seo_competitor",
+      "seo-recommendation-task": "create_seo_action_task",
+      "seo-record-page-change": "record_seo_page_change",
+      "seo-statistics-disconnected": "list_seo_statistics_properties",
+    };
+    for (const [id, capability] of Object.entries(expected)) {
+      const found = EVAL_CASES.find((entry) => entry.id === id);
+      expect(found, id).toMatchObject({ kind: "scenario", area: "SEO" });
+      if (found?.kind === "scenario")
+        expect(found.scenario.expect.tools, id).toContain(capability);
+    }
+  });
+
+  it("freeze the site language separately from the expected language for every strategy", () => {
+    const strategies = EVAL_CASES.filter(
+      (evalCase) => evalCase.kind === "cmo-strategy",
+    );
+    expect(strategies.length).toBeGreaterThan(0);
+    for (const evalCase of strategies) {
+      expect(evalCase.brand.siteLanguage).toMatch(/^(English|German)$/);
+      if (evalCase.brand.contentLanguage)
+        expect(evalCase.brand.siteLanguage).toMatch(
+          new RegExp(evalCase.brand.contentLanguage, "i"),
+        );
+    }
+  });
+
   it("have unique ids", () => {
     const ids = EVAL_CASES.map((evalCase) => evalCase.id);
     expect(new Set(ids).size).toBe(ids.length);

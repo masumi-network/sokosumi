@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { SOKO_BOT_FROM_HOME_ROUTE } from "@/lib/soko-bot/constants";
 import {
   resolveMobileAppBackTarget,
   shouldShowMobileBottomNav,
@@ -105,6 +106,13 @@ describe("mobile-app-chrome", () => {
       });
     });
 
+    it("sends Soko Bot setup opened from Home back to Home", () => {
+      const fromHome = new URL(SOKO_BOT_FROM_HOME_ROUTE, "https://x.test");
+      expect(
+        resolveMobileAppBackTarget(fromHome.pathname, fromHome.searchParams),
+      ).toEqual({ href: "/", labelKey: "goHome" });
+    });
+
     it("sends an agent's jobs back to that agent, not the catalog", () => {
       expect(resolveMobileAppBackTarget("/agents/a1/jobs")).toEqual({
         href: "/agents/a1",
@@ -164,11 +172,20 @@ describe("mobile-app-chrome", () => {
     it("returns null outside the main hub tree", () => {
       expect(resolveMobileAppBackTarget("/chat")).toBeNull();
       expect(resolveMobileAppBackTarget("/chat/rooms/r1")).toBeNull();
-      expect(resolveMobileAppBackTarget("/account")).toBeNull();
       expect(resolveMobileAppBackTarget("/developer/docs")).toBeNull();
-      expect(resolveMobileAppBackTarget("/billing")).toBeNull();
+      expect(resolveMobileAppBackTarget("/accounts")).toBeNull();
       expect(resolveMobileAppBackTarget(null)).toBeNull();
     });
+
+    it.each(["/account", "/account/notifications", "/billing", "/connections"])(
+      "sends You page row %s back to You",
+      (pathname) => {
+        expect(resolveMobileAppBackTarget(pathname)).toEqual({
+          href: "/you",
+          labelKey: "back",
+        });
+      },
+    );
   });
 
   describe("shouldShowMobileBottomNav", () => {

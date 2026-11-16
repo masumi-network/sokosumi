@@ -27,13 +27,19 @@ interface ListTasksParams {
   assigneeUserId?: string;
   projectId?: string;
   q?: string;
-  scope?: "workspace" | "owned";
+  scope?: "workspace" | "owned" | "mine";
   visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;
-  sort?: "createdAt" | "updatedAt";
+  sort?: "createdAt" | "updatedAt" | "dueOn";
   /** Only the Tasks this Task Schedule created. */
   scheduleId?: string;
+  /** Only Tasks due on or before this day, `YYYY-MM-DD`. */
+  dueOnTo?: string;
+  /** Only Tasks whose status has not changed since this time. */
+  statusBefore?: Date;
+  /** Archived Tasks instead, most recently archived first. */
+  archived?: boolean;
 }
 
 interface CreateTaskInput {
@@ -146,6 +152,9 @@ export const taskService = (() => {
           : { assigneeId: params.assigneeId }),
       projectId: params.projectId,
       scheduleId: params.scheduleId,
+      dueOnTo: params.dueOnTo,
+      statusBefore: params.statusBefore,
+      ...(params.archived ? { archived: "true" as const } : {}),
       q: params.q,
       scope: params.scope,
       ...(params.visibility ? { visibility: params.visibility } : {}),
@@ -188,6 +197,16 @@ export const taskService = (() => {
     }
   }
 
+  /** An archived Task, read-only; null when there is none to read. */
+  async function getArchivedTask(taskId: string): Promise<Task | null> {
+    try {
+      const result = await coreClient.getTaskById(taskId, { archived: "true" });
+      return result.data;
+    } catch {
+      return null;
+    }
+  }
+
   async function listTaskEvents(
     taskId: string,
     params: { cursor?: string | null; limit?: number } = {},
@@ -203,61 +222,6 @@ export const taskService = (() => {
     return {
       events: result.data,
       pagination: result.meta.pagination,
-    };
-  }
-
-  /**
-   * Load every TaskEvent page (oldest → newest) for Activities.
-   */
-  async function listAllTaskEvents(taskId: string): Promise<{
-    events: TaskEvent[];
-    pagination: TaskEventsPaginationMetadata;
-  }> {
-    const events: TaskEvent[] = [];
-    let cursor: string | undefined;
-    let pagination: TaskEventsPaginationMetadata | null = null;
-
-    for (;;) {
-      const page = await listTaskEvents(taskId, {
-        cursor,
-        limit: 100,
-      });
-      events.push(...page.events);
-      pagination = page.pagination;
-      const next = page.pagination.nextCursor;
-      if (!next || next === cursor) {
-        break;
-      }
-      cursor = next;
-    }
-
-    if (!pagination) {
-      throw new Error("Failed to list task events");
-    }
-
-    return { events, pagination };
-  }
-
-  /**
-   * Initial Activities window: all non-comment events + the newest 5 comments.
-   * Older comments load on expand via `listTaskEventsBefore`.
-   */
-  async function listTaskActivityFeed(taskId: string): Promise<{
-    events: TaskEvent[];
-    pagination: TaskEventsPaginationMetadata;
-  }> {
-    const { events, pagination } = await listAllTaskEvents(taskId);
-    if (pagination.commentCount <= 5) {
-      return { events, pagination };
-    }
-
-    const comments = events.filter((event) => event.comment != null);
-    const keepCommentIds = new Set(comments.slice(-5).map((event) => event.id));
-    return {
-      events: events.filter(
-        (event) => event.comment == null || keepCommentIds.has(event.id),
-      ),
-      pagination,
     };
   }
 
@@ -354,6 +318,35 @@ export const taskService = (() => {
 
     if (!result.data) {
       throw new Error("Failed to update task");
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Re-dates the reader's overdue Tasks (as of their `today`) to `to` in the
+   * active workspace. Core picks them and re-checks each under lock; what it
+   * moved comes back with the data Undo needs.
+   */
+  async function moveOverdueTasks(input: { today: string; to: string }) {
+    const result = await coreClient.moveOverdueTasks(input);
+
+    if (!result.data) {
+      throw new Error("Failed to move overdue tasks");
+    }
+
+    return result.data;
+  }
+
+  /** Puts moved Tasks back, each only while untouched since the move. */
+  async function undoMoveOverdueTasks(input: {
+    to: string;
+    tasks: { id: string; from: string; version: string }[];
+  }) {
+    const result = await coreClient.undoMoveOverdueTasks(input);
+
+    if (!result.data) {
+      throw new Error("Failed to undo moving overdue tasks");
     }
 
     return result.data;
@@ -468,10 +461,9 @@ export const taskService = (() => {
     getWorkspaceCalendarSources,
     listTasks,
     getTaskById,
+    getArchivedTask,
     getTaskWorkspace,
     listTaskEvents,
-    listAllTaskEvents,
-    listTaskActivityFeed,
     listTaskEventsBefore,
     createTask,
     suggestTaskTags,
@@ -481,6 +473,8 @@ export const taskService = (() => {
     removeTaskParticipant,
     subscribeTaskParticipant,
     moveTaskToWorkspace,
+    moveOverdueTasks,
+    undoMoveOverdueTasks,
     patchTask,
     listTaskLinks,
     deleteTask,

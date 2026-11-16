@@ -1,6 +1,7 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import collectionsRouter from "./collections/index.js";
+import dataRoomsRouter from "./data-rooms/index.js";
 import filesRouter from "./files/index.js";
 import foldersRouter from "./folders/index.js";
 import labelsRouter from "./labels/index.js";
@@ -17,6 +18,7 @@ const app = new OpenAPIHonoWithAuth({
 });
 
 app.route("/collections", collectionsRouter);
+app.route("/data-rooms", dataRoomsRouter);
 app.route("/files", filesRouter);
 app.route("/labels", labelsRouter);
 app.route("/folders", foldersRouter);

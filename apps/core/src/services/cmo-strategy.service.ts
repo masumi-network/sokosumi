@@ -19,6 +19,7 @@ import {
   CmoConflictError,
   CmoNotFoundError,
   type Cuso,
+  type CusoTarget,
   requireCuso,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
@@ -91,12 +92,13 @@ export function planWindow(now: Date = new Date()): {
  * plans the ads (and what they should bring) around exactly that amount.
  * Zero turns paid ads off.
  */
-export async function setCmoAdBudget(input: {
-  userId: string;
-  monthly: number;
-  currency: string;
-}): Promise<{ turnId: string }> {
-  const cuso = await requireCuso({ userId: input.userId });
+export async function setCmoAdBudget(
+  input: CusoTarget & {
+    monthly: number;
+    currency: string;
+  },
+): Promise<{ turnId: string }> {
+  const cuso = await requireCuso(input);
   const strategy = parseMarketingPlan(
     (await newestMarketingStrategy(cuso.projectId))?.plan,
   );
@@ -104,7 +106,7 @@ export async function setCmoAdBudget(input: {
     throw new CmoConflictError("Cuso has not written the strategy yet");
   }
   const currency = input.currency.toUpperCase();
-  const started = await requestCmoStrategy({
+  const started = await requestStrategyForCuso(cuso, {
     userId: input.userId,
     note:
       input.monthly > 0
@@ -140,11 +142,19 @@ export async function setCmoAdBudget(input: {
  * Asks Cuso for a new one-month strategy: he writes a new version, which an
  * owner or admin approves; the approved one keeps running until then.
  */
-export async function requestCmoStrategy(input: {
-  userId: string;
-  note?: string;
-}): Promise<{ turnId: string }> {
-  const cuso = await requireCuso({ userId: input.userId });
+export async function requestCmoStrategy(
+  input: CusoTarget & {
+    note?: string;
+    siteLanguage?: string;
+  },
+): Promise<{ turnId: string }> {
+  return requestStrategyForCuso(await requireCuso(input), input);
+}
+
+async function requestStrategyForCuso(
+  cuso: Cuso,
+  input: { userId: string; note?: string; siteLanguage?: string },
+): Promise<{ turnId: string }> {
   const brain = parseBrandBrain(cuso.brandBrain);
   if (!brain) {
     throw new CmoConflictError("Cuso is still building the Brand Brain");
@@ -157,7 +167,7 @@ export async function requestCmoStrategy(input: {
   const { detectSiteLanguage } = await import("@/lib/site-platform");
   const siteLanguage = input.note
     ? null
-    : await detectSiteLanguage(cuso.websiteUrl);
+    : (input.siteLanguage ?? (await detectSiteLanguage(cuso.websiteUrl)));
   const span = planWindow();
   return startCmoTurn(cuso, input.userId, {
     clientTurnId: `${STRATEGY_TURN_PREFIX}${cuso.sokoBotId}:${Date.now()}`,
@@ -177,7 +187,7 @@ export async function requestCmoStrategy(input: {
               "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the plan's goals with it.",
               ...(siteLanguage
                 ? [
-                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, even though this plan is in the owner's language, unless the owner asked for another.`,
+                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, even though this plan is in the owner's language, unless the owner asked for another. This sets only contentLanguage: the words customers read (hooks, drafts, the offer's action) follow it, and the plan itself (summary, goals, why, briefs) stays in the owner's language.`,
                   ]
                 : []),
               ...ownerAnswers(brain),
@@ -291,7 +301,7 @@ function withHiddenCalendar(
 
 /**
  * Guards a bot's save against the two ways a revision loses work: an entry
- * kept under the same id and title without its draft gets the draft back,
+ * kept under the same id and title keeps every field the save leaves out,
  * and an entry left in its old slot while a copy moved to a new day is
  * dropped, so a moved piece shows once.
  */
@@ -305,13 +315,23 @@ export function keepCalendarWork(
   const withDrafts = incoming.map((entry) => {
     const old = before.get(entry.id);
     if (!old || !sameTitle(old.title, entry.title)) return entry;
-    return {
-      ...entry,
+    const words = {
       draft: entry.draft ?? old.draft,
       brief: entry.brief ?? old.brief,
       why: entry.why ?? old.why,
       hook: entry.hook ?? old.hook,
     };
+    // Moved to another channel or format, its post, files and ad belong to
+    // the old piece: only the words come along.
+    if (old.channel !== entry.channel || old.format !== entry.format)
+      return { ...entry, ...words };
+    return {
+      ...old,
+      ...Object.fromEntries(
+        Object.entries(entry).filter(([, value]) => value !== undefined),
+      ),
+      ...words,
+    } as typeof entry;
   });
   return withDrafts.filter((entry) => {
     const old = before.get(entry.id);
@@ -395,7 +415,7 @@ async function keepFileVisuals(
  * writes the other pieces (ads, articles, newsletters) as Project files.
  */
 export async function saveCmoStrategy(
-  where: { userId: string } | { sokoBotId: string },
+  where: CusoTarget | { sokoBotId: string },
   strategy: CmoStrategySave,
   options: {
     turnId?: string;
@@ -404,6 +424,8 @@ export async function saveCmoStrategy(
     pieces?: boolean;
     /** A rhythm or production turn: it builds on the approved version. */
     executing?: boolean;
+    /** Lists Cuso empties because the owner asked; sent empty, they clear. */
+    clear?: readonly string[];
   } = {},
   db: Prisma.TransactionClient = prisma,
 ): Promise<MarketingStrategy> {
@@ -445,13 +467,32 @@ export async function saveCmoStrategy(
     own ??
     (await cmoWorkingStrategy(cuso.projectId, options.executing ?? false, db));
   // What a save leaves out stays as stored; the merged plan must be whole.
+  // A tool call has to fill every field, so Cuso sends an empty list or text
+  // for what it is not changing: that keeps the stored value too. Changing
+  // one channel's cadence once emptied the mix, campaigns and improvements.
   const before = parseMarketingPlan(base?.plan);
+  const left = (value: unknown, key?: string) =>
+    value === undefined ||
+    (options.turnId !== undefined &&
+      (value === "" ||
+        (Array.isArray(value) &&
+          value.length === 0 &&
+          !(key && options.clear?.includes(key)))));
+  // A save of the calendar alone replaces it, so an empty one removes every
+  // piece. `changes` is empty on purpose when the save is not a revision.
+  const calendarOnly = Object.keys(strategy).every((key) => key === "calendar");
   const whole = marketingStrategyPlanSchema.parse({
     ...before,
     ...Object.fromEntries(
-      Object.entries(strategy).filter(([, value]) => value !== undefined),
+      Object.entries(strategy).filter(
+        ([key, value]) => key === "changes" || !left(value, key),
+      ),
     ),
-    calendar: strategy.calendar ?? before?.calendar ?? [],
+    calendar:
+      strategy.calendar !== undefined &&
+      (calendarOnly || !left(strategy.calendar))
+        ? strategy.calendar
+        : (before?.calendar ?? []),
   });
   // A channel the plan now runs is no longer a proposal.
   const running = new Set(whole.channels.map((channel) => channel.channel));
@@ -484,9 +525,6 @@ export async function saveCmoStrategy(
           keepCalendarWork(previous.calendar, parsed.calendar),
           options.now ?? new Date(),
         ),
-        // An empty previews list keeps the stored samples.
-        previews:
-          parsed.previews.length > 0 ? parsed.previews : previous.previews,
       }
     : parsed;
   const stored = options.turnId
@@ -557,15 +595,15 @@ export function cmoPlanAnswerNote(questions: CmoPlanQuestion[]): string | null {
 
 /** Cuso revises the plan to fit the owner's answers. */
 export async function applyCmoPlanAnswers(
-  userId: string,
+  target: CusoTarget,
 ): Promise<{ turnId: string }> {
-  const cuso = await requireCuso({ userId });
+  const cuso = await requireCuso(target);
   const newest = await newestCmoStrategy(cuso);
   const note = cmoPlanAnswerNote(
     parseMarketingPlan(newest.plan)?.questions ?? [],
   );
   if (!note) throw new CmoConflictError("Your answers confirm the plan");
-  return requestCmoStrategy({ userId, note });
+  return requestStrategyForCuso(cuso, { userId: target.userId, note });
 }
 
 /**
@@ -574,11 +612,12 @@ export async function applyCmoPlanAnswers(
  * refused (409). Any other piece is a Project file the owner uses
  * themselves, so nothing goes out to pause: it is refused too.
  */
-export async function pauseCmoCalendarEntry(input: {
-  userId: string;
-  entryId: string;
-}): Promise<void> {
-  const cuso = await requireCuso({ userId: input.userId });
+export async function pauseCmoCalendarEntry(
+  input: CusoTarget & {
+    entryId: string;
+  },
+): Promise<void> {
+  const cuso = await requireCuso(input);
   const post = UUID.test(input.entryId)
     ? await prisma.socialPost.findFirst({
         where: { id: input.entryId, projectId: cuso.projectId },
@@ -603,11 +642,12 @@ export async function pauseCmoCalendarEntry(input: {
  * The words of one approved piece that lives in the Project's Files (an
  * article, a page fix, ad copy, a newsletter issue), for its sheet in CMO.
  */
-export async function readCmoPieceText(input: {
-  userId: string;
-  entryId: string;
-}): Promise<string> {
-  const cuso = await requireCuso({ userId: input.userId });
+export async function readCmoPieceText(
+  input: CusoTarget & {
+    entryId: string;
+  },
+): Promise<string> {
+  const cuso = await requireCuso(input);
   const approved = await approvedMarketingStrategy(cuso.projectId);
   const text = approved
     ? await readMarketingPieceText(approved, input.entryId)

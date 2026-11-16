@@ -118,8 +118,30 @@ interface DriveFilePreviewProps {
   children: (api: DriveFilePreviewApi) => ReactNode;
 }
 
-/** Vercel Blob answers `?download=1` with an attachment. */
+/**
+ * Where a Drive file opens: its storage URL, or for a data room's file, whose
+ * bytes are private, the app's route that checks access first.
+ */
+export function driveFileUrl(file: {
+  fileUrl: string;
+  pathname: string;
+  dataRoom: boolean;
+}): string {
+  if (!file.dataRoom) return file.fileUrl;
+  return `/api/drive/content?${new URLSearchParams({ pathname: file.pathname })}`;
+}
+
+/**
+ * Vercel Blob answers `?download=1` with an attachment; the app's own content
+ * route takes `download=true`.
+ */
 export function forcedDownloadUrl(url: string): string {
+  if (url.startsWith("/")) {
+    const [path, query = ""] = url.split("?");
+    const params = new URLSearchParams(query);
+    params.set("download", "true");
+    return `${path}?${params}`;
+  }
   const parsed = new URL(url);
   parsed.searchParams.set("download", "1");
   return parsed.toString();

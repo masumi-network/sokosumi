@@ -156,7 +156,12 @@ async function fetchText(url: string, maxBytes: number): Promise<string> {
  * styles plus up to two of its stylesheets) and theme-color, fonts and
  * photos. Best effort and SSRF-guarded; never throws.
  */
-export async function readBrandVisual(rawUrl: string): Promise<BrandVisual> {
+export async function readBrandVisual(
+  rawUrl: string,
+  {
+    includeDeclaredNeutrals = false,
+  }: { includeDeclaredNeutrals?: boolean } = {},
+): Promise<BrandVisual> {
   const empty: BrandVisual = {
     logoUrl: null,
     colors: [],
@@ -204,11 +209,13 @@ export async function readBrandVisual(rawUrl: string): Promise<BrandVisual> {
   ).join("\n");
   const css = `${inline}\n${styleAttrs}\n${linked}`;
   const themeColor = normalizeHex(metaContent(html, "theme-color") ?? "");
-  const colors = brandColors(css);
+  const colors = brandColors(css, 5, { includeDeclaredNeutrals });
   return {
     logoUrl: findLogo(html, page.toString()),
     colors: distinctColors([
-      ...(themeColor && !isNeutral(themeColor) ? [themeColor] : []),
+      ...(themeColor && (includeDeclaredNeutrals || !isNeutral(themeColor))
+        ? [themeColor]
+        : []),
       ...colors,
     ]).slice(0, 5),
     fonts: brandFonts(css),

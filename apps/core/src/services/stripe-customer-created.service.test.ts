@@ -81,7 +81,7 @@ describe("handleCustomerCreatedEvent", () => {
     );
   });
 
-  it("stores Stripe customer ids and seeds local free subscription for user customers", async () => {
+  it("stores Stripe customer ids for user customers without seeding a free plan", async () => {
     const { handleCustomerCreatedEvent } = await getService();
 
     await handleCustomerCreatedEvent({
@@ -96,15 +96,7 @@ describe("handleCustomerCreatedEvent", () => {
       where: { id: "user-1" },
       data: { stripeCustomerId: "cus_user_1" },
     });
-    expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
-      {
-        createdAt: new Date("2026-04-09T07:03:48.591Z"),
-        kind: "user",
-        stripeCustomerId: "cus_user_1",
-        userId: "user-1",
-      },
-      expect.anything(),
-    );
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
   });
 
   it("ignores customers with an unknown customer type", async () => {

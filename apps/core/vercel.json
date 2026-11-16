@@ -54,6 +54,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/sync/drive-google-sheets",
+      "schedule": "*/10 * * * *"
+    },
+    {
       "path": "/sync/agents-summary",
       "schedule": "*/5 * * * *"
     },
@@ -106,6 +110,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/sync/data-rooms",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/sync/calendar-invalidations",
       "schedule": "* * * * *"
     },
@@ -124,6 +132,10 @@
     {
       "path": "/sync/cmo-production",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/sync/polar-yearly-grants",
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/sync/soko-bot-turns",

@@ -48,6 +48,7 @@ vi.mock("@/helpers/calendar-locks", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    sokoBot: { findFirst: async () => null, findMany: async () => [] },
     project: { findFirst: projectFindFirstMock },
     task: {
       findFirst: taskFindFirstMock,
@@ -157,7 +158,9 @@ describe("DELETE /projects/{id}/tasks/{taskId}", () => {
     lockTaskRowsMock.mockResolvedValue(true);
     prismaTransactionMock.mockImplementation(async (callback) =>
       callback({
+        projectSeoAnalysis: { findUnique: async () => null },
         task: {
+          findFirst: taskFindFirstMock,
           updateMany: taskUpdateManyMock,
         },
       }),

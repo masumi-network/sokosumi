@@ -3,6 +3,7 @@ import { MENTION_MESSAGE_KEYS } from "@sokosumi/utils";
 
 import { badRequest } from "@/helpers/error";
 import {
+  activeWorkspaceOf,
   findNeedsActionNotificationIds,
   resolvedNotificationFeedWhere,
 } from "@/helpers/notification-feed";
@@ -70,6 +71,17 @@ const needsActionQuerySchema = z
     example: "true",
   });
 
+const exceptWorkspaceTasksQuerySchema = z
+  .enum(["true", "false"])
+  .optional()
+  .transform((val) => (val === undefined ? undefined : val === "true"))
+  .openapi({
+    param: { name: "exceptWorkspaceTasks", in: "query" },
+    description:
+      "With needsAction=true, leave out a Task's ask when the active workspace's GET /tasks/summary counts that Task, judged by where the Task is now: the Notification Center lists those Tasks themselves. The same rows GET /notifications/counts leaves out of needsAction. Rejected without needsAction=true.",
+    example: "true",
+  });
+
 const mentionsQuerySchema = z
   .enum(["true", "false"])
   .optional()
@@ -90,6 +102,7 @@ const query = z
       "With needsAction=true, only requests about this project's tasks and jobs. Rejected without needsAction=true.",
     ),
     mentions: mentionsQuerySchema,
+    exceptWorkspaceTasks: exceptWorkspaceTasksQuerySchema,
   })
   .extend(cursorPaginationQuerySchema.shape);
 
@@ -153,6 +166,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (queryParams.projectId && !queryParams.needsAction) {
       throw badRequest("projectId requires needsAction=true");
     }
+    if (queryParams.exceptWorkspaceTasks && !queryParams.needsAction) {
+      throw badRequest("exceptWorkspaceTasks requires needsAction=true");
+    }
 
     const [where, needsActionIds] = await Promise.all([
       resolvedNotificationFeedWhere(userContext.userId, queryParams.kind),
@@ -160,6 +176,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? findNeedsActionNotificationIds(
             userContext.userId,
             queryParams.projectId,
+            queryParams.exceptWorkspaceTasks
+              ? { exceptTasksIn: activeWorkspaceOf(userContext) }
+              : {},
           )
         : undefined,
     ]);

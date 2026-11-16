@@ -152,53 +152,68 @@ export function FunnelPlan({
         <li
           key={stage.stage}
           className={`sc-stage ${stage.owner ?? "cuso"}`}
-          style={{ ["--sc-step" as string]: index }}
+          style={{
+            // Each band starts as wide as the one above it ends.
+            ["--sc-top" as string]: `${funnelWidth(index, stages.length)}%`,
+            ["--sc-bottom" as string]: `${funnelWidth(index + 1, stages.length)}%`,
+          }}
         >
-          <div className="sc-stage-head">
+          <div className="sc-band">
             <span className="sc-stage-name">{stage.name}</span>
-            <span className={`sc-owner ${stage.owner ?? "cuso"}`}>
-              {OWNERS[stage.owner ?? "cuso"]}
-            </span>
           </div>
-          <p className="sc-goal">{stage.goal}</p>
-          {(stage.plays ?? []).length > 0 ? (
-            <ul className="sc-plays">
-              {(stage.plays ?? []).map((play) => (
-                <li key={`${play.channel}:${play.what}`}>
-                  <ChannelIcon
-                    channel={channelKey(play.channel) ?? play.channel}
-                    size={16}
-                  />
-                  <span className="sc-play-channel">
-                    {channelLabel(play.channel)}
-                  </span>
-                  <span>{play.what}</span>
-                  {play.cadence ? (
-                    <span className="sc-cadence">{play.cadence}</span>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {stage.owner === "you" || stage.owner === "shared" ? (
-            <StageImprovements stage={stage} improvements={improvements} />
-          ) : null}
-          <p className="sc-measure">
-            <span>{stage.metric}</span>
-            {stage.measure?.value ? (
-              <b className="num">{stage.measure.value}</b>
+          <div className="sc-stage-body">
+            <div className="sc-stage-head">
+              <p className="sc-goal">{stage.goal}</p>
+              <span className={`sc-owner ${stage.owner ?? "cuso"}`}>
+                {OWNERS[stage.owner ?? "cuso"]}
+              </span>
+            </div>
+            {(stage.plays ?? []).length > 0 ? (
+              <ul className="sc-plays">
+                {(stage.plays ?? []).map((play) => (
+                  <li key={`${play.channel}:${play.what}`}>
+                    <ChannelIcon
+                      channel={channelKey(play.channel) ?? play.channel}
+                      size={16}
+                    />
+                    <span className="sc-play-channel">
+                      {channelLabel(play.channel)}
+                    </span>
+                    <span>{play.what}</span>
+                    {play.cadence ? (
+                      <span className="sc-cadence">{play.cadence}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
             ) : null}
-            <span className={`sc-basis ${stage.measure?.basis ?? "unknown"}`}>
-              {BASES[stage.measure?.basis ?? "unknown"]}
-              {stage.measure?.basis === "measured" && stage.measure.source
-                ? ` · ${stage.measure.source}`
-                : ""}
-            </span>
-          </p>
+            {stage.owner === "you" || stage.owner === "shared" ? (
+              <StageImprovements stage={stage} improvements={improvements} />
+            ) : null}
+            <p className="sc-measure">
+              <span>{stage.metric}</span>
+              {stage.measure?.value ? (
+                <b className="num">{stage.measure.value}</b>
+              ) : null}
+              <span className={`sc-basis ${stage.measure?.basis ?? "unknown"}`}>
+                {BASES[stage.measure?.basis ?? "unknown"]}
+                {stage.measure?.basis === "measured" && stage.measure.source
+                  ? ` · ${stage.measure.source}`
+                  : ""}
+              </span>
+            </p>
+          </div>
         </li>
       ))}
     </ol>
   );
+}
+
+/** The funnel narrows from full width to this share at its last stage's end. */
+const FUNNEL_END = 40;
+
+function funnelWidth(edge: number, stages: number): number {
+  return 100 - (edge * (100 - FUNNEL_END)) / Math.max(stages, 1);
 }
 
 /** The owner's own pages at a conversion stage: Cuso suggests, they decide. */

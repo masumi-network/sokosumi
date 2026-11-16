@@ -249,6 +249,20 @@ describe("authorized chat results", () => {
       kind: "bot_schedule",
       status: "PAUSED",
       recurrence: null,
+      sourceHref: "/personal-assistant?schedule=follow-up",
+    });
+    // A card recorded with the old page link opens the schedule's row.
+    const [relinked] = await hydrateChatResultSnapshots(
+      [
+        {
+          ...followUp,
+          data: { ...followUp.data, sourceHref: "/personal-assistant" },
+        },
+      ],
+      "owner",
+    );
+    expect(relinked).toMatchObject({
+      sourceHref: "/personal-assistant?schedule=follow-up",
     });
     expect(botSchedule).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -384,6 +398,15 @@ describe("authorized chat results", () => {
       mimeType: "image/png",
       kind: "image",
     };
+    const initialMedia = {
+      ...oldMedia,
+      transformation: {
+        provider: "x",
+        code: "smaller_file",
+        notice: "X needs a smaller file.",
+        original: oldMedia,
+      },
+    };
     const post = {
       id: "post",
       projectId: "project",
@@ -397,7 +420,7 @@ describe("authorized chat results", () => {
       scheduledAt: capturedAt,
       publishedAt: null,
       timezone: "UTC",
-      media: [oldMedia],
+      media: [initialMedia],
       project: { workspace: { organization: null } },
       socialConnection: {
         provider: "x",
@@ -411,6 +434,7 @@ describe("authorized chat results", () => {
     liveFiles.mockResolvedValue([
       {
         id: "old-file",
+        sourceId: oldMedia.pathname,
         displayName: oldMedia.name,
         mimeType: oldMedia.mimeType,
         sizeBytes: oldMedia.size,
@@ -421,12 +445,21 @@ describe("authorized chat results", () => {
       actor,
       capturedAt,
     });
+    expect(snapshot.data.outputs[0].transformation).toEqual(
+      initialMedia.transformation,
+    );
     const scheduledAt = new Date("2026-10-07T11:00:00Z");
     const newMedia = {
       ...oldMedia,
       pathname: "drive/users/owner/after.png",
       fileUrl: "https://store.public.blob.vercel-storage.com/after.png",
       name: "after.png",
+      transformation: {
+        provider: "linkedin",
+        code: "resize",
+        notice: "LinkedIn will resize this image.",
+        original: oldMedia,
+      },
     };
     projects.mockResolvedValue([{ id: "project", workspaceId: "workspace" }]);
     socialPosts.mockResolvedValue([
@@ -437,7 +470,8 @@ describe("authorized chat results", () => {
         revision: 4,
         scheduledAt,
         timezone: "Europe/Berlin",
-        media: [newMedia],
+        media: [],
+        threadParts: [{ media: [newMedia] }],
         socialConnection: {
           provider: "linkedin",
           externalHandle: "after",
@@ -456,6 +490,7 @@ describe("authorized chat results", () => {
     liveFiles.mockResolvedValue([
       {
         id: "new-file",
+        sourceId: newMedia.pathname,
         displayName: newMedia.name,
         mimeType: newMedia.mimeType,
         sizeBytes: newMedia.size,
@@ -488,6 +523,7 @@ describe("authorized chat results", () => {
       outputs: [
         {
           name: "after.png",
+          transformation: newMedia.transformation,
           openHref: "/drive/files/new-file?scope=me",
           previewHref: "/api/drive/files/new-file/content?scope=me",
         },

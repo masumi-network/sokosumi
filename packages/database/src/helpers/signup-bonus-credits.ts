@@ -4,16 +4,8 @@ import {
   CreditBucketReferenceType,
   type Prisma,
 } from "../generated/prisma/client.js";
+import { isPrismaUniqueConstraintError } from "../prisma-errors.js";
 import { buildSignupBonusCreditReferenceId } from "./credit.js";
-
-function isPrismaUniqueConstraintError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "P2002"
-  );
-}
 
 interface GrantSignupBonusCreditsParams {
   credits: number;

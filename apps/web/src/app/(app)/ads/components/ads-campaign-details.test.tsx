@@ -142,7 +142,7 @@ const DISPLAY: AdCampaignDetails = {
   },
 };
 
-function renderDetails(details: AdCampaignDetails = SEARCH) {
+function renderDetails(details: AdCampaignDetails = SEARCH, readOnly = false) {
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <AdsCampaignDetailsView
@@ -150,6 +150,7 @@ function renderDetails(details: AdCampaignDetails = SEARCH) {
         details={details}
         projectId="project-1"
         range="7d"
+        readOnly={readOnly}
       />
     </NextIntlClientProvider>,
   );
@@ -177,6 +178,15 @@ describe("AdsCampaignDetails", () => {
       "href",
       "/ads/campaigns/42/edit?projectId=project-1&accountId=account-1&range=7d",
     );
+  });
+
+  it("offers neither Edit nor the menu on a CMO Project", () => {
+    renderDetails(SEARCH, true);
+
+    expect(screen.queryByRole("link", { name: "Edit" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "menu Spring sale" }),
+    ).toBeNull();
   });
 
   it("offers no Edit for a campaign that is not editable", () => {

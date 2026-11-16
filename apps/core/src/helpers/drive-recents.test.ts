@@ -17,6 +17,9 @@ vi.mock("@vercel/blob", () => ({
   list: listMock,
   head: vi.fn(),
 }));
+vi.mock("@/config/env", () => ({
+  getEnv: () => ({ BLOB_READ_WRITE_TOKEN: "test-token" }),
+}));
 
 const CURSOR_SECRET = "test-cursor-secret";
 const PREFIX = "drive/users/u/";
@@ -33,6 +36,7 @@ function driveFile(pathname: string, activityAt: string): DriveRecentsItem {
     resourceId: null,
     category: null,
     tags: [],
+    dataRoom: false,
   };
 }
 
@@ -278,7 +282,6 @@ describe("fetchDriveRecentsPage", () => {
 
     const page = await fetchDriveRecentsPage({
       prefix: PREFIX,
-      token: "test-token",
       limit: 3,
       cursorSecret: CURSOR_SECRET,
       cursorBinding: CURSOR_BINDING,
@@ -331,7 +334,6 @@ describe("fetchDriveRecentsPage", () => {
     );
     const input = {
       prefix: PREFIX,
-      token: "test-token",
       limit: 2,
       cursorSecret: CURSOR_SECRET,
       cursorBinding: CURSOR_BINDING,
@@ -382,7 +384,6 @@ describe("fetchDriveRecentsPage", () => {
     }));
     const page = await fetchDriveRecentsPage({
       prefix: PREFIX,
-      token: "test-token",
       limit: 2,
       cursorSecret: CURSOR_SECRET,
       cursorBinding: CURSOR_BINDING,
@@ -424,7 +425,6 @@ describe("fetchDriveRecentsPage", () => {
     });
     const result = await fetchDriveRecentsPage({
       prefix: PREFIX,
-      token: "test-token",
       limit: 2,
       cursorSecret: CURSOR_SECRET,
       cursorBinding: CURSOR_BINDING,
@@ -466,7 +466,6 @@ describe("fetchDriveRecentsPage", () => {
 
     const page = await fetchDriveRecentsPage({
       prefix: PREFIX,
-      token: "test-token",
       limit: 10,
       searchQuery: "report",
       cursorSecret: CURSOR_SECRET,
@@ -503,7 +502,6 @@ describe("fetchDriveRecentsPage", () => {
 
     const page = await fetchDriveRecentsPage({
       prefix: PREFIX,
-      token: "test-token",
       limit: 10,
       driveFilePathnames: new Set(["drive/users/u/promo.mp4"]),
       cursorSecret: CURSOR_SECRET,
@@ -523,7 +521,6 @@ describe("fetchDriveRecentsPage", () => {
     listMock.mockClear();
     const page = await fetchDriveRecentsPage({
       prefix: PREFIX,
-      token: "test-token",
       limit: 10,
       driveFilePathnames: new Set(),
       cursorSecret: CURSOR_SECRET,
@@ -545,7 +542,6 @@ describe("fetchDriveRecentsPage", () => {
     await expect(
       fetchDriveRecentsPage({
         prefix: PREFIX,
-        token: "test-token",
         limit: 10,
         cursor,
         cursorSecret: CURSOR_SECRET,
@@ -607,7 +603,6 @@ describe("fetchDriveRecentsPage", () => {
 
     const firstPage = await fetchDriveRecentsPage({
       prefix: PREFIX,
-      token: "test-token",
       limit: 1,
       cursorSecret: CURSOR_SECRET,
       cursorBinding: CURSOR_BINDING,
@@ -622,7 +617,6 @@ describe("fetchDriveRecentsPage", () => {
 
     const secondPage = await fetchDriveRecentsPage({
       prefix: PREFIX,
-      token: "test-token",
       limit: 1,
       cursor: firstPage.nextCursor ?? undefined,
       cursorSecret: CURSOR_SECRET,
@@ -637,7 +631,6 @@ describe("fetchDriveRecentsPage", () => {
 
     const thirdPage = await fetchDriveRecentsPage({
       prefix: PREFIX,
-      token: "test-token",
       limit: 1,
       cursor: secondPage.nextCursor ?? undefined,
       cursorSecret: CURSOR_SECRET,
@@ -689,7 +682,6 @@ describe("fetchDriveRecentsPage", () => {
     for (let page = 0; page < 4; page += 1) {
       const pageResult = await fetchDriveRecentsPage({
         prefix: PREFIX,
-        token: "test-token",
         limit,
         cursor,
         cursorSecret: CURSOR_SECRET,
@@ -774,7 +766,6 @@ describe("fetchDriveRecentsPage", () => {
 
     const page = await fetchDriveRecentsPage({
       prefix: PREFIX,
-      token: "test-token",
       limit: 2,
       searchQuery: "pdf",
       cursorSecret: CURSOR_SECRET,
@@ -830,7 +821,6 @@ describe("fetchDriveRecentsPage", () => {
 
     const page = await fetchDriveRecentsPage({
       prefix: PREFIX,
-      token: "test-token",
       limit: 10,
       cursorSecret: CURSOR_SECRET,
       cursorBinding: CURSOR_BINDING,

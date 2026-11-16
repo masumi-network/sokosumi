@@ -11,6 +11,7 @@ export function SocialPostMediaThumb({ media }: { media: SocialPostMediaRef }) {
   if (media.kind !== "video") {
     const preview = (
       <FileChipMiniPreview
+        className="[&_img]:object-contain"
         fileName={media.name}
         mediaType={media.mimeType}
         size={media.size}

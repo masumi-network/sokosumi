@@ -8,6 +8,7 @@ import { campaignLoadFailure } from "@/app/ads/campaigns/campaign-load-failure";
 import { loadGoogleCampaignPage } from "@/app/ads/campaigns/google-campaign-page";
 import { AdsCampaignDetails } from "@/app/ads/components/ads-campaign-details";
 import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
+import { CmoProjectBanner } from "@/components/cmo-project-banner";
 import { adsService } from "@/lib/services/ads.service";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +57,7 @@ export default async function AdsCampaignDetailsPage({
         details={details}
         projectId={project.id}
         range={query.range}
+        readOnly={project.cmo}
       />
     );
   } catch (error) {
@@ -75,6 +77,7 @@ export default async function AdsCampaignDetailsPage({
           <ArrowLeft aria-hidden className="size-4" />
           {t("back")}
         </Link>
+        {project.cmo ? <CmoProjectBanner projectId={project.id} /> : null}
         {body}
       </div>
     </div>

@@ -571,6 +571,70 @@ describe("GET /notifications?needsAction=true", () => {
     );
   });
 
+  /**
+   * The Notification Center lists the active workspace's waiting Tasks
+   * itself, so their asks leave its Needs you rows. Coverage is read from
+   * where each Task is now, not from the workspace the ask was written in:
+   * a Task moved to another workspace since it asked keeps its row, beside
+   * a Task still waiting in the source workspace.
+   */
+  it("leaves out only asks for Tasks the active workspace lists now", async () => {
+    answerNotificationLookups([
+      {
+        id: "n_moved",
+        messageKey: "Notifications.Task.inputRequired",
+        referenceId: "task_moved_to_b",
+      },
+      {
+        id: "n_stayed",
+        messageKey: "Notifications.Task.inputRequired",
+        referenceId: "task_still_in_a",
+      },
+    ]);
+    // The current-placement predicate excludes the Task still in A.
+    taskFindManyMock.mockResolvedValue([{ id: "task_moved_to_b" }]);
+
+    const response = await createApp().request(
+      "http://localhost/?needsAction=true&exceptWorkspaceTasks=true",
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["task_moved_to_b", "task_still_in_a"] },
+        status: "INPUT_REQUIRED",
+        projectId: undefined,
+        NOT: {
+          archivedAt: null,
+          workspace: { organizationId: "org_123" },
+          OR: [
+            { visibility: "PUBLIC" },
+            { visibility: "PRIVATE", ownerId: "user_123" },
+          ],
+        },
+      },
+      select: { id: true },
+    });
+    expect(notificationFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: "user_123",
+          ...notificationFeedWhere(),
+          id: { in: ["n_moved"] },
+        },
+      }),
+    );
+  });
+
+  it("rejects exceptWorkspaceTasks without needsAction", async () => {
+    const response = await createApp().request(
+      "http://localhost/?exceptWorkspaceTasks=true",
+    );
+
+    expect(response.status).toBe(400);
+    expect(notificationFindManyMock).not.toHaveBeenCalled();
+  });
+
   it("rejects projectId without needsAction", async () => {
     const response = await createApp().request(
       "http://localhost/?projectId=11111111-1111-4111-8111-111111111111",

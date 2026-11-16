@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth/auth.client";
@@ -21,6 +21,9 @@ export function useApiKeys(): UseApiKeysReturn {
   const [apiKeys, setApiKeys] = useState<ApiKeyRecord[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Keys with a toggle on the wire. A second click on one is dropped until
+  // the first has its answer, so two requests for one key cannot cross.
+  const updatingKeyIds = useRef(new Set<string>());
 
   const refresh = useCallback(
     async (isInitial = false) => {
@@ -95,6 +98,18 @@ export function useApiKeys(): UseApiKeysReturn {
 
   const update = useCallback(
     async (data: UpdateApiKeyRequest): Promise<boolean> => {
+      if (updatingKeyIds.current.has(data.keyId)) {
+        return false;
+      }
+      updatingKeyIds.current.add(data.keyId);
+      const setEnabled = (enabled: boolean) =>
+        setApiKeys((keys) =>
+          keys.map((key) =>
+            key.id === data.keyId ? { ...key, enabled } : key,
+          ),
+        );
+      // Show the new status at once; a failure puts the old one back.
+      setEnabled(data.enabled);
       try {
         const result = await authClient.apiKey.update({
           keyId: data.keyId,
@@ -107,12 +122,16 @@ export function useApiKeys(): UseApiKeysReturn {
           await refresh();
           return true;
         } else {
+          setEnabled(!data.enabled);
           toast.error(result.error?.message ?? t("Messages.updateError"));
           return false;
         }
       } catch {
+        setEnabled(!data.enabled);
         toast.error(t("Messages.updateError"));
         return false;
+      } finally {
+        updatingKeyIds.current.delete(data.keyId);
       }
     },
     [refresh, t],

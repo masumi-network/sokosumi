@@ -10,6 +10,7 @@ import { waitUntil } from "@vercel/functions";
 import type { Browser } from "puppeteer-core";
 
 import prisma from "@/lib/db/prisma";
+import { driveOwnerOf } from "@/lib/drive-blob";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
 import {
   capturePage,
@@ -69,6 +70,14 @@ async function listResearchFiles(projectId: string): Promise<ResearchFile[]> {
   const seen = new Set<string>();
   return links.flatMap(({ resource }) => {
     if (seen.has(resource.id)) return [];
+    // Only the top-level folder: one of that name deeper down, say inside a
+    // data room, is not Cuso's.
+    if (
+      !driveOwnerOf(resource.sourceId)?.path.startsWith(
+        `${CMO_BRAND_MEDIA_FOLDER}/`,
+      )
+    )
+      return [];
     seen.add(resource.id);
     const path = resource.sourceId.slice(
       resource.sourceId.indexOf(marker) + marker.length,

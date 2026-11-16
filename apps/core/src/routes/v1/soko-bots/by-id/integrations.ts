@@ -79,6 +79,7 @@ const connectRoute = createRoute({
       "Forbidden: replacing another member's account needs that member or an organization owner or admin",
     ),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("CMO project is read-only"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
@@ -123,6 +124,7 @@ const disconnectRoute = createRoute({
     ),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("CMO project is read-only"),
   },
 });
 

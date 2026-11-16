@@ -172,11 +172,13 @@ function createTask() {
     description: null,
     status: TaskStatus.READY,
     priority: TaskPriority.NONE,
+    archivedAt: null,
     number: null,
     _count: {
       events: 0,
       jobs: 0,
     },
+    events: [] as Array<{ createdAt: Date }>,
     workspace: {
       id: "11111111-1111-7111-8111-111111111111",
       organizationId: "org_123",
@@ -389,7 +391,13 @@ describe("GET /tasks", () => {
 
     expect(response.status).toBe(200);
     const include = taskFindManyMock.mock.calls[0]?.[0]?.include;
-    expect(include).not.toHaveProperty("events");
+    // Only the latest status change, for how long the Task has sat in it.
+    expect(include.events).toEqual({
+      where: { status: { not: null } },
+      orderBy: { createdAt: "desc" },
+      take: 1,
+      select: { createdAt: true },
+    });
     expect(include).not.toHaveProperty("jobs");
     expect(include).not.toHaveProperty("linksFrom");
     expect(include).not.toHaveProperty("linksTo");
@@ -434,6 +442,59 @@ describe("GET /tasks", () => {
       jobsCount: 0,
       participants: [],
     });
+  });
+
+  it("dates statusSince by the latest status change, else by creation", async () => {
+    taskFindManyMock.mockResolvedValue([
+      {
+        ...createTask(),
+        id: "tsk_changed",
+        events: [{ createdAt: new Date("2026-03-28T08:00:00.000Z") }],
+      },
+      createTask(),
+    ]);
+    taskCountMock.mockResolvedValue(2);
+
+    const response = await createApp().request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: Array<{ statusSince: string }>;
+    };
+    expect(body.data.map((task) => task.statusSince)).toEqual([
+      "2026-03-28T08:00:00.000Z",
+      "2026-03-25T10:00:00.000Z",
+    ]);
+  });
+
+  it("keeps only Tasks whose status has not changed since statusBefore", async () => {
+    const cutoff = new Date("2026-11-11T09:00:00.000Z");
+    const response = await createApp().request(
+      `http://localhost/?statusBefore=${cutoff.toISOString()}&status=READY`,
+    );
+
+    expect(response.status).toBe(200);
+    const statusAge = {
+      createdAt: { lt: cutoff },
+      events: {
+        none: { status: { not: null }, createdAt: { gte: cutoff } },
+      },
+    };
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining(statusAge) }),
+    );
+    expect(taskCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining(statusAge),
+    });
+  });
+
+  it("rejects a statusBefore that is not a date-time", async () => {
+    const response = await createApp().request(
+      "http://localhost/?statusBefore=yesterday",
+    );
+
+    expect(response.status).toBe(422);
+    expect(taskFindManyMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker requests that include DRAFT", async () => {
@@ -818,6 +879,102 @@ describe("GET /tasks", () => {
         SCHEDULE_ID,
         null,
       ]);
+    });
+  });
+
+  // Home's "My day": open Tasks the reader owns or is assigned, due by today.
+  describe("my due Tasks", () => {
+    it("matches Tasks the caller owns or is assigned with scope=mine", async () => {
+      const response = await createApp().request(
+        "http://localhost/?scope=mine",
+      );
+
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            archivedAt: null,
+            workspaceId: "11111111-1111-7111-8111-111111111111",
+            AND: [...HUMAN_TASK_VISIBILITY_AND],
+            OR: [{ ownerId: "user_123" }, { assigneeUserId: "user_123" }],
+          },
+        }),
+      );
+    });
+
+    it("keeps the delegated coworker access filter with scope=mine", async () => {
+      const response = await createApp(
+        DELEGATED_COWORKER_AUTH_CONTEXT,
+        DELEGATED_WORKSPACE_CONTEXT,
+      ).request("http://localhost/?scope=mine");
+
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: delegatedCoworkerListWhere({
+            OR: [
+              { ownerId: "user_delegate" },
+              { assigneeUserId: "user_delegate" },
+            ],
+          }),
+        }),
+      );
+    });
+
+    it("filters to Tasks due on or before dueOnTo, earliest first", async () => {
+      const response = await createApp().request(
+        "http://localhost/?scope=mine&dueOnTo=2026-11-10&sort=dueOn&status=READY,FAILED&limit=5",
+      );
+
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            archivedAt: null,
+            workspaceId: "11111111-1111-7111-8111-111111111111",
+            AND: [...HUMAN_TASK_VISIBILITY_AND],
+            OR: [{ ownerId: "user_123" }, { assigneeUserId: "user_123" }],
+            dueOn: { lte: new Date("2026-11-10T00:00:00.000Z") },
+            status: { in: [TaskStatus.READY, TaskStatus.FAILED] },
+          },
+          orderBy: [{ dueOn: "asc" }, { id: "asc" }],
+          take: 6,
+        }),
+      );
+      // The count uses the same filter, so a cut-off list knows its total.
+      expect(taskCountMock).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          dueOn: { lte: new Date("2026-11-10T00:00:00.000Z") },
+        }),
+      });
+    });
+
+    it("continues the due list from a cursor with the same filter", async () => {
+      const response = await createApp().request(
+        "http://localhost/?scope=mine&dueOnTo=2026-11-10&sort=dueOn&limit=5&cursor=tsk_e",
+      );
+
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [{ ownerId: "user_123" }, { assigneeUserId: "user_123" }],
+            dueOn: { lte: new Date("2026-11-10T00:00:00.000Z") },
+          }),
+          cursor: { id: "tsk_e" },
+          skip: 1,
+          orderBy: [{ dueOn: "asc" }, { id: "asc" }],
+        }),
+      );
+    });
+
+    it("rejects a dueOnTo that is not a calendar day", async () => {
+      const response = await createApp().request(
+        "http://localhost/?dueOnTo=2026-02-30",
+      );
+
+      expect(response.status).toBe(422);
+      expect(taskFindManyMock).not.toHaveBeenCalled();
     });
   });
 });

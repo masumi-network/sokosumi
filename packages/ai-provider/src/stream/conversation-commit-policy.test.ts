@@ -5,10 +5,7 @@ import type {
 import { describe, expect, it, vi } from "vitest";
 
 import { COWORKER_AGENT_ERROR_SNIPPET } from "../coworker-agent-error.js";
-import {
-  COWORKER_CONVERSATION_MAX_RETRIES,
-  withConversationCommitPolicy,
-} from "./conversation-commit-policy.js";
+import { withConversationCommitPolicy } from "./conversation-commit-policy.js";
 
 type TestPart =
   | { type: "stream-start"; warnings: [] }
@@ -127,77 +124,11 @@ describe("withConversationCommitPolicy", () => {
   it("stops after maxRetries + initial attempt (3 opens max)", async () => {
     const openStream = vi.fn(async () => streamResult(textParts("Done")));
 
-    const result = await withConversationCommitPolicy(openStream, {
-      maxRetries: COWORKER_CONVERSATION_MAX_RETRIES,
-    });
+    const result = await withConversationCommitPolicy(openStream);
     const text = await collectText(result.stream);
 
     // attempt 0 gated, 1 gated, 2 final ungated → 3 opens
     expect(openStream).toHaveBeenCalledTimes(3);
-    expect(text).toBe("Done");
-  });
-
-  it("with maxRetries 0 returns the first stream without gating retry", async () => {
-    const openStream = vi.fn(async () =>
-      streamResult(
-        textParts(`${COWORKER_AGENT_ERROR_SNIPPET}. Please try again.`),
-      ),
-    );
-
-    const result = await withConversationCommitPolicy(openStream, {
-      maxRetries: 0,
-    });
-    const text = await collectText(result.stream);
-
-    expect(openStream).toHaveBeenCalledTimes(1);
-    expect(text).toContain(COWORKER_AGENT_ERROR_SNIPPET);
-  });
-
-  it("treats negative maxRetries as 0 (single open, no gate retry)", async () => {
-    const openStream = vi.fn(async () =>
-      streamResult(
-        textParts(`${COWORKER_AGENT_ERROR_SNIPPET}. Please try again.`),
-      ),
-    );
-
-    const result = await withConversationCommitPolicy(openStream, {
-      maxRetries: -1,
-    });
-    const text = await collectText(result.stream);
-
-    expect(openStream).toHaveBeenCalledTimes(1);
-    expect(text).toContain(COWORKER_AGENT_ERROR_SNIPPET);
-  });
-
-  it.each([Number.POSITIVE_INFINITY, Number.NaN] as const)(
-    "treats non-finite maxRetries %s as 0 (no unbounded reopen)",
-    async (maxRetries) => {
-      const openStream = vi.fn(async () =>
-        streamResult(
-          textParts(`${COWORKER_AGENT_ERROR_SNIPPET}. Please try again.`),
-        ),
-      );
-
-      const result = await withConversationCommitPolicy(openStream, {
-        maxRetries,
-      });
-      const text = await collectText(result.stream);
-
-      expect(openStream).toHaveBeenCalledTimes(1);
-      expect(text).toContain(COWORKER_AGENT_ERROR_SNIPPET);
-    },
-  );
-
-  it("truncates fractional maxRetries to an integer budget", async () => {
-    const openStream = vi.fn(async () => streamResult(textParts("Done")));
-
-    const result = await withConversationCommitPolicy(openStream, {
-      maxRetries: 1.9,
-    });
-    const text = await collectText(result.stream);
-
-    // trunc(1.9) → 1: attempt 0 gated + attempt 1 final ungated
-    expect(openStream).toHaveBeenCalledTimes(2);
     expect(text).toBe("Done");
   });
 });

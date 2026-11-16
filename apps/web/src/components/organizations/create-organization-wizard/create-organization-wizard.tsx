@@ -84,7 +84,6 @@ import {
   ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
 } from "@/lib/constants/organization-logo";
 import type { PersistedDesignMd } from "@/lib/services/design-md.service";
-import { cn } from "@/lib/utils";
 import {
   cleanupOrganizationLogoBestEffort,
   getOrganizationLogoUploadErrorMessage,
@@ -94,6 +93,7 @@ import {
   ClientTimeoutError,
   raceWithTimeout,
 } from "@/lib/utils/race-with-timeout";
+import { sweepWorkspace } from "@/lib/workspace-sweep";
 
 const TOTAL_STEPS = 4;
 /**
@@ -214,7 +214,7 @@ export function CreateOrganizationWizard({
   );
   const tDesignMd = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
   const router = useRouter();
-  const { handleSelectWorkspace } = useWorkspaceSwitcher();
+  const { handleSelectWorkspace, whenSettled } = useWorkspaceSwitcher();
 
   const [step, setStep] = useState(0);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
@@ -247,6 +247,17 @@ export function CreateOrganizationWizard({
   const linkStartedRef = useRef(false);
   /** The first logo replaces the drop target, so focus moves to "Replace". */
   const focusReplaceLogoRef = useRef(false);
+  /** Step whose heading last took focus. The opening step keeps Name focused. */
+  const focusedStepRef = useRef(0);
+  const stepRef = useRef(step);
+  stepRef.current = step;
+  // Each step's buttons unmount with it, so focus fell back to the dialog and
+  // a screen reader heard only "2 / 4". Start the new step at its title.
+  const focusStepHeading = useCallback((node: HTMLHeadingElement | null) => {
+    if (!node || focusedStepRef.current === stepRef.current) return;
+    focusedStepRef.current = stepRef.current;
+    node.focus();
+  }, []);
   const orgCreateInFlightRef = useRef(false);
   // Lock callbacks synchronously, before React renders the pending state.
   const leavingRef = useRef(false);
@@ -302,6 +313,7 @@ export function CreateOrganizationWizard({
 
   const resetAll = useCallback(() => {
     setStep(0);
+    focusedStepRef.current = 0;
     setOrganizationId(null);
     setOrganizationName("");
     setNormalizedUrl(null);
@@ -648,12 +660,21 @@ export function CreateOrganizationWizard({
         onOrganizationReady(orgId);
         return false;
       }
-      void handleSelectWorkspace(orgId, {
-        shouldRedirectAgentJobsBasePath: false,
+      // The dialog stays up until the sweep covers the screen, so the old
+      // workspace never shows between it and the new one.
+      leavingRef.current = true;
+      setIsLeaving(true);
+      void sweepWorkspace(async () => {
+        onOpenChange(false);
+        const settled = whenSettled();
+        await handleSelectWorkspace(orgId, {
+          shouldRedirectAgentJobsBasePath: false,
+        });
+        await settled;
       });
-      return true;
+      return false;
     },
-    [handleSelectWorkspace, onOrganizationReady],
+    [handleSelectWorkspace, onOpenChange, onOrganizationReady, whenSettled],
   );
 
   const isBusy = isCreatingOrg || isUploadingLogo || isLeaving;
@@ -686,26 +707,8 @@ export function CreateOrganizationWizard({
           {t("description")}
         </DialogDescription>
 
-        <div className="relative flex items-center px-6 py-5 sm:px-8 sm:py-6">
-          <div className="absolute inset-x-0 top-0 flex h-[3px] gap-1">
-            {Array.from({ length: TOTAL_STEPS }).map((_, index) => (
-              <span
-                key={index}
-                className="bg-border h-full flex-1 overflow-hidden"
-              >
-                <span
-                  className={cn(
-                    "bg-primary block size-full origin-left transition-transform duration-200 ease-out motion-reduce:transition-none",
-                    index <= step ? "scale-x-100" : "scale-x-0",
-                  )}
-                />
-              </span>
-            ))}
-          </div>
-          <span className="text-muted-foreground text-2xs font-medium tracking-[0.16em] tabular-nums">
-            {String(step + 1).padStart(2, "0")} /{" "}
-            {String(TOTAL_STEPS).padStart(2, "0")}
-          </span>
+        {/* Keeps the close button's row; the step is only announced. */}
+        <div className="h-14 sm:h-16">
           <span className="sr-only" aria-live="polite">
             {step + 1} / {TOTAL_STEPS}
           </span>
@@ -726,7 +729,11 @@ export function CreateOrganizationWizard({
                   <div className="flex min-h-24 flex-none items-center justify-center">
                     <OrgInitialTile control={form.control} />
                   </div>
-                  <h2 className="mt-8 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
+                  <h2
+                    ref={focusStepHeading}
+                    tabIndex={-1}
+                    className="outline-none mt-8 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl"
+                  >
                     {t("Details.title")}
                   </h2>
                   <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-base leading-[1.6] text-balance">
@@ -833,7 +840,11 @@ export function CreateOrganizationWizard({
                     )}
                   </div>
                 ) : null}
-                <h2 className="text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
+                <h2
+                  ref={focusStepHeading}
+                  tabIndex={-1}
+                  className="outline-none text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl"
+                >
                   {t("Logo.title")}
                 </h2>
                 <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-base leading-[1.6] text-balance">
@@ -949,7 +960,11 @@ export function CreateOrganizationWizard({
                   )}
                 </div>
 
-                <h2 className="mt-8 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
+                <h2
+                  ref={focusStepHeading}
+                  tabIndex={-1}
+                  className="outline-none mt-8 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl"
+                >
                   {t("Brand.title")}
                 </h2>
 
@@ -1045,7 +1060,11 @@ export function CreateOrganizationWizard({
                     <Check className="text-foreground animate-in fade-in-0 size-6 duration-200" />
                   </div>
                 </div>
-                <h2 className="mt-4 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
+                <h2
+                  ref={focusStepHeading}
+                  tabIndex={-1}
+                  className="outline-none mt-4 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl"
+                >
                   {organizationName
                     ? t("Invite.title", { organization: organizationName })
                     : t("Invite.titleFallback")}

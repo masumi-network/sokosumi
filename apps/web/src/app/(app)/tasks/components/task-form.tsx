@@ -34,6 +34,11 @@ import {
   isOtherHumanAssignee,
   resolveTaskAssigneeFields,
 } from "@/app/tasks/utils/coworker-options";
+import { getPendingTaskName } from "@/app/tasks/utils/pending-created-task";
+import {
+  isAgentAssigneeFields,
+  resolveStatusForAssigneeAndRunAt,
+} from "@/app/tasks/utils/task-form-status";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
@@ -60,7 +65,6 @@ import {
 import { useOSDetection } from "@/hooks/use-os-detection";
 import {
   type CreateTaskResult,
-  createTask,
   type TaskContextSelectionInput,
   updateTask,
 } from "@/lib/actions/task/action";
@@ -86,12 +90,14 @@ import {
   TaskContextAttachmentsField,
   type TaskContextAttachmentsSelection,
 } from "./task-context-attachments";
+import { TaskCreateProgress } from "./task-create-progress";
 import { TaskCreatedCelebration } from "./task-created-celebration";
 import { TaskDraftTags } from "./task-draft-tags";
 import { TaskFormModalHeaderStart } from "./task-form-modal";
 import { TaskProjectSelect } from "./task-project-select";
 import { TaskRunAtModal } from "./task-run-at-modal";
 import { TaskStatusPicker } from "./task-status-picker";
+import { withBoardPreview } from "./use-pending-created-tasks";
 import { useTaskTagSuggestions } from "./use-task-tag-suggestions";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
@@ -184,24 +190,6 @@ const CREATE_STATUS_OPTIONS = [
   TaskStatus.READY,
 ] as const;
 
-function isAgentAssigneeFields(fields: {
-  assigneeId: string | null;
-  assigneeSokoBotId: string | null;
-}): boolean {
-  return fields.assigneeId !== null || fields.assigneeSokoBotId !== null;
-}
-
-/** A Run at queues the Task (agents only); otherwise agents start Ready. */
-function resolveStatusForAssigneeAndRunAt(options: {
-  isAgent: boolean;
-  hasRunAt: boolean;
-}): TaskStatus {
-  if (options.isAgent) {
-    return options.hasRunAt ? TaskStatus.QUEUED : TaskStatus.READY;
-  }
-  return TaskStatus.DRAFT;
-}
-
 function getTaskFormStatusLabel(
   value: TaskStatus,
   labels: TaskFormLabels,
@@ -288,6 +276,7 @@ export function TaskForm({
   const { data: session } = useSession();
   const canCreatePrivateTask = Boolean(session?.session.activeOrganizationId);
   const tRunAt = useTranslations("App.Tasks.RunAt");
+  const tNewTask = useTranslations("App.Tasks.NewTask");
   const formatter = useFormatter();
   const hasProjectSelection = projectOptions !== undefined;
   const shouldShowProjectSelect = hasProjectSelection && !lockProjectSelection;
@@ -466,6 +455,11 @@ export function TaskForm({
 
   const [isRunAtModalOpen, setIsRunAtModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // The tag receipt this create sends. Submitting turns the suggestion hook
+  // off, which drops its receipt, so progress reads this snapshot instead.
+  const [submittedTagReceipt, setSubmittedTagReceipt] = useState<
+    string | undefined
+  >();
   const [createdTask, setCreatedTask] = useState<{
     id: string;
     identifier: string | null;
@@ -717,7 +711,11 @@ export function TaskForm({
       toast.error(tRunAt("notInFuture"));
       return;
     }
+    const tagSuggestionReceipt = draftTags.tagSuggestionReceipt;
+    setSubmittedTagReceipt(tagSuggestionReceipt);
     setIsSubmitting(true);
+    // Set while a create is out: its failure names the Task that is not made.
+    let createFailedMessage: string | null = null;
     try {
       const trimmedDescription = description.trim();
       const trimmedName = name.trim();
@@ -744,7 +742,7 @@ export function TaskForm({
           status === TaskStatus.READY ||
           status === TaskStatus.QUEUED)
       ) {
-        const createTaskHandler = onCreateTask ?? createTask;
+        const createTaskHandler = withBoardPreview(onCreateTask);
         const isOtherHuman = isOtherHumanAssignee(
           assigneeFields.assigneeUserId,
           session?.user.id,
@@ -753,10 +751,15 @@ export function TaskForm({
         // it still asks for Private, and Core refuses instead of publishing.
         const sendsPrivate =
           canCreatePrivateTask && isPrivate && (!isOtherHuman || isCopy);
+        createFailedMessage = tNewTask("createError", {
+          name:
+            getPendingTaskName({
+              name: trimmedName,
+              description: trimmedDescription,
+            }) ?? labels.untitledTask,
+        });
         const result = await createTaskHandler({
-          ...(draftTags.tagSuggestionReceipt
-            ? { tagSuggestionReceipt: draftTags.tagSuggestionReceipt }
-            : {}),
+          ...(tagSuggestionReceipt ? { tagSuggestionReceipt } : {}),
           ...(copyOfTaskId ? { copyOfTaskId } : {}),
           ...(trimmedName ? { name: trimmedName } : {}),
           description: trimmedDescription,
@@ -773,9 +776,10 @@ export function TaskForm({
           ...(runAt ? { runAt } : {}),
         });
         if (!result.ok) {
-          toast.error(labels.saveError);
+          toast.error(createFailedMessage);
           return;
         }
+        createFailedMessage = null;
         const createdTask = result.value;
         const createdHref = taskHref({
           id: createdTask.taskId,
@@ -832,7 +836,7 @@ export function TaskForm({
       router.push(`/tasks/${taskId}`);
     } catch (error) {
       console.error("Failed to save task", error);
-      toast.error(labels.saveError);
+      toast.error(createFailedMessage ?? labels.saveError);
     } finally {
       setIsSubmitting(false);
     }
@@ -873,6 +877,7 @@ export function TaskForm({
     labels.statusReady,
     labels.saveError,
     labels.untitledTask,
+    tNewTask,
     tRunAt,
   ]);
 
@@ -1427,6 +1432,15 @@ export function TaskForm({
             onOpenChange={setIsCreateProjectModalOpen}
             initialName={createProjectQuery}
             onCreated={handleProjectCreated}
+          />
+        ) : null}
+
+        {showTaskStep && mode === "create" ? (
+          <TaskCreateProgress
+            active={isSubmitting}
+            needsName={!name.trim()}
+            tagsReady={Boolean(submittedTagReceipt)}
+            isCopy={isCopy}
           />
         ) : null}
 

@@ -25,7 +25,16 @@ interface ModalContextProviderProps<TItem, TAction> {
     action: TAction,
   ) => Promise<BetterAuthClientResult<unknown>>;
   onSuccess?: (action: TAction) => void;
-  onError?: (action: TAction, error: BetterAuthClientError) => void;
+  onError?: (
+    action: TAction,
+    error: BetterAuthClientError,
+    item: TItem,
+  ) => void;
+  /**
+   * Close the modal when the action starts, not when it ends. For an action
+   * whose result is on screen at once, so the modal has nothing to wait for.
+   */
+  closeOnStart?: boolean;
 }
 
 export function createModalContext<TItem, TAction>() {
@@ -38,6 +47,7 @@ export function createModalContext<TItem, TAction>() {
     onAction,
     onSuccess,
     onError,
+    closeOnStart = false,
   }: ModalContextProviderProps<TItem, TAction>) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -59,11 +69,20 @@ export function createModalContext<TItem, TAction>() {
     };
 
     const startAction = async () => {
-      if (!selectedItem || !selectedAction) return;
+      // `open`: a second press during the closing animation starts nothing.
+      if (!open || !selectedItem || !selectedAction) return;
+      if (closeOnStart) {
+        // Not `loading`: the modal is free for the next item during this one.
+        setOpen(false);
+        const result = await onAction(selectedItem, selectedAction);
+        if (result.error) onError?.(selectedAction, result.error, selectedItem);
+        else onSuccess?.(selectedAction);
+        return;
+      }
       setLoading(true);
       const result = await onAction(selectedItem, selectedAction);
       if (result.error) {
-        onError?.(selectedAction, result.error);
+        onError?.(selectedAction, result.error, selectedItem);
       } else {
         onSuccess?.(selectedAction);
         setOpen(false);

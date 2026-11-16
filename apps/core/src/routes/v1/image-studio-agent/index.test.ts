@@ -22,6 +22,10 @@ const state = vi.hoisted(() => ({
   access: vi.fn(),
   register: vi.fn(),
   recordInitialTurn: vi.fn(),
+  readCatalog: vi.fn(),
+  saveHeadline: vi.fn(),
+  /** The Project with a live Cuso: a CMO Project. */
+  cmoProjectId: "aaaaaaaa-aaaa-4aaa-8aaa-0000000000c0",
 }));
 
 vi.mock("@/config/env", async (importOriginal) => {
@@ -40,6 +44,21 @@ vi.mock("@/lib/image-studio/access", () => ({
 vi.mock("@/services/image-studio-sessions.service", () => ({
   registerCreatedSession: state.register,
   transitionInitialTurn: state.recordInitialTurn,
+}));
+vi.mock("@/services/studio-ad-headline.service", () => ({
+  readStudioAdHeadline: vi.fn(),
+  saveStudioAdHeadline: state.saveHeadline,
+}));
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    sokoBot: {
+      findFirst: async ({ where }: { where: { projectId: string } }) =>
+        where.projectId === state.cmoProjectId ? { id: "cuso" } : null,
+    },
+  },
+}));
+vi.mock("@/services/studio-product-catalog.service", () => ({
+  readStudioProductCatalog: state.readCatalog,
 }));
 
 import { errorResponseSchema } from "@/helpers/error";
@@ -98,6 +117,35 @@ beforeEach(() => {
     accepted: true,
     mayDeliver: false,
     deliveryToken: null,
+  });
+});
+
+describe("listing saved products", () => {
+  it("looks up products only in the grant's project and omits file details", async () => {
+    const id = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    state.readCatalog.mockResolvedValueOnce({
+      products: [
+        {
+          id,
+          name: "Clay mug",
+          photo: { id: "private-id", name: "mug.png" },
+          imageUrl: "https://store.example.com/mug.png",
+        },
+      ],
+    });
+    const response = await app.request("/v1/image-studio-agent/products", {
+      headers: { authorization: `Bearer ${token("agent")}` },
+    });
+    expect(response.status).toBe(200);
+    expect(state.readCatalog).toHaveBeenCalledExactlyOnceWith("project-a");
+    expect(await response.json()).toMatchObject({
+      data: { products: [{ id, name: "Clay mug", hasPhoto: true }] },
+    });
+    const denied = await app.request("/v1/image-studio-agent/products", {
+      headers: { authorization: `Bearer ${token("browser")}` },
+    });
+    expect(denied.status).toBe(401);
+    expect(state.readCatalog).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -209,5 +257,71 @@ describe("closing out the first delivery", () => {
     expect(status).toBe(422);
     expect(errorResponseSchema.safeParse(json).success).toBe(true);
     expect(state.recordInitialTurn).not.toHaveBeenCalled();
+  });
+});
+
+describe("writing Studio sessions in a CMO Project", () => {
+  it.each([
+    { path: "/sessions", body: { eveSessionId: "wrun_A" } },
+    {
+      path: "/sessions/wrun_A/initial-turn",
+      body: { transition: "undelivered", deliveryToken: "lease-1" },
+    },
+  ])("refuses $path", async ({ path, body }) => {
+    state.access.mockResolvedValue({
+      userId: "user-a",
+      projectId: state.cmoProjectId,
+      workspaceId: "workspace-a",
+    });
+
+    const { status, json } = await post(path, token("agent"), body);
+
+    expect(status).toBe(409);
+    expect(json).toMatchObject({ kind: "cmo_project_read_only" });
+    expect(state.register).not.toHaveBeenCalled();
+    expect(state.recordInitialTurn).not.toHaveBeenCalled();
+  });
+});
+
+describe("saving an export headline", () => {
+  const ORDINARY_PROJECT = "aaaaaaaa-aaaa-4aaa-8aaa-0000000000a0";
+
+  async function saveHeadline(projectId: string) {
+    state.access.mockResolvedValue({
+      userId: "user-a",
+      projectId,
+      workspaceId: "workspace-a",
+    });
+    const response = await app.request(
+      "/v1/image-studio-agent/assets/aaaaaaaa-aaaa-4aaa-8aaa-0000000000f1/headline",
+      {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${mintAgentGrant(
+            { userId: "user-a", projectId, audience: "agent", ttlSeconds: 120 },
+            state.secret,
+          )}`,
+        },
+        body: JSON.stringify({ text: "Spring sale", expectedRevision: 0 }),
+      },
+    );
+    return { status: response.status, json: await response.json() };
+  }
+
+  it("refuses it in a CMO Project", async () => {
+    const { status, json } = await saveHeadline(state.cmoProjectId);
+
+    expect(status).toBe(409);
+    expect(json).toMatchObject({ kind: "cmo_project_read_only" });
+    expect(state.saveHeadline).not.toHaveBeenCalled();
+  });
+
+  it("saves it in any other Project", async () => {
+    state.saveHeadline.mockResolvedValue({ text: "Spring sale", revision: 1 });
+
+    await saveHeadline(ORDINARY_PROJECT);
+
+    expect(state.saveHeadline).toHaveBeenCalledTimes(1);
   });
 });

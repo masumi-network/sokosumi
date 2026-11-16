@@ -5,12 +5,15 @@ import {
   DRIVE_OWNER_PREFIX_PATTERN,
   isDriveFolderMarker,
 } from "@sokosumi/utils";
-import { list } from "@vercel/blob";
-import { getEnv } from "@/config/env";
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import {
+  hiddenDataRoomFolders,
+  insideHiddenRoom,
+} from "@/lib/data-room-visibility";
 import prisma from "@/lib/db/prisma";
+import { driveList } from "@/lib/drive-blob";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -109,7 +112,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
-    return ok(c, [...folders].sort());
+    const hidden =
+      context.scope === "organization"
+        ? await hiddenDataRoomFolders(context.ownerId, context.actor)
+        : [];
+    return ok(
+      c,
+      [...folders].filter((folder) => !insideHiddenRoom(hidden, folder)).sort(),
+    );
   });
 }
 
@@ -125,8 +135,6 @@ async function emptyFolderMarkers(context: {
   scope: "user" | "organization";
   ownerId: string;
 }): Promise<string[]> {
-  const token = getEnv().BLOB_READ_WRITE_TOKEN;
-  if (!token) return [];
   const prefix =
     context.scope === "user"
       ? buildUserDriveFilePrefix(context.ownerId)
@@ -135,7 +143,7 @@ async function emptyFolderMarkers(context: {
   try {
     let cursor: string | undefined;
     for (let page = 0; page < MARKER_LIST_PAGES; page += 1) {
-      const result = await list({ prefix, token, cursor, limit: 1_000 });
+      const result = await driveList({ prefix, cursor, limit: 1_000 });
       for (const blob of result.blobs) {
         if (!isDriveFolderMarker(blob.pathname)) continue;
         const folder = blob.pathname

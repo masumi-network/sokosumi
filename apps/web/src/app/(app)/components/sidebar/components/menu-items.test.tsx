@@ -278,6 +278,7 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
       "social",
+      "seo",
       "ads",
     ]);
   });
@@ -345,6 +346,7 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
       "social",
+      "seo",
       "ads",
     ]);
   });
@@ -394,6 +396,7 @@ describe("MenuItems newsletter", () => {
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
       "social",
+      "seo",
       "ads",
       "newsletter",
     ]);
@@ -498,15 +501,20 @@ describe("MenuItems project scope", () => {
     );
   });
 
-  it("swaps Projects for Overview, with the project's avatar, once one is selected", () => {
+  it("keeps Projects and adds Overview, with the project's avatar, once one is selected", () => {
     searchRef.current = "projectId=p-1";
     renderMenu(true, false);
 
-    expect(screen.queryByRole("link", { name: "projects" })).toBeNull();
+    const projects = screen.getByRole("link", { name: "projects" });
+    expect(projects).toHaveAttribute("href", "/projects");
     const overview = screen.getByRole("link", { name: "overview" });
     expect(overview).toHaveAttribute("href", "/projects/p-1");
-    // Right under Home. Its text starts with the avatar's hidden initial.
-    expect(screen.getAllByRole("link")[1]).toBe(overview);
+    // Projects right under Home, then Overview. Its text starts with the
+    // avatar's hidden initial.
+    expect(screen.getAllByRole("link").slice(1, 3)).toEqual([
+      projects,
+      overview,
+    ]);
     const slot = overview.querySelector('[data-slot="sidebar-row-slot"]');
     expect(
       slot?.querySelector('[data-testid="project-avatar"]'),
@@ -537,13 +545,14 @@ describe("MenuItems project scope", () => {
     expect(markedHrefs()).toEqual(["/projects/p-1"]);
   });
 
-  it("shows Overview on the phone sheet too", () => {
+  it("shows Projects and Overview on the phone sheet too", () => {
     searchRef.current = "projectId=p-1";
     renderMenu(true, true);
 
-    expect(screen.getAllByRole("link")[0]).toBe(
+    expect(screen.getAllByRole("link").slice(0, 2)).toEqual([
+      screen.getByRole("link", { name: "projects" }),
       screen.getByRole("link", { name: "overview" }),
-    );
+    ]);
   });
 
   it("keeps plain destination links in the workspace view", () => {

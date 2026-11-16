@@ -443,23 +443,26 @@ export interface LiveResource {
  * hit is never authorization: this runs before anything is hydrated, on
  * every page.
  */
-export async function loadLiveResources(input: {
-  workspaceId: string;
-  actor: FileActor;
-  resourceIds: string[];
-  /**
-   * The chunk that matched, per resource, aligned with `resourceIds`.
-   *
-   * Without it the snippet under every result is the document's opening,
-   * whatever the reader searched for: the query below took
-   * `ORDER BY fc.ordinal ASC LIMIT 1`, which is the first chunk, always.
-   * Optional and null-tolerant, because the browse, metadata and
-   * exact-name legs match a document rather than a passage, and because
-   * result windows written before this existed carry no chunk id.
-   */
-  chunkIds?: (string | null | undefined)[];
-  query?: string | null;
-}): Promise<LiveResource[]> {
+export async function loadLiveResources(
+  input: {
+    workspaceId: string;
+    actor: FileActor;
+    resourceIds: string[];
+    /**
+     * The chunk that matched, per resource, aligned with `resourceIds`.
+     *
+     * Without it the snippet under every result is the document's opening,
+     * whatever the reader searched for: the query below took
+     * `ORDER BY fc.ordinal ASC LIMIT 1`, which is the first chunk, always.
+     * Optional and null-tolerant, because the browse, metadata and
+     * exact-name legs match a document rather than a passage, and because
+     * result windows written before this existed carry no chunk id.
+     */
+    chunkIds?: (string | null | undefined)[];
+    query?: string | null;
+  },
+  db: Pick<typeof prisma, "$queryRaw"> = prisma,
+): Promise<LiveResource[]> {
   if (input.resourceIds.length === 0) return [];
 
   const wantedChunks = input.resourceIds.map(
@@ -471,7 +474,7 @@ export async function loadLiveResources(input: {
     actor: input.actor,
   });
 
-  return prisma.$queryRaw<LiveResource[]>(PrismaRaw.sql`
+  return db.$queryRaw<LiveResource[]>(PrismaRaw.sql`
     SELECT
       fr.id,
       fr."displayName",

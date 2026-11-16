@@ -3,10 +3,16 @@ import "server-only";
 import type {
   CreateProjectImageJobRequest,
   CreateProjectVideoJobRequest,
+  ImageStudioRecentProjects,
   ProjectImageJob,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
+  SaveStudioBrandCopy,
+  SaveStudioBrandLook,
   SocialPostMediaRef,
+  StudioProductCatalog,
+  StudioProductImport,
+  StudioProductPhoto,
 } from "@sokosumi/core-client";
 import { coreClient } from "@/lib/clients/core.client";
 
@@ -36,6 +42,12 @@ export const imageStudioService = {
     return result.data;
   },
 
+  /** Empty for a workspace with no Studio images yet. */
+  async getRecentProjects(): Promise<ImageStudioRecentProjects["projects"]> {
+    const result = await coreClient.getImageStudioRecentProjects();
+    return result.data.projects;
+  },
+
   async getState(
     projectId: string,
     query: StudioStateQuery = {},
@@ -50,6 +62,81 @@ export const imageStudioService = {
         beforeId?: string;
       },
     );
+    return result.data;
+  },
+
+  async attachProductPhoto(
+    projectId: string,
+    input: { name: string; imageUrl: string },
+  ): Promise<StudioProductPhoto> {
+    const result = await coreClient.attachStudioProductPhoto(projectId, input);
+    return result.data;
+  },
+
+  async getBrandKit(projectId: string) {
+    return (await coreClient.getStudioBrandKit(projectId)).data;
+  },
+
+  async getWebsiteCopy(projectId: string) {
+    return (await coreClient.getStudioWebsiteCopy(projectId)).data;
+  },
+
+  async prepareWebsiteDraft(projectId: string) {
+    return (await coreClient.prepareStudioWebsiteDraft(projectId)).data;
+  },
+
+  async saveAdHeadline(
+    projectId: string,
+    assetId: string,
+    text: string | null,
+  ) {
+    return (await coreClient.saveStudioAdHeadline(projectId, assetId, text))
+      .data;
+  },
+
+  async listBatchAssets(projectId: string, batchId: string) {
+    return (await coreClient.listStudioBatchAssets(projectId, batchId)).data;
+  },
+
+  async saveBrandCopy(projectId: string, input: SaveStudioBrandCopy) {
+    return (await coreClient.saveStudioBrandCopy(projectId, input)).data;
+  },
+
+  async saveBrandLook(projectId: string, input: SaveStudioBrandLook) {
+    return (await coreClient.saveStudioBrandLook(projectId, input)).data;
+  },
+
+  async uploadProjectLogo(projectId: string, file: File) {
+    return (await coreClient.uploadStudioProjectLogo(projectId, file)).data;
+  },
+
+  async findWebsiteLogo(projectId: string) {
+    return (await coreClient.findStudioWebsiteLogo(projectId)).data;
+  },
+
+  async getProductCatalog(projectId: string): Promise<StudioProductCatalog> {
+    const result = await coreClient.getStudioProductCatalog(projectId);
+    return result.data;
+  },
+
+  async replaceProductCatalog(
+    projectId: string,
+    input: StudioProductCatalog,
+  ): Promise<StudioProductCatalog> {
+    const result = await coreClient.replaceStudioProductCatalog(
+      projectId,
+      input,
+    );
+    return result.data;
+  },
+
+  async importProducts(
+    projectId: string,
+    url: string,
+  ): Promise<StudioProductImport> {
+    const result = await coreClient.importStudioProductCatalog(projectId, {
+      url,
+    });
     return result.data;
   },
 

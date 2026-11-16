@@ -5,11 +5,13 @@ const {
   usageAggregateMock,
   delegationFindManyMock,
   taskEventFindManyMock,
+  creditBucketFindManyMock,
 } = vi.hoisted(() => ({
   queryRawMock: vi.fn(),
   usageAggregateMock: vi.fn(),
   delegationFindManyMock: vi.fn(),
   taskEventFindManyMock: vi.fn(),
+  creditBucketFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -18,6 +20,7 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotUsage: { aggregate: usageAggregateMock },
     sokoBotDelegation: { findMany: delegationFindManyMock },
     taskEvent: { findMany: taskEventFindManyMock },
+    creditBucket: { findMany: creditBucketFindManyMock },
   },
 }));
 
@@ -28,6 +31,40 @@ describe("sokoBotUsageTotals", () => {
     vi.clearAllMocks();
     delegationFindManyMock.mockResolvedValue([]);
     taskEventFindManyMock.mockResolvedValue([]);
+    creditBucketFindManyMock.mockResolvedValue([]);
+  });
+
+  it("nets out every part of a refund split between a Project and the pool", async () => {
+    queryRawMock.mockResolvedValue([
+      {
+        turns: 0n,
+        inputTokens: null,
+        outputTokens: null,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+        costUsdMicros: null,
+        overheadCostUsdMicros: null,
+      },
+    ]);
+    usageAggregateMock.mockResolvedValue({ _sum: { cents: null } });
+    delegationFindManyMock.mockResolvedValue([
+      {
+        taskId: null,
+        // 100 credits charged; 10 refunded to the Project (linked), 90 to the pool.
+        job: {
+          id: "job-1",
+          transaction: { amount: -1_000_000_000_000n },
+          refundedTransaction: { amount: 100_000_000_000n },
+        },
+      },
+    ]);
+    creditBucketFindManyMock.mockResolvedValue([
+      { referenceId: "job-1#pool", amount: 900_000_000_000n },
+    ]);
+
+    const totals = await sokoBotUsageTotals("bot_1");
+
+    expect(totals.delegatedCredits).toBe(0);
   });
 
   it("reports every token and separates cost from what was charged", async () => {
@@ -86,6 +123,7 @@ describe("sokoBotUsageTotals", () => {
         taskId: null,
         // 30 credits charged, 5 refunded.
         job: {
+          id: "job-2",
           transaction: { amount: -300_000_000_000n },
           refundedTransaction: { amount: 50_000_000_000n },
         },

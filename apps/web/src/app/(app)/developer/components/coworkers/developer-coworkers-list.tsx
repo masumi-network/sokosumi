@@ -9,13 +9,6 @@ interface DeveloperCoworkersListProps {
   coworkers: Coworker[];
 }
 
-function getCoworkerImageUrl(coworker: Coworker): string | undefined {
-  if (!coworker.image) {
-    return undefined;
-  }
-  return resolveIpfsOrHttpUrl(coworker.image);
-}
-
 export async function DeveloperCoworkersList({
   coworkers,
 }: DeveloperCoworkersListProps) {
@@ -28,7 +21,9 @@ export async function DeveloperCoworkersList({
   return (
     <ul className="divide-border divide-y rounded-lg border">
       {coworkers.map((coworker) => {
-        const imageUrl = getCoworkerImageUrl(coworker);
+        const imageUrl = coworker.image
+          ? resolveIpfsOrHttpUrl(coworker.image)
+          : undefined;
 
         return (
           <li

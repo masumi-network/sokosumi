@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { Prisma } from "@sokosumi/database";
 import {
+  type CreditBucketProjectOption,
   GrantFreeCreditsError,
   getCreditExpiryDate,
   grantFreeCredits as grantFreeCreditsInDatabase,
@@ -76,12 +77,21 @@ async function resolveTarget(
 }
 
 export const freeCreditAdminService = {
-  async grantFreeCredits(params: {
-    target: FreeCreditTarget;
-    credits: number;
-    ttlDays: number | null;
-    referenceNote: string | null;
-  }): Promise<FreeCreditGrant> {
+  /**
+   * A `projectId` makes them Project credits of the organization (ADR 0067).
+   * A `tx` grants inside the caller's transaction instead of a new one.
+   */
+  async grantFreeCredits(
+    params: CreditBucketProjectOption & {
+      target: FreeCreditTarget;
+      credits: number;
+      ttlDays: number | null;
+      referenceNote: string | null;
+      /** FREE unless the grant has a type of its own (Tester credits). */
+      referenceType?: "FREE" | "CMO_TESTER_CREDITS";
+      tx?: Prisma.TransactionClient;
+    },
+  ): Promise<FreeCreditGrant> {
     if (!isPositiveIntegerCredits(params.credits)) {
       throw new FreeCreditValidationError("Credits must be a positive integer");
     }
@@ -105,7 +115,9 @@ export const freeCreditAdminService = {
         : getCreditExpiryDate(grantedAt, params.ttlDays);
     const grantId = randomUUID();
 
-    return await prisma.$transaction(async (tx) => {
+    const grant = async (
+      tx: Prisma.TransactionClient,
+    ): Promise<FreeCreditGrant> => {
       const target = await resolveTarget(params.target, tx);
       const organizationId =
         params.target.targetType === "organization" ? target.id : null;
@@ -119,7 +131,9 @@ export const freeCreditAdminService = {
             expiresAt,
             grantId,
             organizationId,
+            projectId: params.projectId,
             referenceNote,
+            referenceType: params.referenceType,
             targetId: target.id,
             targetType: params.target.targetType,
             transactionUserId: target.transactionUserId,
@@ -135,6 +149,7 @@ export const freeCreditAdminService = {
 
       await markOutOfCreditsTasksAsToppedUp({
         organizationId,
+        projectId: params.projectId,
         tx,
         userId: target.transactionUserId,
       });
@@ -148,6 +163,9 @@ export const freeCreditAdminService = {
         ttlDays: params.ttlDays,
         referenceNote,
       };
-    });
+    };
+    return params.tx
+      ? await grant(params.tx)
+      : await prisma.$transaction(grant);
   },
 };

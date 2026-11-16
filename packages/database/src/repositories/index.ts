@@ -1,7 +1,6 @@
 export * from "./blob.repository.js";
 export * from "./credit-bucket.repository.js";
 export * from "./invitation.repository.js";
-export * from "./job.repository.js";
 export * from "./job-event.repository.js";
 export * from "./job-purchase.repository.js";
 export * from "./link.repository.js";

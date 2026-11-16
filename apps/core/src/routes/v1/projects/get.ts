@@ -27,6 +27,7 @@ import {
   mapProjectForApi,
   projectListItemSchema,
 } from "@/schemas/project.schema";
+import { cmoProjectIds } from "@/services/cmo-cuso.service";
 import {
   createProjectListCountsInclude,
   resolveProjectReaderAccess,
@@ -135,7 +136,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }),
     );
     const page = ranked.slice(0, take);
-    const [rows, count, stars] = await Promise.all([
+    const [rows, count, stars, cmoIds] = await Promise.all([
       prisma.project.findMany({
         where: { workspaceId, id: { in: page.map((row) => row.id) } },
         include: projectListCountsInclude,
@@ -160,6 +161,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             select: { projectId: true, starredAt: true },
           })
         : Promise.resolve([]),
+      cmoProjectIds(page.map((row) => row.id)),
     ]);
     const byId = new Map(rows.map((row) => [row.id, row]));
     const starredAtByProjectId = new Map(
@@ -172,7 +174,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const { _count, ...project } = row;
       return [
         {
-          ...mapProjectForApi(project),
+          ...mapProjectForApi(project, { cmo: cmoIds.has(id) }),
           taskCount: _count.tasks,
           jobCount: _count.jobs,
           lastActivityAt,

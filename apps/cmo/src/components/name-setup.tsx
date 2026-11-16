@@ -23,8 +23,8 @@ const INITIAL_STATE: NameFormState = {
 };
 
 /**
- * The workspace gate's name step (ADR 0051), before the workspace choice,
- * for a person whose sign-up gave no valid first and last name.
+ * Hiring Cuso's name step (ADR 0051), before the hire form (ADR 0065), for
+ * a person whose sign-up gave no valid first and last name.
  */
 export function NameSetup({ saveName, signOut }: NameSetupProps) {
   const [state, formAction] = useActionState(saveName, INITIAL_STATE);

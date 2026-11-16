@@ -25,6 +25,7 @@ export const CALENDAR_TYPES = [
   "newsletter",
   "contacts",
   "marketing",
+  "sokoBot",
 ] as const;
 export type CalendarType = (typeof CALENDAR_TYPES)[number];
 
@@ -390,11 +391,48 @@ export const marketingPieceCalendarItemSchema = z
   })
   .openapi("MarketingPieceCalendarItem");
 
+export const sokoBotRunCalendarItemSchema = z
+  .object({
+    kind: z.literal("sokoBotRun"),
+    id: z.string(),
+    scheduledAt: dateTimeSchema,
+    scheduleId: z.uuid().openapi({
+      description: "The Soko Bot schedule that runs, or ran, at this time",
+    }),
+    name: z.string(),
+    sokoBotId: z.uuid(),
+    botName: z.string().nullable(),
+    shared: z.boolean().openapi({
+      description:
+        "A Project or workspace bot every member sees; false for the caller's own personal bot",
+    }),
+    projectName: z.string().nullable(),
+    runState: z.enum(["upcoming", "running", "done", "failed"]).openapi({
+      description:
+        "upcoming: still to come. running, done, failed: a run that started, from the bot's run history",
+    }),
+    originalAt: dateTimeSchema.openapi({
+      description:
+        "The cron time this run belongs to; differs from scheduledAt once moved",
+    }),
+    canChange: z.boolean().openapi({
+      description:
+        "A run still to come, in the next 90 days, that the caller may move, skip or restore with the schedule's `run`",
+    }),
+    sourceId: z.string(),
+    sourceProjectId: z.uuid().nullable(),
+    sourceWorkspaceId: z.uuid(),
+    sourceType: z.enum(["WORKSPACE", "PROJECT"]),
+  })
+  .openapi("SokoBotRunCalendarItem");
+
 // Keep dates outside the union so the generated client transforms every entry type.
 export const workspaceCalendarEntrySchema = z
   .object({
     scheduledAt: dateTimeSchema,
     originalScheduledAt: dateTimeSchema.nullable().optional(),
+    // Soko Bot runs' `originalAt`, repeated here so the client revives it.
+    originalAt: dateTimeSchema.optional(),
   })
   .and(
     z.union([
@@ -403,6 +441,7 @@ export const workspaceCalendarEntrySchema = z
       newsletterIssueCalendarItemSchema,
       contactFollowUpCalendarItemSchema,
       marketingPieceCalendarItemSchema,
+      sokoBotRunCalendarItemSchema,
     ]),
   )
   .openapi("WorkspaceCalendarEntry");

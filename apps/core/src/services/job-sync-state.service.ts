@@ -1,11 +1,14 @@
 import * as Sentry from "@sentry/node";
 import { AgentJobStatus } from "@sokosumi/database";
+import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import {
   jobEventRepository,
   jobPurchaseRepository,
-  jobRepository,
 } from "@sokosumi/database/repositories";
-import type { JobWithSokosumiStatus } from "@sokosumi/database/types/job";
+import {
+  type JobWithSokosumiStatus,
+  jobInclude,
+} from "@sokosumi/database/types/job";
 import type { JobFailureNotificationEmailProps } from "@sokosumi/email";
 import type { PostPurchaseResponses } from "@sokosumi/masumi/clients";
 import type { JobStatusResponseSchemaType } from "@sokosumi/masumi/schemas";
@@ -253,10 +256,14 @@ export async function applyPurchaseState(
         tx,
       );
 
-      const refreshedJob = await jobRepository.getJobById(job.id, tx);
-      if (!refreshedJob) {
+      const refreshedJobRow = await tx.job.findUnique({
+        where: { id: job.id },
+        include: jobInclude,
+      });
+      if (!refreshedJobRow) {
         throw new Error("Job not found");
       }
+      const refreshedJob = mapJobWithStatus(refreshedJobRow);
 
       return {
         job: refreshedJob,
@@ -308,11 +315,14 @@ export async function applyAgentState(
           tx,
         );
 
-        const refreshedJob = await jobRepository.getJobById(initialJob.id, tx);
-        if (!refreshedJob) {
+        const refreshedJobRow = await tx.job.findUnique({
+          where: { id: initialJob.id },
+          include: jobInclude,
+        });
+        if (!refreshedJobRow) {
           throw new Error("Job not found");
         }
-        currentJob = refreshedJob;
+        currentJob = mapJobWithStatus(refreshedJobRow);
 
         const outputResult = agentJobStatus.result;
         if (typeof outputResult === "string") {

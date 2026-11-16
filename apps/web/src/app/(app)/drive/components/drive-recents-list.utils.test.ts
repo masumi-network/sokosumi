@@ -13,6 +13,7 @@ function driveFile(activityAt: string, pathname: string): DriveRecentsItem {
     resourceId: null,
     category: null,
     tags: [],
+    dataRoom: false,
   };
 }
 

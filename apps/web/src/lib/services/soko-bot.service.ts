@@ -21,6 +21,7 @@ import type {
   SokoBotLabVerdict,
   SokoBotSkillBrowse,
   SokoBotSkillSearchResult,
+  SokoBotState,
   SokoBotTeam,
   SokoBotTurn,
   SokoBotUsage,
@@ -53,6 +54,21 @@ export const sokoBotService = {
   async getMine(botId?: string): Promise<SokoBot | null> {
     const response = await coreClient.getMySokoBot(botId);
     return (response.data.sokoBot as SokoBot | null) ?? null;
+  },
+
+  /**
+   * Your bot and, while it is in error, where its last failure happened
+   * (`lastFailure`, the failed reply in a room you belong to, or nulls).
+   */
+  async getMineWithLastFailure(): Promise<{
+    sokoBot: SokoBot | null;
+    lastFailure: SokoBotState["lastFailure"] | null;
+  }> {
+    const response = await coreClient.getMySokoBot();
+    return {
+      sokoBot: (response.data.sokoBot as SokoBot | null) ?? null,
+      lastFailure: response.data.lastFailure ?? null,
+    };
   },
 
   /**
@@ -118,10 +134,12 @@ export const sokoBotService = {
   async topUpAvatars(
     take: number,
     excludeIds: string[],
+    fresh = false,
   ): Promise<SokoBotAvatar[]> {
     const response = await coreClient.topUpSokoBotAvatars({
       take,
       excludeIds,
+      fresh,
     });
     return response.data;
   },

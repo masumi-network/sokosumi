@@ -32,6 +32,7 @@ import {
 } from "@/lib/blob-upload-grant";
 import { attachUploadToLogger } from "@/lib/evlog";
 import type { BlobFile } from "@/schemas/blob-file.schema";
+import type { TaskFileWorkerBinding } from "@/schemas/task-worker-context.schema";
 import type { UserFileUploadSession } from "@/schemas/user-file-upload.schema";
 
 type ListBlobItem = Awaited<ReturnType<typeof list>>["blobs"][number];
@@ -86,7 +87,8 @@ export async function createUserFileUploadSession(
     grantInput.allowedContentTypes = file.allowedContentTypes;
   }
 
-  return createBlobUploadGrant(grantInput);
+  const grant = await createBlobUploadGrant(grantInput);
+  return { ...grant, access: USER_UPLOAD_ACCESS };
 }
 
 /**
@@ -160,6 +162,7 @@ export async function createTaskFileUploadSession(
     uploadedByCoworkerId: string | null;
     uploadedBySokoBotId: string | null;
     callbackUrl: string;
+    contextBinding?: TaskFileWorkerBinding;
   },
 ): Promise<BlobUploadGrant> {
   const pathname = buildTaskFilePathname(taskId, file.filename);
@@ -173,6 +176,9 @@ export async function createTaskFileUploadSession(
     uploadedByUserId: options.uploadedByUserId,
     uploadedByCoworkerId: options.uploadedByCoworkerId,
     uploadedBySokoBotId: options.uploadedBySokoBotId,
+    ...(options.contextBinding
+      ? { contextBinding: options.contextBinding }
+      : {}),
   });
 
   return createBlobUploadGrant({

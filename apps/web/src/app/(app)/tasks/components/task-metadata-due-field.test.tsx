@@ -71,7 +71,7 @@ describe("TaskMetadataDueField", () => {
       dueOn: "2026-11-20",
     });
     expect(await screen.findByText("Due Nov 20")).toBeInTheDocument();
-    expect(refreshMock).toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("clears a due date", async () => {

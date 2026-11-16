@@ -47,6 +47,7 @@ import {
   ComposerWysiwygEditor,
   type ComposerWysiwygEditorHandle,
 } from "@/components/chat/composer-wysiwyg-editor";
+import { DictationButton } from "@/components/chat/dictation-button";
 import {
   ROOM_COMPOSER_TEXTAREA_CLASSNAME,
   ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
@@ -66,6 +67,7 @@ import {
   type MentionRecordEntry,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea-utils";
+import { transcribeVoiceRecording } from "@/lib/services/voice-transcription.browser";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import {
@@ -106,6 +108,8 @@ export interface RoomComposerHandle {
 
 /** Edits made in the editor itself, so a focused editor shows them. */
 export interface RoomComposerEditHandle extends RoomComposerHandle {
+  /** Focus with the caret after the text, to keep typing on from it. */
+  focusAtEnd: () => void;
   insertText: (text: string) => void;
   /** Remove the last occurrence of `text`; false when it is not in the editor. */
   removeLastText: (text: string) => boolean;
@@ -360,6 +364,8 @@ export function RoomComposer({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isUploadingFilesRef = useRef(false);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkInitialText, setLinkInitialText] = useState("");
   const [linkInitialUrl, setLinkInitialUrl] = useState("");
@@ -537,6 +543,24 @@ export function RoomComposer({
     [allowAttachments, onAttachmentsChange, roomId, tToolbar],
   );
 
+  async function dictate(file: File) {
+    setIsTranscribing(true);
+    try {
+      const text = await transcribeVoiceRecording(file);
+      if (!text) {
+        toast(tToolbar("dictationEmpty"));
+        return;
+      }
+      const joiner = value.length === 0 || /\s$/.test(value) ? "" : " ";
+      editorRef.current?.insertText(`${joiner}${text}`);
+      editorRef.current?.focus();
+    } catch {
+      toast.error(tToolbar("dictationFailed"));
+    } finally {
+      setIsTranscribing(false);
+    }
+  }
+
   async function handleAttachOverflowAsMarkdown() {
     if (!allowAttachments || !contentOverLimit) {
       return;
@@ -557,6 +581,9 @@ export function RoomComposer({
       },
       focus: () => {
         editorRef.current?.focus();
+      },
+      focusAtEnd: () => {
+        editorRef.current?.focusAtEnd();
       },
       insertText: (text) => {
         editorRef.current?.insertText(text);
@@ -634,22 +661,41 @@ export function RoomComposer({
           t("Toolbar.removeAttachment", { name })
         }
         isSending={isSending}
-        sendDisabled={isUploadingFiles || sendDisabled || contentOverLimit}
+        sendDisabled={
+          isUploadingFiles ||
+          isRecordingVoice ||
+          isTranscribing ||
+          sendDisabled ||
+          contentOverLimit
+        }
         toolbarEnd={
-          showContentCount ? (
-            <span
-              className={cn(
-                "text-xs tabular-nums",
-                contentOverLimit ? "text-destructive" : "text-muted-foreground",
-              )}
-              aria-live="polite"
-            >
-              {t("composerCharacterCount", {
-                count: composedContent.length,
-                max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
-              })}
-            </span>
-          ) : undefined
+          <>
+            {showContentCount ? (
+              <span
+                className={cn(
+                  "text-xs tabular-nums",
+                  contentOverLimit
+                    ? "text-destructive"
+                    : "text-muted-foreground",
+                )}
+                aria-live="polite"
+              >
+                {t("composerCharacterCount", {
+                  count: composedContent.length,
+                  max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+                })}
+              </span>
+            ) : null}
+            <DictationButton
+              buttonClassName={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+              disabled={isTranscribing}
+              loading={isTranscribing}
+              onRecordingChange={setIsRecordingVoice}
+              onRecorded={(file) => {
+                void dictate(file);
+              }}
+            />
+          </>
         }
         belowEditor={
           contentOverLimit ? (
@@ -842,7 +888,11 @@ export function RoomComposer({
           mentionDisplayBySlug={mentionDisplay.bySlug}
           channels={channels}
           placeholder={placeholder}
-          onSubmitShortcut={() => formRef.current?.requestSubmit()}
+          onSubmitShortcut={() => {
+            // Enter while the mic is open would send without the recording.
+            if (!isRecordingVoice && !isTranscribing)
+              formRef.current?.requestSubmit();
+          }}
           onLinkShortcut={openLinkDialog}
           onActiveFormatsChange={
             formatToolbarOpen ? handleActiveFormatsChange : undefined

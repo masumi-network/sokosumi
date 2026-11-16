@@ -81,7 +81,7 @@ export const CHAT_MOBILE_HEIGHT_SHELL_CLASS =
 /**
  * Full shell height when the mobile tab bar is hidden (room).
  * Matches desktop/`md` height — no tab-bar spacer below.
- * Same below-header calc as `APP_SHELL_BELOW_HEADER_HEIGHT_CLASS`.
+ * Same below-header calc as `APP_SHELL_BELOW_HEADER_MIN_HEIGHT_CLASS`.
  */
 export const CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS =
   "h-[calc(100dvh-4rem-env(safe-area-inset-top))]" as const;

@@ -22,6 +22,7 @@ vi.mock("@/app/chat/components/chat-participant-hover-card", () => ({
 }));
 
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
+import { publishFailedSokoBotId } from "./personal-assistant-chrome-store";
 
 function makeUser(id: string, name?: string) {
   return {
@@ -170,6 +171,32 @@ describe("DirectRoomAvatarStack", () => {
     // where that state is observable.
     const face = screen.getByTestId("dm-sidebar-avatar-bot-1");
     expect(face.querySelector("[title]")?.getAttribute("title")).toBe("Online");
+  });
+
+  it("says your bot couldn't reply instead of Online after a failed reply", () => {
+    publishFailedSokoBotId("bot-1");
+    try {
+      render(
+        <DirectRoomAvatarStack
+          room={makeDirectRoom({
+            userMembers: [makeUser("me", "Me")],
+            sokoBotMembers: [makeSokoBot("bot-1", "Zero")],
+          })}
+          currentUserId="me"
+        />,
+      );
+
+      // The words the sidebar row and the bot's page use for ERROR.
+      const face = screen.getByTestId("dm-sidebar-avatar-bot-1");
+      expect(screen.getByTestId("dm-sidebar-bot-failed")).toHaveAttribute(
+        "title",
+        "ERROR",
+      );
+      expect(face).toHaveTextContent("ERROR");
+      expect(face).not.toHaveTextContent("Online");
+    } finally {
+      publishFailedSokoBotId(null);
+    }
   });
 
   it("draws every face at 20px", () => {

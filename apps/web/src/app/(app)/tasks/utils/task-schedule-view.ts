@@ -61,3 +61,26 @@ export function formatTaskScheduleRule(
     t,
   );
 }
+
+/** "Zurich" for Europe/Zurich: the place a schedule's clock is named after. */
+export function taskScheduleZoneName(timeZone: string): string {
+  const place =
+    timeZone.includes("/") && !timeZone.startsWith("Etc/")
+      ? timeZone.split("/").at(-1)
+      : timeZone;
+  return (place || "UTC").replaceAll("_", " ");
+}
+
+/**
+ * A run time on the schedule's own clock, plus the viewer's clock only when
+ * it reads differently.
+ */
+export function formatTaskScheduleTime(
+  date: Date,
+  timeZone: string,
+  formatter: DateTimeFormatter,
+): { schedule: string; local: string | null } {
+  const schedule = formatter.dateTime(date, "dateTimeMedium", { timeZone });
+  const local = formatter.dateTime(date, "dateTimeMedium");
+  return { schedule, local: local === schedule ? null : local };
+}

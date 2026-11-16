@@ -4,10 +4,9 @@ import {
   buildUserDriveFolderPrefix,
   normalizeDriveFolderPath,
 } from "@sokosumi/utils";
-import { BlobNotFoundError, head, list, rename } from "@vercel/blob";
+import { BlobNotFoundError } from "@vercel/blob";
 import pLimit from "p-limit";
 
-import { getEnv } from "@/config/env";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import { parseCacheControlMaxAge } from "@/helpers/drive-file-move";
@@ -17,16 +16,27 @@ import {
   badRequest,
   conflict,
   notFound,
-  serviceUnavailable,
   unprocessableEntity,
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import {
+  driveExists,
+  driveHasAny,
+  driveHead,
+  driveList,
+  driveRename,
+} from "@/lib/drive-blob";
+import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { renameDriveFolderRequestSchema } from "@/schemas/drive-file.schema";
+import { requireNotCmoDriveFile } from "@/services/cmo-cuso.service";
+import {
+  assertDataRoomMoveAllowed,
+  rebaseDataRooms,
+} from "@/services/data-room-paths.service";
 import { rebaseDriveFolderShares } from "@/services/drive-share.service";
 import { reconcileDriveUploadMoves } from "@/services/file-catalog.service";
 
@@ -78,12 +88,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = await requireAuthorizedUserContext(authContext);
     const body = c.req.valid("json");
 
-    const env = getEnv();
-    const token = env.BLOB_READ_WRITE_TOKEN;
-    if (!token) {
-      throw serviceUnavailable("Blob storage is not configured");
-    }
-
     const oldFolderPath = normalizeDriveFolderPath(body.oldFolderPath);
     const newFolderPath = normalizeDriveFolderPath(body.newFolderPath);
 
@@ -110,40 +114,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
       ownerId = body.organizationId;
       scope = "organization";
-      await requireDriveFileAccess(authContext, scope, ownerId);
+      await requireDriveFileAccess(authContext, scope, ownerId, {
+        changes: [oldFolderPath],
+        into: [newFolderPath],
+      });
       oldPrefix = buildOrganizationDriveFolderPrefix(ownerId, oldFolderPath);
       newPrefix = buildOrganizationDriveFolderPrefix(ownerId, newFolderPath);
     } else {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
 
-    const sourceCheck = await list({
-      prefix: oldPrefix,
-      token,
-      limit: 1,
-    });
-
-    if (sourceCheck.blobs.length === 0) {
+    if (!(await driveHasAny(oldPrefix))) {
       throw notFound("Source folder not found");
     }
 
-    const targetCheck = await list({
-      prefix: newPrefix,
-      token,
-      limit: 1,
-    });
-
-    if (targetCheck.blobs.length > 0) {
+    if (await driveHasAny(newPrefix)) {
       throw conflict("Target folder already exists");
     }
 
-    try {
-      await head(newPrefix.slice(0, -1), { token });
+    if (await driveExists(newPrefix.slice(0, -1))) {
       throw conflict("A file with that name already exists");
-    } catch (error) {
-      if (!(error instanceof BlobNotFoundError)) {
-        throw error;
-      }
     }
 
     if (
@@ -153,14 +143,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Cannot rename a folder into its own descendant");
     }
 
+    await assertDataRoomMoveAllowed({
+      scope,
+      ownerId,
+      fromFolderPath: oldFolderPath,
+      toFolderPath: newFolderPath,
+    });
+
     // Collect all pathnames under old prefix (capped at MAX+1 for detection)
     const allPathnames: string[] = [];
     let cursor: string | undefined;
 
     do {
-      const result = await list({
+      const result = await driveList({
         prefix: oldPrefix,
-        token,
         cursor,
         limit: 1000,
       });
@@ -192,6 +188,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       scope: body.scope,
       organizationId: body.scope === "org" ? body.organizationId : undefined,
     });
+    if (scope === "organization") {
+      await requireNotCmoDriveFile(workspace.workspaceId, {
+        startsWith: oldPrefix,
+      });
+    }
+
+    // Before the objects: a room on this folder must already name the new
+    // path, so what moves into it is written to the private store.
+    await rebaseDataRooms({
+      scope,
+      ownerId,
+      fromFolderPath: oldFolderPath,
+      toFolderPath: newFolderPath,
+    });
 
     // Bounded-concurrency head + rename (10 concurrent operations)
     const limit = pLimit(10);
@@ -209,38 +219,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // moved: on a retry of a half-completed rename these are exactly
         // the files that moved on the first attempt, and skipping them
         // without recording the pair is what left them never reconciled.
-        try {
-          const targetCheck = await head(newPathname, { token });
-          if (targetCheck) {
-            moved.push({
-              fromPathname: sourcePathname,
-              toPathname: newPathname,
-            });
-            return;
-          }
-        } catch (error) {
-          if (!(error instanceof BlobNotFoundError)) {
-            throw error;
-          }
+        if (await driveExists(newPathname)) {
+          moved.push({
+            fromPathname: sourcePathname,
+            toPathname: newPathname,
+          });
+          return;
         }
 
-        let sourceMetadata;
-        try {
-          sourceMetadata = await head(sourcePathname, { token });
-        } catch (error) {
-          if (error instanceof BlobNotFoundError) {
-            // Source already moved or deleted, skip (retry-safe)
-            return;
-          }
-          throw error;
-        }
+        const sourceMetadata = await driveHead(sourcePathname);
+        // Source already moved or deleted, skip (retry-safe)
+        if (!sourceMetadata) return;
 
         const maxAge = parseCacheControlMaxAge(sourceMetadata.cacheControl);
         try {
-          await rename(sourcePathname, newPathname, {
-            token,
-            access: "public",
-            addRandomSuffix: false,
+          await driveRename(sourcePathname, newPathname, {
             contentType: sourceMetadata.contentType,
             cacheControlMaxAge: maxAge,
           });

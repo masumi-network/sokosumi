@@ -3,7 +3,7 @@
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import { Download, ExternalLink, FileText, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,8 @@ import {
 } from "@/lib/utils/file-preview";
 
 interface DocumentViewerProps {
+  /** Shown above the document, such as where a file comes from. */
+  banner?: ReactNode;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   url: string;
@@ -243,7 +245,9 @@ function DocumentViewerContent({
   fileName,
   kind,
   mediaType,
+  banner,
 }: {
+  banner?: ReactNode;
   url: string;
   fileName: string;
   kind: DocumentPreviewKind;
@@ -312,6 +316,7 @@ function DocumentViewerContent({
         </div>
       </div>
       <DialogDescription className="sr-only">{t("title")}</DialogDescription>
+      {banner ? <div className="px-4 pt-3">{banner}</div> : null}
       <div className="h-[70dvh] min-h-0">
         <DocumentViewerBody
           key={url}
@@ -338,6 +343,7 @@ export function DocumentViewer({
   kind,
   mediaType,
   className,
+  banner,
 }: DocumentViewerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -355,6 +361,7 @@ export function DocumentViewer({
           fileName={fileName}
           kind={kind}
           mediaType={mediaType}
+          banner={banner}
         />
       </DialogContent>
     </Dialog>

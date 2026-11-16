@@ -8,9 +8,6 @@ import {
   normalizeDriveFolderPath,
   resolveUserUploadContentType,
 } from "@sokosumi/utils";
-import { BlobNotFoundError, head, list } from "@vercel/blob";
-
-import { getEnv } from "@/config/env";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import {
   requireOrganizationDriveFileUploadAccess,
@@ -21,12 +18,12 @@ import {
   badRequest,
   conflict,
   payloadTooLarge,
-  serviceUnavailable,
   unprocessableEntity,
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { createBlobUploadGrant } from "@/lib/blob-upload-grant";
+import { driveExists, driveHasAny, driveWriteStore } from "@/lib/drive-blob";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -87,12 +84,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const userContext = await requireAuthorizedUserContext(authContext);
 
-    const env = getEnv();
-    const token = env.BLOB_READ_WRITE_TOKEN;
-    if (!token) {
-      throw serviceUnavailable("Blob storage is not configured");
-    }
-
     const body = c.req.valid("json");
 
     if (body.size > FILE_UPLOAD_MAX_SIZE_BYTES) {
@@ -135,7 +126,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw unprocessableEntity("organizationId is required when scope=org");
       }
       const ownerId = body.organizationId;
-      await requireOrganizationDriveFileUploadAccess(authContext, ownerId);
+      await requireOrganizationDriveFileUploadAccess(authContext, ownerId, {
+        into: [folderPath],
+      });
       pathname = buildOrganizationDriveFilePathnameWithFolder(
         ownerId,
         folderPath,
@@ -145,41 +138,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
 
-    try {
-      await head(pathname, { token });
+    if (await driveExists(pathname)) {
       throw conflict("Target pathname already exists");
-    } catch (error) {
-      if (error instanceof BlobNotFoundError) {
-      } else if (
-        error &&
-        typeof error === "object" &&
-        "kind" in error &&
-        error.kind === "conflict"
-      ) {
-        throw error;
-      } else {
-        throw error;
-      }
     }
-
-    const folderPrefix = `${pathname}/`;
-    const folderCheck = await list({
-      prefix: folderPrefix,
-      token,
-      limit: 1,
-    });
-    if (folderCheck.blobs.length > 0) {
+    if (await driveHasAny(`${pathname}/`)) {
       throw conflict("A folder with that name already exists");
     }
 
+    const store = await driveWriteStore(pathname);
     const grant = await createBlobUploadGrant({
       pathname,
-      access: "public",
+      access: store.access,
       contentType: resolvedContentType,
       maximumSizeInBytes: body.size,
       maxSizeBytes: FILE_UPLOAD_MAX_SIZE_BYTES,
       addRandomSuffix: false,
-      token,
+      token: store.token,
     });
 
     // Reserve the document's identity before any bytes exist, so the

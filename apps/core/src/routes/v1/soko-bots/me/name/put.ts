@@ -50,6 +50,10 @@ const renameByIdRoute = createRoute({
   path: "/{sokoBotId}/name",
   operationId: "renameSokoBot",
   request: { body, params: sokoBotIdParams },
+  responses: {
+    ...spec.responses,
+    409: jsonErrorResponse("CMO project is read-only"),
+  },
 });
 
 /**

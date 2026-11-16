@@ -7,10 +7,12 @@ import {
   Download,
   Edit3,
   Folder,
+  FolderOpen,
   Link2,
   MoreHorizontal,
   Table2,
   Trash2,
+  Upload,
 } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
@@ -26,6 +28,7 @@ import { toast } from "sonner";
 import {
   DriveFilePreview,
   DriveItemCard,
+  driveFileUrl,
   driveItemActivation,
   forcedDownloadUrl,
 } from "@/app/drive/components/drive-item-card";
@@ -86,6 +89,10 @@ interface DriveRecentsPanelProps {
   onRenameFile: (item: DriveItem, newName: string) => Promise<void>;
   onOpenCopyDialog: (item: DriveRecentsItem & { kind: "task-output" }) => void;
   onItemsChanged: () => void;
+  /** Opens the file picker; the upload lands in the workspace root. */
+  onUpload: () => void;
+  uploading: boolean;
+  onOpenWorkspace: () => void;
 }
 
 function toDriveFileItem(
@@ -98,6 +105,7 @@ function toDriveFileItem(
     pathname: item.pathname,
     size: item.size,
     uploadedAt: item.activityAt,
+    dataRoom: item.dataRoom,
   };
 }
 
@@ -127,6 +135,9 @@ export function DriveRecentsPanel({
   onRenameFile,
   onOpenCopyDialog,
   onItemsChanged,
+  onUpload,
+  uploading,
+  onOpenWorkspace,
 }: DriveRecentsPanelProps): ReactElement {
   const t = useTranslations("App.Drive");
   const formatter = useFormatter();
@@ -315,6 +326,32 @@ export function DriveRecentsPanel({
               ? t("noMatchDescription")
               : t("recentsEmptyDescription")}
           </p>
+          {/* A first visit has nothing here yet, and Upload lives on
+              Workspace, so the empty state offers both next steps. */}
+          {!isFiltered && (
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1.5"
+                disabled={uploading}
+                onClick={onUpload}
+              >
+                <Upload className="size-4" aria-hidden />
+                {t("uploadButton")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={onOpenWorkspace}
+              >
+                <FolderOpen className="size-4" aria-hidden />
+                {t("recentsEmptyOpenWorkspace")}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -360,7 +397,7 @@ export function DriveRecentsPanel({
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           onSelect={() => {
-                            handleDownload(item.fileUrl, item.name);
+                            handleDownload(driveFileUrl(item), item.name);
                           }}
                         >
                           <Download className="size-4" aria-hidden />
@@ -420,7 +457,7 @@ export function DriveRecentsPanel({
                     <li key={item.pathname}>
                       <DriveFilePreview
                         name={item.name}
-                        fileUrl={item.fileUrl}
+                        fileUrl={driveFileUrl(item)}
                         sizeBytes={item.size}
                         detailsHref={
                           item.resourceId

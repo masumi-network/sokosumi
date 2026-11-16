@@ -22,6 +22,10 @@ vi.mock("@vercel/blob", () => ({
   head: vi.fn(),
 }));
 
+vi.mock("@/lib/db/prisma", () => ({
+  default: { dataRoom: { findMany: vi.fn(async () => []) } },
+}));
+
 vi.mock("@/helpers/drive-file-access", () => ({
   requireDriveFileAccess: vi.fn().mockResolvedValue(undefined),
 }));

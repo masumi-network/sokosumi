@@ -194,7 +194,6 @@ function AgentCarousel({
           <CarouselContent className="pt-2">{children}</CarouselContent>
         </Carousel>
       </div>
-      {/* Dots Indicator - Mobile Only */}
       {itemCount > 1 && (
         <div className="mt-4 flex justify-center gap-2 md:hidden">
           {Array.from({ length: itemCount }).map((_, index) => {

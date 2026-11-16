@@ -213,6 +213,49 @@ describe("header project scope", () => {
     );
   });
 
+  it("leads its menu with All projects, back to the Projects list from a project page", async () => {
+    const user = userEvent.setup();
+    mocks.pathname = "/projects/p-1/design-md";
+    mocks.loadPinned.mockResolvedValue([
+      { id: "p-1", name: "Acme", logo: null, closedAt: null },
+    ]);
+    renderScope();
+
+    await user.click(trigger());
+    const all = await screen.findByTestId("project-scope-all");
+    await screen.findByTestId("project-scope-item-p-1");
+    expect(screen.getAllByRole("option")[0]).toBe(all);
+    await user.click(all);
+
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/projects");
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "switchLabel" }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
+  it("reads Projects › project on a project's own pages", async () => {
+    mocks.pathname = "/projects/p-1/memory";
+    renderScope();
+
+    const projects = screen.getByTestId("project-scope-header-projects");
+    expect(projects).toHaveAttribute("href", "/projects");
+    expect(projects).toHaveTextContent("all");
+    await waitFor(() => expect(trigger()).toHaveAccessibleName("label: Acme"));
+  });
+
+  it.each([
+    ["/tasks", "projectId=p-1"],
+    ["/projects", ""],
+  ])("shows no Projects step on %s", (pathname, search) => {
+    mocks.pathname = pathname;
+    mocks.search = search;
+    renderScope();
+
+    expect(screen.queryByTestId("project-scope-header-projects")).toBeNull();
+  });
+
   describe("when a page asks for a project", () => {
     beforeEach(() => {
       mocks.loadPinned.mockResolvedValue([
@@ -229,6 +272,8 @@ describe("header project scope", () => {
 
       const menu = await screen.findByRole("dialog", { name: "switchLabel" });
       expect(menu).toHaveAttribute("data-required", "true");
+      // The page needs one project: leaving for All projects is no answer.
+      expect(screen.queryByTestId("project-scope-all")).toBeNull();
       expect(menu).toHaveAccessibleDescription("Ads need a project");
       expect(screen.getByTestId("project-scope-backdrop")).toHaveClass(
         "bg-scrim",
@@ -272,15 +317,17 @@ describe("header project scope", () => {
     it("answers the page's own choice instead of switching scope", async () => {
       const user = userEvent.setup();
       const onSelect = vi.fn();
+      const onCreated = vi.fn();
       const onDismiss = vi.fn();
       renderScope();
       act(() => {
-        openProjectScope({ required: true, onSelect, onDismiss });
+        openProjectScope({ required: true, onSelect, onCreated, onDismiss });
       });
 
       await user.click(await screen.findByTestId("project-scope-item-p-2"));
 
       expect(onSelect).toHaveBeenCalledExactlyOnceWith("p-2");
+      expect(onCreated).not.toHaveBeenCalled();
       expect(onDismiss).not.toHaveBeenCalled();
       expect(mocks.push).not.toHaveBeenCalled();
       expect(screen.queryByTestId("project-scope-backdrop")).toBeNull();
@@ -289,19 +336,25 @@ describe("header project scope", () => {
     it("hands the page's choice to Create project", async () => {
       const user = userEvent.setup();
       const onSelect = vi.fn();
+      const onCreated = vi.fn();
       const onDismiss = vi.fn();
       const switchScope = vi.fn();
       renderScope();
       act(() => {
-        openProjectScope({ required: true, onSelect, onDismiss });
+        openProjectScope({ required: true, onSelect, onCreated, onDismiss });
       });
 
       await user.click(await screen.findByTestId("project-scope-create"));
       expect(onDismiss).not.toHaveBeenCalled();
-      selectCreatedProject("p-new", switchScope);
+      selectCreatedProject("p-new", switchScope, "https://shop.example/");
       act(() => setScopeCreateOpen(false));
 
       expect(onSelect).toHaveBeenCalledExactlyOnceWith("p-new");
+      expect(onCreated).toHaveBeenCalledExactlyOnceWith(
+        "p-new",
+        "https://shop.example/",
+      );
+      expect(onCreated).toHaveBeenCalledBefore(onSelect);
       expect(switchScope).not.toHaveBeenCalled();
       expect(onDismiss).not.toHaveBeenCalled();
     });

@@ -31,6 +31,18 @@ export const chatSignalsService = {
     };
   },
 
+  /** Decisions across every room the reader's sidebar lists, read or not. */
+  async listAllDecisions(options?: {
+    cursor?: string;
+    limit?: number;
+  }): Promise<{ messages: ChatRoomMessage[]; nextCursor: string | null }> {
+    const response = await coreClient.getChatDecisions(options);
+    return {
+      messages: response.data,
+      nextCursor: response.meta?.pagination?.nextCursor ?? null,
+    };
+  },
+
   async correctTag(
     messageId: string,
     tag: ChatSignalTag,

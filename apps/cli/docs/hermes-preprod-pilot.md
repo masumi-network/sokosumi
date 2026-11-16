@@ -6,7 +6,7 @@
 
 [CORRECTION, OPEN: documentation review, 2026-09-30] The Seat result above is historical. Current capacity and eligibility have not been rechecked. Recheck the selected Workspace before running this pilot.
 
-[VERIFIED: merged source `c2271e441`, 2026-09-30] [#5342](https://github.com/masumi-network/sokosumi/pull/5342) adds `runtime receipt` and the Core receipt route. [VERIFIED: `apps/cli/src/coworker/runtime-task.ts:195-203`] Hermes completion still posts only status and result text. [OPEN] Paid execution and live end-to-end seller proof remain pending. The [three payment drafts](developer-cli-implementation-plan.md#payment-delivery-status-2026-09-30) contain plans only.
+[VERIFIED: merged source `c2271e441`, 2026-09-30] [#5342](https://github.com/masumi-network/sokosumi/pull/5342) adds `runtime receipt` and the Core receipt route. [VERIFIED: `completeVerifiedTask` in `apps/cli/src/coworker/runtime-task.ts`] Hermes completion still posts only status and result text. [OPEN] Paid execution and live end-to-end seller proof remain pending. The [three payment drafts](developer-cli-implementation-plan.md#payment-delivery-status-2026-09-30) contain plans only.
 
 [CORRECTION, REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller. Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote. Organization approval will require membership and applicable Seat eligibility in the original billing organization. Implementation and live seller proof remain pending.
 

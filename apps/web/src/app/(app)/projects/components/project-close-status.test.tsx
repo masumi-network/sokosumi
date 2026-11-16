@@ -157,7 +157,7 @@ describe("ProjectCloseStatusCard", () => {
         reason: "Reviewed the blocked schedule",
       }),
     );
-    expect(refreshMock).toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("offers canceling owed work only for a failed Task Schedule", async () => {

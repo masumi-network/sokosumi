@@ -67,7 +67,7 @@ describe("downloadSocialPostMedia", () => {
     ]);
     expect(ssrfSafeFetchMock).toHaveBeenCalledWith(
       IMAGE_REF.fileUrl,
-      expect.objectContaining({ maxResponseBytes: 5 * 1024 * 1024 }),
+      expect.objectContaining({ maxResponseBytes: 5_000_000 }),
     );
   });
 
@@ -115,7 +115,7 @@ describe("downloadSocialPostMedia", () => {
 
   it("fails permanently when the download exceeds the cap", async () => {
     ssrfSafeFetchMock.mockRejectedValue(
-      new SsrfError("Response body exceeds maxResponseBytes (5242880)"),
+      new SsrfError("Response body exceeds maxResponseBytes (5000000)"),
     );
 
     await expect(
@@ -128,7 +128,7 @@ describe("downloadSocialPostMedia", () => {
 
   it("fails permanently when the bytes exceed the cap despite the response headers", async () => {
     ssrfSafeFetchMock.mockResolvedValue(
-      mediaResponse(new Uint8Array(5 * 1024 * 1024 + 1), "image/png"),
+      mediaResponse(new Uint8Array(5_000_001), "image/png"),
     );
 
     await expect(

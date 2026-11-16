@@ -87,7 +87,7 @@ vi.mock("@/lib/services/user.service", () => ({
   },
 }));
 
-import TaskScheduleDetailPage from "./page";
+import TaskScheduleDetailPage, { generateMetadata } from "./page";
 
 const SCHEDULE = {
   id: "schedule-1",
@@ -193,5 +193,16 @@ describe("TaskScheduleDetailPage", () => {
     expect(
       screen.getByRole("link", { name: /Rule report/ }),
     ).not.toHaveTextContent("Detail.taskRunNow");
+  });
+
+  it.each([
+    { schedule: SCHEDULE, title: "Weekly report" },
+    { schedule: null, title: "title" },
+  ])("titles the tab $title", async ({ schedule, title }) => {
+    getScheduleMock.mockResolvedValue(schedule);
+
+    await expect(
+      generateMetadata({ params: Promise.resolve({ scheduleId: "s" }) }),
+    ).resolves.toEqual({ title });
   });
 });

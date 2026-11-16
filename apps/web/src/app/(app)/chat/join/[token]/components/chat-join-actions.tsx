@@ -45,7 +45,6 @@ export function ChatJoinActions({
       // Keep loading until navigation unmounts this page — clearing here
       // flashes an idle CTA between accept and redirect.
       router.push(`/chat/rooms/${encodeURIComponent(result.value.roomId)}`);
-      router.refresh();
     } catch (error) {
       console.error("Failed to join channel via invite link", error);
       toast.error(t("Error.joinFailed"));

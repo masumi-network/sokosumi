@@ -1,4 +1,17 @@
 export const SOCIAL_SYNC_FRESH_MS = 3_600_000;
+/**
+ * Providers that bill for every post a read returns (X's pay-per-use API).
+ * Their data counts as fresh for a day, so opening Results never pays for a
+ * read on its own, and their older history only goes on with that daily read.
+ */
+export const BILLED_PER_READ_PROVIDERS: ReadonlySet<string> = new Set(["x"]);
+const BILLED_PER_READ_FRESH_MS = 24 * 60 * 60 * 1000;
+
+export function socialSyncFreshMs(provider: string | undefined): number {
+  return provider && BILLED_PER_READ_PROVIDERS.has(provider)
+    ? BILLED_PER_READ_FRESH_MS
+    : SOCIAL_SYNC_FRESH_MS;
+}
 export const SOCIAL_SYNC_LEASE_MS = 300_000;
 
 export type SocialSyncStatus =
@@ -21,6 +34,7 @@ export interface SocialSyncReadModel {
 
 export interface SocialSyncStoredRow {
   status: string;
+  provider?: string;
   performanceHeadFetchedAt?: Date | null;
   performanceRefreshAttemptedAt?: Date | null;
   performanceRefreshRequestedAt?: Date | null;
@@ -75,7 +89,8 @@ export function socialSyncReadModel(
     attemptedAt !== null &&
     now.getTime() - attemptedAt.getTime() < SOCIAL_SYNC_LEASE_MS;
   const fresh =
-    headAt !== null && now.getTime() - headAt.getTime() < SOCIAL_SYNC_FRESH_MS;
+    headAt !== null &&
+    now.getTime() - headAt.getTime() < socialSyncFreshMs(row.provider);
   if (leaseOpen && (dirty || !fresh)) {
     return { ...base, status: "running", mayAutoRequest: false };
   }

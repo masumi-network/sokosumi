@@ -5,6 +5,7 @@ import {
 } from "@sokosumi/database";
 import {
   isDesignMdBlobUrl,
+  isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
   PROJECT_IDENTIFIER_ERROR,
   PROJECT_IDENTIFIER_PATTERN,
@@ -23,6 +24,7 @@ import {
   taskStatusSchema,
 } from "@/schemas/domain-enums.schema";
 import { historyItemSchema } from "@/schemas/history.schema";
+import { studioLogoPositionOrNullSchema } from "./studio-logo-position.schema";
 
 const PROJECT_MEMORY_UPDATING_WINDOW_MS = 5 * 60 * 1000;
 
@@ -204,6 +206,9 @@ export const projectSchema = z
       example:
         "https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/logos/logo.png",
     }),
+    studioLogoPosition: studioLogoPositionOrNullSchema.optional().openapi({
+      description: "Default project logo placement for Studio ad exports.",
+    }),
     designMd: z.union([projectDesignMdSchema, z.null()]).openapi({
       description: "Project-owned brand DESIGN.md, or null when none exists.",
       example: null,
@@ -231,6 +236,11 @@ export const projectSchema = z
     projectRevision: z.number().int().nonnegative().default(0).openapi({
       description: "Revision used for optimistic Project mutations",
       example: 0,
+    }),
+    cmo: z.boolean().openapi({
+      description:
+        "A CMO Project: it has a live Cuso, so it is read-only outside CMO (ADR 0066).",
+      example: false,
     }),
     scheduledSocialPostCount: z
       .number()
@@ -445,6 +455,7 @@ export const patchProjectRequestSchema = z
     }),
     websiteUrl: projectWebsiteUrlSchema.nullish().optional(),
     logo: projectLogoUrlSchema.nullish().optional(),
+    studioLogoPosition: studioLogoPositionOrNullSchema.optional(),
     identifier: projectIdentifierSchema.optional(),
     postingInstructionsMd: projectPostingInstructionsMdSchema
       .nullish()
@@ -462,12 +473,13 @@ export const patchProjectRequestSchema = z
       data.description === undefined &&
       data.websiteUrl === undefined &&
       data.logo === undefined &&
+      data.studioLogoPosition === undefined &&
       data.postingInstructionsMd === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "Provide at least one of name, identifier, briefing, description, websiteUrl, logo, or postingInstructionsMd",
+          "Provide at least one of name, identifier, briefing, description, websiteUrl, logo, studioLogoPosition, or postingInstructionsMd",
         path: [],
       });
     }
@@ -573,8 +585,11 @@ export function mapProjectContextMdForApi(
 
 export function mapProjectForApi(
   project: DatabaseProject,
-  now: Date = new Date(),
-  scheduledSocialPostCount = 0,
+  {
+    cmo,
+    now = new Date(),
+    scheduledSocialPostCount = 0,
+  }: { cmo: boolean; now?: Date; scheduledSocialPostCount?: number },
 ): Project {
   const env = getEnv();
   const updatingSinceMs = project.contextMdUpdatingSince?.getTime();
@@ -596,6 +611,12 @@ export function mapProjectForApi(
     briefingUrl: project.briefingUrl,
     websiteUrl: project.websiteUrl,
     logo: project.logo,
+    studioLogoPosition:
+      project.studioLogoPosition &&
+      project.logo &&
+      isOwnedProjectLogoUrl(project.logo, project.id)
+        ? project.studioLogoPosition
+        : undefined,
     designMd: project.designMdUrl
       ? {
           url: project.designMdUrl,
@@ -624,6 +645,7 @@ export function mapProjectForApi(
       updatingSinceMs !== undefined &&
       now.getTime() - updatingSinceMs < PROJECT_MEMORY_UPDATING_WINDOW_MS,
     projectRevision: project.projectRevision ?? 0,
+    cmo,
     scheduledSocialPostCount,
     closingAt: project.closingAt ?? null,
     closedAt: project.closedAt ?? null,

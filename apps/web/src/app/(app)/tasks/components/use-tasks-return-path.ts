@@ -12,13 +12,17 @@ import { getStoredTasksReturnPath } from "./task-navigation";
  * Re-reads on pathname change: the mobile header stays mounted across
  * `/tasks` → `/tasks/:id`, so a mount-only read would keep a stale `/tasks`.
  */
-export function useTasksReturnPath() {
+export function useTasksReturnPath({ allowCalendar = false } = {}) {
   const pathname = usePathname();
   const [returnPath, setReturnPath] = useState("/tasks");
 
   useEffect(() => {
-    setReturnPath(getStoredTasksReturnPath());
-  }, [pathname]);
+    setReturnPath(
+      getStoredTasksReturnPath({
+        taskPath: allowCalendar ? pathname : undefined,
+      }),
+    );
+  }, [pathname, allowCalendar]);
 
   return returnPath;
 }

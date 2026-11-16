@@ -7,10 +7,7 @@ import {
   buildJobsPendingLocalRefundWhere,
   mapJobWithStatus,
 } from "@sokosumi/database/helpers";
-import {
-  jobPurchaseRepository,
-  jobRepository,
-} from "@sokosumi/database/repositories";
+import { jobPurchaseRepository } from "@sokosumi/database/repositories";
 import {
   type JobWithSokosumiStatus,
   jobInclude,
@@ -284,11 +281,14 @@ async function backfillJobPurchase(
       }
     }
 
-    const refreshedJob = await jobRepository.getJobById(job.id, prisma);
-    if (!refreshedJob) {
+    const refreshedJobRow = await prisma.job.findUnique({
+      where: { id: job.id },
+      include: jobInclude,
+    });
+    if (!refreshedJobRow) {
       throw new Error("Job not found");
     }
-    job = refreshedJob;
+    job = mapJobWithStatus(refreshedJobRow);
   }
 
   await finalizeJobSyncResult(

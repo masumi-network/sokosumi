@@ -1,6 +1,7 @@
 "use client";
 
 import type { ProjectDesignMd } from "@sokosumi/core-client";
+import { normalizeWebsiteUrl } from "@sokosumi/utils";
 import {
   ExternalLink,
   FileText,
@@ -11,10 +12,10 @@ import {
   Upload,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   createContext,
+  type FormEvent,
   type ReactNode,
   useCallback,
   useContext,
@@ -53,9 +54,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { removeProjectDesignMd } from "@/lib/actions/project/action";
+import { Input } from "@/components/ui/input";
+import {
+  removeProjectDesignMd,
+  updateProject,
+} from "@/lib/actions/project/action";
 
 interface ProjectBrandProviderProps {
+  autoStart?: boolean;
   children: ReactNode;
   initialDesignMd: ProjectDesignMd | null;
   projectId: string;
@@ -71,6 +77,8 @@ interface ProjectBrandDashboardValue {
 interface ProjectBrandCardProps {
   projectId: string;
   websiteUrl?: string | null;
+  /** A CMO Project: CMO writes its DESIGN.md, so the card only opens it. */
+  readOnly?: boolean;
 }
 
 const ProjectBrandDashboardContext =
@@ -85,12 +93,12 @@ function useProjectBrandDashboard(): ProjectBrandDashboardValue {
 }
 
 export function ProjectBrandProvider({
+  autoStart = true,
   children,
   initialDesignMd,
   projectId,
   websiteUrl,
 }: ProjectBrandProviderProps) {
-  const router = useRouter();
   const tDesignMd = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
   const [designMd, setDesignMd] = useState<ProjectDesignMd | null>(
     initialDesignMd,
@@ -114,17 +122,15 @@ export function ProjectBrandProvider({
         extractionId: nextDesignMd.extractionId,
         url: nextDesignMd.url,
       });
-      router.refresh();
     },
-    [router],
+    [],
   );
   const generation = useDesignMdGeneration({
     messages,
     onCompleted: handleCompleted,
-    onJobStarted: (job) =>
-      websiteUrl
-        ? savePendingProjectBrandJob(projectId, { ...job, url: websiteUrl })
-        : undefined,
+    // The job's own URL: a website just saved in the card is not in the
+    // props yet when its generation starts.
+    onJobStarted: (job) => savePendingProjectBrandJob(projectId, job),
     onSettled: () => clearPendingProjectBrandJob(projectId),
     owner,
   });
@@ -136,7 +142,7 @@ export function ProjectBrandProvider({
   useEffect(() => {
     if (designMd) {
       // Prevent an explicit remove from immediately recreating a brand when
-      // router.refresh remounts this provider in the same browser session.
+      // a server re-render remounts this provider in the same browser session.
       backgroundGenerationAttempted.current = true;
       markProjectBrandAutoStartAttempted(projectId);
       return;
@@ -149,13 +155,13 @@ export function ProjectBrandProvider({
       resume(pending);
       return;
     }
-    if (!websiteUrl) return;
+    if (!autoStart || !websiteUrl) return;
     if (backgroundGenerationAttempted.current) return;
     if (hasProjectBrandAutoStartAttempted(projectId)) return;
     backgroundGenerationAttempted.current = true;
     markProjectBrandAutoStartAttempted(projectId);
     void generate({ url: websiteUrl });
-  }, [designMd, generate, isRunning, projectId, resume, websiteUrl]);
+  }, [autoStart, designMd, generate, isRunning, projectId, resume, websiteUrl]);
 
   const value = useMemo(
     () => ({ designMd, generation, setDesignMd }),
@@ -172,8 +178,8 @@ export function ProjectBrandProvider({
 export function ProjectBrandCard({
   projectId,
   websiteUrl,
+  readOnly = false,
 }: ProjectBrandCardProps) {
-  const router = useRouter();
   const t = useTranslations("App.Projects.Detail");
   const { designMd, generation, setDesignMd } = useProjectBrandDashboard();
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
@@ -185,11 +191,43 @@ export function ProjectBrandCard({
     [projectId],
   );
   const hasWebsite = Boolean(websiteUrl);
-  const menuBusy = generation.isRunning || isRemoving || isUploading;
+  const tWebsite = useTranslations("App.Projects.Wizard.name");
+  const [website, setWebsite] = useState("");
+  const [websiteError, setWebsiteError] = useState<string | null>(null);
+  const [isSavingWebsite, startSaveWebsite] = useTransition();
+  const menuBusy =
+    generation.isRunning || isRemoving || isUploading || isSavingWebsite;
 
   function handleGenerate() {
     if (!websiteUrl) return;
     void generation.generate({ force: true, url: websiteUrl });
+  }
+
+  // An explicit Generate: save only the website (a name from this render
+  // could undo someone's rename), then start generation here. Marking the
+  // auto-start as used keeps the provider from starting a second one when
+  // the revalidated page passes the website in.
+  function handleSaveWebsite(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const url = normalizeWebsiteUrl(website);
+    if (!url) {
+      setWebsiteError(t("brandCard.websiteInvalid"));
+      return;
+    }
+    setWebsiteError(null);
+    startSaveWebsite(async () => {
+      try {
+        const result = await updateProject({ projectId, websiteUrl: url });
+        if (!result.ok) {
+          setWebsiteError(t("errors.update"));
+          return;
+        }
+        markProjectBrandAutoStartAttempted(projectId);
+        void generation.generate({ force: true, url });
+      } catch {
+        setWebsiteError(t("errors.update"));
+      }
+    });
   }
 
   function handleRemove() {
@@ -200,7 +238,6 @@ export function ProjectBrandCard({
         setIsRemoveDialogOpen(false);
         setShowUpload(false);
         toast.success(t("brandCard.removed"));
-        router.refresh();
       } catch {
         toast.error(t("errors.brand"));
       }
@@ -236,22 +273,24 @@ export function ProjectBrandCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  disabled={!hasWebsite || menuBusy}
-                  onSelect={() => {
-                    handleGenerate();
-                  }}
-                >
-                  {generation.isRunning ? (
-                    <Loader2
-                      className="size-4 animate-spin motion-reduce:animate-pulse"
-                      aria-hidden
-                    />
-                  ) : (
-                    <RefreshCw className="size-4" aria-hidden />
-                  )}
-                  {t("brandCard.generate")}
-                </DropdownMenuItem>
+                {readOnly ? null : (
+                  <DropdownMenuItem
+                    disabled={!hasWebsite || menuBusy}
+                    onSelect={() => {
+                      handleGenerate();
+                    }}
+                  >
+                    {generation.isRunning ? (
+                      <Loader2
+                        className="size-4 animate-spin motion-reduce:animate-pulse"
+                        aria-hidden
+                      />
+                    ) : (
+                      <RefreshCw className="size-4" aria-hidden />
+                    )}
+                    {t("brandCard.generate")}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem asChild>
                   <a
                     href={designMd.url}
@@ -262,23 +301,27 @@ export function ProjectBrandCard({
                     {t("brandCard.open")}
                   </a>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href={`/projects/${projectId}/design-md/edit`}>
-                    <FileText className="size-4" aria-hidden />
-                    {t("brandCard.edit")}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  variant="destructive"
-                  disabled={menuBusy}
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    setIsRemoveDialogOpen(true);
-                  }}
-                >
-                  <Trash2 className="size-4" aria-hidden />
-                  {t("brandCard.remove")}
-                </DropdownMenuItem>
+                {readOnly ? null : (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href={`/projects/${projectId}/design-md/edit`}>
+                        <FileText className="size-4" aria-hidden />
+                        {t("brandCard.edit")}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      disabled={menuBusy}
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        setIsRemoveDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                      {t("brandCard.remove")}
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
@@ -313,7 +356,55 @@ export function ProjectBrandCard({
           </Badge>
         </div>
 
-        {!hasWebsite ? (
+        {!hasWebsite && !readOnly && !designMd && !generation.isRunning ? (
+          <form noValidate onSubmit={handleSaveWebsite} className="space-y-2">
+            <label
+              htmlFor="project-brand-website"
+              className="text-muted-foreground block text-xs"
+            >
+              {t("brandCard.missingWebsite")}
+            </label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="project-brand-website"
+                inputMode="url"
+                autoComplete="url"
+                placeholder={tWebsite("websitePlaceholder")}
+                value={website}
+                onChange={(event) => {
+                  setWebsite(event.target.value);
+                  setWebsiteError(null);
+                }}
+                disabled={isSavingWebsite}
+                aria-invalid={Boolean(websiteError)}
+                aria-describedby={
+                  websiteError ? "project-brand-website-error" : undefined
+                }
+                className="min-w-0 sm:h-8 sm:flex-1"
+              />
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                loading={isSavingWebsite}
+                disabled={menuBusy}
+                className="h-10 sm:h-8"
+              >
+                <RefreshCw aria-hidden />
+                {t("brandCard.generate")}
+              </Button>
+            </div>
+            {websiteError ? (
+              <p
+                id="project-brand-website-error"
+                className="text-destructive text-xs"
+                role="alert"
+              >
+                {websiteError}
+              </p>
+            ) : null}
+          </form>
+        ) : !hasWebsite && !readOnly ? (
           <p className="text-muted-foreground text-xs">
             {t("brandCard.missingWebsite")}
           </p>
@@ -324,7 +415,10 @@ export function ProjectBrandCard({
           </p>
         ) : null}
 
-        {!designMd && !generation.isRunning && (hasWebsite || !showUpload) ? (
+        {!readOnly &&
+        !designMd &&
+        !generation.isRunning &&
+        (hasWebsite || !showUpload) ? (
           <div className="flex flex-wrap gap-2">
             {hasWebsite ? (
               <Button
@@ -353,7 +447,7 @@ export function ProjectBrandCard({
           </div>
         ) : null}
 
-        {!designMd && showUpload ? (
+        {!readOnly && !designMd && showUpload ? (
           <DesignMdUploadTrigger
             owner={owner}
             variant="compact"
@@ -365,7 +459,6 @@ export function ProjectBrandCard({
                 url: uploadedDesignMd.url,
               });
               setShowUpload(false);
-              router.refresh();
             }}
           />
         ) : null}

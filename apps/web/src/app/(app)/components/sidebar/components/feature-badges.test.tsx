@@ -235,6 +235,32 @@ describe("New badges in the sidebar", () => {
     expect(markSeenMock).toHaveBeenCalledWith("later-drive");
   });
 
+  it("reads campaigns again on navigation only once they are a minute old", async () => {
+    const view = await renderRows([]);
+    const navigate = async (pathname: string) => {
+      pathnameRef.current = pathname;
+      view.rerender(
+        <FeatureBadgesProvider userId="user_123" campaigns={settled([])}>
+          <SidebarFeatureLabel label="Drive" feature="DRIVE" />
+        </FeatureBadgesProvider>,
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10);
+      });
+    };
+    await navigate("/agents");
+    expect(fetch).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    await navigate("/contacts");
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await navigate("/agents");
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps navigation available while the campaigns promise waits", async () => {
     const pending = new Promise<BadgeCampaignSummary[]>(() => {});
     render(

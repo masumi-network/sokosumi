@@ -164,6 +164,38 @@ describe("ProjectScopeMenu", () => {
     expect(screen.queryByText("Closed One")).not.toBeInTheDocument();
   });
 
+  it("leaves CMO Projects out of a pick that creates inside a Project", async () => {
+    mocks.load.mockResolvedValue({
+      projects: [
+        project("active-1", "Active One"),
+        { ...project("cmo-1", "Cuso Business"), cmo: true },
+      ],
+      nextCursor: null,
+    });
+    mocks.loadPinned.mockResolvedValue([
+      { ...project("cmo-pinned", "Pinned Cuso"), cmo: true },
+    ]);
+    setup({ excludeCmo: true });
+
+    await screen.findByText("Active One");
+    expect(rowIds()).toEqual(["active-1"]);
+  });
+
+  it("lists CMO Projects when the pick only switches scope", async () => {
+    mocks.load.mockResolvedValue({
+      projects: [
+        project("active-1", "Active One"),
+        { ...project("cmo-1", "Cuso Business"), cmo: true },
+      ],
+      nextCursor: null,
+    });
+    mocks.loadPinned.mockResolvedValue([]);
+    setup();
+
+    await screen.findByText("Active One");
+    expect(rowIds()).toEqual(["active-1", "cmo-1"]);
+  });
+
   it("ends with Create project and offers no Manage projects row", async () => {
     setup();
 
@@ -173,16 +205,45 @@ describe("ProjectScopeMenu", () => {
     expect(screen.queryByText("manage")).toBeNull();
   });
 
-  it("hands back the chosen project and offers no All projects row", async () => {
+  it("hands back the chosen project and offers no All projects row without onSelectAll", async () => {
     const user = userEvent.setup();
     const { onSelect, onDone } = setup({ selectedProjectId: "active-1" });
 
     await user.click(await screen.findByText("Active One"));
     expect(onSelect).toHaveBeenLastCalledWith("active-1");
     expect(onDone).toHaveBeenCalledTimes(1);
-    // The trigger's × returns to All projects, not a row here.
-    expect(screen.queryByTestId("project-scope-workspace")).toBeNull();
+    // A page asking for one project gets no way out to All projects.
+    expect(screen.queryByTestId("project-scope-all")).toBeNull();
     expect(screen.queryByText("allProjects")).toBeNull();
+  });
+
+  it("leads with All projects when offered, checked in the workspace view", async () => {
+    const user = userEvent.setup();
+    const onSelectAll = vi.fn();
+    const { onSelect, onDone } = setup({ onSelectAll });
+
+    await screen.findByText("Pinned One");
+    const all = screen.getByTestId("project-scope-all");
+    expect(screen.getAllByRole("option")[0]).toBe(all);
+    expect(all).toHaveTextContent("allProjects");
+    expect(within(all).getByText("current")).toBeInTheDocument();
+
+    await user.click(all);
+    expect(onSelectAll).toHaveBeenCalledOnce();
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onDone).toHaveBeenCalledOnce();
+  });
+
+  it("drops All projects while searching", async () => {
+    const user = userEvent.setup();
+    setup({ onSelectAll: vi.fn(), selectedProjectId: "active-1" });
+
+    await screen.findByText("Pinned One");
+    expect(
+      within(screen.getByTestId("project-scope-all")).queryByText("current"),
+    ).toBeNull();
+    await user.type(screen.getByPlaceholderText("searchPlaceholder"), "x");
+    expect(screen.queryByTestId("project-scope-all")).toBeNull();
   });
 
   it("asks Core when searching and keeps the list's order and pins", async () => {

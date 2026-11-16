@@ -61,6 +61,64 @@ export function isCatchUpSummaryEmpty(summary: ChatCatchUpSummary): boolean {
   );
 }
 
+/** The lists that hold what is unread, each item with its room. */
+const UNREAD_LISTS = [
+  "topics",
+  "quietRooms",
+  "needsYou",
+  "blockers",
+  "decisions",
+  "announcements",
+  "highlights",
+] as const;
+
+type InRoom = { roomId: string };
+
+function mapUnreadLists(
+  summary: ChatCatchUpSummary,
+  pick: (items: readonly InRoom[]) => InRoom[],
+): ChatCatchUpSummary {
+  return {
+    ...summary,
+    ...Object.fromEntries(
+      UNREAD_LISTS.map((list) => [list, pick(summary[list])]),
+    ),
+  };
+}
+
+/**
+ * The summary once these rooms are read: what it lists of them goes. With
+ * nothing unread left, the headline written about them goes too.
+ */
+export function withoutCatchUpRooms(
+  summary: ChatCatchUpSummary,
+  roomIds: readonly string[],
+): ChatCatchUpSummary {
+  const read = new Set(roomIds);
+  const next = mapUnreadLists(summary, (items) =>
+    items.filter((item) => !read.has(item.roomId)),
+  );
+  if (next.topics.length === 0 && next.quietRooms.length === 0) {
+    return {
+      ...next,
+      headline: null,
+      unreadMessageCount: 0,
+      unreadRoomCount: 0,
+    };
+  }
+  // A quiet room carries its own count, so the header can follow it.
+  const gone = summary.quietRooms.filter((room) => read.has(room.roomId));
+  return {
+    ...next,
+    unreadMessageCount: Math.max(
+      0,
+      summary.unreadMessageCount -
+        gone.reduce((sum, room) => sum + room.unreadCount, 0),
+    ),
+    unreadRoomCount: Math.max(0, summary.unreadRoomCount - gone.length),
+  };
+}
+
 interface CatchUpSummaryBodyProps {
   summary: ChatCatchUpSummary;
   /** Room-scoped: an item jumps in place instead of linking to its room. */

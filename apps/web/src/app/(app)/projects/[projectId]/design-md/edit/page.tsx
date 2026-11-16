@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import {
@@ -33,6 +34,9 @@ export default async function ProjectDesignMdEditPage({
       />
     );
   }
+
+  // CMO writes a CMO Project's DESIGN.md; the Design tab still reads it.
+  if (project.cmo) redirect(returnHref);
 
   const designMdUrl = project.designMd?.url;
   if (!designMdUrl) {

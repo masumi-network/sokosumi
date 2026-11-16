@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
-
+import { DesignMdDocument } from "@/app/projects/components/design-md-document";
 import {
   ProjectBrandCard,
   ProjectBrandProvider,
@@ -10,9 +10,7 @@ import {
   getProjectWorkspaceLabels,
   ProjectWorkspaceShell,
 } from "@/app/projects/components/project-workspace-shell";
-import { SECTION_MARKDOWN_HEADINGS } from "@/app/projects/components/section-markdown-headings";
 import { fetchDesignMdMarkdown } from "@/components/design-md/design-md-edit-page-shared";
-import Markdown from "@/components/markdown";
 import { projectService } from "@/lib/services/project.service";
 
 // Wait for the current session and project access before rendering, as the
@@ -57,6 +55,7 @@ export default async function ProjectDesignPage({
     <ProjectWorkspaceShell
       actions={
         <ProjectHeaderActions
+          cmo={project.cmo}
           closedAt={project.closedAt}
           closingAt={project.closingAt}
           projectId={project.id}
@@ -64,6 +63,7 @@ export default async function ProjectDesignPage({
           scheduledSocialPostCount={project.scheduledSocialPostCount}
         />
       }
+      cmo={project.cmo}
       createdAt={formatter.dateTime(project.createdAt, "dateTime")}
       updatedAt={formatter.dateTime(project.updatedAt, "dateTime")}
       labels={workspaceLabels}
@@ -75,12 +75,15 @@ export default async function ProjectDesignPage({
     >
       <ProjectBrandProvider
         key={project.designMd?.url ?? "project-brand-empty"}
+        // CMO writes a CMO Project's brand; never start one from here.
+        autoStart={!project.cmo}
         projectId={project.id}
         initialDesignMd={project.designMd}
         websiteUrl={project.websiteUrl}
       >
         <div className="max-w-3xl min-w-0 space-y-8">
           <ProjectBrandCard
+            readOnly={project.cmo}
             projectId={project.id}
             websiteUrl={project.websiteUrl}
           />
@@ -96,12 +99,14 @@ export default async function ProjectDesignPage({
                 {t("design.document")}
               </h2>
               {"markdown" in loaded ? (
-                <Markdown
-                  className="text-foreground"
-                  components={SECTION_MARKDOWN_HEADINGS}
-                >
-                  {loaded.markdown}
-                </Markdown>
+                <DesignMdDocument
+                  markdown={loaded.markdown}
+                  labels={{
+                    colors: t("design.colors"),
+                    typography: t("design.typography"),
+                    frontMatter: t("design.frontMatter"),
+                  }}
+                />
               ) : (
                 <p className="text-muted-foreground text-sm">
                   {tDesignMd("editLoadErrorDescription")}

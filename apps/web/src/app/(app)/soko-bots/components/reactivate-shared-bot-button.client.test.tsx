@@ -27,13 +27,15 @@ describe("ReactivateSharedBotButton", () => {
     vi.clearAllMocks();
   });
 
-  it("reactivates the bot and refreshes the page", async () => {
+  it("reactivates the bot without a second page render", async () => {
     reactivateMock.mockResolvedValue({ ok: true, value: undefined });
     render(<ReactivateSharedBotButton botId={BOT_ID} />);
     fireEvent.click(screen.getByRole("button", { name: "reactivate" }));
-    await waitFor(() => expect(refreshMock).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(toastMock.success).toHaveBeenCalledWith("reactivated"),
+    );
     expect(reactivateMock).toHaveBeenCalledWith({ botId: BOT_ID });
-    expect(toastMock.success).toHaveBeenCalledWith("reactivated");
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("keeps the page and shows Core's reason when it refuses", async () => {

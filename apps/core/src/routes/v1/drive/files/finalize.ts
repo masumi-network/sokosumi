@@ -1,11 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { BlobNotFoundError, head } from "@vercel/blob";
-
-import { getEnv } from "@/config/env";
-import { notFound, serviceUnavailable } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { driveHead } from "@/lib/drive-blob";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
 import {
   type OpenAPIHonoWithAuth,
@@ -64,18 +62,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       organizationId: body.organizationId,
     });
 
-    const token = getEnv().BLOB_READ_WRITE_TOKEN;
-    if (!token) throw serviceUnavailable("Blob storage is not configured");
-
-    let metadata: Awaited<ReturnType<typeof head>>;
-    try {
-      metadata = await head(body.pathname, { token });
-    } catch (error) {
-      if (error instanceof BlobNotFoundError) {
-        throw notFound("No uploaded file at that path");
-      }
-      throw error;
-    }
+    const metadata = await driveHead(body.pathname);
+    if (!metadata) throw notFound("No uploaded file at that path");
 
     const activated = await activateDriveUploadResource({
       key: {

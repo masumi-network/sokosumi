@@ -4,8 +4,14 @@ import type {
   ProjectImageSettings,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
+  StudioLogoPosition,
 } from "@sokosumi/core-client";
+import { extensionForEntityImageMime } from "@sokosumi/utils";
+import type { StudioCreativeDirection } from "./studio-creative-directions";
+import type { PlacementRatio } from "./studio-placements";
 import type { StudioTemplateId } from "./studio-templates";
+
+export const MAX_STUDIO_REFERENCES = 4;
 
 export type StudioAsset = ProjectImageAsset;
 export type StudioJob = ProjectImageJob;
@@ -142,16 +148,30 @@ export function isVideoAsset(asset: Pick<StudioAsset, "mediaType">): boolean {
 
 /** The extension a download of this version should carry. */
 export function assetFileExtension(
-  asset: Pick<StudioAsset, "mediaType" | "settings">,
+  asset: Pick<StudioAsset, "contentType" | "mediaType" | "settings">,
 ): string {
   if (isVideoAsset(asset)) return "mp4";
-  return asset.settings?.outputFormat ?? "png";
+  return (
+    extensionForEntityImageMime(asset.contentType ?? "") ??
+    asset.settings?.outputFormat ??
+    "png"
+  );
+}
+
+export interface StudioAdRenderOptions {
+  logo?: StudioLogoPosition;
+  placement?: PlacementRatio;
 }
 
 export function assetContentUrl(
   asset: Pick<StudioAsset, "id" | "projectId">,
+  options?: StudioAdRenderOptions,
 ): string {
-  return `/api/projects/${asset.projectId}/image-studio/assets/${asset.id}/content`;
+  const path = `/api/projects/${asset.projectId}/image-studio/assets/${asset.id}/content`;
+  const query = new URLSearchParams();
+  if (options?.logo) query.set("logo", options.logo);
+  if (options?.placement) query.set("placement", options.placement);
+  return query.size ? `${path}?${query}` : path;
 }
 
 /**
@@ -163,7 +183,11 @@ export function assetContentUrl(
  * statement about the work.
  */
 export interface StudioTarget {
+  creativeDirection?: StudioCreativeDirection;
+  exportHeadlines?: { projectId: string; lines: string[] };
+  useProductCutout?: boolean;
   modelIds: string[];
+  placementRatios?: NonNullable<StudioSettings["aspectRatio"]>[];
   settings: StudioSettings;
 }
 
@@ -182,6 +206,8 @@ export interface StudioTarget {
 export interface StudioLabels {
   emptyTitle: string;
   emptyBody: string;
+  pauseTemplateMotion: string;
+  resumeTemplateMotion: string;
   promptPlaceholder: string;
   generate: string;
   refine: string;
@@ -199,6 +225,7 @@ export interface StudioLabels {
   reroll: string;
   reusePrompt: string;
   download: string;
+  moreActions: string;
   compare: string;
   version: string;
   generating: string;
@@ -285,6 +312,13 @@ export interface StudioLabels {
   creditsCharged: string;
   creditsUnderivable: string;
   creditsNoFigure: string;
+  /**
+   * Follows the model's name on a failed generation ("Model X failed").
+   *
+   * A word, not a sentence, so the notice stays one line: the model, this, and
+   * `failedNoCharge`. Why it failed sits behind the notice's disclosure.
+   */
+  failedAfterModel: string;
   /**
    * Said on a failed generation: it cost nothing.
    *

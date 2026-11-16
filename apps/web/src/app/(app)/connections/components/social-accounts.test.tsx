@@ -35,4 +35,15 @@ describe("SocialAccounts", () => {
     expect(screen.getByText("Google is connected")).toBeVisible();
     expect(screen.getByText("Microsoft is not connected")).toBeVisible();
   });
+
+  it("labels Connect and Disconnect in words, naming the provider", () => {
+    setup([googleAccount]);
+
+    const disconnect = screen.getByRole("button", {
+      name: "Disconnect Google",
+    });
+    expect(disconnect).toHaveTextContent("Disconnect");
+    const connect = screen.getByRole("button", { name: "Connect Microsoft" });
+    expect(connect).toHaveTextContent("Connect");
+  });
 });

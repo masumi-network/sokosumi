@@ -4,6 +4,7 @@ import { mountSokoBotApiKeyRoutes } from "./api-keys.js";
 import { mountSokoBotAvatarRoutes } from "./avatars.js";
 import { mountSokoBotIntegrationByIdRoutes } from "./by-id/integrations.js";
 import { mountSokoBotScheduleByIdRoutes } from "./by-id/schedules.js";
+import { cusoLock } from "./cuso-lock.js";
 import { mountSokoBotEventRoutes } from "./events.js";
 import { sokoBotRouteGate } from "./helpers.js";
 import { mountSokoBotIntegrationAuthRoutes } from "./integration-auth.js";
@@ -84,6 +85,7 @@ import mountListSokoBotVersions from "./versions/get.js";
 const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
 
 app.use("*", sokoBotRouteGate);
+app.use("*", cusoLock);
 
 mountSokoBotApiKeyRoutes(app);
 mountSokoBotEventRoutes(app);

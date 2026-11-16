@@ -7,22 +7,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * in-memory store, the image model and blob store are replaced.
  */
 
-const { store, generateTextMock, getEnvMock, putMock } = vi.hoisted(() => ({
+const { store, drawMock, getEnvMock, putMock } = vi.hoisted(() => ({
   store: {} as ReturnType<
     typeof import("@/test-fixtures/soko-bot-avatar-store").createSokoBotAvatarStore
   >,
-  generateTextMock: vi.fn(),
+  drawMock: vi.fn(),
   getEnvMock: vi.fn(),
   putMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@vercel/blob", () => ({ put: putMock }));
-// The image model: one AI Gateway `generateText` call per image.
-vi.mock("ai", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("ai")>()),
-  generateText: generateTextMock,
+// The image model: one fal call per image. `drawMock` stands in for the POST
+// and the download answers with `IMAGE_BYTES`.
+vi.mock("@/lib/image-studio/fal-client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/image-studio/fal-client")>()),
+  downloadMedia: async () => ({
+    bytes: new Uint8Array(await imageBytes()),
+    contentType: "image/png",
+  }),
 }));
+vi.stubGlobal("fetch", async (...args: unknown[]) => {
+  await drawMock(...args);
+  return Response.json({
+    images: [{ url: "https://v3.fal.media/files/avatar.png" }],
+  });
+});
 vi.mock("@/lib/db/prisma", async () => {
   const { createSokoBotAvatarStore } = await import(
     "@/test-fixtures/soko-bot-avatar-store"
@@ -39,26 +49,28 @@ import {
   claimAvatar,
   generateAvatars,
   listAvailableAvatars,
+  restyleAvatars,
   topUpAvailableAvatars,
 } from "@/services/soko-bot-avatar.service";
 
-const IMAGE_BYTES = await sharp({
-  create: { width: 8, height: 8, channels: 3, background: "#9aa88c" },
-})
-  .png()
-  .toBuffer();
+const imageBytes = () =>
+  sharp({
+    create: { width: 8, height: 8, channels: 3, background: "#9aa88c" },
+  })
+    .png()
+    .toBuffer();
 
-/** What the image model answers: one PNG among its files. */
+/** What the image call answers; the stub turns it into one fal image. */
 function imageAnswer() {
-  return { files: [{ mediaType: "image/png", uint8Array: IMAGE_BYTES }] };
+  return {};
 }
 
 /** How many images were bought. */
 function billed() {
-  return generateTextMock.mock.calls.length;
+  return drawMock.mock.calls.length;
 }
 
-const ENV = { AI_GATEWAY_API_KEY: "gw-test", BLOB_READ_WRITE_TOKEN: "token" };
+const ENV = { FAL_KEY: "fal-test", BLOB_READ_WRITE_TOKEN: "token" };
 const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 
@@ -88,7 +100,7 @@ beforeEach(() => {
   store.reset();
   vi.clearAllMocks();
   getEnvMock.mockReturnValue(ENV);
-  generateTextMock.mockResolvedValue(imageAnswer());
+  drawMock.mockResolvedValue(imageAnswer());
   putMock.mockImplementation(async (pathname: string) => ({
     url: `https://blob.test/${pathname}`,
   }));
@@ -99,7 +111,7 @@ afterEach(() => {
 });
 
 describe("Soko Bot avatar pool", () => {
-  it("serves the pool and buys nothing without a gateway key or blob store", async () => {
+  it("serves the pool and buys nothing without a fal key or blob store", async () => {
     getEnvMock.mockReturnValue({});
     const stocked = store.seed();
 
@@ -109,6 +121,18 @@ describe("Soko Bot avatar pool", () => {
 
     expect(avatars.map((one) => one.id)).toEqual([stocked.id]);
     expect(billed()).toBe(0);
+  });
+
+  it("no longer offers an avatar drawn before the brand palette", async () => {
+    getEnvMock.mockReturnValue({});
+    store.seed({ background: "gently muted sage green" });
+    const onBrand = store.seed();
+
+    const avatars = await topUpAvailableAvatars(6, {
+      requestedByUserId: "user-1",
+    });
+
+    expect(avatars.map((one) => one.id)).toEqual([onBrand.id]);
   });
 
   it("buys one image, not six, when storing them is broken", async () => {
@@ -124,7 +148,7 @@ describe("Soko Bot avatar pool", () => {
   });
 
   it("hands back the slots it never spent on, and keeps the one it may have paid for", async () => {
-    generateTextMock.mockRejectedValue(new Error("gateway is down"));
+    drawMock.mockRejectedValue(new Error("fal is down"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(generateAvatars(3, "user-1")).resolves.toBe(0);
@@ -140,7 +164,7 @@ describe("Soko Bot avatar pool", () => {
     vi.spyOn(store.client.sokoBotAvatar, "deleteMany").mockRejectedValue(
       new Error("pool exhausted"),
     );
-    generateTextMock.mockRejectedValue(new Error("gateway is down"));
+    drawMock.mockRejectedValue(new Error("fal is down"));
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
 
@@ -175,7 +199,7 @@ describe("Soko Bot avatar pool", () => {
       }
     });
     let seenWhileBuying: { reserved: number; offered: number } | undefined;
-    generateTextMock.mockImplementation(async () => {
+    drawMock.mockImplementation(async () => {
       expect(insideTransaction).toBe(false);
       seenWhileBuying = {
         reserved: store.avatars.filter((row) => row.reservedAt).length,
@@ -327,5 +351,81 @@ describe("claiming a Soko Bot avatar", () => {
     });
     expect(store.bots.get(BOT_ID)?.avatarImageUrl).toBeNull();
     expect(store.avatars[0]?.claimedBySokoBotId).toBe("bot-2");
+  });
+});
+
+describe("restyling avatars from before the brand palette", () => {
+  function seedOld(sokoBotId: string, subject: string) {
+    store.bots.set(sokoBotId, { avatarImageUrl: "https://blob.test/old.png" });
+    return store.seed({
+      subject,
+      background: "gently muted teal",
+      claimedBySokoBotId: sokoBotId,
+    });
+  }
+
+  function avatarOf(sokoBotId: string) {
+    return store.avatars.find((row) => row.claimedBySokoBotId === sokoBotId);
+  }
+
+  it("keeps each bot's character and moves it onto a palette background", async () => {
+    seedOld("bot-1", "fox");
+    seedOld("bot-2", "fox");
+    seedOld("bot-3", "owl");
+    store.seed({ claimedBySokoBotId: "bot-4" });
+
+    await expect(restyleAvatars(10)).resolves.toEqual({
+      restyled: 3,
+      remaining: 0,
+    });
+
+    expect(billed()).toBe(3);
+    const foxes = [avatarOf("bot-1"), avatarOf("bot-2")];
+    expect(foxes.map((row) => row?.subject)).toEqual(["fox", "fox"]);
+    expect(foxes[0]?.background).not.toBe(foxes[1]?.background);
+    expect(avatarOf("bot-3")?.subject).toBe("owl");
+    for (const bot of ["bot-1", "bot-2", "bot-3"]) {
+      expect(avatarOf(bot)?.background).not.toBe("gently muted teal");
+      expect(store.bots.get(bot)?.avatarImageUrl).toBe(avatarOf(bot)?.imageUrl);
+    }
+    // The old pictures are free again but no longer offered.
+    await expect(listAvailableAvatars(6)).resolves.toEqual([]);
+  });
+
+  it("redraws at most the limit and says how many are left", async () => {
+    seedOld("bot-1", "fox");
+    seedOld("bot-2", "owl");
+    seedOld("bot-3", "cat");
+
+    await expect(restyleAvatars(2)).resolves.toEqual({
+      restyled: 2,
+      remaining: 1,
+    });
+    expect(billed()).toBe(2);
+  });
+
+  it("leaves a bot on its old avatar when its draw fails", async () => {
+    const old = seedOld("bot-1", "fox");
+    drawMock.mockRejectedValueOnce(new Error("model down"));
+
+    await expect(restyleAvatars(5)).resolves.toEqual({
+      restyled: 0,
+      remaining: 1,
+    });
+    expect(avatarOf("bot-1")?.id).toBe(old.id);
+    expect(store.bots.get("bot-1")?.avatarImageUrl).toBe(
+      "https://blob.test/old.png",
+    );
+  });
+
+  it("buys nothing without a fal key or blob store", async () => {
+    seedOld("bot-1", "fox");
+    getEnvMock.mockReturnValue({});
+
+    await expect(restyleAvatars(5)).resolves.toEqual({
+      restyled: 0,
+      remaining: 1,
+    });
+    expect(billed()).toBe(0);
   });
 });

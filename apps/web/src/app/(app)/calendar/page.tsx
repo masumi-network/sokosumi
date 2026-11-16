@@ -56,6 +56,7 @@ export default async function CalendarPage({
           newsletterEnabled={page.newsletterEnabled}
           pagination={page.pagination}
           range={page.range}
+          renderedTimezone={page.renderedTimezone}
           sources={page.sources}
           workspaceId={page.workspaceId}
         />

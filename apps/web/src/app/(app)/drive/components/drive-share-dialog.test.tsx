@@ -10,6 +10,8 @@ const api = vi.hoisted(() => ({
   saveDriveShare: vi.fn(),
   revokeDriveShare: vi.fn(),
 }));
+const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+vi.mock("sonner", () => ({ toast }));
 vi.mock("@/lib/utils/file-search.client", () => ({
   ...api,
   driveShareUrl: (token: string) => `https://app.test/share/files/${token}`,
@@ -94,5 +96,40 @@ describe("DriveShareDialog", () => {
     expect(
       await screen.findByRole("button", { name: "create" }),
     ).toBeInTheDocument();
+  });
+
+  it("explains in the reader's language why a data room file gets no link", async () => {
+    api.fetchDriveShare.mockResolvedValue(null);
+    api.saveDriveShare.mockRejectedValue({
+      error: "BadRequest",
+      kind: "drive_share_in_data_room",
+      message: "Core's English wording",
+    });
+    render(
+      <DriveShareDialog store={store} item={item} onOpenChange={() => {}} />,
+    );
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "create" }),
+    );
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("inDataRoom"));
+  });
+
+  it("keeps the translated fallback for other failures", async () => {
+    api.fetchDriveShare.mockResolvedValue(null);
+    api.saveDriveShare.mockRejectedValue({
+      error: "BadRequest",
+      message: "Some other English reason",
+    });
+    render(
+      <DriveShareDialog store={store} item={item} onOpenChange={() => {}} />,
+    );
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "create" }),
+    );
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("saveFailed"));
   });
 });

@@ -10,6 +10,7 @@ const getProjectFilterOptionsMock = vi.fn();
 const loadTaskScheduleAssigneeOptionsMock = vi.fn();
 const hasAssignedSeatMock = vi.fn();
 const listSchedulesMock = vi.fn();
+const countSchedulesMock = vi.fn();
 const taskSchedulesViewMock = vi.fn();
 
 vi.mock("next/server", () => ({
@@ -47,6 +48,7 @@ vi.mock("@/lib/services/organization-seat.service", () => ({
 vi.mock("@/lib/services/task-schedule.service", () => ({
   taskScheduleService: {
     listSchedules: (params: unknown) => listSchedulesMock(params),
+    countSchedules: (params: unknown) => countSchedulesMock(params),
   },
 }));
 
@@ -138,6 +140,29 @@ describe("SchedulesPage", () => {
       limit: 12,
     });
     expect(props).toEqual(expect.objectContaining({ selectedProjectId: null }));
+  });
+
+  it("counts the other states only when the shown state is empty", async () => {
+    await renderPage({ scheduleState: "PAUSED" });
+    expect(countSchedulesMock).not.toHaveBeenCalled();
+
+    listSchedulesMock.mockResolvedValue({ schedules: [], nextCursor: null });
+    countSchedulesMock.mockImplementation(async ({ state }) =>
+      state === "ACTIVE" ? 17 : 4,
+    );
+    const props = await renderPage({
+      projectId: PROJECT.id,
+      scheduleState: "PAUSED",
+    });
+
+    expect(countSchedulesMock).toHaveBeenCalledWith({
+      projectId: PROJECT.id,
+      state: "ACTIVE",
+    });
+    expect(props.otherStateCounts).toEqual([
+      { state: "ACTIVE", count: 17 },
+      { state: "ENDED", count: 4 },
+    ]);
   });
 
   it("offers no create button without a Seat", async () => {

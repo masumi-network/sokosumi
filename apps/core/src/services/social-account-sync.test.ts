@@ -418,4 +418,62 @@ describe("runDueSocialAccountSync", () => {
     expect(retried.accountsSkippedBackoff).toBe(0);
     expect(mocks.refresh).toHaveBeenCalled();
   });
+
+  describe("X, billed for every post it returns", () => {
+    const xAccount = (overrides: Record<string, unknown> = {}) => ({
+      id: connectionId,
+      projectId,
+      provider: "x",
+      externalAccountId: "1234",
+      status: "active",
+      project: { workspaceId },
+      performanceRefreshRequestedAt: null,
+      performanceRefreshAttemptedAt: staleHead,
+      performanceHeadFetchedAt: new Date("2026-10-07T08:00:00Z"),
+      statistics: null,
+      ...overrides,
+    });
+
+    it("counts a read as fresh for a day, so opening Results never pays for one", () => {
+      const row = {
+        status: "active",
+        performanceHeadFetchedAt: new Date("2026-10-08T09:00:00Z"),
+        performanceRefreshAttemptedAt: new Date("2026-10-08T09:00:00Z"),
+        performanceRefreshRequestedAt: null,
+        statistics: null,
+      };
+      expect(socialSyncReadModel({ ...row, provider: "x" }, now)).toMatchObject(
+        { status: "fresh", mayAutoRequest: false },
+      );
+      expect(
+        socialSyncReadModel({ ...row, provider: "linkedin" }, now),
+      ).toMatchObject({ status: "stale", mayAutoRequest: true });
+    });
+
+    it("goes on with older history only alongside the day's read", async () => {
+      const unfinished = {
+        metrics: [],
+        fetchedAt: staleHead.toISOString(),
+        refreshAttemptedAt: staleHead.toISOString(),
+        error: null,
+        historyNextCursor: "page-2",
+        historyComplete: false,
+        historyFetchedAt: staleHead.toISOString(),
+        historyError: null,
+        metricWarning: null,
+      };
+      // Read this morning: the hourly run leaves the history for tomorrow.
+      mocks.findMany.mockResolvedValue([
+        xAccount({
+          performanceHeadFetchedAt: staleHead,
+          statistics: unfinished,
+        }),
+      ]);
+      mocks.findFirst.mockResolvedValue(null);
+
+      await runDueSocialAccountSync({ shouldContinue: () => true, now });
+
+      expect(mocks.refresh).not.toHaveBeenCalled();
+    });
+  });
 });

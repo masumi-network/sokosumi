@@ -269,5 +269,32 @@
       "expiry": "Dieser Link läuft nach 7 Tagen ab. Wenn du dieses Abonnement nicht angefordert hast, kannst du diese E-Mail ignorieren."
     },
     "website": "Website"
+  },
+  "dataRoom": {
+    "invitation": {
+      "subject": "Einladung in den Datenraum {roomName}",
+      "title": "Datenraum {roomName}",
+      "greeting": "Hallo",
+      "message": "{invitorUsername} hat dich in den Datenraum {roomName} auf Sokosumi eingeladen. Öffne ihn mit dem Button unten; zum Anmelden bekommst du einen Code per E-Mail.",
+      "button": "Datenraum öffnen",
+      "linkInstructions": "Oder kopiere diese URL in deinen Browser:",
+      "footer": "Wenn du diese Einladung nicht erwartet hast, kannst du diese E-Mail ignorieren."
+    },
+    "code": {
+      "subject": "Dein Code für {roomName}: {code}",
+      "title": "Dein Code für {roomName}",
+      "greeting": "Hallo",
+      "message": "Gib diesen Code ein, um den Datenraum {roomName} zu öffnen. Er läuft in {minutes} Minuten ab.",
+      "footer": "Wenn du diesen Code nicht angefordert hast, kannst du diese E-Mail ignorieren. Gib den Code niemals weiter."
+    },
+    "firstVisit": {
+      "subject": "{visitor} hat {roomName} geöffnet",
+      "title": "Erster Besuch in {roomName}",
+      "greeting": "Hallo",
+      "message": "{visitor} hat den Datenraum {roomName} gerade zum ersten Mal geöffnet.",
+      "button": "Aktivität ansehen",
+      "linkInstructions": "Oder kopiere diese URL in deinen Browser:",
+      "footer": "Du bekommst diese Nachricht einmal pro Person. Abschalten kannst du sie in den Einstellungen des Raums."
+    }
   }
 }

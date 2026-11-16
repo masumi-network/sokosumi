@@ -6,6 +6,7 @@ import {
   resolveSectionAttention,
   resolveUnreadThreadsAttention,
   roomAttentionAfterRead,
+  roomAttentionAfterReads,
   roomUnreadReads,
 } from "./room-attention";
 
@@ -394,6 +395,57 @@ describe("resolveRoomAttention in a Direct of two", () => {
         showUnreadCount: true,
       }),
     ).toMatchObject({ mentionCount: 1, unreadTextCount: 0 });
+  });
+});
+
+describe("roomAttentionAfterReads", () => {
+  const room = {
+    unreadCount: 7,
+    channelUnreadCount: 4,
+    threadUnreadCount: 3,
+    unreadMentionCount: 2,
+    unreadNeedsYouCount: 1,
+    unreadThreadCount: 1,
+    unreadThreadMentionCount: 1,
+    unreadThreads: [{ unreadMentionCount: 1 }],
+  };
+
+  it("Looks the Threads and leaves the channel half when only they are read", () => {
+    const after = roomAttentionAfterReads(room, {
+      readRoom: false,
+      lookThreads: true,
+    });
+    expect(after).toMatchObject({
+      unreadCount: 4,
+      channelUnreadCount: 4,
+      threadUnreadCount: 0,
+      unreadMentionCount: 2,
+      unreadNeedsYouCount: 0,
+      unreadThreadCount: 0,
+      unreadThreadMentionCount: 0,
+      unreadThreads: [],
+    });
+  });
+
+  it("leaves nothing for either read to do when both run", () => {
+    const after = roomAttentionAfterReads(room, {
+      readRoom: true,
+      lookThreads: true,
+    });
+    expect(after.unreadCount).toBe(0);
+    expect(roomUnreadReads(after)).toEqual({
+      readRoom: false,
+      lookThreads: false,
+    });
+  });
+
+  it("keeps the Threads when only the channel is read", () => {
+    const after = roomAttentionAfterReads(room, {
+      readRoom: true,
+      lookThreads: false,
+    });
+    expect(after).toMatchObject({ unreadCount: 3, unreadThreadCount: 1 });
+    expect(after.unreadThreads).toHaveLength(1);
   });
 });
 

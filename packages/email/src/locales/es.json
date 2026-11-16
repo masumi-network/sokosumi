@@ -269,5 +269,32 @@
       "expiry": "Este enlace caduca en 7 días. Si no solicitaste esta suscripción, puedes ignorar este correo."
     },
     "website": "Sitio web"
+  },
+  "dataRoom": {
+    "invitation": {
+      "subject": "Invitación a la sala de datos {roomName}",
+      "title": "Sala de datos {roomName}",
+      "greeting": "Hola",
+      "message": "{invitorUsername} te invitó a la sala de datos {roomName} en Sokosumi. Ábrela con el botón de abajo; para entrar recibirás un código por correo.",
+      "button": "Abrir sala de datos",
+      "linkInstructions": "O copia y pega esta URL en tu navegador:",
+      "footer": "Si no esperabas esta invitación, puedes ignorar este correo."
+    },
+    "code": {
+      "subject": "Tu código para {roomName}: {code}",
+      "title": "Tu código para {roomName}",
+      "greeting": "Hola",
+      "message": "Introduce este código para abrir la sala de datos {roomName}. Caduca en {minutes} minutos.",
+      "footer": "Si no pediste este código, puedes ignorar este correo. Nunca compartas el código con nadie."
+    },
+    "firstVisit": {
+      "subject": "{visitor} abrió {roomName}",
+      "title": "Primera visita a {roomName}",
+      "greeting": "Hola",
+      "message": "{visitor} acaba de abrir la sala de datos {roomName} por primera vez.",
+      "button": "Ver la actividad",
+      "linkInstructions": "O copia y pega esta URL en tu navegador:",
+      "footer": "Recibes este aviso una vez por persona. Puedes desactivarlo en los ajustes de la sala."
+    }
   }
 }

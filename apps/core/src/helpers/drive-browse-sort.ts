@@ -166,6 +166,7 @@ function lastItemFromBrowseCursor(payload: BrowseSortCursorPayload): DriveItem {
       type: "folder",
       name: payload.name,
       path: payload.name,
+      dataRoom: false,
     };
   }
 
@@ -176,6 +177,7 @@ function lastItemFromBrowseCursor(payload: BrowseSortCursorPayload): DriveItem {
     pathname: payload.pathname ?? payload.name,
     size: 0,
     uploadedAt: payload.uploadedAt ?? new Date(0).toISOString(),
+    dataRoom: false,
   };
 }
 

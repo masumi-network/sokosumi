@@ -5,13 +5,21 @@ import {
   Dices,
   Download,
   Loader2,
+  MoreHorizontal,
   Play,
   Quote,
   Shuffle,
 } from "lucide-react";
-import { useFormatter } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -62,50 +70,92 @@ export function StudioGallery({
   cancelRequestedJobIds: string[];
   catalog: StudioCatalog;
   labels: StudioLabels;
-  onCancelJob: (jobId: string) => void;
+  /** Omitted, with the draw actions below, in a read-only studio. */
+  onCancelJob?: (jobId: string) => void;
   onOpen: (assetId: string) => void;
   /** Same brief, same settings, no reference: another draw of the dice. */
-  onReroll: (asset: StudioAsset) => void;
+  onReroll?: (asset: StudioAsset) => void;
   /** Put this image's prompt back in the composer to edit. */
-  onReusePrompt: (asset: StudioAsset) => void;
+  onReusePrompt?: (asset: StudioAsset) => void;
   onToggleSelect: (assetId: string) => void;
   /** Same brief with this image as the reference. */
-  onVariation: (asset: StudioAsset) => void;
+  onVariation?: (asset: StudioAsset) => void;
   /** Requests still held in this page, not yet accepted by Core. */
   queued: QueuedGeneration[];
   selectedIds: string[];
 }) {
   const format = useFormatter();
+  const t = useTranslations("App.Studio");
+  const [groupByProduct, setGroupByProduct] = useState(true);
+  const hasProducts = assets.some((asset) => asset.product);
 
   // Chat order: oldest at the top, newest (and anything in flight) at the
   // bottom. Grouping is one pass: a new group starts whenever the calendar day
   // changes. Local day, because "yesterday" is the reader's.
-  const groups: { day: string; date: Date; assets: StudioAsset[] }[] = [];
+  // Product groups can span days. Put the group with the newest ad nearest
+  // the composer, and use that ad's saved name after a product is renamed.
+  const groups = new Map<
+    string,
+    { title: string; projectName?: string; assets: StudioAsset[] }
+  >();
   for (const asset of [...assets].reverse()) {
     const ms = epochMs(asset.createdAt);
-    const date = new Date(ms ?? 0);
-    const day = ms === null ? "" : date.toDateString();
-    const last = groups[groups.length - 1];
-    if (last && last.day === day) last.assets.push(asset);
-    else groups.push({ day, date, assets: [asset] });
+    const date = ms === null ? null : new Date(ms);
+    const product = groupByProduct ? asset.product : undefined;
+    const key = product
+      ? `product:${asset.projectId}:${product.id}`
+      : `date:${date?.toDateString() ?? ""}`;
+    const group = groups.get(key);
+    if (group) {
+      group.assets.push(asset);
+      if (product) group.title = product.name;
+      groups.delete(key);
+      groups.set(key, group);
+      continue;
+    }
+    groups.set(key, {
+      title:
+        product?.name ??
+        (date
+          ? format.dateTime(date, {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })
+          : ""),
+      projectName: product ? asset.projectName : undefined,
+      assets: [asset],
+    });
   }
 
   return (
     // Named by the heading the studio renders above it, rather than by a
     // duplicate label nobody can see.
     <section aria-labelledby="studio-gallery-heading" className="min-w-0">
-      {groups.map((group) => (
-        <div className="mt-6 first:mt-0" key={group.day || "undated"}>
-          {group.day ? (
+      <h2 className="sr-only" id="studio-gallery-heading">
+        {t("adGallery")}
+      </h2>
+      {hasProducts ? (
+        <Button
+          aria-pressed={groupByProduct}
+          className="mb-3"
+          onClick={() => setGroupByProduct((current) => !current)}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          {t("groupByProduct")}
+        </Button>
+      ) : null}
+      {[...groups].map(([key, group]) => (
+        <div className="mt-6 first-of-type:mt-0" key={key}>
+          {group.title ? (
             <h3
-              className="text-muted-foreground mb-3 text-xs font-medium"
+              className="text-muted-foreground mb-3 text-xs font-medium break-words"
               suppressHydrationWarning
             >
-              {format.dateTime(group.date, {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-              })}
+              {group.title}
+              {group.projectName ? ` · ${group.projectName}` : null}
             </h3>
           ) : null}
           <ul className={GRID_CLASS}>
@@ -113,6 +163,12 @@ export function StudioGallery({
               const selected = selectedIds.includes(asset.id);
               const model = resolveModel(catalog, asset.model);
               const video = isVideoAsset(asset);
+              const reroll = video ? undefined : onReroll;
+              const variation =
+                !video && supportsVariation(catalog, asset.model)
+                  ? onVariation
+                  : undefined;
+              const downloadName = `v${asset.version}.${assetFileExtension(asset)}`;
 
               return (
                 <li
@@ -152,44 +208,48 @@ export function StudioGallery({
 
                     {/* Actions live on the picture, on hover or focus, so the
                     grid stays a wall of images and the second draw is one
-                    click. Always shown where there is no hover to wait for. */}
+                    click. Where there is no hover to wait for, the row would
+                    sit on every picture at once, so it folds into the one
+                    menu below instead. */}
                     <div
                       className={cn(
                         // Four `size-10` actions do not fit a two-column tile.
                         // The figure is `overflow-hidden`, so a single row
                         // clips the ones that stick out.
                         "absolute inset-x-0 top-0 flex flex-wrap justify-end gap-1 p-2 pl-10",
-                        "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100",
+                        "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:hidden",
                       )}
                     >
-                      {video ? null : (
+                      {reroll ? (
                         <HoverAction
                           label={labels.reroll}
-                          onClick={() => onReroll(asset)}
+                          onClick={() => reroll(asset)}
                         >
                           <Dices aria-hidden className="size-3.5" />
                         </HoverAction>
-                      )}
-                      {!video && supportsVariation(catalog, asset.model) ? (
+                      ) : null}
+                      {variation ? (
                         <HoverAction
                           label={labels.regenerate}
-                          onClick={() => onVariation(asset)}
+                          onClick={() => variation(asset)}
                         >
                           <Shuffle aria-hidden className="size-3.5" />
                         </HoverAction>
                       ) : null}
-                      <HoverAction
-                        label={labels.reusePrompt}
-                        onClick={() => onReusePrompt(asset)}
-                      >
-                        <Quote aria-hidden className="size-3.5" />
-                      </HoverAction>
+                      {onReusePrompt ? (
+                        <HoverAction
+                          label={labels.reusePrompt}
+                          onClick={() => onReusePrompt(asset)}
+                        >
+                          <Quote aria-hidden className="size-3.5" />
+                        </HoverAction>
+                      ) : null}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <a
                             aria-label={labels.download}
                             className={HOVER_ACTION_CLASS}
-                            download={`v${asset.version}.${assetFileExtension(asset)}`}
+                            download={downloadName}
                             href={assetContentUrl(asset)}
                           >
                             <Download aria-hidden className="size-3.5" />
@@ -200,6 +260,54 @@ export function StudioGallery({
                         </TooltipContent>
                       </Tooltip>
                     </div>
+
+                    {/* Touch only: one button in the corner, so the picture
+                    stays visible and the same actions are a tap away. */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          aria-label={labels.moreActions}
+                          className={cn(
+                            HOVER_ACTION_CLASS,
+                            "absolute top-2 right-2 hidden [@media(hover:none)]:flex",
+                          )}
+                          type="button"
+                        >
+                          <MoreHorizontal aria-hidden className="size-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {reroll ? (
+                          <DropdownMenuItem onSelect={() => reroll(asset)}>
+                            <Dices aria-hidden />
+                            {labels.reroll}
+                          </DropdownMenuItem>
+                        ) : null}
+                        {variation ? (
+                          <DropdownMenuItem onSelect={() => variation(asset)}>
+                            <Shuffle aria-hidden />
+                            {labels.regenerate}
+                          </DropdownMenuItem>
+                        ) : null}
+                        {onReusePrompt ? (
+                          <DropdownMenuItem
+                            onSelect={() => onReusePrompt(asset)}
+                          >
+                            <Quote aria-hidden />
+                            {labels.reusePrompt}
+                          </DropdownMenuItem>
+                        ) : null}
+                        <DropdownMenuItem asChild>
+                          <a
+                            download={downloadName}
+                            href={assetContentUrl(asset)}
+                          >
+                            <Download aria-hidden />
+                            {labels.download}
+                          </a>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
 
                     {/* Selection is its own control, and always drawn: an
                     empty box that only appears on hover cannot be found on
@@ -241,7 +349,7 @@ export function StudioGallery({
         </div>
       ))}
 
-      <ul className={cn(GRID_CLASS, groups.length > 0 && "mt-6")}>
+      <ul className={cn(GRID_CLASS, groups.size > 0 && "mt-6")}>
         {queued.map((request) => (
           <li className="mb-3 break-inside-avoid" key={request.id}>
             <PendingTile
@@ -270,15 +378,17 @@ export function StudioGallery({
                 {/* Cancelling belongs on the thing being cancelled. As a row
                     of buttons above the gallery it was a second list of the
                     running jobs, in a different order, with no picture. */}
-                <Button
-                  className="mt-2"
-                  disabled={requested}
-                  onClick={() => onCancelJob(job.id)}
-                  size="sm"
-                  variant="ghost"
-                >
-                  {requested ? labels.cancelRequested : labels.cancel}
-                </Button>
+                {onCancelJob ? (
+                  <Button
+                    className="mt-2"
+                    disabled={requested}
+                    onClick={() => onCancelJob(job.id)}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    {requested ? labels.cancelRequested : labels.cancel}
+                  </Button>
+                ) : null}
               </PendingTile>
             </li>
           );

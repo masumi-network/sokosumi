@@ -2,7 +2,7 @@
 
 import { RefreshCw, WandSparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useState } from "react";
+import { type ReactElement, useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -31,6 +31,7 @@ interface DesignMdGenerateDialogProps {
   onOpenChange?: (open: boolean) => void;
   open?: boolean;
   owner: DesignMdOwner;
+  trigger?: ReactElement;
   websiteUrl?: null | string;
 }
 
@@ -42,6 +43,7 @@ export function DesignMdGenerateDialog({
   onOpenChange,
   open,
   owner,
+  trigger,
   websiteUrl,
 }: DesignMdGenerateDialogProps) {
   const t = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
@@ -107,11 +109,15 @@ export function DesignMdGenerateDialog({
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       {hideTrigger ? null : (
-        <DialogTrigger asChild>
-          <Button type="button" disabled={disabled || !websiteUrl}>
-            <WandSparkles className="size-4" />
-            {hasExistingDesignMd ? t("regenerateButton") : t("generateButton")}
-          </Button>
+        <DialogTrigger asChild disabled={disabled || !websiteUrl}>
+          {trigger ?? (
+            <Button type="button">
+              <WandSparkles className="size-4" />
+              {hasExistingDesignMd
+                ? t("regenerateButton")
+                : t("generateButton")}
+            </Button>
+          )}
         </DialogTrigger>
       )}
       <DialogContent>

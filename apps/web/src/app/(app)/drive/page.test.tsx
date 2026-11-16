@@ -1,5 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { ReactNode } from "react";
@@ -161,6 +168,13 @@ vi.mock("@/lib/utils/file-search.client", async (importOriginal) => {
   };
 });
 
+const fetchDataRoomsMock = vi.fn();
+
+vi.mock("@/lib/utils/data-room.client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/utils/data-room.client")>()),
+  fetchDataRooms: (...args: unknown[]) => fetchDataRoomsMock(...args),
+}));
+
 const fetchDriveTasksPageMock = vi.fn();
 const fetchDriveRecentsPageMock = vi.fn();
 
@@ -258,6 +272,7 @@ vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
     folderActions,
     virtualFolder,
     onMoveFiles,
+    dataRoomPaths,
   }: {
     initialQuery?: string;
     initialFolder?: string;
@@ -265,9 +280,11 @@ vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
     folderActions?: React.ReactNode;
     virtualFolder?: { label: string; onOpen: () => void };
     onMoveFiles?: (files: { pathname: string; name: string }[]) => void;
+    dataRoomPaths?: readonly string[];
   }) => (
     <div
       data-testid="drive-all-files"
+      data-room-paths={dataRoomPaths?.join("|") ?? ""}
       data-initial-query={initialQuery ?? ""}
       data-initial-folder={initialFolder ?? ""}
     >
@@ -322,17 +339,38 @@ vi.mock("@/components/ui/image-viewer", () => ({
   },
 }));
 
+const uploadDriveFileMock = vi.fn();
+
+vi.mock("@/lib/utils/drive-file-upload.client", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/lib/utils/drive-file-upload.client")
+  >()),
+  uploadDriveFile: (...args: unknown[]) => uploadDriveFileMock(...args),
+}));
+
 vi.mock("@/components/ui/document-viewer", () => ({
   DocumentViewer: ({ open, fileName }: { open: boolean; fileName: string }) =>
     open ? <div role="dialog" aria-label={fileName} /> : null,
 }));
 
+import { toast } from "sonner";
 import { DrivePageClient } from "@/app/drive/drive-page-client";
 import {
+  FILES_VIEW_MODE_COOKIE_NAME,
   type FilesViewMode,
-  parseFilesViewModeCookieHeader,
-  resolveFilesViewModeFromClientCookie,
+  parseFilesViewMode,
 } from "@/lib/ui-preferences/files-view-mode";
+import { DriveFileUploadError } from "@/lib/utils/drive-file-upload.client";
+
+function filesViewModeFromDocumentCookie(): FilesViewMode {
+  const value = document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${FILES_VIEW_MODE_COOKIE_NAME}=`))
+    ?.slice(`${FILES_VIEW_MODE_COOKIE_NAME}=`.length);
+
+  return parseFilesViewMode(value) ?? "list";
+}
 
 function createDriveQueryClient() {
   return new QueryClient({
@@ -415,6 +453,8 @@ describe("DrivePage workspace remount", () => {
     });
 
     listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    fetchDataRoomsMock.mockReset();
+    fetchDataRoomsMock.mockResolvedValue([]);
     patchDriveFoldersRenameMock.mockResolvedValue({});
     getUsersByIdOrganizationsMock.mockResolvedValue({
       data: {
@@ -772,6 +812,49 @@ describe("DrivePage recents view", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("empty Recents uploads through the picker and opens Workspace", async () => {
+    const user = userEvent.setup();
+    listDriveItemsMock.mockResolvedValue([]);
+    uploadDriveFileMock.mockReset();
+    uploadDriveFileMock.mockResolvedValue({ pathname: "a", fileUrl: null });
+    const { container } = renderDrive();
+    const upload = await screen.findByRole("button", { name: "uploadButton" });
+    const input = container.querySelector<HTMLInputElement>("#file-upload")!;
+    const pick = vi.spyOn(input, "click");
+    await user.click(upload);
+    expect(pick).toHaveBeenCalledOnce();
+
+    fetchDriveRecentsPageMock.mockClear();
+    const file = new File(["x"], "notes.txt", { type: "text/plain" });
+    await act(async () => {
+      fireEvent.change(input, { target: { files: [file] } });
+    });
+    await waitFor(() => {
+      expect(fetchDriveRecentsPageMock).toHaveBeenCalled();
+    });
+    expect(uploadDriveFileMock.mock.calls[0][0]).toBe(file);
+
+    await user.click(
+      screen.getByRole("button", { name: "recentsEmptyOpenWorkspace" }),
+    );
+    expect(screen.getByRole("tab", { name: "workspaceTab" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("a filtered empty Recents offers no upload", async () => {
+    const user = userEvent.setup();
+    renderDrive();
+    await screen.findByRole("button", { name: "uploadButton" });
+    const [searchInput] = screen.getAllByPlaceholderText("searchPlaceholder");
+    await user.type(searchInput, "nothing");
+    await screen.findByText("noMatchTitle");
+    expect(
+      screen.queryByRole("button", { name: "uploadButton" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("lists a recently changed table that opens its editor", async () => {
     fetchDriveRecentsPageMock.mockResolvedValue({
       items: [
@@ -989,9 +1072,7 @@ describe("DrivePage files view mode", () => {
 
     unmount();
     queryClient = createDriveQueryClient();
-    const remountMode =
-      parseFilesViewModeCookieHeader(document.cookie) ?? "list";
-    renderDrive(remountMode);
+    renderDrive(filesViewModeFromDocumentCookie());
 
     await waitFor(() => {
       expect(screen.getByTestId("files-layout-grid")).toBeVisible();
@@ -1015,7 +1096,7 @@ describe("DrivePage files view mode", () => {
         }),
     );
 
-    renderDrive(resolveFilesViewModeFromClientCookie(document.cookie));
+    renderDrive(filesViewModeFromDocumentCookie());
 
     await waitFor(() => {
       expect(screen.getByTestId("files-layout-skeleton-grid")).toBeVisible();
@@ -1082,7 +1163,7 @@ describe("DrivePage files view mode", () => {
     useIsMobileMock.mockReturnValue(true);
     document.cookie = "files_view_mode=grid; path=/";
 
-    renderDrive(resolveFilesViewModeFromClientCookie(document.cookie));
+    renderDrive(filesViewModeFromDocumentCookie());
 
     await waitFor(() => {
       expect(screen.getByTestId("files-layout-list")).toBeVisible();
@@ -1845,6 +1926,33 @@ describe("one catalog, not two", () => {
     });
   });
 
+  it("marks a renamed data room at its new path, not its old one", async () => {
+    // Core moves the room's path with the folder; the marker must follow.
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    listDriveItemsMock.mockResolvedValue([]);
+    fetchDataRoomsMock.mockResolvedValueOnce([{ folderPath: "Reports" }]);
+    fetchDataRoomsMock.mockResolvedValue([{ folderPath: "Investors" }]);
+    vi.stubGlobal("prompt", () => "Investors");
+
+    renderDrive();
+
+    const panel = await screen.findByTestId("drive-all-files");
+    await waitFor(() =>
+      expect(panel).toHaveAttribute("data-room-paths", "Reports"),
+    );
+    await user.click(screen.getByTestId("files-rename-folder"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+        "data-room-paths",
+        "Investors",
+      ),
+    );
+    expect(patchDriveFoldersRenameMock).toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
   it("offers no folder actions when no folder is applied", async () => {
     // There is nothing to rename then, and offering it would have to guess.
     searchParams = new URLSearchParams("view=workspace");
@@ -1954,5 +2062,199 @@ describe("one catalog, not two", () => {
     expect(
       within(header).queryByPlaceholderText("searchPlaceholder"),
     ).toBeNull();
+  });
+
+  it("uploads a picked folder with its subfolders into the open folder", async () => {
+    searchParams = new URLSearchParams("view=workspace&folder=Clients");
+    listDriveItemsMock.mockResolvedValue([]);
+    uploadDriveFileMock.mockReset();
+    // The second file is already in Files; it is kept and counted as skipped.
+    uploadDriveFileMock
+      .mockResolvedValueOnce({ pathname: "a", fileUrl: null })
+      .mockRejectedValueOnce(new DriveFileUploadError("duplicate", "exists"));
+    vi.mocked(toast.success).mockClear();
+
+    const { container } = renderDrive();
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
+    });
+    // One Upload, offering files or a folder (the menu renders flat here).
+    const header = within(screen.getByTestId("files-desktop-header"));
+    expect(
+      header.getAllByRole("button", { name: "uploadButton" }),
+    ).toHaveLength(1);
+    expect(
+      header.getByRole("button", { name: "uploadFilesOption" }),
+    ).toBeInTheDocument();
+    expect(
+      header.getByRole("button", { name: "uploadFolderOption" }),
+    ).toBeInTheDocument();
+
+    const picked = [
+      "Launch/brief.txt",
+      "Launch/assets/notes.txt",
+      "Launch/.DS_Store",
+    ].map((path) => {
+      const file = new File(["x"], path.split("/").at(-1)!, {
+        type: "text/plain",
+      });
+      Object.defineProperty(file, "webkitRelativePath", { value: path });
+      return file;
+    });
+    const input = container.querySelector<HTMLInputElement>(
+      "input[webkitdirectory]",
+    )!;
+    await act(async () => {
+      fireEvent.change(input, { target: { files: picked } });
+    });
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith("folderUploaded", {
+        description: "folderUploadSkipped",
+      });
+    });
+    expect(
+      uploadDriveFileMock.mock.calls.map(([file, options]) => [
+        (file as File).name,
+        (options as { folder: string }).folder,
+      ]),
+    ).toEqual([
+      ["brief.txt", "Clients/Launch"],
+      ["notes.txt", "Clients/Launch/assets"],
+    ]);
+  });
+
+  describe("drag and drop", () => {
+    const fileEntry = (fullPath: string) => {
+      const name = fullPath.split("/").at(-1)!;
+      return {
+        isFile: true,
+        isDirectory: false,
+        name,
+        fullPath,
+        file: (resolve: (f: File) => void) =>
+          resolve(new File(["x"], name, { type: "text/plain" })),
+      };
+    };
+    const dirEntry = (
+      fullPath: string,
+      children: unknown[],
+      gate: Promise<void> = Promise.resolve(),
+    ) => ({
+      isFile: false,
+      isDirectory: true,
+      name: fullPath.split("/").at(-1)!,
+      fullPath,
+      createReader: () => {
+        const batches = [children, []];
+        return {
+          readEntries: (resolve: (e: unknown[]) => void) =>
+            void gate.then(() => resolve(batches.shift() ?? [])),
+        };
+      },
+    });
+    const dropOn = (target: Element, ...entries: unknown[]) =>
+      act(async () => {
+        fireEvent.drop(target, {
+          dataTransfer: {
+            types: ["Files"],
+            files: [],
+            items: entries.map((entry) => ({
+              kind: "file",
+              webkitGetAsEntry: () => entry,
+            })),
+          },
+        });
+      });
+    const uploadedTo = () =>
+      uploadDriveFileMock.mock.calls.map(([file, options]) => [
+        (file as File).name,
+        (options as { folder?: string }).folder,
+      ]);
+
+    beforeEach(() => {
+      searchParams = new URLSearchParams("view=workspace");
+      listDriveItemsMock.mockResolvedValue([]);
+      uploadDriveFileMock.mockReset();
+      uploadDriveFileMock.mockResolvedValue({ pathname: "a", fileUrl: null });
+      vi.mocked(toast.success).mockClear();
+      vi.mocked(toast.error).mockClear();
+    });
+
+    it("uploads a folder dropped on the page header, keeping its subfolders", async () => {
+      renderDrive();
+      await screen.findByTestId("drive-all-files");
+
+      // Not the list: the header, so the whole page is the target.
+      await dropOn(
+        screen.getByTestId("files-desktop-header"),
+        dirEntry("/Launch", [
+          fileEntry("/Launch/brief.txt"),
+          dirEntry("/Launch/assets", [fileEntry("/Launch/assets/notes.txt")]),
+        ]),
+      );
+
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith("folderUploaded", undefined);
+      });
+      expect(uploadedTo()).toEqual([
+        ["brief.txt", "Launch"],
+        ["notes.txt", "Launch/assets"],
+      ]);
+    });
+
+    it("ignores a second drop while the first folder is still being read", async () => {
+      let release = () => {};
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      renderDrive();
+      const list = await screen.findByTestId("drive-all-files");
+
+      await dropOn(
+        list,
+        dirEntry("/Launch", [fileEntry("/Launch/brief.txt")], gate),
+      );
+      await dropOn(list, fileEntry("/second.txt"));
+      await act(async () => release());
+
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith("folderUploaded", undefined);
+      });
+      expect(uploadedTo()).toEqual([["brief.txt", "Launch"]]);
+    });
+
+    it("keeps the browser on Files when a file misses the page", async () => {
+      renderDrive();
+      await screen.findByTestId("drive-all-files");
+
+      // Outside the page, e.g. on the sidebar: cancelled, so the browser
+      // does not open the file in place of Sokosumi.
+      const miss = new Event("drop", { bubbles: true, cancelable: true });
+      Object.defineProperty(miss, "dataTransfer", {
+        value: { types: ["Files"] },
+      });
+      document.body.dispatchEvent(miss);
+
+      expect(miss.defaultPrevented).toBe(true);
+      expect(uploadDriveFileMock).not.toHaveBeenCalled();
+    });
+
+    it("reports a failed single file without the skip-reasons note", async () => {
+      uploadDriveFileMock.mockReset();
+      uploadDriveFileMock.mockRejectedValueOnce(new Error("network"));
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      renderDrive();
+      const list = await screen.findByTestId("drive-all-files");
+
+      await dropOn(list, fileEntry("/notes.txt"));
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith("uploadError", undefined);
+      });
+      consoleError.mockRestore();
+    });
   });
 });

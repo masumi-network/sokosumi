@@ -125,4 +125,26 @@ describe("GET image studio asset content", () => {
     expect(response.headers.get("content-range")).toBe("bytes 0-1/1000");
     expect(response.headers.get("accept-ranges")).toBe("bytes");
   });
+
+  it("forwards the logo and placement without a byte range and keeps the derivative private", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(new Uint8Array([1]), {
+        headers: { "content-type": "image/png" },
+      }),
+    );
+    const response = await GET(
+      new NextRequest(
+        `${request().url}?logo=top-left&placement=9%3A16&reload=1`,
+        { headers: { range: "bytes=0-1" } },
+      ),
+      { params },
+    );
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "https://core.test/v1/projects/project-1/image-studio/assets/asset-1/content?logo=top-left&placement=9%3A16",
+    );
+    expect(options.headers.has("range")).toBe(false);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+  });
 });

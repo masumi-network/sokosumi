@@ -47,6 +47,7 @@ describe("SocialPostMediaThumb", () => {
 
       expect(screen.getByTestId("file-chip-mini-preview")).toBeVisible();
       expect(vi.mocked(FileChipMiniPreview).mock.lastCall?.[0]).toEqual({
+        className: "[&_img]:object-contain",
         fileName: media.name,
         mediaType: media.mimeType,
         size: media.size,

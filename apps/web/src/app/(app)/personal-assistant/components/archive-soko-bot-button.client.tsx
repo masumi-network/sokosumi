@@ -58,7 +58,6 @@ export function ArchiveSokoBotButton() {
                 toast.success(t("archived"));
                 // A shared bot's console closes with it; the roster lists it.
                 if (botId) router.push(SOKO_BOTS_ROUTE);
-                else router.refresh();
               })
             }
           >

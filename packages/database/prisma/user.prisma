@@ -1,22 +1,24 @@
 model User {
-  id            String    @id @default(uuid(7))
-  name          String
-  firstName     String?
-  lastName      String?
-  email         String
-  emailVerified Boolean
-  image         String?
-  logo          String?
-  metadata      String?
-  role          String    @default("user")
-  banned        Boolean?  @default(false)
-  banReason     String?
-  banExpires    DateTime?
-  createdAt     DateTime
-  updatedAt     DateTime
-  sessions      Session[]
-  accounts      Account[]
-  passkeys      Passkey[]
+  seoAuditChatTurns      SeoAuditChatTurn[]
+  seoPrivateObservations ProjectSeoObservation[] @relation("ProjectSeoMetricOwner")
+  id                     String                  @id @default(uuid(7))
+  name                   String
+  firstName              String?
+  lastName               String?
+  email                  String
+  emailVerified          Boolean
+  image                  String?
+  logo                   String?
+  metadata               String?
+  role                   String                  @default("user")
+  banned                 Boolean?                @default(false)
+  banReason              String?
+  banExpires             DateTime?
+  createdAt              DateTime
+  updatedAt              DateTime
+  sessions               Session[]
+  accounts               Account[]
+  passkeys               Passkey[]
 
   userAgentRatings UserAgentRating[]
   transactions     Transaction[]
@@ -103,6 +105,8 @@ model User {
 
   // Credit Buckets
   creditBuckets CreditBucket[]
+
+  dataRoomColleagues DataRoomColleague[]
 
   createdChatRooms                 ChatRoom[]                    @relation("ChatRoomCreator")
   chatRoomMemberships              ChatRoomUserMember[]

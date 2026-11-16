@@ -1,0 +1,118 @@
+import * as Sentry from "@sentry/node";
+import type { Prisma } from "@sokosumi/database";
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
+import { HTTPException } from "hono/http-exception";
+
+import { revokePolarSubscription } from "@/clients/polar.client";
+import { writeOffUnlessLiveCuso } from "@/helpers/cuso-project-credits";
+import { serviceUnavailable } from "@/helpers/error";
+import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
+import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
+
+/**
+ * Ending a Cuso ends his CMO subscription (ADR 0068): Polar stops charging at
+ * once, without a refund. Each ending path calls one of these before its
+ * transaction, never inside it: that transaction is retried, and a retry
+ * would call Polar again. The path's own permission check comes first.
+ *
+ * A failure throws, so the caller ends nothing. The reverse (revoked here,
+ * the transaction then fails) leaves a live Cuso without a subscription, who
+ * is offered the checkout again.
+ */
+async function revokeSubscriptions(
+  where: Prisma.PolarSubscriptionWhereInput,
+): Promise<number> {
+  const subscriptions = await prisma.polarSubscription.findMany({
+    where: { endedAt: null, ...where },
+    select: { id: true, polarSubscriptionId: true },
+  });
+  for (const subscription of subscriptions) {
+    try {
+      await revokePolarSubscription(subscription.polarSubscriptionId);
+    } catch (error) {
+      // Polar without settings already says so with its own 503.
+      if (error instanceof HTTPException) throw error;
+      Sentry.captureException(error, {
+        tags: { error_type: "polar_subscription_revoke_failed" },
+        extra: { polarSubscriptionId: subscription.polarSubscriptionId },
+      });
+      throw serviceUnavailable(
+        "The subscription could not be ended. Nothing was changed. Try again later.",
+        { reportToSentry: false },
+      );
+    }
+    // Recorded now, not on `subscription.revoked`: the Project is free for a
+    // new subscription at once, and a late older payload cannot revive it.
+    const endedAt = new Date();
+    await prisma.polarSubscription.updateMany({
+      where: { id: subscription.id, endedAt: null },
+      data: { status: "canceled", endedAt, polarEventAt: endedAt },
+    });
+  }
+  return subscriptions.length;
+}
+
+/** For a path that archives or deletes this bot; any bot but a live Cuso is left alone. */
+export async function revokeCusoSubscription(sokoBotId: string): Promise<void> {
+  await revokeSubscriptions({
+    project: { sokoBots: { some: { id: sokoBotId, ...LIVE_CUSO_WHERE } } },
+  });
+}
+
+/** For a version change: only a move to a version outside CMO ends Cuso. */
+export async function revokeCusoSubscriptionIfLeavingCmo(
+  sokoBotId: string,
+  versionId: string,
+): Promise<void> {
+  if (CMO_SOKO_BOT_VERSION_IDS.includes(versionId)) return;
+  await revokeCusoSubscription(sokoBotId);
+}
+
+/** For a Project close, which archives every bot of the Project. */
+export async function revokeProjectCusoSubscription(
+  projectId: string,
+  workspaceId: string,
+): Promise<void> {
+  await revokeSubscriptions({ projectId, project: { workspaceId } });
+}
+
+/** For an organization deletion, which deletes every Project of it. */
+export async function revokeOrganizationCusoSubscriptions(
+  organizationId: string,
+): Promise<void> {
+  await revokeSubscriptions({ organizationId });
+}
+
+/**
+ * After an ending's transaction: revokes a subscription the Project still
+ * holds without a live Cuso. A first subscription webhook can create its row
+ * after the ending's revoke above found none. It writes its row before it
+ * checks the Cuso, and the ending archived him before this looks: whichever
+ * of the two looks second sees the other, and revokes. The Cuso has ended by
+ * now, so a failure is reported (inside `revokeSubscriptions`) and not thrown;
+ * his Project's credits are written off either way.
+ */
+export async function revokeSubscriptionsLeftByEnding(
+  projectId: string | null,
+): Promise<void> {
+  if (!projectId) return;
+  let left: number;
+  try {
+    left = await revokeSubscriptions({
+      projectId,
+      project: { sokoBots: { none: LIVE_CUSO_WHERE } },
+    });
+  } catch (error) {
+    if (!(error instanceof HTTPException)) throw error;
+    left = 1;
+  }
+  // Its first payment may have granted credits the ending's write-off did not
+  // see: they go too, as the ending's would have.
+  if (left > 0) {
+    await serializableTransaction(
+      (tx) => writeOffUnlessLiveCuso(projectId, tx),
+      "The write-off raced another write to the same credits",
+    );
+  }
+}

@@ -156,6 +156,7 @@ describe("AddFromContactsDialog", () => {
     await user.click(disabled);
     expect(disabled).not.toBeChecked();
     expect(mocks.list).toHaveBeenCalledWith({
+      hasChannel: "EMAIL",
       search: undefined,
       sort: "name",
       direction: "asc",
@@ -215,7 +216,7 @@ describe("AddFromContactsDialog", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       COPY.FromContacts.doneDescription,
     );
-    expect(mocks.refresh).toHaveBeenCalledTimes(1);
+    expect(mocks.refresh).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: COPY.done }));
     expect(mocks.close).toHaveBeenCalled();
   });

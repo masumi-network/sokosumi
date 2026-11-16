@@ -35,10 +35,25 @@ export interface ColumnListQueryOptions {
   statuses: TaskStatus[];
 }
 
+/** Columns whose Tasks wait on someone; only these can be stuck. */
+export const WAITING_COLUMN_IDS: KanbanColumnId[] = [
+  "todo",
+  "in-progress",
+  "input-required",
+];
+
+export const WAITING_TASK_STATUSES = WAITING_COLUMN_IDS.flatMap(
+  (columnId) => COLUMN_TASK_STATUSES[columnId],
+);
+
 export function getColumnListQueryOptions(
   columnId: KanbanColumnId,
   statusFilter: TaskStatus | null,
+  stuck = false,
 ): ColumnListQueryOptions {
+  if (stuck && !WAITING_COLUMN_IDS.includes(columnId)) {
+    return { statuses: [] };
+  }
   const statuses = COLUMN_TASK_STATUSES[columnId].filter(
     (columnStatus) => statusFilter === null || columnStatus === statusFilter,
   );

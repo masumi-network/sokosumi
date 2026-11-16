@@ -3,22 +3,12 @@ import type { ReactElement } from "react";
 import { renderToReadableStream } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const listTaskActivityFeedMock = vi.fn();
 const taskActivitySectionMock = vi.fn();
 const taskDetailActionsMock = vi.fn();
 const viewer = vi.hoisted(() => ({
   id: "user_admin",
   hasAssignedSeat: false,
 }));
-
-class FakeCoreApiRequestError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
-  }
-}
 
 vi.mock("server-only", () => ({}));
 
@@ -37,12 +27,6 @@ vi.mock("@/lib/auth/auth.server", () => ({
   }),
 }));
 
-vi.mock("@/lib/services/task.service", () => ({
-  taskService: {
-    listTaskActivityFeed: (...args: unknown[]) =>
-      listTaskActivityFeedMock(...args),
-  },
-}));
 vi.mock("@/lib/services/agent.service", () => ({
   agentService: { getAvailableAgentsWithCreditsPrice: async () => [] },
 }));
@@ -197,14 +181,9 @@ describe("TaskDetailView (forceReadOnly: admin and developer views)", () => {
     vi.clearAllMocks();
     viewer.id = "user_admin";
     viewer.hasAssignedSeat = false;
-    // Core scopes GET /tasks/{id}/events to the caller's active workspace; a
-    // platform admin outside the owner's workspace gets "Task not found".
-    listTaskActivityFeedMock.mockRejectedValue(
-      new FakeCoreApiRequestError("Task not found", 404),
-    );
   });
 
-  it("renders activity from the admin task payload instead of the workspace-scoped events read", async () => {
+  it("renders every comment from the admin task payload", async () => {
     const events = [
       event("evt_1", null, 1),
       ...Array.from({ length: 7 }, (_, index) =>
@@ -217,7 +196,6 @@ describe("TaskDetailView (forceReadOnly: admin and developer views)", () => {
     );
 
     expect(errors).toEqual([]);
-    expect(listTaskActivityFeedMock).not.toHaveBeenCalled();
     expect(taskActivitySectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         events,
@@ -228,22 +206,22 @@ describe("TaskDetailView (forceReadOnly: admin and developer views)", () => {
     );
   });
 
-  it("keeps the workspace-scoped events read for the user-facing view", async () => {
-    const feedEvents = [event("evt_c0", "comment 0", 1)];
-    listTaskActivityFeedMock.mockResolvedValue({
-      events: feedEvents,
-      pagination: { commentCount: 12, latestCommentId: "evt_c11" },
-    });
+  it("renders the user-facing view from the task payload with the newest 5 comments", async () => {
+    const status = event("evt_1", null, 1);
+    const comments = Array.from({ length: 7 }, (_, index) =>
+      event(`evt_c${index}`, `comment ${index}`, index + 2),
+    );
 
-    const errors = await renderErrors(<TaskDetailView task={createTask([])} />);
+    const errors = await renderErrors(
+      <TaskDetailView task={createTask([status, ...comments])} />,
+    );
 
     expect(errors).toEqual([]);
-    expect(listTaskActivityFeedMock).toHaveBeenCalledWith("task_1");
     expect(taskActivitySectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        events: feedEvents,
-        commentCount: 12,
-        latestCommentId: "evt_c11",
+        events: [status, ...comments.slice(2)],
+        commentCount: 7,
+        latestCommentId: "evt_c6",
       }),
     );
   });
@@ -256,10 +234,6 @@ describe("TaskDetailView (rights follow the Owner)", () => {
     vi.clearAllMocks();
     viewer.id = "user_viewer";
     viewer.hasAssignedSeat = true;
-    listTaskActivityFeedMock.mockResolvedValue({
-      events: [],
-      pagination: { commentCount: 0, latestCommentId: null },
-    });
   });
 
   async function renderFor(task: Task) {

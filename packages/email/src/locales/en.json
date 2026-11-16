@@ -269,5 +269,32 @@
       "expiry": "This link expires in 7 days. If you did not request this subscription, you can ignore this email."
     },
     "website": "Website"
+  },
+  "dataRoom": {
+    "invitation": {
+      "subject": "You're invited to the data room {roomName}",
+      "title": "Data room {roomName}",
+      "greeting": "Hello",
+      "message": "{invitorUsername} invited you to the data room {roomName} on Sokosumi. Open it with the button below; you'll get a code by email to sign in.",
+      "button": "Open data room",
+      "linkInstructions": "Or copy and paste this URL into your browser:",
+      "footer": "If you weren't expecting this invitation, you can ignore this email."
+    },
+    "code": {
+      "subject": "Your code for {roomName}: {code}",
+      "title": "Your code for {roomName}",
+      "greeting": "Hello",
+      "message": "Enter this code to open the data room {roomName}. It expires in {minutes} minutes.",
+      "footer": "If you didn't ask for this code, you can ignore this email. Never share the code with anyone."
+    },
+    "firstVisit": {
+      "subject": "{visitor} opened {roomName}",
+      "title": "First visit to {roomName}",
+      "greeting": "Hello",
+      "message": "{visitor} just opened the data room {roomName} for the first time.",
+      "button": "See the activity",
+      "linkInstructions": "Or copy and paste this URL into your browser:",
+      "footer": "You get this once per person. Turn it off in the room's settings."
+    }
   }
 }

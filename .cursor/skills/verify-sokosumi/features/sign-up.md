@@ -6,7 +6,7 @@ Sign up creates an account from the emailed code, with an optional password ([AD
 
 - `signup-form` shows the email step on `/signup` under **Create your account**, which emails a code, then the names and that code. **Add a password for future logins** adds a password field.
 - `signup-submit` creates the user with a verified address, adds the password if one was set, and signs them in.
-- `signup-landing` lands on Welcome `/` after submit (then may continue into `/setup` when the user has no workspace yet).
+- `signup-landing` leaves `/signup` for `/setup` when the user has no workspace yet (Welcome `/` can flash first). Opening `/agents` stays on `/setup`, not `/signin`.
 
 ## How to get to it (user POV)
 

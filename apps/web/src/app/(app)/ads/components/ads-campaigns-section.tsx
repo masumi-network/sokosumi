@@ -11,6 +11,8 @@ interface AdsCampaignsSectionProps {
   account: ProjectAdAccount;
   projectId: string;
   range: RangeParam;
+  /** A CMO Project: CMO runs its ads, so they are only read (ADR 0066). */
+  readOnly?: boolean;
 }
 
 /**
@@ -22,6 +24,7 @@ export async function AdsCampaignsSection({
   account,
   projectId,
   range,
+  readOnly,
 }: AdsCampaignsSectionProps) {
   try {
     const { campaigns, currency } = await adsService.listCampaigns(
@@ -37,6 +40,7 @@ export async function AdsCampaignsSection({
         projectId={projectId}
         provider={account.provider}
         range={range}
+        readOnly={readOnly}
       />
     );
   } catch (error) {

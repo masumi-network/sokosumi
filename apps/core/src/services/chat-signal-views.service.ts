@@ -217,6 +217,60 @@ export async function listChatRoomMessagesWithTag(
   };
 }
 
+/**
+ * Decisions across every room the reader's sidebar lists, read or not, muted
+ * or not, Thread replies too: messages carrying `decisionMade` after readers'
+ * corrections. Newest first; `after` is a position, not a row, so equal
+ * timestamps and a since-deleted boundary message lose nothing.
+ */
+export async function listChatDecisions(
+  userId: string,
+  organizationId: string | null,
+  page: { after?: { createdAt: Date; id: string }; take: number },
+) {
+  // Muting silences alerts, not access: a decision log must not hide a room
+  // the reader can still open.
+  const rooms = await prisma.chatRoom.findMany({
+    where: {
+      ...membershipVisibleActiveRoomWhere(organizationId),
+      userMembers: { some: { userId } },
+    },
+    select: { id: true },
+  });
+  if (rooms.length === 0) return { messages: [], total: 0, hasMore: false };
+  const n = rooms.length;
+  const rows = await prisma.$queryRawUnsafe<
+    Array<{ id: string; total: number }>
+  >(
+    `WITH decisions AS (
+      SELECT m.id, m."createdAt"
+      FROM "chat_message_signal" s
+      INNER JOIN "chat_room_message" m ON m.id = s."messageId"
+      WHERE s."roomId" IN (${placeholders(n)})
+        AND s.state = 'tagged'
+        AND m."deletedAt" IS NULL
+        AND ${sqlChatSignalHasTag("s", "decisionMade")}
+    )
+    SELECT id, (SELECT COUNT(*) FROM decisions)::int AS total
+    FROM decisions
+    ${page.after ? `WHERE ("createdAt", id) < ($${n + 2}, $${n + 3}::uuid)` : ""}
+    ORDER BY "createdAt" DESC, id DESC
+    LIMIT $${n + 1}`,
+    ...rooms.map((room) => room.id),
+    page.take + 1,
+    ...(page.after ? [page.after.createdAt, page.after.id] : []),
+  );
+  const ids = rows.slice(0, page.take).map((row) => row.id);
+  const messages = await loadListedMessages(ids);
+  const order = new Map(ids.map((id, index) => [id, index]));
+  messages.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  return {
+    messages,
+    total: rows[0]?.total ?? 0,
+    hasMore: rows.length > page.take,
+  };
+}
+
 /** The rooms a reader's cross-room lists read: what their sidebar lists, unmuted. */
 async function readerRooms(userId: string, organizationId: string | null) {
   return prisma.chatRoom.findMany({

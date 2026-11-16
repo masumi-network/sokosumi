@@ -82,6 +82,31 @@ describe("PATCH /tasks/schedules/{id}/runs/{runId}", () => {
     vi.useRealTimers();
   });
 
+  it.each(["skip", "move", "restore"] as const)(
+    "refuses a member's %s of another owner's SEO monitor Run",
+    async (action) => {
+      const schedule = seedTaskSchedule({
+        description: "seo_monitor: {}",
+        nextRunAt: JAN_7,
+      });
+      const run = seedRun(schedule, JAN_7, {
+        state: action === "restore" ? "SKIPPED" : "PLANNED",
+      });
+      const response = await send(
+        schedule,
+        run.id,
+        {
+          action,
+          ...(action === "move" ? { scheduledAt: JAN_2.toISOString() } : {}),
+        },
+        createTaskScheduleTestApp(mount, userAuth(MEMBER_ID)),
+      );
+      expect(response.status).toBe(403);
+      expect(runsOf(schedule.id)).toEqual([run]);
+      expect(storedSchedule(schedule.id)?.revision).toBe(0);
+    },
+  );
+
   it("refuses a Run change while the schedule's project is closing", async () => {
     const schedule = seedTaskSchedule({
       projectId: PROJECT_ID,
@@ -186,6 +211,32 @@ describe("PATCH /tasks/schedules/{id}/runs/{runId}", () => {
       },
     });
     expect(storedSchedule(schedule.id)?.nextRunAt).toEqual(JAN_7);
+  });
+
+  it("moves a skipped Run back to its moved time, past rule time and all", async () => {
+    const schedule = seedTaskSchedule({ nextRunAt: JAN_14 });
+    // Moved from Dec 30 (now past) to Jan 15, then skipped.
+    const run = seedRun(schedule, DEC_30, {
+      state: "SKIPPED",
+      effectiveScheduledAt: JAN_15,
+    });
+    seedRun(schedule, JAN_14);
+
+    const response = await send(schedule, run.id, {
+      action: "move",
+      scheduledAt: JAN_15.toISOString(),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: {
+        run: {
+          state: "PLANNED",
+          originalScheduledAt: DEC_30.toISOString(),
+          effectiveScheduledAt: JAN_15.toISOString(),
+        },
+      },
+    });
   });
 
   it("restores a moved Run to the rule's time", async () => {

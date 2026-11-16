@@ -46,8 +46,11 @@ public struct ResultSocialPost: Equatable, Sendable {
     public let isFolded: Bool
   }
 
-  /// Web's grid shows at most four pictures (`PreviewMediaGrid`).
-  private static let visibleMediaLimit = 4
+  /// Web's X carousel shows up to twenty pictures; the other networks' grids show at most four.
+  private var visibleMediaLimit: Int {
+    provider == .x ? 20 : 4
+  }
+
   /// LinkedIn folds after three lines or 210 characters, Instagram after two lines or 125.
   public static let linkedInFold = (maxChars: 210, maxLines: 3)
   public static let instagramFold = (maxChars: 125, maxLines: 2)
@@ -121,9 +124,9 @@ public struct ResultSocialPost: Equatable, Sendable {
     }
   }
 
-  /// The pictures web's grid draws.
+  /// The pictures web's carousel or grid draws, in the post's order.
   public var visibleMedia: [Media] {
-    Array(media.prefix(Self.visibleMediaLimit))
+    Array(media.prefix(visibleMediaLimit))
   }
 
   /// Web `getInitials`: two words' first letters, or a single word's first two letters, upper-cased; "?" for none.

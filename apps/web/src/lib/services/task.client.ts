@@ -1,4 +1,4 @@
-import { deleteTasksById } from "@sokosumi/core-client";
+import { deleteTasksById, postTasksByIdRestore } from "@sokosumi/core-client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 
 /**
@@ -8,6 +8,13 @@ import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 export const taskClientService = {
   async archive(id: string) {
     await deleteTasksById({
+      client: getBrowserCoreClient(),
+      throwOnError: true,
+      path: { id },
+    });
+  },
+  async restore(id: string) {
+    await postTasksByIdRestore({
       client: getBrowserCoreClient(),
       throwOnError: true,
       path: { id },

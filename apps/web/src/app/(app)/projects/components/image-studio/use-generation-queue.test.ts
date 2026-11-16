@@ -61,11 +61,18 @@ describe("useGenerationQueue", () => {
     const { result } = renderHook(() => useGenerationQueue({ onAccepted }));
 
     act(() => {
-      result.current.enqueue([request("1"), request("2"), request("3")]);
+      result.current.enqueue(
+        ["1", "2", "3"].map((id) => ({ ...request(id), batchId: "batch-a" })),
+      );
     });
 
     await waitFor(() => expect(result.current.queued).toHaveLength(0));
     expect(startImageGeneration).toHaveBeenCalledTimes(3);
+    expect(startImageGeneration.mock.calls).toEqual(
+      Array.from({ length: 3 }, () => [
+        expect.objectContaining({ batchId: "batch-a" }),
+      ]),
+    );
     expect(onAccepted).toHaveBeenCalledTimes(3);
   });
 

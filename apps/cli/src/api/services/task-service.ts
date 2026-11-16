@@ -317,7 +317,6 @@ export async function deleteTaskLink(
   );
 }
 
-/** Core archives on DELETE; the Task stays readable. */
 export async function archiveTask(
   client: CoreHttpClient,
   taskId: string,

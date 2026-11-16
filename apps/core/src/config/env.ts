@@ -12,10 +12,54 @@ const minimumBuildSchema = z.preprocess(
   z.coerce.number().int().positive().optional(),
 );
 
+const seoExecutorIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
+const seoAnalysisExecutorCapabilities = {
+  coworkerId: seoExecutorIdSchema,
+  canUsePaidSearchData: z.boolean().default(false),
+  canSchedule: z.boolean().default(false),
+};
+const seoAnalysisExecutorSchema = z.union([
+  z
+    .object({
+      ...seoAnalysisExecutorCapabilities,
+      workspaceId: z.uuid(),
+      ownerId: seoExecutorIdSchema,
+      organizationId: seoExecutorIdSchema.nullable(),
+    })
+    .strict(),
+  z
+    .object({
+      ...seoAnalysisExecutorCapabilities,
+      mode: z.literal("global"),
+    })
+    .strict(),
+]);
+const seoAnalysisExecutorEnvSchema = z.preprocess((value) => {
+  if (value === "" || value === undefined) return undefined;
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}, seoAnalysisExecutorSchema.optional());
+
 /**
  * Environment variables schema for Core API
  * This ensures the app isn't built with invalid env vars.
  */
+
+/** Full emails and `@domain` entries, comma-separated; unset or empty is none. */
+const emailAllowlistSchema = z
+  .string()
+  .default("")
+  .transform((value) =>
+    value
+      .split(",")
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean),
+  );
+
 const baseEnvSchema = z.object({
   NETWORK: z.enum(["Preprod", "Mainnet"]).default("Preprod"),
 
@@ -36,6 +80,21 @@ const baseEnvSchema = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((value) => value === "true"),
+
+  // Enable only after the assigned public worker supports the versioned SEO Task packets.
+  // Live Mainnet uses its reviewed registered service by default; false remains an explicit override.
+  SEO_ANALYSIS_DISPATCH_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+
+  // Operator assertion of a reviewed worker and exact Task context, not remote protocol proof.
+  // A shared service requires explicit global mode; Task authority and billing remain per actor.
+  // Omit both SEO overrides to use the built-in live Mainnet service. Preview and Preprod stay opt-in.
+  SEO_ANALYSIS_EXECUTOR: seoAnalysisExecutorEnvSchema,
+
+  // Native SEO chat allowance per reader and Workspace, reset at 00:00 UTC.
+  SEO_CHAT_DAILY_TURN_LIMIT: z.coerce.number().int().positive().default(100),
 
   // Redis / Vercel KV (optional; resumable UI streams, coworker stream locks)
   REDIS_URL: z.string().optional(),
@@ -93,6 +152,23 @@ const baseEnvSchema = z.object({
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.email().default("noreply@sokosumi.com"),
 
+  // Who may hire Cuso while CMO is invite-only: full emails and `@domain`
+  // entries, comma-separated. Unset or empty means nobody may hire.
+  CMO_HIRE_ALLOWLIST: emailAllowlistSchema,
+  // Testers who may continue a Cuso without a CMO subscription (ADR 0068),
+  // in the same form. Unset or empty means nobody.
+  CMO_SUBSCRIPTION_SKIP_ALLOWLIST: emailAllowlistSchema,
+
+  // CMO's OAuth client id: only its tokens may write through `/v1/cmo/**`
+  // (ADR 0066). Unset refuses every such write.
+  CMO_OAUTH_CLIENT_ID: z.string().trim().min(1).optional(),
+
+  // Polar sells CMO plans and Project top-ups (ADR 0068). All three are needed;
+  // without them the Polar routes and the Polar webhook answer 503.
+  POLAR_ACCESS_TOKEN: z.string().min(1).optional(),
+  POLAR_WEBHOOK_SECRET: z.string().min(1).optional(),
+  POLAR_ENVIRONMENT: z.enum(["sandbox", "production"]).optional(),
+
   // Project newsletters use a separate sending domain from transactional email.
   NEWSLETTER_FROM_DOMAIN: z.hostname().optional(),
   RESEND_NEWSLETTER_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -136,10 +212,27 @@ const baseEnvSchema = z.object({
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
   OPENROUTER_CHAT_API_KEY: z.string().startsWith("sk-or-").optional(),
 
-  // Project memory (Vercel AI Gateway, Mistral EU provider only)
+  // Vercel AI Gateway (project memory runs on the Mistral EU provider only)
   AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+  // Optional per-purpose keys that split Gateway spend; each falls back to
+  // AI_GATEWAY_API_KEY. See src/lib/ai-gateway-purpose.ts.
+  SOKO_BOT_AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+  CMO_AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+  PROJECT_MEMORY_AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+  EVALS_AI_GATEWAY_API_KEY: z.string().min(1).optional(),
   /** Exa search for Cuso's research (search_exa); without it the tool refuses. */
   EXA_API_KEY: z.string().min(1).optional(),
+  /**
+   * Soko Bot ids that may write the announcements every user sees (the
+   * sidebar card and popup). Comma-separated; empty, no bot has the tools.
+   */
+  SOKO_BOT_ANNOUNCEMENT_BOT_IDS: z
+    .string()
+    .default("")
+    .transform((value: string) =>
+      value.trim() === "" ? [] : value.split(",").map((id) => id.trim()),
+    )
+    .pipe(z.array(z.uuid())),
   /**
    * A local Chrome or Chromium binary for the CMO site screenshots. Unset,
    * Core downloads the `@sparticuz/chromium-min` pack below (Vercel).
@@ -354,6 +447,14 @@ const baseEnvSchema = z.object({
    * `services/image-studio-jobs.service.ts`.
    */
   IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  /**
+   * Read-write token for the **private-access** Blob store data rooms keep
+   * their files in, for the same reason the image studio has its own: the
+   * shared Drive store is public, and only a private store makes taking
+   * someone's access away final. Absent, a folder cannot become a data room.
+   * See `lib/drive-blob.ts`.
+   */
+  DATA_ROOM_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**
    * Ed25519 public key (PEM) used to verify Blob `onUploadCompleted` webhooks
    * for presigned client uploads. Required for task-file auto-registration.

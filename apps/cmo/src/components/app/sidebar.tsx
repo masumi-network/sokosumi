@@ -10,13 +10,14 @@ import {
   Settings,
   Share2,
   Target,
+  Users,
 } from "lucide-react";
 import { AGENT_NAME } from "../../lib/agent";
 import { VIEW_PATHS, type View } from "../../lib/views";
+import { AccountMenu } from "../account-menu";
 import { hostOf } from "../brand-profile";
 import { BusinessMark, businessDisplayName } from "../business-mark";
 import { Logo } from "../logo";
-import { ThemeToggle } from "../theme-toggle";
 import { CusoStatus } from "./cuso-status";
 
 export const VIEWS = [
@@ -40,17 +41,19 @@ interface SidebarProps {
   onSelect: (view: View) => void;
   name: string;
   email: string;
+  signOut?: () => Promise<void>;
   /** Pins the time Cuso's "just filed" report counts from (previews, tests). */
   now?: Date;
 }
 
-/** The app's sidebar: workspace, pages, Cuso's status and the person. */
+/** The app's sidebar: the Business, pages, the Cuso picker, Cuso's status and the person. */
 export function Sidebar({
   overview,
   view,
   onSelect,
   name,
   email,
+  signOut,
   now,
 }: SidebarProps) {
   const host = hostOf(overview.websiteUrl);
@@ -85,6 +88,11 @@ export function Sidebar({
             <span>{label}</span>
           </a>
         ))}
+        {/* The Cuso picker: switch Business or hire another (ADR 0065). */}
+        <a href="/?cusos=1">
+          <Users size={16} aria-hidden="true" />
+          <span>Your {AGENT_NAME}s</span>
+        </a>
       </div>
       <div className="grow" />
       <CusoStatus
@@ -100,7 +108,7 @@ export function Sidebar({
           <span className="who-name">{name || email}</span>
           {name ? <span className="note">{email}</span> : null}
         </span>
-        <ThemeToggle className="who-theme" />
+        <AccountMenu label="Account" signOut={signOut} cusoPicker={false} />
       </div>
     </nav>
   );

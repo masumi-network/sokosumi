@@ -66,6 +66,17 @@ export default async function AuthenticatedAppFrame({
     redirect(await signInRedirectPath());
   }
   const session = sessionRead.session;
+  const activeOrganizationId = session.session.activeOrganizationId ?? null;
+  // Neither read needs the workspace gate's answer, so both start beside it.
+  // The seat gate is a single read the frame already has to finish before it
+  // paints nav. Newsletter's workspace availability resolves alongside it.
+  const hasAssignedSeatRead = organizationSeatService
+    .hasAssignedSeat(activeOrganizationId)
+    .catch((error) => {
+      console.error("Failed to resolve assigned organization seat", error);
+      return activeOrganizationId == null;
+    });
+  const newsletterEnabledRead = isNewsletterEnabled();
 
   // Workspace gate is the only access decision for product chrome — not
   // `onboardingCompleted`. Fail closed: not-ready or a failed workspaces read → gate
@@ -85,7 +96,6 @@ export default async function AuthenticatedAppFrame({
     (session.user as typeof session.user & { role?: string | null }).role,
   );
 
-  const activeOrganizationId = session.session.activeOrganizationId ?? null;
   // One Core read (ADR 0051, cached per request): the Workspace switcher's
   // list and the active workspace's social providers.
   const workspaces = (await userService.getMyWorkspaces())?.workspaces ?? [];
@@ -93,17 +103,9 @@ export default async function AuthenticatedAppFrame({
     workspaces.find(
       (workspace) => workspace.organizationId === activeOrganizationId,
     )?.enabledSocialProviders ?? [];
-  // In parallel: the seat gate is a single read the frame already has to
-  // finish before it paints nav.
-  // Newsletter's workspace availability resolves alongside them.
   const [hasAssignedSeat, newsletterEnabled] = await Promise.all([
-    organizationSeatService
-      .hasAssignedSeat(activeOrganizationId)
-      .catch((error) => {
-        console.error("Failed to resolve assigned organization seat", error);
-        return activeOrganizationId == null;
-      }),
-    isNewsletterEnabled(),
+    hasAssignedSeatRead,
+    newsletterEnabledRead,
   ]);
 
   // AuthSessionHydrator must be an earlier sibling, not a wrapper.
@@ -115,6 +117,7 @@ export default async function AuthenticatedAppFrame({
         <NotificationProvider
           key={session.user.id}
           userId={session.user.id}
+          organizationId={activeOrganizationId}
           sessionId={session.session.id}
           sessionCreatedAt={new Date(session.session.createdAt).getTime()}
         >

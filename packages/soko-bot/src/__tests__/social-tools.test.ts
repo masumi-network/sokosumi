@@ -284,7 +284,7 @@ describe("Social tool contracts", () => {
       schemas.create_social_post.safeParse({
         projectId,
         text: "",
-        media: Array.from({ length: 11 }, () => media),
+        media: Array.from({ length: 21 }, () => media),
       }).success,
     ).toBe(false);
     expect(
@@ -294,6 +294,35 @@ describe("Social tool contracts", () => {
         revision: 0,
         text: "",
         socialConnectionId: null,
+      }).success,
+    ).toBe(true);
+  });
+
+  it.each(["create_social_post", "update_social_post"] as const)(
+    "%s accepts 20 media items for X posts",
+    (capability) => {
+      const input = {
+        ...inputs[capability],
+        socialConnectionId,
+        media: Array.from({ length: 20 }, () => media),
+      };
+      expect(schemas[capability].safeParse(input).success).toBe(true);
+      expect(
+        schemas[capability].safeParse({
+          ...input,
+          media: Array.from({ length: 21 }, () => media),
+        }).success,
+      ).toBe(false);
+    },
+  );
+
+  it("accepts 20 media items when creating a scheduled X post", () => {
+    expect(
+      schemas.create_social_post.safeParse({
+        ...inputs.create_social_post,
+        socialConnectionId,
+        media: Array.from({ length: 20 }, () => media),
+        scheduledAt,
       }).success,
     ).toBe(true);
   });

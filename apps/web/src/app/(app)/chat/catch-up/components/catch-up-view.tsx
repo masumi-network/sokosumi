@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import {
   BriefingHeader,
   BriefingTopics,
+  CATCH_UP_SUMMARY_QUERY_KEY,
   OpenLoopsList,
   QuietRooms,
 } from "./catch-up-briefing";
@@ -50,7 +51,7 @@ export function CatchUpView({
       enabled: true,
     });
   const { data, isError, refetch, isFetching } = useQuery({
-    queryKey: ["chat-catch-up-summary"],
+    queryKey: CATCH_UP_SUMMARY_QUERY_KEY,
     queryFn: (): Promise<ChatCatchUpSummary> => fetchCatchUpSummary(),
     refetchOnWindowFocus: false,
     retry: false,

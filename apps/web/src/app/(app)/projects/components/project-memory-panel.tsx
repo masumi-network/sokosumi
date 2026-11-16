@@ -5,7 +5,7 @@ import type {
   ProjectMemoryModel,
 } from "@sokosumi/core-client";
 import { Check } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { SECTION_MARKDOWN_HEADINGS } from "@/app/projects/components/section-markdown-headings";
@@ -51,6 +51,8 @@ export function ProjectMemoryPanel({
 }: ProjectMemoryPanelProps) {
   const t = useTranslations("App.Projects.Detail");
   const formatter = useFormatter();
+  // Without a `now`, next-intl logs ENVIRONMENT_FALLBACK on every render.
+  const now = useNow({ updateInterval: 60_000 });
   const [copied, setCopied] = useState(false);
   const model = resolveMemoryModel(contextMd, memoryModel);
   const modelLabel = model?.label ?? t("memory.defaultModel");
@@ -92,6 +94,7 @@ export function ProjectMemoryPanel({
                   ? t("memory.updated", {
                       when: formatter.relativeTime(
                         new Date(contextMd.updatedAt),
+                        now,
                       ),
                     })
                   : memoryEnabled

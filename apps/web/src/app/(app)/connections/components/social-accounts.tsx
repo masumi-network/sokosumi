@@ -14,6 +14,7 @@ import {
   SOCIAL_PROVIDERS,
 } from "@/lib/auth/social-providers";
 import { AccountProvider } from "@/lib/auth/types";
+import { cn } from "@/lib/utils";
 
 import DisconnectModal from "./disconnect-modal";
 
@@ -59,18 +60,19 @@ export function SocialAccounts({ accounts }: SocialAccountsProps) {
         return (
           <div key={provider} className="flex items-center gap-2 px-4 py-4">
             {SOCIAL_PROVIDER_ICONS[provider]}
-            <p className="flex-1">
+            <p className="min-w-0 flex-1">
               {account
                 ? t("connected", { provider: SOCIAL_PROVIDER_NAMES[provider] })
                 : t("notConnected", {
                     provider: SOCIAL_PROVIDER_NAMES[provider],
                   })}
             </p>
+            {/* Bordered Connect, quiet Disconnect: a filled button marks a
+                view's one primary action, and two providers would share it. */}
             <Button
               disabled={loading}
-              variant={account ? "destructive" : "outline"}
-              className={loading ? "animate-pulse" : ""}
-              size="icon"
+              variant={account ? "ghost" : "default"}
+              className={cn("shrink-0", loading && "animate-pulse")}
               aria-label={t(account ? "disconnect" : "connect", {
                 provider: SOCIAL_PROVIDER_NAMES[provider],
               })}
@@ -82,7 +84,8 @@ export function SocialAccounts({ accounts }: SocialAccountsProps) {
                 }
               }}
             >
-              {account ? <Unplug /> : <Plug />}
+              {account ? <Unplug aria-hidden /> : <Plug aria-hidden />}
+              {t(account ? "disconnectAction" : "connectAction")}
             </Button>
           </div>
         );

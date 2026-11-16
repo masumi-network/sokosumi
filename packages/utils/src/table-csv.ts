@@ -1,5 +1,5 @@
 /** Bounded RFC 4180 CSV, including escaped quotes and embedded newlines. */
-export function parseTableCsv(
+export function readCsvRows(
   text: string,
   { maxRows = 10_000 }: { maxRows?: number } = {},
 ): string[][] {
@@ -55,6 +55,15 @@ export function parseTableCsv(
   }
   if (quoted) throw new Error("Unclosed CSV quote");
   if (field || row.length || closed) pushRow();
+  return rows;
+}
+
+/** CSV as a table: named headers, and every row as wide as the header. */
+export function parseTableCsv(
+  text: string,
+  options: { maxRows?: number } = {},
+): string[][] {
+  const rows = readCsvRows(text, options);
   if (!rows.length || rows[0].some((header) => !header.trim()))
     throw new Error("CSV needs non-empty column headers");
   if (rows.some((row) => row.length !== rows[0].length))

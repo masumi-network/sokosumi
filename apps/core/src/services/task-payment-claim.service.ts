@@ -6,7 +6,10 @@ import { v4 as uuidv4 } from "uuid";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { getEnv } from "@/config/env";
-import { buildCompensatingRefundTransactionCreate } from "@/helpers/compensating-refund";
+import {
+  COMPENSATED_SPEND_CONSUMPTIONS_SELECT,
+  createCompensatingRefund,
+} from "@/helpers/compensating-refund";
 import prisma from "@/lib/db/prisma";
 
 const MAX_FAILURE_REASON_LENGTH = 2_000;
@@ -190,6 +193,7 @@ export async function refundFailedTaskPaymentClaim(
             amount: true,
             userId: true,
             organizationId: true,
+            ...COMPENSATED_SPEND_CONSUMPTIONS_SELECT,
           },
         },
       },
@@ -224,18 +228,16 @@ export async function refundFailedTaskPaymentClaim(
       );
     }
 
+    const refundId = await createCompensatingRefund(tx, {
+      amount: refundAmount,
+      actorUserId,
+      organizationId: claim.transaction.organizationId,
+      referenceId: `task-payment:${claim.id}`,
+      consumptions: claim.transaction.creditConsumptions,
+    });
     await tx.taskPaymentClaim.update({
       where: { id: claim.id },
-      data: {
-        refundTransaction: {
-          create: buildCompensatingRefundTransactionCreate({
-            amount: refundAmount,
-            actorUserId,
-            organizationId: claim.transaction.organizationId,
-            referenceId: `task-payment:${claim.id}`,
-          }),
-        },
-      },
+      data: { refundTransaction: { connect: { id: refundId } } },
     });
     return true;
   });
