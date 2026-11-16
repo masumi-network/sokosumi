@@ -23,6 +23,7 @@ const {
   purgeExpiredVerificationsMock,
   syncProjectClosesMock,
   syncPolarYearlyGrantsMock,
+  retryOwedPolarRevokesMock,
   releaseDueTaskSchedulesMock,
   releaseDueRunAtsMock,
 } = vi.hoisted(() => ({
@@ -32,6 +33,7 @@ const {
   syncCardanoV2RailReadinessMock: vi.fn(),
   syncCalendarInvalidationsMock: vi.fn(),
   syncPolarYearlyGrantsMock: vi.fn(),
+  retryOwedPolarRevokesMock: vi.fn(),
   syncEnterpriseContractRenewalMock: vi.fn(),
   syncFreeSubscriptionRenewalMock: vi.fn(),
   releaseLockMock: vi.fn(),
@@ -162,6 +164,10 @@ vi.mock("@/services/polar-yearly-grant-sync.service", () => ({
   syncPolarYearlyGrants: syncPolarYearlyGrantsMock,
 }));
 
+vi.mock("@/services/polar-subscription-end.service", () => ({
+  retryOwedPolarRevokes: retryOwedPolarRevokesMock,
+}));
+
 vi.mock("@/services/free-subscription-sync.service", () => ({
   freeSubscriptionSyncService: {
     renewLocalFreeSubscriptions: syncFreeSubscriptionRenewalMock,
@@ -284,6 +290,11 @@ describe("sync routes", () => {
     syncPolarYearlyGrantsMock.mockResolvedValue({
       errors: 0,
       granted: 0,
+      stoppedEarly: false,
+    });
+    retryOwedPolarRevokesMock.mockResolvedValue({
+      errors: 0,
+      revoked: 0,
       stoppedEarly: false,
     });
     syncEnterpriseContractRenewalMock.mockResolvedValue({
@@ -652,7 +663,7 @@ describe("sync routes", () => {
     });
   });
 
-  it("returns 200 and starts the CMO yearly grants sync exactly once in background", async () => {
+  it("returns 200 and starts the CMO yearly grants sync and owed revokes exactly once in background", async () => {
     const app = createApp();
 
     const response = await app.request(
@@ -668,6 +679,27 @@ describe("sync routes", () => {
     expect(syncPolarYearlyGrantsMock).toHaveBeenCalledWith(
       expect.any(Function),
     );
+    expect(retryOwedPolarRevokesMock).toHaveBeenCalledExactlyOnceWith(
+      expect.any(Function),
+    );
+    // Grants first: revokes failing at Polar cannot take their time.
+    expect(syncPolarYearlyGrantsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      retryOwedPolarRevokesMock.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("retries owed revokes even when the CMO yearly grants fail", async () => {
+    syncPolarYearlyGrantsMock.mockRejectedValue(new Error("catalog down"));
+    const app = createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/polar-yearly-grants",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(retryOwedPolarRevokesMock).toHaveBeenCalledOnce();
   });
 
   it("returns 200 and starts free-subscription renewal sync exactly once in background", async () => {

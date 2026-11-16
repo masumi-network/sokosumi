@@ -1,4 +1,5 @@
 import {
+  BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
   BILLING_FOLLOW_UP_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
@@ -50,10 +51,11 @@ const FOLLOW_UP_KEY_BY_SOURCE_KEY = new Map<string, string>([
     key,
     TASK_FOLLOW_UP_MESSAGE_KEY,
   ]),
-  ...BILLING_ATTENTION_MESSAGE_KEYS.map((key): [string, string] => [
-    key,
-    BILLING_FOLLOW_UP_MESSAGE_KEY,
-  ]),
+  // Not a Cuso's low credits: the billing reminder opens Sokosumi's billing
+  // page, and his credits are topped up in CMO (SOKD-246).
+  ...BILLING_ATTENTION_MESSAGE_KEYS.filter(
+    (key) => key !== BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
+  ).map((key): [string, string] => [key, BILLING_FOLLOW_UP_MESSAGE_KEY]),
 ]);
 
 /**

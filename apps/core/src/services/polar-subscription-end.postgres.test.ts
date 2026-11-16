@@ -24,6 +24,7 @@ import {
 } from "vitest";
 import { handlePolarSubscriptionEvent } from "./polar-subscription.service";
 import {
+  retryOwedPolarRevokes,
   revokeCusoSubscription,
   revokeSubscriptionsLeftByEnding,
 } from "./polar-subscription-end.service";
@@ -130,7 +131,7 @@ async function left(projectId: string): Promise<bigint> {
 async function stored(polarSubscriptionId: string) {
   return await database().polarSubscription.findUnique({
     where: { polarSubscriptionId },
-    select: { status: true, endedAt: true },
+    select: { status: true, endedAt: true, revokeOwedAt: true },
   });
 }
 
@@ -209,6 +210,47 @@ describe.skipIf(!db)(
       expect(await stored(cuso.polarSubscriptionId)).toMatchObject({
         status: "canceled",
         endedAt: expect.any(Date),
+      });
+    });
+
+    it("keeps an owed revoke ended through Polar's later events until the job revokes it", async () => {
+      const cuso = await hiredCuso();
+      await handlePolarSubscriptionEvent(subscriptionCreated(cuso));
+      m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));
+      await revokeCusoSubscription(cuso.botId);
+      await archive(cuso.botId);
+      await revokeSubscriptionsLeftByEnding(cuso.projectId);
+      // He starts over: a new Cuso on the same Project, not subscribed yet.
+      await database().sokoBot.create({
+        data: {
+          workspaceId: WORKSPACE,
+          projectId: cuso.projectId,
+          userId: null,
+          versionId: CMO_SOKO_BOT_VERSION_IDS[0],
+          name: "Cuso",
+        },
+      });
+      // Polar still holds the old one active and says so again, later.
+      const later = subscriptionCreated(cuso);
+      later.timestamp = new Date(Date.now() + 60_000).toISOString();
+      await handlePolarSubscriptionEvent(later);
+
+      expect(await stored(cuso.polarSubscriptionId)).toMatchObject({
+        status: "active",
+        endedAt: expect.any(Date),
+        revokeOwedAt: expect.any(Date),
+      });
+
+      m.revokePolarSubscription.mockReset().mockResolvedValue(undefined);
+      await retryOwedPolarRevokes(() => true);
+
+      expect(m.revokePolarSubscription).toHaveBeenCalledWith(
+        cuso.polarSubscriptionId,
+      );
+      expect(await stored(cuso.polarSubscriptionId)).toMatchObject({
+        status: "canceled",
+        endedAt: expect.any(Date),
+        revokeOwedAt: null,
       });
     });
 
