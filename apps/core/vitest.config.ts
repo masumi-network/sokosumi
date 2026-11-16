@@ -6,7 +6,7 @@ import { configDefaults, defineConfig } from "vitest/config";
 /**
  * Opt-in Postgres / DB files skip in the unit run. Keep them out of collect
  * so Vitest does not load them. `admin.integration.test.ts` is a mocked
- * router test and stays in the unit suite.
+ * router test and is always collected, by the isolated `integration` project.
  *
  * Vitest applies `exclude` before the filename filter, so a CLI filter only
  * sees files that survived exclude. A filter that names one of these files
@@ -164,6 +164,13 @@ export default defineConfig({
       ...unprovisionedDbFiles,
       ...(optInDbRun ? [] : optInDbExclude),
     ],
+    // One database per worker for the parallel PostgreSQL run in CI. See
+    // `src/test/postgres-worker-databases.ts`. At the root, so it runs once
+    // for whichever projects the run selects.
+    globalSetup:
+      process.env.POSTGRES_TEST_DATABASE_PER_WORKER === "true"
+        ? ["src/test/postgres-worker-databases.ts"]
+        : [],
     // The log prints the seed; `--sequence.seed=<seed>` replays the order.
     sequence: { shuffle: { files: shuffleFiles, tests: false } },
     /** Same cap as web, for the same reason — see `apps/web/vitest.config.mts`. */
@@ -183,12 +190,6 @@ export default defineConfig({
             ...(optInDbRun ? [] : ["src/test/reset-per-file.ts"]),
             "src/test/setup.ts",
           ],
-          // One database per worker for the parallel PostgreSQL run in CI.
-          // See `src/test/postgres-worker-databases.ts`.
-          globalSetup:
-            process.env.POSTGRES_TEST_DATABASE_PER_WORKER === "true"
-              ? ["src/test/postgres-worker-databases.ts"]
-              : [],
         },
       },
       {
