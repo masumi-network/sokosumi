@@ -1527,7 +1527,13 @@
         "scopeOwned": "My transactions",
         "scopeWorkspace": "Workspace",
         "typeLabel": "Source",
-        "projectLabel": "Project"
+        "projectLabel": "Project",
+        "activeCount": "{count} active",
+        "activeFilters": "Active filters",
+        "chip": "{label}: {value}",
+        "removeFilter": "Remove filter {filter}",
+        "clearAll": "Clear all",
+        "searchLabel": "Search"
       },
       "Empty": {
         "title": "No transactions yet",

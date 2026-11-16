@@ -1527,7 +1527,13 @@
         "scopeOwned": "Mis transacciones",
         "scopeWorkspace": "Workspace",
         "typeLabel": "Origen",
-        "projectLabel": "Proyecto"
+        "projectLabel": "Proyecto",
+        "activeCount": "{count} activos",
+        "activeFilters": "Filtros activos",
+        "chip": "{label}: {value}",
+        "removeFilter": "Quitar filtro {filter}",
+        "clearAll": "Quitar todos",
+        "searchLabel": "Búsqueda"
       },
       "Empty": {
         "title": "Aún no hay transacciones",

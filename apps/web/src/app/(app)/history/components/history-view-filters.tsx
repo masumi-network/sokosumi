@@ -2,6 +2,7 @@
 
 import { Building2, FolderKanban, Receipt } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useMemo } from "react";
 
 import {
@@ -16,6 +17,8 @@ import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 
 interface HistoryViewFiltersProps {
   activeOrganizationId: string | null;
@@ -34,11 +37,11 @@ interface HistoryViewFiltersProps {
   };
 }
 
-export function HistoryViewFilters({
-  activeOrganizationId,
-  projectOptions,
-  labels,
-}: HistoryViewFiltersProps) {
+/** Filters from the URL, and a setter that merges a patch into the live URL. */
+function useHistoryFilters(
+  activeOrganizationId: string | null,
+  projectOptions: ProjectFilterOption[],
+) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -76,6 +79,22 @@ export function HistoryViewFilters({
     },
     [activeOrganizationId, pathname, projectOptions, router, searchParams],
   );
+
+  return { filters, handleFilterChange };
+}
+
+export function HistoryViewFilters({
+  activeOrganizationId,
+  projectOptions,
+  labels,
+}: HistoryViewFiltersProps) {
+  const t = useTranslations("App.TransactionHistory.Filters");
+  const { filters, handleFilterChange } = useHistoryFilters(
+    activeOrganizationId,
+    projectOptions,
+  );
+  // Matches the Source and Project chips; scope is a view, not a narrowing filter.
+  const activeCount = [filters.type, filters.projectId].filter(Boolean).length;
 
   const sections = useMemo<FilterDropdownMenuSection[]>(() => {
     const nextSections: FilterDropdownMenuSection[] = [];
@@ -155,6 +174,112 @@ export function HistoryViewFilters({
       searchPlaceholder={labels.searchPlaceholder}
       emptyResultsLabel={labels.emptyResults}
       sections={sections}
+      activeCount={
+        activeCount
+          ? {
+              count: activeCount,
+              label: t("activeCount", { count: activeCount }),
+            }
+          : undefined
+      }
     />
+  );
+}
+
+/**
+ * The search, Source and Project the list is narrowed by, as removable chips.
+ * On phones the search box is collapsed, so this is where an active search
+ * stays visible. Scope and a Task filter are left alone: removing a chip or
+ * Clear all changes only search, Source and Project.
+ */
+export function HistoryActiveFilters({
+  activeOrganizationId,
+  projectOptions,
+  labels,
+}: HistoryViewFiltersProps) {
+  const t = useTranslations("App.TransactionHistory.Filters");
+  const { filters, handleFilterChange } = useHistoryFilters(
+    activeOrganizationId,
+    projectOptions,
+  );
+
+  const chips = [
+    filters.q && {
+      id: "q",
+      label: t("searchLabel"),
+      value: filters.q,
+      clear: { q: null },
+    },
+    filters.type && {
+      id: "type",
+      label: labels.typeLabel,
+      value: labels.typeOptions[filters.type],
+      clear: { type: null },
+    },
+    filters.projectId && {
+      id: "project",
+      label: labels.projectLabel,
+      value:
+        projectOptions.find((project) => project.id === filters.projectId)
+          ?.name ?? filters.projectId,
+      clear: { projectId: null },
+    },
+  ].filter((chip) => !!chip);
+
+  if (chips.length === 0) {
+    return null;
+  }
+
+  // A removed chip unmounts its focused button; hand focus to the Filters
+  // trigger, the last visible button in the toolbar's control group.
+  function clearAndRefocus(patch: Partial<HistoryFilters>, from: HTMLElement) {
+    const controls = from
+      .closest("[data-history-toolbar]")
+      ?.querySelector("[data-history-filters]");
+    handleFilterChange(patch);
+    Array.from(controls?.querySelectorAll<HTMLElement>("button") ?? [])
+      .findLast((button) => button.offsetParent !== null)
+      ?.focus();
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <ul
+        aria-label={t("activeFilters")}
+        className="flex min-w-0 flex-wrap gap-2"
+      >
+        {chips.map((chip) => {
+          const name = t("chip", { label: chip.label, value: chip.value });
+          return (
+            <li
+              key={chip.id}
+              className="bg-muted text-foreground inline-flex min-w-0 max-w-full items-center rounded-full ps-3 text-sm"
+            >
+              <span className="min-w-0 wrap-anywhere py-1">{name}</span>
+              <ChipRemoveButton
+                aria-label={t("removeFilter", { filter: name })}
+                onClick={(event) =>
+                  clearAndRefocus(chip.clear, event.currentTarget)
+                }
+              />
+            </li>
+          );
+        })}
+      </ul>
+      {chips.length > 1 ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(event) =>
+            clearAndRefocus(
+              { q: null, type: null, projectId: null },
+              event.currentTarget,
+            )
+          }
+        >
+          {t("clearAll")}
+        </Button>
+      ) : null}
+    </div>
   );
 }

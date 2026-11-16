@@ -85,5 +85,45 @@ for (const { name, ...viewport } of PROJECTS) {
       });
       await context.close();
     });
+
+    test("active filters show as chips that remove only themselves", async () => {
+      const context = await browser.newContext({
+        viewport,
+        storageState: STORAGE_STATE,
+      });
+      const page = await context.newPage();
+
+      await page.goto(
+        `${BASE_URL}/history?q=e2e-no-such-transaction&type=seoChat`,
+      );
+      const chips = page.getByRole("list", { name: "Active filters" });
+      await chips.waitFor();
+      assert.deepEqual(await chips.getByRole("listitem").allTextContents(), [
+        "Search: e2e-no-such-transaction",
+        "Source: SEO chat",
+      ]);
+      assert.equal(
+        await page.getByRole("button", { name: "Filters, 1 active" }).count(),
+        1,
+      );
+      await page.screenshot({
+        path: `${RESULTS_DIR}${name}-history-chips.png`,
+      });
+
+      await page
+        .getByRole("button", {
+          name: "Remove filter Search: e2e-no-such-transaction",
+        })
+        .click();
+      await page.waitForURL((url) => !url.searchParams.has("q"));
+      assert.equal(new URL(page.url()).searchParams.get("type"), "seoChat");
+      await page.getByRole("button", { name: "Clear all" }).waitFor({
+        state: "detached",
+      });
+      assert.deepEqual(await chips.getByRole("listitem").allTextContents(), [
+        "Source: SEO chat",
+      ]);
+      await context.close();
+    });
   });
 }

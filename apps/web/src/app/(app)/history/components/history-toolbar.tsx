@@ -8,7 +8,10 @@ import type {
 
 import { HistoryExportMenu } from "./history-export-menu";
 import { HistorySearch } from "./history-search";
-import { HistoryViewFilters } from "./history-view-filters";
+import {
+  HistoryActiveFilters,
+  HistoryViewFilters,
+} from "./history-view-filters";
 
 interface HistoryToolbarProps {
   activeOrganizationId: string | null;
@@ -43,28 +46,38 @@ export function HistoryToolbar({
   labels,
 }: HistoryToolbarProps) {
   return (
-    <div className="flex items-center gap-2 sm:gap-3">
-      <div className="hidden min-w-0 flex-1 md:block">
-        <HistorySearch
-          activeOrganizationId={activeOrganizationId}
-          projectOptions={projectOptions}
-          labels={labels.search}
-        />
+    <div data-history-toolbar className="flex flex-col gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className="hidden min-w-0 flex-1 md:block">
+          <HistorySearch
+            activeOrganizationId={activeOrganizationId}
+            projectOptions={projectOptions}
+            labels={labels.search}
+          />
+        </div>
+        <p
+          className="text-muted-foreground min-w-0 flex-1 truncate text-sm md:hidden"
+          aria-live="polite"
+        >
+          {resultsCountLabel}
+        </p>
+        <div
+          data-history-filters
+          className="ml-auto flex shrink-0 items-center gap-2 md:ml-0"
+        >
+          <HistoryExportMenu filters={filters} />
+          <HistoryViewFilters
+            activeOrganizationId={activeOrganizationId}
+            projectOptions={projectOptions}
+            labels={labels.filters}
+          />
+        </div>
       </div>
-      <p
-        className="text-muted-foreground min-w-0 flex-1 truncate text-sm md:hidden"
-        aria-live="polite"
-      >
-        {resultsCountLabel}
-      </p>
-      <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
-        <HistoryExportMenu filters={filters} />
-        <HistoryViewFilters
-          activeOrganizationId={activeOrganizationId}
-          projectOptions={projectOptions}
-          labels={labels.filters}
-        />
-      </div>
+      <HistoryActiveFilters
+        activeOrganizationId={activeOrganizationId}
+        projectOptions={projectOptions}
+        labels={labels.filters}
+      />
     </div>
   );
 }
