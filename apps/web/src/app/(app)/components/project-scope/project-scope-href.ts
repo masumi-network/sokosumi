@@ -12,7 +12,8 @@ export const PROJECT_SCOPE_PARAM = "projectId";
  * same way they do. Unlike them it has nothing to show for the workspace
  * view, so `/studio` with no project asks for one. Social is the same shape:
  * posts belong to one project's accounts, so `/social` asks for a project too,
- * and so does `/ads`. Newsletter is one per project, so each of its tabs is
+ * and so does `/ads`. SEO lists the chosen project's Audits, and all of the
+ * workspace's Audits for the workspace view. Newsletter is one per project, so each of its tabs is
  * here and lists the projects without one.
  */
 const SCOPED_PAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
@@ -23,6 +24,7 @@ const SCOPED_PAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
     "/studio": {},
     "/social": {},
     "/ads": {},
+    "/seo": {},
     "/newsletter": {},
     "/newsletter/issues": {},
     "/newsletter/subscribers": {},
@@ -32,6 +34,14 @@ const SCOPED_PAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
     "/drive": { view: "tasks" },
     "/history": {},
   };
+
+/**
+ * The param that names the one item a scoped page has open. Its page answers
+ * for another workspace itself, so clearing a stale scope keeps the item.
+ */
+const SCOPED_PAGE_ITEM: Readonly<Record<string, string>> = {
+  "/seo": "auditId",
+};
 
 const PROJECT_PAGE = /^\/projects\/([^/]+)/;
 
@@ -106,6 +116,23 @@ export function scopedHref(href: string, projectId: string | null): string {
   // The workspace view keeps plain links: `/drive` opens Recents.
   if (!projectId || !isProjectScopedPath(href)) return href;
   return scopedPageHref(href, projectId);
+}
+
+/**
+ * A scoped page without the project this workspace cannot see. The page's
+ * open item stays: only that page knows which workspace holds it.
+ */
+export function clearedScopeHref(
+  pathname: string,
+  searchParams: SearchParamsReader & { toString(): string },
+): string {
+  const param = SCOPED_PAGE_ITEM[pathname];
+  if (!param || !searchParams.get(param))
+    return switchScopeHref(pathname, null);
+  // The item's own tab and filters stay with it.
+  const params = new URLSearchParams(searchParams.toString());
+  params.delete(PROJECT_SCOPE_PARAM);
+  return `${pathname}?${params}`;
 }
 
 /**

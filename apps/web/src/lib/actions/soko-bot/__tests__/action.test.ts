@@ -24,6 +24,7 @@ const { serviceMock, revalidatePathMock, MockCoreApiRequestError } = vi.hoisted(
         reactivate: vi.fn(),
         resetMemory: vi.fn(),
         rename: vi.fn(),
+        updateSchedule: vi.fn(),
       },
       revalidatePathMock: vi.fn(),
       MockCoreApiRequestError,
@@ -56,7 +57,9 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
 
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
+  SOKO_BOT_AVATAR_DRAW_BUSY_ERROR_CODE,
   SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
+  SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE,
   SOKO_BOT_BUSY_ERROR_CODE,
   SOKO_BOT_ROUTE,
   SOKO_BOTS_ROUTE,
@@ -64,6 +67,7 @@ import {
 
 import {
   archiveSokoBotAction,
+  changeSokoBotScheduleRunAction,
   createScopedSokoBotAction,
   createSokoBotAction,
   createSokoBotScheduleAction,
@@ -110,6 +114,29 @@ describe("soko-bot actions", () => {
     if (!result.ok) {
       expect(result.error.code).toBe(SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE);
     }
+  });
+
+  it("topUpSokoBotAvatarsAction maps Core's no-work answers to their own codes", async () => {
+    // The picker gives these a free retry: Core drew nothing for them.
+    for (const [status, code] of [
+      [409, SOKO_BOT_AVATAR_DRAW_BUSY_ERROR_CODE],
+      [503, SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE],
+    ] as const) {
+      serviceMock.topUpAvatars.mockRejectedValueOnce(
+        new MockCoreApiRequestError("No draw", status),
+      );
+      const result = await topUpSokoBotAvatarsAction({
+        input: { take: 6, fresh: true },
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.code).toBe(code);
+    }
+  });
+
+  it("topUpSokoBotAvatarsAction passes fresh through to Core", async () => {
+    serviceMock.topUpAvatars.mockResolvedValue([]);
+    await topUpSokoBotAvatarsAction({ input: { take: 6, fresh: true } });
+    expect(serviceMock.topUpAvatars).toHaveBeenCalledWith(6, [], true);
   });
 
   it("topUpSokoBotAvatarsAction leaves other Core failures generic", async () => {
@@ -181,6 +208,58 @@ describe("soko-bot actions", () => {
     });
     expect(bad.ok).toBe(false);
     expect(serviceMock.createSchedule).not.toHaveBeenCalled();
+  });
+
+  describe("changeSokoBotScheduleRunAction", () => {
+    const SCHEDULE_ID = "01960001-0001-7001-8001-0000000000cc";
+    const BOT_ID = "01960001-0001-7001-8001-000000000001";
+    const originalAt = new Date("2030-01-03T09:00:00.000Z");
+    const skip = (botId?: string) =>
+      changeSokoBotScheduleRunAction({
+        botId,
+        input: {
+          scheduleId: SCHEDULE_ID,
+          originalAt,
+          expectedAt: originalAt,
+          change: { action: "skip" },
+        },
+      });
+
+    it("sends the change as the schedule's run and refreshes the Calendar", async () => {
+      serviceMock.updateSchedule.mockResolvedValue({});
+      await expect(skip(BOT_ID)).resolves.toMatchObject({ ok: true });
+      expect(serviceMock.updateSchedule).toHaveBeenCalledWith(
+        SCHEDULE_ID,
+        { run: { originalAt, expectedAt: originalAt, action: "skip" } },
+        BOT_ID,
+      );
+      expect(revalidatePathMock).toHaveBeenCalledWith("/calendar");
+    });
+
+    it.each([
+      [409, "stale"],
+      [422, "invalid_time"],
+      [500, "failed"],
+    ])("maps Core %i to %s", async (status, kind) => {
+      serviceMock.updateSchedule.mockRejectedValue(
+        new MockCoreApiRequestError("no", status),
+      );
+      const result = await skip();
+      expect(result).toMatchObject({ ok: false, error: { kind } });
+    });
+
+    it("refuses a move without a time before calling Core", async () => {
+      const result = await changeSokoBotScheduleRunAction({
+        input: {
+          scheduleId: SCHEDULE_ID,
+          originalAt,
+          expectedAt: null,
+          change: { action: "move" },
+        },
+      });
+      expect(result).toMatchObject({ ok: false, error: { kind: "failed" } });
+      expect(serviceMock.updateSchedule).not.toHaveBeenCalled();
+    });
   });
 
   it("topUpSokoBotAvatarsAction refuses a take above one generation batch", async () => {

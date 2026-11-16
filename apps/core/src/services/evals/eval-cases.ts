@@ -1,11 +1,13 @@
 import {
   CMO_SCENARIOS,
+  SEO_SCENARIOS,
   SOKO_BOT_SCENARIOS,
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";
 import {
   CMO_COMMENT_SCENARIO,
   CMO_EVAL_CASES,
+  type CmoChatSetup,
   type CmoEvalCase,
 } from "./eval-cmo-cases";
 
@@ -30,8 +32,8 @@ export type EvalCase =
       /** The lane's personal Soko Bot, or its Cuso. */
       bot: "soko-bot" | "cuso";
       scenario: SokoBotScenario;
-      /** What the lane needs before the turn: comments on a published post. */
-      prepare?: "cmo-comments";
+      /** What a Cuso case finds in its lane before the turn. */
+      prepare?: CmoChatSetup;
     })
   | (EvalCaseCommon & CmoEvalCase);
 
@@ -46,6 +48,7 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "status-rundown": "Board",
   "board-question": "Board",
   "ambiguous-request": "Judgment",
+  "announcement-not-for-every-bot": "Judgment",
   "inbox-summary": "Mail and calendar",
   "calendar-prep": "Mail and calendar",
   "standup-with-inbox": "Rhythms",
@@ -56,6 +59,8 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "file-read": "Drive",
   "mail-delta": "Mail and calendar",
   "stop-checkins": "Schedules",
+  "reminder-uses-owner-zone": "Schedules",
+  "reminder-named-zone-wins": "Schedules",
   "quiet-standup": "Rhythms",
   "quiet-delta": "Mail and calendar",
   "autonomous-meeting-prep": "Rhythms",
@@ -101,6 +106,7 @@ function scenarioCase(
   scenario: SokoBotScenario,
   suite: EvalSuite,
   area: string,
+  prepare?: CmoChatSetup,
 ): EvalCase {
   return {
     id: scenario.id,
@@ -111,6 +117,7 @@ function scenarioCase(
     kind: "scenario",
     bot: suite === "cmo" ? "cuso" : "soko-bot",
     scenario,
+    ...(prepare ? { prepare } : {}),
     ...(NEEDS_MAILBOX.has(scenario.id) ? { requires: "mailbox" as const } : {}),
   };
 }
@@ -119,12 +126,19 @@ export const EVAL_CASES: readonly EvalCase[] = [
   ...SOKO_BOT_SCENARIOS.map((scenario) =>
     scenarioCase(scenario, "soko-bot", SOKO_BOT_AREAS[scenario.id] ?? "Other"),
   ),
+  ...SEO_SCENARIOS.map((scenario) => scenarioCase(scenario, "soko-bot", "SEO")),
   ...CMO_EVAL_CASES,
-  ...CMO_SCENARIOS.map((scenario) => scenarioCase(scenario, "cmo", "Chat")),
-  {
-    ...scenarioCase(CMO_COMMENT_SCENARIO, "cmo", "Replies"),
-    prepare: "cmo-comments",
-  } as EvalCase,
+  ...CMO_SCENARIOS.map((scenario) =>
+    scenarioCase(
+      scenario,
+      "cmo",
+      "Chat",
+      scenario.id === "cmo-asks-before-planning"
+        ? "cmo-new-client"
+        : "cmo-brand",
+    ),
+  ),
+  scenarioCase(CMO_COMMENT_SCENARIO, "cmo", "Replies", "cmo-comments"),
 ];
 
 export function evalCase(id: string): EvalCase | undefined {

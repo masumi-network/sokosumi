@@ -13,6 +13,7 @@ import {
   TaskActivitySection,
 } from "@/app/tasks/components/task-activity";
 import { TaskContextSection } from "@/app/tasks/components/task-context-section";
+import { TaskCreditsUsed } from "@/app/tasks/components/task-credits-used";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
 import { mapVisibleTaskLinks } from "@/app/tasks/components/task-detail-api-types";
@@ -47,7 +48,10 @@ import {
   isReadOnlyForViewer,
 } from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
-import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
+import {
+  latestStatusChange,
+  mapTaskToTaskWithCoworker,
+} from "@/app/tasks/utils/task-view-model";
 import { getSession } from "@/lib/auth/auth.server";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -499,6 +503,10 @@ async function TaskMetadataSection({
           organization: task.organization,
           assignee: task.assignee,
           runAt: task.runAt?.toISOString() ?? null,
+          statusSince: latestStatusChange(
+            task.events,
+            task.createdAt,
+          ).toISOString(),
         }}
         project={project ? { id: project.id, name: project.name } : null}
         schedule={
@@ -507,6 +515,15 @@ async function TaskMetadataSection({
               <TaskFromSchedule scheduleId={task.scheduleId} />
             </Suspense>
           ) : null
+        }
+        credits={
+          // Admin and developer views inspect someone else's Task; the
+          // ledger read is the viewer's own workspace, so it would mislead.
+          forceReadOnly ? null : (
+            <Suspense fallback={null}>
+              <TaskCreditsUsed taskId={task.id} />
+            </Suspense>
+          )
         }
         labels={{
           privateBadge: t("privateBadge"),

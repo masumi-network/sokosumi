@@ -2,6 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 
 import { defaultValidationHook } from "@/lib/hono";
 
+import polarRouter from "./polar.js";
 import newsletterRouter from "./resend/newsletter.js";
 import uploadedRouter from "./tasks/files/uploaded.js";
 
@@ -14,5 +15,6 @@ const app = new OpenAPIHono({
 
 app.route("/tasks/files", uploadedRouter);
 app.route("/resend", newsletterRouter);
+app.route("/", polarRouter);
 
 export default app;

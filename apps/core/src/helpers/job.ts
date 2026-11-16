@@ -53,7 +53,12 @@ import { requireOwnerSeat } from "@/helpers/owner-seat";
 import { creatorFields, type WorkCreator } from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import type { UserContext } from "@/middleware/auth";
+import {
+  type AuthenticationContext,
+  isCoworkerAuthContext,
+  isSokoBotAuthContext,
+  type UserContext,
+} from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import { flattenJob } from "@/types/job";
 
@@ -971,6 +976,21 @@ export async function createAgentJobForUser(
   }
 
   return job;
+}
+
+// Delegated coworkers only see jobs on Tasks assigned to them or on
+// private Tasks assigned to a same-vendor sibling.
+export function jobListActorFilter(authContext: AuthenticationContext) {
+  if (isCoworkerAuthContext(authContext)) {
+    return {
+      coworkerId: authContext.coworkerId,
+      coworkerVendorId: authContext.vendorId,
+    };
+  }
+  if (isSokoBotAuthContext(authContext)) {
+    return { sokoBotId: authContext.sokoBotId };
+  }
+  return {};
 }
 
 /**

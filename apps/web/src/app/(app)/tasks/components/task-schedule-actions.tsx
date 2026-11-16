@@ -2,7 +2,9 @@
 
 import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
 import {
+  Copy,
   Ellipsis,
+  FolderInput,
   Pause,
   Pencil,
   Play,
@@ -47,6 +49,7 @@ import {
 } from "@/lib/actions/task-schedule/action";
 import type { TaskScheduleStateAction } from "@/lib/clients/core.shared";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import { TaskScheduleCopyProjectPicker } from "./task-schedule-copy-project-picker";
 import { TaskScheduleDialog } from "./task-schedule-dialog";
 
 interface TaskScheduleActionsProps {
@@ -76,9 +79,10 @@ const STATE_ACTION_TOAST = {
 } as const satisfies Record<TaskScheduleStateAction, string>;
 
 /**
- * Edit, run now, pause, resume, end, and delete, for whoever Core says may
- * change the schedule (`canWrite`). An Ended schedule is final: it can only be
- * deleted.
+ * Edit, copy (in place or to another Project), run now, pause, resume, end,
+ * and delete, for whoever Core says may change the schedule (`canWrite`). An
+ * Ended schedule is final: it can only be deleted, or copied into a new
+ * schedule.
  */
 export function TaskScheduleActions({
   schedule,
@@ -94,6 +98,12 @@ export function TaskScheduleActions({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isEditOpen, setIsEditOpen] = useState(false);
+  // "pick" asks for the destination Project first; then the form opens there.
+  // A picked Project may be past the capped `projectOptions`; it rides along
+  // so the form can still name it.
+  const [copy, setCopy] = useState<
+    "pick" | { projectId: string | null; project?: ProjectFilterOption } | null
+  >(null);
   const [confirming, setConfirming] = useState<"end" | "delete" | null>(null);
   const isEnded = schedule.state === TaskScheduleState.ENDED;
   const canDelete = schedule.ownerId !== null || canDeleteUnowned;
@@ -129,6 +139,7 @@ export function TaskScheduleActions({
   }
 
   function handleRunNow() {
+    if (!schedule.canRunNow) return;
     startTransition(async () => {
       const result = await runTaskScheduleNow({
         scheduleId: schedule.id,
@@ -164,25 +175,23 @@ export function TaskScheduleActions({
     });
   }
 
-  if (isEnded && !canDelete) {
-    return null;
-  }
-
   const isActive = schedule.state === TaskScheduleState.ACTIVE;
 
   return (
     <div className="flex shrink-0 items-center gap-1">
       {isEnded ? null : (
         <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRunNow}
-            disabled={isPending}
-          >
-            <Zap aria-hidden />
-            {tActions("runNow")}
-          </Button>
+          {schedule.canRunNow ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRunNow}
+              disabled={isPending}
+            >
+              <Zap aria-hidden />
+              {tActions("runNow")}
+            </Button>
+          ) : null}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -214,22 +223,52 @@ export function TaskScheduleActions({
             <Ellipsis aria-hidden />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuContent align="end" className="w-56">
           {isEnded ? null : (
             <>
-              <DropdownMenuItem onSelect={() => setIsEditOpen(true)}>
-                <Pencil aria-hidden />
-                {tActions("edit")}
+              {schedule.canEditPlan ? (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    if (schedule.canEditPlan) setIsEditOpen(true);
+                  }}
+                >
+                  <Pencil aria-hidden />
+                  {tActions("edit")}
+                </DropdownMenuItem>
+              ) : null}
+            </>
+          )}
+          {schedule.canEditPlan ? (
+            <>
+              <DropdownMenuItem
+                onSelect={() => {
+                  if (schedule.canEditPlan) {
+                    setCopy({ projectId: schedule.projectId });
+                  }
+                }}
+              >
+                <Copy aria-hidden />
+                {tActions("copy")}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setConfirming("end")}>
-                <Square aria-hidden />
-                {tActions("end")}
+              <DropdownMenuItem
+                onSelect={() => {
+                  if (schedule.canEditPlan) setCopy("pick");
+                }}
+              >
+                <FolderInput aria-hidden />
+                {tActions("copyToProject")}
               </DropdownMenuItem>
             </>
+          ) : null}
+          {isEnded ? null : (
+            <DropdownMenuItem onSelect={() => setConfirming("end")}>
+              <Square aria-hidden />
+              {tActions("end")}
+            </DropdownMenuItem>
           )}
           {canDelete ? (
             <>
-              {isEnded ? null : <DropdownMenuSeparator />}
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 variant="destructive"
                 onSelect={() => setConfirming("delete")}
@@ -285,7 +324,7 @@ export function TaskScheduleActions({
         </AlertDialogContent>
       </AlertDialog>
 
-      {isEditOpen ? (
+      {isEditOpen && schedule.canEditPlan ? (
         <TaskScheduleDialog
           schedule={schedule}
           coworkerOptions={coworkerOptions}
@@ -293,6 +332,29 @@ export function TaskScheduleActions({
           canCreatePrivate={canCreatePrivate}
           onClose={() => setIsEditOpen(false)}
           onSaved={onChanged}
+        />
+      ) : null}
+      {schedule.canEditPlan && copy === "pick" ? (
+        <TaskScheduleCopyProjectPicker
+          currentProjectId={schedule.projectId}
+          onSelect={(project) => setCopy({ projectId: project.id, project })}
+          onClose={() => setCopy(null)}
+        />
+      ) : schedule.canEditPlan && copy && copy !== "pick" ? (
+        <TaskScheduleDialog
+          copyOf={{ ...schedule, projectId: copy.projectId }}
+          coworkerOptions={coworkerOptions}
+          projectOptions={
+            copy.project &&
+            !projectOptions.some((option) => option.id === copy.projectId)
+              ? [copy.project, ...projectOptions]
+              : projectOptions
+          }
+          canCreatePrivate={canCreatePrivate}
+          onClose={() => setCopy(null)}
+          onSaved={(scheduleId) =>
+            router.push(`${TASK_SCHEDULES_PATH}/${scheduleId}`)
+          }
         />
       ) : null}
     </div>

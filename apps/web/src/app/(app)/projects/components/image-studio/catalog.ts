@@ -89,6 +89,50 @@ export function modelById(
   return catalog.models.find((model) => model.id === id) ?? null;
 }
 
+/**
+ * A short second line for models that share a label, keyed by model id.
+ *
+ * fal names four endpoints just "Wan", and two each "Kling Image" or
+ * "Seedream". The endpoint is the one fact that tells them apart, so the line
+ * is the part of it the group does not share: path segments left after the
+ * common leading and trailing ones and the `text-to-image` task segment are
+ * dropped. `fal-ai/wan/v2.7/pro/text-to-image` beside the other Wan rows reads
+ * "v2.7 · pro". Verbatim, never reworded: a version written by hand here
+ * would be a guess. A model with a unique label, or the group's plain base
+ * endpoint, gets no line.
+ */
+export function modelVariants(
+  models: Pick<StudioModel, "id" | "label" | "generateEndpoint">[],
+): Map<string, string> {
+  const groups = Map.groupBy(models, (model) => model.label);
+  const variants = new Map<string, string>();
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const paths = group.map((model) =>
+      model.generateEndpoint
+        .split("/")
+        .filter((segment) => segment !== "text-to-image"),
+    );
+    const shortest = Math.min(...paths.map((path) => path.length));
+    const shared = (at: (path: string[]) => string | undefined) =>
+      paths.every((path) => at(path) === at(paths[0]));
+    let head = 0;
+    while (head < shortest && shared((path) => path[head])) head++;
+    let tail = 0;
+    while (
+      head + tail < shortest &&
+      shared((path) => path[path.length - 1 - tail])
+    )
+      tail++;
+    group.forEach((model, index) => {
+      const path = paths[index];
+      const variant = path.slice(head, path.length - tail).join(" · ");
+      if (variant) variants.set(model.id, variant);
+    });
+  }
+  return variants;
+}
+
 /** Whether the original model can make a variation using this image. */
 export function supportsVariation(
   catalog: StudioCatalog,

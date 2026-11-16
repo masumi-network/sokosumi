@@ -481,6 +481,7 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     canCancel: CANCELABLE_STATUSES.includes(record.status),
     canPublishNow:
       providerEnabled &&
+      record.socialConnection !== null &&
       PUBLISH_NOW_STATUSES.includes(record.status) &&
       record.publishingThreadPartPosition == null &&
       quoteReady &&
@@ -969,6 +970,22 @@ export async function listSocialPosts(
   input: ListSocialPostsInput,
 ): Promise<{ posts: SocialPostSummary[]; pagination: CursorPaginationMeta }> {
   await requireScopedProject(input);
+  return readSocialPostsPage(input);
+}
+
+/**
+ * Social posts of every Project in the workspace: the same Projects a member
+ * can open one at a time, read in one list (Social's All projects view).
+ */
+export function listWorkspaceSocialPosts(
+  input: Omit<ListSocialPostsInput, "projectId">,
+): Promise<{ posts: SocialPostSummary[]; pagination: CursorPaginationMeta }> {
+  return readSocialPostsPage(input);
+}
+
+async function readSocialPostsPage(
+  input: Omit<ListSocialPostsInput, "projectId"> & { projectId?: string },
+): Promise<{ posts: SocialPostSummary[]; pagination: CursorPaginationMeta }> {
   const { cursor, take, skip } = parseCursorPagination(input);
   const where: Prisma.SocialPostWhereInput = {
     projectId: input.projectId,

@@ -225,6 +225,7 @@ export interface StudioLabels {
   reroll: string;
   reusePrompt: string;
   download: string;
+  moreActions: string;
   compare: string;
   version: string;
   generating: string;
@@ -311,6 +312,13 @@ export interface StudioLabels {
   creditsCharged: string;
   creditsUnderivable: string;
   creditsNoFigure: string;
+  /**
+   * Follows the model's name on a failed generation ("Model X failed").
+   *
+   * A word, not a sentence, so the notice stays one line: the model, this, and
+   * `failedNoCharge`. Why it failed sits behind the notice's disclosure.
+   */
+  failedAfterModel: string;
   /**
    * Said on a failed generation: it cost nothing.
    *

@@ -7,6 +7,7 @@ import {
   isEvalWorkspace,
 } from "@/lib/evals/eval-guard";
 import { isNewsletterWorkspaceEnabled } from "@/lib/newsletter/feature";
+import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import { createSokoBotSchedule } from "@/services/soko-bot-schedule.service";
 import {
   ensureEvalLanes,
@@ -97,6 +98,22 @@ describe.skipIf(!enabled)("eval lanes", () => {
       await globalCoworkersFor("00000000-0000-4000-8000-000000000000"),
     ).toEqual([{ isWhitelisted: true }]);
     expect(await isNewsletterWorkspaceEnabled(lane.workspaceId)).toBe(true);
+  });
+
+  it("lets the lane's Cuso work after approval, as a paying customer's would", async () => {
+    const [lane] = await ensureEvalLanes(1);
+    if (!lane) throw new Error("no lane");
+    const approved = await prisma.marketingStrategy.create({
+      data: { projectId: lane.cusoProjectId, plan: {}, approvedAt: new Date() },
+    });
+    try {
+      forgetEvalWorkspaces();
+      expect(await isCmoSubscribed({ projectId: lane.cusoProjectId })).toBe(
+        true,
+      );
+    } finally {
+      await prisma.marketingStrategy.delete({ where: { id: approved.id } });
+    }
   });
 
   it("refuses a global Coworker in an eval workspace", async () => {

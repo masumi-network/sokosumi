@@ -11,6 +11,7 @@ import { TaskMetaDetails } from "./task-meta";
 import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskRunAtBadge } from "./task-run-at-badge";
+import { TaskStatusAge } from "./task-status-age";
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskListItemProps {
@@ -74,6 +75,9 @@ export function TaskListItem({
           />
           <TaskPrivateIndicator visibility={task.visibility} />
         </div>
+        {task.statusSince && !task.isPending ? (
+          <TaskStatusAge status={task.status} statusSince={task.statusSince} />
+        ) : null}
         {task.runAt ? <TaskRunAtBadge runAt={task.runAt} /> : null}
         {task.dueOn ? (
           <TaskDueBadge dueOn={task.dueOn} status={task.status} />

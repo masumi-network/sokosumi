@@ -9,12 +9,17 @@ import {
   useMemo,
   useState,
 } from "react";
-import { getPendingNoticesAction } from "@/lib/actions/notice/action";
+import {
+  acknowledgeNoticeAction,
+  getPendingNoticesAction,
+} from "@/lib/actions/notice/action";
 
 import { NoticeDialog } from "./notice-dialog";
 
 interface NoticeDialogContextValue {
   openNotice: (notice: Notice) => void;
+  /** Hides an announcement for good, as if it had been read. */
+  dismissNotice: (notice: Notice) => void;
   announcementNotices: Notice[];
 }
 
@@ -59,6 +64,12 @@ export function NoticeDialogProvider({
   const value = useMemo<NoticeDialogContextValue>(
     () => ({
       openNotice: (notice) => setNoticeToShow(notice),
+      dismissNotice: (notice) => {
+        setAnnouncementNotices((current) =>
+          current.filter((pending) => pending.id !== notice.id),
+        );
+        void acknowledgeNoticeAction(notice.id);
+      },
       announcementNotices,
     }),
     [announcementNotices],

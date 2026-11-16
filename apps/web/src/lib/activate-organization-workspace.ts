@@ -17,10 +17,14 @@ export function isUserNotMemberOfOrganizationError(error: unknown): boolean {
  * Set Better Auth active organization (null = personal) and persist
  * preferredOrganizationId. Persist is best-effort. In-band setActive
  * errors throw and skip persist (client returns `{ data, error }`).
+ *
+ * True when the persist saved: its action revalidates the sidebar tags, so
+ * its response already carries the current route rendered for the new
+ * workspace, and a `router.refresh()` after it would render it again.
  */
 export async function activateOrganizationWorkspace(
   organizationId: string | null,
-): Promise<void> {
+): Promise<boolean> {
   const activation = await authClient.organization.setActive({
     organizationId,
   });
@@ -45,8 +49,10 @@ export async function activateOrganizationWorkspace(
     if (!result.ok) {
       console.error("Failed to persist preferred organization:", result.error);
     }
+    return result.ok;
   } catch (error) {
     console.error("Failed to persist preferred organization:", error);
+    return false;
   }
 }
 

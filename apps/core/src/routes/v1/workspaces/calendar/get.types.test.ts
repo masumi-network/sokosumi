@@ -1,3 +1,4 @@
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { NEWSLETTER_BETA_ORGANIZATION_SLUG } from "@sokosumi/utils";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -22,7 +23,20 @@ const mocks = vi.hoisted(() => ({
   strategies: vi.fn(),
   strategyFiles: vi.fn(),
   botSchedules: vi.fn(),
+  botRuns: vi.fn(),
+  proactivePaused: false,
 }));
+
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({
+      ...actual.getEnv(),
+      SOKO_BOT_PROACTIVE_PAUSED: mocks.proactivePaused,
+    }),
+  };
+});
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
@@ -69,6 +83,7 @@ vi.mock("@/lib/db/prisma", () => ({
     marketingStrategy: { findMany: mocks.strategies },
     marketingStrategyFile: { findMany: mocks.strategyFiles },
     sokoBotSchedule: { findMany: mocks.botSchedules },
+    sokoBotScheduleRun: { findMany: mocks.botRuns },
   },
 }));
 
@@ -242,6 +257,8 @@ describe("GET /workspaces/calendar types", () => {
     mocks.strategies.mockResolvedValue([]);
     mocks.strategyFiles.mockResolvedValue([]);
     mocks.botSchedules.mockResolvedValue([]);
+    mocks.botRuns.mockResolvedValue([]);
+    mocks.proactivePaused = false;
   });
 
   const featureReads = () => [
@@ -530,6 +547,268 @@ describe("GET /workspaces/calendar types", () => {
     );
     expect(ids(third.body)).toEqual([`social:${POST_ID}`]);
     expect(third.body.meta.pagination.nextCursor).toBeNull();
+  });
+
+  const BOT_SCHEDULE_ID = "88888888-8888-7888-8888-888888888888";
+  const ONCE_SCHEDULE_ID = "88888888-8888-7888-8888-888888888889";
+  const SHARED_SCHEDULE_ID = "88888888-8888-7888-8888-88888888888a";
+  const BOT_ID = "99999999-9999-7999-8999-999999999999";
+  const SHARED_BOT_ID = "99999999-9999-7999-8999-99999999999a";
+  const personalBot = {
+    id: BOT_ID,
+    name: "Pip",
+    userId: "user_123",
+    projectId: null,
+    versionId: null,
+    status: "IDLE",
+    proactivePaused: false,
+    project: null,
+  };
+  const projectBot = {
+    ...personalBot,
+    id: SHARED_BOT_ID,
+    name: "Launch bot",
+    userId: null,
+    projectId: PROJECT_ID,
+    project: { name: "Launch" },
+  };
+  const botSchedule = (patch: Record<string, unknown>) => ({
+    id: BOT_SCHEDULE_ID,
+    name: "Morning brief",
+    enabled: true,
+    timezone: "Europe/Berlin",
+    cronExpression: "0 9 * * 1-5",
+    runOnce: false,
+    nextRunAt: new Date("2026-06-02T07:00:00.000Z"),
+    runChanges: [],
+    sokoBot: personalBot,
+    ...patch,
+  });
+  const scheduledAts = (body: { data: { scheduledAt: string }[] }) =>
+    body.data.map((item) => item.scheduledAt);
+
+  it("shows the member's own bot and the workspace's shared bots, never a teammate's personal bot", async () => {
+    mocks.botSchedules.mockResolvedValue([
+      botSchedule({}),
+      botSchedule({
+        id: ONCE_SCHEDULE_ID,
+        name: "Remind me about the offer",
+        timezone: "UTC",
+        cronExpression: "30 10 3 6 *",
+        runOnce: true,
+        nextRunAt: new Date("2026-06-03T10:30:00.000Z"),
+      }),
+      botSchedule({
+        id: SHARED_SCHEDULE_ID,
+        name: "Launch check",
+        timezone: "UTC",
+        cronExpression: "0 16 * * 3",
+        nextRunAt: new Date("2026-06-03T16:00:00.000Z"),
+        sokoBot: projectBot,
+      }),
+    ]);
+    const { body } = await get("types=sokoBot");
+    expect(body.data[0]).toEqual({
+      kind: "sokoBotRun",
+      id: `sokobot:${BOT_SCHEDULE_ID}:2026-06-02T07:00:00.000Z`,
+      scheduleId: BOT_SCHEDULE_ID,
+      name: "Morning brief",
+      sokoBotId: BOT_ID,
+      botName: "Pip",
+      shared: false,
+      projectName: null,
+      runState: "upcoming",
+      originalAt: "2026-06-02T07:00:00.000Z",
+      canChange: true,
+      sourceId: `workspace:${WORKSPACE_ID}`,
+      sourceType: "WORKSPACE",
+      sourceProjectId: null,
+      sourceWorkspaceId: WORKSPACE_ID,
+      scheduledAt: "2026-06-02T07:00:00.000Z",
+    });
+    expect(
+      body.data.find(
+        (item: { scheduleId: string }) =>
+          item.scheduleId === SHARED_SCHEDULE_ID,
+      ),
+    ).toMatchObject({
+      sokoBotId: SHARED_BOT_ID,
+      botName: "Launch bot",
+      shared: true,
+      projectName: "Launch",
+      sourceType: "PROJECT",
+      sourceProjectId: PROJECT_ID,
+      canChange: true,
+    });
+    // Weekdays at 09:00 Berlin from the next run on; Monday 06-01 is past.
+    expect(scheduledAts(body)).toEqual([
+      "2026-06-02T07:00:00.000Z",
+      "2026-06-03T07:00:00.000Z",
+      "2026-06-03T10:30:00.000Z",
+      "2026-06-03T16:00:00.000Z",
+      "2026-06-04T07:00:00.000Z",
+      "2026-06-05T07:00:00.000Z",
+    ]);
+    // Every run still to come moves or skips, not only the next one.
+    expect(
+      body.data.every((item: { canChange: boolean }) => item.canChange),
+    ).toBe(true);
+    // The caller's personal bot, or a shared bot of an Organization
+    // workspace. Never a built-in rhythm or a follow-up of a Task or Job.
+    expect(mocks.botSchedules.mock.lastCall?.[0].where).toEqual({
+      workspaceId: WORKSPACE_ID,
+      systemKey: null,
+      taskId: null,
+      jobId: null,
+      sokoBot: {
+        workspaceId: WORKSPACE_ID,
+        archivedAt: null,
+        deletedAt: null,
+        OR: [
+          { userId: "user_123" },
+          { userId: null, workspace: { organizationId: { not: null } } },
+        ],
+      },
+    });
+  });
+
+  it("shows past runs from the bot's run history, with how they went", async () => {
+    mocks.botSchedules.mockResolvedValue([
+      botSchedule({ enabled: false }),
+      botSchedule({
+        id: SHARED_SCHEDULE_ID,
+        sokoBot: { ...projectBot, status: "PAUSED" },
+      }),
+    ]);
+    mocks.botRuns.mockResolvedValue([
+      {
+        scheduleId: BOT_SCHEDULE_ID,
+        scheduledFor: new Date("2026-06-01T07:00:00.000Z"),
+        status: "COMPLETED",
+      },
+      {
+        scheduleId: SHARED_SCHEDULE_ID,
+        scheduledFor: new Date("2026-06-01T08:00:00.000Z"),
+        status: "DEAD_LETTER",
+      },
+      {
+        scheduleId: SHARED_SCHEDULE_ID,
+        scheduledFor: new Date("2026-06-01T11:59:00.000Z"),
+        status: "RUNNING",
+      },
+    ]);
+    const { body } = await get("types=sokoBot");
+    // A switched-off schedule and a paused bot keep their history, and have
+    // nothing still to come.
+    expect(
+      body.data.map((item: { runState: string; canChange: boolean }) => [
+        item.runState,
+        item.canChange,
+      ]),
+    ).toEqual([
+      ["done", false],
+      ["failed", false],
+      ["running", false],
+    ]);
+    expect(mocks.botRuns.mock.lastCall?.[0]).toMatchObject({
+      where: {
+        scheduleId: { in: [BOT_SCHEDULE_ID, SHARED_SCHEDULE_ID] },
+        scheduledFor: { gte: new Date(FROM), lt: new Date(TO) },
+      },
+      orderBy: [{ scheduledFor: "asc" }, { scheduleId: "asc" }],
+    });
+  });
+
+  it("keeps Cuso's runs read-only, as his console is", async () => {
+    mocks.botSchedules.mockResolvedValue([
+      botSchedule({
+        sokoBot: { ...projectBot, versionId: CMO_SOKO_BOT_VERSION_IDS[0] },
+      }),
+    ]);
+    const { body } = await get("types=sokoBot");
+    expect(body.data[0]).toMatchObject({ shared: true, canChange: false });
+  });
+
+  it("shows past runs but none to come while the platform kill switch is on", async () => {
+    mocks.proactivePaused = true;
+    mocks.botSchedules.mockResolvedValue([botSchedule({})]);
+    mocks.botRuns.mockResolvedValue([
+      {
+        scheduleId: BOT_SCHEDULE_ID,
+        scheduledFor: new Date("2026-06-01T07:00:00.000Z"),
+        status: "FAILED",
+      },
+    ]);
+    const { body } = await get("types=sokoBot");
+    expect(scheduledAts(body)).toEqual(["2026-06-01T07:00:00.000Z"]);
+  });
+
+  it("shows a moved run at its new time and leaves a skipped one out, as the scheduler fires them", async () => {
+    mocks.botSchedules.mockResolvedValue([
+      botSchedule({
+        runChanges: [
+          // Wednesday's run moved to Tuesday afternoon; Thursday's skipped.
+          {
+            originalAt: new Date("2026-06-03T07:00:00.000Z"),
+            scheduledAt: new Date("2026-06-02T13:15:00.000Z"),
+          },
+          {
+            originalAt: new Date("2026-06-04T07:00:00.000Z"),
+            scheduledAt: null,
+          },
+        ],
+      }),
+    ]);
+    const { body } = await get("types=sokoBot");
+    expect(
+      body.data.map((item: { scheduledAt: string; originalAt: string }) => [
+        item.scheduledAt,
+        item.originalAt,
+      ]),
+    ).toEqual([
+      ["2026-06-02T07:00:00.000Z", "2026-06-02T07:00:00.000Z"],
+      ["2026-06-02T13:15:00.000Z", "2026-06-03T07:00:00.000Z"],
+      ["2026-06-05T07:00:00.000Z", "2026-06-05T07:00:00.000Z"],
+    ]);
+  });
+
+  it("pages through every run of a frequent schedule", async () => {
+    mocks.botSchedules.mockResolvedValue([
+      botSchedule({
+        name: "Hourly check",
+        timezone: "UTC",
+        cronExpression: "0 * * * *",
+        nextRunAt: new Date("2026-06-01T13:00:00.000Z"),
+      }),
+    ]);
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    do {
+      const { body } = await get(
+        `types=sokoBot&limit=50${cursor ? `&cursor=${cursor}` : ""}`,
+      );
+      seen.push(...scheduledAts(body));
+      cursor = body.meta.pagination.nextCursor;
+    } while (cursor);
+    // 13:00 on 06-01 through 23:00 on 06-07: 11 + 6 × 24 hourly runs.
+    expect(seen).toHaveLength(155);
+    expect(new Set(seen).size).toBe(155);
+    expect(seen.at(-1)).toBe("2026-06-07T23:00:00.000Z");
+  });
+
+  it("limits Soko Bot runs to a Project's bot, or to the workspace's, by scope", async () => {
+    await get(`types=sokoBot&projectId=${PROJECT_ID}`);
+    expect(mocks.botSchedules.mock.lastCall?.[0].where.sokoBot).toMatchObject({
+      projectId: PROJECT_ID,
+    });
+    await get(`types=sokoBot&sourceId=workspace:${WORKSPACE_ID}`);
+    expect(mocks.botSchedules.mock.lastCall?.[0].where.sokoBot).toMatchObject({
+      projectId: null,
+    });
+    mocks.botSchedules.mockClear();
+    await get("types=tasks,sokoBot&status=READY");
+    expect(mocks.botSchedules).not.toHaveBeenCalled();
+    expect((await get("types=sokoBot", COWORKER)).status).toBe(403);
   });
 
   it("limits Project-scoped types to the Project and drops Contacts", async () => {

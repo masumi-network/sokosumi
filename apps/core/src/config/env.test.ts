@@ -71,6 +71,129 @@ describe("resolveWebRelatedProjectFallbackHost", () => {
 });
 
 describe("Soko Bot deployment environment", () => {
+  it("parses an exact SEO executor assertion and keeps paid search data opt-in", () => {
+    const executor = {
+      coworkerId: "seo-coworker",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+      ownerId: "owner",
+      organizationId: null,
+    };
+    vi.stubEnv("SEO_ANALYSIS_EXECUTOR", undefined);
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR).toBeUndefined();
+    vi.stubEnv("SEO_ANALYSIS_EXECUTOR", "");
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR).toBeUndefined();
+    vi.stubEnv("SEO_ANALYSIS_EXECUTOR", JSON.stringify(executor));
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR).toEqual({
+      ...executor,
+      canUsePaidSearchData: false,
+      canSchedule: false,
+    });
+    vi.stubEnv(
+      "SEO_ANALYSIS_EXECUTOR",
+      JSON.stringify({ ...executor, canUsePaidSearchData: true }),
+    );
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR?.canUsePaidSearchData).toBe(
+      true,
+    );
+    vi.stubEnv(
+      "SEO_ANALYSIS_EXECUTOR",
+      JSON.stringify({ ...executor, canSchedule: true }),
+    );
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR?.canSchedule).toBe(true);
+  });
+  it("requires an explicit global SEO executor mode and keeps paid and scheduled work opt-in", () => {
+    vi.stubEnv(
+      "SEO_ANALYSIS_EXECUTOR",
+      JSON.stringify({ mode: "global", coworkerId: "shared-seo" }),
+    );
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR).toEqual({
+      mode: "global",
+      coworkerId: "shared-seo",
+      canUsePaidSearchData: false,
+      canSchedule: false,
+    });
+    vi.stubEnv(
+      "SEO_ANALYSIS_EXECUTOR",
+      JSON.stringify({
+        mode: "global",
+        coworkerId: "shared-seo",
+        canUsePaidSearchData: true,
+        canSchedule: true,
+      }),
+    );
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR).toEqual({
+      mode: "global",
+      coworkerId: "shared-seo",
+      canUsePaidSearchData: true,
+      canSchedule: true,
+    });
+  });
+  it.each([
+    { coworkerId: "shared-seo", canUsePaidSearchData: true, canSchedule: true },
+    { mode: "global", coworkerId: "shared-seo", ownerId: "owner" },
+    {
+      mode: "global",
+      coworkerId: "shared-seo",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+    },
+    { mode: "global", coworkerId: "shared-seo", organizationId: null },
+    { mode: "global", canUsePaidSearchData: true },
+    { mode: "all", coworkerId: "shared-seo" },
+  ])(
+    "rejects partial legacy and mixed global executor settings %j",
+    (value) => {
+      vi.stubEnv("SEO_ANALYSIS_EXECUTOR", JSON.stringify(value));
+      expectInvalidEnvironment("SEO_ANALYSIS_EXECUTOR");
+    },
+  );
+  it.each([
+    "{",
+    "null",
+    "{}",
+    JSON.stringify({
+      coworkerId: "seo",
+      workspaceId: "not-a-uuid",
+      ownerId: "owner",
+      organizationId: null,
+    }),
+    JSON.stringify({
+      coworkerId: "seo",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+      ownerId: "owner",
+    }),
+    JSON.stringify({
+      coworkerId: "seo",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+      ownerId: "owner",
+      organizationId: null,
+      canUsePaidSearchData: "true",
+    }),
+    JSON.stringify({
+      coworkerId: "seo",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+      ownerId: "owner",
+      organizationId: null,
+      canSchedule: "true",
+    }),
+    JSON.stringify({
+      coworkerId: "seo",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+      ownerId: "owner",
+      organizationId: null,
+      taskIds: [],
+    }),
+  ])("rejects malformed or widened SEO executor assertion %s", (value) => {
+    vi.stubEnv("SEO_ANALYSIS_EXECUTOR", value);
+    expectInvalidEnvironment("SEO_ANALYSIS_EXECUTOR");
+  });
+  it("keeps SEO analysis dispatch off unless the worker rollout is explicitly enabled", () => {
+    vi.stubEnv("SEO_ANALYSIS_DISPATCH_ENABLED", undefined);
+    expect(validateEnv().SEO_ANALYSIS_DISPATCH_ENABLED).toBe(false);
+    vi.stubEnv("SEO_ANALYSIS_DISPATCH_ENABLED", "true");
+    expect(validateEnv().SEO_ANALYSIS_DISPATCH_ENABLED).toBe(true);
+    vi.stubEnv("SEO_ANALYSIS_DISPATCH_ENABLED", "false");
+    expect(validateEnv().SEO_ANALYSIS_DISPATCH_ENABLED).toBe(false);
+  });
   it.each([
     ["Node production", { NODE_ENV: "production" }],
     ["Vercel preview", { NODE_ENV: "development", VERCEL_ENV: "preview" }],
@@ -149,6 +272,30 @@ describe("Newsletter environment", () => {
   );
 });
 
+describe("Polar environment", () => {
+  it("allows a deployment without Polar settings", () => {
+    vi.stubEnv("POLAR_ACCESS_TOKEN", undefined);
+    vi.stubEnv("POLAR_WEBHOOK_SECRET", undefined);
+    vi.stubEnv("POLAR_ENVIRONMENT", undefined);
+
+    const env = validateEnv();
+
+    expect(env.POLAR_ACCESS_TOKEN).toBeUndefined();
+    expect(env.POLAR_WEBHOOK_SECRET).toBeUndefined();
+    expect(env.POLAR_ENVIRONMENT).toBeUndefined();
+  });
+
+  it.each(["sandbox", "production"])("accepts the %s environment", (value) => {
+    vi.stubEnv("POLAR_ENVIRONMENT", value);
+    expect(validateEnv().POLAR_ENVIRONMENT).toBe(value);
+  });
+
+  it("rejects an unknown environment", () => {
+    vi.stubEnv("POLAR_ENVIRONMENT", "staging");
+    expectInvalidEnvironment("POLAR_ENVIRONMENT");
+  });
+});
+
 describe("CMO hire allowlist", () => {
   it.each([
     [undefined, []],
@@ -161,6 +308,14 @@ describe("CMO hire allowlist", () => {
   ])("parses %j as %j", (value, entries) => {
     vi.stubEnv("CMO_HIRE_ALLOWLIST", value);
     expect(validateEnv().CMO_HIRE_ALLOWLIST).toEqual(entries);
+  });
+
+  it("parses the subscription skip allowlist the same way", () => {
+    vi.stubEnv("CMO_SUBSCRIPTION_SKIP_ALLOWLIST", " Tester@Acme.io , @QA.io,");
+    expect(validateEnv().CMO_SUBSCRIPTION_SKIP_ALLOWLIST).toEqual([
+      "tester@acme.io",
+      "@qa.io",
+    ]);
   });
 });
 
@@ -393,4 +548,20 @@ describe("macOS minimum build", () => {
     vi.stubEnv("MACOS_MINIMUM_BUILD", "8000");
     expect(validateEnv().MACOS_MINIMUM_BUILD).toBe(8000);
   });
+});
+
+describe("native SEO chat allowance", () => {
+  it("defaults to 100 daily turns and accepts an operator limit", () => {
+    vi.stubEnv("SEO_CHAT_DAILY_TURN_LIMIT", undefined);
+    expect(validateEnv().SEO_CHAT_DAILY_TURN_LIMIT).toBe(100);
+    vi.stubEnv("SEO_CHAT_DAILY_TURN_LIMIT", "12");
+    expect(validateEnv().SEO_CHAT_DAILY_TURN_LIMIT).toBe(12);
+  });
+  it.each(["0", "-1", "1.5", "invalid"])(
+    "rejects an invalid allowance %s",
+    (value) => {
+      vi.stubEnv("SEO_CHAT_DAILY_TURN_LIMIT", value);
+      expectInvalidEnvironment("SEO_CHAT_DAILY_TURN_LIMIT");
+    },
+  );
 });

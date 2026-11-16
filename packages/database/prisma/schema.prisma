@@ -140,6 +140,8 @@ model Organization {
   // Credit Buckets
   creditBuckets CreditBucket[]
 
+  polarSubscriptions PolarSubscription[]
+
   enterpriseContracts EnterpriseContract[]
 
   @@unique([slug])
@@ -152,10 +154,15 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  dataTables       DataTable[]
-  contacts         Contact[]
-  contactLists     ContactList[]
-  contactCompanies ContactCompany[]
+  dataTables          DataTable[]
+  contacts            Contact[]
+  contactLists        ContactList[]
+  contactCompanies    ContactCompany[]
+  contactCompanyLists ContactCompanyList[]
+
+  seoAudits            SeoAudit[]
+  seoConnections       SeoConnection[]
+  seoConnectionIntents SeoConnectionIntent[]
 
   calendarRevision Int @default(0)
 
@@ -462,10 +469,18 @@ model Project {
   contextMdUpdatedAt      DateTime?
   contextMdModel          String?
   contextMdUpdatingSince  DateTime?
-  contextMdVersion        Int       @default(0)
+  contextMdVersion        Int                     @default(0)
   latestUpdateMd          String?
   latestUpdateMdUpdatedAt DateTime?
   websiteUrl              String?
+  seoAudits               SeoAudit[]
+  seoPages                ProjectSeoPage[]
+  seoScopes               ProjectSeoScope[]
+  seoObservations         ProjectSeoObservation[]
+  seoKeywords             ProjectSeoKeyword[]
+  seoCompetitors          ProjectSeoCompetitor[]
+  seoAnalyses             ProjectSeoAnalysis[]
+  seoActionTasks          ProjectSeoActionTask[]
   /// What the website runs on when it is a shop system Cuso can measure
   /// (only "shopify" today), learned once from the site; null otherwise.
   sitePlatform            String?
@@ -521,6 +536,8 @@ model Project {
   imageAssets   ProjectImageAsset[]
 
   creditBuckets CreditBucket[]
+
+  polarSubscriptions PolarSubscription[]
 
   fileLinks FileProjectLink[]
 
@@ -1555,6 +1572,7 @@ model Transaction {
   refundedTaskX402Payment  TaskX402Payment?  @relation("RefundedTransactionTaskX402Payment")
   coworkerUsage            CoworkerUsage?    @relation("TransactionCoworkerUsage")
   sokoBotUsage             SokoBotUsage?     @relation("TransactionSokoBotUsage")
+  seoChatTurn              SeoAuditChatTurn? @relation("TransactionSeoChatTurn")
 
   projectImageJob         ProjectImageJob? @relation("TransactionProjectImageJob")
   refundedProjectImageJob ProjectImageJob? @relation("RefundedTransactionProjectImageJob")
@@ -1618,6 +1636,83 @@ enum CreditBucketReferenceType {
   ENTERPRISE_TOP_UP
   SIGNUP_BONUS
   FREE
+  // One month of a Polar subscription's credits; referenceId "<Polar order id>:<month index>" (ADR 0068).
+  POLAR_SUBSCRIPTION_MONTH
+  // A Project top-up bought through Polar; referenceId "<Polar order id>:0" (ADR 0068).
+  PROJECT_TOP_UP
+  // Tester credits: a skip-listed tester continued a Cuso without a CMO
+  // subscription; a fresh referenceId per grant, like FREE (ADR 0068).
+  CMO_TESTER_CREDITS
+}
+
+/// A Cuso's CMO subscription at Polar (ADR 0068). Its credits are Project
+/// credits of `project`; Sokosumi's Stripe plan stays in `Subscription`.
+/// What a Polar subscription pays for.
+enum PolarSubscriptionKind {
+  /// A Cuso's CMO plan; the subscription names his Project.
+  CMO
+}
+
+/// A subscription at Polar as Core last saw it. Provider-level: CMO's plans
+/// are its only kind today (ADR 0068).
+model PolarSubscription {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kind PolarSubscriptionKind
+
+  /// The Project a CMO subscription pays for.
+  projectId String?  @db.Uuid
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  polarSubscriptionId     String
+  polarProductId          String
+  tier                    String
+  /// "month" or "year".
+  interval                String
+  /// Polar's subscription status, as sent.
+  status                  String
+  currentPeriodStart      DateTime
+  currentPeriodEnd        DateTime
+  cancelAtPeriodEnd       Boolean   @default(false)
+  /// The product a scheduled downgrade moves to at the next period.
+  pendingPolarProductId   String?
+  lastPaidOrderId         String?
+  lastPaidAt              DateTime?
+  /// Set when Polar refunded the last paid order: a yearly plan grants no
+  /// more months of it. A later paid order clears it.
+  lastPaidOrderRefundedAt DateTime?
+  /// Set once Polar ended the subscription; frees the Project for a new one.
+  endedAt                 DateTime?
+  /// Timestamp of the newest Polar event applied. Polar does not order its
+  /// deliveries, so a payload older than this is skipped.
+  polarEventAt            DateTime
+  /// Set while a plan change is at Polar, so a second one waits for its
+  /// tier instead of counting an upgrade from the old one.
+  planChangeClaimedAt     DateTime?
+
+  @@unique([polarSubscriptionId])
+  @@unique([projectId], map: "polar_subscription_project_live_key", where: { endedAt: null })
+  @@index([projectId])
+  @@index([organizationId])
+  @@map("polar_subscription")
+}
+
+/// A Polar order a grant or refund has touched. A grant and a refund of
+/// one order both write this row first, so whichever comes second sees the
+/// other: a refund delivered before its payment keeps that payment from
+/// granting.
+model PolarOrder {
+  polarOrderId String    @id
+  createdAt    DateTime  @default(now())
+  /// Set once Polar refunded the order; nothing grants from it after.
+  refundedAt   DateTime?
+
+  @@map("polar_order")
 }
 
 model CreditConsumption {
@@ -3187,8 +3282,10 @@ model SokoBotSchedule {
   legacyScheduleId    String?   @unique
   /// Built-in rhythm (see @sokosumi/soko-bot proactive); null for owner/bot-made schedules.
   systemKey           String?
-  /// Tools of the turn that wrote it; a run gets them back instead of being
-  /// classified again. Empty for schedules the owner set in the console.
+  /// Tools of the turn or person that wrote it; a run gets them back instead
+  /// of being classified again. A person writing one in the console gives it
+  /// their chat tools. Empty for built-ins and console schedules written
+  /// before 2026-11-16, which Jev classifies on every run.
   capabilityNames     String[]  @default([])
   nextRunAt           DateTime
   lastRunAt           DateTime?
@@ -3201,7 +3298,8 @@ model SokoBotSchedule {
   jobId  String?
   job    Job?    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
-  runs SokoBotScheduleRun[]
+  runs       SokoBotScheduleRun[]
+  runChanges SokoBotScheduleRunChange[]
 
   @@unique([sokoBotId, systemKey])
   @@index([enabled, nextRunAt])
@@ -3237,6 +3335,26 @@ model SokoBotScheduleRun {
   @@unique([scheduleId, scheduledFor])
   @@index([status, scheduledFor])
   @@map("soko_bot_schedule_run")
+}
+
+/// One run of a recurring schedule moved or skipped from the Calendar; the
+/// cron stays as it is. `originalAt` is the cron time the run had,
+/// `scheduledAt` where it runs instead, or null when skipped. The scheduler
+/// fires the cron times without a change plus every moved time.
+model SokoBotScheduleRunChange {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  scheduleId String          @db.Uuid
+  schedule   SokoBotSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  originalAt  DateTime
+  scheduledAt DateTime?
+
+  @@unique([scheduleId, originalAt])
+  @@index([originalAt])
+  @@map("soko_bot_schedule_run_change")
 }
 
 /// Append-only operator audit. Deliberately FK-free so account/bot deletion

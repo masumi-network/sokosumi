@@ -1,4 +1,6 @@
 export const SOKO_BOT_ROUTE = "/personal-assistant";
+/** Setup opened from Home; the phone back control returns to Home. */
+export const SOKO_BOT_FROM_HOME_ROUTE = `${SOKO_BOT_ROUTE}?from=home`;
 /** Team overview: everyone in the workspace and their Soko Bots. */
 export const SOKO_BOTS_ROUTE = "/soko-bots";
 
@@ -44,6 +46,9 @@ export const SOKO_BOT_BUSY_ERROR_CODE = "SOKO_BOT_BUSY";
 /** Action error code when Core answers 429: the caller's hourly avatar generation allowance is spent. */
 export const SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE =
   "SOKO_BOT_AVATAR_RATE_LIMITED";
+
+/** Action error code when Core answers 409 to "show others": nothing was drawn, so retrying is free. */
+export const SOKO_BOT_AVATAR_DRAW_BUSY_ERROR_CODE = "SOKO_BOT_AVATAR_DRAW_BUSY";
 
 /** Action error code when Core answers 429: the person's daily animation redos are spent. */
 export const SOKO_BOT_AVATAR_REDO_LIMIT_ERROR_CODE =

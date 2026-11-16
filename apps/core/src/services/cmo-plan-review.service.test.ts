@@ -4,15 +4,24 @@ import { describe, expect, it, vi } from "vitest";
 // A plain function, not a spy: a spy reports the rejection the code handles.
 const jev = vi.hoisted(() => ({
   answer: (): Promise<unknown> => Promise.resolve(undefined),
+  input: undefined as
+    | Parameters<typeof import("@/lib/soko-bot/jev").evaluateWithJev>[0]
+    | undefined,
 }));
 vi.mock("@/lib/soko-bot/jev", () => ({
-  evaluateWithJev: () => jev.answer(),
+  evaluateWithJev: (
+    input: Parameters<typeof import("@/lib/soko-bot/jev").evaluateWithJev>[0],
+  ) => {
+    jev.input = input;
+    return jev.answer();
+  },
 }));
 
 import {
   cmoDraftProblems,
   cmoPlanDrift,
   cmoPlanProblems,
+  cmoPlanProblemsSince,
   cmoReplySafety,
   mixProblems,
   pillarProblems,
@@ -219,6 +228,52 @@ describe("cmoPlanProblems", () => {
   });
 });
 
+describe("cmoPlanProblemsSince", () => {
+  const thin = plan({
+    calendar: [entry("a", "seo", "article"), entry("b", "seo", "article")],
+  });
+
+  it("keeps quiet about what the owner's plan already had", () => {
+    const changed = { ...thin, goals: ["More demos"] };
+    expect(cmoPlanProblems(changed)).not.toEqual([]);
+    expect(cmoPlanProblemsSince(changed, thin)).toEqual([]);
+  });
+
+  it("does not ask a short calendar for a full month after one piece more", () => {
+    const longer = {
+      ...thin,
+      calendar: [...thin.calendar, entry("c", "seo", "article")],
+    };
+    expect(cmoPlanProblemsSince(longer, thin).join("\n")).not.toMatch(
+      /^calendar (has|uses) /m,
+    );
+  });
+
+  it("still names more videos than the plan had", () => {
+    const videos = (count: number) => ({
+      ...thin,
+      calendar: Array.from({ length: count }, (_, index) =>
+        entry(`v${index}`, "tiktok", "video"),
+      ),
+    });
+    expect(cmoPlanProblemsSince(videos(10), videos(5)).join("\n")).toMatch(
+      /calendar has 10 videos/,
+    );
+  });
+
+  it("names what the change broke", () => {
+    expect(cmoPlanProblemsSince({ ...thin, mix: [] }, thin)).toEqual([
+      "mix is empty; give two to four approaches.",
+    ]);
+  });
+
+  it("excuses nothing for a plan still in the making", () => {
+    expect(cmoPlanProblemsSince(thin, plan({ calendar: [] }))).toEqual(
+      cmoPlanProblems(thin),
+    );
+  });
+});
+
 describe("the funnel strategy", () => {
   it("asks for the idea, the outcome, the pace and each stage's plays", () => {
     const problems = cmoPlanProblems(
@@ -305,6 +360,42 @@ describe("cmoPlanDrift", () => {
     expect(drift.verdict).toBe("drift");
   });
 
+  it("reviews the core product separately from its entry offer", async () => {
+    jev.answer = async () => ({
+      answers: new Map([
+        ["sellsMainOffer", { type: "boolean", probability: 0.92 }],
+      ]),
+      costUsd: 0,
+    });
+    await cmoPlanDrift({
+      strategy: plan({
+        ladder: { core: { what: "Custom AI CoWorker" } },
+        offer: {
+          what: "30-minute call and demo",
+          why: "See it work",
+          action: "Book a call",
+          proof: [],
+        },
+      }),
+      brain,
+    });
+    expect(jev.input).toMatchObject({
+      state: {
+        plan: {
+          coreOffer: "Custom AI CoWorker",
+          offer: "30-minute call and demo",
+        },
+      },
+      questions: {
+        sellsMainOffer: {
+          instructions: expect.stringContaining(
+            "A trial, demo or introductory call is a valid entry offer when it leads to that product",
+          ),
+        },
+      },
+    });
+  });
+
   it("lets a plan on the main offer through", async () => {
     jev.answer = async () => ({
       answers: new Map([
@@ -389,6 +480,15 @@ describe("mixProblems", () => {
       "educational is 60% of the mix but 16 of 20 pieces (80%); make it about 12.",
       "promotional is 40% of the mix but 4 of 20 pieces (20%); make it about 8.",
     ]);
+  });
+
+  it("names the approaches outside the mix and the ones to use", () => {
+    const calendar = pieces(12, 8).map((entry, index) =>
+      index < 2 ? { ...entry, approach: "entertainment" as const } : entry,
+    );
+    expect(mixProblems(mix, calendar).at(-1)).toBe(
+      "2 pieces take an approach outside the mix (entertainment); give each one of educational, promotional, or add its approach to the mix.",
+    );
   });
 
   it("asks for an approach on every entry", () => {

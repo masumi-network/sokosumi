@@ -408,6 +408,52 @@ describe("publishXPost with media", () => {
     });
   });
 
+  it("uploads all 20 images and sends every media id in one post", async () => {
+    const media = Array.from({ length: 20 }, (_, index) =>
+      mediaRef("image/png", "image", { name: `image-${index + 1}.png` }),
+    );
+    downloadSocialPostMediaMock.mockResolvedValue(
+      media.map((ref) => ({
+        bytes: PNG_BYTES,
+        name: ref.name,
+        mimeType: ref.mimeType,
+        kind: ref.kind,
+      })),
+    );
+    let uploadCount = 0;
+    const fetchMock = stubMediaSession((call) =>
+      toolResponse({
+        id:
+          call.tool_slug === "TWITTER_CREATION_OF_A_POST"
+            ? "1907"
+            : `media_${++uploadCount}`,
+      }),
+    );
+
+    await expect(publishXPost({ ...imageInput, media })).resolves.toEqual(
+      xResult("1907"),
+    );
+
+    const calls = executeCalls(fetchMock);
+    expect(downloadSocialPostMediaMock).toHaveBeenCalledWith(
+      "x",
+      media,
+      undefined,
+    );
+    expect(ssrfSafeFetchMock).toHaveBeenCalledTimes(20);
+    expect(
+      calls.filter((call) => call.tool_slug === "TWITTER_UPLOAD_MEDIA"),
+    ).toHaveLength(20);
+    const creates = calls.filter(
+      (call) => call.tool_slug === "TWITTER_CREATION_OF_A_POST",
+    );
+    expect(creates).toHaveLength(1);
+    expect(creates[0].arguments.media_media_ids).toHaveLength(20);
+    expect(creates[0].arguments.media_media_ids).toEqual(
+      Array.from({ length: 20 }, (_, index) => `media_${index + 1}`),
+    );
+  });
+
   it("normalizes CMYK progressive JPEG to baseline sRGB before upload", async () => {
     const bytes = await sharp(JPEG_BYTES)
       .toColourspace("cmyk")

@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
-import { STUDIO_TEMPLATES } from "./studio-templates";
+import { STUDIO_TEMPLATES, unfilledTemplateSlots } from "./studio-templates";
 import { requestStudioWebsiteDraftOnOpen } from "./studio-website-intent";
 import type { StudioAsset } from "./types";
 
@@ -55,6 +55,7 @@ const mocks = vi.hoisted(() => ({
   prepareWebsiteDraft: vi.fn(),
   loadProducts: vi.fn(),
   saveProducts: vi.fn(),
+  enqueue: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
@@ -99,7 +100,7 @@ vi.mock("./use-generation-queue", () => ({
   useGenerationQueue: () => ({
     failed: [],
     queued: [],
-    enqueue: vi.fn(),
+    enqueue: mocks.enqueue,
     waitingForSlot: false,
   }),
 }));
@@ -381,7 +382,7 @@ describe("starting from a template", () => {
     requestStudioWebsiteDraftOnOpen("p");
 
     const studio = mount("https://ceramics.example");
-    expect(await screen.findByText("preparing")).toBeInTheDocument();
+    expect(await screen.findByText("preparing")).not.toHaveClass("sr-only");
     expect(mocks.prepareWebsiteDraft).toHaveBeenCalledExactlyOnceWith({
       projectId: "p",
     });
@@ -407,11 +408,23 @@ describe("starting from a template", () => {
     expect(
       screen.getByRole("button", { name: "reviewImportedProducts" }),
     ).toBeInTheDocument();
+    // The review buttons already say it; the ready line is for screen readers.
+    expect(screen.getByText("ready")).toHaveClass("sr-only");
     expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
     expect(mocks.saveProducts).not.toHaveBeenCalled();
     studio.unmount();
     mount("https://ceramics.example");
     expect(mocks.prepareWebsiteDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the website status visible when only some details could be read", async () => {
+    mocks.prepareWebsiteDraft.mockResolvedValueOnce({
+      brandCopy: { summary: "A ceramics studio", lines: [] },
+      products: null,
+    });
+    mount("https://ceramics.example");
+    fireEvent.click(screen.getByRole("button", { name: "prepare" }));
+    expect(await screen.findByText("partial")).not.toHaveClass("sr-only");
   });
 
   it("prepares website copy and products together for independent review", async () => {
@@ -759,6 +772,30 @@ describe("starting from a template", () => {
     expect(
       screen.queryByRole("button", { name: "undoTemplate" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("refuses to generate while the brief still has template slots", () => {
+    mocks.enqueue.mockClear();
+    mount();
+    pickTemplate("ad");
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
+    expect(screen.getByText("templateSlotsUnfilled")).toBeInTheDocument();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+    expect(prompt).toHaveFocus();
+
+    fireEvent.change(prompt, { target: { value: "Iced oat latte, square" } });
+    fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
+    expect(mocks.enqueue).toHaveBeenCalled();
+  });
+
+  it("names each unfilled slot once, in order", () => {
+    expect(
+      unfilledTemplateSlots(
+        "Ad for [product] aimed at [audience]. Show [product], add [call to action].",
+      ),
+    ).toEqual(["[product]", "[audience]", "[call to action]"]);
+    expect(unfilledTemplateSlots("Iced oat latte at 4.20")).toEqual([]);
   });
 
   it("keeps the original typed brief through several template choices", () => {

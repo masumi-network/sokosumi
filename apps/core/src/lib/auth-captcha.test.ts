@@ -5,6 +5,7 @@ import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
+import { pendingEmailChange } from "./auth-pending-email-change.js";
 
 function createTestAuth(
   { secretKey }: { secretKey?: string } = { secretKey: "test-secret" },
@@ -37,6 +38,10 @@ function createTestAuth(
     plugins: [
       createAuthCaptchaPlugin(secretKey),
       emailOTP({ sendVerificationOTP: sendEmail }),
+      pendingEmailChange({
+        expiresIn: 3600,
+        accountUrl: "https://app.example.com/account",
+      }),
     ],
     rateLimit: { enabled: false },
   });
@@ -167,15 +172,18 @@ describe("auth email abuse protection", () => {
       origin: "https://auth.example.com",
       "content-type": "application/json",
     };
-    const request = new Request("https://auth.example.com/auth/change-email", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ newEmail: "another@example.com" }),
-    });
+    const request = new Request(
+      "https://auth.example.com/auth/email-change/request",
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ newEmail: "another@example.com" }),
+      },
+    );
     expect((await auth.handler(request)).status).toBe(400);
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const verifiedRequest = new Request(
-      "https://auth.example.com/auth/change-email",
+      "https://auth.example.com/auth/email-change/request",
       {
         method: "POST",
         headers: { ...headers, "x-captcha-response": "change-token" },
