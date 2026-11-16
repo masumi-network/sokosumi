@@ -3,6 +3,7 @@
 import type { SpeedInsights as SpeedInsightsComponent } from "@vercel/speed-insights/next";
 import { type ComponentProps, type ComponentType, useState } from "react";
 
+import { getEnvPublicConfig } from "@/config/env.public";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
 interface LoadedAnalytics {
@@ -52,9 +53,12 @@ export function ClientAnalytics() {
 
   const { Analytics, SpeedInsights } = loaded;
 
+  // Web Analytics is enabled on the Mainnet Vercel project only. Elsewhere its
+  // hashed `/<hex>/script.js` is not served, so the page gets HTML for a script
+  // and logs a console error (the browser smoke in `e2e/` fails on it).
   return (
     <>
-      <Analytics />
+      {getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Mainnet" && <Analytics />}
       <SpeedInsights beforeSend={dropBackgroundTabLoads} />
     </>
   );

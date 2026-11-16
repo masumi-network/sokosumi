@@ -1,9 +1,19 @@
 import { render, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const speedInsightsProps = vi.fn();
+const analyticsRendered = vi.fn();
+const getEnvPublicConfigMock = vi.fn();
 
-vi.mock("@vercel/analytics/next", () => ({ Analytics: () => null }));
+vi.mock("@/config/env.public", () => ({
+  getEnvPublicConfig: () => getEnvPublicConfigMock(),
+}));
+vi.mock("@vercel/analytics/next", () => ({
+  Analytics: () => {
+    analyticsRendered();
+    return null;
+  },
+}));
 vi.mock("@vercel/speed-insights/next", () => ({
   SpeedInsights: (props: unknown) => {
     speedInsightsProps(props);
@@ -35,9 +45,26 @@ function stubVisibilityEntries(names: string[]) {
 }
 
 describe("ClientAnalytics", () => {
+  beforeEach(() => {
+    getEnvPublicConfigMock.mockReturnValue({ NEXT_PUBLIC_NETWORK: "Mainnet" });
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     speedInsightsProps.mockReset();
+    analyticsRendered.mockReset();
+  });
+
+  it("mounts Web Analytics on Mainnet", async () => {
+    render(<ClientAnalytics />);
+    await waitFor(() => expect(analyticsRendered).toHaveBeenCalled());
+  });
+
+  it("skips Web Analytics where the project has it off (Preprod)", async () => {
+    getEnvPublicConfigMock.mockReturnValue({ NEXT_PUBLIC_NETWORK: "Preprod" });
+    render(<ClientAnalytics />);
+    await waitFor(() => expect(speedInsightsProps).toHaveBeenCalled());
+    expect(analyticsRendered).not.toHaveBeenCalled();
   });
 
   it("drops vitals from a page load that started in a background tab", async () => {
