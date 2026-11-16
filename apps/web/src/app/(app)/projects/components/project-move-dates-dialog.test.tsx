@@ -1,4 +1,8 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -201,6 +205,19 @@ describe("ProjectMoveDatesDialog", () => {
     expect(
       screen.getByRole("button", { name: 'confirm:{"count":2}' }),
     ).toBeEnabled();
+  });
+
+  it("says it couldn't check when offline, rather than waiting forever", async () => {
+    onlineManager.setOnline(false);
+    shiftProjectDueDatesAction.mockRejectedValue(new Error("offline"));
+    try {
+      renderDialog();
+
+      expect(await screen.findByText("previewError")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^confirm:/ })).toBeDisabled();
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it("shows an error when the preview fails", async () => {
