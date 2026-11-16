@@ -76,4 +76,20 @@ describe("startPrivateTaskDetailReads", () => {
     await expect(reads.hasAssignedSeatPromise).resolves.toBe(false);
     await expect(reads.currentPlanPromise).resolves.toBeNull();
   });
+
+  it("keeps a sign-in redirect from the seat read", async () => {
+    const { redirect } = await import("next/navigation");
+    hasAssignedSeatMock.mockImplementation(async () => redirect("/signin"));
+    resolvePlanMock.mockResolvedValue(null);
+    const task = {
+      projectId: null,
+      organizationId: "org-1",
+      visibility: "PRIVATE",
+      workspace: { organizationId: "org-1" },
+    } as unknown as Parameters<typeof startPrivateTaskDetailReads>[0];
+
+    const reads = startPrivateTaskDetailReads(task, false);
+
+    await expect(reads.hasAssignedSeatPromise).rejects.toThrow("NEXT_REDIRECT");
+  });
 });

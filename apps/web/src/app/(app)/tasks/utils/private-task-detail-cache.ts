@@ -4,6 +4,7 @@ import type { Project, Task } from "@sokosumi/core-client";
 import { TaskVisibility } from "@sokosumi/core-client";
 import type { Session, SubscriptionPlanName } from "@sokosumi/utils";
 import { cacheLife } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
 import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import { getPrivateCachedSession } from "@/lib/auth/auth.server";
@@ -103,7 +104,11 @@ export function startPrivateTaskDetailReads(
       .catch(() => null),
     hasAssignedSeatPromise: forceReadOnly
       ? Promise.resolve(false)
-      : getPrivateCachedAssignedSeat(organizationId).catch(() => false),
+      : getPrivateCachedAssignedSeat(organizationId).catch((error: unknown) => {
+          // A 401 from the seat read is a sign-in redirect, not an outage.
+          unstable_rethrow(error);
+          return false;
+        }),
     mentionableUsersPromise:
       forceReadOnly || task.visibility === TaskVisibility.PRIVATE
         ? Promise.resolve<MentionableMembers>([])

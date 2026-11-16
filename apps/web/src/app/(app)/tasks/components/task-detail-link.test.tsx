@@ -154,6 +154,21 @@ describe("TaskDetailLink", () => {
     expect(routerPrefetchMock).not.toHaveBeenCalled();
   });
 
+  // A filter or navigation can remove a row inside the dwell.
+  it("drops the dwell when the link unmounts", () => {
+    const { unmount } = render(
+      <TaskDetailLink href="/tasks/task-1">Open task</TaskDetailLink>,
+    );
+
+    fireEvent.pointerEnter(screen.getByRole("link", { name: "Open task" }), {
+      pointerType: "mouse",
+    });
+    unmount();
+    vi.advanceTimersByTime(TASK_HOVER_DWELL_MS);
+
+    expect(routerPrefetchMock).not.toHaveBeenCalled();
+  });
+
   // A keyboard or assistive click comes with no press.
   it("cancels the hover dwell on a click", () => {
     const link = renderLink();
