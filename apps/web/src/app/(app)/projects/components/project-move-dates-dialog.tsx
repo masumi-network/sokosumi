@@ -69,9 +69,12 @@ export function ProjectMoveDatesDialog({
     staleTime: 0,
     gcTime: 0,
   });
-  // Confirm only what is on screen for the days now in the field.
+  // Confirm only what is on screen for the days now in the field. A failed
+  // refetch keeps the old data but shows the error, so it is not usable.
   const preview =
-    previewDays === days && !query.isFetching ? query.data : undefined;
+    previewDays === days && query.isSuccess && !query.isFetching
+      ? query.data
+      : undefined;
   const canMove =
     days !== null &&
     !!preview &&

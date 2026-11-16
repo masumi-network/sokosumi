@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -165,6 +166,41 @@ describe("ProjectMoveDatesDialog", () => {
     expect(
       screen.getByRole("button", { name: 'confirm:{"count":2}' }),
     ).toBeDisabled();
+  });
+
+  it("can't confirm a kept preview while its refetch failed, and can again after a good retry", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <ProjectMoveDatesDialog
+          projectId={PROJECT_ID}
+          open
+          onOpenChange={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+    await screen.findByText("Draft launch post");
+
+    shiftProjectDueDatesAction.mockRejectedValueOnce(new Error("offline"));
+    await act(() => client.refetchQueries());
+
+    expect(await screen.findByText("previewError")).toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: /^confirm:/ });
+    expect(confirm).toBeDisabled();
+    const user = userEvent.setup();
+    await user.click(confirm);
+    expect(shiftProjectDueDatesAction).not.toHaveBeenCalledWith(
+      expect.objectContaining({ tasks: expect.anything() }),
+    );
+
+    await act(() => client.refetchQueries());
+
+    expect(await screen.findByText("Draft launch post")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: 'confirm:{"count":2}' }),
+    ).toBeEnabled();
   });
 
   it("shows an error when the preview fails", async () => {
