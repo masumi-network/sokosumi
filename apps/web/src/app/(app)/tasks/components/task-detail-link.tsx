@@ -11,6 +11,7 @@ import type {
 } from "react";
 
 import { useIntentPrefetch } from "@/hooks/use-intent-prefetch";
+import { prefetchRouteContent } from "@/lib/navigation/prefetch-route-content";
 import { storeTasksReturnPath } from "./task-navigation";
 
 /**
@@ -34,12 +35,17 @@ export function TaskDetailLink({
 }: TaskDetailLinkProps) {
   const router = useRouter();
 
-  const prefetchTaskDetail = () => {
+  // A predicted approach loads only the shared App Shell. Hover, focus and
+  // touch also load the page's content, which costs a server render each.
+  const prefetchTaskShell = () => {
     router.prefetch(href);
+  };
+  const prefetchTaskDetail = () => {
+    prefetchRouteContent(router, href);
   };
   // The link's box is its text. A card stretches the link over itself with a
   // pseudo-element, which only the hover handler below can see.
-  const approachRef = useIntentPrefetch<HTMLAnchorElement>(prefetchTaskDetail, {
+  const approachRef = useIntentPrefetch<HTMLAnchorElement>(prefetchTaskShell, {
     reactivateAfter: TASK_APPROACH_REPEAT_MS,
   });
 
