@@ -137,7 +137,7 @@ for (const { name, ...viewport } of PROJECTS) {
       await blocker.waitFor();
       assert.equal(
         await page
-          .getByRole("heading", { name: "Plan around this Task" })
+          .getByRole("heading", { name: "Plan around this task" })
           .count(),
         0,
       );
@@ -150,7 +150,7 @@ for (const { name, ...viewport } of PROJECTS) {
       await relatedLink(page, "Blocking").click();
       await page.waitForURL(rootUrl);
 
-      const plan = page.getByRole("list", { name: "Plan around this Task" });
+      const plan = page.getByRole("list", { name: "Plan around this task" });
       await plan.waitFor();
       await page.screenshot({ path: `${RESULTS_DIR}task-plan-${name}.png` });
       const rows = plan.getByRole("listitem");

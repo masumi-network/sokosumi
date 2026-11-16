@@ -1,5 +1,10 @@
 import type { TaskPlan, TaskPlanItem, TaskStatus } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { taskService } from "@/lib/services/task.service";
 import { getTaskLinkRelationIcon } from "./task-link-relation-icon";
 import { TaskRelationRow } from "./task-relation-row";
@@ -77,13 +82,23 @@ export function TaskPlanTree({
             <li key={`${item.depth}-${item.task.id}-${item.relation}`}>
               {/* gap-3: the row's link bleeds 8px left (-mx-2) for its hover fill; 12px keeps that fill off the icon. */}
               <div className="flex min-w-0 items-center gap-3">
-                <Icon
-                  role="img"
-                  aria-label={relationLabel}
-                  className="text-muted-foreground size-4 shrink-0"
-                >
-                  <title>{relationLabel}</title>
-                </Icon>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span
+                      className="inline-flex shrink-0"
+                      role="img"
+                      aria-label={relationLabel}
+                    >
+                      <Icon
+                        aria-hidden
+                        className="text-muted-foreground size-4"
+                      />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" sideOffset={6}>
+                    {relationLabel}
+                  </TooltipContent>
+                </Tooltip>
                 <div className="min-w-0 flex-1">
                   <TaskRelationRow
                     taskId={item.task.id}

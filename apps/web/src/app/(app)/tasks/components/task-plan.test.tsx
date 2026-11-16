@@ -1,5 +1,6 @@
 import type { TaskPlan, TaskPlanItem } from "@sokosumi/core-client";
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { TaskPlanTree } from "./task-plan";
@@ -11,11 +12,11 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/services/task.service", () => ({ taskService: {} }));
 
 const labels = {
-  title: "Plan around this Task",
+  title: "Plan around this task",
   hint: "Blockers and sub-tasks up to 3 links away.",
   blockedBy: "Blocked by",
   subtask: "Sub-task",
-  loopsBack: "Loops back to an earlier Task",
+  loopsBack: "Loops back to an earlier task",
   shownAbove: "Shown above",
   more: "More beyond this view",
   truncated: "Only part of the plan is shown.",
@@ -77,6 +78,17 @@ describe("TaskPlanTree", () => {
     expect(
       within(top[0] as HTMLElement).getByRole("img", { name: "Blocked by" }),
     ).toBeInTheDocument();
+  });
+
+  it("names a row's relation in a tooltip on its icon", async () => {
+    renderPlan({
+      truncated: false,
+      items: [item("b", 1, "blocked_by"), item("b1", 2, "parent")],
+    });
+
+    await userEvent.hover(screen.getByRole("img", { name: "Sub-task" }));
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Sub-task");
   });
 
   it("says when a row repeats, loops back, or goes deeper than shown", () => {
