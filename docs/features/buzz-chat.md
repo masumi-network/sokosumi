@@ -107,7 +107,12 @@ certificate).
 
 Previews are copies of production's database: a preview puts only the
 organizations `BUZZ_AUTO_ORGANIZATIONS` names on Buzz (comma-separated slugs),
-so production's chats never reach the preview relay. Previews have no crons;
+so production's chats never reach the preview relay. The Buzz state also
+records which deployment it is for (`sync_metadata` key `buzz-deployment`, the
+community URL template): a test deployment that finds another deployment's
+state clears its copy and starts over; any other deployment stops instead of
+clearing. Communities set up by hand (a local relay reached through Tailscale)
+are claimed by writing that key with the current template. Previews have no crons;
 a preview's bridge runs when `/sync/buzz` is called with a branch-scoped
 `CRON_SECRET`.
 

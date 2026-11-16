@@ -154,6 +154,56 @@ const check = (id: string, name: string, run: () => Promise<void>) =>
 
 let aliceMessage = "";
 let aliceEventId = "";
+check(
+  "L",
+  "a message whose author left before it went out still reaches Buzz",
+  async () => {
+    const created = await api("alice", "POST", "/v1/chats/rooms", {
+      kind: "channel",
+      name: `e2e ${RUN} L`,
+      slug: `e2e-${RUN}-l`,
+      memberUserIds: [people.bob.userId],
+    });
+    const leftRoom = created.id as string;
+    const channel = await waitFor("the channel on Buzz", () =>
+      prisma.buzzChannel.findUnique({
+        where: { roomId: leftRoom },
+        include: { community: true },
+      }),
+    );
+    const message = await api(
+      "bob",
+      "POST",
+      `/v1/chats/rooms/${leftRoom}/messages`,
+      { content: `e2e ${RUN} L: posted, then left` },
+    );
+    await api("bob", "DELETE", `/v1/chats/rooms/${leftRoom}/members/me`);
+    await waitFor("Bob's message on Buzz", async () =>
+      (
+        await queryEvents({
+          relayUrl: channel.community.relayUrl,
+          secretKey: config.operatorSecretKey,
+          filters: [{ "#h": [channel.channelId], kinds: [9] }],
+        })
+      ).find((event) =>
+        event.tags.some(
+          (tag) => tag[0] === "sokosumi" && tag[1] === message.id,
+        ),
+      ),
+    );
+    // Not let back in for it.
+    const database = relayDatabase();
+    if (database) {
+      const member = await database.query(
+        `SELECT 1 FROM channel_members m JOIN channels c ON c.id = m.channel_id
+          WHERE c.id = $1 AND m.pubkey = $2 AND m.removed_at IS NULL`,
+        [channel.channelId, Buffer.from(people.bob.pubkey, "hex")],
+      );
+      if (member.rowCount) throw new Error("Bob is a member again");
+    }
+  },
+);
+
 check("A", "a message written in Sokosumi reaches Buzz", async () => {
   const message = await api(
     "alice",
