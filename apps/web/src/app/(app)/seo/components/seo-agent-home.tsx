@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ChevronDown, Play } from "lucide-react";
+import { ChevronDown, Play } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -94,8 +94,6 @@ function SeoAgentPanel({
   // The button that started the check leaves with the setup card. Focus that
   // fell to the page moves to the result; focus anywhere else is left alone.
   const verdict = useRef<HTMLHeadingElement>(null);
-  // On a phone the steps start more than one screen under the headline: a line of the result card leads there.
-  const stepList = useRef<HTMLUListElement>(null);
   useEffect(() => {
     if (checkSeen && !checkRunning && document.activeElement === document.body)
       verdict.current?.focus();
@@ -348,34 +346,6 @@ function SeoAgentPanel({
           ) : null}
           <SeoCheckRunning workspace={model.data} />
           {upkeep}
-          {primary === -1 ? null : (
-            // The checks card over the tabs can push the steps below the first screen, on a wide screen too, and
-            // the run over the card is not the next step. The last row of the card is the way to the first step: a row
-            // control with a line over it, as wide as the card, like the "more fixes" row of the list.
-            <div className="-mx-4 -mb-4 border-t">
-              <Button
-                variant="ghost"
-                // The words start at the text edge of the card; the arrow stands at its other edge (a button
-                // with an icon has a smaller inset by default).
-                className="h-11 w-full justify-between rounded-t-none rounded-b-lg px-4 has-[>svg]:px-4"
-                onClick={() => {
-                  stepList.current?.scrollIntoView({
-                    block: "start",
-                    behavior: window.matchMedia(
-                      "(prefers-reduced-motion: reduce)",
-                    ).matches
-                      ? "auto"
-                      : "smooth",
-                  });
-                  // A screen reader goes on from the steps, not from this button.
-                  stepList.current?.focus({ preventScroll: true });
-                }}
-              >
-                {t("agent.toSteps")}
-                <ArrowDown />
-              </Button>
-            </div>
-          )}
         </div>
       )}
       {/* The setup card has no line for upkeep, so it sits under the card. */}
@@ -383,14 +353,6 @@ function SeoAgentPanel({
       {!setup && !model.data.observations.length ? (
         <SeoGettingStarted model={model} />
       ) : null}
-      {/* The numbers and the pictures are one block, in one place on every width. On a wide screen the tiles stand
-          one over the other beside the picture, so the first step and its button start as high as they can. The
-          two columns are one height: the tiles share the height of the picture, or the picture takes theirs. */}
-      {setup ? null : (
-        <div className="grid gap-2 empty:hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:[&>*:only-child]:col-span-2 lg:[&>dl:not(:only-child)]:grid-cols-1">
-          {tiles}
-        </div>
-      )}
       {(setup || banner) && !steps.length ? null : (
         <div className="space-y-2">
           {brief.issues ? null : (
@@ -400,14 +362,9 @@ function SeoAgentPanel({
           )}
           {steps.length ? (
             <ul
-              ref={stepList}
-              tabIndex={-1}
               role="list"
               aria-label={t("agent.nextTitle")}
-              className={cn(
-                SEO_ROW_LIST_CLASS,
-                "focus-visible:outline-ring scroll-mt-20 rounded-sm focus-visible:outline-2",
-              )}
+              className={SEO_ROW_LIST_CLASS}
             >
               {shown.slice(0, split).map(stepItem)}
               {moreActions ? (
@@ -448,6 +405,14 @@ function SeoAgentPanel({
               />
             </Button>
           ) : null}
+        </div>
+      )}
+      {/* The numbers and the pictures are one block, in one place on every width. They follow the steps, so the
+          first step stands right under the headline it answers. On a wide screen the tiles stand one over the other
+          beside the picture. The two columns are one height: the tiles share the height of the picture, or the picture takes theirs. */}
+      {setup ? null : (
+        <div className="grid gap-2 empty:hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:[&>*:only-child]:col-span-2 lg:[&>dl:not(:only-child)]:grid-cols-1">
+          {tiles}
         </div>
       )}
       <SeoAutomation model={model} />

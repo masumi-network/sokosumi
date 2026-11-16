@@ -59,7 +59,7 @@ export function SeoDemandChart({
         </span>
       </figcaption>
       <div>
-        {/* A phone shows the three most searched keywords: five bars were one screen before the first step. */}
+        {/* A phone shows the three most searched keywords: five bars fill a whole phone screen on their own. */}
         <ol
           role="list"
           // The rows come in one by one, each bar growing from the axis after its row.

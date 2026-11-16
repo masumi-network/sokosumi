@@ -12458,7 +12458,6 @@
         "traffic": "En Google para {pages, plural, one {esta página} other {estas # páginas}}: {clicks, plural, one {# clic} other {# clics}}, {impressions, plural, one {# impresión} other {# impresiones}}",
         "openTraffic": "Abrir tráfico",
         "openRankings": "Abrir posiciones",
-        "toSteps": "Empezar por el primer paso",
         "draftFix": "Pedir una corrección al agente",
         "moreSteps": "{count, plural, one {Mostrar # paso más} other {Mostrar # pasos más}}",
         "moreActions": "{kind, select, fix {{count, plural, one {# corrección más} other {# correcciones más}}} other {{count, plural, one {# acción más} other {# acciones más}}}}",

@@ -519,7 +519,7 @@ describe("SEO workspace integration", () => {
     expect(within(card!).getByText("The two prices differ.")).not.toBeVisible();
   });
 
-  it("puts the numbers before the steps, offers the agent only with an Audit, and names a page of the site by its path", async () => {
+  it("puts the first step before the numbers, offers the agent only with an Audit, and names a page of the site by its path", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     const observationId = "962a86bb-5702-4d64-a6c4-15be5bf8ed80";
@@ -614,18 +614,23 @@ describe("SEO workspace integration", () => {
     expect(
       screen.queryByRole("button", { name: "Ask the SEO agent" }),
     ).toBeNull();
-    // The numbers are a block of their own, between the result and the steps.
+    // The first step stands right under the result it answers; the numbers are a block of their own after the steps.
     const verdict = screen.getByTestId("seo-agent-verdict");
     const tiles = screen.getByTestId("seo-summary-tiles");
+    const firstStep = screen.getByText("Make the markup price match the page");
     expect(verdict.parentElement).not.toContainElement(tiles);
     expect(
-      verdict.compareDocumentPosition(tiles) & Node.DOCUMENT_POSITION_FOLLOWING,
+      verdict.compareDocumentPosition(firstStep) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      tiles.compareDocumentPosition(
-        screen.getByText("Make the markup price match the page"),
-      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      firstStep.compareDocumentPosition(tiles) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+    // Nothing stands between them, so no control jumps from the result to the steps.
+    expect(
+      screen.queryByRole("button", { name: "Start with the first step" }),
+    ).toBeNull();
     cleanup();
     // With an Audit one floating button leads to the agent. The page itself has no question field.
     served = { ...workspace, auditId: SEO_TEST_AUDIT };
