@@ -11,9 +11,9 @@ export interface PartitionedSidebarRooms {
   directMessages: ChatRoom[];
   externalJoined: ChatRoom[];
   /**
-   * The reader has a channel of their own organization somewhere in the
-   * sidebar, even if it lists under Pinned or External instead of Channels.
-   * Guest rooms belong to another organization and do not count.
+   * The reader is a member of some listed channel, even if it lists under
+   * Pinned or External instead of Channels. Any listed member channel counts,
+   * including a pin from another workspace; guest rooms do not.
    */
   hasOwnChannel: boolean;
   /** The reader has a direct message somewhere, Pinned included. */

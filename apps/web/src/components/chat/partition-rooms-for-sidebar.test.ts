@@ -283,6 +283,21 @@ describe("partitionRoomsForSidebar empty-section hints", () => {
     expect(partitionRoomsForSidebar([guest]).hasOwnChannel).toBe(false);
   });
 
+  it("counts a channel pinned from another workspace the reader is a member of", () => {
+    const otherWorkspacePin = makeRoom({
+      id: "other-general",
+      kind: "channel",
+      myAccess: "member",
+      organizationId: "org_2",
+      organizationName: "Other Co",
+      starredAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+
+    const result = partitionRoomsForSidebar([otherWorkspacePin]);
+    expect(result.namedChannels).toHaveLength(0);
+    expect(result.hasOwnChannel).toBe(true);
+  });
+
   it("knows the reader has a direct message when it is pinned", () => {
     const pinnedDirect = makeRoom({
       id: "dm-1",
