@@ -471,6 +471,7 @@ describe("restoreTaskRecord", () => {
       tx: {
         task: { updateMany },
         taskEvent: { create: eventCreate },
+        projectSeoAnalysis: { findUnique: vi.fn().mockResolvedValue(null) },
       } as never,
       updateMany,
       eventCreate,

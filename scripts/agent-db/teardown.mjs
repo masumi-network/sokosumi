@@ -238,7 +238,7 @@ async function deleteByName(config, branchName) {
   return safeDeleteBranch(config, branch);
 }
 
-export function isMainModule(moduleUrl = import.meta.url) {
+function isMainModule(moduleUrl = import.meta.url) {
   const entry = process.argv[1];
   if (!entry) {
     return false;

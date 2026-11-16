@@ -3,8 +3,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   EMPTY_GOOGLE_VALUES,
+  type GoogleFormValues,
+  googleFormChanges,
+  googleFormMeaning,
   googleFormValuesFromDetails,
+  googleListChanges,
+  googleSitelinkKey,
 } from "./google-form-values";
+import { googleSearchFormSchema } from "./google-search";
 
 const TOTALS = {
   spend: 0,
@@ -193,5 +199,175 @@ describe("googleFormValuesFromDetails", () => {
 
     expect(values.finalUrl).toBe("");
     expect(values.headlines).toEqual(EMPTY_GOOGLE_VALUES.headlines);
+  });
+});
+
+describe("googleFormChanges", () => {
+  const before = googleFormValuesFromDetails(BASE);
+
+  it("finds nothing in the campaign as it is", () => {
+    expect(googleFormChanges(before, before)).toEqual([]);
+  });
+
+  it("ignores edits that mean the same", () => {
+    const germany = { id: "2276", name: "Germany" };
+    const wide = { ...before, locations: [...before.locations, germany] };
+    const after = {
+      ...wide,
+      name: `  ${before.name} `,
+      dailyBudget: "25.50",
+      locations: [germany, ...before.locations],
+      keywords: `\n${before.keywords.split("\n").reverse().join("\n")}\n`,
+      finalUrl: ` ${before.finalUrl}`,
+      headlines: [...before.headlines, "  "].reverse(),
+    };
+    expect(googleFormChanges(wide, after)).toEqual([]);
+  });
+
+  it("names each changed part in review order", () => {
+    const after = {
+      ...before,
+      dailyBudget: "30",
+      name: "Summer sale",
+      endDate: "",
+      headlines: ["Something new", ...before.headlines.slice(1)],
+    };
+    expect(googleFormChanges(before, after)).toEqual([
+      "name",
+      "dailyBudget",
+      "schedule",
+      "headlines",
+    ]);
+  });
+
+  it("is back to no changes once an edit is reverted", () => {
+    const changed = { ...before, dailyBudget: "40" };
+    expect(googleFormChanges(before, changed)).toEqual(["dailyBudget"]);
+    expect(
+      googleFormChanges(before, { ...changed, dailyBudget: "25.5" }),
+    ).toEqual([]);
+  });
+});
+
+describe("googleFormMeaning", () => {
+  it("names each ad part on its own, so a replacement shows item by item", () => {
+    const before = googleFormValuesFromDetails(BASE);
+    const after = {
+      ...before,
+      keywords: 'running shoes\n"trail shoes"\n[sale shoes]',
+      sitelinks: [{ ...before.sitelinks[0]!, text: "Outlet" }],
+      callouts: ["Free returns"],
+      path2: "sale",
+    };
+
+    expect(googleFormChanges(before, after)).toEqual([
+      "keywords",
+      "path",
+      "sitelinks",
+      "callouts",
+    ]);
+    const was = googleFormMeaning(before);
+    const now = googleFormMeaning(after);
+    expect(googleListChanges(was.keywords, now.keywords)).toEqual({
+      removed: ["[buy shoes]"],
+      added: ["[sale shoes]"],
+    });
+    expect(was.path).toBe("shoes");
+    expect(now.path).toBe("shoes/sale");
+    expect(
+      googleListChanges(was.sitelinks, now.sitelinks, googleSitelinkKey),
+    ).toEqual({
+      removed: [
+        {
+          text: "Sale",
+          finalUrl: "https://example.com/sale",
+          description1: "Up to 50% off",
+        },
+      ],
+      added: [
+        {
+          text: "Outlet",
+          finalUrl: "https://example.com/sale",
+          description1: "Up to 50% off",
+        },
+      ],
+    });
+  });
+
+  it("keys Display images by role and asset, with the url to show them", () => {
+    const values: GoogleFormValues = {
+      ...EMPTY_GOOGLE_VALUES,
+      type: "DISPLAY",
+      images: [
+        { assetId: "a2", role: "SQUARE", url: "https://g/a2.png" },
+        {
+          pathname: "drive/wide.png",
+          fileUrl: "https://blob/wide.png",
+          name: "wide.png",
+          size: 1,
+          mimeType: "image/png",
+          role: "LANDSCAPE",
+        },
+      ],
+    };
+
+    expect(googleFormMeaning(values).images).toEqual([
+      {
+        key: "LANDSCAPE:drive/wide.png",
+        role: "LANDSCAPE",
+        url: "https://blob/wide.png",
+        name: "wide.png",
+      },
+      { key: "SQUARE:asset:a2", role: "SQUARE", url: "https://g/a2.png" },
+    ]);
+  });
+});
+
+describe("sitelink changes", () => {
+  it("tells descriptions apart even when one holds the review's separator", () => {
+    const sitelink = {
+      text: "Sale",
+      finalUrl: "https://example.com/sale",
+      description1: "Fast · Free",
+      description2: "Delivery",
+    };
+    const before = {
+      ...googleFormValuesFromDetails(BASE),
+      sitelinks: [sitelink],
+    };
+    const after = {
+      ...before,
+      sitelinks: [
+        { ...sitelink, description1: "Fast", description2: "Free · Delivery" },
+      ],
+    };
+    const messages = {};
+    expect(googleSearchFormSchema(messages).safeParse(before).success).toBe(
+      true,
+    );
+    expect(googleSearchFormSchema(messages).safeParse(after).success).toBe(
+      true,
+    );
+
+    expect(googleFormChanges(before, after)).toEqual(["sitelinks"]);
+    const { removed, added } = googleListChanges(
+      googleFormMeaning(before).sitelinks,
+      googleFormMeaning(after).sitelinks,
+      googleSitelinkKey,
+    );
+    expect(removed).toEqual([sitelink]);
+    expect(added).toEqual([
+      { ...sitelink, description1: "Fast", description2: "Free · Delivery" },
+    ]);
+  });
+});
+
+describe("googleListChanges", () => {
+  it("tells a replacement as one removed and one added, counting copies", () => {
+    expect(googleListChanges(["a", "b", "b"], ["b", "c"])).toEqual({
+      removed: ["a", "b"],
+      added: ["c"],
+    });
+    expect(googleListChanges(["a"], ["a"])).toEqual({ removed: [], added: [] });
   });
 });

@@ -158,7 +158,7 @@ describe("TaskWorkspaceSwitchDialog", () => {
     ).toBeInTheDocument();
   });
 
-  it("switches workspace and refreshes the task route on confirm", async () => {
+  it("switches workspace on confirm and keeps the task route, which the switch re-renders", async () => {
     render(<TaskWorkspaceSwitchDialog {...defaultProps} />);
 
     fireEvent.click(
@@ -174,9 +174,10 @@ describe("TaskWorkspaceSwitchDialog", () => {
       expect(updatePreferredOrganization).toHaveBeenCalledWith({
         organizationId: "org_123",
       });
-      expect(refreshMock).toHaveBeenCalled();
     });
-
+    // The preferred-workspace action already rendered the task route.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(refreshMock).not.toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
     expect(replaceMock).not.toHaveBeenCalled();
   });

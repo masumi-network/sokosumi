@@ -101,6 +101,8 @@ function truncatedSources(value: unknown): string[] {
   return sources;
 }
 
+const KEPT_WHEN_TRUNCATED = ["projectId", "id", "name", "status"] as const;
+
 /**
  * A tool input or result as stored on its row: sanitized, and at most 16 KB,
  * plus the addresses of one that had to be cut.
@@ -113,13 +115,18 @@ export function persistedToolResult(value: unknown): Prisma.InputJsonValue {
   }
   const sources = truncatedSources(sanitized);
   // A long Social post or thread passes the cap; result cards and post links
-  // still read its projectId back.
+  // still read its projectId back. A Task with a long comment thread keeps
+  // its name and status, so the reply can still say what the bot read.
   const kept =
-    sanitized &&
-    typeof sanitized === "object" &&
-    !Array.isArray(sanitized) &&
-    typeof sanitized.projectId === "string"
-      ? { projectId: sanitized.projectId.slice(0, 200) }
+    sanitized && typeof sanitized === "object" && !Array.isArray(sanitized)
+      ? Object.fromEntries(
+          KEPT_WHEN_TRUNCATED.flatMap((key) => {
+            const field = sanitized[key];
+            return typeof field === "string"
+              ? [[key, field.slice(0, 200)]]
+              : [];
+          }),
+        )
       : {};
   const emptyWrapper = JSON.stringify({
     truncated: true,

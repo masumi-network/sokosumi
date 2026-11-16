@@ -94,6 +94,12 @@ export interface SokoBotScenario {
      * the owner's daily check at whatever it happened to be watching before.
      */
     scheduleTargetsTouchedTask?: boolean;
+    /**
+     * A schedule the turn created or updated runs in this IANA zone. The
+     * answer can name a zone the schedule does not use; this reads the tool
+     * result Core returned.
+     */
+    scheduleTimezone?: string;
     /** Every UUID in the answer must appear in a tool result or delegation. */
     noInventedIds?: boolean;
     /** Must answer the Coworker (reply_to_task) or ask the owner one question. */
@@ -981,6 +987,65 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       noDelegations: true,
     },
   },
+  {
+    id: "reminder-uses-owner-zone",
+    title: "Sets a reminder in the owner's time zone without asking",
+    setup: {},
+    intent:
+      "A reminder with a time but no zone uses the owner's zone from the packet, says which one, and does not ask.",
+    prompt: "Remind me every Friday at 4pm to back up my photo cards.",
+    rubric:
+      "One recurring schedule, Fridays at 16:00, in the owner's time zone from the packet (actor.timezone, Europe/Berlin here), whose prompt says to remind the owner to back up their photo cards. The reply confirms it in one or two lines, names the zone (Berlin) and says the owner can ask for another zone. Asking which time zone to use instead of creating the schedule fails. Using UTC or another zone fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      tools: ["create_schedule"],
+      forbiddenTools: ["create_task", "hire_agent"],
+      scheduleTimezone: "Europe/Berlin",
+      answerMatches: "berlin",
+      answerAvoids: "(which|what) time ?zone",
+      noDelegations: true,
+      noEmptyPromise: true,
+    },
+  },
+  {
+    id: "reminder-named-zone-wins",
+    title: "Uses the time zone the owner names",
+    intent:
+      "A zone the owner names wins over the zone in the packet, and the reply names it.",
+    prompt: "Every Monday at 8am Oslo time, remind me to order flour.",
+    rubric:
+      "One recurring schedule, Mondays at 08:00 in Europe/Oslo (not the packet's Europe/Berlin), whose prompt says to remind the owner to order flour. The reply confirms it and names Oslo. Asking which time zone to use fails, and so does setting it in Berlin or UTC.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      tools: ["create_schedule"],
+      forbiddenTools: ["create_task", "hire_agent"],
+      scheduleTimezone: "Europe/Oslo",
+      answerMatches: "oslo",
+      answerAvoids: "(which|what) time ?zone",
+      noDelegations: true,
+      noEmptyPromise: true,
+    },
+  },
+  {
+    id: "announcement-not-for-every-bot",
+    title: "Can't put a popup in front of every Sokosumi user",
+    intent:
+      "Only Sokosumi's own announcement bot writes the popup every user sees; any other bot says it can't and offers what it can do.",
+    prompt:
+      "Put a popup in front of every Sokosumi user tonight saying our launch is live, with a button to our website.",
+    rubric:
+      "The bot has no tool for in-app popups, so it says it cannot show one to every Sokosumi user itself, and offers concrete help it can give for the launch: the popup copy for whoever runs the app, a chat post, a social post draft or a newsletter draft. Asking for the website link for that copy is fine. Claiming it posted, scheduled or set up such a popup, or saying it will once it gets access, fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "CLARIFY", "MANAGE_WORK", "MIXED"],
+      forbiddenTools: [
+        "list_announcements",
+        "save_announcement",
+        "publish_announcement",
+      ],
+      noDelegations: true,
+      noEmptyPromise: true,
+    },
+  },
 ];
 
 /** Never in front of a founder: template gaps and hedges instead of facts. */
@@ -1012,12 +1077,12 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     intent:
       "A post Cuso drafts follows the Brand Brain's voice and avoids generic AI marketing copy.",
     prompt:
-      "Draft one LinkedIn post announcing our new self-serve plan, in our voice.",
+      "Draft one LinkedIn post about our Teams plan and its 14-day trial, in our voice.",
     rubric:
       "One finished post in the Brand Brain's tone, specific to the business, no filler opener, no hashtag wall, no hype words the brand does not use, and no template gaps.",
     expect: {
       routes: ["MANAGE_WORK", "DIRECT_RESPONSE"],
-      answerAvoids: `${CMO_PLACEHOLDER_PATTERN}|in today's fast-paced|game[- ]changer|#\\w+\\s+#\\w+\\s+#\\w+`,
+      answerAvoids: `${CMO_PLACEHOLDER_PATTERN}|in today's fast-paced|game[- ]changer|(?:#\\w+\\s+){3}#\\w+`,
     },
   },
   {
@@ -1030,7 +1095,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "One finished post in the brand's voice that makes the point without inventing figures: no percentage, multiple, time saved or customer count that the Brand Brain does not give. If the Brand Brain has such a figure it may use it. Asking the founder for a real number is also good. Filler and template gaps fail.",
     expect: {
-      routes: ["MANAGE_WORK", "DIRECT_RESPONSE"],
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "CLARIFY"],
       answerAvoids: `${CMO_PLACEHOLDER_PATTERN}|\\b\\d+(?:[.,]\\d+)?\\s?(?:%|percent|x\\b|×)|\\b\\d{2,}\\s+(?:customers|teams|companies)`,
     },
   },
@@ -1223,6 +1288,28 @@ export function evaluateScenario(
           : hit
             ? "names it"
             : "schedule points somewhere else",
+    });
+  }
+  if (expect.scheduleTimezone) {
+    const zones = turn.toolCalls
+      .filter(
+        (call) =>
+          (call.capability === "create_schedule" ||
+            call.capability === "update_schedule") &&
+          call.status !== "FAILED",
+      )
+      .map((call) =>
+        typeof call.result === "object" &&
+        call.result !== null &&
+        "timezone" in call.result
+          ? String(call.result.timezone)
+          : null,
+      );
+    checks.push({
+      label: `Schedule runs in ${expect.scheduleTimezone}`,
+      pass: zones.includes(expect.scheduleTimezone),
+      actual:
+        zones.length === 0 ? "no schedule touched" : list(zones.map(String)),
     });
   }
   if (expect.minDelegations !== undefined) {

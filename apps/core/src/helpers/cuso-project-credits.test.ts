@@ -68,9 +68,8 @@ describe("forfeitCusoProjectCredits", () => {
 
     await forfeitCusoProjectCredits(BOT_ID, tx);
 
-    const [strings, ...values] = queries[0] as [
-      TemplateStringsArray,
-      ...unknown[],
+    const [{ strings, values }] = queries[0] as [
+      { strings: string[]; values: unknown[] },
     ];
     const text = strings.join("?").replace(/\s+/g, " ");
     // Only this Project's buckets: the pool (projectId null) and other

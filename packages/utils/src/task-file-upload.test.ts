@@ -6,7 +6,6 @@ import {
   clampTaskFileName,
   isOwnedTaskFileUrl,
   resolveTaskFileContentType,
-  sanitizeTaskFileFilename,
   TASK_FILE_MAX_NAME_LENGTH,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
@@ -62,9 +61,9 @@ describe("task file upload helpers", () => {
     expect(buildTaskFilePrefix("tsk_123")).toBe("tasks/tsk_123/");
   });
 
-  it("sanitizes uploaded file names", () => {
-    expect(sanitizeTaskFileFilename(" ../my file(1).pdf ")).toBe(
-      "my_file1.pdf",
+  it("sanitizes uploaded file names in the pathname", () => {
+    expect(buildTaskFilePathname("tsk_123", " ../my file(1).pdf ")).toBe(
+      "tasks/tsk_123/my_file1.pdf",
     );
   });
 

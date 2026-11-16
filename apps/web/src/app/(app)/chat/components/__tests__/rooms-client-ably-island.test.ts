@@ -34,7 +34,7 @@ describe("RoomsClient Ably island", () => {
       CHAT_MESSAGE_LIST_SCROLLER_CLASS,
     );
     expect(shellSource).toMatch(
-      /ref=\{listScrollerRef\}[\s\S]*?className=\{ROOM_SHELL_SCROLLER_CLASSNAME\}/,
+      /ref=\{listScrollerRef\}[\s\S]*?className=\{cn\(\s*ROOM_SHELL_SCROLLER_CLASSNAME,/,
     );
     expect(source).not.toContain("ScrollArea");
     expect(shellSource).not.toContain("ScrollArea");

@@ -1,9 +1,12 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef } from "react";
-import { isProjectScopedPath } from "@/app/components/project-scope/project-scope-href";
+import {
+  clearedScopeHref,
+  isProjectScopedPath,
+} from "@/app/components/project-scope/project-scope-href";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import {
   SCOPE_SELECTED_QUERY_KEY,
@@ -13,10 +16,14 @@ import {
 function StaleScopeGuard() {
   const router = useRouter();
   const pathname = usePathname();
-  const { projectId, switchHref } = useProjectScope();
+  const searchParams = useSearchParams();
+  const { projectId } = useProjectScope();
   const scopedPage = isProjectScopedPath(pathname);
   const unknown = useIsUnknownScopeProject(scopedPage ? projectId : null);
-  const target = unknown ? switchHref(null) : null;
+  // Null outside the App Router, as in component tests.
+  const target = unknown
+    ? clearedScopeHref(pathname, searchParams ?? new URLSearchParams())
+    : null;
 
   useEffect(() => {
     if (target) router.replace(target);

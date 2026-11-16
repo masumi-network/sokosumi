@@ -22,6 +22,7 @@ const base = {
   turnId: "turn-1",
   toolCallId: "call-1",
   model: "openai/gpt-5.4",
+  purpose: "soko-bot" as const,
 };
 
 describe("runInProcessWebTool", () => {

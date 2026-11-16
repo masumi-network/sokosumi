@@ -50,6 +50,35 @@ describe("automatic result previews", () => {
       data: { id: "card" },
     });
   });
+  it.each(["request_seo_analysis", "create_seo_action_task"])(
+    "uses %s's committed Task identity rather than its SEO row ID",
+    async (capability) => {
+      calls.mockResolvedValue([
+        {
+          ...receipt,
+          capability,
+          targetId: "seo-record",
+          result: { projectId: "project", taskId: "task" },
+        },
+      ]);
+      await prepareTurnActionResultPreviews("turn", turn, tx);
+      expect(resolve).toHaveBeenCalledWith(
+        expect.objectContaining({ reference: { kind: "task", id: "task" } }),
+        tx,
+      );
+      calls.mockResolvedValue([
+        {
+          ...receipt,
+          capability,
+          targetId: "seo-record",
+          result: { projectId: "project" },
+        },
+      ]);
+      resolve.mockClear();
+      await prepareTurnActionResultPreviews("turn", turn, tx);
+      expect(resolve).not.toHaveBeenCalled();
+    },
+  );
   it("prepares one final-state card when creation and assignment omitted the preview tool", async () => {
     calls.mockResolvedValue([
       receipt,

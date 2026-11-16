@@ -7,6 +7,7 @@ export const CALENDAR_TYPES = [
   "newsletter",
   "contacts",
   "marketing",
+  "sokoBot",
 ] as const;
 export type CalendarType = (typeof CALENDAR_TYPES)[number];
 
@@ -17,6 +18,7 @@ const TYPE_OF_KIND = {
   newsletterIssue: "newsletter",
   contactFollowUp: "contacts",
   marketingPiece: "marketing",
+  sokoBotRun: "sokoBot",
 } as const satisfies Record<WorkspaceCalendarEntry["kind"], CalendarType>;
 
 export function calendarTypeOf(item: WorkspaceCalendarEntry): CalendarType {

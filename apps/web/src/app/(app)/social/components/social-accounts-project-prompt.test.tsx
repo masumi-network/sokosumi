@@ -147,7 +147,7 @@ describe("SocialAccountsProjectPrompt", () => {
     expect(mocks.openScopeCreate).not.toHaveBeenCalled();
   });
 
-  it.each(["accounts", "drafts", "attention"] as const)(
+  it.each(["accounts", "drafts"] as const)(
     "shows Select project on %s without opening the selector on navigation",
     (kind) => {
       setup({ kind });
@@ -170,7 +170,7 @@ describe("SocialAccountsProjectPrompt", () => {
     expect(screen.queryByTestId("project-scope-select-button")).toBeNull();
   });
 
-  it.each(["accounts", "drafts", "attention"] as const)(
+  it.each(["accounts", "drafts"] as const)(
     "shows a Create project button on %s in an empty workspace without opening the selector",
     (kind) => {
       mocks.hasAnyScopeProject.mockReturnValue({
@@ -308,32 +308,6 @@ describe("SocialAccountsProjectPrompt", () => {
     lastRequest().onSelect?.("marketing");
     expect(mocks.push).toHaveBeenCalledWith(
       "/social?projectId=marketing&tab=drafts",
-    );
-  });
-
-  it("keeps Needs attention as the destination and hides the account carousel", async () => {
-    const user = userEvent.setup();
-    setup({ kind: "attention" });
-    expect(
-      screen.getByRole("heading", { name: "Needs attention" }),
-    ).toBeVisible();
-    expect(
-      screen.getByText(
-        "Choose a project to see posts that failed or were missed.",
-      ),
-    ).toBeVisible();
-    expect(
-      screen.queryByRole("region", { name: "Social platforms" }),
-    ).toBeNull();
-    expect(screen.getByTestId("social-post-fan")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Select project" }));
-    expect(lastRequest()).toMatchObject({
-      required: true,
-      reason: "Choose a project to see posts that failed or were missed.",
-    });
-    lastRequest().onSelect?.("marketing");
-    expect(mocks.push).toHaveBeenCalledWith(
-      "/social?projectId=marketing&tab=attention",
     );
   });
 

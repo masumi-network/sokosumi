@@ -213,6 +213,10 @@ const taskBaseSchema = z.object({
   id: z.string().openapi({ example: "tsk_123" }),
   createdAt: dateTimeSchema,
   updatedAt: dateTimeSchema,
+  workspaceId: z.uuid().openapi({
+    description:
+      "Current Task placement. Moving a Task does not change its billing organization.",
+  }),
   ownerId: workOwnerIdSchema,
   owner: workOwnerSchema,
   /** @deprecated Use `ownerId`. */
@@ -333,6 +337,11 @@ const taskBaseSchema = z.object({
       "Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.",
     example: null,
   }),
+  archivedAt: dateTimeSchema.nullable().openapi({
+    description:
+      "When the Task was archived. Null unless it is archived; only archived reads (archived=true) return archived Tasks.",
+    example: null,
+  }),
   credits: z.number().openapi({ example: 5 }),
   events: z.array(taskEventSchema).openapi({ example: [] }),
   jobs: jobSummariesSchema.openapi({ example: [] }),
@@ -344,6 +353,10 @@ const taskListItemSchema = taskBaseSchema
   .extend({
     jobsCount: z.number().int().nonnegative().openapi({ example: 2 }),
     commentsCount: z.number().int().nonnegative().openapi({ example: 4 }),
+    statusSince: dateTimeSchema.openapi({
+      description:
+        "When the Task last changed status, or its creation time if it never did.",
+    }),
   })
   .openapi("TaskListItem");
 

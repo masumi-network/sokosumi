@@ -251,6 +251,71 @@ export async function listAssets(
   return { assets, nextCursor };
 }
 
+export interface RecentStudioProject {
+  projectId: string;
+  projectName: string;
+  imageCount: number;
+  latestAt: Date;
+  latestImageId: string;
+}
+
+/**
+ * The workspace's projects with Studio images, most recently used first.
+ *
+ * Images only: a video has no still to show on a card. Closed projects and the
+ * caller's Hidden ones are left out, as the project list leaves them out.
+ */
+export async function listRecentStudioProjects(options: {
+  workspaceId: string;
+  userId: string;
+  limit: number;
+}): Promise<RecentStudioProject[]> {
+  await requireWorkspaceAccess(options);
+  const where = {
+    workspaceId: options.workspaceId,
+    mediaType: ProjectImageMediaType.IMAGE,
+    project: {
+      closedAt: null,
+      hides: { none: { userId: options.userId } },
+    },
+  };
+  const groups = await prisma.projectImageAsset.groupBy({
+    by: ["projectId"],
+    where,
+    _count: { _all: true },
+    _max: { createdAt: true },
+    orderBy: { _max: { createdAt: "desc" } },
+    take: options.limit,
+  });
+  const latest = await Promise.all(
+    groups.map((group) =>
+      prisma.projectImageAsset.findFirst({
+        where: { ...where, projectId: group.projectId },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: {
+          id: true,
+          createdAt: true,
+          project: { select: { name: true } },
+        },
+      }),
+    ),
+  );
+  return groups.flatMap((group, index) => {
+    const image = latest[index];
+    // Gone between the two reads: a closed project or a fresh Hide.
+    if (!image) return [];
+    return [
+      {
+        projectId: group.projectId,
+        projectName: image.project.name,
+        imageCount: group._count._all,
+        latestAt: image.createdAt,
+        latestImageId: image.id,
+      },
+    ];
+  });
+}
+
 export interface StudioBatchAssetView extends AssetView {
   batchBrief: string;
 }

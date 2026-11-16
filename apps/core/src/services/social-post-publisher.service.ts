@@ -52,6 +52,8 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
 import type { CoworkerAuthenticationContext } from "@/middleware/auth";
+import { isCmoSubscribed } from "@/services/cmo-billing.service";
+import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
 import {
   projectExecutorUserId,
   requireLockedOpenProject,
@@ -1023,7 +1025,34 @@ type ClaimResult = { post: ClaimedPost } | "none" | "lost";
  * Social scheduling is public. Expired publishing leases are always recovered
  * so a previously started attempt can be reconciled without publishing twice.
  */
-async function claimDuePost(): Promise<ClaimResult> {
+/**
+ * The Cuso Projects whose posts wait: a Cuso paused without a CMO plan
+ * publishes nothing (ADR 0068). One gate per Project with a post due before
+ * the run ends; Projects without a live Cuso are not looked at. A held post
+ * stays scheduled and spends no attempt; once he may work again it goes out,
+ * or, found more than `MISSED_AFTER_MS` late, is missed for the person to
+ * publish or reschedule.
+ */
+async function pausedCusoProjectIds(until: Date): Promise<string[]> {
+  const projects = await prisma.project.findMany({
+    where: {
+      closingAt: null,
+      closedAt: null,
+      sokoBots: { some: LIVE_CUSO_WHERE },
+      socialPosts: {
+        some: { status: "SCHEDULED", scheduledAt: { lte: until } },
+      },
+    },
+    select: { id: true },
+  });
+  const paused: string[] = [];
+  for (const { id } of projects) {
+    if (!(await isCmoSubscribed({ projectId: id }))) paused.push(id);
+  }
+  return paused;
+}
+
+async function claimDuePost(held: string[]): Promise<ClaimResult> {
   const now = new Date();
   const candidate = await prisma.socialPost.findFirst({
     where: {
@@ -1041,6 +1070,7 @@ async function claimDuePost(): Promise<ClaimResult> {
         {
           status: "SCHEDULED",
           project: { closingAt: null, closedAt: null },
+          ...(held.length > 0 && { projectId: { notIn: held } }),
           scheduledAt: { lte: now },
           OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }],
         },
@@ -1119,12 +1149,13 @@ export async function publishDueSocialPosts(
     missed: 0,
     skipped: 0,
   };
+  const held = await pausedCusoProjectIds(new Date(input.deadlineMs));
   while (
     input.shouldContinue() &&
     !input.abortSignal.aborted &&
     Date.now() < input.deadlineMs - SETTLEMENT_RESERVE_MS
   ) {
-    const claim = await claimDuePost();
+    const claim = await claimDuePost(held);
     if (claim === "none") break;
     if (claim === "lost") {
       result.skipped += 1;

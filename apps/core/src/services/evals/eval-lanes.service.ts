@@ -397,20 +397,21 @@ export async function prepareEvalLane(
   }
 }
 
-/** Between runs nothing wakes a lane's bots: crons skip paused bots. */
-export async function pauseEvalLanes(count: number): Promise<void> {
+/** The Soko Bot and Cuso of the first `count` lanes. */
+export async function evalLaneBotIds(count: number): Promise<string[]> {
   const lanes = await prisma.evalLane.findMany({
     where: { lane: { lte: count } },
     select: { sokoBotId: true, cusoBotId: true },
   });
+  return lanes.flatMap((lane) =>
+    lane.cusoBotId ? [lane.sokoBotId, lane.cusoBotId] : [lane.sokoBotId],
+  );
+}
+
+/** Between runs nothing wakes a lane's bots: crons skip paused bots. */
+export async function pauseEvalLanes(count: number): Promise<void> {
   await prisma.sokoBot.updateMany({
-    where: {
-      id: {
-        in: lanes.flatMap((lane) =>
-          lane.cusoBotId ? [lane.sokoBotId, lane.cusoBotId] : [lane.sokoBotId],
-        ),
-      },
-    },
+    where: { id: { in: await evalLaneBotIds(count) } },
     data: { proactivePaused: true },
   });
 }

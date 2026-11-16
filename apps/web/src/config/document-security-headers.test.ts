@@ -79,7 +79,7 @@ describe("document framing headers", () => {
     );
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect(response.headers.get("Permissions-Policy")).toBe(
-      "camera=(), microphone=(), geolocation=()",
+      "camera=(), microphone=(self), geolocation=()",
     );
   });
 });

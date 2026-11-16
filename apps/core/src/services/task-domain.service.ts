@@ -10,10 +10,8 @@ import {
 } from "@sokosumi/database";
 import {
   canArchiveTaskStatus,
-  countSetAssignees,
   getTaskCannotArchiveMessage,
   hasAssigneeValue,
-  isAgentOnlyTaskStatus,
   isTaskEditableStatus,
 } from "@sokosumi/utils";
 import {
@@ -29,6 +27,7 @@ import {
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
+import { requireSeoTaskExecutionUnchanged } from "@/helpers/seo-task-execution";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import {
   type AssignedTask,
@@ -48,6 +47,18 @@ import {
   throwGrantAccessError,
 } from "@/helpers/vendor-grants";
 import { creatorFields } from "@/helpers/work-creator";
+import {
+  requireSeoTaskReactivation,
+  SEO_INACTIVE_TASK_STATUSES,
+} from "./project-seo-analysis-concurrency";
+import {
+  requireAssigneeForExecutableStatus,
+  requireAssigneeXor,
+  requireNoHumanAssigneeOnPrivateTask,
+  taskAssigner,
+} from "./task-domain-assignee-guards";
+
+export { requireNoHumanAssigneeOnPrivateTask };
 
 export type TaskDomainActor =
   | { kind: "user"; userId: string }
@@ -120,48 +131,6 @@ interface PendingGrantState {
   grantResumeStatus: GrantResumeStatus;
 }
 
-function requireAssigneeXor(
-  assigneeId: string | null | undefined,
-  assigneeSokoBotId: string | null | undefined,
-  assigneeUserId?: string | null | undefined,
-): void {
-  if (countSetAssignees(assigneeId, assigneeSokoBotId, assigneeUserId) > 1) {
-    throw unprocessableEntity(
-      "Task cannot be assigned to more than one assignee",
-    );
-  }
-}
-
-export function requireNoHumanAssigneeOnPrivateTask(
-  visibility: TaskVisibility,
-  assigneeUserId: string | null | undefined,
-): void {
-  if (
-    visibility === TaskVisibility.PRIVATE &&
-    hasAssigneeValue(assigneeUserId)
-  ) {
-    throw badRequest("Private Tasks cannot be assigned to a human teammate");
-  }
-}
-
-function requireAssigneeForExecutableStatus(
-  status: TaskStatus,
-  assigneeId: string | null | undefined,
-  assigneeSokoBotId?: string | null,
-  assigneeUserId?: string | null | undefined,
-): void {
-  requireAssigneeXor(assigneeId, assigneeSokoBotId, assigneeUserId);
-  if (
-    isAgentOnlyTaskStatus(status) &&
-    !hasAssigneeValue(assigneeId) &&
-    !hasAssigneeValue(assigneeSokoBotId)
-  ) {
-    throw unprocessableEntity(
-      "An agent (Coworker or Soko Bot) assignee is required for this status",
-    );
-  }
-}
-
 const SOKO_BOT_UPDATE_STATUSES = [TaskStatus.DRAFT, TaskStatus.READY] as const;
 const SOKO_BOT_ASSIGN_STATUSES = SOKO_BOT_UPDATE_STATUSES;
 
@@ -177,18 +146,6 @@ async function requireProjectInWorkspace(
     select: { id: true },
   });
   if (!project) throw notFound("Project not found");
-}
-
-/** Only a user or a Soko Bot acting for itself carries tasking authority. */
-function taskAssigner(actor: TaskDomainActor): TaskAssigner {
-  switch (actor.kind) {
-    case "user":
-      return { kind: "user", userId: actor.userId };
-    case "soko_bot":
-      return { kind: "soko_bot", sokoBotId: actor.sokoBotId };
-    case "coworker":
-      return { kind: "other" };
-  }
 }
 
 export async function requireTaskReferences(
@@ -574,6 +531,8 @@ export async function restoreTaskRecord(
   task: Task,
   actor: TaskDomainActor,
 ): Promise<void> {
+  if (!SEO_INACTIVE_TASK_STATUSES.includes(task.status))
+    await requireSeoTaskReactivation(tx, task.id);
   const keepStatus = RESTORE_KEEPS_STATUS.includes(task.status);
   const result = await tx.task.updateMany({
     where: {
@@ -640,6 +599,9 @@ export async function updateTaskForActor(
   }
   if (projectMoveOnly && !input.archive) {
     const task = await findActorTask(input, tx);
+    await requireSeoTaskExecutionUnchanged(tx, task, {
+      projectId: input.projectId,
+    });
     if (
       input.expectedUpdatedAt &&
       task.updatedAt.getTime() !== input.expectedUpdatedAt.getTime()
@@ -737,6 +699,11 @@ export async function updateTaskForActor(
     input.actor.kind === "soko_bot"
       ? sokoBotEditableStatuses(input.intent)
       : [TaskStatus.DRAFT, TaskStatus.QUEUED, TaskStatus.READY];
+  await requireSeoTaskExecutionUnchanged(tx, task, {
+    description: input.description,
+    projectId: input.projectId,
+    ...(assigneeWrite ?? {}),
+  });
   return tx.task.update({
     where: {
       id: task.id,

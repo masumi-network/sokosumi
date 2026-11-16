@@ -26,13 +26,25 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, string>) =>
     values ? `${key}(${Object.values(values).join(",")})` : key,
   useFormatter: () => ({
-    dateTime: () => "date",
+    // A time on another clock reads as that clock's name, so a test can tell
+    // the schedule's clock from the viewer's.
+    dateTime: (
+      _date: Date,
+      _format?: string,
+      options?: { timeZone?: string },
+    ) => options?.timeZone ?? "date",
     relativeTime: () => "now",
   }),
   useNow: () => new Date("2026-10-29T12:00:00Z"),
 }));
 const viewMock = vi.fn(() => "advanced" as string | null);
-vi.mock("nuqs", () => ({ useQueryState: () => [viewMock(), vi.fn()] }));
+const scheduleParamMock = vi.fn(() => null as string | null);
+vi.mock("nuqs", () => ({
+  useQueryState: (key: string) => [
+    key === "schedule" ? scheduleParamMock() : viewMock(),
+    vi.fn(),
+  ],
+}));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: (...a: unknown[]) => toastErrorMock(...a) },
 }));
@@ -194,6 +206,7 @@ describe("SokoBotConsole", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     viewMock.mockReturnValue("advanced");
+    scheduleParamMock.mockReturnValue(null);
   });
 
   it("offers archive, delete and memory reset to a manager of a shared bot", () => {
@@ -298,6 +311,69 @@ describe("SokoBotConsole", () => {
 
     act(() => rowActions.reportRemoved(false));
     expect(screen.getByText("Morning check")).toBeInTheDocument();
+  });
+
+  it("reads a schedule's next run on its own clock, and the viewer's clock beside it", () => {
+    viewMock.mockReturnValue(null);
+    const state = chatState(true);
+    state.bot.schedules = [
+      {
+        id: "s1",
+        name: "Back up photo cards",
+        systemKey: null,
+        cronExpression: "0 16 * * 5",
+        timezone: "Europe/Warsaw",
+        prompt: "Remind me",
+        enabled: true,
+        nextRunAt: "2026-11-20T15:00:00.000Z",
+        consecutiveFailures: 0,
+      } as (typeof state.bot.schedules)[number],
+    ];
+    render(consoleElement({ initialState: state }));
+
+    const row = screen.getByText("Back up photo cards").closest("li");
+    expect(row).toHaveTextContent("Europe/Warsaw");
+    expect(row).toHaveTextContent("Schedules.yourTime(date)");
+  });
+
+  it("lands a chat card's schedule link on its row: scrolled to, focused and marked", () => {
+    viewMock.mockReturnValue(null);
+    scheduleParamMock.mockReturnValue("s2");
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const reduce = vi
+      .spyOn(window, "matchMedia")
+      .mockReturnValue({ matches: true } as MediaQueryList);
+    const state = chatState(true);
+    const schedule = {
+      systemKey: null,
+      cronExpression: "0 9 * * 1",
+      timezone: "UTC",
+      prompt: "Remind me",
+      enabled: true,
+      nextRunAt: "2030-01-02T09:00:00.000Z",
+      lastRunAt: null,
+      consecutiveFailures: 0,
+    };
+    state.bot.schedules = [
+      { ...schedule, id: "s1", name: "Morning check" },
+      { ...schedule, id: "s2", name: "Monday invoices" },
+    ];
+    render(consoleElement({ initialState: state }));
+
+    const row = screen.getByText("Monday invoices").closest("li");
+    expect(row).toHaveAttribute("aria-current", "true");
+    expect(row).toHaveFocus();
+    expect(screen.getByText("Morning check").closest("li")).not.toHaveAttribute(
+      "aria-current",
+    );
+    // Reduced motion jumps instead of gliding.
+    expect(scrollIntoView).toHaveBeenCalledOnce();
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: "center",
+      behavior: "auto",
+    });
+    reduce.mockRestore();
   });
 
   it("lets the keyboard reach and scroll the memory", () => {
