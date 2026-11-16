@@ -91,19 +91,18 @@ export function SeoDemandChart({
                   .join(" · ")}
               >
                 <p className="flex items-baseline justify-between gap-x-2 max-sm:pt-1.5">
-                  <span className="min-w-0 truncate">
-                    {/* The row truncates the name, so a ring around it would be cut: focus shows as a thick
-                        underline, which the truncation keeps. */}
+                  <span className="flex min-w-0 items-baseline gap-1">
+                    {/* The name truncates in its own box, so a ring around it would be cut: focus shows as a
+                        thick underline. The market stays beside the name. */}
                     <button
                       type="button"
-                      className="cursor-pointer text-left underline-offset-4 outline-none hover:underline focus-visible:underline focus-visible:decoration-2"
+                      className="min-w-0 cursor-pointer truncate text-left underline-offset-4 outline-none hover:underline focus-visible:underline focus-visible:decoration-2"
                       onClick={() => onOpenKeyword(row.keyword)}
                     >
                       <bdi>{row.keyword}</bdi>
                     </button>
                     {demand.manyMarkets ? (
-                      <span className="text-muted-foreground text-xs">
-                        {" "}
+                      <span className="text-muted-foreground shrink-0 text-xs">
                         {seoMarketName(
                           locale,
                           row.countryCode,

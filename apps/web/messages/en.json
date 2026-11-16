@@ -12410,7 +12410,7 @@
         "firstStep": "First step",
         "chart": "Picture to show",
         "chartKeywords": "Keyword searches",
-        "statistics": "{analytics, select, connected {Google statistics: Search Console and Analytics connected} missing {Google statistics: Search Console connected, Analytics not connected} other {Google statistics}}",
+        "statistics": "{analytics, select, connected {Google statistics: Analytics connected} missing {Google statistics: Analytics not connected} other {Google statistics}}",
         "figures": {
           "label": "Key figures",
           "rankings": "{depth, select, same {{found} of {read} in the top {max} results} range {{found} of {read} in the top {min} to {max} results} other {{found} of {read} in top results}}",

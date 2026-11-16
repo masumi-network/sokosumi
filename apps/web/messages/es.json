@@ -12410,7 +12410,7 @@
         "firstStep": "Primer paso",
         "chart": "Gráfico que se muestra",
         "chartKeywords": "Búsquedas de palabras clave",
-        "statistics": "{analytics, select, connected {Estadísticas de Google: Search Console y Analytics conectados} missing {Estadísticas de Google: Search Console conectado, Analytics no conectado} other {Estadísticas de Google}}",
+        "statistics": "{analytics, select, connected {Estadísticas de Google: Analytics conectado} missing {Estadísticas de Google: Analytics no conectado} other {Estadísticas de Google}}",
         "figures": {
           "label": "Cifras clave",
           "rankings": "{depth, select, same {{found} de {read} en los primeros {max} resultados} range {{found} de {read} en los primeros {min} a {max} resultados} other {{found} de {read} en los primeros resultados}}",

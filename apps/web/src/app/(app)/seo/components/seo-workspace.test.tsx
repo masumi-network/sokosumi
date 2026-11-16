@@ -2798,6 +2798,35 @@ describe("SEO workspace integration", () => {
     expect(screen.getByDisplayValue("battery app")).toBeVisible();
   });
 
+  it("opens the Google statistics line while Analytics is not connected, and closes it once connected", async () => {
+    const workspace = seoTestCheckedAudit();
+    workspace.metrics = [seoTestMetric()];
+    for (const status of ["not_connected", "connected"] as const) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string) =>
+          Response.json(
+            url.endsWith("/connections/ga4")
+              ? { provider: "ga4", name: "Google", status, source: "native" }
+              : workspace,
+          ),
+        ),
+      );
+      renderWorkspace(workspace, "?tab=agent");
+      const line = await screen.findByRole("button", {
+        name:
+          status === "connected"
+            ? "Google statistics: Analytics connected"
+            : "Google statistics: Analytics not connected",
+      });
+      expect(line).toHaveAttribute(
+        "aria-expanded",
+        status === "connected" ? "false" : "true",
+      );
+      cleanup();
+    }
+  });
+
   it("says whether Google indexes the page in view and names another canonical", () => {
     const workspace = seoTestWorkspace();
     const url = workspace.pages[0].url;
