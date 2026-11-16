@@ -55,6 +55,9 @@ export function SeoActionWorklist({
 }) {
   const t = useTranslations("App.Seo");
   const [filter, setFilter] = useState<SeoActionFilter>("all");
+  // Counts the reader's filter presses: each brings its rows in anew. A new check that changes the filter keeps
+  // the rows, and the focus on one of them.
+  const [presses, setPresses] = useState(0);
   const [openKey, setOpenKey] = useState<string | null>(null);
   // The action whose row gets the focus when its dialog closes: the row may be new by then.
   const focusKey = useRef<string | null>(null);
@@ -120,7 +123,11 @@ export function SeoActionWorklist({
                   SEGMENTED_CONTROL_ITEM_CLASS_NAME,
                   "flex-none max-sm:h-10",
                 )}
-                onClick={() => setFilter(key)}
+                onClick={() => {
+                  if (key === shown) return;
+                  setFilter(key);
+                  setPresses((count) => count + 1);
+                }}
               >
                 {key === "all" ? null : (
                   <span
@@ -144,8 +151,8 @@ export function SeoActionWorklist({
         </p>
       ) : null}
       <ul
-        // A new filter brings its rows in one after the other, as the first paint does.
-        key={shown}
+        // A pressed filter brings its rows in one after the other, as the first paint does.
+        key={presses}
         ref={list}
         role="list"
         aria-label={t("actions.title")}

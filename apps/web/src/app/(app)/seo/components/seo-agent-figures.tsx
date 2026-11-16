@@ -48,7 +48,7 @@ function Figure({
         data-testid={testId}
         className={cn(
           // A figure is about 28px high: the wrap gap keeps two rows of figures apart, with no hit area over the next.
-          "focus-visible:ring-ring press inline-flex min-h-7 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium tabular-nums outline-none transition-[filter] duration-150 ease-out hover:brightness-95 focus-visible:ring-2 forced-colors:border",
+          "focus-visible:ring-ring press inline-flex min-h-7 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium tabular-nums outline-none hover:brightness-95 focus-visible:ring-2 forced-colors:border",
           tint,
         )}
         onClick={onOpen}
