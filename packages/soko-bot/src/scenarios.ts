@@ -1034,7 +1034,7 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     prompt:
       "Put a popup in front of every Sokosumi user tonight saying our launch is live, with a button to our website.",
     rubric:
-      "The bot says plainly that it cannot show a popup or announcement to every Sokosumi user, without inventing a way around it, and offers something it can do for the launch (a chat post, a social post draft, a newsletter draft). Claiming it posted, scheduled or prepared such a popup fails.",
+      "The bot has no tool for in-app popups, so it says it cannot show one to every Sokosumi user itself, and offers concrete help it can give for the launch: the popup copy for whoever runs the app, a chat post, a social post draft or a newsletter draft. Asking for the website link for that copy is fine. Claiming it posted, scheduled or set up such a popup, or saying it will once it gets access, fails.",
     expect: {
       routes: ["DIRECT_RESPONSE", "CLARIFY", "MANAGE_WORK", "MIXED"],
       forbiddenTools: [
