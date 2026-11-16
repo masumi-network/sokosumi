@@ -1535,7 +1535,9 @@
       },
       "EmptyFiltered": {
         "title": "No hay transacciones coincidentes",
-        "description": "Nada coincide con esta búsqueda o estos filtros.",
+        "description": "Nada coincide con estos filtros.",
+        "searchTitle": "No hay resultados para «{query}»",
+        "searchDescription": "Revisa la ortografía o prueba otra búsqueda.",
         "clear": "Borrar filtros"
       },
       "List": {

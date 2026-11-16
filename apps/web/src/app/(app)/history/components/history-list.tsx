@@ -146,6 +146,7 @@ function HistoryEmptyState({
   return (
     <div className="bg-card-background flex min-h-[320px] flex-col justify-center rounded-xl">
       <EmptyState
+        className="wrap-anywhere"
         title={labels.title}
         description={labels.description}
         action={

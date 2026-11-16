@@ -1535,7 +1535,9 @@
       },
       "EmptyFiltered": {
         "title": "Keine passenden Transaktionen",
-        "description": "Nichts passt zu dieser Suche oder diesen Filtern.",
+        "description": "Nichts passt zu diesen Filtern.",
+        "searchTitle": "Keine Ergebnisse für „{query}“",
+        "searchDescription": "Prüfe die Schreibweise oder versuche eine andere Suche.",
         "clear": "Filter zurücksetzen"
       },
       "List": {

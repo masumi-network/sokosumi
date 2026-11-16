@@ -168,4 +168,27 @@ describe("HistoryList empty states", () => {
       screen.getByRole("button", { name: "New task" }),
     ).toBeInTheDocument();
   });
+
+  it("shows a searched query as text and wraps it inside the panel", () => {
+    render(
+      <HistoryList
+        history={[]}
+        nextCursor={null}
+        filterResetKey="k"
+        filters={filters}
+        labels={{
+          ...labels,
+          empty: { title: 'No results for "<b>x</b>"', description: "" },
+        }}
+        clearFilters={{ href: "/history", label: "Clear filters" }}
+        activeOrganizationId={null}
+      />,
+    );
+
+    const heading = screen.getByRole("heading", {
+      name: 'No results for "<b>x</b>"',
+    });
+    expect(heading.querySelector("b")).toBeNull();
+    expect(heading.closest(".wrap-anywhere")).not.toBeNull();
+  });
 });

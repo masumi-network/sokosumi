@@ -7,7 +7,8 @@ import { type Browser, chromium } from "playwright";
 import { resolveBaseUrl } from "./base-url.ts";
 
 /**
- * Credit history for a signed-in disposable user. Needs a Playwright storage
+ * Credit history for a signed-in disposable user with at least one ledger row
+ * (a new account's signup credits count). Needs a Playwright storage
  * state file for that user in E2E_STORAGE_STATE (create it per run, never
  * commit it); without one the spec is skipped so the public smoke still runs.
  */
@@ -40,7 +41,9 @@ for (const { name, ...viewport } of PROJECTS) {
 
       await page.goto(`${BASE_URL}/history?q=e2e-no-such-transaction`);
       await page
-        .getByRole("heading", { name: "No matching transactions" })
+        .getByRole("heading", {
+          name: "No results for “e2e-no-such-transaction”",
+        })
         .waitFor();
       assert.equal(await page.getByText("No transactions yet").count(), 0);
       await page.screenshot({

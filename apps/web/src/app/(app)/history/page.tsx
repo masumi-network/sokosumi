@@ -7,11 +7,11 @@ import { HistoryList } from "@/app/history/components/history-list";
 import { HistorySpendChart } from "@/app/history/components/history-spend-chart";
 import { HistoryToolbar } from "@/app/history/components/history-toolbar";
 import { HISTORY_PAGE_LIMIT } from "@/app/history/constants";
+import { getHistoryEmptyState } from "@/app/history/utils/history-empty-state";
 import {
   applyHistoryProjectAllowlist,
   buildHistoryFiltersSearchParams,
   getHistoryFiltersResetKey,
-  type HistoryFilters,
   parseHistoryFilters,
   resolveHistoryApiTypes,
 } from "@/app/history/utils/history-filters";
@@ -79,7 +79,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     activeOrganizationId,
   );
 
-  const emptyState = getEmptyState(t, filters, activeOrganizationId);
+  const emptyState = getHistoryEmptyState(t, filters, activeOrganizationId);
 
   const historyTotal =
     historyPage.pagination?.total ?? historyPage.history.length;
@@ -174,39 +174,4 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
       </div>
     </div>
   );
-}
-
-/**
- * A search or filter that matches nothing is not an empty ledger: say so, and
- * link back to the full list (scope kept) instead of offering a new Task.
- */
-function getEmptyState(
-  t: Awaited<ReturnType<typeof getTranslations<"App.TransactionHistory">>>,
-  filters: HistoryFilters,
-  activeOrganizationId: string | null,
-) {
-  const isFiltered = Boolean(
-    filters.q || filters.type || filters.projectId || filters.taskId,
-  );
-  if (!isFiltered) {
-    return {
-      labels: { title: t("Empty.title"), description: t("Empty.description") },
-      clearFilters: null,
-    };
-  }
-  const query = buildHistoryFiltersSearchParams(
-    new URLSearchParams(),
-    { ...filters, q: null, type: null, projectId: null, taskId: null },
-    activeOrganizationId,
-  ).toString();
-  return {
-    labels: {
-      title: t("EmptyFiltered.title"),
-      description: t("EmptyFiltered.description"),
-    },
-    clearFilters: {
-      href: query ? `/history?${query}` : "/history",
-      label: t("EmptyFiltered.clear"),
-    },
-  };
 }

@@ -1535,7 +1535,9 @@
       },
       "EmptyFiltered": {
         "title": "No matching transactions",
-        "description": "Nothing matches this search or these filters.",
+        "description": "Nothing matches these filters.",
+        "searchTitle": "No results for “{query}”",
+        "searchDescription": "Check the spelling or try another search.",
         "clear": "Clear filters"
       },
       "List": {
