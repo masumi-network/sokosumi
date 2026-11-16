@@ -14,13 +14,15 @@ const DEMAND_ROWS = 5;
 
 type SeoAgentChart = "clicks" | "keywords";
 
+// Each choice starts as wide as its own name: equal shares squeezed the longer name to the edge of its pill. On
+// a narrow screen both still shrink, so the switch stays inside the card.
+const CHART_SWITCH_ITEM_CLASS = "flex-auto px-4";
+
 /**
  * The Agent tab's pictures, each from saved data only: the daily search clicks
  * once statistics are synced, and the checked keywords with the most searches.
  * One card holds both, with a switch when both have data.
  */
-// Each choice is as wide as its own name: equal shares squeezed the longer name to the edge of its pill.
-const CHART_SWITCH_ITEM_CLASS = "flex-none px-4";
 
 export function SeoAgentGraphics({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
