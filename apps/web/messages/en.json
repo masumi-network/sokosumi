@@ -859,6 +859,13 @@
           "OUT_OF_CREDITS": "Open",
           "GRANT_PENDING": "Open"
         }
+      },
+      "DataRoomQuestions": {
+        "heading": "{count, plural, one {# data room question is waiting for an answer} other {# data room questions are waiting for an answer}}",
+        "loadError": "Could not load the data room questions",
+        "byline": "{who} about {document} in {room}",
+        "action": "Answer",
+        "showOlder": "Show older questions"
       }
     },
     "HashValue": {
@@ -11063,13 +11070,23 @@
       "bulk": {
         "label": "Selected contacts",
         "selected": "{count} selected",
+        "setStage": "Set relationship",
+        "stageSet": "{count, plural, =1 {Set 1 contact to {stage}} other {Set # contacts to {stage}}}",
+        "stageUndone": "{count, plural, =1 {Restored 1 contact's relationship} other {Restored # contacts' relationships}}",
+        "stageUndonePartly": "{count, plural, =0 {Nothing restored: all {total} contacts changed since} other {Restored # of {total} contacts; the rest changed since}}",
+        "undo": "Undo",
         "addToList": "Add to list",
         "removeFromList": "Remove from list",
+        "copyEmails": "Copy emails",
         "merge": "Merge",
         "clear": "Clear selection",
         "updated": "{count, plural, =1 {Updated 1 contact} other {Updated # contacts}}",
         "addedToList": "{count, plural, =1 {Added 1 contact to {list}} other {Added # contacts to {list}}}",
-        "removedFromList": "{count, plural, =1 {Removed 1 contact from {list}} other {Removed # contacts from {list}}}"
+        "removedFromList": "{count, plural, =1 {Removed 1 contact from {list}} other {Removed # contacts from {list}}}",
+        "copiedEmails": "{count, plural, =1 {Copied 1 email address} other {Copied # email addresses}}",
+        "skippedNoEmail": "{count, plural, =1 {1 contact has no email and was left out.} other {# contacts have no email and were left out.}}",
+        "noEmails": "None of the selected contacts has an email address.",
+        "copyFailed": "Could not copy to the clipboard. Try again."
       },
       "errors": {
         "versionConflict": "Someone changed this contact a moment ago. We loaded their version; try your edit again.",

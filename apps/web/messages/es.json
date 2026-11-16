@@ -843,6 +843,13 @@
           "OUT_OF_CREDITS": "Abrir",
           "GRANT_PENDING": "Abrir"
         }
+      },
+      "DataRoomQuestions": {
+        "heading": "{count, plural, one {# pregunta de la sala de datos espera respuesta} other {# preguntas de las salas de datos esperan respuesta}}",
+        "loadError": "No se pudieron cargar las preguntas de las salas de datos",
+        "byline": "{who} sobre {document} en {room}",
+        "action": "Responder",
+        "showOlder": "Mostrar preguntas anteriores"
       }
     },
     "HashValue": {
@@ -11063,13 +11070,23 @@
       "bulk": {
         "label": "Contactos seleccionados",
         "selected": "{count} seleccionados",
+        "setStage": "Cambiar relación",
+        "stageSet": "{count, plural, =1 {1 contacto cambiado a {stage}} other {# contactos cambiados a {stage}}}",
+        "stageUndone": "{count, plural, =1 {Relación de 1 contacto restaurada} other {Relaciones de # contactos restauradas}}",
+        "stageUndonePartly": "{count, plural, =0 {No se restauró nada: los {total} contactos cambiaron desde entonces} other {Se restauraron # de {total} contactos; el resto cambió desde entonces}}",
+        "undo": "Deshacer",
         "addToList": "Añadir a una lista",
         "removeFromList": "Quitar de una lista",
+        "copyEmails": "Copiar correos",
         "merge": "Fusionar",
         "clear": "Quitar selección",
         "updated": "{count, plural, =1 {1 contacto actualizado} other {# contactos actualizados}}",
         "addedToList": "{count, plural, =1 {1 contacto añadido a {list}} other {# contactos añadidos a {list}}}",
-        "removedFromList": "{count, plural, =1 {1 contacto quitado de {list}} other {# contactos quitados de {list}}}"
+        "removedFromList": "{count, plural, =1 {1 contacto quitado de {list}} other {# contactos quitados de {list}}}",
+        "copiedEmails": "{count, plural, =1 {1 dirección de correo copiada} other {# direcciones de correo copiadas}}",
+        "skippedNoEmail": "{count, plural, =1 {1 contacto no tiene correo y se omitió.} other {# contactos no tienen correo y se omitieron.}}",
+        "noEmails": "Ninguno de los contactos seleccionados tiene dirección de correo.",
+        "copyFailed": "No se pudo copiar al portapapeles. Inténtalo de nuevo."
       },
       "errors": {
         "versionConflict": "Alguien acaba de cambiar este contacto. Cargamos su versión; vuelve a intentar tu cambio.",

@@ -16,6 +16,7 @@ import mountMap from "./map.js";
 import mountMerge from "./merge.js";
 import mountOrganizations from "./organizations.js";
 import mountPost from "./post.js";
+import mountStage from "./stage.js";
 
 const app = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
@@ -28,6 +29,7 @@ mountPost(app);
 mountExport(app);
 mountMap(app);
 mountMerge(app);
+mountStage(app);
 mountImport(app);
 mountOrganizations(app);
 mountCompanies(app);

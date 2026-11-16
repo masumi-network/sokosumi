@@ -843,6 +843,13 @@
           "OUT_OF_CREDITS": "Öffnen",
           "GRANT_PENDING": "Öffnen"
         }
+      },
+      "DataRoomQuestions": {
+        "heading": "{count, plural, one {# Frage im Datenraum wartet auf eine Antwort} other {# Fragen im Datenraum warten auf eine Antwort}}",
+        "loadError": "Die Fragen aus den Datenräumen konnten nicht geladen werden",
+        "byline": "{who} zu {document} in {room}",
+        "action": "Antworten",
+        "showOlder": "Ältere Fragen anzeigen"
       }
     },
     "HashValue": {
@@ -11063,13 +11070,23 @@
       "bulk": {
         "label": "Ausgewählte Kontakte",
         "selected": "{count} ausgewählt",
+        "setStage": "Beziehung festlegen",
+        "stageSet": "{count, plural, =1 {1 Kontakt auf {stage} gesetzt} other {# Kontakte auf {stage} gesetzt}}",
+        "stageUndone": "{count, plural, =1 {Beziehung von 1 Kontakt wiederhergestellt} other {Beziehungen von # Kontakten wiederhergestellt}}",
+        "stageUndonePartly": "{count, plural, =0 {Nichts wiederhergestellt: alle {total} Kontakte wurden inzwischen geändert} other {# von {total} Kontakten wiederhergestellt; die übrigen wurden inzwischen geändert}}",
+        "undo": "Rückgängig",
         "addToList": "Zu Liste hinzufügen",
         "removeFromList": "Aus Liste entfernen",
+        "copyEmails": "E-Mails kopieren",
         "merge": "Zusammenführen",
         "clear": "Auswahl aufheben",
         "updated": "{count, plural, =1 {1 Kontakt aktualisiert} other {# Kontakte aktualisiert}}",
         "addedToList": "{count, plural, =1 {1 Kontakt zu {list} hinzugefügt} other {# Kontakte zu {list} hinzugefügt}}",
-        "removedFromList": "{count, plural, =1 {1 Kontakt aus {list} entfernt} other {# Kontakte aus {list} entfernt}}"
+        "removedFromList": "{count, plural, =1 {1 Kontakt aus {list} entfernt} other {# Kontakte aus {list} entfernt}}",
+        "copiedEmails": "{count, plural, =1 {1 E-Mail-Adresse kopiert} other {# E-Mail-Adressen kopiert}}",
+        "skippedNoEmail": "{count, plural, =1 {1 Kontakt hat keine E-Mail und wurde ausgelassen.} other {# Kontakte haben keine E-Mail und wurden ausgelassen.}}",
+        "noEmails": "Keiner der ausgewählten Kontakte hat eine E-Mail-Adresse.",
+        "copyFailed": "Kopieren in die Zwischenablage fehlgeschlagen. Bitte erneut versuchen."
       },
       "errors": {
         "versionConflict": "Jemand hat diesen Kontakt gerade geändert. Wir haben die neue Version geladen; versuch deine Änderung noch einmal.",
