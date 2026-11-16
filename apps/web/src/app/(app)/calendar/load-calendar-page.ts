@@ -348,6 +348,19 @@ export async function readWorkspaceCalendarPage(
   };
 }
 
+/** Reads the request, so a cached read takes the result as an input. */
+export async function requestCalendarTimezone(
+  requested: CalendarPageSearchParams,
+): Promise<string> {
+  // A URL without a valid zone renders in the zone from the
+  // `sokosumi.timezone` cookie, which the browser reported (UTC until it
+  // has). When the browser still reports that zone, the calendar has no
+  // reason to ask again with it.
+  return isValidTimezone(requested.timezone)
+    ? requested.timezone
+    : await getTimeZone();
+}
+
 async function readPrivateCachedWorkspaceCalendarPage(
   input: WorkspaceCalendarPageInput,
 ): Promise<LoadedWorkspaceCalendarPage | null> {
@@ -384,13 +397,7 @@ export async function loadWorkspaceCalendarPage({
     projectId,
     requested,
     types,
-    // A URL without a valid zone renders in the zone from the
-    // `sokosumi.timezone` cookie, which the browser reported (UTC until it
-    // has). When the browser still reports that zone, the calendar has no
-    // reason to ask again with it.
-    timezone: isValidTimezone(requested.timezone)
-      ? requested.timezone
-      : await getTimeZone(),
+    timezone: await requestCalendarTimezone(requested),
   };
   const page = await readPrivateCachedWorkspaceCalendarPage(input).catch(
     async (error: unknown) => {

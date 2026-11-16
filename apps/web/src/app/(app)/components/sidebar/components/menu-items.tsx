@@ -226,6 +226,7 @@ function ScopedMenuItems({
       Icon: Share2,
       feature: AnnouncedFeature.SOCIAL,
       group: "marketing",
+      prefetchContent: true,
     },
     {
       key: "seo",
