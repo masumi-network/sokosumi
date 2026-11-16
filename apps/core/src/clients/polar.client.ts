@@ -67,11 +67,85 @@ export async function listPolarProducts(): Promise<PolarProduct[]> {
   return products;
 }
 
+/** The Polar customer with this external id, or null when Polar has none. */
+async function findPolarCustomerId(
+  polar: ReturnType<typeof requirePolar>,
+  externalId: string,
+): Promise<string | null> {
+  try {
+    return (await polar.customers.getExternal(externalId)).id;
+  } catch (error) {
+    if (error instanceof errors.ResourceNotFound) return null;
+    throw error;
+  }
+}
+
+/**
+ * The organization's Polar customer: its external id is the organization's
+ * id. The first checkout creates it as a team customer without an email
+ * (Polar refuses two customers with one email, and organizations may share
+ * one), the payer as its owner member.
+ *
+ * shortcut: the owner stays the first payer, so Polar's receipts keep going
+ * to them after they leave the organization; move the owner when that bites.
+ */
+export async function ensurePolarOrganizationCustomer(input: {
+  organizationId: string;
+  name: string;
+  ownerEmail: string;
+}): Promise<string> {
+  const polar = requirePolar();
+  const existing = await findPolarCustomerId(polar, input.organizationId);
+  if (existing) return existing;
+  try {
+    const created = await polar.customers.create({
+      type: "team",
+      external_id: input.organizationId,
+      name: input.name,
+      owner: { email: input.ownerEmail },
+    });
+    return created.id;
+  } catch (error) {
+    // A concurrent first checkout created it: Polar keeps external ids unique.
+    const raced = await findPolarCustomerId(polar, input.organizationId);
+    if (raced) return raced;
+    throw error;
+  }
+}
+
+export type PolarBillingAddress = models.AddressInput;
+
+/**
+ * Sets a Polar customer's name and, when there are any, its billing address
+ * and tax ID; a null leaves what Polar has. Polar's checkout opens on them.
+ * The tax ID goes last on its own: Polar validates it and refuses the whole
+ * request for an ID it does not accept, which would lose the address too.
+ */
+export async function updatePolarCustomerBilling(
+  customerId: string,
+  billing: {
+    name: string;
+    billingAddress: PolarBillingAddress | null;
+    taxId: string | null;
+  },
+): Promise<void> {
+  const polar = requirePolar();
+  await polar.customers.update(customerId, {
+    name: billing.name,
+    ...(billing.billingAddress && { billing_address: billing.billingAddress }),
+  });
+  if (billing.taxId) {
+    await polar.customers.update(customerId, { tax_id: billing.taxId });
+  }
+}
+
 export interface PolarCheckoutInput {
   /** Copied by Polar to the order (and the subscription) of this checkout. */
   metadata: Record<string, string>;
-  /** The Polar customer: its external id is the organization's id. */
-  organizationId: string;
+  /** The organization's Polar customer (`ensurePolarOrganizationCustomer`). */
+  customerId: string;
+  /** Prefilled in the checkout: the payer's own email. */
+  customerEmail: string;
   /** The person picks one in the checkout; the first is preselected. */
   productIds: string[];
   /** Where the person lands after paying (Polar's `success_url`). */
@@ -91,7 +165,8 @@ export async function createPolarCheckout(
 ): Promise<string> {
   const checkout = await requirePolar().checkouts.create({
     products: input.productIds,
-    external_customer_id: input.organizationId,
+    customer_id: input.customerId,
+    customer_email: input.customerEmail,
     metadata: input.metadata,
     success_url: input.returnUrl,
     return_url: input.backUrl,

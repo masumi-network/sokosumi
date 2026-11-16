@@ -13,9 +13,15 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const m = vi.hoisted(() => ({
+  captureException: vi.fn(),
   createPolarCheckout: vi.fn(),
+  ensurePolarOrganizationCustomer: vi.fn(),
   listPolarProducts: vi.fn(),
+  getOrganizationBillingDetailsById: vi.fn(),
+  updatePolarCustomerBilling: vi.fn(),
   prisma: {
+    organization: { findUnique: vi.fn() },
+    user: { findUnique: vi.fn() },
     polarSubscription: { findFirst: vi.fn() },
     member: { findFirst: vi.fn() },
     project: { findUnique: vi.fn() },
@@ -26,11 +32,18 @@ const m = vi.hoisted(() => ({
 
 vi.mock("@/clients/polar.client", () => ({
   createPolarCheckout: m.createPolarCheckout,
+  ensurePolarOrganizationCustomer: m.ensurePolarOrganizationCustomer,
   listPolarProducts: m.listPolarProducts,
+  updatePolarCustomerBilling: m.updatePolarCustomerBilling,
+}));
+vi.mock("@/services/stripe-customer-billing.service", () => ({
+  stripeCustomerBillingService: {
+    getOrganizationBillingDetailsById: m.getOrganizationBillingDetailsById,
+  },
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: m.prisma }));
 vi.mock("@sentry/node", () => ({
-  captureException: vi.fn(),
+  captureException: m.captureException,
   captureMessage: vi.fn(),
 }));
 
@@ -39,6 +52,14 @@ const RETURN_URL = `https://app.cmo.xyz/?project=${PROJECT_ID}&step=subscribed`;
 /** Polar's back link: the plans again, never the confirming state. */
 const BACK_URL = `https://app.cmo.xyz/?project=${PROJECT_ID}`;
 const CHECKOUT_URL = "https://sandbox.polar.sh/checkout/polar_c_1";
+
+/** An organization without a Stripe customer: nothing to copy to Polar. */
+const NO_STRIPE_BILLING = {
+  stripeCustomerId: null,
+  email: null,
+  address: null,
+  taxIds: [],
+};
 
 function plan(
   tier: string,
@@ -147,6 +168,11 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
       organizationId: "org-1",
     });
     m.prisma.polarSubscription.findFirst.mockResolvedValue(null);
+    m.prisma.organization.findUnique.mockResolvedValue({ name: "Acme Inc" });
+    m.prisma.user.findUnique.mockResolvedValue({ email: "payer@acme.io" });
+    m.ensurePolarOrganizationCustomer.mockResolvedValue("cus_org_1");
+    m.updatePolarCustomerBilling.mockResolvedValue(undefined);
+    m.getOrganizationBillingDetailsById.mockResolvedValue(NO_STRIPE_BILLING);
   });
 
   it("answers Polar's checkout for the interval's three plans, for any member", async () => {
@@ -164,7 +190,8 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
         "prod_growth_month",
         "prod_scale_month",
       ],
-      organizationId: "org-1",
+      customerId: "cus_org_1",
+      customerEmail: "payer@acme.io",
       metadata: {
         kind: "plan",
         projectId: PROJECT_ID,
@@ -175,6 +202,167 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
       backUrl: BACK_URL,
       allowDiscountCodes: true,
     });
+  });
+
+  it("checks out as the organization's Polar customer, with the payer as its owner", async () => {
+    await startCheckout({
+      interval: "month",
+      returnUrl: RETURN_URL,
+      backUrl: BACK_URL,
+    });
+
+    expect(m.ensurePolarOrganizationCustomer).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      name: "Acme Inc",
+      ownerEmail: "payer@acme.io",
+    });
+    expect(m.createPolarCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customerId: "cus_org_1",
+        customerEmail: "payer@acme.io",
+      }),
+    );
+  });
+
+  it("copies the organization's Stripe billing address and first tax ID to its Polar customer", async () => {
+    m.getOrganizationBillingDetailsById.mockResolvedValue({
+      stripeCustomerId: "cus_stripe_1",
+      email: "billing@acme.io",
+      address: {
+        line1: "1 Main St",
+        line2: "Suite 4",
+        city: "San Francisco",
+        state: "CA",
+        postalCode: "94105",
+        country: "US",
+      },
+      taxIds: [
+        {
+          id: "txi_1",
+          type: "us_ein",
+          value: "12-3456789",
+          country: "US",
+          verificationStatus: null,
+        },
+        {
+          id: "txi_2",
+          type: "eu_vat",
+          value: "DE811907980",
+          country: "DE",
+          verificationStatus: "verified",
+        },
+      ],
+    });
+
+    await startCheckout({
+      interval: "month",
+      returnUrl: RETURN_URL,
+      backUrl: BACK_URL,
+    });
+
+    expect(m.updatePolarCustomerBilling).toHaveBeenCalledWith("cus_org_1", {
+      name: "Acme Inc",
+      billingAddress: {
+        line1: "1 Main St",
+        line2: "Suite 4",
+        city: "San Francisco",
+        state: "CA",
+        postal_code: "94105",
+        country: "US",
+      },
+      taxId: "12-3456789",
+    });
+  });
+
+  it("sends no billing address or tax ID when the organization has none at Stripe", async () => {
+    await startCheckout({
+      interval: "month",
+      returnUrl: RETURN_URL,
+      backUrl: BACK_URL,
+    });
+
+    expect(m.updatePolarCustomerBilling).toHaveBeenCalledWith("cus_org_1", {
+      name: "Acme Inc",
+      billingAddress: null,
+      taxId: null,
+    });
+  });
+
+  it("sends no billing address without a country, and blanks as nothing", async () => {
+    // Stripe keeps a partial address with its missing fields blank.
+    const partial = {
+      line1: "",
+      line2: null,
+      city: "Berlin",
+      state: null,
+      postalCode: "",
+    };
+    m.getOrganizationBillingDetailsById.mockResolvedValueOnce({
+      ...NO_STRIPE_BILLING,
+      stripeCustomerId: "cus_stripe_1",
+      address: { ...partial, country: "" },
+    });
+    await startCheckout({
+      interval: "month",
+      returnUrl: RETURN_URL,
+      backUrl: BACK_URL,
+    });
+    m.getOrganizationBillingDetailsById.mockResolvedValueOnce({
+      ...NO_STRIPE_BILLING,
+      stripeCustomerId: "cus_stripe_1",
+      address: { ...partial, country: "DE" },
+    });
+    await startCheckout({
+      interval: "month",
+      returnUrl: RETURN_URL,
+      backUrl: BACK_URL,
+    });
+
+    expect(
+      m.updatePolarCustomerBilling.mock.calls.map(
+        ([, billing]) => billing.billingAddress,
+      ),
+    ).toEqual([
+      null,
+      {
+        line1: null,
+        line2: null,
+        city: "Berlin",
+        state: null,
+        postal_code: null,
+        country: "DE",
+      },
+    ]);
+  });
+
+  it("starts the checkout and reports it when the billing details cannot be copied", async () => {
+    const refused = new Error("Invalid tax ID.");
+    m.updatePolarCustomerBilling.mockRejectedValue(refused);
+
+    const response = await startCheckout({
+      interval: "month",
+      returnUrl: RETURN_URL,
+      backUrl: BACK_URL,
+    });
+
+    expect(response.status).toBe(200);
+    expect(m.createPolarCheckout).toHaveBeenCalledTimes(1);
+    expect(m.captureException).toHaveBeenCalledWith(refused, expect.anything());
+  });
+
+  it("answers 503 and starts no checkout when Polar cannot give the organization's customer", async () => {
+    m.ensurePolarOrganizationCustomer.mockRejectedValue(
+      new Error("Polar is down"),
+    );
+
+    const response = await startCheckout({
+      interval: "month",
+      returnUrl: RETURN_URL,
+      backUrl: BACK_URL,
+    });
+
+    expect(response.status).toBe(503);
+    expect(m.createPolarCheckout).not.toHaveBeenCalled();
   });
 
   it("offers the yearly plans for a yearly checkout", async () => {
