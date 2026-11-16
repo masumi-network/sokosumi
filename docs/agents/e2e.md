@@ -16,10 +16,11 @@ E2E_BASE_URL=https://<preview-host> pnpm --filter web e2e
 
 ## Specs
 
-| Spec                   | Checks                                                                                                                                                            |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `e2e/base-url.test.ts` | URL guard: required, allowed hosts only. Needs no browser.                                                                                                        |
-| `e2e/smoke.test.ts`    | `/signin` and `/signup` at phone 375x812, tablet 768x1024 and desktop 1440x900: page loads, email field shows, no horizontal overflow, no console or page errors. |
+| Spec                      | Checks                                                                                                                                                                                                                                         |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `e2e/base-url.test.ts`    | URL guard: required, allowed hosts only. Needs no browser.                                                                                                                                                                                     |
+| `e2e/smoke.test.ts`       | `/signin` and `/signup` at phone 375x812, tablet 768x1024 and desktop 1440x900: page loads, email field shows, no horizontal overflow, no console or page errors.                                                                              |
+| `e2e/members-csv.test.ts` | A new user signs up, creates an organization, opens Settings from the workspace menu and downloads the member list, at all three sizes. Needs `E2E_SIGNUP_EMAIL` and `E2E_SIGNUP_CODE_COMMAND` (prints the mailed code); skipped without them. |
 
 Screenshots go to `apps/web/e2e/results/` (gitignored).
 
