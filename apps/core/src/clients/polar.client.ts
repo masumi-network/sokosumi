@@ -120,6 +120,8 @@ export type PolarBillingAddress = models.AddressInput;
  * and tax ID; a null leaves what Polar has. Polar's checkout opens on them.
  * The tax ID goes last on its own: Polar validates it and refuses the whole
  * request for an ID it does not accept, which would lose the address too.
+ * A new address clears the old tax ID first when one replaces it: Polar checks
+ * the stored ID against the new country and refuses a German VAT ID in the US.
  */
 export async function updatePolarCustomerBilling(
   customerId: string,
@@ -132,7 +134,10 @@ export async function updatePolarCustomerBilling(
   const polar = requirePolar();
   await polar.customers.update(customerId, {
     name: billing.name,
-    ...(billing.billingAddress && { billing_address: billing.billingAddress }),
+    ...(billing.billingAddress && {
+      billing_address: billing.billingAddress,
+      ...(billing.taxId && { tax_id: null }),
+    }),
   });
   if (billing.taxId) {
     await polar.customers.update(customerId, { tax_id: billing.taxId });

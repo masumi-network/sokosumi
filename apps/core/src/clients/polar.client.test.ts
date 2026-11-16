@@ -288,7 +288,7 @@ describe("updatePolarCustomerBilling", () => {
     taxId: "DE123456789",
   };
 
-  it("sets the customer's name and billing address, then its tax ID", async () => {
+  it("sets the name and billing address clearing the old tax ID, then the new tax ID", async () => {
     const sent = polarAnswersInTurn(
       [200, polarCustomer("cus_1")],
       [200, polarCustomer("cus_1")],
@@ -310,6 +310,7 @@ describe("updatePolarCustomerBilling", () => {
             postal_code: "10115",
             country: "DE",
           },
+          tax_id: null,
         },
       },
       {
