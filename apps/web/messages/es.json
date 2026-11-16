@@ -296,10 +296,10 @@
         "email": "Email",
         "role": "Rol",
         "status": "Estado",
-        "joined": "Se unió",
-        "lastSeen": "Última conexión",
-        "invited": "Invitado",
-        "expires": "La invitación vence",
+        "joined": "Se unió (UTC)",
+        "lastSeen": "Última conexión (UTC)",
+        "invited": "Invitado (UTC)",
+        "expires": "La invitación vence (UTC)",
         "active": "Activo"
       }
     },

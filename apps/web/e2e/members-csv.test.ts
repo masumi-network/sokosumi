@@ -131,7 +131,7 @@ describe("members CSV", {
       );
       assert.equal(
         csv[0],
-        '"Name","Email","Role","Status","Joined","Last seen","Invited","Invitation expires"',
+        '"Name","Email","Role","Status","Joined (UTC)","Last seen (UTC)","Invited (UTC)","Invitation expires (UTC)"',
       );
       assert.equal(csv.length, 2);
       assert.match(

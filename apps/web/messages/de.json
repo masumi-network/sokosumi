@@ -296,10 +296,10 @@
         "email": "E-Mail",
         "role": "Rolle",
         "status": "Status",
-        "joined": "Beigetreten",
-        "lastSeen": "Zuletzt gesehen",
-        "invited": "Eingeladen",
-        "expires": "Einladung läuft ab",
+        "joined": "Beigetreten (UTC)",
+        "lastSeen": "Zuletzt gesehen (UTC)",
+        "invited": "Eingeladen (UTC)",
+        "expires": "Einladung läuft ab (UTC)",
         "active": "Aktiv"
       }
     },
