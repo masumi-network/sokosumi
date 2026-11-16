@@ -337,7 +337,8 @@ describe("WelcomePage", () => {
 
   // The reads are cached, so a link prefetch carries Home.
   // connection() would drop it back to the skeleton.
-  it("renders the bot home without deferring to the request", async () => {
+  it("renders the bot home while the request has not come", async () => {
+    connection.mockReturnValueOnce(new Promise(() => {}));
     getMine.mockResolvedValue({
       id: "bot-1",
       name: "Joseph",
@@ -346,7 +347,10 @@ describe("WelcomePage", () => {
     });
     await renderPage();
     expect(screen.getByText("bot home")).toBeTruthy();
-    expect(connection).not.toHaveBeenCalled();
+    // My day and the Needs you projects are uncached: they wait for the
+    // request, so a prefetch leaves them as holes.
+    expect(loadMyDay).not.toHaveBeenCalled();
+    expect(listProjects).not.toHaveBeenCalled();
   });
 
   // A prefetch must not keep a session outage as a signed-out Home: the
@@ -360,7 +364,6 @@ describe("WelcomePage", () => {
       avatarImageUrl: null,
     });
     await renderPage();
-    expect(connection).toHaveBeenCalledOnce();
     expect(getSession).toHaveBeenCalledOnce();
     expect(sokoBotHome).toHaveBeenCalledWith(
       expect.objectContaining({ ownerId: "user-1" }),
@@ -376,7 +379,7 @@ describe("WelcomePage", () => {
     getMine.mockResolvedValue(null);
     await renderPage();
     expect(redirect).not.toHaveBeenCalled();
-    expect(connection).toHaveBeenCalledOnce();
+    expect(getWorkspaceAccess).toHaveBeenCalledTimes(2);
     expect(screen.getByText("soko bot setup")).toBeTruthy();
   });
 

@@ -77,35 +77,40 @@ const bot = {
   avatarImageUrl: null,
 };
 
+function homeProps(
+  overrides: Partial<Parameters<typeof SokoBotHome>[0]> = {},
+): Parameters<typeof SokoBotHome>[0] {
+  return {
+    bot,
+    ownerId: "user-1",
+    roomId: "room-1",
+    userName: "Alice",
+    summary: {
+      since: new Date("2026-10-23T08:00:00Z"),
+      completed: 3,
+      awaitingInput: 0,
+      createdByOtherHumans: 0,
+      workedMinutes: 45,
+      previous: { completed: 0, createdByOtherHumans: 0, workedMinutes: 0 },
+    },
+    teamTasks: [
+      {
+        id: "task-1",
+        name: "Research EU marketplaces",
+        status: "COMPLETED",
+        updatedAt: new Date("2026-10-24T08:00:00Z"),
+        who: "Hannah",
+      },
+    ],
+    now: new Date("2026-10-24T10:00:00Z"),
+    ...overrides,
+  };
+}
+
 async function renderHome(
   overrides: Partial<Parameters<typeof SokoBotHome>[0]> = {},
 ) {
-  render(
-    await SokoBotHome({
-      bot,
-      ownerId: "user-1",
-      roomId: "room-1",
-      userName: "Alice",
-      summary: {
-        since: new Date("2026-10-23T08:00:00Z"),
-        completed: 3,
-        awaitingInput: 0,
-        createdByOtherHumans: 0,
-        workedMinutes: 45,
-        previous: { completed: 0, createdByOtherHumans: 0, workedMinutes: 0 },
-      },
-      teamTasks: [
-        {
-          id: "task-1",
-          name: "Research EU marketplaces",
-          status: "COMPLETED",
-          updatedAt: new Date("2026-10-24T08:00:00Z"),
-          who: "Hannah",
-        },
-      ],
-      ...overrides,
-    }),
-  );
+  render(await SokoBotHome(homeProps(overrides)));
 }
 
 describe("SokoBotHome", () => {
@@ -116,6 +121,28 @@ describe("SokoBotHome", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+  });
+
+  // Home renders this outside Suspense. A clock read here, outside the
+  // page's prefetch cache, would cut a link prefetch of Home short.
+  it("reads no clock of its own", async () => {
+    const RealDate = Date;
+    class ClockFreeDate extends RealDate {
+      constructor(...args: ConstructorParameters<typeof Date> | []) {
+        if (args.length === 0) throw new Error("Home read the clock");
+        super(...(args as ConstructorParameters<typeof Date>));
+      }
+
+      static override now(): number {
+        throw new Error("Home read the clock");
+      }
+    }
+    vi.stubGlobal("Date", ClockFreeDate);
+    try {
+      await expect(SokoBotHome(homeProps())).resolves.toBeTruthy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("asks the bot by name", async () => {

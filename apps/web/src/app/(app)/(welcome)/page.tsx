@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { getTimeZone, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
@@ -74,11 +75,15 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   // The reader's Tasks due today or overdue, by their own calendar day, for
   // the Soko Bot Home.
   const today = dayInTimeZone(now, timeZone);
+  // My day and the Needs you projects are uncached Core reads. Each waits for
+  // the request, so a link prefetch leaves them as holes: an uncached read
+  // started while a prefetch renders would cut that prefetch short.
+  const request = connection();
   const myDay = (
     <Suspense fallback={null}>
       {MyDay({
-        feed: loadMyDay(today),
-        overdue: countOverdue(today),
+        feed: request.then(() => loadMyDay(today)),
+        overdue: request.then(() => countOverdue(today)),
         today,
       })}
     </Suspense>
@@ -92,8 +97,8 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     .catch(() => null);
   // The workspace's first page of projects, read next to the rows, so a
   // row's project is usually known without its own read after them.
-  const needsYouProjects = projectService
-    .listProjects({ limit: PROJECTS_PAGE_LIMIT })
+  const needsYouProjects = request
+    .then(() => projectService.listProjects({ limit: PROJECTS_PAGE_LIMIT }))
     .then(({ projects }) =>
       Object.fromEntries(
         projects.map((project) => [
@@ -166,6 +171,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           // Its own number, not a share of the waiting Tasks: Needs you also
           // holds Job, grant and access asks, and asks from other workspaces.
           needsYouCount={needsYou?.total ?? null}
+          now={now}
           teamTasks={toTeamDay(recentTasks, now)}
           chats={toImportantChats(
             important,
