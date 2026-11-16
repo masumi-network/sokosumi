@@ -11656,7 +11656,7 @@
       "runAnalysis": "Run a check",
       "runFullAudit": "Run full audit",
       "runPageCheck": "Run page check",
-      "manageStatistics": "Google statistics settings",
+      "manageStatistics": "Google connections",
       "syncStatistics": "Sync statistics",
       "noPages": "Add a page to start",
       "noPagesBody": "Pages define what each check and statistic covers.",
@@ -12097,8 +12097,8 @@
         "scopeTooLarge": "Choose a single page or a group with up to {count} pages for this check."
       },
       "statistics": {
-        "title": "Google statistics",
-        "description": "Statistics load automatically for the selected pages. Choose a property only when needed.",
+        "title": "Google connections",
+        "description": "Connect your Google sources. Statistics for the selected pages load automatically.",
         "provider": "Source",
         "ga4": "Google Analytics",
         "search_console": "Search Console",
@@ -12112,17 +12112,20 @@
         "propertiesLoading": "Loading authorized properties",
         "propertiesFailed": "Failed to load properties. Try again.",
         "noProperties": "No authorized properties available.",
-        "ownerOnly": "Statistics use your connected account and its access.",
+        "ownerOnly": "Sokosumi reads statistics with your Google access only.",
         "shared": "Saved statistics are shared within this audit in your organization. Your Google account stays under your control.",
         "synced": "Statistics synced",
         "readsSearch": "Reads the last {days} days of Google search data.",
         "readsOrganic": "Reads the last {days} days of organic search traffic.",
         "readsAll": "Reads the last {days} days of all website traffic.",
         "channelAny": "All measured segments",
-        "connectTitle": "Set up statistics",
-        "connectFirst": "Connect {provider}. Statistics for the last 90 days will load automatically.",
         "channelAiAssistant": "AI assistants (ChatGPT, Gemini, Copilot)",
-        "readsAiAssistant": "Reads the last {days} days of visits from AI assistants such as ChatGPT, Gemini and Copilot."
+        "readsAiAssistant": "Reads the last {days} days of visits from AI assistants such as ChatGPT, Gemini and Copilot.",
+        "measures": {
+          "search_console": "Searches, clicks and positions in Google Search",
+          "ga4": "Visits and page views on your site"
+        },
+        "propertyNotMatching": "It does not cover the selected pages, so no statistics load from it."
       },
       "metrics": {
         "page_views": "Page views",
@@ -12337,7 +12340,14 @@
         "invalidCallback": "This return link has no valid SEO connection context. Start a connection from the audit.",
         "connectGoogle": "Connect Google",
         "analyticsNext": "Google asks for approval two times: first for Search Console, then for Google Analytics.",
-        "analyticsOff": "Google Analytics is not connected. Visits and page views stay empty."
+        "connectShort": "Connect",
+        "connectedShort": "Connected",
+        "googleAccount": "Google account",
+        "noneConnected": "No source connected yet",
+        "options": "Google account options",
+        "settings": "Statistics settings",
+        "switchFor": "Switch account: {provider}",
+        "notConnected": "Not connected"
       },
       "unavailableTitle": "SEO unavailable in this Workspace",
       "unavailableBody": "This audit or selection is not available in the current Workspace. Check the Workspace in the sidebar or open the audit list.",
@@ -12779,7 +12789,7 @@
         "fix": {
           "connect_search_console": "Set up statistics",
           "connect_ga4": "Set up statistics",
-          "sync": "Google statistics settings",
+          "sync": "Google connections",
           "run_check": "Run a check"
         },
         "items": {
