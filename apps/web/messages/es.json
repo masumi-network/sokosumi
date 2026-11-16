@@ -1528,20 +1528,23 @@
         "scopeWorkspace": "Workspace",
         "typeLabel": "Origen",
         "projectLabel": "Proyecto",
-        "typeOptions": {
-          "job": "Job de agente",
-          "image": "Imagen",
-          "task": "Tarea",
-          "coworker": "Coworker",
-          "sokoBot": "Soko Bot",
-          "seoChat": "Chat de SEO",
-          "topUp": "Recarga",
-          "unattributed": "Otros"
-        }
+        "activeCount": "{count, plural, =1 {1 activo} other {# activos}}",
+        "activeFilters": "Filtros activos",
+        "chip": "{label}: {value}",
+        "removeFilter": "Quitar filtro {filter}",
+        "clearAll": "Quitar todos",
+        "searchLabel": "Búsqueda"
       },
       "Empty": {
         "title": "Aún no hay transacciones",
         "description": "Cada ejecución de job, generación de imagen, demás consumos de créditos y recargas aparecerán aquí."
+      },
+      "EmptyFiltered": {
+        "title": "No hay transacciones coincidentes",
+        "description": "Nada coincide con estos filtros.",
+        "searchTitle": "No hay resultados para «{query}»",
+        "searchDescription": "Revisa la ortografía o prueba otra búsqueda.",
+        "clear": "Borrar filtros"
       },
       "List": {
         "loadMore": "Cargar más",
@@ -1558,6 +1561,7 @@
           "task": "Tarea",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
+          "seoChat": "Chat de SEO",
           "topUp": "Recarga",
           "unattributed": "Otros",
           "contacts": "Buscar personas"
