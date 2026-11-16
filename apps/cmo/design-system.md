@@ -1,6 +1,6 @@
 # CMO.XYZ design system
 
-The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi palette. Masumi brings the calm (neutrals, Inter, one pink); Cuso brings the outline (a visible 1px ink line and one hard shadow). It should read like a serious tool with a friendly face.
+The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi palette. Masumi brings the calm (neutrals, PP Mori, one pink); Cuso brings the outline (a visible 1px ink line and one hard shadow). It should read like a serious tool with a friendly face.
 
 - **Voice, product, agent naming:** [`DESIGN.md`](DESIGN.md). This file covers how things look.
 - **Source:** the concept canvas https://claude.ai/artifact/9mWPtBgNY9HQ8wLXcadZk4 (boards Vibe, Site, Reading, Brand, Plan, Launch, Home, each with a dark version). Where a board and this file disagree, this file wins; Plan, Launch and Home on the canvas still use the earlier "Cuso Pop" radii, pills and 2px borders, which this file replaces.
@@ -13,7 +13,7 @@ The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi pale
 1. **Lines do the work.** A 1px ink line on every card, input and full-size button. A hairline for small buttons and chips, and for structure inside a card: dividers, list rows, inner items.
 2. **The hard shadow means: look here.** 3px offset, no blur, on the primary action, the card in focus, and any card that needs the owner now. When the action is done the card goes flat.
 3. **Iris means now.** The current step and the next action. Never decoration, never text, never a thin mark. Text on Iris is always Neutral 950.
-4. **Bold speaks, Regular works.** One Inter ExtraBold H1 per screen. Light for big numbers and statements, Regular for UI, Medium for labels, SemiBold for section heads.
+4. **Bold speaks, Regular works.** One PP Mori SemiBold H1 per screen. Regular for statements, big numbers and UI, SemiBold for labels that lead and section heads. Mori ships two cuts: weights 300 to 500 draw Regular, 600 to 800 draw SemiBold.
 5. **Three layers.** White page, gray panel, outlined white cards. A card sits on a panel, never straight on the page.
 
 ## Colour
@@ -46,7 +46,7 @@ The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi pale
 
 ## Type
 
-Inter, through `--font-sans`. Numbers that compare use `font-variant-numeric: tabular-nums`.
+PP Mori, through `--font-sans` (`mori-regular.woff2` and `mori-semibold.woff2` in `public/site/assets/fonts`, loaded in `src/app/layout.tsx`). Numbers that compare use `font-variant-numeric: tabular-nums`.
 
 | Step      | Size / line | Weight     | Tracking | Use                                  |
 | --------- | ----------- | ---------- | -------- | ------------------------------------ |
@@ -65,7 +65,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 - **Radius:** 6px small marks (checkboxes, tags, badges), 8px controls (buttons, inputs, step markers, chips, tabs), 10px cards, 14px panels. Fully round only for avatars and status dots.
 - **Space:** a 4px grid. Page padding 32px (16px under 768px). Panel padding and gap 12px. Card padding 16, 20 or 24px. Sections stack 24 to 48px apart.
-- **Width:** onboarding content max 1280px, Brand 1376px, Home main column 1120px. Panels fill their column; no centred narrow column except Launch (760px, one form).
+- **Width:** onboarding is one centred column, 640px (the hire screen 820px for its headline); the open full plan widens to 1120px for its calendar. Home main column 1120px.
 - **Breakpoints:** layouts are `flex-wrap` with min widths, so they reflow without media queries. Under 768px everything is one column and the side panel becomes a bottom sheet.
 
 ## Elevation and motion
@@ -73,7 +73,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 - Flat by default. The hard shadow is the only elevation. It marks the primary button, the card in focus (the question card, the open side panel or sheet, the Launch accounts list) and a card that needs the owner now (an approval waiting, a measurement or network not connected, questions left, unanswered plan checks); the card goes flat once the action is done, and a card with only optional buttons stays flat. The Site hero's tilted labels are the one exception.
 - An inset 1px hairline (`inset 0 0 0 1px`) is a line, not a shadow, and is allowed where a border would shift layout.
 - **Pressed:** the shadowed element moves 3px right and down and drops its shadow, as if pushed flat.
-- Transitions are 150ms on colour and transform only, off under `prefers-reduced-motion`.
+- Transitions are 150ms on colour and transform only, off under `prefers-reduced-motion`. Onboarding adds three entrances, transform and opacity only: each piece of a step settles in after the one above it (450ms), a sheet rises from the bottom (400ms), and Cuso pops in.
 
 ## Components
 
@@ -96,9 +96,9 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Card.** Card fill, 1px ink line, 10px radius, flat. The focused card, or one that needs the owner now, adds the hard shadow (`.card-focus`); a selected tile in a grid gets an Iris shadow instead.
 
-**Tile.** Label (small 500, muted) with a small button right, value (value step), one line of detail (small), source (micro, muted, hairline above). Tap opens the side panel.
+**Tile.** A row in one gray group, hairlines between: label (small 500, muted), value (16px 500, one line), one line of detail (small, muted), chevron right. Tap opens the row's sheet, which carries the source.
 
-**Side panel.** A card beside the grid: h2 title, 32px close button with a hairline edge, short summary, hairline-separated list, source link, and a "Tell {agent} what's off" input.
+**Side panel.** A sheet that rises from the bottom of the screen, as wide as the column: h2 title, 32px close button with a hairline edge, short summary, hairline-separated list, source link, and a "Tell {agent} what's off" input.
 
 **Question card.** Progress as five 6px segments (done: text fill; current: Iris with ink line; next: hairline). Topic (small, muted), question (value step), "Why I ask" line with an info icon, then Yes / No / Not sure as secondary buttons in three columns, and a text button to skip.
 
@@ -119,7 +119,8 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 ## Cuso
 
 - **Cuso is the status.** Poses map to states: Reading, Thinking, Needs you (the only one labelled on Iris), Reporting, Done.
-- **Avatar:** always on a `#F5F5F5` circle with a line edge and a little padding, in both themes, so his black outline reads in dark. 36px in rows, 48px beside a title, 72 to 96px in a hero card.
+- **Avatar:** always on a `#F5F5F5` circle with a line edge and a little padding, in both themes, so his black outline reads in dark. 36px in rows, 48px beside a title, 72 to 96px in a hero card, 176px where he leads an onboarding step.
+- **Cuso leads onboarding.** Every step opens with him, large and centred, in the pose of its state; the title under him is what he says. He pops in, then breathes (a slow 6px drift), still under `prefers-reduced-motion`. Below him sits the one thing to do; everything else folds into rows (`.ob-fold`) and sheets, and the step's action stays in a bar at the bottom of the screen (`.ob-bar`).
 - **Stage:** the Site hero puts Cuso on an Iris stage with up to three tilted labels (8px radius, ink line, hard shadow, 16px 600). This is the one place labels tilt.
 - **Celebration:** the party image shows only after Launch is pressed.
 - **Motion:** Cuso's images are short clips that start and end on their still (`CusoClip`), and play once they are half on screen. The avatar plays once, then every 30 seconds; a past chat message keeps the still. The hire hero plays first and Cuso announces its three labels: each pops out of his megaphone while he shouts (500ms, transform only, the one entrance longer than 150ms); then the avatar beside the intro plays; the reading scene and the celebration play once. Under `prefers-reduced-motion` only the still shows.
@@ -137,8 +138,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 - Hard offset shadows (the guide asks for flat surfaces).
 - Dark Iris at `#D141D1`.
-- Inter replaces PP Mori, whose files were never delivered.
 
 Raise these with the guide owner rather than drifting further.
 
-Last updated: 2026-11-05
+Last updated: 2026-11-16

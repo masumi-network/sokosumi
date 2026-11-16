@@ -143,172 +143,176 @@ export function SiteStep({
   const elapsed = useElapsed(work?.startedAt, running);
 
   return (
-    <section className="panel ob-site">
-      <div className="ob-site-left">
-        <div className="card ob-reading">
+    <section className="ob-site">
+      <div className="ob-lead">
+        {failed || asked ? (
+          <CusoAvatar pose="needs-you" size={176} />
+        ) : finished ? (
+          <CusoAvatar pose="done" size={176} />
+        ) : (
           <CusoClip
+            className="ob-scene"
             src="/cuso/reading-scene.jpg"
             alt={`${AGENT_NAME} reading a site with a magnifier`}
-            width={168}
-            height={168}
+            width={176}
+            height={176}
           />
-          <p className="muted">
-            {running
-              ? `${AGENT_NAME} is reading${elapsed ? ` · ${elapsed}` : ""}`
-              : `${AGENT_NAME} read your site`}
-          </p>
-          <h1 className="ob-h1">{title}</h1>
-          <Checklist items={checklist} />
-        </div>
-        {found || brain ? (
-          <div className="card ob-found">
-            <div className="ob-found-head">
-              <h2>What I found so far</h2>
-              {found ? (
-                <span className="ob-small num">
-                  {found.saved} of {found.total} sections
-                </span>
-              ) : null}
-            </div>
-            {brain ? (
-              <ul className="ob-found-list">
-                {brandTiles(brain, async () => {})
-                  .slice(0, MAX_FOUND)
-                  .map((tile) => (
-                    <li key={tile.id}>
-                      <span className="ob-small muted">{tile.label}</span>
-                      <b>{tile.value}</b>
-                      <span className="ob-tile-source">
-                        Source:{" "}
-                        {sourceHost(
-                          tileSource(
-                            tile,
-                            brandProfile(brain),
-                            overview.websiteUrl,
-                          ),
-                        )}
-                      </span>
-                    </li>
-                  ))}
-              </ul>
-            ) : found ? (
-              <>
-                {found.sections.length > 0 ? (
-                  // The latest sections Cuso saved, as he saves them.
-                  <ul className="ob-found-list">
-                    {found.sections.slice(-MAX_FOUND).map((section) => (
-                      <li key={section.key}>
-                        <span className="ob-small muted">
-                          {BRAND_SECTIONS[section.key].title}
-                        </span>
-                        <b>{section.headline}</b>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                {composing !== null ? (
-                  <p className="muted">All {composing} sections are in.</p>
-                ) : (
-                  <div className="ob-skeletons">
-                    {Array.from(
-                      {
-                        length: Math.min(
-                          Math.max(found.total - found.saved, 0),
-                          MAX_FOUND,
-                        ),
-                      },
-                      (_, skeleton) => (
-                        // Placeholders have no identity beyond their place.
-                        <SkeletonTile key={skeleton} />
-                      ),
-                    )}
-                  </div>
-                )}
-              </>
-            ) : null}
-          </div>
-        ) : null}
+        )}
+        <p className="muted">
+          {running
+            ? `${AGENT_NAME} is reading${elapsed ? ` · ${elapsed}` : ""}`
+            : `${AGENT_NAME} read your site`}
+        </p>
+        <h1 className="ob-h1">{title}</h1>
+        <Checklist items={checklist} />
       </div>
 
-      <div className="ob-site-right">
-        {failed ? (
-          <div className="card card-focus ob-says">
-            <CusoAvatar pose="needs-you" size={96} />
-            {noCredits ? (
-              <Refusal text="credits" topUpUrl={overview.subscribeUrl} />
-            ) : (
-              <p className="ob-value">
-                {found && found.saved > 0
-                  ? "Nothing was lost. Try again and I finish your Brand Brain."
-                  : "Nothing was lost. Try again and I start over."}
-              </p>
-            )}
-            <RetryButton onRetry={onRetry} topUpUrl={overview.subscribeUrl} />
-          </div>
-        ) : asked ? (
-          <QuestionReply question={asked} onReply={onReply} />
-        ) : asking && question ? (
-          <QuestionCard
-            // A new question starts with a clean card.
-            key={question.id}
-            topic={BRAND_SECTIONS[question.section].title}
-            question={question}
-            index={index}
-            answered={answered}
-            onAnswer={async (value, note) => {
-              await answer(question.id, value, note);
-              setAt(index + 1 < questions.length ? index + 1 : null);
-            }}
-            onSkip={() => {
-              setSkipping(true);
-              onSkip()
-                .catch(() => {})
-                .finally(() => {
-                  setSkipping(false);
-                  setAt(null);
-                });
-            }}
-          />
-        ) : finished || (skipping && phase !== "reading") ? (
-          <div className="card card-focus ob-says">
-            <CusoAvatar pose="done" size={96} />
-            <p className="ob-value">That's all I need.</p>
+      {failed ? (
+        <div className="ob-says">
+          {noCredits ? (
+            <Refusal text="credits" topUpUrl={overview.subscribeUrl} />
+          ) : (
+            <p className="ob-value">
+              {found && found.saved > 0
+                ? "Nothing was lost. Try again and I finish your Brand Brain."
+                : "Nothing was lost. Try again and I start over."}
+            </p>
+          )}
+          <RetryButton onRetry={onRetry} topUpUrl={overview.subscribeUrl} />
+        </div>
+      ) : asked ? (
+        <QuestionReply question={asked} onReply={onReply} />
+      ) : asking && question ? (
+        <QuestionCard
+          // A new question starts with a clean card.
+          key={question.id}
+          topic={BRAND_SECTIONS[question.section].title}
+          question={question}
+          index={index}
+          answered={answered}
+          onAnswer={async (value, note) => {
+            await answer(question.id, value, note);
+            setAt(index + 1 < questions.length ? index + 1 : null);
+          }}
+          onSkip={() => {
+            setSkipping(true);
+            onSkip()
+              .catch(() => {})
+              .finally(() => {
+                setSkipping(false);
+                setAt(null);
+              });
+          }}
+        />
+      ) : finished || (skipping && phase !== "reading") ? (
+        <div className="ob-says">
+          <p className="ob-value">That's all I need.</p>
+          <button
+            type="button"
+            className="button"
+            disabled={skipping}
+            onClick={onContinue}
+          >
+            {skipping
+              ? "Skipping…"
+              : next === "plan"
+                ? "Write my plan"
+                : "See your brand"}
+            {skipping ? null : <ArrowRight size={16} aria-hidden="true" />}
+          </button>
+          {questions.length > 0 ? (
             <button
               type="button"
-              className="button"
-              disabled={skipping}
-              onClick={onContinue}
+              className="button button-ghost button-small"
+              onClick={() => setAt(0)}
             >
-              {skipping
-                ? "Skipping…"
-                : next === "plan"
-                  ? "Write my plan"
-                  : "See your brand"}
-              {skipping ? null : <ArrowRight size={16} aria-hidden="true" />}
+              Change answers
             </button>
-            {questions.length > 0 ? (
-              <button
-                type="button"
-                className="button button-ghost button-small"
-                onClick={() => setAt(0)}
-              >
-                Change answers
-              </button>
+          ) : null}
+        </div>
+      ) : (
+        <p className="ob-says muted" aria-live="polite">
+          {questions.length > 0
+            ? "Thanks. I'm finishing the read."
+            : composing !== null
+              ? `Now I'm putting your ${composing} sections together: your promise, your voice and the questions I still have.`
+              : "My questions come when the read lands."}
+        </p>
+      )}
+
+      {found || brain ? (
+        // Open while the read is the only thing on screen; folded once a
+        // question or the next step asks for attention.
+        <details
+          className="ob-fold ob-found"
+          open={running && !(asking && question)}
+        >
+          <summary>
+            <h2>What I found so far</h2>
+            {found ? (
+              <span className="ob-small num">
+                {found.saved} of {found.total} sections
+              </span>
             ) : null}
-          </div>
-        ) : (
-          <div className="card ob-says" aria-live="polite">
-            <CusoAvatar pose="reading" size={96} />
-            <p className="ob-value">
-              {questions.length > 0
-                ? "Thanks. I'm finishing the read."
-                : composing !== null
-                  ? `Now I'm putting your ${composing} sections together: your promise, your voice and the questions I still have.`
-                  : "My questions come when the read lands."}
-            </p>
-          </div>
-        )}
-      </div>
+          </summary>
+          {brain ? (
+            <ul className="ob-found-list">
+              {brandTiles(brain, async () => {})
+                .slice(0, MAX_FOUND)
+                .map((tile) => (
+                  <li key={tile.id}>
+                    <span className="ob-small muted">{tile.label}</span>
+                    <b>{tile.value}</b>
+                    <span className="ob-tile-source">
+                      Source:{" "}
+                      {sourceHost(
+                        tileSource(
+                          tile,
+                          brandProfile(brain),
+                          overview.websiteUrl,
+                        ),
+                      )}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          ) : found ? (
+            <>
+              {found.sections.length > 0 ? (
+                // The latest sections Cuso saved, as he saves them.
+                <ul className="ob-found-list">
+                  {found.sections.slice(-MAX_FOUND).map((section) => (
+                    <li key={section.key}>
+                      <span className="ob-small muted">
+                        {BRAND_SECTIONS[section.key].title}
+                      </span>
+                      <b>{section.headline}</b>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {composing !== null ? (
+                <p className="muted">All {composing} sections are in.</p>
+              ) : (
+                <div className="ob-skeletons">
+                  {Array.from(
+                    {
+                      length: Math.min(
+                        Math.max(found.total - found.saved, 0),
+                        MAX_FOUND,
+                      ),
+                    },
+                    (_, skeleton) => (
+                      // Placeholders have no identity beyond their place.
+                      <SkeletonTile key={skeleton} />
+                    ),
+                  )}
+                </div>
+              )}
+            </>
+          ) : null}
+        </details>
+      ) : null}
     </section>
   );
 }
@@ -323,7 +327,7 @@ function QuestionReply({ question, onReply }: QuestionReplyProps) {
   const [text, setText] = useState("");
   return (
     <form
-      className="card card-focus ob-says"
+      className="ob-says"
       action={async () => {
         const reply = text.trim();
         if (!reply) return;
@@ -331,7 +335,6 @@ function QuestionReply({ question, onReply }: QuestionReplyProps) {
         setText("");
       }}
     >
-      <CusoAvatar pose="needs-you" size={96} />
       <p className="ob-value">{question.content}</p>
       <textarea
         className="ob-textarea"

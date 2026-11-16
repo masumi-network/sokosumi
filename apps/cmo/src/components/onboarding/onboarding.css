@@ -1,8 +1,9 @@
 /*
- * First run, four steps. Follows design-system.md: white page, gray panel,
- * outlined cards; a 1px ink line on what you act on, one hard shadow on the
- * primary action and the focused card, Iris for now. Tokens only; they come
- * from globals.css.
+ * First run, four steps. Each is one centred column that Cuso leads: him,
+ * what he says, the one thing to do, then the details folded into rows.
+ * Follows design-system.md: an ink line on what you act on, one hard shadow
+ * on the primary action and the card in focus, Iris for now. Tokens only;
+ * they come from globals.css.
  */
 body:has(.ob) .site-header {
   display: none;
@@ -10,6 +11,11 @@ body:has(.ob) .site-header {
 
 .ob {
   --ob-ease: cubic-bezier(0.25, 1, 0.5, 1);
+  /* A critically damped settle, and one with a little overshoot for Cuso. */
+  --ob-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  --ob-pop: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ob-col: 640px;
+  --ob-wide: min(1120px, 100vw - 64px);
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -29,12 +35,11 @@ body:has(.ob) .site-header {
   gap: 16px;
   padding: 14px 32px;
   background: var(--background);
-  border-bottom: 1px solid var(--border);
 }
 
 .ob-steps {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -47,7 +52,7 @@ body:has(.ob) .site-header {
   gap: 6px;
   height: 32px;
   padding: 0 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--clear);
   border-radius: var(--radius-control);
   background: none;
   color: var(--muted);
@@ -74,7 +79,6 @@ body:has(.ob) .site-header {
 
 .ob-step.done > span,
 .ob-step.done > button {
-  border-color: var(--line);
   color: var(--foreground);
 }
 
@@ -176,21 +180,210 @@ body:has(.ob) .site-header {
 .ob-main {
   flex: 1;
   width: 100%;
-  max-width: 1280px;
+  padding: 16px 32px 32px;
+  /* The hire labels hang over the stage; a phone cuts them at its edge. */
+  overflow-x: clip;
+}
+
+/* One column. Each piece settles in after the one above it. */
+.ob-main > * {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  width: 100%;
+  max-width: var(--ob-col);
   margin: 0 auto;
-  padding: 32px 32px 64px;
 }
 
-.ob-main:has(> .ob-brand) {
-  max-width: 1376px;
+.ob-main > .ob-hire {
+  --ob-col: 820px;
 }
 
-.ob-main:has(> .ob-launch) {
-  max-width: 760px;
+.ob-main > .ob-launch-done {
+  --ob-col: 960px;
 }
 
-.ob-main:has(> .ob-launch-done) {
-  max-width: 1080px;
+@media (prefers-reduced-motion: no-preference) {
+  .ob-main > * > * {
+    animation: ob-settle 450ms var(--ob-settle) backwards;
+  }
+
+  .ob-main > * > :nth-child(2) {
+    animation-delay: 60ms;
+  }
+
+  .ob-main > * > :nth-child(3) {
+    animation-delay: 120ms;
+  }
+
+  .ob-main > * > :nth-child(n + 4) {
+    animation-delay: 180ms;
+  }
+
+  /* The bar is pinned to the screen's edge; only its colour arrives. */
+  .ob-main > * > .ob-bar {
+    animation-name: ob-fade;
+  }
+}
+
+@keyframes ob-settle {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes ob-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ── Cuso leads every step: him, large, then what he says ── */
+.ob-lead {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.ob-lead h1,
+.ob-lead p {
+  margin: 0;
+  text-wrap: balance;
+}
+
+.ob-lead .cuso-avatar,
+.ob-scene {
+  margin-bottom: 12px;
+}
+
+.ob-scene {
+  width: 176px;
+  height: 176px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.ob-lead .ob-checklist {
+  margin-top: 8px;
+  text-align: left;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* He pops in, then keeps breathing, so the screen never sits still. */
+  .ob-lead .cuso-avatar,
+  .ob-scene {
+    animation:
+      ob-cuso-in 600ms var(--ob-pop) backwards,
+      ob-cuso-idle 3.2s ease-in-out 600ms infinite alternate;
+  }
+}
+
+@keyframes ob-cuso-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-8deg);
+  }
+}
+
+@keyframes ob-cuso-idle {
+  to {
+    transform: translateY(-6px) rotate(1.5deg);
+  }
+}
+
+/* A fold: one row that opens to its details. */
+.ob-fold {
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+}
+
+.ob-fold > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 0 20px;
+  border-radius: var(--radius-panel);
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.ob-fold > summary:hover h2 {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ob-fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ob-fold > summary h2 {
+  flex: 1;
+  margin: 0;
+  color: var(--foreground);
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+/* The chevron: a corner that turns down when the fold opens. */
+.ob-fold > summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1px solid var(--foreground);
+  border-bottom: 1px solid var(--foreground);
+  transform: rotate(-45deg);
+  transition: transform 250ms var(--ob-settle);
+}
+
+.ob-fold[open] > summary::after {
+  transform: rotate(45deg);
+}
+
+.ob-fold > summary:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.ob-fold > :not(summary) {
+  margin: 0 20px 20px;
+}
+
+/* The step's action, always in reach at the bottom of the screen. */
+.ob-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+  background: var(--background);
+}
+
+.ob-bar > p {
+  flex: 1 1 100%;
+  margin: 0;
+  text-align: center;
+}
+
+.ob-bar > .button {
+  flex: 1;
+  max-width: 320px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-fold > summary::after {
+    transition: none;
+  }
 }
 
 .ob-foot {
@@ -201,17 +394,18 @@ body:has(.ob) .site-header {
 
 /* ── Type ── */
 .ob-display {
-  font-size: 4.5rem;
-  line-height: 4.25rem;
-  font-weight: 800;
-  letter-spacing: -0.045em;
+  font-size: clamp(2.25rem, 6vw, 4.5rem);
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
 }
 
 .ob-h1 {
   font-size: 2.25rem;
   line-height: 2.375rem;
-  font-weight: 800;
-  letter-spacing: -0.035em;
+  font-weight: 600;
+  letter-spacing: -0.025em;
 }
 
 .ob-statement {
@@ -269,9 +463,18 @@ body:has(.ob) .site-header {
 .ob-says {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
-  padding: 24px;
+  margin: 0;
+  text-align: center;
+}
+
+.ob-says > .button:not(.button-small) {
+  min-width: 240px;
+}
+
+.ob-says .ob-textarea {
+  text-align: left;
 }
 
 .ob-textarea {
@@ -384,8 +587,14 @@ body:has(.ob) .site-header {
   display: grid;
   gap: 2px;
   padding: 10px 12px;
-  border: 1px solid var(--border);
   border-radius: var(--radius-control);
+  background: var(--card);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ob-found-list li {
+    animation: ob-settle 450ms var(--ob-settle) backwards;
+  }
 }
 
 .ob-found-list b {
@@ -461,6 +670,43 @@ body:has(.ob) .site-header {
   color: var(--background);
 }
 
+/* While hiring the goal is the screen's headline, set on the page itself. */
+.ob-plan .ob-goal {
+  justify-items: center;
+  padding: 0;
+  background: none;
+  color: var(--foreground);
+  text-align: center;
+}
+
+.ob-plan .ob-goal-label {
+  color: var(--muted);
+}
+
+.ob-plan .ob-goal-statement {
+  color: var(--muted);
+  font-weight: 400;
+  text-wrap: balance;
+}
+
+.ob-plan .ob-goal-facts {
+  width: 100%;
+  gap: 1px;
+  overflow: hidden;
+  border-radius: var(--radius-panel);
+  background: var(--border);
+  text-align: left;
+}
+
+.ob-plan .ob-goal-facts > div {
+  padding: 14px 20px;
+  background: var(--surface);
+}
+
+.ob-plan .ob-goal-facts dt {
+  color: var(--muted);
+}
+
 .ob-goal-label {
   font-size: 0.75rem;
   font-weight: 500;
@@ -489,23 +735,24 @@ body:has(.ob) .site-header {
   margin: 2px 0 0;
 }
 
-/* Tiles: one idea each; the open one takes an Iris shadow. */
+/* Tiles: one idea a row, in one group; the row opens its sheet. */
 .ob-tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
+  gap: 1px;
+  overflow: hidden;
+  border-radius: var(--radius-panel);
+  background: var(--border);
 }
 
-/* The whole tile is a button: it opens the tile's side panel. */
 .ob-tile {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 12px;
   width: 100%;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--card);
+  padding: 14px 20px;
+  border: 0;
+  background: var(--surface);
   color: var(--foreground);
   font: inherit;
   text-align: left;
@@ -513,51 +760,43 @@ body:has(.ob) .site-header {
   transition: background-color 150ms;
 }
 
-/* Hover: one fill step and the border to the text colour, visible in both themes. */
-.ob-tile:hover {
-  border-color: var(--foreground);
-  background: var(--surface);
+.ob-tile:hover,
+.ob-tile.open {
+  background: var(--card);
+}
+
+/* Pressed, the row answers before the sheet does. */
+.ob-tile:active {
+  background: var(--border);
 }
 
 .ob-tile:focus-visible {
   outline: 2px solid var(--foreground);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 .ob-tile > span {
-  display: block;
+  grid-column: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* The label and the chevron share the first line; the chevron sits right. */
 .ob-tile > .ob-tile-head {
-  display: flex;
+  display: contents;
 }
 
 .ob-tile-go {
-  flex: none;
+  grid-column: 2;
+  grid-row: 1 / span 3;
   color: var(--muted);
-}
-
-.ob-tile:hover .ob-tile-go,
-.ob-tile.open .ob-tile-go {
-  color: var(--foreground);
-}
-
-.ob-tile.open {
-  border-color: var(--line);
-  box-shadow: var(--shadow-iris);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .ob-tile {
     transition: none;
   }
-}
-
-.ob-tile-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
 }
 
 .ob-tile-label {
@@ -567,42 +806,57 @@ body:has(.ob) .site-header {
 }
 
 .ob-tile-value {
-  font-size: 1.5rem;
-  line-height: 1.75rem;
-  font-weight: 300;
-  letter-spacing: -0.005em;
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 500;
 }
 
 .ob-tile-detail {
+  color: var(--muted);
   font-size: 0.75rem;
   line-height: 1rem;
 }
 
+/* The source is one tap away, in the row's sheet. */
+.ob-tile > .ob-tile-source {
+  display: none;
+}
+
 .ob-tile-source {
-  margin-top: auto;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
   color: var(--muted);
   font-size: 0.6875rem;
   line-height: 0.875rem;
 }
 
-/* Side panel: a card beside the grid; a bottom sheet under 768px. */
+/* Side panel: a sheet that rises from the bottom of the screen. */
 .ob-side {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 16px;
+  width: 100%;
+  max-width: calc(var(--ob-col) + 48px);
+  max-height: 70dvh;
+  margin: 0 auto;
+  padding: 20px;
   overflow-y: auto;
-  position: sticky;
-  top: 80px;
-  max-height: calc(100dvh - 96px);
+  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ob-side {
+    animation: ob-rise 400ms var(--ob-settle) backwards;
+  }
+}
+
+@keyframes ob-rise {
+  from {
+    transform: translateY(100%);
+  }
 }
 
 .ob-side-head {
@@ -738,8 +992,7 @@ body:has(.ob) .site-header {
 .ob-chip {
   display: grid;
   gap: 8px;
-  padding: 10px 12px;
-  border-radius: var(--radius-control);
+  padding: 14px 20px;
   background: var(--surface);
 }
 
@@ -848,8 +1101,9 @@ body:has(.ob) .site-header {
 .ob-question-text {
   font-size: 1.5rem;
   line-height: 1.75rem;
-  font-weight: 300;
-  letter-spacing: -0.005em;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 
 .ob-answers {
@@ -868,23 +1122,25 @@ body:has(.ob) .site-header {
 
 /* ── Step 1: Site ── */
 .ob-hire {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-  gap: 32px;
-  align-items: stretch;
+  justify-items: center;
+  text-align: center;
 }
 
-.ob-hire-copy {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 24px;
+.ob-hire > * {
+  margin: 0;
 }
 
-.ob-intro {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.ob-hire .field,
+.ob-hire .ob-where,
+.ob-hire .ob-stats {
+  width: 100%;
+  max-width: var(--ob-col, 640px);
+  text-align: left;
+}
+
+.ob-hire .field,
+.ob-hire .ob-where {
+  max-width: 520px;
 }
 
 .ob-hire-row {
@@ -897,20 +1153,12 @@ body:has(.ob) .site-header {
   flex: 1 1 220px;
 }
 
-.ob-hire-stage {
-  display: flex;
-}
-
-/* The art is painted on light Iris, so it fills the stage in both themes. */
+/* Cuso on his Iris stage; the labels hang over its edges. */
 .ob-stage {
   position: relative;
-  flex: 1;
-  /* The canvas Site board's height; phones drop to 320px below. */
-  min-height: 560px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--primary-hover);
+  width: 260px;
+  height: 320px;
+  margin: 8px 0;
 }
 
 .ob-stage-art {
@@ -918,6 +1166,9 @@ body:has(.ob) .site-header {
   inset: 0;
   width: 100%;
   height: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--primary-hover);
   object-fit: cover;
   object-position: 50% 100%;
 }
@@ -942,19 +1193,19 @@ body:has(.ob) .site-header {
 
 .ob-tilt-a {
   top: 24px;
-  left: 16px;
+  right: 82%;
   transform: rotate(-4deg);
 }
 
 .ob-tilt-b {
-  right: 16px;
-  top: 45%;
+  left: 80%;
+  top: 40%;
   transform: rotate(3deg);
 }
 
 .ob-tilt-c {
-  bottom: 24px;
-  left: 24px;
+  bottom: 28px;
+  right: 76%;
   transform: rotate(-2deg);
 }
 
@@ -993,48 +1244,11 @@ body:has(.ob) .site-header {
   }
 }
 
-/* Reading and asking: the read on the left, the question on the right. */
-.ob-site {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-  align-items: start;
+/* Reading and asking: the read, then the one question, then what he found. */
+.ob-question {
+  text-align: left;
 }
 
-.ob-site-left,
-.ob-site-right {
-  display: grid;
-  gap: 12px;
-}
-
-.ob-reading {
-  display: grid;
-  justify-items: start;
-  gap: 16px;
-  padding: 24px;
-}
-
-.ob-reading :is(img, video) {
-  width: 168px;
-  height: 168px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  object-fit: cover;
-}
-
-.ob-found {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
-}
-
-.ob-found-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-.ob-found h2,
-.ob-noticed h2,
 .ob-promise h2,
 .ob-checks h2,
 .ob-changed h2,
@@ -1046,46 +1260,21 @@ body:has(.ob) .site-header {
 }
 
 /* ── Step 2: Brand ── */
-.ob-title-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.ob-title-copy {
-  display: grid;
-  flex: 1;
-  gap: 4px;
-  min-width: 260px;
-}
-
-.ob-title-action {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-}
-
-.ob-brand-panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: start;
-}
-
-.ob-brand-panel:has(.ob-side) {
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
-}
-
 .ob-brand-main {
   display: grid;
-  gap: 12px;
+  gap: 24px;
   min-width: 0;
 }
 
+.ob-brand .ob-hero-row .card,
+.ob-plan .ob-checks {
+  border: 0;
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: none;
+}
+
 .ob-promise,
-.ob-noticed,
 .ob-left {
   display: grid;
   gap: 12px;
@@ -1117,7 +1306,6 @@ body:has(.ob) .site-header {
 .ob-noticed ol {
   display: grid;
   gap: 12px;
-  margin: 0;
   padding-left: 18px;
 }
 
@@ -1127,23 +1315,27 @@ body:has(.ob) .site-header {
 }
 
 /* ── Step 3: Plan ── */
-/* The waiting card fills its panel, like every other card on the page. */
-.ob-wait {
-  display: grid;
+.ob-wait .ob-feed {
+  margin-top: 12px;
 }
 
 .ob-plan-body {
   display: grid;
-  gap: 12px;
-  padding: 12px;
+  gap: 24px;
+}
+
+/* Open, the full plan takes the width its calendar needs. */
+.ob-fullplan[open] {
+  width: var(--ob-wide);
+  margin-inline: calc((100% - var(--ob-wide)) / 2);
+}
+
+.ob-fullplan > .ob-tabs {
+  justify-content: center;
 }
 
 .ob-plan-body[hidden] {
   display: none;
-}
-
-.ob-plan > .panel {
-  margin-bottom: 12px;
 }
 
 .ob-change {
@@ -1178,6 +1370,8 @@ body:has(.ob) .site-header {
   justify-items: center;
   gap: 8px;
   padding: 32px 16px;
+  border-radius: var(--radius-panel);
+  background: var(--surface);
   text-align: center;
 }
 
@@ -1187,18 +1381,30 @@ body:has(.ob) .site-header {
   padding: 16px;
 }
 
+/* One group: his questions, the pace and the budget, a hairline between. */
 .ob-checks {
   display: grid;
-  gap: 8px;
-  padding: 16px;
+  gap: 1px;
+  overflow: hidden;
+  background: var(--border);
+}
+
+.ob-checks > * {
+  background: var(--surface);
+}
+
+.ob-checks h2 {
+  margin: 0;
+  padding: 16px 20px 8px;
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
 }
 
 .ob-budget {
   display: grid;
   gap: 12px;
-  padding: 12px 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
+  padding: 14px 20px;
 }
 
 .ob-budget-row {
@@ -1210,22 +1416,21 @@ body:has(.ob) .site-header {
 
 .ob-approved {
   display: grid;
-  gap: 8px;
   margin: 0;
-  padding: 0;
+  padding: 0 20px 8px;
   list-style: none;
 }
 
 .ob-approved li {
-  padding: 10px 12px;
-  border-radius: var(--radius-control);
-  background: var(--surface);
+  padding: 10px 0;
+}
+
+.ob-approved li + li {
+  border-top: 1px solid var(--border);
 }
 
 .ob-pace {
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
+  padding: 14px 20px;
 }
 
 .ob-tabs {
@@ -1263,7 +1468,9 @@ body:has(.ob) .site-header {
 }
 
 .ob-tabpanel {
-  padding: 16px;
+  padding: 20px;
+  border-radius: var(--radius-card);
+  background: var(--card);
 }
 
 /* Inside a tab panel the plan's sections are not cards: hairline dividers. */
@@ -1484,16 +1691,10 @@ body:has(.ob) .site-header {
 
 /* ── Step 4: Launch ── */
 .ob-launch {
-  display: grid;
-  justify-items: start;
-  gap: 16px;
+  justify-items: center;
 }
 
-.ob-launch .panel {
-  width: 100%;
-}
-
-.ob-celebration-panel {
+.ob-launch > * {
   width: 100%;
 }
 
@@ -1547,7 +1748,7 @@ body:has(.ob) .site-header {
 }
 
 .ob-launch > .ob-small {
-  justify-self: center;
+  text-align: center;
 }
 
 .ob-launch-done {
@@ -1623,49 +1824,59 @@ body:has(.ob) .site-header {
     padding: 0 16px 24px;
   }
 
-  .ob-display {
-    font-size: 2.25rem;
-    line-height: 2.75rem;
+  .ob {
+    --ob-wide: 100%;
   }
 
+  /* The labels would hang off a phone; they stack over the stage's edge. */
   .ob-stage {
-    min-height: 320px;
+    width: 200px;
+    height: 250px;
   }
 
-  /* A screen's own buttons span the width on a phone; the primary leads. */
-  .ob-title-action {
-    width: 100%;
+  .ob-tilt {
+    font-size: 0.875rem;
   }
 
-  .ob-title-action > *,
+  .ob-tilt-a {
+    right: 58%;
+  }
+
+  .ob-tilt-b {
+    left: 58%;
+  }
+
+  .ob-tilt-c {
+    right: 46%;
+  }
+
+  .ob-lead .cuso-avatar,
+  .ob-scene {
+    zoom: 0.75;
+  }
+
+  /* A screen's own buttons span the width on a phone. */
   .ob-main .button:not(.button-small):not(.button-ghost) {
     flex: 1 1 100%;
     width: 100%;
     justify-content: center;
   }
 
-  .ob-title-action > .button:not(.button-secondary) {
-    order: -1;
+  /* The bar keeps its two buttons side by side, so it stays one row high. */
+  .ob-main .ob-bar > .button {
+    flex: 1 1 0;
+    width: auto;
+    max-width: none;
+    padding: 0 12px;
   }
 
-  /* The action comes first: the question card, or the finished card. */
-  .ob-site-right {
-    order: -1;
+  .ob-bar {
+    flex-wrap: nowrap;
+    padding: 12px 0;
   }
 
-  .ob-brand-panel:has(.ob-side) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ob-side {
-    position: fixed;
-    top: auto;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 30;
-    max-height: 70dvh;
-    border-radius: var(--radius-card) var(--radius-card) 0 0;
+  .ob-bar:has(> p) {
+    flex-wrap: wrap;
   }
 
   .ob-answers {
@@ -1761,14 +1972,21 @@ body:has(.ob) .site-header {
   gap: 12px;
 }
 
-.ob-hero-row.has-site {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+.ob-promise .ob-statement {
+  margin: 0;
 }
 
 .ob-sitecard {
   display: grid;
   gap: 12px;
   padding: 20px;
+}
+
+/* The site is a glance, not the screen: the rows below are the work. */
+.ob-sitecard .bm-show {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
 }
 
 .ob-sitecard h2 {
