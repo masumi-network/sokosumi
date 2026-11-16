@@ -2,7 +2,6 @@
 
 import { PencilIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -24,7 +23,6 @@ const CHIP_CLASS =
  */
 export function EmailChip({ email, onChange, disabled }: EmailChipProps) {
   const t = useTranslations("Auth.Email.Form");
-  const emailId = useId();
   const content = (
     <>
       <span
@@ -33,7 +31,7 @@ export function EmailChip({ email, onChange, disabled }: EmailChipProps) {
       >
         {email.charAt(0).toUpperCase()}
       </span>
-      <span id={emailId} className="min-w-0 truncate font-medium" title={email}>
+      <span className="min-w-0 truncate font-medium" title={email}>
         {email}
       </span>
     </>
@@ -51,13 +49,12 @@ export function EmailChip({ email, onChange, disabled }: EmailChipProps) {
             CHIP_CLASS,
             "hover:bg-quinary focus-visible:ring-ring outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50",
           )}
-          // Named for what it does; the address it changes describes it.
-          aria-label={t("changeEmail")}
-          aria-describedby={emailId}
+          // Named by the address it shows, then what it does, so voice
+          // control users can say what they see.
           disabled={disabled}
           onClick={onChange}
         >
-          {content}
+          {content} <span className="sr-only">{t("changeEmail")}</span>
           <PencilIcon
             aria-hidden
             className="text-muted-foreground size-3.5 shrink-0"

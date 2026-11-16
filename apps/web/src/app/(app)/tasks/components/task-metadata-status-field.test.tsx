@@ -20,6 +20,13 @@ vi.mock("@/components/modals/global-modals-context", () => ({
 vi.mock("@/lib/actions/task/action", () => ({
   setTaskStatusFromDrag: vi.fn(),
 }));
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+  useNow: () => new Date(),
+}));
+vi.mock("@/components/time-ago", () => ({
+  TimeAgo: ({ date }: { date: string }) => <time>{date}</time>,
+}));
 
 const statusLabels = Object.fromEntries(
   Object.values(TaskStatus).map((status) => [status, status]),
@@ -31,15 +38,21 @@ const labels = {
 
 let finishWrite: () => void = () => {};
 
-/** Stands in for the header menu: cancels the Task inside a transition. */
-function Menu() {
-  const [, showStatus] = useOptimisticTaskStatus(TaskStatus.QUEUED);
+/** Stands in for the header menu: moves the Task inside a transition. */
+function Menu({
+  from = TaskStatus.QUEUED,
+  to = TaskStatus.CANCELED,
+}: {
+  from?: TaskStatus;
+  to?: TaskStatus;
+}) {
+  const [, showStatus] = useOptimisticTaskStatus(from);
   return (
     <button
       type="button"
       onClick={() =>
         startTransition(async () => {
-          showStatus(TaskStatus.CANCELED);
+          showStatus(to);
           await new Promise<void>((resolve) => (finishWrite = resolve));
         })
       }
@@ -76,5 +89,36 @@ describe("TaskMetadataStatusField", () => {
     expect(
       screen.getByRole("combobox", { name: "Status: QUEUED" }),
     ).toBeEnabled();
+  });
+
+  it("shows time in status and restarts it when the status changes", async () => {
+    const old = "2026-01-01T00:00:00.000Z";
+    render(
+      <TaskDetailStatusProvider status={TaskStatus.READY}>
+        <Menu from={TaskStatus.READY} to={TaskStatus.INPUT_REQUIRED} />
+        <TaskMetadataStatusField
+          taskId="task-1"
+          status={TaskStatus.READY}
+          selectableStatuses={[TaskStatus.READY]}
+          statusSince={old}
+          labels={labels}
+        />
+      </TaskDetailStatusProvider>,
+    );
+
+    expect(screen.getByText("stuck")).toBeVisible();
+    expect(screen.getByText(old)).toBeTruthy();
+
+    await act(async () =>
+      screen.getByRole("button", { name: "menu cancel" }).click(),
+    );
+
+    expect(screen.queryByText("stuck")).toBeNull();
+    expect(screen.getByText("label")).toBeVisible();
+    expect(screen.queryByText(old)).toBeNull();
+
+    await act(async () => finishWrite());
+
+    expect(screen.getByText(old)).toBeTruthy();
   });
 });

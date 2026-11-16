@@ -476,6 +476,24 @@ export const imageStudioWorkspaceStateSchema = imageStudioListSchema
   .omit({ sessions: true })
   .openapi("ImageStudioWorkspaceState");
 
+/** Up to three projects with Studio images, most recently used first. */
+export const imageStudioRecentProjectsSchema = z
+  .object({
+    projects: z.array(
+      z.object({
+        projectId: z.string().uuid(),
+        projectName: z.string(),
+        /** Image versions in the project. Videos are not counted. */
+        imageCount: z.number().int().min(1),
+        /** When the newest image was made. */
+        latestAt: dateTimeSchema,
+        /** The newest image, to show on the card. */
+        latestImageId: z.string().uuid(),
+      }),
+    ),
+  })
+  .openapi("ImageStudioRecentProjects");
+
 export function assetContentPath(projectId: string, assetId: string): string {
   return `/v1/projects/${projectId}/image-studio/assets/${assetId}/content`;
 }

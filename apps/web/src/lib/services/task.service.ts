@@ -36,6 +36,8 @@ interface ListTasksParams {
   scheduleId?: string;
   /** Only Tasks due on or before this day, `YYYY-MM-DD`. */
   dueOnTo?: string;
+  /** Only Tasks whose status has not changed since this time. */
+  statusBefore?: Date;
   /** Archived Tasks instead, most recently archived first. */
   archived?: boolean;
 }
@@ -151,6 +153,7 @@ export const taskService = (() => {
       projectId: params.projectId,
       scheduleId: params.scheduleId,
       dueOnTo: params.dueOnTo,
+      statusBefore: params.statusBefore,
       ...(params.archived ? { archived: "true" as const } : {}),
       q: params.q,
       scope: params.scope,
@@ -188,6 +191,16 @@ export const taskService = (() => {
   async function getTaskById(taskId: string): Promise<Task | null> {
     try {
       const result = await coreClient.getTaskById(taskId);
+      return result.data;
+    } catch {
+      return null;
+    }
+  }
+
+  /** An archived Task, read-only; null when there is none to read. */
+  async function getArchivedTask(taskId: string): Promise<Task | null> {
+    try {
+      const result = await coreClient.getTaskById(taskId, { archived: "true" });
       return result.data;
     } catch {
       return null;
@@ -448,6 +461,7 @@ export const taskService = (() => {
     getWorkspaceCalendarSources,
     listTasks,
     getTaskById,
+    getArchivedTask,
     getTaskWorkspace,
     listTaskEvents,
     listTaskEventsBefore,

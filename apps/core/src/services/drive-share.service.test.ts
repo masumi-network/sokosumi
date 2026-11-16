@@ -174,6 +174,32 @@ describe("driveShareDownloadUrl", () => {
     expect(blob.head).not.toHaveBeenCalled();
   });
 
+  it("never serves a file from a data room inside the shared folder", async () => {
+    db.dataRoom.findMany.mockResolvedValue([
+      { folderPath: "Masumi Fundraising/Board", storage: "PRIVATE" },
+    ]);
+    await expect(
+      driveShareDownloadUrl({
+        token: "tok",
+        proof: undefined,
+        path: "Board/minutes.pdf",
+      }),
+    ).resolves.toBeNull();
+    expect(blob.head).not.toHaveBeenCalled();
+  });
+
+  it("serves nothing once the link is revoked", async () => {
+    db.driveShare.findUnique.mockResolvedValue(null);
+    await expect(
+      driveShareDownloadUrl({
+        token: "tok",
+        proof: undefined,
+        path: "deck.pdf",
+      }),
+    ).resolves.toBeNull();
+    expect(blob.head).not.toHaveBeenCalled();
+  });
+
   it("asks for the password before a download", async () => {
     db.driveShare.findUnique.mockResolvedValue({
       id: "s1",

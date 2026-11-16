@@ -1,12 +1,18 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
+import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import { resolveTaskRefToId } from "@/helpers/task-ref";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { isCoworkerAuthContext, isUserAuthContext } from "@/middleware/auth";
+import {
+  isCoworkerAuthContext,
+  isUserAuthContext,
+  requireUserContext,
+} from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskSchema } from "@/schemas/task.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
@@ -20,6 +26,18 @@ const paramsSchema = z.object({
   }),
 });
 
+const querySchema = z.object({
+  archived: z
+    .enum(["true", "false"])
+    .optional()
+    .openapi({
+      param: { name: "archived", in: "query" },
+      description:
+        "true reads an archived Task instead, read-only, with the same access as the archived list. People only; coworkers and Soko Bots get 400.",
+      example: "true",
+    }),
+});
+
 const route = createRoute({
   method: "get",
   path: "/{id}",
@@ -28,9 +46,11 @@ const route = createRoute({
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
+    query: querySchema,
   },
   responses: {
     200: jsonSuccessResponse(taskSchema, "Retrieve task"),
+    400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
   },
@@ -39,7 +59,31 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
+    const { archived } = c.req.valid("query");
     const { authContext, workspaceContext } = c.var;
+
+    if (archived === "true") {
+      if (!isUserAuthContext(authContext)) {
+        throw badRequest("Only people can read archived Tasks.");
+      }
+      const { userId } = requireUserContext(authContext);
+      const { workspaceId: archivedWorkspaceId } =
+        requireWorkspaceContext(workspaceContext);
+      // Same rows as GET /tasks?archived=true lists.
+      const archivedTask = await prisma.task.findFirst({
+        where: {
+          id: await resolveTaskRefToId(id, archivedWorkspaceId, prisma),
+          archivedAt: { not: null },
+          workspaceId: archivedWorkspaceId,
+          ...buildHumanTaskVisibilityWhere(userId),
+        },
+        include: buildTaskIncludeForViewer(authContext, archivedWorkspaceId),
+      });
+      if (!archivedTask) {
+        throw notFound("Task not found");
+      }
+      return ok(c, taskSchema.parse(mapTask(archivedTask, authContext)));
+    }
 
     const workspaceId =
       isUserAuthContext(authContext) ||

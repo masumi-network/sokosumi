@@ -35,6 +35,7 @@ import { BusinessMark } from "../business-mark";
 import { CusoAvatar } from "../cuso";
 import { MarketingToday } from "../marketing-today";
 import { SubmitButton } from "../submit-button";
+import type { SkipSubscription, StartTopUp } from "../top-up";
 import { type Answer, QuestionCard, useAnswers } from "./questions";
 import { Refusal } from "./refusal";
 import { SidePanel, Tile } from "./tiles";
@@ -200,6 +201,12 @@ interface BrandStepProps {
   ) => Promise<void>;
   /** Set when the founder opened this step again: leads on to where they were. */
   ahead?: { label: string; onClick: () => void };
+  /** The top-up checkout; left out or null when this Cuso may not top up. */
+  topUp?: StartTopUp | null;
+  /** The plan checkout, set when Cuso is paused without a CMO plan. */
+  subscribe?: StartTopUp | null;
+  /** Continues without a subscription, for a tester Core allows it. */
+  skip?: SkipSubscription | null;
 }
 
 /** What Cuso learned, as the founder's brand: a promise, six tiles, a side panel. */
@@ -211,6 +218,9 @@ export function BrandStep({
   onApprove,
   onAnswer,
   ahead,
+  topUp = null,
+  subscribe = null,
+  skip = null,
 }: BrandStepProps) {
   const brain = overview.brandBrain as BrandBrain;
   const profile = brandProfile(brain);
@@ -283,69 +293,21 @@ export function BrandStep({
 
   return (
     <section className="ob-brand">
-      <div className="ob-title-row">
-        <CusoAvatar pose="thinking" size={48} />
-        <div className="ob-title-copy">
-          <h1 className="ob-h1">Here's {site} as I see it.</h1>
-          <p className="muted">
-            {AGENT_NAME} · tap any tile to see the source or fix it
-          </p>
-        </div>
-        <div className="ob-title-action">
-          {lead ? (
-            <button type="button" className="button" onClick={lead.onClick}>
-              Continue to {lead.label}
-              <ArrowRight size={16} aria-hidden="true" />
-            </button>
-          ) : onApprove ? (
-            <button
-              type="button"
-              className="button"
-              disabled={busy}
-              onClick={() =>
-                startApproving(async () => {
-                  try {
-                    setRefusal(await onApprove());
-                  } catch {
-                    setRefusal(
-                      "That didn't go through. Try again in a moment.",
-                    );
-                  }
-                })
-              }
-            >
-              {approving ? (
-                "Starting…"
-              ) : fixing || finishing ? (
-                <>
-                  <Loader2 size={16} className="spin" aria-hidden="true" />
-                  {fixing ? `${AGENT_NAME} is updating` : "Finishing up"}
-                </>
-              ) : (
-                <>
-                  Looks like us
-                  <ArrowRight size={16} aria-hidden="true" />
-                </>
-              )}
-            </button>
-          ) : null}
-          {fixing ? (
-            <p className="ob-small muted">
-              Updating your Brand Brain. About half a minute.
-            </p>
-          ) : stale && !answered ? (
-            <p className="ob-small muted">
-              That change didn't come through. Ask again, or approve this
-              version.
-            </p>
-          ) : null}
-        </div>
+      <div className="ob-lead">
+        <CusoAvatar pose="reporting" size={176} />
+        <h1 className="ob-h1">Here's {site} as I see it.</h1>
+        <p className="muted">Tap any line to see the source or fix it.</p>
       </div>
       {refusal ? (
-        <Refusal text={refusal} topUpUrl={overview.subscribeUrl} />
+        <Refusal
+          text={refusal}
+          topUp={topUp}
+          subscribe={subscribe}
+          skip={skip}
+        />
       ) : null}
 
-      <div className="panel ob-brand-panel">
+      <div className="ob-brand-panel">
         <div className="ob-brand-main">
           <div className={hasShot ? "ob-hero-row has-site" : "ob-hero-row"}>
             <PromiseCard brain={brain} site={site} onSave={onSave} />
@@ -393,8 +355,13 @@ export function BrandStep({
           </div>
 
           {insights.length > 0 ? (
-            <div className="card ob-noticed">
-              <h2>What I noticed</h2>
+            <details className="ob-fold ob-noticed">
+              <summary>
+                <h2>What I noticed</h2>
+                <span className="ob-small num">
+                  {Math.min(insights.length, MAX_INSIGHTS)}
+                </span>
+              </summary>
               <ol>
                 {insights.slice(0, MAX_INSIGHTS).map((insight) => (
                   <li key={insight.title}>
@@ -403,7 +370,7 @@ export function BrandStep({
                   </li>
                 ))}
               </ol>
-            </div>
+            </details>
           ) : null}
         </div>
 
@@ -450,6 +417,52 @@ export function BrandStep({
               </p>
             ) : null}
           </SidePanel>
+        ) : null}
+      </div>
+      <div className="ob-bar">
+        {lead ? (
+          <button type="button" className="button" onClick={lead.onClick}>
+            Continue to {lead.label}
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        ) : onApprove ? (
+          <button
+            type="button"
+            className="button"
+            disabled={busy}
+            onClick={() =>
+              startApproving(async () => {
+                try {
+                  setRefusal(await onApprove());
+                } catch {
+                  setRefusal("That didn't go through. Try again in a moment.");
+                }
+              })
+            }
+          >
+            {approving ? (
+              "Starting…"
+            ) : fixing || finishing ? (
+              <>
+                <Loader2 size={16} className="spin" aria-hidden="true" />
+                {fixing ? `${AGENT_NAME} is updating` : "Finishing up"}
+              </>
+            ) : (
+              <>
+                Looks like us
+                <ArrowRight size={16} aria-hidden="true" />
+              </>
+            )}
+          </button>
+        ) : null}
+        {fixing ? (
+          <p className="ob-small muted">
+            Updating your Brand Brain. About half a minute.
+          </p>
+        ) : stale && !answered ? (
+          <p className="ob-small muted">
+            That change didn't come through. Ask again, or approve this version.
+          </p>
         ) : null}
       </div>
     </section>

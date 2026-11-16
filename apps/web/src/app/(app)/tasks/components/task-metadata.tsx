@@ -34,6 +34,7 @@ import {
 } from "./task-metadata-status-field";
 import { TaskPriorityIcon } from "./task-priority-icon";
 import { TaskRunAtBadge } from "./task-run-at-badge";
+import { TaskStatusAge } from "./task-status-age";
 import { getTaskStatusMarker } from "./task-status-badge";
 
 interface TaskMetadataLabels {
@@ -62,6 +63,8 @@ interface TaskMetadataTask {
   assignee: Task["assignee"];
   /** ISO start time; shown while the task waits for it (Scheduled). */
   runAt?: string | null;
+  /** ISO time the Task took its status. */
+  statusSince?: string;
 }
 
 interface PersonDisplay {
@@ -111,6 +114,8 @@ interface TaskMetadataProps {
   project: { id: string; name: string } | null;
   /** Rendered in a Schedule row when the Task came from a Task Schedule. */
   schedule?: ReactNode;
+  /** A row of its own (see {@link PropertyRow}): what the Task has cost. */
+  credits?: ReactNode;
   labels: TaskMetadataLabels;
   statusFieldLabels: TaskMetadataStatusFieldLabels;
   priorityLabels: TaskPriorityLabels;
@@ -127,6 +132,7 @@ export function TaskMetadata({
   task,
   project,
   schedule,
+  credits,
   labels,
   statusFieldLabels,
   priorityLabels,
@@ -153,21 +159,31 @@ export function TaskMetadata({
             taskId={taskId}
             status={task.status}
             selectableStatuses={task.selectableStatuses}
+            statusSince={task.statusSince}
             labels={statusFieldLabels}
           />
         ) : (
-          <PropertyRow
-            label={labels.status}
-            value={statusLabel}
-            icon={
-              <StatusMarker
-                spec={statusMarker}
-                tone={getToneStyle(statusMarker.tone).onSurface}
+          <>
+            <PropertyRow
+              label={labels.status}
+              value={statusLabel}
+              icon={
+                <StatusMarker
+                  spec={statusMarker}
+                  tone={getToneStyle(statusMarker.tone).onSurface}
+                />
+              }
+            >
+              <span className="truncate">{statusLabel}</span>
+            </PropertyRow>
+            {task.statusSince ? (
+              <TaskStatusAge
+                status={task.status}
+                statusSince={task.statusSince}
+                variant="row"
               />
-            }
-          >
-            <span className="truncate">{statusLabel}</span>
-          </PropertyRow>
+            ) : null}
+          </>
         )}
 
         {task.status === "QUEUED" && task.runAt ? (
@@ -280,6 +296,8 @@ export function TaskMetadata({
           </PropertyRow>
         ) : null}
 
+        {credits}
+
         {task.visibility === "PRIVATE" ? (
           <PropertyRow
             label={labels.privateBadge}
@@ -301,7 +319,12 @@ interface PropertyRowProps {
   children: ReactNode;
 }
 
-function PropertyRow({ label, value, icon, children }: PropertyRowProps) {
+export function PropertyRow({
+  label,
+  value,
+  icon,
+  children,
+}: PropertyRowProps) {
   const description = value ? `${label}: ${value}` : label;
   return (
     <Tooltip>

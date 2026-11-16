@@ -3,7 +3,7 @@ import { JobType, OnChainJobStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
-import { getUserJobs } from "@/helpers/job";
+import { getUserJobs, jobListActorFilter } from "@/helpers/job";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -17,7 +17,6 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
 import { organizationProductSeatMiddleware } from "@/middleware/organization-product-seat";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { jobSummariesSchema } from "@/schemas/job.schema.js";
@@ -154,15 +153,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { scope } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
-    // Delegated coworkers only see jobs on Tasks assigned to them or on
-    // private Tasks assigned to a same-vendor sibling.
-    const coworkerAuth = isCoworkerAuthContext(c.var.authContext)
-      ? {
-          coworkerId: c.var.authContext.coworkerId,
-          coworkerVendorId: c.var.authContext.vendorId,
-        }
-      : {};
-
     const { jobs, count, hasMore } = await getUserJobs(
       {
         userContext,
@@ -171,10 +161,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       {
         agentId: id,
         scope,
-        ...coworkerAuth,
-        sokoBotId: isSokoBotAuthContext(c.var.authContext)
-          ? c.var.authContext.sokoBotId
-          : undefined,
+        ...jobListActorFilter(c.var.authContext),
         cursor,
         take,
         skip,

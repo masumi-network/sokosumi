@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { mergeContactsSchema } from "@sokosumi/utils";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { ok } from "@/helpers/response";
+import { empty, ok } from "@/helpers/response";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -13,6 +13,7 @@ import {
 import {
   findDuplicateContacts,
   inContactTransaction,
+  markNotDuplicates,
   mergeContacts,
 } from "@/services/contacts.service";
 import { contactActor } from "./context";
@@ -65,7 +66,43 @@ const duplicatesRoute = withCoworkerContextHeaderParameters(
   }),
 );
 
+const notDuplicatesRoute = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/duplicates/dismiss",
+    tags: ["Contacts"],
+    description:
+      "Mark contacts as different people: `GET /contacts/duplicates` no longer groups any two of them. They can still be merged on purpose.",
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: z.object({
+              contactIds: z.array(z.uuid()).min(2).max(50),
+            }),
+          },
+        },
+      },
+    },
+    responses: {
+      204: { description: "Marked as different people" },
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Contact not found"),
+      422: jsonErrorResponse("Invalid request"),
+    },
+  }),
+);
+
 export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(notDuplicatesRoute, async (c) => {
+    const actor = await contactActor(c);
+    const { contactIds } = c.req.valid("json");
+    await inContactTransaction((tx) =>
+      markNotDuplicates(tx, actor, contactIds),
+    );
+    return empty(c);
+  });
   app.openapi(mergeRoute, async (c) => {
     const actor = await contactActor(c);
     const { winnerId, loserIds } = c.req.valid("json");

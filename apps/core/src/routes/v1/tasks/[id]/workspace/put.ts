@@ -12,6 +12,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import { ok } from "@/helpers/response";
+import { requireSeoTaskExecutionUnchanged } from "@/helpers/seo-task-execution";
 import { requireTaskAssignableSokoBot } from "@/helpers/soko-bot-task-assign";
 import { mapTask } from "@/helpers/task";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
@@ -141,6 +142,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!(await lockTaskRows(tx, [movedTask.id]))) {
         throw conflict("Task changed during workspace move");
       }
+      const current = await requireTaskMoveAccess(userContext, id, tx);
+      await requireSeoTaskExecutionUnchanged(tx, current, {
+        workspaceId: targetWorkspace.id,
+        projectId: null,
+      });
 
       const existingLink = await tx.taskLink.findFirst({
         where: {

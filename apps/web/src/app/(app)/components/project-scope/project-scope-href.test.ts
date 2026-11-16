@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  clearedScopeHref,
   detailPageOf,
   readProjectScope,
   scopedHref,
@@ -125,6 +126,31 @@ describe("switchScopeHref", () => {
     expect(readProjectScope("/ads", new URLSearchParams("projectId=p1"))).toBe(
       "p1",
     );
+  });
+
+  it("scopes SEO Audits to the selected Project", () => {
+    expect(scopedHref("/seo", "p1")).toBe("/seo?projectId=p1");
+    expect(scopedHref("/seo", null)).toBe("/seo");
+    // A switch leaves the open Audit for the next Project's Audit list.
+    expect(switchScopeHref("/seo", "p2")).toBe("/seo?projectId=p2");
+    expect(switchScopeHref("/seo", null)).toBe("/seo");
+    // A Project this workspace cannot see goes; the open Audit stays for its own page to answer.
+    expect(
+      clearedScopeHref("/seo", params("projectId=p1&auditId=a1&tab=health")),
+    ).toBe("/seo?auditId=a1&tab=health");
+    expect(clearedScopeHref("/seo", params("projectId=p1&view=project"))).toBe(
+      "/seo",
+    );
+    expect(clearedScopeHref("/tasks", params("projectId=p1&auditId=a1"))).toBe(
+      "/tasks",
+    );
+    // Drive keeps the view its workspace version needs.
+    expect(clearedScopeHref("/drive", params("projectId=p1&auditId=a1"))).toBe(
+      "/drive?view=tasks",
+    );
+    expect(
+      readProjectScope("/seo", params("auditId=a1&projectId=p1&pageId=page1")),
+    ).toBe("p1");
   });
 
   it("carries Newsletter's project scope like Social and the studio", () => {

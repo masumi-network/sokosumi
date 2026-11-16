@@ -17,6 +17,7 @@ import {
   evalEnvironment,
   prNumberFromCommitMessage,
 } from "@/lib/evals/eval-environment";
+import { sokoBotTurnsSyncService } from "@/services/soko-bot-turns-sync.service";
 import {
   isRunnableSokoBotVersionId,
   resolveSokoBotVersion,
@@ -38,6 +39,7 @@ import {
   defaultEvalVersions,
   EVAL_LANE_COUNT,
   ensureEvalLanes,
+  evalLaneBotIds,
   getEvalLane,
   pauseEvalLanes,
   prepareEvalLane,
@@ -130,19 +132,27 @@ export async function createEvalRun(input: CreateEvalRunInput) {
   });
 }
 
+/** Monday 00:00 UTC of the week `now` falls in. */
+export function evalWeekStart(now: Date): Date {
+  const start = new Date(now);
+  start.setUTCHours(0, 0, 0, 0);
+  start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7));
+  return start;
+}
+
 /**
- * The daily run, once per UTC day and one repeat: a second cron call the
- * same day does nothing. More repeats are for runs someone starts.
+ * The weekly run, once per UTC week (Monday to Sunday) and one repeat: a
+ * second cron call the same week does nothing. More repeats are for runs
+ * someone starts. Its trigger stays `DAILY`, the baseline every run is
+ * compared with.
  */
-export async function createDailyEvalRun() {
-  const dayStart = new Date();
-  dayStart.setUTCHours(0, 0, 0, 0);
-  const today = await prisma.evalRun.findFirst({
-    where: { trigger: "DAILY", createdAt: { gte: dayStart } },
+export async function createWeeklyEvalRun(now = new Date()) {
+  const thisWeek = await prisma.evalRun.findFirst({
+    where: { trigger: "DAILY", createdAt: { gte: evalWeekStart(now) } },
     select: { id: true },
   });
-  if (today) return null;
-  return createEvalRun({ trigger: "DAILY", label: "Daily", repeats: 1 });
+  if (thisWeek) return null;
+  return createEvalRun({ trigger: "DAILY", label: "Weekly", repeats: 1 });
 }
 
 const runModelsSchema = (value: unknown) => {
@@ -397,6 +407,29 @@ export async function tickEvalRuns(
     runId: run.id,
     completed: await completeIfDone(run),
   };
+}
+
+/** One invocation's worth: Vercel ends Core at 300 seconds. */
+const LANE_TURN_SYNC_MS = 240_000;
+
+/**
+ * Keeps reading the lanes' running turns until they settle, as the minute
+ * cron does on mainnet. Where there is no cron, the request that started a
+ * turn reads it for five minutes at most; a longer turn then never settled,
+ * so a month's production run stayed running and its case timed out.
+ */
+export async function syncEvalLaneTurns(runId: string): Promise<void> {
+  const run = await prisma.evalRun.findUnique({
+    where: { id: runId },
+    select: { repeats: true },
+  });
+  if (!run) return;
+  const abortSignal = AbortSignal.timeout(LANE_TURN_SYNC_MS);
+  await sokoBotTurnsSyncService.syncActiveTurns({
+    abortSignal,
+    shouldContinue: () => !abortSignal.aborted,
+    sokoBotIds: await evalLaneBotIds(run.repeats),
+  });
 }
 
 export async function cancelEvalRun(runId: string) {

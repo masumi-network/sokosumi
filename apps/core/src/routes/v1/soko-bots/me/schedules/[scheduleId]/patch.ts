@@ -28,6 +28,7 @@ const updateScheduleRoute = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("The next run changed"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });

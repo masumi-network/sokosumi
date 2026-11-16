@@ -4,7 +4,7 @@ import { getExtensionFromUrl } from "@sokosumi/utils";
 import { Download, ExternalLink, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import {
   contentUrl,
@@ -28,6 +28,7 @@ import { ImageViewer } from "@/components/ui/image-viewer";
 import { isCapTableFileName } from "@/lib/cap-table-file";
 import { spreadsheetKind } from "@/lib/spreadsheet-file";
 import { isTeamFileName } from "@/lib/team-file";
+import { cn } from "@/lib/utils";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import type { FileStore } from "@/lib/utils/file-search.client";
 import { formatBytes } from "@/lib/utils/format-bytes";
@@ -71,34 +72,28 @@ export function DriveFileViewer({
   const kind = classifyFilePreview(url, file.displayName, type);
   const sheet = spreadsheetKind(type, file.displayName);
 
+  const media = {
+    fileName: file.displayName,
+    sizeBytes: file.sizeBytes ?? null,
+    url,
+    downloadUrl: contentUrl({ resourceId: file.id, store, download: true }),
+    detailsHref: `/drive/files/${file.id}`,
+    onClose,
+  };
+
   const capTable = isCapTableFileName(file.displayName);
   if (isTeamFileName(file.displayName) || capTable || sheet) {
+    // Same header as every other file: a table preview still needs Download.
     return (
-      <Dialog
-        open
-        onOpenChange={(open) => {
-          if (!open) onClose();
-        }}
-      >
-        <DialogContent
-          className="max-h-[92dvh] overflow-y-auto sm:max-w-6xl"
-          data-testid="drive-file-viewer"
-        >
-          <DialogTitle className="truncate text-base font-medium">
-            {file.displayName}
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            {file.displayName}
-          </DialogDescription>
-          {capTable ? (
-            <CapTableFileView url={url} />
-          ) : sheet ? (
-            <SpreadsheetFileView url={url} kind={sheet} />
-          ) : (
-            <TeamFileView url={url} />
-          )}
-        </DialogContent>
-      </Dialog>
+      <FileMediaDialog {...media} media={null}>
+        {capTable ? (
+          <CapTableFileView url={url} />
+        ) : sheet ? (
+          <SpreadsheetFileView url={url} kind={sheet} />
+        ) : (
+          <TeamFileView url={url} />
+        )}
+      </FileMediaDialog>
     );
   }
 
@@ -138,13 +133,8 @@ export function DriveFileViewer({
 
   return (
     <FileMediaDialog
-      fileName={file.displayName}
-      sizeBytes={file.sizeBytes ?? null}
-      url={url}
-      downloadUrl={contentUrl({ resourceId: file.id, store, download: true })}
-      detailsHref={`/drive/files/${file.id}`}
+      {...media}
       media={kind.isVideo ? "video" : kind.isAudio ? "audio" : null}
-      onClose={onClose}
     />
   );
 }
@@ -161,6 +151,8 @@ export interface FileMediaDialogProps {
   /** Played in place. Anything else is offered as a download. */
   media: "video" | "audio" | null;
   onClose: () => void;
+  /** A preview to show in place of the player or the download fallback. */
+  children?: ReactNode;
 }
 
 /**
@@ -175,6 +167,7 @@ export function FileMediaDialog({
   detailsHref,
   media,
   onClose,
+  children,
 }: FileMediaDialogProps) {
   const t = useTranslations("App.Drive.Files");
   const sizeLabel = formatBytes(sizeBytes);
@@ -189,7 +182,10 @@ export function FileMediaDialog({
     >
       <DialogContent
         showCloseButton={false}
-        className="flex max-h-[92dvh] flex-col gap-0 overflow-hidden overscroll-contain p-0 sm:max-w-3xl"
+        className={cn(
+          "flex max-h-[92dvh] flex-col gap-0 overflow-hidden overscroll-contain p-0",
+          children ? "sm:max-w-6xl" : "sm:max-w-3xl",
+        )}
         data-testid="drive-file-viewer"
       >
         <div className="border-border flex items-center justify-between gap-2 border-b py-3 pr-4 pl-4 sm:py-4 sm:pr-6 sm:pl-6">
@@ -259,8 +255,16 @@ export function FileMediaDialog({
         <DialogDescription className="sr-only">
           {t("sheetDescription")}
         </DialogDescription>
-        <div className="flex min-h-64 items-center justify-center p-6">
-          {media === "video" ? (
+        <div
+          className={
+            children
+              ? "min-h-0 overflow-y-auto p-4 sm:p-6"
+              : "flex min-h-64 items-center justify-center p-6"
+          }
+        >
+          {children ? (
+            children
+          ) : media === "video" ? (
             <video
               src={url}
               controls

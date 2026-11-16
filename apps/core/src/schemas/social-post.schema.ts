@@ -462,3 +462,17 @@ export const listSocialPostsQuerySchema = cursorPaginationQuerySchema.extend({
       example: "DRAFT,SCHEDULED",
     }),
 });
+
+export const listWorkspaceSocialPostsQuerySchema =
+  listSocialPostsQuerySchema.pick({ cursor: true, limit: true, status: true });
+
+export const workspaceSocialPostSchema = z
+  .object({
+    post: socialPostSchema,
+    projectName: z.string(),
+    projectCmo: z.boolean().openapi({
+      description:
+        "The post's Project is a CMO Project, so its posts are read-only outside CMO (ADR 0066).",
+    }),
+  })
+  .openapi("WorkspaceSocialPost");
