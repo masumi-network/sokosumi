@@ -3,10 +3,7 @@
 import type { ChatCatchUpSummary } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import {
-  ChatCaughtUp,
-  ChatUnreadViewHeader,
-} from "@/app/chat/components/chat-unread-view-header";
+import { ChatUnreadViewHeader } from "@/app/chat/components/chat-unread-view-header";
 import { isCatchUpSummaryEmpty } from "@/components/chat/signals/catch-up-summary-body";
 import { fetchCatchUpSummary } from "@/components/chat/signals/fetch-catch-up-summary";
 import { useOtherWorkspaceRooms } from "@/components/chat/use-other-workspace-rooms";
@@ -25,6 +22,7 @@ import {
   QuietRooms,
 } from "./catch-up-briefing";
 import { CatchUpElsewhereRooms } from "./catch-up-elsewhere-rooms";
+import { CatchUpEmpty } from "./catch-up-empty";
 
 interface CatchUpViewProps {
   currentUserId: string;
@@ -104,14 +102,7 @@ export function CatchUpView({
         elsewhereRooms.length > 0 ? (
           elsewhere
         ) : (
-          <div className={HOLDER_CLASS}>
-            <div className={HOLDER_ITEM_CLASS}>
-              <ChatCaughtUp
-                title={t("caughtUpTitle")}
-                description={t("caughtUpDescription")}
-              />
-            </div>
-          </div>
+          <CatchUpEmpty />
         )
       ) : (
         <>

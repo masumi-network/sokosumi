@@ -25,7 +25,9 @@ import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
 import { CatchUpView } from "./catch-up-view";
 
 const {
+  listActiveMock,
   listElsewhereMock,
+  loadRosterMock,
   markAllReadMock,
   sendMock,
   setLoopMock,
@@ -34,7 +36,9 @@ const {
   toastErrorMock,
 } = vi.hoisted(() => ({
   toastErrorMock: vi.fn(),
+  listActiveMock: vi.fn(),
   listElsewhereMock: vi.fn(),
+  loadRosterMock: vi.fn(),
   markAllReadMock: vi.fn(),
   sendMock: vi.fn(),
   setLoopMock: vi.fn(),
@@ -84,10 +88,20 @@ vi.mock("@/components/chat/signals/fetch-catch-up-summary", () => ({
 vi.mock("@/app/chat/actions", () => ({
   markAllChatUnreadReadAction: (...args: unknown[]) => markAllReadMock(...args),
   sendRoomMessageAction: (...args: unknown[]) => sendMock(...args),
+  loadChatComposeRosterAction: () => loadRosterMock(),
 }));
 
 vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
-  fetchSidebarRoomCollection: () => listElsewhereMock(),
+  fetchSidebarRoomCollection: (collection: string) =>
+    collection === "active" ? listActiveMock() : listElsewhereMock(),
+}));
+
+// The real dialogs are covered on their own; here only their trigger counts.
+vi.mock("@/app/chat/components/create-channel-dialog", () => ({
+  CreateChannelDialog: ({ trigger }: { trigger: ReactNode }) => trigger,
+}));
+vi.mock("@/app/chat/components/create-direct-dialog", () => ({
+  CreateDirectDialog: ({ trigger }: { trigger: ReactNode }) => trigger,
 }));
 
 vi.mock("@/components/chat/use-show-room-unread-count", () => ({
@@ -219,7 +233,21 @@ function workspaceRooms(list: HTMLElement, workspace: string) {
 beforeEach(() => {
   clearRoomReadOverlays();
   listElsewhereMock.mockReset();
+  listActiveMock.mockReset();
+  loadRosterMock.mockReset();
   summaryActionMock.mockReset();
+  listActiveMock.mockResolvedValue({
+    rooms: [elsewhereRoom("mine", { organizationId: "org-1" })],
+    nextCursor: null,
+  });
+  loadRosterMock.mockResolvedValue({
+    ok: true,
+    value: {
+      currentUserId: "user-1",
+      hasOrganization: true,
+      people: [{ id: "user-1" }, { id: "user-2" }],
+    },
+  });
   showRoomUnreadCountMock.mockReturnValue(true);
   listElsewhereMock.mockResolvedValue([]);
   summaryAnswers();
@@ -407,6 +435,95 @@ describe("CatchUpView's unread rooms elsewhere", () => {
       renderCatchUp();
 
       expect(await screen.findByTestId("chat-caught-up")).toBeTruthy();
+    });
+  });
+
+  describe("the first Catch up, before any room", () => {
+    const CREATE = "App.Channels.Signals.firstCatchUpCreateChannel";
+    const MESSAGE = "App.Channels.Signals.firstCatchUpMessageTeammate";
+
+    beforeEach(() => {
+      listActiveMock.mockResolvedValue({ rooms: [], nextCursor: null });
+    });
+
+    it("says what Catch up will hold and offers both first steps", async () => {
+      renderCatchUp();
+
+      expect(
+        await screen.findByText("App.Channels.Signals.firstCatchUpTitle"),
+      ).toBeTruthy();
+      expect(screen.getByRole("button", { name: CREATE })).toBeTruthy();
+      expect(screen.getByRole("button", { name: MESSAGE })).toBeTruthy();
+      expect(
+        screen.queryByText("App.Channels.Signals.caughtUpTitle"),
+      ).toBeNull();
+    });
+
+    it("offers no direct message without anyone to message", async () => {
+      loadRosterMock.mockResolvedValue({
+        ok: true,
+        value: {
+          currentUserId: "user-1",
+          hasOrganization: true,
+          people: [{ id: "user-1" }],
+        },
+      });
+
+      renderCatchUp();
+
+      expect(await screen.findByRole("button", { name: CREATE })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: MESSAGE })).toBeNull();
+    });
+
+    it("offers no channel in a personal workspace", async () => {
+      loadRosterMock.mockResolvedValue({
+        ok: true,
+        value: {
+          currentUserId: "user-1",
+          hasOrganization: false,
+          people: [{ id: "user-2" }],
+        },
+      });
+
+      renderCatchUp();
+
+      expect(await screen.findByRole("button", { name: MESSAGE })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: CREATE })).toBeNull();
+    });
+
+    it("still explains Catch up when the roster cannot be read", async () => {
+      loadRosterMock.mockResolvedValue({
+        ok: false,
+        error: { message: "nope" },
+      });
+
+      renderCatchUp();
+
+      expect(
+        await screen.findByText("App.Channels.Signals.firstCatchUpTitle"),
+      ).toBeTruthy();
+      expect(screen.queryByRole("button")).toBeNull();
+    });
+
+    it("stays caught up for someone who already has rooms", async () => {
+      listActiveMock.mockResolvedValue({
+        rooms: [elsewhereRoom("mine", { organizationId: "org-1" })],
+        nextCursor: null,
+      });
+
+      renderCatchUp();
+
+      expect(await screen.findByTestId("chat-caught-up")).toBeTruthy();
+      expect(loadRosterMock).not.toHaveBeenCalled();
+    });
+
+    it("stays caught up when the rooms cannot be read", async () => {
+      listActiveMock.mockResolvedValue(null);
+
+      renderCatchUp();
+
+      expect(await screen.findByTestId("chat-caught-up")).toBeTruthy();
+      expect(loadRosterMock).not.toHaveBeenCalled();
     });
   });
 

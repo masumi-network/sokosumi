@@ -9,8 +9,9 @@ import { resolveBaseUrl } from "./base-url.ts";
 
 /**
  * A brand-new user's first chat: sign up with a disposable mail.tm inbox,
- * create an Organization, create an External channel and post in it. Then the
- * chat list must not claim "No channels yet." beside that channel.
+ * create an Organization, start an External channel from the first Catch up
+ * and post in it. Then the chat list must not claim "No channels yet." beside
+ * that channel.
  */
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
@@ -102,7 +103,7 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
     });
     after(() => browser.close());
 
-    test("new user creates an External channel and posts in it", async () => {
+    test("new user starts an External channel from Catch up and posts in it", async () => {
       const context = await browser.newContext({
         viewport,
         isMobile,
@@ -124,7 +125,15 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       if (name === "tablet") await showSidebar.click();
       // The chat list redraws once rooms load; a tap before that can be lost.
       await page.getByText("No direct messages yet.").waitFor();
-      await page.getByRole("button", { name: "Create channel" }).click();
+      // A first Catch up says what it is for and starts the first channel.
+      await page.getByRole("link", { name: "Catch up" }).first().click();
+      await page.getByText("Nothing to catch up on yet").waitFor();
+      const caughtUp = await page.getByText("You're caught up").count();
+      // Nobody else is in this new organization, so there is no one to message.
+      const messageTeammate = await page
+        .getByRole("button", { name: "Message a teammate" })
+        .count();
+      await page.getByRole("button", { name: "Create a channel" }).click();
       // Typed, not filled: the handle drives the name and an availability check.
       await page
         .getByRole("textbox", { name: "Handle" })
@@ -158,6 +167,8 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       const noChannels = await page.getByText("No channels yet.").count();
       await context.close();
 
+      assert.equal(caughtUp, 0, '"You\'re caught up" before any room');
+      assert.equal(messageTeammate, 0, "Message a teammate with no teammates");
       assert.equal(noChannels, 0, '"No channels yet." beside the new channel');
       assert.deepEqual(errors, []);
     });
