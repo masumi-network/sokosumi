@@ -9,7 +9,6 @@ const { pushMock, replaceMock, backMock } = vi.hoisted(() => ({
 }));
 
 let mockPathname = "/chat";
-let mockSearchParams = new URLSearchParams();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -18,7 +17,6 @@ vi.mock("next/navigation", () => ({
     back: backMock,
   }),
   usePathname: () => mockPathname,
-  useSearchParams: () => mockSearchParams,
 }));
 
 vi.mock("@/config/env.public", () => ({
@@ -74,7 +72,6 @@ describe("HeaderMobileSearchControl", () => {
     vi.clearAllMocks();
     vi.useFakeTimers({ shouldAdvanceTime: true });
     mockPathname = "/chat";
-    mockSearchParams = new URLSearchParams();
     window.history.replaceState({}, "", "/chat");
   });
 
@@ -208,106 +205,6 @@ describe("HeaderMobileSearchControl", () => {
 
     expect(replaceMock).toHaveBeenCalledWith("/history?q=brief");
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
-  });
-
-  it("empties the box when the page clears the history search", async () => {
-    mockPathname = "/history";
-    mockSearchParams = new URLSearchParams("q=invoice");
-    window.history.replaceState({}, "", "/history?q=invoice");
-    const user = userEvent.setup({
-      advanceTimers: vi.advanceTimersByTime.bind(vi),
-    });
-
-    const { rerender } = render(<HeaderMobileSearchControl />);
-    await user.click(screen.getByRole("button", { name: "Search" }));
-    expect(screen.getByPlaceholderText("Search...")).toHaveValue("invoice");
-
-    // The empty state's "Clear filters" link drops q from the URL.
-    mockSearchParams = new URLSearchParams();
-    window.history.replaceState({}, "", "/history");
-    rerender(<HeaderMobileSearchControl />);
-
-    expect(screen.getByPlaceholderText("Search...")).toHaveValue("");
-    expect(replaceMock).not.toHaveBeenCalled();
-  });
-
-  /** Commits a URL the way a router navigation would, then re-renders. */
-  function commitUrl(url: string, rerender: (ui: React.ReactElement) => void) {
-    const [path, query = ""] = url.split("?");
-    mockPathname = path;
-    mockSearchParams = new URLSearchParams(query);
-    window.history.replaceState({}, "", url);
-    rerender(<HeaderMobileSearchControl />);
-  }
-
-  it("keeps Clear filters when it lands while typing is still pending", async () => {
-    mockPathname = "/history";
-    mockSearchParams = new URLSearchParams("q=invoice");
-    window.history.replaceState({}, "", "/history?q=invoice");
-    const user = userEvent.setup({
-      advanceTimers: vi.advanceTimersByTime.bind(vi),
-    });
-
-    const { rerender } = render(<HeaderMobileSearchControl />);
-    await user.click(screen.getByRole("button", { name: "Search" }));
-    await user.type(screen.getByPlaceholderText("Search..."), "s");
-
-    // Clear filters commits before the debounce for "invoices" fires.
-    commitUrl("/history", rerender);
-    await act(async () => {
-      vi.advanceTimersByTime(300);
-    });
-
-    expect(screen.getByPlaceholderText("Search...")).toHaveValue("");
-    expect(replaceMock).not.toHaveBeenCalled();
-  });
-
-  it("keeps newer typing when its own earlier query echoes back", async () => {
-    mockPathname = "/history";
-    window.history.replaceState({}, "", "/history");
-    const user = userEvent.setup({
-      advanceTimers: vi.advanceTimersByTime.bind(vi),
-    });
-
-    const { rerender } = render(<HeaderMobileSearchControl />);
-    await user.click(screen.getByRole("button", { name: "Search" }));
-    const input = screen.getByPlaceholderText("Search...");
-    await user.type(input, "brief");
-    await act(async () => {
-      vi.advanceTimersByTime(300);
-    });
-    expect(replaceMock).toHaveBeenLastCalledWith("/history?q=brief");
-
-    // More typing, then the slow navigation for "brief" commits.
-    await user.type(input, "ing");
-    commitUrl("/history?q=brief", rerender);
-    expect(input).toHaveValue("briefing");
-
-    await act(async () => {
-      vi.advanceTimersByTime(300);
-    });
-    expect(replaceMock).toHaveBeenLastCalledWith("/history?q=briefing");
-    expect(input).toHaveValue("briefing");
-  });
-
-  it("keeps a query typed before arriving from a page with its own q", async () => {
-    mockPathname = "/tasks/archived";
-    mockSearchParams = new URLSearchParams("q=foo");
-    window.history.replaceState({}, "", "/tasks/archived?q=foo");
-    const user = userEvent.setup({
-      advanceTimers: vi.advanceTimersByTime.bind(vi),
-    });
-
-    const { rerender } = render(<HeaderMobileSearchControl />);
-    await user.click(screen.getByRole("button", { name: "Search" }));
-    await user.type(screen.getByPlaceholderText("Search..."), "abc");
-
-    // Delayed navigation lands on /history without q, then the flush echoes.
-    commitUrl("/history", rerender);
-    expect(screen.getByPlaceholderText("Search...")).toHaveValue("abc");
-    expect(replaceMock).toHaveBeenLastCalledWith("/history?q=abc");
-    commitUrl("/history?q=abc", rerender);
-    expect(screen.getByPlaceholderText("Search...")).toHaveValue("abc");
   });
 
   it("applies a query typed before /history navigation finishes", async () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, Search } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -56,12 +56,6 @@ export function HeaderMobileSearchControl() {
   const abortPendingHistoryNavigationRef = useRef(false);
   const queryRef = useRef(query);
   queryRef.current = query;
-  /** Last `q` this control wrote, so its own URL echo is not read as a reset. */
-  const lastWrittenQueryRef = useRef<string | null>(null);
-  const urlQuery =
-    useSearchParams().get(HISTORY_FILTER_PARAM_KEYS.q)?.trim() ?? "";
-  const onHistory = isHistoryPath(pathname);
-  const seenUrlRef = useRef({ onHistory, query: urlQuery });
 
   function replaceHistoryQuery(nextQuery: string | null) {
     const currentPath =
@@ -78,7 +72,6 @@ export function HeaderMobileSearchControl() {
       paramsForMerge.delete(HISTORY_FILTER_PARAM_KEYS.q);
     }
 
-    lastWrittenQueryRef.current = nextQuery ?? "";
     const nextQueryString = paramsForMerge.toString();
     router.replace(
       nextQueryString ? `${HISTORY_PATH}?${nextQueryString}` : HISTORY_PATH,
@@ -133,25 +126,6 @@ export function HeaderMobileSearchControl() {
     }
   }, [pathname, expanded, debouncedReplaceHistoryQuery, router]);
 
-  // Something other than this box changed q on /history (the empty state's
-  // "Clear filters" link, back/forward): drop queued typing and show what is
-  // applied. Our own write echoing back is ignored, so newer typing survives.
-  useEffect(() => {
-    const seen = seenUrlRef.current;
-    seenUrlRef.current = { onHistory, query: urlQuery };
-    if (
-      !expanded ||
-      !onHistory ||
-      !seen.onHistory ||
-      seen.query === urlQuery ||
-      urlQuery === lastWrittenQueryRef.current
-    ) {
-      return;
-    }
-    debouncedReplaceHistoryQuery.cancel();
-    setQuery(urlQuery);
-  }, [urlQuery, onHistory, expanded, debouncedReplaceHistoryQuery]);
-
   useEffect(() => {
     return () => {
       debouncedReplaceHistoryQuery.cancel();
@@ -205,7 +179,15 @@ export function HeaderMobileSearchControl() {
 
   return (
     <>
-      <HeaderMobileSearchTrigger onClick={openSearch} />
+      <button
+        type="button"
+        className="press hover:bg-muted relative flex size-10 shrink-0 items-center justify-center rounded-full transition-colors md:hidden"
+        aria-label={t("open")}
+        data-testid="header-mobile-search-trigger"
+        onClick={openSearch}
+      >
+        <Search className="text-foreground size-4" aria-hidden />
+      </button>
 
       {expanded
         ? createPortal(
@@ -246,25 +228,5 @@ export function HeaderMobileSearchControl() {
           )
         : null}
     </>
-  );
-}
-
-/** Collapsed trigger; also the Suspense fallback while the URL is read. */
-export function HeaderMobileSearchTrigger({
-  onClick,
-}: {
-  onClick?: () => void;
-}) {
-  const t = useTranslations("App.Header.Search");
-  return (
-    <button
-      type="button"
-      className="press hover:bg-muted relative flex size-10 shrink-0 items-center justify-center rounded-full transition-colors md:hidden"
-      aria-label={t("open")}
-      data-testid="header-mobile-search-trigger"
-      onClick={onClick}
-    >
-      <Search className="text-foreground size-4" aria-hidden />
-    </button>
   );
 }
