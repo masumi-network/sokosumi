@@ -201,6 +201,48 @@ describe("SEO keyword map", () => {
     );
   });
 
+  it("points at a dot under the pointer, and grabs the map elsewhere", () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ x: 0, y: 0, width: 400, height: 300 }),
+    );
+    const rows = [
+      row({ keyword: "battery app", volume: 1000, difficulty: 12 }),
+      row({ keyword: "battery health", volume: 5000, difficulty: 70 }),
+    ];
+    renderMap(rows);
+    const { points } = seoKeywordMap(keywordGroups(rows))!;
+    const frame = screen.getByTestId("seo-keyword-map");
+    // The frame's padding is 12 px on each side.
+    const at = ({ x, y }: { x: number; y: number }) => ({
+      clientX: 12 + (x / 100) * 376,
+      clientY: 12 + (y / 100) * 276,
+      pointerType: "mouse",
+    });
+    expect(frame).toHaveClass("cursor-grab");
+    fireEvent.pointerMove(frame, at(points[0]));
+    expect(frame).toHaveClass("cursor-pointer");
+    expect(frame).not.toHaveClass("cursor-grab");
+    // The corner farthest from every dot: a drag there pans the map.
+    const corners = [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 0, y: 100 },
+      { x: 100, y: 100 },
+    ];
+    const away = (corner: { x: number; y: number }) =>
+      Math.min(
+        ...points.map((point) =>
+          Math.hypot(point.x - corner.x, point.y - corner.y),
+        ),
+      );
+    const empty = corners.reduce((best, corner) =>
+      away(corner) > away(best) ? corner : best,
+    );
+    fireEvent.pointerMove(frame, at(empty));
+    expect(frame).toHaveClass("cursor-grab");
+    expect(frame).not.toHaveClass("cursor-pointer");
+  });
+
   it("opens the dot a press picks, not after a drag, and a press on another dot or on no dot closes it", async () => {
     // A frame of 400 by 300 px: a press finds its dot by the place on the frame.
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(

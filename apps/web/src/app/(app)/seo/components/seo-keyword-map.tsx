@@ -347,7 +347,11 @@ export function SeoKeywordMap({
               ref={frame}
               data-testid="seo-keyword-map"
               className={cn(
-                "relative cursor-grab overflow-hidden rounded-md active:cursor-grabbing",
+                "relative overflow-hidden rounded-md",
+                // Over a dot a press opens it: the hand that points says so. Elsewhere a drag pans the map.
+                active !== null && !keyed
+                  ? "cursor-pointer"
+                  : "cursor-grab active:cursor-grabbing",
                 PLOT_HEIGHT,
               )}
               onPointerMove={pick}
