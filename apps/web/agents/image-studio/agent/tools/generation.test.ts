@@ -128,6 +128,44 @@ describe("image generation tools", () => {
     expect(startGeneration).not.toHaveBeenCalled();
   });
 
+  it("forwards typography models ideogram-v3 and recraft-v3 on generate", async () => {
+    await generate.execute({ ...base, modelId: "ideogram-v3" }, ctx);
+    expect(startGeneration).toHaveBeenCalledWith(
+      { userId: "user-1", projectId: "project-1" },
+      expect.objectContaining({ modelId: "ideogram-v3" }),
+    );
+    startGeneration.mockClear();
+    await generate.execute({ ...base, modelId: "recraft-v3" }, ctx);
+    expect(startGeneration).toHaveBeenCalledWith(
+      { userId: "user-1", projectId: "project-1" },
+      expect.objectContaining({ modelId: "recraft-v3" }),
+    );
+  });
+
+  it("forwards typography models on refine when the agent selects them", async () => {
+    const sourceVersionId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    await refine.execute(
+      { ...base, sourceVersionId, modelId: "ideogram-v3" },
+      ctx,
+    );
+    expect(startGeneration).toHaveBeenCalledWith(
+      { userId: "user-1", projectId: "project-1" },
+      expect.objectContaining({
+        modelId: "ideogram-v3",
+        parentAssetId: sourceVersionId,
+      }),
+    );
+    startGeneration.mockClear();
+    await refine.execute(
+      { ...base, sourceVersionId, modelId: "recraft-v3" },
+      ctx,
+    );
+    expect(startGeneration).toHaveBeenCalledWith(
+      { userId: "user-1", projectId: "project-1" },
+      expect.objectContaining({ modelId: "recraft-v3" }),
+    );
+  });
+
   it("forwards chosen model, placement, output format and seed to Core without changing scope", async () => {
     const input = {
       ...base,
@@ -272,6 +310,9 @@ describe("non-billed agent behavior contract", () => {
       "capped at three jobs per turn",
       "submission was not confirmed, **stop**",
       "Use the placement ID in the generation tool",
+      "ideogram-v3 (prefer this for text-heavy ads, posters, and headlines that",
+      "recraft-v3 (vector-leaning work, icons,",
+      "only pass recraft-v3 if list_image_options shows an edit",
     ]) {
       expect(instructions).toContain(rule);
     }
