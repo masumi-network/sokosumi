@@ -225,6 +225,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     Boolean(query.toString()) &&
     !accountChosen &&
     !data.observations.length &&
+    !data.runs?.length &&
     !data.analyses.some((check) => check.status === "completed");
   const setupHistory = useQuery<ProjectSeoWorkspace>({
     queryKey: [...key.slice(0, -1), ""],
@@ -237,6 +238,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const hasPreviousCheck = Boolean(
     setupWorkspace &&
       (setupWorkspace.observations.length ||
+        setupWorkspace.runs?.length ||
         setupWorkspace.analyses.some((check) => check.status === "completed")),
   );
   const googleReady = hasPreviousCheck || accountChosen;

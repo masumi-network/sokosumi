@@ -12643,8 +12643,8 @@
       },
       "improve": {
         "catalog": {
-          "title": "Was der Agent noch nicht kann",
-          "help": "Funktionen, die der SEO-Agent noch nicht hat."
+          "title": "Grenzen des Agenten",
+          "help": "Was der Agent prüft, was fehlt und was du selbst erledigst."
         },
         "groups": {
           "technical": "Technik",
@@ -12661,8 +12661,18 @@
         "requestText": "Funktionswunsch für den SEO-Agent, Punkt {id}: {title}. Was fehlt: {missing}",
         "copied": "Anfrage kopiert. Sende sie an das Sokosumi-Team.",
         "copyFailed": "Die Anfrage konnte nicht kopiert werden.",
+        "summary": {
+          "title": "Das kannst du erwarten",
+          "site": "Prüfungen umfassen ausgewählte Seiten. Ein vollständiger Website-Crawl oder eine Migrationsprüfung erfordert weitere Arbeit.",
+          "content": "Der Agent schlägt Seitenänderungen vor. Vollständige Artikel und Inhaltspläne für die gesamte Website sind nicht enthalten.",
+          "research": "Detaillierte Linkrecherche, Rankings auf Stadtebene und die Nachverfolgung von Kontaktaufnahmen sind nicht enthalten.",
+          "measurement": "Unternehmensbewertungen, KI-Markenerwähnungen, Umsatz und die Wirkung jeder Änderung werden nicht vollständig erfasst.",
+          "publishing": "Du setzt Änderungen selbst um, prüfst Korrekturen nach und teilst Berichte mit Kunden."
+        },
         "gaps": {
-          "title": "Was dieses Audit nicht sehen konnte",
+          "statisticsIncomplete": "Einige Google-Statistiken fehlen. Der Agent kann nur die verfügbaren Daten bewerten.",
+          "checksIncomplete": "Einige Prüfungen lieferten kein Ergebnis. Dieses Audit kann Probleme übersehen.",
+          "title": "Fehlende Audit-Daten",
           "noSearchConsole": "Keine Daten aus der Search Console: Klicks, Suchanfragen und der Indexstatus bei Google werden nicht gemessen.",
           "noAnalytics": "Keine Daten aus Google Analytics: Besuche und Schlüsselereignisse werden nicht gemessen.",
           "statisticsUnavailable": "Die letzte Synchronisierung der Statistiken konnte die Daten nicht lesen.",
