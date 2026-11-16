@@ -252,6 +252,14 @@
         "title": "Credits running low",
         "body": "Your credits are running low. You have {credits} left. Work stops when they run out.",
         "button": "Add credits"
+      },
+      "cusoLowCredits": {
+        "subject": "CMO - {cusoName} for {businessName} is running low on credits",
+        "preview": "{cusoName} has {credits} credits left.",
+        "title": "Credits running low",
+        "body": "{cusoName} for {businessName} has {credits} credits left. He pauses when they run out.",
+        "nextGrant": "His next plan credits arrive on {date}.",
+        "button": "Top up or change plan"
       }
     }
   },

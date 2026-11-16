@@ -42,6 +42,7 @@ import {
   STUDIO_CREATIVE_DIRECTIONS,
   type StudioCreativeDirection,
   studioAdCopyPrompts,
+  studioAdVariationIndex,
 } from "./studio-creative-directions";
 import { AD_PLACEMENTS, type PlacementRatio } from "./studio-placements";
 import { StudioProductPhotoControl } from "./studio-product-photo";
@@ -599,6 +600,13 @@ export function StudioComposer({
       return {
         id,
         prompt: leg.prompt,
+        templateId: target.templateId,
+        creativeDirection:
+          creativeDirection ??
+          STUDIO_CREATIVE_DIRECTIONS.find(({ guidance }) =>
+            leg.prompt.includes(`\n\nCreative direction: ${guidance}`),
+          )?.id,
+        variationIndex: studioAdVariationIndex(leg.prompt),
         modelId: leg.model.id,
         modelLabel: modelName(leg.model),
         settings: leg.settings,

@@ -41,6 +41,7 @@ import {
   listJobs,
   listRecentStudioProjects,
   openAssetStream,
+  toJobView,
 } from "@/services/image-studio-assets.service";
 
 const SCOPE = {
@@ -165,6 +166,61 @@ describe("image studio versions", () => {
     expect(jobs[0]!.retryMayDuplicateCharge).toBe(true);
     expect(jobs[1]!.retryMayDuplicateCharge).toBe(false);
   });
+
+  it.each([
+    {},
+    { templateId: null, creativeDirection: null, variationIndex: null },
+    {
+      templateId: "social-post",
+      creativeDirection: "lifestyle",
+      variationIndex: 0,
+    },
+  ])(
+    "returns only known prompt metadata for retries (%j)",
+    async (metadata) => {
+      const job: Parameters<typeof toJobView>[0] = {
+        id: "job-1",
+        projectId: SCOPE.projectId,
+        status: "FAILED",
+        kind: "GENERATE",
+        model: "test-model",
+        prompt: "A vase",
+        settings: {},
+        referenceAssetIds: [],
+        error: "Please try again",
+        failureReason: "provider_error",
+        parentAssetId: null,
+        createdAt: new Date(),
+        submittedAt: null,
+        settledAt: null,
+        cancelRequestedAt: null,
+        chargedCents: null,
+        transactionId: null,
+        asset: null,
+        ...metadata,
+      };
+      jobFindManyMock.mockResolvedValue([job]);
+
+      const [view] = await listJobs({ ...SCOPE, limit: 10 });
+
+      expect(jobFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: expect.objectContaining({
+            templateId: true,
+            creativeDirection: true,
+            variationIndex: true,
+          }),
+        }),
+      );
+      if (metadata.variationIndex != null) {
+        expect(view).toMatchObject(metadata);
+      } else {
+        expect(view).not.toHaveProperty("templateId");
+        expect(view).not.toHaveProperty("creativeDirection");
+        expect(view).not.toHaveProperty("variationIndex");
+      }
+    },
+  );
 });
 
 describe("listRecentStudioProjects", () => {

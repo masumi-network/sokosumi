@@ -126,6 +126,18 @@ describe("notification emails", () => {
     expect(rendered.html).toContain(TASK_URL);
   });
 
+  it("keeps a task name that contains a line break on one subject line", async () => {
+    const rendered = await renderTaskCompletedEmail({
+      actionUrl: TASK_URL,
+      coworkerName: "Ada",
+      locale: "en",
+      recipientName: "Sandro",
+      taskName: "Pricing\r\n\treview",
+    });
+
+    expect(rendered.subject).toBe("Sokosumi - Ada completed Pricing review");
+  });
+
   it("tells a vendor request from a coworker request", async () => {
     const vendor = await renderAccessRequestEmail({
       actionUrl: REVIEW_URL,

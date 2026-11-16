@@ -169,7 +169,8 @@ export type SokoBotCapability = (typeof SOKO_BOT_CAPABILITIES)[number];
  * The announcements every Sokosumi user sees, as a sidebar card and a popup.
  * Core offers them only to the bots listed in SOKO_BOT_ANNOUNCEMENT_BOT_IDS
  * and checks the list again on each call. Saving keeps a draft nobody sees;
- * only publish_announcement, on the owner's word in chat, shows or ends one.
+ * only publish_announcement, on the owner's word in chat or in their own
+ * schedule, shows or ends one.
  */
 export const SOKO_BOT_ANNOUNCEMENT_CAPABILITIES = [
   "list_announcements",

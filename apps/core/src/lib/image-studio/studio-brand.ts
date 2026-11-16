@@ -29,6 +29,9 @@ import { parseBrandBrain } from "@/services/brand-brain.service";
 /** Enough for colours, type, and voice. The stored job prompt stays the brief. */
 const BRAND_BLOCK_MAX_CHARS = 1600;
 
+/** Bump when brand wrapping or the job's provider prompt guidance changes. */
+export const STUDIO_PROMPT_ASSEMBLY_VERSION = "2026-11-12.1";
+
 export interface StudioBrand {
   designMd: string | null;
   memory: string | null;
@@ -69,12 +72,18 @@ export function applyStudioBrandPrompt(
   prompt: string,
   brand: StudioBrand,
 ): string {
+  const block = studioBrandPromptBlock(brand);
+  return block ? `${block}\n\nBrief:\n${prompt}` : prompt;
+}
+
+/** The exact brand prefix, without the brief, for snapshot hashing. */
+export function studioBrandPromptBlock(brand: StudioBrand): string {
   const design = clipBrandText(brand.designMd);
   const memory = clipBrandText(brand.memory);
   const brandBrain = clipBrandText(brand.brandBrain);
   const approvedLines = clipBrandText(brand.approvedLines);
   if (!design && !memory && !brandBrain && !approvedLines && !brand.look)
-    return prompt;
+    return "";
 
   const parts = ["Follow this project's brand."];
   if (brand.look) {
@@ -90,7 +99,6 @@ export function applyStudioBrandPrompt(
   if (brandBrain) parts.push(`Brand Brain:\n${brandBrain}`);
   if (design) parts.push(`Design:\n${design}`);
   if (memory) parts.push(`Memory:\n${memory}`);
-  parts.push(`Brief:\n${prompt}`);
   return parts.join("\n\n");
 }
 

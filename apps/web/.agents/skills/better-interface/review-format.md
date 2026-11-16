@@ -19,6 +19,7 @@ One table, ordered by severity, then by reach:
 | Severity | Domain        | Location            | Before                       | After                                                                  | Why                                          |
 | -------- | ------------- | ------------------- | ---------------------------- | ---------------------------------------------------------------------- | -------------------------------------------- |
 | HIGH     | Accessibility | `src/Dialog.tsx:42` | `<button><XIcon /></button>` | Add `aria-label="Close"` and hide the icon from the accessibility tree | The icon-only control has no accessible name |
+
 - **Severity** comes from **Rank by user impact**.
 - **Domain** is the owning skill without the `better-` prefix.
 - **Location** is `path/to/file:line`, or the exact screen and component when the artifact has no source files.
