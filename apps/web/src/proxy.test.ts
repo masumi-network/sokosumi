@@ -488,6 +488,7 @@ describe("proxy", () => {
       "/f15bb43a7a4c110d/script.js",
       "/_vercel/insights/view",
       "/_vercel/insights/event",
+      "/_vercel/insights/session",
       "/_vercel/speed-insights/vitals",
     ])("skips the proxy for Vercel analytics path: %s", async (path) => {
       expect(await matches(path)).toBe(false);
