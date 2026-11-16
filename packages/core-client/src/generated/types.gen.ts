@@ -12407,6 +12407,7 @@ export type CmoOverview = {
      * The approved version as Cuso carries it out, with the pieces he made: the month the Calendar shows. Differs from strategy while a change waits for approval.
      */
     approvedStrategy: CmoPlan | null;
+    approvedStrategyId?: string | null;
     /**
      * The image or video Cuso attached to each calendar piece, by entry id.
      */
@@ -83381,6 +83382,117 @@ export type LaunchCmoSearchAdForProjectResponses = {
 
 export type LaunchCmoSearchAdForProjectResponse = LaunchCmoSearchAdForProjectResponses[keyof LaunchCmoSearchAdForProjectResponses];
 
+export type PrepareCmoCalendarNewsletterIssueForProjectData = {
+    body: {
+        strategyId: string;
+        issueId?: string;
+    };
+    path: {
+        projectId: string;
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/calendar/{id}/newsletter-issue';
+};
+
+export type PrepareCmoCalendarNewsletterIssueForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Newsletter, calendar piece or draft not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Calendar or newsletter conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid request or newsletter copy
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PrepareCmoCalendarNewsletterIssueForProjectError = PrepareCmoCalendarNewsletterIssueForProjectErrors[keyof PrepareCmoCalendarNewsletterIssueForProjectErrors];
+
+export type PrepareCmoCalendarNewsletterIssueForProjectResponses = {
+    /**
+     * Newsletter issue
+     */
+    200: {
+        data: {
+            issueId: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PrepareCmoCalendarNewsletterIssueForProjectResponse = PrepareCmoCalendarNewsletterIssueForProjectResponses[keyof PrepareCmoCalendarNewsletterIssueForProjectResponses];
+
 export type PauseCmoCalendarEntryForProjectData = {
     body?: never;
     path: {
@@ -83478,7 +83590,9 @@ export type GetCmoCalendarEntryTextForProjectData = {
         projectId: string;
         id: string;
     };
-    query?: never;
+    query?: {
+        strategyId?: string;
+    };
     url: '/cmo/projects/{projectId}/calendar/{id}/text';
 };
 
@@ -83517,6 +83631,36 @@ export type GetCmoCalendarEntryTextForProjectErrors = {
      * Not written yet, or Cuso is not hired
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The approved calendar changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid strategy id
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

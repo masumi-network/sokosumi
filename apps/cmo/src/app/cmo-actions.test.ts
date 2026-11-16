@@ -6,6 +6,8 @@ const startCmoOnboarding = vi.fn();
 const listCmoCusos = vi.fn();
 const listCmoPlans = vi.fn();
 const getContactLists = vi.fn();
+const getContacts = vi.fn();
+const postContacts = vi.fn();
 const postContactLists = vi.fn();
 const postContactListsByIdImport = vi.fn();
 const getCmoOverviewForProject = vi.fn();
@@ -85,6 +87,8 @@ vi.mock("@sokosumi/core-client", () => ({
   startCmoOnboarding,
   listCmoCusos,
   getContactLists,
+  getContacts,
+  postContacts,
   postContactLists,
   postContactListsByIdImport,
   getCmoOverviewForProject,
@@ -94,6 +98,7 @@ vi.mock("@sokosumi/core-client", () => ({
 }));
 
 const {
+  addContact,
   addMailingList,
   answerBrandQuestion,
   answerPlanQuestion,
@@ -123,6 +128,7 @@ const {
   connectSetupChannel,
   finalizeChannel,
   finishAccounts,
+  loadContacts,
   loadCusos,
   loadOverview,
   onboard,
@@ -515,6 +521,98 @@ describe("start over", () => {
   });
 });
 
+describe("CMO contacts", () => {
+  beforeEach(() => {
+    getCmoOverviewForProject.mockResolvedValue({
+      data: { data: { projectId: "project-1", organizationSlug: "acme" } },
+      response: { status: 200 },
+    });
+  });
+
+  it("loads the next page of matching contacts in the active business", async () => {
+    getContacts.mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: "contact-1",
+            name: "Ada",
+            organization: null,
+            role: null,
+            channels: [
+              { type: "EMAIL", value: "old@example.com", isPrimary: false },
+              { type: "EMAIL", value: "ada@example.com", isPrimary: true },
+            ],
+            lists: [{ name: "Newsletter" }],
+          },
+        ],
+        meta: { pagination: { nextCursor: "next", total: 51 } },
+      },
+    });
+
+    const page = await loadContacts("project-1", {
+      search: "Ada",
+      cursor: "page",
+    });
+
+    expect(getCmoOverviewForProject).toHaveBeenCalledWith(
+      expect.objectContaining({ path: { projectId: "project-1" } }),
+    );
+    expect(getContacts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: { authorization: "Bearer t", "x-organization-slug": "acme" },
+        query: {
+          search: "Ada",
+          cursor: "page",
+          limit: 50,
+          sort: "name",
+          direction: "asc",
+        },
+      }),
+    );
+    expect(page).toMatchObject({
+      contacts: [{ email: "ada@example.com", lists: ["Newsletter"] }],
+      nextCursor: "next",
+      total: 51,
+    });
+  });
+
+  it("refuses to read or create contacts after the active business changes", async () => {
+    await expect(loadContacts("old-project", {})).rejects.toThrow(
+      "active business",
+    );
+    await expect(addContact("old-project", new FormData())).rejects.toThrow(
+      "active business",
+    );
+    expect(getContacts).not.toHaveBeenCalled();
+    expect(postContacts).not.toHaveBeenCalled();
+  });
+
+  it("creates a contact and passes duplicate errors back to the form", async () => {
+    postContacts
+      .mockResolvedValueOnce({ data: { data: {} } })
+      .mockResolvedValueOnce({
+        error: { message: "That email is already in Contacts" },
+      });
+    const input = new FormData();
+    input.set("name", " Ada ");
+    input.set("email", " ada@example.com ");
+
+    expect(await addContact("project-1", input)).toBeNull();
+    expect(postContacts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: { authorization: "Bearer t", "x-organization-slug": "acme" },
+        body: {
+          name: "Ada",
+          channels: [{ type: "EMAIL", value: "ada@example.com" }],
+        },
+      }),
+    );
+    expect(await addContact("project-1", input)).toBe(
+      "That email is already in Contacts",
+    );
+  });
+});
+
 describe("the Cuso on screen", () => {
   // The person also works with project-1 in acme; the page shows project-2.
   const onScreen = {
@@ -691,6 +789,32 @@ describe("the Cuso on screen", () => {
       );
     },
   );
+
+  it("keeps the approved strategy when opening a calendar piece", async () => {
+    await loadPieceText("project-2", "e1", "strategy-2");
+    expect(forProject.getCmoCalendarEntryTextForProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: { projectId: "project-2", id: "e1" },
+        query: { strategyId: "strategy-2" },
+      }),
+    );
+  });
+
+  it("reads and creates contacts in the workspace of the Cuso on screen", async () => {
+    getContacts.mockResolvedValue({
+      data: {
+        data: [],
+        meta: { pagination: { nextCursor: null, total: 0 } },
+      },
+    });
+    postContacts.mockResolvedValue({ data: { data: {} } });
+    const input = new FormData();
+    input.set("name", "Ada");
+    await loadContacts("project-2", {});
+    await addContact("project-2", input);
+    expect(getContacts).toHaveBeenCalledWith(expect.objectContaining(inBeta));
+    expect(postContacts).toHaveBeenCalledWith(expect.objectContaining(inBeta));
+  });
 
   it("reads and writes the chat of the Cuso on screen", async () => {
     const chatInBeta = {

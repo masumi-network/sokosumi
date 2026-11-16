@@ -422,6 +422,8 @@ describe("pages", () => {
     expect(viewFromPath("/brain")).toBeNull();
     expect(VIEW_PATHS.settings).toBe("/settings");
     expect(viewFromPath("/calendar")).toBe("calendar");
+    expect(viewFromPath("/newsletter")).toBe("newsletter");
+    expect(viewFromPath("/contacts")).toBeNull();
   });
 
   it("reads an older strategy as one headline, the main goal and the weeks", () => {
@@ -484,6 +486,7 @@ describe("pages", () => {
         compose={() => {}}
         connect={async () => ({ url: null, error: null })}
         connectAds={async () => ({ url: null, error: null })}
+        openNewsletter={() => {}}
         addMailingList={async () => ({ overview: null, error: null })}
         onChange={() => {}}
       />,
@@ -499,6 +502,7 @@ describe("pages", () => {
         compose={() => {}}
         connect={async () => ({ url: null, error: null })}
         connectAds={async () => ({ url: null, error: null })}
+        openNewsletter={() => {}}
         addMailingList={async () => ({ overview: null, error: null })}
         onChange={() => {}}
       />,
@@ -516,11 +520,13 @@ describe("pages", () => {
           compose={() => {}}
           connect={async () => ({ url: null, error: null })}
           connectAds={async () => ({ url: null, error: null })}
+          openNewsletter={() => {}}
           addMailingList={async () => ({ overview: null, error: null })}
           onChange={() => {}}
         />,
       );
     expect(channels(0)).toContain("Add your list");
+    expect(channels(0)).toContain("Open Newsletter");
     expect(channels(128)).toContain("128");
     expect(channels(128)).toContain("Add more");
   });

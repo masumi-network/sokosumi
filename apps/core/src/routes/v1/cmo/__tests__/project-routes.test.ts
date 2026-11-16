@@ -219,6 +219,7 @@ describe("CMO routes naming a Cuso by his Project", () => {
     ["POST", "/strategy/answers/apply", undefined],
     ["POST", "/calendar/article/pause", undefined],
     ["GET", "/calendar/article/text", undefined],
+    ["POST", "/calendar/newsletter/newsletter-issue", { strategyId: ID }],
     ["POST", `/updates/${ID}/revert`, undefined],
     ["POST", "/measurement/google_analytics/connect", RETURN_URL],
     ["POST", "/measurement/google_analytics/finalize", undefined],

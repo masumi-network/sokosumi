@@ -5,7 +5,7 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireFirstPartyUserAuthContext } from "@/middleware/auth";
 import {
   newsletterIssueParamsSchema,
   newsletterIssueRevisionRequestSchema,
@@ -21,7 +21,7 @@ const route = withCoworkerContextHeaderParameters(
     path: "/{id}/newsletter/issues/{issueId}/approve",
     tags: ["Projects"],
     description:
-      "Approve a newsletter issue using its current revision. Requires a human interactive session.",
+      "Approve a newsletter issue using its current revision. Requires a human browser session or first-party OAuth token.",
     request: {
       params: newsletterIssueParamsSchema,
       body: {
@@ -49,7 +49,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     const { id, issueId } = c.req.valid("param");
     const scope = await newsletterIssueScope(c, id);
-    const user = requireInteractiveUserAuthContext(c.var.authContext);
+    const user = requireFirstPartyUserAuthContext(c.var.authContext);
     const input = c.req.valid("json");
     const issue = await approveNewsletterIssue(
       scope,

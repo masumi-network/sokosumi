@@ -192,6 +192,7 @@ export function ChannelsPage({
   overview,
   connect,
   connectAds,
+  openNewsletter,
   addMailingList,
   onChange,
   connectFailed = false,
@@ -200,6 +201,7 @@ export function ChannelsPage({
   addMailingList: AddMailingList;
   onChange: (overview: CmoOverview) => void;
   connectAds: AdActions["connectAds"];
+  openNewsletter: () => void;
   connectFailed?: boolean;
 }) {
   const [pending, setPending] = useState<Provider | null>(null);
@@ -308,7 +310,16 @@ export function ChannelsPage({
         </ul>
       </section>
       <section className="card">
-        <h3>Newsletter</h3>
+        <div className="crow">
+          <h3 className="grow">Newsletter</h3>
+          <button
+            type="button"
+            className="button button-secondary button-small"
+            onClick={openNewsletter}
+          >
+            Open Newsletter
+          </button>
+        </div>
         <MailingList
           size={overview.mailingListSize}
           add={addMailingList}
@@ -348,7 +359,7 @@ interface MailingListProps {
   onChange: (overview: CmoOverview) => void;
 }
 
-/** The addresses Cuso writes the newsletter for; sending is not built yet. */
+/** The addresses Cuso writes the newsletter for. Adding them here only adds them to Contacts. */
 function MailingList({ size, add, onChange }: MailingListProps) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -357,8 +368,8 @@ function MailingList({ size, add, onChange }: MailingListProps) {
   return (
     <>
       <p className="muted">
-        {AGENT_NAME} writes each issue for the people on your list. Sending is
-        not built yet.
+        {AGENT_NAME} writes each issue for the people on your list. Open
+        Newsletter to choose subscribers and confirm consent.
       </p>
       <div className="li">
         <span className="grow">

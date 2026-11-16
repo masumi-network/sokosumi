@@ -1,7 +1,6 @@
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CmoApp } from "../components/app/cmo-app";
 import { CusoPicker } from "../components/cuso-picker";
 import { NameSetup } from "../components/name-setup";
 import { Onboarding } from "../components/onboarding";
@@ -55,6 +54,7 @@ vi.mock("./cmo-actions", async (importOriginal) => ({
   skippedSteps: async () => [],
 }));
 
+const { CmoApp } = await import("../components/app/cmo-app");
 const { default: HomePage } = await import("./page");
 
 type Page = ReactElement<{

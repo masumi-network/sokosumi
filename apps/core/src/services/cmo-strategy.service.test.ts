@@ -17,6 +17,18 @@ import {
   strategyRows,
 } from "@/test-fixtures/cmo-service";
 
+const { readPieceText } = vi.hoisted(() => ({ readPieceText: vi.fn() }));
+
+vi.mock(
+  "@/services/marketing-strategy-files.service",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/services/marketing-strategy-files.service")
+    >()),
+    readMarketingPieceText: readPieceText,
+  }),
+);
+
 vi.mock(
   "@/lib/db/prisma",
   async () =>
@@ -81,6 +93,7 @@ import {
   cmoPlanAnswerNote,
   keepCalendarWork,
   pauseCmoCalendarEntry,
+  readCmoPieceText,
   requestCmoStrategy,
   saveCmoStrategy,
   setCmoAdBudget,
@@ -96,6 +109,59 @@ const HIRE = {
 };
 const plan = (row: { plan: unknown }) => row.plan as typeof strategy;
 const approvedRows = () => strategyRows.filter((row) => row.approvedAt);
+
+describe("readCmoPieceText", () => {
+  beforeEach(() => {
+    readPieceText.mockReset();
+    cusoFind.mockResolvedValue({ ...HIRE, userId: "user-1" });
+  });
+
+  it("reads the requested Project's current approved piece", async () => {
+    const approved = seedStrategy(strategy, {
+      approvedAt: new Date("2026-10-01T09:00:00Z"),
+    });
+    readPieceText.mockResolvedValue("Approved newsletter");
+    await expect(
+      readCmoPieceText({
+        userId: "user-1",
+        projectId: "project-1",
+        entryId: "newsletter",
+        strategyId: approved.id,
+      }),
+    ).resolves.toBe("Approved newsletter");
+    expect(cusoFind).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ projectId: "project-1" }),
+      }),
+    );
+    expect(readPieceText).toHaveBeenCalledWith(approved, "newsletter");
+  });
+
+  it("rejects an old approved strategy before reading its copy", async () => {
+    seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
+    await expect(
+      readCmoPieceText({
+        userId: "user-1",
+        projectId: "project-1",
+        entryId: "newsletter",
+        strategyId: "stale-strategy",
+      }),
+    ).rejects.toThrow("The approved calendar changed");
+    expect(readPieceText).not.toHaveBeenCalled();
+  });
+
+  it("rejects a specified strategy when no approved calendar remains", async () => {
+    await expect(
+      readCmoPieceText({
+        userId: "user-1",
+        projectId: "project-1",
+        entryId: "newsletter",
+        strategyId: "removed-strategy",
+      }),
+    ).rejects.toThrow("The approved calendar changed");
+    expect(readPieceText).not.toHaveBeenCalled();
+  });
+});
 
 vi.mock("@/lib/site-platform", () => ({
   detectSiteLanguage: vi.fn().mockResolvedValue("German"),

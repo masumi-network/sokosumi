@@ -1,17 +1,25 @@
 import type { Prisma } from "@sokosumi/database";
 import { NEWSLETTER_BETA_ORGANIZATION_SLUG } from "@sokosumi/utils";
 
+import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { isEvalWorkspace } from "@/lib/evals/eval-guard";
 
-export const NEWSLETTER_BETA_SCOPE = {
-  project: {
-    workspace: { organization: { slug: NEWSLETTER_BETA_ORGANIZATION_SLUG } },
-  },
-} satisfies Prisma.NewsletterWhereInput;
+/** Public signup, sending and events share the same pilot scope. */
+export function newsletterPilotScope() {
+  const organization = { slug: NEWSLETTER_BETA_ORGANIZATION_SLUG };
+  const workspaceIds = getEnv().NEWSLETTER_PILOT_WORKSPACE_IDS ?? [];
+  return {
+    project: {
+      workspace: workspaceIds.length
+        ? { OR: [{ organization }, { id: { in: workspaceIds } }] }
+        : { organization },
+    },
+  } satisfies Prisma.NewsletterWhereInput;
+}
 
 /**
- * The beta organization, and the eval lanes so their bots can draft issues.
+ * The beta organization and pilot workspaces. Eval lanes can also draft issues.
  * An issue goes out only once a person approves it, and nobody signs in to
  * an eval lane; adding subscribers is simulated there (`eval-guard.ts`).
  */
@@ -24,5 +32,9 @@ export async function isNewsletterWorkspaceEnabled(
     where: { id: workspaceId },
     select: { organization: { select: { slug: true } } },
   });
-  return workspace?.organization?.slug === NEWSLETTER_BETA_ORGANIZATION_SLUG;
+  if (!workspace) return false;
+  return (
+    workspace.organization?.slug === NEWSLETTER_BETA_ORGANIZATION_SLUG ||
+    (getEnv().NEWSLETTER_PILOT_WORKSPACE_IDS ?? []).includes(workspaceId)
+  );
 }

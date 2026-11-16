@@ -170,6 +170,15 @@ const baseEnvSchema = z.object({
   POLAR_ENVIRONMENT: z.enum(["sandbox", "production"]).optional(),
 
   // Project newsletters use a separate sending domain from transactional email.
+  NEWSLETTER_PILOT_WORKSPACE_IDS: z
+    .string()
+    .default("")
+    .transform((value) =>
+      value.trim() === ""
+        ? []
+        : value.split(",").map((id) => id.trim().toLowerCase()),
+    )
+    .pipe(z.array(z.uuid())),
   NEWSLETTER_FROM_DOMAIN: z.hostname().optional(),
   RESEND_NEWSLETTER_WEBHOOK_SECRET: z.string().min(1).optional(),
   /**

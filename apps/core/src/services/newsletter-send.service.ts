@@ -15,7 +15,7 @@ import {
   newsletterPublicUrl,
   newsletterUnsubscribeOptions,
 } from "@/lib/newsletter/email";
-import { NEWSLETTER_BETA_SCOPE } from "@/lib/newsletter/feature";
+import { newsletterPilotScope } from "@/lib/newsletter/feature";
 import {
   compareWarmupRecipients,
   utcDay,
@@ -48,7 +48,7 @@ export async function sendNewsletterIssue(
 ): Promise<void> {
   newsletterPublicUrl("unsubscribe");
   const issue = await prisma.newsletterIssue.findUnique({
-    where: { id: issueId, ...NEWSLETTER_BETA_SCOPE },
+    where: { id: issueId, ...newsletterPilotScope() },
     include: { newsletter: true },
   });
   if (!issue) throw notFound("Newsletter issue not found");
@@ -70,7 +70,7 @@ export async function sendNewsletterIssue(
   const claimed = await prisma.newsletterIssue.updateMany({
     where: {
       id: issueId,
-      ...NEWSLETTER_BETA_SCOPE,
+      ...newsletterPilotScope(),
       status: issue.status,
       revision: issue.revision,
       ...(recovering
@@ -92,7 +92,7 @@ export async function sendNewsletterIssue(
     id: issueId,
     status: "SENDING" as const,
     leaseToken,
-    ...NEWSLETTER_BETA_SCOPE,
+    ...newsletterPilotScope(),
   };
   const sendFence: Prisma.NewsletterSendWhereInput = { issueId, issue: fence };
   async function renewLease() {
@@ -391,7 +391,7 @@ export async function sendDueNewsletterIssues(
   const now = new Date();
   const issues = await prisma.newsletterIssue.findMany({
     where: {
-      ...NEWSLETTER_BETA_SCOPE,
+      ...newsletterPilotScope(),
       OR: [
         { status: "SCHEDULED", scheduledAt: { lte: now } },
         { status: "SENDING", leaseExpiresAt: { lte: now } },

@@ -20,7 +20,7 @@ const route = withCoworkerContextHeaderParameters(
     path: "/{id}/newsletter",
     tags: ["Projects"],
     description:
-      "Get the Project's newsletter settings. Returns 404 if no newsletter exists or the Project's workspace is outside the beta (utxo) organization.",
+      "Get the Project's newsletter settings. Returns 404 if no newsletter exists or the Project's workspace is not enabled for newsletters.",
     request: { params: newsletterProjectParamsSchema },
     responses: {
       200: jsonSuccessResponse(newsletterSchema, "Newsletter settings"),

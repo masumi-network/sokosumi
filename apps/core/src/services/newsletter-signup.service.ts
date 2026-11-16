@@ -27,7 +27,7 @@ import {
   newsletterPublicUrl,
   newsletterUnsubscribeOptions,
 } from "@/lib/newsletter/email";
-import { NEWSLETTER_BETA_SCOPE } from "@/lib/newsletter/feature";
+import { newsletterPilotScope } from "@/lib/newsletter/feature";
 import { allowNewsletterSignup } from "@/lib/newsletter/signup-limit";
 import {
   newsletterBrandSchema,
@@ -84,7 +84,7 @@ function resubscribeWhere(
 
 export async function getPublicNewsletter(publicSlug: string) {
   const newsletter = await prisma.newsletter.findUnique({
-    where: { publicSlug, ...NEWSLETTER_BETA_SCOPE },
+    where: { publicSlug, ...newsletterPilotScope() },
     select: { name: true, senderName: true, brand: true },
   });
   if (!newsletter) throw notFound("Newsletter not found");
@@ -98,7 +98,7 @@ export async function subscribeToNewsletter(
 ): Promise<void> {
   if (input.website) return;
   const newsletter = await prisma.newsletter.findUnique({
-    where: { publicSlug, ...NEWSLETTER_BETA_SCOPE },
+    where: { publicSlug, ...newsletterPilotScope() },
   });
   if (!newsletter) throw notFound("Newsletter not found");
   if (!(await allowNewsletterSignup(newsletter.id, request))) return;
@@ -244,7 +244,7 @@ async function sendNewsletterConfirmation(
           where: {
             id: subscriber.id,
             newsletterId: newsletter.id,
-            newsletter: NEWSLETTER_BETA_SCOPE,
+            newsletter: newsletterPilotScope(),
             ...resubscribeWhere(subscriber.consentAt),
           },
         })
@@ -294,7 +294,7 @@ async function pendingConfirmations<T extends ConfirmationSubscriber>(
   const pending = await prisma.newsletterSubscriber.findMany({
     where: {
       newsletterId: newsletter.id,
-      newsletter: NEWSLETTER_BETA_SCOPE,
+      newsletter: newsletterPilotScope(),
       status: "PENDING",
       unsubscribedAt: null,
       bouncedAt: null,
@@ -353,7 +353,7 @@ export async function getNewsletterConfirmSubscriber(token: string) {
     where: {
       id: subscriberId,
       newsletterId,
-      newsletter: NEWSLETTER_BETA_SCOPE,
+      newsletter: newsletterPilotScope(),
     },
     include: { newsletter: true },
   });
@@ -424,7 +424,7 @@ export async function confirmNewsletterSubscriber(
     const welcomeWhere = {
       id: subscriber.id,
       newsletterId: newsletter.id,
-      newsletter: { ...NEWSLETTER_BETA_SCOPE, welcomeEmailEnabled: true },
+      newsletter: { ...newsletterPilotScope(), welcomeEmailEnabled: true },
       status: "ACTIVE" as const,
       consentAt: subscriber.consentAt,
       unsubscribedAt: null,

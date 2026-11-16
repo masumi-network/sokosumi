@@ -21,10 +21,12 @@ import {
   finalizeCmoAdsForProject,
   finalizeCmoMeasurementForProject,
   finalizeCmoSocialConnectionForProject,
+  type GetContactsData,
   getChatsRoomsByIdMessages,
   getCmoCalendarEntryTextForProject,
   getCmoOverviewForProject,
   getContactLists,
+  getContacts,
   initiateCmoSocialConnectionForProject,
   launchCmoSearchAdForProject,
   listCmoAdCampaignsForProject,
@@ -37,6 +39,7 @@ import {
   postComposioCallbackComplete,
   postContactLists,
   postContactListsByIdImport,
+  postContacts,
   requestCmoStrategyForProject,
   retryCmoOnboardingForProject,
   revertCmoUpdateForProject,
@@ -59,7 +62,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AGENT_NAME } from "../lib/agent";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
-import { coreForCurrentUser } from "../lib/core";
+import { errorText } from "../lib/error-text";
 import { INVITE_ONLY_NOTE, INVITE_ONLY_TITLE } from "../lib/invite-only";
 import { lastCusoCookie } from "../lib/last-cuso";
 import {
@@ -70,12 +73,7 @@ import {
   withSkippedSteps,
 } from "../lib/skipped-steps";
 import { VIEW_PATHS } from "../lib/views";
-
-async function requireCore() {
-  const core = await coreForCurrentUser();
-  if (!core) throw new Error("Not signed in to Sokosumi");
-  return core;
-}
+import { inCusoWorkspace, requireCore } from "../lib/workspace-options";
 
 /** What this person skipped in hiring, to route its steps. */
 export async function skippedSteps(projectId: string): Promise<SkippedStep[]> {
@@ -425,11 +423,13 @@ export async function loadMessages(projectId: string): Promise<CusoMessage[]> {
 export async function loadPieceText(
   projectId: string,
   entryId: string,
+  strategyId?: string,
 ): Promise<string | null> {
   const core = await requireCore();
   const { data } = await getCmoCalendarEntryTextForProject({
     ...core,
     path: { projectId, id: entryId },
+    query: { strategyId },
   });
   return data?.data.text ?? null;
 }
@@ -463,12 +463,6 @@ export async function sendMessage(
     body: { content: text, mentionedSokoBotIds: [overview.sokoBotId] },
   });
   if (error) throw new Error("Could not send the message");
-}
-
-function errorText(error: unknown, fallback: string): string {
-  return error && typeof error === "object" && "message" in error
-    ? String((error as { message: unknown }).message)
-    : fallback;
 }
 
 /**
@@ -628,22 +622,73 @@ async function callbackUrl(
 }
 
 /**
- * Request options in Cuso's workspace for the standard routes, which find an
- * organization's Project and contacts only with its slug header.
+ * Request options for Cuso's Project on the standard Project routes, with
+ * the overview they were read from.
  */
-async function inCusoWorkspace(
-  overview: Pick<CmoOverview, "organizationSlug">,
+/** Resolve the workspace again so a stale screen cannot act in another hire. */
+async function contactWorkspace(projectId: string) {
+  const overview = await requireOverview(projectId);
+  if (overview.projectId !== projectId || !overview.organizationSlug) {
+    throw new Error("The active business has changed");
+  }
+  return inCusoWorkspace(overview);
+}
+
+export async function loadContacts(
+  projectId: string,
+  query: Pick<NonNullable<GetContactsData["query"]>, "search" | "cursor">,
 ) {
-  const core = await requireCore();
-  return {
-    ...core,
-    headers: {
-      ...core.headers,
-      ...(overview.organizationSlug
-        ? { "x-organization-slug": overview.organizationSlug }
-        : {}),
+  const options = await contactWorkspace(projectId);
+  const { data } = await getContacts({
+    ...options,
+    query: {
+      search: query.search,
+      cursor: query.cursor,
+      sort: "name",
+      direction: "asc",
+      limit: 50,
     },
+  });
+  if (!data) throw new Error("Could not load contacts");
+  return {
+    contacts: data.data.map(
+      ({ id, name, organization, role, channels, lists }) => ({
+        id,
+        name,
+        organization,
+        role,
+        email:
+          channels.find(
+            (channel) => channel.type === "EMAIL" && channel.isPrimary,
+          )?.value ??
+          channels.find((channel) => channel.type === "EMAIL")?.value ??
+          null,
+        lists: lists.map((list) => list.name),
+      }),
+    ),
+    nextCursor: data.meta.pagination.nextCursor,
+    total: data.meta.pagination.total,
   };
+}
+
+export async function addContact(
+  projectId: string,
+  formData: FormData,
+): Promise<string | null> {
+  const options = await contactWorkspace(projectId);
+  const name = formData.get("name");
+  const email = formData.get("email");
+  if (typeof name !== "string" || !name.trim()) return "Enter a name.";
+  const address = typeof email === "string" ? email.trim() : "";
+  const { data, error } = await postContacts({
+    ...options,
+    body: {
+      name: name.trim(),
+      channels: address ? [{ type: "EMAIL", value: address }] : [],
+    },
+  });
+  if (!data) return errorText(error, "Could not add the contact.");
+  return null;
 }
 
 /** Starts connecting a network; the browser goes to the returned URL. */

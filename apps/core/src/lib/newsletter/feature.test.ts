@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { isNewsletterWorkspaceEnabled } from "./feature";
+import { isNewsletterWorkspaceEnabled, newsletterPilotScope } from "./feature";
 
+const pilotIds = vi.hoisted(() => vi.fn((): string[] => []));
 const workspace = vi.hoisted(() => ({ findUnique: vi.fn() }));
 
+vi.mock("@/config/env", () => ({
+  getEnv: () => ({ NEWSLETTER_PILOT_WORKSPACE_IDS: pilotIds() }),
+}));
 vi.mock("@/lib/db/prisma", () => ({ default: { workspace } }));
 
 beforeEach(() => {
@@ -24,6 +28,24 @@ describe("newsletter workspace beta gate", () => {
       });
     },
   );
+
+  it("enables a pilot workspace without enabling its organization or other workspaces", async () => {
+    pilotIds.mockReturnValue(["workspace_pilot"]);
+    workspace.findUnique.mockResolvedValue({ organization: { slug: "cmo" } });
+
+    expect(await isNewsletterWorkspaceEnabled("workspace_pilot")).toBe(true);
+    expect(await isNewsletterWorkspaceEnabled("workspace_other")).toBe(false);
+    expect(newsletterPilotScope()).toEqual({
+      project: {
+        workspace: {
+          OR: [
+            { organization: { slug: "utxo" } },
+            { id: { in: ["workspace_pilot"] } },
+          ],
+        },
+      },
+    });
+  });
 
   it("rejects missing and unknown workspaces", async () => {
     expect(await isNewsletterWorkspaceEnabled(null)).toBe(false);

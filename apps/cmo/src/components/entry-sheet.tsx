@@ -51,12 +51,12 @@ export function EntrySheet({
   onPrev?: () => void;
   onNext?: () => void;
 }) {
-  const filed = Boolean(entry.fileId && !entry.draft);
+  const fileId = entry.draft ? undefined : entry.fileId;
   const [filedText, setFiledText] = useState<string | null>(null);
   useEffect(() => {
     // Stepping to another piece must not show the last one's words.
     setFiledText(null);
-    if (!filed || !loadText) return;
+    if (!fileId || !loadText) return;
     let current = true;
     loadText(entry.id)
       .then((text) => {
@@ -66,7 +66,7 @@ export function EntrySheet({
     return () => {
       current = false;
     };
-  }, [entry.id, filed, loadText]);
+  }, [entry.id, fileId, loadText]);
   const draft = entry.draft ?? filedText;
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -185,13 +185,13 @@ export function EntrySheet({
         {draft ? (
           <div className="sheet-draft">
             <DraftText text={draft} title={entry.title} />
-            {filed ? (
+            {fileId ? (
               <p className="note">
                 In your Files, ready to paste, launch or send.
               </p>
             ) : null}
           </div>
-        ) : filed ? (
+        ) : fileId ? (
           <p className="note">Opening it from your Files…</p>
         ) : (
           <>

@@ -12,10 +12,18 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { revertMock, overviewMock, strategyMock } = vi.hoisted(() => ({
+const {
+  revertMock,
+  overviewMock,
+  strategyMock,
+  pieceTextMock,
+  newsletterMock,
+} = vi.hoisted(() => ({
   revertMock: vi.fn(),
   overviewMock: vi.fn(),
   strategyMock: vi.fn(),
+  pieceTextMock: vi.fn(),
+  newsletterMock: vi.fn(),
 }));
 
 const { archiveMock, hireMock, listMock, mayHireMock } = vi.hoisted(() => ({
@@ -48,8 +56,12 @@ vi.mock("@/services/cmo-strategy.service", async (importOriginal) => {
   return {
     ...actual,
     requestCmoStrategy: strategyMock,
+    readCmoPieceText: pieceTextMock,
   };
 });
+vi.mock("@/services/cmo-newsletter.service", () => ({
+  prepareCalendarNewsletterIssue: newsletterMock,
+}));
 vi.mock("@/services/cmo-reports.service", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/services/cmo-reports.service")>();
@@ -98,6 +110,7 @@ function overview() {
     brandBrain: null,
     strategy: null,
     approvedStrategy: null,
+    approvedStrategyId: null,
     strategyVersions: [
       {
         id: "strategy-1",
@@ -190,6 +203,61 @@ describe("CMO routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     overviewMock.mockResolvedValue(overview());
+  });
+
+  it("reads a calendar piece from the named Project and approved strategy", async () => {
+    pieceTextMock.mockResolvedValue("Newsletter copy");
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/calendar/newsletter/text?strategyId=${REPORT_ID}`,
+    );
+    expect(response.status).toBe(200);
+    expect(pieceTextMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+      entryId: "newsletter",
+      strategyId: REPORT_ID,
+    });
+    expect((await response.json()).data.text).toBe("Newsletter copy");
+  });
+
+  it("answers 409 when the approved calendar changed", async () => {
+    pieceTextMock.mockRejectedValue(
+      new CmoConflictError("The approved calendar changed"),
+    );
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/calendar/newsletter/text?strategyId=${REPORT_ID}`,
+    );
+    expect(response.status).toBe(409);
+  });
+
+  it("prepares the named Project's calendar newsletter issue", async () => {
+    newsletterMock.mockResolvedValue(REPORT_ID);
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/calendar/newsletter/newsletter-issue`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ strategyId: REPORT_ID, issueId: REPORT_ID }),
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(newsletterMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+      entryId: "newsletter",
+      strategyId: REPORT_ID,
+      issueId: REPORT_ID,
+    });
+    expect((await response.json()).data.issueId).toBe(REPORT_ID);
+  });
+
+  it("keeps the old unscoped calendar newsletter route unavailable", async () => {
+    const response = await createApp().request(
+      "/calendar/newsletter/newsletter-issue",
+      { method: "POST" },
+    );
+    expect(response.status).toBe(404);
+    expect(newsletterMock).not.toHaveBeenCalled();
   });
 
   it("lists every Cuso the caller can use, newest first, as Core ordered them", async () => {

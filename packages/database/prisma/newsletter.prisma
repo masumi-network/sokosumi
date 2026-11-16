@@ -125,6 +125,7 @@ model NewsletterIssue {
 
   sends  NewsletterSend[]
   events NewsletterEvent[]
+  marketingStrategyFile MarketingStrategyFile?
 
   @@index([newsletterId, status], map: "newsletter_issue_newsletterId_status_idx")
   @@index([projectId, status, scheduledAt], map: "newsletter_issue_projectId_status_scheduledAt_idx")

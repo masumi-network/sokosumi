@@ -15,6 +15,7 @@ import mountLaunchCmoSearchAdForProject from "./projects/[projectId]/ads/launch/
 import mountAnswerCmoBrandBrainQuestionForProject from "./projects/[projectId]/brand-brain/answers/post.js";
 import mountConfirmCmoBrandBrainForProject from "./projects/[projectId]/brand-brain/confirm/post.js";
 import mountUpdateCmoBrandBrainForProject from "./projects/[projectId]/brand-brain/put.js";
+import mountPrepareCmoCalendarNewsletterIssueForProject from "./projects/[projectId]/calendar/[id]/newsletter-issue/post.js";
 import mountPauseCmoCalendarEntryForProject from "./projects/[projectId]/calendar/[id]/pause/post.js";
 import mountGetCmoCalendarEntryTextForProject from "./projects/[projectId]/calendar/[id]/text/get.js";
 import mountStartCmoPlanCheckoutForProject from "./projects/[projectId]/checkout/post.js";
@@ -57,6 +58,7 @@ mountSetCmoAdCampaignStatusForProject(app);
 mountListCmoAdChoicesForProject(app);
 mountFinalizeCmoAdsForProject(app);
 mountLaunchCmoSearchAdForProject(app);
+mountPrepareCmoCalendarNewsletterIssueForProject(app);
 mountPauseCmoCalendarEntryForProject(app);
 mountGetCmoCalendarEntryTextForProject(app);
 mountGetCmoOverviewForProject(app);
