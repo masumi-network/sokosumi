@@ -1988,6 +1988,8 @@
           "edit": "Bearbeiten",
           "archive": "Archivieren",
           "archiveError": "Task konnte nicht archiviert werden",
+          "archived": "Task archiviert",
+          "undo": "Rückgängig",
           "reopenToReady": "Als Bereit wiedereröffnen",
           "reopenToReadyTitle": "Aufgabe wiedereröffnen",
           "reopenToReadyDescription": "Füge einen Kommentar hinzu, damit dein Coworker weiß, was als Nächstes zu tun ist. Die Aufgabe wird wieder auf Bereit gesetzt.",

@@ -133,6 +133,8 @@ interface TaskStatusAction {
 
 interface TaskDetailActionsProps {
   taskId: string;
+  /** Named in the "Task archived" message. */
+  taskName: string;
   share: TaskShare | null;
   status: TaskStatus;
   /** When PRIVATE, public share controls are hidden. */
@@ -174,6 +176,7 @@ interface TaskDetailActionsProps {
 
 export function TaskDetailActions({
   taskId,
+  taskName,
   share,
   status: savedStatus,
   taskVisibility = "PUBLIC",
@@ -453,17 +456,41 @@ export function TaskDetailActions({
     });
   };
 
+  const undoArchive = async () => {
+    try {
+      await taskClientService.restore(taskId);
+    } catch (error) {
+      console.error("Failed to restore task", error);
+      toast.error(tTasks("Archived.restoreError"));
+      return;
+    }
+    unmarkTaskArchived(taskId);
+    toast.success(tTasks("Archived.restored", { name: taskName }));
+    // The restore was a browser call to Core, not a server action, so the
+    // board's server data is refreshed here.
+    router.refresh();
+  };
+
   // Leaves for the board at once and archives in the background: the board
   // already hides the task, and shows it again if the archive fails.
   const handleArchive = () => {
     markTaskArchived(taskId);
     router.push("/tasks");
-    taskClientService.archive(taskId).catch((error: unknown) => {
-      console.error("Failed to archive task", error);
-      unmarkTaskArchived(taskId);
-      toast.error(labels.archiveError);
-      router.refresh();
-    });
+    taskClientService.archive(taskId).then(
+      () =>
+        toast.success(tDetailActions("archived"), {
+          description: taskName,
+          duration: Number.POSITIVE_INFINITY,
+          closeButton: true,
+          action: { label: tDetailActions("undo"), onClick: undoArchive },
+        }),
+      (error: unknown) => {
+        console.error("Failed to archive task", error);
+        unmarkTaskArchived(taskId);
+        toast.error(labels.archiveError);
+        router.refresh();
+      },
+    );
   };
 
   const resetMobileSections = () => {

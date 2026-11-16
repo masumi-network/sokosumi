@@ -7,8 +7,9 @@ import { type Browser, chromium, type Page } from "playwright";
 
 import { resolveBaseUrl } from "./base-url.ts";
 
-// A new user's Task, end to end: create, rename to a long title, archive, find it
-// in Archived, restore. Each size signs up its own disposable mail.tm inbox.
+// A new user's Task, end to end: create, rename to a long title, archive and
+// undo from the message, archive again, find it in Archived, restore. Each size
+// signs up its own disposable mail.tm inbox.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const MAIL_API = "https://api.mail.tm";
@@ -76,7 +77,7 @@ after(() => browser.close());
 
 for (const { name: size, ...viewport } of PROJECTS) {
   describe(size, () => {
-    test("a new user creates, renames, archives and restores a Task", async () => {
+    test("a new user creates, renames, archives, undoes and restores a Task", async () => {
       const context = await browser.newContext({ viewport });
       const page = await context.newPage();
       page.setDefaultTimeout(30_000);
@@ -143,7 +144,29 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .click();
       await page.getByRole("heading", { level: 1, name: LONG_NAME }).waitFor();
 
-      await page.getByRole("button", { name: "Archive", exact: true }).click();
+      const archive = page.getByRole("button", {
+        name: "Archive",
+        exact: true,
+      });
+      await archive.click();
+      await page.waitForURL(`${BASE_URL}/tasks`);
+      const archived = page
+        .getByRole("listitem")
+        .filter({ hasText: "Task archived" });
+      await archived.getByText(LONG_NAME).waitFor();
+      await shot(page, size, "3-archived-toast");
+      await archived.getByRole("button", { name: "Undo" }).click();
+      await page.getByText("is back on the board").waitFor();
+      const card = page.getByRole("link", { name: LONG_NAME });
+      await card.waitFor();
+      assert.equal(
+        await page.getByText("No tags yet").count(),
+        0,
+        "a board card shows an empty tags line",
+      );
+
+      await card.click();
+      await archive.click();
       await page.waitForURL(`${BASE_URL}/tasks`);
       await page.getByRole("link", { name: "Archived tasks" }).click();
       const row = page.getByRole("link", { name: LONG_NAME });
@@ -159,7 +182,7 @@ for (const { name: size, ...viewport } of PROJECTS) {
         !nameStyle.includes("nowrap"),
         `archived name does not wrap (${nameStyle})`,
       );
-      await shot(page, size, "3-archived");
+      await shot(page, size, "4-archived");
 
       await page.getByRole("button", { name: `Restore ${LONG_NAME}` }).click();
       await page.getByText("is back on the board").waitFor();
