@@ -4475,8 +4475,13 @@ const projectSeoIndexStatusSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
-const projectSeoIndexTriageSchemaResponseTransformer = (data: any) => {
+const projectSeoIndexAssessedPageSchemaResponseTransformer = (data: any) => {
     data.checkedAt = new Date(data.checkedAt);
+    return data;
+};
+
+const projectSeoIndexTriageSchemaResponseTransformer = (data: any) => {
+    data.assessments = data.assessments.map((item: any) => projectSeoIndexAssessedPageSchemaResponseTransformer(item));
     return data;
 };
 

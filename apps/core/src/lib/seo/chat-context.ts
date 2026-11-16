@@ -82,8 +82,34 @@ function clip(text: string) {
   return text.slice(0, SEO_CHAT_TEXT_MAX_CHARS);
 }
 
+/** A shared reply must not derive advice from a finding only its author may read. */
+function chatEvidence(
+  workspace: ProjectSeoWorkspace,
+  sharing: NonNullable<ProjectSeoWorkspace["sharing"]>,
+) {
+  if (sharing === "personal")
+    return { findings: workspace.findings, actions: workspace.actions };
+  const privateIds = new Set(
+    workspace.findings
+      .filter((finding) => finding.visibility === "PRIVATE")
+      .map((finding) => finding.id),
+  );
+  return {
+    findings: workspace.findings.filter(
+      (finding) => !privateIds.has(finding.id),
+    ),
+    actions: workspace.actions.filter(
+      (action) => !action.findingIds.some((id) => privateIds.has(id)),
+    ),
+  };
+}
+
 /** Only the actor-authorized projection enters inference. Credentials and raw artifacts never do. */
-export function seoChatContext(workspace: ProjectSeoWorkspace): string {
+export function seoChatContext(
+  workspace: ProjectSeoWorkspace,
+  sharing: NonNullable<ProjectSeoWorkspace["sharing"]> = "organization",
+): string {
+  const { findings, actions } = chatEvidence(workspace, sharing);
   const selectedIds = new Set(workspace.scope.pageIds);
   const pages = workspace.pages.filter((page) => selectedIds.has(page.id));
   const context = {
@@ -102,8 +128,8 @@ export function seoChatContext(workspace: ProjectSeoWorkspace): string {
       competitors: workspace.competitors.filter(
         (row) => row.role === "competitor",
       ).length,
-      findings: workspace.findings.length,
-      actions: workspace.actions.length,
+      findings: findings.length,
+      actions: actions.length,
       metrics: workspace.metrics.length,
     },
     pages: pages.slice(0, SEO_CHAT_PAGE_LIMIT),
@@ -168,7 +194,7 @@ export function seoChatContext(workspace: ProjectSeoWorkspace): string {
         rank: row.rank,
         observedAt: row.observedAt,
       })),
-    findings: workspace.findings
+    findings: findings
       .toSorted(
         (left, right) =>
           (SEO_CHAT_ISSUE_PRIORITY[left.severity] ??
@@ -184,8 +210,9 @@ export function seoChatContext(workspace: ProjectSeoWorkspace): string {
         severity: row.severity,
         title: clip(row.title),
         evidence: row.evidence.slice(0, SEO_CHAT_EVIDENCE_LIMIT).map(clip),
+        ...(row.suggestedFix ? { suggestedFix: clip(row.suggestedFix) } : {}),
       })),
-    actions: chatActionSample(workspace.actions).map((row) => ({
+    actions: chatActionSample(actions).map((row) => ({
       id: row.id,
       kind: row.kind,
       title: clip(row.title),
@@ -337,10 +364,13 @@ export function availableSeoChatActions(
   );
 }
 
-export function seoChatTaskActions(workspace: ProjectSeoWorkspace) {
+export function seoChatTaskActions(
+  workspace: ProjectSeoWorkspace,
+  sharing: NonNullable<ProjectSeoWorkspace["sharing"]> = "organization",
+) {
   return new Set(
-    workspace.actions
-      .filter((action) => action.status === "recommended")
+    chatEvidence(workspace, sharing)
+      .actions.filter((action) => action.status === "recommended")
       .map((action) => `${action.observationId}:${action.id}`),
   );
 }

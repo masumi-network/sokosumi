@@ -21,9 +21,11 @@ import {
   saveSeoKeywordSchema,
   seoPageChangePayloadSchema,
 } from "@/schemas/project-seo.schema";
+import { checkIdentity, issueIdentity } from "./project-seo-check-identity";
 import {
+  indexAuditFindings,
   newestIndexStatus,
-  newestIndexTriage,
+  withIndexIssueCounts,
 } from "./project-seo-index-projection";
 import {
   observedSeoKeyword,
@@ -87,34 +89,6 @@ const SEO_ISSUE_SEVERITIES = new Set(["critical", "major", "minor"]);
 const key = (...parts: Array<string | null>) => JSON.stringify(parts);
 /** A Task in one of these states does no work on its action any more. */
 const DEAD_TASK_STATUSES = new Set(["FAILED", "CANCELED"]);
-
-function checkIdentity(
-  source: PublicSeoPayload,
-  check: { pageUrl: string; rowId: string; device: string | null },
-) {
-  return key(
-    normalizeSeoUrl(check.pageUrl),
-    check.rowId,
-    check.device,
-    source.countryCode,
-    source.languageCode,
-    source.rulebookVersion,
-  );
-}
-
-/** One issue across checks: a later check that finds the same row again replaces it, also under a newer rulebook. */
-function issueIdentity(
-  source: PublicSeoPayload,
-  check: { pageUrl: string; rowId: string; device: string | null },
-) {
-  return key(
-    normalizeSeoUrl(check.pageUrl),
-    check.rowId,
-    check.device,
-    source.countryCode,
-    source.languageCode,
-  );
-}
 
 function verifiedAction(
   input: ProjectionInput,
@@ -672,6 +646,12 @@ export function projectSeoProjection(
       });
   timeline.sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id));
   const editable = !project.closedAt && !project.closingAt;
+  const indexing = indexAuditFindings(
+    input.privateMetricsAllowed ? input.observations : [],
+    [...scopedPublicSources.values()],
+    selectedUrls,
+    query,
+  );
   return projectSeoWorkspaceSchema.parse({
     sharing: input.sharing ?? "personal",
     projectId: project.auditId ? (project.projectId ?? null) : project.id,
@@ -688,7 +668,7 @@ export function projectSeoProjection(
     },
     pages: input.pages,
     scopes: input.scopes,
-    observations,
+    observations: withIndexIssueCounts(observations, indexing.counts),
     history: {
       limit: SEO_RESULT_LIMIT,
       limited: input.historyLimited,
@@ -696,16 +676,14 @@ export function projectSeoProjection(
     },
     keywords,
     competitors,
-    findings,
+    findings: [...findings, ...indexing.findings],
     actions,
     metrics,
     searchQueries: search.searchQueries,
     searchBreakdown: search.searchBreakdown,
     landingPages: metricRows.landingPages,
     indexStatus: newestIndexStatus(indexSources, selectedUrls),
-    indexTriage: input.privateMetricsAllowed
-      ? newestIndexTriage(input.observations, selectedUrls)
-      : null,
+    indexTriage: indexing.triage,
     strategy,
     metricsStatus: !metrics.length
       ? "unavailable"
@@ -715,7 +693,7 @@ export function projectSeoProjection(
     timeline: timeline.filter((item) =>
       matchesSeoPeriod(new Date(item.at), query),
     ),
-    runs,
+    runs: withIndexIssueCounts(runs, indexing.counts),
     analyses,
     monitors: (input.monitors ?? []).filter((monitor) =>
       overlaps(monitor.pageIds),

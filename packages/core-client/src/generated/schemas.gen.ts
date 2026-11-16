@@ -41539,6 +41539,19 @@ export const ProjectSeoFindingSchema = {
                 type: 'string'
             }
         },
+        suggestedFix: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2000
+        },
+        visibility: {
+            type: 'string',
+            enum: [
+                'PRIVATE'
+            ]
+        },
         sourceRef: {
             type: 'string'
         },
@@ -42332,30 +42345,20 @@ export const ProjectSeoIndexedPageSchema = {
 export const ProjectSeoIndexTriageSchema = {
     type: 'object',
     properties: {
-        taskId: {
-            type: 'string'
-        },
-        checkedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
         assessments: {
             type: 'array',
             items: {
-                $ref: '#/components/schemas/ProjectSeoIndexAssessment'
+                $ref: '#/components/schemas/ProjectSeoIndexAssessedPage'
             },
             maxItems: 10
         }
     },
     required: [
-        'taskId',
-        'checkedAt',
         'assessments'
     ]
 } as const;
 
-export const ProjectSeoIndexAssessmentSchema = {
+export const ProjectSeoIndexAssessedPageSchema = {
     type: 'object',
     properties: {
         pageUrl: {
@@ -42396,6 +42399,14 @@ export const ProjectSeoIndexAssessmentSchema = {
                 maxLength: 2000
             },
             maxItems: 20
+        },
+        taskId: {
+            type: 'string'
+        },
+        checkedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
         }
     },
     required: [
@@ -42404,7 +42415,9 @@ export const ProjectSeoIndexAssessmentSchema = {
         'report',
         'reason',
         'suggestedFix',
-        'evidence'
+        'evidence',
+        'taskId',
+        'checkedAt'
     ],
     additionalProperties: false
 } as const;
@@ -55946,6 +55959,60 @@ export const SeoTaskIndexingResultRequestSchema = {
         'expectedContext',
         'receiptHash',
         'assessments'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ProjectSeoIndexAssessmentSchema = {
+    type: 'object',
+    properties: {
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'indexed',
+                'issue',
+                'review',
+                'expected_exclusion',
+                'unavailable'
+            ]
+        },
+        report: {
+            type: 'boolean'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        },
+        suggestedFix: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 2000
+        },
+        evidence: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 2000
+            },
+            maxItems: 20
+        }
+    },
+    required: [
+        'pageUrl',
+        'status',
+        'report',
+        'reason',
+        'suggestedFix',
+        'evidence'
     ],
     additionalProperties: false
 } as const;

@@ -671,7 +671,13 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
       (
         await request({
           receiptHash: first.receiptHash,
-          assessments: PAGE_URLS.map(assessment),
+          assessments: PAGE_URLS.map((pageUrl) => ({
+            ...assessment(pageUrl),
+            status: "issue",
+            report: true,
+            suggestedFix:
+              "Confirm search intent, then review the canonical and internal links.",
+          })),
         })
       ).status,
     ).toBe(200);
@@ -689,19 +695,93 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
         })
       ).map((page) => page.id),
     };
+    const publicAudit = await prisma.projectSeoObservation.create({
+      data: {
+        auditId,
+        kind: "audit_full",
+        source: "seo_coworker",
+        sourceKey: randomUUID(),
+        sourceTaskId: taskId,
+        pageIds: query.pageIds,
+        scopeVersion: 0,
+        artifactHash: "public-audit-fixture",
+        observedAt: new Date(),
+        payload: {
+          version: 1,
+          kind: "audit_full",
+          requestId: null,
+          pageUrls: PAGE_URLS,
+          observedAt: new Date().toISOString(),
+          countryCode: "US",
+          languageCode: "en",
+          rulebookVersion: "fixture",
+          checks: [],
+          keywords: [],
+          competitors: [],
+          findings: [],
+          actions: [],
+          coverage: { checked: 0, skipped: 0, failed: 0 },
+          notes: [],
+        },
+      },
+    });
+    // More than the former ten-row cap must not evict this audit's Console assessment.
+    const held = await prisma.projectSeoObservation.findFirstOrThrow({
+      where: { auditId, kind: "index_triage", sourceTaskId: taskId },
+    });
+    await prisma.projectSeoObservation.createMany({
+      data: Array.from({ length: 11 }, () => {
+        const otherTaskId = randomUUID();
+        return {
+          auditId,
+          kind: "index_triage",
+          source: "seo_worker",
+          sourceKey: randomUUID(),
+          sourceTaskId: otherTaskId,
+          ownerId,
+          visibility: "PRIVATE",
+          pageIds: query.pageIds,
+          scopeVersion: 0,
+          artifactHash: "unrelated-assessment",
+          observedAt: new Date(Date.now() + 1000),
+          payload: { ...(held.payload as object), taskId: otherTaskId },
+        };
+      }),
+    });
     const ownView = await getProjectSeoWorkspace(owner, query);
     expect(
       ownView.indexTriage?.assessments.map((page) => page.pageUrl),
     ).toEqual(PAGE_URLS);
+    expect(ownView.findings.map((finding) => finding.observationId)).toEqual([
+      publicAudit.id,
+      publicAudit.id,
+    ]);
+    expect(ownView.findings.every((finding) => finding.suggestedFix)).toBe(
+      true,
+    );
+    expect(
+      ownView.observations.find((row) => row.id === publicAudit.id)?.issues,
+    ).toBe(2);
+    const sharedChatView = await getProjectSeoWorkspace(owner, query, {
+      includePrivateIndexing: false,
+    });
+    expect(sharedChatView.findings).toEqual([]);
+    expect(sharedChatView.indexTriage).toBeNull();
+    expect(
+      sharedChatView.observations.find((row) => row.id === publicAudit.id)
+        ?.issues,
+    ).toBe(0);
     const memberView = await getProjectSeoWorkspace(
       { ...owner, userId: otherOwnerId },
       query,
     );
     expect(memberView.indexTriage).toBeNull();
+    expect(memberView.findings).toEqual([]);
     const sharedView = await getProjectSeoWorkspace(
       { ...owner, sokoBotId: randomUUID(), privateMetricsAllowed: false },
       query,
     );
     expect(sharedView.indexTriage).toBeNull();
+    expect(sharedView.findings).toEqual([]);
   });
 });

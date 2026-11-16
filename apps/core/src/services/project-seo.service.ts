@@ -287,8 +287,6 @@ export async function recordNativeSeoMetrics(
 const SEO_WORKSPACE_EVIDENCE_LIMIT = 100;
 /** Native metric snapshots: the newest syncs the workspace shows. */
 const SEO_WORKSPACE_METRICS_LIMIT = 100;
-/** Keep private worker indexing assessments separate from public check history and chart snapshots. */
-const SEO_WORKSPACE_INDEXING_LIMIT = 10;
 
 /**
  * Loads public evidence and private metric snapshots with separate caps, so
@@ -299,10 +297,11 @@ async function loadSeoWorkspaceObservations(
   actor: SeoActor,
   pageIds: string[],
   privateMetricsAllowed: boolean,
+  includePrivateIndexing: boolean,
 ) {
   // Settings rows cover no page, so the page filter keeps them out.
   const where = { ...seoOwnerWhere(actor), pageIds: { hasSome: pageIds } };
-  const [evidence, metrics, indexing] = await Promise.all([
+  const [evidence, metrics] = await Promise.all([
     prisma.projectSeoObservation.findMany({
       where: { ...where, ownerId: null },
       orderBy: { observedAt: "desc" },
@@ -322,19 +321,30 @@ async function loadSeoWorkspaceObservations(
           take: SEO_WORKSPACE_METRICS_LIMIT,
         })
       : [],
-    privateMetricsAllowed
-      ? prisma.projectSeoObservation.findMany({
+  ]);
+  const taskIds = evidence.flatMap((row) =>
+    row.kind === "audit_full" && row.sourceTaskId ? [row.sourceTaskId] : [],
+  );
+  // One newest private assessment per loaded audit. Unrelated syncs cannot evict its Console findings.
+  const indexing =
+    privateMetricsAllowed && includePrivateIndexing && taskIds.length
+      ? await prisma.projectSeoObservation.findMany({
           where: {
             ...where,
             kind: "index_triage",
             ownerId: actor.userId,
             visibility: "PRIVATE",
+            sourceTaskId: { in: taskIds },
           },
-          orderBy: { observedAt: "desc" },
-          take: SEO_WORKSPACE_INDEXING_LIMIT,
+          orderBy: [
+            { observedAt: "desc" },
+            { createdAt: "desc" },
+            { id: "desc" },
+          ],
+          distinct: ["sourceTaskId"],
+          take: SEO_WORKSPACE_EVIDENCE_LIMIT,
         })
-      : [],
-  ]);
+      : [];
   return {
     observations: [...evidence, ...metrics, ...indexing].sort(
       (a, b) => b.observedAt.getTime() - a.observedAt.getTime(),
@@ -349,6 +359,7 @@ async function loadSeoWorkspaceObservations(
 export async function getProjectSeoWorkspace(
   actor: SeoActor,
   query: SeoWorkspaceQuery = {},
+  options: { includePrivateIndexing?: boolean } = {},
 ) {
   await requireSeoOwner(actor);
   const scope = await resolveSeoScope(actor, query);
@@ -374,7 +385,12 @@ export async function getProjectSeoWorkspace(
       where: seoOwnerWhere(actor),
       orderBy: { createdAt: "asc" },
     }),
-    loadSeoWorkspaceObservations(actor, scope.pageIds, privateMetricsAllowed),
+    loadSeoWorkspaceObservations(
+      actor,
+      scope.pageIds,
+      privateMetricsAllowed,
+      options.includePrivateIndexing !== false,
+    ),
     prisma.projectSeoKeyword.findMany({
       where: seoOwnerWhere(actor),
       orderBy: { keyword: "asc" },

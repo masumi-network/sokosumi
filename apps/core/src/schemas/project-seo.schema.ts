@@ -313,6 +313,8 @@ export const seoFindingSchema = z
     title: z.string(),
     severity: seoSeveritySchema,
     evidence: z.array(z.string()),
+    suggestedFix: z.string().max(2000).nullable().optional(),
+    visibility: z.literal("PRIVATE").optional(),
     sourceRef: z.string(),
     observedAt: dateTimeSchema,
   })
@@ -538,9 +540,16 @@ export const seoIndexAssessmentSchema = z
   .openapi("ProjectSeoIndexAssessment");
 export const seoIndexTriageSchema = z
   .object({
-    taskId: z.string(),
-    checkedAt: dateTimeSchema,
-    assessments: z.array(seoIndexAssessmentSchema).max(SEO_MAX_PAGES),
+    assessments: z
+      .array(
+        seoIndexAssessmentSchema
+          .safeExtend({
+            taskId: z.string(),
+            checkedAt: dateTimeSchema,
+          })
+          .openapi("ProjectSeoIndexAssessedPage"),
+      )
+      .max(SEO_MAX_PAGES),
   })
   .openapi("ProjectSeoIndexTriage");
 export const seoSearchQueriesSchema = z

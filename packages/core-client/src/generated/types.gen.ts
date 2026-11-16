@@ -10970,6 +10970,8 @@ export type ProjectSeoFinding = {
     title: string;
     severity: 'critical' | 'major' | 'minor' | 'note' | 'test' | 'measure';
     evidence: Array<string>;
+    suggestedFix?: string | null;
+    visibility?: 'PRIVATE';
     sourceRef: string;
     observedAt: Date;
 };
@@ -11122,18 +11124,18 @@ export type ProjectSeoIndexedPage = {
 };
 
 export type ProjectSeoIndexTriage = {
-    taskId: string;
-    checkedAt: Date;
-    assessments: Array<ProjectSeoIndexAssessment>;
+    assessments: Array<ProjectSeoIndexAssessedPage>;
 };
 
-export type ProjectSeoIndexAssessment = {
+export type ProjectSeoIndexAssessedPage = {
     pageUrl: string;
     status: 'indexed' | 'issue' | 'review' | 'expected_exclusion' | 'unavailable';
     report: boolean;
     reason: string;
     suggestedFix: string | null;
     evidence: Array<string>;
+    taskId: string;
+    checkedAt: Date;
 };
 
 export type ProjectSeoStrategy = {
@@ -14243,6 +14245,15 @@ export type SeoTaskIndexingResultRequest = {
     expectedContext: TaskWorkerContext;
     receiptHash: string;
     assessments: Array<ProjectSeoIndexAssessment>;
+};
+
+export type ProjectSeoIndexAssessment = {
+    pageUrl: string;
+    status: 'indexed' | 'issue' | 'review' | 'expected_exclusion' | 'unavailable';
+    report: boolean;
+    reason: string;
+    suggestedFix: string | null;
+    evidence: Array<string>;
 };
 
 export type SendTaskToChatRequest = {
