@@ -130,15 +130,39 @@ describe("console guard", () => {
     const saved = console.error;
     console.error = () => {};
     console.error = saved;
-    expect(() =>
-      checkConsoleUntouched("outside a test in this file", true),
-    ).toThrow("replaced console output");
+    expect(() => checkConsoleUntouched("outside a test in this file")).toThrow(
+      "replaced console output",
+    );
   });
 
   it.fails("fails a test that mocks console.warn and restores it", () => {
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
     console.warn("console guard: muted (this test is expected to fail)");
     spy.mockRestore();
+  });
+
+  // The next two run in order: the first leaves a spy with a changed
+  // implementation behind, which vi.restoreAllMocks() does not take off.
+  it.fails("fails a mocked console.error spy, then restoreAllMocks", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.restoreAllMocks();
+  });
+
+  it.fails("still fails undeclared console.error in the test after it", () => {
+    console.error(
+      "console guard: undeclared after a mocked spy (this test is expected to fail)",
+    );
+  });
+
+  it.fails("fails a mocked console.warn spy, then restoreAllMocks", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.restoreAllMocks();
+  });
+
+  it.fails("still fails undeclared console.warn in the test after it", () => {
+    console.warn(
+      "console guard: undeclared after a mocked spy (this test is expected to fail)",
+    );
   });
 
   it("lets a spy that only watches through", () => {

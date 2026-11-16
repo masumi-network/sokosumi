@@ -126,6 +126,8 @@ function guardState(): ConsoleGuardState {
       if (!set) continue;
       spy[name] = (...args: unknown[]) => {
         state.muted.push(`console.${method}.${name}`);
+        // It no longer watches: it is a replacement from here on.
+        state.watching.delete(spy as unknown as ConsoleFn);
         return set(...args);
       };
     }
@@ -173,12 +175,12 @@ function unexpectedError(messages: string[], where: string): Error {
 }
 
 /**
- * Fails when console.error/warn were replaced since the last check, and puts
- * the guard back in place of anything that is not a watching spy. At a file
- * boundary (`afterAll`) watching spies come off too, so none reaches the next
- * file in this worker.
+ * Fails when console.error/warn were replaced since the last check. Either
+ * way it puts the guard back, watching spies included, so nothing a test
+ * installed reaches the next test or file in this worker; `vi.restoreAllMocks`
+ * does not take these spies off.
  */
-export function checkConsoleUntouched(where: string, fileEnd = false): void {
+export function checkConsoleUntouched(where: string): void {
   const state = guardState();
   for (const method of METHODS) {
     const now = state.current[method];
@@ -186,9 +188,7 @@ export function checkConsoleUntouched(where: string, fileEnd = false): void {
     if (!state.watching.has(now)) {
       state.muted.push(`console.${method} (left replaced)`);
     }
-    if (fileEnd || !state.watching.has(now)) {
-      state.current[method] = state.guarded[method];
-    }
+    state.current[method] = state.guarded[method];
   }
   const muted = state.muted.splice(0);
   if (muted.length > 0) {
@@ -231,7 +231,7 @@ export function installConsoleGuard(): void {
   // Output between tests: collection, `beforeAll`/`afterAll`, or work a
   // test left running (in a shared worker, possibly an earlier file's).
   afterAll(() => {
-    checkConsoleUntouched("outside a test in this file", true);
+    checkConsoleUntouched("outside a test in this file");
     const unexpected = state.unexpected.splice(0);
     if (unexpected.length > 0) {
       throw unexpectedError(unexpected, "outside a test in this file");
