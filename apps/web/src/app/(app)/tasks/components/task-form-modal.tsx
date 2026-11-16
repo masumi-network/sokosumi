@@ -54,8 +54,7 @@ interface TaskFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  /** Omit for a popup that must not be dismissed. */
-  cancelLabel?: string;
+  cancelLabel: string;
   children: React.ReactNode;
   isDismissDisabled?: boolean;
   onOpenAutoFocus?: (event: Event) => void;
@@ -123,18 +122,14 @@ export function TaskFormModal({
                 {title}
               </DialogTitle>
               <div className="justify-self-end">
-                {cancelLabel ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleOpenChange(false)}
-                    disabled={isDismissDisabled}
-                  >
-                    <span className="text-foreground text-sm">
-                      {cancelLabel}
-                    </span>
-                  </Button>
-                ) : null}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleOpenChange(false)}
+                  disabled={isDismissDisabled}
+                >
+                  <span className="text-foreground text-sm">{cancelLabel}</span>
+                </Button>
               </div>
             </div>
             <div className="shrink-0 border-t" />

@@ -362,6 +362,12 @@ export {
   newsletterSignupLinks,
 } from "./newsletter.js";
 export {
+  buildNoticeTemplate,
+  type NoticeTemplateHeader,
+  type ParsedNoticeTemplate,
+  parseNoticeTemplate,
+} from "./notice-template.js";
+export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   CHAT_FEED_MESSAGE_KEYS,
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,

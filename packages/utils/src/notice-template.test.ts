@@ -1,5 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { parseNoticeTemplate } from "@/lib/utils/notice-template";
+import { buildNoticeTemplate, parseNoticeTemplate } from "./notice-template.js";
+
+describe("buildNoticeTemplate", () => {
+  it("writes what parseNoticeTemplate reads back, one line per value", () => {
+    const header = {
+      title: "New this week",
+      summary: "Three changes,\nin one line",
+      cover: "https://blob.example/week.mp4",
+      actionLabel: "Open Contacts",
+      actionUrl: "/contacts",
+    };
+    const parsed = parseNoticeTemplate(
+      buildNoticeTemplate(header, "- One\n- Two\n"),
+    );
+    expect(parsed.header).toEqual({
+      ...header,
+      summary: "Three changes, in one line",
+    });
+    expect(parsed.bodyMarkdown).toBe("- One\n- Two\n");
+  });
+});
 
 describe("parseNoticeTemplate", () => {
   it("returns entire markdown as body when header is absent", () => {
