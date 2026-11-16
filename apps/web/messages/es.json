@@ -13187,6 +13187,7 @@
       },
       "Billing": {
         "lowBalance": "Tus créditos se están agotando: quedan {credits}",
+        "cusoLowCredits": "A {cusoName} para {businessName} se le acaban los créditos: quedan {credits}",
         "paymentFailed": "Un pago de suscripción falló",
         "creditsAdded": "Se añadieron {credits} créditos a tu saldo",
         "subscriptionEnding": "Tu suscripción termina al final del periodo actual",

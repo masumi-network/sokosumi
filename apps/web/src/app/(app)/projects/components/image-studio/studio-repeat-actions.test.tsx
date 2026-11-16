@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
-import type { StudioAsset } from "./types";
+import type { StudioAsset, StudioJob } from "./types";
 
 /**
  * Making the next image: the actions on a result's hover, the docked composer,
@@ -44,10 +44,10 @@ vi.mock("./use-studio-state", () => ({
     initialState,
     initialSelectedAssetId,
   }: {
-    initialState: { assets: StudioAsset[] };
+    initialState: { assets: StudioAsset[]; jobs?: StudioJob[] };
     initialSelectedAssetId: string | null;
   }) => ({
-    state: { ...initialState, jobs: [] },
+    state: { ...initialState, jobs: initialState.jobs ?? [] },
     selectedAsset:
       initialState.assets.find(
         (asset) => asset.id === initialSelectedAssetId,
@@ -96,12 +96,13 @@ function mount(
   assets: StudioAsset[] = [ASSET],
   catalog = TEST_CATALOG,
   selectedAssetId: string | null = null,
+  jobs: StudioJob[] = [],
 ) {
   return render(
     <ImageStudio
       catalog={catalog}
       initialSelectedAssetId={selectedAssetId}
-      initialState={{ assets, jobs: [], sessions: [] } as never}
+      initialState={{ assets, jobs, sessions: [] } as never}
       labels={TEST_LABELS}
       projectId="p"
     />,
@@ -111,6 +112,45 @@ function mount(
 beforeEach(() => vi.clearAllMocks());
 
 describe("actions on a result", () => {
+  it("retries an original failed job with its prompt metadata", () => {
+    const job: StudioJob = {
+      id: "failed-job",
+      projectId: "p",
+      status: "FAILED",
+      kind: "GENERATE",
+      model: "vendor/model-a",
+      prompt: "A campaign image",
+      templateId: "social-post",
+      creativeDirection: "lifestyle",
+      variationIndex: 0,
+      settings: ASSET.settings,
+      video: null,
+      referenceAssetIds: [],
+      parentAssetId: null,
+      assetId: null,
+      error: "Please try again",
+      failureReason: "provider_error",
+      createdAt: new Date("2026-09-26T12:00:00Z"),
+      submittedAt: null,
+      settledAt: new Date("2026-09-26T12:01:00Z"),
+      cancelRequestedAt: null,
+      retryMayDuplicateCharge: false,
+      credits: null,
+      refunded: false,
+    };
+    mount([], TEST_CATALOG, null, [job]);
+    fireEvent.click(screen.getByRole("button", { name: "tryAgain" }));
+
+    expect(mocks.enqueue).toHaveBeenCalledWith([
+      expect.objectContaining({
+        parentAssetId: null,
+        templateId: "social-post",
+        creativeDirection: "lifestyle",
+        variationIndex: 0,
+      }),
+    ]);
+  });
+
   it("re-rolls the same brief with no seed and no reference", () => {
     mount();
     fireEvent.click(screen.getByRole("button", { name: "reroll" }));

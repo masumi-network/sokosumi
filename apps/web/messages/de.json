@@ -13187,6 +13187,7 @@
       },
       "Billing": {
         "lowBalance": "Deine Credits werden knapp: noch {credits}",
+        "cusoLowCredits": "{cusoName} für {businessName} gehen die Credits aus: noch {credits}",
         "paymentFailed": "Eine Abo-Zahlung ist fehlgeschlagen",
         "creditsAdded": "{credits} Credits wurden deinem Guthaben hinzugefügt",
         "subscriptionEnding": "Dein Abo endet mit der aktuellen Laufzeit",

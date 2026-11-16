@@ -8,6 +8,8 @@ import { SubmitButton } from "./submit-button";
 interface StartOverProps {
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
+  /** This Cuso has a subscription: starting over ends it and his credits. */
+  subscribed: boolean;
   className: string;
   label?: string;
 }
@@ -18,6 +20,7 @@ interface StartOverProps {
  */
 export function StartOver({
   startOver,
+  subscribed,
   className,
   label = "Start over",
 }: StartOverProps) {
@@ -45,6 +48,12 @@ export function StartOver({
         {AGENT_NAME} stops and his unsent posts are canceled. Your chat and
         files stay in Sokosumi.
       </p>
+      {subscribed ? (
+        <p className="note">
+          His subscription ends now without a refund, and his credits are
+          removed.
+        </p>
+      ) : null}
       <div className="start-over-actions">
         <SubmitButton className={className}>Start over</SubmitButton>
         <button
