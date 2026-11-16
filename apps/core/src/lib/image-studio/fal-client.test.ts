@@ -109,6 +109,25 @@ describe("model-specific payloads", () => {
     expect(queueRequestModel(edit)).toBe(endpoint);
   });
 
+  it("uses Ideogram v3's catalog edit endpoint and image_urls input", () => {
+    const model = imageModel("ideogram-v3");
+    expect(model.editEndpoint).toBe("fal-ai/ideogram/v3/edit");
+    expect(model.maxReferences).toBe(4);
+    expect(model.providerFields).toContain("image_urls");
+    expect(
+      buildFalInput(
+        { ...settings, imageUrls: ["https://v3.fal.media/ad.png"] },
+        falModelForKind("EDIT", model.id),
+      ),
+    ).toEqual({
+      prompt: settings.prompt,
+      image_size: { width: 2048, height: 1152 },
+      num_images: 1,
+      seed: 42,
+      image_urls: ["https://v3.fal.media/ad.png"],
+    });
+  });
+
   it("uses Gemini Pro settings and bounds generated image count", () => {
     expect(
       buildFalInput(settings, falModelForKind("GENERATE", "gemini-pro")),

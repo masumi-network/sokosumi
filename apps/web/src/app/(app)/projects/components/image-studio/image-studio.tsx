@@ -473,6 +473,7 @@ export function ImageStudio({
   }
 
   function changeHeadline(asset: StudioAsset, text: string) {
+    if (asset.lettering === "ideogram") return;
     if (headlineSaveInProgress.current || downloadingAds) return;
     headlineSaveInProgress.current = true;
     startHeadlineSave(async () => {
@@ -497,7 +498,10 @@ export function ImageStudio({
     logo?: StudioLogoPosition,
   ) {
     const reviewedAssets = assets.flatMap((asset) => {
-      const text = isVideoAsset(asset) ? "" : headlineForAsset(asset);
+      const text =
+        isVideoAsset(asset) || asset.lettering === "ideogram"
+          ? ""
+          : headlineForAsset(asset);
       return text ? [{ id: asset.id, projectId: asset.projectId, text }] : [];
     });
     const reviewedProjects = [
@@ -663,6 +667,20 @@ export function ImageStudio({
     if (refuseUnfilledSlots([source.prompt], source)) return;
     const id = crypto.randomUUID();
     const job = from === "job" ? (source as StudioJob) : null;
+    const sourceJob =
+      job ??
+      state.jobs.find(
+        (candidate) => candidate.id === (source as StudioAsset).jobId,
+      );
+    const modelId = modelIdForRepeat(catalog, source.model) ?? "";
+    const letteringEdit =
+      source.lettering === "ideogram" && modelId === "ideogram-v3";
+    const exportHeadline =
+      from === "job"
+        ? job?.exportHeadline
+        : source.lettering === "ideogram"
+          ? headlineForAsset(source as StudioAsset) || sourceJob?.exportHeadline
+          : undefined;
     const inheritsCutout = job?.useProductCutout && job.parentAssetId !== null;
     const request: QueuedGeneration = {
       id,
@@ -670,24 +688,35 @@ export function ImageStudio({
       // references from the project the generation runs in.
       projectId: source.projectId,
       prompt: source.prompt,
-      modelId: modelIdForRepeat(catalog, source.model) ?? "",
+      modelId,
       modelLabel: source.model,
       // A re-roll is a fresh draw of the same brief: no seed, or the model
       // would hand back the picture it already made.
       settings: reroll
         ? { ...settingsOf(source), seed: null }
         : settingsOf(source),
-      parentAssetId: reroll
-        ? null
-        : from === "asset"
-          ? (source as StudioAsset).id
-          : (source as StudioJob).parentAssetId,
-      referenceAssetIds: reroll
-        ? []
-        : from === "asset"
-          ? [(source as StudioAsset).id]
-          : (source as StudioJob).referenceAssetIds,
+      parentAssetId:
+        reroll && !letteringEdit
+          ? null
+          : from === "asset"
+            ? letteringEdit
+              ? ((source as StudioAsset).parentId ?? (source as StudioAsset).id)
+              : (source as StudioAsset).id
+            : (source as StudioJob).parentAssetId,
+      referenceAssetIds:
+        reroll && !letteringEdit
+          ? []
+          : from === "asset"
+            ? [
+                letteringEdit
+                  ? ((source as StudioAsset).parentId ??
+                    (source as StudioAsset).id)
+                  : (source as StudioAsset).id,
+              ]
+            : (source as StudioJob).referenceAssetIds,
       ...(source.product ? { product: source.product } : {}),
+      ...(source.lettering ? { lettering: source.lettering } : {}),
+      ...(exportHeadline ? { exportHeadline } : {}),
       ...(!reroll && !inheritsCutout && job?.referenceFileIds?.length
         ? { referenceFileIds: job.referenceFileIds }
         : {}),
@@ -1311,6 +1340,7 @@ export function ImageStudio({
                         modelIds: [request.modelId],
                         settings: request.settings,
                         useProductCutout: request.useProductCutout,
+                        lettering: request.lettering,
                         ...(request.exportHeadline
                           ? {
                               exportHeadlines: {

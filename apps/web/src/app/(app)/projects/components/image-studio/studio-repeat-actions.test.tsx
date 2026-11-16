@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
-import type { StudioAsset } from "./types";
+import type { StudioAsset, StudioJob } from "./types";
 
 /**
  * Making the next image: the actions on a result's hover, the docked composer,
@@ -18,7 +18,7 @@ import type { StudioAsset } from "./types";
  * reference is a button that visibly works and buys the same picture twice.
  */
 
-const mocks = vi.hoisted(() => ({ enqueue: vi.fn() }));
+const mocks = vi.hoisted(() => ({ enqueue: vi.fn(), jobs: [] as StudioJob[] }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
@@ -47,7 +47,7 @@ vi.mock("./use-studio-state", () => ({
     initialState: { assets: StudioAsset[] };
     initialSelectedAssetId: string | null;
   }) => ({
-    state: { ...initialState, jobs: [] },
+    state: { ...initialState, jobs: mocks.jobs },
     selectedAsset:
       initialState.assets.find(
         (asset) => asset.id === initialSelectedAssetId,
@@ -108,9 +108,65 @@ function mount(
   );
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.jobs = [];
+});
 
 describe("actions on a result", () => {
+  it.each(["Revised headline", null])(
+    "keeps the current overlay headline choice %s when repeating an asset",
+    (text) => {
+      mocks.jobs = [
+        { id: "j", exportHeadline: "Original headline" } as StudioJob,
+      ];
+      mount([
+        { ...ASSET, lettering: "overlay", headline: { text, revision: 2 } },
+      ]);
+      fireEvent.click(screen.getByRole("button", { name: "regenerate" }));
+      expect(mocks.enqueue.mock.calls[0][0][0]).not.toHaveProperty(
+        "exportHeadline",
+      );
+    },
+  );
+
+  it("repeats Ideogram lettering from its textless backdrop with the approved headline", () => {
+    mount(
+      [
+        {
+          ...ASSET,
+          projectId: "p",
+          model: "fal-ai/ideogram/v3/edit",
+          parentId: "backdrop",
+          lettering: "ideogram",
+          headline: { text: "Made to last", revision: 0 },
+        },
+      ],
+      {
+        ...TEST_CATALOG,
+        models: [
+          ...TEST_CATALOG.models,
+          {
+            ...TEST_CATALOG.models[0],
+            id: "ideogram-v3",
+            generateEndpoint: "fal-ai/ideogram/v3",
+            editEndpoint: "fal-ai/ideogram/v3/edit",
+          },
+        ],
+      },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "reroll" }));
+    expect(mocks.enqueue).toHaveBeenCalledWith([
+      expect.objectContaining({
+        modelId: "ideogram-v3",
+        parentAssetId: "backdrop",
+        referenceAssetIds: ["backdrop"],
+        exportHeadline: "Made to last",
+        lettering: "ideogram",
+      }),
+    ]);
+  });
+
   it("re-rolls the same brief with no seed and no reference", () => {
     mount();
     fireEvent.click(screen.getByRole("button", { name: "reroll" }));

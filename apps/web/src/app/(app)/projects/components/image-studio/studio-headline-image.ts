@@ -11,11 +11,16 @@ type RenderedHeadline =
   | { key: string; status: "error" };
 
 export function useStudioHeadlineImage(
-  { id, projectId }: Pick<StudioAsset, "id" | "projectId">,
+  {
+    id,
+    projectId,
+    lettering,
+  }: Pick<StudioAsset, "id" | "projectId" | "lettering">,
   placement: PlacementRatio,
   logo: StudioLogoPosition | undefined,
   headline: string | undefined,
 ) {
+  const overlayHeadline = lettering === "ideogram" ? undefined : headline;
   const [result, setResult] = useState<RenderedHeadline | null>(null);
   const [attempt, setAttempt] = useState(0);
   const key = JSON.stringify([
@@ -23,7 +28,7 @@ export function useStudioHeadlineImage(
     projectId,
     placement,
     logo,
-    headline,
+    overlayHeadline,
     attempt,
   ]);
   const [previousKey, setPreviousKey] = useState(key);
@@ -32,7 +37,7 @@ export function useStudioHeadlineImage(
     setResult(null);
   }
   useEffect(() => {
-    if (!headline) return;
+    if (!overlayHeadline) return;
     const request = new AbortController();
     let url: string | undefined;
 
@@ -55,15 +60,15 @@ export function useStudioHeadlineImage(
         if (!request.signal.aborted) setResult({ key, status: "error" });
       }
     }
-    void render(headline);
+    void render(overlayHeadline);
     return () => {
       request.abort();
       if (url) URL.revokeObjectURL(url);
     };
-  }, [headline, id, key, logo, placement, projectId]);
+  }, [overlayHeadline, id, key, logo, placement, projectId]);
 
   return {
-    result: headline && result?.key === key ? result : null,
+    result: overlayHeadline && result?.key === key ? result : null,
     retry: () => setAttempt((value) => value + 1),
   };
 }

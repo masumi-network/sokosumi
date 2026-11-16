@@ -77,9 +77,10 @@ export function StudioAdPreview({
   const [headlineLoadFailed, setHeadlineLoadFailed] = useState(false);
   const [loadingHeadlines, startHeadlineLoad] = useTransition();
   const headlineRequest = useRef(0);
+  const canOverlay = asset.lettering !== "ideogram";
   const selectedHeadline =
-    open && headlines.includes(headline) ? headline : undefined;
-  const invalidHeadline = Boolean(headline && !selectedHeadline);
+    canOverlay && open && headlines.includes(headline) ? headline : undefined;
+  const invalidHeadline = canOverlay && Boolean(headline && !selectedHeadline);
   const { result: headlineImage, retry: retryHeadline } =
     useStudioHeadlineImage(asset, ratio, logoPosition, selectedHeadline);
   const isReel = platform === "reels";
@@ -204,11 +205,11 @@ export function StudioAdPreview({
             value={logoPosition}
           />
         ) : null}
-        {loadingHeadlines ? (
+        {canOverlay && loadingHeadlines ? (
           <p className="text-muted-foreground text-xs" role="status">
             {t("headlineLoading")}
           </p>
-        ) : headlineLoadFailed ? (
+        ) : canOverlay && headlineLoadFailed ? (
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-muted-foreground text-xs" role="status">
               {t("headlineLoadFailed")}
@@ -222,7 +223,7 @@ export function StudioAdPreview({
               {labels.imageRetry}
             </Button>
           </div>
-        ) : onHeadlineChange && (headlines.length || headline) ? (
+        ) : canOverlay && onHeadlineChange && (headlines.length || headline) ? (
           <div className="min-w-0 space-y-1">
             <StudioHeadlineSelect
               disabled={downloading || savingHeadline}

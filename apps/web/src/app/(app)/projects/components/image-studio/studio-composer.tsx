@@ -229,6 +229,19 @@ export function StudioComposer({
       ? (target.exportHeadlines?.lines ?? NO_HEADLINES)
       : NO_HEADLINES;
   const usesApprovedHeadlines = headlineOptions.length > 0;
+  const lettering = target.lettering ?? "overlay";
+  const useIdeogram = usesApprovedHeadlines && lettering === "ideogram";
+  const directLetteringEdit =
+    useIdeogram &&
+    target.modelIds.length === 1 &&
+    target.modelIds[0] === "ideogram-v3" &&
+    (referenceAssets.length > 0 || Boolean(parentAssetId));
+  const twoStepLettering = useIdeogram && !directLetteringEdit;
+  const ideogramModel = catalog.models.find(
+    (model) => model.id === "ideogram-v3",
+  );
+  const geminiModel = catalog.models.find((model) => model.id === "gemini-pro");
+  const canUseIdeogram = Boolean(geminiModel && ideogramModel?.editEndpoint);
   const searchRef = useRef<HTMLInputElement>(null);
   const promptHelpId = useId();
   const hasProductBatch = batchProducts.length > 0;
@@ -328,11 +341,14 @@ export function StudioComposer({
     () =>
       catalog.models.filter(
         (model) =>
-          referenceCount === 0 ||
-          (model.editEndpoint !== null &&
-            model.maxReferences >= referenceCount),
+          (!useIdeogram ||
+            model.id ===
+              (directLetteringEdit ? "ideogram-v3" : "gemini-pro")) &&
+          (referenceCount === 0 ||
+            (model.editEndpoint !== null &&
+              model.maxReferences >= referenceCount)),
       ),
-    [catalog.models, referenceCount],
+    [catalog.models, referenceCount, useIdeogram, directLetteringEdit],
   );
   const selectedModels = useMemo(
     () =>
@@ -408,16 +424,22 @@ export function StudioComposer({
     if (selectedModels.length === 0) {
       return { aspectRatios: [], resolutions: [], outputFormats: [] };
     }
+    const models =
+      twoStepLettering && ideogramModel
+        ? [...selectedModels, ideogramModel]
+        : selectedModels;
     const intersect = (pick: (model: StudioModel) => string[]) =>
-      selectedModels
+      models
         .map(pick)
         .reduce((all, next) => all.filter((value) => next.includes(value)));
     return {
       aspectRatios: intersect((model) => model.aspectRatios),
       resolutions: intersect((model) => model.resolutions),
-      outputFormats: intersect((model) => model.outputFormats),
+      outputFormats: twoStepLettering
+        ? selectedModels[0].outputFormats
+        : intersect((model) => model.outputFormats),
     };
-  }, [selectedModels]);
+  }, [selectedModels, ideogramModel, twoStepLettering]);
 
   const unsupportedPlacements =
     selectedModels.length > 0 &&
@@ -455,12 +477,27 @@ export function StudioComposer({
       ? placementRatios
       : [settings.aspectRatio];
     const configured = (
-      unsupportedPlacements || tooManyReferences ? [] : frames
+      unsupportedPlacements ||
+      tooManyReferences ||
+      (twoStepLettering && !canUseIdeogram)
+        ? []
+        : frames
     ).flatMap((aspectRatio) =>
-      selectedModels.map((model) => ({
-        model,
-        settings: clampToModel(model, { ...settings, aspectRatio }),
-      })),
+      selectedModels.map((model) => {
+        const scene = clampToModel(model, { ...settings, aspectRatio });
+        const final =
+          twoStepLettering && ideogramModel
+            ? clampToModel(ideogramModel, scene)
+            : scene;
+        return {
+          model,
+          settings: {
+            ...scene,
+            aspectRatio: final.aspectRatio,
+            resolution: final.resolution,
+          },
+        };
+      }),
     );
     const each = configured.length
       ? Math.min(copies, Math.floor(MAX_BATCH / configured.length))
@@ -504,14 +541,44 @@ export function StudioComposer({
             }));
           }),
         );
-    return { copies: hasProductBatch ? productCopies : each, legs, configured };
+    const charges = configured.flatMap((leg) =>
+      twoStepLettering && ideogramModel
+        ? [
+            leg,
+            {
+              model: ideogramModel,
+              settings: clampToModel(ideogramModel, leg.settings),
+            },
+          ]
+        : [leg],
+    );
+    const chargedLegs = legs.flatMap((leg) =>
+      twoStepLettering && ideogramModel
+        ? [
+            leg,
+            {
+              model: ideogramModel,
+              settings: clampToModel(ideogramModel, leg.settings),
+            },
+          ]
+        : [leg],
+    );
+    return {
+      copies: hasProductBatch ? productCopies : each,
+      legs,
+      configured,
+      charges,
+      chargedLegs,
+    };
   }, [
     batchProducts,
     batchPrompts,
+    canUseIdeogram,
     copies,
     directedBrief,
     hasProductBatch,
     headlineOptions,
+    ideogramModel,
     overSelectionLimit,
     placementRatios,
     product,
@@ -521,6 +588,7 @@ export function StudioComposer({
     settings,
     tooManyReferences,
     unsupportedPlacements,
+    twoStepLettering,
   ]);
 
   /**
@@ -531,7 +599,11 @@ export function StudioComposer({
    * line says how much work is being bought and stays silent about credits
    * rather than printing a total that is missing a leg.
    */
-  const batchCredits = useMemo(() => creditsForBatch(plan.legs), [plan.legs]);
+  const batchCredits = useMemo(
+    () => creditsForBatch(plan.chargedLegs),
+    [plan.chargedLegs],
+  );
+  const sceneCredits = useMemo(() => creditsForBatch(plan.legs), [plan.legs]);
 
   const totalJobs = plan.legs.length;
   const plannedHeadlines = [
@@ -609,7 +681,9 @@ export function StudioComposer({
         referenceAssetIds: references.map((asset) => asset.id),
         ...(leg.photo ? { referenceFileIds: [leg.photo.id] } : {}),
         ...(leg.product ? { product: leg.product } : {}),
-        ...(leg.exportHeadline ? { exportHeadline: leg.exportHeadline } : {}),
+        ...(leg.exportHeadline
+          ? { exportHeadline: leg.exportHeadline, lettering }
+          : {}),
         ...(useCutout ? { useProductCutout: true } : {}),
         // One key per request, never shared across the batch: these are
         // deliberately different images, not retries of one.
@@ -664,6 +738,9 @@ export function StudioComposer({
       ? t("copyCount", { count: plan.copies })
       : null,
     usesApprovedHeadlines ? t("approvedHeadlinesSummary") : null,
+    usesApprovedHeadlines
+      ? t(useIdeogram ? "letteringIdeogram" : "letteringOverlay")
+      : null,
     useCutout ? t("productCutoutSummary") : null,
   ]
     .filter(Boolean)
@@ -1059,6 +1136,58 @@ export function StudioComposer({
                     <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
                       {t("useApprovedHeadlinesHint")}
                     </p>
+                    {usesApprovedHeadlines ? (
+                      <div className="space-y-1.5">
+                        <Row label={t("headlineLettering")}>
+                          {(["overlay", "ideogram"] as const).map((mode) => (
+                            <button
+                              aria-pressed={lettering === mode}
+                              className={chipClass(lettering === mode)}
+                              disabled={mode === "ideogram" && !canUseIdeogram}
+                              key={mode}
+                              onClick={() =>
+                                mode !== lettering &&
+                                onTargetChange((current) => ({
+                                  ...current,
+                                  lettering: mode,
+                                  ...(mode === "ideogram" &&
+                                  geminiModel &&
+                                  ideogramModel
+                                    ? {
+                                        modelIds: [geminiModel.id],
+                                        settings: clampToModel(geminiModel, {
+                                          ...clampToModel(
+                                            ideogramModel,
+                                            current.settings,
+                                          ),
+                                          outputFormat:
+                                            current.settings.outputFormat,
+                                        }),
+                                      }
+                                    : {}),
+                                }))
+                              }
+                              type="button"
+                            >
+                              {t(
+                                mode === "ideogram"
+                                  ? "letteringIdeogram"
+                                  : "letteringOverlay",
+                              )}
+                            </button>
+                          ))}
+                        </Row>
+                        <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+                          {t(
+                            directLetteringEdit
+                              ? "letteringEditHint"
+                              : useIdeogram
+                                ? "letteringIdeogramHint"
+                                : "letteringOverlayHint",
+                          )}
+                        </p>
+                      </div>
+                    ) : null}
                     {plannedHeadlines.length ? (
                       <ul className="text-muted-foreground list-disc space-y-0.5 ps-5 text-xs break-words">
                         {plannedHeadlines.map((line) => (
@@ -1338,23 +1467,31 @@ export function StudioComposer({
                     variant="ghost"
                   >
                     <span className="min-w-0 text-start tabular-nums">
-                      {hasProductBatch || frameCount > 1
-                        ? batchCredits === null
-                          ? t("placementPlan", { count: totalJobs })
-                          : t("placementPlanCredits", {
-                              count: totalJobs,
+                      {twoStepLettering
+                        ? batchCredits === null || sceneCredits === null
+                          ? t("letteringPlan")
+                          : t("letteringPlanCredits", {
+                              sceneCredits,
+                              letteringCredits: batchCredits - sceneCredits,
                               credits: batchCredits,
                             })
-                        : batchCredits === null
-                          ? t("runPlan", {
-                              copies: plan.copies,
-                              models: selectedModels.length,
-                            })
-                          : t("runPlanCredits", {
-                              copies: plan.copies,
-                              models: selectedModels.length,
-                              credits: batchCredits,
-                            })}
+                        : hasProductBatch || frameCount > 1
+                          ? batchCredits === null
+                            ? t("placementPlan", { count: totalJobs })
+                            : t("placementPlanCredits", {
+                                count: totalJobs,
+                                credits: batchCredits,
+                              })
+                          : batchCredits === null
+                            ? t("runPlan", {
+                                copies: plan.copies,
+                                models: selectedModels.length,
+                              })
+                            : t("runPlanCredits", {
+                                copies: plan.copies,
+                                models: selectedModels.length,
+                                credits: batchCredits,
+                              })}
                     </span>
                   </Button>
                 </PopoverTrigger>
@@ -1393,28 +1530,34 @@ export function StudioComposer({
                   ) : null}
 
                   <ul className="space-y-2">
-                    {plan.configured.map(
-                      ({ model, settings: actual }, index) => {
-                        const credits = creditsForImage(model, actual);
-                        return (
-                          <li key={`${model.id}:${actual.aspectRatio}`}>
-                            <div className="flex min-w-0 items-baseline gap-2">
-                              <span className="min-w-0 flex-1 text-xs font-medium text-pretty">
-                                {modelName(model)}
-                              </span>
-                              <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                                {credits === null
-                                  ? labels.creditsNoFigure
-                                  : t("creditsEach", {
-                                      credits,
-                                      count: plan.copies,
-                                    })}
-                              </span>
-                            </div>
-                            <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-                              {labels.dimensions}: {plannedSettings[index]}
-                            </p>
-                            {/* Composed here rather than rendered from Core's
+                    {plan.charges.map(({ model, settings: actual }) => {
+                      const credits = creditsForImage(model, actual);
+                      return (
+                        <li key={`${model.id}:${actual.aspectRatio}`}>
+                          <div className="flex min-w-0 items-baseline gap-2">
+                            <span className="min-w-0 flex-1 text-xs font-medium text-pretty">
+                              {modelName(model)}
+                            </span>
+                            <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                              {credits === null
+                                ? labels.creditsNoFigure
+                                : t("creditsEach", {
+                                    credits,
+                                    count: plan.copies,
+                                  })}
+                            </span>
+                          </div>
+                          <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
+                            {labels.dimensions}:{" "}
+                            {[
+                              actual.aspectRatio,
+                              actual.resolution,
+                              actual.outputFormat ?? t("modelChoosesFormat"),
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </p>
+                          {/* Composed here rather than rendered from Core's
                           `price.basis`. That string is built as "fal lists
                           $0.03 per images for this endpoint" — fal's pricing
                           API answers in plurals because it is describing a
@@ -1422,26 +1565,25 @@ export function StudioComposer({
                           images". Web holds the same two figures separately,
                           so it can say it once, correctly, and in the reader's
                           language. */}
-                            <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed text-pretty">
-                              {t("priceBasis", {
-                                price: `$${model.price.unitPriceUsd}`,
-                                unit: priceUnitLabel(model.price.unit),
-                              })}
-                            </p>
-                            <a
-                              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-2"
-                              href={model.price.sourceUrl}
-                              rel="noreferrer"
-                              target="_blank"
-                            >
-                              {t("creditsCheckedOn", {
-                                date: model.price.verifiedAt,
-                              })}
-                            </a>
-                          </li>
-                        );
-                      },
-                    )}
+                          <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed text-pretty">
+                            {t("priceBasis", {
+                              price: `$${model.price.unitPriceUsd}`,
+                              unit: priceUnitLabel(model.price.unit),
+                            })}
+                          </p>
+                          <a
+                            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-2"
+                            href={model.price.sourceUrl}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            {t("creditsCheckedOn", {
+                              date: model.price.verifiedAt,
+                            })}
+                          </a>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </PopoverContent>
               </Popover>

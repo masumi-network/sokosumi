@@ -52,7 +52,10 @@ export async function createStudioAdArchive(
 
   // Fetch one image at a time to limit simultaneous reads of private files.
   for (const [index, asset] of assets.entries()) {
-    const headline = !isVideoAsset(asset) ? headlines?.[asset.id] : undefined;
+    const headline =
+      !isVideoAsset(asset) && asset.lettering !== "ideogram"
+        ? headlines?.[asset.id]
+        : undefined;
     const response = await fetchStudioAd(asset, { logo });
     const source = await response.blob();
     const image = headline

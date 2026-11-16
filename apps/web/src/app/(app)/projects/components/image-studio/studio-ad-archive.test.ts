@@ -33,6 +33,24 @@ const ASSET: StudioAsset = {
 describe("downloading selected Studio ads", () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  it("keeps Ideogram lettering bytes without adding another headline overlay", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce(new Response("Already lettered")),
+    );
+    const zip = await JSZip.loadAsync(
+      await createStudioAdArchive(
+        [{ ...ASSET, lettering: "ideogram" }],
+        undefined,
+        { "asset-a": "Made to last" },
+      ),
+    );
+    expect(await zip.file("ad-1-1080x1350.png")?.async("text")).toBe(
+      "Already lettered",
+    );
+    expect(zip.file("ad-1-1080x1350-headline.png")).toBeNull();
+  });
+
   it("keeps the original bytes and gives same-size images unique names", async () => {
     const fetchAsset = vi
       .fn()

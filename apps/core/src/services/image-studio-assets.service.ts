@@ -45,6 +45,7 @@ export interface AssetView {
   product?: StudioProductIdentity;
   batchId?: string;
   headline?: StudioAdHeadline;
+  lettering?: "overlay" | "ideogram";
   settings: unknown;
   rootId: string;
   parentId: string | null;
@@ -83,6 +84,7 @@ const assetSelect = {
   headline: { select: { text: true, revision: true } },
   job: {
     select: {
+      lettering: true,
       productId: true,
       productName: true,
       batchId: true,
@@ -112,6 +114,7 @@ function toAssetView({
   return {
     ...asset,
     ...productView(job),
+    lettering: job.lettering === "ideogram" ? "ideogram" : "overlay",
     ...(batchId ? { batchId } : {}),
     ...(headline ? { headline } : {}),
     ...splitVideoSettings(asset.mediaType === "VIDEO", asset.settings),
@@ -493,6 +496,8 @@ export interface JobView {
   referenceAssetIds: string[];
   referenceFileIds?: string[];
   useProductCutout?: boolean;
+  lettering?: "overlay" | "ideogram";
+  exportHeadline?: string;
   product?: StudioProductIdentity;
   /** One sentence a person can read. Never the provider's own words. */
   error: string | null;
@@ -546,6 +551,8 @@ export async function getJob(options: {
       referenceAssetIds: true,
       referenceFileIds: true,
       useProductCutout: true,
+      lettering: true,
+      exportHeadline: true,
       productId: true,
       productName: true,
       error: true,
@@ -582,6 +589,8 @@ export async function listJobs(
       referenceAssetIds: true,
       referenceFileIds: true,
       useProductCutout: true,
+      lettering: true,
+      exportHeadline: true,
       productId: true,
       productName: true,
       error: true,
@@ -610,6 +619,8 @@ export function toJobView(job: {
   referenceAssetIds: string[];
   referenceFileIds?: string[];
   useProductCutout?: boolean;
+  lettering?: string;
+  exportHeadline?: string | null;
   productId?: string | null;
   productName?: string | null;
   error: string | null;
@@ -631,6 +642,7 @@ export function toJobView(job: {
     model: job.model,
     prompt: job.prompt,
     ...productView(job),
+    lettering: job.lettering === "ideogram" ? "ideogram" : "overlay",
     ...splitVideoSettings(
       job.kind === "TEXT_TO_VIDEO" || job.kind === "IMAGE_TO_VIDEO",
       job.settings,
@@ -640,6 +652,7 @@ export function toJobView(job: {
       ? { referenceFileIds: job.referenceFileIds }
       : {}),
     ...(job.useProductCutout ? { useProductCutout: true } : {}),
+    ...(job.exportHeadline ? { exportHeadline: job.exportHeadline } : {}),
     error: job.error,
     failureReason: readImageJobFailureReason(job.failureReason),
     parentAssetId: job.parentAssetId,

@@ -122,6 +122,24 @@ const REQUEST = {
 } satisfies Parameters<typeof startImageGeneration>[0];
 
 describe("starting image generation", () => {
+  it("forwards the optional two-step lettering mode with the approved headline", async () => {
+    createJob.mockResolvedValue({ id: "lettering-job" });
+    await startImageGeneration({
+      ...REQUEST,
+      modelId: "gemini-pro",
+      exportHeadline: "Made to last",
+      lettering: "ideogram",
+    });
+    expect(createJob).toHaveBeenCalledWith(
+      "project-1",
+      expect.objectContaining({
+        modelId: "gemini-pro",
+        exportHeadline: "Made to last",
+        lettering: "ideogram",
+      }),
+    );
+  });
+
   it("preserves the request identity and returns the accepted job", async () => {
     const job = { id: "job-1" };
     createJob.mockResolvedValue(job);

@@ -131,6 +131,7 @@ export const imageStudioAssetSchema = z
     product: studioProductIdentitySchema.optional(),
     batchId: z.uuid().optional(),
     headline: studioAdHeadlineSchema.optional(),
+    lettering: z.enum(["overlay", "ideogram"]).default("overlay"),
     rootId: z.string().uuid(),
     parentId: z.string().uuid().nullable(),
     version: z.number().int().min(1),
@@ -178,7 +179,9 @@ export const imageStudioJobSchema = z
     /** The versions it referenced, so a retry keeps every one of them. */
     referenceAssetIds: z.array(z.string().uuid()),
     referenceFileIds: z.array(z.string().uuid()).optional(),
+    exportHeadline: studioHeadlineTextSchema.optional(),
     useProductCutout: z.boolean().optional(),
+    lettering: z.enum(["overlay", "ideogram"]).default("overlay"),
     product: studioProductIdentitySchema.optional(),
     /**
      * One sentence a person can read, written by the studio. Never the
@@ -271,6 +274,7 @@ export const createImageJobRequestSchema = z
     batchId: z.uuid().optional(),
     exportHeadline: studioHeadlineTextSchema.optional(),
     useProductCutout: z.boolean().optional(),
+    lettering: z.enum(["overlay", "ideogram"]).default("overlay"),
     settings: imageStudioSettingsSchema.optional(),
     referenceAssetIds: z.array(z.string().uuid()).max(4).default([]),
     referenceFileIds: z

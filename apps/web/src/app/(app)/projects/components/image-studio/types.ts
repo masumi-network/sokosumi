@@ -185,6 +185,7 @@ export function assetContentUrl(
 export interface StudioTarget {
   creativeDirection?: StudioCreativeDirection;
   exportHeadlines?: { projectId: string; lines: string[] };
+  lettering?: StudioJob["lettering"];
   useProductCutout?: boolean;
   modelIds: string[];
   placementRatios?: NonNullable<StudioSettings["aspectRatio"]>[];

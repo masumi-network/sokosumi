@@ -6247,6 +6247,7 @@ export type ProjectImageAsset = {
     product?: StudioProductIdentity;
     batchId?: string;
     headline?: StudioAdHeadline;
+    lettering?: 'overlay' | 'ideogram';
     rootId: string;
     parentId: string | null;
     version: number;
@@ -6288,7 +6289,9 @@ export type ProjectImageJob = {
     video: ProjectVideoSettings | null;
     referenceAssetIds: Array<string>;
     referenceFileIds?: Array<string>;
+    exportHeadline?: string;
     useProductCutout?: boolean;
+    lettering?: 'overlay' | 'ideogram';
     product?: StudioProductIdentity;
     error: string | null;
     failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'product_cutout_unavailable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
@@ -10692,6 +10695,7 @@ export type CreateProjectImageJobRequest = {
     batchId?: string;
     exportHeadline?: string;
     useProductCutout?: boolean;
+    lettering?: 'overlay' | 'ideogram';
     settings?: ProjectImageSettings;
     referenceAssetIds?: Array<string>;
     referenceFileIds?: Array<string>;
