@@ -6169,8 +6169,17 @@ describe("SEO workspace integration", () => {
     );
     const verdict = screen.getByTestId("seo-agent-verdict");
     expect(verdict).toHaveFocus();
-    // A press that never focused the list (Safari does not focus a pressed button) moves no focus either.
-    verdict.blur();
+    // Focus that left the list by a click on the page moves no focus when the lead changes.
+    await user.click(
+      within(screen.getByRole("list", { name: "First step" })).getByText(
+        /^Write a description/,
+      ),
+    );
+    expect(screen.getByRole("list", { name: "First step" })).toContainElement(
+      document.activeElement as HTMLElement,
+    );
+    await user.click(document.body);
+    expect(document.activeElement).toBe(document.body);
     served = {
       ...served,
       actions: served.actions.map((action) =>

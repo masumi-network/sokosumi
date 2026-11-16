@@ -405,7 +405,7 @@ function SeoAgentPanel({
         <SeoGettingStarted model={model} />
       ) : null}
       {/* The numbers and the pictures are one block, in one place on every width. On a wide screen the tiles stand
-          one over the other beside the picture, so the first step and its button start as high as they can. The
+          one over the other beside the picture, so the steps after the first start as high as they can. The
           two columns are one height: the tiles share the height of the picture, or the picture takes theirs. */}
       {setup ? null : (
         <div className="grid gap-2 empty:hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:[&>*:only-child]:col-span-2 lg:[&>dl:not(:only-child)]:grid-cols-1">
