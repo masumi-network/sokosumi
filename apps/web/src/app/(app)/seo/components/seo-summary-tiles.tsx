@@ -49,7 +49,7 @@ function Tile({
         <div className="flex items-center justify-between gap-2">
           <p
             className={cn(
-              // One size on every width: larger, the numbers outranked the headline of the Agent tab.
+              // One size on every width: larger, the numbers outranked the headline of the tab.
               "min-w-0 text-xl leading-tight font-semibold tabular-nums",
               quiet && "text-muted-foreground",
             )}

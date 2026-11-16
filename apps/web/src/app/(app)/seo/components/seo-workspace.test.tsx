@@ -2796,9 +2796,17 @@ describe("SEO workspace integration", () => {
       "true",
     );
     expect(screen.getByDisplayValue("battery app")).toBeVisible();
+    // A figure of the verdict counts every keyword, so it opens Rankings without that search.
+    await user.click(screen.getByRole("tab", { name: "Agent" }));
+    await user.click(
+      within(screen.getByTestId("seo-agent-figures")).getByRole("button", {
+        name: /keywords? in the top/,
+      }),
+    );
+    expect(screen.queryByDisplayValue("battery app")).toBeNull();
   });
 
-  it("opens the Google statistics line while Analytics is not connected, and closes it once connected", async () => {
+  it("starts the Google statistics line open while Analytics is not connected, and closed while it is connected", async () => {
     const workspace = seoTestCheckedAudit();
     workspace.metrics = [seoTestMetric()];
     for (const status of ["not_connected", "connected"] as const) {
@@ -6489,7 +6497,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     expect(
       await screen.findByRole("button", {
-        name: "0 of 1 keywords in top results",
+        name: "0 of 1 keyword in the top results",
       }),
     ).toBeVisible();
     // The tests tile splits the tests without a result the way the Timeline row of the check does.

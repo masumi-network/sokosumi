@@ -63,7 +63,9 @@ export function SeoAgentFigures({
   const format = useFormatter();
   const { keywords, searches } = seoSummary(model.data);
   if (!keywords && !searches && !traffic) return null;
+  // A figure counts every keyword, so the tab it opens drops a search left from a keyword of the picture.
   const open = (tab: SeoTab) => () => {
+    model.setKeywordSearch("");
     void model.setFilters({ tab });
   };
   return (
