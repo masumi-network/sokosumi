@@ -34,7 +34,10 @@ import {
   syncRoomChannel,
   unlinkedBuzzRooms,
 } from "@/services/buzz-bridge.service";
-import { importBuzzHistory } from "@/services/buzz-history-import.service";
+import {
+  importBuzzHistory,
+  importDepartedMessage,
+} from "@/services/buzz-history-import.service";
 import {
   type AcquiredSyncLock,
   syncLockService,
@@ -723,6 +726,7 @@ export async function runBuzzBridge(options: {
       await refreshSubscriptions();
       for (const outcome of await drainBuzzOutbox({
         shouldContinue: within(Date.now() + DRAIN_BUDGET_MS),
+        backfill: importDepartedMessage,
       })) {
         if (outcome.result !== "unchanged" && outcome.result !== "skipped") {
           log(`out ${outcome.key.slice(0, 13)} → ${outcome.result}`);

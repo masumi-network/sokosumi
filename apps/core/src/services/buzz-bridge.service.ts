@@ -2237,9 +2237,19 @@ async function personalAgentKeysIn(roomId: string, author: BuzzIdentity) {
 /** Messages this close before their channel was made go out live. */
 export const LIVE_BEFORE_CHANNEL_MS = 60_000;
 
+/**
+ * Writes a message whose author has left the room straight into the relay's
+ * database (the relay would refuse it from them); false when it cannot.
+ */
+export type BuzzBackfill = (
+  messageId: string,
+  channel: { channelId: string; relayUrl: string },
+) => Promise<boolean>;
+
 export async function reconcileMessage(
   messageId: string,
   depth = 0,
+  backfill?: BuzzBackfill,
 ): Promise<ReconcileResult> {
   const message = await prisma.chatRoomMessage.findUnique({
     where: { id: messageId },
@@ -2408,6 +2418,25 @@ export async function reconcileMessage(
     } else {
       // A reply still streaming has no text yet; its next update brings it.
       if (!message.content.trim()) return "skipped";
+      // Its author left the room since: the relay no longer takes it from
+      // them, and they are not let back in for it.
+      if ("userId" in author && backfill) {
+        const member = await prisma.chatRoomUserMember.findUnique({
+          where: {
+            roomId_userId: { roomId: message.roomId, userId: author.userId },
+          },
+          select: { userId: true },
+        });
+        if (
+          !member &&
+          (await backfill(message.id, {
+            channelId: channel.channelId,
+            relayUrl,
+          }))
+        ) {
+          return "published";
+        }
+      }
       let threadRootEventId: string | null = null;
       if (message.parentMessageId) {
         if (depth === 0) {
@@ -2962,6 +2991,7 @@ export async function drainBuzzOutbox(
     now?: Date;
     /** False once the run must stop: what is left waits for the next one. */
     shouldContinue?: () => boolean;
+    backfill?: BuzzBackfill;
   } = {},
 ) {
   const now = options.now ?? new Date();
@@ -3023,7 +3053,7 @@ export async function drainBuzzOutbox(
         ? (await syncRoomChannel(entry.roomId))
           ? "synced"
           : "skipped"
-        : await reconcileMessage(key);
+        : await reconcileMessage(key, 0, options.backfill);
       await prisma.buzzOutbox.deleteMany({ where: { id: { in: entry.ids } } });
       outcomes.push({ key, result });
     } catch (error) {

@@ -13,7 +13,7 @@
  * or deletion later in Sokosumi reaches Buzz as usual. Safe to run again: a
  * message already linked is skipped and the relay ignores an event it has.
  */
-import type { BuzzIdentity } from "@sokosumi/database";
+import type { BuzzIdentity, Prisma } from "@sokosumi/database";
 import type pg from "pg";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import {
@@ -24,7 +24,7 @@ import {
 } from "@/lib/buzz/events";
 import { signEvent } from "@/lib/buzz/relay-client";
 import { relayDatabase } from "@/lib/buzz/relay-database";
-import { checkpoint } from "@/lib/buzz/run-scope";
+import { BridgeRunStoppedError, checkpoint } from "@/lib/buzz/run-scope";
 import prisma from "@/lib/db/prisma";
 import {
   authorOf,
@@ -58,11 +58,14 @@ export async function importBuzzHistory(
 ): Promise<number> {
   const database = relayDatabase();
   if (!database) return 0;
+  const now = Date.now();
+  for (const [id, until] of resting) if (until <= now) resting.delete(id);
   const channels = await prisma.buzzChannel.findMany({
     where: {
       historyImportedAt: null,
       roomId: { not: null },
       community: { provisionedAt: { not: null } },
+      ...(resting.size > 0 ? { id: { notIn: [...resting.keys()] } } : {}),
     },
     select: {
       id: true,
@@ -100,11 +103,82 @@ export async function importBuzzHistory(
         `history of room ${channel.roomId?.slice(0, 8)}: ${imported} message(s) imported`,
       );
       finished++;
+    } catch (error) {
+      // A run that lost its lease stops; that is no fault of the room.
+      if (error instanceof BridgeRunStoppedError) throw error;
+      // One room's trouble (a file that cannot be fetched) rests it a while,
+      // so the rooms after it still get their history.
+      resting.set(channel.id, Date.now() + HISTORY_REST_MS);
+      options.log?.(
+        `history of room ${channel.roomId?.slice(0, 8)} failed; retried later`,
+        error instanceof Error ? error.message : error,
+      );
     } finally {
       client.release();
     }
   }
   return finished;
+}
+
+/** Rooms whose import failed, until when they rest. */
+const resting = new Map<string, number>();
+const HISTORY_REST_MS = 10 * 60_000;
+
+const HISTORY_MESSAGE_SELECT = {
+  id: true,
+  roomId: true,
+  parentMessageId: true,
+  content: true,
+  metadata: true,
+  attachedSkills: {
+    select: { name: true },
+    orderBy: { position: "asc" },
+  },
+  createdAt: true,
+  senderUserId: true,
+  senderSokoBotId: true,
+  senderCoworkerId: true,
+  reactions: { select: { userId: true, emoji: true, createdAt: true } },
+  userMentionsAsSource: { select: { userId: true } },
+  mentionsAsSource: { select: { sokoBotId: true, coworkerId: true } },
+} satisfies Prisma.ChatRoomMessageSelect;
+
+/**
+ * A message whose author left the room before it reached Buzz: the relay
+ * would refuse it from them now, and they are not let back in for it. It is
+ * written into the relay's database as history is. False without that
+ * database, or when there is nothing to write.
+ */
+export async function importDepartedMessage(
+  messageId: string,
+  channel: { channelId: string; relayUrl: string },
+): Promise<boolean> {
+  const database = relayDatabase();
+  if (!database) return false;
+  const message = await prisma.chatRoomMessage.findUnique({
+    where: { id: messageId },
+    select: HISTORY_MESSAGE_SELECT,
+  });
+  if (!message) return false;
+  const client = await database.connect();
+  try {
+    const host = new URL(channel.relayUrl).host;
+    const community = await client.query<{ id: string }>(
+      "SELECT id FROM communities WHERE lower(host) = lower($1) AND deleted_at IS NULL",
+      [host],
+    );
+    const communityId = community.rows[0]?.id;
+    if (!communityId) throw new Error(`No community ${host} on the relay`);
+    return await importMessage(
+      client,
+      communityId,
+      channel.channelId,
+      channel.relayUrl,
+      message,
+    );
+  } finally {
+    client.release();
+  }
 }
 
 /** Imports one channel's history; null when stopped before the end. */
@@ -167,24 +241,7 @@ async function importChannel(
             }
           : {}),
       },
-      select: {
-        id: true,
-        roomId: true,
-        parentMessageId: true,
-        content: true,
-        metadata: true,
-        attachedSkills: {
-          select: { name: true },
-          orderBy: { position: "asc" },
-        },
-        createdAt: true,
-        senderUserId: true,
-        senderSokoBotId: true,
-        senderCoworkerId: true,
-        reactions: { select: { userId: true, emoji: true, createdAt: true } },
-        userMentionsAsSource: { select: { userId: true } },
-        mentionsAsSource: { select: { sokoBotId: true, coworkerId: true } },
-      },
+      select: HISTORY_MESSAGE_SELECT,
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       take: BATCH,
     });

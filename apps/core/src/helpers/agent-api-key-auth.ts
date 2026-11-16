@@ -100,7 +100,7 @@ export async function resolveAgentApiKeyAuthContext(
     const identity = apiKey.coworker.buzzIdentity;
     const personalAgent =
       isBuzzAgentBaseUrl(apiKey.coworker.baseURL) ||
-      (identity !== null && !identity.encryptedSecretKey);
+      (identity != null && !identity.encryptedSecretKey);
     if (personalAgent && !isActiveUser(identity?.ownerIdentity?.user)) {
       return null;
     }

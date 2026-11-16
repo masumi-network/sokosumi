@@ -8,6 +8,7 @@ const lock = vi.hoisted(() => ({
 vi.mock("@/services/sync-lock.service", () => ({ syncLockService: lock }));
 vi.mock("@/services/buzz-history-import.service", () => ({
   importBuzzHistory: vi.fn(),
+  importDepartedMessage: vi.fn(),
 }));
 vi.mock("@/services/buzz-bridge.service", () => ({
   buzzConfig: () => ({ operatorPubkey: "a".repeat(64) }),
