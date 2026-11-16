@@ -92,6 +92,15 @@ describe("SEO action worklist", () => {
     expect(screen.getByRole("button", { name: "All 2" })).toHaveFocus();
   });
 
+  it("gives the focus to the first row when the whole filter line leaves", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(view([high, low]));
+    await user.click(screen.getByRole("button", { name: "Low impact 1" }));
+    rerender(view([high]));
+    expect(screen.queryByRole("group", { name: "Filter actions" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Fix the price" })).toHaveFocus();
+  });
+
   it("closes the dialog of an action that left the list, and does not open it again when it comes back", async () => {
     const user = userEvent.setup();
     const { rerender } = render(view([high, low]));

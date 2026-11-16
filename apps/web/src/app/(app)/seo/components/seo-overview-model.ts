@@ -180,6 +180,14 @@ export const SEO_ACTION_FILTERS = [
   "low",
   "suggestions",
 ] as const;
+/** The message key of each filter's label: the impact groups use the words of the impact marks. */
+export const SEO_ACTION_FILTER_LABEL = {
+  all: "actions.filter.all",
+  high: "severity.major",
+  low: "severity.minor",
+  suggestions: "actions.filter.suggestions",
+} as const satisfies Record<(typeof SEO_ACTION_FILTERS)[number], string>;
+
 export type SeoActionFilter = (typeof SEO_ACTION_FILTERS)[number];
 
 /**

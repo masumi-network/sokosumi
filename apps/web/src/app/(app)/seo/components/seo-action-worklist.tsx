@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useSeoActionFinding } from "./seo-action-finding";
 import { SeoActionDialog } from "./seo-agent-steps";
 import {
+  SEO_ACTION_FILTER_LABEL,
   type SeoActionBucket,
   type SeoActionFilter,
   type SeoIssueSeverity,
@@ -62,7 +63,7 @@ export function SeoActionWorklist({
   const filterLine = useRef<HTMLFieldSetElement>(null);
   const refocus = useRef(false);
   // A filter whose rows left (a new check) goes back to all rows, and stays there when they come back. A
-  // focus on the filter that left goes to All.
+  // focus on the filter that left goes to All, or to the first row when the whole filter line left.
   if (!filters.includes(filter)) {
     refocus.current = Boolean(
       filterLine.current?.contains(document.activeElement),
@@ -73,7 +74,10 @@ export function SeoActionWorklist({
   useEffect(() => {
     if (shown !== "all" || !refocus.current) return;
     refocus.current = false;
-    filterLine.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    (
+      filterLine.current?.querySelector<HTMLButtonElement>("button") ??
+      list.current?.querySelector<HTMLButtonElement>("button")
+    )?.focus();
   }, [shown]);
   const rows = rowsFor(shown);
   // The dialog holds its action by key: a Task for it changes the action, and the dialog shows the new state.
@@ -114,13 +118,7 @@ export function SeoActionWorklist({
                     className={cn("size-1.5 rounded-full", RAIL[key])}
                   />
                 )}
-                {t(
-                  key === "high"
-                    ? "severity.major"
-                    : key === "low"
-                      ? "severity.minor"
-                      : `actions.filter.${key}`,
-                )}
+                {t(SEO_ACTION_FILTER_LABEL[key])}
                 <span className="tabular-nums">{counts[key]}</span>
               </button>
             ))}
@@ -129,7 +127,8 @@ export function SeoActionWorklist({
         <div className="ms-auto">{tools}</div>
       </div>
       {/* Suggestions alone keep the line that says they are no errors; the dialog of each one says it too. */}
-      {rows.every((action) => action.kind === "opportunity") ? (
+      {rows.length > 0 &&
+      rows.every((action) => action.kind === "opportunity") ? (
         <p className="text-muted-foreground px-2 text-sm">
           {t("actions.opportunitiesHelp")}
         </p>
@@ -195,9 +194,9 @@ function SeoWorklistRow({
     <li>
       <button
         type="button"
-        // The title names the row; the page, the finding and the labels describe it.
+        // The title names the row; the page and the finding, then the labels, describe it in the order on screen.
         aria-labelledby={titleId}
-        aria-describedby={`${labelsId} ${factsId}`}
+        aria-describedby={`${factsId} ${labelsId}`}
         className={cn(SEO_ROW_BUTTON_CLASS, "items-stretch px-3 py-2.5")}
         onClick={(event) => onOpen(event.currentTarget)}
       >

@@ -19,7 +19,8 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
       name="actions"
       title={t("actions.title")}
       table={() => seoActionsExport(overview.actions, t)}
-      className="ms-0"
+      // 40 px on a phone, as the filter beside it.
+      className="ms-0 max-sm:h-10"
     />
   );
   // The strategy actions are a group with a title of their own: a group over them needs one too.
