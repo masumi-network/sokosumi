@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -71,6 +71,8 @@ function renderCreate() {
 describe("CreateState", () => {
   afterEach(() => {
     pickerLoadsOnMount = true;
+    pushMock.mockClear();
+    vi.useRealTimers();
   });
 
   it("hides the mobile tab bar while the flow is open", () => {
@@ -143,7 +145,8 @@ describe("CreateState", () => {
 
   it("locks the pictures while the bot is being created", async () => {
     const user = userEvent.setup();
-    createMock.mockReturnValue(new Promise(() => {}));
+    const created = Promise.withResolvers();
+    createMock.mockReturnValue(created.promise);
     renderCreate();
 
     await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
@@ -152,12 +155,17 @@ describe("CreateState", () => {
 
     await user.click(screen.getByRole("button", { name: "Create Atlas" }));
     expect(pictures).toBeDisabled();
+    // A create left pending holds every later transition in this worker.
+    await act(async () =>
+      created.resolve({ ok: false, error: { message: "stopped" } }),
+    );
   });
 
   it("locks Create while it creates", async () => {
     const user = userEvent.setup();
     createMock.mockClear();
-    createMock.mockReturnValue(new Promise(() => {}));
+    const created = Promise.withResolvers();
+    createMock.mockReturnValue(created.promise);
     renderCreate();
 
     await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
@@ -167,6 +175,10 @@ describe("CreateState", () => {
 
     expect(createMock).toHaveBeenCalledTimes(1);
     expect(createButton).toHaveAttribute("aria-busy", "true");
+    // A create left pending holds every later transition in this worker.
+    await act(async () =>
+      created.resolve({ ok: false, error: { message: "stopped" } }),
+    );
   });
 
   it("offers no way to create without a picture", async () => {
@@ -187,7 +199,8 @@ describe("CreateState", () => {
     const user = userEvent.setup();
     pickerLoadsOnMount = false;
     createMock.mockClear();
-    createMock.mockReturnValue(new Promise(() => {}));
+    const created = Promise.withResolvers();
+    createMock.mockReturnValue(created.promise);
     renderCreate();
 
     await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
@@ -199,10 +212,16 @@ describe("CreateState", () => {
     await user.click(screen.getByRole("button", { name: "set loaded" }));
     await user.click(screen.getByRole("button", { name: "owl" }));
     expect(createButton).not.toBeDisabled();
+    // A create left pending holds every later transition in this worker.
+    await act(async () =>
+      created.resolve({ ok: false, error: { message: "stopped" } }),
+    );
   });
 
   it("creates the bot with the name from the first step, on the browser's clock", async () => {
-    const user = userEvent.setup();
+    // The reveal holds the transition for 1.5s; run it out before the end.
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout"] });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     createMock.mockResolvedValue({
       ok: true,
       value: { id: "bot-1", name: "Atlas" },
@@ -222,10 +241,14 @@ describe("CreateState", () => {
     expect(await screen.findByText("Meet Atlas")).toBeTruthy();
     // Opened from Soko Bots, not setup: the bot still says hello in its room.
     expect(openNewSokoBotRoom).toHaveBeenCalledWith("bot-1");
+    await act(() => vi.advanceTimersByTimeAsync(1500));
+    expect(pushMock).toHaveBeenCalled();
   });
 
   it("creates the bot with the picked picture", async () => {
-    const user = userEvent.setup();
+    // The reveal holds the transition for 1.5s; run it out before the end.
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout"] });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     createMock.mockResolvedValue({
       ok: true,
       value: { id: "bot-1", name: "Atlas", userId: "u1", avatarSeed: null },
@@ -243,5 +266,8 @@ describe("CreateState", () => {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       },
     });
+    expect(await screen.findByText("Meet Atlas")).toBeTruthy();
+    await act(() => vi.advanceTimersByTimeAsync(1500));
+    expect(pushMock).toHaveBeenCalled();
   });
 });

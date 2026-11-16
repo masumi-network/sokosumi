@@ -155,7 +155,7 @@ function Harness() {
 
 // The tab bar's own reads are a phone's: a desktop waits for its sidebar.
 beforeEach(() => {
-  window.innerWidth = 390;
+  vi.stubGlobal("innerWidth", 390);
   listElsewhereMock.mockReset();
   listElsewhereMock.mockResolvedValue([]);
 });
@@ -256,7 +256,7 @@ describe("Elsewhere rooms in the unread signals", () => {
     const starredAt = new Date("2026-08-01T00:00:00.000Z");
 
     beforeEach(() => {
-      window.innerWidth = 1280;
+      vi.stubGlobal("innerWidth", 1280);
       listRoomsMock.mockResolvedValue({
         ok: true,
         value: { rooms: [], nextCursor: null },
@@ -402,7 +402,7 @@ describe("Elsewhere rooms in the unread signals", () => {
   });
 
   it("shares the sidebar list's read instead of fetching twice", async () => {
-    window.innerWidth = 1280;
+    vi.stubGlobal("innerWidth", 1280);
     listElsewhereMock.mockResolvedValue([elsewhereRoom({ id: "launch" })]);
 
     render(
@@ -456,7 +456,7 @@ describe("Elsewhere rooms in the unread signals", () => {
     });
 
     it("reads once per event with Catch up beside the sidebar", async () => {
-      window.innerWidth = 1280;
+      vi.stubGlobal("innerWidth", 1280);
       render(
         <>
           <SidebarList />
@@ -490,7 +490,7 @@ describe("Elsewhere rooms in the unread signals", () => {
   });
 
   it("shares its read with a desktop sidebar that mounts after it", async () => {
-    window.innerWidth = 1280;
+    vi.stubGlobal("innerWidth", 1280);
     const view = render(<Harness />);
     await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledOnce());
     await act(async () => {});
@@ -507,7 +507,7 @@ describe("Elsewhere rooms in the unread signals", () => {
   });
 
   it("keeps the count through the read that takes over from a closed list", async () => {
-    window.innerWidth = 1280;
+    vi.stubGlobal("innerWidth", 1280);
     listElsewhereMock.mockResolvedValue([elsewhereRoom({ id: "launch" })]);
     const view = render(
       <>
@@ -523,7 +523,7 @@ describe("Elsewhere rooms in the unread signals", () => {
     );
 
     // The phone's sheet closes: the rooms hold until the tab's own read lands.
-    window.innerWidth = 390;
+    vi.stubGlobal("innerWidth", 390);
     listElsewhereMock.mockImplementation(() => new Promise(() => {}));
     view.rerender(<Harness />);
     await act(async () => {});
@@ -580,7 +580,7 @@ describe("Elsewhere rooms in the unread signals", () => {
   });
 
   it("carries the hidden sidebar toggle's dot", async () => {
-    window.innerWidth = 1280;
+    vi.stubGlobal("innerWidth", 1280);
     listRoomsMock.mockResolvedValue({
       ok: true,
       value: { rooms: [], nextCursor: null },

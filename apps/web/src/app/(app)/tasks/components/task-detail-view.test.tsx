@@ -11,6 +11,7 @@ const viewer = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
 
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => {
@@ -21,7 +22,7 @@ vi.mock("next-intl/server", () => ({
 }));
 
 vi.mock("@/lib/auth/auth.server", () => ({
-  getSession: async () => ({
+  getPrivateCachedSession: async () => ({
     session: { activeOrganizationId: null },
     user: { id: viewer.id, name: "Admin", email: "admin@example.com" },
   }),

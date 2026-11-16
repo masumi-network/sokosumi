@@ -7,9 +7,11 @@ import { TaskDetailStatusProvider } from "@/app/tasks/components/task-detail-opt
 import { TaskDetailLinksProvider } from "@/app/tasks/components/task-detail-optimistic-links";
 import { TaskDetailView } from "@/app/tasks/components/task-detail-view";
 import { TaskWorkspaceSwitchDialog } from "@/app/tasks/components/task-workspace-switch-dialog";
+import { getPrivateCachedTask } from "@/app/tasks/utils/private-task-detail-cache";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import { MarkNotificationsRead } from "@/components/notifications/mark-notifications-read.client";
-import { getSession } from "@/lib/auth/auth.server";
+import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
+import { getPrivateCachedSession } from "@/lib/auth/auth.server";
 import { taskService } from "@/lib/services/task.service";
 import { isUuidString } from "@/lib/utils/uuid";
 
@@ -19,15 +21,22 @@ export default async function TaskDetailPage({
   params: Promise<{ taskId: string }>;
 }) {
   // Uuid, `SOK-12`, or `SOK-12-some-slug`: Core resolves all three.
-  await connection();
   const { taskId } = await params;
 
   // Happy path is active-workspace scoped: one Core read. Only probe workspace
   // mapping when that miss might mean "switch workspace" rather than 404.
+  // Both reads are private-cached, so a task link's prefetch carries the page.
   const [task, session] = await Promise.all([
-    taskService.getTaskById(taskId),
-    getSession(),
+    getPrivateCachedTask(taskId).catch(() => null),
+    getPrivateCachedSession(),
   ]);
+
+  // A miss can be a passing Core outage, which both reads turn into null. A
+  // prefetch must not keep that as a 404 or a switch dialog, so every page
+  // but the task itself renders fresh on the click.
+  if (!task || !session) {
+    await connection();
+  }
 
   if (!session) {
     return notFound();
@@ -47,6 +56,7 @@ export default async function TaskDetailPage({
             task rather than act on it. */}
         <MarkNotificationsRead kind="TASK" referenceId={task.id} />
         <ProjectScopeMarker projectId={task.projectId ?? null} />
+        <RefreshPrefetchedPage />
       </>
     );
   }

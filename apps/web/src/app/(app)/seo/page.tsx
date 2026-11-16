@@ -3,6 +3,7 @@ import { redirect, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
+import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import type { SeoOwner } from "@/lib/seo/owner";
 import { seoService } from "@/lib/services/seo.service";
 import { SeoAuditIndex } from "./components/seo-audit-index";
@@ -11,6 +12,7 @@ import { SeoWorkspace } from "./components/seo-workspace";
 import { SeoWorkspaceSwitchDialog } from "./components/seo-workspace-switch-dialog";
 import { seoHrefWithout, seoRescopedHref } from "./seo-href";
 import { seoLoadErrorStatus } from "./seo-load-error-model";
+import { loadSeoAuditIndex } from "./seo-page-data";
 import { readSeoPageQuery, seoTab } from "./seo-query";
 import { seoAuditSwitchFor } from "./seo-workspace-switch";
 
@@ -25,7 +27,6 @@ export default async function SeoPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await connection();
   const t = await getTranslations("App.Seo");
   const raw = await searchParams;
   const parsed = readSeoPageQuery(raw);
@@ -47,11 +48,14 @@ export default async function SeoPage({
     : projectId && view === "project"
       ? { kind: "project", id: projectId }
       : undefined;
+  // Only the Audit list is cached, so a link prefetch must not carry a workspace.
+  if (owner) await connection();
   try {
     if (!owner) {
-      const index = await seoService.listAudits({ cursor, projectId });
+      const index = await loadSeoAuditIndex({ cursor, projectId });
       return (
         <WorkspacePageShell title={t("title")}>
+          <RefreshPrefetchedPage />
           <SeoAuditIndex
             audits={index.audits}
             projectId={projectId ?? null}

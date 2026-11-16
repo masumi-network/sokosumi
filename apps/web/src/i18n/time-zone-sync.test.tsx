@@ -47,9 +47,6 @@ describe("TimeZoneSync", () => {
   });
 
   it("does not refresh when the cookie write does not stick", async () => {
-    const cookieDesc =
-      Object.getOwnPropertyDescriptor(Document.prototype, "cookie") ??
-      Object.getOwnPropertyDescriptor(document, "cookie");
     const setter = vi.fn();
     Object.defineProperty(document, "cookie", {
       configurable: true,
@@ -65,9 +62,8 @@ describe("TimeZoneSync", () => {
       });
       expect(refresh).not.toHaveBeenCalled();
     } finally {
-      if (cookieDesc) {
-        Object.defineProperty(document, "cookie", cookieDesc);
-      }
+      // The stand-in is the document's own; removing it uncovers the real one.
+      Reflect.deleteProperty(document, "cookie");
     }
   });
 

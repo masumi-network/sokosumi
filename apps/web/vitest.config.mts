@@ -96,6 +96,16 @@ export default defineConfig({
      */
     maxWorkers: process.env.CI ? undefined : "50%",
     /**
+     * Files share a worker instead of reloading every module per file; that
+     * cut Vitest time by about a quarter. Files run in a random order so a
+     * file that leans on state an earlier one left behind fails visibly. The
+     * log's first line prints the seed; rerun an order with
+     * `pnpm --filter web exec vitest run --sequence.seed=<seed>`. Cleanup
+     * rules: `src/test/setup.ts` and `AGENTS.md` ("App-Specific Testing").
+     */
+    isolate: false,
+    sequence: { shuffle: { files: true } },
+    /**
      * Vitest 5 dropped `environmentMatchGlobs`. Two projects is the
      * equivalent: pure `.test.ts` files stay in node; `.tsx` and DOM/hook
      * `.test.ts` (Testing Library / window) stay on happy-dom.
