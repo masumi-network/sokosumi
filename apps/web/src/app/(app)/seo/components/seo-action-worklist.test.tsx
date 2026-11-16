@@ -1,5 +1,11 @@
 import type { ProjectSeoAction } from "@sokosumi/core-client";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it } from "vitest";
@@ -83,6 +89,12 @@ describe("SEO action worklist", () => {
     ).toBeVisible();
     rerender(view([high]));
     expect(screen.queryByRole("dialog")).toBeNull();
+    // Its row left with it: the focus goes to the first row, not to the page.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Fix the price" }),
+      ).toHaveFocus(),
+    );
     rerender(view([high, low]));
     expect(screen.queryByRole("dialog")).toBeNull();
   });

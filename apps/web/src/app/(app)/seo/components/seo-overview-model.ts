@@ -162,6 +162,17 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
   };
 }
 
+/** The worklist group of an action: a suggestion by its kind; a fix by its impact, and an unrated fix counts as low. */
+export type SeoActionBucket = "high" | "low" | "suggestions";
+
+export function seoActionBucket(
+  action: Pick<ProjectSeoWorkspace["actions"][number], "kind">,
+  severity: SeoIssueSeverity | null,
+): SeoActionBucket {
+  if (action.kind === "opportunity") return "suggestions";
+  return severity === "critical" || severity === "major" ? "high" : "low";
+}
+
 /** The fixes that wait for the reader: the count the Agent tab and the Keywords card lead with. */
 export function seoOpenFixes(
   overview: Pick<ReturnType<typeof seoOverviewModel>, "recommendedActions">,

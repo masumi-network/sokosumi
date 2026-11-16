@@ -11,7 +11,11 @@ import {
 import { cn } from "@/lib/utils";
 import { useSeoActionFinding } from "./seo-action-finding";
 import { SeoActionDialog } from "./seo-agent-steps";
-import type { SeoIssueSeverity } from "./seo-overview-model";
+import {
+  type SeoActionBucket,
+  type SeoIssueSeverity,
+  seoActionBucket,
+} from "./seo-overview-model";
 import {
   SEO_ROW_BUTTON_CLASS,
   SEO_ROW_LIST_CLASS,
@@ -24,17 +28,6 @@ import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 /** The filters of the worklist: critical and high issues read as one level, as their orange mark does. */
 const FILTERS = ["all", "high", "low", "suggestions"] as const;
 type SeoActionFilter = (typeof FILTERS)[number];
-type SeoActionBucket = Exclude<SeoActionFilter, "all">;
-
-/** A suggestion by its kind; a fix by its impact, and a fix whose issue has no rating counts as low. */
-function seoActionBucket(
-  action: ProjectSeoAction,
-  severity: SeoIssueSeverity | null,
-): SeoActionBucket {
-  if (action.kind === "opportunity") return "suggestions";
-  return severity === "critical" || severity === "major" ? "high" : "low";
-}
-
 /** The rail of a row has the color of the impact mark; a suggestion has the grey of a quiet line. */
 const RAIL: Record<SeoActionBucket, string> = {
   high: "bg-chart-2",
@@ -87,7 +80,10 @@ export function SeoActionWorklist({
       <div className="flex flex-wrap items-center gap-2 px-2">
         {filters.length > 1 ? (
           // One control with its parts: the app's segmented look, buttons with a pressed state.
-          <fieldset className={cn(SEGMENTED_CONTROL_CLASS_NAME, "flex-wrap")}>
+          // On a phone the parts keep one line and the track scrolls: wrapped, the pills broke into uneven rows.
+          <fieldset
+            className={cn(SEGMENTED_CONTROL_CLASS_NAME, "overflow-x-auto")}
+          >
             <legend className="sr-only">{t("actions.filter.label")}</legend>
             {filters.map((key) => (
               <button
@@ -195,7 +191,13 @@ function SeoWorklistRow({
         className={cn(SEO_ROW_BUTTON_CLASS, "items-stretch px-3 py-2.5")}
         onClick={(event) => onOpen(event.currentTarget)}
       >
-        <span aria-hidden className={cn("w-1 shrink-0 rounded-full", rail)} />
+        <span
+          aria-hidden
+          className={cn(
+            "w-1 shrink-0 rounded-full forced-colors:bg-[CanvasText]",
+            rail,
+          )}
+        />
         <span className="min-w-0 flex-1 gap-3 self-center sm:flex sm:items-center">
           <span className="block min-w-0 sm:flex-1">
             <span

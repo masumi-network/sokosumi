@@ -8,6 +8,7 @@ import {
   pageDetailGuidanceRows,
   pageDetailReferences,
   pageDetailRuleCodes,
+  seoActionBucket,
   seoOverviewModel,
   seoPageSummaries,
   toolRangeFit,
@@ -639,5 +640,15 @@ describe("measures outside tool ranges", () => {
         findingIds: ["desktop", "mobile"],
       },
     ]);
+  });
+});
+
+describe("seoActionBucket", () => {
+  it("groups a suggestion by its kind and a fix by its impact, an unrated fix as low", () => {
+    expect(seoActionBucket({ kind: "opportunity" }, null)).toBe("suggestions");
+    expect(seoActionBucket({ kind: "fix" }, "critical")).toBe("high");
+    expect(seoActionBucket({ kind: "fix" }, "major")).toBe("high");
+    expect(seoActionBucket({ kind: "fix" }, "minor")).toBe("low");
+    expect(seoActionBucket({ kind: "fix" }, null)).toBe("low");
   });
 });
