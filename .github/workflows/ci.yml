@@ -247,7 +247,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: *turbo-permissions
     steps:
-      # Booted in the background, as in `core` above. The unit tests run
+      # Booted in the background, as in `core-postgres` above. The unit tests run
       # first, so it is long up by the time the job sync test needs it.
       - *start-postgres
 
@@ -408,7 +408,7 @@ jobs:
     timeout-minutes: 10
     permissions: *turbo-permissions
     steps:
-      # Booted in the background, as in `core` above.
+      # Booted in the background, as in `core-postgres` above.
       - *start-postgres
       - *checkout
       - *setup
