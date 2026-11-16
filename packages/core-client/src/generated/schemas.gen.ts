@@ -44728,6 +44728,38 @@ export const SeoConnectionStatusSchema = {
         canResume: {
             type: 'boolean'
         },
+        account: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        email: {
+                            type: 'string'
+                        },
+                        name: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        pictureUrl: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'email',
+                        'name',
+                        'pictureUrl'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         connectionVersion: {
             type: 'string',
             pattern: '^[a-f0-9]{64}$'
