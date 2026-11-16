@@ -3,6 +3,10 @@ name: PR Conventional Commit Validation
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
+  # `Validate PR Title` is a required check, so it must report on every
+  # merge group. The title was validated on the PR; the job skips there,
+  # and the ruleset accepts a skipped check.
+  merge_group:
 
 concurrency:
   # A new push to the same PR cancels the queued or running run for the old commit.
@@ -15,6 +19,8 @@ permissions:
 jobs:
   validate-pr-title:
     name: Validate PR Title
+    # The action needs a pull_request payload and fails without one.
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: amannn/action-semantic-pull-request@v6

@@ -74,7 +74,7 @@ function jobBlock(yaml, jobId) {
 }
 
 describe("Apple CI triggers", () => {
-  it("keeps required check names and stops test/lint on push to main", async () => {
+  it("keeps required check names, runs test/lint on merge groups and stops them on push to main", async () => {
     const yaml = await readRepoFile(".github", "workflows", "apple.yml");
     const test = jobBlock(yaml, "test");
     const lint = jobBlock(yaml, "lint");
@@ -86,14 +86,12 @@ describe("Apple CI triggers", () => {
     assert.match(warm, /name: Warm Apple caches/);
     assert.match(publish, /name: Publish macOS DMG/);
 
-    assert.match(
-      test,
-      /if: github\.event_name == 'pull_request' && needs\.changes\.outputs\.apple == 'true'/,
-    );
-    assert.match(
-      lint,
-      /if: github\.event_name == 'pull_request' && needs\.changes\.outputs\.apple == 'true'/,
-    );
+    // Pull requests and merge groups only. `!= 'false'` runs the job when
+    // `Detect Apple changes` fails, where a skip would satisfy the ruleset.
+    const gate =
+      "if: ${{ !cancelled() && !github.event.pull_request.draft && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.changes.outputs.apple != 'false' }}";
+    assert.ok(test.includes(gate), "Xcode test gate changed");
+    assert.ok(lint.includes(gate), "Swift lint and format gate changed");
     assert.doesNotMatch(test, /github\.event_name == 'push'/);
     assert.doesNotMatch(lint, /github\.event_name == 'push'/);
 
@@ -169,6 +167,17 @@ describe("PR CI drafts", () => {
         jobBlock(yaml, "changes"),
         /if: .*!github\.event\.pull_request\.draft/,
       );
+    }
+  });
+});
+
+// The merge queue waits for every required check, so a workflow behind one
+// that stops triggering on merge_group stalls every queued merge.
+describe("Merge queue triggers", () => {
+  it("starts every workflow that reports a required check", async () => {
+    for (const file of ["ci.yml", "apple.yml", "conventional-commit.yml"]) {
+      const yaml = await readRepoFile(".github", "workflows", file);
+      assert.match(yaml, /\non:\n(?: .*\n|\n)*? {2}merge_group:\n/, file);
     }
   });
 });

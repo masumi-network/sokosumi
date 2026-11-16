@@ -6,6 +6,10 @@ on:
   workflow_dispatch:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  # The merge queue on main runs every check on the PR combined with the
+  # latest main before it merges (ADR 0069). A merge group's ref is unique,
+  # so the concurrency group below never cancels one group for another.
+  merge_group:
 
 concurrency:
   # A new push to the same PR cancels the queued or running run for the old commit.
@@ -31,7 +35,9 @@ env:
 # its outputs are empty and every leg runs instead of skipping silently.
 # `!cancelled()` stops a superseded run from starting legs.
 #
-# Draft PRs run nothing; `ready_for_review` starts the full run. Every leg
+# Draft PRs run nothing; `ready_for_review` starts the full run. On
+# merge_group `github.event.pull_request` is empty, so the draft guard passes
+# and the queue gets the same path-gated run a PR does. Every leg
 # repeats the draft guard: `!cancelled()` would otherwise start legs after a
 # skipped `changes`, whose empty outputs pass `!= 'false'`. Skipped required
 # checks are harmless on a draft, which cannot merge.
@@ -59,9 +65,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      # v4 diffs a merge group against its base_sha; v3 did not know the
+      # event.
       - name: Detect JS-relevant changes
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           # 'every' is required: with the default 'some', the '!' exclusion
           # patterns in js-paths-filter.yml would not exclude anything. The
@@ -250,16 +258,22 @@ jobs:
       # folder a PR adds must be stamped after the newest one on its base
       # branch. On pull_request, HEAD is the PR merge commit. Its first parent
       # is that base, and it holds every base folder the PR did not remove.
-      # workflow_dispatch has no merge commit, so it compares with the default
-      # branch tip. It still runs the check, because its result goes on the
-      # same head commit as the PR run's result and could replace a failure.
+      # On merge_group, the base is the group's base_sha: the main commit the
+      # queue builds on. workflow_dispatch has no merge commit, so it
+      # compares with the default branch tip. It still runs the check,
+      # because its result goes on the same head commit as the PR run's
+      # result and could replace a failure.
       # It also runs when the tests above fail, so one run reports both.
       - name: Check migration folders against the base branch
         if: ${{ !cancelled() }}
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then
+            git fetch --no-tags --depth=1 origin "$MERGE_GROUP_BASE_SHA"
+            base="$MERGE_GROUP_BASE_SHA"
+          elif [ "$GITHUB_EVENT_NAME" = pull_request ]; then
             if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ] || ! git rev-parse --verify --quiet "HEAD^2" >/dev/null; then
               echo "::error::HEAD is not the pull request merge commit $GITHUB_SHA with both parents fetched, so HEAD^1 is not the base branch."
               exit 1

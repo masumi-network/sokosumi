@@ -11,7 +11,7 @@ const STEP_NAME = "Check migration folders against the base branch";
 // This suite runs without a cache whenever ci.yml or the step's test file
 // changes.
 describe("the Test Packages migration step", () => {
-  it("is the last packages step and compares with the merge commit's first parent", async () => {
+  it("is the last packages step and compares with the merge group's base or the merge commit's first parent", async () => {
     const workflow = await readFile(
       path.join(repoRoot, ".github", "workflows", "ci.yml"),
       "utf8",
@@ -33,8 +33,12 @@ describe("the Test Packages migration step", () => {
         "        if: ${{ !cancelled() }}",
         "        env:",
         "          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}",
+        "          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}",
         "        run: |",
-        '          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then',
+        '          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then',
+        '            git fetch --no-tags --depth=1 origin "$MERGE_GROUP_BASE_SHA"',
+        '            base="$MERGE_GROUP_BASE_SHA"',
+        '          elif [ "$GITHUB_EVENT_NAME" = pull_request ]; then',
         '            if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ] || ! git rev-parse --verify --quiet "HEAD^2" >/dev/null; then',
         '              echo "::error::HEAD is not the pull request merge commit $GITHUB_SHA with both parents fetched, so HEAD^1 is not the base branch."',
         "              exit 1",
