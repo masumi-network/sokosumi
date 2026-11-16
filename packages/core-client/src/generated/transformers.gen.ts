@@ -4443,6 +4443,16 @@ const projectSeoFindingSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const projectSeoActionSchemaResponseTransformer = (data: any) => {
+    if (data.completedAt) {
+        data.completedAt = new Date(data.completedAt);
+    }
+    if (data.verifiedAt) {
+        data.verifiedAt = new Date(data.verifiedAt);
+    }
+    return data;
+};
+
 const projectSeoMetricSchemaResponseTransformer = (data: any) => {
     data.observedAt = new Date(data.observedAt);
     return data;
@@ -4557,6 +4567,7 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
     data.keywords = data.keywords.map((item: any) => projectSeoKeywordSchemaResponseTransformer(item));
     data.competitors = data.competitors.map((item: any) => projectSeoCompetitorSchemaResponseTransformer(item));
     data.findings = data.findings.map((item: any) => projectSeoFindingSchemaResponseTransformer(item));
+    data.actions = data.actions.map((item: any) => projectSeoActionSchemaResponseTransformer(item));
     data.metrics = data.metrics.map((item: any) => projectSeoMetricSchemaResponseTransformer(item));
     if (data.searchQueries) {
         data.searchQueries = projectSeoSearchQueriesSchemaResponseTransformer(data.searchQueries);
