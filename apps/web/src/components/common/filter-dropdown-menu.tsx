@@ -72,6 +72,8 @@ interface FilterDropdownMenuProps {
   emptyResultsLabel: string;
   sections: FilterDropdownMenuSection[];
   showActiveIndicator?: boolean;
+  /** How many filters are set, shown on the trigger; `label` reads it out ("2 active"). */
+  activeCount?: { count: number; label: string };
   /**
    * Extra classes for the desktop and mobile triggers. Toolbars that set their
    * own control height need it: `size="sm"` is `h-8` at every width, which is
@@ -95,6 +97,7 @@ export function FilterDropdownMenu({
   emptyResultsLabel,
   sections,
   showActiveIndicator = false,
+  activeCount,
   triggerClassName,
   hideMobileTrigger = false,
   sheetOpen: sheetOpenProp,
@@ -118,6 +121,18 @@ export function FilterDropdownMenu({
     return null;
   }
 
+  const triggerLabel = activeCount
+    ? `${buttonLabel}, ${activeCount.label}`
+    : buttonLabel;
+  const countBadge = activeCount ? (
+    <span
+      aria-hidden
+      className="bg-foreground text-background inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-2xs font-medium tabular-nums"
+    >
+      {activeCount.count}
+    </span>
+  ) : null;
+
   const handleClose = () => {
     setDropdownOpen(false);
     setSheetOpen(false);
@@ -132,10 +147,12 @@ export function FilterDropdownMenu({
             variant="outline"
             size="sm"
             className={cn("relative gap-2", triggerClassName)}
+            aria-label={activeCount ? triggerLabel : undefined}
           >
             <ListFilter className="size-4" aria-hidden />
             <span>{buttonLabel}</span>
-            {showActiveIndicator ? (
+            {countBadge}
+            {showActiveIndicator && !activeCount ? (
               <span
                 aria-hidden
                 className="absolute top-1 right-1 size-1.5 rounded-full bg-foreground ring-2 ring-background"
@@ -161,11 +178,12 @@ export function FilterDropdownMenu({
           variant="outline"
           size="sm"
           className={cn("relative gap-2 sm:hidden", triggerClassName)}
-          aria-label={buttonLabel}
+          aria-label={triggerLabel}
           onClick={() => setSheetOpen(true)}
         >
           <ListFilter className="size-4" aria-hidden />
-          {showActiveIndicator ? (
+          {countBadge}
+          {showActiveIndicator && !activeCount ? (
             <span
               aria-hidden
               className="absolute top-1 right-1 size-1.5 rounded-full bg-foreground ring-2 ring-background"
