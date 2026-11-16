@@ -1,7 +1,24 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SidebarScrollFrame } from "./sidebar-scroll-frame.client";
+
+let resize: () => void;
+beforeEach(() => {
+  resize = () => {};
+  vi.spyOn(globalThis, "ResizeObserver").mockImplementation(
+    function (callback) {
+      const observer = {
+        observe: vi.fn(),
+        unobserve: vi.fn(),
+        disconnect: vi.fn(),
+      };
+      resize = () => callback([], observer);
+      return observer;
+    },
+  );
+});
+afterEach(() => vi.restoreAllMocks());
 
 function setup() {
   render(
@@ -20,7 +37,18 @@ function setup() {
     scrollHeight: { value: 1000, configurable: true },
     clientHeight: { value: 200 },
   });
-  return { viewport, room, navigation: screen.getByRole("button") };
+  const navigation = screen.getByRole("button");
+  const frame = navigation.parentElement!;
+  Object.defineProperty(frame, "clientHeight", {
+    value: 1000,
+    configurable: true,
+  });
+  Object.defineProperty(navigation, "offsetHeight", {
+    value: 550,
+    configurable: true,
+  });
+  act(() => resize());
+  return { viewport, room, navigation, frame };
 }
 
 function wheel(target: HTMLElement, options: WheelEventInit = {}) {
@@ -40,6 +68,16 @@ function wheel(target: HTMLElement, options: WheelEventInit = {}) {
 }
 
 describe("Sidebar wheel forwarding", () => {
+  it("pins at 55% and restores full scrolling above the limit", () => {
+    const { frame, navigation, viewport } = setup();
+    expect(frame).toHaveAttribute("data-fixed-navigation", "true");
+    Object.defineProperty(navigation, "offsetHeight", { value: 551 });
+    act(() => resize());
+    expect(frame).toHaveAttribute("data-fixed-navigation", "false");
+    expect(wheel(navigation).defaultPrevented).toBe(false);
+    expect(viewport.scrollTop).toBe(0);
+  });
+
   it("scrolls the rooms over fixed navigation and contains scrolling at the edge", () => {
     const { viewport, navigation } = setup();
     expect(wheel(navigation).defaultPrevented).toBe(true);

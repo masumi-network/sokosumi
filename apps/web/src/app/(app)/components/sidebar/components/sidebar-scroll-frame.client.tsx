@@ -1,7 +1,10 @@
 "use client";
 
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
+import { cn } from "@/lib/utils";
+
+const MAX_FIXED_HEIGHT_RATIO = 0.55;
 const NORMAL_LINE_HEIGHT_RATIO = 1.5;
 const CHAT_VIEWPORT_SELECTOR =
   '[data-slot="sidebar-content"] [data-slot="scroll-area-viewport"]';
@@ -9,11 +12,34 @@ const CHAT_VIEWPORT_SELECTOR =
 /** Keeps wheel scrolling useful over fixed navigation as well as the room list. */
 export function SidebarScrollFrame({ children }: { children: ReactNode }) {
   const frameRef = useRef<HTMLDivElement>(null);
+  const [fixedNavigation, setFixedNavigation] = useState(false);
 
   // A native non-passive listener can stop the page scrolling behind the sidebar.
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
+
+    const chrome = Array.from(frame.children).filter(
+      (child): child is HTMLElement =>
+        child instanceof HTMLElement &&
+        child.dataset.slot !== "sidebar-content",
+    );
+    let canFixNavigation = false;
+    function measure() {
+      if (!frame) return;
+      const fixedHeight = chrome.reduce(
+        (height, child) => height + child.offsetHeight,
+        0,
+      );
+      canFixNavigation =
+        frame.clientHeight > 0 &&
+        fixedHeight <= frame.clientHeight * MAX_FIXED_HEIGHT_RATIO;
+      setFixedNavigation(canFixNavigation);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame);
+    for (const child of chrome) observer.observe(child, { box: "border-box" });
+    measure();
 
     function handleWheel(event: WheelEvent) {
       const target = event.target;
@@ -21,6 +47,7 @@ export function SidebarScrollFrame({ children }: { children: ReactNode }) {
         CHAT_VIEWPORT_SELECTOR,
       );
       if (
+        !canFixNavigation ||
         !viewport ||
         !(target instanceof Node) ||
         !frame?.contains(target) ||
@@ -50,13 +77,22 @@ export function SidebarScrollFrame({ children }: { children: ReactNode }) {
     }
 
     frame.addEventListener("wheel", handleWheel, { passive: false });
-    return () => frame.removeEventListener("wheel", handleWheel);
+    return () => {
+      observer.disconnect();
+      frame.removeEventListener("wheel", handleWheel);
+    };
   }, []);
 
   return (
     <div
       ref={frameRef}
-      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      data-fixed-navigation={fixedNavigation}
+      className={cn(
+        "flex min-h-0 flex-1 flex-col *:data-[slot=sidebar-header]:shrink-0",
+        fixedNavigation
+          ? "overflow-hidden"
+          : "app-scrollbar overflow-y-auto overscroll-contain [&>[data-slot=sidebar-content]]:flex-none [&>[data-slot=sidebar-content]]:overflow-visible [&>[data-slot=sidebar-content]>[data-slot=scroll-area-viewport]]:h-auto [&>[data-slot=sidebar-content]>[data-slot=scroll-area-viewport]]:overflow-visible! [&>[data-slot=sidebar-content]>[data-slot=scroll-area-scrollbar]]:hidden",
+      )}
     >
       {children}
     </div>

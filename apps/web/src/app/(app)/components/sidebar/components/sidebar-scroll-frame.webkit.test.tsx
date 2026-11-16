@@ -36,6 +36,13 @@ describe.each([
       const nav = page.getByRole("button", { name: "Navigation" });
       const footer = page.getByRole("button", { name: "Account" });
       await viewport.waitFor();
+      await expect
+        .poll(() =>
+          page
+            .locator("[data-fixed-navigation]")
+            .getAttribute("data-fixed-navigation"),
+        )
+        .toBe("true");
       const navBefore = await nav.boundingBox();
       const footerBefore = await footer.boundingBox();
       await nav.hover();
@@ -55,6 +62,52 @@ describe.each([
         scrollBox!.y + scrollBox!.height + 1,
       );
       expect(await nav.boundingBox()).toEqual(navBefore);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("uses full scrolling when chrome exceeds 55%, and responds to resizing", async () => {
+    const page = await browser.newPage({
+      viewport: { width: 1200, height: 900 },
+    });
+    try {
+      await page.goto(server.resolvedUrls!.local[0]);
+      const frame = page.locator("[data-fixed-navigation]");
+      const viewport = page.locator('[data-slot="scroll-area-viewport"]');
+      const nav = page.getByRole("button", { name: "Navigation" });
+      await expect
+        .poll(() => frame.getAttribute("data-fixed-navigation"))
+        .toBe("true");
+      await page.setViewportSize({ width: 390, height: 400 });
+      await expect
+        .poll(() => frame.getAttribute("data-fixed-navigation"))
+        .toBe("false");
+      const before = await nav.boundingBox();
+      await nav.hover();
+      await page.mouse.wheel(0, 250);
+      await expect
+        .poll(() => frame.evaluate((el) => el.scrollTop))
+        .toBeGreaterThan(0);
+      expect((await nav.boundingBox())!.y).toBeLessThan(before!.y);
+      expect(await viewport.evaluate((el) => el.scrollTop)).toBe(0);
+      const lastRoom = page.getByRole("link", { name: "Room 49", exact: true });
+      await lastRoom.focus();
+      const roomBox = await lastRoom.boundingBox();
+      expect(roomBox!.y).toBeGreaterThanOrEqual(0);
+      expect(roomBox!.y + roomBox!.height).toBeLessThanOrEqual(401);
+      await page.setViewportSize({ width: 1200, height: 900 });
+      await expect
+        .poll(() => frame.getAttribute("data-fixed-navigation"))
+        .toBe("true");
+      expect((await nav.boundingBox())!.y).toBeGreaterThanOrEqual(0);
+      // Expanded groups or larger text can exceed the cap without a window resize.
+      await nav.evaluate((el) => {
+        el.style.height = "700px";
+      });
+      await expect
+        .poll(() => frame.getAttribute("data-fixed-navigation"))
+        .toBe("false");
     } finally {
       await page.close();
     }
