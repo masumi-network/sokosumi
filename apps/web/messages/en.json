@@ -3409,6 +3409,7 @@
           "moreActions": "More actions",
           "viewDetails": "View details",
           "edit": "Edit",
+          "moveDates": "Move due dates…",
           "close": "Close",
           "remove": "Remove",
           "confirmRemoveJob": "Remove this job from the project?"
@@ -3484,6 +3485,27 @@
         },
         "bots": {
           "title": "Bots for this project"
+        },
+        "moveDates": {
+          "title": "Move due dates",
+          "description": "Move every open Task’s due date in this project by the same number of days. The time between them stays the same.",
+          "daysLabel": "Days",
+          "directionLabel": "Direction",
+          "later": "Later",
+          "earlier": "Earlier",
+          "daysError": "Enter a whole number from 1 to {max}.",
+          "checking": "Checking which Tasks move…",
+          "previewError": "Could not check this project’s Tasks. Close and try again.",
+          "empty": "No open Tasks in this project have a due date you can change.",
+          "tooMany": "{count} Tasks have a due date here. You can move up to {max} at once, so change some of them on their own first.",
+          "summary": "{count, plural, one {# Task moves} other {# Tasks move}}",
+          "to": "to",
+          "more": "and {count} more",
+          "cancel": "Cancel",
+          "confirm": "{count, plural, =0 {Move dates} one {Move # Task} other {Move # Tasks}}",
+          "moved": "{count, plural, =0 {No due dates moved} one {Moved # due date} other {Moved # due dates}}",
+          "skipped": "{count, plural, one {# Task kept its date: it changed meanwhile or you can’t edit it.} other {# Tasks kept their dates: they changed meanwhile or you can’t edit them.}}",
+          "moveError": "Could not move the due dates. Try again."
         }
       },
       "Newsletter": {

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { projectService } from "@/lib/services/project.service";
+import { taskService } from "@/lib/services/task.service";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -94,3 +95,27 @@ export const showProjectAction = withSession<
 >(async ({ projectId }) =>
   thenRevalidateProjects(projectService.showProject(projectId)),
 );
+
+interface ShiftProjectDueDatesParams extends AuthenticatedRequest {
+  projectId: string;
+  days: number;
+  preview?: boolean;
+}
+
+/**
+ * Moves every open due date in a project by `days`, keeping their spacing;
+ * with `preview` it only lists what would move. Core checks the range and
+ * each Task's edit rights, so this passes the input through.
+ */
+export const shiftProjectDueDatesAction = withSession<
+  ShiftProjectDueDatesParams,
+  Awaited<ReturnType<typeof taskService.shiftProjectDueDates>>
+>(async ({ projectId, days, preview }) => {
+  const result = await taskService.shiftProjectDueDates({
+    projectId,
+    days,
+    preview,
+  });
+  if (!preview) revalidatePath(`/projects/${projectId}`);
+  return result;
+});

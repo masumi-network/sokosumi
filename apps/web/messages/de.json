@@ -3409,6 +3409,7 @@
           "moreActions": "Weitere Aktionen",
           "viewDetails": "Details anzeigen",
           "edit": "Bearbeiten",
+          "moveDates": "Fälligkeiten verschieben…",
           "close": "Schließen",
           "remove": "Entfernen",
           "confirmRemoveJob": "Diesen Job aus dem Projekt entfernen?"
@@ -3484,6 +3485,27 @@
         },
         "bots": {
           "title": "Bots für dieses Projekt"
+        },
+        "moveDates": {
+          "title": "Fälligkeiten verschieben",
+          "description": "Verschiebe das Fälligkeitsdatum jeder offenen Aufgabe in diesem Projekt um gleich viele Tage. Die Abstände zwischen ihnen bleiben gleich.",
+          "daysLabel": "Tage",
+          "directionLabel": "Richtung",
+          "later": "Später",
+          "earlier": "Früher",
+          "daysError": "Gib eine ganze Zahl von 1 bis {max} ein.",
+          "checking": "Prüfe, welche Aufgaben sich verschieben…",
+          "previewError": "Die Aufgaben dieses Projekts konnten nicht geprüft werden. Schließe den Dialog und versuche es erneut.",
+          "empty": "Keine offene Aufgabe in diesem Projekt hat ein Fälligkeitsdatum, das du ändern kannst.",
+          "tooMany": "{count} Aufgaben haben hier ein Fälligkeitsdatum. Du kannst bis zu {max} auf einmal verschieben, ändere also zuerst einige einzeln.",
+          "summary": "{count, plural, one {# Aufgabe wird verschoben} other {# Aufgaben werden verschoben}}",
+          "to": "auf",
+          "more": "und {count} weitere",
+          "cancel": "Abbrechen",
+          "confirm": "{count, plural, =0 {Verschieben} one {# Aufgabe verschieben} other {# Aufgaben verschieben}}",
+          "moved": "{count, plural, =0 {Keine Fälligkeit verschoben} one {# Fälligkeit verschoben} other {# Fälligkeiten verschoben}}",
+          "skipped": "{count, plural, one {# Aufgabe hat ihr Datum behalten: Sie wurde inzwischen geändert oder du darfst sie nicht bearbeiten.} other {# Aufgaben haben ihr Datum behalten: Sie wurden inzwischen geändert oder du darfst sie nicht bearbeiten.}}",
+          "moveError": "Die Fälligkeiten konnten nicht verschoben werden. Versuche es erneut."
         }
       },
       "Newsletter": {

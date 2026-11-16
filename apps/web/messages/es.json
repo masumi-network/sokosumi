@@ -3409,6 +3409,7 @@
           "moreActions": "Más acciones",
           "viewDetails": "Ver detalles",
           "edit": "Editar",
+          "moveDates": "Mover fechas límite…",
           "close": "Cerrar",
           "remove": "Quitar",
           "confirmRemoveJob": "¿Quitar este job del proyecto?"
@@ -3484,6 +3485,27 @@
         },
         "bots": {
           "title": "Bots de este proyecto"
+        },
+        "moveDates": {
+          "title": "Mover fechas límite",
+          "description": "Mueve la fecha límite de cada tarea abierta de este proyecto el mismo número de días. El tiempo entre ellas no cambia.",
+          "daysLabel": "Días",
+          "directionLabel": "Dirección",
+          "later": "Más tarde",
+          "earlier": "Antes",
+          "daysError": "Introduce un número entero del 1 al {max}.",
+          "checking": "Comprobando qué tareas se mueven…",
+          "previewError": "No se pudieron revisar las tareas de este proyecto. Cierra e inténtalo de nuevo.",
+          "empty": "Ninguna tarea abierta de este proyecto tiene una fecha límite que puedas cambiar.",
+          "tooMany": "{count} tareas tienen fecha límite aquí. Puedes mover hasta {max} a la vez, así que cambia algunas por separado primero.",
+          "summary": "{count, plural, one {Se mueve # tarea} other {Se mueven # tareas}}",
+          "to": "a",
+          "more": "y {count} más",
+          "cancel": "Cancelar",
+          "confirm": "{count, plural, =0 {Mover fechas} one {Mover # tarea} other {Mover # tareas}}",
+          "moved": "{count, plural, =0 {No se movió ninguna fecha límite} one {Se movió # fecha límite} other {Se movieron # fechas límite}}",
+          "skipped": "{count, plural, one {# tarea mantuvo su fecha: cambió entretanto o no puedes editarla.} other {# tareas mantuvieron su fecha: cambiaron entretanto o no puedes editarlas.}}",
+          "moveError": "No se pudieron mover las fechas límite. Inténtalo de nuevo."
         }
       },
       "Newsletter": {

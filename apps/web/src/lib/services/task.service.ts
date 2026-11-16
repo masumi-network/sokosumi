@@ -338,6 +338,24 @@ export const taskService = (() => {
     return result.data;
   }
 
+  /**
+   * Moves every open due date in a project by `days`, or with `preview`
+   * only says which would move. Core re-checks each Task under lock.
+   */
+  async function shiftProjectDueDates(input: {
+    projectId: string;
+    days: number;
+    preview?: boolean;
+  }) {
+    const result = await coreClient.shiftProjectDueDates(input);
+
+    if (!result.data) {
+      throw new Error("Failed to move project due dates");
+    }
+
+    return result.data;
+  }
+
   /** Puts moved Tasks back, each only while untouched since the move. */
   async function undoMoveOverdueTasks(input: {
     to: string;
@@ -474,6 +492,7 @@ export const taskService = (() => {
     subscribeTaskParticipant,
     moveTaskToWorkspace,
     moveOverdueTasks,
+    shiftProjectDueDates,
     undoMoveOverdueTasks,
     patchTask,
     listTaskLinks,

@@ -54686,6 +54686,79 @@ export const MoveOverdueTasksRequestSchema = {
     ]
 } as const;
 
+export const ShiftProjectDueDatesSchema = {
+    type: 'object',
+    properties: {
+        tasks: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    name: {
+                        type: 'string'
+                    },
+                    from: {
+                        type: 'string',
+                        example: '2026-11-20'
+                    },
+                    to: {
+                        type: 'string',
+                        example: '2026-11-27'
+                    }
+                },
+                required: [
+                    'id',
+                    'name',
+                    'from',
+                    'to'
+                ]
+            },
+            description: 'Tasks moved, or on a preview the Tasks that would move (earliest first, at most 100).'
+        },
+        total: {
+            type: 'integer',
+            description: 'Every Task the move covers, even past the preview\'s list.'
+        },
+        skipped: {
+            type: 'integer',
+            description: 'Tasks that changed meanwhile, could not be edited or failed, and kept their due day.'
+        }
+    },
+    required: [
+        'tasks',
+        'total',
+        'skipped'
+    ]
+} as const;
+
+export const ShiftProjectDueDatesRequestSchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        days: {
+            type: 'integer',
+            minimum: -365,
+            maximum: 365,
+            description: 'Days to move every due date by: positive is later, negative earlier.',
+            example: 7
+        },
+        preview: {
+            type: 'boolean',
+            description: 'Return what would move, and change nothing.'
+        }
+    },
+    required: [
+        'projectId',
+        'days'
+    ]
+} as const;
+
 export const UndoMoveOverdueTasksSchema = {
     type: 'object',
     properties: {

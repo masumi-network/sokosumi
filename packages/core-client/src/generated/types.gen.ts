@@ -13855,6 +13855,38 @@ export type MoveOverdueTasksRequest = {
     to: string;
 };
 
+export type ShiftProjectDueDates = {
+    /**
+     * Tasks moved, or on a preview the Tasks that would move (earliest first, at most 100).
+     */
+    tasks: Array<{
+        id: string;
+        name: string;
+        from: string;
+        to: string;
+    }>;
+    /**
+     * Every Task the move covers, even past the preview's list.
+     */
+    total: number;
+    /**
+     * Tasks that changed meanwhile, could not be edited or failed, and kept their due day.
+     */
+    skipped: number;
+};
+
+export type ShiftProjectDueDatesRequest = {
+    projectId: string;
+    /**
+     * Days to move every due date by: positive is later, negative earlier.
+     */
+    days: number;
+    /**
+     * Return what would move, and change nothing.
+     */
+    preview?: boolean;
+};
+
 export type UndoMoveOverdueTasks = {
     /**
      * Ids of the Tasks put back on their old due day.
@@ -94452,6 +94484,79 @@ export type PostTasksDueDatesMoveOverdueResponses = {
 };
 
 export type PostTasksDueDatesMoveOverdueResponse = PostTasksDueDatesMoveOverdueResponses[keyof PostTasksDueDatesMoveOverdueResponses];
+
+export type PostTasksDueDatesShiftProjectData = {
+    body?: ShiftProjectDueDatesRequest;
+    path?: never;
+    query?: never;
+    url: '/tasks/due-dates/shift-project';
+};
+
+export type PostTasksDueDatesShiftProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksDueDatesShiftProjectError = PostTasksDueDatesShiftProjectErrors[keyof PostTasksDueDatesShiftProjectErrors];
+
+export type PostTasksDueDatesShiftProjectResponses = {
+    /**
+     * Moved project due dates
+     */
+    200: {
+        data: ShiftProjectDueDates;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksDueDatesShiftProjectResponse = PostTasksDueDatesShiftProjectResponses[keyof PostTasksDueDatesShiftProjectResponses];
 
 export type PostTasksDueDatesUndoData = {
     body?: UndoMoveOverdueTasksRequest;

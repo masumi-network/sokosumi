@@ -40,6 +40,11 @@ vi.mock("@/lib/actions/project/action", () => ({
   closeProject: closeProjectMock,
 }));
 
+vi.mock("./project-move-dates-dialog", () => ({
+  ProjectMoveDatesDialog: ({ open }: { open: boolean }) =>
+    open ? <div role="dialog" aria-label="Move due dates" /> : null,
+}));
+
 vi.mock("@/app/projects/actions", () => ({
   hideProjectAction: hideProjectActionMock,
   showProjectAction: showProjectActionMock,
@@ -126,6 +131,43 @@ describe("ProjectDetailActions", () => {
     );
     expect(toastSuccessMock).not.toHaveBeenCalled();
     expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("opens Move due dates from the header menu", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectDetailActions
+        projectId="project-1"
+        labels={{ ...LABELS, moveDates: "Move due dates…" }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Move due dates…" }));
+
+    expect(
+      screen.getByRole("dialog", { name: "Move due dates" }),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    ["a CMO Project", { readOnly: true }],
+    ["a closing project", { isClosingOrClosed: true }],
+  ])("offers no Move due dates on %s", async (_name, props) => {
+    const user = userEvent.setup();
+    render(
+      <ProjectDetailActions
+        projectId="project-1"
+        labels={{ ...LABELS, moveDates: "Move due dates…" }}
+        {...props}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+
+    expect(
+      screen.queryByRole("menuitem", { name: "Move due dates…" }),
+    ).not.toBeInTheDocument();
   });
 
   it("leaves Edit out when given no Edit label, as a project card does", async () => {

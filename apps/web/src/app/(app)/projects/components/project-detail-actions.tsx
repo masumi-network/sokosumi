@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CalendarClock,
   CircleStop,
   Eye,
   EyeOff,
@@ -36,6 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { closeProject } from "@/lib/actions/project/action";
 import { cn } from "@/lib/utils";
 
+import { ProjectMoveDatesDialog } from "./project-move-dates-dialog";
 import {
   type ProjectHideLabels,
   type ProjectMenuChange,
@@ -46,6 +48,8 @@ export interface ProjectDetailActionsLabels {
   moreActions: string;
   /** Omitted on a project card, which opens the project to edit it. */
   edit?: string;
+  /** Header only: opens Move due dates. */
+  moveDates?: string;
   close: string;
   /** Only on a project card; the header has its own Pin button. */
   pin?: { pin: string; unpin: string; error: string };
@@ -81,8 +85,8 @@ interface ProjectDetailActionsProps {
 }
 
 /**
- * The project's menu: Edit (header only), Pin or Unpin (card only), Hide or
- * Show, and Close behind a confirmation. Shared by the project header and the
+ * The project's menu: Edit and Move due dates (header only), Pin or Unpin
+ * (card only), Hide or Show, and Close behind a confirmation. Shared by the project header and the
  * Projects list card.
  */
 export function ProjectDetailActions({
@@ -117,6 +121,7 @@ export function ProjectDetailActions({
     reason?: string;
   } | null>(null);
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
+  const [isMoveDatesOpen, setIsMoveDatesOpen] = useState(false);
   const [closeReason, setCloseReason] = useState("");
   const [isClosing, startCloseTransition] = useTransition();
 
@@ -187,6 +192,12 @@ export function ProjectDetailActions({
               </Link>
             </DropdownMenuItem>
           ) : null}
+          {labels.moveDates && !readOnly && !isClosingOrClosed ? (
+            <DropdownMenuItem onSelect={() => setIsMoveDatesOpen(true)}>
+              <CalendarClock className="size-4" aria-hidden />
+              {labels.moveDates}
+            </DropdownMenuItem>
+          ) : null}
           {pinItem ? (
             <DropdownMenuItem
               disabled={projectActions.isPending}
@@ -231,6 +242,18 @@ export function ProjectDetailActions({
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {labels.moveDates ? (
+        <ProjectMoveDatesDialog
+          projectId={projectId}
+          open={isMoveDatesOpen}
+          onOpenChange={setIsMoveDatesOpen}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            menuTriggerRef.current?.focus();
+          }}
+        />
+      ) : null}
 
       <AlertDialog
         open={isCloseDialogOpen && !isClosingOrClosed}

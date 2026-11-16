@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { type Prisma, TaskStatus } from "@sokosumi/database";
+import type { Prisma } from "@sokosumi/database";
 
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -16,14 +16,8 @@ import {
   dueDayString,
   eachLockedTask,
   MAX_DUE_DATE_MOVES,
+  NOT_MOVABLE,
 } from "../each-locked-task";
-
-/** Work a due day no longer presses on, or that waits on a vendor grant. */
-const NOT_MOVABLE = [
-  TaskStatus.COMPLETED,
-  TaskStatus.CANCELED,
-  TaskStatus.GRANT_PENDING,
-];
 
 const requestSchema = z
   .object({

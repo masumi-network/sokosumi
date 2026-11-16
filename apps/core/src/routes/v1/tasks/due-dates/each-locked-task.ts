@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import type { Prisma, Task } from "@sokosumi/database";
+import { type Prisma, type Task, TaskStatus } from "@sokosumi/database";
 import { calendarDateSchema } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
@@ -11,6 +11,13 @@ import type { UserContext } from "@/middleware/auth";
 
 /** The most Tasks one due-date move or Undo touches. */
 export const MAX_DUE_DATE_MOVES = 100;
+
+/** Work a due day no longer presses on, or that waits on a vendor grant. */
+export const NOT_MOVABLE = [
+  TaskStatus.COMPLETED,
+  TaskStatus.CANCELED,
+  TaskStatus.GRANT_PENDING,
+];
 
 export const dueDaySchema = calendarDateSchema;
 

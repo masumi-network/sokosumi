@@ -15,7 +15,7 @@ interface ProjectHeaderActionsProps {
 }
 
 /**
- * Pin and the project menu (Edit, Hide or Show, Close), beside the name on every project tab, so the
+ * Pin and the project menu (Edit, Move due dates, Hide or Show, Close), beside the name on every project tab, so the
  * header does not change when the reader switches tabs.
  */
 export async function ProjectHeaderActions({
@@ -57,6 +57,7 @@ export async function ProjectHeaderActions({
         labels={{
           moreActions: t("actions.moreActions"),
           edit: t("actions.edit"),
+          moveDates: t("actions.moveDates"),
           close: t("actions.close"),
           hide: {
             hide: tList("hide.hide"),
