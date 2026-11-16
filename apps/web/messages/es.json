@@ -11988,10 +11988,11 @@
         "problem": "{check}. Hallazgo: {found}",
         "impactLine": "{level}: {hint}",
         "copyFix": "Copiar cambio",
-        "copyInstructions": "Copiar como instrucciones",
+        "copyInstructions": "Copiar instrucciones para agente",
         "copyPage": "Página",
         "copied": "Copiado al portapapeles",
-        "copyFailed": "No se pudo copiar. Selecciona el texto y cópialo a mano."
+        "copyFailed": "No se pudo copiar. Selecciona el texto y cópialo a mano.",
+        "copyAgentLead": "Aplica esta corrección SEO en el sitio web. Cambia solo lo que indica y luego revisa la página."
       },
       "pages": {
         "title": "Páginas",

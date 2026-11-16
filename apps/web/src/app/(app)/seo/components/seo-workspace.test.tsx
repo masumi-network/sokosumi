@@ -5771,10 +5771,11 @@ describe("SEO workspace integration", () => {
     );
     expect(write).toHaveBeenLastCalledWith("<title>Battery Sensei</title>");
     await user.click(
-      within(dialog).getByRole("button", { name: "Copy as instructions" }),
+      within(dialog).getByRole("button", { name: "Copy agent instructions" }),
     );
     expect(write).toHaveBeenLastCalledWith(
       [
+        "Make this SEO fix on the website. Change only what it names, then check the page again.",
         "Fix the page title",
         "Page: https://example.com/",
         "A descriptive search result",

@@ -37,7 +37,7 @@ export function SeoCopyButton({
 }
 
 /**
- * The action as plain text to paste into a ticket or give to an agent: what to change, where, why, and the
+ * The action as plain text for a coding agent: what to do first, then what to change, where, why, and the
  * change itself when the check has one.
  */
 export function useSeoActionInstructions(
@@ -46,6 +46,7 @@ export function useSeoActionInstructions(
 ): string {
   const t = useTranslations("App.Seo");
   return [
+    t("actions.copyAgentLead"),
     action.title,
     `${t("actions.copyPage")}: ${action.pageUrl}`,
     finding,
