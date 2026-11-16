@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { ProjectsPageSkeleton } from "@/app/projects/components/projects-loading-view";
 import { ProjectsView } from "@/app/projects/components/projects-view";
 import {
-  panelFeed,
+  requestPanelFeed,
   WorkspaceColumn,
 } from "@/app/projects/components/workspace-column";
 import {
@@ -46,7 +46,7 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
   const column =
     state === "open"
       ? {
-          activity: panelFeed(
+          activity: requestPanelFeed(() =>
             projectService.listRecentActivity(WORKSPACE_COLUMN_ROWS),
           ),
         }
