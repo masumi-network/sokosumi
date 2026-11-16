@@ -105,12 +105,13 @@ export async function saveBrandBrain(
         "Save the essentials in brandBrain first; reveal, marketingToday and questions add to them.",
       );
     }
+    // Essentials saved again without questions keep the stored ones: an empty
+    // list would wipe what was asked and answered, and they would be asked
+    // again.
+    const sent = save.questions ?? save.brandBrain?.questions ?? [];
     const questions = withCorrections(
-      save.brandBrain || patchingQuestions
-        ? keepAnswers(
-            save.questions ?? save.brandBrain?.questions ?? [],
-            before?.questions ?? [],
-          )
+      sent.length > 0
+        ? keepAnswers(sent, before?.questions ?? [])
         : (before?.questions ?? []),
       before?.questions ?? [],
       rewrittenSections(stored.profile, profile),
