@@ -4,6 +4,8 @@ import {
   getChatRoomMessageResults as coreGetChatRoomMessageResults,
   getChatRoomMessageResultsBatch as coreGetChatRoomMessageResultsBatch,
   getStudioBrandKit as coreGetStudioBrandKit,
+  getStudioComparePair as coreGetStudioComparePair,
+  getStudioModelScoreboard as coreGetStudioModelScoreboard,
   getStudioProductCatalog as coreGetStudioProductCatalog,
   getStudioWebsiteCopy as coreGetStudioWebsiteCopy,
   hideStudioAsset as coreHideStudioAsset,
@@ -15,11 +17,13 @@ import {
   saveStudioAdHeadline as coreSaveStudioAdHeadline,
   saveStudioBrandCopy as coreSaveStudioBrandCopy,
   saveStudioBrandLook as coreSaveStudioBrandLook,
+  saveStudioPairwisePick as coreSaveStudioPairwisePick,
   setStudioAssetFeedback as coreSetStudioAssetFeedback,
   suggestTaskTags as coreSuggestTaskTags,
   uploadStudioProjectLogo as coreUploadStudioProjectLogo,
   type SaveStudioBrandCopy,
   type SaveStudioBrandLook,
+  type SaveStudioPairwisePick,
   type SetStudioAssetFeedbackData,
   type StudioProductCatalog,
 } from "@sokosumi/core-client";
@@ -4377,6 +4381,45 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getStudioComparePair(id: string, batchId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioComparePair({
+          client,
+          path: { id, batchId },
+          cache: "no-store",
+        }),
+      "Failed to fetch Studio comparisons",
+    );
+  }
+
+  async function saveStudioPairwisePick(
+    id: string,
+    batchId: string,
+    body: SaveStudioPairwisePick,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSaveStudioPairwisePick({ client, path: { id, batchId }, body }),
+      "Failed to save the Studio comparison",
+    );
+  }
+
+  async function getStudioModelScoreboard(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioModelScoreboard({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Studio model results",
+    );
+  }
+
   async function uploadStudioProjectLogo(id: string, file: File) {
     return executeCoreOperation(
       getClient,
@@ -7309,6 +7352,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     hideStudioAsset,
     recordStudioAssetEvent,
     listStudioBatchAssets,
+    getStudioComparePair,
+    saveStudioPairwisePick,
+    getStudioModelScoreboard,
     saveStudioAdHeadline,
     saveStudioBrandCopy,
     saveStudioBrandLook,
