@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { expectConsole } from "@/test/console";
 import mountSyncAgents from "./get";
 
 const {
@@ -63,13 +63,16 @@ function createApp() {
 describe("GET /sync/agents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(console, "warn").mockImplementation(() => {});
     syncCardanoV2RailReadinessMock.mockResolvedValue(false);
     syncX402BuySideReadinessMock.mockResolvedValue(false);
     syncRegistryAgentsMock.mockResolvedValue(undefined);
   });
 
   it("reports a thrown x402 readiness sync to Sentry and still syncs the registry", async () => {
+    expectConsole(
+      "warn",
+      "[sync/agents] x402 buy-side readiness sync failed; continuing registry sync",
+    );
     // syncX402BuySideReadiness alerts on its OWN handled failures. A throw
     // escapes that path entirely, so without a report here the stale cache
     // keeps serving "ready" behind nothing louder than a console line.

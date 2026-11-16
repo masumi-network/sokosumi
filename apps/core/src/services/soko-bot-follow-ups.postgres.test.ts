@@ -18,6 +18,11 @@ import {
 
 import prisma from "@/lib/db/prisma";
 
+// The flow publishes over Ably; the test env has no real key.
+vi.mock("@/lib/ably/client", async () =>
+  (await import("@/test/ably-client")).fakeAblyClientModule(),
+);
+
 vi.mock("@/services/soko-bot-proactive.service", async (original) => ({
   ...(await original<object>()),
   proactiveGate: async () => ({ ok: true, usedToday: 0, limit: 1_000 }),

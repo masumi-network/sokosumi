@@ -69,6 +69,7 @@ vi.mock("@vercel/blob", () => ({
   head: async (pathname: string) => ({ url: `https://blob/${pathname}` }),
 }));
 
+import { expectConsole } from "@/test/console";
 import {
   advanceCmoMedia,
   type CmoMediaJob,
@@ -265,6 +266,7 @@ describe("advanceCmoMedia", () => {
   });
 
   it("keeps attaching finished pictures after the studio refuses a start", async () => {
+    expectConsole("warn", "CMO media could not start");
     const { HTTPException } = await import("hono/http-exception");
     createImageJob.mockRejectedValue(
       new HTTPException(429, {

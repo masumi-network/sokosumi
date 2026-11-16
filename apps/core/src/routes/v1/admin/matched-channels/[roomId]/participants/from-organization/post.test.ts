@@ -7,7 +7,7 @@ import type { AuthenticationContext } from "@/middleware/auth";
 import { requireAdminAuthContext } from "@/middleware/auth";
 
 import { ADMIN_MATCHED_CHANNEL_ORG_SNAPSHOT_MAX_MEMBERS } from "@/schemas/admin.schema";
-
+import { expectConsole } from "@/test/console";
 import mountAddAdminMatchedChannelParticipantsFromOrganization from "./post";
 
 const {
@@ -168,6 +168,10 @@ describe("POST /admin/matched-channels/{roomId}/participants/from-organization",
   });
 
   it("does not fail the request when realtime publish rejects after commit", async () => {
+    expectConsole(
+      "error",
+      "Failed to publish chat membership status after org snapshot",
+    );
     publishChatRoomMembershipStatusMessagesBestEffortMock.mockRejectedValueOnce(
       new Error("ably down"),
     );

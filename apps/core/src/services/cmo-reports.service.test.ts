@@ -73,6 +73,14 @@ vi.mock("@/config/env", async (importOriginal) =>
     await importOriginal<typeof import("@/config/env")>(),
   ),
 );
+// Reverting to an approved month restarts its production in the background;
+// `cmo-production.service.test.ts` covers that run.
+vi.mock("@/services/cmo-production.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/cmo-production.service")
+  >()),
+  kickCmoProduction: vi.fn(),
+}));
 
 import {
   listCmoReports,

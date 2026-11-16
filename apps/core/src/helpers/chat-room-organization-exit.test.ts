@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { expectConsole } from "@/test/console";
 import {
   applyOrganizationExitChatRevocation,
   listOrganizationExitChatRoomIdsForAbly,
@@ -401,6 +401,10 @@ describe("publishOrganizationExitChatRevocation", () => {
   });
 
   it("swallows individual publish failures", async () => {
+    expectConsole(
+      "error",
+      "Failed to publish organization-exit chat side effect",
+    );
     publishChatMembershipRevokedMock
       .mockRejectedValueOnce(new Error("ably down"))
       .mockResolvedValueOnce(undefined);

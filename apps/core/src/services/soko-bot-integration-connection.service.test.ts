@@ -44,6 +44,8 @@ vi.mock("@/lib/db/prisma", () => {
       updateMany: mocks.updateMany,
       delete: mocks.deleteRow,
     },
+    // An active connection schedules its contact capture.
+    contactCaptureState: { deleteMany: vi.fn(), upsert: vi.fn() },
   };
   return {
     default: {

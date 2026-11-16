@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectConsole } from "@/test/console";
 import {
   resolveProjectXSubscriptionTypes,
   resolveXSubscriptionType,
@@ -45,7 +46,6 @@ describe("resolveXSubscriptionType", () => {
     mocks.execute.mockResolvedValue({ subscription_type: "Premium" });
     mocks.remove.mockResolvedValue(undefined);
     mocks.update.mockResolvedValue({});
-    vi.spyOn(console, "warn").mockImplementation(() => {});
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -125,19 +125,22 @@ describe("resolveXSubscriptionType", () => {
   it.each([null, "Premium"])(
     "falls back to %s on failure, logs safely, and does not cache failures",
     async (stored) => {
+      const warnCalls = expectConsole(
+        "warn",
+        "[x-subscription-tier] Subscription lookup failed",
+        2,
+      );
       mocks.execute.mockRejectedValue(new Error("token=secret"));
       const input = { ...connection, subscriptionType: stored };
       expect(await resolveXSubscriptionType(input)).toBe(stored);
       expect(await resolveXSubscriptionType(input)).toBe(stored);
       expect(mocks.execute).toHaveBeenCalledTimes(2);
       expect(mocks.update).not.toHaveBeenCalled();
-      expect(console.warn).toHaveBeenCalledWith(
+      expect(warnCalls).toContainEqual([
         "[x-subscription-tier] Subscription lookup failed",
         { connectionId: connection.id, aborted: false },
-      );
-      expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).not.toContain(
-        "secret",
-      );
+      ]);
+      expect(JSON.stringify(warnCalls)).not.toContain("secret");
     },
   );
 
@@ -149,6 +152,10 @@ describe("resolveXSubscriptionType", () => {
   ])(
     "keeps the stored tier for an unparseable response %j",
     async (payload) => {
+      const warnCalls = expectConsole(
+        "warn",
+        "[x-subscription-tier] Invalid subscription response",
+      );
       mocks.execute.mockResolvedValue(payload);
       expect(
         await resolveXSubscriptionType({
@@ -157,14 +164,18 @@ describe("resolveXSubscriptionType", () => {
         }),
       ).toBe("Basic");
       expect(mocks.update).not.toHaveBeenCalled();
-      expect(console.warn).toHaveBeenCalledWith(
+      expect(warnCalls).toContainEqual([
         "[x-subscription-tier] Invalid subscription response",
         { connectionId: connection.id },
-      );
+      ]);
     },
   );
 
   it("aborts at three seconds and keeps the stored tier", async () => {
+    const warnCalls = expectConsole(
+      "warn",
+      "[x-subscription-tier] Subscription lookup failed",
+    );
     vi.spyOn(AbortSignal, "timeout").mockImplementation((ms) => {
       const controller = new AbortController();
       setTimeout(
@@ -188,10 +199,10 @@ describe("resolveXSubscriptionType", () => {
     await vi.advanceTimersByTimeAsync(X_SUBSCRIPTION_LOOKUP_TIMEOUT_MS);
     expect(await result).toBe("Premium");
     expect(AbortSignal.timeout).toHaveBeenCalledWith(3_000);
-    expect(console.warn).toHaveBeenCalledWith(
+    expect(warnCalls).toContainEqual([
       "[x-subscription-tier] Subscription lookup failed",
       { connectionId: connection.id, aborted: true },
-    );
+    ]);
   });
 
   it("rechecks the tier for overlapping interactions", async () => {
@@ -218,6 +229,10 @@ describe("resolveXSubscriptionType", () => {
   ])(
     "uses a fresh %s to %s change even when storing it fails",
     async (stored, fresh) => {
+      const warnCalls = expectConsole(
+        "warn",
+        "[x-subscription-tier] Could not store subscription tier",
+      );
       mocks.execute.mockResolvedValue({ subscription_type: fresh });
       mocks.update.mockRejectedValue(new Error("Database unavailable"));
       expect(
@@ -226,10 +241,10 @@ describe("resolveXSubscriptionType", () => {
           subscriptionType: stored,
         }),
       ).toBe(fresh);
-      expect(console.warn).toHaveBeenCalledWith(
+      expect(warnCalls).toContainEqual([
         "[x-subscription-tier] Could not store subscription tier",
         { connectionId: connection.id },
-      );
+      ]);
     },
   );
 });
@@ -240,11 +255,11 @@ describe("resolveProjectXSubscriptionTypes", () => {
     mocks.create.mockResolvedValue("session");
     mocks.remove.mockResolvedValue(undefined);
     mocks.update.mockResolvedValue({});
-    vi.spyOn(console, "warn").mockImplementation(() => {});
   });
   afterEach(() => vi.restoreAllMocks());
 
   it("looks up a bounded set of active X accounts and keeps a stored tier on failure", async () => {
+    expectConsole("warn", "[x-subscription-tier] Subscription lookup failed");
     mocks.findMany.mockResolvedValue([
       { ...connection, id: "premium", subscriptionType: "None" },
       { ...connection, id: "failing", subscriptionType: "Basic" },

@@ -17,6 +17,7 @@ import { loadClassificationContext } from "@/lib/soko-bot/classification-context
 import { enqueueSokoBotDelivery } from "@/services/soko-bot-delivery.service";
 import { assessSokoBotIntentOutcome } from "@/services/soko-bot-outcome.service";
 import { prepareTurnActionResultPreviews } from "@/services/turn-action-result-previews.service";
+import { expectConsole } from "@/test/console";
 import { jevRoute } from "@/test/jev-routes";
 
 const intentFindManyMock = vi.hoisted(() => vi.fn().mockResolvedValue([]));
@@ -269,6 +270,9 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotSchedule: {
       findFirst: scheduleFindFirstMock,
       update: scheduleUpdateMock,
+      // A new bot's built-in rhythms (`ensureSystemSchedules`): none exist yet.
+      findMany: vi.fn().mockResolvedValue([]),
+      create: vi.fn().mockResolvedValue({}),
     },
     sokoBotScheduleRunChange: { findMany: async () => [] },
     sokoBotScheduleRun: {
@@ -5321,7 +5325,7 @@ describe("SET_VERSION and fleet migration", () => {
       ...data,
     }));
     postOwnerNoticeMock.mockReset().mockRejectedValue(new Error("Ably down"));
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    expectConsole("warn", "Soko Bot version notice failed");
 
     const result = await new SokoBotControlPlane().migrateVersions({
       operatorId: "admin_1",
@@ -5331,7 +5335,6 @@ describe("SET_VERSION and fleet migration", () => {
     });
 
     expect(result).toMatchObject({ moved: 1, notified: 0, failed: 0 });
-    warn.mockRestore();
   });
 
   it("posts nothing unless asked to", async () => {

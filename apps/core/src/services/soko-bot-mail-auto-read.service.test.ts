@@ -10,6 +10,7 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
 }));
 
 import type { TriagedMail } from "@/lib/soko-bot/mail-triage";
+import { expectConsole } from "@/test/console";
 import { autoReadBulkMail } from "./soko-bot-mail-auto-read.service";
 
 const gmail = {
@@ -50,8 +51,8 @@ describe("autoReadBulkMail", () => {
   });
 
   it("counts a refusing mailbox as failed instead of throwing", async () => {
+    expectConsole("warn", "[soko-bot-mail] auto-read failed");
     mocks.modify.mockRejectedValue(new Error("insufficient scope"));
-    vi.spyOn(console, "warn").mockImplementation(() => {});
     const result = await autoReadBulkMail("bot", [mail("bulk", "BULK")]);
     expect(result).toEqual({ markedRead: 0, failed: 1 });
   });

@@ -44,6 +44,7 @@ import {
   SOKO_BOT_TURN_STARTING_GRACE_MS,
   sokoBotTurnsSyncService,
 } from "@/services/soko-bot-turns-sync.service";
+import { expectConsole } from "@/test/console";
 
 function continueFor(maxChecks: number) {
   let checks = 0;
@@ -352,6 +353,7 @@ describe("SokoBotTurnsSyncService", () => {
   });
 
   it("records an interrupted resume without terminally settling the turn", async () => {
+    expectConsole("warn", "Soko Bot watchdog reconciliation interrupted");
     turnFindManyMock
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])

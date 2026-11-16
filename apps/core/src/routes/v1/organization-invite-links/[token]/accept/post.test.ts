@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-
+import { expectConsole } from "@/test/console";
 import mountAcceptInviteLink from "./post";
 
 const {
@@ -235,6 +235,7 @@ describe("POST /organization-invite-links/{token}/accept", () => {
   });
 
   it("maps only the (userId, organizationId) unique violation to already_member", async () => {
+    expectConsole("error", "Error: Unique constraint failed");
     getInviteLinkByTokenMock.mockResolvedValue(liveLink());
     createMemberMock.mockRejectedValue(
       Object.assign(new Error("Unique constraint failed"), {
