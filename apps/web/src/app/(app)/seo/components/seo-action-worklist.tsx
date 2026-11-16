@@ -61,31 +61,30 @@ export function SeoActionWorklist({
     seoActionBucket(action, severity(action));
   const { counts, filters, rows: rowsFor } = seoActionWorklist(actions, bucket);
   const filterLine = useRef<HTMLFieldSetElement>(null);
-  const refocus = useRef(false);
-  // A filter whose rows left (a new check) goes back to all rows, and stays there when they come back. A
-  // focus on the filter that left goes to All, or to the first row when the whole filter line left.
-  if (!filters.includes(filter)) {
-    refocus.current = Boolean(
-      filterLine.current?.contains(document.activeElement),
-    );
-    setFilter("all");
-  }
+  const root = useRef<HTMLDivElement>(null);
+  // Read in each render, before its commit: a new check can take away the filter, the row or the whole filter
+  // line that has the focus.
+  const hadFocus = useRef(false);
+  hadFocus.current = Boolean(root.current?.contains(document.activeElement));
+  // A filter whose rows left (a new check) goes back to all rows, and stays there when they come back.
+  if (!filters.includes(filter)) setFilter("all");
   const shown = filters.includes(filter) ? filter : "all";
+  // A focus that left with its control goes to All, or to the first row when the filter line left too.
   useEffect(() => {
-    if (shown !== "all" || !refocus.current) return;
-    refocus.current = false;
+    if (!hadFocus.current || document.activeElement !== document.body) return;
+    hadFocus.current = false;
     (
       filterLine.current?.querySelector<HTMLButtonElement>("button") ??
       list.current?.querySelector<HTMLButtonElement>("button")
     )?.focus();
-  }, [shown]);
+  });
   const rows = rowsFor(shown);
   // The dialog holds its action by key: a Task for it changes the action, and the dialog shows the new state.
   // An action that left the list closes its dialog, and the dialog does not open again when it comes back.
   const opened = actions.find((action) => seoActionKey(action) === openKey);
   if (openKey && !opened) setOpenKey(null);
   return (
-    <div className="space-y-2">
+    <div ref={root} className="space-y-2">
       <div className="flex flex-wrap items-center gap-2 px-2">
         {filters.length > 1 ? (
           // One control with its parts: the app's segmented look, buttons with a pressed state.

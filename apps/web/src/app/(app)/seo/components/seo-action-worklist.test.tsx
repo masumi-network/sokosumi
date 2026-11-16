@@ -101,6 +101,23 @@ describe("SEO action worklist", () => {
     expect(screen.getByRole("button", { name: "Fix the price" })).toHaveFocus();
   });
 
+  it("gives the focus to the first row when the filter line leaves with All focused, or a focused row leaves", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(view([high, low]));
+    // The reader is elsewhere on the page: a new check moves no focus.
+    rerender(view([low, high]));
+    expect(document.body).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Low impact 1" }));
+    await user.click(screen.getByRole("button", { name: "All 2" }));
+    rerender(view([high]));
+    expect(screen.getByRole("button", { name: "Fix the price" })).toHaveFocus();
+    // A new check takes the focused row away.
+    rerender(view([low]));
+    expect(
+      screen.getByRole("button", { name: "Fix the redirect" }),
+    ).toHaveFocus();
+  });
+
   it("closes the dialog of an action that left the list, and does not open it again when it comes back", async () => {
     const user = userEvent.setup();
     const { rerender } = render(view([high, low]));
