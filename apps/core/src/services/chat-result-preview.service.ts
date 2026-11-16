@@ -713,8 +713,17 @@ export async function resolveChatResultReference(
       const schedule = await client.sokoBotSchedule.findFirst({
         where: {
           id: ref.id,
-          requestedByUserId: actor.userId,
           workspaceId: actor.workspaceId,
+          // The schedule tools reach the member's personal bot and the
+          // Organization's shared bots whoever asked (`memberSokoBot`), so an
+          // update to such a schedule needs its card too.
+          OR: [
+            { requestedByUserId: actor.userId },
+            { sokoBot: { userId: actor.userId } },
+            ...(organizationId
+              ? [{ sokoBot: { userId: null, deletedAt: null } }]
+              : []),
+          ],
         },
         include: {
           sokoBot: {

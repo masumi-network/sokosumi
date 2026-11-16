@@ -291,9 +291,33 @@ describe("authorized chat results", () => {
       expect.objectContaining({
         where: {
           id: "follow-up",
-          requestedByUserId: "owner",
           workspaceId: "workspace",
+          OR: [
+            { requestedByUserId: "owner" },
+            { sokoBot: { userId: "owner" } },
+          ],
         },
+      }),
+    );
+    // In an Organization the member also reaches its shared bots' schedules.
+    workspace.mockResolvedValueOnce({
+      id: "workspace",
+      userId: null,
+      organizationId: "organization",
+    });
+    await resolveChatResultReference({
+      reference: { kind: "bot_schedule", id: "follow-up" },
+      actor,
+    });
+    expect(botSchedule).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { requestedByUserId: "owner" },
+            { sokoBot: { userId: "owner" } },
+            { sokoBot: { userId: null, deletedAt: null } },
+          ],
+        }),
       }),
     );
     botSchedule.mockResolvedValue(null);
