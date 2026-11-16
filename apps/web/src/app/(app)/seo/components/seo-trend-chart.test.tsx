@@ -66,3 +66,46 @@ describe("SEO trend chart Google updates", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("SEO trend chart site events", () => {
+  it("names an event after the newest reported day in words, and every day in the table", () => {
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        formats={createFormats()}
+        messages={messages}
+      >
+        <SeoTrendChart
+          points={[
+            { date: "2026-03-01", value: 2 },
+            { date: "2026-03-02", value: 3 },
+          ]}
+          unit="count"
+          label="Search clicks"
+          formatValue={String}
+          unavailable="No data"
+          series={{ source: "ga4", key: "sessions" }}
+          markers={[
+            { date: "2026-03-02", kind: "task", label: "Shorten the title" },
+            {
+              date: "2026-03-04",
+              kind: "verified",
+              label: "Shorten the title",
+            },
+          ]}
+        />
+      </NextIntlClientProvider>,
+    );
+    // Google has not reported Mar 4 yet: no icon, but the confirmation is still named.
+    expect(screen.getAllByTestId("seo-trend-marker")).toHaveLength(1);
+    expect(
+      screen.getByText("Mar 4, no data yet: Fix confirmed: Shorten the title"),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("row", {
+        name: "Mar 2 3 Task done: Shorten the title",
+      }),
+    ).toBeInTheDocument();
+  });
+});

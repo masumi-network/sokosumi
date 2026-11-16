@@ -11759,7 +11759,10 @@
         "googleUpdateDay": "{name}: {day}",
         "googleUpdatesAsOf": "Google updates known until {day}",
         "markerKind": "{kind, select, change {Page change} audit {Audit} task {Task done} verified {Fix confirmed} other {Event}}",
-        "markerEvent": "{kind}: {label}"
+        "markerEvent": "{kind}: {label}",
+        "day": "Day",
+        "markerEvents": "Events",
+        "markerLater": "{day}, no data yet: {events}"
       },
       "keywords": {
         "title": "Keywords",

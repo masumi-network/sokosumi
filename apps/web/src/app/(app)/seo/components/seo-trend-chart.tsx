@@ -95,18 +95,16 @@ export function SeoTrendChart({
   const updateDay = (date: string, other: string) =>
     date.slice(0, 4) === other.slice(0, 4) ? day(date) : fullDay(date);
   const kindName = (kind: SeoMarkerKind) => t("markerKind", { kind });
-  // A day carries the events on the site and the Google updates that run on it.
-  const changeOn = (date: string) => {
-    const labels = [
-      ...(
-        model.changes.find((change) => change.date === date)?.events ?? []
-      ).map((event) =>
+  const eventsOn = (date: string) =>
+    (model.changes.find((change) => change.date === date)?.events ?? []).map(
+      (event) =>
         event.label
           ? t("markerEvent", { kind: kindName(event.kind), label: event.label })
           : kindName(event.kind),
-      ),
-      ...model.updatesOn(date),
-    ];
+    );
+  // A day carries the events on the site and the Google updates that run on it.
+  const changeOn = (date: string) => {
+    const labels = [...eventsOn(date), ...model.updatesOn(date)];
     return labels.length ? labels : undefined;
   };
   const readout = (index: number | null) => {
@@ -433,6 +431,40 @@ export function SeoTrendChart({
           )}
         </ul>
       ) : null}
+      {/* Events after the newest reported day have no place on the plot yet, so they stay in words. */}
+      {model.changes.some((change) => change.x === null) ? (
+        <ul className="text-muted-foreground space-y-0.5 text-xs">
+          {model.changes
+            .filter((change) => change.x === null)
+            .map((change) => (
+              <li key={change.date}>
+                {t("markerLater", {
+                  day: day(change.date),
+                  events: format.list(eventsOn(change.date)),
+                })}
+              </li>
+            ))}
+        </ul>
+      ) : null}
+      {/* Every day in words for a screen reader, which cannot steer the readout in browse mode. */}
+      <table className="sr-only">
+        <thead>
+          <tr>
+            <th scope="col">{t("day")}</th>
+            <th scope="col">{label}</th>
+            <th scope="col">{t("markerEvents")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {model.points.map((point) => (
+            <tr key={point.date}>
+              <td>{day(point.date)}</td>
+              <td>{value(point)}</td>
+              <td>{format.list(changeOn(point.date) ?? [])}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       {model.inverted ? (
         <figcaption className="text-muted-foreground text-xs">
           {positionNote ?? t("positionAxis")}
