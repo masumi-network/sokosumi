@@ -162,6 +162,7 @@ function ScopedMenuItems({
               />
             ) : undefined,
             group: "work",
+            prefetchContent: true,
           } satisfies NavDestination,
         ]
       : []),
