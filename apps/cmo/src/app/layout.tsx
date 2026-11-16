@@ -1,7 +1,7 @@
 import "./globals.css";
 
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 
@@ -22,8 +22,21 @@ export const metadata: Metadata = {
   },
 };
 
-// Inter, through --font-sans (design-system.md).
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+// PP Mori, through --font-sans (design-system.md). Its two cuts cover every
+// weight in use, so the browser never fakes a bold.
+const mori = localFont({
+  src: [
+    {
+      path: "../../public/site/assets/fonts/mori-regular.woff2",
+      weight: "300 500",
+    },
+    {
+      path: "../../public/site/assets/fonts/mori-semibold.woff2",
+      weight: "600 800",
+    },
+  ],
+  variable: "--font-mori",
+});
 
 interface RootLayoutProps {
   children: ReactNode;
@@ -32,7 +45,7 @@ interface RootLayoutProps {
 export default async function RootLayout({ children }: RootLayoutProps) {
   const theme = readTheme((await cookies()).get(THEME_COOKIE)?.value);
   return (
-    <html lang="en" className={inter.variable} data-theme={theme ?? undefined}>
+    <html lang="en" className={mori.variable} data-theme={theme ?? undefined}>
       <body>
         <header className="site-header">
           <Logo />

@@ -283,69 +283,16 @@ export function BrandStep({
 
   return (
     <section className="ob-brand">
-      <div className="ob-title-row">
-        <CusoAvatar pose="thinking" size={48} />
-        <div className="ob-title-copy">
-          <h1 className="ob-h1">Here's {site} as I see it.</h1>
-          <p className="muted">
-            {AGENT_NAME} · tap any tile to see the source or fix it
-          </p>
-        </div>
-        <div className="ob-title-action">
-          {lead ? (
-            <button type="button" className="button" onClick={lead.onClick}>
-              Continue to {lead.label}
-              <ArrowRight size={16} aria-hidden="true" />
-            </button>
-          ) : onApprove ? (
-            <button
-              type="button"
-              className="button"
-              disabled={busy}
-              onClick={() =>
-                startApproving(async () => {
-                  try {
-                    setRefusal(await onApprove());
-                  } catch {
-                    setRefusal(
-                      "That didn't go through. Try again in a moment.",
-                    );
-                  }
-                })
-              }
-            >
-              {approving ? (
-                "Starting…"
-              ) : fixing || finishing ? (
-                <>
-                  <Loader2 size={16} className="spin" aria-hidden="true" />
-                  {fixing ? `${AGENT_NAME} is updating` : "Finishing up"}
-                </>
-              ) : (
-                <>
-                  Looks like us
-                  <ArrowRight size={16} aria-hidden="true" />
-                </>
-              )}
-            </button>
-          ) : null}
-          {fixing ? (
-            <p className="ob-small muted">
-              Updating your Brand Brain. About half a minute.
-            </p>
-          ) : stale && !answered ? (
-            <p className="ob-small muted">
-              That change didn't come through. Ask again, or approve this
-              version.
-            </p>
-          ) : null}
-        </div>
+      <div className="ob-lead">
+        <CusoAvatar pose="reporting" size={176} />
+        <h1 className="ob-h1">Here's {site} as I see it.</h1>
+        <p className="muted">Tap any line to see the source or fix it.</p>
       </div>
       {refusal ? (
         <Refusal text={refusal} topUpUrl={overview.subscribeUrl} />
       ) : null}
 
-      <div className="panel ob-brand-panel">
+      <div className="ob-brand-panel">
         <div className="ob-brand-main">
           <div className={hasShot ? "ob-hero-row has-site" : "ob-hero-row"}>
             <PromiseCard brain={brain} site={site} onSave={onSave} />
@@ -393,8 +340,13 @@ export function BrandStep({
           </div>
 
           {insights.length > 0 ? (
-            <div className="card ob-noticed">
-              <h2>What I noticed</h2>
+            <details className="ob-fold ob-noticed">
+              <summary>
+                <h2>What I noticed</h2>
+                <span className="ob-small num">
+                  {Math.min(insights.length, MAX_INSIGHTS)}
+                </span>
+              </summary>
               <ol>
                 {insights.slice(0, MAX_INSIGHTS).map((insight) => (
                   <li key={insight.title}>
@@ -403,7 +355,7 @@ export function BrandStep({
                   </li>
                 ))}
               </ol>
-            </div>
+            </details>
           ) : null}
         </div>
 
@@ -450,6 +402,52 @@ export function BrandStep({
               </p>
             ) : null}
           </SidePanel>
+        ) : null}
+      </div>
+      <div className="ob-bar">
+        {lead ? (
+          <button type="button" className="button" onClick={lead.onClick}>
+            Continue to {lead.label}
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        ) : onApprove ? (
+          <button
+            type="button"
+            className="button"
+            disabled={busy}
+            onClick={() =>
+              startApproving(async () => {
+                try {
+                  setRefusal(await onApprove());
+                } catch {
+                  setRefusal("That didn't go through. Try again in a moment.");
+                }
+              })
+            }
+          >
+            {approving ? (
+              "Starting…"
+            ) : fixing || finishing ? (
+              <>
+                <Loader2 size={16} className="spin" aria-hidden="true" />
+                {fixing ? `${AGENT_NAME} is updating` : "Finishing up"}
+              </>
+            ) : (
+              <>
+                Looks like us
+                <ArrowRight size={16} aria-hidden="true" />
+              </>
+            )}
+          </button>
+        ) : null}
+        {fixing ? (
+          <p className="ob-small muted">
+            Updating your Brand Brain. About half a minute.
+          </p>
+        ) : stale && !answered ? (
+          <p className="ob-small muted">
+            That change didn't come through. Ask again, or approve this version.
+          </p>
         ) : null}
       </div>
     </section>

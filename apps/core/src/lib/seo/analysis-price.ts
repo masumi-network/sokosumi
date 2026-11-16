@@ -9,9 +9,9 @@ import {
 } from "@sokosumi/utils";
 import { z } from "zod";
 
-import { getEnv } from "@/config/env";
 import { unprocessableEntity } from "@/helpers/error";
 import type { RequestSeoAnalysis } from "@/schemas/project-seo.schema";
+import { getSeoAnalysisExecution } from "./analysis-executor-config";
 
 /** The most this check can charge: what the dialog shows as "up to". */
 export function seoAnalysisMaxCredits(
@@ -86,7 +86,7 @@ export async function requireSeoTaskStartBalance(
     select: { kind: true, request: true },
   });
   if (!analysis) {
-    const executor = getEnv().SEO_ANALYSIS_EXECUTOR;
+    const { executor } = getSeoAnalysisExecution();
     if (
       executor &&
       "mode" in executor &&

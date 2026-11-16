@@ -70,6 +70,7 @@ const baseEnvSchema = z.object({
     .transform((value) => value === "true"),
 
   // Enable only after the assigned public worker supports the versioned SEO Task packets.
+  // Live Mainnet uses its reviewed registered service by default; false remains an explicit override.
   SEO_ANALYSIS_DISPATCH_ENABLED: z
     .enum(["true", "false"])
     .default("false")
@@ -77,6 +78,7 @@ const baseEnvSchema = z.object({
 
   // Operator assertion of a reviewed worker and exact Task context, not remote protocol proof.
   // A shared service requires explicit global mode; Task authority and billing remain per actor.
+  // Omit both SEO overrides to use the built-in live Mainnet service. Preview and Preprod stay opt-in.
   SEO_ANALYSIS_EXECUTOR: seoAnalysisExecutorEnvSchema,
 
   // Native SEO chat allowance per reader and Workspace, reset at 00:00 UTC.
