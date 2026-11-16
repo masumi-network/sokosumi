@@ -508,7 +508,7 @@ export async function resolveChatResultReference(
     scope?: ChatResultHydrationScope;
   },
   client: Prisma.TransactionClient = prisma,
-): Promise<ChatResultSnapshot> {
+): Promise<Omit<ChatResultSnapshot, "data"> & { data: ChatResultAvailable }> {
   const { reference: ref, actor, scope } = input;
   const workspace = scope
     ? scope.workspaces.get(actor.workspaceId)
@@ -977,7 +977,7 @@ export async function resolveChatResultReference(
     throw unprocessableEntity(
       "Result is too large to preview; open its source",
     );
-  return persisted.data;
+  return snapshot;
 }
 
 export async function hydrateChatResultSnapshots(
@@ -989,6 +989,24 @@ export async function hydrateChatResultSnapshots(
     scope ?? (await preloadChatResultHydration(snapshots, viewerUserId));
   return Promise.all(
     snapshots.map(async (snapshot): Promise<ChatResultPreview> => {
+      if (snapshot.data.state === "unavailable") {
+        try {
+          const current = await resolveChatResultReference({
+            reference: snapshot.reference,
+            actor: { userId: viewerUserId, workspaceId: snapshot.workspaceId },
+            previewId: snapshot.data.id,
+            scope: resolved,
+          });
+          return current.data;
+        } catch (error) {
+          if (
+            error instanceof HTTPException &&
+            (error.status === 403 || error.status === 404)
+          )
+            return { id: snapshot.data.id, state: "unavailable" };
+          throw error;
+        }
+      }
       try {
         const current = await resolveChatResultReference({
           reference: snapshot.reference,
