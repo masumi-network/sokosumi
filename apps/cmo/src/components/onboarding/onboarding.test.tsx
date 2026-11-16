@@ -102,7 +102,7 @@ describe("pre-hire Site", () => {
     );
     expect(html).toContain("Start reading");
     expect(html).toContain('value="acme.io"');
-    expect(html).toContain("3 min");
+    expect(html).not.toContain("3 min");
     expect(html).toContain("Drafts your first month");
     expect(html).toMatch(/aria-current="step"[^>]*>(?:(?!<\/li>).)*Site/);
     // No organizations: nothing asks where Cuso goes.

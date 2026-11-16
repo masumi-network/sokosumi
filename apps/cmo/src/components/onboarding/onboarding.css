@@ -639,35 +639,6 @@ body:has(.ob) .site-header {
   width: 60%;
 }
 
-.ob-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 24px;
-  margin: 0;
-  padding: 0;
-}
-
-.ob-stats > div {
-  display: grid;
-  align-content: start;
-  gap: 4px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-.ob-stats dt {
-  font-size: 1.5rem;
-  line-height: 1.75rem;
-  font-weight: 300;
-}
-
-.ob-stats dd {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.75rem;
-  line-height: 1rem;
-}
-
 /* The goal: an ink block that inverts again in dark. */
 .ob-goal {
   display: grid;
@@ -1139,8 +1110,7 @@ body:has(.ob) .site-header {
 }
 
 .ob-hire .field,
-.ob-hire .ob-where,
-.ob-hire .ob-stats {
+.ob-hire .ob-where {
   width: 100%;
   max-width: var(--ob-col, 640px);
   text-align: left;
