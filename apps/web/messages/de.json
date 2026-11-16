@@ -1528,20 +1528,23 @@
         "scopeWorkspace": "Workspace",
         "typeLabel": "Quelle",
         "projectLabel": "Projekt",
-        "typeOptions": {
-          "job": "Agent-Job",
-          "image": "Bild",
-          "task": "Aufgabe",
-          "coworker": "Coworker",
-          "sokoBot": "Soko Bot",
-          "seoChat": "SEO-Chat",
-          "topUp": "Aufladung",
-          "unattributed": "Sonstige"
-        }
+        "activeCount": "{count} aktiv",
+        "activeFilters": "Aktive Filter",
+        "chip": "{label}: {value}",
+        "removeFilter": "Filter {filter} entfernen",
+        "clearAll": "Alle entfernen",
+        "searchLabel": "Suche"
       },
       "Empty": {
         "title": "Noch keine Transaktionen",
         "description": "Jeder Job-Lauf, jede Bildgenerierung, jeder weitere Credit-Verbrauch und jede Aufladung erscheint hier."
+      },
+      "EmptyFiltered": {
+        "title": "Keine passenden Transaktionen",
+        "description": "Nichts passt zu diesen Filtern.",
+        "searchTitle": "Keine Ergebnisse für „{query}“",
+        "searchDescription": "Prüfe die Schreibweise oder versuche eine andere Suche.",
+        "clear": "Filter zurücksetzen"
       },
       "List": {
         "loadMore": "Mehr laden",
@@ -1558,6 +1561,7 @@
           "task": "Aufgabe",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
+          "seoChat": "SEO-Chat",
           "topUp": "Aufladung",
           "unattributed": "Sonstige",
           "contacts": "Personen finden"
@@ -4459,6 +4463,14 @@
       "approvedHeadline": "Freigegebene Überschrift",
       "noHeadline": "Keine Überschrift",
       "headlineHint": "Studio speichert diese Überschrift für die Anzeige und verwendet sie in PNG- und ZIP-Exporten.",
+      "headlineLettering": "Schriftzug der Überschrift",
+      "letteringOverlay": "Exakte Schrift als Overlay",
+      "letteringIdeogram": "Ideogram-Schriftzug",
+      "letteringOverlayHint": "Fügt die Überschrift nach der Generierung hinzu. Für eine exakte Schrift.",
+      "letteringIdeogramHint": "Gemini Pro erzeugt die Szene, danach setzt Ideogram v3 die Überschrift. Zwei kostenpflichtige Generierungen. Schlägt der Schriftzug fehl, wird die exakte Markenschrift ergänzt.",
+      "letteringEditHint": "Bearbeitet die vorhandene Szene mit Ideogram v3. Eine kostenpflichtige Generierung.",
+      "letteringPlan": "Gemini Pro + Ideogram v3 · zwei Generierungen pro Anzeige",
+      "letteringPlanCredits": "Gemini Pro: {sceneCredits} + Ideogram v3: {letteringCredits} = {credits} Credits",
       "headlineLoading": "Freigegebene Überschriften werden geladen…",
       "headlineLoadFailed": "Freigegebene Überschriften konnten nicht geladen werden.",
       "useApprovedHeadlines": "Freigegebene Überschriften verwenden",
@@ -4506,6 +4518,26 @@
       "archiveImageLimit": "Wähle bis zu {count} Bilder pro ZIP-Datei.",
       "archiveSizeLimit": "Wähle Bilder mit insgesamt höchstens {size} MiB.",
       "archiveDownloadFailed": "Die ZIP-Datei konnte nicht heruntergeladen werden. Versuche es erneut oder lade die Bilder einzeln herunter.",
+      "Pairwise": {
+        "title": "Anzeigen vergleichen",
+        "hint": "Wähle die bessere Anzeige. Die Modelle werden nach deiner Auswahl angezeigt.",
+        "pickA": "A",
+        "pickB": "B",
+        "tie": "Gleichstand",
+        "bothBad": "Beide schlecht",
+        "done": "Fertig",
+        "loadFailed": "Vergleiche konnten nicht geladen werden. Versuche es erneut.",
+        "saveFailed": "Vergleich konnte nicht gespeichert werden. Versuche es erneut.",
+        "retry": "Erneut versuchen",
+        "loading": "Vergleiche werden geladen…",
+        "saved": "Auswahl gespeichert",
+        "bestModels": "Deine besten Modelle",
+        "loadingScores": "Modelle werden geladen…",
+        "scoreboardFailed": "Modelle konnten nicht geladen werden. Versuche es erneut.",
+        "scoreboardEmpty": "Vergleiche Anzeigen, um deine besten Modelle zu finden.",
+        "modelStats": "{percent}% gewonnen · {count, plural, one {# Auswahl} other {# Auswahlen}}",
+        "smallSample": "Erste Ergebnisse · weniger als {count} Auswahlen"
+      },
       "compare": "Vergleichen",
       "version": "Version",
       "generating": "Wird erzeugt",
@@ -4694,7 +4726,27 @@
         "processedMegapixels": "verarbeitetes Megapixel"
       },
       "creditsCheckedOn": "Preis geprüft am {date}",
-      "pickBody": "Content Studio arbeitet innerhalb eines Projekts: seine Bilder und seine Marke gehören dazu. Wähle ein Projekt, um seine Galerie zu öffnen."
+      "pickBody": "Content Studio arbeitet innerhalb eines Projekts: seine Bilder und seine Marke gehören dazu. Wähle ein Projekt, um seine Galerie zu öffnen.",
+      "letteringFallbackHint": "Ideogram-Schriftzug ist nicht verfügbar. Studio setzt die Überschrift in der exakten Markenschrift.",
+      "Rating": {
+        "label": "Anzeige bewerten",
+        "up": "Gefällt mir",
+        "down": "Gefällt mir nicht",
+        "reasons": "Gründe (optional)",
+        "offBrand": "Nicht markenkonform",
+        "badText": "Schlechter Text",
+        "wrongProduct": "Falsches Produkt",
+        "ugly": "Unschön",
+        "great": "Großartig",
+        "comment": "Kommentar (optional)",
+        "more": "Weitere Anzeigenaktionen",
+        "hide": "Anzeige ausblenden",
+        "sort": "Anzeigen sortieren",
+        "newest": "Neueste",
+        "best": "Beste zuerst",
+        "saveFailed": "Bewertung konnte nicht gespeichert werden. Erneut versuchen.",
+        "hideFailed": "Anzeige konnte nicht ausgeblendet werden. Erneut versuchen."
+      }
     },
     "Ads": {
       "title": "Ads",
@@ -9533,6 +9585,10 @@
         "markAllReadError": "Konnte nicht alles als gelesen markieren. Versuche es erneut.",
         "caughtUpTitle": "Du bist auf dem Laufenden",
         "caughtUpDescription": "Seit du deine Räume zuletzt gelesen hast, wartet nichts Neues auf dich.",
+        "firstCatchUpTitle": "Noch nichts nachzuholen",
+        "firstCatchUpDescription": "Sobald in deinen Kanälen und Chats gesprochen wird, erscheinen hier das Wichtigste und alles, was auf dich wartet.",
+        "firstCatchUpCreateChannel": "Kanal erstellen",
+        "firstCatchUpMessageTeammate": "Teammitglied anschreiben",
         "aiNote": "Wir taggen deine Nachrichten für dich und liegen dabei manchmal falsch. Um ein Tag zu korrigieren, öffne die Nachricht, zeige mit der Maus darauf und klicke auf das Tag-Symbol.",
         "removeTag": "Tag entfernen: {tag}",
         "taskMade": "Task erstellt",
@@ -11623,13 +11679,16 @@
         "rankings": "Rankings"
       },
       "overview": {
+        "privateFinding": "Nur du kannst dieses Ergebnis sehen.",
+        "relatedFindingPage": "Zugehörige Seite",
         "measurements": "Zugriffe",
         "not_connected": "Für diese Seiten sind noch keine Zugriffsstatistiken gespeichert. Wähle ein Konto, um sie zu laden.",
         "unavailable": "Statistiken sind nicht verfügbar. Prüfe hier die Verbindung und versuche es erneut.",
         "partial": "Einige Statistiken fehlen. Öffne jede Quelle, um zu sehen, welche.",
         "available": "Statistiken für die angegebenen Zeiträume sind verfügbar.",
         "priority": "Empfohlene Aktionen",
-        "findings": "Probleme noch ohne Lösung",
+        "findings": "Audit-Ergebnisse",
+        "suggestedFix": "Vorgeschlagene Korrektur",
         "audits": "Erfasste Ergebnisse",
         "findingsCount": "{count, plural, one {# Befund} other {# Befunde}}",
         "auditsCount": "{count, plural, one {# erfasstes Ergebnis} other {# erfasste Ergebnisse}}",
@@ -11698,10 +11757,10 @@
         "periodSame": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, unverändert",
         "changeMarker": "Erfasste Änderung am {day}: {changes}",
         "points": "{value} Pp.",
-        "googleUpdate": "Google: {name}, {from} bis {to}",
-        "googleUpdateOpen": "Google: {name}, {from} bis {to}, wird noch ausgerollt",
-        "googleUpdateDay": "Google: {name}, {day}",
-        "googleUpdatesAsOf": "Google-Updates bekannt bis {day}"
+        "googleUpdate": "{name}: {from} bis {to}",
+        "googleUpdateOpen": "{name}: seit {from}, läuft noch",
+        "googleUpdateDay": "{name}: {day}",
+        "googleUpdatesAsOf": "Stand der Google-Updates: {day}"
       },
       "keywords": {
         "title": "Keywords",
@@ -12024,6 +12083,7 @@
         "failed": "Fehlgeschlagen",
         "invalid": "Prüfe Seiten, Keywords, Markt und Geräte. Vollständige Audits erlauben ein Keyword und beide Geräte.",
         "keywordsHelp": "Gib bis zu 20 Keywords mit jeweils bis zu 80 Zeichen ein.",
+        "relatedPages": "Prüft auch die Indexierung relevanter Seiten dieser Website, insgesamt bis zu {count} Seiten. Vollständige Audits prüfen nur ausgewählte Seiten.",
         "fullHelp": "Vollständige Audits erlauben ein Keyword und beide Geräte. Alle ausgewählten Seiten verwenden denselben Markt.",
         "serviceUnavailable": "Prüfungen sind in diesem Arbeitsbereich nicht verfügbar. Kehre zum Audit zurück.",
         "returnToAudit": "Zurück zum Audit",
@@ -12436,6 +12496,20 @@
           "both": "Google nennt Land und Gerät nur für {listed, number} von {total, number} Impressionen."
         }
       },
+      "indexReview": {
+        "title": "Hinweise zur Indexierung",
+        "help": "Diese Seiten benötigen eine Entscheidung oder weitere Nachweise. Die Hinweise zeigen, was der Agent prüfen konnte.",
+        "checked": "Geprüft",
+        "state": {
+          "review": "Prüfung erforderlich",
+          "expected_exclusion": "Erwarteter Ausschluss",
+          "unavailable": "Nicht geprüft"
+        },
+        "suggestedFix": "Vorgeschlagener nächster Schritt",
+        "evidence": "Nachweise ansehen",
+        "unavailableEvidence": "Google Search Console oder das Audit lieferten nicht genügend Nachweise.",
+        "sources": "Quellen: Google Search Console und dieses Audit."
+      },
       "index": {
         "title": "Google-Index",
         "help": "Ob Google jede Seite im Suchindex führt, laut URL-Prüfung in der Search Console.",
@@ -12670,6 +12744,7 @@
           "publishing": "Du setzt Änderungen selbst um, prüfst Korrekturen nach und teilst Berichte mit Kunden."
         },
         "gaps": {
+          "noSearchTraffic": "Suchstatistiken sind noch nicht verfügbar. Ergebnisse zur Indexierung findest du in diesem Audit.",
           "statisticsIncomplete": "Einige Google-Statistiken fehlen. Der Agent kann nur die verfügbaren Daten bewerten.",
           "checksIncomplete": "Einige Prüfungen lieferten kein Ergebnis. Dieses Audit kann Probleme übersehen.",
           "title": "Fehlende Audit-Daten",
@@ -13183,6 +13258,7 @@
       },
       "Billing": {
         "lowBalance": "Deine Credits werden knapp: noch {credits}",
+        "cusoLowCredits": "{cusoName} für {businessName} gehen die Credits aus: noch {credits}",
         "paymentFailed": "Eine Abo-Zahlung ist fehlgeschlagen",
         "creditsAdded": "{credits} Credits wurden deinem Guthaben hinzugefügt",
         "subscriptionEnding": "Dein Abo endet mit der aktuellen Laufzeit",

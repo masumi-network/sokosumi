@@ -15,11 +15,15 @@ const {
   assetFindFirstMock,
   requireProjectAccessMock,
   requireWorkspaceAccessMock,
+  feedbackGroupByMock,
+  eventGroupByMock,
 } = vi.hoisted(() => ({
   assetFindManyMock: vi.fn(),
   assetFindFirstMock: vi.fn(),
   requireProjectAccessMock: vi.fn(),
   requireWorkspaceAccessMock: vi.fn(),
+  feedbackGroupByMock: vi.fn(),
+  eventGroupByMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: () => ({}) }));
@@ -35,6 +39,11 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: assetFindFirstMock,
     },
     projectImageJob: { findMany: vi.fn(), findFirst: vi.fn() },
+    adFeedback: {
+      groupBy: feedbackGroupByMock,
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    adEvent: { groupBy: eventGroupByMock },
   },
 }));
 
@@ -70,6 +79,8 @@ function asset(index: number, createdAt: Date) {
 beforeEach(() => {
   vi.clearAllMocks();
   requireProjectAccessMock.mockResolvedValue(SCOPE);
+  feedbackGroupByMock.mockResolvedValue([]);
+  eventGroupByMock.mockResolvedValue([]);
 });
 
 describe("listAssets", () => {
@@ -169,5 +180,71 @@ describe("listAssets", () => {
       listAssets({ ...SCOPE, projectId: null, limit: 10 }),
     ).rejects.toThrow("not found");
     expect(assetFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("excludes hidden assets, including a pinned hidden version", async () => {
+    assetFindManyMock.mockResolvedValue([]);
+    assetFindFirstMock.mockResolvedValue(null);
+    await listAssets({ ...SCOPE, limit: 10, pinnedAssetId: "hidden-asset" });
+    expect(assetFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ hiddenAt: null }),
+      }),
+    );
+    expect(assetFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ hiddenAt: null }),
+      }),
+    );
+  });
+
+  it("ranks the whole project before paging, with newest first for score ties", async () => {
+    const newest = asset(3, new Date("2026-11-12"));
+    const second = asset(2, new Date("2026-11-11"));
+    const oldest = asset(1, new Date("2026-11-10"));
+    assetFindManyMock
+      .mockResolvedValueOnce([newest, second, oldest])
+      .mockResolvedValueOnce([oldest, newest]);
+    feedbackGroupByMock.mockResolvedValue([
+      { assetId: oldest.id, thumb: 1, _count: { _all: 2 } },
+    ]);
+    const result = await listAssets({ ...SCOPE, limit: 2, sort: "best" });
+    expect(result.assets.map((row) => row.id)).toEqual([oldest.id, newest.id]);
+    expect(result.nextCursor).toEqual({
+      id: newest.id,
+      createdAt: newest.createdAt,
+    });
+    expect(result.assets[0]!.thumbsUp).toBe(2);
+  });
+
+  it("continues Best first after the ranked id rather than its creation time", async () => {
+    const newest = asset(3, new Date("2026-11-12"));
+    const oldest = asset(1, new Date("2026-11-10"));
+    assetFindManyMock
+      .mockResolvedValueOnce([newest, oldest])
+      .mockResolvedValueOnce([newest]);
+    feedbackGroupByMock.mockResolvedValue([
+      { assetId: oldest.id, thumb: 1, _count: { _all: 2 } },
+    ]);
+    const result = await listAssets({
+      ...SCOPE,
+      limit: 2,
+      sort: "best",
+      before: { id: oldest.id, createdAt: oldest.createdAt },
+    });
+    expect(result.assets.map((row) => row.id)).toEqual([newest.id]);
+    expect(result.nextCursor).toBeNull();
+  });
+
+  it("ends a ranked page chain when its anchor was hidden instead of duplicating the first page", async () => {
+    assetFindManyMock.mockResolvedValue([asset(3, new Date())]);
+    const result = await listAssets({
+      ...SCOPE,
+      limit: 2,
+      sort: "best",
+      before: { id: "hidden-asset", createdAt: new Date() },
+    });
+    expect(result.assets).toEqual([]);
+    expect(result.nextCursor).toBeNull();
   });
 });

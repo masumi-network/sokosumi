@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { StudioBatchProduct } from "./studio-batch";
 import { StudioComposer } from "./studio-composer";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
-import type { StudioCatalog, StudioTarget } from "./types";
+import type { StudioAsset, StudioCatalog, StudioTarget } from "./types";
 import type { GenerationRequest } from "./use-generation-queue";
 
 const { uploadPhoto, getBrandKit } = vi.hoisted(() => ({
@@ -64,6 +64,37 @@ const LARGE_CATALOG: StudioCatalog = {
   })),
 };
 
+const LETTERING_CATALOG: StudioCatalog = {
+  ...TEST_CATALOG,
+  models: [
+    ...TEST_CATALOG.models,
+    {
+      ...TEST_CATALOG.models[0],
+      id: "gemini-pro",
+      label: "Gemini Pro",
+      resolutions: ["1K", "2K"],
+      price: {
+        ...TEST_CATALOG.models[0].price,
+        unitPriceUsd: 0.15,
+        perImageUsd: { "1K": 0.15, "2K": 0.15 },
+      },
+    },
+    {
+      ...TEST_CATALOG.models[0],
+      id: "ideogram-v3",
+      label: "Ideogram v3",
+      editEndpoint: "fal-ai/ideogram/v3/edit",
+      resolutions: ["1K"],
+      outputFormats: [],
+      price: {
+        ...TEST_CATALOG.models[0].price,
+        unitPriceUsd: 0.03,
+        perImageUsd: { "1K": 0.03 },
+      },
+    },
+  ],
+};
+
 const BATCH_PRODUCTS: StudioBatchProduct[] = [
   {
     product: {
@@ -98,6 +129,7 @@ function Harness({
   productPhotos = false,
   batchProducts,
   generationProjectId,
+  referenceAssets = [],
 }: {
   catalog?: StudioCatalog;
   initial: StudioTarget;
@@ -105,6 +137,7 @@ function Harness({
   productPhotos?: boolean;
   batchProducts?: StudioBatchProduct[];
   generationProjectId?: string;
+  referenceAssets?: StudioAsset[];
 }) {
   const [target, setTarget] = useState(initial);
   const [prompt, setPrompt] = useState("A campaign image");
@@ -133,7 +166,7 @@ function Harness({
       productPhoto={photo}
       onTargetChange={setTarget}
       prompt={prompt}
-      referenceAssets={[]}
+      referenceAssets={referenceAssets}
       target={target}
     />
   );
@@ -166,6 +199,195 @@ function generate() {
 }
 
 describe("an honest generation plan", () => {
+  it("does not mention lettering until an approved headline is selected", () => {
+    render(
+      <Harness
+        catalog={LETTERING_CATALOG}
+        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        generationProjectId="project-a"
+        onGenerate={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("letteringIdeogramHint")).toBeNull();
+    expect(screen.queryByText("letteringFallbackHint")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "letteringIdeogram" }),
+    ).toBeNull();
+  });
+
+  it("defaults approved headlines to two-step Ideogram lettering with both charges", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        catalog={LETTERING_CATALOG}
+        generationProjectId="project-a"
+        initial={{
+          modelIds: ["model-a"],
+          settings: { ...SETTINGS, resolution: "2K" },
+          exportHeadlines: { projectId: "project-a", lines: ["Made to last"] },
+        }}
+        onGenerate={onGenerate}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "letteringOverlay" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "letteringIdeogram" }),
+    ).toBeNull();
+    expect(screen.getByText("letteringIdeogramHint")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'letteringPlanCredits:{"sceneCredits":15,"letteringCredits":3,"credits":18}',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('creditsEach:{"credits":15,"count":1}'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('creditsEach:{"credits":3,"count":1}'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "2K" })).toBeNull();
+    generate();
+    expect(onGenerate.mock.calls[0][0]).toEqual([
+      expect.objectContaining({
+        modelId: "gemini-pro",
+        lettering: "ideogram",
+        exportHeadline: "Made to last",
+        settings: { ...SETTINGS, resolution: "1K" },
+      }),
+    ]);
+  });
+
+  it("reprices both lettering legs from the catalog for every requested copy", () => {
+    const catalog = {
+      ...LETTERING_CATALOG,
+      models: LETTERING_CATALOG.models.map((model) =>
+        model.id === "ideogram-v3"
+          ? {
+              ...model,
+              price: {
+                ...model.price,
+                unitPriceUsd: 0.06,
+                perImageUsd: { "1K": 0.06 },
+              },
+            }
+          : model,
+      ),
+    };
+    render(
+      <Harness
+        catalog={catalog}
+        generationProjectId="project-a"
+        initial={{
+          modelIds: ["gemini-pro"],
+          settings: SETTINGS,
+          lettering: "ideogram",
+          exportHeadlines: { projectId: "project-a", lines: ["Made to last"] },
+        }}
+        onGenerate={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "2" }));
+    expect(
+      screen.getByText(
+        'letteringPlanCredits:{"sceneCredits":30,"letteringCredits":12,"credits":42}',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to the exact-font overlay when Ideogram cannot letter", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    const catalog = {
+      ...LETTERING_CATALOG,
+      models: LETTERING_CATALOG.models.filter(
+        (model) => model.id !== "ideogram-v3",
+      ),
+    };
+    render(
+      <Harness
+        catalog={catalog}
+        generationProjectId="project-a"
+        initial={{
+          modelIds: ["model-a"],
+          settings: SETTINGS,
+          exportHeadlines: { projectId: "project-a", lines: ["Made to last"] },
+        }}
+        onGenerate={onGenerate}
+      />,
+    );
+    expect(screen.getByText("letteringFallbackHint")).toBeInTheDocument();
+    generate();
+    expect(onGenerate.mock.calls[0][0]).toEqual([
+      expect.objectContaining({
+        modelId: "model-a",
+        exportHeadline: "Made to last",
+        lettering: "overlay",
+      }),
+    ]);
+  });
+
+  it("recovers a failed Ideogram edit with one catalog charge and its existing backdrop", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        catalog={LETTERING_CATALOG}
+        generationProjectId="project-a"
+        initial={{
+          modelIds: ["ideogram-v3"],
+          settings: SETTINGS,
+          lettering: "ideogram",
+          exportHeadlines: { projectId: "project-a", lines: ["Made to last"] },
+        }}
+        referenceAssets={[
+          {
+            id: "backdrop",
+            projectId: "project-a",
+            projectName: "Ad",
+            rootId: "backdrop",
+            parentId: null,
+            version: 1,
+            prompt: "A product",
+            model: "gemini-pro",
+            settings: SETTINGS,
+            width: 1024,
+            height: 1024,
+            bytes: 3,
+            contentType: "image/png",
+            mediaType: "IMAGE",
+            video: null,
+            createdAt: new Date(),
+            jobId: "scene-job",
+            contentPath: "/backdrop",
+            lettering: "ideogram",
+            myThumb: null,
+            myReasons: [],
+            myComment: null,
+            thumbsUp: 0,
+            thumbsDown: 0,
+            score: 0.5,
+          },
+        ]}
+        onGenerate={onGenerate}
+      />,
+    );
+    expect(
+      screen.getByText('runPlanCredits:{"copies":1,"models":1,"credits":3}'),
+    ).toBeInTheDocument();
+    expect(screen.getByText("letteringEditHint")).toBeInTheDocument();
+    expect(screen.queryByText("letteringIdeogramHint")).toBeNull();
+    generate();
+    expect(onGenerate.mock.calls[0][0]).toEqual([
+      expect.objectContaining({
+        modelId: "ideogram-v3",
+        lettering: "ideogram",
+        exportHeadline: "Made to last",
+        parentAssetId: "backdrop",
+        referenceAssetIds: ["backdrop"],
+      }),
+    ]);
+  });
+
   it("uses each product's original cutout and blocks a batch with a missing photo", () => {
     const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
     const props = {
@@ -357,6 +579,17 @@ describe("an honest generation plan", () => {
 
     const requests = onGenerate.mock.calls[0][0];
     expect(requests).toHaveLength(6);
+    expect(requests.map(({ variationIndex }) => variationIndex)).toEqual([
+      0,
+      0,
+      1,
+      1,
+      undefined,
+      undefined,
+    ]);
+    expect(
+      new Set(requests.map(({ creativeDirection }) => creativeDirection)),
+    ).toEqual(new Set(["explainer"]));
     expect(
       new Set(requests.map(({ idempotencyKey }) => idempotencyKey)).size,
     ).toBe(6);
@@ -414,6 +647,9 @@ describe("an honest generation plan", () => {
     generate();
     const requests = onGenerate.mock.calls[0][0];
     expect(new Set(requests.map(({ prompt }) => prompt)).size).toBe(MAX_BATCH);
+    expect(requests.map(({ variationIndex }) => variationIndex)).toEqual(
+      Array.from({ length: MAX_BATCH }, (_, index) => index),
+    );
     expect(new Set(requests.map(({ settings }) => settings.seed))).toEqual(
       new Set([42]),
     );
@@ -449,6 +685,41 @@ describe("an honest generation plan", () => {
     expect(
       onGenerate.mock.calls[0][0].map((request) => request.prompt),
     ).toEqual([prompt, prompt]);
+    expect(
+      onGenerate.mock.calls[0][0].map((request) => request.variationIndex),
+    ).toEqual([undefined, undefined]);
+  });
+
+  it("recognizes variation and direction metadata when a prompt is reused for one copy", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        catalog={TEST_CATALOG}
+        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        onGenerate={onGenerate}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "2" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "CreativeDirections.editorial" }),
+    );
+    generate();
+    const reusedPrompt = onGenerate.mock.calls[0][0][1].prompt;
+    fireEvent.click(screen.getByRole("button", { name: "1" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "CreativeDirections.auto" }),
+    );
+    fireEvent.change(
+      screen.getByRole("textbox", { name: TEST_LABELS.promptPlaceholder }),
+      { target: { value: reusedPrompt } },
+    );
+    generate();
+
+    expect(onGenerate.mock.calls[1][0][0]).toMatchObject({
+      prompt: reusedPrompt,
+      variationIndex: 1,
+      creativeDirection: "editorial",
+    });
   });
 
   it("fits an oversized product batch by keeping selected models and leaving placements and copies intact", () => {

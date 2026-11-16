@@ -23,9 +23,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Only an organization owner or admin can"),
     404: jsonErrorResponse("Cuso is not hired yet"),
-    503: jsonErrorResponse(
-      "His subscription could not be ended at Polar; nothing was changed",
-    ),
+    503: jsonErrorResponse("Polar is not configured; nothing was changed"),
   },
 });
 

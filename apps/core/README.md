@@ -42,6 +42,16 @@ pnpm --filter core start
 
 Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps/core/.env.example` to `.env` and fill in values.
 
+### Automatic ad evaluations
+
+`AD_EVALS_ENABLED=true` enables background evaluation of newly settled curated-model images. It defaults to `false`; `AD_EVALS_PAUSED=true` is the kill switch. Both flags are checked again before the judge call. Changing deployment configuration takes a redeploy.
+
+`AD_EVALS_WORKSPACE_DAILY_LIMIT` defaults to 100 evaluations per workspace. `AD_EVALS_GLOBAL_DAILY_USD` defaults to $10 across all workspaces. Zero stops admissions. Days start at midnight UTC. Each call reserves $0.25 atomically before spending; concurrent workers share the same budget. Known cost replaces the reservation, while failures and unknown costs keep it. Daily counters survive ad/project deletion; the global counter also survives workspace deletion. Reservations stay on their admission day, including when a call finishes after midnight. Monitor provider pricing before changing the judge or its input limits.
+
+The versioned judge makes one bounded AI Gateway vision call with EU routing, zero retention and prompt training disabled. Images are resized privately in Core; reference photos use the existing Files access checks. No public image URLs are created. Results are workspace-owned and this PR adds no internal data sharing or UI. Images below a 1080 px short side fail the supported-placement size check. `logo_present` is N/A unless the brief asks the generator for a logo. Text matching is skipped for cutouts, explicit no-text briefs and headlines added later at export. When a prompt snapshot is missing, the eval is skipped.
+
+Evaluation is best effort through Core's existing `waitUntil` mechanism, after the asset transaction commits. There is no backfill or automatic retry after a failed or interrupted judge call; its reserved row prevents duplicate spend for the same asset and rubric. A rubric version change permits a new evaluation.
+
 ### Required (typical local setup)
 
 | Variable                               | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |

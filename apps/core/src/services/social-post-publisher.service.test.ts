@@ -35,6 +35,7 @@ const {
   transactionMock,
   ssrfSafeFetchMock,
   resolveXSubscriptionTypeMock,
+  recordAdEventsMock,
 } = vi.hoisted(() => ({
   publishingAccessMock: vi.fn(),
   attemptFindFirstMock: vi.fn(),
@@ -56,6 +57,11 @@ const {
   transactionMock: vi.fn(),
   ssrfSafeFetchMock: vi.fn(),
   resolveXSubscriptionTypeMock: vi.fn(),
+  recordAdEventsMock: vi.fn(),
+}));
+
+vi.mock("@/services/social-studio-events.service", () => ({
+  recordSocialStudioAdEvents: recordAdEventsMock,
 }));
 
 vi.mock("@/services/x-subscription-tier.service", () => ({
@@ -293,6 +299,50 @@ describe("social post publisher service", () => {
       expect(claimed.OR[0].projectId).toBeUndefined();
     });
 
+    const publishNowInput = {
+      projectId: PAUSED_PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      postId: POST_ID,
+      userId: USER_ID,
+      revision: 1,
+    };
+
+    it("refuses publish now with the paused reason and leaves the post as it was", async () => {
+      projectFindManyMock.mockResolvedValue([{ id: PAUSED_PROJECT_ID }]);
+      isCmoSubscribedMock.mockResolvedValue(false);
+      const { publishSocialPostNow } = await loadService();
+
+      await expect(publishSocialPostNow(publishNowInput)).rejects.toMatchObject(
+        { status: 409, message: "Cuso is paused until a CMO plan is paid" },
+      );
+      // The scheduler's gate, asked about this Project of this Workspace only.
+      expect(projectFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: PAUSED_PROJECT_ID,
+            workspaceId: WORKSPACE_ID,
+            sokoBots: { some: expect.objectContaining({ archivedAt: null }) },
+          }),
+        }),
+      );
+      expect(isCmoSubscribedMock).toHaveBeenCalledExactlyOnceWith({
+        projectId: PAUSED_PROJECT_ID,
+      });
+      expect(transactionMock).not.toHaveBeenCalled();
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+      expect(attemptCreateMock).not.toHaveBeenCalled();
+      expect(publishXPostMock).not.toHaveBeenCalled();
+    });
+
+    it("publishes now for a Cuso the gate lets work", async () => {
+      projectFindManyMock.mockResolvedValue([{ id: PAUSED_PROJECT_ID }]);
+      isCmoSubscribedMock.mockResolvedValue(true);
+      const { publishSocialPostNow } = await loadService();
+
+      await publishSocialPostNow(publishNowInput);
+      expect(publishXPostMock).toHaveBeenCalledOnce();
+    });
+
     it("misses a post whose time passed by over an hour while he was paused, so the person decides", async () => {
       // Resumed: he may work again, and the post is two hours late.
       socialPostFindFirstMock
@@ -344,6 +394,15 @@ describe("social post publisher service", () => {
       });
       expect(publishXPostMock).toHaveBeenCalledWith(
         expect.objectContaining({ quoteExternalId: "1906" }),
+      );
+      expect(recordAdEventsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          postId: POST_ID,
+          type: "posted",
+          media: [],
+        }),
       );
     });
 
@@ -411,6 +470,7 @@ describe("social post publisher service", () => {
       expect(settleCall().data).not.toHaveProperty("attemptCount");
       expect(attemptCreateMock).not.toHaveBeenCalled();
       expect(publishXPostMock).not.toHaveBeenCalled();
+      expect(recordAdEventsMock).not.toHaveBeenCalled();
       vi.setSystemTime(new Date(NOW.getTime() + 60_000));
       prepare(target);
       expect(

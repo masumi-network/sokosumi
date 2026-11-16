@@ -4,19 +4,27 @@ import {
   getChatRoomMessageResults as coreGetChatRoomMessageResults,
   getChatRoomMessageResultsBatch as coreGetChatRoomMessageResultsBatch,
   getStudioBrandKit as coreGetStudioBrandKit,
+  getStudioComparePair as coreGetStudioComparePair,
+  getStudioModelScoreboard as coreGetStudioModelScoreboard,
   getStudioProductCatalog as coreGetStudioProductCatalog,
   getStudioWebsiteCopy as coreGetStudioWebsiteCopy,
+  hideStudioAsset as coreHideStudioAsset,
   importStudioProductCatalog as coreImportStudioProductCatalog,
   listStudioBatchAssets as coreListStudioBatchAssets,
+  recordStudioAssetEvent as coreRecordStudioAssetEvent,
   replaceStudioProductCatalog as coreReplaceStudioProductCatalog,
   researchStudioWebsiteDraft as coreResearchStudioWebsiteDraft,
   saveStudioAdHeadline as coreSaveStudioAdHeadline,
   saveStudioBrandCopy as coreSaveStudioBrandCopy,
   saveStudioBrandLook as coreSaveStudioBrandLook,
+  saveStudioPairwisePick as coreSaveStudioPairwisePick,
+  setStudioAssetFeedback as coreSetStudioAssetFeedback,
   suggestTaskTags as coreSuggestTaskTags,
   uploadStudioProjectLogo as coreUploadStudioProjectLogo,
   type SaveStudioBrandCopy,
   type SaveStudioBrandLook,
+  type SaveStudioPairwisePick,
+  type SetStudioAssetFeedbackData,
   type StudioProductCatalog,
 } from "@sokosumi/core-client";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
@@ -4326,6 +4334,40 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function setStudioAssetFeedback(
+    id: string,
+    assetId: string,
+    body: SetStudioAssetFeedbackData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSetStudioAssetFeedback({ client, path: { id, assetId }, body }),
+      "Failed to rate Studio asset",
+    );
+  }
+
+  async function hideStudioAsset(id: string, assetId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreHideStudioAsset({ client, path: { id, assetId } }),
+      "Failed to hide Studio asset",
+    );
+  }
+
+  async function recordStudioAssetEvent(id: string, assetId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreRecordStudioAssetEvent({
+          client,
+          path: { id, assetId },
+          body: { type: "viewed_lightbox" },
+        }),
+      "Failed to record Studio view",
+    );
+  }
+
   async function listStudioBatchAssets(id: string, batchId: string) {
     return executeCoreOperation(
       getClient,
@@ -4336,6 +4378,45 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch ads from the Studio batch",
+    );
+  }
+
+  async function getStudioComparePair(id: string, batchId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioComparePair({
+          client,
+          path: { id, batchId },
+          cache: "no-store",
+        }),
+      "Failed to fetch Studio comparisons",
+    );
+  }
+
+  async function saveStudioPairwisePick(
+    id: string,
+    batchId: string,
+    body: SaveStudioPairwisePick,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSaveStudioPairwisePick({ client, path: { id, batchId }, body }),
+      "Failed to save the Studio comparison",
+    );
+  }
+
+  async function getStudioModelScoreboard(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioModelScoreboard({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Studio model results",
     );
   }
 
@@ -7267,7 +7348,13 @@ export function createCoreClient(getClient: GetCoreClient) {
     getStudioBrandKit,
     getStudioWebsiteCopy,
     prepareStudioWebsiteDraft,
+    setStudioAssetFeedback,
+    hideStudioAsset,
+    recordStudioAssetEvent,
     listStudioBatchAssets,
+    getStudioComparePair,
+    saveStudioPairwisePick,
+    getStudioModelScoreboard,
     saveStudioAdHeadline,
     saveStudioBrandCopy,
     saveStudioBrandLook,

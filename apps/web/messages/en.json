@@ -1528,20 +1528,23 @@
         "scopeWorkspace": "Workspace",
         "typeLabel": "Source",
         "projectLabel": "Project",
-        "typeOptions": {
-          "job": "Agent job",
-          "image": "Image",
-          "task": "Task",
-          "coworker": "Coworker",
-          "sokoBot": "Soko Bot",
-          "seoChat": "SEO chat",
-          "topUp": "Top up",
-          "unattributed": "Other"
-        }
+        "activeCount": "{count} active",
+        "activeFilters": "Active filters",
+        "chip": "{label}: {value}",
+        "removeFilter": "Remove filter {filter}",
+        "clearAll": "Clear all",
+        "searchLabel": "Search"
       },
       "Empty": {
         "title": "No transactions yet",
         "description": "Every job run, image generation, other credit consumption and top up will appear here."
+      },
+      "EmptyFiltered": {
+        "title": "No matching transactions",
+        "description": "Nothing matches these filters.",
+        "searchTitle": "No results for “{query}”",
+        "searchDescription": "Check the spelling or try another search.",
+        "clear": "Clear filters"
       },
       "List": {
         "loadMore": "Load more",
@@ -1558,6 +1561,7 @@
           "task": "Task",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
+          "seoChat": "SEO chat",
           "topUp": "Top up",
           "unattributed": "Other",
           "contacts": "Find people"
@@ -4459,6 +4463,14 @@
       "approvedHeadline": "Approved headline",
       "noHeadline": "No headline",
       "headlineHint": "Studio saves this headline to the ad and uses it in placement PNGs and ZIPs.",
+      "headlineLettering": "Headline lettering",
+      "letteringOverlay": "Exact font overlay",
+      "letteringIdeogram": "Ideogram lettering",
+      "letteringOverlayHint": "Adds the headline after generation. Use this for an exact font.",
+      "letteringIdeogramHint": "Gemini Pro renders the scene, then Ideogram v3 letters the headline. Two paid generations. If lettering fails, the exact brand font is added as a fallback.",
+      "letteringEditHint": "Edits the existing scene with Ideogram v3. One paid generation.",
+      "letteringPlan": "Gemini Pro + Ideogram v3 · two generations per ad",
+      "letteringPlanCredits": "Gemini Pro: {sceneCredits} + Ideogram v3: {letteringCredits} = {credits} credits",
       "headlineLoading": "Loading approved headlines…",
       "headlineLoadFailed": "Could not load approved headlines.",
       "useApprovedHeadlines": "Use approved headlines",
@@ -4506,6 +4518,26 @@
       "archiveImageLimit": "Select up to {count} images per ZIP.",
       "archiveSizeLimit": "Select images totaling {size} MiB or less.",
       "archiveDownloadFailed": "Could not download the ZIP. Try again or download the images individually.",
+      "Pairwise": {
+        "title": "Compare ads",
+        "hint": "Choose the better ad. Models appear after your pick.",
+        "pickA": "A",
+        "pickB": "B",
+        "tie": "Tie",
+        "bothBad": "Both bad",
+        "done": "Done",
+        "loadFailed": "Failed to load comparisons. Try again.",
+        "saveFailed": "Failed to save comparison. Try again.",
+        "retry": "Try again",
+        "loading": "Loading comparisons…",
+        "saved": "Pick saved",
+        "bestModels": "Your best models",
+        "loadingScores": "Loading models…",
+        "scoreboardFailed": "Failed to load models. Try again.",
+        "scoreboardEmpty": "Compare ads to find your best models.",
+        "modelStats": "Wins {percent}% · {count, plural, one {# pick} other {# picks}}",
+        "smallSample": "Early results · fewer than {count} picks"
+      },
       "compare": "Compare",
       "version": "Version",
       "generating": "Generating",
@@ -4694,7 +4726,27 @@
         "processedMegapixels": "processed megapixel"
       },
       "creditsCheckedOn": "Price checked {date}",
-      "pickBody": "Content Studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery."
+      "pickBody": "Content Studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery.",
+      "letteringFallbackHint": "Ideogram lettering is unavailable, so Studio will add the headline in the brand font.",
+      "Rating": {
+        "label": "Rate ad",
+        "up": "Thumbs up",
+        "down": "Thumbs down",
+        "reasons": "Reasons (optional)",
+        "offBrand": "Off-brand",
+        "badText": "Bad text",
+        "wrongProduct": "Wrong product",
+        "ugly": "Ugly",
+        "great": "Great",
+        "comment": "Comment (optional)",
+        "more": "More ad actions",
+        "hide": "Hide ad",
+        "sort": "Sort ads",
+        "newest": "Newest",
+        "best": "Best first",
+        "saveFailed": "Failed to save rating. Try again.",
+        "hideFailed": "Failed to hide ad. Try again."
+      }
     },
     "Ads": {
       "title": "Ads",
@@ -9533,6 +9585,10 @@
         "markAllReadError": "Couldn't mark everything as read. Try again.",
         "caughtUpTitle": "You're caught up",
         "caughtUpDescription": "Nothing new needs you since you last read your rooms.",
+        "firstCatchUpTitle": "Nothing to catch up on yet",
+        "firstCatchUpDescription": "When people talk in your channels and chats, the gist and anything waiting on you shows up here.",
+        "firstCatchUpCreateChannel": "Create a channel",
+        "firstCatchUpMessageTeammate": "Message a teammate",
         "aiNote": "We tag your messages for you, and sometimes we get it wrong. To fix a tag, open the message, point at it, and click the tag icon.",
         "removeTag": "Remove tag: {tag}",
         "taskMade": "Task created",
@@ -11623,13 +11679,16 @@
         "rankings": "Rankings"
       },
       "overview": {
+        "privateFinding": "Only you can see this finding.",
+        "relatedFindingPage": "Related page",
         "measurements": "Traffic",
         "not_connected": "No traffic statistics are saved for these pages yet. Choose an account to load them.",
         "unavailable": "Statistics are unavailable. Check the connection here, then try again.",
         "partial": "Some statistics are missing. Open each source to see which.",
         "available": "Statistics are available for the stated periods.",
         "priority": "Recommended actions",
-        "findings": "Issues with no fix yet",
+        "findings": "Audit findings",
+        "suggestedFix": "Suggested fix",
         "audits": "Captured results",
         "findingsCount": "{count, plural, one {# finding} other {# findings}}",
         "auditsCount": "{count, plural, one {# captured result} other {# captured results}}",
@@ -11698,10 +11757,10 @@
         "periodSame": "Previous {days, plural, one {day} other {# days}}: {previous}, no change",
         "changeMarker": "Recorded change on {day}: {changes}",
         "points": "{value} pp",
-        "googleUpdate": "Google: {name}, {from} to {to}",
-        "googleUpdateOpen": "Google: {name}, {from} to {to}, still rolling out",
-        "googleUpdateDay": "Google: {name}, {day}",
-        "googleUpdatesAsOf": "Google updates known until {day}"
+        "googleUpdate": "{name}: {from} to {to}",
+        "googleUpdateOpen": "{name}: from {from}, ongoing",
+        "googleUpdateDay": "{name}: {day}",
+        "googleUpdatesAsOf": "Google updates as of {day}"
       },
       "keywords": {
         "title": "Keywords",
@@ -12024,6 +12083,7 @@
         "failed": "Failed",
         "invalid": "Check the page selection, keywords, market and devices. Full audits accept one keyword and both devices.",
         "keywordsHelp": "Enter up to 20 keywords, each with up to 80 characters.",
+        "relatedPages": "Also checks indexing for relevant pages from this site, up to {count} pages total. Full audits cover selected pages only.",
         "fullHelp": "Full audits accept one keyword and both devices. Each selected page keeps the same market.",
         "serviceUnavailable": "Checks are unavailable in this workspace. Return to the audit.",
         "returnToAudit": "Return to audit",
@@ -12436,6 +12496,20 @@
           "both": "Google gives a country and a device for only {listed, number} of your {total, number} impressions."
         }
       },
+      "indexReview": {
+        "title": "Indexing review notes",
+        "help": "These pages need a decision or more evidence. The agent's notes explain what it could verify.",
+        "checked": "Reviewed",
+        "state": {
+          "review": "Review needed",
+          "expected_exclusion": "Expected exclusion",
+          "unavailable": "Not checked"
+        },
+        "suggestedFix": "Suggested next step",
+        "evidence": "View evidence",
+        "unavailableEvidence": "Google Search Console or the audit did not provide enough evidence.",
+        "sources": "Sources: Google Search Console and this audit."
+      },
       "index": {
         "title": "Google index",
         "help": "Whether Google keeps each page in its search index, from Search Console URL Inspection.",
@@ -12670,6 +12744,7 @@
           "publishing": "You apply changes, recheck fixes and share client reports yourself."
         },
         "gaps": {
+          "noSearchTraffic": "Search traffic statistics are not available yet. Indexing results appear in this audit.",
           "statisticsIncomplete": "Some Google statistics are missing. The agent can only assess the data available.",
           "checksIncomplete": "Some checks did not return a result. This audit may miss issues.",
           "title": "Missing audit data",
@@ -13183,6 +13258,7 @@
       },
       "Billing": {
         "lowBalance": "Your credits are running low: {credits} left",
+        "cusoLowCredits": "{cusoName} for {businessName} is running low: {credits} credits left",
         "paymentFailed": "A subscription payment failed",
         "creditsAdded": "{credits} credits were added to your balance",
         "subscriptionEnding": "Your subscription ends when the current period does",

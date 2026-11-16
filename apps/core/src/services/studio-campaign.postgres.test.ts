@@ -397,6 +397,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
         batchId,
         product: { id: product.id, name: product.name },
         exportHeadline: index === 0 ? approvedLine : secondApprovedLine,
+        lettering: "overlay",
         modelId: "muse-image",
         settings: { aspectRatio },
         prompt: productBrief(product),
@@ -601,6 +602,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
         body: JSON.stringify({
           ...refinement,
           aspectRatio: "9:16",
+          lettering: "overlay",
           idempotencyKey: randomUUID(),
         }),
       });
@@ -617,6 +619,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
           referenceAssetIds: [parentAssetId],
           batchId: explicitBatchId,
           product,
+          lettering: "overlay",
           settings: { aspectRatio: "9:16" },
           idempotencyKey: randomUUID(),
         }),

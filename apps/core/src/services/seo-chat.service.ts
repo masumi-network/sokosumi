@@ -185,7 +185,9 @@ export async function sendSeoChat(
   const auditId = auditIdFor(actor);
   await requireSeoOwner(actor);
   const requestHash = sha256(JSON.stringify(input));
-  const workspace = await getProjectSeoWorkspace(actor, input.scope ?? {});
+  const workspace = await getProjectSeoWorkspace(actor, input.scope ?? {}, {
+    includePrivateIndexing: actor.organizationId === null,
+  });
   const scopeSnapshot = {
     name: workspace.scope.name,
     pageIds: workspace.scope.pageIds,
@@ -293,7 +295,7 @@ export async function sendSeoChat(
     const result = await deps.generate(
       SEO_CHAT_SYSTEM,
       JSON.stringify({
-        auditEvidence: seoChatContext(workspace),
+        auditEvidence: seoChatContext(workspace, seoSharingFor(actor)),
         history: historyPrompt(previous),
         question: input.question,
       }),
@@ -304,7 +306,7 @@ export async function sendSeoChat(
     const reply = parseSeoChatReply(
       result.text,
       workspace.availableActions.canRequestAnalysis,
-      seoChatTaskActions(workspace),
+      seoChatTaskActions(workspace, seoSharingFor(actor)),
     );
     return await serializableTransaction(async (tx) => {
       await requireLockedSeoOwner(tx, actor);

@@ -21591,7 +21591,10 @@ export const ProjectImageStudioCatalogModelSchema = {
                     'num_images',
                     'seed',
                     'limit_generations',
-                    'image_urls'
+                    'image_urls',
+                    'image_url',
+                    'mask_url',
+                    'strength'
                 ]
             }
         },
@@ -21843,6 +21846,14 @@ export const ProjectImageAssetSchema = {
         headline: {
             $ref: '#/components/schemas/StudioAdHeadline'
         },
+        lettering: {
+            type: 'string',
+            enum: [
+                'overlay',
+                'ideogram'
+            ],
+            default: 'overlay'
+        },
         rootId: {
             type: 'string',
             format: 'uuid'
@@ -21910,6 +21921,55 @@ export const ProjectImageAssetSchema = {
         },
         contentPath: {
             type: 'string'
+        },
+        myThumb: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        -1
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        myReasons: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'off-brand',
+                    'bad text',
+                    'wrong product',
+                    'ugly',
+                    'great'
+                ]
+            }
+        },
+        myComment: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        thumbsUp: {
+            type: 'integer',
+            minimum: 0
+        },
+        thumbsDown: {
+            type: 'integer',
+            minimum: 0
+        },
+        score: {
+            type: 'number'
         }
     },
     required: [
@@ -21930,7 +21990,13 @@ export const ProjectImageAssetSchema = {
         'createdAt',
         'jobId',
         'settings',
-        'contentPath'
+        'contentPath',
+        'myThumb',
+        'myReasons',
+        'myComment',
+        'thumbsUp',
+        'thumbsDown',
+        'score'
     ]
 } as const;
 
@@ -22043,6 +22109,17 @@ export const ProjectImageJobSchema = {
         prompt: {
             type: 'string'
         },
+        templateId: {
+            type: 'string'
+        },
+        creativeDirection: {
+            type: 'string'
+        },
+        variationIndex: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2147483647
+        },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
         },
@@ -22070,8 +22147,21 @@ export const ProjectImageJobSchema = {
                 format: 'uuid'
             }
         },
+        exportHeadline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
         useProductCutout: {
             type: 'boolean'
+        },
+        lettering: {
+            type: 'string',
+            enum: [
+                'overlay',
+                'ideogram'
+            ],
+            default: 'overlay'
         },
         product: {
             $ref: '#/components/schemas/StudioProductIdentity'
@@ -39619,6 +39709,140 @@ export const ProjectImageSessionSchema = {
     ]
 } as const;
 
+export const StudioCompareStateSchema = {
+    type: 'object',
+    properties: {
+        pair: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioComparePair'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'pair'
+    ]
+} as const;
+
+export const StudioComparePairSchema = {
+    type: 'object',
+    properties: {
+        a: {
+            $ref: '#/components/schemas/ProjectImageAsset'
+        },
+        b: {
+            $ref: '#/components/schemas/ProjectImageAsset'
+        }
+    },
+    required: [
+        'a',
+        'b'
+    ]
+} as const;
+
+export const StudioPairwisePickSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SaveStudioPairwisePick'
+        },
+        {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'id'
+            ]
+        }
+    ]
+} as const;
+
+export const StudioPairOutcomeSchema = {
+    type: 'string',
+    enum: [
+        'A',
+        'B',
+        'TIE',
+        'BOTH_BAD'
+    ]
+} as const;
+
+export const SaveStudioPairwisePickSchema = {
+    type: 'object',
+    properties: {
+        assetId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        otherAssetId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        outcome: {
+            $ref: '#/components/schemas/StudioPairOutcome'
+        }
+    },
+    required: [
+        'assetId',
+        'otherAssetId',
+        'outcome'
+    ]
+} as const;
+
+export const StudioModelScoreboardSchema = {
+    type: 'object',
+    properties: {
+        models: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    model: {
+                        type: 'string'
+                    },
+                    comparisons: {
+                        type: 'integer',
+                        exclusiveMinimum: 0
+                    },
+                    winRate: {
+                        type: 'number',
+                        minimum: 0,
+                        maximum: 1
+                    },
+                    elo: {
+                        type: 'number'
+                    },
+                    provisional: {
+                        type: 'boolean'
+                    }
+                },
+                required: [
+                    'model',
+                    'comparisons',
+                    'winRate',
+                    'elo',
+                    'provisional'
+                ]
+            }
+        },
+        minimumComparisons: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'models',
+        'minimumComparisons'
+    ]
+} as const;
+
 export const StudioBrandKitSchema = {
     type: 'object',
     properties: {
@@ -40030,6 +40254,21 @@ export const CreateProjectImageJobRequestSchema = {
             minLength: 1,
             maxLength: 4000
         },
+        templateId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        creativeDirection: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        variationIndex: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2147483647
+        },
         product: {
             $ref: '#/components/schemas/StudioProductIdentity'
         },
@@ -40044,6 +40283,13 @@ export const CreateProjectImageJobRequestSchema = {
         },
         useProductCutout: {
             type: 'boolean'
+        },
+        lettering: {
+            type: 'string',
+            enum: [
+                'overlay',
+                'ideogram'
+            ]
         },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'
@@ -40214,6 +40460,133 @@ export const StudioAdPlacementRatioSchema = {
         '4:5',
         '9:16',
         '16:9'
+    ]
+} as const;
+
+export const RecordStudioAssetEventSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'viewed_lightbox'
+            ]
+        }
+    },
+    required: [
+        'type'
+    ]
+} as const;
+
+export const StudioAssetRatingSchema = {
+    type: 'object',
+    properties: {
+        myThumb: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        -1
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        myReasons: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'off-brand',
+                    'bad text',
+                    'wrong product',
+                    'ugly',
+                    'great'
+                ]
+            }
+        },
+        myComment: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        thumbsUp: {
+            type: 'integer',
+            minimum: 0
+        },
+        thumbsDown: {
+            type: 'integer',
+            minimum: 0
+        },
+        score: {
+            type: 'number'
+        }
+    },
+    required: [
+        'myThumb',
+        'myReasons',
+        'myComment',
+        'thumbsUp',
+        'thumbsDown',
+        'score'
+    ]
+} as const;
+
+export const SetStudioAssetFeedbackSchema = {
+    type: 'object',
+    properties: {
+        thumb: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        -1
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        reasons: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'off-brand',
+                    'bad text',
+                    'wrong product',
+                    'ugly',
+                    'great'
+                ]
+            },
+            maxItems: 5
+        },
+        comment: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500
+        }
+    },
+    required: [
+        'thumb'
     ]
 } as const;
 
@@ -40435,6 +40808,16 @@ export const ProjectSeoWorkspaceSchema = {
             anyOf: [
                 {
                     $ref: '#/components/schemas/ProjectSeoIndexStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        indexTriage: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoIndexTriage'
                 },
                 {
                     type: 'null'
@@ -41155,6 +41538,24 @@ export const ProjectSeoFindingSchema = {
             items: {
                 type: 'string'
             }
+        },
+        suggestedFix: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2000
+        },
+        relatedPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        visibility: {
+            type: 'string',
+            enum: [
+                'PRIVATE'
+            ]
         },
         sourceRef: {
             type: 'string'
@@ -41942,6 +42343,91 @@ export const ProjectSeoIndexedPageSchema = {
         'lastCrawlTime',
         'googleCanonical',
         'userCanonical'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ProjectSeoIndexTriageSchema = {
+    type: 'object',
+    properties: {
+        assessments: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoIndexAssessedPage'
+            },
+            maxItems: 100
+        }
+    },
+    required: [
+        'assessments'
+    ]
+} as const;
+
+export const ProjectSeoIndexAssessedPageSchema = {
+    type: 'object',
+    properties: {
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'indexed',
+                'issue',
+                'review',
+                'expected_exclusion',
+                'unavailable'
+            ]
+        },
+        report: {
+            type: 'boolean'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        },
+        suggestedFix: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 2000
+        },
+        evidence: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 2000
+            },
+            maxItems: 20
+        },
+        taskId: {
+            type: 'string'
+        },
+        checkedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        }
+    },
+    required: [
+        'pageUrl',
+        'status',
+        'report',
+        'reason',
+        'suggestedFix',
+        'evidence',
+        'taskId',
+        'checkedAt'
     ],
     additionalProperties: false
 } as const;
@@ -55257,6 +55743,384 @@ export const TaskSellerReceiptSchema = {
     ]
 } as const;
 
+export const SeoTaskIndexingReceiptSchema = {
+    type: 'object',
+    properties: {
+        version: {
+            type: 'number',
+            enum: [
+                1
+            ]
+        },
+        taskId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        receiptHash: {
+            type: 'string',
+            pattern: '^[a-f0-9]{64}$'
+        },
+        checkedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        assessmentSaved: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'available',
+                'not_connected',
+                'needs_property',
+                'unavailable'
+            ]
+        },
+        pages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SeoTaskIndexedPage'
+            },
+            minItems: 1,
+            maxItems: 10
+        }
+    },
+    required: [
+        'version',
+        'taskId',
+        'receiptHash',
+        'checkedAt',
+        'status',
+        'pages'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskIndexedPageSchema = {
+    type: 'object',
+    properties: {
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        verdict: {
+            type: 'string',
+            enum: [
+                'PASS',
+                'PARTIAL',
+                'FAIL',
+                'NEUTRAL',
+                'VERDICT_UNSPECIFIED'
+            ]
+        },
+        coverageState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500
+        },
+        robotsTxtState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        },
+        lastCrawlTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        googleCanonical: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        },
+        userCanonical: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2048
+        },
+        indexingState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        },
+        pageFetchState: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        }
+    },
+    required: [
+        'pageUrl',
+        'verdict',
+        'coverageState',
+        'robotsTxtState',
+        'lastCrawlTime',
+        'googleCanonical',
+        'userCanonical',
+        'indexingState',
+        'pageFetchState'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskIndexingRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedContext: {
+            $ref: '#/components/schemas/TaskWorkerContext'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        }
+    },
+    required: [
+        'expectedContext'
+    ],
+    additionalProperties: false
+} as const;
+
+export const TaskWorkerContextSchema = {
+    type: 'object',
+    properties: {
+        ownerId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 128
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'ownerId',
+        'organizationId',
+        'workspaceId'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskIndexingResultAcknowledgmentSchema = {
+    type: 'object',
+    properties: {
+        version: {
+            type: 'number',
+            enum: [
+                1
+            ]
+        },
+        taskId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        receiptHash: {
+            type: 'string',
+            pattern: '^[a-f0-9]{64}$'
+        }
+    },
+    required: [
+        'version',
+        'taskId',
+        'receiptHash'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskIndexingResultRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedContext: {
+            $ref: '#/components/schemas/TaskWorkerContext'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        receiptHash: {
+            type: 'string',
+            pattern: '^[a-f0-9]{64}$'
+        },
+        assessments: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoIndexAssessment'
+            },
+            minItems: 1,
+            maxItems: 10
+        }
+    },
+    required: [
+        'expectedContext',
+        'receiptHash',
+        'assessments'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ProjectSeoIndexAssessmentSchema = {
+    type: 'object',
+    properties: {
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'indexed',
+                'issue',
+                'review',
+                'expected_exclusion',
+                'unavailable'
+            ]
+        },
+        report: {
+            type: 'boolean'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        },
+        suggestedFix: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 2000
+        },
+        evidence: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 2000
+            },
+            maxItems: 20
+        }
+    },
+    required: [
+        'pageUrl',
+        'status',
+        'report',
+        'reason',
+        'suggestedFix',
+        'evidence'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskRelatedPagesReceiptSchema = {
+    type: 'object',
+    properties: {
+        version: {
+            type: 'number',
+            enum: [
+                1
+            ]
+        },
+        taskId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        inspectionPageUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            },
+            minItems: 1,
+            maxItems: 10
+        }
+    },
+    required: [
+        'version',
+        'taskId',
+        'auditPageUrl',
+        'inspectionPageUrls'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoTaskRelatedPagesRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedContext: {
+            $ref: '#/components/schemas/TaskWorkerContext'
+        },
+        seedPageUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            },
+            minItems: 1,
+            maxItems: 10
+        },
+        relatedPageUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            },
+            maxItems: 10
+        }
+    },
+    required: [
+        'expectedContext',
+        'seedPageUrls',
+        'relatedPageUrls'
+    ],
+    additionalProperties: false
+} as const;
+
 export const SendTaskToChatRequestSchema = {
     type: 'object',
     properties: {
@@ -55491,35 +56355,6 @@ export const MasumiTaskPaymentSourceSchema = {
         'smartContractAddress',
         'policyId'
     ]
-} as const;
-
-export const TaskWorkerContextSchema = {
-    type: 'object',
-    properties: {
-        ownerId: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 128
-        },
-        organizationId: {
-            type: [
-                'string',
-                'null'
-            ],
-            minLength: 1,
-            maxLength: 128
-        },
-        workspaceId: {
-            type: 'string',
-            format: 'uuid'
-        }
-    },
-    required: [
-        'ownerId',
-        'organizationId',
-        'workspaceId'
-    ],
-    additionalProperties: false
 } as const;
 
 export const TaskFilesSchema = {
