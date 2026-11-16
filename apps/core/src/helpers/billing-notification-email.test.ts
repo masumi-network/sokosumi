@@ -1,5 +1,6 @@
 import {
   BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
   BILLING_LOW_BALANCE_MESSAGE_KEY,
   BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
@@ -29,7 +30,10 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-import { sendBillingNotificationEmail } from "./billing-notification-email";
+import {
+  sendBillingNotificationEmail,
+  sendCusoLowCreditsEmail,
+} from "./billing-notification-email";
 
 describe("sendBillingNotificationEmail", () => {
   beforeEach(() => {
@@ -98,6 +102,63 @@ describe("sendBillingNotificationEmail", () => {
     });
 
     expect(resolveDeliveryMock).not.toHaveBeenCalled();
+    expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("sendCusoLowCreditsEmail", () => {
+  const CUSO_EMAIL = {
+    userId: "hirer-1",
+    cusoName: "Cuso",
+    businessName: "acme.com",
+    credits: 900,
+    nextGrantAt: new Date("2026-12-01T00:00:00.000Z"),
+    actionUrl: "https://app.cmo.xyz/settings?project=p-1",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resolveDeliveryMock.mockResolvedValue({
+      inApp: true,
+      osBanner: false,
+      email: true,
+    });
+    prismaUserFindUniqueMock.mockResolvedValue({
+      email: "hirer@example.com",
+      name: "Ada",
+    });
+  });
+
+  it("mails the hirer a link to CMO's top-up and plan screen", async () => {
+    await sendCusoLowCreditsEmail(CUSO_EMAIL);
+
+    expect(resolveDeliveryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "hirer-1",
+        messageKey: BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
+      }),
+    );
+    expect(sendEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "hirer@example.com",
+        tag: "cuso-low-credits",
+        subject: "CMO - Cuso for acme.com is running low on credits",
+      }),
+    );
+    const html: string = sendEmailMock.mock.calls[0]?.[0].html;
+    expect(html).toContain("https://app.cmo.xyz/settings?project=p-1");
+    expect(html).not.toContain("/billing");
+  });
+
+  it("skips the inbox when the reader turned billing alerts off", async () => {
+    resolveDeliveryMock.mockResolvedValue({
+      inApp: true,
+      osBanner: false,
+      email: false,
+    });
+
+    await sendCusoLowCreditsEmail(CUSO_EMAIL);
+
     expect(sendEmailMock).not.toHaveBeenCalled();
   });
 });

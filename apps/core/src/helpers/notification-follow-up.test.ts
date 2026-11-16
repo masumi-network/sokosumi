@@ -1,5 +1,6 @@
 import {
   BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
   BILLING_FOLLOW_UP_MESSAGE_KEY,
   BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
@@ -49,9 +50,17 @@ describe("followUpMessageKeyFor", () => {
    * key, because a reminder stored before that is still one.
    */
   it("answers for every billing key that waits on the reader", () => {
-    for (const key of BILLING_ATTENTION_MESSAGE_KEYS) {
+    for (const key of BILLING_ATTENTION_MESSAGE_KEYS.filter(
+      (key) => key !== BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
+    )) {
       expect(followUpMessageKeyFor(key)).toBe(BILLING_FOLLOW_UP_MESSAGE_KEY);
     }
+  });
+
+  it("answers for no Cuso low-credit notice, whose reminder would open Sokosumi's billing", () => {
+    expect(
+      followUpMessageKeyFor(BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY),
+    ).toBeNull();
   });
 
   it("answers for no job key at all", () => {
