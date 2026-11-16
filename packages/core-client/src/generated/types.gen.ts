@@ -11462,6 +11462,7 @@ export type SeoAuditChatTurn = {
         to: string | null;
     };
     createdAt: Date;
+    creditsCharged?: number | null;
 };
 
 export type SendSeoAuditChatRequest = {
@@ -14193,6 +14194,8 @@ export type TransactionHistoryItem = ({
 } & TransactionHistoryCoworkerItem) | ({
     kind: 'sokoBot';
 } & TransactionHistorySokoBotItem) | ({
+    kind: 'seoChat';
+} & TransactionHistorySeoChatItem) | ({
     kind: 'contacts';
 } & TransactionHistoryContactsItem) | ({
     kind: 'topUp';
@@ -14417,6 +14420,38 @@ export type TransactionHistorySokoBotItem = {
      * Soko Bot whose usage consumed the credits
      */
     sokoBotId: string;
+};
+
+export type TransactionHistorySeoChatItem = {
+    /**
+     * Transaction ID. This is the ledger row's own ID and the pagination cursor.
+     */
+    id: string;
+    /**
+     * Display label for what the credits were spent on
+     */
+    title: string;
+    /**
+     * Secondary detail about the consumption, when one is known
+     */
+    description: string | null;
+    /**
+     * Credits this row moved, always positive. `kind: topUp` added them; every other kind took them. The magnitude of the signed ledger amount.
+     */
+    credits: number;
+    /**
+     * When the credits moved (`Transaction.createdAt`). The list sorts by this field.
+     */
+    consumedAt: Date;
+    /**
+     * Project the consumption belongs to. Null for sources that are not project-scoped.
+     */
+    projectId: string | null;
+    /**
+     * User the credits were taken from. Null for organization-level consumptions with no user, or when the user was deleted.
+     */
+    owner: TransactionHistoryOwner | null;
+    kind: 'seoChat';
 };
 
 export type TransactionHistoryContactsItem = {
@@ -75648,6 +75683,21 @@ export type ListSeoAuditChatErrors = {
         };
     };
     /**
+     * Not enough credits
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Daily SEO chat allowance used
      */
     429: {
@@ -75777,6 +75827,21 @@ export type SendSeoAuditChatErrors = {
      * Conversation changed or reply in progress
      */
     409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not enough credits
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
@@ -98244,7 +98309,7 @@ export type GetTransactionsData = {
         /**
          * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
          */
-        types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'contacts' | 'topUp' | 'unattributed'>;
+        types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'seoChat' | 'contacts' | 'topUp' | 'unattributed'>;
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */
@@ -98382,7 +98447,7 @@ export type GetTransactionsDailyData = {
         /**
          * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
          */
-        types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'contacts' | 'topUp' | 'unattributed'>;
+        types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'seoChat' | 'contacts' | 'topUp' | 'unattributed'>;
         /**
          * First day to include, as YYYY-MM-DD in UTC.
          */
@@ -98520,7 +98585,7 @@ export type GetTransactionsExportData = {
         /**
          * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
          */
-        types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'contacts' | 'topUp' | 'unattributed'>;
+        types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'seoChat' | 'contacts' | 'topUp' | 'unattributed'>;
         /**
          * First day to include, as YYYY-MM-DD in UTC.
          */
@@ -98651,7 +98716,7 @@ export type GetTransactionsTotalData = {
         /**
          * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
          */
-        types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'contacts' | 'topUp' | 'unattributed'>;
+        types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'seoChat' | 'contacts' | 'topUp' | 'unattributed'>;
     };
     url: '/transactions/total';
 };

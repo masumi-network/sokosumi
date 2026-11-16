@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import { getEnv } from "@/config/env";
@@ -43,6 +44,15 @@ async function createFixture() {
   const userId = await createUser(),
     workspaceId = randomUUID();
   await prisma.workspace.create({ data: { id: workspaceId, userId } });
+  await prisma.creditBucket.create({
+    data: {
+      user: { connect: { id: userId } },
+      amount: convertCreditsToCents(100),
+      sourceTransaction: {
+        create: { userId, amount: convertCreditsToCents(100) },
+      },
+    },
+  });
   const base = { userId, workspaceId, organizationId: null };
   const actors: SeoActor[] = [];
   for (const name of ["First Audit", "Second Audit", "Saved attempts"]) {
@@ -184,6 +194,15 @@ describe.skipIf(!enabled)("Atomic native SEO chat daily allowance", () => {
       },
     });
     const otherWorkspaceActor = { ...base, workspaceId, organizationId };
+    await prisma.creditBucket.create({
+      data: {
+        organization: { connect: { id: organizationId } },
+        amount: convertCreditsToCents(100),
+        sourceTransaction: {
+          create: { organizationId, amount: convertCreditsToCents(100) },
+        },
+      },
+    });
     const otherWorkspaceAudit = await createSeoAudit(otherWorkspaceActor, {
       name: "Another Workspace",
       firstPage,

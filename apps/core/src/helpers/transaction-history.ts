@@ -100,6 +100,7 @@ const KIND_CASE = PrismaRaw.sql`
     WHEN te."id" IS NOT NULL THEN 'task'
     WHEN cu."id" IS NOT NULL THEN 'coworker'
     WHEN sbu."id" IS NOT NULL THEN 'sokoBot'
+    WHEN sch."id" IS NOT NULL THEN 'seoChat'
     WHEN cps."id" IS NOT NULL THEN 'contacts'
     ELSE 'unattributed'
   END
@@ -183,7 +184,9 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
         tk."projectId",
         rj."projectId",
         rpij."projectId",
-        rtk."projectId"
+        rtk."projectId",
+        -- This server-owned usage field freezes the payer, independent of later Audit relinking.
+        (sch."usage" #>> '{billing,projectId}')::uuid
       ) AS "projectId",
       -- The Task a row belongs to: charged by its event or one of its Jobs,
       -- or a refund of either. Filter-only; the label comes from the columns
@@ -262,6 +265,7 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
     LEFT JOIN "task" AS tk ON tk."id" = te."taskId"
     LEFT JOIN "coworker_usage" AS cu ON cu."transactionId" = t."id"
     LEFT JOIN "coworker" AS cw ON cw."id" = cu."coworkerId"
+    LEFT JOIN "seo_audit_chat_turn" AS sch ON sch."transactionId" = t."id"
     LEFT JOIN "soko_bot_usage" AS sbu ON sbu."transactionId" = t."id"
     LEFT JOIN "soko_bot" AS sb ON sb."id" = sbu."sokoBotId"
     -- A usage row's reference is the turn it billed.
@@ -658,6 +662,8 @@ export function mapTransactionHistoryRow(
         description: sokoBotTurnLabel(row),
         sokoBotId: row.sokoBotId ?? "",
       };
+    case "seoChat":
+      return { ...base, kind: "seoChat", title: "SEO chat", description: null };
     case "contacts":
       return {
         ...base,

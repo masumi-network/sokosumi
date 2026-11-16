@@ -11,6 +11,7 @@ export const HISTORY_TYPE_VALUES = [
   "task",
   "coworker",
   "sokoBot",
+  "seoChat",
   "contacts",
   "topUp",
   "unattributed",
