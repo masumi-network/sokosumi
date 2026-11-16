@@ -2855,8 +2855,13 @@ describe("SEO workspace integration", () => {
         "Google statistics: Analytics not connected",
         "Start a new Google Analytics connection",
       ],
-      // A connection that could not be read keeps its button to try again.
-      ["unread", unrelated, /^Google statistics(?!:)/, "Try again"],
+      // A connection that could not be read is a failed read: the upkeep line says it, with its Try again.
+      [
+        "unread",
+        unrelated,
+        "Google statistics could not load. Try again.",
+        "Try again",
+      ],
       [
         "connected",
         [],
@@ -2873,7 +2878,7 @@ describe("SEO workspace integration", () => {
         "connected",
         [...unrelated, { id: "properties/3", name: "example.com" }],
         "Google statistics: the Analytics property example.com has no visits for these pages yet",
-        "Choose property",
+        "Change property",
       ],
       // A sync that runs or failed is said once, by the upkeep line of the verdict card: the line steps aside.
       [
@@ -2950,6 +2955,24 @@ describe("SEO workspace integration", () => {
       else expect(within(line()).queryByRole("button")).toBeNull();
       cleanup();
     }
+    // Nothing else to propose: no competitor step, fresh search data. The tab must not be blank.
+    workspace.metrics = workspace.metrics.map((metric) => ({
+      ...metric,
+      observedAt: new Date(),
+    }));
+    workspace.availableActions.canRequestAnalysis = false;
+    workspace.availableActions.canUsePaidSearchData = false;
+    workspace.searchQueries = {
+      observationId: "c6b8a2c4-5b8e-4f0e-9a51-1f2f8a3f7c11",
+      propertyId: "sc-domain:example.com",
+      from: "2026-10-01",
+      to: "2026-10-28",
+      timeZone: "UTC",
+      observedAt: new Date(),
+      rowLimit: 250,
+      truncated: false,
+      rows: [],
+    };
     // A connected account with no cause to name has no bare line: here the property list says the connection
     // is gone while the connection still reads as connected.
     vi.stubGlobal(
@@ -2976,6 +2999,12 @@ describe("SEO workspace integration", () => {
     await waitFor(() =>
       expect(screen.queryByTestId("seo-agent-statistics")).toBeNull(),
     );
+    // A hidden line with no upkeep message leaves the tab to say so: it is not blank.
+    expect(
+      await screen.findByText(
+        "Nothing is waiting. Google statistics load automatically for the selected pages and refresh when needed.",
+      ),
+    ).toBeVisible();
   });
 
   it("says whether Google indexes the page in view and names another canonical", () => {

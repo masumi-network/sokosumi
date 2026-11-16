@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { useSeoFocusHandoff } from "./use-seo-focus-handoff";
 
@@ -36,6 +36,16 @@ describe("useSeoFocusHandoff", () => {
     rerender(<Line cause="empty" hidden />);
     rerender(<Line cause="empty" hidden={false} />);
     expect(screen.getByText("empty")).toHaveFocus();
+  });
+
+  it("drops the handoff when the reader presses somewhere while the line waits", () => {
+    const { rerender } = render(<Line cause="missing" hidden={false} />);
+    screen.getByRole("button", { name: "Connect" }).focus();
+    rerender(<Line cause="missing" hidden />);
+    // The press lands on plain text: the focus stays on the page.
+    fireEvent.pointerDown(document.body);
+    rerender(<Line cause="empty" hidden={false} />);
+    expect(screen.getByText("empty")).not.toHaveFocus();
   });
 
   it("does not take the focus from where the reader put it, nor later", () => {

@@ -5,48 +5,28 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  seoAnalyticsAction,
-  seoAnalyticsHidden,
-  seoAnalyticsState,
-} from "./seo-agent-statistics-model";
 import { seoAuditName } from "./seo-audit-name";
 import { SeoConnectionButton } from "./seo-connection-button";
-import { useSeoConnectionStatus } from "./use-seo-connection";
+import type { SeoAnalyticsLine } from "./use-seo-analytics-line";
 import { useSeoFocusHandoff } from "./use-seo-focus-handoff";
-import { useSeoStatisticsProperties } from "./use-seo-statistics-properties";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /**
  * The Google statistics of the Agent tab as one slim line at its top. It shows only while no Analytics data is
  * saved, and says why: the sync runs by itself, so "not synced yet" was never the reason.
  */
-export function SeoAgentStatistics({ model }: { model: SeoWorkspaceModel }) {
+export function SeoAgentStatistics({
+  model,
+  line: { analytics, count, property, action, hidden },
+}: {
+  model: SeoWorkspaceModel;
+  line: SeoAnalyticsLine;
+}) {
   const t = useTranslations("App.Seo");
-  const status = useSeoConnectionStatus("ga4").status.data?.status;
-  const connected = status === "connected";
-  const { properties, propertyId } = useSeoStatisticsProperties(
-    model.data,
-    "ga4",
-    connected,
-  );
-  const sync = model.statisticsSync.analytics;
-  const listed =
-    properties.data?.status === "available" ? properties.data.properties : null;
-  const analytics = seoAnalyticsState({
-    status,
-    sync,
-    properties: listed?.length ?? null,
-    picked: Boolean(propertyId),
-  });
-  // The one property of an account is read even when its name is not the site's: the line names it.
-  const property = listed?.find((item) => item.id === propertyId)?.name ?? "";
   const [connectError, setConnectError] = useState<string | null>(null);
   const page = model.data.pages.find((item) =>
     model.data.scope.pageIds.includes(item.id),
   );
-  const action = seoAnalyticsAction(analytics, connected, listed?.length ?? 0);
-  const hidden = seoAnalyticsHidden(analytics, connected);
   const { box, target } = useSeoFocusHandoff(action, hidden);
   // A status that is not read yet gets the connect button, which shows its wait and its own Try again.
   const control = hidden ? null : action === "connect" ? (
@@ -58,7 +38,14 @@ export function SeoAgentStatistics({ model }: { model: SeoWorkspaceModel }) {
       onClick={() => model.openStatistics("ga4")}
     >
       <Settings2 />
-      {action === "manage" ? t("manageStatistics") : t("agent.chooseProperty")}
+      {action === "manage"
+        ? t("manageStatistics")
+        : // A property is in use when the line names one: it changes, not chosen.
+          t(
+            analytics === "empty"
+              ? "agent.changeProperty"
+              : "agent.chooseProperty",
+          )}
     </Button>
   ) : null;
   return (
@@ -79,7 +66,26 @@ export function SeoAgentStatistics({ model }: { model: SeoWorkspaceModel }) {
         aria-hidden
         className="text-muted-foreground size-4 shrink-0"
       />
-      {/* A failed connect says so in the place of the line's text, in an alert of its own. */}
+      {/* The cause changes on its own: a screen reader hears the new one. The status node stays in place, so
+        the focus can go to it; a failed connect says so beside it, in an alert of its own, in its place. */}
+      <p
+        ref={target}
+        role="status"
+        tabIndex={-1}
+        className={cn(
+          "min-w-0 flex-1 basis-48 break-words",
+          connectError && "sr-only",
+        )}
+      >
+        {hidden || connectError
+          ? null
+          : t("agent.statistics", {
+              analytics,
+              count,
+              site: page ? seoAuditName("", page.url) : "",
+              property,
+            })}
+      </p>
       {connectError && !hidden ? (
         <p
           role="alert"
@@ -87,24 +93,7 @@ export function SeoAgentStatistics({ model }: { model: SeoWorkspaceModel }) {
         >
           {connectError}
         </p>
-      ) : (
-        // The cause changes on its own: a screen reader hears the new one.
-        <p
-          ref={target}
-          role="status"
-          tabIndex={-1}
-          className="min-w-0 flex-1 basis-48 break-words"
-        >
-          {hidden
-            ? null
-            : t("agent.statistics", {
-                analytics,
-                count: listed?.length ?? 0,
-                site: page ? seoAuditName("", page.url) : "",
-                property,
-              })}
-        </p>
-      )}
+      ) : null}
       {control}
     </div>
   );

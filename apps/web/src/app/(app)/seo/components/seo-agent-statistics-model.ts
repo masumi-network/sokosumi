@@ -32,10 +32,11 @@ export function seoAnalyticsState({
    * does not run for a viewer who cannot sync. */
   picked: boolean;
 }): SeoAnalyticsState {
+  // A read that failed, the connection's own too, is the upkeep line's: one alert, one Try again.
+  if (sync.failed) return "failed";
   // Not read yet, or not offered here: the connect button speaks for itself.
   if (status === undefined || status === "unavailable") return "unknown";
   if (status !== "connected") return "missing";
-  if (sync.failed) return "failed";
   if (properties === 0) return "no_property";
   if (properties !== null && !picked) return "choose";
   if (sync.collected) return "empty";

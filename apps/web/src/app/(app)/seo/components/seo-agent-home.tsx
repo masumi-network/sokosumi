@@ -35,6 +35,7 @@ import { SEO_ROW_LIST_CLASS, SeoDate } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
 import { lastRuleCheck, seoSummary } from "./seo-summary-model";
+import { useSeoAnalyticsLine } from "./use-seo-analytics-line";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
 /** The SEO agent is the first thing on an Audit: what it knows and what it proposes. */
@@ -65,6 +66,7 @@ function SeoAgentPanel({
   statisticsSync: SeoWorkspaceModel["statisticsSync"];
 }) {
   const t = useTranslations("App.Seo");
+  const analyticsLine = useSeoAnalyticsLine(model);
   const format = useFormatter();
   // "No issues" holds only for the newest check, and only if it measured something.
   const lastCheckMeasured = (brief.lastCheck?.checked ?? 0) > 0;
@@ -260,7 +262,9 @@ function SeoAgentPanel({
       </p>
       {/* First on the tab, in one place on every width: a move would remount the control and drop an approval in flight. */}
       {banner}
-      {analyticsStep && !setup ? <SeoAgentStatistics model={model} /> : null}
+      {analyticsStep && !setup ? (
+        <SeoAgentStatistics model={model} line={analyticsLine} />
+      ) : null}
       {setup ? (
         <SeoSetupCard model={model} setup={setup} />
       ) : (
@@ -382,8 +386,10 @@ function SeoAgentPanel({
             {steps.map((step, index) => stepItem(step, index))}
           </ul>
         </div>
-      ) : analyticsStep || statisticsSync.state === "failed" ? null : (
+      ) : (analyticsStep && !analyticsLine.hidden) ||
+        statisticsSync.state === "failed" ? null : (
         // The Analytics line and a failed sync each still ask for something: "nothing is waiting" would be wrong.
+        // A hidden line asks for nothing.
         <p className="text-muted-foreground max-w-prose px-2 text-sm">
           {t("agent.nothingNext")}
         </p>

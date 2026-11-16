@@ -12481,6 +12481,7 @@
           "position": "Posición {position}"
         },
         "openAction": "Abrir acción",
+        "changeProperty": "Cambiar propiedad",
         "chooseProperty": "Elegir propiedad"
       },
       "scopeFilters": "Filtros",
