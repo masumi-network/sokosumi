@@ -11992,7 +11992,9 @@
         "copyPage": "Página",
         "copied": "Copiado al portapapeles",
         "copyFailed": "No se pudo copiar. Selecciona el texto y cópialo a mano.",
-        "copyAgentLead": "Aplica este cambio SEO en el sitio web. Cambia solo lo que indica y luego revisa la página."
+        "copyAgentLead": "Aplica este cambio SEO en el sitio web. Cambia solo lo que indica y luego revisa la página.",
+        "evidence": "Pruebas",
+        "change": "El cambio"
       },
       "pages": {
         "title": "Páginas",
@@ -12477,7 +12479,8 @@
           "title": "Palabras clave comprobadas con más búsquedas",
           "unit": "Búsquedas al mes",
           "position": "Posición {position}"
-        }
+        },
+        "openAction": "Abrir acción"
       },
       "scopeFilters": "Filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",

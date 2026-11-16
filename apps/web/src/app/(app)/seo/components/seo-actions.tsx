@@ -8,7 +8,6 @@ import { useEffect, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
-import { SeoCopyButton, useSeoActionInstructions } from "./seo-action-copy";
 import { SeoActionCardHead } from "./seo-card-head";
 import { SeoCsvButton } from "./seo-csv-button";
 import { seoActionsExport } from "./seo-export-model";
@@ -30,7 +29,7 @@ import { SeoStrategyActions, SeoStrategyPlaceNotes } from "./seo-strategy";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
 /**
- * One card for an action (the Actions tab, and the top proposal on the Agent tab). Closed, it is one row:
+ * One card for an action on the Actions tab. Closed, it is one row:
  * the title, the page and how bad the issue is. Open, it adds what the check found and the button; the
  * reasons and the evidence are in its details. The card with the page's filled button starts open.
  */
@@ -39,9 +38,6 @@ export function SeoActionCard({
   model,
   severity,
   primary = false,
-  fixed = false,
-  flush = false,
-  full = false,
 }: {
   action: ProjectSeoAction;
   model: SeoWorkspaceModel;
@@ -49,21 +45,11 @@ export function SeoActionCard({
   severity: SeoIssueSeverity | null;
   /** The page's one draft button. */
   primary?: boolean;
-  /** The card is the one proposal of its place (the Agent tab): it stays open and its title is no button. */
-  fixed?: boolean;
-  /** The card sits inside another card: no surface of its own. */
-  flush?: boolean;
-  /** The card fills a dialog: its details show at once and its fix can be copied. */
-  full?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const finding = useSeoActionFinding(action, model);
-  const instructions = useSeoActionInstructions(action, finding);
-  // Inside another card the title ranks under that card's heading.
-  const Heading = flush ? "h4" : "h3";
   const problem = seoOverviewModel(model.data).actionProblem(action);
-  const [opened, setOpen] = useState(primary);
-  const open = fixed || opened;
+  const [open, setOpen] = useState(primary);
   const bodyId = useId();
   // The filled button moves on once a Task exists for the card before: the card that gets it opens.
   useEffect(() => {
@@ -83,13 +69,13 @@ export function SeoActionCard({
     </>
   );
   return (
-    <article className={cn(!flush && HOLDER_ITEM_CLASS, "group min-w-0")}>
-      <Heading>
+    <article className={cn(HOLDER_ITEM_CLASS, "group min-w-0")}>
+      <h3>
         {/* The closed card is one row: the title, its page and how bad the issue is. A press opens what the check found and the button. */}
         <SeoActionCardHead
           bodyId={bodyId}
           open={open}
-          onToggle={fixed ? undefined : () => setOpen((value) => !value)}
+          onToggle={() => setOpen((value) => !value)}
         >
           <span className="min-w-0 flex-1 gap-3 sm:flex sm:items-center">
             {/* The open card has the link to the page; the closed row names the page. */}
@@ -97,9 +83,6 @@ export function SeoActionCard({
               title={action.title}
               pageUrl={open ? null : action.pageUrl}
               workspace={model.data}
-              // A row is one step lighter than the card that stays open. The weight does not change with a
-              // press: bolder words are wider and can move to the next line.
-              strong={fixed}
             />
             {/* On a phone the labels of an open card stand under its page link, so the lines keep the order
                 of the closed row: title, page, labels. */}
@@ -113,12 +96,12 @@ export function SeoActionCard({
             </span>
           </span>
         </SeoActionCardHead>
-      </Heading>
+      </h3>
       {open ? (
         <div
           id={bodyId}
-          // The card that stays open is part of the page; a body that a press opens rises in.
-          className={cn("space-y-2 px-4 pb-4", !fixed && "content-rise")}
+          // A body that a press opens rises in.
+          className="space-y-2 px-4 pb-4 content-rise"
         >
           {/* The page stays near the title: the closed row names it there, the open card links it under the
               head. The link is no part of the head: a press on it opens the page, not the card. */}
@@ -143,7 +126,7 @@ export function SeoActionCard({
               </span>
             ) : null}
           </p>
-          <details className="text-sm" open={full}>
+          <details className="text-sm">
             {/* Detail behind a fold: quieter than the title and the found line over it. */}
             <SeoFoldSummary className="text-muted-foreground py-2.5">
               {t("actions.whyDetails")}
@@ -193,18 +176,9 @@ export function SeoActionCard({
                     </pre>
                   </div>
                   <div>
-                    <div className="mb-1 flex items-center justify-between gap-2">
-                      <p className="text-muted-foreground text-xs">
-                        {t("actions.after")}
-                      </p>
-                      {full ? (
-                        <SeoCopyButton
-                          text={action.edit.after}
-                          label={t("actions.copyFix")}
-                          className="h-7"
-                        />
-                      ) : null}
-                    </div>
+                    <p className="text-muted-foreground mb-1 text-xs">
+                      {t("actions.after")}
+                    </p>
                     <pre className="bg-quinary overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
                       {action.edit.after}
                     </pre>
@@ -213,15 +187,7 @@ export function SeoActionCard({
               ) : null}
             </div>
           </details>
-          <div className="flex flex-wrap gap-2">
-            <SeoActionTaskButton action={action} model={model} />
-            {full ? (
-              <SeoCopyButton
-                text={instructions}
-                label={t("actions.copyInstructions")}
-              />
-            ) : null}
-          </div>
+          <SeoActionTaskButton action={action} model={model} />
         </div>
       ) : null}
     </article>
@@ -239,7 +205,7 @@ export function SeoActionFinding({
   return useSeoActionFinding(action, model);
 }
 
-function useSeoActionFinding(
+export function useSeoActionFinding(
   action: ProjectSeoAction,
   model: SeoWorkspaceModel,
 ): string {

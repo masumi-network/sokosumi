@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowRight,
   ChartColumn,
   ChevronRight,
   type LucideIcon,
@@ -12,16 +13,13 @@ import {
   Settings2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
-import {
-  SeoActionCard,
-  SeoActionFinding,
-  SeoActionTaskButton,
-} from "./seo-actions";
+import { SeoActionDetail } from "./seo-action-detail";
+import { SeoActionFinding } from "./seo-actions";
 import type { SeoAgentStep } from "./seo-agent-model";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGoogleConnection } from "./seo-google-connection";
@@ -227,8 +225,8 @@ export function SeoActionsLinkRow({
 }
 
 /**
- * An action as one row: its title, and a press opens its card in a dialog on the same tab. The lead row also
- * says what the check found and has the action's button under it, outside the row's own button.
+ * An action as one row: its title, and a press opens it in a dialog on the same tab. The lead row also says
+ * what the check found and has a button under it that opens the same dialog, outside the row's own button.
  */
 export function SeoActionStepRow({
   action,
@@ -240,15 +238,18 @@ export function SeoActionStepRow({
   action: Extract<SeoAgentStep, { kind: "action" }>["action"];
   severity: SeoIssueSeverity | null;
   model: SeoWorkspaceModel;
-  /** Opens the action's card in the tab's one action dialog; the row is the place focus returns to. */
+  /** Opens the action in the tab's one action dialog; the row is the place focus returns to. */
   onOpen: (row: HTMLButtonElement) => void;
   /** The first step of the verdict card: no frame of its own, the finding and the button. */
   lead?: boolean;
 }) {
+  const t = useTranslations("App.Seo");
   const findingId = useId();
+  const row = useRef<HTMLButtonElement>(null);
   return (
     <li className="content-rise">
       <button
+        ref={row}
         type="button"
         // The finding describes the row: as part of its name it read several sentences per press.
         aria-describedby={lead ? findingId : undefined}
@@ -286,9 +287,20 @@ export function SeoActionStepRow({
         </span>
         <ChevronRight className="text-muted-foreground size-4 shrink-0" />
       </button>
+      {/* The lead opens its action, as a press on its row does: the dialog holds the Task button with the
+          reasons, so a Task is drafted once its reasons were in view. */}
       {lead ? (
         <div className="px-4 pb-3">
-          <SeoActionTaskButton action={action} model={model} />
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => {
+              if (row.current) onOpen(row.current);
+            }}
+          >
+            {t("agent.openAction")}
+            <ArrowRight />
+          </Button>
         </div>
       ) : null}
     </li>
@@ -296,7 +308,7 @@ export function SeoActionStepRow({
 }
 
 /**
- * The card of an action row, in a dialog on the Agent tab. The dialog belongs to the tab, not to the row: a
+ * An action row opened in a dialog on the Agent tab. The dialog belongs to the tab, not to the row: a
  * Task for the action takes its row out of the steps, and the dialog stays to show the Task.
  */
 export function SeoActionDialog({
@@ -320,27 +332,14 @@ export function SeoActionDialog({
       }}
     >
       {action ? (
-        // The card names the action in its own heading; the dialog title repeats it for the dialog's name. The
-        // top padding keeps the close button clear of the title. A long card scrolls inside the screen, under the
-        // close button, which stays in view.
+        // A long action scrolls between its head and its buttons, which stay in view.
         <DialogContent
-          className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 p-0 pt-10 sm:max-w-xl"
+          className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
           onCloseAutoFocus={onCloseAutoFocus}
-          // The card is the whole content: no separate description.
+          // The action is the whole content: no separate description.
           aria-describedby={undefined}
         >
-          <DialogTitle className="sr-only">{action.title}</DialogTitle>
-          <div className="min-h-0 overflow-y-auto">
-            <SeoActionCard
-              action={action}
-              model={model}
-              severity={severity}
-              primary
-              fixed
-              flush
-              full
-            />
-          </div>
+          <SeoActionDetail action={action} model={model} severity={severity} />
         </DialogContent>
       ) : null}
     </Dialog>

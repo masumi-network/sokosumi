@@ -5738,11 +5738,14 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    const create = await screen.findByRole("button", {
-      name: "Create draft task",
+    // The lead step opens its action; the Task is drafted in the dialog, next to its reasons.
+    const openAction = await screen.findByRole("button", {
+      name: "Open action",
     });
-    // The step wears the brand fill (owner, after pass 59); the run is raised in the secondary look.
-    expect(create).toHaveClass("bg-quinary");
+    expect(openAction).toHaveClass("bg-quinary");
+    expect(
+      screen.queryByRole("button", { name: "Create draft task" }),
+    ).toBeNull();
     const run = screen.getByRole("button", { name: "Run full audit" });
     expect(run).toHaveClass("bg-quaternary");
     expect(run).not.toHaveClass("bg-primary");
@@ -5755,11 +5758,13 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     // The lead row is short: its reasons are in the dialog it opens.
     expect(screen.queryByText("The title is missing")).toBeNull();
-    const [leadRow] = within(
-      screen.getByRole("list", { name: "The agent proposes" }),
-    ).getAllByRole("button");
-    await user.click(leadRow!);
-    const dialog = await screen.findByRole("dialog");
+    await user.click(openAction);
+    const dialog = await screen.findByRole("dialog", {
+      name: "Fix the page title",
+    });
+    expect(
+      within(dialog).getByRole("button", { name: "Create draft task" }),
+    ).toHaveClass("bg-quinary");
     // The dialog shows the reasons at once, and the fix and the whole action can be copied.
     expect(within(dialog).getByText("The title is missing")).toBeVisible();
     expect(
@@ -5836,9 +5841,9 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    // The run cannot start: the draft button stays tinted, with no brand fill on the tab (owner, 2026-11-13).
+    // The run cannot start: the lead button stays tinted, with no brand fill on the tab (owner, 2026-11-13).
     expect(
-      await screen.findByRole("button", { name: "Create draft task" }),
+      await screen.findByRole("button", { name: "Open action" }),
     ).toHaveClass("bg-quinary");
     expect(screen.queryByRole("button", { name: "Run full audit" })).toBeNull();
     await user.click(screen.getByRole("tab", { name: "Actions" }));
@@ -5994,10 +5999,13 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    // Only the top fix has its own button; it is a short row, its reasons wait in the dialog.
+    // Only the top fix has its own button, which opens it; its reasons and its Task button wait in the dialog.
     expect(
-      await screen.findAllByRole("button", { name: "Create draft task" }),
+      await screen.findAllByRole("button", { name: "Open action" }),
     ).toHaveLength(1);
+    expect(
+      screen.queryByRole("button", { name: "Create draft task" }),
+    ).toBeNull();
     expect(screen.queryByText("Reason and evidence")).toBeNull();
     const leadList = screen.getByRole("list", { name: "The agent proposes" });
     const leadRow = within(leadList).getByRole("button", {
@@ -6011,7 +6019,7 @@ describe("SEO workspace integration", () => {
       expect.stringContaining(fix.expectedEffect),
     );
     expect(
-      within(leadList).getByRole("button", { name: "Create draft task" }),
+      within(leadList).getByRole("button", { name: "Open action" }),
     ).toBeVisible();
     // Every fix is a row of the same list, right after the first: no press hides them.
     expect(screen.queryByRole("button", { name: /more steps?$/ })).toBeNull();
@@ -6045,7 +6053,11 @@ describe("SEO workspace integration", () => {
     expect(
       within(dialog).getByRole("button", { name: "Create draft task" }),
     ).toBeVisible();
-    expect(within(dialog).getByText("Reason and evidence")).toBeVisible();
+    // The reasons show at once, under a heading of their own.
+    expect(
+      within(dialog).getByRole("heading", { name: "Why this matters" }),
+    ).toBeVisible();
+    expect(within(dialog).getByText(fix.why)).toBeVisible();
     // Closing it returns the focus to the row, still on the Agent tab.
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -6301,10 +6313,12 @@ describe("SEO workspace integration", () => {
         workspace.actions[2],
       ],
     };
-    await user.click(
-      within(first).getByRole("button", { name: "Create draft task" }),
+    // A Task made elsewhere reaches the tab on its next load, while the focus is on the lead's button.
+    act(() =>
+      within(first).getByRole("button", { name: "Open action" }).focus(),
     );
-    // The next action leads in the card. Focus left with the pressed button, so it goes to the verdict.
+    await act(() => clients.at(-1)!.invalidateQueries());
+    // The next action leads in the card. Focus left with the button, so it goes to the verdict.
     await waitFor(() =>
       expect(
         within(
@@ -6317,7 +6331,7 @@ describe("SEO workspace integration", () => {
     // Focus that left the list by a click on the page moves no focus when the lead changes.
     act(() =>
       within(screen.getByRole("list", { name: "The agent proposes" }))
-        .getByRole("button", { name: "Create draft task" })
+        .getByRole("button", { name: "Open action" })
         .focus(),
     );
     expect(
@@ -6337,11 +6351,7 @@ describe("SEO workspace integration", () => {
           : action,
       ),
     };
-    fireEvent.click(
-      within(
-        screen.getByRole("list", { name: "The agent proposes" }),
-      ).getByRole("button", { name: "Create draft task" }),
-    );
+    await act(() => clients.at(-1)!.invalidateQueries());
     await waitFor(() =>
       expect(
         within(
