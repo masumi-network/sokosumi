@@ -7,20 +7,39 @@ import {
   type FocusEvent,
   type MouseEvent,
   type PointerEvent,
+  type Ref,
   type RefObject,
   type TouchEvent,
+  useCallback,
   useEffect,
   useRef,
 } from "react";
 
+import {
+  msUntilIntentSettled,
+  useIntentPrefetch,
+} from "@/hooks/use-intent-prefetch";
 import { prefetchRouteContent } from "@/lib/navigation/prefetch-route-content";
 
 /**
  * How long the pointer must rest on a link before it loads the page's content.
- * A pointer that only crosses a list on its way elsewhere never starts a
- * server render.
+ * Short, as it only covers a link the predicted approach missed. The hover
+ * itself starts no server render for a pointer that crosses the link faster;
+ * the cursor's path may still have loaded it.
  */
-export const INTENT_DWELL_MS = 100;
+export const HOVER_DWELL_MS = 20;
+
+/**
+ * How long keyboard focus must rest on a link before it loads the page's
+ * content, so holding Tab through a list does not render every page it passes.
+ */
+export const FOCUS_DWELL_MS = 100;
+
+/**
+ * How long one predicted approach covers a link before the next one prefetches
+ * again. Hover, focus and touch still prefetch each time.
+ */
+const APPROACH_REPEAT_MS = 60_000;
 
 type DwellTimer = ReturnType<typeof setTimeout> | null;
 
@@ -35,12 +54,29 @@ interface RestingIntentLinkProps
   prefetchContent?: boolean;
 }
 
+/** Sets a ref the caller passed, and returns how to clear it. */
+function attachRef<T>(ref: Ref<T> | undefined, value: T): () => void {
+  if (typeof ref === "function") {
+    const cleanup = ref(value);
+    return typeof cleanup === "function" ? cleanup : () => ref(null);
+  }
+  if (ref) {
+    ref.current = value;
+    return () => {
+      ref.current = null;
+    };
+  }
+  return () => {};
+}
+
 /**
- * A link that loads its page's content once a mouse or pen hover, or keyboard
- * focus, rests on it. A touch loads only the shared App Shell.
+ * A link that loads its page's content when the cursor's path heads for it,
+ * or once a mouse or pen hover, or keyboard focus, rests on it. A touch loads
+ * only the shared App Shell.
  */
 export function RestingIntentLink({
   href,
+  ref,
   onClick,
   onPointerEnter,
   onPointerLeave,
@@ -81,13 +117,59 @@ export function RestingIntentLink({
   }
   useEffect(() => cancelAllDwells, []);
 
-  function startDwell(timer: RefObject<DwellTimer>) {
+  function startDwell(timer: RefObject<DwellTimer>, dwellMs: number) {
     cancelDwell(timer);
     timer.current = setTimeout(() => {
       timer.current = null;
       prefetchContentOrShell();
-    }, INTENT_DWELL_MS);
+    }, dwellMs);
   }
+
+  // A scroll moves rows under a still cursor, and each leaves before the
+  // scroll stops. The hover dwell starts once the scroll has stopped, so only
+  // the row the reader stops on loads.
+  function startHoverDwell() {
+    cancelDwell(hoverTimer);
+    hoverTimer.current = setTimeout(() => {
+      hoverTimer.current = null;
+      if (msUntilIntentSettled() > 0) {
+        startHoverDwell();
+      } else {
+        prefetchContentOrShell();
+      }
+    }, msUntilIntentSettled() + HOVER_DWELL_MS);
+  }
+
+  // The cursor's path predicts the click before the pointer arrives, so the
+  // content is usually loaded by the time the hover starts. A Tab stop close
+  // by, or a touch that may only start a scroll, loads only the App Shell:
+  // focus and a resting hover still load the content. The link's box is its
+  // text: a card that stretches the link over itself with a pseudo-element
+  // still relies on the hover handler.
+  const approachRef = useIntentPrefetch<HTMLAnchorElement>(
+    (source) => {
+      if (source === "pointer") {
+        prefetchContentOrShell();
+      } else {
+        prefetchShell();
+      }
+    },
+    { reactivateAfter: APPROACH_REPEAT_MS },
+  );
+  // A caller's ref must be stable: a new one each render registers the link
+  // with the library again, which resets its once-a-minute hold.
+  const linkRef = useCallback(
+    (element: HTMLAnchorElement | null) => {
+      if (!element) return;
+      const stopApproach = approachRef(element);
+      const detachRef = attachRef(ref, element);
+      return () => {
+        stopApproach?.();
+        detachRef();
+      };
+    },
+    [approachRef, ref],
+  );
 
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
     // The click already loads the page; a later dwell would render it twice.
@@ -105,7 +187,7 @@ export function RestingIntentLink({
       event.pointerType !== "touch" &&
       event.buttons === 0
     ) {
-      startDwell(hoverTimer);
+      startHoverDwell();
     }
   }
 
@@ -129,7 +211,7 @@ export function RestingIntentLink({
       !event.defaultPrevented &&
       event.currentTarget.matches(":focus-visible")
     ) {
-      startDwell(focusTimer);
+      startDwell(focusTimer, FOCUS_DWELL_MS);
     }
   }
 
@@ -148,6 +230,7 @@ export function RestingIntentLink({
   return (
     <Link
       {...props}
+      ref={linkRef}
       href={href}
       onClick={handleClick}
       onPointerEnter={handlePointerEnter}

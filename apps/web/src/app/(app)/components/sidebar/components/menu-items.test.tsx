@@ -2,7 +2,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({ data: null, isPending: false }),
 }));
 
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { pathnameRef, searchRef, routerPrefetchMock } = vi.hoisted(() => ({
@@ -89,8 +89,9 @@ vi.mock("next/link", () => ({
 }));
 
 import MenuItems from "@/app/components/sidebar/components/menu-items";
-import { INTENT_DWELL_MS } from "@/components/resting-intent-link";
+import { HOVER_DWELL_MS } from "@/components/resting-intent-link";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
+import { approachElement } from "@/test/approach-element";
 import { TestQueryProvider } from "@/test/query-provider";
 
 let sidebarIsMobile = true;
@@ -622,7 +623,7 @@ describe("MenuItems prefetch", () => {
     fireEvent.pointerEnter(screen.getByRole("link", { name }), {
       pointerType: "mouse",
     });
-    vi.advanceTimersByTime(INTENT_DWELL_MS);
+    vi.advanceTimersByTime(HOVER_DWELL_MS);
   }
 
   // Tasks reads are private-cached, so its prefetch carries the page.
@@ -669,6 +670,20 @@ describe("MenuItems prefetch", () => {
     restOn(/taskManager/);
 
     expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks");
+  });
+
+  // The cursor's path predicts the click, so the page is ready before the
+  // pointer arrives.
+  it("loads the Tasks page content when the reader heads for it", async () => {
+    renderMenu(true, false);
+
+    await act(() =>
+      approachElement(screen.getByRole("link", { name: /taskManager/ })),
+    );
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks", {
+      kind: "full",
+    });
   });
 
   // Back to the list from a task is the common way to reach it.

@@ -11,7 +11,8 @@ import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.
  * (`"use cache: private"` for user data) and it never calls `connection()`.
  * An uncached read shows the loading skeleton on the click, as a plain
  * prefetch does. Each new prefetch is a server render of the page, so call
- * this when the reader shows clear intent, not for every predicted approach.
+ * this when a pointer heads for the link or rests on it, never for every
+ * link in view.
  */
 export function prefetchRouteContent(
   router: AppRouterInstance,
