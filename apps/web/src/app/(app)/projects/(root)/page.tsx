@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
@@ -10,12 +9,12 @@ import {
   WorkspaceColumn,
 } from "@/app/projects/components/workspace-column";
 import {
-  PROJECTS_PAGE_LIMIT,
   PROJECTS_PAGE_SHELL_CLASS,
-  projectsListStateQuery,
   WORKSPACE_COLUMN_ROWS,
 } from "@/app/projects/constants";
+import { loadProjectsPageData } from "@/app/projects/projects-page-data";
 import { loadProjectsSearchParams } from "@/app/projects/projects-query";
+import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { projectService } from "@/lib/services/project.service";
 
 interface ProjectsPageProps {
@@ -34,22 +33,13 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-/**
- * Async hole for Instant Nav. `await connection()` first so PPR shell probing
- * does not soft-reject cookies()/headers()-bound work while filling Suspense.
- */
+/** Async hole for Instant Nav. */
 export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
-  await connection();
-
   const params = await searchParams;
   const { create, q } = params;
   const query = q?.trim() ?? "";
   const { state } = loadProjectsSearchParams(params);
-  const projectsPagePromise = projectService.listProjects({
-    limit: PROJECTS_PAGE_LIMIT,
-    query,
-    ...projectsListStateQuery(state),
-  });
+  const projectsPageDataPromise = loadProjectsPageData({ query, state });
   const translationsPromise = getTranslations("App.Projects");
   // Started beside the grid's request, awaited inside their own boundaries.
   // Needs you lives on Home, so the list's column is Recent activity alone.
@@ -62,23 +52,16 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
         }
       : null;
 
-  const [projectsPage, t, tCmo] = await Promise.all([
-    projectsPagePromise,
+  const [{ projectsPage, hasClosedProjects }, t, tCmo] = await Promise.all([
+    projectsPageDataPromise,
     translationsPromise,
     getTranslations("Components.CmoProject"),
   ]);
-  // An empty Open view reads "No projects yet" only when there is truly
-  // nothing; one Closed project is enough to say "all closed" instead.
-  const hasClosedProjects =
-    state === "open" &&
-    !query &&
-    projectsPage.projects.length === 0 &&
-    (await projectService.listProjects({ limit: 1, state: "closed" })).projects
-      .length > 0;
   const initialCreateProjectOpen = create === "true";
 
   return (
     <div className={PROJECTS_PAGE_SHELL_CLASS}>
+      <RefreshPrefetchedPage />
       <ProjectsView
         projects={projectsPage.projects}
         nextCursor={projectsPage.pagination?.nextCursor ?? null}

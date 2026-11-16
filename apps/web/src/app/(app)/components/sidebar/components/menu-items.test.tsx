@@ -634,6 +634,20 @@ describe("MenuItems prefetch", () => {
     });
   });
 
+  // These pages' reads are private-cached too.
+  it.each([["projects", "/projects"]])(
+    "loads the %s page content on a resting hover",
+    (label, href) => {
+      renderMenu(true, false);
+
+      restOn(new RegExp(`^${label}$`));
+
+      expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(href, {
+        kind: "full",
+      });
+    },
+  );
+
   // A page whose reads are not cached would render on the server for nothing.
   it("loads only the shell for a page without cached reads", () => {
     renderMenu(true, false);

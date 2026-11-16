@@ -1,20 +1,34 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { notificationServiceMock, projectServiceMock, projectsViewMock } =
-  vi.hoisted(() => ({
-    notificationServiceMock: {
-      listNeedsYou: vi.fn(),
-    },
-    projectServiceMock: {
-      listProjects: vi.fn(),
-      listRecentActivity: vi.fn(),
-    },
-    projectsViewMock: vi.fn(),
-  }));
+const {
+  connectionMock,
+  notificationServiceMock,
+  projectServiceMock,
+  projectsViewMock,
+} = vi.hoisted(() => ({
+  connectionMock: vi.fn(async () => undefined),
+  notificationServiceMock: {
+    listNeedsYou: vi.fn(),
+  },
+  projectServiceMock: {
+    listProjects: vi.fn(),
+    listRecentActivity: vi.fn(),
+  },
+  projectsViewMock: vi.fn(),
+}));
 
 vi.mock("next/server", () => ({
-  connection: vi.fn(async () => undefined),
+  connection: connectionMock,
+}));
+
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
+
+vi.mock("next/navigation", async () => ({
+  ...(await vi.importActual<typeof import("next/navigation")>(
+    "next/navigation",
+  )),
+  useRouter: () => ({ refresh: vi.fn() }),
 }));
 
 vi.mock("next-intl/server", () => ({
@@ -283,5 +297,20 @@ describe("ProjectsPage", () => {
     expect(projectsViewMock).toHaveBeenCalledWith(
       expect.objectContaining({ hasClosedProjects: false }),
     );
+  });
+
+  // The project lists are cached, so a link prefetch carries the page.
+  it("renders the page without deferring to the request", async () => {
+    projectServiceMock.listProjects.mockResolvedValue({
+      projects: [buildProject()],
+      pagination: null,
+    });
+
+    const { ProjectsPageContent } = await import("./page");
+
+    render(await ProjectsPageContent({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.getByText("Launch plan")).toBeInTheDocument();
+    expect(connectionMock).not.toHaveBeenCalled();
   });
 });
