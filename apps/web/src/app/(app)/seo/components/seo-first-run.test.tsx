@@ -1041,12 +1041,13 @@ describe("SEO audit first run", () => {
     ];
     network(workspace);
     await renderWorkspace(workspace, `?pageId=${workspace.scope.pageIds[0]}`);
-    // No check can run: the headline is what is known, and the line under it does not repeat it.
+    // No check can run: the headline is what is known, and the figure under it names the period only.
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
       /^Google search on this page: 2 clicks, 35 impressions$/,
     );
     expect(screen.getByTestId("seo-agent-traffic")).toHaveTextContent(
-      /^Jan 1\W+2, 2026\s*Open traffic$/,
+      // The name also says where the figure leads.
+      /^Traffic: Jan 1\W+2, 2026$/,
     );
     // One notice above the tabs; no second line about schedules under the chat.
     expect(screen.getByText(copy.dispatchPaused)).toBeVisible();
