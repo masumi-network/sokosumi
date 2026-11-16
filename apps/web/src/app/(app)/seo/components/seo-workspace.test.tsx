@@ -5775,7 +5775,7 @@ describe("SEO workspace integration", () => {
     );
     expect(write).toHaveBeenLastCalledWith(
       [
-        "Make this SEO fix on the website. Change only what it names, then check the page again.",
+        "Make this SEO change on the website. Change only what it names, then check the page again.",
         "Fix the page title",
         "Page: https://example.com/",
         "A descriptive search result",
