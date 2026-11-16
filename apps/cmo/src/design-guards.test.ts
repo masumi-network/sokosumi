@@ -122,7 +122,7 @@ describe("colours", () => {
 });
 
 describe("typeface", () => {
-  it("sets the face only through --font-sans (Inter)", () => {
+  it("sets the face only through --font-sans (PP Mori)", () => {
     const stylesheet = FILES.find((file) => file.rel === STYLESHEET);
     const literalFamilies = (stylesheet?.lines ?? [])
       .map((line, index) => ({ line, index }))
@@ -132,7 +132,7 @@ describe("typeface", () => {
 
     const inSource = findLines(SOURCE, /\bfontFamily\s*:/);
 
-    expect(stylesheet?.text).toMatch(/--font-sans:\s*var\(--font-inter\)/);
+    expect(stylesheet?.text).toMatch(/--font-sans:\s*var\(--font-mori\)/);
     expect([...literalFamilies, ...inSource]).toEqual([]);
   });
 });
