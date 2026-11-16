@@ -133,6 +133,10 @@ model User {
   imageJobs     ProjectImageJob[]     @relation("ProjectImageJobRequester")
   imageReviews  ProjectImageReview[]  @relation("ProjectImageReviewDecider")
 
+  adFeedback          AdFeedback[]
+  adEvents            AdEvent[]
+  adDataConsentDecided WorkspaceAdDataConsent[]
+
   authoredMarketingStrategies MarketingStrategy[] @relation("MarketingStrategyAuthor")
   approvedMarketingStrategies MarketingStrategy[] @relation("MarketingStrategyApprover")
 
