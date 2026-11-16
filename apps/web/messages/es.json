@@ -3497,7 +3497,7 @@
           "checking": "Comprobando qué tareas se mueven…",
           "previewError": "No se pudieron revisar las tareas de este proyecto. Cierra e inténtalo de nuevo.",
           "empty": "Ninguna tarea abierta de este proyecto tiene una fecha límite que puedas cambiar.",
-          "tooMany": "{count} tareas tienen fecha límite aquí. Puedes mover hasta {max} a la vez, así que cambia algunas por separado primero.",
+          "tooMany": "Más de {max} tareas tienen fecha límite aquí. Puedes mover hasta {max} a la vez, así que cambia algunas por separado primero.",
           "summary": "{count, plural, one {Se mueve # tarea} other {Se mueven # tareas}}",
           "to": "a",
           "more": "y {count} más",

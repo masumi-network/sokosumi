@@ -13866,13 +13866,13 @@ export type ShiftProjectDueDates = {
         to: string;
     }>;
     /**
-     * Every Task the move covers, even past the preview's list.
-     */
-    total: number;
-    /**
-     * Tasks that changed meanwhile, could not be edited or failed, and kept their due day.
+     * Confirmed Tasks that changed since the preview, are no longer eligible, could not be edited or failed, and kept their due day.
      */
     skipped: number;
+    /**
+     * The preview found more than 100 Tasks; the project is too big to move at once.
+     */
+    overLimit: boolean;
 };
 
 export type ShiftProjectDueDatesRequest = {
@@ -13882,9 +13882,12 @@ export type ShiftProjectDueDatesRequest = {
      */
     days: number;
     /**
-     * Return what would move, and change nothing.
+     * The Tasks a preview showed, each with the due day it showed. Without it the route only previews.
      */
-    preview?: boolean;
+    tasks?: Array<{
+        id: string;
+        from: string;
+    }>;
 };
 
 export type UndoMoveOverdueTasks = {

@@ -99,23 +99,23 @@ export const showProjectAction = withSession<
 interface ShiftProjectDueDatesParams extends AuthenticatedRequest {
   projectId: string;
   days: number;
-  preview?: boolean;
+  /** The previewed Tasks and the days shown; without them it only previews. */
+  tasks?: { id: string; from: string }[];
 }
 
 /**
- * Moves every open due date in a project by `days`, keeping their spacing;
- * with `preview` it only lists what would move. Core checks the range and
- * each Task's edit rights, so this passes the input through.
+ * Previews, or with `tasks` moves exactly those Tasks by `days` from the
+ * days the preview showed. Core checks the range and each Task under lock.
  */
 export const shiftProjectDueDatesAction = withSession<
   ShiftProjectDueDatesParams,
   Awaited<ReturnType<typeof taskService.shiftProjectDueDates>>
->(async ({ projectId, days, preview }) => {
+>(async ({ projectId, days, tasks }) => {
   const result = await taskService.shiftProjectDueDates({
     projectId,
     days,
-    preview,
+    tasks,
   });
-  if (!preview) revalidatePath(`/projects/${projectId}`);
+  if (tasks) revalidatePath(`/projects/${projectId}`);
   return result;
 });

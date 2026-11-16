@@ -3497,7 +3497,7 @@
           "checking": "Prüfe, welche Aufgaben sich verschieben…",
           "previewError": "Die Aufgaben dieses Projekts konnten nicht geprüft werden. Schließe den Dialog und versuche es erneut.",
           "empty": "Keine offene Aufgabe in diesem Projekt hat ein Fälligkeitsdatum, das du ändern kannst.",
-          "tooMany": "{count} Aufgaben haben hier ein Fälligkeitsdatum. Du kannst bis zu {max} auf einmal verschieben, ändere also zuerst einige einzeln.",
+          "tooMany": "Mehr als {max} Aufgaben haben hier ein Fälligkeitsdatum. Du kannst bis zu {max} auf einmal verschieben, ändere also zuerst einige einzeln.",
           "summary": "{count, plural, one {# Aufgabe wird verschoben} other {# Aufgaben werden verschoben}}",
           "to": "auf",
           "more": "und {count} weitere",

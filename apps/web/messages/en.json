@@ -3497,7 +3497,7 @@
           "checking": "Checking which Tasks move…",
           "previewError": "Could not check this project’s Tasks. Close and try again.",
           "empty": "No open Tasks in this project have a due date you can change.",
-          "tooMany": "{count} Tasks have a due date here. You can move up to {max} at once, so change some of them on their own first.",
+          "tooMany": "More than {max} Tasks have a due date here. You can move up to {max} at once, so change some of them on their own first.",
           "summary": "{count, plural, one {# Task moves} other {# Tasks move}}",
           "to": "to",
           "more": "and {count} more",

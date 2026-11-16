@@ -54718,19 +54718,19 @@ export const ShiftProjectDueDatesSchema = {
             },
             description: 'Tasks moved, or on a preview the Tasks that would move (earliest first, at most 100).'
         },
-        total: {
-            type: 'integer',
-            description: 'Every Task the move covers, even past the preview\'s list.'
-        },
         skipped: {
             type: 'integer',
-            description: 'Tasks that changed meanwhile, could not be edited or failed, and kept their due day.'
+            description: 'Confirmed Tasks that changed since the preview, are no longer eligible, could not be edited or failed, and kept their due day.'
+        },
+        overLimit: {
+            type: 'boolean',
+            description: 'The preview found more than 100 Tasks; the project is too big to move at once.'
         }
     },
     required: [
         'tasks',
-        'total',
-        'skipped'
+        'skipped',
+        'overLimit'
     ]
 } as const;
 
@@ -54748,9 +54748,28 @@ export const ShiftProjectDueDatesRequestSchema = {
             description: 'Days to move every due date by: positive is later, negative earlier.',
             example: 7
         },
-        preview: {
-            type: 'boolean',
-            description: 'Return what would move, and change nothing.'
+        tasks: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        minLength: 1
+                    },
+                    from: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                    }
+                },
+                required: [
+                    'id',
+                    'from'
+                ]
+            },
+            minItems: 1,
+            maxItems: 100,
+            description: 'The Tasks a preview showed, each with the due day it showed. Without it the route only previews.'
         }
     },
     required: [

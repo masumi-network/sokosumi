@@ -339,13 +339,14 @@ export const taskService = (() => {
   }
 
   /**
-   * Moves every open due date in a project by `days`, or with `preview`
-   * only says which would move. Core re-checks each Task under lock.
+   * Previews which open due dates in a project would move by `days`, or
+   * with `tasks` moves exactly those from the days shown. Core re-checks
+   * each Task under lock.
    */
   async function shiftProjectDueDates(input: {
     projectId: string;
     days: number;
-    preview?: boolean;
+    tasks?: { id: string; from: string }[];
   }) {
     const result = await coreClient.shiftProjectDueDates(input);
 

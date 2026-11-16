@@ -7282,7 +7282,7 @@ export const postTasksDueDatesMoveOverdue = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Move the due date of every open Task in a project by the same number of days, so their spacing stays. Covers Tasks in the active workspace the caller may edit, with a due date, not finished, cancelled, archived or waiting on a grant. A project with more than 100 such Tasks is refused rather than half moved. Each Task is checked again under lock and moves only from the day it was picked on.
+ * Move the due date of every open Task in a project by the same number of days, so their spacing stays. Without `tasks` it previews: Tasks in the active workspace the caller may edit, with a due date, not finished, cancelled, archived or waiting on a grant, at most 100. With `tasks` it moves exactly those, each checked again under lock and only from the day the preview showed, so a Task re-dated, added or finished since is never moved.
  */
 export const postTasksDueDatesShiftProject = <ThrowOnError extends boolean = false>(options?: Options<PostTasksDueDatesShiftProjectData, ThrowOnError>): RequestResult<PostTasksDueDatesShiftProjectResponses, PostTasksDueDatesShiftProjectErrors, ThrowOnError> => (options?.client ?? client).post<PostTasksDueDatesShiftProjectResponses, PostTasksDueDatesShiftProjectErrors, ThrowOnError>({
     responseTransformer: postTasksDueDatesShiftProjectResponseTransformer,

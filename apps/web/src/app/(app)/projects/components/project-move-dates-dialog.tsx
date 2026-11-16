@@ -1,10 +1,11 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useDebounce } from "use-debounce";
 
 import { shiftProjectDueDatesAction } from "@/app/projects/actions";
 import { Button } from "@/components/ui/button";
@@ -20,17 +21,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-/** Core moves at most this many Tasks at once and refuses a bigger project. */
+/** Core moves at most this many Tasks at once and flags a bigger project. */
 const MAX_TASKS = 100;
 const MAX_DAYS = 365;
 const PREVIEW_ROWS = 5;
 const PREVIEW_DELAY_MS = 300;
 
 type Preview = Awaited<ReturnType<typeof shiftProjectDueDatesAction>>;
-type PreviewState =
-  | { status: "loading" }
-  | { status: "error" }
-  | { status: "ready"; preview: Preview };
 
 interface ProjectMoveDatesDialogProps {
   projectId: string;
@@ -39,16 +36,17 @@ interface ProjectMoveDatesDialogProps {
   onCloseAutoFocus?: (event: Event) => void;
 }
 
-/** A whole number of days in range, or null while the field says otherwise. */
-function parseDays(value: string): number | null {
+/** Signed whole days in range, or null while the field says otherwise. */
+function parseDays(value: string, direction: "later" | "earlier") {
   const days = Number(value.trim());
-  return Number.isInteger(days) && days >= 1 && days <= MAX_DAYS ? days : null;
+  if (!Number.isInteger(days) || days < 1 || days > MAX_DAYS) return null;
+  return direction === "later" ? days : -days;
 }
 
 /**
  * Moves every open due date in a project by the same number of days, later
  * or earlier, so the plan keeps its spacing. Shows which Tasks move and to
- * which day before anything changes.
+ * which day first; Confirm moves exactly those, from the days shown.
  */
 export function ProjectMoveDatesDialog({
   projectId,
@@ -57,53 +55,38 @@ export function ProjectMoveDatesDialog({
   onCloseAutoFocus,
 }: ProjectMoveDatesDialogProps) {
   const t = useTranslations("App.Projects.Detail.moveDates");
-  const format = useFormatter();
-  const router = useRouter();
   const [daysInput, setDaysInput] = useState("7");
   const [direction, setDirection] = useState<"later" | "earlier">("later");
-  const [state, setState] = useState<PreviewState>({ status: "loading" });
   const [isMoving, startMoving] = useTransition();
 
-  const count = parseDays(daysInput);
-  const days = count === null ? null : direction === "later" ? count : -count;
-
-  useEffect(() => {
-    if (!open || days === null) return;
-    let current = true;
-    setState({ status: "loading" });
-    const timer = setTimeout(() => {
-      shiftProjectDueDatesAction({ projectId, days, preview: true })
-        .then((preview) => {
-          if (current) setState({ status: "ready", preview });
-        })
-        .catch(() => {
-          if (current) setState({ status: "error" });
-        });
-    }, PREVIEW_DELAY_MS);
-    return () => {
-      current = false;
-      clearTimeout(timer);
-    };
-  }, [open, projectId, days]);
-
-  const preview = state.status === "ready" ? state.preview : null;
-  const total = preview?.total ?? 0;
+  const days = parseDays(daysInput, direction);
+  const [previewDays] = useDebounce(days, PREVIEW_DELAY_MS);
+  const query = useQuery({
+    queryKey: ["project-due-date-shift", projectId, previewDays],
+    queryFn: () =>
+      shiftProjectDueDatesAction({ projectId, days: previewDays ?? 0 }),
+    enabled: open && previewDays !== null,
+    staleTime: 0,
+    gcTime: 0,
+  });
+  // Confirm only what is on screen for the days now in the field.
+  const preview =
+    previewDays === days && !query.isFetching ? query.data : undefined;
   const canMove =
-    days !== null && preview !== null && total > 0 && total <= MAX_TASKS;
-
-  function formatDay(day: string) {
-    return format.dateTime(new Date(`${day}T00:00:00.000Z`), {
-      day: "numeric",
-      month: "short",
-      timeZone: "UTC",
-    });
-  }
+    days !== null &&
+    !!preview &&
+    !preview.overLimit &&
+    preview.tasks.length > 0;
 
   function handleMove() {
-    if (!canMove || days === null) return;
+    if (!canMove || days === null || !preview) return;
     startMoving(async () => {
       try {
-        const result = await shiftProjectDueDatesAction({ projectId, days });
+        const result = await shiftProjectDueDatesAction({
+          projectId,
+          days,
+          tasks: preview.tasks.map(({ id, from }) => ({ id, from })),
+        });
         toast.success(
           t("moved", { count: result.tasks.length }),
           result.skipped > 0
@@ -111,7 +94,6 @@ export function ProjectMoveDatesDialog({
             : undefined,
         );
         onOpenChange(false);
-        router.refresh();
       } catch {
         toast.error(t("moveError"));
       }
@@ -151,9 +133,9 @@ export function ProjectMoveDatesDialog({
                 className="w-24 tabular-nums"
                 value={daysInput}
                 onChange={(event) => setDaysInput(event.target.value)}
-                aria-invalid={count === null}
+                aria-invalid={days === null}
                 aria-describedby={
-                  count === null
+                  days === null
                     ? `project-move-days-error-${projectId}`
                     : undefined
                 }
@@ -182,7 +164,7 @@ export function ProjectMoveDatesDialog({
               ))}
             </RadioGroup>
           </div>
-          {count === null ? (
+          {days === null ? (
             <p
               id={`project-move-days-error-${projectId}`}
               className="text-destructive text-sm"
@@ -192,42 +174,8 @@ export function ProjectMoveDatesDialog({
           ) : null}
 
           <div aria-live="polite" className="min-h-24 space-y-2 text-sm">
-            {count === null ? null : state.status === "loading" ? (
-              <p className="text-muted-foreground">{t("checking")}</p>
-            ) : state.status === "error" ? (
-              <p className="text-destructive">{t("previewError")}</p>
-            ) : total === 0 ? (
-              <p className="text-muted-foreground">{t("empty")}</p>
-            ) : total > MAX_TASKS ? (
-              <p>{t("tooMany", { count: total, max: MAX_TASKS })}</p>
-            ) : (
-              <>
-                <p className="font-medium">{t("summary", { count: total })}</p>
-                <ul className="divide-border divide-y rounded-md border">
-                  {state.preview.tasks.slice(0, PREVIEW_ROWS).map((task) => (
-                    <li
-                      key={task.id}
-                      className="flex items-center gap-3 px-3 py-2"
-                    >
-                      <span className="min-w-0 flex-1 truncate">
-                        {task.name}
-                      </span>
-                      <span className="text-muted-foreground flex shrink-0 items-center gap-1 tabular-nums">
-                        <span>{formatDay(task.from)}</span>
-                        <ArrowRight className="size-3" aria-label={t("to")} />
-                        <span className="text-foreground">
-                          {formatDay(task.to)}
-                        </span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                {total > PREVIEW_ROWS ? (
-                  <p className="text-muted-foreground">
-                    {t("more", { count: total - PREVIEW_ROWS })}
-                  </p>
-                ) : null}
-              </>
+            {days === null ? null : (
+              <MoveDatesPreview preview={preview} isError={query.isError} />
             )}
           </div>
 
@@ -241,11 +189,65 @@ export function ProjectMoveDatesDialog({
               {t("cancel")}
             </Button>
             <Button type="submit" loading={isMoving} disabled={!canMove}>
-              {t("confirm", { count: total })}
+              {t("confirm", { count: preview?.tasks.length ?? 0 })}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** What Confirm would move: checking, an error, nothing, too much, or rows. */
+function MoveDatesPreview({
+  preview,
+  isError,
+}: {
+  preview: Preview | undefined;
+  isError: boolean;
+}) {
+  const t = useTranslations("App.Projects.Detail.moveDates");
+  const format = useFormatter();
+  const formatDay = (day: string) =>
+    format.dateTime(new Date(`${day}T00:00:00.000Z`), {
+      day: "numeric",
+      month: "short",
+      timeZone: "UTC",
+    });
+
+  if (isError) {
+    return <p className="text-destructive">{t("previewError")}</p>;
+  }
+  if (!preview) {
+    return <p className="text-muted-foreground">{t("checking")}</p>;
+  }
+  if (preview.overLimit) {
+    return <p>{t("tooMany", { max: MAX_TASKS })}</p>;
+  }
+  const count = preview.tasks.length;
+  if (count === 0) {
+    return <p className="text-muted-foreground">{t("empty")}</p>;
+  }
+  return (
+    <>
+      <p className="font-medium">{t("summary", { count })}</p>
+      <ul className="divide-border divide-y rounded-md border">
+        {preview.tasks.slice(0, PREVIEW_ROWS).map((task) => (
+          <li key={task.id} className="flex items-center gap-3 px-3 py-2">
+            <span className="min-w-0 flex-1 truncate">{task.name}</span>
+            <span className="text-muted-foreground flex shrink-0 items-center gap-1 tabular-nums">
+              <span>{formatDay(task.from)}</span>
+              <ArrowRight className="size-3" aria-label={t("to")} />
+              <span className="text-foreground">{formatDay(task.to)}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      {count > PREVIEW_ROWS ? (
+        <p className="text-muted-foreground">
+          {t("more", { count: count - PREVIEW_ROWS })}
+        </p>
+      ) : null}
+    </>
   );
 }

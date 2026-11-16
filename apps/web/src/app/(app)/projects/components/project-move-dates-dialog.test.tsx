@@ -2,11 +2,12 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { TestQueryProvider } from "@/test/query-provider";
+
 import { ProjectMoveDatesDialog } from "./project-move-dates-dialog";
 
-const { shiftProjectDueDatesAction, refresh, toast } = vi.hoisted(() => ({
+const { shiftProjectDueDatesAction, toast } = vi.hoisted(() => ({
   shiftProjectDueDatesAction: vi.fn(),
-  refresh: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
@@ -20,36 +21,37 @@ vi.mock("next-intl", () => ({
     dateTime: (date: Date) => date.toISOString().slice(0, 10),
   }),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 vi.mock("sonner", () => ({ toast }));
 vi.mock("@/app/projects/actions", () => ({ shiftProjectDueDatesAction }));
 
 const PROJECT_ID = "project-1";
 
-function previewOf(days: number, total = 2) {
+function previewOf(days: number) {
   return {
     tasks: [
-      { id: "a", name: "Draft launch post", from: "2026-11-20", to: "" },
-      { id: "b", name: "Book venue", from: "2026-12-01", to: "" },
+      { id: "a", name: "Draft launch post", from: "2026-11-20" },
+      { id: "b", name: "Book venue", from: "2026-12-01" },
     ].map((task) => ({
       ...task,
       to: new Date(Date.parse(task.from) + days * 86_400_000)
         .toISOString()
         .slice(0, 10),
     })),
-    total,
     skipped: 0,
+    overLimit: false,
   };
 }
 
 function renderDialog() {
   const onOpenChange = vi.fn();
   render(
-    <ProjectMoveDatesDialog
-      projectId={PROJECT_ID}
-      open
-      onOpenChange={onOpenChange}
-    />,
+    <TestQueryProvider>
+      <ProjectMoveDatesDialog
+        projectId={PROJECT_ID}
+        open
+        onOpenChange={onOpenChange}
+      />
+    </TestQueryProvider>,
   );
   return { onOpenChange };
 }
@@ -57,8 +59,14 @@ function renderDialog() {
 beforeEach(() => {
   vi.clearAllMocks();
   shiftProjectDueDatesAction.mockImplementation(
-    async ({ days, preview }: { days: number; preview?: boolean }) =>
-      preview ? previewOf(days) : { ...previewOf(days), skipped: 1 },
+    async ({ days, tasks }: { days: number; tasks?: unknown[] }) =>
+      tasks
+        ? {
+            ...previewOf(days),
+            tasks: previewOf(days).tasks.slice(1),
+            skipped: 1,
+          }
+        : previewOf(days),
   );
 });
 
@@ -70,7 +78,6 @@ describe("ProjectMoveDatesDialog", () => {
     expect(shiftProjectDueDatesAction).toHaveBeenLastCalledWith({
       projectId: PROJECT_ID,
       days: 7,
-      preview: true,
     });
     expect(screen.getByText("2026-11-20")).toBeInTheDocument();
     expect(screen.getByText("2026-11-27")).toBeInTheDocument();
@@ -83,17 +90,14 @@ describe("ProjectMoveDatesDialog", () => {
 
     await user.click(screen.getByLabelText("earlier"));
 
-    await waitFor(() =>
-      expect(shiftProjectDueDatesAction).toHaveBeenLastCalledWith({
-        projectId: PROJECT_ID,
-        days: -7,
-        preview: true,
-      }),
-    );
     expect(await screen.findByText("2026-11-13")).toBeInTheDocument();
+    expect(shiftProjectDueDatesAction).toHaveBeenLastCalledWith({
+      projectId: PROJECT_ID,
+      days: -7,
+    });
   });
 
-  it("moves the dates, reports what kept its day, and closes", async () => {
+  it("confirms exactly the previewed Tasks and days, then reports what kept its day", async () => {
     const user = userEvent.setup();
     const { onOpenChange } = renderDialog();
     await screen.findByText("Draft launch post");
@@ -106,21 +110,41 @@ describe("ProjectMoveDatesDialog", () => {
       expect(shiftProjectDueDatesAction).toHaveBeenLastCalledWith({
         projectId: PROJECT_ID,
         days: 7,
+        tasks: [
+          { id: "a", from: "2026-11-20" },
+          { id: "b", from: "2026-12-01" },
+        ],
       }),
     );
     expect(toast.success).toHaveBeenCalledWith(
-      'moved:{"count":2}',
+      'moved:{"count":1}',
       expect.objectContaining({ description: 'skipped:{"count":1}' }),
     );
     expect(onOpenChange).toHaveBeenCalledWith(false);
-    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("can't confirm a preview made for other days than the field now shows", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await screen.findByText("Draft launch post");
+
+    await user.clear(screen.getByLabelText("daysLabel"));
+    await user.type(screen.getByLabelText("daysLabel"), "3");
+
+    expect(
+      screen.getByRole("button", { name: 'confirm:{"count":0}' }),
+    ).toBeDisabled();
+    expect(await screen.findByText("2026-11-23")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: 'confirm:{"count":2}' }),
+    ).toBeEnabled();
   });
 
   it("says nothing moves when the project has no open dated Tasks", async () => {
     shiftProjectDueDatesAction.mockResolvedValue({
       tasks: [],
-      total: 0,
       skipped: 0,
+      overLimit: false,
     });
     renderDialog();
 
@@ -131,14 +155,15 @@ describe("ProjectMoveDatesDialog", () => {
   });
 
   it("refuses a project with more Tasks than one move takes", async () => {
-    shiftProjectDueDatesAction.mockResolvedValue(previewOf(7, 101));
+    shiftProjectDueDatesAction.mockResolvedValue({
+      ...previewOf(7),
+      overLimit: true,
+    });
     renderDialog();
 
+    expect(await screen.findByText('tooMany:{"max":100}')).toBeInTheDocument();
     expect(
-      await screen.findByText('tooMany:{"count":101,"max":100}'),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: 'confirm:{"count":101}' }),
+      screen.getByRole("button", { name: 'confirm:{"count":2}' }),
     ).toBeDisabled();
   });
 

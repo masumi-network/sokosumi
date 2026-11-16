@@ -16,7 +16,6 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const mocks = vi.hoisted(() => ({
-  count: vi.fn(),
   deliverCalendarInvalidationsNow: vi.fn(),
   findMany: vi.fn(),
   requireMutableTaskWriteAccess: vi.fn(),
@@ -26,7 +25,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@sentry/node", () => ({ captureException: vi.fn() }));
 vi.mock("@/helpers/access-control", () => ({
-  buildTaskWriteAccessWhere: () => ({ writable: true }),
+  buildTaskWriteAccessWhere: (userId: string) => ({ writableBy: userId }),
   requireMutableTaskWriteAccess: mocks.requireMutableTaskWriteAccess,
 }));
 vi.mock("@/helpers/calendar-invalidation", () => ({
@@ -41,7 +40,7 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    task: { findMany: mocks.findMany, count: mocks.count },
+    task: { findMany: mocks.findMany },
     $transaction: mocks.transaction,
   },
 }));
@@ -94,21 +93,25 @@ beforeEach(() => {
   mocks.requireMutableTaskWriteAccess.mockImplementation(
     async (_user: unknown, id: string) => {
       if (id === "tsk_gone") throw notFound("Task not found");
-      return { id, workspaceId: WORKSPACE_ID, projectId: PROJECT_ID };
+      return {
+        id,
+        name: `Task ${id}`,
+        workspaceId: WORKSPACE_ID,
+        projectId: PROJECT_ID,
+      };
     },
   );
   mocks.updateMany.mockResolvedValue({ count: 1 });
 });
 
 describe("POST /due-dates/shift-project", () => {
-  it("previews each open dated Task's new day without writing", async () => {
+  it("previews each open, editable, dated Task's new day without writing", async () => {
     mocks.findMany.mockResolvedValue([
       dated("tsk_a", "Draft launch post", "2026-11-20"),
       dated("tsk_b", "Book venue", "2026-12-30"),
     ]);
-    mocks.count.mockResolvedValue(2);
 
-    const res = await post({ projectId: PROJECT_ID, days: 7, preview: true });
+    const res = await post({ projectId: PROJECT_ID, days: 7 });
 
     expect(res.status).toBe(200);
     expect((await res.json()).data).toEqual({
@@ -126,41 +129,82 @@ describe("POST /due-dates/shift-project", () => {
           to: "2027-01-06",
         },
       ],
-      total: 2,
       skipped: 0,
+      overLimit: false,
     });
     expect(mocks.transaction).not.toHaveBeenCalled();
-    expect(mocks.findMany.mock.calls[0]?.[0].where).toMatchObject({
+    const query = mocks.findMany.mock.calls[0]?.[0];
+    expect(query.take).toBe(MAX_DUE_DATE_MOVES + 1);
+    expect(query.where).toEqual({
       workspaceId: WORKSPACE_ID,
       projectId: PROJECT_ID,
       archivedAt: null,
       dueOn: { not: null },
+      status: { notIn: ["COMPLETED", "CANCELED", "GRANT_PENDING"] },
+      AND: [
+        {
+          OR: [
+            { visibility: "PUBLIC" },
+            { visibility: "PRIVATE", ownerId: USER_ID },
+          ],
+        },
+        { writableBy: USER_ID },
+      ],
     });
   });
 
-  it("moves each Task by the same number of days, earlier too, keeping the spacing", async () => {
-    mocks.findMany.mockResolvedValue([
-      dated("tsk_a", "Draft launch post", "2026-11-20"),
-      dated("tsk_b", "Book venue", "2026-12-01"),
-    ]);
-    mocks.count.mockResolvedValue(2);
+  it("flags a project over the limit from the one list it read", async () => {
+    mocks.findMany.mockResolvedValue(
+      Array.from({ length: MAX_DUE_DATE_MOVES + 1 }, (_, index) =>
+        dated(`tsk_${index}`, `Task ${index}`, "2026-11-20"),
+      ),
+    );
 
-    const res = await post({ projectId: PROJECT_ID, days: -3 });
+    const res = await post({ projectId: PROJECT_ID, days: 7 });
+
+    const data = (await res.json()).data;
+    expect(data.overLimit).toBe(true);
+    expect(data.tasks).toHaveLength(MAX_DUE_DATE_MOVES);
+  });
+
+  it("moves only the confirmed Tasks, earlier too, from the days the preview showed", async () => {
+    const res = await post({
+      projectId: PROJECT_ID,
+      days: -3,
+      tasks: [
+        { id: "tsk_a", from: "2026-11-20" },
+        { id: "tsk_b", from: "2026-12-01" },
+      ],
+    });
 
     expect(res.status).toBe(200);
-    expect((await res.json()).data).toMatchObject({
+    expect((await res.json()).data).toEqual({
       tasks: [
-        { id: "tsk_a", from: "2026-11-20", to: "2026-11-17" },
-        { id: "tsk_b", from: "2026-12-01", to: "2026-11-28" },
+        {
+          id: "tsk_a",
+          name: "Task tsk_a",
+          from: "2026-11-20",
+          to: "2026-11-17",
+        },
+        {
+          id: "tsk_b",
+          name: "Task tsk_b",
+          from: "2026-12-01",
+          to: "2026-11-28",
+        },
       ],
-      total: 2,
       skipped: 0,
+      overLimit: false,
     });
-    // Only from the day it was picked on, so a date changed meanwhile stays.
+    // Confirm never picks again, so nothing unconfirmed can join.
+    expect(mocks.findMany).not.toHaveBeenCalled();
     expect(mocks.updateMany).toHaveBeenNthCalledWith(1, {
       where: {
         AND: [
-          expect.objectContaining({ projectId: PROJECT_ID }),
+          expect.objectContaining({
+            projectId: PROJECT_ID,
+            status: { notIn: ["COMPLETED", "CANCELED", "GRANT_PENDING"] },
+          }),
           { id: "tsk_a", dueOn: new Date("2026-11-20T00:00:00.000Z") },
         ],
       },
@@ -171,20 +215,22 @@ describe("POST /due-dates/shift-project", () => {
     );
   });
 
-  it("counts a Task that changed meanwhile or can't be edited as skipped", async () => {
-    mocks.findMany.mockResolvedValue([
-      dated("tsk_a", "Draft launch post", "2026-11-20"),
-      dated("tsk_changed", "Book venue", "2026-12-01"),
-      dated("tsk_gone", "Order shirts", "2026-12-02"),
-    ]);
-    mocks.count.mockResolvedValue(3);
+  it("counts a confirmed Task that changed meanwhile or can't be edited as skipped", async () => {
     mocks.updateMany.mockImplementation(
       async ({ where }: { where: { AND: [unknown, { id: string }] } }) => ({
         count: where.AND[1].id === "tsk_changed" ? 0 : 1,
       }),
     );
 
-    const res = await post({ projectId: PROJECT_ID, days: 7 });
+    const res = await post({
+      projectId: PROJECT_ID,
+      days: 7,
+      tasks: [
+        { id: "tsk_a", from: "2026-11-20" },
+        { id: "tsk_changed", from: "2026-12-01" },
+        { id: "tsk_gone", from: "2026-12-02" },
+      ],
+    });
 
     const data = (await res.json()).data;
     expect(data.tasks.map((task: { id: string }) => task.id)).toEqual([
@@ -193,30 +239,24 @@ describe("POST /due-dates/shift-project", () => {
     expect(data.skipped).toBe(2);
   });
 
-  it("refuses to move part of a project with more Tasks than one move takes", async () => {
-    mocks.findMany.mockResolvedValue([]);
-    mocks.count.mockResolvedValue(MAX_DUE_DATE_MOVES + 1);
-
-    const res = await post({ projectId: PROJECT_ID, days: 7 });
-
-    expect(res.status).toBe(422);
-    expect(mocks.transaction).not.toHaveBeenCalled();
-  });
-
-  it("previews a project over the limit with its full count", async () => {
-    mocks.findMany.mockResolvedValue([]);
-    mocks.count.mockResolvedValue(MAX_DUE_DATE_MOVES + 1);
-
-    const res = await post({ projectId: PROJECT_ID, days: 7, preview: true });
-
-    expect(res.status).toBe(200);
-    expect((await res.json()).data.total).toBe(MAX_DUE_DATE_MOVES + 1);
-  });
-
   it.each([0, 366, -366, 1.5])("rejects a move of %s days", async (days) => {
     const res = await post({ projectId: PROJECT_ID, days });
 
     expect(res.status).toBe(422);
     expect(mocks.findMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects a Confirm with more Tasks than one move takes", async () => {
+    const res = await post({
+      projectId: PROJECT_ID,
+      days: 7,
+      tasks: Array.from({ length: MAX_DUE_DATE_MOVES + 1 }, (_, index) => ({
+        id: `tsk_${index}`,
+        from: "2026-11-20",
+      })),
+    });
+
+    expect(res.status).toBe(422);
+    expect(mocks.transaction).not.toHaveBeenCalled();
   });
 });
