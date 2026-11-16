@@ -173,6 +173,7 @@ describe("POST /v1/cmo/projects/{projectId}/checkout", () => {
       },
       returnUrl: RETURN_URL,
       backUrl: BACK_URL,
+      allowDiscountCodes: true,
     });
   });
 

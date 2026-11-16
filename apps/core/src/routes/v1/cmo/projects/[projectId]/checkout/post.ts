@@ -16,7 +16,7 @@ const route = createRoute({
   operationId: "startCmoPlanCheckoutForProject",
   tags: ["CMO"],
   description:
-    "Starts Polar's hosted checkout for this Cuso's CMO plan: the interval's plans, without trial or discount codes. Any member of his organization may pay; the person comes back to returnUrl on CMO.xyz after paying, or to backUrl through Polar's back link, and the subscription shows in the overview once Polar confirms the payment.",
+    "Starts Polar's hosted checkout for this Cuso's CMO plan: the interval's plans, without trial; the person may enter a Polar discount code. Any member of his organization may pay; the person comes back to returnUrl on CMO.xyz after paying, or to backUrl through Polar's back link, and the subscription shows in the overview once Polar confirms the payment.",
   request: {
     params: cmoProjectParamsSchema,
     body: {
