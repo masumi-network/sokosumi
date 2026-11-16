@@ -122,6 +122,8 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       // The tablet layout keeps the sidebar behind a toggle.
       const showSidebar = page.getByRole("button", { name: "Show sidebar" });
       if (name === "tablet") await showSidebar.click();
+      // The chat list redraws once rooms load; a tap before that can be lost.
+      await page.getByText("No direct messages yet.").waitFor();
       await page.getByRole("button", { name: "Create channel" }).click();
       // Typed, not filled: the handle drives the name and an availability check.
       await page
