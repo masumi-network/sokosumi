@@ -109,16 +109,18 @@ function seoRunReady(workspace: ProjectSeoWorkspace) {
  * A full audit needs paid search data and pages on one host. Null where the reader can run no check at all.
  */
 export function seoRunAction(workspace: ProjectSeoWorkspace) {
-  const { canEdit, canUsePaidSearchData } = workspace.availableActions;
+  const { canEdit, canUsePaidSearchData, canRequestAnalysis } =
+    workspace.availableActions;
+  const running = seoCheckRunning(workspace);
   const pageIds = new Set(workspace.scope.pageIds);
-  if (!canEdit || !pageIds.size) return null;
+  if (!canEdit || !pageIds.size || (!canRequestAnalysis && !running))
+    return null;
   const hosts = new Set(
     workspace.pages
       .filter((page) => pageIds.has(page.id))
       .map((page) => new URL(page.url).host),
   );
   const full = canUsePaidSearchData === true && hosts.size === 1;
-  const running = seoCheckRunning(workspace);
   return {
     kind: full ? "audit_full" : "page_check",
     label: running
@@ -147,13 +149,14 @@ export type SeoSetupFilters = {
  * Correction: setup now offers Google between the page and the check. An explicit skip keeps public-page checks available.
  * Null once a check has saved a result, when the reader cannot edit, when a
  * filter narrows the view, and when the reader can run no check on the pages.
+ * Correction: unavailable dispatch keeps the Google choice and a final explanation in setup.
  */
 export function seoSetup(
   workspace: ProjectSeoWorkspace,
   filters?: SeoSetupFilters,
   googleReady = false,
 ) {
-  const { canEdit, canRequestAnalysis } = workspace.availableActions;
+  const { canEdit } = workspace.availableActions;
   if (workspace.observations.length || !canEdit) return null;
   // A narrowed read can leave out pages and checks.
   if (
@@ -166,8 +169,7 @@ export function seoSetup(
     return null;
   const hasPages = workspace.scope.pageIds.length > 0;
   const running = seoCheckRunning(workspace);
-  // With a page and no right to run a check, no step is left for the reader.
-  if (hasPages && !running && !canRequestAnalysis) return null;
+  // Google connection and an explicit skip remain available even while the check service is off.
   const connection: SeoSetupState =
     running || googleReady ? "done" : hasPages ? "next" : "waiting";
   const check: SeoSetupState = running

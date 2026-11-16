@@ -13,6 +13,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
+import { mutateSeo } from "@/lib/actions/seo/action";
 import messages from "../../../../../messages/en.json";
 import { SeoSetupCard } from "./seo-setup";
 import { seoSetup } from "./seo-setup-model";
@@ -197,7 +198,7 @@ describe("SEO audit first run", () => {
     expect(
       within(setup).queryByRole("button", { name: "Run full audit" }),
     ).toBeNull();
-    expect(within(setup).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(setup).getAllByRole("listitem")).toHaveLength(2);
     await userEvent
       .setup()
       .click(
@@ -653,7 +654,7 @@ describe("SEO audit first run", () => {
     view.rerender(page(setupCard(running)));
     expect(document.activeElement).toBe(button);
     expect(button).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByText("Check running")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Check running" })).toBeVisible();
     // Core gives a start time and no progress. A first full audit of one page has the default time limit
     // (16 minutes) and the steps after it (5 minutes): the card says the time left, as an estimate.
     expect(
@@ -771,16 +772,118 @@ describe("SEO audit first run", () => {
     await waitFor(() => expect(newest).toHaveAttribute("aria-pressed", "true"));
   });
 
-  it("says why checks are off in the notice, with no setup card that promises a check", async () => {
+  it("shows only the page step before a page is added", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.pages = [];
+    workspace.scope.pageIds = [];
+    workspace.availableActions.canRequestAnalysis = false;
+    network(workspace, {
+      connection: (provider) => ({
+        provider,
+        name: provider,
+        status: "not_connected",
+        source: "none",
+      }),
+    });
+    await renderWorkspace(workspace);
+    const setup = within(screen.getByTestId("seo-setup"));
+    expect(setup.getAllByRole("listitem")).toHaveLength(1);
+    expect(setup.getByRole("button", { name: copy.addPage })).toBeVisible();
+    expect(
+      setup.queryByRole("button", { name: copy.setup.skipGoogle }),
+    ).toBeNull();
+    expect(setup.queryByText(copy.setup.check)).toBeNull();
+  });
+
+  it("keeps Connect or Skip before the unavailable check step on Mainnet", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     workspace.availableActions.canRequestAnalysis = false;
-    network(workspace);
+    network(workspace, {
+      connection: (provider) => ({
+        provider,
+        name: provider,
+        status: "not_connected",
+        source: "none",
+      }),
+    });
     await renderWorkspace(workspace);
-    expect(screen.queryByTestId("seo-setup")).toBeNull();
+    expect(screen.getByTestId("seo-setup")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: copy.setup.skipGoogle }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: copy.runFullAudit }),
+    ).toBeNull();
+    expect(screen.queryByText(copy.setup.audit)).toBeNull();
+    await user.click(
+      screen.getByRole("button", { name: copy.setup.skipGoogle }),
+    );
     expect(screen.getByText(copy.dispatchPaused)).toBeVisible();
-    await user.click(screen.getByRole("tab", { name: "Traffic" }));
-    expect(screen.getByText(copy.dispatchPaused)).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: copy.runFullAudit }),
+    ).toBeNull();
+  });
+
+  it("reveals Run audit only after the Google step is connected or explicitly skipped", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    network(workspace, {
+      connection: (provider) => ({
+        provider,
+        name: provider,
+        status: "not_connected",
+        source: "none",
+      }),
+    });
+    await renderWorkspace(workspace);
+    expect(screen.queryByText(copy.setup.audit)).toBeNull();
+    await user.click(
+      screen.getByRole("button", { name: copy.setup.skipGoogle }),
+    );
+    expect(
+      screen.getByRole("button", { name: copy.runFullAudit }),
+    ).toBeVisible();
+  });
+
+  it("shows submission progress and then the accepted running check", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    network(workspace);
+    let finish: (value: { ok: true; value: null }) => void = () => {};
+    vi.mocked(mutateSeo).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    await renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: copy.runFullAudit }));
+    const submit = within(await screen.findByRole("dialog")).getByRole(
+      "button",
+      { name: copy.analysis.submit },
+    );
+    await user.click(submit);
+    expect(submit).toHaveAttribute("aria-busy", "true");
+    workspace.analyses = [
+      {
+        id: crypto.randomUUID(),
+        kind: "audit_full",
+        status: "requested",
+        taskId: null,
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: workspace.scope.version,
+        createdAt: new Date(),
+      },
+    ];
+    finish({ ok: true, value: null });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(
+      screen.getByText((text) => text.startsWith(copy.setup.checkStartedNow)),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: copy.setup.checkRunningBadge }),
+    ).toHaveAttribute("aria-disabled", "true");
   });
 
   it("ends setup for a filtered view, which keeps the notice", async () => {

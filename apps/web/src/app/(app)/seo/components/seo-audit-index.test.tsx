@@ -35,6 +35,18 @@ function show(audits: (typeof AUDIT)[], addOpen: boolean) {
 describe("SEO audit list", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("starts with only the website form and Continue, before Google or the audit step", () => {
+    show([], false);
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Continue" })).toBeVisible();
+    expect(
+      screen.queryByText(messages.App.Seo.audits.onboarding.connectTitle),
+    ).toBeNull();
+    expect(
+      screen.queryByText(messages.App.Seo.audits.onboarding.checkTitle),
+    ).toBeNull();
+  });
+
   it("opens the form for a new Audit when the link asks for it, one time", async () => {
     show([AUDIT], true);
     expect(screen.getByRole("dialog", { name: "Create audit" })).toBeVisible();

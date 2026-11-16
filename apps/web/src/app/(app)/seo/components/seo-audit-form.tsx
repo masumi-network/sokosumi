@@ -75,7 +75,7 @@ export function SeoAuditForm({
           disabled={form.pending}
         >
           <Plus />
-          {t("audits.create")}
+          {t(showCancel ? "audits.create" : "audits.continue")}
         </Button>
       </DialogFooter>
     </form>

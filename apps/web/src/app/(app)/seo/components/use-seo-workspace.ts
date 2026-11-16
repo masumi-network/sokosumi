@@ -219,9 +219,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     google.data?.status === "connected" || googleSkippedFor === setupIdentity;
   // A page/date filter can hide a previous check. Reuse the whole-Audit cache before deciding it is first-run.
   const needsSetupChoice =
-    data.availableActions.canEdit &&
-    data.availableActions.canRequestAnalysis &&
-    !seoCheckBlocking(data, new Date());
+    data.availableActions.canEdit && !seoCheckBlocking(data, new Date());
   const needsSetupHistory =
     needsSetupChoice &&
     Boolean(query.toString()) &&
