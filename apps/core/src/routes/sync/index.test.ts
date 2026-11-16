@@ -23,6 +23,7 @@ const {
   purgeExpiredVerificationsMock,
   syncProjectClosesMock,
   syncPolarYearlyGrantsMock,
+  retryOwedPolarRevokesMock,
   releaseDueTaskSchedulesMock,
   releaseDueRunAtsMock,
 } = vi.hoisted(() => ({
@@ -32,6 +33,7 @@ const {
   syncCardanoV2RailReadinessMock: vi.fn(),
   syncCalendarInvalidationsMock: vi.fn(),
   syncPolarYearlyGrantsMock: vi.fn(),
+  retryOwedPolarRevokesMock: vi.fn(),
   syncEnterpriseContractRenewalMock: vi.fn(),
   syncFreeSubscriptionRenewalMock: vi.fn(),
   releaseLockMock: vi.fn(),
@@ -162,6 +164,10 @@ vi.mock("@/services/polar-yearly-grant-sync.service", () => ({
   syncPolarYearlyGrants: syncPolarYearlyGrantsMock,
 }));
 
+vi.mock("@/services/polar-subscription-end.service", () => ({
+  retryOwedPolarRevokes: retryOwedPolarRevokesMock,
+}));
+
 vi.mock("@/services/free-subscription-sync.service", () => ({
   freeSubscriptionSyncService: {
     renewLocalFreeSubscriptions: syncFreeSubscriptionRenewalMock,
@@ -284,6 +290,11 @@ describe("sync routes", () => {
     syncPolarYearlyGrantsMock.mockResolvedValue({
       errors: 0,
       granted: 0,
+      stoppedEarly: false,
+    });
+    retryOwedPolarRevokesMock.mockResolvedValue({
+      errors: 0,
+      revoked: 0,
       stoppedEarly: false,
     });
     syncEnterpriseContractRenewalMock.mockResolvedValue({
@@ -652,7 +663,7 @@ describe("sync routes", () => {
     });
   });
 
-  it("returns 200 and starts the CMO yearly grants sync exactly once in background", async () => {
+  it("returns 200 and starts the CMO yearly grants sync and owed revokes exactly once in background", async () => {
     const app = createApp();
 
     const response = await app.request(
@@ -666,6 +677,9 @@ describe("sync routes", () => {
     await flushMicrotasks();
     expect(syncPolarYearlyGrantsMock).toHaveBeenCalledTimes(1);
     expect(syncPolarYearlyGrantsMock).toHaveBeenCalledWith(
+      expect.any(Function),
+    );
+    expect(retryOwedPolarRevokesMock).toHaveBeenCalledExactlyOnceWith(
       expect.any(Function),
     );
   });

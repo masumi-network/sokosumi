@@ -550,6 +550,7 @@ describe("POST /v1/webhooks/polar", () => {
         where: {
           polarSubscriptionId: "sub_1",
           polarEventAt: { lte: new Date("2026-11-13T10:00:03.000Z") },
+          revokeOwedAt: null,
         },
         data: expect.objectContaining({
           pendingPolarProductId: null,

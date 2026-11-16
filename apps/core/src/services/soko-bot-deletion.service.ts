@@ -134,7 +134,7 @@ export async function deleteSokoBot(
   if (!live) throw notFound("Soko Bot not found");
 
   // Polar stops charging for a live Cuso before he ends (ADR 0068). A
-  // failure throws here, so nothing below runs.
+  // revoke Polar fails is owed to the sync job; the deletion goes on.
   await revokeCusoSubscription(live.id);
 
   const deleted = await serializableTransaction(async (tx) => {
