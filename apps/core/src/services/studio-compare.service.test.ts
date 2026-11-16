@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notFound } from "@/helpers/error";
 import type { StudioBatchAssetView } from "@/services/image-studio-assets.service";
+import { emptyStudioAssetRating } from "@/services/image-studio-feedback.service";
 
 const mocks = vi.hoisted(() => ({
   batchAssets: vi.fn(),
@@ -43,6 +44,7 @@ function asset(
   overrides: Partial<StudioBatchAssetView> = {},
 ): StudioBatchAssetView {
   return {
+    ...emptyStudioAssetRating(),
     id,
     projectId: SCOPE.projectId,
     projectName: "Launch",

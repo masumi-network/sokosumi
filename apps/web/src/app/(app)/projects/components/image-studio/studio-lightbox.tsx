@@ -1,9 +1,12 @@
 "use client";
 
-import type { StudioLogoPosition } from "@sokosumi/core-client";
+import type {
+  SetStudioAssetFeedbackData,
+  StudioLogoPosition,
+} from "@sokosumi/core-client";
 import { Download, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +27,7 @@ import { StudioBatchCompareButton } from "./studio-batch-compare";
 import { StudioBatchHeadlines } from "./studio-batch-headlines";
 import { StudioImage } from "./studio-image";
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
+import { StudioAssetMenu, StudioRating } from "./studio-rating";
 import {
   assetContentUrl,
   assetFileExtension,
@@ -55,6 +59,10 @@ export function StudioLightbox({
   onAnimate,
   onClose,
   onCompare,
+  onRate,
+  onHide,
+  onViewed,
+  ratingBusyIds = [],
   onDownloadBatch,
   downloadingBatch,
   headlineForAsset,
@@ -87,6 +95,13 @@ export function StudioLightbox({
   onAnimate?: (asset: StudioAsset) => void;
   onClose: () => void;
   onCompare?: (asset: StudioAsset) => void;
+  onRate?: (
+    asset: StudioAsset,
+    input: SetStudioAssetFeedbackData["body"],
+  ) => void;
+  onHide?: (asset: StudioAsset) => void;
+  onViewed?: (asset: StudioAsset) => void;
+  ratingBusyIds?: string[];
   onDownloadBatch?: (
     asset: StudioAsset,
     logo?: StudioLogoPosition,
@@ -132,6 +147,18 @@ export function StudioLightbox({
     position: StudioLogoPosition | undefined;
   }>();
 
+  const viewed = useRef(new Set<string>());
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      for (const asset of assets) {
+        if (viewed.current.has(asset.id)) continue;
+        viewed.current.add(asset.id);
+        onViewed?.(asset);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [assets, onViewed]);
+
   if (assets.length === 0) return null;
 
   if (single) {
@@ -151,6 +178,26 @@ export function StudioLightbox({
         activeSrc={url}
         aside={
           <>
+            {onRate || onHide ? (
+              <div className="mb-4 flex items-start justify-between gap-2">
+                {onRate ? (
+                  <StudioRating
+                    asset={single}
+                    busy={ratingBusyIds.includes(single.id)}
+                    details
+                    onRate={onRate}
+                  />
+                ) : (
+                  <span />
+                )}
+                {onHide ? (
+                  <StudioAssetMenu
+                    busy={ratingBusyIds.includes(single.id)}
+                    onHide={() => onHide(single)}
+                  />
+                ) : null}
+              </div>
+            ) : null}
             <Metadata
               asset={single}
               catalog={catalog}
@@ -374,6 +421,7 @@ export function StudioLightbox({
           src: assetContentUrl(asset),
           alt: asset.prompt,
           downloadFilename: `v${asset.version}.${assetFileExtension(asset)}`,
+          downloadSrc: assetContentUrl(asset, { download: true }),
           isVideo: isVideoAsset(asset),
         }))}
         onActiveSrcChange={(src) => {
@@ -429,6 +477,16 @@ export function StudioLightbox({
             >
               <ImagePane asset={asset} labels={labels} />
               <div className="border-border min-w-0 border-t p-3">
+                {onRate ? (
+                  <div className="mb-4">
+                    <StudioRating
+                      asset={asset}
+                      busy={ratingBusyIds.includes(asset.id)}
+                      details
+                      onRate={onRate}
+                    />
+                  </div>
+                ) : null}
                 <Metadata
                   asset={asset}
                   catalog={catalog}

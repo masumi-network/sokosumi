@@ -37,6 +37,7 @@ const route = withOrganizationSlugHeaderParameter(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Project not found"),
+      409: jsonErrorResponse("CMO project is read-only"),
       413: jsonErrorResponse("Batch exceeds the image limit"),
       422: jsonErrorResponse("Choose matching batch siblings"),
     },

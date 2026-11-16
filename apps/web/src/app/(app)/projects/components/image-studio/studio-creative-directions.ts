@@ -23,3 +23,8 @@ export const STUDIO_CREATIVE_DIRECTIONS = [
 
 export type StudioCreativeDirection =
   (typeof STUDIO_CREATIVE_DIRECTIONS)[number]["id"];
+
+export {
+  studioAdCopyPrompts,
+  studioAdVariationIndex,
+} from "@sokosumi/utils";

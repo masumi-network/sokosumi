@@ -9,6 +9,9 @@ const {
   requireWorkspaceAccessMock,
   getMock,
   getEnvMock,
+  feedbackGroupByMock,
+  feedbackFindManyMock,
+  eventGroupByMock,
 } = vi.hoisted(() => ({
   assetFindFirstMock: vi.fn(),
   assetFindManyMock: vi.fn(),
@@ -18,6 +21,9 @@ const {
   requireWorkspaceAccessMock: vi.fn(),
   getMock: vi.fn(),
   getEnvMock: vi.fn(),
+  feedbackGroupByMock: vi.fn(),
+  feedbackFindManyMock: vi.fn(),
+  eventGroupByMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
@@ -34,6 +40,11 @@ vi.mock("@/lib/db/prisma", () => ({
       groupBy: assetGroupByMock,
     },
     projectImageJob: { findMany: jobFindManyMock },
+    adFeedback: {
+      groupBy: feedbackGroupByMock,
+      findMany: feedbackFindManyMock,
+    },
+    adEvent: { groupBy: eventGroupByMock },
   },
 }));
 
@@ -61,6 +72,9 @@ describe("image studio versions", () => {
       IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: "studio-private-store-token",
     });
     requireProjectAccessMock.mockResolvedValue(SCOPE);
+    feedbackGroupByMock.mockResolvedValue([]);
+    feedbackFindManyMock.mockResolvedValue([]);
+    eventGroupByMock.mockResolvedValue([]);
   });
 
   it("streams bytes only after re-authorizing, and never exposes a storage path", async () => {
@@ -228,6 +242,9 @@ describe("image studio batch siblings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireProjectAccessMock.mockResolvedValue(SCOPE);
+    feedbackGroupByMock.mockResolvedValue([]);
+    feedbackFindManyMock.mockResolvedValue([]);
+    eventGroupByMock.mockResolvedValue([]);
   });
 
   const rawAsset = {

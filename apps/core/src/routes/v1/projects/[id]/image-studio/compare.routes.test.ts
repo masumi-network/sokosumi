@@ -112,6 +112,12 @@ describe("studio comparison routes", () => {
         jobId: id,
         settings: { aspectRatio: "1:1" },
         batchBrief: "Server-only brief",
+        myThumb: null,
+        myReasons: [],
+        myComment: null,
+        thumbsUp: 0,
+        thumbsDown: 0,
+        score: 0.5,
       };
     }
     mocks.next.mockResolvedValue({ a: asset(A), b: asset(B) });

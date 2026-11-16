@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { notFound } from "@/helpers/error";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 
@@ -158,6 +159,28 @@ describe("authorized chat results", () => {
     ]);
   });
 
+  it("shows a removed task again once it can be read, and stays unavailable while it cannot", async () => {
+    const removed = chatResultSnapshotSchema.parse({
+      workspaceId: "workspace",
+      reference: { kind: "task", id: "task-1" },
+      data: {
+        id,
+        state: "unavailable",
+        capturedAt: capturedAt.toISOString(),
+        kind: "task",
+      },
+    });
+    const [restored] = await hydrateChatResultSnapshots([removed], "owner");
+    expect(restored).toMatchObject({
+      state: "available",
+      title: "Launch campaign",
+    });
+    readTask.mockRejectedValue(notFound("Task not found"));
+    expect(await hydrateChatResultSnapshots([removed], "owner")).toEqual([
+      { id, state: "unavailable" },
+    ]);
+  });
+
   it("keeps historical task state while showing the recorded input question", async () => {
     readTask.mockResolvedValue({
       id: "task-1",
@@ -268,9 +291,33 @@ describe("authorized chat results", () => {
       expect.objectContaining({
         where: {
           id: "follow-up",
-          requestedByUserId: "owner",
           workspaceId: "workspace",
+          OR: [
+            { requestedByUserId: "owner" },
+            { sokoBot: { userId: "owner" } },
+          ],
         },
+      }),
+    );
+    // In an Organization the member also reaches its shared bots' schedules.
+    workspace.mockResolvedValueOnce({
+      id: "workspace",
+      userId: null,
+      organizationId: "organization",
+    });
+    await resolveChatResultReference({
+      reference: { kind: "bot_schedule", id: "follow-up" },
+      actor,
+    });
+    expect(botSchedule).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { requestedByUserId: "owner" },
+            { sokoBot: { userId: "owner" } },
+            { sokoBot: { userId: null, deletedAt: null } },
+          ],
+        }),
       }),
     );
     botSchedule.mockResolvedValue(null);

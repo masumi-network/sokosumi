@@ -51,6 +51,12 @@ const A: StudioAsset = {
   jobId: "job-a",
   settings: { aspectRatio: "1:1", outputFormat: "png" },
   contentPath: "/a",
+  myThumb: null,
+  myReasons: [],
+  myComment: null,
+  thumbsUp: 0,
+  thumbsDown: 0,
+  score: 0.5,
 };
 const B: StudioAsset = {
   ...A,
