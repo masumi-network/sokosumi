@@ -1,4 +1,5 @@
 import type { Prisma, ProjectSeoObservation } from "@sokosumi/database";
+import { SEO_FULL_AUDIT_MAX_PROVIDER_USD } from "@sokosumi/utils";
 
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
@@ -9,6 +10,7 @@ import {
 } from "@/lib/seo/analysis-dispatch";
 import {
   requireSeoAnalysisBalance,
+  requireSeoFullAuditPriceApproval,
   seoAnalysisMaxCredits,
 } from "@/lib/seo/analysis-price";
 import { seoVisibilityFor } from "@/lib/seo/data-visibility";
@@ -80,6 +82,9 @@ export function seoTaskPacket(
           version: 1,
           requestId,
           pageUrls,
+          ...(input.fullAuditCredits !== undefined
+            ? { price: { kind: "fixed", credits: input.fullAuditCredits } }
+            : {}),
           ...(input.keywords[0] ? { keyword: input.keywords[0] } : {}),
           countryCode: input.countryCode,
           languageCode: input.languageCode,
@@ -132,6 +137,13 @@ export function validateSeoAnalysis(
   )
     throw badRequest("Select each competitor once");
   if (input.kind === "audit_full") {
+    if (
+      input.fullAuditCredits !== undefined &&
+      (input.fullAuditLimits?.usd ?? 0) > SEO_FULL_AUDIT_MAX_PROVIDER_USD
+    )
+      throw badRequest(
+        "The full-audit data budget exceeds the fixed-price allowance",
+      );
     if (input.analyses || input.competitorUrls.length)
       throw badRequest("Full audits cannot use focused analysis options");
     if (input.keywords.length > 1)
@@ -146,6 +158,8 @@ export function validateSeoAnalysis(
       throw badRequest("A full related-page audit uses pages on the same host");
     return;
   }
+  if (input.fullAuditCredits !== undefined)
+    throw badRequest("A full-audit price applies only to full audits");
   if (input.fullAuditLimits)
     throw badRequest("Full-audit limits apply only to full audits");
   const modules = selectedModules(input);
@@ -211,6 +225,7 @@ export async function requestProjectSeoAnalysisInTransaction(
       throw conflict("This analysis key was already used for another request");
     return commitSeoMutation(tx, previous, hooks);
   }
+  if (!requireScheduledExecutor) requireSeoFullAuditPriceApproval(input);
   await requireNoActiveSeoAnalysis(tx, actor);
   const executor = await requireSeoAnalysisExecutor(actor, input, tx);
   if (requireScheduledExecutor && !executor.canSchedule)

@@ -21,6 +21,7 @@ const errors = {
   403: jsonErrorResponse("Forbidden"),
   404: jsonErrorResponse("Audit not found"),
   409: jsonErrorResponse("Conversation changed or reply in progress"),
+  422: jsonErrorResponse("Not enough credits"),
   429: jsonErrorResponse("Daily SEO chat allowance used"),
   503: jsonErrorResponse("SEO chat unavailable"),
 };

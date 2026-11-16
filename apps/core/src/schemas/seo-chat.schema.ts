@@ -76,6 +76,7 @@ export const seoChatTurnSchema = z
     status: z.enum(["running", "completed", "failed"]),
     scope: seoChatScopeSchema,
     createdAt: dateTimeSchema,
+    creditsCharged: z.number().nonnegative().nullable().optional(),
   })
   .openapi("SeoAuditChatTurn");
 
