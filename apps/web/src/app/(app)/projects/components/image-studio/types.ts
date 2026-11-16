@@ -161,6 +161,7 @@ export function assetFileExtension(
 export interface StudioAdRenderOptions {
   logo?: StudioLogoPosition;
   placement?: PlacementRatio;
+  download?: boolean;
 }
 
 export function assetContentUrl(
@@ -171,6 +172,7 @@ export function assetContentUrl(
   const query = new URLSearchParams();
   if (options?.logo) query.set("logo", options.logo);
   if (options?.placement) query.set("placement", options.placement);
+  if (options?.download) query.set("download", "true");
   return query.size ? `${path}?${query}` : path;
 }
 

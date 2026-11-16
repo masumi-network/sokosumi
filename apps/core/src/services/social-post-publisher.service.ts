@@ -63,6 +63,7 @@ import {
   getSocialPost,
   type SocialPostSummary,
 } from "@/services/social-posts.service";
+import { recordSocialStudioAdEvents } from "@/services/social-studio-events.service";
 import { resolveXSubscriptionType } from "@/services/x-subscription-tier.service";
 
 export const LEASE_MS = 5 * 60_000;
@@ -218,6 +219,18 @@ async function settle(
     !post.publishedExternalId
   ) {
     await flagSocialPostQuotes(post.id, QUOTED_POST_FAILED, tx);
+  }
+  if (data.status === "PUBLISHED" && tx === prisma) {
+    await recordSocialStudioAdEvents({
+      projectId: post.projectId,
+      workspaceId: post.workspaceId,
+      postId: post.id,
+      type: "posted",
+      media: parseSocialPostMedia(post.media, post.id),
+      threadParts: post.threadParts.map((part) => ({
+        media: parseSocialPostMedia(part.media, part.id),
+      })),
+    });
   }
   return true;
 }
