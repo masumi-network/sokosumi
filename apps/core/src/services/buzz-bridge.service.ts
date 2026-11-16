@@ -1445,6 +1445,14 @@ export async function claimBuzzState(
       prisma.buzzCommunityMember.deleteMany(),
       prisma.buzzIdentity.deleteMany(),
       prisma.buzzCommunity.deleteMany(),
+      // Personal agents came with the copy; archived, their slugs freed, so
+      // the same agent found again here is created afresh.
+      prisma.$executeRaw`
+        UPDATE coworker
+           SET slug = slug || '-copied-' || substr(md5(id), 1, 8),
+               "archivedAt" = coalesce("archivedAt", now())
+         WHERE "baseURL" LIKE ${`${BUZZ_AGENT_URL_PREFIX}%`}
+           AND slug NOT LIKE '%-copied-%'`,
       prisma.syncMetadata.deleteMany({ where: { key: "buzz-agent-sweep" } }),
     ]);
     log("Buzz state copied from another deployment cleared");

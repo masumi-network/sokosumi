@@ -53,6 +53,7 @@ const db = vi.hoisted(() => {
     sokoBot: model(),
     syncMetadata: model(),
     $queryRaw: vi.fn(async (): Promise<unknown[]> => []),
+    $executeRaw: vi.fn(async (): Promise<number> => 0),
     // Both forms: a list of operations, or a function given the client.
     $transaction: vi.fn(
       async (operations: unknown): Promise<unknown> =>
@@ -2408,6 +2409,8 @@ describe("claimBuzzState", () => {
     await expect(claimBuzzState()).resolves.toBe(true);
     expect(db.buzzIdentity.deleteMany).toHaveBeenCalled();
     expect(db.buzzCommunity.deleteMany).toHaveBeenCalled();
+    // The copied personal agents are archived with their slugs freed.
+    expect(db.$executeRaw).toHaveBeenCalled();
   });
 
   it("never clears anything where no organizations are named, and does not run", async () => {
