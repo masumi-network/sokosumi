@@ -21,7 +21,10 @@ import {
   saveSeoKeywordSchema,
   seoPageChangePayloadSchema,
 } from "@/schemas/project-seo.schema";
-
+import {
+  newestIndexStatus,
+  newestIndexTriage,
+} from "./project-seo-index-projection";
 import {
   observedSeoKeyword,
   savedSeoKeyword,
@@ -219,6 +222,7 @@ export function projectSeoProjection(
   };
   for (const row of input.observations) {
     if (!overlaps(row.pageIds)) continue;
+    if (row.kind === "index_triage") continue;
     if (row.kind === "page_change") {
       if (!matchesSeoPeriod(row.observedAt, query)) continue;
       const event = seoPageChangePayloadSchema.parse(row.payload);
@@ -699,6 +703,9 @@ export function projectSeoProjection(
     searchBreakdown: search.searchBreakdown,
     landingPages: metricRows.landingPages,
     indexStatus: newestIndexStatus(indexSources, selectedUrls),
+    indexTriage: input.privateMetricsAllowed
+      ? newestIndexTriage(input.observations, selectedUrls)
+      : null,
     strategy,
     metricsStatus: !metrics.length
       ? "unavailable"
@@ -732,19 +739,4 @@ export function projectSeoProjection(
         editable && input.privateMetricsAllowed && scope.pageIds.length > 0,
     },
   });
-}
-
-/** The newest verdict per selected page; observations arrive newest first. */
-function newestIndexStatus(
-  sources: Array<{ at: Date; pages: SeoIndexedPage[] }>,
-  selectedUrls: Set<string>,
-): ProjectSeoWorkspace["indexStatus"] {
-  const pages = new Map<string, SeoIndexedPage & { checkedAt: string }>();
-  for (const source of sources)
-    for (const page of source.pages) {
-      const url = normalizeSeoUrl(page.pageUrl);
-      if (selectedUrls.has(url) && !pages.has(url))
-        pages.set(url, { ...page, checkedAt: source.at.toISOString() });
-    }
-  return pages.size ? { pages: [...pages.values()] } : null;
 }

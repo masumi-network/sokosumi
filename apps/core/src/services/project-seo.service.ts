@@ -287,6 +287,8 @@ export async function recordNativeSeoMetrics(
 const SEO_WORKSPACE_EVIDENCE_LIMIT = 100;
 /** Native metric snapshots: the newest syncs the workspace shows. */
 const SEO_WORKSPACE_METRICS_LIMIT = 100;
+/** Keep private worker indexing assessments separate from public check history and chart snapshots. */
+const SEO_WORKSPACE_INDEXING_LIMIT = 10;
 
 /**
  * Loads public evidence and private metric snapshots with separate caps, so
@@ -300,7 +302,7 @@ async function loadSeoWorkspaceObservations(
 ) {
   // Settings rows cover no page, so the page filter keeps them out.
   const where = { ...seoOwnerWhere(actor), pageIds: { hasSome: pageIds } };
-  const [evidence, metrics] = await Promise.all([
+  const [evidence, metrics, indexing] = await Promise.all([
     prisma.projectSeoObservation.findMany({
       where: { ...where, ownerId: null },
       orderBy: { observedAt: "desc" },
@@ -320,9 +322,21 @@ async function loadSeoWorkspaceObservations(
           take: SEO_WORKSPACE_METRICS_LIMIT,
         })
       : [],
+    privateMetricsAllowed
+      ? prisma.projectSeoObservation.findMany({
+          where: {
+            ...where,
+            kind: "index_triage",
+            ownerId: actor.userId,
+            visibility: "PRIVATE",
+          },
+          orderBy: { observedAt: "desc" },
+          take: SEO_WORKSPACE_INDEXING_LIMIT,
+        })
+      : [],
   ]);
   return {
-    observations: [...evidence, ...metrics].sort(
+    observations: [...evidence, ...metrics, ...indexing].sort(
       (a, b) => b.observedAt.getTime() - a.observedAt.getTime(),
     ),
     historyLimited:
