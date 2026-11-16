@@ -189,4 +189,43 @@ describe("useIntentPrefetch", () => {
     view.unmount();
     expect(ForesightManager.instance.registeredElements.has(link)).toBe(false);
   });
+
+  it("takes its page listeners off when the last element goes, and puts them back for the next", () => {
+    const targets = [document, document.documentElement];
+    const added = targets.map((target) => vi.spyOn(target, "addEventListener"));
+    const removed = targets.map((target) =>
+      vi.spyOn(target, "removeEventListener"),
+    );
+    const listeners = (spies: typeof added) =>
+      spies.flatMap((spy) => spy.mock.calls.map(([type, fn]) => [type, fn]));
+    // A listener is still on while it was added more often than removed.
+    const stillOn = () => {
+      const count = (spies: typeof added, type: unknown, fn: unknown) =>
+        listeners(spies).filter(([t, f]) => t === type && f === fn).length;
+      return listeners(added).filter(
+        ([type, fn], index, all) =>
+          all.findIndex(([t, f]) => t === type && f === fn) === index &&
+          count(added, type, fn) > count(removed, type, fn),
+      );
+    };
+
+    const first = render(<Probe prefetch={vi.fn()} />);
+    const second = render(<Probe prefetch={vi.fn()} />);
+    const types = listeners(added).map(([type]) => type);
+    expect(types).toEqual(
+      expect.arrayContaining(["scroll", "pointermove", "pointerleave"]),
+    );
+
+    first.unmount();
+    expect(stillOn().map(([type]) => type)).toEqual(
+      expect.arrayContaining(["scroll", "pointermove", "pointerleave"]),
+    );
+    second.unmount();
+    expect(stillOn()).toEqual([]);
+
+    render(<Probe prefetch={vi.fn()} />);
+    expect(stillOn().map(([type]) => type)).toEqual(
+      expect.arrayContaining(["scroll", "pointermove", "pointerleave"]),
+    );
+  });
 });
