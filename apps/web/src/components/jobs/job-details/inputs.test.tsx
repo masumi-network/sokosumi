@@ -28,7 +28,7 @@ vi.mock("next/image", () => ({
 }));
 
 const fetchMock = vi.fn();
-global.fetch = fetchMock as unknown as typeof fetch;
+vi.stubGlobal("fetch", fetchMock);
 
 beforeAll(() => {
   class ResizeObserverMock {

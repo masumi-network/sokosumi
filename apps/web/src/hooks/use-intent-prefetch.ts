@@ -26,6 +26,11 @@ function cursorLeft() {
   cursorY = OFF_PAGE;
 }
 
+// The listeners feed this module's own state, so they follow this module, not
+// the library's singleton: a test worker reloads this module per file while
+// the library stays initialised.
+let listening = false;
+
 function intentManager() {
   if (!ForesightManager.isInitiated) {
     // Two library defaults are off. It would write its own `data-active` onto
@@ -36,6 +41,9 @@ function intentManager() {
       setDataAttributes: false,
       enableScrollPrediction: false,
     });
+  }
+  if (!listening) {
+    listening = true;
     // With scroll prediction off the library still fires each element that
     // scrolls under a resting cursor. And it predicts from geometry alone, so
     // a drag fires each element it crosses. Neither is the reader heading for it.
