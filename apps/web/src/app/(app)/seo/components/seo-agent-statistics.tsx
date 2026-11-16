@@ -27,7 +27,11 @@ export function SeoAgentStatistics({
   const page = model.data.pages.find((item) =>
     model.data.scope.pageIds.includes(item.id),
   );
-  const { box, target, arm } = useSeoFocusHandoff(action, hidden);
+  const { box, target, arm } = useSeoFocusHandoff(
+    action,
+    hidden,
+    model.dialog === "statistics",
+  );
   // A status that is not read yet gets the connect button, which shows its wait and its own Try again.
   const control = hidden ? null : action === "connect" ? (
     <SeoConnectionButton provider="ga4" onError={setConnectError} compact />
