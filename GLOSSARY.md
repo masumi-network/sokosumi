@@ -134,6 +134,10 @@ _Avoid_: Subscription (alone, that is the organization's Stripe plan), CMO hire,
 A one-time purchase of Project credits for one subscribed Cuso's Project, bought through Polar. They expire 12 months after purchase.
 _Avoid_: Top-up (alone, that is a Stripe purchase into the Organization credit pool), credit pack, refill
 
+**Polar customer**:
+The Organization as Polar knows it. Every CMO subscription and Project top-up belongs to it, whoever in the Organization pays.
+_Avoid_: Customer (alone), payer
+
 **Marketing strategy**:
 A Project's marketing plan: one sentence (who, positioned as, how they find you, the offer), its funnel, channel mix and pace. Each rewrite is a new version; the Workspace's owners or admins approve one, and only that one is carried out. Its social entries are the Project's Social posts; its other pieces show on the Calendar under Marketing.
 _Avoid_: CMO hire, strategy history (older versions are versions), content calendar (that is the Calendar)

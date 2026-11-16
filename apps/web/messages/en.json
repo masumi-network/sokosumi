@@ -11656,7 +11656,7 @@
       "runAnalysis": "Run a check",
       "runFullAudit": "Run full audit",
       "runPageCheck": "Run page check",
-      "manageStatistics": "Google statistics settings",
+      "manageStatistics": "Google connections",
       "syncStatistics": "Sync statistics",
       "noPages": "Add a page to start",
       "noPagesBody": "Pages define what each check and statistic covers.",
@@ -11679,13 +11679,16 @@
         "rankings": "Rankings"
       },
       "overview": {
+        "privateFinding": "Only you can see this finding.",
+        "relatedFindingPage": "Related page",
         "measurements": "Traffic",
         "not_connected": "No traffic statistics are saved for these pages yet. Choose an account to load them.",
         "unavailable": "Statistics are unavailable. Check the connection here, then try again.",
         "partial": "Some statistics are missing. Open each source to see which.",
         "available": "Statistics are available for the stated periods.",
         "priority": "Recommended actions",
-        "findings": "Issues with no fix yet",
+        "findings": "Audit findings",
+        "suggestedFix": "Suggested fix",
         "audits": "Captured results",
         "findingsCount": "{count, plural, one {# finding} other {# findings}}",
         "auditsCount": "{count, plural, one {# captured result} other {# captured results}}",
@@ -11754,10 +11757,10 @@
         "periodSame": "Previous {days, plural, one {day} other {# days}}: {previous}, no change",
         "changeMarker": "Recorded change on {day}: {changes}",
         "points": "{value} pp",
-        "googleUpdate": "Google: {name}, {from} to {to}",
-        "googleUpdateOpen": "Google: {name}, {from} to {to}, still rolling out",
-        "googleUpdateDay": "Google: {name}, {day}",
-        "googleUpdatesAsOf": "Google updates known until {day}"
+        "googleUpdate": "{name}: {from} to {to}",
+        "googleUpdateOpen": "{name}: from {from}, ongoing",
+        "googleUpdateDay": "{name}: {day}",
+        "googleUpdatesAsOf": "Google updates as of {day}"
       },
       "keywords": {
         "title": "Keywords",
@@ -12080,6 +12083,7 @@
         "failed": "Failed",
         "invalid": "Check the page selection, keywords, market and devices. Full audits accept one keyword and both devices.",
         "keywordsHelp": "Enter up to 20 keywords, each with up to 80 characters.",
+        "relatedPages": "Also checks indexing for relevant pages from this site, up to {count} pages total. Full audits cover selected pages only.",
         "fullHelp": "Full audits accept one keyword and both devices. Each selected page keeps the same market.",
         "serviceUnavailable": "Checks are unavailable in this workspace. Return to the audit.",
         "returnToAudit": "Return to audit",
@@ -12093,8 +12097,8 @@
         "scopeTooLarge": "Choose a single page or a group with up to {count} pages for this check."
       },
       "statistics": {
-        "title": "Google statistics",
-        "description": "Statistics load automatically for the selected pages. Choose a property only when needed.",
+        "title": "Google connections",
+        "description": "Connect your Google sources. Statistics for the selected pages load automatically.",
         "provider": "Source",
         "ga4": "Google Analytics",
         "search_console": "Search Console",
@@ -12108,17 +12112,20 @@
         "propertiesLoading": "Loading authorized properties",
         "propertiesFailed": "Failed to load properties. Try again.",
         "noProperties": "No authorized properties available.",
-        "ownerOnly": "Statistics use your connected account and its access.",
+        "ownerOnly": "Sokosumi reads statistics with your Google access only.",
         "shared": "Saved statistics are shared within this audit in your organization. Your Google account stays under your control.",
         "synced": "Statistics synced",
         "readsSearch": "Reads the last {days} days of Google search data.",
         "readsOrganic": "Reads the last {days} days of organic search traffic.",
         "readsAll": "Reads the last {days} days of all website traffic.",
         "channelAny": "All measured segments",
-        "connectTitle": "Set up statistics",
-        "connectFirst": "Connect {provider}. Statistics for the last 90 days will load automatically.",
         "channelAiAssistant": "AI assistants (ChatGPT, Gemini, Copilot)",
-        "readsAiAssistant": "Reads the last {days} days of visits from AI assistants such as ChatGPT, Gemini and Copilot."
+        "readsAiAssistant": "Reads the last {days} days of visits from AI assistants such as ChatGPT, Gemini and Copilot.",
+        "measures": {
+          "search_console": "Searches, clicks and positions in Google Search",
+          "ga4": "Visits and page views on your site"
+        },
+        "propertyNotMatching": "It does not cover the selected pages, so no statistics load from it."
       },
       "metrics": {
         "page_views": "Page views",
@@ -12333,7 +12340,14 @@
         "invalidCallback": "This return link has no valid SEO connection context. Start a connection from the audit.",
         "connectGoogle": "Connect Google",
         "analyticsNext": "Google asks for approval two times: first for Search Console, then for Google Analytics.",
-        "analyticsOff": "Google Analytics is not connected. Visits and page views stay empty."
+        "connectShort": "Connect",
+        "connectedShort": "Connected",
+        "googleAccount": "Google account",
+        "noneConnected": "No source connected yet",
+        "options": "Google account options",
+        "settings": "Statistics settings",
+        "switchFor": "Switch account: {provider}",
+        "notConnected": "Not connected"
       },
       "unavailableTitle": "SEO unavailable in this Workspace",
       "unavailableBody": "This audit or selection is not available in the current Workspace. Check the Workspace in the sidebar or open the audit list.",
@@ -12491,6 +12505,20 @@
           "device": "Google gives a device for only {listed, number} of your {total, number} impressions.",
           "both": "Google gives a country and a device for only {listed, number} of your {total, number} impressions."
         }
+      },
+      "indexReview": {
+        "title": "Indexing review notes",
+        "help": "These pages need a decision or more evidence. The agent's notes explain what it could verify.",
+        "checked": "Reviewed",
+        "state": {
+          "review": "Review needed",
+          "expected_exclusion": "Expected exclusion",
+          "unavailable": "Not checked"
+        },
+        "suggestedFix": "Suggested next step",
+        "evidence": "View evidence",
+        "unavailableEvidence": "Google Search Console or the audit did not provide enough evidence.",
+        "sources": "Sources: Google Search Console and this audit."
       },
       "index": {
         "title": "Google index",
@@ -12726,6 +12754,7 @@
           "publishing": "You apply changes, recheck fixes and share client reports yourself."
         },
         "gaps": {
+          "noSearchTraffic": "Search traffic statistics are not available yet. Indexing results appear in this audit.",
           "statisticsIncomplete": "Some Google statistics are missing. The agent can only assess the data available.",
           "checksIncomplete": "Some checks did not return a result. This audit may miss issues.",
           "title": "Missing audit data",
@@ -12760,7 +12789,7 @@
         "fix": {
           "connect_search_console": "Set up statistics",
           "connect_ga4": "Set up statistics",
-          "sync": "Google statistics settings",
+          "sync": "Google connections",
           "run_check": "Run a check"
         },
         "items": {

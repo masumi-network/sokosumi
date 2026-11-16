@@ -30,8 +30,38 @@ describe("SEO trend chart Google updates", () => {
       </NextIntlClientProvider>,
     );
     expect(
+      screen.getByText("November 2026 core update: from Nov 10, ongoing"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Google updates as of Nov 13, 2026"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/to Nov 13/)).toBeNull();
+  });
+
+  it("keeps both years for an update that crosses a year boundary", () => {
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        formats={createFormats()}
+        messages={messages}
+      >
+        <SeoTrendChart
+          points={[
+            { date: "2025-05-13", value: 1 },
+            { date: "2026-04-27", value: 1 },
+          ]}
+          unit="count"
+          label="Search impressions"
+          formatValue={String}
+          unavailable="No data"
+          series={{ source: "search_console", key: "impressions" }}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(
       screen.getByText(
-        "Google: November 2026 core update, Nov 10, 2026 to Nov 13, 2026, still rolling out",
+        "Impressions logging error: May 13, 2025 to Apr 27, 2026",
       ),
     ).toBeInTheDocument();
   });

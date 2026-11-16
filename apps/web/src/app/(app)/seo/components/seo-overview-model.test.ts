@@ -85,6 +85,41 @@ describe("SEO overview relevance", () => {
     expect(seoOverviewModel(workspace).emptyState).toBe("incomplete");
   });
 
+  it("keeps separate related-page indexing issues on the same audited parent", () => {
+    const workspace = seoTestWorkspace();
+    const indexed = {
+      ...finding("indexing", "major"),
+      rowId: "AC-20",
+      device: null,
+    };
+    workspace.findings = [
+      { ...indexed, id: "parent" },
+      {
+        ...indexed,
+        id: "related-one",
+        relatedPageUrl: "https://example.com/one",
+        suggestedFix: "Fix page one.",
+      },
+      {
+        ...indexed,
+        id: "related-two",
+        relatedPageUrl: "https://example.com/two",
+        suggestedFix: "Fix page two.",
+      },
+    ];
+    const model = seoOverviewModel(workspace);
+    expect(model.issues.map((issue) => issue.id)).toEqual([
+      "parent",
+      "related-one",
+      "related-two",
+    ]);
+    expect(model.issues.map((issue) => issue.suggestedFix)).toEqual([
+      undefined,
+      "Fix page one.",
+      "Fix page two.",
+    ]);
+  });
+
   it("prioritizes actual issue severities without treating measures, notes or tests as fixes", () => {
     const workspace = seoTestWorkspace();
     workspace.findings = [
