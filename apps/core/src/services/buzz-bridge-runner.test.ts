@@ -12,6 +12,7 @@ vi.mock("@/services/buzz-history-import.service", () => ({
 vi.mock("@/services/buzz-bridge.service", () => ({
   buzzConfig: () => ({ operatorPubkey: "a".repeat(64) }),
   buzzSubscriptions: vi.fn(async () => []),
+  claimBuzzState: vi.fn(async () => true),
 }));
 
 import { runLeasedBuzzBridge } from "./buzz-bridge-runner";

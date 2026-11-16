@@ -19,6 +19,7 @@ import {
   buzzSubscriptions,
   CoreRejectedError,
   type CoreRequest,
+  claimBuzzState,
   deleteChannelsOfDeletedRooms,
   drainBuzzOutbox,
   linkedBuzzRooms,
@@ -107,6 +108,8 @@ export async function runLeasedBuzzBridge(options: {
       Date.now() - renewedAt < LEASE_TIMEOUT_MS / 2 &&
       Date.now() < options.until &&
       options.shouldContinue?.() !== false;
+    // State copied from another deployment is never acted on.
+    if (!(await claimBuzzState(options.log))) return true;
     // Every write in the run checks this too, not only the loop.
     await withinBridgeRun(shouldContinue, () =>
       runBuzzBridge({

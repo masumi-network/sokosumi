@@ -51,6 +51,7 @@ const db = vi.hoisted(() => {
     member: model(),
     user: model(),
     sokoBot: model(),
+    syncMetadata: model(),
     $queryRaw: vi.fn(async (): Promise<unknown[]> => []),
     // Both forms: a list of operations, or a function given the client.
     $transaction: vi.fn(
@@ -105,6 +106,7 @@ import {
   buzzTextOf,
   CoreRejectedError,
   type CoreRequest,
+  claimBuzzState,
   communityLabelFor,
   drainBuzzOutbox,
   enqueueBuzzSync,
@@ -302,6 +304,99 @@ describe("applyInboundEvent", () => {
       data: [{ eventId: "first" }, { eventId: "copy" }],
       skipDuplicates: true,
     });
+  });
+
+  it("takes a Buzz agent's reaction back without deleting anything as it, since Sokosumi holds no agent key", async () => {
+    db.buzzReactionLink.findUnique.mockImplementation(
+      async ({ where }: { where: { eventId?: string } }) =>
+        where.eventId === "first"
+          ? {
+              id: "link",
+              eventId: "first",
+              duplicateEventIds: ["copy"],
+              identityId: "identity-bob",
+              messageId: "message",
+              emoji: "👍",
+              signerPubkey: BOB_PUBKEY,
+              pendingEvent: null,
+            }
+          : null,
+    );
+    db.chatRoomMessage.findUnique.mockResolvedValue({ roomId: "room" });
+    db.buzzChannel.findUnique.mockResolvedValue({
+      community: { relayUrl: "ws://relay" },
+    });
+    relay.queryEvents.mockClear();
+    const deletion = nostrEvent({
+      kind: 5,
+      tags: [
+        ["h", CHANNEL],
+        ["e", "first"],
+      ],
+    });
+    // bob here has no key Sokosumi keeps, like a person's Buzz agent.
+    await expect(applyInboundEvent(deletion, core)).resolves.toBe("unreacted");
+    expect(relay.queryEvents).not.toHaveBeenCalled();
+  });
+
+  it("deletes only the copies Sokosumi's own key signed, read from the relay", async () => {
+    db.buzzIdentity.findFirst.mockResolvedValue({
+      ...bob,
+      encryptedSecretKey: sealSecret(
+        Buffer.from(BOB_KEY).toString("hex"),
+        SECRET,
+      ),
+    });
+    db.buzzReactionLink.findUnique.mockResolvedValue(null);
+    db.buzzReactionLink.findFirst.mockResolvedValue({
+      id: "link",
+      eventId: "first",
+      duplicateEventIds: ["copy", "app-copy"],
+      identityId: "identity-bob",
+      messageId: "message",
+      emoji: "👍",
+      signerPubkey: "a".repeat(64),
+      pendingEvent: null,
+    });
+    db.chatRoomMessage.findUnique.mockResolvedValue({ roomId: "room" });
+    db.buzzChannel.findUnique.mockResolvedValue({
+      community: { relayUrl: "ws://relay" },
+    });
+    relay.queryEvents.mockResolvedValue([
+      { id: "copy", pubkey: BOB_PUBKEY },
+      { id: "app-copy", pubkey: "a".repeat(64) },
+    ]);
+    const sent: { tags: string[][] }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        sent.push(JSON.parse(String(init.body)));
+        return Response.json({ accepted: true });
+      }),
+    );
+    const deletion = nostrEvent({
+      kind: 5,
+      tags: [
+        ["h", CHANNEL],
+        ["e", "first"],
+      ],
+    });
+    try {
+      await expect(applyInboundEvent(deletion, core)).resolves.toBe(
+        "unreacted",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(relay.queryEvents).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: [{ ids: ["copy", "app-copy"] }],
+      }),
+    );
+    const deleted = sent.flatMap((event) =>
+      event.tags.filter((tag) => tag[0] === "e").map((tag) => tag[1]),
+    );
+    expect(deleted).toEqual(["copy"]);
   });
 
   it("remembers the same reaction signed with the person's other key", async () => {
@@ -2258,5 +2353,74 @@ describe("communities", () => {
     });
     await expect(provisionBuzzCommunities()).rejects.toThrow(/refused/);
     expect(db.buzzCommunity.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("claimBuzzState", () => {
+  const preview = {
+    BUZZ_COMMUNITY_URL_TEMPLATE: "wss://{slug}.chat-preview.example",
+    BUZZ_AUTO_ORGANIZATIONS: "test-org",
+  };
+  beforeEach(() => {
+    db.syncMetadata.findUnique.mockResolvedValue(null);
+    db.syncMetadata.upsert.mockResolvedValue({});
+    db.buzzCommunity.findMany.mockResolvedValue([]);
+    for (const model of [
+      db.buzzOutbox,
+      db.buzzUndoneEvent,
+      db.buzzReactionLink,
+      db.buzzMessageLink,
+      db.buzzAutoAccess,
+      db.buzzChannel,
+      db.buzzCommunityMember,
+      db.buzzIdentity,
+      db.buzzCommunity,
+      db.syncMetadata,
+    ]) {
+      model.deleteMany.mockClear().mockResolvedValue({ count: 0 });
+    }
+  });
+  afterEach(() => {
+    env.value = { ...env.value, BUZZ_AUTO_ORGANIZATIONS: undefined };
+  });
+
+  it("claims state that is this deployment's, and keeps it", async () => {
+    env.value = { ...env.value, ...preview };
+    db.buzzCommunity.findMany.mockResolvedValue([
+      { relayUrl: "wss://test-org.chat-preview.example" },
+    ]);
+    await expect(claimBuzzState()).resolves.toBe(true);
+    expect(db.buzzCommunity.deleteMany).not.toHaveBeenCalled();
+    expect(db.syncMetadata.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          cursorId: "wss://{slug}.chat-preview.example",
+        }),
+      }),
+    );
+  });
+
+  it("clears a test deployment's copy of another deployment's state", async () => {
+    env.value = { ...env.value, ...preview };
+    db.buzzCommunity.findMany.mockResolvedValue([
+      { relayUrl: "wss://acme.chat.example" },
+    ]);
+    await expect(claimBuzzState()).resolves.toBe(true);
+    expect(db.buzzIdentity.deleteMany).toHaveBeenCalled();
+    expect(db.buzzCommunity.deleteMany).toHaveBeenCalled();
+  });
+
+  it("never clears anything where no organizations are named, and does not run", async () => {
+    env.value = {
+      ...env.value,
+      BUZZ_COMMUNITY_URL_TEMPLATE: "wss://{slug}.chat.example",
+      BUZZ_AUTO_ORGANIZATIONS: undefined,
+    };
+    db.syncMetadata.findUnique.mockResolvedValue({
+      cursorId: "wss://{slug}.chat-old.example",
+    });
+    await expect(claimBuzzState()).resolves.toBe(false);
+    expect(db.buzzCommunity.deleteMany).not.toHaveBeenCalled();
+    expect(db.syncMetadata.upsert).not.toHaveBeenCalled();
   });
 });

@@ -1396,6 +1396,71 @@ function autoOrganizationSlugs(): string[] | null {
     .filter(Boolean);
 }
 
+/** Which deployment's relays this database's Buzz state is for. */
+const DEPLOYMENT_KEY = "buzz-deployment";
+
+/** Whether a community's address is one this deployment's template makes. */
+function ofThisDeployment(relayUrl: string, template: string): boolean {
+  const [head = "", tail = ""] = template.toLowerCase().split("{slug}");
+  const url = relayUrl.toLowerCase();
+  return url.startsWith(head) && url.endsWith(tail);
+}
+
+/**
+ * A database copied from another deployment (a preview made from production)
+ * holds that deployment's Buzz state: its communities on another relay, keys
+ * sealed with another secret. Acting on it would fail, or, with the same
+ * keys, reach that deployment's relay. The state records whose it is; a test
+ * deployment (one that names its organizations) that finds another's clears
+ * its copy and starts over, and any other deployment stops instead, so a
+ * production change of address never clears production.
+ */
+export async function claimBuzzState(
+  log: (message: string) => void = () => {},
+): Promise<boolean> {
+  const template = requireConfig().communityUrlTemplate;
+  const mark = await prisma.syncMetadata.findUnique({
+    where: { key: DEPLOYMENT_KEY },
+  });
+  if (mark?.cursorId === template) return true;
+  const foreign =
+    mark !== null ||
+    (await prisma.buzzCommunity.findMany({ select: { relayUrl: true } })).some(
+      (community) => !ofThisDeployment(community.relayUrl, template),
+    );
+  if (foreign) {
+    if (!autoOrganizationSlugs()) {
+      log(
+        `Buzz state here is for ${mark?.cursorId ?? "another deployment"}, not ${template}; not running`,
+      );
+      return false;
+    }
+    await prisma.$transaction([
+      prisma.buzzOutbox.deleteMany(),
+      prisma.buzzUndoneEvent.deleteMany(),
+      prisma.buzzReactionLink.deleteMany(),
+      prisma.buzzMessageLink.deleteMany(),
+      prisma.buzzAutoAccess.deleteMany(),
+      prisma.buzzChannel.deleteMany(),
+      prisma.buzzCommunityMember.deleteMany(),
+      prisma.buzzIdentity.deleteMany(),
+      prisma.buzzCommunity.deleteMany(),
+      prisma.syncMetadata.deleteMany({ where: { key: "buzz-agent-sweep" } }),
+    ]);
+    log("Buzz state copied from another deployment cleared");
+  }
+  await prisma.syncMetadata.upsert({
+    where: { key: DEPLOYMENT_KEY },
+    create: {
+      key: DEPLOYMENT_KEY,
+      lastSyncedAt: new Date(),
+      cursorId: template,
+    },
+    update: { lastSyncedAt: new Date(), cursorId: template },
+  });
+  return true;
+}
+
 /**
  * Every organization chats on Buzz (or only those `BUZZ_AUTO_ORGANIZATIONS` names): gives each one without a community its
  * own (a batch at a time), then creates up to `limit` of those not yet on the
@@ -3002,8 +3067,9 @@ export async function repairBuzzOutbox(limit = 200): Promise<number> {
                <> encode(sha256(convert_to(m.content, 'UTF8')), 'hex'))
        )
      LIMIT ${limit}`;
-  // Reactions change no message: added ones Buzz has no link for, and links
-  // whose reaction is gone (the person's own app key's are theirs to undo).
+  // Reactions change no message: added ones Buzz has no link for, and a
+  // person's links whose reaction is gone, whichever key signed it (one their
+  // own app key signed is tombstoned, so a re-add from Buzz counts again).
   const reactions = await prisma.$queryRaw<{ id: string; roomId: string }[]>`
     SELECT DISTINCT m.id::text AS id, m."roomId"::text AS "roomId"
       FROM chat_room_message m
@@ -3027,7 +3093,7 @@ export async function repairBuzzOutbox(limit = 200): Promise<number> {
            SELECT 1 FROM buzz_reaction_link rl
              JOIN buzz_identity i ON i.id = rl."identityId"
             WHERE rl."messageId" = m.id
-              AND rl."signerPubkey" IS NULL AND rl."pendingEvent" IS NULL
+              AND i."userId" IS NOT NULL AND rl."pendingEvent" IS NULL
               AND rl."createdAt" < now() - interval '1 minute'
               AND NOT EXISTS (
                 SELECT 1 FROM chat_room_reaction r
@@ -4104,26 +4170,32 @@ export async function applyInboundEvent(
             path: `/v1/chats/rooms/${message.roomId}/messages/${reactionLink.messageId}/reactions/${encodeURIComponent(reactionLink.emoji)}`,
           });
         }
-        // Its other copy, when Sokosumi's key signed it, comes off Buzz too
-        // before the link goes (a failure retries the whole event). One the
-        // person's own app key signed is theirs to take back.
-        const sokosumiCopies = [
-          ...(reactionLink.signerPubkey === null ? [reactionLink.eventId] : []),
-          ...(reactionLink.signerPubkey !== null
-            ? reactionLink.duplicateEventIds
-            : []),
+        // Its other copies Sokosumi's key signed come off Buzz too before the
+        // link goes (a failure retries the whole event). Who signed each is
+        // read from the relay: one an app key signed (the person's, or a
+        // Buzz agent's, whose key Sokosumi never holds) is theirs to take back.
+        const otherCopies = [
+          reactionLink.eventId,
+          ...reactionLink.duplicateEventIds,
         ].filter((id) => id !== targetEventId);
-        if (sokosumiCopies.length > 0 && channelId) {
+        if (otherCopies.length > 0 && channelId && !isExternal(author)) {
           const channel = await prisma.buzzChannel.findUnique({
             where: { channelId },
             select: { community: { select: { relayUrl: true } } },
           });
           if (channel) {
-            for (const copy of sokosumiCopies) {
+            const secretKey = identitySecretKey(author);
+            const copies = await queryEvents({
+              relayUrl: channel.community.relayUrl,
+              secretKey,
+              filters: [{ ids: otherCopies }],
+            });
+            for (const copy of copies) {
+              if (copy.pubkey !== author.pubkey) continue;
               await publish(
                 channel.community.relayUrl,
-                identitySecretKey(author),
-                deletionDraft({ channelId, eventId: copy }),
+                secretKey,
+                deletionDraft({ channelId, eventId: copy.id }),
               ).catch((error) => {
                 if (!isAlreadyDone(error)) throw error;
               });
