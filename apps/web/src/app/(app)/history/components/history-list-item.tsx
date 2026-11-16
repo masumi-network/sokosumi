@@ -24,6 +24,7 @@ export interface HistoryListItemLabels {
     task: string;
     coworker: string;
     sokoBot: string;
+    seoChat: string;
     contacts: string;
     topUp: string;
     unattributed: string;
@@ -174,12 +175,18 @@ export function HistoryTypeColumn({
  * by a colour: the app has no green/red convention for a credit amount, and
  * inventing one here would be a new accent role on a surface that has none.
  */
+/** SEO chat charges retain fractional credits at the ledger's scale. */
+const SEO_CHAT_CREDIT_FRACTION_DIGITS = 10;
+
 function formatHistoryCredits(
   item: TransactionHistoryItem,
   labels: Pick<HistoryListItemLabels, "credit" | "credits">,
   formatNumber: CreditNumberFormatter,
 ): string {
-  const amount = formatCreditAmount(item.credits, labels, formatNumber);
+  const amount =
+    item.kind === "seoChat"
+      ? `${formatNumber(item.credits, { maximumFractionDigits: SEO_CHAT_CREDIT_FRACTION_DIGITS })} ${item.credits === 1 ? labels.credit : labels.credits}`
+      : formatCreditAmount(item.credits, labels, formatNumber);
   return item.kind === "topUp" ? `+${amount}` : amount;
 }
 

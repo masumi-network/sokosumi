@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import {
   afterAll,
   afterEach,
@@ -73,6 +74,7 @@ const outsider = {
   organizationId: null,
 };
 const pageUrl = "https://example.test/shared-audit";
+const FIXTURE_CREDITS = 100;
 const modelReply = {
   text: JSON.stringify({
     reply: "Review the shared measurements.",
@@ -198,6 +200,25 @@ describe.skipIf(!enabled)(
       await prisma.workspace.create({
         data: { id: foreignWorkspaceId, userId: foreignUserId },
       });
+      // Fund the real payer wallets so these tests reach their sharing and revocation checks.
+      for (const payer of [
+        { userId: firstUserId, organizationId },
+        { userId: foreignUserId, organizationId: null },
+      ]) {
+        const amount = convertCreditsToCents(FIXTURE_CREDITS);
+        const topUp = await prisma.transaction.create({
+          data: { ...payer, amount },
+        });
+        await prisma.creditBucket.create({
+          data: {
+            amount,
+            ...(payer.organizationId
+              ? { organizationId: payer.organizationId }
+              : { userId: payer.userId }),
+            sourceTransactionId: topUp.id,
+          },
+        });
+      }
     });
     beforeEach(() => {
       vi.clearAllMocks();
@@ -210,6 +231,14 @@ describe.skipIf(!enabled)(
     });
     afterEach(() => vi.unstubAllGlobals());
     afterAll(async () => {
+      await prisma.transaction.deleteMany({
+        where: {
+          OR: [
+            { organizationId },
+            { userId: { in: [firstUserId, secondUserId, foreignUserId] } },
+          ],
+        },
+      });
       await prisma.organization.deleteMany({ where: { id: organizationId } });
       await prisma.workspace.deleteMany({ where: { id: foreignWorkspaceId } });
       await prisma.user.deleteMany({

@@ -1534,6 +1534,7 @@
           "task": "Task",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
+          "seoChat": "SEO chat",
           "topUp": "Top up",
           "unattributed": "Other"
         }
@@ -12228,6 +12229,9 @@
         "open": "Open {action}",
         "auditRequired": "Open an audit to ask the SEO agent.",
         "dailyLimit": "You have reached today’s SEO chat limit. Try again tomorrow.",
+        "insufficientCredits": "Not enough credits for this reply. Add credits and try again.",
+        "usagePricing": "Replies use credits based on model usage.",
+        "creditsCharged": "{credits, number, :: .##########} credits used",
         "createTask": "Create draft task: {title}",
         "showMore": "Show full question",
         "showLess": "Show less",

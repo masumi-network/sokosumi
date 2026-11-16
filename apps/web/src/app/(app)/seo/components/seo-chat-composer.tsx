@@ -187,6 +187,9 @@ export function SeoChatComposer({
           required
         />
       </RoomMessageComposer>
+      <p className="text-muted-foreground px-4 pb-2 text-xs">
+        {t("chat.usagePricing")}
+      </p>
       {/* Hidden text still describes the field, and is not read a second time. */}
       <p id={`${inputId}-sharing`} hidden>
         {t(sharing === "organization" ? "chat.shared" : "chat.private")}
