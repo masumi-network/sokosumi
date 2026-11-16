@@ -36,16 +36,26 @@ function withFreshFallback<T>(
   });
 }
 
-async function readHomeGate(session: Session | null) {
+type WorkspaceAccess = Awaited<
+  ReturnType<typeof userService.getWorkspaceAccess>
+>;
+
+async function readHomeGate(
+  session: Session | null,
+  readAccess: () => Promise<WorkspaceAccess>,
+) {
   const [activeOrganizationId, access] = await Promise.all([
     userService.getActiveOrganizationId(),
-    userService.getWorkspaceAccess().catch(() => null),
+    readAccess(),
   ]);
   return {
     userId: session?.user.id ?? null,
     userName: session?.user.name ?? null,
     activeOrganizationId,
     gate: access?.gate ?? null,
+    // Read here, inside the cache: a clock read while the page renders for
+    // a prefetch would stop that prefetch.
+    now: new Date(),
   };
 }
 
@@ -59,13 +69,19 @@ async function readPrivateCachedHomeGate(): Promise<HomeGate> {
   if (sessionResult.isErr()) {
     throw new CoreAuthUnavailableError(sessionResult.error.reason);
   }
-  return readHomeGate(sessionResult.value);
+  // A failed access read throws here, so a Core blip is not kept as "not set
+  // up": the click would redirect to setup with nothing to repair it.
+  return readHomeGate(sessionResult.value, () =>
+    userService.getWorkspaceAccess(),
+  );
 }
 
 /** Who reads Home, in which workspace, and whether it is set up. */
 export function loadHomeGate(): Promise<HomeGate> {
   return withFreshFallback(readPrivateCachedHomeGate, async () =>
-    readHomeGate(await getSession()),
+    readHomeGate(await getSession(), () =>
+      userService.getWorkspaceAccess().catch(() => null),
+    ),
   );
 }
 
@@ -74,7 +90,13 @@ export type HomeScope = "workspace" | "owned";
 async function readHomeData(scope: HomeScope) {
   // Each read needs the gate, not the bot, so each one starts before the bot
   // read answers instead of one Core round trip after it. Without a bot the
-  // chats and team Tasks go unused.
+  // chats, team Tasks and Needs you go unused: the setup screen then waits on
+  // them too. Accepted, so the bot read stays in the same round trip.
+  //
+  // The rooms are read only to find the bot's Direct. Outside this cache the
+  // read shared the sidebar's per-request room list. React's per-request
+  // cache does not reach into a "use cache" scope, so a fresh render now reads
+  // the room list once more.
   const [
     needsYou,
     rooms,

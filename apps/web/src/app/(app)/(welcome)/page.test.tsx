@@ -335,6 +335,51 @@ describe("WelcomePage", () => {
     expect(listProjects).toHaveBeenCalledWith({ limit: 20 });
   });
 
+  // The reads are cached, so a link prefetch carries Home.
+  // connection() would drop it back to the skeleton.
+  it("renders the bot home without deferring to the request", async () => {
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    await renderPage();
+    expect(screen.getByText("bot home")).toBeTruthy();
+    expect(connection).not.toHaveBeenCalled();
+  });
+
+  // A prefetch must not keep a session outage as a signed-out Home: the
+  // click renders fresh with the session read again.
+  it("renders a session outage fresh on the click", async () => {
+    getSessionResult.mockResolvedValueOnce(err({ reason: "timeout" }));
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    await renderPage();
+    expect(connection).toHaveBeenCalledOnce();
+    expect(getSession).toHaveBeenCalledOnce();
+    expect(sokoBotHome).toHaveBeenCalledWith(
+      expect.objectContaining({ ownerId: "user-1" }),
+    );
+  });
+
+  // A Core blip on the access read must not be kept as "not set up": the
+  // click would redirect to setup with nothing to repair it.
+  it("reads a failed workspace access again, fresh, instead of keeping it", async () => {
+    getWorkspaceAccess
+      .mockRejectedValueOnce(new Error("Core answered 503"))
+      .mockResolvedValueOnce({ gate: "ready" });
+    getMine.mockResolvedValue(null);
+    await renderPage();
+    expect(redirect).not.toHaveBeenCalled();
+    expect(connection).toHaveBeenCalledOnce();
+    expect(screen.getByText("soko bot setup")).toBeTruthy();
+  });
+
   describe("a bot whose last turn failed", () => {
     const failedBot = {
       id: "bot-1",
@@ -381,38 +426,6 @@ describe("WelcomePage", () => {
 });
 
 describe("generateMetadata", () => {
-  // The reads are cached, so a link prefetch carries Home.
-  // connection() would drop it back to the skeleton.
-  it("renders the bot home without deferring to the request", async () => {
-    getMine.mockResolvedValue({
-      id: "bot-1",
-      name: "Joseph",
-      avatarSeed: null,
-      avatarImageUrl: null,
-    });
-    await renderPage();
-    expect(screen.getByText("bot home")).toBeTruthy();
-    expect(connection).not.toHaveBeenCalled();
-  });
-
-  // A prefetch must not keep a session outage as a signed-out Home: the
-  // click renders fresh with the session read again.
-  it("renders a session outage fresh on the click", async () => {
-    getSessionResult.mockResolvedValueOnce(err({ reason: "timeout" }));
-    getMine.mockResolvedValue({
-      id: "bot-1",
-      name: "Joseph",
-      avatarSeed: null,
-      avatarImageUrl: null,
-    });
-    await renderPage();
-    expect(connection).toHaveBeenCalledOnce();
-    expect(getSession).toHaveBeenCalledOnce();
-    expect(sokoBotHome).toHaveBeenCalledWith(
-      expect.objectContaining({ ownerId: "user-1" }),
-    );
-  });
-
   it("names the tab Home instead of the layout's marketing line", async () => {
     await expect(generateMetadata()).resolves.toEqual({
       title: "App.Metadata.home",

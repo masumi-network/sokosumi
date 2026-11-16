@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getNow, getTimeZone, getTranslations } from "next-intl/server";
+import { getTimeZone, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
 import { resolveLandingGreetingName } from "@/app/chat/components/landing/landing-content";
@@ -52,10 +52,9 @@ export async function generateMetadata(): Promise<Metadata> {
  * Room open uses `chat/rooms/[roomId]/loading.tsx`.
  */
 export default async function WelcomePage({ searchParams }: WelcomePageProps) {
-  const [query, gate, now, timeZone] = await Promise.all([
+  const [query, gate, timeZone] = await Promise.all([
     searchParams,
     loadHomeGate(),
-    getNow(),
     getTimeZone(),
   ]);
   // The app shell's loading fallback renders this page before the frame's
@@ -65,7 +64,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   if (!isWorkspaceReady(gate.gate)) {
     redirect(WORKSPACE_GATE_PATH);
   }
-  const { activeOrganizationId, userId, userName } = gate;
+  const { activeOrganizationId, userId, userName, now } = gate;
   // In an org the day is the team's; in a personal workspace, the user's.
   // In an org the greeting talks about the team, so count the whole
   // workspace rather than only the caller's own tasks.
@@ -167,12 +166,12 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           // Its own number, not a share of the waiting Tasks: Needs you also
           // holds Job, grant and access asks, and asks from other workspaces.
           needsYouCount={needsYou?.total ?? null}
-          teamTasks={toTeamDay(recentTasks, new Date())}
+          teamTasks={toTeamDay(recentTasks, now)}
           chats={toImportantChats(
             important,
             tChannels("SavedMessages.untitled"),
           )}
-          schedules={toNewSchedules(sokoBot.schedules ?? [], new Date())}
+          schedules={toNewSchedules(sokoBot.schedules ?? [], now)}
           myDay={myDay}
           needsYou={needsYouPanel(failedLead)}
         />
