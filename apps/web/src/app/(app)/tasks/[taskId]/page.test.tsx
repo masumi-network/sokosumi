@@ -39,7 +39,7 @@ const targetOrganization = {
 };
 
 vi.mock("next/server", () => ({
-  connection: async () => connectionMock(),
+  connection: () => connectionMock(),
 }));
 vi.mock("next/navigation", () => ({
   notFound: () => notFoundMock(),
@@ -229,14 +229,23 @@ describe("TaskDetailPage", () => {
     );
     expect(connectionMock).not.toHaveBeenCalled();
 
-    getTaskByIdMock.mockRejectedValue(new Error("Core answered 503"));
-    await expect(
-      TaskDetailPage({ params: Promise.resolve({ taskId: "SOK-1" }) }),
-    ).rejects.toThrow("notFound");
-    expect(connectionMock).toHaveBeenCalledTimes(1);
-    expect(connectionMock.mock.invocationCallOrder[0]).toBeLessThan(
-      notFoundMock.mock.invocationCallOrder[0],
+    // connection() must settle before notFound(): a prefetch render stops
+    // at the pending connection() and never reaches the 404.
+    let releaseConnection = () => {};
+    connectionMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        releaseConnection = resolve;
+      }),
     );
+    getTaskByIdMock.mockRejectedValue(new Error("Core answered 503"));
+    const missed = TaskDetailPage({
+      params: Promise.resolve({ taskId: "SOK-1" }),
+    });
+    await vi.waitFor(() => expect(connectionMock).toHaveBeenCalledTimes(1));
+    expect(notFoundMock).not.toHaveBeenCalled();
+
+    releaseConnection();
+    await expect(missed).rejects.toThrow("notFound");
   });
 
   it("renders a signed-out miss fresh", async () => {
