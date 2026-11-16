@@ -69,6 +69,15 @@ describe("AuthLayout", () => {
     },
   );
 
+  it("holds the page in the main landmark, apart from the pitch", async () => {
+    getSessionMock.mockResolvedValue(null);
+    await renderAt("/signup");
+
+    const main = screen.getByRole("main");
+    expect(main).toContainElement(screen.getByText("page"));
+    expect(main).not.toContainElement(screen.getByText("Sokosumi pitch"));
+  });
+
   it("leaves Sokosumi's pitch out when signing in for another product", async () => {
     await renderAt("/signin", "client_id=cmo&exp=1&sig=abc");
     expect(screen.queryByText("Sokosumi pitch")).not.toBeInTheDocument();
