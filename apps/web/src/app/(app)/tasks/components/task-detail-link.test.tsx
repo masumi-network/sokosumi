@@ -133,6 +133,53 @@ describe("TaskDetailLink", () => {
     expect(routerPrefetchMock).not.toHaveBeenCalled();
   });
 
+  // A drag or text selection crosses rows with a button held.
+  it("does not load the content for a pointer that crosses with a button held", () => {
+    const link = renderLink();
+
+    fireEvent.pointerEnter(link, { pointerType: "mouse", buttons: 1 });
+    vi.advanceTimersByTime(TASK_HOVER_DWELL_MS);
+
+    expect(routerPrefetchMock).not.toHaveBeenCalled();
+  });
+
+  // A middle click fires auxclick, not click, so the press must cancel alone.
+  it("cancels the hover dwell on a press", () => {
+    const link = renderLink();
+
+    fireEvent.pointerEnter(link, { pointerType: "mouse" });
+    fireEvent.pointerDown(link, { pointerType: "mouse", button: 1 });
+    vi.advanceTimersByTime(TASK_HOVER_DWELL_MS);
+
+    expect(routerPrefetchMock).not.toHaveBeenCalled();
+  });
+
+  // A keyboard or assistive click comes with no press.
+  it("cancels the hover dwell on a click", () => {
+    const link = renderLink();
+
+    fireEvent.pointerEnter(link, { pointerType: "mouse" });
+    fireEvent.click(link);
+    vi.advanceTimersByTime(TASK_HOVER_DWELL_MS);
+
+    expect(routerPrefetchMock).not.toHaveBeenCalled();
+  });
+
+  // A mouse crossing a focused link must not cancel the focus dwell.
+  it("keeps the focus dwell when a pointer passes over", () => {
+    const link = renderLink();
+
+    act(() => link.focus());
+    fireEvent.pointerEnter(link, { pointerType: "mouse" });
+    fireEvent.pointerLeave(link, { pointerType: "mouse" });
+    vi.advanceTimersByTime(TASK_HOVER_DWELL_MS);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/tasks/task-1",
+      CONTENT_PREFETCH,
+    );
+  });
+
   // A page whose reads are not cached prefetches only its skeleton, so a
   // content prefetch would be a server render for nothing.
   it("prefetches only the shell when content prefetch is off", () => {

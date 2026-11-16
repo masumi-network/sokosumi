@@ -7,6 +7,7 @@ import {
   type FocusEvent,
   type MouseEvent,
   type PointerEvent,
+  type RefObject,
   type TouchEvent,
   useEffect,
   useRef,
@@ -28,6 +29,8 @@ const TASK_APPROACH_REPEAT_MS = 60_000;
  * server render.
  */
 export const TASK_HOVER_DWELL_MS = 100;
+
+type DwellTimer = ReturnType<typeof setTimeout> | null;
 
 interface TaskDetailLinkProps
   extends Omit<ComponentProps<typeof Link>, "href" | "ref"> {
@@ -53,7 +56,9 @@ export function TaskDetailLink({
 }: TaskDetailLinkProps) {
   const router = useRouter();
 
-  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Hover and focus dwell apart, so leaving one never cancels the other.
+  const hoverTimer = useRef<DwellTimer>(null);
+  const focusTimer = useRef<DwellTimer>(null);
   // A predicted approach and a touch load only the shared App Shell. A resting
   // hover and focus also load the page's content, a server render each.
   const prefetchTaskShell = () => {
@@ -72,25 +77,29 @@ export function TaskDetailLink({
     reactivateAfter: TASK_APPROACH_REPEAT_MS,
   });
 
-  function cancelHoverPrefetch() {
-    if (hoverTimer.current) {
-      clearTimeout(hoverTimer.current);
-      hoverTimer.current = null;
+  function cancelDwell(timer: RefObject<DwellTimer>) {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
     }
   }
-  useEffect(() => cancelHoverPrefetch, []);
+  function cancelAllDwells() {
+    cancelDwell(hoverTimer);
+    cancelDwell(focusTimer);
+  }
+  useEffect(() => cancelAllDwells, []);
 
-  function startDwellPrefetch() {
-    cancelHoverPrefetch();
-    hoverTimer.current = setTimeout(() => {
-      hoverTimer.current = null;
+  function startDwell(timer: RefObject<DwellTimer>) {
+    cancelDwell(timer);
+    timer.current = setTimeout(() => {
+      timer.current = null;
       prefetchTaskDetail();
     }, TASK_HOVER_DWELL_MS);
   }
 
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
     // The click already loads the page; a later dwell would render it twice.
-    cancelHoverPrefetch();
+    cancelAllDwells();
     onClick?.(event);
     if (event.defaultPrevented || typeof window === "undefined") {
       return;
@@ -101,22 +110,27 @@ export function TaskDetailLink({
 
   function handlePointerEnter(event: PointerEvent<HTMLAnchorElement>) {
     onPointerEnter?.(event);
-    // A finger also enters every row it rests on while it scrolls, so only a
-    // mouse or pen hover loads the content.
-    if (!event.defaultPrevented && event.pointerType !== "touch") {
-      startDwellPrefetch();
+    // A finger also enters every row it rests on while it scrolls, and a drag
+    // or text selection crosses rows with a button held, so only a free mouse
+    // or pen hover loads the content.
+    if (
+      !event.defaultPrevented &&
+      event.pointerType !== "touch" &&
+      event.buttons === 0
+    ) {
+      startDwell(hoverTimer);
     }
   }
 
   function handlePointerLeave(event: PointerEvent<HTMLAnchorElement>) {
     onPointerLeave?.(event);
-    cancelHoverPrefetch();
+    cancelDwell(hoverTimer);
   }
 
   // A press starts a click, middle click or tap, which loads the page itself.
   function handlePointerDown(event: PointerEvent<HTMLAnchorElement>) {
     onPointerDown?.(event);
-    cancelHoverPrefetch();
+    cancelAllDwells();
   }
 
   // Browsers also focus a link on a click or tap. Only keyboard focus, which
@@ -128,13 +142,13 @@ export function TaskDetailLink({
       !event.defaultPrevented &&
       event.currentTarget.matches(":focus-visible")
     ) {
-      startDwellPrefetch();
+      startDwell(focusTimer);
     }
   }
 
   function handleBlur(event: FocusEvent<HTMLAnchorElement>) {
     onBlur?.(event);
-    cancelHoverPrefetch();
+    cancelDwell(focusTimer);
   }
 
   function handleTouchStart(event: TouchEvent<HTMLAnchorElement>) {

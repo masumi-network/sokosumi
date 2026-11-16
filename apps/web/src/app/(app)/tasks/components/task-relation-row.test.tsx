@@ -41,6 +41,34 @@ describe("TaskRelationRow", () => {
     expect(prefetchMock).toHaveBeenCalledExactlyOnceWith("/admin/tasks/task-2");
   });
 
+  it("prefetches the content for a row in the workspace", () => {
+    prefetchMock.mockClear();
+    render(
+      <TaskRelationRow
+        taskId="task-2"
+        taskName="Dependency cleanup"
+        taskIdentifier={null}
+        taskStatus={TaskStatus.READY}
+        statusLabel="Ready"
+      />,
+    );
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.pointerEnter(
+        screen.getByRole("link", { name: /Dependency cleanup/i }),
+        { pointerType: "mouse" },
+      );
+      vi.advanceTimersByTime(TASK_HOVER_DWELL_MS);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(prefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks/task-2", {
+      kind: "full",
+    });
+  });
+
   it("links to the task with the status marker in a fixed leading slot", () => {
     render(
       <TaskRelationRow
