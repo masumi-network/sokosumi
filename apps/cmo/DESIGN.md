@@ -78,7 +78,7 @@ Layout and application specs will cover the website, the app, and the print flie
 
 ## Typography
 
-The brand typeface is **PP Mori** (Regular and SemiBold, the cuts the marketing site ships; Inter stood in from 2026-11-05 to 2026-11-16). Sizes, weights and tracking are the type scale in [`design-system.md`](design-system.md).
+The brand typeface is **PP Mori** (Regular and SemiBold, the cuts the marketing site ships; Inter stood in from 2026-11-05 to 2026-11-15). Sizes, weights and tracking are the type scale in [`design-system.md`](design-system.md).
 
 ## Do's and Don'ts
 

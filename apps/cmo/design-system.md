@@ -141,4 +141,4 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 Raise these with the guide owner rather than drifting further.
 
-Last updated: 2026-11-16
+Last updated: 2026-11-15

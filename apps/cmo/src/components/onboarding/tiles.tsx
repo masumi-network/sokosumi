@@ -124,7 +124,7 @@ export function SidePanel({
     const opener = document.activeElement;
     sheet.current?.focus();
     return () => {
-      if (opener instanceof HTMLElement) opener.focus();
+      if (opener instanceof HTMLElement) opener.focus({ preventScroll: true });
     };
   }, []);
   useEffect(() => {

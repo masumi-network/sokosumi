@@ -2,7 +2,7 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Check, CircleAlert, Loader2 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { type KeyboardEvent, useRef, useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
@@ -327,7 +327,8 @@ export function PlanReview({
   const strategy = overview.strategy as Strategy;
   const [tab, setTab] = useState<PlanTab>(initialTab);
   // The plan's detail, folded until asked for; a measurement return opens it.
-  const [full, setFull] = useState(initialTab === "results");
+  // On the app's Strategy page the plan is the page, so it starts open.
+  const [full, setFull] = useState(readOnly || initialTab === "results");
   const fullHead = useRef<HTMLHeadingElement>(null);
   const [open, setOpen] = useState<Entry | null>(null);
   const [asking, setAsking] = useState(false);
@@ -456,7 +457,8 @@ export function PlanReview({
   return (
     <section className="ob-plan">
       <div className="ob-lead">
-        <CusoAvatar pose="reporting" size={176} />
+        {/* Cuso leads the hiring step; the app's Strategy page has its own head. */}
+        {readOnly ? null : <CusoAvatar pose="reporting" size={176} />}
         <p className="muted">{line}</p>
       </div>
 
@@ -651,100 +653,112 @@ export function PlanReview({
             </button>
           </h2>
           {/* Stays mounted, so opening only has to grow it. */}
-          <motion.div
-            id="ob-fullplan-body"
-            className="ob-fullplan-body"
-            inert={!full}
-            initial={false}
-            animate={{ height: full ? "auto" : 0, opacity: full ? 1 : 0 }}
-            transition={{ type: "spring", bounce: 0, duration: 0.5 }}
-          >
-            <div className="ob-tabs" role="tablist" aria-label="Plan">
-              {TABS.map((candidate, index) => (
-                <button
-                  key={candidate.id}
-                  type="button"
-                  role="tab"
-                  id={`ob-tab-${candidate.id}`}
-                  aria-selected={tab === candidate.id}
-                  aria-controls={`ob-tabpanel-${candidate.id}`}
-                  tabIndex={tab === candidate.id ? 0 : -1}
-                  onClick={() => setTab(candidate.id)}
-                  onKeyDown={(event) => {
-                    const next = planTabAfterKey(event, index);
-                    if (next === null) return;
-                    event.preventDefault();
-                    setTab(TABS[next]!.id);
-                    document
-                      .getElementById(`ob-tab-${TABS[next]!.id}`)
-                      ?.focus();
-                  }}
-                >
-                  {candidate.label}
-                </button>
-              ))}
-            </div>
-            <div
-              className="ob-tabpanel"
-              role="tabpanel"
-              id={`ob-tabpanel-${tab}`}
-              aria-labelledby={`ob-tab-${tab}`}
+          <MotionConfig reducedMotion="user">
+            <motion.div
+              id="ob-fullplan-body"
+              className="ob-fullplan-body"
+              inert={!full}
+              initial={false}
+              animate={{ height: full ? "auto" : 0, opacity: full ? 1 : 0 }}
+              transition={{ type: "spring", bounce: 0, duration: 0.5 }}
             >
-              {tab === "plan" ? (
-                <PlanPanel
-                  overview={overview}
-                  strategy={strategy}
-                  onAsk={
-                    locked
-                      ? undefined
-                      : (text, label) =>
-                          send(label ?? text, () => onRequest(text))
-                  }
-                />
-              ) : tab === "month" ? (
-                <MonthPanel strategy={strategy} onOpen={setOpen} />
-              ) : (
-                <ResultsPanel
-                  overview={overview}
-                  strategy={strategy}
-                  onConnectMeasurement={onConnectMeasurement}
-                />
-              )}
-            </div>
-            <button
-              type="button"
-              className="button button-ghost button-small ob-fullplan-hide"
-              onClick={() => {
-                setFull(false);
-                fullHead.current?.scrollIntoView({
-                  block: "center",
-                  behavior: "smooth",
-                });
-              }}
-            >
-              Hide the full plan
-            </button>
-          </motion.div>
+              <div className="ob-tabs" role="tablist" aria-label="Plan">
+                {TABS.map((candidate, index) => (
+                  <button
+                    key={candidate.id}
+                    type="button"
+                    role="tab"
+                    id={`ob-tab-${candidate.id}`}
+                    aria-selected={tab === candidate.id}
+                    aria-controls={`ob-tabpanel-${candidate.id}`}
+                    tabIndex={tab === candidate.id ? 0 : -1}
+                    onClick={() => setTab(candidate.id)}
+                    onKeyDown={(event) => {
+                      const next = planTabAfterKey(event, index);
+                      if (next === null) return;
+                      event.preventDefault();
+                      setTab(TABS[next]!.id);
+                      document
+                        .getElementById(`ob-tab-${TABS[next]!.id}`)
+                        ?.focus();
+                    }}
+                  >
+                    {candidate.label}
+                  </button>
+                ))}
+              </div>
+              <div
+                className="ob-tabpanel"
+                role="tabpanel"
+                id={`ob-tabpanel-${tab}`}
+                aria-labelledby={`ob-tab-${tab}`}
+              >
+                {tab === "plan" ? (
+                  <PlanPanel
+                    overview={overview}
+                    strategy={strategy}
+                    onAsk={
+                      locked
+                        ? undefined
+                        : (text, label) =>
+                            send(label ?? text, () => onRequest(text))
+                    }
+                  />
+                ) : tab === "month" ? (
+                  <MonthPanel strategy={strategy} onOpen={setOpen} />
+                ) : (
+                  <ResultsPanel
+                    overview={overview}
+                    strategy={strategy}
+                    onConnectMeasurement={onConnectMeasurement}
+                  />
+                )}
+              </div>
+              <button
+                type="button"
+                className="button button-ghost button-small ob-fullplan-hide"
+                onClick={() => {
+                  setFull(false);
+                  // The body goes inert, so focus moves to the row that reopens it.
+                  fullHead.current?.querySelector("button")?.focus({
+                    preventScroll: true,
+                  });
+                  fullHead.current?.scrollIntoView({
+                    block: "center",
+                    behavior: window.matchMedia(
+                      "(prefers-reduced-motion: reduce)",
+                    ).matches
+                      ? "auto"
+                      : "smooth",
+                  });
+                }}
+              >
+                Hide the full plan
+              </button>
+            </motion.div>
+          </MotionConfig>
         </div>
       </div>
 
-      <div className="ob-bar">
-        {locked ? null : (
-          <button
-            type="button"
-            className="button button-secondary"
-            aria-expanded={asking}
-            disabled={busy}
-            onClick={() => {
-              setAsking(!asking);
-              if (!asking) window.setTimeout(() => input.current?.focus(), 0);
-            }}
-          >
-            Ask for a change
-          </button>
-        )}
-        {primary}
-      </div>
+      {locked && !primary ? null : (
+        <div className="ob-bar">
+          {locked ? null : (
+            <button
+              type="button"
+              className="button button-secondary"
+              aria-expanded={asking}
+              disabled={busy}
+              onClick={() => {
+                setAsking(!asking);
+                if (!asking) window.setTimeout(() => input.current?.focus(), 0);
+              }}
+            >
+              Ask for a change
+            </button>
+          )}
+          {primary}
+        </div>
+      )}
 
       <AnimatePresence>
         {open ? (

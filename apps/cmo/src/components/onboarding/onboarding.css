@@ -368,7 +368,7 @@ body:has(.ob) .site-header {
 }
 
 /* Its ground runs edge to edge, so wide content never shows beside it. */
-.ob-bar::before {
+.ob-main .ob-bar::before {
   content: "";
   position: absolute;
   inset: 0 -100vw;
@@ -1332,6 +1332,10 @@ body:has(.ob) .site-header {
   gap: 24px;
 }
 
+.ob-plan-body[hidden] {
+  display: none;
+}
+
 /* The full plan: a row that grows into the plan, as wide as its calendar. */
 .ob-fullplan-head {
   margin: 0;
@@ -1353,8 +1357,19 @@ body:has(.ob) .site-header {
   cursor: pointer;
 }
 
-.ob-fullplan-head button > :first-child {
+/* The hint gives way on a narrow screen; the title never wraps. */
+.ob-fullplan-head button > .ob-small {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ob-fullplan-head button > :first-child {
+  flex: none;
+  white-space: nowrap;
   color: var(--foreground);
   font-size: 1rem;
   line-height: 1.25rem;
