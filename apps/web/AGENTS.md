@@ -203,6 +203,17 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - Test both server and client components appropriately
 - Use Testing Library for component testing
 
+### Test files share a worker
+
+`vitest.config.mts` sets `isolate: false` and shuffles file order. Each file inherits whatever the file before it left in the worker: one happy-dom window (its cookies, document and DOM prototypes) and every dependency loaded from `node_modules` (React, react-dom, Testing Library, `js.foresight`). A leak fails some other file, at random. The setup files undo what they can after each file; leave the rest as you found it:
+
+- **Globals.** Use `vi.stubGlobal("fetch", mock)`, never `window.fetch = mock`, `global.fetch = mock` or `Object.assign(window, …)`. In the happy-dom project a plain assignment to a window property is kept where nothing can undo it, so the next file gets your mock. `src/test/setup.ts` calls `vi.unstubAllGlobals()` and `vi.unstubAllEnvs()` after each file, and puts back any existing global a file redefined (`Object.defineProperty(window, "location", …)`).
+- **Document, prototypes and browser state.** `src/test/setup.dom.ts` puts back the document's own properties (`document.cookie`, `visibilityState`, `execCommand`) and DOM prototypes (`Element.prototype.scrollIntoView = vi.fn()`). It also clears cookies and the document and resets the URL and viewport. Each file gets fresh `localStorage` and `sessionStorage`, because a `vi.spyOn(localStorage, …)` never comes off happy-dom's storage. Restore a `happyDOM.settings` value you change.
+- **Mocks, timers and module state.** `src/test/setup.ts` resets the module registry before each file, so `vi.mock` applies even when an earlier file imported the real module. After each file it calls `vi.useRealTimers()` and `vi.restoreAllMocks()`. A module's own state can still outlive it through a dependency that stays loaded: tie it to the module, not to the dependency (`src/hooks/use-intent-prefetch.ts` guards its listeners with its own flag, not with `ForesightManager.isInitiated`).
+- **Pending React transitions.** react-dom joins every async transition to any that is still pending. A transition that awaits a promise that never settles keeps every later file's transitions pending. Do not leave such a promise behind: use `Promise.withResolvers()` and settle it in `act` before the test ends, and run out the timers a transition awaits. `src/test/setup.dom.ts` fails a file that leaves one: "left a React async transition pending".
+
+**Reproduce an order.** The log's first line prints `Running tests with seed "<seed>"`. Rerun that order with `pnpm --filter web exec vitest run --sequence.seed=<seed>`. Adding `--maxWorkers=1` puts every file in one worker, which brings out leaks a 4-worker run only hits now and then. A failure that only shows up under one seed is a leak: find the earlier file that causes it and fix it there. Never retry it, skip it or give it a wider timeout.
+
 ## App-Specific Gotchas
 
 ### Authentication

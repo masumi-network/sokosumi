@@ -1717,9 +1717,8 @@ describe("TaskActivitySection", () => {
 
   it("jumps to an optimistic comment before refresh", async () => {
     highlightListMessageMock.mockReturnValue(true);
-    createTaskCommentMock.mockImplementation(
-      () => new Promise(() => undefined),
-    );
+    const sent = Promise.withResolvers<void>();
+    createTaskCommentMock.mockReturnValue(sent.promise);
 
     render(<TaskActivitySection {...baseProps} latestCommentId="c-old" />);
 
@@ -1739,6 +1738,8 @@ describe("TaskActivitySection", () => {
     expect(highlightListMessageMock).toHaveBeenCalled();
     const targetId = highlightListMessageMock.mock.calls.at(-1)?.[1];
     expect(String(targetId)).toMatch(/^optimistic:/);
+    // A send left pending holds every later transition in this worker.
+    await act(async () => sent.resolve());
   });
 
   it("restores the draft when the comment fails to send", async () => {

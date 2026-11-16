@@ -37,7 +37,7 @@ vi.mock("next-intl", () => ({
 }));
 
 const fetchMock = vi.fn();
-global.fetch = fetchMock as unknown as typeof fetch;
+vi.stubGlobal("fetch", fetchMock);
 
 function createHeaders(values: Record<string, string | null>) {
   return {
