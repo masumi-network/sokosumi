@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { SeoCopyButton, useSeoActionInstructions } from "./seo-action-copy";
-import { SeoActionTaskButton, useSeoActionFinding } from "./seo-actions";
+import { SeoActionTaskButton, useSeoActionFinding } from "./seo-action-finding";
 import { type SeoIssueSeverity, seoOverviewModel } from "./seo-overview-model";
 import {
   SEO_SEVERITY_MARK_CLASS,

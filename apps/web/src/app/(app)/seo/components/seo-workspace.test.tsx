@@ -449,7 +449,8 @@ describe("SEO workspace integration", () => {
     expect(evidence).toBeVisible();
   });
 
-  it("shows an issue with a fix once, as the card of its fix, on the tab an old Health link opens", async () => {
+  it("shows an issue with a fix once, as the row of its fix, on the tab an old Health link opens", async () => {
+    const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     const observationId = "962a86bb-5702-4d64-a6c4-15be5bf8ed80";
     workspace.findings.push({
@@ -489,34 +490,121 @@ describe("SEO workspace integration", () => {
       "aria-selected",
       "true",
     );
-    // The fix card names the check: an issue row over it would say the same thing twice.
+    // The fix row names the check: an issue row over it would say the same thing twice.
     expect(
       screen.queryByRole("heading", {
         name: "Not passed: Markup matches the visible page",
       }),
     ).toBeNull();
-    const card = screen
-      .getByRole("heading", { name: /^Make the markup price match the page/ })
-      .closest("article");
-    // An open card holds its labels twice, and the style sheet shows one: in the head on a wide screen,
-    // under the page link on a phone (the order of a closed row: title, page, labels). No style sheet here.
-    const [headLabel, bodyLabel] = within(card!).getAllByText("High impact");
-    expect(headLabel.parentElement).toHaveClass("max-sm:hidden");
-    expect(bodyLabel.parentElement).toHaveClass("sm:hidden");
-    expect(within(card!).getAllByText("High impact")).toHaveLength(2);
-    // What the check found is in view; the reasons and the effect of the fix stay closed.
-    // The line alone can be a bare count, so the name of its check goes with it.
+    const row = screen.getByRole("button", {
+      name: /^Make the markup price match the page/,
+    });
+    expect(within(row).getByText("High impact")).toBeVisible();
+    // The row names the page and what the check found in one line; the reasons wait in the dialog.
+    expect(row).toHaveTextContent(
+      "Home · Not passed: Markup matches the visible page. Found: The markup says 6.99, the page shows 9.99.",
+    );
+    expect(screen.queryByText("The two prices differ.")).toBeNull();
+    await user.click(row);
+    const dialog = await screen.findByRole("dialog", {
+      name: "Make the markup price match the page",
+    });
+    // The line alone can be a bare count, so the name of its check goes with it, and the rule's footnote.
     expect(
-      within(card!).getByText(
-        "Not passed: Markup matches the visible page. Found: The markup says 6.99, the page shows 9.99.",
+      within(dialog).getByText(
+        "Not passed: Markup matches the visible page. Found: The markup says 6.99, the page shows 9.99. (prices in USD)",
       ),
     ).toBeVisible();
-    // The rule's footnote is on the card too; the open card shows it.
-    expect(within(card!).getByText("(prices in USD)")).toBeInTheDocument();
+    expect(within(dialog).getByText("The two prices differ.")).toBeVisible();
+    expect(within(dialog).getByText("One price.")).toBeVisible();
+  });
+
+  it("filters the Actions worklist by impact, with suggestions apart", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const observationId = "962a86bb-5702-4d64-a6c4-15be5bf8ed80";
+    const pageUrl = workspace.pages[0].url;
+    const action: Omit<
+      (typeof workspace.actions)[number],
+      "id" | "title" | "findingIds"
+    > = {
+      observationId,
+      pageUrl,
+      why: "Why",
+      effort: "low",
+      expectedEffect: "Effect",
+      edit: null,
+      taskId: null,
+      status: "recommended",
+      kind: "fix",
+      evidence: [],
+    };
+    for (const [id, severity] of [
+      ["one", "critical"],
+      ["two", "major"],
+      ["three", "minor"],
+    ] as const) {
+      workspace.findings.push({
+        id,
+        observationId,
+        pageUrl,
+        device: "mobile",
+        rowId: `R-${id}`,
+        title: `Check ${id}`,
+        severity,
+        evidence: ["found"],
+        sourceRef: "html:head",
+        observedAt: new Date("2026-01-03T12:00:00Z"),
+      });
+      workspace.actions.push({
+        ...action,
+        id: `fix-${id}`,
+        findingIds: [id],
+        title: `Fix ${id}`,
+      });
+    }
+    workspace.actions.push({
+      ...action,
+      id: "idea",
+      findingIds: [],
+      kind: "opportunity",
+      title: "Write about chargers",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    const filters = screen.getByRole("group", { name: "Filter actions" });
+    const titles = () =>
+      within(screen.getByRole("list", { name: "Actions" }))
+        .getAllByRole("button")
+        .map(
+          (row) =>
+            row.textContent?.match(
+              /^(Fix (one|two|three)|Write about chargers)/,
+            )?.[0],
+        );
+    // Critical and high issues are one level, as their orange mark is.
     expect(
-      within(card!).getByText("Expected effect: One price."),
-    ).not.toBeVisible();
-    expect(within(card!).getByText("The two prices differ.")).not.toBeVisible();
+      within(filters)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["All4", "High2", "Low1", "Suggestions1"]);
+    expect(
+      within(filters).getByRole("button", { name: "All 4" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText(/They are not errors/)).toBeNull();
+    await user.click(within(filters).getByRole("button", { name: "High 2" }));
+    expect(titles()).toEqual(["Fix one", "Fix two"]);
+    await user.click(within(filters).getByRole("button", { name: "Low 1" }));
+    expect(titles()).toEqual(["Fix three"]);
+    // Suggestions alone keep the line that says they are no errors.
+    await user.click(
+      within(filters).getByRole("button", { name: "Suggestions 1" }),
+    );
+    expect(titles()).toEqual(["Write about chargers"]);
+    expect(screen.getByText(/They are not errors/)).toBeVisible();
   });
 
   it("puts the first step before the numbers, offers the agent only with an Audit, and names a page of the site by its path", async () => {
@@ -651,12 +739,16 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByLabelText("Your question")).toBeNull();
     // The page of the fix is a page of the site: its path, with the address as the link's name.
     await user.click(screen.getByRole("tab", { name: "Actions" }));
-    const card = screen
-      .getByRole("heading", { name: /^Make the markup price match the page/ })
-      .closest("article");
-    expect(within(card!).getByRole("link", { name: guide })).toHaveTextContent(
-      /^\/guides\/a$/,
+    await user.click(
+      screen.getByRole("button", {
+        name: /^Make the markup price match the page/,
+      }),
     );
+    expect(
+      within(await screen.findByRole("dialog")).getByRole("link", {
+        name: guide,
+      }),
+    ).toHaveTextContent(/^\/guides\/a$/);
     // Without its fix the issue has a row of its own under the cards.
     cleanup();
     served = { ...served, actions: [] };
@@ -5309,13 +5401,13 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     const first = renderWorkspace(workspace, "?tab=actions");
-    // Alone on the tab, the fixes need no title.
+    // Alone on the tab, the fixes need no title: the tab says it.
     expect(
-      await screen.findByRole("button", { name: /Create draft task/ }),
+      await screen.findByRole("button", { name: /^Fix the page title/ }),
     ).toBeVisible();
     expect(
-      screen.queryByRole("heading", { name: "Fixes for the issues" }),
-    ).toBeNull();
+      screen.getByRole("heading", { name: "Actions" }).closest(".sr-only"),
+    ).not.toBeNull();
     first.unmount();
     const strategy = seoTestStrategy();
     strategy.actions = Array.from({ length: 5 }, (_, index) => ({
@@ -5325,10 +5417,10 @@ describe("SEO workspace integration", () => {
     workspace.strategy = strategy;
     const second = renderWorkspace(workspace, "?tab=actions");
     expect(
-      await screen.findByRole("heading", {
-        name: "Fixes for the issues",
-      }),
-    ).toBeVisible();
+      (await screen.findByRole("heading", { name: "Actions" })).closest(
+        ".sr-only",
+      ),
+    ).toBeNull();
     expect(
       screen.getByRole("heading", {
         name: "Actions from the keyword strategy",
@@ -5983,11 +6075,17 @@ describe("SEO workspace integration", () => {
         screen.getByRole("list", { name: "The agent proposes" }),
       ).getByRole("button", { name: /^Fix the page title/ }),
     ).toHaveFocus();
-    // The Actions tab is the full list of the same cards: the reasons stay closed, and the run keeps the fill.
+    // The Actions tab lists the same fix as a row: its reasons wait in the same dialog, with the tinted button.
     await user.click(screen.getByRole("tab", { name: "Actions" }));
-    expect(await screen.findByText("The title is missing")).not.toBeVisible();
+    const listed = await screen.findByRole("button", {
+      name: /^Fix the page title/,
+    });
+    expect(screen.queryByText("The title is missing")).toBeNull();
+    await user.click(listed);
     expect(
-      screen.getByRole("button", { name: "Create draft task" }),
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Create draft task",
+      }),
     ).toHaveClass("bg-quinary");
   });
 
@@ -6040,9 +6138,13 @@ describe("SEO workspace integration", () => {
     ).toHaveClass("bg-quinary");
     expect(screen.queryByRole("button", { name: "Run full audit" })).toBeNull();
     await user.click(screen.getByRole("tab", { name: "Actions" }));
-    await screen.findByText("The title is missing");
+    await user.click(
+      await screen.findByRole("button", { name: /^Fix the page title/ }),
+    );
     expect(
-      screen.getByRole("button", { name: "Create draft task" }),
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Create draft task",
+      }),
     ).toHaveClass("bg-quinary");
   });
 
@@ -6258,26 +6360,24 @@ describe("SEO workspace integration", () => {
       "aria-selected",
       "true",
     );
-    // The Actions tab lists each fix as a closed row; the first one that waits is open.
+    // The Actions tab lists each fix as a row too, and a press opens the same dialog there.
     await user.click(screen.getByRole("tab", { name: "Actions" }));
-    expect(
-      await screen.findAllByRole("button", { name: "Create draft task" }),
-    ).toHaveLength(1);
-    expect(screen.getAllByRole("article")).toHaveLength(4);
-    const card = screen
-      .getByRole("heading", { name: /^Write a description/ })
-      .closest("article");
-    const head = within(card!).getByRole("button", {
+    const list = await screen.findByRole("list", { name: "Actions" });
+    expect(within(list).getAllByRole("button")).toHaveLength(4);
+    // One level of impact splits nothing: no filter over the rows.
+    expect(screen.queryByRole("group", { name: "Filter actions" })).toBeNull();
+    const listed = within(list).getByRole("button", {
       name: /^Write a description/,
     });
-    await user.click(head);
+    await user.click(listed);
     expect(
-      within(card!).getByRole("button", { name: "Create draft task" }),
+      within(
+        await screen.findByRole("dialog", { name: "Write a description" }),
+      ).getByRole("button", { name: "Create draft task" }),
     ).toBeVisible();
-    // A press on the title row closes the card again: the row is the one control of a closed card.
-    await user.click(head);
-    expect(within(card!).getAllByRole("button")).toHaveLength(1);
-    expect(within(card!).queryByRole("link")).toBeNull();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(listed).toHaveFocus();
     cleanup();
     // With several pages two fixes can have one title: the row names its page.
     const pricing = "https://example.com/pricing";
@@ -6373,12 +6473,15 @@ describe("SEO workspace integration", () => {
       }),
     );
     renderWorkspace(workspace, "?tab=actions");
-    expect(
-      screen.getByRole("button", { name: "Create draft task" }),
-    ).toHaveClass("bg-quinary");
-    await user.dblClick(
-      screen.getByRole("button", { name: "Create draft task" }),
+    await user.click(
+      screen.getByRole("button", { name: /^Fix the page title/ }),
     );
+    const create = within(await screen.findByRole("dialog")).getByRole(
+      "button",
+      { name: "Create draft task" },
+    );
+    expect(create).toHaveClass("bg-quinary");
+    await user.dblClick(create);
     expect(mutate).toHaveBeenCalledTimes(1);
     expect(mutate).toHaveBeenCalledWith({
       owner: { kind: "project", id: workspace.projectId },
@@ -6396,7 +6499,7 @@ describe("SEO workspace integration", () => {
     });
   });
 
-  it("opens the next waiting action once a Task exists for the one before", async () => {
+  it("keeps the dialog on its action once a Task exists for it, and marks its row", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     const waiting: Omit<(typeof workspace.actions)[number], "id" | "title"> = {
@@ -6423,20 +6526,12 @@ describe("SEO workspace integration", () => {
     );
     mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace, "?tab=actions");
-    // One card is open: the first action that waits. The second is a closed row.
-    expect(
-      screen.getAllByRole("button", { name: "Create draft task" }),
-    ).toHaveLength(1);
-    // A card that a press opens has the same button: the button does the same thing on each card.
-    const second = screen
-      .getByRole("heading", { name: /^Write a description/ })
-      .closest("article");
-    await user.click(within(second!).getByRole("button", { expanded: false }));
-    const creates = screen.getAllByRole("button", {
-      name: "Create draft task",
+    const row = screen.getByRole("button", { name: /^Fix the page title/ });
+    expect(row).toHaveTextContent("Effort: Low");
+    await user.click(row);
+    const dialog = await screen.findByRole("dialog", {
+      name: "Fix the page title",
     });
-    expect(creates).toHaveLength(2);
-    for (const create of creates) expect(create).toHaveClass("bg-quinary");
     served = {
       ...workspace,
       actions: [
@@ -6448,16 +6543,18 @@ describe("SEO workspace integration", () => {
         workspace.actions[1],
       ],
     };
-    await user.click(creates[0]);
-    // The Task exists: the next action leads, and its card opens to show its button.
-    const next = screen
-      .getByRole("heading", { name: /^Write a description/ })
-      .closest("article");
-    await waitFor(() =>
-      expect(
-        within(next!).getByRole("button", { name: "Create draft task" }),
-      ).toBeVisible(),
+    await user.click(
+      within(dialog).getByRole("button", { name: "Create draft task" }),
     );
+    // The dialog stays on its action and shows the Task; the row says a Task exists in the place of the effort.
+    expect(
+      await within(dialog).findByRole("link", { name: "Open task" }),
+    ).toHaveAttribute("href", "/tasks/3c34c8d3-5c56-47ef-8ddc-a17898de494e");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(
+      screen.getByRole("button", { name: /^Fix the page title/ }),
+    ).toHaveTextContent("Draft task created");
   });
 
   it("puts the next waiting action in the verdict card once a Task exists for the first", async () => {

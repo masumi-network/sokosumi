@@ -11967,7 +11967,6 @@
         "createTask": "Create draft task",
         "why": "Why this matters",
         "effect": "Expected effect",
-        "whyDetails": "Reason and evidence",
         "effort": "Effort",
         "before": "Before",
         "after": "Suggested change",
@@ -11983,9 +11982,6 @@
         "checksIncompleteBody": "Some requested checks could not be completed. Review Check details before deciding what to do next.",
         "unplannedIssues": "No recommended actions yet",
         "unplannedIssuesBody": "These checks found issues but did not include recommended actions. Review the findings or ask the SEO agent what to do next.",
-        "fixesTitle": "Fixes for the issues",
-        "fixesHelp": "A check found an issue on the page. Fixing it needs a recheck to verify.",
-        "opportunitiesTitle": "Suggestions from search data",
         "opportunitiesHelp": "Search Console data points to these. They are not errors and promise no traffic.",
         "noOpportunitiesBody": "The last check found nothing to fix. The Overview lists what the SEO agent suggests next.",
         "kind": {
@@ -11993,7 +11989,6 @@
           "opportunity": "Suggestion"
         },
         "problem": "{check}. Found: {found}",
-        "impactLine": "{level}: {hint}",
         "copyFix": "Copy change",
         "copyInstructions": "Copy agent instructions",
         "copyPage": "Page",
@@ -12001,7 +11996,14 @@
         "copyFailed": "Could not copy. Select the text and copy it by hand.",
         "copyAgentLead": "Make this SEO change on the website. Change only what it names, then check the page again.",
         "evidence": "Evidence",
-        "change": "The change"
+        "change": "The change",
+        "filter": {
+          "label": "Filter actions",
+          "all": "All",
+          "high": "High",
+          "low": "Low",
+          "suggestions": "Suggestions"
+        }
       },
       "pages": {
         "title": "Pages",

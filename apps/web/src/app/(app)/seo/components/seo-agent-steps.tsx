@@ -19,7 +19,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { SeoActionDetail } from "./seo-action-detail";
-import { SeoActionFinding } from "./seo-actions";
+import { SeoActionFinding } from "./seo-action-finding";
 import type { SeoAgentStep } from "./seo-agent-model";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGoogleConnection } from "./seo-google-connection";

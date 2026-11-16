@@ -1,318 +1,19 @@
 "use client";
 
-import type { ProjectSeoAction } from "@sokosumi/core-client";
-import { ArrowUpRight, ClipboardPlus, Play, Plug, Plus } from "lucide-react";
-import Link from "next/link";
+import { Play, Plug, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
-import { cn } from "@/lib/utils";
-import { SeoActionCardHead } from "./seo-card-head";
+import { SeoActionWorklist } from "./seo-action-worklist";
 import { SeoCsvButton } from "./seo-csv-button";
 import { seoActionsExport } from "./seo-export-model";
-import { type SeoIssueSeverity, seoOverviewModel } from "./seo-overview-model";
-import {
-  SEO_ROW_LIST_CLASS,
-  SeoActionName,
-  SeoEmpty,
-  SeoFoldSummary,
-  SeoPageLink,
-  SeoSection,
-  SeoSeverity,
-  SeoSource,
-  SeoState,
-  seoPageLabel,
-  seoSiteUrl,
-} from "./seo-shared";
+import { seoOverviewModel } from "./seo-overview-model";
+import { SeoEmpty, SeoSection } from "./seo-shared";
 import { SeoStrategyActions, SeoStrategyPlaceNotes } from "./seo-strategy";
-import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
-
-/**
- * One card for an action on the Actions tab. Closed, it is one row:
- * the title, the page and how bad the issue is. Open, it adds what the check found and the button; the
- * reasons and the evidence are in its details. The card with the page's filled button starts open.
- */
-export function SeoActionCard({
-  action,
-  model,
-  severity,
-  primary = false,
-}: {
-  action: ProjectSeoAction;
-  model: SeoWorkspaceModel;
-  /** The rating of the issue the action fixes; null for a suggestion from search data. */
-  severity: SeoIssueSeverity | null;
-  /** The page's one draft button. */
-  primary?: boolean;
-}) {
-  const t = useTranslations("App.Seo");
-  const finding = useSeoActionFinding(action, model);
-  const problem = seoOverviewModel(model.data).actionProblem(action);
-  const [open, setOpen] = useState(primary);
-  const bodyId = useId();
-  // The filled button moves on once a Task exists for the card before: the card that gets it opens.
-  useEffect(() => {
-    if (primary) setOpen(true);
-  }, [primary]);
-  const labels = (
-    <>
-      {/* The severity of the issue it fixes; a suggestion from search data has none. */}
-      {severity ? (
-        <SeoSeverity severity={severity} />
-      ) : (
-        <SeoState>{t(`actions.kind.${action.kind}`)}</SeoState>
-      )}
-      {action.status !== "recommended" ? (
-        <SeoState>{t(`actions.${action.status}`)}</SeoState>
-      ) : null}
-    </>
-  );
-  return (
-    <article className={cn(HOLDER_ITEM_CLASS, "group min-w-0")}>
-      <h3>
-        {/* The closed card is one row: the title, its page and how bad the issue is. A press opens what the check found and the button. */}
-        <SeoActionCardHead
-          bodyId={bodyId}
-          open={open}
-          onToggle={() => setOpen((value) => !value)}
-        >
-          <span className="min-w-0 flex-1 gap-3 sm:flex sm:items-center">
-            {/* The open card has the link to the page; the closed row names the page. */}
-            <SeoActionName
-              title={action.title}
-              pageUrl={open ? null : action.pageUrl}
-              workspace={model.data}
-            />
-            {/* On a phone the labels of an open card stand under its page link, so the lines keep the order
-                of the closed row: title, page, labels. */}
-            <span
-              className={cn(
-                "flex flex-wrap items-center gap-1 max-sm:mt-1",
-                open && "max-sm:hidden",
-              )}
-            >
-              {labels}
-            </span>
-          </span>
-        </SeoActionCardHead>
-      </h3>
-      {open ? (
-        <div
-          id={bodyId}
-          // A body that a press opens rises in.
-          className="space-y-2 px-4 pb-4 content-rise"
-        >
-          {/* The page stays near the title: the closed row names it there, the open card links it under the
-              head. The link is no part of the head: a press on it opens the page, not the card. */}
-          <div className="flex">
-            <SeoPageLink
-              url={action.pageUrl}
-              site={seoSiteUrl(model.data)}
-              label={seoPageLabel(model.data, action.pageUrl)}
-              quiet
-            />
-          </div>
-          <span className="flex flex-wrap items-center gap-1 sm:hidden">
-            {labels}
-          </span>
-          {/* What the check found, where an issue is behind the action; the effect of the fix reads like a spec and waits in the details. Two lines, four on a phone; the open details show all of it. */}
-          <p className="text-muted-foreground line-clamp-4 text-sm whitespace-pre-wrap break-words group-has-[details[open]]:line-clamp-none sm:line-clamp-2">
-            {finding}
-            {problem?.footnote ? (
-              <span className="hidden group-has-[details[open]]:inline">
-                {" "}
-                {problem.footnote}
-              </span>
-            ) : null}
-          </p>
-          <details className="text-sm">
-            {/* Detail behind a fold: quieter than the title and the found line over it. */}
-            <SeoFoldSummary className="text-muted-foreground py-2.5">
-              {t("actions.whyDetails")}
-            </SeoFoldSummary>
-            <div className="space-y-3 pt-3">
-              {/* What the level means, in words: a hint on the label alone does not reach a phone or a screen reader. */}
-              {severity ? (
-                <p className="text-muted-foreground text-sm">
-                  {t("actions.impactLine", {
-                    level: t(`severity.${severity}`),
-                    hint: t(`severityHint.${severity}`),
-                  })}
-                </p>
-              ) : null}
-              <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">
-                {action.why}
-              </p>
-              {problem ? (
-                <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">
-                  {t("actions.effect")}: {action.expectedEffect}
-                </p>
-              ) : null}
-              <p className="text-muted-foreground text-xs">
-                {t("actions.effort")}: {t(`priority.${action.effort}`)}
-              </p>
-              {action.evidence.length ? (
-                <ul className="text-muted-foreground list-disc space-y-1 ps-4 text-xs">
-                  {action.evidence.map((line, index) => (
-                    <li key={`${index}:${line}`} className="break-words">
-                      {line}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              <SeoSource
-                observationId={action.observationId}
-                workspace={model.data}
-              />
-              {action.edit ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <p className="text-muted-foreground mb-1 text-xs">
-                      {t("actions.before")}
-                    </p>
-                    <pre className="bg-quinary overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
-                      {action.edit.before ?? t("actions.noBefore")}
-                    </pre>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground mb-1 text-xs">
-                      {t("actions.after")}
-                    </p>
-                    <pre className="bg-quinary overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
-                      {action.edit.after}
-                    </pre>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </details>
-          <SeoActionTaskButton action={action} model={model} />
-        </div>
-      ) : null}
-    </article>
-  );
-}
-
-/** What the check found, where an issue is behind the action; else the effect of the fix. */
-export function SeoActionFinding({
-  action,
-  model,
-}: {
-  action: ProjectSeoAction;
-  model: SeoWorkspaceModel;
-}) {
-  return useSeoActionFinding(action, model);
-}
-
-export function useSeoActionFinding(
-  action: ProjectSeoAction,
-  model: SeoWorkspaceModel,
-): string {
-  const t = useTranslations("App.Seo");
-  const problem = seoOverviewModel(model.data).actionProblem(action);
-  return problem
-    ? t("actions.problem", {
-        check: t.markup("overview.failedCheck", {
-          name: problem.check,
-          // Plain words in a running line: the tag is for the title of an issue row.
-          prefix: (chunks) => chunks,
-        }),
-        found: problem.found,
-      })
-    : action.expectedEffect;
-}
-
-/** The action's Task: a link once it exists, else the button that drafts it for an editor. */
-export function SeoActionTaskButton({
-  action,
-  model,
-}: {
-  action: ProjectSeoAction;
-  model: SeoWorkspaceModel;
-}) {
-  const t = useTranslations("App.Seo");
-  return action.taskId ? (
-    <Button asChild size="sm" variant="outline">
-      <Link href={`/tasks/${encodeURIComponent(action.taskId)}`}>
-        <ArrowUpRight />
-        {t("openTask")}
-      </Link>
-    </Button>
-  ) : model.data.availableActions.canEdit ? (
-    <Button
-      size="sm"
-      // Tinted, not the brand fill: a draft is a quiet step the owner reviews later (owner, 2026-11-13).
-      variant="secondary"
-      loading={model.pending}
-      onClick={() => {
-        void model.createActionTask(action);
-      }}
-    >
-      <ClipboardPlus />
-      {t("actions.createTask")}
-    </Button>
-  ) : null;
-}
-
-function ActionGroup({
-  title,
-  help,
-  actions,
-  model,
-  severity,
-  primary,
-  named,
-}: {
-  title: string;
-  /** What the group is; absent where the section title says enough. */
-  help: string | undefined;
-  actions: ProjectSeoAction[];
-  model: SeoWorkspaceModel;
-  severity: (action: ProjectSeoAction) => SeoIssueSeverity | null;
-  /** The action that carries the tab's one draft button. */
-  primary: ProjectSeoAction | undefined;
-  /** The other group has actions too: only then a group needs its name. */
-  named: boolean;
-}) {
-  if (!actions.length) return null;
-  return (
-    <div className="space-y-2">
-      {named || help ? (
-        <div className="px-2">
-          {named ? <h3 className="text-sm font-semibold">{title}</h3> : null}
-          {help ? (
-            <p className="text-muted-foreground text-sm">{help}</p>
-          ) : null}
-        </div>
-      ) : null}
-      <ul role="list" className={SEO_ROW_LIST_CLASS}>
-        {actions.map((action) => (
-          <li key={seoActionKey(action)}>
-            <SeoActionCard
-              action={action}
-              model={model}
-              severity={severity(action)}
-              primary={action === primary}
-            />
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
+import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const overview = seoOverviewModel(model.data);
-  const fixes = overview.actions.filter((action) => action.kind === "fix");
-  const opportunities = overview.actions.filter(
-    (action) => action.kind === "opportunity",
-  );
-  // The first action that still waits opens as a card, with the one draft button of the tab.
-  const primary = [...fixes, ...opportunities].find(
-    (action) => action.status === "recommended",
-  );
   const csv = (
     <SeoCsvButton
       name="actions"
@@ -320,8 +21,6 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
       table={() => seoActionsExport(overview.actions, t)}
     />
   );
-  // Two groups on the tab: each one names itself.
-  const grouped = fixes.length > 0 && opportunities.length > 0;
   // The strategy actions are a group with a title of their own: a group over them needs one too.
   const strategyFollows = Boolean(model.data.strategy?.actions.length);
   const searchLoaded = model.data.searchQueries !== null;
@@ -343,31 +42,16 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
       <SeoSection
         title={t("actions.title")}
         description={tracked ? t("actions.help") : undefined}
-        titleHidden={!tracked}
-        foot={overview.actions.length ? csv : undefined}
+        // The strategy actions under the list have a title: the list keeps its own then.
+        titleHidden={!tracked && !strategyFollows}
       >
         {overview.actions.length ? (
-          <div className="space-y-5">
-            <ActionGroup
-              title={t("actions.fixesTitle")}
-              // Alone under "Actions", a list of fixes needs no line; suggestions keep theirs: it says they promise no traffic.
-              help={grouped ? t("actions.fixesHelp") : undefined}
-              actions={fixes}
-              model={model}
-              severity={overview.actionSeverity}
-              primary={primary}
-              named={grouped || strategyFollows}
-            />
-            <ActionGroup
-              title={t("actions.opportunitiesTitle")}
-              help={t("actions.opportunitiesHelp")}
-              actions={opportunities}
-              model={model}
-              severity={overview.actionSeverity}
-              primary={primary}
-              named={grouped || strategyFollows}
-            />
-          </div>
+          <SeoActionWorklist
+            actions={overview.actions}
+            severity={overview.actionSeverity}
+            model={model}
+            tools={csv}
+          />
         ) : (
           <SeoEmpty
             title={t(

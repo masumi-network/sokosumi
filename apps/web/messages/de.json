@@ -11967,7 +11967,6 @@
         "createTask": "Entwurfsaufgabe erstellen",
         "why": "Warum das wichtig ist",
         "effect": "Erwartete Wirkung",
-        "whyDetails": "Begründung und Belege",
         "effort": "Aufwand",
         "before": "Vorher",
         "after": "Vorgeschlagene Änderung",
@@ -11983,9 +11982,6 @@
         "checksIncompleteBody": "Einige angeforderte Prüfungen konnten nicht abgeschlossen werden. Prüfe die Prüfdetails, bevor du den nächsten Schritt wählst.",
         "unplannedIssues": "Noch keine empfohlenen Aktionen",
         "unplannedIssuesBody": "Diese Prüfungen haben Probleme gefunden, enthalten aber keine empfohlenen Aktionen. Prüfe die Befunde oder frag den SEO-Agenten nach den nächsten Schritten.",
-        "fixesTitle": "Korrekturen für die Probleme",
-        "fixesHelp": "Eine Prüfung fand ein Problem auf der Seite. Nach der Korrektur braucht es eine neue Prüfung zur Bestätigung.",
-        "opportunitiesTitle": "Vorschläge aus Suchdaten",
         "opportunitiesHelp": "Search-Console-Daten weisen darauf hin. Es sind keine Fehler, und sie versprechen keinen Traffic.",
         "noOpportunitiesBody": "Die letzte Prüfung fand nichts zu beheben. Die Übersicht zeigt, was der SEO-Agent als Nächstes vorschlägt.",
         "kind": {
@@ -11993,7 +11989,6 @@
           "opportunity": "Vorschlag"
         },
         "problem": "{check}. Gefunden: {found}",
-        "impactLine": "{level}: {hint}",
         "copyFix": "Änderung kopieren",
         "copyInstructions": "Anweisungen für Agenten kopieren",
         "copyPage": "Seite",
@@ -12001,7 +11996,14 @@
         "copyFailed": "Kopieren nicht möglich. Text markieren und von Hand kopieren.",
         "copyAgentLead": "Setze diese SEO-Änderung auf der Website um. Ändere nur, was sie nennt, und prüfe danach die Seite.",
         "evidence": "Belege",
-        "change": "Die Änderung"
+        "change": "Die Änderung",
+        "filter": {
+          "label": "Maßnahmen filtern",
+          "all": "Alle",
+          "high": "Hoch",
+          "low": "Niedrig",
+          "suggestions": "Vorschläge"
+        }
       },
       "pages": {
         "title": "Seiten",
