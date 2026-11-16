@@ -14,7 +14,7 @@ import {
   projectTaskCounts,
 } from "@/app/projects/components/project-status-strip";
 import {
-  getProjectWorkspaceLabels,
+  getProjectWorkspaceLabelsFor,
   ProjectWorkspaceShell,
 } from "@/app/projects/components/project-workspace-shell";
 import {
@@ -39,7 +39,7 @@ export default async function ProjectDetailPage({
   if (!data) {
     notFound();
   }
-  const { project, closeStatus, stats } = data;
+  const { project, closeStatus, stats, showBots } = data;
 
   // Started before the page's own awaits, awaited inside their panels'
   // boundaries, so a slow feed holds up nothing above it.
@@ -53,7 +53,7 @@ export default async function ProjectDetailPage({
   const [t, formatter, workspaceLabels] = await Promise.all([
     getTranslations("App.Projects.Detail"),
     getFormatter(),
-    getProjectWorkspaceLabels(),
+    getProjectWorkspaceLabelsFor(showBots),
   ]);
 
   return (

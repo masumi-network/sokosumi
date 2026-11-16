@@ -65,12 +65,18 @@ vi.mock("@/app/projects/components/workspace-column", async () => ({
   },
 }));
 
-// The Bots tab asks Core about shared bots; off here, as by default.
+// The Bots tab asks Core about shared bots; off by default.
+const listSharedMock = vi.fn(async (): Promise<unknown> => null);
+const getActiveOrganizationIdMock = vi.fn(
+  async (): Promise<string | null> => null,
+);
 vi.mock("@/lib/services/soko-bot.service", () => ({
-  sokoBotService: { listShared: async () => null },
+  sokoBotService: { listShared: () => listSharedMock() },
 }));
 vi.mock("@/lib/services/user.service", () => ({
-  userService: { getActiveOrganizationId: async () => null },
+  userService: {
+    getActiveOrganizationId: () => getActiveOrganizationIdMock(),
+  },
 }));
 
 // Stubbed: the pin reads the reader's Pin list through react-query, and this
@@ -174,9 +180,26 @@ describe("ProjectDetailPage", () => {
     expect(notFoundMock).toHaveBeenCalledOnce();
   });
 
-  // The reads are cached, so a link prefetch carries the Overview.
-  // connection() would drop it back to the skeleton.
-  it("renders the project without deferring to the request", async () => {
+  // A cached 404 would outlive the stale window: nothing on a 404 page
+  // refreshes it. So a miss reads the project again, fresh.
+  it("reads a missing project again, fresh, before the 404", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(null);
+
+    const { default: ProjectDetailPage } = await import("./page");
+
+    await expect(
+      ProjectDetailPage({
+        params: Promise.resolve({ projectId: "project-missing" }),
+      }),
+    ).rejects.toThrow("NOT_FOUND");
+
+    expect(connectionMock).toHaveBeenCalledOnce();
+    expect(projectServiceMock.getProjectById).toHaveBeenCalledTimes(2);
+  });
+
+  // connection() on the success path would drop the Overview from a link
+  // prefetch. This proves only that the page does not call it.
+  it("calls no connection() on the success path", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(buildProject());
 
     const { default: ProjectDetailPage } = await import("./page");
@@ -362,6 +385,23 @@ describe("ProjectDetailPage", () => {
     expect(
       screen.getByRole("link", { name: "App.Projects.Detail.tabs.overview" }),
     ).toHaveAttribute("aria-current", "page");
+  });
+
+  it("adds the Bots tab in an organization with shared bots", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
+    listSharedMock.mockResolvedValueOnce([{ id: "bot-1" }]);
+    getActiveOrganizationIdMock.mockResolvedValueOnce("org-1");
+
+    const { default: ProjectDetailPage } = await import("./page");
+    render(
+      await ProjectDetailPage({
+        params: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(
+      screen.getByRole("link", { name: "App.Projects.Detail.tabs.bots" }),
+    ).toHaveAttribute("href", "/projects/project-1/bots");
   });
 
   it("counts the Tasks board's columns, each linking to the project's board", async () => {
