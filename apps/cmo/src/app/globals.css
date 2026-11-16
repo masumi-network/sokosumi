@@ -39,7 +39,7 @@
   --space-3: 12px;
   --space-6: 24px;
   --cuso-picker-width: 640px;
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-sans: var(--font-mori), system-ui, sans-serif;
   --scrim: rgb(0 0 0 / 0.3);
   /* Channels' own marks keep their networks' colours. */
   /* Fully see-through, for fades and masks. */
