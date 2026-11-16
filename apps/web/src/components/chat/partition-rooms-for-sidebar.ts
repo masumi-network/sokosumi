@@ -10,6 +10,14 @@ export interface PartitionedSidebarRooms {
   namedChannels: ChatRoom[];
   directMessages: ChatRoom[];
   externalJoined: ChatRoom[];
+  /**
+   * The reader has a channel of their own organization somewhere in the
+   * sidebar, even if it lists under Pinned or External instead of Channels.
+   * Guest rooms belong to another organization and do not count.
+   */
+  hasOwnChannel: boolean;
+  /** The reader has a direct message somewhere, Pinned included. */
+  hasDirect: boolean;
 }
 
 /** Discoverability values that live under the External/peer sidebar section. */
@@ -72,5 +80,14 @@ export function partitionRoomsForSidebar(
   directMessages.sort(compareChatRoomsByRecentActivity);
   externalJoined.sort(compareChatRoomsByRecentActivity);
 
-  return { pinned, namedChannels, directMessages, externalJoined };
+  return {
+    pinned,
+    namedChannels,
+    directMessages,
+    externalJoined,
+    hasOwnChannel: rooms.some(
+      (room) => room.kind === "channel" && room.myAccess !== "guest",
+    ),
+    hasDirect: rooms.some((room) => room.kind === "direct"),
+  };
 }
