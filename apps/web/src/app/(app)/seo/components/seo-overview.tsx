@@ -401,6 +401,14 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                           <SeoSeverity severity={finding.severity} />
                         </span>
                       </div>
+                      {finding.relatedPageUrl ? (
+                        <div className="space-y-1">
+                          <p className="text-xs">
+                            {t("overview.relatedFindingPage")}
+                          </p>
+                          <SeoPageLink url={finding.relatedPageUrl} />
+                        </div>
+                      ) : null}
                       {finding.visibility === "PRIVATE" ? (
                         <p className="text-xs">
                           {t("overview.privateFinding")}

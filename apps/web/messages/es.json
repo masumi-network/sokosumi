@@ -11680,6 +11680,7 @@
       },
       "overview": {
         "privateFinding": "Solo tú puedes ver este hallazgo.",
+        "relatedFindingPage": "Página relacionada",
         "measurements": "Tráfico",
         "not_connected": "Todavía no hay estadísticas de tráfico guardadas para estas páginas. Elige una cuenta para cargarlas.",
         "unavailable": "Las estadísticas no están disponibles. Revisa aquí la conexión e inténtalo de nuevo.",
@@ -12082,7 +12083,7 @@
         "failed": "Fallida",
         "invalid": "Revisa las páginas, palabras clave, mercado y dispositivos. Las auditorías completas admiten una palabra clave y ambos dispositivos.",
         "keywordsHelp": "Introduce hasta 20 palabras clave, con un máximo de 80 caracteres cada una.",
-        "relatedPages": "Incluye páginas relevantes del mismo sitio, hasta {count} páginas en total.",
+        "relatedPages": "También comprueba la indexación de páginas relevantes de este sitio, hasta {count} páginas en total. Las auditorías completas cubren solo las páginas seleccionadas.",
         "fullHelp": "Las auditorías completas admiten una palabra clave y ambos dispositivos. Todas las páginas seleccionadas usan el mismo mercado.",
         "serviceUnavailable": "Las comprobaciones no están disponibles en este espacio de trabajo. Vuelve a la auditoría.",
         "returnToAudit": "Volver a la auditoría",

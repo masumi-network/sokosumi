@@ -55,6 +55,43 @@ describe("indexing review selection", () => {
     expect(seoIndexTriage(workspace)).toBeNull();
   });
 
+  it("keeps unsaved related evidence under each selected audited parent", () => {
+    const workspace = seoTestWorkspace();
+    const primary = workspace.pages[0];
+    const second = { ...primary, id: "second", url: `${primary.url}second` };
+    workspace.pages.push(second);
+    workspace.scope.pageIds = [primary.id, second.id];
+    const related = `${primary.url}related`;
+    workspace.indexTriage = {
+      assessments: [
+        { ...assessment(related), auditPageUrl: second.url },
+        {
+          ...assessment(related),
+          auditPageUrl: primary.url,
+          status: "expected_exclusion",
+        },
+        {
+          ...assessment(`${primary.url}outside`),
+          auditPageUrl: `${primary.url}unselected`,
+        },
+      ],
+    };
+    expect(
+      seoIndexTriage(workspace)?.assessments.map((item) => [
+        item.auditPageUrl,
+        item.pageUrl,
+      ]),
+    ).toEqual([
+      [primary.url, related],
+      [second.url, related],
+    ]);
+    workspace.scope.pageIds = [second.id];
+    expect(
+      seoIndexTriage(workspace)?.assessments.map((item) => item.auditPageUrl),
+    ).toEqual([second.url]);
+    expect(workspace.pages.some((page) => page.url === related)).toBe(false);
+  });
+
   it("omits normal audit issues and indexed pages instead of duplicating findings", () => {
     const workspace = seoTestWorkspace();
     const page = assessment(workspace.pages[0].url);

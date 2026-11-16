@@ -95,6 +95,38 @@ describe("indexing review notes", () => {
     expect(view.container.querySelector("script")).toBeNull();
   });
 
+  it("shows an unsaved related URL as an expected exclusion without an audit issue or page creation", () => {
+    const workspace = seoTestWorkspace();
+    const primary = workspace.pages[0];
+    const related = `${primary.url}redirected`;
+    workspace.indexTriage = {
+      assessments: [
+        {
+          taskId: "task",
+          checkedAt: new Date("2026-11-16T08:00:00Z"),
+          pageUrl: related,
+          auditPageUrl: primary.url,
+          status: "expected_exclusion",
+          report: false,
+          reason: "This URL redirects to the audited page as intended.",
+          suggestedFix: null,
+          evidence: [],
+        },
+      ],
+    };
+    renderNotes(workspace);
+    expect(
+      screen.getByRole("heading", { name: "Expected exclusion" }),
+    ).toBeVisible();
+    expect(screen.getByRole("link", { name: related })).toHaveAttribute(
+      "href",
+      related,
+    );
+    expect(screen.queryByText("Suggested next step")).toBeNull();
+    expect(workspace.pages).toHaveLength(1);
+    expect(workspace.findings).toHaveLength(0);
+  });
+
   it("shows no section without review data or when the saved notes belong to another page", () => {
     const workspace = seoTestWorkspace();
     const view = renderNotes(workspace);

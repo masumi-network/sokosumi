@@ -20,19 +20,24 @@ const reviewNote = (
   assessment: IndexAssessment,
 ): assessment is ReviewAssessment => REVIEW_STATES.has(assessment.status);
 
-/** Private assessments stay with the exact saved pages selected in this view. */
+/** Private related evidence stays with its selected audited parent, without adding a saved page. */
 export function seoIndexAssessments(workspace: IndexTriageWorkspace) {
   const triage = workspace.indexTriage;
   if (!triage) return [];
   const selectedIds = new Set(workspace.scope.pageIds);
-  const byUrl = new Map(
-    triage.assessments.map((assessment) => [assessment.pageUrl, assessment]),
+  const selected = new Map(
+    workspace.pages
+      .filter((page) => selectedIds.has(page.id))
+      .map((page, index) => [page.url, index]),
   );
-  // Saved page order keeps the main audit page before its related pages.
-  return workspace.pages.flatMap((page) => {
-    const assessment = selectedIds.has(page.id) ? byUrl.get(page.url) : null;
-    return assessment ? [assessment] : [];
-  });
+  const parent = (assessment: IndexAssessment) =>
+    assessment.auditPageUrl ?? assessment.pageUrl;
+  return triage.assessments
+    .filter((assessment) => selected.has(parent(assessment)))
+    .toSorted(
+      (left, right) =>
+        selected.get(parent(left))! - selected.get(parent(right))!,
+    );
 }
 
 /** Issues belong to audit findings. This section keeps only non-issue review notes. */

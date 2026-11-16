@@ -2643,6 +2643,7 @@ describe("SEO workspace integration", () => {
     const user = userEvent.setup();
     const workspace = seoTestCheckedAudit();
     const pageUrl = workspace.pages[0].url;
+    const relatedPageUrl = `${pageUrl}related`;
     const checkedAt = new Date("2026-11-16T08:00:00Z");
     const reason =
       "Google could not fetch this page, and the audit found a server error.";
@@ -2651,6 +2652,7 @@ describe("SEO workspace integration", () => {
     workspace.findings = [
       {
         id: "gsc-indexing-issue",
+        relatedPageUrl,
         observationId: workspace.observations[0].id,
         pageUrl,
         device: null,
@@ -2708,6 +2710,10 @@ describe("SEO workspace integration", () => {
     ).toBeNull();
     await user.click(summary);
     expect(within(findings).getByText(reason)).toBeVisible();
+    expect(
+      within(findings).getByRole("link", { name: relatedPageUrl }),
+    ).toHaveAttribute("href", relatedPageUrl);
+    expect(workspace.pages).toHaveLength(1);
     expect(
       within(findings).getByText("Google says: Server error (5xx)."),
     ).toBeVisible();
@@ -4434,7 +4440,7 @@ describe("SEO workspace integration", () => {
     expect(checkType()).toHaveTextContent("Full audit");
     expect(
       screen.getByText(
-        "Includes relevant pages from the same site, up to 10 pages total.",
+        "Also checks indexing for relevant pages from this site, up to 10 pages total. Full audits cover selected pages only.",
       ),
     ).toBeVisible();
     // A full audit takes one keyword, so the form does not open on a list it would refuse.
@@ -4445,7 +4451,7 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByRole("option", { name: "Keyword positions" }));
     expect(
       screen.queryByText(
-        "Includes relevant pages from the same site, up to 10 pages total.",
+        "Also checks indexing for relevant pages from this site, up to 10 pages total. Full audits cover selected pages only.",
       ),
     ).toBeNull();
     expect(keywords()).toHaveValue("stablecoins\nstablecoin wallet");

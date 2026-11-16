@@ -35,7 +35,12 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
   // One rule that fails on mobile and on desktop is one issue on that page; the row names its devices.
   const issues = [
     ...Map.groupBy(failed, (finding) =>
-      JSON.stringify([finding.observationId, finding.rowId, finding.pageUrl]),
+      JSON.stringify([
+        finding.observationId,
+        finding.rowId,
+        finding.pageUrl,
+        finding.relatedPageUrl,
+      ]),
     ).values(),
   ].map((group) => ({
     ...group[0],

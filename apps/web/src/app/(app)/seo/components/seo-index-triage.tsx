@@ -21,7 +21,13 @@ export function SeoIndexTriage({
     <SeoSection title={t("title")} description={t("help")}>
       <ul className={cn(HOLDER_ITEM_CLASS, "divide-y")}>
         {triage.assessments.map((assessment) => (
-          <li key={assessment.pageUrl} className="space-y-3 p-4 text-sm">
+          <li
+            key={JSON.stringify([
+              assessment.auditPageUrl ?? assessment.pageUrl,
+              assessment.pageUrl,
+            ])}
+            className="space-y-3 p-4 text-sm"
+          >
             <div className="space-y-1">
               <h3 className="flex items-center gap-2 font-medium">
                 <CircleHelp
