@@ -12,8 +12,23 @@ vi.mock("@/lib/clients/core.client", () => ({
 vi.mock("@/lib/auth/auth.server", () => ({
   getPrivateCachedSession: async () => null,
 }));
+const hasAssignedSeatMock = vi.fn();
+const resolvePlanMock = vi.fn();
+vi.mock("@/lib/services/organization-seat.service", () => ({
+  organizationSeatService: {
+    hasAssignedSeat: (...args: unknown[]) => hasAssignedSeatMock(...args),
+  },
+}));
+vi.mock("@/app/tasks/utils/task-activity-plan", () => ({
+  resolveTaskDetailViewerPlan: (...args: unknown[]) => resolvePlanMock(...args),
+}));
+vi.mock("@/app/tasks/utils/task-assignee-members", () => ({
+  listTaskAssigneeMemberOptions: async () => [],
+}));
 
-const { getPrivateCachedTask } = await import("./private-task-detail-cache");
+const { getPrivateCachedTask, startPrivateTaskDetailReads } = await import(
+  "./private-task-detail-cache"
+);
 const { CoreApiRequestError } = await import("@/lib/clients/core.request");
 
 function coreError(status: number) {
@@ -40,5 +55,25 @@ describe("getPrivateCachedTask", () => {
     await expect(getPrivateCachedTask("SOK-1")).rejects.toThrow(
       "Core answered 503",
     );
+  });
+});
+
+// A hover prefetch keeps whatever these reads settle to. A rejection would be
+// kept as the error page the click opens, out of the refresh's reach.
+describe("startPrivateTaskDetailReads", () => {
+  it("degrades a failed seat or plan read instead of rejecting", async () => {
+    hasAssignedSeatMock.mockRejectedValue(new Error("Core answered 503"));
+    resolvePlanMock.mockRejectedValue(new Error("Core answered 503"));
+    const task = {
+      projectId: null,
+      organizationId: "org-1",
+      visibility: "PRIVATE",
+      workspace: { organizationId: "org-1" },
+    } as unknown as Parameters<typeof startPrivateTaskDetailReads>[0];
+
+    const reads = startPrivateTaskDetailReads(task, false);
+
+    await expect(reads.hasAssignedSeatPromise).resolves.toBe(false);
+    await expect(reads.currentPlanPromise).resolves.toBeNull();
   });
 });

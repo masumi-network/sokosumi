@@ -80,6 +80,11 @@ async function getPrivateCachedMentionableMembers(
  * Starts the private-cached reads that gate the task detail sections. Each is
  * a promise, so the view hands it to the section that awaits it and the other
  * sections render without waiting.
+ *
+ * A failed seat or plan read degrades (no seat, plan unavailable) instead of
+ * rejecting. A hover prefetch would otherwise keep that failure as the error
+ * page the click opens, which the refresh cannot reach. The fallback stays
+ * outside the cache, so it is never kept, and the refresh replaces it.
  */
 export function startPrivateTaskDetailReads(
   task: Task,
@@ -91,12 +96,14 @@ export function startPrivateTaskDetailReads(
     sessionPromise,
     // Admin read-only: plan is unavailable for the viewer (not "free"). Skip the
     // org subscription call that used to 403 → auth-redirect bounce.
-    currentPlanPromise: sessionPromise.then((session) =>
-      getPrivateCachedViewerPlan(forceReadOnly, session, task.organizationId),
-    ),
+    currentPlanPromise: sessionPromise
+      .then((session) =>
+        getPrivateCachedViewerPlan(forceReadOnly, session, task.organizationId),
+      )
+      .catch(() => null),
     hasAssignedSeatPromise: forceReadOnly
       ? Promise.resolve(false)
-      : getPrivateCachedAssignedSeat(organizationId),
+      : getPrivateCachedAssignedSeat(organizationId).catch(() => false),
     mentionableUsersPromise:
       forceReadOnly || task.visibility === TaskVisibility.PRIVATE
         ? Promise.resolve<MentionableMembers>([])
