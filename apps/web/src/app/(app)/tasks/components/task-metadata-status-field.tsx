@@ -13,6 +13,7 @@ import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 
 import { useOptimisticTaskStatus } from "./task-detail-optimistic";
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
+import { TaskStatusAge } from "./task-status-age";
 import { TaskStatusPicker } from "./task-status-picker";
 
 export interface TaskMetadataStatusFieldLabels {
@@ -37,6 +38,8 @@ interface TaskMetadataStatusFieldProps {
   status: TaskStatus;
   /** Statuses Core lets this viewer move the Task to (ADR 0029). */
   selectableStatuses: readonly TaskStatus[];
+  /** ISO time the saved status began. */
+  statusSince?: string;
   labels: TaskMetadataStatusFieldLabels;
 }
 
@@ -44,6 +47,7 @@ export function TaskMetadataStatusField({
   taskId,
   status,
   selectableStatuses,
+  statusSince,
   labels,
 }: TaskMetadataStatusFieldProps) {
   const router = useRouter();
@@ -128,6 +132,16 @@ export function TaskMetadataStatusField({
         align="start"
         variant="row"
       />
+      {statusSince ? (
+        <TaskStatusAge
+          status={currentStatus}
+          // A status shown before Core confirms it starts its clock now.
+          statusSince={
+            isStatusChanging ? new Date().toISOString() : statusSince
+          }
+          variant="row"
+        />
+      ) : null}
 
       <TaskReopenToReadyDialog
         open={isReopenDialogOpen}

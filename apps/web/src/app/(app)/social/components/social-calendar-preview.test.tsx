@@ -21,14 +21,17 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
     selectedPostId,
     previewOnly,
     queueSlots,
+    readOnly,
   }: {
     projectId: string;
     selectedPostId: string;
     previewOnly: boolean;
     queueSlots?: unknown[];
+    readOnly?: boolean;
   }) => (
     <div
       role="dialog"
+      data-read-only={String(Boolean(readOnly))}
       data-project={projectId}
       data-post={selectedPostId}
       data-preview-only={String(previewOnly)}
@@ -68,6 +71,7 @@ describe("Social calendar previews", () => {
       post: { id: "scheduled-post", projectId: "post-project" },
       connections: [],
       queueSlots: [{ id: "slot-1" }],
+      readOnly: true,
     });
     render(
       <NuqsTestingAdapter
@@ -99,6 +103,11 @@ describe("Social calendar previews", () => {
       postId: "scheduled-post",
     });
     expect(screen.getByRole("dialog")).toHaveAttribute("data-queue-slots", "1");
+    // The owning Project's CMO policy reaches the shared preview.
+    expect(screen.getByRole("dialog")).toHaveAttribute(
+      "data-read-only",
+      "true",
+    );
     expect(onUrlUpdate).not.toHaveBeenCalled();
   });
   it("restores calendar focus when loading is canceled", async () => {

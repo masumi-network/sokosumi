@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth/auth.client";
 import {
+  type CompanyQuery,
   type ContactQuery,
   contactsService,
 } from "@/lib/services/contacts.client";
@@ -19,6 +20,8 @@ export const CONTACT_MAP_KEY = ["contact-map"] as const;
 export const CONTACT_COMPANY_KEY = ["contact-company"] as const;
 export const CONTACT_BREAKDOWN_KEY = ["contact-breakdown"] as const;
 export const CONTACT_DUPLICATES_KEY = ["contact-duplicates"] as const;
+export const COMPANIES_KEY = ["contact-companies"] as const;
+export const COMPANY_LISTS_KEY = ["contact-company-lists"] as const;
 export const contactKey = (id: string) => ["contact", id] as const;
 
 const PAGE_SIZE = 50;
@@ -102,6 +105,27 @@ export function useContactLists() {
     enabled: workspace !== null,
     queryKey: [...CONTACT_LISTS_KEY, workspace],
     queryFn: () => contactsService.lists(),
+  });
+}
+
+/** The Companies table: one row per company, by `query`. */
+export function useCompanies(query: CompanyQuery, enabled: boolean) {
+  const workspace = useWorkspace();
+  return useQuery({
+    enabled: enabled && workspace !== null,
+    queryKey: [...COMPANIES_KEY, workspace, query],
+    queryFn: () => contactsService.companies(query),
+    placeholderData: (previous, last) =>
+      sameWorkspace(previous, last, workspace),
+  });
+}
+
+export function useCompanyLists() {
+  const workspace = useWorkspace();
+  return useQuery({
+    enabled: workspace !== null,
+    queryKey: [...COMPANY_LISTS_KEY, workspace],
+    queryFn: () => contactsService.companyLists(),
   });
 }
 
@@ -216,6 +240,8 @@ export async function refreshContacts(cache: QueryClient, contactId?: string) {
     cache.invalidateQueries({ queryKey: CONTACT_COMPANY_KEY }),
     cache.invalidateQueries({ queryKey: CONTACT_BREAKDOWN_KEY }),
     cache.invalidateQueries({ queryKey: CONTACT_DUPLICATES_KEY }),
+    cache.invalidateQueries({ queryKey: COMPANIES_KEY }),
+    cache.invalidateQueries({ queryKey: COMPANY_LISTS_KEY }),
     contactId
       ? cache.invalidateQueries({ queryKey: contactKey(contactId) })
       : null,

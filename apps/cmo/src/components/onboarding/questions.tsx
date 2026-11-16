@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 
 import { StatusDisc } from "../status";
 import { SubmitButton } from "../submit-button";
+import type { SkipSubscription, StartTopUp } from "../top-up";
 import { Refusal } from "./refusal";
 
 /**
@@ -15,7 +16,7 @@ interface AssumptionChipProps {
   question: string;
   yes: { label?: string; pressed?: boolean; onClick: () => void };
   other: { label?: string; pressed?: boolean; onClick: () => void };
-  /** A third answer, as a text button. */
+  /** A third answer. */
   unsure?: { pressed?: boolean; onClick: () => void };
   /** Below the chip: a note field after a No. */
   children?: ReactNode;
@@ -31,7 +32,11 @@ export function AssumptionChip({
   return (
     <div className="ob-chip">
       <div className="ob-chip-row">
-        <StatusDisc status="warn" />
+        <StatusDisc
+          status={
+            yes.pressed || other.pressed || unsure?.pressed ? "ok" : "warn"
+          }
+        />
         <p className="ob-chip-question">{question}</p>
         <div className="ob-chip-actions">
           <button
@@ -44,7 +49,7 @@ export function AssumptionChip({
           </button>
           <button
             type="button"
-            className="button button-ghost button-small"
+            className="button button-secondary button-small"
             aria-pressed={other.pressed ?? false}
             onClick={other.onClick}
           >
@@ -53,7 +58,7 @@ export function AssumptionChip({
           {unsure ? (
             <button
               type="button"
-              className="button button-ghost button-small"
+              className="button button-secondary button-small"
               aria-pressed={unsure.pressed ?? false}
               onClick={unsure.onClick}
             >
@@ -230,11 +235,21 @@ export function QuestionCard({
 
 interface RetryButtonProps {
   onRetry: () => Promise<string | null>;
-  topUpUrl: string;
+  /** The top-up checkout, or null when this Cuso may not top up. */
+  topUp: StartTopUp | null;
+  /** The plan checkout, set when Cuso is paused without a CMO plan. */
+  subscribe?: StartTopUp | null;
+  /** Continues without a subscription, for a tester Core allows it. */
+  skip?: SkipSubscription | null;
 }
 
 /** Starts the work again; a refusal (such as no credits) comes back as text. */
-export function RetryButton({ onRetry, topUpUrl }: RetryButtonProps) {
+export function RetryButton({
+  onRetry,
+  topUp,
+  subscribe = null,
+  skip = null,
+}: RetryButtonProps) {
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   return (
@@ -251,7 +266,14 @@ export function RetryButton({ onRetry, topUpUrl }: RetryButtonProps) {
       >
         {pending ? "Starting…" : "Try again"}
       </button>
-      {refusal ? <Refusal text={refusal} topUpUrl={topUpUrl} /> : null}
+      {refusal ? (
+        <Refusal
+          text={refusal}
+          topUp={topUp}
+          subscribe={subscribe}
+          skip={skip}
+        />
+      ) : null}
     </div>
   );
 }

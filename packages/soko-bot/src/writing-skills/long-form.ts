@@ -101,7 +101,7 @@ The file gives each field, ready to paste:
 
 \`\`\`
 Page: [the page's URL]
-Now: [the page's current title, as the Brand Brain or Search Console shows it, or "not read"]
+Now: [the page's current title: read the page with web_fetch and copy it; "not read" only when the page does not load]
 Baseline: [Search Console for the page's main search, last 28 days: clicks, impressions, position; or "not connected"]
 Title: [at most 60 characters]
 Description: [120 to 155 characters]
@@ -171,7 +171,7 @@ Sourdough keeps three to four days at room temperature in a paper bag, longer th
         formats: ["article"],
       },
       {
-        rule: "Page fix: a Now line with the current title and a Baseline line, then the new fields.",
+        rule: 'Page fix: a Now line (the current title, or "not read") and a Baseline line (the numbers, or "not connected"), then the new fields.',
         formats: ["page_fix"],
       },
       { rule: "No keyword stuffing and no invented statistics." },

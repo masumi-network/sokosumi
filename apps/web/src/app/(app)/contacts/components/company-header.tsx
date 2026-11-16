@@ -5,10 +5,11 @@ import type {
   ContactCompanyDetail,
 } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Pencil } from "lucide-react";
+import { ChevronDown, ExternalLink, Pencil } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
-import { coreErrorOf } from "@/app/contacts/contacts-view";
+import { toast } from "sonner";
+import { coreErrorOf, LIST_COLOR_DOT } from "@/app/contacts/contacts-view";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +19,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
@@ -29,9 +36,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { contactsService } from "@/lib/services/contacts.client";
 import { cn } from "@/lib/utils";
 import { AvatarStack, Dot, StageChip } from "./contact-visuals";
-import { CONTACT_COMPANY_KEY, useContactCompany } from "./use-contacts-data";
+import {
+  COMPANIES_KEY,
+  COMPANY_LISTS_KEY,
+  CONTACT_COMPANY_KEY,
+  useCompanyLists,
+  useContactCompany,
+} from "./use-contacts-data";
 
-const WARMTH_DOT: Record<ContactCompany["warmth"], string> = {
+export const WARMTH_DOT: Record<ContactCompany["warmth"], string> = {
   warm: "bg-semantic-success",
   cooling: "bg-semantic-warning",
   cold: "bg-muted-foreground",
@@ -101,10 +114,11 @@ export function CompanyHeader({
               ) : null}
             </p>
           </div>
+          <CompanyListsMenu company={company} />
           <Button
             variant="outline"
             size="sm"
-            className="ms-auto shrink-0"
+            className="shrink-0"
             onClick={() => setEditing(true)}
           >
             <Pencil aria-hidden className="size-3.5" />
@@ -405,5 +419,54 @@ function EditCompanyDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Which company lists the company is on; ticking one adds or removes it. */
+function CompanyListsMenu({ company }: { company: ContactCompany }) {
+  const t = useTranslations("App.Contacts");
+  const cache = useQueryClient();
+  const lists = useCompanyLists().data ?? [];
+  if (lists.length === 0) return null;
+  async function toggle(listId: string, on: boolean) {
+    try {
+      await contactsService.changeCompanyMembers(
+        listId,
+        on ? { add: [company.id] } : { remove: [company.id] },
+      );
+    } catch (error) {
+      toast.error(coreErrorOf(error).message ?? t("companies.saveFailed"));
+    } finally {
+      await Promise.all([
+        cache.invalidateQueries({ queryKey: CONTACT_COMPANY_KEY }),
+        cache.invalidateQueries({ queryKey: COMPANIES_KEY }),
+        cache.invalidateQueries({ queryKey: COMPANY_LISTS_KEY }),
+      ]);
+    }
+  }
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="ms-auto shrink-0">
+          {t("views.companyLists")}
+          <ChevronDown aria-hidden className="text-muted-foreground size-3.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        {lists.map((list) => {
+          const on = company.listIds.includes(list.id);
+          return (
+            <DropdownMenuCheckboxItem
+              key={list.id}
+              checked={on}
+              onCheckedChange={(checked) => void toggle(list.id, checked)}
+            >
+              <Dot className={LIST_COLOR_DOT[list.color]} />
+              <span className="truncate">{list.name}</span>
+            </DropdownMenuCheckboxItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

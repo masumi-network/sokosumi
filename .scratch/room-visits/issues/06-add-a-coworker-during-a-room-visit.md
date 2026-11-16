@@ -1,6 +1,6 @@
 # 06: Add a coworker during a Room visit
 
-**What to build:** On a Room visit, the add-member picker offers the Coworkers of the room's own workspace, so a reader can add one without switching there. Today the picker offers none, because the list it holds is the active workspace's and Core refuses those. Spec: `../spec.md`. Decision: ADR-0061.
+**What to build:** On a Room visit, the add-member picker offers the Coworkers of the room's own workspace, so a reader can add one without switching there. Today the picker offers none, because the list it holds is the active workspace's and Core refuses those. Spec: [ADR-0061](../../../docs/adr/0061-reading-a-room-never-switches-workspace.md). Decision: ADR-0061.
 
 **Blocked by:** 01: Room visit
 

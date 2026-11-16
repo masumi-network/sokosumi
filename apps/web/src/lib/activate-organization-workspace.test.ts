@@ -124,9 +124,7 @@ describe("activateOrganizationWorkspace", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
-    await expect(
-      activateOrganizationWorkspace("org-7"),
-    ).resolves.toBeUndefined();
+    await expect(activateOrganizationWorkspace("org-7")).resolves.toBe(false);
 
     expect(authClient.organization.setActive).toHaveBeenCalledWith({
       organizationId: "org-7",

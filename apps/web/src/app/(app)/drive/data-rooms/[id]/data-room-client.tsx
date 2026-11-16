@@ -3,8 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Check, Copy, LockKeyhole } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { Button } from "@/components/ui/button";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,11 +22,32 @@ import { DataRoomPeople } from "./data-room-people";
 import { DataRoomQuestions } from "./data-room-questions";
 import { DataRoomSettingsPanel } from "./data-room-settings";
 
+const ROOM_TABS = [
+  "people",
+  "activity",
+  "questions",
+  "contents",
+  "settings",
+] as const;
+
+/**
+ * The open tab and the question to answer live in the URL, so Needs you can
+ * open a room on its Questions tab at one question, and does the same when
+ * that room is already on screen and only the search changes.
+ */
+const roomUrlState = {
+  tab: parseAsStringLiteral(ROOM_TABS).withDefault("people"),
+  question: parseAsString,
+  // Set by "Make data room": the new room opens ready to invite.
+  invite: parseAsString,
+};
+
 export function DataRoomClient({ roomId }: { roomId: string }) {
   const t = useTranslations("App.Drive.DataRoom");
   const { data: session } = useSession();
-  // Set by "Make data room": the new room opens ready to invite.
-  const focusInvite = useSearchParams().has("invite");
+  const [{ tab, question: focusQuestionId, invite }, setUrlState] =
+    useQueryStates(roomUrlState);
+  const focusInvite = invite !== null;
   const store: FileStore = driveStoreForActiveWorkspace(
     session?.session?.activeOrganizationId ?? null,
   );
@@ -104,7 +125,16 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
         </Button>
       </header>
 
-      <Tabs defaultValue="people" className="gap-3">
+      <Tabs
+        value={tab}
+        onValueChange={(next) => {
+          const picked = ROOM_TABS.find((value) => value === next);
+          // A tab chosen by hand lets go of the question Needs you pointed
+          // at, so the next click on that question focuses it again.
+          if (picked) void setUrlState({ tab: picked, question: null });
+        }}
+        className="gap-3"
+      >
         {/* Five tabs are wider than a phone: scroll them, or Settings is cut off. */}
         <TabsList className="app-scrollbar max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="people">
@@ -148,7 +178,12 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
             />
           </TabsContent>
           <TabsContent value="questions">
-            <DataRoomQuestions store={store} roomId={room.id} rows={rows} />
+            <DataRoomQuestions
+              store={store}
+              roomId={room.id}
+              rows={rows}
+              focusQuestionId={focusQuestionId}
+            />
           </TabsContent>
           <TabsContent value="contents">
             <DataRoomContents

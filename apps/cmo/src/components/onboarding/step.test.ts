@@ -2,6 +2,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
 import {
+  cmoBilling,
   cmoOverview,
   cmoStrategy,
   cmoStrategyVersion,
@@ -232,5 +233,61 @@ describe("onboardingStep", () => {
         }),
       ),
     ).toEqual({ step: "launch", phase: "review" });
+  });
+
+  describe("the checkout, after Launch", () => {
+    const unpaid = (patch: Partial<CmoOverview> = {}) =>
+      draft({
+        ...cmoStrategyVersion(new Date()),
+        onboardingStep: "checkout",
+        ...patch,
+      });
+
+    it("stays on Launch until the person launched", () => {
+      // Core owes the checkout from the first connection; Launch is not pressed yet.
+      expect(onboardingStep(unpaid())).toEqual({
+        step: "launch",
+        phase: "review",
+      });
+    });
+
+    it("shows the plans once the person launched", () => {
+      expect(onboardingStep(unpaid(), ["accounts"])).toEqual({
+        step: "checkout",
+        phase: "choosing",
+      });
+    });
+
+    it("confirms the payment back from Polar, until the subscription shows", () => {
+      expect(
+        onboardingStep(unpaid(), ["accounts"], { returnedFromCheckout: true }),
+      ).toEqual({ step: "checkout", phase: "confirming" });
+    });
+
+    it("confirms on a device that never pressed Launch too", () => {
+      expect(
+        onboardingStep(unpaid(), [], { returnedFromCheckout: true }),
+      ).toEqual({ step: "checkout", phase: "confirming" });
+    });
+
+    it("has no checkout for a Cuso with Tester credits", () => {
+      expect(
+        onboardingStep(
+          draft({
+            ...cmoStrategyVersion(new Date()),
+            onboardingStep: "done",
+            billing: cmoBilling({ hasTesterCredits: true }),
+          }),
+          ["accounts"],
+          { returnedFromCheckout: true },
+        ),
+      ).toEqual({ step: "launch", phase: "review" });
+    });
+
+    it("never opens before the plan is approved", () => {
+      expect(
+        onboardingStep(draft({ onboardingStep: "checkout" }), ["accounts"]),
+      ).toEqual({ step: "plan", phase: "review" });
+    });
   });
 });

@@ -63,10 +63,9 @@ vi.mock("@/config/env", () => ({
 }));
 
 import {
-  connectSokoBotIntegration,
-  disconnectSokoBotIntegration,
-  finalizeSokoBotIntegration,
-} from "./soko-bot-integration-connection.service";
+  listIntegrationTools,
+  runIntegrationTool,
+} from "@/services/composio-integration-tools.service";
 import {
   activeIntegrationsForBot,
   createInboxDraft,
@@ -74,13 +73,16 @@ import {
   fetchInboxMessage,
   fetchInboxMessages,
   fetchInboxPage,
-  listIntegrationTools,
   modifyInboxMessages,
   revokeSokoBotIntegrationAccounts,
-  runIntegrationTool,
   searchSokoBotIntegrationCatalog,
   withOwnerReplies,
-} from "./soko-bot-integrations.service";
+} from "@/services/soko-bot-integrations.service";
+import {
+  connectSokoBotIntegration,
+  disconnectSokoBotIntegration,
+  finalizeSokoBotIntegration,
+} from "./soko-bot-integration-connection.service";
 
 const input = {
   userId: "owner",

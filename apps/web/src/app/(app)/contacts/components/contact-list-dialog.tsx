@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { contactsService } from "@/lib/services/contacts.client";
 import { cn } from "@/lib/utils";
-import { CONTACT_LISTS_KEY } from "./use-contacts-data";
+import { COMPANY_LISTS_KEY, CONTACT_LISTS_KEY } from "./use-contacts-data";
 
 const COLORS = Object.values(ContactListColor);
 
@@ -28,21 +28,26 @@ type SmartFilter = NonNullable<
   NonNullable<Parameters<typeof contactsService.createList>[0]>["smartFilter"]
 >;
 
+type EditableList = Pick<ContactList, "id" | "name" | "color" | "description">;
+
 /**
  * Create a list, or rename, recolor and describe one. With the filters in
  * force as `smartFilter`, a new list can keep itself filled from them.
+ * `companies` makes it a company list, which is always manual.
  */
 export function ContactListDialog({
   list,
   smartFilter,
+  companies = false,
   onClose,
   onSaved,
   onCloseAutoFocus,
 }: {
-  list?: ContactList;
+  list?: EditableList;
   smartFilter?: SmartFilter | null;
+  companies?: boolean;
   onClose: () => void;
-  onSaved: (list: ContactList) => void;
+  onSaved: (list: EditableList) => void;
   /** Where focus goes when the dialog closes; it has no trigger of its own. */
   onCloseAutoFocus?: (event: Event) => void;
 }) {
@@ -69,13 +74,19 @@ export function ContactListDialog({
         color,
         description: description.trim() || null,
       };
-      const saved = list
-        ? await contactsService.updateList(list.id, body)
-        : await contactsService.createList({
-            ...body,
-            ...(smart && smartFilter ? { smartFilter } : {}),
-          });
-      await cache.invalidateQueries({ queryKey: CONTACT_LISTS_KEY });
+      const saved = companies
+        ? list
+          ? await contactsService.updateCompanyList(list.id, body)
+          : await contactsService.createCompanyList(body)
+        : list
+          ? await contactsService.updateList(list.id, body)
+          : await contactsService.createList({
+              ...body,
+              ...(smart && smartFilter ? { smartFilter } : {}),
+            });
+      await cache.invalidateQueries({
+        queryKey: companies ? COMPANY_LISTS_KEY : CONTACT_LISTS_KEY,
+      });
       onSaved(saved);
     } catch (caught) {
       setError(coreErrorOf(caught).message ?? t("failed"));
@@ -93,9 +104,17 @@ export function ContactListDialog({
         <form onSubmit={handleSubmit} className="grid gap-5">
           <DialogHeader>
             <DialogTitle>
-              {list ? t("editTitle") : t("createTitle")}
+              {companies
+                ? list
+                  ? t("companyEditTitle")
+                  : t("companyCreateTitle")
+                : list
+                  ? t("editTitle")
+                  : t("createTitle")}
             </DialogTitle>
-            <DialogDescription>{t("description")}</DialogDescription>
+            <DialogDescription>
+              {companies ? t("companyDescription") : t("description")}
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
             <Label htmlFor="contact-list-name">{t("name")}</Label>
@@ -106,7 +125,9 @@ export function ContactListDialog({
               autoComplete="off"
               aria-invalid={!!error && !name.trim()}
               aria-describedby={error ? "contact-list-error" : undefined}
-              placeholder={t("namePlaceholder")}
+              placeholder={
+                companies ? t("companyNamePlaceholder") : t("namePlaceholder")
+              }
               onChange={(event) => setName(event.target.value)}
             />
           </div>
@@ -158,7 +179,7 @@ export function ContactListDialog({
               onChange={(event) => setDescription(event.target.value)}
             />
           </div>
-          {!list && smartFilter ? (
+          {!list && !companies && smartFilter ? (
             <div className="flex items-start gap-3">
               <Checkbox
                 id="contact-list-smart"

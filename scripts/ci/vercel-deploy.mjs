@@ -93,13 +93,6 @@ export function parseNetworkCommand(body, command) {
   };
 }
 
-export function parseDeployComment(body) {
-  const parsed = parseNetworkCommand(body, "/deploy");
-  return parsed.kind === "run"
-    ? { kind: "deploy", networks: parsed.networks, sha: parsed.sha }
-    : parsed;
-}
-
 export function isWritePermission(permission) {
   return WRITE_PERMISSIONS.has(permission);
 }

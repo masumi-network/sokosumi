@@ -1257,6 +1257,8 @@ describe("core auth config", () => {
         "/email-otp/reset-password",
         "/email-otp/request-email-change",
         "/email-otp/change-email",
+        // Replaced by the cancellable link in `auth-pending-email-change`.
+        "/change-email",
       ]),
     );
     expect(config.disabledPaths).not.toContain("/sign-in/email-otp");

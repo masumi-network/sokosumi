@@ -134,6 +134,16 @@ const dueOnToQuerySchema = calendarDateSchema.optional().openapi({
   example: "2026-11-10",
 });
 
+const statusBeforeQuerySchema = z.iso
+  .datetime()
+  .optional()
+  .openapi({
+    param: { name: "statusBefore", in: "query" },
+    description:
+      "Only Tasks whose status has not changed since this time, for work that has sat in one status a while.",
+    example: "2026-11-11T09:00:00.000Z",
+  });
+
 const archivedQuerySchema = z
   .enum(["true", "false"])
   .optional()
@@ -154,6 +164,7 @@ const query = z
     visibility: taskVisibilityQuerySchema,
     scheduleId: scheduleIdQuerySchema,
     dueOnTo: dueOnToQuerySchema,
+    statusBefore: statusBeforeQuerySchema,
     archived: archivedQuerySchema,
     assigneeId: z
       .string()
@@ -236,6 +247,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       scope,
       sort,
       status: statuses,
+      statusBefore,
       visibility,
     } = queryParams;
     const archived = archivedParam === "true";
@@ -259,6 +271,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const scheduleFilter = scheduleId ? { scheduleId } : {};
     const dueFilter = dueOnTo
       ? { dueOn: { lte: new Date(`${dueOnTo}T00:00:00.000Z`) } }
+      : {};
+    // Its last status change, or its creation when it never changed, is
+    // before the cutoff.
+    const statusAgeFilter: Prisma.TaskWhereInput = statusBefore
+      ? {
+          createdAt: { lt: new Date(statusBefore) },
+          events: {
+            none: {
+              status: { not: null },
+              createdAt: { gte: new Date(statusBefore) },
+            },
+          },
+        }
       : {};
     // The caller's own Tasks: those they own, or for "mine" also those
     // assigned to them as a workspace member.
@@ -318,6 +343,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...projectFilter,
             ...scheduleFilter,
             ...dueFilter,
+            ...statusAgeFilter,
             ...searchFilter,
           },
           statusWhere,
@@ -331,6 +357,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...projectFilter,
             ...scheduleFilter,
             ...dueFilter,
+            ...statusAgeFilter,
             ...searchFilter,
           },
           statusWhere,
@@ -354,6 +381,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...projectFilter,
           ...scheduleFilter,
           ...dueFilter,
+          ...statusAgeFilter,
           ...searchFilter,
         },
         statusWhere,
@@ -374,6 +402,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...projectFilter,
           ...scheduleFilter,
           ...dueFilter,
+          ...statusAgeFilter,
           ...searchFilter,
         },
         statusWhere,

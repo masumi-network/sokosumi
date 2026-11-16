@@ -107,7 +107,6 @@ function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
             <div className="sticky top-0 z-10 px-3 pt-3 pb-2">
               <ColumnHeader
                 title={labels.columns[column.id]}
-                count={0}
                 statusColorClass={COLUMN_STATUS_COLORS[column.id]}
               />
             </div>

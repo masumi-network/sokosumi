@@ -66,8 +66,10 @@ describe("AutoContextSwitch", () => {
         organizationId: "org-1",
       });
       expect(replaceMock).not.toHaveBeenCalled();
-      expect(refreshMock).toHaveBeenCalled();
     });
+    // The preferred-workspace action already rendered the new workspace.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("does not switch when context is already aligned", () => {

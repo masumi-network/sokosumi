@@ -25,11 +25,15 @@ import type { SettledTurnStatus } from "@/services/soko-bot-turn-progress.servic
  * bot's Cuso, who pays for him, and starts and reads his turns.
  */
 
-/** A CMO refusal; `kind` is the stable error kind CMO matches on, if any. */
+/**
+ * A CMO refusal; `kind` is the stable error kind CMO matches on, if any, and
+ * `extensions` the data its response carries beside it.
+ */
 export class CmoError extends Error {
   constructor(
     message: string,
     readonly kind?: CoreApiErrorKind,
+    readonly extensions?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -372,6 +376,9 @@ export async function startCmoProductionForProject(
 /** What the founder reads when a step cannot start for lack of credits. */
 export const CMO_OUT_OF_CREDITS = "You're out of credits";
 
+/** What the founder reads when Cuso is paused for want of a CMO plan. */
+export const CMO_PAUSED = "Cuso is paused until a CMO plan is paid";
+
 /** A turn of Cuso's that `userId`, a member of his organization, started. */
 export async function startCmoTurn(
   cuso: Pick<Cuso, "workspaceId" | "sokoBotId">,
@@ -387,7 +394,9 @@ export async function startCmoTurn(
     await requireSokoBotTurnFunding(userId, cuso.sokoBotId);
   } catch (error) {
     if (error instanceof SokoBotBillingAccessError) {
-      throw new CmoConflictError(CMO_OUT_OF_CREDITS);
+      throw new CmoConflictError(
+        error.reason === "cmo_paused" ? CMO_PAUSED : CMO_OUT_OF_CREDITS,
+      );
     }
     throw error;
   }

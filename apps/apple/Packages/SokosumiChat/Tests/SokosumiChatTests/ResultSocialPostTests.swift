@@ -169,13 +169,18 @@ import Testing
     #expect(ResultSocialPost.runs("").isEmpty)
   }
 
-  @Test func theGridShowsFourPicturesAndTheNetworkHasItsName() {
-    let media = (0 ..< 6).map {
+  @Test(arguments: [ResultSocialPost.Provider.x, .linkedin, .facebook, .instagram, .tiktok, .youtube])
+  func thePreviewShowsTheNetworksMediaBudget(provider: ResultSocialPost.Provider) {
+    let media = (0 ..< 21).map {
       ResultSocialPost.Media(id: "m\($0)", name: "m\($0).png", kind: .image, source: nil, fileName: "m\($0).png")
     }
-    let post = ResultSocialPost(provider: .x, handle: nil, displayName: nil, avatarURL: nil, text: "", timestamp: .init(timeIntervalSince1970: 0),
+    let post = ResultSocialPost(provider: provider, handle: nil, displayName: nil, avatarURL: nil, text: "", timestamp: .init(timeIntervalSince1970: 0),
                                 media: media)
-    #expect(post.visibleMedia.map(\.id) == ["m0", "m1", "m2", "m3"])
+    let expectedCount = provider == .x ? 20 : 4
+    #expect(post.visibleMedia.map(\.id) == (0 ..< expectedCount).map { "m\($0)" })
+  }
+
+  @Test func theNetworkHasItsName() {
     let names = [ResultSocialPost.Provider.x, .linkedin, .facebook, .instagram, .tiktok, .youtube].map {
       ResultSocialPost(provider: $0, handle: nil, displayName: nil, avatarURL: nil, text: "", timestamp: .init(timeIntervalSince1970: 0), media: [])
         .providerName
