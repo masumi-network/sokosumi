@@ -107,6 +107,14 @@ const HIRE = {
 const plan = (row: { plan: unknown }) => row.plan as typeof strategy;
 const approvedRows = () => strategyRows.filter((row) => row.approvedAt);
 
+const { isEvalCusoProject } = vi.hoisted(() => ({
+  isEvalCusoProject: vi.fn(async () => false),
+}));
+vi.mock("@/lib/evals/eval-guard", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/evals/eval-guard")>()),
+  isEvalCusoProject,
+}));
+
 vi.mock("@/lib/site-platform", () => ({
   detectSiteLanguage: vi.fn().mockResolvedValue("German"),
 }));
@@ -331,6 +339,15 @@ describe("the plan starts when the research ends", () => {
     cusoFind.mockResolvedValue(cuso);
     // The plan turn keeps making progress.
     eventFindFirst.mockResolvedValue({ occurredAt: now });
+  });
+
+  it("starts no plan in an eval lane: its strategy cases ask for their own", async () => {
+    isEvalCusoProject.mockResolvedValueOnce(true);
+
+    await expect(
+      startCmoPlanAfterResearch({ sokoBotId: "bot-1", userId: "user-1" }),
+    ).resolves.toBeNull();
+    expect(startTurn).not.toHaveBeenCalled();
   });
 
   it("starts the plan once the research saved the essentials", async () => {
@@ -1268,6 +1285,40 @@ describe("a patch", () => {
     expect(strategyRows).toHaveLength(1);
   });
 
+  it("lets a patch through on a plan written before the hard rules, but never breaks a new one", async () => {
+    // An older plan whose pillar shares are 25 points off the calendar.
+    seedStrategy({
+      ...wholePlan(),
+      pillars: [
+        { name: "Setup", share: 75 },
+        { name: "Proof", share: 25 },
+      ],
+    });
+    const before = planOf(strategyRows[0]!);
+
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar: [{ ...before.calendar[6]!, title: "A calmer piece seven" }] },
+      { turnId: "turn-2", part: "patch", rules: true },
+    );
+    expect(planOf(strategyRows.at(-1)!).calendar[6]?.title).toBe(
+      "A calmer piece seven",
+    );
+
+    // A rule it kept still refuses the patch.
+    await expect(
+      saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        {
+          calendar: before.calendar
+            .slice(0, 3)
+            .map((entry) => ({ ...entry, status: "skipped" as const })),
+        },
+        { turnId: "turn-3", part: "patch", rules: true },
+      ),
+    ).rejects.toThrow('"16 pieces"');
+  });
+
   it("refuses changes sent only in patched, which is Core's: nothing is saved", async () => {
     const first = await written();
     const before = planOf(first);
@@ -1477,6 +1528,28 @@ describe("changes after the plan", () => {
       expect(startTurn.mock.lastCall?.[0]).toMatchObject({
         clientTurnId: expect.stringMatching(/^cmo:strategy:bot-1:fix:/),
       });
+    });
+
+    it("takes the fix back when the owner changes a no, and never adds it twice", async () => {
+      turnFindFirst.mockResolvedValue(turn("plan", 2));
+      await answer("no");
+      await answer("no", "From 19 dollars a month.");
+      const again = brainUpdate.mock.lastCall?.[0].data.body;
+      expect(again.profile.pricing.fix.note).toBe(
+        "Not true: Acme starts at 9 dollars a month. True instead: From 19 dollars a month.",
+      );
+
+      await answer("yes");
+
+      const stored = brainUpdate.mock.lastCall?.[0].data.body;
+      expect(stored.profile.pricing.fix).toMatchObject({ fixed: true });
+      // The plan ends: nothing is left to fix.
+      seedStrategy(wholePlan());
+      cusoFind.mockResolvedValue({ ...cuso, brandBrain: stored });
+      turnFindFirst.mockResolvedValue(turn("plan", 1, "COMPLETED"));
+      await expect(
+        startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
+      ).resolves.toBeNull();
     });
 
     it("leaves a yes in its section and starts nothing", async () => {

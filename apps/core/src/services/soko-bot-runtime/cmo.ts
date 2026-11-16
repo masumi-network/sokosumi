@@ -228,10 +228,8 @@ export async function reviewCmoPlan(
       orderBy: { createdAt: "desc" },
       select: { plan: true },
     }));
-  const problems = cmoPlanProblemsSince(
-    strategy,
-    parseMarketingPlan(before?.plan),
-  );
+  const earlier = parseMarketingPlan(before?.plan);
+  const problems = cmoPlanProblemsSince(strategy, earlier);
   if (reviewed >= budget) {
     return {
       save: saves,
@@ -240,10 +238,18 @@ export async function reviewCmoPlan(
       problems,
     };
   }
-  // Titles and stories that say one thing in other words, by meaning.
-  const repeats = await cmoCalendarRepeats(strategy.calendar);
-  await chargeCheck(input, EMBEDDING_MODEL, repeats.costUsd);
-  problems.push(...repeats.problems);
+  // Titles and stories that say one thing in other words, by meaning; like
+  // the rules above, only those this change brought. Embeddings are cached,
+  // so the earlier calendar costs nothing new.
+  const [repeats, had] = await Promise.all([
+    cmoCalendarRepeats(strategy.calendar),
+    earlier && earlier.calendar.length > 0
+      ? cmoCalendarRepeats(earlier.calendar)
+      : { problems: [], costUsd: 0 },
+  ]);
+  await chargeCheck(input, EMBEDDING_MODEL, repeats.costUsd + had.costUsd);
+  const known = new Set(had.problems);
+  problems.push(...repeats.problems.filter((problem) => !known.has(problem)));
   const bot = plan.planSent
     ? await prisma.sokoBot.findUnique({
         where: { id: authorized.turn.sokoBotId },

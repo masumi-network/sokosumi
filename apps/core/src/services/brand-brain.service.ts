@@ -247,6 +247,44 @@ export async function requestBrandBrainFix(
   });
 }
 
+/**
+ * Takes one correction back out of a section's open fix, when the owner
+ * changes the answer that asked for it. A fix left with nothing in it closes.
+ */
+export async function withdrawBrandBrainFix(
+  projectId: string,
+  input: { section: CmoBrandSectionKey; note: string },
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const brain = parseBrandBrain((await lockBrandBrain(tx, projectId))?.body);
+    const section = brain?.profile[input.section];
+    const fix = section?.fix;
+    if (
+      !brain ||
+      !section ||
+      !fix ||
+      fix.fixed ||
+      !fix.note.includes(input.note)
+    )
+      return;
+    const note = fix.note.replace(input.note, "").replace(/\s+/g, " ").trim();
+    const withdrawn = {
+      ...brain,
+      profile: {
+        ...brain.profile,
+        [input.section]: {
+          ...section,
+          fix: note ? { ...fix, note } : { ...fix, fixed: true },
+        },
+      },
+    };
+    await tx.brandBrain.update({
+      where: { projectId },
+      data: { body: withdrawn },
+    });
+  });
+}
+
 /** The sections the owner fixed that Cuso has not rewritten yet. */
 export function brandBrainOpenFixes(
   brain: BrandBrain,

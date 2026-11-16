@@ -3,6 +3,7 @@ import {
   type BrandBrain,
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoBrandAnswer,
+  type CmoBrandQuestion,
   type CmoBrandSectionKey,
   type CmoCalendarEntry,
   type CmoPlanQuestion,
@@ -14,13 +15,16 @@ import {
 import { unprocessableEntity } from "@/helpers/error";
 import { keepAnswers } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
+import { isEvalCusoProject } from "@/lib/evals/eval-guard";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import {
   answerBrandBrainQuestion,
   brandBrainCorrections,
   brandBrainOpenFixes,
+  getBrandBrain,
   parseBrandBrain,
   requestBrandBrainFix,
+  withdrawBrandBrainFix,
 } from "@/services/brand-brain.service";
 import {
   CmoConflictError,
@@ -263,6 +267,9 @@ export async function startCmoPlanAfterResearch(input: {
 }): Promise<{ turnId: string } | null> {
   const cuso = await findCusoForBot(input.sokoBotId);
   if (!cuso || !parseBrandBrain(cuso.brandBrain)) return null;
+  // An eval lane's research case ends here; its strategy cases ask for
+  // their own plan, so one started now would only cost and race them.
+  if (await isEvalCusoProject(cuso.projectId)) return null;
   const [turn, version] = await Promise.all([
     newestStrategyTurn(cuso.sokoBotId),
     newestMarketingStrategy(cuso.projectId),
@@ -319,6 +326,11 @@ export async function fixCmoBrandSection(
   }
 }
 
+/** The fix a no asks for, in the owner's words when they gave some. */
+function noFix(question: CmoBrandQuestion): string {
+  return `Not true: ${question.statement}${question.note ? ` True instead: ${question.note}` : ""}`;
+}
+
 /**
  * The owner answers one of Cuso's Brand Brain questions. The plan starts
  * when the research ends, so a no usually lands while it is written or
@@ -334,16 +346,23 @@ export async function answerCmoBrandQuestion(
   now: Date = new Date(),
 ): Promise<void> {
   const cuso = await requireCuso(input);
+  const stored = await getBrandBrain(cuso.projectId);
+  const asked = parseBrandBrain(stored?.body)?.questions.find(
+    (question) => question.id === input.questionId,
+  );
   const answered = await answerBrandBrainQuestion(cuso.projectId, input);
+  // An earlier no's fix goes, so a changed answer never rewrites the section.
+  if (asked?.answer === "no") {
+    await withdrawBrandBrainFix(cuso.projectId, {
+      section: asked.section,
+      note: noFix(asked),
+    });
+  }
   if (answered.answer !== "no") return;
   // The answer is saved and the fix waits on its section, so a fix that
   // cannot start now (no credits) runs when Cuso's next turn ends.
   await fixCmoBrandSection(
-    {
-      ...input,
-      section: answered.section,
-      note: `Not true: ${answered.statement}${answered.note ? ` True instead: ${answered.note}` : ""}`,
-    },
+    { ...input, section: answered.section, note: noFix(answered) },
     now,
   ).catch((error: unknown) => {
     if (!(error instanceof CmoConflictError)) throw error;
@@ -904,9 +923,35 @@ export async function saveCmoStrategy(
     // A plan part saved before its calendar is checked with the calendar.
     const sendsCalendar =
       options.part === "patch" || strategy.calendar !== undefined;
+    // A plan the owner already has keeps the rules it broke before them: a
+    // change is refused only for a rule it breaks anew. The plan as it was
+    // before this turn, never a part this turn saved unchecked.
+    const earlier = own
+      ? parseMarketingPlan(
+          (
+            await db.marketingStrategy.findFirst({
+              where: {
+                projectId: cuso.projectId,
+                OR: [
+                  { authorTurnId: null },
+                  { authorTurnId: { not: options.turnId } },
+                ],
+              },
+              orderBy: { createdAt: "desc" },
+              select: { plan: true },
+            })
+          )?.plan,
+        )
+      : before;
+    const ruleOf = (problem: string) => problem.match(/^Rule "[^"]+"/)?.[0];
+    const had = new Set(
+      earlier && earlier.calendar.length > 0
+        ? cmoPlanRuleProblems(earlier).map(ruleOf)
+        : [],
+    );
     const broken = cmoPlanRuleProblems(
       sendsCalendar ? stored : { ...stored, calendar: [] },
-    );
+    ).filter((problem) => !had.has(ruleOf(problem)));
     if (broken.length > 0) {
       throw unprocessableEntity(
         [
