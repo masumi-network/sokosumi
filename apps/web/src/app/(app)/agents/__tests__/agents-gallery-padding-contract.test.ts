@@ -54,8 +54,13 @@ describe("agents gallery Agent catalog restore (SOK-922)", () => {
     expect(page).toMatch(/CreateTaskModal/);
     expect(page).toMatch(/AllAgentsTier/);
     expect(page).toMatch(/FilteredAgents/);
-    expect(page).toMatch(/getAllCoreAgents/);
-    expect(page).toMatch(/getCoreCategories/);
+    expect(page).toMatch(/loadAgentsCatalog/);
+    const catalogData = readFileSync(
+      path.join(agentsDir, "agents-page-data.ts"),
+      "utf8",
+    );
+    expect(catalogData).toMatch(/getAllCoreAgents/);
+    expect(catalogData).toMatch(/getCoreCategories/);
     expect(page).toMatch(/allAgentsTitle/);
     expect(page).toMatch(/AgentsSkeleton/);
 

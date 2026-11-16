@@ -172,6 +172,7 @@ function ScopedMenuItems({
       Icon: Bot,
       feature: AnnouncedFeature.AGENTS,
       group: "work",
+      prefetchContent: true,
     },
     {
       key: "task-manager",
