@@ -1,9 +1,9 @@
 "use client";
 
 import { ChevronLeft, Search } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDebouncedCallback } from "use-debounce";
 import {
@@ -171,6 +171,18 @@ export function HeaderMobileSearchControl() {
     }
   }
 
+  // The page changed q itself (the empty state's "Clear filters" link): show
+  // what is applied, unless the user's own typing is still on its way.
+  function followUrlQuery(urlQuery: string) {
+    if (
+      debouncedReplaceHistoryQuery.isPending() ||
+      queryRef.current.trim() === urlQuery
+    ) {
+      return;
+    }
+    setQuery(urlQuery);
+  }
+
   function handleInputChange(next: string) {
     const capped = next.slice(0, HISTORY_SEARCH_MAX_LENGTH);
     setQuery(capped);
@@ -199,6 +211,9 @@ export function HeaderMobileSearchControl() {
               data-testid="header-mobile-search-expanded"
               role="search"
             >
+              <Suspense fallback={null}>
+                <HistoryQueryFollower onChange={followUrlQuery} />
+              </Suspense>
               <div
                 aria-hidden="true"
                 className={APP_HEADER_SAFE_AREA_UNDERLAY_CLASS}
@@ -229,4 +244,27 @@ export function HeaderMobileSearchControl() {
         : null}
     </>
   );
+}
+
+/**
+ * Reports a change of the history `q` param. Mounted only while search is
+ * open, inside its own Suspense, so `useSearchParams` never blocks the header's
+ * prerender.
+ */
+function HistoryQueryFollower({
+  onChange,
+}: {
+  onChange: (query: string) => void;
+}) {
+  const query =
+    useSearchParams().get(HISTORY_FILTER_PARAM_KEYS.q)?.trim() ?? "";
+  const previousQueryRef = useRef(query);
+
+  useEffect(() => {
+    if (previousQueryRef.current === query) return;
+    previousQueryRef.current = query;
+    onChange(query);
+  }, [query, onChange]);
+
+  return null;
 }
