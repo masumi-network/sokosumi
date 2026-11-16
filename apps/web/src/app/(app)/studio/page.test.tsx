@@ -443,6 +443,21 @@ describe("StudioPage", () => {
     );
   });
 
+  // A Core 401 on a read the page can do without must still sign the reader
+  // out, instead of hiding the shortcut.
+  it("keeps a sign-in redirect from the recent projects read", async () => {
+    const { redirect } = await import("next/navigation");
+    imageStudioServiceMock.getRecentProjects.mockImplementation(async () =>
+      redirect("/signin"),
+    );
+
+    const { default: StudioPage } = await import("./page");
+
+    await expect(
+      StudioPage({ searchParams: Promise.resolve({}) }),
+    ).rejects.toThrow("NEXT_REDIRECT");
+  });
+
   it("reads the creative catalog for a scope this workspace lost", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(null);
     const { default: StudioPage } = await import("./page");

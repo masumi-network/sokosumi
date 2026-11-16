@@ -47,7 +47,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   const query = await searchParams;
   const t = await getTranslations("App.Studio");
   const projectId = query.projectId?.trim();
-  const { project, scopeId, state, catalog, recentProjects } =
+  const { project, scopeId, state, catalog, recentProjects, now } =
     await loadStudioPageData({ projectId, assetId: query.v });
 
   const initialSelectedAssetId =
@@ -77,7 +77,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         websiteUrl={project?.websiteUrl}
         recentProjects={
           recentProjects.length > 0 ? (
-            <StudioRecentProjects now={new Date()} projects={recentProjects} />
+            <StudioRecentProjects now={now} projects={recentProjects} />
           ) : undefined
         }
         projectScopePrompt={

@@ -34,6 +34,7 @@ async function loadStudioState(projectId: string, assetId: string | undefined) {
   try {
     return await load({ assetId });
   } catch (error) {
+    unstable_rethrow(error);
     console.warn("Image studio: ignoring an unusable selection from the URL", {
       projectId,
       error,
@@ -50,6 +51,7 @@ async function loadRecentProjects() {
   try {
     return await imageStudioService.getRecentProjects();
   } catch (error) {
+    unstable_rethrow(error);
     console.warn("Image studio: recent projects unavailable", { error });
     return [];
   }
@@ -73,7 +75,10 @@ async function readStudioPageData({ projectId, assetId }: StudioPageDataInput) {
     imageStudioService.getCatalog(),
     scopeId ? [] : loadRecentProjects(),
   ]);
-  return { project, scopeId, state, catalog, recentProjects };
+  // Read here, inside the cache: a clock read while the page renders for a
+  // prefetch would stop that prefetch.
+  const now = new Date();
+  return { project, scopeId, state, catalog, recentProjects, now };
 }
 
 type StudioPageData = Awaited<ReturnType<typeof readStudioPageData>>;
