@@ -11656,7 +11656,7 @@
       "runAnalysis": "Prüfung starten",
       "runFullAudit": "Vollständiges Audit starten",
       "runPageCheck": "Seitenprüfung starten",
-      "manageStatistics": "Google-Statistiken verwalten",
+      "manageStatistics": "Google-Verbindungen",
       "syncStatistics": "Statistiken synchronisieren",
       "noPages": "Füge zuerst eine Seite hinzu",
       "noPagesBody": "Seiten legen fest, worauf sich Prüfungen und Statistiken beziehen.",
@@ -12097,8 +12097,8 @@
         "scopeTooLarge": "Wähle für diese Prüfung eine einzelne Seite oder eine Gruppe mit bis zu {count} Seiten."
       },
       "statistics": {
-        "title": "Google-Statistiken",
-        "description": "Statistiken werden für die ausgewählten Seiten automatisch geladen. Wähle nur bei Bedarf eine Property.",
+        "title": "Google-Verbindungen",
+        "description": "Verbinde deine Google-Quellen. Statistiken für die ausgewählten Seiten werden automatisch geladen.",
         "provider": "Quelle",
         "ga4": "Google Analytics",
         "search_console": "Search Console",
@@ -12112,17 +12112,20 @@
         "propertiesLoading": "Autorisierte Properties werden geladen",
         "propertiesFailed": "Properties konnten nicht geladen werden. Versuche es erneut.",
         "noProperties": "Keine autorisierten Properties verfügbar.",
-        "ownerOnly": "Statistiken verwenden dein verbundenes Konto und dessen Zugriffsrechte.",
+        "ownerOnly": "Sokosumi liest Statistiken nur mit deinem Google-Zugriff.",
         "shared": "Gespeicherte Statistiken werden in diesem Audit mit deiner Organisation geteilt. Dein Google-Konto bleibt unter deiner Kontrolle.",
         "synced": "Statistiken synchronisiert",
         "readsSearch": "Liest die letzten {days} Tage der Google-Suchdaten.",
         "readsOrganic": "Liest die letzten {days} Tage des Traffics aus der organischen Suche.",
         "readsAll": "Liest die letzten {days} Tage des gesamten Website-Traffics.",
         "channelAny": "Alle gemessenen Segmente",
-        "connectTitle": "Statistiken einrichten",
-        "connectFirst": "Verbinde {provider}. Statistiken der letzten 90 Tage werden automatisch geladen.",
         "channelAiAssistant": "KI-Assistenten (ChatGPT, Gemini, Copilot)",
-        "readsAiAssistant": "Liest die letzten {days} Tage mit Besuchen von KI-Assistenten wie ChatGPT, Gemini und Copilot."
+        "readsAiAssistant": "Liest die letzten {days} Tage mit Besuchen von KI-Assistenten wie ChatGPT, Gemini und Copilot.",
+        "measures": {
+          "search_console": "Suchanfragen, Klicks und Positionen in der Google-Suche",
+          "ga4": "Besuche und Seitenaufrufe auf deiner Website"
+        },
+        "propertyNotMatching": "Diese Property deckt die ausgewählten Seiten nicht ab, daher werden keine Statistiken daraus geladen."
       },
       "metrics": {
         "page_views": "Seitenaufrufe",
@@ -12337,7 +12340,11 @@
         "invalidCallback": "Dieser Link enthält keinen gültigen SEO-Verbindungskontext. Starte die Verbindung im Audit.",
         "connectGoogle": "Google verbinden",
         "analyticsNext": "Google fragt zweimal nach deiner Zustimmung: zuerst für Search Console, dann für Google Analytics.",
-        "analyticsOff": "Google Analytics ist nicht verbunden. Besuche und Seitenaufrufe bleiben leer."
+        "analyticsOff": "Google Analytics ist nicht verbunden. Besuche und Seitenaufrufe bleiben leer.",
+        "connectShort": "Verbinden",
+        "connectedShort": "Verbunden",
+        "reads": "Liest {detail}",
+        "viaGoogle": "Über dein Google-Konto"
       },
       "unavailableTitle": "SEO ist in diesem Workspace nicht verfügbar",
       "unavailableBody": "Dieses Audit oder diese Auswahl ist im aktuellen Workspace nicht verfügbar. Prüfe den Workspace in der Seitenleiste oder öffne die Audit-Liste.",
@@ -12779,7 +12786,7 @@
         "fix": {
           "connect_search_console": "Statistiken einrichten",
           "connect_ga4": "Statistiken einrichten",
-          "sync": "Google-Statistiken verwalten",
+          "sync": "Google-Verbindungen",
           "run_check": "Prüfung starten"
         },
         "items": {

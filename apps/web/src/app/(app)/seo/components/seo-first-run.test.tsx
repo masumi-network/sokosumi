@@ -460,7 +460,7 @@ describe("SEO audit first run", () => {
     const setup = screen.getByTestId("seo-setup");
     expect(
       await within(setup).findByRole("button", {
-        name: "Google statistics settings",
+        name: "Google connections",
       }),
     ).toBeVisible();
     expect(within(setup).getByText(copy.setup.checkRunning)).toBeVisible();
@@ -524,7 +524,7 @@ describe("SEO audit first run", () => {
     // Nothing is measured yet: one card asks for the sync, and no second empty card asks again.
     expect(screen.queryByText(copy.queries.notSynced)).toBeNull();
     expect(
-      screen.getAllByRole("button", { name: "Google statistics settings" }),
+      screen.getAllByRole("button", { name: "Google connections" }),
     ).toHaveLength(1);
   });
 
@@ -579,25 +579,25 @@ describe("SEO audit first run", () => {
       within(row)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Google statistics settings"]);
-    // The dialog opens on this banner's source.
+    ).toEqual(["Google connections"]);
+    // The dialog marks this banner's source.
     await userEvent.click(within(row).getByRole("button"));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Google connections",
+    });
     expect(
-      within(
-        await screen.findByRole("dialog", { name: "Google statistics" }),
-      ).getByRole("combobox", { name: "Source" }),
-    ).toHaveTextContent("Search Console");
-    // Without a source the dialog starts on the connected account too: on Google Analytics it had no sync.
+      within(dialog).getByRole("region", { name: "Search Console" }),
+    ).toHaveAttribute("aria-current", "true");
+    // Without a source both sources are in view and none is marked.
     await userEvent.click(screen.getAllByRole("button", { name: "Close" })[0]);
     await openStatisticsSetup(userEvent);
     const reopened = await screen.findByRole("dialog", {
-      name: "Google statistics",
+      name: "Google connections",
     });
-    await waitFor(() =>
+    for (const name of ["Search Console", "Google Analytics"])
       expect(
-        within(reopened).getByRole("combobox", { name: "Source" }),
-      ).toHaveTextContent("Search Console"),
-    );
+        within(reopened).getByRole("region", { name }),
+      ).not.toHaveAttribute("aria-current");
   });
 
   it("asks for the account on the Traffic tab while no account is connected", async () => {

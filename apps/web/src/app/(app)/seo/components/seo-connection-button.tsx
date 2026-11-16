@@ -25,13 +25,15 @@ type ConnectionButtonProps = {
   variant?: "primary" | "outline";
   /** The first connection's button text, where one step covers more than this provider. */
   connectLabel?: string;
-  /** The control sits in a row of other buttons, not in a column of its own. */
-  inRow?: boolean;
   /**
    * The view shows a failed action itself, in a place that does not move the
    * layout. The control then adds no line of its own. Pass a stable function.
    */
   onError?: (message: string | null) => void;
+  /** The source's name is already in view: labels leave it out. */
+  compact?: boolean;
+  /** What a connected account reads here, for example the property. Its menu names it. */
+  accountDetail?: string;
 };
 
 export function SeoConnectionButton({
@@ -39,8 +41,9 @@ export function SeoConnectionButton({
   onConnected,
   variant = "outline",
   connectLabel,
-  inRow,
   onError,
+  compact,
+  accountDetail,
 }: ConnectionButtonProps) {
   const { data: session } = useSession();
   const identity = JSON.stringify([
@@ -55,8 +58,9 @@ export function SeoConnectionButton({
       onConnected={onConnected}
       variant={variant}
       connectLabel={connectLabel}
-      inRow={inRow}
       onError={onError}
+      compact={compact}
+      accountDetail={accountDetail}
     />
   );
 }
@@ -66,8 +70,9 @@ function SeoConnectionControl({
   onConnected,
   variant,
   connectLabel,
-  inRow,
   onError,
+  compact,
+  accountDetail,
 }: ConnectionButtonProps) {
   const t = useTranslations("App.Seo");
   const model = useSeoConnection(provider, onConnected);
@@ -120,7 +125,12 @@ function SeoConnectionControl({
   if (data?.status === "connected")
     return (
       <div className={STACK_CLASS}>
-        <SeoConnectedAccount name={name} model={model} inRow={inRow} />
+        <SeoConnectedAccount
+          name={name}
+          model={model}
+          compact={compact}
+          detail={accountDetail}
+        />
         {ownError ? (
           <p role="alert" className="text-destructive text-sm">
             {ownError}
@@ -154,6 +164,14 @@ function SeoConnectionControl({
         onClick={() => {
           void model.connect();
         }}
+        // The short text is not unique in a list of sources: the name says which one.
+        aria-label={
+          compact &&
+          data?.status !== "pending" &&
+          data?.status !== "needs_reconnect"
+            ? t("connections.connect", { provider: name })
+            : undefined
+        }
       >
         <Plug />
         {data?.status === "pending"

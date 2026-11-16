@@ -50,7 +50,6 @@ export function SeoGoogleConnection({
         analyticsStarted ? undefined : t("connections.connectGoogle")
       }
       onConnected={() => onConnected?.("search_console")}
-      inRow={inRow}
       onError={onError}
     />
   );

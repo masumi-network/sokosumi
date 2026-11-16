@@ -401,9 +401,8 @@ describe("SEO workspace integration", () => {
     await user.click(
       screen.getAllByRole("button", { name: "Set up statistics" })[0],
     );
-    // No account yet: the dialog is the connect step.
     expect(
-      await screen.findByRole("dialog", { name: "Set up statistics" }),
+      await screen.findByRole("dialog", { name: "Google connections" }),
     ).toBeVisible();
   });
 
@@ -3240,6 +3239,13 @@ describe("SEO workspace integration", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: string) => {
+        if (String(input).includes("/api/seo/connections/search_console"))
+          return Response.json({
+            provider: "search_console",
+            name: "Search Console",
+            status: "connected",
+            source: "native",
+          });
         if (String(input).includes("statistics/properties"))
           return Response.json({
             provider: "search_console",
@@ -3257,17 +3263,17 @@ describe("SEO workspace integration", () => {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       await openStatisticsSetup(user);
       const dialog = screen.getByRole("dialog");
-      expect(
-        within(dialog).getByRole("combobox", { name: "Source" }),
-      ).toHaveTextContent("Search Console");
+      const search = within(dialog).getByRole("region", {
+        name: "Search Console",
+      });
       await waitFor(() =>
         expect(
-          within(dialog).getByRole("combobox", { name: "Property" }),
+          within(search).getByRole("combobox", { name: "Property" }),
         ).toHaveTextContent("Example website"),
       );
       // The saved period is not offered again: every sync reads the same rolling days.
       expect(
-        within(dialog).getByTestId("seo-statistics-reads"),
+        within(search).getByTestId("seo-statistics-reads-search_console"),
       ).toHaveTextContent("Reads the last 90 days of Google search data.");
       await user.click(
         within(dialog).getAllByRole("button", { name: "Close" })[0],
@@ -4095,7 +4101,8 @@ describe("SEO workspace integration", () => {
             ? {
                 provider: "ga4",
                 name: "Google Analytics",
-                status: "connected",
+                // Only Google Analytics has an account, so only its section reads properties.
+                status: url.endsWith("/ga4") ? "connected" : "not_connected",
                 source: "native",
               }
             : url.includes("/statistics/properties")
@@ -4114,10 +4121,16 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     await openStatisticsSetup(userEvent);
     expect(await screen.findByText("Current Google account")).toBeVisible();
-    // The account is one line; its two actions are in the line's menu.
+    // The account is one chip; its menu names what it reads and holds its two actions.
+    const analytics = screen.getByRole("region", { name: "Google Analytics" });
     await userEvent.click(
-      await screen.findByRole("button", { name: "Google Analytics connected" }),
+      await within(analytics).findByRole("button", {
+        name: "Google Analytics connected",
+      }),
     );
+    expect(
+      await screen.findByText("Reads Current Google account"),
+    ).toBeVisible();
     // The question opens above the statistics dialog; Escape closes the question only.
     await userEvent.click(
       await screen.findByRole("menuitem", { name: "Disconnect" }),
@@ -5163,17 +5176,15 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     await openStatisticsSetup(userEvent);
-    // No account yet: the dialog asks for the account. The sync fields and the sync button follow the approval.
+    // No account yet: each source asks for its account. The property fields follow the approval.
     const dialog = await screen.findByRole("dialog", {
-      name: "Set up statistics",
+      name: "Google connections",
     });
-    expect(
-      within(dialog).getByText(
-        // No account at all: Search Console is the first one to connect.
-        "Connect Search Console. Statistics for the last 90 days will load automatically.",
-      ),
-    ).toBeVisible();
-    expect(within(dialog).queryByTestId("seo-statistics-reads")).toBeNull();
+    for (const name of ["Connect Search Console", "Connect Google Analytics"])
+      expect(await within(dialog).findByRole("button", { name })).toBeVisible();
+    expect(within(dialog).queryAllByTestId(/^seo-statistics-reads-/)).toEqual(
+      [],
+    );
     expect(
       within(dialog).queryByRole("button", { name: "Sync statistics" }),
     ).toBeNull();
