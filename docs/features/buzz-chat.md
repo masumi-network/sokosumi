@@ -29,8 +29,8 @@ Buzz app ──wss──▶ relay (Railway)  ◀── operator API, events ─�
 | ------------------------------------------------- | ---------------------------------------------------------------- |
 | Messages, edits, deletions, threads               | Both ways                                                        |
 | Reactions                                         | Both ways, a Buzz agent's included                               |
-| Mentions                                          | Both ways (`nostr:npub…` ↔ `@name`)                              |
-| Files                                             | Buzz files are copied into Sokosumi; Sokosumi files are links    |
+| Mentions                                          | Both ways, as each app writes them (`@Name` and a tagged key)    |
+| Files                                             | Both ways, as attachments in each app (history's too)            |
 | Quotes, attached skills, result cards             | Text: the quote above, skills and card links below               |
 | Directs between people of different organizations | In the oldest community one of them is in; the others are guests |
 | Pins                                              | Sokosumi only: Buzz pins are per person, not per channel         |
@@ -99,8 +99,11 @@ wildcard CNAME, `_acme-challenge` (wildcard certificate) and
 `/data/git` volume), `BUZZ_GIT_REPO_PATH=/data/git`, `BUZZ_S3_ENDPOINT`
 `https://t3.storageapi.dev` with `BUZZ_S3_ADDRESSING_STYLE=virtual` and
 `BUZZ_S3_REGION=auto`, `PORT` and `BUZZ_BIND_ADDR` on 3000. Postgres has a TCP
-proxy so Core's history import reaches it (`BUZZ_RELAY_DATABASE_URL` with
-`sslmode=require`).
+proxy so Core's history import reaches it (`BUZZ_RELAY_DATABASE_URL`). Its
+certificate names `localhost` and is signed by a root made for that database;
+Core trusts that root alone (`BUZZ_RELAY_DATABASE_CA`, read it with
+`openssl s_client -starttls postgres -connect <proxy> -showcerts`, the second
+certificate).
 
 Previews are copies of production's database: a preview puts only the
 organizations `BUZZ_AUTO_ORGANIZATIONS` names on Buzz (comma-separated slugs),
@@ -117,6 +120,7 @@ a preview's bridge runs when `/sync/buzz` is called with a branch-scoped
 | `BUZZ_KEY_ENCRYPTION_SECRET`  | 32+ random characters; encrypts people's Nostr keys and bridge API keys. Never rotate without re-encrypting. |
 | `BUZZ_OPERATOR_API_ORIGIN`    | `https://operator.chat.sokosumi.com`                                                                         |
 | `BUZZ_RELAY_DATABASE_URL`     | the relay's Postgres, public URL with TLS                                                                    |
+| `BUZZ_RELAY_DATABASE_CA`      | that Postgres's root certificate (PEM); without it Node refuses Railway's certificate                        |
 | `BUZZ_AUTO_ORGANIZATIONS`     | previews only: the test organizations' slugs; unset, every organization goes on Buzz                         |
 
 The `/sync/buzz` cron is in `apps/core/vercel.json`; the function's 300 s limit
