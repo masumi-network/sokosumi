@@ -13,6 +13,12 @@ model SeoConnection {
   entityId          String?
   authConfigId      String?
   connectedAt       DateTime?
+  /// Google account identity read once per selected account, for display only.
+  accountEmail      String?
+  accountName       String?
+  accountPictureUrl String?
+  /// Set after the one identity read, also when it found nothing.
+  accountCheckedAt  DateTime?
   workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, userId, provider])

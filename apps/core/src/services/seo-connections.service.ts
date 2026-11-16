@@ -7,6 +7,11 @@ import {
 import { conflict, notFound } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import prisma from "@/lib/db/prisma";
+import { captureExternalServiceError } from "@/lib/external-service-errors";
+import {
+  type GoogleAccountIdentity,
+  readGoogleAccountIdentity,
+} from "@/lib/seo/google-account-identity";
 import {
   SEO_CONNECTION_PROVIDERS,
   type SeoConnectionProvider,
@@ -40,6 +45,88 @@ function connectionVersion(account: {
     )
     .digest("hex");
 }
+/** Written with every account change, so a switched account never shows the old one. */
+export const CLEARED_SEO_ACCOUNT_IDENTITY = {
+  accountEmail: null,
+  accountName: null,
+  accountPictureUrl: null,
+  accountCheckedAt: null,
+};
+
+/** A failed or refused read is tried again after this time, not on every status read. */
+const IDENTITY_RETRY_MS = 60 * 60 * 1000;
+
+/** True when the selected account has no stored identity and no read in the last retry period. */
+function identityReadDue(row: {
+  accountEmail: string | null;
+  accountCheckedAt: Date | null;
+}) {
+  return (
+    row.accountEmail === null &&
+    (row.accountCheckedAt === null ||
+      row.accountCheckedAt.getTime() < Date.now() - IDENTITY_RETRY_MS)
+  );
+}
+
+/**
+ * Reads the Google identity of the selected native account. The claim on
+ * accountCheckedAt lets one caller read per retry period, so a temporary
+ * failure does not hide the account for good. A finalize claims in its own
+ * transaction and passes `claimed`. Never throws: the identity is display
+ * data only.
+ */
+export async function recordSeoConnectionIdentity(
+  account: { composioAccountId: string; entityId: string },
+  { claimed = false } = {},
+): Promise<GoogleAccountIdentity | null> {
+  const selected = {
+    composioAccountId: account.composioAccountId,
+    entityId: account.entityId,
+    status: "ACTIVE",
+  };
+  try {
+    const claim = claimed
+      ? { count: 1 }
+      : await prisma.seoConnection.updateMany({
+          where: {
+            ...selected,
+            accountEmail: null,
+            OR: [
+              { accountCheckedAt: null },
+              {
+                accountCheckedAt: {
+                  lt: new Date(Date.now() - IDENTITY_RETRY_MS),
+                },
+              },
+            ],
+          },
+          data: { accountCheckedAt: new Date() },
+        });
+    if (claim.count !== 1) return null;
+    const identity = await readGoogleAccountIdentity({
+      connectedAccountId: account.composioAccountId,
+      executorUserId: account.entityId,
+    });
+    if (identity)
+      await prisma.seoConnection.updateMany({
+        where: selected,
+        data: {
+          accountEmail: identity.email,
+          accountName: identity.name,
+          accountPictureUrl: identity.pictureUrl,
+        },
+      });
+    return identity;
+  } catch (error) {
+    captureExternalServiceError(error, {
+      label: "seo_connection_identity_store",
+      // Fixed text: a failed write can quote the email it tried to store.
+      message: "SEO connection identity could not be stored",
+    });
+    return null;
+  }
+}
+
 export function seoConnectionKey(
   owner: SeoConnectionOwner,
   provider: SeoConnectionProvider,
@@ -167,17 +254,32 @@ export async function getSeoConnection(
       pendingConnectionId: pending.connectionId,
       canResume: pending.callbackRedeemedAt !== null,
     });
-  if (row?.status === "ACTIVE" && row.composioAccountId && row.entityId)
+  if (row?.status === "ACTIVE" && row.composioAccountId && row.entityId) {
+    // A new account, or one whose last read failed, is read here.
+    const identity = identityReadDue(row)
+      ? await recordSeoConnectionIdentity({
+          composioAccountId: row.composioAccountId,
+          entityId: row.entityId,
+        })
+      : row.accountEmail
+        ? {
+            email: row.accountEmail,
+            name: row.accountName,
+            pictureUrl: row.accountPictureUrl,
+          }
+        : null;
     return seoConnectionStatusSchema.parse({
       ...base,
       status: "connected",
       source: "native",
+      account: identity,
       connectionVersion: connectionVersion({
         composioAccountId: row.composioAccountId,
         entityId: row.entityId,
         connectionRevision: `native:${row.id}:${row.revision}`,
       }),
     });
+  }
   const inherited =
     !row || row.status === "INHERIT"
       ? await personalConnection(owner, provider)
@@ -187,6 +289,7 @@ export async function getSeoConnection(
       ...base,
       status: "connected",
       source: "personal",
+      account: null,
       connectionVersion: connectionVersion(inherited),
     });
   return seoConnectionStatusSchema.parse({

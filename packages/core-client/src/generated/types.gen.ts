@@ -11580,6 +11580,11 @@ export type SeoConnectionStatus = {
     source: 'native' | 'personal' | 'none';
     pendingConnectionId?: string | null;
     canResume?: boolean;
+    account?: {
+        email: string;
+        name: string | null;
+        pictureUrl: string | null;
+    } | null;
     connectionVersion?: string;
 };
 

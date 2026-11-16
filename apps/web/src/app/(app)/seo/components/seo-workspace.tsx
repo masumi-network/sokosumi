@@ -302,7 +302,7 @@ export function SeoWorkspace({
                   onSelect={() => model.setDialog("statistics")}
                 >
                   <Settings2 className="size-4" />
-                  {t("overview.manageConnections")}
+                  {t("manageStatistics")}
                 </DropdownMenuItem>
               ) : null}
               {model.data.availableActions.canEdit ? (
