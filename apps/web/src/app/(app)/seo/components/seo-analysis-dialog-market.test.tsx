@@ -144,7 +144,7 @@ describe("SEO check defaults", () => {
       "Full audit · All pages · Germany · German · Akku Zustand",
     );
     // A one-page full audit shows the 50-credit ceiling Core checks before it starts.
-    expect(within(dialog).getByText("Up to 50 credits")).toBeVisible();
+    expect(within(dialog).getByText("750 credits")).toBeVisible();
     // No field asks for a choice until the reader wants one.
     expect(
       within(dialog).getByRole("button", { name: "Change options" }),

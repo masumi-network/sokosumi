@@ -43381,6 +43381,12 @@ export const RequestProjectSeoAnalysisRequestSchema = {
             maximum: 100,
             default: 20
         },
+        fullAuditCredits: {
+            type: 'number',
+            enum: [
+                750
+            ]
+        },
         fullAuditLimits: {
             type: 'object',
             properties: {

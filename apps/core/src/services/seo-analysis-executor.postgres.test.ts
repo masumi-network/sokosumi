@@ -652,6 +652,7 @@ describe.skipIf(!enabled)("Native SEO trusted executor with PostgreSQL", () => {
       {
         ...request(),
         kind: "audit_full" as const,
+        fullAuditCredits: 750 as const,
         devices: ["mobile" as const, "desktop" as const],
       },
     ];
