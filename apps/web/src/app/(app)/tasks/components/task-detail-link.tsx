@@ -69,6 +69,8 @@ export function TaskDetailLink({
   useEffect(() => cancelHoverPrefetch, []);
 
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
+    // The click already loads the page; a later dwell would render it twice.
+    cancelHoverPrefetch();
     onClick?.(event);
     if (event.defaultPrevented || typeof window === "undefined") {
       return;
@@ -79,7 +81,9 @@ export function TaskDetailLink({
 
   function handlePointerEnter(event: PointerEvent<HTMLAnchorElement>) {
     onPointerEnter?.(event);
-    if (!event.defaultPrevented) {
+    // A finger also enters every row it rests on while it scrolls, so only a
+    // mouse or pen hover loads the content.
+    if (!event.defaultPrevented && event.pointerType !== "touch") {
       cancelHoverPrefetch();
       hoverTimer.current = setTimeout(() => {
         hoverTimer.current = null;

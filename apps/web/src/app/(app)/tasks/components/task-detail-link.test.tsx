@@ -29,7 +29,7 @@ describe("TaskDetailLink", () => {
       render(<TaskDetailLink href="/tasks/task-1">Open task</TaskDetailLink>);
       const link = screen.getByRole("link", { name: "Open task" });
 
-      fireEvent.pointerEnter(link);
+      fireEvent.pointerEnter(link, { pointerType: "mouse" });
       vi.advanceTimersByTime(TASK_HOVER_DWELL_MS);
       fireEvent.focus(link);
 
@@ -51,7 +51,7 @@ describe("TaskDetailLink", () => {
       render(<TaskDetailLink href="/tasks/task-1">Open task</TaskDetailLink>);
       const link = screen.getByRole("link", { name: "Open task" });
 
-      fireEvent.pointerEnter(link);
+      fireEvent.pointerEnter(link, { pointerType: "mouse" });
       vi.advanceTimersByTime(TASK_HOVER_DWELL_MS - 1);
       fireEvent.pointerLeave(link);
       vi.advanceTimersByTime(TASK_HOVER_DWELL_MS);
@@ -62,13 +62,42 @@ describe("TaskDetailLink", () => {
     }
   });
 
-  // A touch also starts every scroll gesture, so it loads only the shell.
+  // A touch also starts every scroll gesture, and a finger enters each row it
+  // rests on, so touch loads only the shell.
   it("prefetches only the shell on touch", () => {
-    render(<TaskDetailLink href="/tasks/task-1">Open task</TaskDetailLink>);
+    vi.useFakeTimers();
+    try {
+      render(<TaskDetailLink href="/tasks/task-1">Open task</TaskDetailLink>);
+      const link = screen.getByRole("link", { name: "Open task" });
 
-    fireEvent.touchStart(screen.getByRole("link", { name: "Open task" }));
+      fireEvent.pointerEnter(link, { pointerType: "touch" });
+      fireEvent.touchStart(link);
+      vi.advanceTimersByTime(TASK_HOVER_DWELL_MS);
 
-    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks/task-1");
+      expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+        "/tasks/task-1",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // The click already loads the page, so a dwell that ends later must not
+  // render it a second time.
+  it("does not load the content after a click inside the dwell", () => {
+    vi.useFakeTimers();
+    try {
+      render(<TaskDetailLink href="/tasks/task-1">Open task</TaskDetailLink>);
+      const link = screen.getByRole("link", { name: "Open task" });
+
+      fireEvent.pointerEnter(link, { pointerType: "mouse" });
+      fireEvent.click(link);
+      vi.advanceTimersByTime(TASK_HOVER_DWELL_MS);
+
+      expect(routerPrefetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   // A predicted approach is weaker intent than a hover, so it prefetches only
