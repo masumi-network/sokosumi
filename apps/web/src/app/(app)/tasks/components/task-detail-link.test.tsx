@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TaskDetailLink } from "@/app/tasks/components/task-detail-link";
 import { TASKS_RETURN_PATH_SESSION_KEY } from "@/app/tasks/components/task-navigation";
-import { INTENT_DWELL_MS } from "@/components/resting-intent-link";
+import {
+  FOCUS_DWELL_MS,
+  HOVER_DWELL_MS,
+} from "@/components/resting-intent-link";
 import { approachElement } from "@/test/approach-element";
 
 const routerPrefetchMock = vi.fn();
@@ -43,7 +46,7 @@ describe("TaskDetailLink", () => {
     const link = renderLink();
 
     fireEvent.pointerEnter(link, { pointerType: "mouse" });
-    vi.advanceTimersByTime(INTENT_DWELL_MS);
+    vi.advanceTimersByTime(HOVER_DWELL_MS);
 
     expect(link).toHaveAttribute("href", "/tasks/task-1");
     expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
@@ -56,7 +59,7 @@ describe("TaskDetailLink", () => {
     const link = renderLink();
 
     act(() => link.focus());
-    vi.advanceTimersByTime(INTENT_DWELL_MS);
+    vi.advanceTimersByTime(FOCUS_DWELL_MS);
 
     expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
       "/tasks/task-1",
@@ -70,7 +73,7 @@ describe("TaskDetailLink", () => {
 
     act(() => link.focus());
     act(() => link.blur());
-    vi.advanceTimersByTime(INTENT_DWELL_MS);
+    vi.advanceTimersByTime(FOCUS_DWELL_MS);
 
     expect(routerPrefetchMock).not.toHaveBeenCalled();
   });
@@ -81,9 +84,9 @@ describe("TaskDetailLink", () => {
     const link = renderLink();
 
     fireEvent.pointerEnter(link, { pointerType: "mouse" });
-    vi.advanceTimersByTime(INTENT_DWELL_MS - 1);
+    vi.advanceTimersByTime(HOVER_DWELL_MS - 1);
     fireEvent.pointerLeave(link);
-    vi.advanceTimersByTime(INTENT_DWELL_MS);
+    vi.advanceTimersByTime(HOVER_DWELL_MS);
 
     expect(routerPrefetchMock).not.toHaveBeenCalled();
   });
@@ -99,7 +102,7 @@ describe("TaskDetailLink", () => {
     fireEvent.pointerUp(link, { pointerType: "touch" });
     fireEvent.focus(link);
     fireEvent.click(link);
-    vi.advanceTimersByTime(INTENT_DWELL_MS);
+    vi.advanceTimersByTime(FOCUS_DWELL_MS);
 
     expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks/task-1");
   });
@@ -114,7 +117,7 @@ describe("TaskDetailLink", () => {
     fireEvent.focus(link);
     fireEvent.pointerUp(link, { pointerType: "mouse" });
     fireEvent.click(link);
-    vi.advanceTimersByTime(INTENT_DWELL_MS);
+    vi.advanceTimersByTime(FOCUS_DWELL_MS);
 
     expect(routerPrefetchMock).not.toHaveBeenCalled();
   });
@@ -126,7 +129,7 @@ describe("TaskDetailLink", () => {
 
     fireEvent.pointerDown(link, { pointerType: "mouse" });
     fireEvent.focus(link);
-    vi.advanceTimersByTime(INTENT_DWELL_MS);
+    vi.advanceTimersByTime(FOCUS_DWELL_MS);
 
     expect(routerPrefetchMock).not.toHaveBeenCalled();
   });
@@ -136,7 +139,7 @@ describe("TaskDetailLink", () => {
     const link = renderLink();
 
     fireEvent.pointerEnter(link, { pointerType: "mouse", buttons: 1 });
-    vi.advanceTimersByTime(INTENT_DWELL_MS);
+    vi.advanceTimersByTime(HOVER_DWELL_MS);
 
     expect(routerPrefetchMock).not.toHaveBeenCalled();
   });
@@ -147,7 +150,7 @@ describe("TaskDetailLink", () => {
 
     fireEvent.pointerEnter(link, { pointerType: "mouse" });
     fireEvent.pointerDown(link, { pointerType: "mouse", button: 1 });
-    vi.advanceTimersByTime(INTENT_DWELL_MS);
+    vi.advanceTimersByTime(HOVER_DWELL_MS);
 
     expect(routerPrefetchMock).not.toHaveBeenCalled();
   });
@@ -162,7 +165,7 @@ describe("TaskDetailLink", () => {
       pointerType: "mouse",
     });
     unmount();
-    vi.advanceTimersByTime(INTENT_DWELL_MS);
+    vi.advanceTimersByTime(HOVER_DWELL_MS);
 
     expect(routerPrefetchMock).not.toHaveBeenCalled();
   });
@@ -173,7 +176,7 @@ describe("TaskDetailLink", () => {
 
     fireEvent.pointerEnter(link, { pointerType: "mouse" });
     fireEvent.click(link);
-    vi.advanceTimersByTime(INTENT_DWELL_MS);
+    vi.advanceTimersByTime(HOVER_DWELL_MS);
 
     expect(routerPrefetchMock).not.toHaveBeenCalled();
   });
@@ -185,7 +188,7 @@ describe("TaskDetailLink", () => {
     act(() => link.focus());
     fireEvent.pointerEnter(link, { pointerType: "mouse" });
     fireEvent.pointerLeave(link, { pointerType: "mouse" });
-    vi.advanceTimersByTime(INTENT_DWELL_MS);
+    vi.advanceTimersByTime(FOCUS_DWELL_MS);
 
     expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
       "/tasks/task-1",
@@ -199,23 +202,59 @@ describe("TaskDetailLink", () => {
     const link = renderLink("/admin/tasks/task-1", false);
 
     act(() => link.focus());
-    vi.advanceTimersByTime(INTENT_DWELL_MS);
+    vi.advanceTimersByTime(FOCUS_DWELL_MS);
 
     expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
       "/admin/tasks/task-1",
     );
   });
 
-  // A predicted approach is weaker intent than a hover, so it prefetches only
-  // the shell and never pays for a content render.
-  it("prefetches only the shell when the reader heads for the link", async () => {
+  // The cursor's path predicts the click, so the content is ready before the
+  // pointer arrives.
+  it("prefetches the task detail content when the reader heads for the link", async () => {
     render(<TaskDetailLink href="/tasks/task-1">Open task</TaskDetailLink>);
 
     await act(() =>
       approachElement(screen.getByRole("link", { name: "Open task" })),
     );
 
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/tasks/task-1",
+      CONTENT_PREFETCH,
+    );
+  });
+
+  // A Tab stop close by is not where the reader will click, and holding Tab
+  // through a list must not render every page it passes.
+  it("prefetches only the shell for a predicted Tab stop", async () => {
+    render(<TaskDetailLink href="/tasks/task-1">Open task</TaskDetailLink>);
+
+    await act(() =>
+      approachElement(screen.getByRole("link", { name: "Open task" }), "tab"),
+    );
+
     expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks/task-1");
+  });
+
+  // A touch may only start a scroll across the list.
+  it("prefetches only the shell for a predicted touch", async () => {
+    render(<TaskDetailLink href="/tasks/task-1">Open task</TaskDetailLink>);
+
+    await act(() =>
+      approachElement(screen.getByRole("link", { name: "Open task" }), "touch"),
+    );
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks/task-1");
+  });
+
+  // Holding Tab moves focus faster than a resting hover.
+  it("waits longer for keyboard focus than for a hover", () => {
+    const link = renderLink();
+
+    act(() => link.focus());
+    vi.advanceTimersByTime(HOVER_DWELL_MS);
+
+    expect(routerPrefetchMock).not.toHaveBeenCalled();
   });
 
   it("stores the current tasks URL when navigating from the tasks root", () => {

@@ -1,18 +1,27 @@
 "use client";
 
-import { ForesightManager } from "js.foresight";
+import { type CallbackInvokedEvent, ForesightManager } from "js.foresight";
 import { useCallback, useEffect, useRef } from "react";
 
 /**
  * How long after a scroll, or a move with a mouse button down, a prediction
  * says nothing about where the reader is heading.
  */
-const UNSETTLED_MS = 200;
+export const UNSETTLED_MS = 200;
 
 let unsettledAt = Number.NEGATIVE_INFINITY;
 
 function unsettle() {
   unsettledAt = Date.now();
+}
+
+/**
+ * Time in ms until a scroll, or a move with a mouse button down, is long
+ * enough ago that a hover again says where the reader is heading. 0 when it
+ * already is.
+ */
+export function msUntilIntentSettled(): number {
+  return Math.max(0, unsettledAt + UNSETTLED_MS - Date.now());
 }
 
 // Where the cursor last was. Off the page until it first moves, and again
@@ -24,6 +33,28 @@ let cursorY = OFF_PAGE;
 function cursorLeft() {
   cursorX = OFF_PAGE;
   cursorY = OFF_PAGE;
+}
+
+/**
+ * What predicted the reader's approach. `pointer` is a mouse or pen whose path
+ * or hover reaches the element. `other` is a Tab stop close by or a touch that
+ * starts on it, which may only be the start of a scroll.
+ */
+export type IntentSource = "pointer" | "other";
+
+// The library passes the prediction's kind only to its event listeners, which
+// it calls just before the element's callback.
+const lastSource = new WeakMap<Element, IntentSource>();
+
+// The library keeps the cursor's last point after it leaves the page, so a
+// list that shifts under that point is no pointer heading anywhere.
+function predictionMade(event: CallbackInvokedEvent) {
+  lastSource.set(
+    event.element,
+    event.hitType.kind === "mouse" && cursorX !== OFF_PAGE
+      ? "pointer"
+      : "other",
+  );
 }
 
 // The listeners feed this module's own state, so they follow this module, not
@@ -51,12 +82,17 @@ function listen() {
   document.addEventListener("scroll", unsettle, CAPTURE);
   document.addEventListener("pointermove", pointerMoved, CAPTURE);
   document.documentElement.addEventListener("pointerleave", cursorLeft);
+  ForesightManager.instance.addEventListener("callbackInvoked", predictionMade);
 }
 
 function stopListening() {
   document.removeEventListener("scroll", unsettle, CAPTURE);
   document.removeEventListener("pointermove", pointerMoved, CAPTURE);
   document.documentElement.removeEventListener("pointerleave", cursorLeft);
+  ForesightManager.instance.removeEventListener(
+    "callbackInvoked",
+    predictionMade,
+  );
 }
 
 function intentManager() {
@@ -84,9 +120,10 @@ interface IntentPrefetchOptions {
  * click: when the cursor's path points at the element, when a Tab stop is
  * close by, or when a touch starts on it. It also runs for the element a
  * scroll leaves under the cursor: where the reader stops is where they look.
+ * `prefetch` learns which of these predicted the approach.
  */
 export function useIntentPrefetch<T extends Element>(
-  prefetch: () => void,
+  prefetch: (source: IntentSource) => void,
   { reactivateAfter, enabled = true }: IntentPrefetchOptions,
 ) {
   // The element registers once, so it calls whichever `prefetch` is current.
@@ -106,7 +143,7 @@ export function useIntentPrefetch<T extends Element>(
           return;
         }
         if (element.contains(document.elementFromPoint(cursorX, cursorY))) {
-          latest.current();
+          latest.current("pointer");
           return;
         }
         // The library now holds the element back for `reactivateAfter`.
@@ -117,7 +154,7 @@ export function useIntentPrefetch<T extends Element>(
         element,
         callback: () => {
           if (Date.now() - unsettledAt >= UNSETTLED_MS) {
-            latest.current();
+            latest.current(lastSource.get(element) ?? "other");
             return;
           }
           // A long scroll outlasts `reactivateAfter`, so the element can fire

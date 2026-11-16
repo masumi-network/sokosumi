@@ -2,7 +2,7 @@ import { TaskStatus } from "@sokosumi/core-client";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { TaskRelationRow } from "@/app/tasks/components/task-relation-row";
-import { INTENT_DWELL_MS } from "@/components/resting-intent-link";
+import { HOVER_DWELL_MS } from "@/components/resting-intent-link";
 
 const prefetchMock = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -33,7 +33,7 @@ describe("TaskRelationRow", () => {
         screen.getByRole("link", { name: /Dependency cleanup/i }),
         { pointerType: "mouse" },
       );
-      vi.advanceTimersByTime(INTENT_DWELL_MS);
+      vi.advanceTimersByTime(HOVER_DWELL_MS);
     } finally {
       vi.useRealTimers();
     }
@@ -59,7 +59,7 @@ describe("TaskRelationRow", () => {
         screen.getByRole("link", { name: /Dependency cleanup/i }),
         { pointerType: "mouse" },
       );
-      vi.advanceTimersByTime(INTENT_DWELL_MS);
+      vi.advanceTimersByTime(HOVER_DWELL_MS);
     } finally {
       vi.useRealTimers();
     }
