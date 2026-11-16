@@ -303,20 +303,23 @@ export function SeoActionDialog({
     >
       {action ? (
         // The card names the action in its own heading; the dialog title repeats it for the dialog's name. The
-        // top padding keeps the close button clear of the title; a long card scrolls inside the screen.
+        // top padding keeps the close button clear of the title. A long card scrolls inside the screen, under the
+        // close button, which stays in view.
         <DialogContent
-          className="max-h-[calc(100dvh-2rem)] gap-0 overflow-y-auto p-0 pt-10 sm:max-w-xl"
+          className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 p-0 pt-10 sm:max-w-xl"
           onCloseAutoFocus={onCloseAutoFocus}
         >
           <DialogTitle className="sr-only">{action.title}</DialogTitle>
-          <SeoActionCard
-            action={action}
-            model={model}
-            severity={severity}
-            primary
-            fixed
-            flush
-          />
+          <div className="min-h-0 overflow-y-auto">
+            <SeoActionCard
+              action={action}
+              model={model}
+              severity={severity}
+              primary
+              fixed
+              flush
+            />
+          </div>
         </DialogContent>
       ) : null}
     </Dialog>
