@@ -48,6 +48,18 @@ const seoAnalysisExecutorEnvSchema = z.preprocess((value) => {
  * Environment variables schema for Core API
  * This ensures the app isn't built with invalid env vars.
  */
+
+/** Full emails and `@domain` entries, comma-separated; unset or empty is none. */
+const emailAllowlistSchema = z
+  .string()
+  .default("")
+  .transform((value) =>
+    value
+      .split(",")
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean),
+  );
+
 const baseEnvSchema = z.object({
   NETWORK: z.enum(["Preprod", "Mainnet"]).default("Preprod"),
 
@@ -89,6 +101,8 @@ const baseEnvSchema = z.object({
   KV_URL: z.string().optional(),
 
   WEB_APP_BASE_URL: z.url().default("http://localhost:3000"),
+  // CMO's origin, for links Core writes into CMO notices (SOKD-246).
+  CMO_APP_BASE_URL: z.url().default("https://app.cmo.xyz"),
 
   // Vercel (optional; Better Auth base URL on Preview)
   VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
@@ -142,19 +156,20 @@ const baseEnvSchema = z.object({
 
   // Who may hire Cuso while CMO is invite-only: full emails and `@domain`
   // entries, comma-separated. Unset or empty means nobody may hire.
-  CMO_HIRE_ALLOWLIST: z
-    .string()
-    .default("")
-    .transform((value) =>
-      value
-        .split(",")
-        .map((entry) => entry.trim().toLowerCase())
-        .filter(Boolean),
-    ),
+  CMO_HIRE_ALLOWLIST: emailAllowlistSchema,
+  // Testers who may continue a Cuso without a CMO subscription (ADR 0068),
+  // in the same form. Unset or empty means nobody.
+  CMO_SUBSCRIPTION_SKIP_ALLOWLIST: emailAllowlistSchema,
 
   // CMO's OAuth client id: only its tokens may write through `/v1/cmo/**`
   // (ADR 0066). Unset refuses every such write.
   CMO_OAUTH_CLIENT_ID: z.string().trim().min(1).optional(),
+
+  // Polar sells CMO plans and Project top-ups (ADR 0068). All three are needed;
+  // without them the Polar routes and the Polar webhook answer 503.
+  POLAR_ACCESS_TOKEN: z.string().min(1).optional(),
+  POLAR_WEBHOOK_SECRET: z.string().min(1).optional(),
+  POLAR_ENVIRONMENT: z.enum(["sandbox", "production"]).optional(),
 
   // Project newsletters use a separate sending domain from transactional email.
   NEWSLETTER_FROM_DOMAIN: z.hostname().optional(),

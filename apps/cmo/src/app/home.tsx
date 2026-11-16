@@ -28,6 +28,7 @@ import {
   applyPlanAnswers,
   approveBrandBrain,
   approveStrategy,
+  changePlan,
   connectAds,
   connectChannel,
   connectMeasurement,
@@ -39,8 +40,10 @@ import {
   loadMessages,
   loadOverview,
   loadPieceText,
+  loadPlans,
   loadState,
   onboard,
+  openPortal,
   pauseEntry,
   requestStrategy,
   retryLearning,
@@ -51,7 +54,10 @@ import {
   setAdCampaignStatus,
   skipBrandQuestions,
   skippedSteps,
+  skipSubscription,
   startOver,
+  startPlanCheckout,
+  startTopUp,
 } from "./cmo-actions";
 import { saveName } from "./name-actions";
 
@@ -153,6 +159,7 @@ async function openedScreen(input: {
 
 export interface HomeSearchParams {
   error?: string | string[];
+  /** "subscribed" is Polar's return after a payment; "connect" and "results" a connection's. */
   step?: string | string[];
   project?: string | string[];
   /** The account menu's "Your Cusos": the Cuso picker. */
@@ -269,16 +276,27 @@ export async function Home({ searchParams, view }: HomeProps) {
   // so a workspace switch elsewhere cannot move them to another Cuso.
   const { projectId } = overview;
   if (overview.onboardingStep !== "done" || backInHiring) {
+    const skipped = await skippedSteps(projectId);
     // The app's pages open once onboarding ends; until then it is the first run.
     if (view !== "chat") {
       redirect(`/?project=${encodeURIComponent(projectId)}`);
     }
     return (
       <OnboardingFlow
+        // Launch sets the cookie and re-renders this page into the checkout:
+        // start the flow fresh, or it keeps the overview and cookie it was
+        // first given.
+        key={skipped.includes("accounts") ? "launched" : "hiring"}
         overview={overview}
         messages={await loadMessages(projectId).catch(() => [])}
         initialStep={step === "results" ? "results" : undefined}
-        skipped={await skippedSteps(overview.projectId)}
+        skipped={skipped}
+        plans={
+          overview.onboardingStep === "checkout"
+            ? await loadPlans().catch(() => [])
+            : []
+        }
+        returnedFromCheckout={step === "subscribed"}
         actions={{
           loadState: loadState.bind(null, projectId),
           sendMessage: sendMessage.bind(null, projectId),
@@ -296,7 +314,10 @@ export async function Home({ searchParams, view }: HomeProps) {
           connectChannel: connectSetupChannel.bind(null, projectId),
           connectMeasurement: connectMeasurement.bind(null, projectId),
           connectAds: connectAds.bind(null, projectId),
+          startPlanCheckout: startPlanCheckout.bind(null, projectId),
           startOver: startOver.bind(null, projectId),
+          startTopUp: startTopUp.bind(null, projectId),
+          skipSubscription: skipSubscription.bind(null, projectId),
           signOut,
         }}
       />
@@ -305,6 +326,11 @@ export async function Home({ searchParams, view }: HomeProps) {
   return (
     <CmoApp
       overview={overview}
+      plans={
+        overview.billing.viewerCanManage && overview.billing.tier
+          ? await loadPlans().catch(() => [])
+          : []
+      }
       messages={await loadMessages(projectId).catch(() => [])}
       name={session.user.name}
       email={session.user.email}
@@ -328,6 +354,13 @@ export async function Home({ searchParams, view }: HomeProps) {
         setAdCampaignStatus: setAdCampaignStatus.bind(null, projectId),
         loadAdCampaigns: loadAdCampaigns.bind(null, projectId),
         startOver: startOver.bind(null, projectId),
+        startTopUp: startTopUp.bind(null, projectId),
+        skipSubscription: skipSubscription.bind(null, projectId),
+        // Outside hiring the monthly plans, cheapest first; Polar's checkout
+        // lets the person switch.
+        subscribe: startPlanCheckout.bind(null, projectId, "month"),
+        changePlan: changePlan.bind(null, projectId),
+        openPortal: openPortal.bind(null, projectId),
         signOut,
       }}
     />
