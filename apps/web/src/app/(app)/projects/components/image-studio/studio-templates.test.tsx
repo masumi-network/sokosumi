@@ -43,7 +43,6 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
 
 const mocks = vi.hoisted(() => ({
   assets: [] as unknown[],
-  enqueue: vi.fn(),
   loadBrandKit: vi.fn(),
   saveBrandCopy: vi.fn(),
   saveBrandLook: vi.fn(),
@@ -56,6 +55,7 @@ const mocks = vi.hoisted(() => ({
   prepareWebsiteDraft: vi.fn(),
   loadProducts: vi.fn(),
   saveProducts: vi.fn(),
+  enqueue: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
@@ -133,15 +133,11 @@ describe("starting from a template", () => {
     mount();
     pickTemplate("social-post");
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
-    // Generation now stops on unfilled "[product]" slots, so fill them in
-    // place; that keeps the template id on the request.
+    // Fill the template slots first; generate refuses a brief that still has them.
     fireEvent.change(prompt, {
       target: {
-        value: (prompt as HTMLTextAreaElement).value
-          .replace("[product]", "oat latte")
-          .replace("[audience]", "commuters")
-          .replace("[setting]", "a sunlit cafe")
-          .replace("[benefit]", "an afternoon lift"),
+        value:
+          "Create a lifestyle feed ad for iced oat latte aimed at home cooks. Show the product being used in a morning kitchen with warm natural daylight. Make a calm start to the day clear through the scene. Leave a quiet area for the headline and use only approved claims.",
       },
     });
     fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
@@ -151,8 +147,6 @@ describe("starting from a template", () => {
         expect.objectContaining({ templateId: "social-post" }),
       ]),
     );
-    // Emptying the box drops the template, so the next brief is not tagged.
-    fireEvent.change(prompt, { target: { value: "" } });
     fireEvent.change(prompt, { target: { value: "A fresh campaign brief" } });
     fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
     expect(mocks.enqueue.mock.calls[1][0][0].templateId).toBeUndefined();

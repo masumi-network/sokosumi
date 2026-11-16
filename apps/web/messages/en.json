@@ -13202,6 +13202,7 @@
       },
       "Billing": {
         "lowBalance": "Your credits are running low: {credits} left",
+        "cusoLowCredits": "{cusoName} for {businessName} is running low: {credits} credits left",
         "paymentFailed": "A subscription payment failed",
         "creditsAdded": "{credits} credits were added to your balance",
         "subscriptionEnding": "Your subscription ends when the current period does",
