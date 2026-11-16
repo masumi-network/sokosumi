@@ -118,7 +118,7 @@ export function TaskActivitySubscribeControl({
           type="button"
           variant="ghost"
           size="sm"
-          className="text-muted-foreground h-auto px-1.5 py-0.5 text-xs font-medium"
+          className="text-muted-foreground h-7 px-2 text-xs font-medium"
           disabled={isPending}
           onClick={handleSubscribeToggle}
         >
