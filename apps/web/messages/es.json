@@ -12413,7 +12413,7 @@
         "statistics": "{analytics, select, connected {Estadísticas de Google: Analytics conectado, aún sin sincronizar} missing {Estadísticas de Google: Analytics no conectado} other {Estadísticas de Google}}",
         "figures": {
           "label": "Cifras clave",
-          "rankings": "{depth, select, same {{found} de {read} {read, plural, one {palabra clave} other {palabras clave}} en los primeros {max} resultados} range {{found} de {read} {read, plural, one {palabra clave} other {palabras clave}} en los primeros {min} a {max} resultados} other {{found} de {read} {read, plural, one {palabra clave} other {palabras clave}} en los primeros resultados}}",
+          "rankings": "{depth, select, same {{found} de {read} {read, plural, one {palabra clave encontrada} other {palabras clave encontradas}} · {max} resultados leídos por palabra clave} range {{found} de {read} {read, plural, one {palabra clave encontrada} other {palabras clave encontradas}} · {min} a {max} resultados leídos por palabra clave} other {{found} de {read} {read, plural, one {palabra clave encontrada} other {palabras clave encontradas}}}}",
           "searches": "{partial, select, yes {{total} búsquedas al mes para {keywords} de {of} palabras clave} other {{total} búsquedas al mes}}",
           "traffic": "{clicks, plural, one {# clic} other {# clics}} · {impressions, plural, one {# impresión} other {# impresiones}}"
         },

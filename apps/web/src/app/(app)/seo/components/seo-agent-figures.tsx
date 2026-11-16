@@ -77,7 +77,7 @@ export function SeoAgentFigures({
     >
       {keywords ? (
         <Figure
-          // A keyword in the top results is good news; none is no alarm, so it stays neutral.
+          // A keyword found is good news; none is no alarm, so it stays neutral.
           tint={keywords.found ? "bg-chart-2-quinary" : "bg-quinary"}
           dot={keywords.found ? "bg-chart-2" : "bg-muted-foreground"}
           onOpen={open("rankings")}

@@ -77,7 +77,6 @@ export function seoSummary(workspace: ProjectSeoWorkspace) {
       ? {
           read: rankings.read,
           found: rankings.found,
-          firstPage: rankings.firstPage,
           depth: rankings.depth,
         }
       : null,

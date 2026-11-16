@@ -292,6 +292,8 @@ export function SeoActionDialog({
         <DialogContent
           className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 p-0 pt-10 sm:max-w-xl"
           onCloseAutoFocus={onCloseAutoFocus}
+          // The card is the whole content: no separate description.
+          aria-describedby={undefined}
         >
           <DialogTitle className="sr-only">{action.title}</DialogTitle>
           <div className="min-h-0 overflow-y-auto">

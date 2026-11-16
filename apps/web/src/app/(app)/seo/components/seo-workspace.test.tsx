@@ -2800,7 +2800,7 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByRole("tab", { name: "Agent" }));
     await user.click(
       within(screen.getByTestId("seo-agent-figures")).getByRole("button", {
-        name: /keywords? in the top/,
+        name: /keywords? found/,
       }),
     );
     expect(screen.queryByDisplayValue("battery app")).toBeNull();
@@ -2809,7 +2809,17 @@ describe("SEO workspace integration", () => {
   it("starts the Google statistics line open while Analytics is not connected, and closed while it is connected", async () => {
     const workspace = seoTestCheckedAudit();
     workspace.metrics = [seoTestMetric()];
-    for (const status of ["not_connected", "connected"] as const) {
+    // An expired connection reads as none; a connection Google cannot report on claims nothing.
+    for (const [status, name, open] of [
+      ["not_connected", "Google statistics: Analytics not connected", "true"],
+      ["needs_reconnect", "Google statistics: Analytics not connected", "true"],
+      [
+        "connected",
+        "Google statistics: Analytics connected, not synced yet",
+        "false",
+      ],
+      ["unavailable", "Google statistics", "false"],
+    ] as const) {
       vi.stubGlobal(
         "fetch",
         vi.fn(async (url: string) =>
@@ -2821,16 +2831,8 @@ describe("SEO workspace integration", () => {
         ),
       );
       renderWorkspace(workspace, "?tab=agent");
-      const line = await screen.findByRole("button", {
-        name:
-          status === "connected"
-            ? "Google statistics: Analytics connected, not synced yet"
-            : "Google statistics: Analytics not connected",
-      });
-      expect(line).toHaveAttribute(
-        "aria-expanded",
-        status === "connected" ? "false" : "true",
-      );
+      const line = await screen.findByRole("button", { name });
+      expect(line).toHaveAttribute("aria-expanded", open);
       cleanup();
     }
   });
@@ -5752,7 +5754,7 @@ describe("SEO workspace integration", () => {
     // The position result leads the Agent tab, as a figure under the verdict.
     expect(
       screen.getByRole("button", {
-        name: "1 of 2 keywords in the top 20 results",
+        name: "1 of 2 keywords found · 20 results read per keyword",
       }),
     ).toBeVisible();
     expect(screen.getByText("The title is missing")).not.toBeVisible();
@@ -6431,7 +6433,7 @@ describe("SEO workspace integration", () => {
     // "0 of 2" is no "not in Google": the figure names the results the check read.
     expect(
       await screen.findByRole("button", {
-        name: "0 of 2 keywords in the top 20 to 100 results",
+        name: "0 of 2 keywords found · 20 to 100 results read per keyword",
       }),
     ).toBeVisible();
     // The line that dates the check shows the day: two reads of one check differ by minutes.
@@ -6497,7 +6499,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace);
     expect(
       await screen.findByRole("button", {
-        name: "0 of 1 keyword in the top results",
+        name: "0 of 1 keyword found",
       }),
     ).toBeVisible();
     // The tests tile splits the tests without a result the way the Timeline row of the check does.
@@ -6647,7 +6649,7 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByTestId("seo-summary-tests")).toBeNull();
     const figures = screen.getByTestId("seo-agent-figures");
     expect(
-      within(figures).getByRole("button", { name: /^1 of 2 keywords in / }),
+      within(figures).getByRole("button", { name: /^1 of 2 keywords found/ }),
     ).toBeVisible();
     // Every checked keyword has a number: the figure names no share of them.
     expect(
@@ -6671,11 +6673,13 @@ describe("SEO workspace integration", () => {
     );
     // The issues can come from older checks: the tile dates its check.
     expect(tests).toHaveTextContent("Last check Jan 3, 2026");
-    expect(screen.queryByTestId("seo-agent-figures")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /keywords? found/ }),
+    ).toBeNull();
     await user.click(screen.getByRole("tab", { name: "Agent" }));
     // The keyword figure is the way to the Rankings tab.
     await user.click(
-      screen.getByRole("button", { name: /^1 of 2 keywords in / }),
+      screen.getByRole("button", { name: /^1 of 2 keywords found/ }),
     );
     expect(screen.getByRole("tab", { name: "Rankings" })).toHaveAttribute(
       "aria-selected",
