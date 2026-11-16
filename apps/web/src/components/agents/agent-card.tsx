@@ -250,7 +250,8 @@ function AgentCard({
       className={cn(
         agentCardVariants({ size }),
         className,
-        "md:agent-card-roll-up",
+        // With a star, the wrapper lifts instead, so both move together.
+        !onToggleStar && "md:agent-card-roll-up",
       )}
       style={borderStyle}
     >
@@ -341,7 +342,7 @@ function AgentCard({
 
   // A sibling of the card link, never inside it, so no control nests in <a>.
   return (
-    <div className="relative">
+    <div className="md:agent-card-roll-up relative">
       {card}
       <Button
         type="button"

@@ -57,4 +57,14 @@ describe("AgentCard star", () => {
     fireEvent.click(star);
     expect(onToggleStar).not.toHaveBeenCalled();
   });
+
+  it("lifts the card and its star together on hover", () => {
+    render(<AgentCard agent={AGENT} onToggleStar={vi.fn()} />);
+
+    const star = screen.getByRole("button", { name: "star Writer" });
+    const lifted = star.parentElement as HTMLElement;
+    expect(lifted.className).toContain("md:agent-card-roll-up");
+    expect(lifted.contains(screen.getByRole("link"))).toBe(true);
+    expect(lifted.querySelectorAll(".md\\:agent-card-roll-up")).toHaveLength(0);
+  });
 });
