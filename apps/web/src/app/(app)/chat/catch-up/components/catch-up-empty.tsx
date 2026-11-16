@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Hash, MessageSquare, Sunrise } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { loadChatComposeRosterAction } from "@/app/chat/actions";
@@ -8,12 +8,16 @@ import { ChatCaughtUp } from "@/app/chat/components/chat-unread-view-header";
 import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { fetchSidebarRoomCollection } from "@/components/chat/fetch-sidebar-room-collection";
+import { subscribeOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMountEffect } from "@/hooks/use-mount-effect";
+
+const FIRST_STEPS_QUERY_KEY = "chat-catch-up-first-steps";
 
 interface FirstSteps {
   canCreateChannel: boolean;
@@ -34,20 +38,55 @@ async function loadFirstSteps(): Promise<FirstSteps | null> {
   if (!roster.ok) {
     return { canCreateChannel: false, hasTeammates: false };
   }
-  const { hasOrganization, people, currentUserId } = roster.value;
+  const {
+    hasOrganization,
+    membersLoadFailed,
+    people,
+    peopleLoadFailed,
+    currentUserId,
+  } = roster.value;
+  // A list that failed to load would open its dialog on an error, so its
+  // action is not offered.
   return {
     // Channels belong to an organization, as in the sidebar.
-    canCreateChannel: hasOrganization,
-    hasTeammates: people.some((person) => person.id !== currentUserId),
+    canCreateChannel: hasOrganization && !membersLoadFailed,
+    hasTeammates:
+      !peopleLoadFailed && people.some((person) => person.id !== currentUserId),
   };
 }
 
+interface CatchUpEmptyProps {
+  currentUserId: string;
+  organizationId: string | null;
+}
+
 /** Catch up with nothing unread: caught up, or for a new reader, where to start. */
-export function CatchUpEmpty() {
+export function CatchUpEmpty({
+  currentUserId,
+  organizationId,
+}: CatchUpEmptyProps) {
   const t = useTranslations("App.Channels.Signals");
+  const queryClient = useQueryClient();
+  // A room created, joined or left (the dialogs and the control channel both
+  // announce it) can end or bring back the first visit: ask again.
+  useMountEffect(() => {
+    const refresh = () =>
+      void queryClient.invalidateQueries({
+        queryKey: [FIRST_STEPS_QUERY_KEY],
+      });
+    return subscribeOrganizationChatRoomsChanged({
+      onRemoved: refresh,
+      onRoom: refresh,
+      onInvalidated: refresh,
+    });
+  });
   const { data: firstSteps, isPending } = useQuery({
-    queryKey: ["chat-catch-up-first-steps"],
+    // Per reader and workspace: rooms and channel rights differ by workspace.
+    queryKey: [FIRST_STEPS_QUERY_KEY, currentUserId, organizationId],
     queryFn: loadFirstSteps,
+    // A room made or joined elsewhere ends the first visit: read again on
+    // every return instead of trusting the app's one-minute freshness.
+    staleTime: 0,
     refetchOnWindowFocus: false,
     retry: false,
   });

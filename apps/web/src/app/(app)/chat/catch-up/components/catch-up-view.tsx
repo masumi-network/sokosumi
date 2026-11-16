@@ -102,7 +102,10 @@ export function CatchUpView({
         elsewhereRooms.length > 0 ? (
           elsewhere
         ) : (
-          <CatchUpEmpty />
+          <CatchUpEmpty
+            currentUserId={currentUserId}
+            organizationId={organizationId}
+          />
         )
       ) : (
         <>

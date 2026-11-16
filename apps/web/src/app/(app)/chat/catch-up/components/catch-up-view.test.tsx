@@ -204,16 +204,28 @@ function summaryAnswers(summary: Partial<ChatCatchUpSummary> = {}) {
   });
 }
 
-function renderCatchUp() {
-  return render(
-    <QueryClientProvider
-      client={
-        new QueryClient({ defaultOptions: { queries: { retry: false } } })
-      }
-    >
-      <CatchUpView currentUserId="user-1" organizationId="org-1" />
-    </QueryClientProvider>,
+function catchUpTree(
+  client: QueryClient,
+  organizationId: string | null = "org-1",
+) {
+  return (
+    <QueryClientProvider client={client}>
+      <CatchUpView currentUserId="user-1" organizationId={organizationId} />
+    </QueryClientProvider>
   );
+}
+
+function renderCatchUp(
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+) {
+  return render(catchUpTree(client));
+}
+
+/** The app's browser client keeps answers fresh for a minute. */
+function appQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 60_000 } },
+  });
 }
 
 function elsewhereList() {
@@ -503,6 +515,110 @@ describe("CatchUpView's unread rooms elsewhere", () => {
         await screen.findByText("App.Channels.Signals.firstCatchUpTitle"),
       ).toBeTruthy();
       expect(screen.queryByRole("button")).toBeNull();
+    });
+
+    it("offers no action when the roster's people and members failed to load", async () => {
+      // What the action answers when Core fails behind it: ok, with flags.
+      loadRosterMock.mockResolvedValue({
+        ok: true,
+        value: {
+          currentUserId: "user-1",
+          hasOrganization: true,
+          people: [],
+          membersLoadFailed: true,
+          peopleLoadFailed: true,
+        },
+      });
+
+      renderCatchUp();
+
+      expect(
+        await screen.findByText("App.Channels.Signals.firstCatchUpTitle"),
+      ).toBeTruthy();
+      expect(screen.queryByRole("button")).toBeNull();
+    });
+
+    it("offers no channel when only the members failed to load", async () => {
+      loadRosterMock.mockResolvedValue({
+        ok: true,
+        value: {
+          currentUserId: "user-1",
+          hasOrganization: true,
+          people: [{ id: "user-2" }],
+          membersLoadFailed: true,
+          peopleLoadFailed: false,
+        },
+      });
+
+      renderCatchUp();
+
+      expect(await screen.findByRole("button", { name: MESSAGE })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: CREATE })).toBeNull();
+    });
+
+    it("gives way to caught up once a room is created", async () => {
+      renderCatchUp(appQueryClient());
+      await screen.findByRole("button", { name: CREATE });
+
+      listActiveMock.mockResolvedValue({
+        rooms: [elsewhereRoom("launch", { organizationId: "org-1" })],
+        nextCursor: null,
+      });
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
+            detail: { room: elsewhereRoom("launch") },
+          }),
+        );
+      });
+
+      expect(await screen.findByTestId("chat-caught-up")).toBeTruthy();
+      await waitFor(() =>
+        expect(
+          screen.queryByText("App.Channels.Signals.firstCatchUpTitle"),
+        ).toBeNull(),
+      );
+    });
+
+    it("reads the rooms again on return, inside the cache's minute", async () => {
+      const client = appQueryClient();
+      const first = renderCatchUp(client);
+      await screen.findByRole("button", { name: CREATE });
+      first.unmount();
+
+      listActiveMock.mockResolvedValue({
+        rooms: [elsewhereRoom("launch", { organizationId: "org-1" })],
+        nextCursor: null,
+      });
+      renderCatchUp(client);
+
+      await waitFor(() =>
+        expect(
+          screen.queryByText("App.Channels.Signals.firstCatchUpTitle"),
+        ).toBeNull(),
+      );
+      expect(screen.getByTestId("chat-caught-up")).toBeTruthy();
+    });
+
+    it("asks again for the workspace switched to", async () => {
+      const client = appQueryClient();
+      const view = render(catchUpTree(client));
+      await screen.findByRole("button", { name: CREATE });
+
+      loadRosterMock.mockResolvedValue({
+        ok: true,
+        value: {
+          currentUserId: "user-1",
+          hasOrganization: false,
+          people: [{ id: "user-2" }],
+          membersLoadFailed: false,
+          peopleLoadFailed: false,
+        },
+      });
+      view.rerender(catchUpTree(client, null));
+
+      expect(await screen.findByRole("button", { name: MESSAGE })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: CREATE })).toBeNull();
     });
 
     it("stays caught up for someone who already has rooms", async () => {
