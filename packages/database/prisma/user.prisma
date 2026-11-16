@@ -83,6 +83,8 @@ model User {
   assignedTaskSchedules   TaskSchedule[]           @relation("TaskScheduleAssigneeUser")
   contactInteractions     ContactInteraction[]     @relation("ContactInteractionUser")
   contactScores           ContactScore[]           @relation("ContactScoreUser")
+  contactSelves           Contact[]                @relation("ContactUser")
+  contactXFollows         ContactXFollow[]         @relation("ContactXFollowUser")
   taskParticipations      TaskParticipant[]        @relation("TaskParticipantUser")
   taskEvents              TaskEvent[]
   uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByUser")

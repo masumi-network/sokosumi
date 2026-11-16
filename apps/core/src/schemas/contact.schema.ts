@@ -9,6 +9,7 @@ import {
   CONTACT_REPLY_STATES,
   CONTACT_SORT_FIELDS,
   CONTACT_STAGES,
+  CONTACT_X_FOLLOWS,
   calendarDateSchema,
   contactFilterSchema,
 } from "@sokosumi/utils";
@@ -63,6 +64,10 @@ export const contactKnownBySchema = personSchema
   .extend({
     interactionCount: z.int(),
     lastInteractionAt: dateTimeSchema.nullable(),
+    /** They follow this teammate on X. */
+    followsOnX: z.boolean(),
+    /** This teammate follows them on X. */
+    followedOnX: z.boolean(),
   })
   .openapi("ContactKnownBy");
 
@@ -122,6 +127,8 @@ export const contactSchema = z
     channels: z.array(contactChannelSchema),
     lists: z.array(contactListRefSchema),
     knownBy: z.array(contactKnownBySchema),
+    /** The workspace member this contact is, e.g. the reader themselves. */
+    user: z.union([personSchema, z.null()]),
   })
   .openapi("Contact");
 
@@ -302,6 +309,10 @@ export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   }),
   knownByUserId: z.string().min(1).max(200).optional(),
   knownByMe: booleanQuery,
+  xFollow: z.enum(CONTACT_X_FOLLOWS).optional().openapi("ContactXFollowState", {
+    description:
+      "How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.",
+  }),
   lastContactAfter: z.iso.datetime({ offset: true }).optional(),
   lastContactBefore: z.iso.datetime({ offset: true }).optional(),
   lastContactOlderThanDays: positiveDays,

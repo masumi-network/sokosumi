@@ -11068,7 +11068,8 @@
         "more": "Weitere Aktionen",
         "filter": "Filter",
         "kind": "Art",
-        "source": "Quelle"
+        "source": "Quelle",
+        "onX": "Auf X"
       },
       "bulk": {
         "label": "Ausgewählte Kontakte",
@@ -11366,7 +11367,22 @@
         "enriched": "{fields} aus dem Web ergänzt · 1 Credit",
         "enrichedNone": "Im Web nichts Neues gefunden. Es wurden keine Credits verbraucht.",
         "enrichFailed": "Nachschlagen hat nicht geklappt. Versuche es erneut.",
-        "connectedVia": "Verbunden über"
+        "connectedVia": "Verbunden über",
+        "isYou": "Das bist du",
+        "isTeammate": "Das ist {name} aus deinem Team",
+        "thisIs": "Das ist …",
+        "thisIsMe": "Ich ({name})",
+        "thisIsNoOne": "Niemand aus dem Team",
+        "x": {
+          "mutual": "Folgen sich auf X gegenseitig",
+          "follows": "Folgt {name} auf X",
+          "followed": "{name} folgt der Person auf X"
+        },
+        "xYou": {
+          "mutual": "Ihr folgt euch auf X gegenseitig",
+          "follows": "Folgt dir auf X · du folgst nicht zurück",
+          "followed": "Du folgst auf X · folgt dir nicht zurück"
+        }
       },
       "stageGroups": {
         "general": "Allgemein",
@@ -11551,6 +11567,11 @@
           "industry": "Branche",
           "lists": "Listen"
         }
+      },
+      "xFollows": {
+        "FOLLOWS_YOU": "Nicht zurückgefolgt",
+        "YOU_FOLLOW": "Folgen dir nicht zurück",
+        "MUTUAL": "Folgen sich gegenseitig"
       }
     }
   },

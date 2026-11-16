@@ -12,12 +12,15 @@ import { ContactPanel } from "./contact-panel";
 
 // The service is a plain delegate, not the spy itself: Vitest fails a test
 // whose spy returned a rejected promise, even when the component catches it.
-const { createList, changeMembers, member, toastError } = vi.hoisted(() => ({
-  createList: vi.fn(),
-  changeMembers: vi.fn(),
-  member: { current: (): Promise<unknown> => Promise.resolve() },
-  toastError: vi.fn(),
-}));
+const { createList, changeMembers, member, shown, toastError } = vi.hoisted(
+  () => ({
+    createList: vi.fn(),
+    shown: { current: null as unknown },
+    changeMembers: vi.fn(),
+    member: { current: (): Promise<unknown> => Promise.resolve() },
+    toastError: vi.fn(),
+  }),
+);
 
 const LENA = {
   id: "c-1",
@@ -27,6 +30,8 @@ const LENA = {
   channels: [],
   lists: [],
   mergeSuggestions: [],
+  knownBy: [],
+  user: null,
   interactionCount: 0,
   score: null,
   organization: "Nordlicht Studio",
@@ -38,7 +43,7 @@ const LENA = {
 
 vi.mock("@/lib/services/contacts.client", () => ({
   contactsService: {
-    get: () => Promise.resolve(LENA),
+    get: () => Promise.resolve(shown.current ?? LENA),
     interactions: () => Promise.resolve({ items: [], nextCursor: null }),
     activity: () => Promise.resolve({ items: [], nextCursor: null }),
     duplicates: () => Promise.resolve({ groups: [] }),
@@ -51,6 +56,9 @@ vi.mock("@/lib/services/contacts.client", () => ({
       return member.current();
     },
   },
+}));
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: { user: { id: "me" } } }),
 }));
 vi.mock("sonner", () => ({
   toast: Object.assign(vi.fn(), { error: toastError, success: vi.fn() }),
@@ -186,5 +194,44 @@ describe("ContactPanel lists menu", () => {
     ).toHaveAttribute("aria-busy", "true");
     answer();
     await waitFor(() => expect(option).not.toHaveAttribute("aria-busy"));
+  });
+});
+
+describe("ContactPanel people", () => {
+  beforeEach(() => {
+    shown.current = null;
+  });
+
+  it("says the contact is the reader, and how the team knows them on X", async () => {
+    shown.current = {
+      ...LENA,
+      user: { id: "me", name: "Patrick", image: null },
+      knownBy: [
+        {
+          id: "me",
+          name: "Patrick",
+          image: null,
+          interactionCount: 0,
+          lastInteractionAt: null,
+          followsOnX: true,
+          followedOnX: false,
+        },
+        {
+          id: "bob",
+          name: "Bob",
+          image: null,
+          interactionCount: 2,
+          lastInteractionAt: null,
+          followsOnX: true,
+          followedOnX: true,
+        },
+      ],
+    };
+    renderPanel();
+    expect(await screen.findByText("panel.isYou")).toBeInTheDocument();
+    expect(screen.getByText("panel.xYou.follows")).toBeInTheDocument();
+    expect(
+      screen.getByText("panel.interactionCount · panel.x.mutual"),
+    ).toBeInTheDocument();
   });
 });

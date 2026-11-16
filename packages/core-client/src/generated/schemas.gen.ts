@@ -14913,6 +14913,14 @@ export const ContactListSchema = {
                         knownByMe: {
                             type: 'boolean'
                         },
+                        xFollow: {
+                            type: 'string',
+                            enum: [
+                                'FOLLOWS_YOU',
+                                'YOU_FOLLOW',
+                                'MUTUAL'
+                            ]
+                        },
                         lastContactAfter: {
                             type: 'string',
                             format: 'date-time'
@@ -15397,6 +15405,16 @@ export const ContactSchema = {
             items: {
                 $ref: '#/components/schemas/ContactKnownBy'
             }
+        },
+        user: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -15429,7 +15447,8 @@ export const ContactSchema = {
         'updatedAt',
         'channels',
         'lists',
-        'knownBy'
+        'knownBy',
+        'user'
     ]
 } as const;
 
@@ -15649,11 +15668,19 @@ export const ContactKnownBySchema = {
                     ],
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z'
+                },
+                followsOnX: {
+                    type: 'boolean'
+                },
+                followedOnX: {
+                    type: 'boolean'
                 }
             },
             required: [
                 'interactionCount',
-                'lastInteractionAt'
+                'lastInteractionAt',
+                'followsOnX',
+                'followedOnX'
             ]
         }
     ]
@@ -15680,6 +15707,16 @@ export const ContactPersonSchema = {
         'name',
         'image'
     ]
+} as const;
+
+export const ContactXFollowStateSchema = {
+    type: 'string',
+    enum: [
+        'FOLLOWS_YOU',
+        'YOU_FOLLOW',
+        'MUTUAL'
+    ],
+    description: 'How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don\'t follow back) or MUTUAL.'
 } as const;
 
 export const ContactUpsertResultSchema = {
