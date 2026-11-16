@@ -41,7 +41,6 @@ import {
   sha256,
 } from "./project-seo-store";
 import { requireLockedOpenProject } from "./project-social-connections.service";
-import { withSavedAuditRelatedPages } from "./seo-audit-related-pages";
 import { createTaskForActor } from "./task-domain.service";
 
 async function requireSeoTaskProject(
@@ -92,7 +91,7 @@ export function seoTaskPacket(
           requestId,
           pageUrls,
           ...(input.fullAuditCredits !== undefined
-            ? { discoverRelated: true }
+            ? { inspectRelated: true }
             : {}),
           ...(input.fullAuditCredits !== undefined
             ? { price: { kind: "fixed", credits: input.fullAuditCredits } }
@@ -246,14 +245,7 @@ export async function requestProjectSeoAnalysisInTransaction(
     );
   input = executor.analysis;
   const coworkerId = executor.coworkerId;
-  const selectedScope = await resolveSeoScope(actor, input, tx);
-  const scope =
-    input.kind === "audit_full" &&
-    input.fullAuditCredits !== undefined &&
-    !input.scopeId &&
-    input.pageIds?.length === 1
-      ? await withSavedAuditRelatedPages(actor, selectedScope, tx)
-      : selectedScope;
+  const scope = await resolveSeoScope(actor, input, tx);
   const pageUrls = scope.pages.map((page) => page.url);
   if (input.scopeId && input.expectedScopeVersion !== scope.version)
     throw conflict(

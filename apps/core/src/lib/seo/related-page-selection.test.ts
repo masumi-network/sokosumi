@@ -3,7 +3,8 @@ import {
   assertSeoArtifactMatchesRequest,
   parsePublicSeoArtifact,
 } from "@/helpers/project-seo-report";
-import { legacyReport, siteStrategyReport } from "@/test-fixtures/project-seo";
+import { seoAuditInspectionPages } from "@/services/seo-audit-related-pages";
+import { legacyReport } from "@/test-fixtures/project-seo";
 
 import {
   originalSeoAuditPacket,
@@ -82,68 +83,101 @@ describe("related-page trust boundary", () => {
       selectSeoRelatedPages(["https://localhost/start"], []),
     ).toThrow("public host");
   });
-  it("restores the original packet for price and Task input checks without widening its selection", () => {
+  it("strips only validated indexing metadata while preserving the original packet and scope", () => {
     const original = {
       version: 1,
-      discoverRelated: true,
+      inspectRelated: true,
       pageUrls: [seed],
       price: { kind: "fixed", credits: 750 },
     };
     const selected = [seed, "https://example.test/related"];
     const request = {
       ...original,
-      pageUrls: selected,
-      relatedPageSelection: {
+      relatedIndexingSelection: {
         version: 1,
         seedPageUrls: [seed],
-        pageUrls: selected,
+        relatedPageUrls: selected.slice(1),
       },
     };
     expect(originalSeoAuditPacket(request)).toEqual(original);
     expect(originalSeoAuditPacket(original)).toEqual(original);
     expect(() =>
-      originalSeoAuditPacket({ ...request, pageUrls: [seed] }),
+      originalSeoAuditPacket({ ...request, pageUrls: selected }),
     ).toThrow("invalid");
     expect(() =>
-      originalSeoAuditPacket({ ...request, discoverRelated: false }),
+      originalSeoAuditPacket({ ...request, inspectRelated: false }),
     ).toThrow("invalid");
   });
-  it("imports discovered pages only after the exact page selection is frozen", () => {
-    const selected = selectSeoRelatedPages(
-      [seed],
-      ["https://example.test/related"],
-    );
+  it("returns only validated related inspection URLs and keeps a legacy audit unchanged", () => {
+    const original = { inspectRelated: true, pageUrls: [seed] };
+    expect(seoAuditInspectionPages({ pageUrls: [seed] }, [seed])).toEqual([
+      seed,
+    ]);
+    expect(() => seoAuditInspectionPages(original, [seed])).toThrow("Prepare");
+    const metadata = {
+      version: 1,
+      seedPageUrls: [seed],
+      relatedPageUrls: ["https://example.test/related"],
+    };
+    expect(
+      seoAuditInspectionPages(
+        { ...original, relatedIndexingSelection: metadata },
+        [seed],
+      ),
+    ).toEqual([seed, "https://example.test/related"]);
+    expect(() =>
+      seoAuditInspectionPages(
+        { ...original, relatedIndexingSelection: metadata },
+        ["https://example.test/changed"],
+      ),
+    ).toThrow("changed");
+    expect(() =>
+      seoAuditInspectionPages(
+        {
+          ...original,
+          relatedIndexingSelection: {
+            ...metadata,
+            relatedPageUrls: ["https://foreign.test/page"],
+          },
+        },
+        [seed],
+      ),
+    ).toThrow("exact public host");
+  });
+  it("keeps extra indexing URLs outside the full report scope", () => {
+    const related = "https://example.test/related";
+    const original = {
+      version: 1,
+      inspectRelated: true,
+      pageUrls: [seed],
+      price: { kind: "fixed", credits: 750 },
+      countryCode: "US",
+      languageCode: "en",
+    };
+    const request = {
+      ...original,
+      relatedIndexingSelection: {
+        version: 1,
+        seedPageUrls: [seed],
+        relatedPageUrls: [related],
+      },
+    };
     const raw = {
-      ...siteStrategyReport(),
-      pages: selected.map((url) => ({
-        ...legacyReport(),
-        request: { ...legacyReport().request, url },
-      })),
+      ...legacyReport(),
+      request: { ...legacyReport().request, url: seed },
     };
     const payload = parsePublicSeoArtifact(raw);
-    const expected = {
-      id: "audit-id",
-      kind: "audit_full",
-      request: { pageUrls: selected, countryCode: "US", languageCode: "en" },
-    };
+    const expected = { id: "audit-id", kind: "audit_full", request };
     expect(() =>
       assertSeoArtifactMatchesRequest(raw, payload, expected),
     ).not.toThrow();
     expect(() =>
-      assertSeoArtifactMatchesRequest(raw, payload, {
-        ...expected,
-        request: { ...expected.request, pageUrls: [seed] },
-      }),
-    ).toThrow("frozen page scope");
-    expect(() =>
       assertSeoArtifactMatchesRequest(
         raw,
-        {
-          ...payload,
-          pageUrls: [...selected, "https://example.test/not-selected"],
-        },
+        { ...payload, pageUrls: [seed, related] },
         expected,
       ),
     ).toThrow("frozen page scope");
+    expect(originalSeoAuditPacket(request)).toEqual(original);
   });
 });

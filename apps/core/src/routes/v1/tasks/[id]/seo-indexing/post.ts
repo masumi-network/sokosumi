@@ -79,6 +79,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       auth,
       c.req.valid("param").id,
       c.req.valid("json").expectedContext,
+      c.req.valid("json").auditPageUrl,
     );
     return ok(c, result);
   });

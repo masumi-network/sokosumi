@@ -46,7 +46,6 @@ import {
   seoOwnerWhere,
   sha256,
 } from "./project-seo-store";
-import { withSavedAuditRelatedPages } from "./seo-audit-related-pages";
 
 export async function addProjectSeoPage(
   actor: SeoActor,
@@ -363,11 +362,7 @@ export async function getProjectSeoWorkspace(
   options: { includePrivateIndexing?: boolean } = {},
 ) {
   await requireSeoOwner(actor);
-  const selectedScope = await resolveSeoScope(actor, query);
-  const scope =
-    query.pageId && !query.pageIds && !query.scopeId
-      ? await withSavedAuditRelatedPages(actor, selectedScope, prisma)
-      : selectedScope;
+  const scope = await resolveSeoScope(actor, query);
   const privateMetricsAllowed = await canReadPrivateSeoMetrics(actor);
   const executor = await findSeoAnalysisExecutor(actor);
   const [

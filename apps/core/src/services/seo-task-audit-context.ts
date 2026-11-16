@@ -73,7 +73,7 @@ export async function requireSeoTaskAuditContext(
     throw conflict("The approved SEO pages changed");
 
   if (
-    z.object({ discoverRelated: z.literal(true) }).safeParse(analysis.request)
+    z.object({ inspectRelated: z.literal(true) }).safeParse(analysis.request)
       .success
   ) {
     let currentPacket: unknown;

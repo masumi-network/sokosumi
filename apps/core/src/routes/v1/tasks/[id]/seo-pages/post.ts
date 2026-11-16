@@ -5,28 +5,30 @@ import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireCoworkerAuthContext } from "@/middleware/auth";
 import {
-  seoTaskPagesReceiptSchema,
-  seoTaskPagesRequestSchema,
+  seoTaskRelatedPagesReceiptSchema,
+  seoTaskRelatedPagesRequestSchema,
 } from "@/schemas/seo-task-pages.schema";
-import { selectSeoTaskPages } from "@/services/seo-task-pages.service";
+import { freezeSeoTaskRelatedIndexing } from "@/services/seo-task-pages.service";
 
 const route = createRoute({
   method: "post",
-  path: "/{id}/seo-pages/context-v1",
+  path: "/{id}/seo-indexing/related-pages/context-v1",
   tags: ["Tasks"],
   description:
-    "Seal at most ten public pages on the approved full audit's exact host. Only its assigned worker can select related pages; retries retain the first committed selection.",
+    "Freeze at most ten exact-host indexing inspection targets for the assigned audit Task. Related URLs remain evidence; saved pages and the full-audit scope do not change.",
   request: {
     params: z.object({ id: z.string().min(1).max(128) }),
     body: {
       required: true,
-      content: { "application/json": { schema: seoTaskPagesRequestSchema } },
+      content: {
+        "application/json": { schema: seoTaskRelatedPagesRequestSchema },
+      },
     },
   },
   responses: {
     200: jsonSuccessResponse(
-      seoTaskPagesReceiptSchema,
-      "Immutable audit page selection",
+      seoTaskRelatedPagesReceiptSchema,
+      "Immutable indexing evidence selection",
     ),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
@@ -43,7 +45,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     c.header("Cache-Control", "no-store");
     return ok(
       c,
-      await selectSeoTaskPages(
+      await freezeSeoTaskRelatedIndexing(
         auth,
         c.req.valid("param").id,
         c.req.valid("json"),

@@ -84,6 +84,7 @@ describe("native audit chat inference boundary", () => {
       device: null,
       rowId: "AC-20",
       title: "Private Console finding",
+      relatedPageUrl: "https://example.test/private-related-evidence",
       severity: "major" as const,
       evidence: ["Private Console reason"],
       suggestedFix: "Private Console fix",
@@ -95,6 +96,7 @@ describe("native audit chat inference boundary", () => {
       ...privateFinding,
       id: "public-check",
       title: "Public check",
+      relatedPageUrl: undefined,
       evidence: ["Public HTML"],
       suggestedFix: null,
       visibility: undefined,
@@ -126,6 +128,7 @@ describe("native audit chat inference boundary", () => {
     ];
     const shared = seoChatContext(workspace);
     expect(shared).not.toContain("Private Console");
+    expect(shared).not.toContain(privateFinding.relatedPageUrl);
     expect(JSON.parse(shared).totals).toMatchObject({
       findings: 1,
       actions: 1,
@@ -135,6 +138,9 @@ describe("native audit chat inference boundary", () => {
     ]);
     const personal = JSON.parse(seoChatContext(workspace, "personal"));
     expect(personal.findings[0].suggestedFix).toBe(privateFinding.suggestedFix);
+    expect(personal.findings[0].relatedPageUrl).toBe(
+      privateFinding.relatedPageUrl,
+    );
     expect(personal.findings[0].evidence).toEqual(privateFinding.evidence);
     expect(seoChatTaskActions(workspace, "personal").size).toBe(2);
   });

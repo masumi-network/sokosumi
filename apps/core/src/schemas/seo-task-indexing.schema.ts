@@ -5,6 +5,7 @@ import {
   SEO_MAX_PAGES,
   seoIndexAssessmentSchema,
   seoIndexedPageSchema,
+  seoUrlSchema,
 } from "./project-seo.schema";
 import { taskWorkerContextSchema } from "./task-worker-context.schema";
 
@@ -22,6 +23,7 @@ export const seoTaskIndexedPageSchema = seoIndexedPageSchema
 export const seoTaskIndexingRequestSchema = z
   .strictObject({
     expectedContext: taskWorkerContextSchema,
+    auditPageUrl: seoUrlSchema.optional(),
   })
   .openapi("SeoTaskIndexingRequest");
 
@@ -31,6 +33,8 @@ export const seoTaskIndexingReceiptSchema = z
     taskId: z.string().min(1).max(128),
     receiptHash: hash,
     checkedAt: dateTimeSchema,
+    auditPageUrl: seoUrlSchema.optional(),
+    assessmentSaved: z.literal(true).optional(),
     status: z.enum([
       "available",
       "not_connected",
@@ -56,6 +60,7 @@ export const seoTaskIndexingResultSchema = z
     taskId: z.string().min(1).max(128),
     receiptHash: hash,
     checkedAt: dateTimeSchema,
+    auditPageUrl: seoUrlSchema.optional(),
     assessments: z.array(seoIndexAssessmentSchema).min(1).max(SEO_MAX_PAGES),
   })
   .openapi("SeoTaskIndexingResult");

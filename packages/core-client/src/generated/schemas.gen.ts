@@ -41546,6 +41546,11 @@ export const ProjectSeoFindingSchema = {
             ],
             maxLength: 2000
         },
+        relatedPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
         visibility: {
             type: 'string',
             enum: [
@@ -42350,7 +42355,7 @@ export const ProjectSeoIndexTriageSchema = {
             items: {
                 $ref: '#/components/schemas/ProjectSeoIndexAssessedPage'
             },
-            maxItems: 10
+            maxItems: 100
         }
     },
     required: [
@@ -42407,6 +42412,11 @@ export const ProjectSeoIndexAssessedPageSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
         }
     },
     required: [
@@ -55756,6 +55766,17 @@ export const SeoTaskIndexingReceiptSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        assessmentSaved: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
         status: {
             type: 'string',
             enum: [
@@ -55872,6 +55893,11 @@ export const SeoTaskIndexingRequestSchema = {
     properties: {
         expectedContext: {
             $ref: '#/components/schemas/TaskWorkerContext'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
         }
     },
     required: [
@@ -55941,6 +55967,11 @@ export const SeoTaskIndexingResultRequestSchema = {
     properties: {
         expectedContext: {
             $ref: '#/components/schemas/TaskWorkerContext'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
         },
         receiptHash: {
             type: 'string',
@@ -56017,7 +56048,7 @@ export const ProjectSeoIndexAssessmentSchema = {
     additionalProperties: false
 } as const;
 
-export const SeoTaskPagesReceiptSchema = {
+export const SeoTaskRelatedPagesReceiptSchema = {
     type: 'object',
     properties: {
         version: {
@@ -56031,7 +56062,12 @@ export const SeoTaskPagesReceiptSchema = {
             minLength: 1,
             maxLength: 128
         },
-        pageUrls: {
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        inspectionPageUrls: {
             type: 'array',
             items: {
                 type: 'string',
@@ -56045,12 +56081,13 @@ export const SeoTaskPagesReceiptSchema = {
     required: [
         'version',
         'taskId',
-        'pageUrls'
+        'auditPageUrl',
+        'inspectionPageUrls'
     ],
     additionalProperties: false
 } as const;
 
-export const SeoTaskPagesRequestSchema = {
+export const SeoTaskRelatedPagesRequestSchema = {
     type: 'object',
     properties: {
         expectedContext: {

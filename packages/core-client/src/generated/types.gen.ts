@@ -10971,6 +10971,7 @@ export type ProjectSeoFinding = {
     severity: 'critical' | 'major' | 'minor' | 'note' | 'test' | 'measure';
     evidence: Array<string>;
     suggestedFix?: string | null;
+    relatedPageUrl?: string;
     visibility?: 'PRIVATE';
     sourceRef: string;
     observedAt: Date;
@@ -11136,6 +11137,7 @@ export type ProjectSeoIndexAssessedPage = {
     evidence: Array<string>;
     taskId: string;
     checkedAt: Date;
+    auditPageUrl?: string;
 };
 
 export type ProjectSeoStrategy = {
@@ -14209,6 +14211,8 @@ export type SeoTaskIndexingReceipt = {
     taskId: string;
     receiptHash: string;
     checkedAt: Date;
+    auditPageUrl?: string;
+    assessmentSaved?: true;
     status: 'available' | 'not_connected' | 'needs_property' | 'unavailable';
     pages: Array<SeoTaskIndexedPage>;
 };
@@ -14227,6 +14231,7 @@ export type SeoTaskIndexedPage = {
 
 export type SeoTaskIndexingRequest = {
     expectedContext: TaskWorkerContext;
+    auditPageUrl?: string;
 };
 
 export type TaskWorkerContext = {
@@ -14243,6 +14248,7 @@ export type SeoTaskIndexingResultAcknowledgment = {
 
 export type SeoTaskIndexingResultRequest = {
     expectedContext: TaskWorkerContext;
+    auditPageUrl?: string;
     receiptHash: string;
     assessments: Array<ProjectSeoIndexAssessment>;
 };
@@ -14256,13 +14262,14 @@ export type ProjectSeoIndexAssessment = {
     evidence: Array<string>;
 };
 
-export type SeoTaskPagesReceipt = {
+export type SeoTaskRelatedPagesReceipt = {
     version: 1;
     taskId: string;
-    pageUrls: Array<string>;
+    auditPageUrl: string;
+    inspectionPageUrls: Array<string>;
 };
 
-export type SeoTaskPagesRequest = {
+export type SeoTaskRelatedPagesRequest = {
     expectedContext: TaskWorkerContext;
     seedPageUrls: Array<string>;
     relatedPageUrls: Array<string>;
@@ -97205,16 +97212,16 @@ export type PostTasksByIdSeoIndexingResultContextV1Responses = {
 
 export type PostTasksByIdSeoIndexingResultContextV1Response = PostTasksByIdSeoIndexingResultContextV1Responses[keyof PostTasksByIdSeoIndexingResultContextV1Responses];
 
-export type PostTasksByIdSeoPagesContextV1Data = {
-    body: SeoTaskPagesRequest;
+export type PostTasksByIdSeoIndexingRelatedPagesContextV1Data = {
+    body: SeoTaskRelatedPagesRequest;
     path: {
         id: string;
     };
     query?: never;
-    url: '/tasks/{id}/seo-pages/context-v1';
+    url: '/tasks/{id}/seo-indexing/related-pages/context-v1';
 };
 
-export type PostTasksByIdSeoPagesContextV1Errors = {
+export type PostTasksByIdSeoIndexingRelatedPagesContextV1Errors = {
     /**
      * Bad Request
      */
@@ -97307,14 +97314,14 @@ export type PostTasksByIdSeoPagesContextV1Errors = {
     };
 };
 
-export type PostTasksByIdSeoPagesContextV1Error = PostTasksByIdSeoPagesContextV1Errors[keyof PostTasksByIdSeoPagesContextV1Errors];
+export type PostTasksByIdSeoIndexingRelatedPagesContextV1Error = PostTasksByIdSeoIndexingRelatedPagesContextV1Errors[keyof PostTasksByIdSeoIndexingRelatedPagesContextV1Errors];
 
-export type PostTasksByIdSeoPagesContextV1Responses = {
+export type PostTasksByIdSeoIndexingRelatedPagesContextV1Responses = {
     /**
-     * Immutable audit page selection
+     * Immutable indexing evidence selection
      */
     200: {
-        data: SeoTaskPagesReceipt;
+        data: SeoTaskRelatedPagesReceipt;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -97323,7 +97330,7 @@ export type PostTasksByIdSeoPagesContextV1Responses = {
     };
 };
 
-export type PostTasksByIdSeoPagesContextV1Response = PostTasksByIdSeoPagesContextV1Responses[keyof PostTasksByIdSeoPagesContextV1Responses];
+export type PostTasksByIdSeoIndexingRelatedPagesContextV1Response = PostTasksByIdSeoIndexingRelatedPagesContextV1Responses[keyof PostTasksByIdSeoIndexingRelatedPagesContextV1Responses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;

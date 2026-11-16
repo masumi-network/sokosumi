@@ -90,13 +90,13 @@ describe("SEO worker request compatibility before Task dispatch", () => {
       "01951111-1111-7111-8111-111111111111",
     );
     expect(full.price).toEqual({ kind: "fixed", credits: 750 });
-    expect(full.discoverRelated).toBe(true);
+    expect(full.inspectRelated).toBe(true);
     expect(
       seoTaskPacket(
         { ...base, kind: "audit_full" },
         [page],
         "01951111-1111-7111-8111-111111111111",
-      ).discoverRelated,
+      ).inspectRelated,
     ).toBeUndefined();
     expect(
       seoTaskPacket(base, [page], "01951111-1111-7111-8111-111111111111").price,

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { badRequest, conflict } from "@/helpers/error";
 import { SEO_MAX_PAGES } from "@/schemas/project-seo.schema";
-import { seoPageSelectionSchema } from "@/schemas/seo-task-pages.schema";
+import { seoRelatedIndexingSelectionSchema } from "@/schemas/seo-task-pages.schema";
 
 const requestObject = z.record(z.string(), z.json());
 const PRIVATE_PAGE =
@@ -27,7 +27,7 @@ export function seoPageComparisonKey(value: string) {
   });
 }
 
-/** Discovery adds public pages of the approved exact host. It never grants another site or a private workflow. */
+/** Discovery selects indexing evidence on the approved exact host, never additional full-audit pages. */
 export function selectSeoRelatedPages(
   seedPageUrls: string[],
   relatedPageUrls: string[],
@@ -70,23 +70,28 @@ export function selectSeoRelatedPages(
   }
   const pageUrls = [...unique.values()];
   if (pageUrls.length > SEO_MAX_PAGES)
-    throw badRequest("An audit can include at most ten pages");
+    throw badRequest("An indexing check can include at most ten pages");
   return pageUrls;
 }
 
-/** A sealed selection changes report scope, never the original Task packet or its approved price. */
+/** Indexing evidence metadata never changes the original Task packet, report scope or approved price. */
 export function originalSeoAuditPacket(value: unknown) {
   const request = requestObject.parse(value);
-  if (request.relatedPageSelection === undefined) return request;
-  const selection = seoPageSelectionSchema.safeParse(
-    request.relatedPageSelection,
+  if (request.relatedIndexingSelection === undefined) return request;
+  const selection = seoRelatedIndexingSelectionSchema.safeParse(
+    request.relatedIndexingSelection,
   );
   if (
     !selection.success ||
-    request.discoverRelated !== true ||
-    JSON.stringify(request.pageUrls) !== JSON.stringify(selection.data.pageUrls)
+    request.inspectRelated !== true ||
+    JSON.stringify(request.pageUrls) !==
+      JSON.stringify(selection.data.seedPageUrls)
   )
-    throw conflict("The sealed audit page selection is invalid");
-  const { relatedPageSelection: _selection, ...packet } = request;
-  return { ...packet, pageUrls: selection.data.seedPageUrls };
+    throw conflict("The related indexing selection is invalid");
+  selectSeoRelatedPages(
+    selection.data.seedPageUrls,
+    selection.data.relatedPageUrls,
+  );
+  const { relatedIndexingSelection: _selection, ...packet } = request;
+  return packet;
 }

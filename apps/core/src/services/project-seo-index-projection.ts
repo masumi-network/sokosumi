@@ -1,10 +1,11 @@
 import type { ProjectSeoObservation } from "@sokosumi/database";
 
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
-import type {
-  ProjectSeoWorkspace,
-  SeoIndexedPage,
-  SeoWorkspaceQuery,
+import {
+  type ProjectSeoWorkspace,
+  SEO_MAX_INDEX_ASSESSMENTS,
+  type SeoIndexedPage,
+  type SeoWorkspaceQuery,
 } from "@/schemas/project-seo.schema";
 import { seoTaskIndexingResultSchema } from "@/schemas/seo-task-indexing.schema";
 import { matchesSeoPeriod, normalizeSeoUrl } from "./project-seo-store";
@@ -26,11 +27,27 @@ export function newestIndexStatus(
   return pages.size ? { pages: [...pages.values()] } : null;
 }
 
+/** A related URL belongs to this Task's audited parent, never to an unrelated selected page. */
+function assessmentParent(
+  pageUrl: string,
+  auditPageUrl: string | undefined,
+  auditedUrls: ReadonlySet<string>,
+) {
+  const url = normalizeSeoUrl(pageUrl);
+  if (auditedUrls.has(url)) return url;
+  if (!auditPageUrl) return null;
+  const parent = normalizeSeoUrl(auditPageUrl);
+  return auditedUrls.has(parent) && new URL(url).host === new URL(parent).host
+    ? parent
+    : null;
+}
+
 /** Only the requesting viewer's private rows are loaded by the workspace service. */
 export function newestIndexTriage(
   observations: ProjectSeoObservation[],
   selectedUrls: Set<string>,
   taskForPage?: ReadonlyMap<string, string>,
+  auditedPagesForTask?: ReadonlyMap<string, ReadonlySet<string>>,
 ): ProjectSeoWorkspace["indexTriage"] {
   const newest = new Map<
     string,
@@ -46,22 +63,34 @@ export function newestIndexTriage(
       continue;
     const parsed = seoTaskIndexingResultSchema.safeParse(row.payload);
     if (!parsed.success || parsed.data.taskId !== row.sourceTaskId) continue;
+    const audited = auditedPagesForTask?.get(parsed.data.taskId);
     for (const page of parsed.data.assessments) {
       const url = normalizeSeoUrl(page.pageUrl);
+      // A parent association is usable only after the matching public audit established its exact scope.
+      const parent = audited
+        ? assessmentParent(url, parsed.data.auditPageUrl, audited)
+        : selectedUrls.has(url)
+          ? url
+          : null;
       if (
-        selectedUrls.has(url) &&
-        !newest.has(url) &&
-        (!taskForPage || taskForPage.get(url) === parsed.data.taskId)
-      ) {
-        newest.set(url, {
-          ...page,
-          taskId: parsed.data.taskId,
-          checkedAt: parsed.data.checkedAt,
-        });
-      }
+        !parent ||
+        !selectedUrls.has(parent) ||
+        (taskForPage && taskForPage.get(parent) !== parsed.data.taskId)
+      )
+        continue;
+      const key = JSON.stringify([parent, url]);
+      if (newest.has(key)) continue;
+      newest.set(key, {
+        ...page,
+        ...(parent !== url ? { auditPageUrl: parent } : {}),
+        taskId: parsed.data.taskId,
+        checkedAt: parsed.data.checkedAt,
+      });
     }
   }
-  return newest.size ? { assessments: [...newest.values()] } : null;
+  return newest.size
+    ? { assessments: [...newest.values()].slice(0, SEO_MAX_INDEX_ASSESSMENTS) }
+    : null;
 }
 
 /** Private Console issues join the associated audit, not an unrelated check or a separate public artifact. */
@@ -74,10 +103,13 @@ export function indexAuditFindings(
   const findings: ProjectSeoWorkspace["findings"] = [];
   const counts = new Map<string, number>();
   const latestPage = new Map<string, string>();
+  const auditedPagesForTask = new Map<string, ReadonlySet<string>>();
   for (const audit of auditRows) {
     if (audit.kind !== "audit_full" || !audit.sourceTaskId) continue;
     const payload = publicSeoPayloadSchema.safeParse(audit.payload);
     if (!payload.success) continue;
+    const audited = new Set(payload.data.pageUrls.map(normalizeSeoUrl));
+    auditedPagesForTask.set(audit.sourceTaskId, audited);
     const source = privateRows.find(
       (row) =>
         row.kind === "index_triage" &&
@@ -96,50 +128,63 @@ export function indexAuditFindings(
     for (const pageUrl of payload.data.pageUrls) {
       const normalized = normalizeSeoUrl(pageUrl);
       if (!selectedUrls.has(normalized)) continue;
-      const assessment = valid?.assessments.find(
-        (page) => normalizeSeoUrl(page.pageUrl) === normalized,
-      );
       const duplicate = payload.data.findings.some(
         (finding) =>
           finding.rowId === INDEXING_ROW_ID &&
           normalizeSeoUrl(finding.pageUrl) === normalized,
       );
-      if (assessment?.report && assessment.status === "issue" && !duplicate)
-        counts.set(audit.id, (counts.get(audit.id) ?? 0) + 1);
+      const assessments = new Map(
+        (valid?.assessments ?? [])
+          .filter(
+            (page) =>
+              assessmentParent(page.pageUrl, valid?.auditPageUrl, audited) ===
+              normalized,
+          )
+          .map((page) => [normalizeSeoUrl(page.pageUrl), page]),
+      );
+      const issues = [...assessments].filter(
+        ([url, page]) =>
+          page.report &&
+          page.status === "issue" &&
+          !(duplicate && url === normalized),
+      );
+      if (issues.length)
+        counts.set(audit.id, (counts.get(audit.id) ?? 0) + issues.length);
       if (!visibleDate || latestPage.has(normalized)) continue;
       // A newer audit without a Console issue must never inherit an older audit's Console finding.
       latestPage.set(normalized, audit.sourceTaskId);
-      if (
-        !assessment?.report ||
-        assessment.status !== "issue" ||
-        duplicate ||
-        !valid
-      )
-        continue;
-      findings.push({
-        id: `${audit.id}:google-index:${normalized}`,
-        observationId: audit.id,
-        pageUrl,
-        device: null,
-        rowId: INDEXING_ROW_ID,
-        title: "Google Search Console indexing",
-        severity: "major",
-        evidence: [
-          assessment.reason,
-          ...assessment.evidence,
-          `Google indexing status checked at ${valid.checkedAt}.`,
-        ],
-        suggestedFix: assessment.suggestedFix,
-        visibility: "PRIVATE",
-        sourceRef: valid.receiptHash,
-        observedAt: valid.checkedAt,
-      });
+      if (!valid) continue;
+      for (const [url, assessment] of issues)
+        findings.push({
+          id: `${audit.id}:google-index:${url}`,
+          observationId: audit.id,
+          pageUrl,
+          ...(url !== normalized ? { relatedPageUrl: assessment.pageUrl } : {}),
+          device: null,
+          rowId: INDEXING_ROW_ID,
+          title: "Google Search Console indexing",
+          severity: "major",
+          evidence: [
+            assessment.reason,
+            ...assessment.evidence,
+            `Google indexing status checked at ${valid.checkedAt}.`,
+          ],
+          suggestedFix: assessment.suggestedFix,
+          visibility: "PRIVATE",
+          sourceRef: valid.receiptHash,
+          observedAt: valid.checkedAt,
+        });
     }
   }
   return {
     findings,
     counts,
-    triage: newestIndexTriage(privateRows, selectedUrls, latestPage),
+    triage: newestIndexTriage(
+      privateRows,
+      selectedUrls,
+      latestPage,
+      auditedPagesForTask,
+    ),
   };
 }
 

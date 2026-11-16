@@ -28,6 +28,7 @@ import {
 } from "./project-seo-traffic.schema";
 
 export const SEO_MAX_PAGES = 10;
+export const SEO_MAX_INDEX_ASSESSMENTS = SEO_MAX_PAGES * SEO_MAX_PAGES;
 export const SEO_MAX_KEYWORDS = 20;
 export const SEO_MAX_COMPETITORS = 10;
 export const SEO_MAX_PROVIDER_CALLS = 100;
@@ -314,6 +315,7 @@ export const seoFindingSchema = z
     severity: seoSeveritySchema,
     evidence: z.array(z.string()),
     suggestedFix: z.string().max(2000).nullable().optional(),
+    relatedPageUrl: seoUrlSchema.optional(),
     visibility: z.literal("PRIVATE").optional(),
     sourceRef: z.string(),
     observedAt: dateTimeSchema,
@@ -546,10 +548,11 @@ export const seoIndexTriageSchema = z
           .safeExtend({
             taskId: z.string(),
             checkedAt: dateTimeSchema,
+            auditPageUrl: seoUrlSchema.optional(),
           })
           .openapi("ProjectSeoIndexAssessedPage"),
       )
-      .max(SEO_MAX_PAGES),
+      .max(SEO_MAX_INDEX_ASSESSMENTS),
   })
   .openapi("ProjectSeoIndexTriage");
 export const seoSearchQueriesSchema = z

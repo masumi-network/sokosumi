@@ -1,13 +1,27 @@
 import { z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 
-import { conflict } from "@/helpers/error";
+import { conflict, unprocessableEntity } from "@/helpers/error";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { TaskWorkerContext } from "@/schemas/task-worker-context.schema";
 import { seoOwnerWhere, sha256 } from "./project-seo-store";
+import { seoAuditInspectionPages } from "./seo-audit-related-pages";
 import { resolveSeoStatisticsIntegration } from "./seo-connections.service";
 import { requireSeoTaskAuditContext } from "./seo-task-audit-context";
+
+/** The worker may attach evidence only to an originally approved full-audit seed. */
+export function resolveSeoIndexingAuditPageUrl(
+  pageUrls: string[],
+  hint?: string,
+): string {
+  const selected = hint ?? pageUrls[0];
+  if (!selected || !pageUrls.includes(selected))
+    throw unprocessableEntity(
+      "Attach indexing evidence to an approved audit page",
+    );
+  return selected;
+}
 
 /** Caller assertions only narrow an assigned Task. They never choose a Google account or a URL. */
 export async function requireSeoTaskIndexingContext(
@@ -15,12 +29,22 @@ export async function requireSeoTaskIndexingContext(
   taskId: string,
   expected: TaskWorkerContext,
   tx: Prisma.TransactionClient,
+  auditPageUrlHint?: string,
 ) {
   const { actor, analysis, pageUrls } = await requireSeoTaskAuditContext(
     auth,
     taskId,
     expected,
     tx,
+  );
+
+  const auditPageUrl = resolveSeoIndexingAuditPageUrl(
+    pageUrls,
+    auditPageUrlHint,
+  );
+  const inspectionPageUrls = seoAuditInspectionPages(
+    analysis.request,
+    pageUrls,
   );
 
   // These no-op writes serialize disconnect/replacement and inherited account revocation with the final save.
@@ -72,6 +96,8 @@ export async function requireSeoTaskIndexingContext(
       request: analysis.request,
       pageIds: analysis.pageIds,
       pageUrls,
+      auditPageUrl,
+      inspectionPageUrls,
       selectedProperty,
       integration: integration
         ? [
@@ -87,6 +113,8 @@ export async function requireSeoTaskIndexingContext(
     taskId,
     analysis,
     pageUrls,
+    auditPageUrl,
+    inspectionPageUrls,
     integration,
     selectedProperty,
     contextFingerprint,
@@ -101,9 +129,17 @@ export function readSeoTaskIndexingContext(
   auth: AuthenticationContext,
   taskId: string,
   expected: TaskWorkerContext,
+  auditPageUrlHint?: string,
 ) {
   return serializableTransaction(
-    (tx) => requireSeoTaskIndexingContext(auth, taskId, expected, tx),
+    (tx) =>
+      requireSeoTaskIndexingContext(
+        auth,
+        taskId,
+        expected,
+        tx,
+        auditPageUrlHint,
+      ),
     "The audit or Google connection changed. Please retry.",
   );
 }

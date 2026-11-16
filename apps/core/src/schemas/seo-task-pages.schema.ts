@@ -6,26 +6,29 @@ import { taskWorkerContextSchema } from "./task-worker-context.schema";
 // The SEO worker refuses a Task packet longer than this (seo-bot MAX_ANALYSIS_REQUEST_CHARS).
 export const SEO_MAX_PACKET_CHARS = 32_768;
 
-export const seoPageSelectionSchema = z.strictObject({
+export const seoRelatedIndexingSelectionSchema = z.strictObject({
   version: z.literal(1),
   seedPageUrls: z.array(seoUrlSchema).min(1).max(SEO_MAX_PAGES),
-  pageUrls: z.array(seoUrlSchema).min(1).max(SEO_MAX_PAGES),
+  relatedPageUrls: z.array(seoUrlSchema).max(SEO_MAX_PAGES),
 });
 
-export const seoTaskPagesRequestSchema = z
+export const seoTaskRelatedPagesRequestSchema = z
   .strictObject({
     expectedContext: taskWorkerContextSchema,
     seedPageUrls: z.array(seoUrlSchema).min(1).max(SEO_MAX_PAGES),
     relatedPageUrls: z.array(seoUrlSchema).max(SEO_MAX_PAGES),
   })
-  .openapi("SeoTaskPagesRequest");
+  .openapi("SeoTaskRelatedPagesRequest");
 
-export const seoTaskPagesReceiptSchema = z
+export const seoTaskRelatedPagesReceiptSchema = z
   .strictObject({
     version: z.literal(1),
     taskId: z.string().min(1).max(128),
-    pageUrls: z.array(seoUrlSchema).min(1).max(SEO_MAX_PAGES),
+    auditPageUrl: seoUrlSchema,
+    inspectionPageUrls: z.array(seoUrlSchema).min(1).max(SEO_MAX_PAGES),
   })
-  .openapi("SeoTaskPagesReceipt");
+  .openapi("SeoTaskRelatedPagesReceipt");
 
-export type SeoTaskPagesRequest = z.infer<typeof seoTaskPagesRequestSchema>;
+export type SeoTaskRelatedPagesRequest = z.infer<
+  typeof seoTaskRelatedPagesRequestSchema
+>;

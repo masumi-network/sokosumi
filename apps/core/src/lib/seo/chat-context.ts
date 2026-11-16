@@ -206,6 +206,7 @@ export function seoChatContext(
       .map((row) => ({
         observationId: row.observationId,
         pageUrl: row.pageUrl,
+        ...(row.relatedPageUrl ? { relatedPageUrl: row.relatedPageUrl } : {}),
         device: row.device,
         severity: row.severity,
         title: clip(row.title),

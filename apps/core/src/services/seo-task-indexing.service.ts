@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import type { ProjectSeoObservation } from "@sokosumi/database";
 
 import { getEnv } from "@/config/env";
 import { conflict, unprocessableEntity } from "@/helpers/error";
@@ -42,10 +43,13 @@ import { syncLockService } from "./sync-lock.service";
 
 export const SEO_INDEXING_FRESH_MS = 24 * 60 * 60 * 1000;
 const SEO_INDEXING_RETRY_MS = 60 * 60 * 1000;
+const persistedReceiptSchema = seoTaskIndexingReceiptSchema.omit({
+  assessmentSaved: true,
+});
 const storedReceiptSchema = z.strictObject({
   contextFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
   propertyId: z.string().max(500).nullable(),
-  receipt: seoTaskIndexingReceiptSchema,
+  receipt: persistedReceiptSchema,
 });
 type StoredReceipt = z.infer<typeof storedReceiptSchema>;
 
@@ -76,11 +80,14 @@ async function savedReceipt(context: SeoTaskIndexingContext) {
   const receipt = parsed.data.receipt;
   if (
     receipt.taskId !== context.taskId ||
+    (receipt.auditPageUrl ?? context.pageUrls[0]) !== context.auditPageUrl ||
     receipt.receiptHash !== saved.artifactHash ||
-    receipt.pages.length !== context.pageUrls.length ||
+    receipt.pages.length !== context.inspectionPageUrls.length ||
     new Set(receipt.pages.map((page) => page.pageUrl)).size !==
-      context.pageUrls.length ||
-    receipt.pages.some((page) => !context.pageUrls.includes(page.pageUrl))
+      context.inspectionPageUrls.length ||
+    receipt.pages.some(
+      (page) => !context.inspectionPageUrls.includes(page.pageUrl),
+    )
   )
     return null;
   const age = Date.now() - new Date(receipt.checkedAt).getTime();
@@ -95,13 +102,13 @@ async function savedReceipt(context: SeoTaskIndexingContext) {
 
 function makeReceipt(
   context: SeoTaskIndexingContext,
-  data: Omit<SeoTaskIndexingReceipt, "receiptHash">,
+  data: Omit<SeoTaskIndexingReceipt, "receiptHash" | "assessmentSaved">,
   propertyId: string | null,
 ): StoredReceipt {
   return {
     contextFingerprint: context.contextFingerprint,
     propertyId,
-    receipt: seoTaskIndexingReceiptSchema.parse({
+    receipt: persistedReceiptSchema.parse({
       ...data,
       receiptHash: sha256(
         JSON.stringify({
@@ -120,8 +127,9 @@ async function collect(
   const base = {
     version: 1 as const,
     taskId: context.taskId,
+    auditPageUrl: context.auditPageUrl,
     checkedAt: new Date().toISOString(),
-    pages: context.pageUrls.map(unavailableGscTaskInspection),
+    pages: context.inspectionPageUrls.map(unavailableGscTaskInspection),
   };
   const integration = context.integration;
   const saved = await savedReceipt(context);
@@ -195,17 +203,19 @@ async function collect(
       return saved;
     const inspectionTool = toolFor(GSC_INSPECT_TOOL);
     const results = await Promise.allSettled(
-      context.pageUrls.map(async (pageUrl) =>
-        normalizeGscTaskInspection(
-          pageUrl,
-          unwrapNativeStatistics(
-            await read(
-              inspectionTool,
-              gscInspectionArguments(property, pageUrl),
+      context.inspectionPageUrls.map(async (pageUrl) =>
+        !gscPropertyCovers(property, [pageUrl])
+          ? unavailableGscTaskInspection(pageUrl)
+          : normalizeGscTaskInspection(
+              pageUrl,
+              unwrapNativeStatistics(
+                await read(
+                  inspectionTool,
+                  gscInspectionArguments(property, pageUrl),
+                ),
+                ["inspectionResult"],
+              ),
             ),
-            ["inspectionResult"],
-          ),
-        ),
       ),
     );
     const pages = results.map((result, index) =>
@@ -228,13 +238,72 @@ async function collect(
   }
 }
 
+/** A lost result response can retry without repeating mutable public-page reads. */
+export function hasSavedSeoIndexingAssessment(
+  saved: Pick<
+    ProjectSeoObservation,
+    | "ownerId"
+    | "visibility"
+    | "kind"
+    | "source"
+    | "sourceTaskId"
+    | "artifactHash"
+    | "payload"
+  > | null,
+  receipt: SeoTaskIndexingReceipt,
+  ownerId: string,
+  auditPageUrl: string,
+): boolean {
+  if (
+    !saved ||
+    saved.ownerId !== ownerId ||
+    saved.visibility !== "PRIVATE" ||
+    saved.kind !== "index_triage" ||
+    saved.source !== "seo_worker" ||
+    saved.sourceTaskId !== receipt.taskId
+  )
+    return false;
+  const parsed = seoTaskIndexingResultSchema.safeParse(saved.payload);
+  if (!parsed.success) return false;
+  const result = parsed.data;
+  return (
+    result.taskId === receipt.taskId &&
+    result.receiptHash === receipt.receiptHash &&
+    result.checkedAt === receipt.checkedAt &&
+    (receipt.auditPageUrl === undefined ||
+      receipt.auditPageUrl === auditPageUrl) &&
+    (result.auditPageUrl === undefined ||
+      result.auditPageUrl === auditPageUrl) &&
+    saved.artifactHash === sha256(JSON.stringify(result)) &&
+    result.assessments.length === receipt.pages.length &&
+    new Set(result.assessments.map((page) => page.pageUrl)).size ===
+      receipt.pages.length &&
+    result.assessments.every((assessment) => {
+      const page = receipt.pages.find(
+        (entry) => entry.pageUrl === assessment.pageUrl,
+      );
+      return (
+        page &&
+        (page.verdict !== "VERDICT_UNSPECIFIED" ||
+          assessment.status === "unavailable")
+      );
+    })
+  );
+}
+
 /** Only the Task's fixed pages are read. All provider I/O is outside database transactions. */
 export async function readSeoTaskIndexing(
   auth: AuthenticationContext,
   taskId: string,
   expected: TaskWorkerContext,
+  auditPageUrlHint?: string,
 ): Promise<SeoTaskIndexingReceipt> {
-  const context = await readSeoTaskIndexingContext(auth, taskId, expected);
+  const context = await readSeoTaskIndexingContext(
+    auth,
+    taskId,
+    expected,
+    auditPageUrlHint,
+  );
   const key = `seo-task-indexing:${taskId}:${context.contextFingerprint}`;
   const lock = await syncLockService
     .acquireLock(key)
@@ -252,6 +321,7 @@ export async function readSeoTaskIndexing(
         taskId,
         expected,
         tx,
+        auditPageUrlHint,
       );
       assertSameSeoTaskIndexingContext(context, current);
       const held = await tx.lock.updateMany({
@@ -288,7 +358,19 @@ export async function readSeoTaskIndexing(
           observedAt: new Date(receipt.checkedAt),
         },
       });
-      return receipt;
+      const assessment = await tx.projectSeoObservation.findUnique({
+        where: seoOwnerUnique(context.actor, "sourceKey", {
+          sourceKey: `task-index-triage:${taskId}:${receipt.receiptHash}`,
+        }),
+      });
+      return hasSavedSeoIndexingAssessment(
+        assessment,
+        receipt,
+        context.actor.userId,
+        context.auditPageUrl,
+      )
+        ? { ...receipt, assessmentSaved: true as const }
+        : receipt;
     }, "The audit changed before its indexing evidence could be saved. Please retry.");
   } finally {
     await syncLockService.releaseLock(key, lock.ownerToken);
@@ -307,6 +389,7 @@ export async function recordSeoTaskIndexingResult(
       taskId,
       input.expectedContext,
       tx,
+      input.auditPageUrl,
     );
     const saved = await tx.projectSeoObservation.findUnique({
       where: seoOwnerUnique(context.actor, "sourceKey", {
@@ -323,6 +406,8 @@ export async function recordSeoTaskIndexingResult(
       saved.sourceTaskId !== taskId ||
       !parsed.success ||
       parsed.data.contextFingerprint !== context.contextFingerprint ||
+      (parsed.data.receipt.auditPageUrl ?? context.pageUrls[0]) !==
+        context.auditPageUrl ||
       parsed.data.receipt.receiptHash !== input.receiptHash ||
       saved.artifactHash !== input.receiptHash
     )
@@ -341,12 +426,14 @@ export async function recordSeoTaskIndexingResult(
       );
     if (
       new Set(input.assessments.map((page) => page.pageUrl)).size !==
-        context.pageUrls.length ||
-      input.assessments.length !== context.pageUrls.length ||
-      input.assessments.some((page) => !context.pageUrls.includes(page.pageUrl))
+        context.inspectionPageUrls.length ||
+      input.assessments.length !== context.inspectionPageUrls.length ||
+      input.assessments.some(
+        (page) => !context.inspectionPageUrls.includes(page.pageUrl),
+      )
     )
       throw unprocessableEntity(
-        "Assess every approved audit page exactly once",
+        "Assess every approved indexing target exactly once",
       );
     if (
       input.assessments.some((assessment) => {
@@ -367,6 +454,7 @@ export async function recordSeoTaskIndexingResult(
       taskId,
       receiptHash: input.receiptHash,
       checkedAt: receipt.checkedAt,
+      auditPageUrl: context.auditPageUrl,
       assessments: input.assessments,
     });
     const artifactHash = sha256(JSON.stringify(result));

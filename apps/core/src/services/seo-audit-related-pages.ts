@@ -1,62 +1,33 @@
-import type { Prisma } from "@sokosumi/database";
+import { z } from "zod";
 
-import { seoPageComparisonKey } from "@/lib/seo/related-page-selection";
-import { SEO_MAX_PAGES, type SeoActor } from "@/schemas/project-seo.schema";
-import { resolveSeoScope, seoOwnerWhere } from "./project-seo-store";
+import { conflict } from "@/helpers/error";
+import {
+  originalSeoAuditPacket,
+  selectSeoRelatedPages,
+} from "@/lib/seo/related-page-selection";
+import { seoRelatedIndexingSelectionSchema } from "@/schemas/seo-task-pages.schema";
 
-type SeoScope = Awaited<ReturnType<typeof resolveSeoScope>>;
-
-/** Selecting an Audit's primary page includes its saved same-host children. Explicit groups and child selections remain exact. */
-export async function withSavedAuditRelatedPages(
-  actor: SeoActor,
-  scope: SeoScope,
-  tx: Prisma.TransactionClient,
-): Promise<SeoScope> {
-  const primary = scope.pages[0];
-  if (
-    actor.owner.kind !== "audit" ||
-    scope.id ||
-    scope.pages.length !== 1 ||
-    primary?.relationship !== "primary"
-  )
-    return scope;
-  const host = new URL(primary.url).host;
-  const latest = await tx.projectSeoAnalysis.findFirst({
-    where: { ...seoOwnerWhere(actor), kind: "audit_full" },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    select: { pageIds: true },
-  });
-  const priority = new Map(
-    (latest?.pageIds ?? []).map((id, index) => [id, index]),
+/** The extra URLs are private indexing evidence. They never become saved pages or widen the public report. */
+export function seoAuditInspectionPages(
+  request: unknown,
+  pageUrls: string[],
+): string[] {
+  const metadata = z
+    .object({
+      inspectRelated: z.boolean().optional(),
+      relatedIndexingSelection: z.unknown().optional(),
+    })
+    .parse(request);
+  if (metadata.relatedIndexingSelection === undefined) {
+    if (metadata.inspectRelated)
+      throw conflict("Prepare the related indexing targets before inspection");
+    return pageUrls;
+  }
+  originalSeoAuditPacket(request);
+  const selection = seoRelatedIndexingSelectionSchema.parse(
+    metadata.relatedIndexingSelection,
   );
-  const related = await tx.projectSeoPage.findMany({
-    where: {
-      ...seoOwnerWhere(actor),
-      relationship: "related",
-      relatedToPageId: primary.id,
-      OR: ["http:", "https:"].map((protocol) => ({
-        url: { startsWith: `${protocol}//${host}/` },
-      })),
-    },
-    // The newest audit selection comes first; saved page order breaks ties.
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-  });
-  related.sort(
-    (a, b) =>
-      (priority.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
-      (priority.get(b.id) ?? Number.MAX_SAFE_INTEGER),
-  );
-  const seen = new Set([seoPageComparisonKey(primary.url)]);
-  const pages = [
-    primary,
-    ...related
-      .filter((page) => {
-        const key = seoPageComparisonKey(page.url);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .slice(0, SEO_MAX_PAGES - 1),
-  ];
-  return { ...scope, pages, pageIds: pages.map((page) => page.id) };
+  if (JSON.stringify(selection.seedPageUrls) !== JSON.stringify(pageUrls))
+    throw conflict("The approved audit seed pages changed");
+  return selectSeoRelatedPages(pageUrls, selection.relatedPageUrls);
 }
