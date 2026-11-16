@@ -25,11 +25,21 @@ export interface StudioPageDataInput {
  * it is older than the newest page. A failed hint therefore costs one extra
  * round trip and nothing else; before this it took the whole studio down with
  * an error boundary, which is a hard way to learn that a bookmark went stale.
+ *
+ * Only the fresh read falls back to the newest page. Inside the prefetch
+ * cache a refused hint throws, so the page renders fresh on the click: the
+ * open studio keeps its first state, and the refresh on mount could not
+ * replace a fallback kept there.
  */
-async function loadStudioState(projectId: string, assetId: string | undefined) {
+async function loadStudioState(
+  projectId: string,
+  assetId: string | undefined,
+  fresh: boolean,
+) {
   const load = (query: { assetId?: string }) =>
     imageStudioService.getState(projectId, query);
   if (!assetId) return load({});
+  if (!fresh) return load({ assetId });
 
   try {
     return await load({ assetId });
@@ -57,7 +67,10 @@ async function loadRecentProjects() {
   }
 }
 
-async function readStudioPageData({ projectId, assetId }: StudioPageDataInput) {
+async function readStudioPageData(
+  { projectId, assetId }: StudioPageDataInput,
+  fresh: boolean,
+) {
   const project = projectId
     ? await projectService.getProjectById(projectId)
     : null;
@@ -70,7 +83,7 @@ async function readStudioPageData({ projectId, assetId }: StudioPageDataInput) {
   // every three seconds.
   const [state, catalog, recentProjects] = await Promise.all([
     scopeId
-      ? loadStudioState(scopeId, assetId)
+      ? loadStudioState(scopeId, assetId, fresh)
       : Promise.resolve({ assets: [], jobs: [], nextCursor: null }),
     imageStudioService.getCatalog(),
     scopeId ? [] : loadRecentProjects(),
@@ -88,7 +101,7 @@ async function readPrivateCachedStudioPageData(
 ): Promise<StudioPageData> {
   "use cache: private";
   cacheLife({ stale: PREFETCHED_CONTENT_STALE_SECONDS });
-  return readStudioPageData(input);
+  return readStudioPageData(input, false);
 }
 
 /**
@@ -105,7 +118,7 @@ export function loadStudioPageData(
     async (error: unknown) => {
       unstable_rethrow(error);
       await connection();
-      return readStudioPageData(input);
+      return readStudioPageData(input, true);
     },
   );
 }

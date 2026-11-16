@@ -583,7 +583,10 @@ describe("StudioPage", () => {
 
   it("survives a selection Core will not accept, instead of taking the page down", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    // Once-only answers: clearAllMocks keeps an implementation, and a lasting
+    // one would leak into later tests.
     imageStudioServiceMock.getState
+      .mockRejectedValueOnce(new Error("Invalid uuid"))
       .mockRejectedValueOnce(new Error("Invalid uuid"))
       .mockResolvedValueOnce(studioState());
 
@@ -601,16 +604,13 @@ describe("StudioPage", () => {
     // A `?v=` from a saved link can name a deleted asset, another project's
     // asset, or no asset at all. Asking for it is an optimisation, so a
     // refusal costs one more round trip and nothing else.
-    expect(imageStudioServiceMock.getState).toHaveBeenNthCalledWith(
-      1,
-      "project-1",
-      { assetId: "not-an-id" },
-    );
-    expect(imageStudioServiceMock.getState).toHaveBeenNthCalledWith(
-      2,
-      "project-1",
-      {},
-    );
+    // The prefetch cache keeps no fallback: the open studio keeps its first
+    // state, so a refresh could not repair one. The click reads fresh, and
+    // only that read falls back to the newest page.
+    expect(connectionMock).toHaveBeenCalledOnce();
+    expect(
+      imageStudioServiceMock.getState.mock.calls.map(([, query]) => query),
+    ).toEqual([{ assetId: "not-an-id" }, { assetId: "not-an-id" }, {}]);
     expect(screen.getByTestId("image-studio")).toHaveAttribute(
       "data-selected",
       "",
