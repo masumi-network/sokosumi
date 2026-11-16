@@ -657,6 +657,17 @@ describe("MenuItems prefetch", () => {
     });
   });
 
+  it("loads the Home content on a resting hover from another page", () => {
+    pathnameRef.current = "/tasks";
+    renderMenu(true, false);
+
+    restOn(/^home$/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/", {
+      kind: "full",
+    });
+  });
+
   it("loads the selected project's Overview content on a resting hover", () => {
     pathnameRef.current = "/tasks";
     searchRef.current = "projectId=p-1";

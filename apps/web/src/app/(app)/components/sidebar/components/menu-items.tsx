@@ -133,6 +133,7 @@ function ScopedMenuItems({
       Icon: House,
       group: "work",
       desktopOnly: true,
+      prefetchContent: true,
     },
     // Under Home: Home answers what needs you, Projects browses the work.
     // Projects stays while a project is selected, so the list is always one

@@ -1,44 +1,28 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { connection } from "next/server";
 import { getNow, getTimeZone, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
 import { resolveLandingGreetingName } from "@/app/chat/components/landing/landing-content";
 import type { NeedsYouLead } from "@/app/projects/components/needs-you-panel-list";
-import {
-  NeedsYouPanel,
-  panelFeed,
-} from "@/app/projects/components/workspace-column";
-import {
-  PROJECTS_PAGE_LIMIT,
-  WORKSPACE_COLUMN_ROWS,
-} from "@/app/projects/constants";
+import { NeedsYouPanel } from "@/app/projects/components/workspace-column";
+import { PROJECTS_PAGE_LIMIT } from "@/app/projects/constants";
 import { dayInTimeZone } from "@/app/tasks/utils/task-due";
-import { getSession } from "@/lib/auth/auth.server";
-import { chatRoomService } from "@/lib/services/chat-room.service";
-import { notificationService } from "@/lib/services/notification.service";
+import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { projectService } from "@/lib/services/project.service";
-import { sokoBotService } from "@/lib/services/soko-bot.service";
-import { taskService } from "@/lib/services/task.service";
-import { userService } from "@/lib/services/user.service";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 
 import { countOverdue, loadMyDay, MyDay } from "./components/my-day";
 import { SokoBotHome } from "./components/soko-bot-home";
 import {
   findSokoBotDirectRoom,
-  SOKO_BOT_HOME_TASK_LIMIT,
-  type SokoBotHomeChat,
   sokoBotFailureLead,
   toImportantChats,
   toNewSchedules,
   toTeamDay,
 } from "./components/soko-bot-home-data";
-import {
-  SOKO_BOT_SETUP_FACES,
-  SokoBotSetup,
-} from "./components/soko-bot-setup";
+import { SokoBotSetup } from "./components/soko-bot-setup";
+import { loadHomeData, loadHomeGate } from "./home-page-data";
 
 interface WelcomePageProps {
   searchParams: Promise<{
@@ -53,27 +37,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * The reader's rooms and their important unread chat messages from the last
- * day, which Core picks from Jev's tags; the room list is the sidebar's
- * cached one. Read before the bot is known, so the bot's Direct is found
- * after.
- */
-async function loadHomeChats(): Promise<{
-  rooms: Awaited<ReturnType<typeof chatRoomService.listRooms>>["rooms"];
-  chats: SokoBotHomeChat[];
-}> {
-  const [{ rooms }, important, tChannels] = await Promise.all([
-    chatRoomService.listRooms().catch(() => ({ rooms: [] })),
-    chatRoomService.listImportantMessages().catch(() => []),
-    getTranslations("App.Channels"),
-  ]);
-  return {
-    rooms,
-    chats: toImportantChats(important, tChannels("SavedMessages.untitled")),
-  };
-}
-
-/**
  * `/` welcome. A user with a personal Soko Bot gets {@link SokoBotHome}, a
  * chat with their bot; anyone else gets {@link SokoBotSetup}, the way into
  * one. Shared bots never take the home over: their room is the team's, so a
@@ -84,30 +47,25 @@ async function loadHomeChats(): Promise<{
  * Open rooms: `/chat/rooms/[roomId]`. Create Channel / Start New Direct are
  * in-place dialogs from the sidebar, not Welcome query modes.
  *
- * Instant Nav uses `(welcome)/loading.tsx` while this page streams after
- * `connection()`. Room open uses `chat/rooms/[roomId]/loading.tsx`.
+ * Instant Nav uses `(welcome)/loading.tsx` while this page streams. Its Core
+ * reads are cached for the browser only, so a link prefetch carries Home.
+ * Room open uses `chat/rooms/[roomId]/loading.tsx`.
  */
 export default async function WelcomePage({ searchParams }: WelcomePageProps) {
-  // Defer before any cookies()/headers()-bound work so PPR shell probing does
-  // not soft-reject dynamic APIs on this dynamic page.
-  await connection();
-
-  const [query, session, activeOrganizationId, access, now, timeZone] =
-    await Promise.all([
-      searchParams,
-      getSession(),
-      userService.getActiveOrganizationId(),
-      userService.getWorkspaceAccess().catch(() => null),
-      getNow(),
-      getTimeZone(),
-    ]);
+  const [query, gate, now, timeZone] = await Promise.all([
+    searchParams,
+    loadHomeGate(),
+    getNow(),
+    getTimeZone(),
+  ]);
   // The app shell's loading fallback renders this page before the frame's
   // workspace gate redirects, so a brand-new account (sign-up lands here)
   // would read a bot, coworkers and tasks it has no workspace for. Leave
   // before any of those reads.
-  if (!isWorkspaceReady(access?.gate)) {
+  if (!isWorkspaceReady(gate.gate)) {
     redirect(WORKSPACE_GATE_PATH);
   }
+  const { activeOrganizationId, userId, userName } = gate;
   // In an org the day is the team's; in a personal workspace, the user's.
   // In an org the greeting talks about the team, so count the whole
   // workspace rather than only the caller's own tasks.
@@ -126,15 +84,12 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       })}
     </Suspense>
   );
+  const homeData = loadHomeData(scope);
   // What waits on the reader, as the quiet list on the Soko Bot Home.
-  const needsYouRead = notificationService.readNeedsYou(WORKSPACE_COLUMN_ROWS);
-  const needsYouFeed = panelFeed(
-    needsYouRead.then(({ notifications }) => notifications),
-  );
-  // Its own number, not a share of the waiting Tasks: Needs you also holds
-  // Job, grant and access asks, and asks from other workspaces.
-  const needsYouCount = needsYouRead
-    .then(({ total }) => total)
+  // Caught so a failed Home read, which errors the page below, leaves no
+  // unhandled rejection behind.
+  const needsYouFeed = homeData
+    .then(({ needsYou }) => needsYou?.notifications ?? null)
     .catch(() => null);
   // The workspace's first page of projects, read next to the rows, so a
   // row's project is usually known without its own read after them.
@@ -159,38 +114,33 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       })}
     </Suspense>
   );
-  // The Home's chats and team Tasks start with the bot read rather than one
-  // Core round after it; without a bot they go unused.
-  const homeChats = loadHomeChats();
-  const recentTasks = taskService
-    .listTasks({
-      scope,
-      sort: "updatedAt",
-      limit: SOKO_BOT_HOME_TASK_LIMIT * 2,
-    })
-    .catch(() => ({ tasks: [] }));
-  const [{ sokoBot, lastFailure }, summary] = await Promise.all([
-    sokoBotService
-      .getMineWithLastFailure()
-      .catch(() => ({ sokoBot: null, lastFailure: null })),
-    // Window is session-derived in Core (`max(Session.updatedAt)`). No stamp.
-    taskService.getActivitySummary({ scope }),
-  ]);
+  const {
+    needsYou,
+    rooms,
+    important,
+    recentTasks,
+    sokoBot,
+    lastFailure,
+    summary,
+    avatars,
+  } = await homeData;
   const notice =
     (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
-  const landingNotice = <ChatLandingNotice notice={notice} />;
-  const userId = session?.user.id;
+  const landingNotice = (
+    <>
+      <RefreshPrefetchedPage />
+      <ChatLandingNotice notice={notice} />
+    </>
+  );
 
   if (sokoBot && userId) {
-    const [{ rooms, chats }, recent, needsYouTotal] = await Promise.all([
-      homeChats,
-      recentTasks,
-      needsYouCount,
-    ]);
     const roomId = findSokoBotDirectRoom(rooms, sokoBot.id)?.id ?? null;
     // A failed bot waits on the reader too: the sidebar and the bot's page
     // say so, and Home said "Nothing waits on you".
-    const tHome = await getTranslations("App.Chat.Landing.SokoBotHome");
+    const [tHome, tChannels] = await Promise.all([
+      getTranslations("App.Chat.Landing.SokoBotHome"),
+      getTranslations("App.Channels"),
+    ]);
     const failedLead = sokoBotFailureLead(
       {
         name: sokoBot.name?.trim() || tHome("defaultName"),
@@ -211,12 +161,17 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           }}
           ownerId={userId}
           roomId={roomId}
-          userName={resolveLandingGreetingName(session?.user.name)}
+          userName={resolveLandingGreetingName(userName)}
           summary={summary ?? null}
           inOrganization={Boolean(activeOrganizationId)}
-          needsYouCount={needsYouTotal}
-          teamTasks={toTeamDay(recent.tasks, new Date())}
-          chats={chats}
+          // Its own number, not a share of the waiting Tasks: Needs you also
+          // holds Job, grant and access asks, and asks from other workspaces.
+          needsYouCount={needsYou?.total ?? null}
+          teamTasks={toTeamDay(recentTasks, new Date())}
+          chats={toImportantChats(
+            important,
+            tChannels("SavedMessages.untitled"),
+          )}
           schedules={toNewSchedules(sokoBot.schedules ?? [], new Date())}
           myDay={myDay}
           needsYou={needsYouPanel(failedLead)}
@@ -224,10 +179,6 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       </>
     );
   }
-  // Without pictures the page still offers the setup, only without the row.
-  const avatars = await sokoBotService
-    .listAvatars(SOKO_BOT_SETUP_FACES, [])
-    .catch(() => []);
   return (
     <>
       {landingNotice}

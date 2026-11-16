@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import { err, ok } from "neverthrow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getMine = vi.fn();
@@ -30,7 +31,14 @@ const redirect = vi.fn((path: string) => {
   throw new Error(`NEXT_REDIRECT ${path}`);
 });
 
-vi.mock("next/server", () => ({ connection: async () => {} }));
+const connection = vi.fn(async () => {});
+const SESSION = { user: { id: "user-1", name: "Alice Doe" } };
+const getSession = vi.fn(async () => SESSION);
+const getSessionResult = vi.fn(async (): Promise<unknown> => ok(SESSION));
+
+vi.mock("server-only", () => ({}));
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
+vi.mock("next/server", () => ({ connection: () => connection() }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: string) => (key: string) =>
     `${namespace}.${key}`,
@@ -46,11 +54,14 @@ vi.mock("./components/my-day", () => ({
     return <div>my day</div>;
   },
 }));
-vi.mock("next/navigation", () => ({
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
   redirect: (path: string) => redirect(path),
+  useRouter: () => ({ refresh: vi.fn() }),
 }));
 vi.mock("@/lib/auth/auth.server", () => ({
-  getSession: async () => ({ user: { id: "user-1", name: "Alice Doe" } }),
+  getSession: () => getSession(),
+  getSessionResult: () => getSessionResult(),
 }));
 vi.mock("@/lib/services/user.service", () => ({
   userService: {
@@ -370,6 +381,38 @@ describe("WelcomePage", () => {
 });
 
 describe("generateMetadata", () => {
+  // The reads are cached, so a link prefetch carries Home.
+  // connection() would drop it back to the skeleton.
+  it("renders the bot home without deferring to the request", async () => {
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    await renderPage();
+    expect(screen.getByText("bot home")).toBeTruthy();
+    expect(connection).not.toHaveBeenCalled();
+  });
+
+  // A prefetch must not keep a session outage as a signed-out Home: the
+  // click renders fresh with the session read again.
+  it("renders a session outage fresh on the click", async () => {
+    getSessionResult.mockResolvedValueOnce(err({ reason: "timeout" }));
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    await renderPage();
+    expect(connection).toHaveBeenCalledOnce();
+    expect(getSession).toHaveBeenCalledOnce();
+    expect(sokoBotHome).toHaveBeenCalledWith(
+      expect.objectContaining({ ownerId: "user-1" }),
+    );
+  });
+
   it("names the tab Home instead of the layout's marketing line", async () => {
     await expect(generateMetadata()).resolves.toEqual({
       title: "App.Metadata.home",
