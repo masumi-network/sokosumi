@@ -215,8 +215,9 @@ export function SeoWorkspace({
     historyNotice ||
     pausedNotice ||
     readOnlyNotice ||
-    model.statisticsSync.state === "needs_property" ||
-    (model.filters.tab !== "agent" && model.statisticsSync.state !== "idle");
+    (model.filters.tab !== "agent" &&
+      (model.statisticsSync.state === "loading" ||
+        model.statisticsSync.state === "failed"));
   const scopePage =
     model.data.scope.pageIds.length === 1
       ? model.data.pages.find((page) => page.id === model.data.scope.pageIds[0])
@@ -341,20 +342,6 @@ export function SeoWorkspace({
       </div>
       {/* One group of notices; it takes no room when none shows. */}
       <div className="space-y-2 empty:hidden">
-        {model.statisticsSync.state === "needs_property" ? (
-          <div role="status" className="space-y-2 text-sm">
-            <p>{t("statistics.propertyNeeded")}</p>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                model.openStatistics(model.statisticsSync.propertyProvider)
-              }
-            >
-              {t("statistics.chooseProperty")}
-            </Button>
-          </div>
-        ) : null}
         {model.filters.tab !== "agent" &&
         model.statisticsSync.state === "loading" ? (
           <p role="status" className="text-muted-foreground text-sm">
