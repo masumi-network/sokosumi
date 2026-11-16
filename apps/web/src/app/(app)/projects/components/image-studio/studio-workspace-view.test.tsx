@@ -367,7 +367,8 @@ describe("the workspace view", () => {
     pick("project-picked");
     expect(mocks.enqueue).toHaveBeenCalledTimes(1);
     const [[requests]] = mocks.enqueue.mock.calls;
-    expect(requests).toHaveLength(2);
+    expect(requests).toHaveLength(1);
+    expect(requests[0].modelId).toBe(TEST_CATALOG.defaultModelId);
     for (const request of requests) {
       expect(request).toMatchObject({
         projectId: "project-picked",

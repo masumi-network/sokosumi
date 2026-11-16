@@ -14,6 +14,9 @@ import type { StudioCatalog } from "./types";
  * opening selection is that it must come apart completely — down to none — or
  * it is not a default, it is a constraint.
  *
+ * Auto supersedes that original opening shortlist: the shortlist helper still
+ * reads Core ranks, while the composer starts without a pinned selection.
+ *
  * Radix's menu and popover are stubbed the way `studio-composer.test.tsx` stubs
  * them, so the model entries are reachable by their text.
  */
@@ -141,24 +144,30 @@ describe("curatedModels", () => {
 });
 
 describe("opening the studio", () => {
-  it("pre-selects the shortlist and leaves the rest alone", () => {
+  it("opens on Auto and leaves the full picker unselected", () => {
     mount(catalogWithShortlist());
 
     const selected = modelEntries()
       .filter((entry) => entry.checked)
       .map((entry) => entry.label);
-    expect(selected).toEqual(["Ranked 3", "Ranked 1", "Ranked 2"]);
+    expect(selected).toEqual([]);
+    expect(screen.getByRole("button", { name: "autoModel" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
 
     // Five models offered, three of them chosen.
+    // Auto now leaves all five unpinned until Advanced changes the selection.
     expect(modelEntries()).toHaveLength(5);
   });
 
-  it("prices the whole shortlist, not just the first model", () => {
+  it("prices the one automatic model", () => {
     mount(catalogWithShortlist());
 
     // Three clones of a 4-credit model, one run each.
+    // Auto now runs just the catalog fallback, for four credits.
     expect(
-      screen.getByText('runPlanCredits:{"copies":1,"models":3,"credits":12}'),
+      screen.getByText('runPlanCredits:{"copies":1,"models":1,"credits":4}'),
     ).toBeInTheDocument();
   });
 });
@@ -167,7 +176,7 @@ describe("editing the opening selection", () => {
   it("lets every last model be unselected", () => {
     mount(catalogWithShortlist());
 
-    for (const label of ["Ranked 1", "Ranked 2", "Ranked 3"]) {
+    for (const label of ["Ranked 1", "Ranked 1"]) {
       const entry = screen
         .getAllByRole("checkbox")
         .find((node) => node.textContent?.includes(label));
