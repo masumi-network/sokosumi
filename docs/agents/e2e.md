@@ -16,10 +16,11 @@ E2E_BASE_URL=https://<preview-host> pnpm --filter web e2e
 
 ## Specs
 
-| Spec                   | Checks                                                                                                                                                            |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `e2e/base-url.test.ts` | URL guard: required, allowed hosts only. Needs no browser.                                                                                                        |
-| `e2e/smoke.test.ts`    | `/signin` and `/signup` at phone 375x812, tablet 768x1024 and desktop 1440x900: page loads, email field shows, no horizontal overflow, no console or page errors. |
+| Spec                   | Checks                                                                                                                                                                                                                                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `e2e/base-url.test.ts` | URL guard: required, allowed hosts only. Needs no browser.                                                                                                                                                                                                                                 |
+| `e2e/smoke.test.ts`    | `/signin` and `/signup` at phone 375x812, tablet 768x1024 and desktop 1440x900: page loads, email field shows, no horizontal overflow, no console or page errors.                                                                                                                          |
+| `e2e/history.test.ts`  | Credit history at the same three sizes for a signed-in disposable user: a search with no match offers **Clear filters**, and the Source filter names every source. Skipped unless `E2E_STORAGE_STATE` points to that user's Playwright storage state, created per run and never committed. |
 
 Screenshots go to `apps/web/e2e/results/` (gitignored).
 
