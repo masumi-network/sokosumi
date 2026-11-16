@@ -185,6 +185,110 @@ afterEach(() => {
 });
 
 describe("SEO workspace integration", () => {
+  it("shows the audit timeline after a single completed audit", () => {
+    const workspace = seoTestWorkspace();
+    workspace.runs = [
+      {
+        observationId: "first-audit",
+        kind: "audit_full",
+        observedAt: new Date("2026-11-12T13:00:00Z"),
+        issues: 5,
+        seconds: 600,
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
+    );
+    renderWorkspace(workspace);
+    const timeline = screen.getByRole("group", { name: "Checks" });
+    expect(
+      within(timeline).getByRole("button", { name: /^Nov 12/ }),
+    ).toBeVisible();
+  });
+
+  it("shows the audit timeline while the first audit is running", () => {
+    const workspace = seoTestWorkspace();
+    workspace.runs = [];
+    workspace.analyses = [
+      {
+        id: crypto.randomUUID(),
+        kind: "audit_full",
+        status: "running",
+        taskId: null,
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: workspace.scope.version,
+        createdAt: new Date(),
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
+    );
+    renderWorkspace(workspace);
+    expect(
+      within(screen.getByRole("group", { name: "Checks" })).getByText(
+        "Running",
+      ),
+    ).toBeVisible();
+  });
+
+  it.each([false, true])(
+    "keeps property selection with statistics instead of above the audit (existing metrics: %s)",
+    async (measured) => {
+      const user = userEvent.setup();
+      const workspace = seoTestWorkspace();
+      if (measured)
+        workspace.metrics = [
+          { ...seoTestMetric(), source: "ga4", propertyId: "properties/old" },
+        ];
+      const network = vi.fn(async (input: string) => {
+        const url = new URL(input, "https://web.test");
+        if (url.pathname.includes("/connections/")) {
+          const provider = url.pathname.split("/").at(-1);
+          return Response.json({
+            provider,
+            name: provider,
+            source: "native",
+            status: provider === "ga4" ? "connected" : "not_connected",
+          });
+        }
+        if (url.pathname.endsWith("/statistics/properties"))
+          return Response.json({
+            provider: "ga4",
+            status: "available",
+            properties: [
+              { id: "properties/1", name: "First" },
+              { id: "properties/2", name: "Second" },
+            ],
+            reason: null,
+          });
+        if (url.pathname.endsWith("/chat")) return Response.json({ turns: [] });
+        return Response.json(workspace);
+      });
+      vi.stubGlobal("fetch", network);
+      const { client } = renderWorkspace(workspace);
+      await waitFor(() =>
+        expect(
+          network.mock.calls.some(([url]) =>
+            url.includes("/statistics/properties"),
+          ),
+        ).toBe(true),
+      );
+      await waitFor(() => expect(client.isFetching()).toBe(0));
+      const prompt =
+        "Choose a Google property to load statistics for these pages.";
+      expect(screen.queryByText(prompt)).toBeNull();
+      await user.click(screen.getByRole("tab", { name: "Traffic" }));
+      const traffic = screen.getByRole("tabpanel", { name: "Traffic" });
+      expect(within(traffic).getByText(prompt)).toBeVisible();
+      await user.click(
+        within(traffic).getByRole("button", { name: "Choose a property" }),
+      );
+      expect(await screen.findByRole("dialog")).toBeVisible();
+    },
+  );
+
   it.each([
     [
       "a newer check that measured nothing",
@@ -3513,9 +3617,12 @@ describe("SEO workspace integration", () => {
         .some((status) => status.textContent === "Check running"),
     ).toBe(true);
     // The button stays for keyboard focus, but starts no second check.
-    const again = screen.getByRole("button", { name: "Check running" });
-    expect(again).toHaveAttribute("aria-disabled", "true");
-    fireEvent.click(again);
+    for (const again of screen.getAllByRole("button", {
+      name: "Check running",
+    })) {
+      expect(again).toHaveAttribute("aria-disabled", "true");
+      fireEvent.click(again);
+    }
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
