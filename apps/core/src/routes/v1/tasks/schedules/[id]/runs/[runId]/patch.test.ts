@@ -82,6 +82,31 @@ describe("PATCH /tasks/schedules/{id}/runs/{runId}", () => {
     vi.useRealTimers();
   });
 
+  it.each(["skip", "move", "restore"] as const)(
+    "refuses a member's %s of another owner's SEO monitor Run",
+    async (action) => {
+      const schedule = seedTaskSchedule({
+        description: "seo_monitor: {}",
+        nextRunAt: JAN_7,
+      });
+      const run = seedRun(schedule, JAN_7, {
+        state: action === "restore" ? "SKIPPED" : "PLANNED",
+      });
+      const response = await send(
+        schedule,
+        run.id,
+        {
+          action,
+          ...(action === "move" ? { scheduledAt: JAN_2.toISOString() } : {}),
+        },
+        createTaskScheduleTestApp(mount, userAuth(MEMBER_ID)),
+      );
+      expect(response.status).toBe(403);
+      expect(runsOf(schedule.id)).toEqual([run]);
+      expect(storedSchedule(schedule.id)?.revision).toBe(0);
+    },
+  );
+
   it("refuses a Run change while the schedule's project is closing", async () => {
     const schedule = seedTaskSchedule({
       projectId: PROJECT_ID,

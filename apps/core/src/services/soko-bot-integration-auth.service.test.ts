@@ -14,7 +14,7 @@ vi.mock("@/services/soko-bot-integration-connection.service", () => ({
     requireBot(userId, workspaceId),
 }));
 
-import { SokoBotIntegrationError } from "@/services/soko-bot-integrations.service";
+import { SokoBotIntegrationError } from "@/services/composio-integration-tools.service";
 
 import { completeSokoBotIntegrationAuth } from "./soko-bot-integration-auth.service";
 

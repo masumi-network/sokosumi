@@ -11,10 +11,8 @@ import {
   taskScheduleRunUpdateSchema,
   updateTaskScheduleRunRequestSchema,
 } from "@/schemas/task-schedule.schema";
-import {
-  changeTaskScheduleRun,
-  mapTaskScheduleRun,
-} from "@/services/task-schedule.service";
+import { changeTaskScheduleRun } from "@/services/task-schedule.service";
+import { mapTaskScheduleRun } from "@/services/task-schedule-read.service";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({

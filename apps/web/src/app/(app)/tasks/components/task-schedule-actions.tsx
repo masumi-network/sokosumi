@@ -139,6 +139,7 @@ export function TaskScheduleActions({
   }
 
   function handleRunNow() {
+    if (!schedule.canRunNow) return;
     startTransition(async () => {
       const result = await runTaskScheduleNow({
         scheduleId: schedule.id,
@@ -180,15 +181,17 @@ export function TaskScheduleActions({
     <div className="flex shrink-0 items-center gap-1">
       {isEnded ? null : (
         <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRunNow}
-            disabled={isPending}
-          >
-            <Zap aria-hidden />
-            {tActions("runNow")}
-          </Button>
+          {schedule.canRunNow ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRunNow}
+              disabled={isPending}
+            >
+              <Zap aria-hidden />
+              {tActions("runNow")}
+            </Button>
+          ) : null}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -223,22 +226,40 @@ export function TaskScheduleActions({
         <DropdownMenuContent align="end" className="w-56">
           {isEnded ? null : (
             <>
-              <DropdownMenuItem onSelect={() => setIsEditOpen(true)}>
-                <Pencil aria-hidden />
-                {tActions("edit")}
-              </DropdownMenuItem>
+              {schedule.canEditPlan ? (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    if (schedule.canEditPlan) setIsEditOpen(true);
+                  }}
+                >
+                  <Pencil aria-hidden />
+                  {tActions("edit")}
+                </DropdownMenuItem>
+              ) : null}
             </>
           )}
-          <DropdownMenuItem
-            onSelect={() => setCopy({ projectId: schedule.projectId })}
-          >
-            <Copy aria-hidden />
-            {tActions("copy")}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setCopy("pick")}>
-            <FolderInput aria-hidden />
-            {tActions("copyToProject")}
-          </DropdownMenuItem>
+          {schedule.canEditPlan ? (
+            <>
+              <DropdownMenuItem
+                onSelect={() => {
+                  if (schedule.canEditPlan) {
+                    setCopy({ projectId: schedule.projectId });
+                  }
+                }}
+              >
+                <Copy aria-hidden />
+                {tActions("copy")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  if (schedule.canEditPlan) setCopy("pick");
+                }}
+              >
+                <FolderInput aria-hidden />
+                {tActions("copyToProject")}
+              </DropdownMenuItem>
+            </>
+          ) : null}
           {isEnded ? null : (
             <DropdownMenuItem onSelect={() => setConfirming("end")}>
               <Square aria-hidden />
@@ -303,7 +324,7 @@ export function TaskScheduleActions({
         </AlertDialogContent>
       </AlertDialog>
 
-      {isEditOpen ? (
+      {isEditOpen && schedule.canEditPlan ? (
         <TaskScheduleDialog
           schedule={schedule}
           coworkerOptions={coworkerOptions}
@@ -313,13 +334,13 @@ export function TaskScheduleActions({
           onSaved={onChanged}
         />
       ) : null}
-      {copy === "pick" ? (
+      {schedule.canEditPlan && copy === "pick" ? (
         <TaskScheduleCopyProjectPicker
           currentProjectId={schedule.projectId}
           onSelect={(project) => setCopy({ projectId: project.id, project })}
           onClose={() => setCopy(null)}
         />
-      ) : copy ? (
+      ) : schedule.canEditPlan && copy && copy !== "pick" ? (
         <TaskScheduleDialog
           copyOf={{ ...schedule, projectId: copy.projectId }}
           coworkerOptions={coworkerOptions}

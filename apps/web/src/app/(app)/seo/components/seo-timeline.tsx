@@ -1,0 +1,538 @@
+"use client";
+
+import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { seoStatisticsLostData } from "@sokosumi/utils";
+import {
+  Activity,
+  BarChart3,
+  CheckCheck,
+  CircleAlert,
+  FolderOpen,
+  PencilLine,
+  Play,
+  SearchCheck,
+} from "lucide-react";
+import Link from "next/link";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
+import { cn } from "@/lib/utils";
+import { seoRunChecks } from "./seo-runs-model";
+import {
+  SeoDate,
+  SeoEmpty,
+  SeoFoldSummary,
+  SeoMetaLine,
+  SeoSection,
+  SeoState,
+  seoMarketName,
+} from "./seo-shared";
+import { seoCoverageIsNews } from "./seo-statistics-model";
+import { lastRuleCheck } from "./seo-summary-model";
+import {
+  buildSeoTimeline,
+  foldCleanChecks,
+  foldSyncRuns,
+  type SeoTimelineNode,
+} from "./seo-timeline-model";
+
+/** Newest events shown before "Show all"; older history is rarely needed to decide what to do next. */
+export const SEO_TIMELINE_VISIBLE = 5;
+
+const icons = {
+  audit: SearchCheck,
+  check: CheckCheck,
+  metrics: BarChart3,
+  action: Activity,
+  scope: FolderOpen,
+  page_change: PencilLine,
+};
+
+/** Statuses worth a badge. A completed or recorded event needs no label. */
+const FLAGGED_STATUSES = new Set([
+  "requested",
+  "running",
+  "failed",
+  "partial",
+  "unavailable",
+]);
+
+/**
+ * The frame of the list. Where the tiles give the last check, the list holds only what came before it:
+ * one closed line. Open under the tiles, its one row read as a second result with a second date.
+ */
+function TimelineFrame({
+  folded,
+  title,
+  children,
+}: {
+  folded: boolean;
+  title: string;
+  children: ReactNode;
+}) {
+  return folded ? (
+    <details className={cn(HOLDER_CLASS, "text-sm")}>
+      {/* The shape of the fold over it: the name, and the arrow at the end of the line. */}
+      <SeoFoldSummary className="[&>svg]:text-muted-foreground justify-between px-2 py-2">
+        <h2 className="min-w-0 text-sm font-semibold">{title}</h2>
+      </SeoFoldSummary>
+      <div className="mt-2">{children}</div>
+    </details>
+  ) : (
+    <SeoSection title={title}>{children}</SeoSection>
+  );
+}
+
+export function SeoTimeline({
+  workspace,
+  onRetry,
+  summarized = false,
+}: {
+  workspace: ProjectSeoWorkspace;
+  onRetry?: () => void;
+  /** The tab shows the last check in its tiles, with the link to its results, and on each page card. */
+  summarized?: boolean;
+}) {
+  const t = useTranslations("App.Seo");
+  const format = useFormatter();
+  const locale = useLocale();
+  // A gap in a check is named only when there is one; the row already says how much ran.
+  function gapsOf(
+    coverage: ProjectSeoWorkspace["observations"][number]["coverage"],
+  ) {
+    return [
+      coverage.skipped
+        ? t("timeline.rulesSkipped", { count: coverage.skipped })
+        : null,
+      coverage.failed
+        ? t("timeline.rulesUnavailable", { count: coverage.failed })
+        : null,
+      coverage.modules?.failed
+        ? t("timeline.optionalUnavailable", { count: coverage.modules.failed })
+        : null,
+    ].filter((gap): gap is string => gap !== null);
+  }
+  // A check's Task holds its results; other events link to the Task itself.
+  const taskLink = (taskId: string, check = false) => (
+    <Link
+      href={`/tasks/${encodeURIComponent(taskId)}`}
+      className="inline-block py-3 text-foreground underline underline-offset-4"
+    >
+      {t(check ? "timeline.viewResults" : "openTask")}
+    </Link>
+  );
+  const taskStatus = useTranslations("App.Tasks.Filters.statusOptions");
+  const [showAll, setShowAll] = useState(false);
+  // The button unmounts on click; move focus to the first event it revealed.
+  const firstRevealed = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (showAll) firstRevealed.current?.focus();
+  }, [showAll]);
+  // Metric ids are "<sync id>:<metric key>"; a sync event carries the sync id.
+  const syncs = new Map(
+    workspace.metrics.map((metric) => [metric.id.split(":")[0], metric]),
+  );
+  // Older syncs keep no metrics; their title still names the source.
+  const titleSources = new Map(
+    workspace.timeline.flatMap((event) => {
+      const sync = syncs.get(event.observationId ?? "");
+      return event.kind === "metrics" && sync
+        ? [[event.title, sync.source] as const]
+        : [];
+    }),
+  );
+  /**
+   * A routine sync is housekeeping; "Last synced" on the Performance card already says when.
+   * Only a sync that failed or lost data is history worth a row. Search Console's usual
+   * filtering is not news (seoCoverageIsNews); an older Search Console sync without saved
+   * metrics is judged by the notes in its detail.
+   */
+  function syncIsNews(event: ProjectSeoWorkspace["timeline"][number]) {
+    const status = event.status.toLowerCase();
+    if (status === "failed" || status === "unavailable") return true;
+    if (status !== "partial") return false;
+    const sync = syncs.get(event.observationId ?? "");
+    return sync
+      ? seoCoverageIsNews(sync)
+      : titleSources.get(event.title) !== "search_console" ||
+          seoStatisticsLostData(event.detail);
+  }
+  // A later routine sync of the same source recovered any older failure; the title names the source.
+  const lastRoutine = new Map<string, number>();
+  for (const event of workspace.timeline)
+    if (event.kind === "metrics" && !syncIsNews(event))
+      lastRoutine.set(
+        event.title,
+        Math.max(
+          lastRoutine.get(event.title) ?? 0,
+          new Date(event.at).getTime(),
+        ),
+      );
+  const viewed = new Set(workspace.scope.pageIds);
+  // A run leads with what it found; "no issues" needs a complete run that measured something.
+  // Its issue count covers only the viewed pages, so a run with other pages shows no result.
+  function resultOf({ observation }: SeoTimelineNode) {
+    if (!observation || observation.coverage.checked === 0) return null;
+    if (!observation.pageIds.every((id) => viewed.has(id))) return null;
+    const incomplete =
+      observation.coverage.failed > 0 ||
+      (observation.coverage.modules?.failed ?? 0) > 0;
+    return observation.issues > 0 || !incomplete ? observation.issues : null;
+  }
+  // Open failures fold into one row, and so do back-to-back clean checks.
+  const synced = foldSyncRuns(
+    buildSeoTimeline(workspace)
+      .reverse()
+      .filter(
+        ({ event }) =>
+          event.kind !== "metrics" ||
+          (syncIsNews(event) &&
+            new Date(event.at).getTime() > (lastRoutine.get(event.title) ?? 0)),
+      ),
+  );
+  const all = foldCleanChecks(synced, (node) => resultOf(node) === 0);
+  // The market only tells runs apart when they used different ones.
+  const manyMarkets =
+    new Set(
+      workspace.observations.map(
+        ({ countryCode, languageCode }) => `${countryCode}/${languageCode}`,
+      ),
+    ).size > 1;
+  // The tiles and the page cards already give the last check: its day, its tests, its issues and the link to
+  // its results. Its row would say them a second time, so the list starts at the event before it,
+  // as one closed line.
+  // A check that lost an optional part keeps its row: only the row says so. So does each check when the
+  // checks used different markets: only the row names the market.
+  const first = all.at(0);
+  const tiled =
+    summarized &&
+    !manyMarkets &&
+    first !== undefined &&
+    resultOf(first) !== null &&
+    !first.earlier.length &&
+    !first.observation?.coverage.modules?.failed &&
+    // The tiles show the newest check. A newer check without an event here leaves this row its own news.
+    first.observation?.id === lastRuleCheck(workspace)?.id;
+  const nodes = tiled ? all.slice(1) : all;
+  if (tiled && nodes.length === 0) return null;
+  // A row that asks for attention stays in view: a failed sync, a check that lost a part. A closed line would hide it.
+  const folded =
+    tiled &&
+    nodes.every(
+      ({ event }) => !FLAGGED_STATUSES.has(event.status.toLowerCase()),
+    );
+  // The runs row over the tabs opens each of these checks: a pick of its day shows its tests and results link.
+  // A list of the same checks would be a second way to the same thing.
+  const runChecks = seoRunChecks(workspace);
+  if (
+    folded &&
+    nodes.every(
+      ({ observation, earlier }) =>
+        observation !== undefined &&
+        observation !== null &&
+        !earlier.length &&
+        !observation.coverage.failed &&
+        !observation.coverage.modules?.failed &&
+        runChecks.has(observation.id),
+    )
+  )
+    return null;
+  const visible = showAll ? nodes : nodes.slice(0, SEO_TIMELINE_VISIBLE);
+  const onePage = workspace.scope.pageIds.length <= 1;
+  return (
+    <TimelineFrame folded={folded} title={t("timeline.title")}>
+      {nodes.length === 0 ? (
+        <SeoEmpty
+          // No promise of a check where no check can run.
+          title={t(
+            workspace.availableActions.canRequestAnalysis
+              ? "timeline.empty"
+              : "timeline.emptyOff",
+          )}
+          body={t(
+            workspace.availableActions.canRequestAnalysis
+              ? "timeline.emptyBody"
+              : "timeline.emptyBodyOff",
+          )}
+        />
+      ) : (
+        <div className={cn(HOLDER_ITEM_CLASS, "p-2")}>
+          <ol aria-label={t("timeline.graphLabel")} className="divide-y">
+            {visible.map((node, index) => {
+              const {
+                event,
+                observation,
+                at,
+                label,
+                syncs: runs,
+                earlier,
+              } = node;
+              const status = event.status.toLowerCase();
+              // A sync's status is its coverage; "unavailable" means nothing was read.
+              const failed =
+                status === "failed" ||
+                (event.kind === "metrics" && status === "unavailable");
+              const flagged = FLAGGED_STATUSES.has(status);
+              const Icon = failed ? CircleAlert : icons[event.kind];
+              const incomplete =
+                observation &&
+                (observation.coverage.failed > 0 ||
+                  (observation.coverage.modules?.failed ?? 0) > 0);
+              const result = resultOf(node);
+              // Earlier folded checks that covered another number of rules; the newest count is shown.
+              const earlierRules = [
+                ...new Set(
+                  earlier
+                    .map((check) => check.observation?.coverage.checked)
+                    .filter(
+                      (checked) =>
+                        checked !== undefined &&
+                        checked !== observation?.coverage.checked,
+                    ),
+                ),
+              ];
+              return (
+                <li
+                  key={event.id}
+                  ref={
+                    index === SEO_TIMELINE_VISIBLE ? firstRevealed : undefined
+                  }
+                  tabIndex={index === SEO_TIMELINE_VISIBLE ? -1 : undefined}
+                  className="focus-visible:outline-ring flex gap-3 rounded-md px-2 py-3 focus-visible:outline-2"
+                >
+                  <span
+                    className={cn(
+                      "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full",
+                      failed
+                        ? "bg-quinary text-semantic-destructive"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    <Icon className="size-3.5" aria-hidden />
+                  </span>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    {/* The date keeps its own line on a phone, so every row reads the same. */}
+                    <div className="flex flex-col gap-y-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between sm:gap-x-3">
+                      <h3 className="text-sm font-medium">
+                        {event.kind === "metrics" && failed
+                          ? t("timeline.metricsFailedTimes", {
+                              count: runs,
+                            })
+                          : runs > 1
+                            ? t("timeline.metricsSyncedTimes", {
+                                count: runs,
+                              })
+                            : earlier.length
+                              ? t("timeline.cleanChecks", {
+                                  count: earlier.length + 1,
+                                })
+                              : result !== null
+                                ? t("timeline.result", { count: result })
+                                : t(`timeline.${label}`)}
+                      </h3>
+                      <span className="text-muted-foreground text-xs">
+                        {earlier.length ? (
+                          // Folded checks name the days they span; one day keeps one date.
+                          <>
+                            {format.dateTimeRange(
+                              Math.min(
+                                ...earlier.map((check) =>
+                                  new Date(check.at).getTime(),
+                                ),
+                              ),
+                              new Date(at),
+                              { dateStyle: "medium" },
+                            )}
+                          </>
+                        ) : observation && event.taskId ? (
+                          // The date opens the results of the check: its Task is the record behind the row.
+                          // The link has a 40 px hit area on a phone; the negative margin keeps the line in place.
+                          <Link
+                            href={`/tasks/${encodeURIComponent(event.taskId)}`}
+                            className="-my-3 inline-block py-3 underline underline-offset-4"
+                          >
+                            <SeoDate value={at} />
+                            {/* A date alone does not say where the link leads. */}
+                            <span className="sr-only">
+                              , {t("timeline.viewResults")}
+                            </span>
+                          </Link>
+                        ) : (
+                          <SeoDate value={at} />
+                        )}
+                      </span>
+                    </div>
+                    {event.kind === "action" && taskStatus.has(event.status) ? (
+                      <SeoState>{taskStatus(event.status)}</SeoState>
+                    ) : flagged && t.has(`timeline.statuses.${status}`) ? (
+                      <SeoState>{t(`timeline.statuses.${status}`)}</SeoState>
+                    ) : null}
+                    {observation ? (
+                      // The facts wrap fact by fact: on a phone a line ended with a dot.
+                      <SeoMetaLine
+                        className="text-xs"
+                        items={[
+                          [
+                            "tests",
+                            t(
+                              // Folded checks that all ran the same count say it is per check.
+                              earlier.length && !earlierRules.length
+                                ? "timeline.checkSummaryEach"
+                                : "timeline.checkSummary",
+                              { checked: observation.coverage.checked },
+                            ),
+                          ],
+                          // Devices tell rows with another rule count apart.
+                          [
+                            "devices",
+                            observation.devices.length
+                              ? format.list(
+                                  observation.devices.map((device) =>
+                                    t("timeline.device", { device }),
+                                  ),
+                                )
+                              : null,
+                          ],
+                          // A one-page Audit needs no page count on every row.
+                          [
+                            "pages",
+                            onePage &&
+                            observation.pageIds.length === 1 &&
+                            viewed.has(observation.pageIds[0])
+                              ? null
+                              : t("pages.count", {
+                                  count: observation.pageIds.length,
+                                }),
+                          ],
+                          // One check names its gaps next to the count they belong to.
+                          ...(earlier.length
+                            ? []
+                            : gapsOf(observation.coverage)
+                          ).map((gap): [string, string] => [gap, gap]),
+                          [
+                            "market",
+                            manyMarkets && observation.countryCode
+                              ? seoMarketName(
+                                  locale,
+                                  observation.countryCode,
+                                  observation.languageCode,
+                                )
+                              : null,
+                          ],
+                        ]}
+                      />
+                    ) : event.kind === "page_change" ? (
+                      <p className="text-sm break-words">{event.title}</p>
+                    ) : null}
+                    {earlierRules.length ? (
+                      <p className="text-muted-foreground text-xs">
+                        {t("timeline.earlierRules", {
+                          counts: earlierRules.join(", "),
+                        })}
+                      </p>
+                    ) : null}
+                    {incomplete ? (
+                      <p className="text-muted-foreground text-xs">
+                        {t("timeline.incomplete")}
+                      </p>
+                    ) : null}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs empty:hidden">
+                      {observation && !earlier.length ? null : (
+                        // One check needs no details: its date opens its results.
+                        <details className="text-muted-foreground">
+                          <SeoFoldSummary className="py-3 underline-offset-4 hover:underline">
+                            {/* Folded checks open to a list of the checks, each with its own results link. */}
+                            {observation
+                              ? t("timeline.viewEachResult", {
+                                  count: earlier.length + 1,
+                                })
+                              : t("timeline.sourceDetails")}
+                          </SeoFoldSummary>
+                          <div className="space-y-2 pt-2">
+                            {observation ? (
+                              // Folded checks, newest first: each keeps its time, its gaps and its Task.
+                              [
+                                {
+                                  id: event.id,
+                                  at,
+                                  observation,
+                                  taskId: event.taskId,
+                                },
+                                ...earlier.map((check) => ({
+                                  id: check.event.id,
+                                  at: check.at,
+                                  observation: check.observation,
+                                  taskId: check.event.taskId,
+                                })),
+                              ].map((check) => {
+                                // A count that differs from the newest says which check ran fewer or more tests.
+                                const gaps = check.observation
+                                  ? [
+                                      check.observation.coverage.checked !==
+                                      observation.coverage.checked
+                                        ? t("timeline.checkSummary", {
+                                            checked:
+                                              check.observation.coverage
+                                                .checked,
+                                          })
+                                        : null,
+                                      ...gapsOf(check.observation.coverage),
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" · ")
+                                  : "";
+                                return (
+                                  <p key={check.id}>
+                                    <SeoDate value={check.at} />
+                                    {gaps ? ` · ${gaps}` : ""}
+                                    {check.taskId ? (
+                                      <>
+                                        {" · "}
+                                        {taskLink(check.taskId, true)}
+                                      </>
+                                    ) : null}
+                                  </p>
+                                );
+                              })
+                            ) : (
+                              <>
+                                <p className="whitespace-pre-wrap break-words">
+                                  {event.detail}
+                                </p>
+                                {event.taskId ? taskLink(event.taskId) : null}
+                              </>
+                            )}
+                          </div>
+                        </details>
+                      )}
+                      {failed && event.kind === "check" && onRetry ? (
+                        <Button variant="outline" size="sm" onClick={onRetry}>
+                          <Play />
+                          {t("timeline.runNewCheck")}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+          {nodes.length > visible.length ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              onClick={() => setShowAll(true)}
+            >
+              {t("timeline.showAll", { count: nodes.length })}
+            </Button>
+          ) : null}
+        </div>
+      )}
+    </TimelineFrame>
+  );
+}

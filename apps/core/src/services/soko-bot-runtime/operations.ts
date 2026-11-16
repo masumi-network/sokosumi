@@ -17,6 +17,7 @@ import type * as mediaChecks from "./media-checks";
 import type * as mediaGeneration from "./media-generation";
 import type * as mediaReferences from "./media-references";
 import type * as memory from "./memory";
+import type * as seo from "./seo";
 import type * as skills from "./skills";
 import type * as social from "./social";
 import type * as taskCreation from "./task-creation";
@@ -327,6 +328,9 @@ export interface RuntimeOperations {
       typeof toolScope.requireOwnerSubscriberWord
     >
   ) => ReturnType<typeof toolScope.requireOwnerSubscriberWord>;
+  executeSeoTool: (
+    ...args: RuntimeOperationArguments<typeof seo.executeSeoTool>
+  ) => ReturnType<typeof seo.executeSeoTool>;
   executeAuthorizedTool: (
     ...args: RuntimeOperationArguments<typeof dispatch.executeAuthorizedTool>
   ) => ReturnType<typeof dispatch.executeAuthorizedTool>;

@@ -10,10 +10,8 @@ import {
   createTaskScheduleRequestSchema,
   taskScheduleSchema,
 } from "@/schemas/task-schedule.schema";
-import {
-  createTaskSchedule,
-  mapTaskSchedule,
-} from "@/services/task-schedule.service";
+import { createTaskSchedule } from "@/services/task-schedule.service";
+import { mapTaskSchedule } from "@/services/task-schedule-read.service";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({

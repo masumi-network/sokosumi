@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { Prisma } from "@sokosumi/database";
+import { SOKO_BOT_SEO_WRITE_CAPABILITIES } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { enqueueSokoBotEffect } from "@/services/soko-bot-effect-outbox.service";
 
@@ -50,6 +51,7 @@ const AD_WRITE_RECEIPT_PROOF = {
 } as const;
 
 export const ACTION_CAPABILITIES = new Set([
+  ...SOKO_BOT_SEO_WRITE_CAPABILITIES,
   "newsletter_draft_issue",
   "create_newsletter_issue",
   "update_newsletter_issue",
