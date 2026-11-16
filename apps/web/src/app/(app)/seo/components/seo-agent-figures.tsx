@@ -86,6 +86,8 @@ export function SeoAgentFigures({
           {t("agent.figures.rankings", {
             found: format.number(keywords.found),
             read: format.number(keywords.read),
+            // The plural reads the number itself: "1.000" in German would count as one.
+            count: keywords.read,
             depth: keywords.depth
               ? keywords.depth.min === keywords.depth.max
                 ? "same"

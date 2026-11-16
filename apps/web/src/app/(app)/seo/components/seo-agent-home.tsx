@@ -103,6 +103,8 @@ function SeoAgentPanel({
   const dialogAction = dialogKey
     ? model.data.actions.find((action) => seoActionKey(action) === dialogKey)
     : undefined;
+  // An action that leaves the data closes its dialog for good: a later refetch that brings it back opens nothing.
+  if (dialogKey && !dialogAction) setDialogKey(null);
   // Missing search statistics are a banner over the result, not one of the steps.
   const statisticsStep = brief.steps.find(
     (step) => step.kind === "connect" && step.provider === "search_console",

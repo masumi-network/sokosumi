@@ -6361,7 +6361,11 @@ describe("SEO workspace integration", () => {
     // The row leaves the steps with its Task; the dialog stays and shows the Task.
     await waitFor(() =>
       expect(
-        screen.queryByRole("button", { name: /^Write a description/ }),
+        // The open dialog hides the page from roles: the query looks past that, or it is empty at once.
+        screen.queryByRole("button", {
+          name: /^Write a description/,
+          hidden: true,
+        }),
       ).toBeNull(),
     );
     expect(
