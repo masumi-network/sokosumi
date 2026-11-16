@@ -13,7 +13,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useId, useRef, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
@@ -26,7 +26,7 @@ import { SeoGoogleConnection } from "./seo-google-connection";
 import type { SeoIssueSeverity } from "./seo-overview-model";
 import { SEO_ROW_BUTTON_CLASS, SeoActionName, SeoSeverity } from "./seo-shared";
 import { useSeoConnectionStatus } from "./use-seo-connection";
-import type { SeoWorkspaceModel } from "./use-seo-workspace";
+import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
 /** A step with a sentence and its own button. An action and the strategy actions are rows that lead to a card. */
 type SeoButtonStep = Exclude<SeoAgentStep, { kind: "action" | "strategy" }>;
@@ -226,7 +226,7 @@ export function SeoActionsLinkRow({
 
 /**
  * An action as one row: its title, and a press opens it in a dialog on the same tab. The lead row also says
- * what the check found and has a button under it that opens the same dialog, outside the row's own button.
+ * what the check found and has a button under it that opens the action on the Actions tab.
  */
 export function SeoActionStepRow({
   action,
@@ -245,11 +245,9 @@ export function SeoActionStepRow({
 }) {
   const t = useTranslations("App.Seo");
   const findingId = useId();
-  const row = useRef<HTMLButtonElement>(null);
   return (
     <li className="content-rise">
       <button
-        ref={row}
         type="button"
         // The finding describes the row: as part of its name it read several sentences per press.
         aria-describedby={lead ? findingId : undefined}
@@ -287,16 +285,14 @@ export function SeoActionStepRow({
         </span>
         <ChevronRight className="text-muted-foreground size-4 shrink-0" />
       </button>
-      {/* The lead opens its action, as a press on its row does: the dialog holds the Task button with the
-          reasons, so a Task is drafted once its reasons were in view. */}
+      {/* The lead opens its action on the Actions tab, among the others: its dialog holds the Task button with
+          the reasons, so a Task is drafted once its reasons were in view. */}
       {lead ? (
         <div className="px-4 pb-3">
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => {
-              if (row.current) onOpen(row.current);
-            }}
+            onClick={() => model.showAction(seoActionKey(action))}
           >
             {t("agent.openAction")}
             <ArrowRight />

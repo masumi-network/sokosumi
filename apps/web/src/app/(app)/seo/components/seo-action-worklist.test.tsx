@@ -118,6 +118,25 @@ describe("SEO action worklist", () => {
     ).toHaveFocus();
   });
 
+  it("gives the focus back to the row of the closed dialog, also when the list changed meanwhile", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(view([high, low]));
+    await user.click(screen.getByRole("button", { name: "Fix the redirect" }));
+    await screen.findByRole("dialog", { name: "Fix the redirect" });
+    // A new check puts a row before it: the row is a new element by then.
+    const idea = {
+      ...action("idea", "Write a guide"),
+      kind: "opportunity",
+    } as const;
+    rerender(view([idea, high, low]));
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Fix the redirect" }),
+      ).toHaveFocus(),
+    );
+  });
+
   it("closes the dialog of an action that left the list, and does not open it again when it comes back", async () => {
     const user = userEvent.setup();
     const { rerender } = render(view([high, low]));

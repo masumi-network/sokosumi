@@ -55,7 +55,8 @@ export function SeoActionWorklist({
   const t = useTranslations("App.Seo");
   const [filter, setFilter] = useState<SeoActionFilter>("all");
   const [openKey, setOpenKey] = useState<string | null>(null);
-  const opener = useRef<HTMLButtonElement | null>(null);
+  // The action whose row gets the focus when its dialog closes: the row may be new by then.
+  const focusKey = useRef<string | null>(null);
   const list = useRef<HTMLUListElement>(null);
   const bucket = (action: ProjectSeoAction) =>
     seoActionBucket(action, severity(action));
@@ -79,6 +80,17 @@ export function SeoActionWorklist({
     )?.focus();
   });
   const rows = rowsFor(shown);
+  // The lead of the Agent tab sent the reader here for one action: it opens among all rows. One that left the
+  // list in the meantime opens nothing.
+  const { shownAction, setShownAction } = model;
+  useEffect(() => {
+    if (!shownAction) return;
+    setShownAction(null);
+    if (!actions.some((action) => seoActionKey(action) === shownAction)) return;
+    setFilter("all");
+    focusKey.current = shownAction;
+    setOpenKey(shownAction);
+  }, [shownAction, setShownAction, actions]);
   // The dialog holds its action by key: a Task for it changes the action, and the dialog shows the new state.
   // An action that left the list closes its dialog, and the dialog does not open again when it comes back.
   const opened = actions.find((action) => seoActionKey(action) === openKey);
@@ -145,8 +157,8 @@ export function SeoActionWorklist({
             severity={severity(action)}
             rail={RAIL[bucket(action)]}
             model={model}
-            onOpen={(row) => {
-              opener.current = row;
+            onOpen={() => {
+              focusKey.current = seoActionKey(action);
               setOpenKey(seoActionKey(action));
             }}
           />
@@ -160,10 +172,12 @@ export function SeoActionWorklist({
         onCloseAutoFocus={(event) => {
           // Focus goes back to the row; a row that a new check took away gives it to the first row.
           event.preventDefault();
-          const row = opener.current;
-          (row?.isConnected
-            ? row
-            : list.current?.querySelector<HTMLButtonElement>("button")
+          const buttons = Array.from(
+            list.current?.querySelectorAll<HTMLButtonElement>("button") ?? [],
+          );
+          (
+            buttons.find((row) => row.dataset.actionKey === focusKey.current) ??
+            buttons[0]
           )?.focus();
         }}
       />
@@ -182,7 +196,7 @@ function SeoWorklistRow({
   severity: SeoIssueSeverity | null;
   rail: string;
   model: SeoWorkspaceModel;
-  onOpen: (row: HTMLButtonElement) => void;
+  onOpen: () => void;
 }) {
   const t = useTranslations("App.Seo");
   const finding = useSeoActionFinding(action, model);
@@ -193,11 +207,12 @@ function SeoWorklistRow({
     <li>
       <button
         type="button"
+        data-action-key={seoActionKey(action)}
         // The title names the row; the page and the finding, then the labels, describe it in the order on screen.
         aria-labelledby={titleId}
         aria-describedby={`${factsId} ${labelsId}`}
         className={cn(SEO_ROW_BUTTON_CLASS, "items-stretch px-3 py-2.5")}
-        onClick={(event) => onOpen(event.currentTarget)}
+        onClick={onOpen}
       >
         <span
           aria-hidden

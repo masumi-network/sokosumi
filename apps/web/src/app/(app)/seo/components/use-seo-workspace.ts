@@ -375,6 +375,12 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setShownStrategy(true);
     void setFilters({ tab: "actions" });
   }
+  // The lead of the Agent tab opens its action on the Actions tab, in the list with the other actions.
+  const [shownAction, setShownAction] = useState<string | null>(null);
+  function showAction(key: string) {
+    setShownAction(key);
+    void setFilters({ tab: "actions" });
+  }
   function openChat(draft?: string) {
     if (draft) setChatDraft(draft);
     setChatOpen(true);
@@ -463,6 +469,9 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     shownStrategy,
     setShownStrategy,
     showStrategy,
+    shownAction,
+    setShownAction,
+    showAction,
     chatDraft,
     setChatDraft,
     chatOpen,

@@ -6057,6 +6057,7 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     // The lead row is short: its reasons are in the dialog it opens.
     expect(screen.queryByText("The title is missing")).toBeNull();
+    // The button leads to the Actions tab, where the action opens among the others.
     await user.click(openAction);
     const dialog = await screen.findByRole("dialog", {
       name: "Fix the page title",
@@ -6089,19 +6090,26 @@ describe("SEO workspace integration", () => {
     );
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    // Focus returns to the row the button opened, not to the button.
-    expect(
-      within(
-        screen.getByRole("list", { name: "The agent proposes" }),
-      ).getByRole("button", { name: /^Fix the page title/ }),
-    ).toHaveFocus();
-    // The Actions tab lists the same fix as a row: its reasons wait in the same dialog, with the tinted button.
-    await user.click(screen.getByRole("tab", { name: "Actions" }));
-    const listed = await screen.findByRole("button", {
-      name: /^Fix the page title/,
-    });
+    expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    // Focus goes to the action's row in the list of the Actions tab, not to the page.
+    const listed = within(
+      screen.getByRole("list", { name: "Actions" }),
+    ).getByRole("button", { name: /^Fix the page title/ });
+    await waitFor(() => expect(listed).toHaveFocus());
     expect(screen.queryByText("The title is missing")).toBeNull();
-    await user.click(listed);
+    // The dialog does not open again by itself: the Agent tab and back open the list alone.
+    await user.click(screen.getByRole("tab", { name: "Agent" }));
+    await user.click(screen.getByRole("tab", { name: "Actions" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await user.click(
+      within(screen.getByRole("list", { name: "Actions" })).getByRole(
+        "button",
+        { name: /^Fix the page title/ },
+      ),
+    );
     expect(
       within(await screen.findByRole("dialog")).getByRole("button", {
         name: "Create draft task",
