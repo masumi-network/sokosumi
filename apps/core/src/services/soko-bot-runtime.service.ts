@@ -34,6 +34,7 @@ import type {
   RuntimeOperationArguments,
   RuntimeOperations,
 } from "./soko-bot-runtime/operations";
+import * as seo from "./soko-bot-runtime/seo";
 import * as skills from "./soko-bot-runtime/skills";
 import * as social from "./soko-bot-runtime/social";
 import * as taskCreation from "./soko-bot-runtime/task-creation";
@@ -284,6 +285,7 @@ export class SokoBotRuntimeService {
     requireNewsletterScope: (...args) => this.requireNewsletterScope(...args),
     requireOwnerSubscriberWord: (...args) =>
       this.requireOwnerSubscriberWord(...args),
+    executeSeoTool: (...args) => this.executeSeoTool(...args),
     executeAuthorizedTool: (...args) => this.executeAuthorizedTool(...args),
     resolveDecision: (...args) => this.resolveDecision(...args),
   };
@@ -685,6 +687,10 @@ export class SokoBotRuntimeService {
       typeof toolScope.requireOwnerSubscriberWord
     >
   ) => toolScope.requireOwnerSubscriberWord(this.operations, ...args);
+
+  private executeSeoTool = (
+    ...args: RuntimeOperationArguments<typeof seo.executeSeoTool>
+  ) => seo.executeSeoTool(this.operations, ...args);
 
   private executeAuthorizedTool = (
     ...args: RuntimeOperationArguments<typeof dispatch.executeAuthorizedTool>

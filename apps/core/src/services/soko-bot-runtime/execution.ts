@@ -1,5 +1,6 @@
 import {
   isSokoBotNewsletterCapability,
+  isSokoBotSeoCapability,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
 } from "@sokosumi/soko-bot";
 import {
@@ -157,6 +158,9 @@ export async function executeTool(
       );
     }
     if (existing.status === "COMPLETED") {
+      if (isSokoBotSeoCapability(input.capability)) {
+        return runtime.executeSeoTool(input, authorized, true);
+      }
       let replayResult = existing.result;
       if (input.capability === "preview_result") {
         if (authorized.askedByKind !== "OWNER")

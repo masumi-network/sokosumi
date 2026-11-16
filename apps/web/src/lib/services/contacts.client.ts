@@ -2,6 +2,8 @@ import {
   type ContactStage,
   deleteContactListsById,
   deleteContactsByIdChannelsByChannelId,
+  deleteContactsCompanyListsByListId,
+  type GetContactsCompaniesData,
   type GetContactsData,
   getContactLists,
   getContactListsByIdSuggestions,
@@ -12,6 +14,7 @@ import {
   getContactsByIdInteractions,
   getContactsCompanies,
   getContactsCompaniesByCompanyId,
+  getContactsCompanyLists,
   getContactsDuplicates,
   getContactsExportCsv,
   getContactsMap,
@@ -20,14 +23,17 @@ import {
   type PatchContactListsByIdData,
   type PatchContactsByIdData,
   type PatchContactsCompaniesByCompanyIdData,
+  type PatchContactsCompanyListsByListIdData,
   type PostContactListsData,
   type PostContactsByIdChannelsData,
+  type PostContactsCompanyListsData,
   type PostContactsData,
   type PostContactsImportData,
   type PostContactsStageUndoData,
   patchContactListsById,
   patchContactsById,
   patchContactsCompaniesByCompanyId,
+  patchContactsCompanyListsByListId,
   postContactLists,
   postContactListsByIdFind,
   postContactListsByIdMembers,
@@ -37,6 +43,9 @@ import {
   postContactsByIdArchive,
   postContactsByIdChannels,
   postContactsByIdEnrich,
+  postContactsCompanyLists,
+  postContactsCompanyListsByListIdMembers,
+  postContactsDuplicatesDismiss,
   postContactsImport,
   postContactsMerge,
   postContactsStage,
@@ -46,6 +55,7 @@ import {
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 
 export type ContactQuery = NonNullable<GetContactsData["query"]>;
+export type CompanyQuery = NonNullable<GetContactsCompaniesData["query"]>;
 
 function options() {
   return { client: getBrowserCoreClient(), throwOnError: true as const };
@@ -99,6 +109,49 @@ export const contactsService = {
       })
     ).data.data;
     return companies.length === 1 ? (companies[0] ?? null) : null;
+  },
+  /** Companies the contacts work at, with the relationship there. */
+  async companies(query: CompanyQuery) {
+    const { data } = await getContactsCompanies({ ...options(), query });
+    return { companies: data.data, total: data.meta.pagination.total };
+  },
+  async companyLists() {
+    return (await getContactsCompanyLists({ ...options() })).data.data;
+  },
+  async createCompanyList(
+    body: NonNullable<PostContactsCompanyListsData["body"]>,
+  ) {
+    return (await postContactsCompanyLists({ ...options(), body })).data.data;
+  },
+  async updateCompanyList(
+    listId: string,
+    body: NonNullable<PatchContactsCompanyListsByListIdData["body"]>,
+  ) {
+    return (
+      await patchContactsCompanyListsByListId({
+        ...options(),
+        path: { listId },
+        body,
+      })
+    ).data.data;
+  },
+  async deleteCompanyList(listId: string) {
+    await deleteContactsCompanyListsByListId({
+      ...options(),
+      path: { listId },
+    });
+  },
+  async changeCompanyMembers(
+    listId: string,
+    change: { add?: string[]; remove?: string[] },
+  ) {
+    return (
+      await postContactsCompanyListsByListIdMembers({
+        ...options(),
+        path: { listId },
+        body: { add: change.add ?? [], remove: change.remove ?? [] },
+      })
+    ).data.data;
   },
   async company(companyId: string) {
     return (
@@ -176,6 +229,10 @@ export const contactsService = {
   },
   async duplicates(query: { contactId?: string; limit?: number } = {}) {
     return (await getContactsDuplicates({ ...options(), query })).data.data;
+  },
+  /** These contacts are different people; duplicates stop grouping them. */
+  async notDuplicates(contactIds: string[]) {
+    await postContactsDuplicatesDismiss({ ...options(), body: { contactIds } });
   },
   async merge(winnerId: string, loserIds: string[]) {
     return (

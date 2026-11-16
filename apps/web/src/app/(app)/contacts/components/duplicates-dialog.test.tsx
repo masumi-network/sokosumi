@@ -33,7 +33,12 @@ const group: ContactDuplicateGroup = {
 };
 
 function renderDialog(groups: ContactDuplicateGroup[]) {
-  const props = { onMerge: vi.fn(), onOpenContact: vi.fn(), onClose: vi.fn() };
+  const props = {
+    onMerge: vi.fn(),
+    onNotSame: vi.fn(),
+    onOpenContact: vi.fn(),
+    onClose: vi.fn(),
+  };
   render(<DuplicatesDialog groups={groups} {...props} />);
   return props;
 }
@@ -51,6 +56,13 @@ describe("DuplicatesDialog", () => {
     expect(props.onMerge).toHaveBeenCalledWith(group.contacts);
   });
 
+  it("marks the group as different people", () => {
+    const props = renderDialog([group]);
+    fireEvent.click(screen.getByRole("button", { name: "notSameGroup" }));
+    expect(props.onNotSame).toHaveBeenCalledWith(group.contacts);
+    expect(props.onMerge).not.toHaveBeenCalled();
+  });
+
   it("opens a record to check it first", () => {
     const props = renderDialog([group]);
     fireEvent.click(screen.getByText("adam@example.com"));
@@ -63,6 +75,7 @@ describe("DuplicatesDialog", () => {
         groups={[group]}
         capped
         onMerge={vi.fn()}
+        onNotSame={vi.fn()}
         onOpenContact={vi.fn()}
         onClose={vi.fn()}
       />,

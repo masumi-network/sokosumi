@@ -1,3 +1,4 @@
+import { isSokoBotSeoCapability } from "@sokosumi/soko-bot";
 import {
   evalCoworkerRefusal,
   isEvalWorkspace,
@@ -39,6 +40,8 @@ export async function executeAuthorizedTool(
     if (simulated) return simulated;
   }
 
+  if (isSokoBotSeoCapability(input.capability))
+    return runtime.executeSeoTool(input, authorized);
   switch (input.capability) {
     case "newsletter_draft_issue":
     case "get_newsletter":

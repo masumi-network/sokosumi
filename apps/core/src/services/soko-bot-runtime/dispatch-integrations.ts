@@ -12,16 +12,18 @@ import {
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
-import { listSokoBotIntegrationsForBot } from "@/services/soko-bot-integration-list.service";
 import {
-  activeIntegrationsForBot,
   adToolkitRefusal,
-  fetchCalendarEvents,
-  fetchInboxMessage,
-  fetchInboxPage,
   listIntegrationTools,
   readIntegrationTool,
   runIntegrationTool,
+} from "@/services/composio-integration-tools.service";
+import { listSokoBotIntegrationsForBot } from "@/services/soko-bot-integration-list.service";
+import {
+  activeIntegrationsForBot,
+  fetchCalendarEvents,
+  fetchInboxMessage,
+  fetchInboxPage,
 } from "@/services/soko-bot-integrations.service";
 import {
   type AuthorizedSokoBotRuntime,

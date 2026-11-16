@@ -1,6 +1,7 @@
 import { type Prisma } from "@sokosumi/database";
 import {
   isSokoBotCapability,
+  SOKO_BOT_SEO_CAPABILITIES,
   type SokoBotTurnGrantClaims,
 } from "@sokosumi/soko-bot";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
@@ -8,6 +9,7 @@ import { SokoBotRuntimeAuthorizationError } from "../soko-bot-runtime.service";
 
 /** Tools whose work belongs to a Project; a project bot's go to its own. */
 export const PROJECT_SCOPED_TOOLS: ReadonlySet<string> = new Set([
+  ...SOKO_BOT_SEO_CAPABILITIES,
   "list_tasks",
   "create_task",
   "hire_agent",

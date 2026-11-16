@@ -396,6 +396,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     id: task.id,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
+    workspaceId: task.workspace.id,
     ownerId: task.ownerId,
     owner: taskOwnerSummary,
     // Deprecated aliases — keep until clients migrate.

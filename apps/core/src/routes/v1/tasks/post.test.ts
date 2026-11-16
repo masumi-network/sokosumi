@@ -106,11 +106,13 @@ function buildMapTaskResponse(task: {
   pendingVendorGrantId?: string | null;
 }) {
   const organizationId = task.organizationId ?? "org_123";
+  const workspaceId = "11111111-1111-7111-8111-111111111111";
 
   return {
     id: task.id,
     createdAt: "2026-04-02T08:00:00.000Z",
     updatedAt: "2026-04-02T08:00:00.000Z",
+    workspaceId,
     ownerId: "user_123",
     organizationId,
     projectId: null,
@@ -169,7 +171,7 @@ function buildMapTaskResponse(task: {
         ? (task.pendingVendorGrantId ?? null)
         : null,
     workspace: {
-      id: "11111111-1111-7111-8111-111111111111",
+      id: workspaceId,
       organizationId,
       organization: organizationId
         ? {

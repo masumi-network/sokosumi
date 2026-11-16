@@ -72,6 +72,8 @@ globalThis.MESSAGES = {
       "A teammate moved {taskName} to another calendar source",
     "Notifications.Task.scheduleOccurrenceChangedByMember":
       "A teammate changed an occurrence of {taskName}",
+    "Notifications.Task.seoMonitorWorse":
+      "{taskName}: the newest scheduled SEO result got worse. New failures: {newFailures}. Ranking drops: {drops}.",
     "Notifications.Project.closed": "{projectName} is now closed",
     "Notifications.Project.closeFailed":
       "{projectName} could not finish closing",
@@ -150,6 +152,8 @@ globalThis.MESSAGES = {
       "Ein Teammitglied hat {taskName} in eine andere Kalenderquelle verschoben",
     "Notifications.Task.scheduleOccurrenceChangedByMember":
       "Ein Teammitglied hat einen Termin von {taskName} geändert",
+    "Notifications.Task.seoMonitorWorse":
+      "{taskName}: Das neueste geplante SEO-Ergebnis ist schlechter. Neue Fehler: {newFailures}. Ranking-Verluste: {drops}.",
     "Notifications.Project.closed": "{projectName} ist jetzt geschlossen",
     "Notifications.Project.closeFailed":
       "{projectName} konnte nicht vollständig geschlossen werden",
@@ -228,6 +232,8 @@ globalThis.MESSAGES = {
       "Un miembro del equipo movió {taskName} a otra fuente de calendario",
     "Notifications.Task.scheduleOccurrenceChangedByMember":
       "Un miembro del equipo cambió una ocurrencia de {taskName}",
+    "Notifications.Task.seoMonitorWorse":
+      "{taskName}: el último resultado SEO programado empeoró. Fallos nuevos: {newFailures}. Caídas de posición: {drops}.",
     "Notifications.Project.closed": "{projectName} ya está cerrado",
     "Notifications.Project.closeFailed":
       "{projectName} no pudo terminar de cerrarse",
