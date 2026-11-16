@@ -146,7 +146,12 @@ describe("onboardingStep", () => {
     ).toEqual({ step: "plan", phase: "planning" });
     // A stopped planning run keeps the screen, where Cuso offers a retry.
     expect(
-      onboardingStep(saved({ work: running("strategy", "failed") })).phase,
+      onboardingStep(
+        saved({
+          brandBrainConfirmedAt: confirmed,
+          work: running("strategy", "failed"),
+        }),
+      ).phase,
     ).toBe("planning");
     expect(onboardingStep(draft({ work: running("strategy") }))).toEqual({
       step: "plan",
@@ -157,6 +162,35 @@ describe("onboardingStep", () => {
         draft({ strategy: { ...cmoStrategy, changes: [], calendar: [] } }),
       ).phase,
     ).toBe("planning");
+  });
+
+  it("keeps Site and Brand while the plan Cuso started after the research is written", () => {
+    // The plan starts when the research ends, before the founder confirms.
+    expect(onboardingStep(saved({ work: running("strategy") }))).toEqual({
+      step: "brand",
+      phase: "review",
+    });
+    expect(
+      onboardingStep(
+        saved({
+          work: running("strategy"),
+          brandBrain: { ...brain, questions: [question()] },
+        }),
+      ),
+    ).toEqual({ step: "site", phase: "asking" });
+    // A finished plan waits for the founder's "Looks like us" too.
+    expect(onboardingStep(draft({ brandBrainConfirmedAt: null }))).toEqual({
+      step: "brand",
+      phase: "review",
+    });
+  });
+
+  it("keeps the first plan on screen while Cuso patches it or fixes the brand", () => {
+    for (const change of ["fix", "patch"] as const) {
+      expect(
+        onboardingStep(draft({ work: { ...running("strategy"), change } })),
+      ).toEqual({ step: "plan", phase: "review" });
+    }
   });
 
   it("reviews a whole plan, and keeps it on screen while Cuso changes it", () => {

@@ -3,7 +3,7 @@
 import "./onboarding.css";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { CusoMessage } from "../../lib/chat-messages";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
@@ -33,9 +33,23 @@ function canRevisit(step: OnboardingStep, overview: CmoOverview): boolean {
 const POLL_MS = 2_500;
 /** A hidden tab still checks in, so coming back shows where Cuso is now. */
 const HIDDEN_POLL_MS = 20_000;
-/** The change request after a no, once a plan exists. */
-const BRAND_CORRECTED =
-  "I said no to some of your Brand Brain questions. Fit the plan to the corrected Brand Brain.";
+
+/**
+ * The plan as the steps show it: a piece a patch skipped is no longer in
+ * the month.
+ */
+function withoutSkippedPieces(overview: CmoOverview): CmoOverview {
+  const strategy = overview.strategy;
+  if (!strategy?.calendar.some((entry) => entry.status === "skipped"))
+    return overview;
+  return {
+    ...overview,
+    strategy: {
+      ...strategy,
+      calendar: strategy.calendar.filter((entry) => entry.status !== "skipped"),
+    },
+  };
+}
 
 interface OnboardingFlowProps {
   overview: CmoOverview;
@@ -65,7 +79,8 @@ export function OnboardingFlow({
   returnedFromCheckout = false,
   actions,
 }: OnboardingFlowProps) {
-  const [overview, setOverview] = useState(initialOverview);
+  const [stored, setOverview] = useState(initialOverview);
+  const overview = useMemo(() => withoutSkippedPieces(stored), [stored]);
   const [messages, setMessages] = useState(initialMessages);
   const [skipped, setSkipped] = useState(initialSkipped);
   // Back from Polar, until the payment shows or the person says they did not pay.
@@ -296,10 +311,10 @@ export function OnboardingFlow({
             }
             onApprove={async () => {
               setOverview(await actions.approveBrandBrain());
-              // Once a plan exists, the corrected Brand Brain changes it.
-              const refused = await request(
-                overview.strategy ? BRAND_CORRECTED : undefined,
-              );
+              // Cuso starts the plan when the research ends, so it is often
+              // written or under way: asking again hands back the one he is
+              // writing. A no is already Core's to fix on its section.
+              const refused = overview.strategy ? null : await request();
               if (!refused) setViewing(null);
               return refused;
             }}

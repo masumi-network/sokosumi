@@ -7,7 +7,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { cmoOverview, cmoStrategyVersion } from "../../test-fixtures/cmo";
-import { asking, brain, draft, strategy } from "../../test-fixtures/onboarding";
+import {
+  asking,
+  brain,
+  draft,
+  strategy,
+  work,
+} from "../../test-fixtures/onboarding";
 import { Onboarding } from "../onboarding";
 import { inertOnboardingActions, type OnboardingActions } from "./actions";
 import { BrandStep } from "./brand-step";
@@ -338,6 +344,78 @@ it("approves the Brand Brain, then asks for the plan", async () => {
   expect(actions.requestStrategy).toHaveBeenCalledWith(undefined);
 });
 
+it("lets the founder confirm while Cuso writes the plan he started, and shows its progress", async () => {
+  // The plan starts when the research ends, before the founder confirms.
+  const writing = asking({ botStatus: "RUNNING", work: work("strategy") });
+  const actions = actionsFor({
+    approveBrandBrain: vi.fn(async () =>
+      asking({
+        botStatus: "RUNNING",
+        work: work("strategy"),
+        brandBrainConfirmedAt: new Date(),
+      }),
+    ),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={writing}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actions}
+      />,
+    ),
+  );
+  expect(text()).not.toContain("Finishing up");
+  expect(button("Looks like us").disabled).toBe(false);
+  await press("Looks like us");
+  // Core hands the running plan back; nothing new starts.
+  expect(actions.requestStrategy).toHaveBeenCalledWith(undefined);
+  expect(text()).toContain("Writing your plan");
+});
+
+it("opens a plan Cuso already wrote on Looks like us, without planning again", async () => {
+  const actions = actionsFor({ approveBrandBrain: vi.fn(async () => draft()) });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={draft({ brandBrainConfirmedAt: null })}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actions}
+      />,
+    ),
+  );
+  await press("Looks like us");
+  expect(actions.approveBrandBrain).toHaveBeenCalledTimes(1);
+  expect(actions.requestStrategy).not.toHaveBeenCalled();
+  expect(text()).toContain("Approve plan");
+});
+
+it("leaves out pieces a patch skipped", async () => {
+  const skipped = {
+    ...strategy,
+    changes: ["LinkedIn now once a week"],
+    calendar: strategy.calendar.map((entry) =>
+      entry.id === "b" ? { ...entry, status: "skipped" as const } : entry,
+    ),
+  };
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={draft({ strategy: skipped })}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actionsFor()}
+      />,
+    ),
+  );
+  await press("The full plan");
+  await press("Your month");
+  expect(text()).toContain("We built a rocket in a garage.");
+  expect(text()).not.toContain("Three, two, one.");
+});
+
 // Brand: a tile opens the side panel.
 
 it("opens a tile into the side panel with a way to say what is off", async () => {
@@ -490,6 +568,28 @@ async function renderPlan(
 const planHidden = () =>
   container.querySelector(".ob-plan-body")?.hasAttribute("hidden");
 const replanning = () => text().includes("Cuso is re-planning your month");
+
+it("keeps the plan on screen and says Cuso is changing it while a brand fix patches it", async () => {
+  await act(async () =>
+    root.render(
+      <PlanStep
+        overview={draft({
+          viewerCanApprove: true,
+          work: work("strategy", { change: "fix" }),
+        })}
+        phase="review"
+        onRequest={async () => null}
+        onSetAds={async () => null}
+        onAnswer={noop}
+        onUpdate={async () => null}
+        onApprove={noop}
+        onConnectMeasurement={async () => ({ url: null, error: null })}
+      />,
+    ),
+  );
+  expect(planHidden()).toBe(false);
+  expect(text()).toContain("Cuso is changing it");
+});
 
 it("swaps the plan for a re-planning screen the moment a pace is tapped", async () => {
   const core = pending();

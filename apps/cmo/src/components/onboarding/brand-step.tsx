@@ -255,7 +255,12 @@ export function BrandStep({
   }, [sent, answered, idle]);
   const fixing = sent !== null && !answered && !stale;
   // Right after research Cuso is still wrapping up his turn for a few seconds.
-  const finishing = !fixing && !stale && overview.botStatus === "RUNNING";
+  // The plan he starts next runs for minutes and never holds the founder.
+  const finishing =
+    !fixing &&
+    !stale &&
+    overview.botStatus === "RUNNING" &&
+    overview.work?.kind !== "strategy";
 
   async function ask(text: string) {
     setSent({ text, after: lastWord?.id ?? null });

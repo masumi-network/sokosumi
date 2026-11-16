@@ -111,7 +111,14 @@ export function onboardingStep(
     return { step: "launch", phase: "review" };
   }
 
-  if (!strategy && work?.kind === "strategy" && work.status !== "done") {
+  // Cuso starts the first plan himself once the research ends; it is the
+  // Plan step only after the founder confirms the brand.
+  if (
+    !strategy &&
+    work?.kind === "strategy" &&
+    work.status !== "done" &&
+    overview.brandBrainConfirmedAt
+  ) {
     return { step: "plan", phase: "planning" };
   }
   if (!overview.brandBrainConfirmedAt && !approved) {
@@ -135,7 +142,9 @@ export function onboardingStep(
   const firstPlan =
     (strategy.changes ?? []).length === 0 &&
     !(strategy.questions ?? []).some((question) => question.answer);
-  const writing = work?.kind === "strategy" && work.status === "running";
+  // A patch or brand fix changes a few pieces: the plan stays on screen.
+  const writing =
+    work?.kind === "strategy" && work.status === "running" && !work.change;
   if (firstPlan && (writing || strategy.calendar.length === 0)) {
     return { step: "plan", phase: "planning" };
   }
