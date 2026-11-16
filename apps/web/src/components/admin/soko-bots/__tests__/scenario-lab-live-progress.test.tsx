@@ -106,6 +106,31 @@ describe("ScenarioLab live progress", () => {
     expect(screen.getByText("liveRoute")).toBeInTheDocument();
   });
 
+  it("stops polling the turn once the lab closes", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout"] });
+    startTurnMock.mockResolvedValue({ ok: true, value: { turnId: "turn_1" } });
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ turn: turn("RUNNING", []) }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const { unmount } = render(
+        <ScenarioLab versionId="v11" versions={VERSIONS} />,
+        { wrapper: withNuqsTestingAdapter({}) },
+      );
+      const runButtons = await screen.findAllByRole("button", { name: "run" });
+      fireEvent.click(runButtons[0] as HTMLElement);
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+      unmount();
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("names the old result as previous so it is not read as the live one", async () => {
     listRunsMock.mockResolvedValue({
       ok: true,

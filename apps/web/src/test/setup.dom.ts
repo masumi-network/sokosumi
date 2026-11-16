@@ -153,7 +153,7 @@ afterAll(async () => {
     view.unmount();
   } finally {
     restoreDocument();
-    resetBrowserState();
+    await resetBrowserState();
   }
   if (isPending) {
     throw new Error(
@@ -163,7 +163,10 @@ afterAll(async () => {
 });
 
 // Hand the next file the browser a file that runs first sees.
-function resetBrowserState() {
+async function resetBrowserState() {
+  // A fetch still in flight would otherwise fail in whichever file runs next.
+  // Isolated runs got this from happy-dom's teardown.
+  await window.happyDOM.abort();
   for (const cookie of document.cookie.split(";")) {
     const name = cookie.split("=")[0]?.trim();
     if (name) {

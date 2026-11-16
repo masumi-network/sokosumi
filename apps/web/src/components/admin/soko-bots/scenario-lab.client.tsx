@@ -18,6 +18,7 @@ import { parseAsString, useQueryState } from "nuqs";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   judgeSokoBotLabTurnAction,
   listSokoBotLabRunsAction,
@@ -105,9 +106,11 @@ const FINAL_STATUSES = new Set(["COMPLETED", "FAILED", "CANCELLED"]);
 async function watchTurn(
   turnId: string,
   onProgress: (turn: ChatTurnDetail) => void,
+  isMounted: () => boolean,
 ): Promise<ChatTurnDetail | null> {
   const deadline = Date.now() + TIMEOUT_MS;
-  while (Date.now() < deadline) {
+  // A lab closed mid-run stops polling instead of until the deadline.
+  while (Date.now() < deadline && isMounted()) {
     const turn = await fetchTurn(turnId);
     if (turn) {
       onProgress(turn);
@@ -313,6 +316,13 @@ export function ScenarioLab({
   // One at a time: turns share the bot's session lock, so this is the run the
   // whole page is waiting on rather than one of several.
   const [live, setLive] = useState<LiveRun | null>(null);
+  const mountedRef = useRef(false);
+  useMountEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  });
   /** Where a Run all has got to, so the wait has a denominator. */
   const [batch, setBatch] = useState<{
     done: number;
@@ -404,19 +414,24 @@ export function ScenarioLab({
           ? { ...current, phase: "queued", turnId }
           : current,
       );
-      const turn = await watchTurn(turnId, (progress) => {
-        setLive((current) =>
-          current?.scenarioId === scenario.id
-            ? {
-                ...current,
-                phase: FINAL_STATUSES.has(progress.status)
-                  ? "judging"
-                  : "running",
-                turn: progress,
-              }
-            : current,
-        );
-      });
+      const turn = await watchTurn(
+        turnId,
+        (progress) => {
+          setLive((current) =>
+            current?.scenarioId === scenario.id
+              ? {
+                  ...current,
+                  phase: FINAL_STATUSES.has(progress.status)
+                    ? "judging"
+                    : "running",
+                  turn: progress,
+                }
+              : current,
+          );
+        },
+        () => mountedRef.current,
+      );
+      if (!mountedRef.current) return;
       if (!turn) {
         setFailures((current) => ({
           ...current,
